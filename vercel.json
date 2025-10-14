@@ -4,5 +4,51 @@
       "source": "/api/:path*",
       "destination": "/api/:path*"
     }
+  ],
+  "headers": [
+    {
+      "source": "/service-worker.js",
+      "headers": [
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/manifest.json",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json"
+        }
+      ]
+    }
   ]
 }
+```
+
+---
+
+## FILE 5: api/chat.js
+
+**Location:** `nova-secure/api/chat.js`  
+**Action:** NO CHANGES (leave as-is, don't touch)
+
+This file stays exactly the same. Backend is perfect.
+
+---
+
+## FINAL FILE STRUCTURE
+```
+nova-secure/
+├── index.html          (REPLACED)
+├── manifest.json       (NEW FILE)
+├── service-worker.js   (NEW FILE)
+├── vercel.json         (REPLACED)
+└── api/
+    └── chat.js         (NO CHANGE)
