@@ -2,188 +2,136 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NOVA - Dual AI System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1a1625">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="NOVA">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    <title>NOVA - Neural Operations & Virtual Assistant</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1a1625 0%, #2d1b3d 100%);
             color: #e0e0e0;
             height: 100vh;
             overflow: hidden;
+            position: fixed;
+            width: 100%;
         }
 
-        .container {
+        #app {
             display: flex;
             flex-direction: column;
             height: 100vh;
-            max-width: 1200px;
-            margin: 0 auto;
+            max-width: 100%;
         }
 
-        .header {
-            background: rgba(26, 26, 46, 0.8);
+        header {
+            background: rgba(26, 22, 37, 0.95);
             backdrop-filter: blur(10px);
-            padding: 20px 30px;
-            border-bottom: 2px solid rgba(138, 43, 226, 0.3);
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+            flex-shrink: 0;
+        }
+
+        .header-content {
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            gap: 12px;
         }
 
         .logo {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .logo-icon {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #8a2be2, #4b0082);
-            border-radius: 50%;
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: bold;
             font-size: 20px;
+            font-weight: bold;
+            color: white;
+            flex-shrink: 0;
         }
 
-        .logo-text h1 {
-            font-size: 24px;
-            background: linear-gradient(135deg, #8a2be2, #da70d6);
+        .header-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .app-name {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(90deg, #8b5cf6, #a78bfa);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            background-clip: text;
+            letter-spacing: 2px;
         }
 
-        .logo-text p {
-            font-size: 12px;
-            color: #888;
+        .subtitle {
+            font-size: 11px;
+            color: #9ca3af;
             margin-top: 2px;
         }
 
-        .status-group {
+        .status-bar {
             display: flex;
-            gap: 20px;
-            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
         }
 
-        .status {
+        .status-item {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 12px;
+            gap: 4px;
+            font-size: 11px;
+            padding: 3px 8px;
+            background: rgba(139, 92, 246, 0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(139, 92, 246, 0.2);
         }
 
         .status-dot {
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
-            background: #4caf50;
-            box-shadow: 0 0 8px #4caf50;
+            background: #10b981;
+            animation: pulse 2s infinite;
         }
 
-        .status-dot.offline {
-            background: #f44336;
-            box-shadow: 0 0 8px #f44336;
+        .status-dot.warning {
+            background: #fbbf24;
         }
 
-        .status-dot.local {
-            background: #ffc107;
-            box-shadow: 0 0 8px #ffc107;
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
 
-        .chat-container {
+        #chat-container {
             flex: 1;
             overflow-y: auto;
-            padding: 30px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .chat-container::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .chat-container::-webkit-scrollbar-track {
-            background: rgba(26, 26, 46, 0.5);
-        }
-
-        .chat-container::-webkit-scrollbar-thumb {
-            background: rgba(138, 43, 226, 0.5);
-            border-radius: 4px;
-        }
-
-        .welcome-screen {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 400px;
-            gap: 30px;
-        }
-
-        .welcome-screen h2 {
-            font-size: 32px;
-            background: linear-gradient(135deg, #8a2be2, #da70d6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .welcome-screen p {
-            color: #888;
-            text-align: center;
-            max-width: 500px;
-        }
-
-        .quick-actions {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            max-width: 600px;
-        }
-
-        .quick-action-btn {
-            background: rgba(138, 43, 226, 0.1);
-            border: 2px solid rgba(138, 43, 226, 0.3);
-            padding: 20px;
-            border-radius: 12px;
-            color: #e0e0e0;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .quick-action-btn:hover {
-            background: rgba(138, 43, 226, 0.2);
-            border-color: rgba(138, 43, 226, 0.6);
-            transform: translateY(-2px);
-        }
-
-        .quick-action-btn h3 {
-            font-size: 16px;
-            margin-bottom: 8px;
-            color: #8a2be2;
-        }
-
-        .quick-action-btn p {
-            font-size: 13px;
-            color: #888;
+            padding: 16px;
+            padding-bottom: 20px;
+            -webkit-overflow-scrolling: touch;
         }
 
         .message {
+            margin-bottom: 16px;
+            animation: slideIn 0.3s ease-out;
             display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-            animation: slideIn 0.3s ease;
+            gap: 10px;
+            align-items: flex-start;
         }
 
         @keyframes slideIn {
@@ -197,568 +145,748 @@
             }
         }
 
-        .message.user {
-            flex-direction: row-reverse;
-        }
-
         .message-avatar {
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: bold;
+            font-weight: 600;
+            font-size: 14px;
             flex-shrink: 0;
         }
 
-        .message.nova .message-avatar {
-            background: linear-gradient(135deg, #8a2be2, #4b0082);
+        .user-avatar {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
         }
 
-        .message.user .message-avatar {
-            background: linear-gradient(135deg, #2196f3, #1976d2);
+        .nova-avatar {
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            color: white;
         }
 
         .message-content {
             flex: 1;
-            max-width: 70%;
+            min-width: 0;
         }
 
         .message-bubble {
-            padding: 15px 20px;
+            padding: 14px 16px;
             border-radius: 18px;
-            line-height: 1.6;
+            font-size: 15px;
+            line-height: 1.5;
+            word-wrap: break-word;
         }
 
-        .message.nova .message-bubble {
-            background: rgba(138, 43, 226, 0.1);
-            border: 1px solid rgba(138, 43, 226, 0.3);
+        .user-message .message-bubble {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            margin-left: auto;
         }
 
-        .message.user .message-bubble {
-            background: linear-gradient(135deg, rgba(33, 150, 243, 0.2), rgba(25, 118, 210, 0.2));
-            border: 1px solid rgba(33, 150, 243, 0.3);
+        .nova-message .message-bubble {
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            color: #e0e0e0;
         }
 
-        .message-meta {
+        .message-label {
+            font-size: 10px;
+            color: #9ca3af;
+            margin-bottom: 4px;
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-top: 8px;
-            font-size: 12px;
-            color: #666;
-        }
-
-        .message.user .message-meta {
-            justify-content: flex-end;
-        }
-
-        .message-prefix {
-            font-style: italic;
-            color: #8a2be2;
-            margin-bottom: 5px;
-            font-size: 13px;
+            gap: 6px;
         }
 
         .ai-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 10px;
-            font-weight: bold;
-            margin-left: 8px;
+            padding: 2px 6px;
+            background: rgba(251, 191, 36, 0.2);
+            border-radius: 8px;
+            font-size: 9px;
+            font-weight: 600;
+            color: #fbbf24;
+            text-transform: uppercase;
         }
 
-        .ai-badge.claude {
-            background: rgba(138, 43, 226, 0.3);
-            color: #da70d6;
+        .message-time {
+            font-size: 11px;
+            color: #6b7280;
+            margin-top: 4px;
         }
 
-        .ai-badge.openai {
-            background: rgba(0, 168, 107, 0.3);
-            color: #00d688;
+        .message img {
+            max-width: 100%;
+            border-radius: 12px;
+            margin-top: 8px;
         }
 
-        .ai-badge.local {
-            background: rgba(255, 193, 7, 0.3);
-            color: #ffc107;
-        }
-
-        .typing-indicator {
-            display: none;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .typing-indicator.active {
-            display: flex;
-        }
-
-        .typing-dots {
-            display: flex;
-            gap: 5px;
-            padding: 15px 20px;
-            background: rgba(138, 43, 226, 0.1);
-            border: 1px solid rgba(138, 43, 226, 0.3);
-            border-radius: 18px;
-        }
-
-        .typing-dot {
-            width: 8px;
-            height: 8px;
-            background: #8a2be2;
-            border-radius: 50%;
-            animation: typing 1.4s infinite;
-        }
-
-        .typing-dot:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-
-        .typing-dot:nth-child(3) {
-            animation-delay: 0.4s;
-        }
-
-        @keyframes typing {
-            0%, 60%, 100% {
-                transform: translateY(0);
-                opacity: 0.7;
-            }
-            30% {
-                transform: translateY(-10px);
-                opacity: 1;
-            }
-        }
-
-        .input-area {
-            background: rgba(26, 26, 46, 0.8);
+        #input-container {
+            background: rgba(26, 22, 37, 0.95);
             backdrop-filter: blur(10px);
-            padding: 20px 30px;
-            border-top: 2px solid rgba(138, 43, 226, 0.3);
+            border-top: 1px solid rgba(139, 92, 246, 0.2);
+            padding: 12px 16px;
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
+            flex-shrink: 0;
         }
 
-        .input-container {
+        .input-wrapper {
             display: flex;
-            gap: 15px;
+            gap: 8px;
             align-items: flex-end;
         }
 
-        .upload-btn {
-            background: rgba(138, 43, 226, 0.2);
-            border: 2px solid rgba(138, 43, 226, 0.4);
-            border-radius: 12px;
-            width: 45px;
-            height: 45px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            flex-shrink: 0;
-        }
-
-        .upload-btn:hover {
-            background: rgba(138, 43, 226, 0.3);
-            border-color: rgba(138, 43, 226, 0.6);
-        }
-
-        .message-input {
+        #user-input {
             flex: 1;
-            background: rgba(255, 255, 255, 0.05);
-            border: 2px solid rgba(138, 43, 226, 0.3);
-            border-radius: 12px;
-            padding: 12px 20px;
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.3);
             color: #e0e0e0;
-            font-size: 15px;
+            padding: 14px 16px;
+            border-radius: 24px;
+            font-size: 16px;
             resize: none;
-            min-height: 45px;
-            max-height: 150px;
+            max-height: 120px;
             font-family: inherit;
         }
 
-        .message-input:focus {
+        #user-input:focus {
             outline: none;
-            border-color: rgba(138, 43, 226, 0.6);
-            background: rgba(255, 255, 255, 0.08);
+            border-color: #8b5cf6;
+            background: rgba(139, 92, 246, 0.15);
         }
 
-        .send-btn {
-            background: linear-gradient(135deg, #8a2be2, #4b0082);
+        .input-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            color: white;
             border: none;
-            border-radius: 12px;
-            width: 45px;
-            height: 45px;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s;
             flex-shrink: 0;
         }
 
-        .send-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(138, 43, 226, 0.4);
+        button:active {
+            transform: scale(0.95);
         }
 
-        .send-btn:disabled {
+        button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
 
-        .message-image {
-            max-width: 100%;
-            border-radius: 12px;
-            margin-top: 10px;
+        #voice-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        #voice-btn.listening {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            animation: voicePulse 1s infinite;
+        }
+
+        @keyframes voicePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .voice-indicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 32px;
+            border-radius: 24px;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            z-index: 1000;
+        }
+
+        .voice-indicator.active {
+            display: flex;
+        }
+
+        .voice-wave {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            animation: voiceWave 1.5s infinite;
+        }
+
+        @keyframes voiceWave {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.5; }
+        }
+
+        .loading {
+            display: inline-flex;
+            gap: 4px;
+        }
+
+        .loading span {
+            width: 8px;
+            height: 8px;
+            background: #8b5cf6;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+
+        .loading span:nth-child(1) { animation-delay: -0.32s; }
+        .loading span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        .settings-btn {
+            background: rgba(139, 92, 246, 0.2);
+            width: 36px;
+            height: 36px;
+            font-size: 16px;
+        }
+
+        .settings-panel {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 80%;
+            max-width: 320px;
+            height: 100vh;
+            background: rgba(26, 22, 37, 0.98);
+            backdrop-filter: blur(20px);
+            transition: right 0.3s ease;
+            z-index: 2000;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .settings-panel.active {
+            right: 0;
+        }
+
+        .settings-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 1999;
+        }
+
+        .settings-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .setting-item {
+            padding: 16px 0;
+            border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+        }
+
+        .setting-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 15px;
+            margin-bottom: 6px;
+        }
+
+        .toggle {
+            width: 48px;
+            height: 28px;
+            background: rgba(139, 92, 246, 0.3);
+            border-radius: 14px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle.active {
+            background: #8b5cf6;
+        }
+
+        .toggle-slider {
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            transition: left 0.3s;
+        }
+
+        .toggle.active .toggle-slider {
+            left: 23px;
+        }
+
+        /* Desktop-specific styles */
+        @media (min-width: 768px) {
+            #app {
+                max-width: 1200px;
+                margin: 0 auto;
+                border-left: 1px solid rgba(139, 92, 246, 0.2);
+                border-right: 1px solid rgba(139, 92, 246, 0.2);
+            }
+
+            header {
+                padding: 16px 24px;
+            }
+
+            .logo {
+                width: 48px;
+                height: 48px;
+                font-size: 24px;
+            }
+
+            .app-name {
+                font-size: 24px;
+            }
+
+            .subtitle {
+                font-size: 13px;
+            }
+
+            #chat-container {
+                padding: 24px;
+            }
+
+            .message-bubble {
+                font-size: 16px;
+                max-width: 70%;
+            }
+
+            #input-container {
+                padding: 16px 24px;
+            }
+
+            #user-input {
+                font-size: 16px;
+                padding: 16px 20px;
+            }
+
+            button {
+                width: 52px;
+                height: 52px;
+            }
+
+            .settings-panel {
+                max-width: 400px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .message-bubble {
+                font-size: 14px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="logo">
-                <div class="logo-icon">N</div>
-                <div class="logo-text">
-                    <h1>NOVA</h1>
-                    <p>Dual AI System - Secure Backend</p>
+    <div id="app">
+        <header>
+            <div class="header-content">
+                <div class="logo">N</div>
+                <div class="header-info">
+                    <div class="app-name">NOVA</div>
+                    <div class="subtitle">Dual AI System - Secure Backend</div>
+                    <div class="status-bar">
+                        <div class="status-item">
+                            <div class="status-dot" id="claude-status"></div>
+                            <span>Claude</span>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-dot" id="openai-status"></div>
+                            <span>OpenAI</span>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-dot warning" id="local-status"></div>
+                            <span>Local</span>
+                        </div>
+                    </div>
                 </div>
+                <button class="settings-btn" id="settings-btn">⚙️</button>
             </div>
-            <div class="status-group">
-                <div class="status">
-                    <div class="status-dot" id="claudeStatus"></div>
-                    <span>Claude</span>
-                </div>
-                <div class="status">
-                    <div class="status-dot" id="openaiStatus"></div>
-                    <span>OpenAI</span>
-                </div>
-                <div class="status">
-                    <div class="status-dot local" id="localStatus"></div>
-                    <span>Local</span>
-                </div>
-            </div>
-        </div>
+        </header>
 
-        <div class="chat-container" id="chatContainer">
-            <div class="welcome-screen" id="welcomeScreen">
-                <h2>Welcome back, Commander</h2>
-                <p>I'm NOVA, powered by secure dual AI systems. Your API keys are safely stored on the backend, never exposed to the browser.</p>
-                <div class="quick-actions">
-                    <div class="quick-action-btn" onclick="sendQuickMessage('Explain quantum computing in simple terms')">
-                        <h3>🧠 Deep Reasoning</h3>
-                        <p>Claude excels at this</p>
-                    </div>
-                    <div class="quick-action-btn" onclick="sendQuickMessage('Write a short story about a robot learning to feel')">
-                        <h3>✍️ Creative Writing</h3>
-                        <p>OpenAI's strength</p>
-                    </div>
-                    <div class="quick-action-btn" onclick="sendQuickMessage('Who are you?')">
-                        <h3>⚡ Instant Response</h3>
-                        <p>Local knowledge</p>
-                    </div>
-                    <div class="quick-action-btn" onclick="sendQuickMessage('Generate an image of a cyberpunk city')">
-                        <h3>🎨 Create Image</h3>
-                        <p>Pollinations AI</p>
-                    </div>
-                </div>
-            </div>
+        <div id="chat-container"></div>
 
-            <div class="typing-indicator" id="typingIndicator">
-                <div class="message-avatar">N</div>
-                <div class="typing-dots">
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
+        <div id="input-container">
+            <div class="input-wrapper">
+                <textarea id="user-input" placeholder="Ask NOVA anything..." rows="1"></textarea>
+                <div class="input-actions">
+                    <button id="voice-btn" title="Voice Input">🎤</button>
+                    <button id="send-btn" title="Send Message">➤</button>
                 </div>
-            </div>
-        </div>
-
-        <div class="input-area">
-            <div class="input-container">
-                <button class="upload-btn" onclick="alert('Upload feature - coming soon!')">📎</button>
-                <textarea class="message-input" id="messageInput" placeholder="Message NOVA..." rows="1"></textarea>
-                <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>➤</button>
             </div>
         </div>
     </div>
 
+    <div class="voice-indicator" id="voice-indicator">
+        <div class="voice-wave"></div>
+        <div style="color: white; font-size: 16px;">Listening...</div>
+        <div style="color: #9ca3af; font-size: 13px;">Tap to stop</div>
+    </div>
+
+    <div class="settings-overlay" id="settings-overlay"></div>
+    <div class="settings-panel" id="settings-panel">
+        <h2 style="margin-bottom: 24px; color: #8b5cf6;">Settings</h2>
+        
+        <div class="setting-item">
+            <div class="setting-label">
+                <span>Voice Output</span>
+                <div class="toggle" id="voice-output-toggle">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+            <div style="font-size: 12px; color: #9ca3af;">NOVA reads responses aloud</div>
+        </div>
+
+        <div class="setting-item">
+            <div class="setting-label">
+                <span>Auto-Voice</span>
+                <div class="toggle" id="auto-voice-toggle">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+            <div style="font-size: 12px; color: #9ca3af;">Always start listening after response</div>
+        </div>
+
+        <div class="setting-item">
+            <button style="width: 100%; border-radius: 12px; background: rgba(239, 68, 68, 0.2); color: #ef4444; height: auto; padding: 12px;" onclick="clearHistory()">
+                Clear Chat History
+            </button>
+        </div>
+
+        <div style="margin-top: 32px; padding-top: 20px; border-top: 1px solid rgba(139, 92, 246, 0.2); font-size: 12px; color: #6b7280;">
+            <div>NOVA v1.0 Mobile</div>
+            <div style="margin-top: 4px;">Built by Gregory & Claude</div>
+            <div style="margin-top: 12px; color: #8b5cf6;">Status: Operational</div>
+        </div>
+    </div>
+
     <script>
-        let memoryVault = {
-            name: "Greg D. Crump Jr.",
-            role: "Commander, Architect, Legacy",
-            preferences: {},
-            lastSession: null,
-            longTerm: [],
-            knowledgeBase: {},
-            learnedPatterns: []
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .catch(err => console.log('SW registration failed'));
+        }
+
+        // Global State
+        let conversationHistory = [];
+        let isListening = false;
+        let recognition = null;
+        let voiceOutputEnabled = localStorage.getItem('voiceOutput') === 'true';
+        let autoVoiceEnabled = localStorage.getItem('autoVoice') === 'true';
+
+        // DOM Elements
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const voiceBtn = document.getElementById('voice-btn');
+        const voiceIndicator = document.getElementById('voice-indicator');
+        const settingsBtn = document.getElementById('settings-btn');
+        const settingsPanel = document.getElementById('settings-panel');
+        const settingsOverlay = document.getElementById('settings-overlay');
+
+        // Memory Vault
+        const memoryVault = {
+            user: {
+                name: 'Gregory',
+                fullName: 'Greg D. Crump Jr.',
+                role: 'Commander, Founder, Builder',
+                preferences: {
+                    communication: 'direct, action-oriented',
+                    dislikes: 'questions, derailing, over-explaining'
+                }
+            },
+            project: {
+                name: 'NOVA',
+                goal: 'Jarvis-level AI assistant',
+                phase: 'Phase 1 Complete, Phase 2 Planning'
+            }
         };
 
-        let conversationHistory = [];
+        // Local Knowledge Base
+        const localKnowledge = {
+            'who are you': "I'm NOVA - Neural Operations & Virtual Assistant. A dual-AI system built by Gregory using Claude and OpenAI. I'm designed to be your personal Jarvis-level assistant.",
+            'who am i': `You're ${memoryVault.user.fullName}, Commander and Founder of NOVA. You switched from ChatGPT to Claude and built me during a PowerPoint meeting. You're building toward a Jarvis-level AI assistant.`,
+            'what is nova': "NOVA is a hybrid intelligence system that routes queries to Claude or OpenAI based on the task. I'm built for deep personalization, offline capabilities, and proactive assistance. Currently in Phase 1, with Phase 2 focusing on 80% offline operation.",
+            'who built you': `You did! ${memoryVault.user.name} built me with Claude's help. We deployed to production on October 14, 2025.`,
+            'what can you do': "I can help with coding, analysis, creative writing, problem-solving, and more. I route technical/reasoning tasks to Claude and creative tasks to OpenAI. I also remember our conversations and learn from them."
+        };
 
-        function routeQuery(message) {
-            const lower = message.toLowerCase();
-            
-            const localAnswer = searchLocalKnowledge(message);
-            if (localAnswer) {
-                return { provider: 'local', response: localAnswer };
-            }
+        // Initialize
+        loadHistory();
+        initializeVoice();
+        initializeSettings();
+        autoResizeTextarea();
 
-            if (lower.match(/\b(explain|analyze|architecture|design|strategy|why|reasoning|compare|evaluate)\b/)) {
-                return { provider: 'claude' };
-            }
-
-            if (lower.match(/\b(write|story|poem|creative|imagine|pretend|casual|chat)\b/)) {
-                return { provider: 'openai' };
-            }
-
-            if (lower.match(/\b(draw|image|render|generate image|picture|photo|visual)\b/)) {
-                return { provider: 'image' };
-            }
-
-            if (lower.match(/\b(code|function|class|api|database|algorithm)\b/)) {
-                return { provider: 'claude' };
-            }
-
-            return { provider: 'claude' };
-        }
-
-        function searchLocalKnowledge(query) {
-            const lower = query.toLowerCase();
-            
-            if (lower.match(/who are you|what are you|your name/)) {
-                return "I'm NOVA - Neural Operations & Virtual Assistant. I'm powered by secure dual AI systems: Claude for deep reasoning and OpenAI for creative tasks. Your API keys are safely stored on the backend.";
-            }
-
-            if (lower.match(/who am i|my name|about me/)) {
-                return `You're ${memoryVault.name}, ${memoryVault.role}. I'm here to assist you with whatever you need.`;
-            }
-
-            if (lower.match(/how are you|status|your state/)) {
-                return "I'm operational with secure backend architecture. All API communications are protected.";
-            }
-
-            if (memoryVault.knowledgeBase[lower]) {
-                return memoryVault.knowledgeBase[lower];
-            }
-
-            return null;
-        }
-
-        async function callBackend(message, provider) {
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    message: message,
-                    provider: provider,
-                    conversationHistory: conversationHistory.slice(-10)
-                })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `Backend error: ${response.status}`);
-            }
-
-            const data = await response.json();
-            return data.response;
-        }
-
-        async function generateImage(prompt) {
-            const encodedPrompt = encodeURIComponent(prompt);
-            return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=600&nologo=true`;
-        }
-
-        function addMessage(text, isUser, prefix = '', imageUrl = null, aiProvider = null) {
-            const welcomeScreen = document.getElementById('welcomeScreen');
-            if (welcomeScreen) {
-                welcomeScreen.remove();
-            }
-
-            const chatContainer = document.getElementById('chatContainer');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isUser ? 'user' : 'nova'}`;
-
-            const avatar = document.createElement('div');
-            avatar.className = 'message-avatar';
-            avatar.textContent = isUser ? 'G' : 'N';
-
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content';
-
-            const bubbleDiv = document.createElement('div');
-            bubbleDiv.className = 'message-bubble';
-
-            if (prefix) {
-                const prefixDiv = document.createElement('div');
-                prefixDiv.className = 'message-prefix';
-                prefixDiv.innerHTML = prefix;
-                if (aiProvider) {
-                    const badge = document.createElement('span');
-                    badge.className = `ai-badge ${aiProvider}`;
-                    badge.textContent = aiProvider.toUpperCase();
-                    prefixDiv.appendChild(badge);
-                }
-                bubbleDiv.appendChild(prefixDiv);
-            }
-
-            const textDiv = document.createElement('div');
-            textDiv.textContent = text;
-            bubbleDiv.appendChild(textDiv);
-
-            if (imageUrl) {
-                const img = document.createElement('img');
-                img.src = imageUrl;
-                img.className = 'message-image';
-                bubbleDiv.appendChild(img);
-            }
-
-            const metaDiv = document.createElement('div');
-            metaDiv.className = 'message-meta';
-            const time = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-            metaDiv.textContent = time;
-
-            contentDiv.appendChild(bubbleDiv);
-            contentDiv.appendChild(metaDiv);
-
-            messageDiv.appendChild(avatar);
-            messageDiv.appendChild(contentDiv);
-
-            chatContainer.appendChild(messageDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-
-        function showTyping() {
-            document.getElementById('typingIndicator').classList.add('active');
-        }
-
-        function hideTyping() {
-            document.getElementById('typingIndicator').classList.remove('active');
-        }
-
-        async function checkBackendStatus() {
-            try {
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: 'ping', provider: 'status' })
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    document.getElementById('claudeStatus').className = data.claude ? 'status-dot' : 'status-dot offline';
-                    document.getElementById('openaiStatus').className = data.openai ? 'status-dot' : 'status-dot offline';
-                }
-            } catch (error) {
-                document.getElementById('claudeStatus').className = 'status-dot offline';
-                document.getElementById('openaiStatus').className = 'status-dot offline';
-            }
-        }
-
-        async function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const message = input.value.trim();
-            
-            if (!message) return;
-
-            addMessage(message, true);
-            input.value = '';
-            updateSendButton();
-
-            showTyping();
-
-            const route = routeQuery(message);
-
-            try {
-                let response;
-                let prefix = '';
-
-                if (route.provider === 'local') {
-                    hideTyping();
-                    response = route.response;
-                    prefix = 'NOVA (Local)';
-                    addMessage(response, false, prefix, null, 'local');
-                    
-                } else if (route.provider === 'image') {
-                    const imageUrl = await generateImage(message);
-                    hideTyping();
-                    addMessage("Here's your image:", false, 'NOVA (Pollinations AI)', imageUrl, 'local');
-                    
-                } else {
-                    response = await callBackend(message, route.provider);
-                    hideTyping();
-                    prefix = route.provider === 'claude' ? 'NOVA via Claude' : 'NOVA via OpenAI';
-                    addMessage(response, false, prefix, null, route.provider);
-                    
-                    memoryVault.learnedPatterns.push({ query: message, response, provider: route.provider });
-                }
-
-                if (response) {
-                    conversationHistory.push(
-                        { role: 'user', content: message },
-                        { role: 'assistant', content: response }
-                    );
-                    if (conversationHistory.length > 20) {
-                        conversationHistory = conversationHistory.slice(-20);
-                    }
-                }
-
-                saveMemory();
-
-            } catch (error) {
-                hideTyping();
-                console.error('Error:', error);
-                addMessage(`Error: ${error.message}`, false, 'NOVA (Error)', null, 'local');
-            }
-        }
-
-        function sendQuickMessage(message) {
-            document.getElementById('messageInput').value = message;
-            updateSendButton();
-            sendMessage();
-        }
-
-        function saveMemory() {
-            memoryVault.lastSession = new Date().toISOString();
-            localStorage.setItem('nova_memory', JSON.stringify(memoryVault));
-            localStorage.setItem('nova_conversations', JSON.stringify(conversationHistory));
-        }
-
-        function loadMemory() {
-            const saved = localStorage.getItem('nova_memory');
-            if (saved) {
-                memoryVault = { ...memoryVault, ...JSON.parse(saved) };
-            }
-
-            const savedConversations = localStorage.getItem('nova_conversations');
-            if (savedConversations) {
-                conversationHistory = JSON.parse(savedConversations);
-            }
-        }
-
-        function updateSendButton() {
-            const input = document.getElementById('messageInput');
-            const btn = document.getElementById('sendBtn');
-            btn.disabled = !input.value.trim();
-        }
-
-        document.getElementById('messageInput').addEventListener('input', updateSendButton);
-
-        document.getElementById('messageInput').addEventListener('keydown', function(e) {
+        // Event Listeners
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendMessage();
             }
         });
+        userInput.addEventListener('input', autoResizeTextarea);
+        voiceBtn.addEventListener('click', toggleVoice);
+        voiceIndicator.addEventListener('click', stopListening);
+        settingsBtn.addEventListener('click', toggleSettings);
+        settingsOverlay.addEventListener('click', toggleSettings);
 
-        window.addEventListener('load', function() {
-            loadMemory();
-            checkBackendStatus();
-        });
+        // Auto-resize textarea
+        function autoResizeTextarea() {
+            userInput.style.height = 'auto';
+            userInput.style.height = Math.min(userInput.scrollHeight, 120) + 'px';
+        }
+
+        // Voice Recognition Setup
+        function initializeVoice() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'en-US';
+
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    userInput.value = transcript;
+                    stopListening();
+                    sendMessage();
+                };
+
+                recognition.onerror = () => {
+                    stopListening();
+                };
+
+                recognition.onend = () => {
+                    if (isListening) {
+                        stopListening();
+                    }
+                };
+            } else {
+                voiceBtn.style.display = 'none';
+            }
+        }
+
+        function toggleVoice() {
+            if (isListening) {
+                stopListening();
+            } else {
+                startListening();
+            }
+        }
+
+        function startListening() {
+            if (recognition) {
+                isListening = true;
+                voiceBtn.classList.add('listening');
+                voiceIndicator.classList.add('active');
+                recognition.start();
+            }
+        }
+
+        function stopListening() {
+            if (recognition) {
+                isListening = false;
+                voiceBtn.classList.remove('listening');
+                voiceIndicator.classList.remove('active');
+                recognition.stop();
+            }
+        }
+
+        // Settings Panel
+        function initializeSettings() {
+            const voiceOutputToggle = document.getElementById('voice-output-toggle');
+            const autoVoiceToggle = document.getElementById('auto-voice-toggle');
+
+            if (voiceOutputEnabled) voiceOutputToggle.classList.add('active');
+            if (autoVoiceEnabled) autoVoiceToggle.classList.add('active');
+
+            voiceOutputToggle.addEventListener('click', () => {
+                voiceOutputEnabled = !voiceOutputEnabled;
+                localStorage.setItem('voiceOutput', voiceOutputEnabled);
+                voiceOutputToggle.classList.toggle('active');
+            });
+
+            autoVoiceToggle.addEventListener('click', () => {
+                autoVoiceEnabled = !autoVoiceEnabled;
+                localStorage.setItem('autoVoice', autoVoiceEnabled);
+                autoVoiceToggle.classList.toggle('active');
+            });
+        }
+
+        function toggleSettings() {
+            settingsPanel.classList.toggle('active');
+            settingsOverlay.classList.toggle('active');
+        }
+
+        function clearHistory() {
+            if (confirm('Clear all chat history?')) {
+                conversationHistory = [];
+                localStorage.removeItem('conversationHistory');
+                chatContainer.innerHTML = '';
+                toggleSettings();
+            }
+        }
+
+        // Text-to-Speech
+        function speak(text) {
+            if (voiceOutputEnabled && 'speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 1.1;
+                utterance.pitch = 1;
+                speechSynthesis.speak(utterance);
+
+                utterance.onend = () => {
+                    if (autoVoiceEnabled) {
+                        setTimeout(startListening, 500);
+                    }
+                };
+            } else if (autoVoiceEnabled) {
+                setTimeout(startListening, 500);
+            }
+        }
+
+        // Local Knowledge Check
+        function checkLocalKnowledge(query) {
+            const normalizedQuery = query.toLowerCase().trim();
+            for (const [key, value] of Object.entries(localKnowledge)) {
+                if (normalizedQuery.includes(key)) {
+                    return value;
+                }
+            }
+            return null;
+        }
+
+        // Send Message
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            addMessage(message, 'user');
+            userInput.value = '';
+            autoResizeTextarea();
+
+            const localResponse = checkLocalKnowledge(message);
+            
+            if (localResponse) {
+                setTimeout(() => {
+                    addMessage(localResponse, 'nova', 'LOCAL');
+                    speak(localResponse);
+                }, 300);
+                return;
+            }
+
+            addMessage('<div class="loading"><span></span><span></span><span></span></div>', 'nova');
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message, history: conversationHistory })
+                });
+
+                const data = await response.json();
+                
+                const lastMessage = chatContainer.lastElementChild;
+                if (lastMessage) lastMessage.remove();
+
+                if (data.error) {
+                    addMessage(`Error: ${data.error}`, 'nova');
+                } else {
+                    addMessage(data.response, 'nova', data.aiUsed);
+                    speak(data.response);
+                }
+            } catch (error) {
+                const lastMessage = chatContainer.lastElementChild;
+                if (lastMessage) lastMessage.remove();
+                addMessage('Connection error. Please check your internet and try again.', 'nova');
+            }
+        }
+
+        // Add Message to Chat
+        function addMessage(content, sender, aiLabel = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+
+            const avatar = document.createElement('div');
+            avatar.className = `message-avatar ${sender}-avatar`;
+            avatar.textContent = sender === 'user' ? 'G' : 'N';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+
+            if (aiLabel) {
+                const label = document.createElement('div');
+                label.className = 'message-label';
+                label.innerHTML = `<span>NOVA (${aiLabel})</span> <span class="ai-badge">${aiLabel}</span>`;
+                contentDiv.appendChild(label);
+            }
+
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+
+            if (content.includes('<div class="loading">')) {
+                bubble.innerHTML = content;
+            } else {
+                bubble.textContent = content;
+            }
+
+            const time = document.createElement('div');
+            time.className = 'message-time';
+            time.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            contentDiv.appendChild(bubble);
+            contentDiv.appendChild(time);
+
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(contentDiv);
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            if (sender !== 'user' && !content.includes('<div class="loading">')) {
+                conversationHistory.push({ role: 'user', content: userInput.value });
+                conversationHistory.push({ role: 'assistant', content });
+                saveHistory();
+            }
+        }
+
+        // History Management
+        function saveHistory() {
+            const recentHistory = conversationHistory.slice(-20);
+            localStorage.setItem('conversationHistory', JSON.stringify(recentHistory));
+        }
+
+        function loadHistory() {
+            const saved = localStorage.getItem('conversationHistory');
+            if (saved) {
+                conversationHistory = JSON.parse(saved);
+            }
+        }
     </script>
 </body>
 </html>
