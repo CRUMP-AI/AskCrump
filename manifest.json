@@ -1,9 +1,0 @@
-{
-  "name": "NOVA",
-  "short_name": "NOVA",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#1a1625",
-  "theme_color": "#8b5cf6",
-  "orientation": "portrait"
-}
