@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NOVA - Dual AI System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            color: #e0e0e0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(26, 26, 46, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px 30px;
+            border-bottom: 2px solid rgba(138, 43, 226, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #8a2be2, #4b0082);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 20px;
+        }
+
+        .logo-text h1 {
+            font-size: 24px;
+            background: linear-gradient(135deg, #8a2be2, #da70d6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo-text p {
+            font-size: 12px;
+            color: #888;
+            margin-top: 2px;
+        }
+
+        .status-group {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4caf50;
+            box-shadow: 0 0 8px #4caf50;
+        }
+
+        .status-dot.offline {
+            background: #f44336;
+            box-shadow: 0 0 8px #f44336;
+        }
+
+        .status-dot.local {
+            background: #ffc107;
+            box-shadow: 0 0 8px #ffc107;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .chat-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-container::-webkit-scrollbar-track {
+            background: rgba(26, 26, 46, 0.5);
+        }
+
+        .chat-container::-webkit-scrollbar-thumb {
+            background: rgba(138, 43, 226, 0.5);
+            border-radius: 4px;
+        }
+
+        .welcome-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+            gap: 30px;
+        }
+
+        .welcome-screen h2 {
+            font-size: 32px;
+            background: linear-gradient(135deg, #8a2be2, #da70d6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .welcome-screen p {
+            color: #888;
+            text-align: center;
+            max-width: 500px;
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            max-width: 600px;
+        }
+
+        .quick-action-btn {
+            background: rgba(138, 43, 226, 0.1);
+            border: 2px solid rgba(138, 43, 226, 0.3);
+            padding: 20px;
+            border-radius: 12px;
+            color: #e0e0e0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .quick-action-btn:hover {
+            background: rgba(138, 43, 226, 0.2);
+            border-color: rgba(138, 43, 226, 0.6);
+            transform: translateY(-2px);
+        }
+
+        .quick-action-btn h3 {
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: #8a2be2;
+        }
+
+        .quick-action-btn p {
+            font-size: 13px;
+            color: #888;
+        }
+
+        .message {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .message.nova .message-avatar {
+            background: linear-gradient(135deg, #8a2be2, #4b0082);
+        }
+
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, #2196f3, #1976d2);
+        }
+
+        .message-content {
+            flex: 1;
+            max-width: 70%;
+        }
+
+        .message-bubble {
+            padding: 15px 20px;
+            border-radius: 18px;
+            line-height: 1.6;
+        }
+
+        .message.nova .message-bubble {
+            background: rgba(138, 43, 226, 0.1);
+            border: 1px solid rgba(138, 43, 226, 0.3);
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, rgba(33, 150, 243, 0.2), rgba(25, 118, 210, 0.2));
+            border: 1px solid rgba(33, 150, 243, 0.3);
+        }
+
+        .message-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .message.user .message-meta {
+            justify-content: flex-end;
+        }
+
+        .message-prefix {
+            font-style: italic;
+            color: #8a2be2;
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+
+        .ai-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+
+        .ai-badge.claude {
+            background: rgba(138, 43, 226, 0.3);
+            color: #da70d6;
+        }
+
+        .ai-badge.openai {
+            background: rgba(0, 168, 107, 0.3);
+            color: #00d688;
+        }
+
+        .ai-badge.local {
+            background: rgba(255, 193, 7, 0.3);
+            color: #ffc107;
+        }
+
+        .typing-indicator {
+            display: none;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .typing-indicator.active {
+            display: flex;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 5px;
+            padding: 15px 20px;
+            background: rgba(138, 43, 226, 0.1);
+            border: 1px solid rgba(138, 43, 226, 0.3);
+            border-radius: 18px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #8a2be2;
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.7;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+
+        .input-area {
+            background: rgba(26, 26, 46, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px 30px;
+            border-top: 2px solid rgba(138, 43, 226, 0.3);
+        }
+
+        .input-container {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .upload-btn {
+            background: rgba(138, 43, 226, 0.2);
+            border: 2px solid rgba(138, 43, 226, 0.4);
+            border-radius: 12px;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .upload-btn:hover {
+            background: rgba(138, 43, 226, 0.3);
+            border-color: rgba(138, 43, 226, 0.6);
+        }
+
+        .message-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(138, 43, 226, 0.3);
+            border-radius: 12px;
+            padding: 12px 20px;
+            color: #e0e0e0;
+            font-size: 15px;
+            resize: none;
+            min-height: 45px;
+            max-height: 150px;
+            font-family: inherit;
+        }
+
+        .message-input:focus {
+            outline: none;
+            border-color: rgba(138, 43, 226, 0.6);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .send-btn {
+            background: linear-gradient(135deg, #8a2be2, #4b0082);
+            border: none;
+            border-radius: 12px;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(138, 43, 226, 0.4);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .message-image {
+            max-width: 100%;
+            border-radius: 12px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <div class="logo-icon">N</div>
+                <div class="logo-text">
+                    <h1>NOVA</h1>
+                    <p>Dual AI System - Secure Backend</p>
+                </div>
+            </div>
+            <div class="status-group">
+                <div class="status">
+                    <div class="status-dot" id="claudeStatus"></div>
+                    <span>Claude</span>
+                </div>
+                <div class="status">
+                    <div class="status-dot" id="openaiStatus"></div>
+                    <span>OpenAI</span>
+                </div>
+                <div class="status">
+                    <div class="status-dot local" id="localStatus"></div>
+                    <span>Local</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-container" id="chatContainer">
+            <div class="welcome-screen" id="welcomeScreen">
+                <h2>Welcome back, Commander</h2>
+                <p>I'm NOVA, powered by secure dual AI systems. Your API keys are safely stored on the backend, never exposed to the browser.</p>
+                <div class="quick-actions">
+                    <div class="quick-action-btn" onclick="sendQuickMessage('Explain quantum computing in simple terms')">
+                        <h3>🧠 Deep Reasoning</h3>
+                        <p>Claude excels at this</p>
+                    </div>
+                    <div class="quick-action-btn" onclick="sendQuickMessage('Write a short story about a robot learning to feel')">
+                        <h3>✍️ Creative Writing</h3>
+                        <p>OpenAI's strength</p>
+                    </div>
+                    <div class="quick-action-btn" onclick="sendQuickMessage('Who are you?')">
+                        <h3>⚡ Instant Response</h3>
+                        <p>Local knowledge</p>
+                    </div>
+                    <div class="quick-action-btn" onclick="sendQuickMessage('Generate an image of a cyberpunk city')">
+                        <h3>🎨 Create Image</h3>
+                        <p>Pollinations AI</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="typing-indicator" id="typingIndicator">
+                <div class="message-avatar">N</div>
+                <div class="typing-dots">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <div class="input-container">
+                <button class="upload-btn" onclick="alert('Upload feature - coming soon!')">📎</button>
+                <textarea class="message-input" id="messageInput" placeholder="Message NOVA..." rows="1"></textarea>
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>➤</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let memoryVault = {
+            name: "Greg D. Crump Jr.",
+            role: "Commander, Architect, Legacy",
+            preferences: {},
+            lastSession: null,
+            longTerm: [],
+            knowledgeBase: {},
+            learnedPatterns: []
+        };
+
+        let conversationHistory = [];
+
+        function routeQuery(message) {
+            const lower = message.toLowerCase();
+            
+            const localAnswer = searchLocalKnowledge(message);
+            if (localAnswer) {
+                return { provider: 'local', response: localAnswer };
+            }
+
+            if (lower.match(/\b(explain|analyze|architecture|design|strategy|why|reasoning|compare|evaluate)\b/)) {
+                return { provider: 'claude' };
+            }
+
+            if (lower.match(/\b(write|story|poem|creative|imagine|pretend|casual|chat)\b/)) {
+                return { provider: 'openai' };
+            }
+
+            if (lower.match(/\b(draw|image|render|generate image|picture|photo|visual)\b/)) {
+                return { provider: 'image' };
+            }
+
+            if (lower.match(/\b(code|function|class|api|database|algorithm)\b/)) {
+                return { provider: 'claude' };
+            }
+
+            return { provider: 'claude' };
+        }
+
+        function searchLocalKnowledge(query) {
+            const lower = query.toLowerCase();
+            
+            if (lower.match(/who are you|what are you|your name/)) {
+                return "I'm NOVA - Neural Operations & Virtual Assistant. I'm powered by secure dual AI systems: Claude for deep reasoning and OpenAI for creative tasks. Your API keys are safely stored on the backend.";
+            }
+
+            if (lower.match(/who am i|my name|about me/)) {
+                return `You're ${memoryVault.name}, ${memoryVault.role}. I'm here to assist you with whatever you need.`;
+            }
+
+            if (lower.match(/how are you|status|your state/)) {
+                return "I'm operational with secure backend architecture. All API communications are protected.";
+            }
+
+            if (memoryVault.knowledgeBase[lower]) {
+                return memoryVault.knowledgeBase[lower];
+            }
+
+            return null;
+        }
+
+        async function callBackend(message, provider) {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: message,
+                    provider: provider,
+                    conversationHistory: conversationHistory.slice(-10)
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `Backend error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.response;
+        }
+
+        async function generateImage(prompt) {
+            const encodedPrompt = encodeURIComponent(prompt);
+            return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=600&nologo=true`;
+        }
+
+        function addMessage(text, isUser, prefix = '', imageUrl = null, aiProvider = null) {
+            const welcomeScreen = document.getElementById('welcomeScreen');
+            if (welcomeScreen) {
+                welcomeScreen.remove();
+            }
+
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'nova'}`;
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = isUser ? 'G' : 'N';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble';
+
+            if (prefix) {
+                const prefixDiv = document.createElement('div');
+                prefixDiv.className = 'message-prefix';
+                prefixDiv.innerHTML = prefix;
+                if (aiProvider) {
+                    const badge = document.createElement('span');
+                    badge.className = `ai-badge ${aiProvider}`;
+                    badge.textContent = aiProvider.toUpperCase();
+                    prefixDiv.appendChild(badge);
+                }
+                bubbleDiv.appendChild(prefixDiv);
+            }
+
+            const textDiv = document.createElement('div');
+            textDiv.textContent = text;
+            bubbleDiv.appendChild(textDiv);
+
+            if (imageUrl) {
+                const img = document.createElement('img');
+                img.src = imageUrl;
+                img.className = 'message-image';
+                bubbleDiv.appendChild(img);
+            }
+
+            const metaDiv = document.createElement('div');
+            metaDiv.className = 'message-meta';
+            const time = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            metaDiv.textContent = time;
+
+            contentDiv.appendChild(bubbleDiv);
+            contentDiv.appendChild(metaDiv);
+
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(contentDiv);
+
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function showTyping() {
+            document.getElementById('typingIndicator').classList.add('active');
+        }
+
+        function hideTyping() {
+            document.getElementById('typingIndicator').classList.remove('active');
+        }
+
+        async function checkBackendStatus() {
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: 'ping', provider: 'status' })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('claudeStatus').className = data.claude ? 'status-dot' : 'status-dot offline';
+                    document.getElementById('openaiStatus').className = data.openai ? 'status-dot' : 'status-dot offline';
+                }
+            } catch (error) {
+                document.getElementById('claudeStatus').className = 'status-dot offline';
+                document.getElementById('openaiStatus').className = 'status-dot offline';
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+
+            addMessage(message, true);
+            input.value = '';
+            updateSendButton();
+
+            showTyping();
+
+            const route = routeQuery(message);
+
+            try {
+                let response;
+                let prefix = '';
+
+                if (route.provider === 'local') {
+                    hideTyping();
+                    response = route.response;
+                    prefix = 'NOVA (Local)';
+                    addMessage(response, false, prefix, null, 'local');
+                    
+                } else if (route.provider === 'image') {
+                    const imageUrl = await generateImage(message);
+                    hideTyping();
+                    addMessage("Here's your image:", false, 'NOVA (Pollinations AI)', imageUrl, 'local');
+                    
+                } else {
+                    response = await callBackend(message, route.provider);
+                    hideTyping();
+                    prefix = route.provider === 'claude' ? 'NOVA via Claude' : 'NOVA via OpenAI';
+                    addMessage(response, false, prefix, null, route.provider);
+                    
+                    memoryVault.learnedPatterns.push({ query: message, response, provider: route.provider });
+                }
+
+                if (response) {
+                    conversationHistory.push(
+                        { role: 'user', content: message },
+                        { role: 'assistant', content: response }
+                    );
+                    if (conversationHistory.length > 20) {
+                        conversationHistory = conversationHistory.slice(-20);
+                    }
+                }
+
+                saveMemory();
+
+            } catch (error) {
+                hideTyping();
+                console.error('Error:', error);
+                addMessage(`Error: ${error.message}`, false, 'NOVA (Error)', null, 'local');
+            }
+        }
+
+        function sendQuickMessage(message) {
+            document.getElementById('messageInput').value = message;
+            updateSendButton();
+            sendMessage();
+        }
+
+        function saveMemory() {
+            memoryVault.lastSession = new Date().toISOString();
+            localStorage.setItem('nova_memory', JSON.stringify(memoryVault));
+            localStorage.setItem('nova_conversations', JSON.stringify(conversationHistory));
+        }
+
+        function loadMemory() {
+            const saved = localStorage.getItem('nova_memory');
+            if (saved) {
+                memoryVault = { ...memoryVault, ...JSON.parse(saved) };
+            }
+
+            const savedConversations = localStorage.getItem('nova_conversations');
+            if (savedConversations) {
+                conversationHistory = JSON.parse(savedConversations);
+            }
+        }
+
+        function updateSendButton() {
+            const input = document.getElementById('messageInput');
+            const btn = document.getElementById('sendBtn');
+            btn.disabled = !input.value.trim();
+        }
+
+        document.getElementById('messageInput').addEventListener('input', updateSendButton);
+
+        document.getElementById('messageInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        window.addEventListener('load', function() {
+            loadMemory();
+            checkBackendStatus();
+        });
+    </script>
+</body>
+</html>
