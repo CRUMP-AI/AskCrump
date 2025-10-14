@@ -4,16 +4,37 @@
       "source": "/api/:path*",
       "destination": "/api/:path*"
     }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
-    }
   ]
 }
+```
+
+---
+
+## FILE 4: DELETE service-worker.js
+
+**Action:** DELETE this file from your repo completely
+
+In GitHub:
+1. Click on `service-worker.js`
+2. Click the trash icon (🗑️)
+3. Commit the deletion
+
+---
+
+## FILE 5: api/chat.js
+
+**Location:** `nova-secure/api/chat.js`  
+**Action:** NO CHANGES - Leave it exactly as it is
+
+---
+
+## FINAL STRUCTURE
+
+After these changes:
+```
+nova-secure/
+├── index.html          (UPDATED - no service worker code)
+├── manifest.json       (UPDATED - simplified)
+├── vercel.json         (UPDATED - simplified)
+└── api/
+    └── chat.js         (NO CHANGE)
