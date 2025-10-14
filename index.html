@@ -182,9 +182,9 @@
         }
 
         .nova-message .message-bubble {
-            background: rgba(139, 92, 246, 0.15);
-            border: 1px solid rgba(139, 92, 246, 0.3);
-            color: #e0e0e0;
+            background: rgba(139, 92, 246, 0.25);
+            border: 1px solid rgba(139, 92, 246, 0.4);
+            color: #ffffff;
         }
 
         .message-label {
@@ -574,7 +574,6 @@
     </div>
 
     <script>
-        // Global State
         const state = {
             conversationHistory: [],
             isListening: false,
@@ -583,7 +582,6 @@
             autoVoiceEnabled: localStorage.getItem('autoVoice') === 'true'
         };
 
-        // DOM Elements
         const elements = {
             chatContainer: document.getElementById('chat-container'),
             userInput: document.getElementById('user-input'),
@@ -595,7 +593,6 @@
             settingsOverlay: document.getElementById('settings-overlay')
         };
 
-        // Memory Vault
         const memoryVault = {
             user: {
                 name: 'Gregory',
@@ -609,7 +606,6 @@
             }
         };
 
-        // Local Knowledge Base
         const localKnowledge = {
             'who are you': "I'm NOVA - Neural Operations & Virtual Assistant. A dual-AI system built by Gregory using Claude and OpenAI. I'm designed to be your personal Jarvis-level assistant.",
             'who am i': `You're ${memoryVault.user.fullName}, Commander and Founder of NOVA. You switched from ChatGPT to Claude and built me during a PowerPoint meeting. You're building toward a Jarvis-level AI assistant.`,
@@ -618,13 +614,11 @@
             'what can you do': "I can help with coding, analysis, creative writing, problem-solving, and more. I route technical/reasoning tasks to Claude and creative tasks to OpenAI. I also remember our conversations and learn from them."
         };
 
-        // Auto-resize textarea
         function autoResizeTextarea() {
             elements.userInput.style.height = 'auto';
             elements.userInput.style.height = Math.min(elements.userInput.scrollHeight, 120) + 'px';
         }
 
-        // Voice Recognition Setup
         function initializeVoice() {
             if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -680,7 +674,6 @@
             }
         }
 
-        // Settings Panel
         function initializeSettings() {
             const voiceOutputToggle = document.getElementById('voice-output-toggle');
             const autoVoiceToggle = document.getElementById('auto-voice-toggle');
@@ -715,7 +708,6 @@
             }
         };
 
-        // Text-to-Speech
         function speak(text) {
             if (state.voiceOutputEnabled && 'speechSynthesis' in window) {
                 const utterance = new SpeechSynthesisUtterance(text);
@@ -733,7 +725,6 @@
             }
         }
 
-        // Local Knowledge Check
         function checkLocalKnowledge(query) {
             const normalizedQuery = query.toLowerCase().trim();
             for (const [key, value] of Object.entries(localKnowledge)) {
@@ -744,7 +735,6 @@
             return null;
         }
 
-        // Add Message to Chat
         function addMessage(content, sender, aiLabel = null) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${sender}-message`;
@@ -785,19 +775,15 @@
             elements.chatContainer.scrollTop = elements.chatContainer.scrollHeight;
         }
 
-        // Send Message
         async function sendMessage() {
             const userMessage = elements.userInput.value.trim();
             if (!userMessage) return;
 
-            // Add user message to UI
             addMessage(userMessage, 'user');
             
-            // Clear input
             elements.userInput.value = '';
             autoResizeTextarea();
 
-            // Check local knowledge first
             const localResponse = checkLocalKnowledge(userMessage);
             
             if (localResponse) {
@@ -811,7 +797,6 @@
                 return;
             }
 
-            // Show loading
             addMessage('<div class="loading"><span></span><span></span><span></span></div>', 'nova');
 
             try {
@@ -823,7 +808,6 @@
 
                 const data = await response.json();
                 
-                // Remove loading message
                 const lastMessage = elements.chatContainer.lastElementChild;
                 if (lastMessage) lastMessage.remove();
 
@@ -844,7 +828,6 @@
             }
         }
 
-        // History Management
         function saveHistory() {
             const recentHistory = state.conversationHistory.slice(-20);
             localStorage.setItem('conversationHistory', JSON.stringify(recentHistory));
@@ -857,7 +840,6 @@
             }
         }
 
-        // Event Listeners
         elements.sendBtn.addEventListener('click', sendMessage);
         elements.userInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -871,7 +853,6 @@
         elements.settingsBtn.addEventListener('click', toggleSettings);
         elements.settingsOverlay.addEventListener('click', toggleSettings);
 
-        // Initialize
         loadHistory();
         initializeVoice();
         initializeSettings();
