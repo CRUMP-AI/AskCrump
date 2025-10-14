@@ -16,23 +16,46 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { message, provider, conversationHistory = [] } = req.body;
+    const { message, history = [] } = req.body;
+
+    if (!message) {
+        return res.status(400).json({ error: 'Message is required' });
+    }
 
     // Get API keys from environment variables (secure!)
     const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY;
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
-    // Status check endpoint
-    if (provider === 'status') {
-        return res.status(200).json({
-            claude: !!CLAUDE_API_KEY,
-            openai: !!OPENAI_API_KEY
-        });
+    // Intelligent routing based on message content
+    function determineProvider(msg) {
+        const lowerMsg = msg.toLowerCase();
+        
+        // Claude for technical/reasoning
+        const claudeKeywords = ['code', 'debug', 'algorithm', 'explain', 'analyze', 'architecture', 'build', 'function', 'error', 'fix'];
+        
+        // OpenAI for creative/casual
+        const openaiKeywords = ['write', 'story', 'poem', 'creative', 'imagine', 'casual', 'chat', 'joke', 'fun'];
+        
+        // Check Claude keywords
+        if (claudeKeywords.some(keyword => lowerMsg.includes(keyword))) {
+            return 'claude';
+        }
+        
+        // Check OpenAI keywords
+        if (openaiKeywords.some(keyword => lowerMsg.includes(keyword))) {
+            return 'openai';
+        }
+        
+        // Default to Claude for general queries
+        return 'claude';
     }
+
+    const provider = determineProvider(message);
 
     // Route to appropriate AI
     try {
         let response;
+        let aiUsed = provider.toUpperCase();
 
         if (provider === 'claude') {
             if (!CLAUDE_API_KEY) {
@@ -50,13 +73,13 @@ export default async function handler(req, res) {
                     model: 'claude-sonnet-4-20250514',
                     max_tokens: 1024,
                     messages: [
-                        ...conversationHistory.map(msg => ({
+                        ...history.slice(-10).map(msg => ({
                             role: msg.role === 'assistant' ? 'assistant' : 'user',
                             content: msg.content
                         })),
                         { role: 'user', content: message }
                     ],
-                    system: 'You are NOVA, created for Greg D. Crump Jr. Be concise, intelligent, and helpful.'
+                    system: 'You are NOVA, an intelligent AI assistant created for Gregory (Greg D. Crump Jr.). Be direct, concise, and helpful. Focus on providing clear, actionable answers without unnecessary explanations.'
                 })
             });
 
@@ -80,14 +103,14 @@ export default async function handler(req, res) {
                     'Authorization': `Bearer ${OPENAI_API_KEY}`
                 },
                 body: JSON.stringify({
-                    model: 'gpt-3.5-turbo',
+                    model: 'gpt-4',
                     messages: [
-                        { role: 'system', content: 'You are NOVA, created for Greg D. Crump Jr. Be creative and engaging.' },
-                        ...conversationHistory,
+                        { role: 'system', content: 'You are NOVA, an intelligent AI assistant created for Gregory (Greg D. Crump Jr.). Be creative, engaging, and helpful.' },
+                        ...history.slice(-10),
                         { role: 'user', content: message }
                     ],
                     temperature: 0.8,
-                    max_tokens: 500
+                    max_tokens: 800
                 })
             });
 
@@ -98,15 +121,18 @@ export default async function handler(req, res) {
 
             const data = await openaiResponse.json();
             response = data.choices[0].message.content;
-
-        } else {
-            throw new Error('Invalid provider');
         }
 
-        return res.status(200).json({ response });
+        return res.status(200).json({ 
+            response, 
+            aiUsed 
+        });
 
     } catch (error) {
         console.error('Backend error:', error);
-        return res.status(500).json({ error: error.message });
+        return res.status(500).json({ 
+            error: error.message,
+            details: 'Check Vercel function logs for more info'
+        });
     }
 }
