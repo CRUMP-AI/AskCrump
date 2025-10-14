@@ -4,11 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#1a1625">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="NOVA">
-    <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="/icon-192.png">
     <title>NOVA - Neural Operations & Virtual Assistant</title>
     <style>
         * {
@@ -215,12 +210,6 @@
             font-size: 11px;
             color: #6b7280;
             margin-top: 4px;
-        }
-
-        .message img {
-            max-width: 100%;
-            border-radius: 12px;
-            margin-top: 8px;
         }
 
         #input-container {
@@ -440,7 +429,6 @@
             left: 23px;
         }
 
-        /* Desktop-specific styles */
         @media (min-width: 768px) {
             #app {
                 max-width: 1200px;
@@ -573,7 +561,7 @@
         </div>
 
         <div class="setting-item">
-            <button style="width: 100%; border-radius: 12px; background: rgba(239, 68, 68, 0.2); color: #ef4444; height: auto; padding: 12px;" onclick="clearHistory()">
+            <button style="width: 100%; border-radius: 12px; background: rgba(239, 68, 68, 0.2); color: #ef4444; height: auto; padding: 12px;" onclick="window.clearHistory()">
                 Clear Chat History
             </button>
         </div>
@@ -587,32 +575,32 @@
 
     <script>
         // Global State
-        let conversationHistory = [];
-        let isListening = false;
-        let recognition = null;
-        let voiceOutputEnabled = localStorage.getItem('voiceOutput') === 'true';
-        let autoVoiceEnabled = localStorage.getItem('autoVoice') === 'true';
+        const state = {
+            conversationHistory: [],
+            isListening: false,
+            recognition: null,
+            voiceOutputEnabled: localStorage.getItem('voiceOutput') === 'true',
+            autoVoiceEnabled: localStorage.getItem('autoVoice') === 'true'
+        };
 
         // DOM Elements
-        const chatContainer = document.getElementById('chat-container');
-        const userInput = document.getElementById('user-input');
-        const sendBtn = document.getElementById('send-btn');
-        const voiceBtn = document.getElementById('voice-btn');
-        const voiceIndicator = document.getElementById('voice-indicator');
-        const settingsBtn = document.getElementById('settings-btn');
-        const settingsPanel = document.getElementById('settings-panel');
-        const settingsOverlay = document.getElementById('settings-overlay');
+        const elements = {
+            chatContainer: document.getElementById('chat-container'),
+            userInput: document.getElementById('user-input'),
+            sendBtn: document.getElementById('send-btn'),
+            voiceBtn: document.getElementById('voice-btn'),
+            voiceIndicator: document.getElementById('voice-indicator'),
+            settingsBtn: document.getElementById('settings-btn'),
+            settingsPanel: document.getElementById('settings-panel'),
+            settingsOverlay: document.getElementById('settings-overlay')
+        };
 
         // Memory Vault
         const memoryVault = {
             user: {
                 name: 'Gregory',
                 fullName: 'Greg D. Crump Jr.',
-                role: 'Commander, Founder, Builder',
-                preferences: {
-                    communication: 'direct, action-oriented',
-                    dislikes: 'questions, derailing, over-explaining'
-                }
+                role: 'Commander, Founder, Builder'
             },
             project: {
                 name: 'NOVA',
@@ -630,64 +618,44 @@
             'what can you do': "I can help with coding, analysis, creative writing, problem-solving, and more. I route technical/reasoning tasks to Claude and creative tasks to OpenAI. I also remember our conversations and learn from them."
         };
 
-        // Initialize
-        loadHistory();
-        initializeVoice();
-        initializeSettings();
-        autoResizeTextarea();
-
-        // Event Listeners
-        sendBtn.addEventListener('click', sendMessage);
-        userInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-        userInput.addEventListener('input', autoResizeTextarea);
-        voiceBtn.addEventListener('click', toggleVoice);
-        voiceIndicator.addEventListener('click', stopListening);
-        settingsBtn.addEventListener('click', toggleSettings);
-        settingsOverlay.addEventListener('click', toggleSettings);
-
         // Auto-resize textarea
         function autoResizeTextarea() {
-            userInput.style.height = 'auto';
-            userInput.style.height = Math.min(userInput.scrollHeight, 120) + 'px';
+            elements.userInput.style.height = 'auto';
+            elements.userInput.style.height = Math.min(elements.userInput.scrollHeight, 120) + 'px';
         }
 
         // Voice Recognition Setup
         function initializeVoice() {
             if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                recognition = new SpeechRecognition();
-                recognition.continuous = false;
-                recognition.interimResults = false;
-                recognition.lang = 'en-US';
+                state.recognition = new SpeechRecognition();
+                state.recognition.continuous = false;
+                state.recognition.interimResults = false;
+                state.recognition.lang = 'en-US';
 
-                recognition.onresult = (event) => {
+                state.recognition.onresult = (event) => {
                     const transcript = event.results[0][0].transcript;
-                    userInput.value = transcript;
+                    elements.userInput.value = transcript;
                     stopListening();
                     sendMessage();
                 };
 
-                recognition.onerror = () => {
+                state.recognition.onerror = () => {
                     stopListening();
                 };
 
-                recognition.onend = () => {
-                    if (isListening) {
+                state.recognition.onend = () => {
+                    if (state.isListening) {
                         stopListening();
                     }
                 };
             } else {
-                voiceBtn.style.display = 'none';
+                elements.voiceBtn.style.display = 'none';
             }
         }
 
         function toggleVoice() {
-            if (isListening) {
+            if (state.isListening) {
                 stopListening();
             } else {
                 startListening();
@@ -695,20 +663,20 @@
         }
 
         function startListening() {
-            if (recognition) {
-                isListening = true;
-                voiceBtn.classList.add('listening');
-                voiceIndicator.classList.add('active');
-                recognition.start();
+            if (state.recognition) {
+                state.isListening = true;
+                elements.voiceBtn.classList.add('listening');
+                elements.voiceIndicator.classList.add('active');
+                state.recognition.start();
             }
         }
 
         function stopListening() {
-            if (recognition) {
-                isListening = false;
-                voiceBtn.classList.remove('listening');
-                voiceIndicator.classList.remove('active');
-                recognition.stop();
+            if (state.recognition) {
+                state.isListening = false;
+                elements.voiceBtn.classList.remove('listening');
+                elements.voiceIndicator.classList.remove('active');
+                state.recognition.stop();
             }
         }
 
@@ -717,50 +685,50 @@
             const voiceOutputToggle = document.getElementById('voice-output-toggle');
             const autoVoiceToggle = document.getElementById('auto-voice-toggle');
 
-            if (voiceOutputEnabled) voiceOutputToggle.classList.add('active');
-            if (autoVoiceEnabled) autoVoiceToggle.classList.add('active');
+            if (state.voiceOutputEnabled) voiceOutputToggle.classList.add('active');
+            if (state.autoVoiceEnabled) autoVoiceToggle.classList.add('active');
 
             voiceOutputToggle.addEventListener('click', () => {
-                voiceOutputEnabled = !voiceOutputEnabled;
-                localStorage.setItem('voiceOutput', voiceOutputEnabled);
+                state.voiceOutputEnabled = !state.voiceOutputEnabled;
+                localStorage.setItem('voiceOutput', state.voiceOutputEnabled);
                 voiceOutputToggle.classList.toggle('active');
             });
 
             autoVoiceToggle.addEventListener('click', () => {
-                autoVoiceEnabled = !autoVoiceEnabled;
-                localStorage.setItem('autoVoice', autoVoiceEnabled);
+                state.autoVoiceEnabled = !state.autoVoiceEnabled;
+                localStorage.setItem('autoVoice', state.autoVoiceEnabled);
                 autoVoiceToggle.classList.toggle('active');
             });
         }
 
         function toggleSettings() {
-            settingsPanel.classList.toggle('active');
-            settingsOverlay.classList.toggle('active');
+            elements.settingsPanel.classList.toggle('active');
+            elements.settingsOverlay.classList.toggle('active');
         }
 
-        function clearHistory() {
+        window.clearHistory = function() {
             if (confirm('Clear all chat history?')) {
-                conversationHistory = [];
+                state.conversationHistory = [];
                 localStorage.removeItem('conversationHistory');
-                chatContainer.innerHTML = '';
+                elements.chatContainer.innerHTML = '';
                 toggleSettings();
             }
-        }
+        };
 
         // Text-to-Speech
         function speak(text) {
-            if (voiceOutputEnabled && 'speechSynthesis' in window) {
+            if (state.voiceOutputEnabled && 'speechSynthesis' in window) {
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.rate = 1.1;
                 utterance.pitch = 1;
                 speechSynthesis.speak(utterance);
 
                 utterance.onend = () => {
-                    if (autoVoiceEnabled) {
+                    if (state.autoVoiceEnabled) {
                         setTimeout(startListening, 500);
                     }
                 };
-            } else if (autoVoiceEnabled) {
+            } else if (state.autoVoiceEnabled) {
                 setTimeout(startListening, 500);
             }
         }
@@ -776,69 +744,7 @@
             return null;
         }
 
-        // Send Message
-        async function sendMessage() {
-            const message = userInput.value.trim();
-            if (!message) return;
-
-            // Add user message to UI
-            addMessage(message, 'user');
-            
-            // Clear input
-            userInput.value = '';
-            autoResizeTextarea();
-
-            // Check local knowledge first
-            const localResponse = checkLocalKnowledge(message);
-            
-            if (localResponse) {
-                setTimeout(() => {
-                    addMessage(localResponse, 'nova', 'LOCAL');
-                    speak(localResponse);
-                    // Save to history
-                    conversationHistory.push({ role: 'user', content: message });
-                    conversationHistory.push({ role: 'assistant', content: localResponse });
-                    saveHistory();
-                }, 300);
-                return;
-            }
-
-            // Show loading
-            addMessage('<div class="loading"><span></span><span></span><span></span></div>', 'nova');
-
-            try {
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message, history: conversationHistory })
-                });
-
-                const data = await response.json();
-                
-                // Remove loading message
-                const lastMessage = chatContainer.lastElementChild;
-                if (lastMessage) lastMessage.remove();
-
-                if (data.error) {
-                    addMessage(`Error: ${data.error}`, 'nova');
-                } else {
-                    addMessage(data.response, 'nova', data.aiUsed);
-                    speak(data.response);
-                    // Save to history
-                    conversationHistory.push({ role: 'user', content: message });
-                    conversationHistory.push({ role: 'assistant', content: data.response });
-                    saveHistory();
-                }
-            } catch (error) {
-                console.error('Fetch error:', error);
-                // Remove loading message
-                const lastMessage = chatContainer.lastElementChild;
-                if (lastMessage) lastMessage.remove();
-                addMessage('Connection error. Please check your internet and try again.', 'nova');
-            }
-        }
-
-        // Add Message to Chat (UI only)
+        // Add Message to Chat
         function addMessage(content, sender, aiLabel = null) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${sender}-message`;
@@ -875,22 +781,101 @@
 
             messageDiv.appendChild(avatar);
             messageDiv.appendChild(contentDiv);
-            chatContainer.appendChild(messageDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            elements.chatContainer.appendChild(messageDiv);
+            elements.chatContainer.scrollTop = elements.chatContainer.scrollHeight;
+        }
+
+        // Send Message
+        async function sendMessage() {
+            const userMessage = elements.userInput.value.trim();
+            if (!userMessage) return;
+
+            // Add user message to UI
+            addMessage(userMessage, 'user');
+            
+            // Clear input
+            elements.userInput.value = '';
+            autoResizeTextarea();
+
+            // Check local knowledge first
+            const localResponse = checkLocalKnowledge(userMessage);
+            
+            if (localResponse) {
+                setTimeout(() => {
+                    addMessage(localResponse, 'nova', 'LOCAL');
+                    speak(localResponse);
+                    state.conversationHistory.push({ role: 'user', content: userMessage });
+                    state.conversationHistory.push({ role: 'assistant', content: localResponse });
+                    saveHistory();
+                }, 300);
+                return;
+            }
+
+            // Show loading
+            addMessage('<div class="loading"><span></span><span></span><span></span></div>', 'nova');
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: userMessage, history: state.conversationHistory })
+                });
+
+                const data = await response.json();
+                
+                // Remove loading message
+                const lastMessage = elements.chatContainer.lastElementChild;
+                if (lastMessage) lastMessage.remove();
+
+                if (data.error) {
+                    addMessage(`Error: ${data.error}`, 'nova');
+                } else {
+                    addMessage(data.response, 'nova', data.aiUsed);
+                    speak(data.response);
+                    state.conversationHistory.push({ role: 'user', content: userMessage });
+                    state.conversationHistory.push({ role: 'assistant', content: data.response });
+                    saveHistory();
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                const lastMessage = elements.chatContainer.lastElementChild;
+                if (lastMessage) lastMessage.remove();
+                addMessage('Connection error. Please check your internet and try again.', 'nova');
+            }
         }
 
         // History Management
         function saveHistory() {
-            const recentHistory = conversationHistory.slice(-20);
+            const recentHistory = state.conversationHistory.slice(-20);
             localStorage.setItem('conversationHistory', JSON.stringify(recentHistory));
         }
 
         function loadHistory() {
             const saved = localStorage.getItem('conversationHistory');
             if (saved) {
-                conversationHistory = JSON.parse(saved);
+                state.conversationHistory = JSON.parse(saved);
             }
         }
+
+        // Event Listeners
+        elements.sendBtn.addEventListener('click', sendMessage);
+        elements.userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        elements.userInput.addEventListener('input', autoResizeTextarea);
+        elements.voiceBtn.addEventListener('click', toggleVoice);
+        elements.voiceIndicator.addEventListener('click', stopListening);
+        elements.settingsBtn.addEventListener('click', toggleSettings);
+        elements.settingsOverlay.addEventListener('click', toggleSettings);
+
+        // Initialize
+        loadHistory();
+        initializeVoice();
+        initializeSettings();
+        autoResizeTextarea();
     </script>
 </body>
 </html>
