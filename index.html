@@ -89,6 +89,22 @@
             gap: 12px;
         }
 
+        .new-chat-btn {
+            width: 100%;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border: none;
+            border-radius: 8px;
+            color: var(--bg-primary);
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .new-chat-btn:hover {
+            transform: translateY(-2px);
+        }
+
         .search-box {
             width: 100%;
             padding: 10px 14px;
@@ -109,26 +125,26 @@
             color: var(--text-tertiary);
         }
 
-        .new-chat-btn {
-            width: 100%;
-            padding: 12px 16px;
-            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-            border: none;
-            border-radius: 8px;
-            color: var(--bg-primary);
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-
-        .new-chat-btn:hover {
-            transform: translateY(-2px);
-        }
-
         .chats-list {
             flex: 1;
             overflow-y: auto;
             padding: 12px;
+        }
+
+        .chat-section {
+            margin-bottom: 20px;
+        }
+
+        .chat-section-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .chat-item {
@@ -139,6 +155,7 @@
             cursor: pointer;
             transition: all 0.2s;
             border: 1px solid transparent;
+            position: relative;
         }
 
         .chat-item:hover {
@@ -146,9 +163,30 @@
             border-color: var(--accent-primary);
         }
 
+        .chat-item:hover .chat-actions {
+            opacity: 1;
+        }
+
         .chat-item.active {
             background: var(--bg-secondary);
             border-color: var(--accent-primary);
+        }
+
+        .chat-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .chat-tag {
+            padding: 2px 8px;
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
         }
 
         .chat-title {
@@ -166,6 +204,36 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+
+        .chat-actions {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .chat-action-btn {
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .chat-action-btn:hover {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
         }
 
         .main-content {
@@ -866,6 +934,7 @@
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <button class="new-chat-btn" onclick="createNewChat()">+ New Chat</button>
+                <input type="text" class="search-box" placeholder="Search chats..." oninput="filterChats(this.value)">
             </div>
             <div class="chats-list" id="chatsList"></div>
         </aside>
@@ -958,7 +1027,7 @@
             </div>
 
             <div class="version-info">
-                <div class="version-title">Crump AI v2.10 Royal Edition</div>
+                <div class="version-title">Crump AI v2.11 Royal Edition</div>
                 <div class="version-detail">Powered by N² Engine</div>
                 <div class="version-detail">Built by Gregory D. Crump Jr.</div>
                 <div class="status-indicator">
@@ -1090,7 +1159,6 @@
         function checkMemoryCommands(message) {
             const lower = message.toLowerCase();
             
-            // Remember command
             if (lower.startsWith('remember that') || lower.startsWith('remember:')) {
                 const content = message.substring(message.indexOf('that') + 4).trim() || 
                                message.substring(message.indexOf(':') + 1).trim();
@@ -1102,7 +1170,6 @@
                 return `Got it. I'll remember: "${content}"`;
             }
             
-            // What do you remember
             if (lower.includes('what do you remember') || lower.includes('what do you know about me')) {
                 if (userMemory.notes.length === 0 && Object.keys(userMemory.preferences).length === 0 && Object.keys(userMemory.contexts).length === 0) {
                     return "I don't have any stored memories about you yet. You can tell me to remember things by saying 'Remember that...'";
@@ -1134,7 +1201,6 @@
                 return response;
             }
             
-            // Forget command
             if (lower.startsWith('forget that') || lower.startsWith('forget:')) {
                 const content = message.substring(message.indexOf('that') + 4).trim() || 
                                message.substring(message.indexOf(':') + 1).trim();
@@ -1152,7 +1218,6 @@
                 }
             }
             
-            // Clear memory command
             if (lower === 'clear memory' || lower === 'forget everything') {
                 if (confirm('Clear all stored memories? This cannot be undone.')) {
                     userMemory = {
@@ -1242,6 +1307,13 @@
         function loadChats() {
             const savedChats = localStorage.getItem('crump_chats');
             chats = savedChats ? JSON.parse(savedChats) : [];
+            // Ensure all chats have new properties
+            chats = chats.map(chat => ({
+                ...chat,
+                pinned: chat.pinned || false,
+                archived: chat.archived || false,
+                tag: chat.tag || null
+            }));
             renderChatsList();
         }
 
@@ -1254,7 +1326,10 @@
                 id: Date.now().toString(),
                 title: 'New Chat',
                 messages: [],
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                pinned: false,
+                archived: false,
+                tag: null
             };
             
             chats.unshift(newChat);
@@ -1289,21 +1364,115 @@
             }
         }
 
-        function renderChatsList() {
+        function renderChatsList(searchQuery = '') {
             const chatsList = document.getElementById('chatsList');
-            chatsList.innerHTML = chats.map(chat => {
-                const isActive = chat.id === currentChatId;
-                const preview = chat.messages.length > 0 
-                    ? chat.messages[chat.messages.length - 1].content.substring(0, 50) 
-                    : 'No messages yet';
-                
-                return `
-                    <div class="chat-item ${isActive ? 'active' : ''}" onclick="loadChat('${chat.id}')">
-                        <div class="chat-title">${chat.title}</div>
-                        <div class="chat-preview">${preview}${preview.length >= 50 ? '...' : ''}</div>
+            
+            let filteredChats = chats;
+            if (searchQuery) {
+                const query = searchQuery.toLowerCase();
+                filteredChats = chats.filter(chat => 
+                    chat.title.toLowerCase().includes(query) ||
+                    chat.messages.some(m => m.content.toLowerCase().includes(query))
+                );
+            }
+            
+            const pinnedChats = filteredChats.filter(c => c.pinned && !c.archived);
+            const regularChats = filteredChats.filter(c => !c.pinned && !c.archived);
+            const archivedChats = filteredChats.filter(c => c.archived);
+            
+            let html = '';
+            
+            if (pinnedChats.length > 0) {
+                html += '<div class="chat-section">';
+                html += '<div class="chat-section-title">⭐ PINNED</div>';
+                html += pinnedChats.map(chat => renderChatItem(chat)).join('');
+                html += '</div>';
+            }
+            
+            if (regularChats.length > 0) {
+                html += '<div class="chat-section">';
+                html += '<div class="chat-section-title">💬 CHATS</div>';
+                html += regularChats.map(chat => renderChatItem(chat)).join('');
+                html += '</div>';
+            }
+            
+            if (archivedChats.length > 0) {
+                html += '<div class="chat-section">';
+                html += '<div class="chat-section-title">📦 ARCHIVED</div>';
+                html += archivedChats.map(chat => renderChatItem(chat)).join('');
+                html += '</div>';
+            }
+            
+            if (filteredChats.length === 0) {
+                html = '<div style="padding: 20px; text-align: center; color: var(--text-tertiary);">No chats found</div>';
+            }
+            
+            chatsList.innerHTML = html;
+        }
+        
+        function renderChatItem(chat) {
+            const isActive = chat.id === currentChatId;
+            const preview = chat.messages.length > 0 
+                ? chat.messages[chat.messages.length - 1].content.substring(0, 50) 
+                : 'No messages yet';
+            
+            const pinIcon = chat.pinned ? '⭐' : '📌';
+            const archiveIcon = chat.archived ? '📤' : '📦';
+            const tagHtml = chat.tag ? `<span class="chat-tag">${chat.tag}</span>` : '';
+            
+            return `
+                <div class="chat-item ${isActive ? 'active' : ''}" onclick="loadChat('${chat.id}')">
+                    <div class="chat-actions" onclick="event.stopPropagation()">
+                        <button class="chat-action-btn" onclick="togglePin('${chat.id}')" title="${chat.pinned ? 'Unpin' : 'Pin'}">${pinIcon}</button>
+                        <button class="chat-action-btn" onclick="toggleArchive('${chat.id}')" title="${chat.archived ? 'Unarchive' : 'Archive'}">${archiveIcon}</button>
+                        <button class="chat-action-btn" onclick="deleteChat('${chat.id}')" title="Delete">🗑️</button>
                     </div>
-                `;
-            }).join('');
+                    <div class="chat-header">
+                        ${tagHtml}
+                    </div>
+                    <div class="chat-title">${chat.title}</div>
+                    <div class="chat-preview">${preview}${preview.length >= 50 ? '...' : ''}</div>
+                </div>
+            `;
+        }
+        
+        function filterChats(query) {
+            renderChatsList(query);
+        }
+        
+        function togglePin(chatId) {
+            const chat = chats.find(c => c.id === chatId);
+            if (chat) {
+                chat.pinned = !chat.pinned;
+                saveChats();
+                renderChatsList();
+            }
+        }
+        
+        function toggleArchive(chatId) {
+            const chat = chats.find(c => c.id === chatId);
+            if (chat) {
+                chat.archived = !chat.archived;
+                saveChats();
+                renderChatsList();
+            }
+        }
+        
+        function deleteChat(chatId) {
+            if (!confirm('Delete this chat? This cannot be undone.')) return;
+            
+            chats = chats.filter(c => c.id !== chatId);
+            saveChats();
+            
+            if (chatId === currentChatId) {
+                if (chats.length > 0) {
+                    loadChat(chats[0].id);
+                } else {
+                    createNewChat();
+                }
+            }
+            
+            renderChatsList();
         }
 
         function renderMessages(messages) {
@@ -1396,6 +1565,16 @@
             const message = lastUserMessage.content;
             const fileData = lastUserMessage.fileData;
             
+            const memoryResponse = checkMemoryCommands(message);
+            if (memoryResponse && !fileData) {
+                showThinking();
+                setTimeout(() => {
+                    hideThinking();
+                    addMessage('assistant', memoryResponse);
+                }, 500);
+                return;
+            }
+            
             const localResponse = getLocalResponse(message);
             if (localResponse && !fileData) {
                 showThinking();
@@ -1414,11 +1593,14 @@
             showThinking();
             
             try {
+                const memoryContext = getMemoryContext();
+                const messageWithContext = message + memoryContext;
+                
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        message,
+                        message: messageWithContext,
                         history: chat.messages.slice(-10).filter(m => m.content && m.content.trim() !== ''),
                         fileData: fileData || null
                     })
@@ -1498,9 +1680,8 @@
             const fileDataToSend = currentFile;
             removeFile();
             
-            // Check for memory commands first
             const memoryResponse = checkMemoryCommands(message);
-            if (memoryResponse) {
+            if (memoryResponse && !hasFile) {
                 showThinking();
                 setTimeout(() => {
                     hideThinking();
@@ -1560,7 +1741,7 @@
             const lower = message.toLowerCase();
             
             if (lower.includes('who are you') || lower.includes('what are you')) {
-                return "I'm Crump AI, powered by the N² Engine - a hybrid intelligence system that combines Claude's analytical precision with OpenAI's creative capabilities. I route your questions to whichever AI handles them best, giving you the optimal response every time.";
+                return "I'm Crump, an advanced AI assistant powered by the N² Engine. I combine Claude's analytical precision with OpenAI's creative capabilities, routing your questions to whichever AI handles them best.";
             }
             
             if (lower.includes('who am i') || lower.includes('who is gregory')) {
