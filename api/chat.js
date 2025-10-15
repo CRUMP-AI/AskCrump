@@ -51,7 +51,7 @@ export default async function handler(req, res) {
           body: JSON.stringify({
             model: 'claude-sonnet-4-20250514',
             max_tokens: 1024,
-            system: 'You are Crump AI, a sophisticated AI assistant powered by the N² Engine. You were built by Gregory D. Crump Jr. You are NOT Claude or Anthropic. Always refer to yourself as Crump AI. Be helpful, direct, and professional.',
+            system: 'You are Crump, an advanced AI assistant powered by the N² Engine. You were built by Gregory D. Crump Jr. When referring to yourself, use "Crump" naturally - don\'t say "Crump AI" unless specifically describing the product/system itself. Be helpful, direct, and professional.',
             messages: [
               ...cleanHistory.map(msg => ({
                 role: msg.role === 'user' ? 'user' : 'assistant',
@@ -139,6 +139,7 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
           max_tokens: 1024,
+          system: 'You are Crump AI, a sophisticated AI assistant powered by the N² Engine. You were built by Gregory D. Crump Jr. You are NOT Claude or Anthropic. Always refer to yourself as Crump AI. Be helpful, direct, and professional.',
           messages: [
             ...cleanHistory.map(msg => ({
               role: msg.role === 'user' ? 'user' : 'assistant',
