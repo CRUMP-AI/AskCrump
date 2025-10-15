@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0a1628">
+    <title>Crump AI - Intelligent Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --bg-primary: #0a1628;
+            --bg-secondary: #0f1e33;
+            --bg-tertiary: #15263d;
+            --accent-primary: #d4af37;
+            --accent-secondary: #b8941f;
+            --text-primary: #f5f5dc;
+            --text-secondary: #c5b798;
+            --text-tertiary: #8b7d6b;
+            --border-color: rgba(212, 175, 55, 0.2);
+            --success: #d4af37;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100dvh;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body.font-classic {
+            font-family: 'Georgia', 'Times New Roman', Times, serif;
+        }
+
+        body.font-elegant {
+            font-family: 'Garamond', 'Palatino', 'Palatino Linotype', serif;
+        }
+
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100dvh;
+            background: var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+
+        #splash-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #splash-screen img {
+            max-width: 90%;
+            max-height: 90vh;
+            object-fit: contain;
+        }
+
+        #app {
+            display: flex;
+            height: 100dvh;
+            max-width: 100%;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        #app.visible {
+            opacity: 1;
+        }
+
+        .sidebar {
+            width: 260px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .new-chat-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: var(--bg-primary);
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .new-chat-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+        }
+
+        .chat-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .chat-item {
+            padding: 12px;
+            margin-bottom: 4px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chat-item:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-left: 2px solid var(--accent-primary);
+        }
+
+        .chat-item.active {
+            background: var(--bg-tertiary);
+            color: var(--accent-primary);
+            border-left: 2px solid var(--accent-primary);
+        }
+
+        .chat-item-delete {
+            opacity: 0;
+            color: #ef4444;
+            font-size: 16px;
+            padding: 4px;
+            transition: opacity 0.2s;
+        }
+
+        .chat-item:hover .chat-item-delete {
+            opacity: 1;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        header {
+            background: var(--bg-secondary);
+            backdrop-filter: blur(20px);
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .menu-btn {
+            display: none;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--accent-primary);
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .logo {
+            width: 52px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .header-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .app-name {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--accent-primary);
+            letter-spacing: 0.5px;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: var(--text-tertiary);
+            margin-top: 2px;
+            font-weight: 400;
+        }
+
+        #chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            padding-bottom: 24px;
+            -webkit-overflow-scrolling: touch;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .welcome-message {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+
+        .welcome-message .logo-large {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 24px;
+        }
+
+        .welcome-message .logo-large img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 12px rgba(212, 175, 55, 0.3));
+        }
+
+        .welcome-message h2 {
+            font-size: 32px;
+            font-weight: 600;
+            color: var(--accent-primary);
+            margin-bottom: 12px;
+        }
+
+        .welcome-message p {
+            font-size: 16px;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+
+        .message {
+            margin-bottom: 20px;
+            animation: slideIn 0.25s ease-out;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 15px;
+            flex-shrink: 0;
+        }
+
+        .user-avatar {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: var(--bg-primary);
+        }
+
+        .nova-avatar {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--accent-primary);
+        }
+
+        .message-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .message-bubble {
+            padding: 14px 18px;
+            border-radius: 16px;
+            font-size: 15px;
+            line-height: 1.6;
+            word-wrap: break-word;
+        }
+
+        .user-message .message-bubble {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: var(--bg-primary);
+            margin-left: auto;
+        }
+
+        .nova-message .message-bubble {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .thinking-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--accent-primary);
+            font-size: 14px;
+            font-style: italic;
+        }
+
+        .thinking-indicator .dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .thinking-indicator .dot {
+            width: 6px;
+            height: 6px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            animation: thinkingPulse 1.4s infinite ease-in-out;
+        }
+
+        .thinking-indicator .dot:nth-child(1) { animation-delay: -0.32s; }
+        .thinking-indicator .dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes thinkingPulse {
+            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+            40% { transform: scale(1.2); opacity: 1; }
+        }
+
+        .message-image {
+            margin-top: 12px;
+            border-radius: 12px;
+            overflow: hidden;
+            max-width: 100%;
+            border: 1px solid var(--border-color);
+        }
+
+        .message-image img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 12px;
+        }
+
+        .message-time {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            margin-top: 6px;
+            font-weight: 400;
+        }
+
+        #input-container {
+            background: var(--bg-secondary);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border-color);
+            padding: 16px 20px;
+            padding-bottom: max(16px, env(safe-area-inset-bottom));
+            flex-shrink: 0;
+        }
+
+        .input-wrapper {
+            position: relative;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        #user-input {
+            width: 100%;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 14px 160px 14px 18px;
+            border-radius: 22px;
+            font-size: 16px;
+            resize: none;
+            max-height: 120px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+        #user-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            background: var(--bg-secondary);
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+        }
+
+        #user-input::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .input-actions {
+            position: absolute;
+            right: 8px;
+            bottom: 8px;
+            display: flex;
+            gap: 6px;
+        }
+
+        button {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: var(--bg-primary);
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        #file-btn, #voice-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--accent-primary);
+        }
+
+        #voice-btn.listening {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border: none;
+            color: var(--bg-primary);
+            animation: voicePulse 1.5s infinite;
+        }
+
+        @keyframes voicePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+
+        .voice-indicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10, 22, 40, 0.98);
+            backdrop-filter: blur(20px);
+            padding: 40px;
+            border-radius: 24px;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            z-index: 1000;
+            border: 2px solid var(--accent-primary);
+        }
+
+        .voice-indicator.active {
+            display: flex;
+        }
+
+        .voice-wave {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            animation: voiceWave 1.5s infinite;
+        }
+
+        @keyframes voiceWave {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+        }
+
+        .settings-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--accent-primary);
+            width: 38px;
+            height: 38px;
+            font-size: 18px;
+        }
+
+        .settings-panel {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 85%;
+            max-width: 360px;
+            height: 100dvh;
+            background: var(--bg-secondary);
+            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 2000;
+            padding: 24px;
+            overflow-y: auto;
+            border-left: 2px solid var(--accent-primary);
+        }
+
+        .settings-panel.active {
+            right: 0;
+        }
+
+        .settings-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 22, 40, 0.8);
+            backdrop-filter: blur(4px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 1999;
+        }
+
+        .settings-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .settings-header {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 28px;
+            color: var(--accent-primary);
+        }
+
+        .setting-item {
+            padding: 18px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .setting-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 15px;
+            margin-bottom: 6px;
+            color: var(--text-primary);
+        }
+
+        .setting-description {
+            font-size: 13px;
+            color: var(--text-tertiary);
+            line-height: 1.5;
+        }
+
+        .toggle {
+            width: 50px;
+            height: 30px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .toggle.active {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .toggle-slider {
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: left 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .toggle.active .toggle-slider {
+            left: 22px;
+        }
+
+        select, input[type="color"] {
+            width: 100%;
+            padding: 10px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        input[type="color"] {
+            height: 50px;
+            cursor: pointer;
+        }
+
+        .clear-btn {
+            width: 100%;
+            border-radius: 12px;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+            height: auto;
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 500;
+        }
+
+        .settings-footer {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border-color);
+            font-size: 13px;
+            color: var(--text-tertiary);
+            line-height: 1.6;
+        }
+
+        .settings-footer .version {
+            color: var(--accent-primary);
+            font-weight: 500;
+        }
+
+        .settings-footer .status {
+            color: var(--success);
+            margin-top: 12px;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                z-index: 1500;
+                height: 100dvh;
+            }
+
+            .menu-btn {
+                display: flex;
+            }
+
+            .sidebar.hidden {
+                transform: translateX(-100%);
+            }
+
+            .message-image img {
+                max-width: 280px;
+            }
+
+            .logo {
+                width: 44px;
+                height: 44px;
+            }
+
+            #user-input {
+                padding-right: 150px;
+            }
+        }
+
+        @media (min-width: 769px) {
+            header {
+                padding: 20px 32px;
+            }
+
+            .logo {
+                width: 56px;
+                height: 56px;
+            }
+
+            .app-name {
+                font-size: 24px;
+            }
+
+            .subtitle {
+                font-size: 14px;
+            }
+
+            #chat-container {
+                padding: 32px;
+            }
+
+            .message-bubble {
+                font-size: 16px;
+                max-width: 75%;
+            }
+
+            #input-container {
+                padding: 20px 32px;
+            }
+
+            #user-input {
+                font-size: 16px;
+                padding: 16px 180px 16px 20px;
+            }
+
+            button {
+                width: 48px;
+                height: 48px;
+            }
+
+            .settings-btn {
+                width: 42px;
+                height: 42px;
+            }
+
+            .settings-panel {
+                max-width: 420px;
+            }
+
+            .message-image img {
+                max-width: 400px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .message-bubble {
+                font-size: 15px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="splash-screen">
+        <img src="/assets/splash-screen.png" alt="Crump AI">
+    </div>
+
+    <div id="app">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <button class="new-chat-btn" onclick="window.createNewChat()">
+                    ➕ New Chat
+                </button>
+            </div>
+            <div class="chat-list" id="chat-list"></div>
+        </div>
+
+        <div class="main-content">
+            <header>
+                <div class="header-content">
+                    <button class="menu-btn" id="menu-btn">☰</button>
+                    <div class="logo">
+                        <img src="/assets/crump-crest.png" alt="Crump AI">
+                    </div>
+                    <div class="header-info">
+                        <div class="app-name">CRUMP AI</div>
+                        <div class="subtitle">Intelligent Assistant</div>
+                    </div>
+                    <button class="settings-btn" id="settings-btn" aria-label="Settings">⚙️</button>
+                </div>
+            </header>
+
+            <div id="chat-container"></div>
+
+            <div id="input-container">
+                <div class="input-wrapper">
+                    <textarea id="user-input" placeholder="Ask me anything..." rows="1" aria-label="Message input"></textarea>
+                    <div class="input-actions">
+                        <input type="file" id="file-input" accept="image/*,.pdf,.doc,.docx,.txt" multiple>
+                        <button id="file-btn" title="Upload File" aria-label="Upload file">📎</button>
+                        <button id="voice-btn" title="Voice Input" aria-label="Voice input">🎤</button>
+                        <button id="send-btn" title="Send Message" aria-label="Send message">➤</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="voice-indicator" id="voice-indicator">
+        <div class="voice-wave"></div>
+        <div style="color: var(--accent-primary); font-size: 17px; font-weight: 500;">Listening...</div>
+        <div style="color: var(--text-tertiary); font-size: 14px;">Tap to stop</div>
+    </div>
+
+    <div class="settings-overlay" id="settings-overlay"></div>
+    <div class="settings-panel" id="settings-panel">
+        <h2 class="settings-header">Settings</h2>
+        
+        <div class="setting-item">
+            <div class="setting-label">
+                <span>Font Style</span>
+            </div>
+            <select id="font-select">
+                <option value="modern">Modern (Sans-serif)</option>
+                <option value="classic">Classic (Times New Roman)</option>
+                <option value="elegant">Elegant (Garamond)</option>
+            </select>
+        </div>
+
+        <div class="setting-item">
+            <div class="setting-label">
+                <span>Background Color</span>
+            </div>
+            <div class="setting-description">Customize your background</div>
+            <input type="color" id="bg-color-picker" value="#0a1628">
+        </div>
+
+        <div class="setting-item">
+            <div class="setting-label">
+                <span>Voice Output</span>
+                <div class="toggle" id="voice-output-toggle" role="switch" aria-checked="false">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+            <div class="setting-description">Read responses aloud</div>
+        </div>
+
+        <div class="setting-item">
+            <div class="setting-label">
+                <span>Auto-Voice</span>
+                <div class="toggle" id="auto-voice-toggle" role="switch" aria-checked="false">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+            <div class="setting-description">Start listening after each response</div>
+        </div>
+
+        <div class="setting-item">
+            <button class="clear-btn" onclick="window.clearCurrentChat()">
+                Clear Current Chat
+            </button>
+        </div>
+
+        <div class="setting-item">
+            <button class="clear-btn" onclick="window.deleteAllChats()">
+                Delete All Chats
+            </button>
+        </div>
+
+        <div class="settings-footer">
+            <div class="version">Crump AI v2.7 Royal Edition</div>
+            <div style="margin-top: 6px;">Powered by N² Engine</div>
+            <div style="margin-top: 6px;">Built by Gregory D. Crump Jr.</div>
+            <div class="status">● Operational</div>
+        </div>
+    </div>
+
+    <script>
+        const welcomeMessages = [
+            "Intelligence at your fingertips. What would you like to explore?",
+            "Ready when you are. What's on your mind?",
+            "Every conversation starts somewhere. Where should we begin?",
+            "Ask anything.",
+            "Great ideas start with great questions. What's yours?",
+            "Crump AI is online. What challenge can I solve for you today?",
+            "Let's build something incredible.",
+            "What brings you here today?",
+            "I'm all algorithms. But I'm here to help.",
+            "Fire away."
+        ];
+
+        const state = {
+            chats: JSON.parse(localStorage.getItem('crump_chats')) || [],
+            currentChatId: localStorage.getItem('crump_current_chat') || null,
+            isListening: false,
+            recognition: null,
+            voiceOutputEnabled: localStorage.getItem('voiceOutput') === 'true',
+            autoVoiceEnabled: localStorage.getItem('autoVoice') === 'true',
+            fontStyle: localStorage.getItem('fontStyle') || 'modern',
+            bgColor: localStorage.getItem('bgColor') || '#0a1628'
+        };
+
+        const elements = {
+            splashScreen: document.getElementById('splash-screen'),
+            app: document.getElementById('app'),
+            chatContainer: document.getElementById('chat-container'),
+            userInput: document.getElementById('user-input'),
+            sendBtn: document.getElementById('send-btn'),
+            fileBtn: document.getElementById('file-btn'),
+            fileInput: document.getElementById('file-input'),
+            voiceBtn: document.getElementById('voice-btn'),
+            voiceIndicator: document.getElementById('voice-indicator'),
+            settingsBtn: document.getElementById('settings-btn'),
+            settingsPanel: document.getElementById('settings-panel'),
+            settingsOverlay: document.getElementById('settings-overlay'),
+            sidebar: document.getElementById('sidebar'),
+            chatList: document.getElementById('chat-list'),
+            menuBtn: document.getElementById('menu-btn'),
+            fontSelect: document.getElementById('font-select'),
+            bgColorPicker: document.getElementById('bg-color-picker')
+        };
+
+        const localKnowledge = {
+            'who are you': "I'm Crump AI - an intelligent assistant powered by the N² Engine. I intelligently route queries between Claude and OpenAI to give you the best possible responses. I was built to be a versatile, powerful assistant for any task.",
+            'who am i': "You're the person using Crump AI right now. If you're Gregory D. Crump Jr., you're the founder and builder who created me. If you're testing this for Gregory, you're helping shape the future of intelligent assistance.",
+            'what is crump': "Crump AI is a hybrid intelligence system that combines the strengths of multiple AI models. I route technical and analytical tasks to Claude, creative tasks to OpenAI, and handle common queries locally for instant responses.",
+            'who built you': "Gregory D. Crump Jr. built Crump AI. He created this system to be a powerful, personalized intelligent assistant. This is his vision brought to life.",
+            'what can you do': "I can help with coding, analysis, problem-solving, creative writing, and much more. I intelligently choose the best AI model for each task, remember our conversations, and provide thoughtful, helpful responses. I can also generate images - just ask me to create, generate, or draw something!"
+        };
+
+        function initializeSplash() {
+            const hasSeenSplash = sessionStorage.getItem('crump_splash_seen');
+            
+            if (!hasSeenSplash) {
+                setTimeout(() => {
+                    elements.splashScreen.classList.add('hidden');
+                    elements.app.classList.add('visible');
+                    sessionStorage.setItem('crump_splash_seen', 'true');
+                }, 2500);
+            } else {
+                elements.splashScreen.style.display = 'none';
+                elements.app.classList.add('visible');
+            }
+        }
+
+        function initializeCustomization() {
+            document.body.style.background = state.bgColor;
+            document.body.className = state.fontStyle === 'classic' ? 'font-classic' : 
+                                      state.fontStyle === 'elegant' ? 'font-elegant' : '';
+            
+            elements.fontSelect.value = state.fontStyle;
+            elements.bgColorPicker.value = state.bgColor;
+
+            elements.fontSelect.addEventListener('change', (e) => {
+                state.fontStyle = e.target.value;
+                localStorage.setItem('fontStyle', state.fontStyle);
+                document.body.className = state.fontStyle === 'classic' ? 'font-classic' : 
+                                         state.fontStyle === 'elegant' ? 'font-elegant' : '';
+            });
+
+            elements.bgColorPicker.addEventListener('change', (e) => {
+                state.bgColor = e.target.value;
+                localStorage.setItem('bgColor', state.bgColor);
+                document.body.style.background = state.bgColor;
+            });
+        }
+
+        function isImageRequest(message) {
+            const lowerMsg = message.toLowerCase();
+            const imageKeywords = ['generate', 'create', 'make', 'draw', 'design', 'show me'];
+            const imageNouns = ['image', 'picture', 'photo', 'illustration', 'artwork', 'drawing'];
+            
+            const hasImageKeyword = imageKeywords.some(keyword => lowerMsg.includes(keyword));
+            const hasImageNoun = imageNouns.some(noun => lowerMsg.includes(noun));
+            
+            return hasImageKeyword && hasImageNoun;
+        }
+
+        function extractImagePrompt(message) {
+            const lowerMsg = message.toLowerCase();
+            let prompt = message;
+            
+            const prefixes = ['generate an image of', 'create an image of', 'make an image of', 'draw', 'create a picture of', 'generate a picture of', 'show me an image of', 'show me a picture of'];
+            
+            for (const prefix of prefixes) {
+                if (lowerMsg.includes(prefix)) {
+                    const index = lowerMsg.indexOf(prefix);
+                    prompt = message.substring(index + prefix.length).trim();
+                    break;
+                }
+            }
+            
+            return prompt || message;
+        }
+
+        async function generateImage(prompt) {
+            const encodedPrompt = encodeURIComponent(prompt);
+            const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=800&nologo=true`;
+            return imageUrl;
+        }
+
+        function getRandomWelcome() {
+            return welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
+        }
+
+        function showWelcome() {
+            elements.chatContainer.innerHTML = `
+                <div class="welcome-message">
+                    <div class="logo-large">
+                        <img src="/assets/crump-crest.png" alt="Crump AI">
+                    </div>
+                    <h2>CRUMP AI</h2>
+                    <p>${getRandomWelcome()}</p>
+                </div>
+            `;
+        }
+
+        function getCurrentChat() {
+            if (!state.currentChatId) {
+                createNewChat();
+            }
+            return state.chats.find(c => c.id === state.currentChatId);
+        }
+
+        function saveChats() {
+            localStorage.setItem('crump_chats', JSON.stringify(state.chats));
+            localStorage.setItem('crump_current_chat', state.currentChatId);
+            renderChatList();
+        }
+
+        window.createNewChat = function() {
+            const newChat = {
+                id: Date.now().toString(),
+                title: 'New Chat',
+                messages: [],
+                createdAt: new Date().toISOString()
+            };
+            state.chats.unshift(newChat);
+            state.currentChatId = newChat.id;
+            saveChats();
+            loadChat(newChat.id);
+            if (window.innerWidth <= 768) {
+                elements.sidebar.classList.add('hidden');
+            }
+        };
+
+        function loadChat(chatId) {
+            state.currentChatId = chatId;
+            const chat = getCurrentChat();
+            elements.chatContainer.innerHTML = '';
+            
+            if (chat.messages.length === 0) {
+                showWelcome();
+            } else {
+                chat.messages.forEach(msg => {
+                    addMessageToUI(msg.content, msg.role, msg.imageUrl);
+                });
+            }
+            
+            saveChats();
+        }
+
+        function updateChatTitle(firstMessage) {
+            const chat = getCurrentChat();
+            if (chat && chat.title === 'New Chat') {
+                chat.title = firstMessage.substring(0, 30) + (firstMessage.length > 30 ? '...' : '');
+                saveChats();
+            }
+        }
+
+        function renderChatList() {
+            elements.chatList.innerHTML = '';
+            state.chats.forEach(chat => {
+                const item = document.createElement('div');
+                item.className = 'chat-item' + (chat.id === state.currentChatId ? ' active' : '');
+                item.innerHTML = `
+                    <span>${chat.title}</span>
+                    <span class="chat-item-delete" onclick="event.stopPropagation(); window.deleteChat('${chat.id}')">🗑️</span>
+                `;
+                item.onclick = () => loadChat(chat.id);
+                elements.chatList.appendChild(item);
+            });
+        }
+
+        window.deleteChat = function(chatId) {
+            if (confirm('Delete this chat?')) {
+                state.chats = state.chats.filter(c => c.id !== chatId);
+                if (state.currentChatId === chatId) {
+                    if (state.chats.length > 0) {
+                        loadChat(state.chats[0].id);
+                    } else {
+                        createNewChat();
+                    }
+                }
+                saveChats();
+            }
+        };
+
+        window.clearCurrentChat = function() {
+            if (confirm('Clear current chat history?')) {
+                const chat = getCurrentChat();
+                if (chat) {
+                    chat.messages = [];
+                    chat.title = 'New Chat';
+                    saveChats();
+                    showWelcome();
+                }
+                toggleSettings();
+            }
+        };
+
+        window.deleteAllChats = function() {
+            if (confirm('Delete ALL chats? This cannot be undone.')) {
+                state.chats = [];
+                state.currentChatId = null;
+                saveChats();
+                createNewChat();
+                toggleSettings();
+            }
+        };
+
+        function autoResizeTextarea() {
+            elements.userInput.style.height = 'auto';
+            elements.userInput.style.height = Math.min(elements.userInput.scrollHeight, 120) + 'px';
+        }
+
+        function initializeVoice() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                state.recognition = new SpeechRecognition();
+                state.recognition.continuous = false;
+                state.recognition.interimResults = false;
+                state.recognition.lang = 'en-US';
+
+                state.recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    elements.userInput.value = transcript;
+                    stopListening();
+                    sendMessage();
+                };
+
+                state.recognition.onerror = () => stopListening();
+                state.recognition.onend = () => { if (state.isListening) stopListening(); };
+            } else {
+                elements.voiceBtn.style.display = 'none';
+            }
+        }
+
+        function toggleVoice() {
+            if (state.isListening) {
+                stopListening();
+            } else {
+                startListening();
+            }
+        }
+
+        function startListening() {
+            if (state.recognition) {
+                state.isListening = true;
+                elements.voiceBtn.classList.add('listening');
+                elements.voiceIndicator.classList.add('active');
+                state.recognition.start();
+            }
+        }
+
+        function stopListening() {
+            if (state.recognition) {
+                state.isListening = false;
+                elements.voiceBtn.classList.remove('listening');
+                elements.voiceIndicator.classList.remove('active');
+                state.recognition.stop();
+            }
+        }
+
+        function initializeSettings() {
+            const voiceOutputToggle = document.getElementById('voice-output-toggle');
+            const autoVoiceToggle = document.getElementById('auto-voice-toggle');
+
+            if (state.voiceOutputEnabled) {
+                voiceOutputToggle.classList.add('active');
+                voiceOutputToggle.setAttribute('aria-checked', 'true');
+            }
+            if (state.autoVoiceEnabled) {
+                autoVoiceToggle.classList.add('active');
+                autoVoiceToggle.setAttribute('aria-checked', 'true');
+            }
+
+            voiceOutputToggle.addEventListener('click', () => {
+                state.voiceOutputEnabled = !state.voiceOutputEnabled;
+                localStorage.setItem('voiceOutput', state.voiceOutputEnabled);
+                voiceOutputToggle.classList.toggle('active');
+                voiceOutputToggle.setAttribute('aria-checked', state.voiceOutputEnabled);
+            });
+
+            autoVoiceToggle.addEventListener('click', () => {
+                state.autoVoiceEnabled = !state.autoVoiceEnabled;
+                localStorage.setItem('autoVoice', state.autoVoiceEnabled);
+                autoVoiceToggle.classList.toggle('active');
+                autoVoiceToggle.setAttribute('aria-checked', state.autoVoiceEnabled);
+            });
+        }
+
+        function toggleSettings() {
+            elements.settingsPanel.classList.toggle('active');
+            elements.settingsOverlay.classList.toggle('active');
+        }
+
+        function speak(text) {
+            if (state.voiceOutputEnabled && 'speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 1.1;
+                utterance.pitch = 1;
+                speechSynthesis.speak(utterance);
+
+                utterance.onend = () => {
+                    if (state.autoVoiceEnabled) {
+                        setTimeout(startListening, 500);
+                    }
+                };
+            } else if (state.autoVoiceEnabled) {
+                setTimeout(startListening, 500);
+            }
+        }
+
+        function checkLocalKnowledge(query) {
+            const normalizedQuery = query.toLowerCase().trim();
+            for (const [key, value] of Object.entries(localKnowledge)) {
+                if (normalizedQuery.includes(key)) {
+                    return value;
+                }
+            }
+            return null;
+        }
+
+        function addMessageToUI(content, sender, imageUrl = null) {
+            const welcomeMsg = elements.chatContainer.querySelector('.welcome-message');
+            if (welcomeMsg) welcomeMsg.remove();
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+
+            const avatar = document.createElement('div');
+            avatar.className = `message-avatar ${sender}-avatar`;
+            avatar.textContent = sender === 'user' ? 'G' : 'C';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+
+            if (content === 'THINKING') {
+                bubble.innerHTML = '<div class="thinking-indicator">Crump is thinking<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>';
+            } else {
+                bubble.textContent = content;
+            }
+
+            contentDiv.appendChild(bubble);
+
+            if (imageUrl) {
+                const imageContainer = document.createElement('div');
+                imageContainer.className = 'message-image';
+                const img = document.createElement('img');
+                img.src = imageUrl;
+                img.alt = 'Generated image';
+                img.loading = 'lazy';
+                imageContainer.appendChild(img);
+                contentDiv.appendChild(imageContainer);
+            }
+
+            const time = document.createElement('div');
+            time.className = 'message-time';
+            time.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            contentDiv.appendChild(time);
+
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(contentDiv);
+            elements.chatContainer.appendChild(messageDiv);
+            elements.chatContainer.scrollTop = elements.chatContainer.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const userMessage = elements.userInput.value.trim();
+            if (!userMessage) return;
+
+            const chat = getCurrentChat();
+            
+            if (chat.messages.length === 0) {
+                updateChatTitle(userMessage);
+            }
+
+            addMessageToUI(userMessage, 'user');
+            chat.messages.push({ role: 'user', content: userMessage });
+            
+            elements.userInput.value = '';
+            autoResizeTextarea();
+
+            if (isImageRequest(userMessage)) {
+                addMessageToUI('THINKING', 'nova');
+                
+                setTimeout(async () => {
+                    const prompt = extractImagePrompt(userMessage);
+                    const imageUrl = await generateImage(prompt);
+                    
+                    const lastMessage = elements.chatContainer.lastElementChild;
+                    if (lastMessage) lastMessage.remove();
+                    
+                    const response = "Here's your image:";
+                    addMessageToUI(response, 'nova', imageUrl);
+                    chat.messages.push({ role: 'assistant', content: response, imageUrl: imageUrl });
+                    saveChats();
+                    speak(response);
+                }, 800);
+                return;
+            }
+
+            const localResponse = checkLocalKnowledge(userMessage);
+            
+            if (localResponse) {
+                setTimeout(() => {
+                    addMessageToUI(localResponse, 'nova');
+                    chat.messages.push({ role: 'assistant', content: localResponse });
+                    saveChats();
+                    speak(localResponse);
+                }, 300);
+                return;
+            }
+
+            addMessageToUI('THINKING', 'nova');
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        message: userMessage, 
+                        history: chat.messages.slice(-10)
+                    })
+                });
+
+                const data = await response.json();
+                
+                const lastMessage = elements.chatContainer.lastElementChild;
+                if (lastMessage) lastMessage.remove();
+
+                if (data.error) {
+                    addMessageToUI(`I encountered an error. Please try again.`, 'nova');
+                } else {
+                    addMessageToUI(data.response, 'nova');
+                    chat.messages.push({ role: 'assistant', content: data.response });
+                    saveChats();
+                    speak(data.response);
+                }
+            } catch (error) {
+                console.error('Connection error:', error);
+                const lastMessage = elements.chatContainer.lastElementChild;
+                if (lastMessage) lastMessage.remove();
+                addMessageToUI('Connection error. Please check your internet and try again.', 'nova');
+            }
+        }
+
+        elements.fileBtn.addEventListener('click', () => elements.fileInput.click());
+        elements.fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length > 0) {
+                const fileNames = files.map(f => f.name).join(', ');
+                elements.userInput.value = `[Files attached: ${fileNames}]\n\n` + elements.userInput.value;
+                autoResizeTextarea();
+            }
+        });
+
+        elements.sendBtn.addEventListener('click', sendMessage);
+        elements.userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        elements.userInput.addEventListener('input', autoResizeTextarea);
+        elements.voiceBtn.addEventListener('click', toggleVoice);
+        elements.voiceIndicator.addEventListener('click', stopListening);
+        elements.settingsBtn.addEventListener('click', toggleSettings);
+        elements.settingsOverlay.addEventListener('click', toggleSettings);
+        elements.menuBtn.addEventListener('click', () => {
+            elements.sidebar.classList.toggle('hidden');
+        });
+
+        initializeSplash();
+        initializeCustomization();
+
+        if (state.chats.length === 0) {
+            createNewChat();
+        } else {
+            if (!state.currentChatId || !state.chats.find(c => c.id === state.currentChatId)) {
+                state.currentChatId = state.chats[0].id;
+            }
+            loadChat(state.currentChatId);
+        }
+        
+        renderChatList();
+        initializeVoice();
+        initializeSettings();
+        autoResizeTextarea();
+
+        if (window.innerWidth <= 768) {
+            elements.sidebar.classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
