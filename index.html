@@ -932,6 +932,11 @@
                 width: 100%;
                 right: -100%;
             }
+
+            .sidebar-close-btn {
+        display: block !important;
+    }
+}
         }
 
         ::-webkit-scrollbar {
@@ -1125,7 +1130,12 @@
         }
 
         function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('active');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    
+    sidebar.classList.toggle('active');
+    overlay.classList.toggle('active');
+}
             
             function closeSidebar() {
     const sidebar = document.getElementById('sidebar');
