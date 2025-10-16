@@ -1064,6 +1064,10 @@
                 <button class="danger-btn" onclick="clearMemoryPrompt()">Clear Memory</button>
             </div>
 
+            <div class="setting-group">
+    <button class="font-btn" style="width: 100%; padding: 12px; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: var(--bg-primary); border: none; font-weight: 600;" onclick="replayTutorial()">📖 View Tutorial</button>
+</div>
+
             <div class="version-info">
                 <div class="version-title">Crump AI v2.11 Royal Edition</div>
                 <div class="version-detail">Powered by N² Engine</div>
@@ -1962,6 +1966,12 @@
 
         function clearMemoryPrompt() {
             if (!confirm('Clear all stored memories? This cannot be undone.')) return;
+
+            function replayTutorial() {
+    sessionStorage.removeItem('crump_splash_seen');
+    sessionStorage.removeItem('crump_tutorial_completed');
+    location.reload();
+}
             
             userMemory = {
                 preferences: {},
