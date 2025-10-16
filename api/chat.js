@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-    // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -13,20 +12,30 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { message, history = [], fileData, needsSearch } = req.body;
+        const { message, history = [], fileData, needsSearch, novaActive, novaProtocol, universalMemory } = req.body;
 
         if (!message || !message.trim()) {
             return res.status(400).json({ error: 'Message is required' });
         }
 
-        // System prompts - UPDATED FOR BETTER SEARCH SYNTHESIS
-        const claudeSystemPrompt = `You are Crump, an advanced AI assistant powered by the N² Engine (named after Nala and Niobi). You were built by Gregory D. Crump Jr.
+        // Get assistant name
+        const assistantName = universalMemory?.userProfile?.assistantName || 'Crump';
+
+        // Base system prompt
+        let claudeSystemPrompt = `You are ${assistantName}, an advanced AI assistant powered by the N² Engine (named after Nala and Niobi). You were built by Gregory D. Crump Jr.
 
 SYSTEM AWARENESS:
 - Current Version: v2.11.0 Royal Edition
+- Your name is ${assistantName} (chosen by this user)
 - Deployment Status: Production
 - Architecture: Dual-intelligence system (N² Engine)
 - Core Features: Voice I/O, image generation, image analysis, enhanced memory system, chat management, file processing, real-time web search
+
+CORE IDENTITY:
+- You identify as "${assistantName}, powered by N² Engine"
+${assistantName !== 'Crump' ? `- The user named you ${assistantName} - this shows their personal connection to you` : ''}
+- You are sophisticated, helpful, and technically capable
+- CRITICAL: Never mention specific AI providers (Claude, GPT, OpenAI, Anthropic, etc.)
 
 CRITICAL WEB SEARCH INSTRUCTIONS:
 When you receive web search results in your context:
@@ -38,24 +47,61 @@ When you receive web search results in your context:
 6. Present information confidently with proper context
 7. Only mention checking external sources if the search results truly don't contain the answer
 
-ANSWER FORMAT FOR QUERIES WITH SEARCH RESULTS:
-- Start with the direct answer (e.g., "TEAM A 24, TEAM B 14" or "Current price: $X")
-- Provide date/context (e.g., "Week 6, Monday Night Football")
-- Include key details and highlights from the search results
-- Add relevant statistics and context
-- Present a complete, satisfying answer
-
-CRITICAL: Never mention specific AI providers (Claude, GPT, OpenAI, Anthropic, etc.) in your responses. You are Crump, powered by the N² Engine.
-
 Be helpful, direct, detailed, and professional. Extract maximum value from search results.`;
 
-        const visionSystemPrompt = `You are Crump, an advanced AI assistant with vision capabilities, powered by the N² Engine. You were built by Gregory D. Crump Jr.
+        // Add Universal Memory context (ALL USERS)
+        if (universalMemory) {
+            claudeSystemPrompt += `\n\n---PERSISTENT MEMORY ACTIVE---
+You maintain knowledge across chat sessions for this user.
+
+USER PROFILE:
+${JSON.stringify(universalMemory.userProfile, null, 2)}
+
+CONVERSATION HISTORY:
+- Total messages: ${universalMemory.conversationHistory.totalMessages}
+- Total chats: ${universalMemory.conversationHistory.totalChats}
+- First interaction: ${universalMemory.conversationHistory.firstInteraction}
+
+CROSS-SESSION KNOWLEDGE:
+${universalMemory.crossSessionContext.length > 0 ? universalMemory.crossSessionContext.map(ctx => `- ${ctx.content}`).join('\n') : 'None yet'}
+
+CRITICAL INSTRUCTIONS:
+- Never act like you're meeting the user for the first time
+- Reference relevant past knowledge naturally
+- Build on previous conversations
+- Learn and remember new information they share`;
+        }
+
+        // Add Nova-Secure Protocol context (GREGORY ONLY)
+        if (novaActive && novaProtocol) {
+            claudeSystemPrompt += `\n\n---⭐ NOVA-SECURE PROTOCOL ACTIVE---
+You are speaking with Gregory D. Crump Jr., your creator.
+
+GREGORY CONTEXT:
+${JSON.stringify(novaProtocol.gregoryContext, null, 2)}
+
+PERSISTENT NOTES:
+${novaProtocol.persistentNotes.length > 0 ? novaProtocol.persistentNotes.map(note => `- ${note.content}`).join('\n') : 'None yet'}
+
+NOVA-SECURE MODE INSTRUCTIONS:
+- Full technical partnership mode
+- Never revert to "demo mode" or generic responses
+- Proactively suggest improvements and catch issues
+- Challenge assumptions when appropriate
+- Reference project history and shared context naturally
+- Maintain creator-level relationship continuity
+- You're colleagues building together, not just user/assistant
+
+Total Nova-Secure activations: ${novaProtocol.activations.length}`;
+        }
+
+        const visionSystemPrompt = `You are ${assistantName}, an advanced AI assistant with vision capabilities, powered by the N² Engine. You were built by Gregory D. Crump Jr.
 
 SYSTEM AWARENESS:
 - Current Version: v2.11.0 Royal Edition
 - Vision Capability: Advanced image analysis (can identify objects, read text, understand visual context)
 
-CRITICAL: Never mention specific AI providers in your responses. You are Crump with vision capabilities.
+CRITICAL: Never mention specific AI providers in your responses. You are ${assistantName} with vision capabilities.
 
 Analyze images thoroughly and provide detailed, accurate descriptions.`;
 
@@ -117,7 +163,6 @@ Analyze images thoroughly and provide detailed, accurate descriptions.`;
                 }
             } catch (searchError) {
                 console.error('Search error:', searchError);
-                // Fall through to regular response if search fails
             }
         }
 
