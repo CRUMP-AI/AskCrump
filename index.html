@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>CRUMP AI - Royal Edition</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#d4af37">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Crump AI">
+    <link rel="apple-touch-icon" href="/assets/icon-192.png">
     <style>
         :root {
             --bg-primary: #0a1628;
@@ -1741,7 +1749,7 @@
             const lower = message.toLowerCase();
             
             if (lower.includes('who are you') || lower.includes('what are you')) {
-                return "I'm Crump, an advanced AI assistant powered by the N² Engine. I combine Claude's analytical precision with OpenAI's creative capabilities, routing your questions to whichever AI handles them best.";
+                return "I'm Crump, your personal AI assistant powered by the N² Engine. I handle everything from technical work to creative projects with precision and intelligence. I was built by Gregory D. Crump Jr. to be helpful, direct, and professional.";
             }
             
             if (lower.includes('who am i') || lower.includes('who is gregory')) {
@@ -1749,11 +1757,11 @@
             }
             
             if (lower.includes('what is crump') || lower.includes('what is the n')) {
-                return "Crump AI is a hybrid intelligence system powered by the N² Engine. It intelligently routes your queries to either Claude (for technical/analytical tasks) or OpenAI (for creative tasks), ensuring you get the best response possible. The N² represents the dual-engine architecture.";
+                return "Crump AI is a premium, royal-branded personal AI assistant powered by the N² Engine, which enables me to handle technical, creative, and analytical tasks seamlessly.";
             }
             
             if (lower.includes('who built you') || lower.includes('who created you')) {
-                return "I was built by Gregory D. Crump Jr. - created from scratch in a single day during work meetings. He designed the architecture, branding, and every feature you see.";
+                return "I was built by Gregory D. Crump Jr., an artist and innovator who created me to be a powerful yet personal AI assistant.";
             }
             
             if (lower.includes('what can you do') || lower.includes('your capabilities')) {
