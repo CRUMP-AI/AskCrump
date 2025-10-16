@@ -1872,6 +1872,9 @@ function completeTutorial() {
                 return;
             }
 
+            // Check if query needs web search
+const needsSearch = shouldSearchWeb(message);
+
             if (shouldGenerateImage(message) && !fileData) {
                 await handleImageGeneration(message);
                 return;
@@ -1887,10 +1890,11 @@ function completeTutorial() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        message: messageWithContext,
-                        history: chat.messages.slice(-10).filter(m => m.content && m.content.trim() !== ''),
-                        fileData: fileData || null
-                    })
+    message: messageWithContext,
+    history: chat.messages.slice(-10).filter(m => m.content && m.content.trim() !== ''),
+    fileData: fileDataToSend,
+    needsSearch: needsSearch
+})
                 });
                 
                 if (!response.ok) throw new Error('API request failed');
@@ -2208,6 +2212,35 @@ function completeTutorial() {
             saveMemory();
             alert('All memories cleared.');
         }
+
+        function shouldSearchWeb(message) {
+    const lower = message.toLowerCase();
+    
+    // Time-sensitive queries
+    const timeKeywords = ['today', 'now', 'current', 'latest', 'recent', 'this week', 'this month', 'yesterday'];
+    if (timeKeywords.some(keyword => lower.includes(keyword))) {
+        return true;
+    }
+    
+    // News/events
+    const newsKeywords = ['news', 'happened', 'event', 'score', 'result', 'winner', 'election'];
+    if (newsKeywords.some(keyword => lower.includes(keyword))) {
+        return true;
+    }
+    
+    // Real-time data
+    const dataKeywords = ['weather', 'temperature', 'stock', 'price', 'forecast'];
+    if (dataKeywords.some(keyword => lower.includes(keyword))) {
+        return true;
+    }
+    
+    // Explicit search requests
+    if (lower.includes('search') || lower.includes('look up') || lower.includes('find out')) {
+        return true;
+    }
+    
+    return false;
+}
 
          function replayTutorial() {
     sessionStorage.removeItem('crump_splash_seen');
