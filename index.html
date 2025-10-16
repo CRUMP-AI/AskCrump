@@ -1268,103 +1268,108 @@
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
-            function initializeSplashScreen() {
-    const splashSeen = sessionStorage.getItem('crump_splash_seen');
-    const tutorialCompleted = sessionStorage.getItem('crump_tutorial_completed');
-    const splashScreen = document.getElementById('splash-screen');
-    
-    if (splashSeen) {
-        splashScreen.style.display = 'none';
+    function initializeSplashScreen() {
+        const splashSeen = sessionStorage.getItem('crump_splash_seen');
+        const tutorialCompleted = sessionStorage.getItem('crump_tutorial_completed');
+        const splashScreen = document.getElementById('splash-screen');
         
-        if (!tutorialCompleted) {
-            setTimeout(() => {
-                showTutorial();
-            }, 500);
-        }
-    } else {
-        sessionStorage.setItem('crump_splash_seen', 'true');
-        
-        setTimeout(() => {
+        if (splashSeen) {
+            splashScreen.style.display = 'none';
+            
             if (!tutorialCompleted) {
-                showTutorial();
+                setTimeout(() => {
+                    showTutorial();
+                }, 500);
             }
-        }, 2500);
+        } else {
+            sessionStorage.setItem('crump_splash_seen', 'true');
+            
+            setTimeout(() => {
+                if (!tutorialCompleted) {
+                    showTutorial();
+                }
+            }, 2500);
+        }
     }
-}
 
-let currentTutorialStep = 1;
+    let currentTutorialStep = 1;
 
-const tutorialSteps = [
-    {
-        icon: "👋",
-        title: "Welcome, Gregory",
-        text: "I'm Crump, your personal AI assistant powered by the N² Engine. Let me show you around."
-    },
-    {
-        icon: "💬",
-        title: "Powerful Conversations",
-        text: "I can help with technical work, creative projects, analysis, and more. Just type your question and hit send."
-    },
-    {
-        icon: "🎤",
-        title: "Voice & Vision",
-        text: "Use voice input to speak naturally, upload images for analysis, or ask me to generate images for you."
-    },
-    {
-        icon: "🧠",
-        title: "Smart Memory",
-        text: "Tell me to 'Remember that...' and I'll store important information. I learn from every conversation to serve you better."
-    }
-];
+    const tutorialSteps = [
+        {
+            icon: "👋",
+            title: "Welcome, Gregory",
+            text: "I'm Crump, your personal AI assistant powered by the N² Engine. Let me show you around."
+        },
+        {
+            icon: "💬",
+            title: "Powerful Conversations",
+            text: "I can help with technical work, creative projects, analysis, and more. Just type your question and hit send."
+        },
+        {
+            icon: "🎤",
+            title: "Voice & Vision",
+            text: "Use voice input to speak naturally, upload images for analysis, or ask me to generate images for you."
+        },
+        {
+            icon: "🧠",
+            title: "Smart Memory",
+            text: "Tell me to 'Remember that...' and I'll store important information. I learn from every conversation to serve you better."
+        }
+    ];
 
-function showTutorial() {
-    currentTutorialStep = 1;
-    updateTutorialContent();
-    document.getElementById('tutorial-overlay').classList.add('active');
-}
-
-function updateTutorialContent() {
-    const step = tutorialSteps[currentTutorialStep - 1];
-    const body = document.getElementById('tutorialBody');
-    const stepIndicator = document.getElementById('tutorialStep');
-    
-    stepIndicator.textContent = `Step ${currentTutorialStep} of ${tutorialSteps.length}`;
-    
-    body.innerHTML = `
-        <div class="tutorial-icon">${step.icon}</div>
-        <h2>${step.title}</h2>
-        <p>${step.text}</p>
-    `;
-}
-
-function nextTutorialStep() {
-    if (currentTutorialStep < tutorialSteps.length) {
-        currentTutorialStep++;
+    function showTutorial() {
+        currentTutorialStep = 1;
         updateTutorialContent();
-    } else {
+        document.getElementById('tutorial-overlay').classList.add('active');
+    }
+
+    function updateTutorialContent() {
+        const step = tutorialSteps[currentTutorialStep - 1];
+        const body = document.getElementById('tutorialBody');
+        const stepIndicator = document.getElementById('tutorialStep');
+        
+        stepIndicator.textContent = `Step ${currentTutorialStep} of ${tutorialSteps.length}`;
+        
+        body.innerHTML = `
+            <div class="tutorial-icon">${step.icon}</div>
+            <h2>${step.title}</h2>
+            <p>${step.text}</p>
+        `;
+    }
+
+    function nextTutorialStep() {
+        if (currentTutorialStep < tutorialSteps.length) {
+            currentTutorialStep++;
+            updateTutorialContent();
+        } else {
+            completeTutorial();
+        }
+    }
+
+    function skipTutorial() {
         completeTutorial();
     }
-}
 
-function skipTutorial() {
-    completeTutorial();
-}
+    function completeTutorial() {
+        sessionStorage.setItem('crump_tutorial_completed', 'true');
+        document.getElementById('tutorial-overlay').classList.remove('active');
+    }
 
-function completeTutorial() {
-    sessionStorage.setItem('crump_tutorial_completed', 'true');
-    document.getElementById('tutorial-overlay').classList.remove('active');
-}
-            loadSettings();
-            loadChats();
-            loadMemory();
-            setupVoiceRecognition();
-            
-            if (chats.length === 0) {
-                createNewChat();
-            } else {
-                loadChat(chats[0].id);
-            }
-        });
+    // CALL THE FUNCTION - THIS WAS MISSING!
+    initializeSplashScreen();
+    
+    // Now load everything else
+    loadSettings();
+    loadChats();
+    loadMemory();
+    setupVoiceRecognition();
+    
+    if (chats.length === 0) {
+        createNewChat();
+    } else {
+        loadChat(chats[0].id);
+    }
+});
 
         function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
