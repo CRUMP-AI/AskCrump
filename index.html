@@ -1889,10 +1889,10 @@ const needsSearch = shouldSearchWeb(message);
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
+                   body: JSON.stringify({
     message: messageWithContext,
     history: chat.messages.slice(-10).filter(m => m.content && m.content.trim() !== ''),
-    fileData: fileDataToSend,
+    fileData: fileData || null,
     needsSearch: needsSearch
 })
                 });
@@ -2009,10 +2009,11 @@ const needsSearch = shouldSearchWeb(message);
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        message: messageWithContext,
-                        history: chat.messages.slice(-10).filter(m => m.content && m.content.trim() !== ''),
-                        fileData: fileDataToSend
-                    })
+    message: messageWithContext,
+    history: chat.messages.slice(-10).filter(m => m.content && m.content.trim() !== ''),
+    fileData: fileDataToSend,
+    needsSearch: shouldSearchWeb(message)
+})
                 });
                 
                 if (!response.ok) throw new Error('API request failed');
