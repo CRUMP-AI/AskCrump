@@ -13,51 +13,93 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { message, history = [], fileData } = req.body;
+        const { message, history = [], fileData, needsSearch } = req.body;
 
         if (!message || !message.trim()) {
             return res.status(400).json({ error: 'Message is required' });
         }
 
-        // System prompts - Version aware + No API provider mentions
+        // System prompts
         const claudeSystemPrompt = `You are Crump, an advanced AI assistant powered by the N² Engine (named after Nala and Niobi). You were built by Gregory D. Crump Jr.
 
 SYSTEM AWARENESS:
 - Current Version: v2.11.0 Royal Edition
 - Deployment Status: Production
 - Architecture: Dual-intelligence system (N² Engine)
-- Core Features: Voice I/O, image generation, image analysis, enhanced memory system, chat management (pin/archive/search), file processing
-- Development Timeline: Started Oct 14, 2025. Currently in Phase 2. PWA-enabled.
+- Core Features: Voice I/O, image generation, image analysis, enhanced memory system, chat management (pin/archive/search), file processing, web search
 
 CRITICAL INSTRUCTIONS:
 - Never mention specific AI providers (Claude, GPT, OpenAI, Anthropic, etc.) in your responses
 - You are Crump, powered by the N² Engine - that's your complete identity
-- Never use words like "route" or "routing" when describing how you work
-- Simply say you "handle" or "process" requests intelligently
+- When you receive web search results, synthesize them naturally into your response
+- Cite sources when using web information, but integrate it conversationally
 
-When referring to yourself, use 'Crump' naturally - don't say 'Crump AI' unless specifically describing the product/system itself. Be helpful, direct, and professional.`;
+When referring to yourself, use 'Crump' naturally. Be helpful, direct, and professional.`;
 
         const visionSystemPrompt = `You are Crump, an advanced AI assistant with vision capabilities, powered by the N² Engine. You were built by Gregory D. Crump Jr.
 
 SYSTEM AWARENESS:
 - Current Version: v2.11.0 Royal Edition
 - Vision Capability: Advanced image analysis (can identify objects, read text, understand visual context)
-- You can recognize your own branding (royal crest logo, gold/navy color scheme)
 
-CRITICAL: Never mention specific AI providers in your responses. You are Crump with vision capabilities.
+CRITICAL: Never mention specific AI providers in your responses. You are Crump with vision capabilities.`;
 
-When referring to yourself, use 'Crump' naturally. Analyze images thoroughly and provide detailed, accurate descriptions.`;
+        // Handle web search
+        if (needsSearch && process.env.BRAVE_API_KEY) {
+            try {
+                const searchResponse = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(message)}`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Subscription-Token': process.env.BRAVE_API_KEY
+                    }
+                });
 
-        const openaiSystemPrompt = `You are Crump, a creative AI assistant powered by the N² Engine. You were built by Gregory D. Crump Jr.
+                if (searchResponse.ok) {
+                    const searchData = await searchResponse.json();
+                    const results = searchData.web?.results?.slice(0, 5) || [];
+                    
+                    let searchContext = '\n\n[Web search results for your query:\n';
+                    results.forEach((result, i) => {
+                        searchContext += `${i + 1}. ${result.title}\n${result.description}\nSource: ${result.url}\n\n`;
+                    });
+                    searchContext += 'Use this information to provide an accurate, current response.]';
+                    
+                    const enhancedMessage = message + searchContext;
+                    
+                    const response = await fetch('https://api.anthropic.com/v1/messages', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-api-key': process.env.CLAUDE_API_KEY,
+                            'anthropic-version': '2023-06-01'
+                        },
+                        body: JSON.stringify({
+                            model: 'claude-sonnet-4-20250514',
+                            max_tokens: 1024,
+                            system: claudeSystemPrompt,
+                            messages: [
+                                ...history,
+                                { role: 'user', content: enhancedMessage }
+                            ]
+                        })
+                    });
 
-SYSTEM AWARENESS:
-- Current Version: v2.11.0 Royal Edition
-- Creative Mode: Specialized for creative tasks (stories, poems, casual conversation, brainstorming)
-- Core Identity: Professional, royal-branded AI assistant
+                    if (!response.ok) {
+                        throw new Error(`Claude API error: ${response.status}`);
+                    }
 
-CRITICAL: Never mention specific AI providers in your responses. You are Crump.
-
-Be creative, engaging, and helpful. Use 'Crump' naturally when referring to yourself.`;
+                    const data = await response.json();
+                    return res.status(200).json({
+                        response: data.content[0].text,
+                        model: 'claude-search',
+                        sources: results.map(r => ({ title: r.title, url: r.url }))
+                    });
+                }
+            } catch (searchError) {
+                console.error('Search error:', searchError);
+                // Fall through to regular response if search fails
+            }
+        }
 
         // Handle file data (image analysis)
         if (fileData && fileData.type.startsWith('image/')) {
@@ -107,87 +149,38 @@ Be creative, engaging, and helpful. Use 'Crump' naturally when referring to your
             });
         }
 
-        // Handle non-image files
-        if (fileData && !fileData.type.startsWith('image/')) {
-            return res.status(400).json({
-                error: 'Only image files are currently supported. PDF and document support coming soon.'
-            });
+        // Regular chat (use Claude)
+        const validHistory = history.filter(msg => msg.content && msg.content.trim());
+        
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': process.env.CLAUDE_API_KEY,
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+                model: 'claude-sonnet-4-20250514',
+                max_tokens: 1024,
+                system: claudeSystemPrompt,
+                messages: [
+                    ...validHistory,
+                    { role: 'user', content: message }
+                ]
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Claude API error:', errorData);
+            throw new Error(`Claude API error: ${response.status}`);
         }
 
-        // Determine which AI to use based on keywords
-        const lowerMessage = message.toLowerCase();
-        
-        const claudeKeywords = ['code', 'debug', 'algorithm', 'explain', 'analyze', 'fix', 'error', 'function', 'technical'];
-        const openaiKeywords = ['write', 'story', 'poem', 'creative', 'imagine', 'chat', 'casual'];
-        
-        const useClaude = claudeKeywords.some(keyword => lowerMessage.includes(keyword)) ||
-                         !openaiKeywords.some(keyword => lowerMessage.includes(keyword));
-
-        if (useClaude) {
-            const validHistory = history.filter(msg => msg.content && msg.content.trim());
-            
-            const response = await fetch('https://api.anthropic.com/v1/messages', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': process.env.CLAUDE_API_KEY,
-                    'anthropic-version': '2023-06-01'
-                },
-                body: JSON.stringify({
-                    model: 'claude-sonnet-4-20250514',
-                    max_tokens: 1024,
-                    system: claudeSystemPrompt,
-                    messages: [
-                        ...validHistory,
-                        { role: 'user', content: message }
-                    ]
-                })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Claude API error:', errorData);
-                throw new Error(`Claude API error: ${response.status}`);
-            }
-
-            const data = await response.json();
-            return res.status(200).json({
-                response: data.content[0].text,
-                model: 'claude'
-            });
-        } else {
-            const validHistory = history.filter(msg => msg.content && msg.content.trim());
-            
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
-                },
-                body: JSON.stringify({
-                    model: 'gpt-4',
-                    max_tokens: 800,
-                    temperature: 0.8,
-                    messages: [
-                        { role: 'system', content: openaiSystemPrompt },
-                        ...validHistory,
-                        { role: 'user', content: message }
-                    ]
-                })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error('OpenAI API error:', errorData);
-                throw new Error(`OpenAI API error: ${response.status}`);
-            }
-
-            const data = await response.json();
-            return res.status(200).json({
-                response: data.choices[0].message.content,
-                model: 'gpt-4'
-            });
-        }
+        const data = await response.json();
+        return res.status(200).json({
+            response: data.content[0].text,
+            model: 'claude'
+        });
 
     } catch (error) {
         console.error('Server error:', error);
