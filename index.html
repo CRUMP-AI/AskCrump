@@ -956,12 +956,171 @@
         ::-webkit-scrollbar-thumb:hover {
             background: var(--accent-secondary);
         }
+
+       /* Tutorial Styles */
+.tutorial-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10, 22, 40, 0.95);
+    z-index: 10001;
+    backdrop-filter: blur(10px);
+}
+
+.tutorial-overlay.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.tutorial-content {
+    background: var(--bg-secondary);
+    border: 2px solid var(--accent-primary);
+    border-radius: 16px;
+    max-width: 500px;
+    width: 90%;
+    padding: 32px;
+    box-shadow: 0 10px 40px rgba(212, 175, 55, 0.3);
+}
+
+.tutorial-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tutorial-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent-primary);
+}
+
+.tutorial-step {
+    font-size: 14px;
+    color: var(--text-tertiary);
+}
+
+.tutorial-body {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.tutorial-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+}
+
+.tutorial-body h2 {
+    font-size: 24px;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+}
+
+.tutorial-body p {
+    font-size: 16px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.tutorial-body ul {
+    list-style: none;
+    text-align: left;
+    margin-top: 16px;
+}
+
+.tutorial-body li {
+    padding: 8px 0;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.tutorial-body li::before {
+    content: "✓";
+    color: var(--accent-primary);
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.tutorial-footer {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.tutorial-btn {
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.tutorial-btn.primary {
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    color: var(--bg-primary);
+}
+
+.tutorial-btn.primary:hover {
+    transform: translateY(-2px);
+}
+
+.tutorial-btn.secondary {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.tutorial-btn.secondary:hover {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+} 
     </style>
 </head>
 <body>
     <div id="splash-screen">
         <img src="assets/splash-screen.png" alt="Crump AI">
     </div>
+
+    <!-- Tutorial Overlay -->
+<div id="tutorial-overlay" class="tutorial-overlay">
+    <div class="tutorial-content">
+        <div class="tutorial-header">
+            <div class="tutorial-title">Welcome to Crump AI</div>
+            <div class="tutorial-step" id="tutorialStep">Step 1 of 4</div>
+        </div>
+        
+        <div class="tutorial-body" id="tutorialBody">
+            <div class="tutorial-icon">👋</div>
+            <h2>Welcome, Gregory</h2>
+            <p>I'm Crump, your personal AI assistant powered by the N² Engine. Let me show you around.</p>
+        </div>
+        
+        <div class="tutorial-footer">
+            <button class="tutorial-btn secondary" onclick="skipTutorial()">Skip</button>
+            <button class="tutorial-btn primary" onclick="nextTutorialStep()">Next</button>
+        </div>
+    </div>
+</div>
 
     <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="handleFileSelect(event)">
 
@@ -1109,7 +1268,92 @@
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
-            initializeSplashScreen();
+            function initializeSplashScreen() {
+    const splashSeen = sessionStorage.getItem('crump_splash_seen');
+    const tutorialCompleted = sessionStorage.getItem('crump_tutorial_completed');
+    const splashScreen = document.getElementById('splash-screen');
+    
+    if (splashSeen) {
+        splashScreen.style.display = 'none';
+        
+        if (!tutorialCompleted) {
+            setTimeout(() => {
+                showTutorial();
+            }, 500);
+        }
+    } else {
+        sessionStorage.setItem('crump_splash_seen', 'true');
+        
+        setTimeout(() => {
+            if (!tutorialCompleted) {
+                showTutorial();
+            }
+        }, 2500);
+    }
+}
+
+let currentTutorialStep = 1;
+
+const tutorialSteps = [
+    {
+        icon: "👋",
+        title: "Welcome, Gregory",
+        text: "I'm Crump, your personal AI assistant powered by the N² Engine. Let me show you around."
+    },
+    {
+        icon: "💬",
+        title: "Powerful Conversations",
+        text: "I can help with technical work, creative projects, analysis, and more. Just type your question and hit send."
+    },
+    {
+        icon: "🎤",
+        title: "Voice & Vision",
+        text: "Use voice input to speak naturally, upload images for analysis, or ask me to generate images for you."
+    },
+    {
+        icon: "🧠",
+        title: "Smart Memory",
+        text: "Tell me to 'Remember that...' and I'll store important information. I learn from every conversation to serve you better."
+    }
+];
+
+function showTutorial() {
+    currentTutorialStep = 1;
+    updateTutorialContent();
+    document.getElementById('tutorial-overlay').classList.add('active');
+}
+
+function updateTutorialContent() {
+    const step = tutorialSteps[currentTutorialStep - 1];
+    const body = document.getElementById('tutorialBody');
+    const stepIndicator = document.getElementById('tutorialStep');
+    
+    stepIndicator.textContent = `Step ${currentTutorialStep} of ${tutorialSteps.length}`;
+    
+    body.innerHTML = `
+        <div class="tutorial-icon">${step.icon}</div>
+        <h2>${step.title}</h2>
+        <p>${step.text}</p>
+    `;
+}
+
+function nextTutorialStep() {
+    if (currentTutorialStep < tutorialSteps.length) {
+        currentTutorialStep++;
+        updateTutorialContent();
+    } else {
+        completeTutorial();
+    }
+}
+
+function skipTutorial() {
+    completeTutorial();
+}
+
+function completeTutorial() {
+    sessionStorage.setItem('crump_tutorial_completed', 'true');
+    document.getElementById('tutorial-overlay').classList.remove('active');
+}
             loadSettings();
             loadChats();
             loadMemory();
