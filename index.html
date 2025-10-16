@@ -944,17 +944,8 @@
     <div class="app-container">
         <aside class="sidebar" id="sidebar">
            <div class="sidebar-header">
-    <div class="sidebar-header-left">
-        <img src="assets/crump-crest.png" alt="Crump AI" class="logo">
-        <h1 class="app-title">CRUMP AI</h1>
-    </div>
-    <button class="sidebar-close-btn" onclick="closeSidebar()">✕</button>
-</div>
-
-<button class="new-chat-btn" onclick="createNewChat()">✨ New Chat
-<input type="text" class="search-box" placeholder="Search chats...
-    </div>
-    <button class="sidebar-close-btn" onclick="closeSidebar()">✕</button>
+    <button class="new-chat-btn" onclick="createNewChat()">✨ New Chat</button>
+    <input type="text" class="search-box" id="searchBox" placeholder="Search chats..." oninput="filterChats(this.value)">
 </div>
             <div class="chats-list" id="chatsList"></div>
         </aside>
