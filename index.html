@@ -1967,12 +1967,6 @@
         function clearMemoryPrompt() {
             if (!confirm('Clear all stored memories? This cannot be undone.')) return;
 
-            function replayTutorial() {
-    sessionStorage.removeItem('crump_splash_seen');
-    sessionStorage.removeItem('crump_tutorial_completed');
-    location.reload();
-}
-            
             userMemory = {
                 preferences: {},
                 contexts: {},
@@ -1981,6 +1975,12 @@
             saveMemory();
             alert('All memories cleared.');
         }
+
+         function replayTutorial() {
+    sessionStorage.removeItem('crump_splash_seen');
+    sessionStorage.removeItem('crump_tutorial_completed');
+    location.reload();
+}
     </script>
 </body>
 </html>
