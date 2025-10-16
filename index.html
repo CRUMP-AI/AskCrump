@@ -1366,17 +1366,6 @@ function completeTutorial() {
             }
         });
 
-        function initializeSplashScreen() {
-            const splashSeen = sessionStorage.getItem('crump_splash_seen');
-            const splashScreen = document.getElementById('splash-screen');
-            
-            if (splashSeen) {
-                splashScreen.style.display = 'none';
-            } else {
-                sessionStorage.setItem('crump_splash_seen', 'true');
-            }
-        }
-
         function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
