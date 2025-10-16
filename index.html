@@ -1185,6 +1185,32 @@
             </div>
 
             <div class="setting-group">
+    <label class="setting-label">🎭 Assistant Name</label>
+    <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px;">
+        <input 
+            type="text" 
+            id="assistant-name-input" 
+            placeholder="Enter name..."
+            style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #15263d; background: #0a1628; color: #f5f5dc; font-size: 14px;"
+        />
+        <button 
+            onclick="saveAssistantName()" 
+            style="padding: 10px 20px; background: #d4af37; color: #0a1628; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; white-space: nowrap;">
+            Save
+        </button>
+    </div>
+    <small style="color: #b8941f; display: block; margin-top: 6px; font-size: 12px;">
+        Popular: JARVIS, Friday, Athena, Oracle, Nova
+    </small>
+    <button 
+        id="reset-name-btn"
+        onclick="resetAssistantName()" 
+        style="margin-top: 8px; padding: 8px 16px; background: #15263d; color: #f5f5dc; border: 1px solid #d4af37; border-radius: 6px; cursor: pointer; display: none;">
+        Reset to "Crump"
+    </button>
+</div>
+
+            <div class="setting-group">
                 <label class="setting-label">Voice Output</label>
                 <label class="toggle-switch">
                     <input type="checkbox" id="voiceToggle" onchange="toggleVoiceOutput()">
@@ -1218,10 +1244,11 @@
             </div>
 
             <div class="setting-group">
-                <button class="danger-btn" onclick="clearCurrentChat()">Clear Current Chat</button>
-                <button class="danger-btn" onclick="deleteAllChats()">Delete All Chats</button>
-                <button class="danger-btn" onclick="clearMemoryPrompt()">Clear Memory</button>
-            </div>
+    <button class="danger-btn" onclick="clearCurrentChat()">Clear Current Chat</button>
+    <button class="danger-btn" onclick="deleteAllChats()">Delete All Chats</button>
+    <button class="danger-btn" onclick="clearMemoryPrompt()">Clear Memory</button>
+    <button class="danger-btn" onclick="resetAllPreferences()" style="border-color: #ff6b6b; color: #ff6b6b;">⚠️ Reset All Preferences</button>
+</div>
 
             <div class="setting-group">
     <button class="font-btn" style="width: 100%; padding: 12px; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: var(--bg-primary); border: none; font-weight: 600;" onclick="replayTutorial()">📖 View Tutorial</button>
@@ -1361,7 +1388,9 @@
             loadSettings();
             loadChats();
             loadMemory();
-            setupVoiceRecognition();
+initUniversalMemory();
+updateHeaderDisplay();
+setupVoiceRecognition();
             
             if (chats.length === 0) {
                 createNewChat();
@@ -1387,8 +1416,21 @@
 }
 
         function toggleSettings() {
-            document.getElementById('settingsPanel').classList.toggle('active');
-        }
+    document.getElementById('settingsPanel').classList.toggle('active');
+    
+    // Update assistant name input when settings open
+    const nameInput = document.getElementById('assistant-name-input');
+    const resetBtn = document.getElementById('reset-name-btn');
+    const currentName = getAssistantName();
+    
+    if (nameInput) {
+        nameInput.value = currentName;
+    }
+    
+    if (resetBtn) {
+        resetBtn.style.display = currentName !== 'Crump' ? 'block' : 'none';
+    }
+}
 
         function loadSettings() {
             const voiceOutput = localStorage.getItem('voiceOutput') === 'true';
@@ -1451,15 +1493,16 @@
             const lower = message.toLowerCase();
             
             if (lower.startsWith('remember that') || lower.startsWith('remember:')) {
-                const content = message.substring(message.indexOf('that') + 4).trim() || 
-                               message.substring(message.indexOf(':') + 1).trim();
-                userMemory.notes.push({
-                    content: content,
-                    timestamp: new Date().toISOString()
-                });
-                saveMemory();
-                return `Got it. I'll remember: "${content}"`;
-            }
+    const content = message.substring(message.indexOf('that') + 4).trim() || 
+                   message.substring(message.indexOf(':') + 1).trim();
+    userMemory.notes.push({
+        content: content,
+        timestamp: new Date().toISOString()
+    });
+    saveMemory();
+    addCrossSessionContext(content);
+    return `Got it. I'll remember: "${content}" (stored in both session and permanent memory)`;
+}
             
             if (lower.includes('what do you remember') || lower.includes('what do you know about me')) {
                 if (userMemory.notes.length === 0 && Object.keys(userMemory.preferences).length === 0 && Object.keys(userMemory.contexts).length === 0) {
@@ -1962,12 +2005,56 @@ const needsSearch = shouldSearchWeb(message);
         }
 
         async function sendMessage() {
-            const input = document.getElementById('userInput');
-            const message = input.value.trim();
-            
-            if (!message) return;
-            
-            addMessage('user', message, null, currentFile);
+    const input = document.getElementById('userInput');
+    const message = input.value.trim();
+    
+    if (!message) return;
+    
+    // ==========================================
+    // NOVA-SECURE PROTOCOL CHECK
+    // ==========================================
+    if (detectNovaActivation(message)) {
+        activateNovaProtocol();
+        input.value = '';
+        showThinking();
+        setTimeout(() => {
+            hideThinking();
+            addMessage('assistant', `⭐ **Nova-Secure Protocol Activated**
+
+Hello Gregory. Full creator context loaded.
+
+I now have access to:
+- Complete project history (Nova Secure → Crump AI v2.11.0)
+- N² Engine context (Nala & Niobi)
+- Your communication preferences and working style
+- All persistent notes and technical context
+
+Operating in full creator mode. How can I assist you today?`);
+        }, 800);
+        return;
+    }
+
+    if (detectNovaDeactivation(message)) {
+        deactivateNovaProtocol();
+        input.value = '';
+        showThinking();
+        setTimeout(() => {
+            hideThinking();
+            addMessage('assistant', `👑 **Nova-Secure Protocol Deactivated**
+
+Returning to standard mode. Universal memory remains active.
+
+To reactivate:
+- "Activate Nova-Secure" or "Nova-Secure"
+- "Activate Nala Niobi Protocol"`);
+        }, 800);
+        return;
+    }
+
+    // INCREMENT MESSAGE COUNT
+    incrementMessageCount();
+    
+    addMessage('user', message, null, currentFile);
             input.value = '';
             autoResize(input);
             
@@ -2012,11 +2099,14 @@ const needsSearch = shouldSearchWeb(message);
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
+                   body: JSON.stringify({
     message: messageWithContext,
     history: chat.messages.slice(-10).filter(m => m.content && m.content.trim() !== ''),
     fileData: fileDataToSend,
-    needsSearch: shouldSearchWeb(message)
+    needsSearch: shouldSearchWeb(message),
+    novaActive: isNovaActive(),
+    novaProtocol: isNovaActive() ? getNovaProtocol() : null,
+    universalMemory: getUniversalMemory()
 })
                 });
                 
@@ -2251,6 +2341,296 @@ const needsSearch = shouldSearchWeb(message);
     sessionStorage.removeItem('crump_splash_seen');
     sessionStorage.removeItem('crump_tutorial_completed');
     location.reload();
+}
+        // ==========================================
+// UNIVERSAL MEMORY SYSTEM - ALL USERS
+// ==========================================
+
+function initUniversalMemory() {
+    const existing = localStorage.getItem('crump_universal_memory');
+    if (existing) return JSON.parse(existing);
+    
+    return {
+        userProfile: {
+            assistantName: 'Crump',
+            name: null,
+            communicationStyle: "adaptive",
+            preferences: {},
+            interests: [],
+            learnedContext: []
+        },
+        conversationHistory: {
+            totalMessages: 0,
+            totalChats: 0,
+            topicsDiscussed: [],
+            commonRequests: [],
+            lastInteraction: null,
+            firstInteraction: new Date().toISOString()
+        },
+        crossSessionContext: []
+    };
+}
+
+function getUniversalMemory() {
+    const memory = localStorage.getItem('crump_universal_memory');
+    return memory ? JSON.parse(memory) : initUniversalMemory();
+}
+
+function updateUniversalMemory(updates) {
+    const memory = getUniversalMemory();
+    Object.keys(updates).forEach(key => {
+        if (typeof updates[key] === 'object' && !Array.isArray(updates[key])) {
+            memory[key] = { ...memory[key], ...updates[key] };
+        } else {
+            memory[key] = updates[key];
+        }
+    });
+    localStorage.setItem('crump_universal_memory', JSON.stringify(memory));
+    return memory;
+}
+
+function addCrossSessionContext(context) {
+    const memory = getUniversalMemory();
+    memory.crossSessionContext.push({
+        timestamp: new Date().toISOString(),
+        content: context
+    });
+    if (memory.crossSessionContext.length > 50) {
+        memory.crossSessionContext = memory.crossSessionContext.slice(-50);
+    }
+    localStorage.setItem('crump_universal_memory', JSON.stringify(memory));
+}
+
+function incrementMessageCount() {
+    const memory = getUniversalMemory();
+    memory.conversationHistory.totalMessages++;
+    memory.conversationHistory.lastInteraction = new Date().toISOString();
+    localStorage.setItem('crump_universal_memory', JSON.stringify(memory));
+}
+
+function incrementChatCount() {
+    const memory = getUniversalMemory();
+    memory.conversationHistory.totalChats++;
+    localStorage.setItem('crump_universal_memory', JSON.stringify(memory));
+}
+
+// ==========================================
+// ASSISTANT NAME PERSONALIZATION
+// ==========================================
+
+function getAssistantName() {
+    const universalMemory = getUniversalMemory();
+    return universalMemory.userProfile.assistantName || 'Crump';
+}
+
+function setAssistantName(name) {
+    const universalMemory = getUniversalMemory();
+    universalMemory.userProfile.assistantName = name.trim();
+    localStorage.setItem('crump_universal_memory', JSON.stringify(universalMemory));
+    updateHeaderDisplay();
+}
+
+function resetAssistantName() {
+    const universalMemory = getUniversalMemory();
+    universalMemory.userProfile.assistantName = 'Crump';
+    localStorage.setItem('crump_universal_memory', JSON.stringify(universalMemory));
+    updateHeaderDisplay();
+}
+
+function saveAssistantName() {
+    const input = document.getElementById('assistant-name-input');
+    const name = input.value.trim();
+    
+    if (!name) {
+        alert('Please enter a name');
+        return;
+    }
+    
+    if (name.length > 20) {
+        alert('Name must be 20 characters or less');
+        return;
+    }
+    
+    setAssistantName(name);
+    
+    const button = event.target;
+    const originalText = button.textContent;
+    button.textContent = '✓ Saved';
+    button.style.background = '#2d8659';
+    
+    setTimeout(() => {
+        button.textContent = originalText;
+        button.style.background = '#d4af37';
+    }, 1500);
+}
+
+// ==========================================
+// NOVA-SECURE PROTOCOL - GREGORY AUTHENTICATION
+// ==========================================
+
+function detectNovaActivation(message) {
+    const trimmed = message.trim().toLowerCase();
+    
+    // Primary: Nova-Secure (references original project name)
+    // Secondary: Nala Niobi Protocol (named after daughters - most secret)
+    return trimmed === 'activate nova-secure' ||
+           trimmed === 'nova-secure' ||
+           trimmed === 'activate nala niobi protocol' ||
+           trimmed === 'nala niobi protocol';
+}
+
+function detectNovaDeactivation(message) {
+    const trimmed = message.trim().toLowerCase();
+    
+    return trimmed === 'deactivate nova-secure' ||
+           trimmed === 'deactivate nala niobi protocol' ||
+           trimmed === 'end protocol' ||
+           trimmed === 'nova-secure off';
+}
+
+function initNovaProtocol() {
+    // Nova-Secure Protocol: Creator-level access for Gregory D. Crump Jr.
+    // Activation: "Activate Nova-Secure", "Nova-Secure", or "Activate Nala Niobi Protocol"
+    // Only Gregory knows these phrases - references original project and N² Engine namesakes
+    
+    const existing = localStorage.getItem('crump_nova_protocol');
+    if (existing) return JSON.parse(existing);
+    
+    return {
+        active: false,
+        activations: [],
+        gregoryContext: {
+            identity: {
+                name: "Gregory D. Crump Jr.",
+                role: "Creator and Lead Developer",
+                relationship: "Technical partner and collaborator"
+            },
+            projectHistory: {
+                currentProject: "Crump AI v2.11.0 Royal Edition",
+                previousProjects: ["Nova Secure (renamed to Crump AI)"],
+                startDate: "October 14, 2025",
+                deploymentUrl: "crumpai.vercel.app"
+            },
+            engineDetails: {
+                name: "N² Engine",
+                meaning: "Named after daughters Nala and Niobi",
+                originalName: "Nova (stellar explosion/new star)",
+                models: "Claude Sonnet 4.5 (technical) + GPT-4 (creative)"
+            },
+            communicationStyle: {
+                tone: "Direct, no-nonsense, technical",
+                approach: "Challenge assumptions, ask clarifying questions",
+                responseStyle: "Detailed technical explanations",
+                codeFormat: "Production-ready with comments"
+            },
+            philosophy: {
+                values: ["Ship fast", "Iterate quickly", "Build empires"],
+                approach: "Artist/innovator mindset - build to create",
+                priority: "Complete products over perfection"
+            }
+        },
+        persistentNotes: []
+    };
+}
+
+function activateNovaProtocol() {
+    const protocol = initNovaProtocol();
+    protocol.active = true;
+    protocol.activations.push({
+        timestamp: new Date().toISOString()
+    });
+    localStorage.setItem('crump_nova_protocol', JSON.stringify(protocol));
+    updateHeaderDisplay();
+    return protocol;
+}
+
+function deactivateNovaProtocol() {
+    const protocol = initNovaProtocol();
+    protocol.active = false;
+    localStorage.setItem('crump_nova_protocol', JSON.stringify(protocol));
+    updateHeaderDisplay();
+}
+
+function isNovaActive() {
+    const protocol = localStorage.getItem('crump_nova_protocol');
+    if (!protocol) return false;
+    return JSON.parse(protocol).active;
+}
+
+function getNovaProtocol() {
+    const protocol = localStorage.getItem('crump_nova_protocol');
+    return protocol ? JSON.parse(protocol) : null;
+}
+
+// ==========================================
+// HEADER DISPLAY - SUBTLE & PROFESSIONAL
+// ==========================================
+
+function updateHeaderDisplay() {
+    const name = getAssistantName();
+    const novaActive = isNovaActive();
+    const icon = novaActive ? '⭐' : '👑';
+    
+    const iconStyle = novaActive 
+        ? 'font-size: 20px; filter: drop-shadow(0 0 8px #d4af37);' 
+        : 'font-size: 20px;';
+    
+    const logoText = document.querySelector('.logo-text');
+    
+    const isMobile = window.innerWidth < 500;
+    
+    if (isMobile) {
+        logoText.innerHTML = `
+            <span style="${iconStyle}">${icon}</span> ${name}
+        `;
+    } else {
+        logoText.innerHTML = `
+            <span style="${iconStyle}">${icon}</span> ${name} <span style="font-size: 14px; color: #b8941f;">· N² Engine</span>
+        `;
+    }
+}
+
+// Update on window resize
+window.addEventListener('resize', updateHeaderDisplay);
+
+// ==========================================
+// RESET ALL PREFERENCES
+// ==========================================
+
+function resetAllPreferences() {
+    if (!confirm('Reset ALL preferences (assistant name, memory, settings)? This will return everything to defaults. Chats will NOT be deleted.')) {
+        return;
+    }
+    
+    // Clear universal memory (name + cross-session context)
+    localStorage.removeItem('crump_universal_memory');
+    
+    // Clear Nova protocol
+    localStorage.removeItem('crump_nova_protocol');
+    
+    // Clear user memory (session notes)
+    userMemory = {
+        preferences: {},
+        contexts: {},
+        notes: []
+    };
+    saveMemory();
+    
+    // Reset settings to defaults
+    localStorage.removeItem('voiceOutput');
+    localStorage.removeItem('autoVoice');
+    localStorage.removeItem('fontStyle');
+    localStorage.removeItem('bgColor');
+    
+    // Reinitialize
+    initUniversalMemory();
+    loadSettings();
+    updateHeaderDisplay();
+    
+    alert('All preferences reset to defaults. Assistant name is now "Crump".');
+    
+    // Close settings and refresh view
+    toggleSettings();
 }
     </script>
 </body>
