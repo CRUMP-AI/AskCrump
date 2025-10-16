@@ -1141,10 +1141,9 @@
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
     
-    sidebar.classList.add('hidden');
+    sidebar.classList.remove('active');
     overlay.classList.remove('active');
 }
-        }
 
         function toggleSettings() {
             document.getElementById('settingsPanel').classList.toggle('active');
