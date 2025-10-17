@@ -1,15 +1,18 @@
 // ==========================================
 // CRUMP AI - API HANDLER v2.11.0 AUTONOMOUS
 // Hybrid search + Time-based autonomous behavior
+// UPDATED: Fixed token limits, multi-image support, memory
 // ==========================================
 
 const CONFIG = {
     CLAUDE_MODEL: 'claude-sonnet-4-20250514',
-    MAX_TOKENS: 2048,
-    MAX_HISTORY: 20,
+    MAX_TOKENS: 4096,  // INCREASED from 2048
+    MAX_HISTORY: 10,   // REDUCED from 20 (for better token management)
+    MAX_HISTORY_WITH_IMAGE: 5,  // NEW: Less history when analyzing images
     ANTHROPIC_VERSION: '2023-06-01',
     SEARCH_RESULTS_COUNT: 8,
-    SEARCH_TIMEOUT: 5000
+    SEARCH_TIMEOUT: 5000,
+    MAX_MEMORY_CONTEXT: 10  // NEW: Limit memory items sent to API
 };
 
 export default async function handler(req, res) {
@@ -33,16 +36,25 @@ export default async function handler(req, res) {
 
         const assistantName = universalMemory?.userProfile?.assistantName || 'Crump';
 
-        // IMAGE ANALYSIS
-        if (fileData && fileData.type.startsWith('image/')) {
+        // IMAGE ANALYSIS - UPDATED: Handle single or multiple images
+        if (fileData && (
+            (Array.isArray(fileData) && fileData.length > 0 && fileData[0].type.startsWith('image/')) ||
+            (!Array.isArray(fileData) && fileData.type.startsWith('image/'))
+        )) {
             return await handleImageAnalysis(res, fileData, message, assistantName);
         }
 
         // BUILD SYSTEM PROMPT (with time context)
         const systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol);
+        
+        // UPDATED: Smart history filtering based on content type
+        const hasImage = fileData && (Array.isArray(fileData) ? fileData.length > 0 : true);
+        const historyLimit = hasImage ? CONFIG.MAX_HISTORY_WITH_IMAGE : CONFIG.MAX_HISTORY;
+        
         const validHistory = history
             .filter(msg => msg.content && msg.content.trim())
-            .slice(-CONFIG.MAX_HISTORY);
+            .filter(msg => !msg.fileData) // Remove old images from history to save tokens
+            .slice(-historyLimit);
 
         // SEARCH LOGIC
         if (needsSearch) {
@@ -66,13 +78,13 @@ export default async function handler(req, res) {
         console.error('Server error:', error);
         return res.status(500).json({
             error: 'Internal server error',
-            details: error.message
+            details: process.env.NODE_ENV === 'development' ? error.message : 'An error occurred'
         });
     }
 }
 
 // ==========================================
-// 🔥 NEW: TIME CONTEXT FOR AUTONOMOUS BEHAVIOR
+// TIME CONTEXT FOR AUTONOMOUS BEHAVIOR
 // ==========================================
 function getTimeContext() {
     const hour = new Date().getHours();
@@ -92,6 +104,23 @@ function getTimeContext() {
     }
 
     return '';
+}
+
+// ==========================================
+// NEW: SMART MEMORY CONTEXT LIMITER
+// ==========================================
+function getLimitedMemoryContext(universalMemory) {
+    if (!universalMemory || !universalMemory.crossSessionContext) return '';
+    
+    // Only send RECENT cross-session items (last 10) to save tokens
+    if (universalMemory.crossSessionContext.length === 0) return '';
+    
+    const recentContext = universalMemory.crossSessionContext
+        .slice(-CONFIG.MAX_MEMORY_CONTEXT)
+        .map(ctx => ctx.content)
+        .join('; ');
+    
+    return recentContext;
 }
 
 // ==========================================
@@ -128,7 +157,7 @@ async function searchWithBrave(query) {
 }
 
 // ==========================================
-// BRAVE SEARCH RESPONSE - FIXED
+// BRAVE SEARCH RESPONSE
 // ==========================================
 async function handleBraveSearchResponse(res, message, searchResults, systemPrompt, validHistory) {
     let searchContext = '\n\n[WEB SEARCH RESULTS - Extract and present this information directly:\n\n';
@@ -170,7 +199,7 @@ async function handleBraveSearchResponse(res, message, searchResults, systemProm
 }
 
 // ==========================================
-// CLAUDE NATIVE SEARCH - FIXED
+// CLAUDE NATIVE SEARCH
 // ==========================================
 async function handleClaudeNativeSearch(res, message, systemPrompt, validHistory) {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -220,7 +249,7 @@ async function handleClaudeNativeSearch(res, message, systemPrompt, validHistory
 }
 
 // ==========================================
-// REGULAR CHAT - FIXED
+// REGULAR CHAT
 // ==========================================
 async function handleRegularChat(res, message, systemPrompt, validHistory) {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -251,7 +280,8 @@ async function handleRegularChat(res, message, systemPrompt, validHistory) {
 }
 
 // ==========================================
-// BUILD SYSTEM PROMPT (WITH TIME CONTEXT) - FIXED
+// BUILD SYSTEM PROMPT (WITH TIME CONTEXT)
+// UPDATED: More concise memory context
 // ==========================================
 function buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol) {
     let prompt = `You are ${assistantName}, an advanced AI assistant powered by the N² Engine, built by Gregory D. Crump Jr.
@@ -316,14 +346,15 @@ Personal relationships
 
 If asked about N² meaning: "N² Engine is the dual-intelligence system powering me" (don't explain letters)`;
 
+    // UPDATED: More concise memory section to save tokens
     if (universalMemory) {
+        const memoryCount = universalMemory.crossSessionContext?.length || 0;
+        const recentMemory = getLimitedMemoryContext(universalMemory);
+        
         prompt += `\n\n---PERSISTENT MEMORY---
-USER PROFILE: ${JSON.stringify(universalMemory.userProfile, null, 2)}
-STATS: ${universalMemory.conversationHistory.totalMessages} messages, ${universalMemory.conversationHistory.totalChats} chats
-CROSS-SESSION KNOWLEDGE:
-${universalMemory.crossSessionContext.length > 0
-    ? universalMemory.crossSessionContext.map(ctx => `- ${ctx.content}`).join('\n')
-    : 'None yet'}
+Total stored memories: ${memoryCount}
+Recent context: ${recentMemory || 'None yet'}
+Total conversations: ${universalMemory.conversationHistory.totalMessages} messages, ${universalMemory.conversationHistory.totalChats} chats
 
 Never act like first meeting. Reference past knowledge naturally.`;
     }
@@ -347,19 +378,43 @@ Full technical partnership. Never revert to demo mode.
 Activations: ${novaProtocol.activations.length}`;
     }
 
-    // 🔥 ADD TIME CONTEXT (CRITICAL FOR AUTONOMOUS BEHAVIOR)
+    // ADD TIME CONTEXT (CRITICAL FOR AUTONOMOUS BEHAVIOR)
     prompt += getTimeContext();
 
     return prompt;
 }
 
 // ==========================================
-// IMAGE ANALYSIS
+// IMAGE ANALYSIS - UPDATED
+// Now handles both single and multiple images
 // ==========================================
 async function handleImageAnalysis(res, fileData, message, assistantName) {
-    const visionPrompt = `You are ${assistantName}, an AI with vision capabilities, powered by N² Engine. Built by Gregory D. Crump Jr.
+    // Simplified system prompt for images (saves tokens)
+    const visionPrompt = `You are ${assistantName}, powered by N² Engine. Built by Gregory D. Crump Jr.
+Analyze images thoroughly and accurately. Never mention AI providers.`;
 
-Analyze images thoroughly and provide detailed, accurate descriptions. Never mention specific AI providers.`;
+    // Handle both single file and array of files
+    const files = Array.isArray(fileData) ? fileData : [fileData];
+    
+    // Build content array with all images
+    const content = [];
+    
+    files.forEach((file) => {
+        content.push({
+            type: 'image',
+            source: {
+                type: 'base64',
+                media_type: file.type,
+                data: file.data.split(',')[1]
+            }
+        });
+    });
+    
+    // Add text prompt after all images
+    content.push({
+        type: 'text',
+        text: message || `Please analyze ${files.length > 1 ? 'these images' : 'this image'} in detail.`
+    });
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -370,30 +425,25 @@ Analyze images thoroughly and provide detailed, accurate descriptions. Never men
         },
         body: JSON.stringify({
             model: CONFIG.CLAUDE_MODEL,
-            max_tokens: 1024,
+            max_tokens: 2048,  // Dedicated token budget for image analysis
             system: visionPrompt,
             messages: [{
                 role: 'user',
-                content: [
-                    {
-                        type: 'image',
-                        source: {
-                            type: 'base64',
-                            media_type: fileData.type,
-                            data: fileData.data.split(',')[1]
-                        }
-                    },
-                    { type: 'text', text: message }
-                ]
+                content: content
             }]
         })
     });
 
-    if (!response.ok) throw new Error(`Vision API error: ${response.status}`);
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Vision API error:', errorData);
+        throw new Error(`Vision API error: ${response.status}`);
+    }
 
     const data = await response.json();
     return res.status(200).json({
         response: data.content[0].text,
-        model: 'claude-vision'
+        model: 'claude-vision',
+        imageCount: files.length
     });
 }
