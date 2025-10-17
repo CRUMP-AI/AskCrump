@@ -90,26 +90,26 @@
         }
 
         .sidebar-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
 
-.sidebar-overlay.active {
-    display: block;
-    opacity: 1;
-}
+        .sidebar-overlay.active {
+            display: block;
+            opacity: 1;
+        }
 
-.sidebar-close-btn {
-    display: none;
-}
+        .sidebar-close-btn {
+            display: none;
+        }
 
         .sidebar-header {
             padding: 20px;
@@ -934,9 +934,8 @@
             }
 
             .sidebar-close-btn {
-        display: block !important;
-    }
-}
+                display: block !important;
+            }
         }
 
         ::-webkit-scrollbar {
@@ -957,143 +956,117 @@
             background: var(--accent-secondary);
         }
 
-       /* Tutorial Styles */
-.tutorial-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(10, 22, 40, 0.95);
-    z-index: 10001;
-    backdrop-filter: blur(10px);
-}
+        .tutorial-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 22, 40, 0.95);
+            z-index: 10001;
+            backdrop-filter: blur(10px);
+        }
 
-.tutorial-overlay.active {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    animation: fadeIn 0.3s ease;
-}
+        .tutorial-overlay.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
 
-.tutorial-content {
-    background: var(--bg-secondary);
-    border: 2px solid var(--accent-primary);
-    border-radius: 16px;
-    max-width: 500px;
-    width: 90%;
-    padding: 32px;
-    box-shadow: 0 10px 40px rgba(212, 175, 55, 0.3);
-}
+        .tutorial-content {
+            background: var(--bg-secondary);
+            border: 2px solid var(--accent-primary);
+            border-radius: 16px;
+            max-width: 500px;
+            width: 90%;
+            padding: 32px;
+            box-shadow: 0 10px 40px rgba(212, 175, 55, 0.3);
+        }
 
-.tutorial-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--border-color);
-}
+        .tutorial-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
 
-.tutorial-title {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--accent-primary);
-}
+        .tutorial-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--accent-primary);
+        }
 
-.tutorial-step {
-    font-size: 14px;
-    color: var(--text-tertiary);
-}
+        .tutorial-step {
+            font-size: 14px;
+            color: var(--text-tertiary);
+        }
 
-.tutorial-body {
-    text-align: center;
-    margin-bottom: 32px;
-}
+        .tutorial-body {
+            text-align: center;
+            margin-bottom: 32px;
+        }
 
-.tutorial-icon {
-    font-size: 64px;
-    margin-bottom: 16px;
-}
+        .tutorial-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
 
-.tutorial-body h2 {
-    font-size: 24px;
-    color: var(--text-primary);
-    margin-bottom: 12px;
-}
+        .tutorial-body h2 {
+            font-size: 24px;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
 
-.tutorial-body p {
-    font-size: 16px;
-    color: var(--text-secondary);
-    line-height: 1.6;
-}
+        .tutorial-body p {
+            font-size: 16px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
 
-.tutorial-body ul {
-    list-style: none;
-    text-align: left;
-    margin-top: 16px;
-}
+        .tutorial-footer {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
 
-.tutorial-body li {
-    padding: 8px 0;
-    color: var(--text-secondary);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
+        .tutorial-btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
 
-.tutorial-body li::before {
-    content: "✓";
-    color: var(--accent-primary);
-    font-weight: bold;
-    font-size: 18px;
-}
+        .tutorial-btn.primary {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: var(--bg-primary);
+        }
 
-.tutorial-footer {
-    display: flex;
-    gap: 12px;
-    justify-content: flex-end;
-}
+        .tutorial-btn.primary:hover {
+            transform: translateY(-2px);
+        }
 
-.tutorial-btn {
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    border: none;
-}
+        .tutorial-btn.secondary {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
 
-.tutorial-btn.primary {
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-    color: var(--bg-primary);
-}
+        .tutorial-btn.secondary:hover {
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
 
-.tutorial-btn.primary:hover {
-    transform: translateY(-2px);
-}
-
-.tutorial-btn.secondary {
-    background: transparent;
-    border: 1px solid var(--border-color);
-    color: var(--text-secondary);
-}
-
-.tutorial-btn.secondary:hover {
-    border-color: var(--accent-primary);
-    color: var(--accent-primary);
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
-} 
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -1101,38 +1074,35 @@
         <img src="assets/splash-screen.png" alt="Crump AI">
     </div>
 
-    <!-- Tutorial Overlay -->
-<div id="tutorial-overlay" class="tutorial-overlay">
-    <div class="tutorial-content">
-        <div class="tutorial-header">
-            <div class="tutorial-title">Welcome to Crump AI</div>
-            <div class="tutorial-step" id="tutorialStep">Step 1 of 4</div>
-        </div>
-        
-        <div class="tutorial-body" id="tutorialBody">
-            <div class="tutorial-icon">👋</div>
-            <h2>Welcome, Gregory</h2>
-            <p>I'm Crump, your personal AI assistant powered by the N² Engine. Let me show you around.</p>
-        </div>
-        
-        <div class="tutorial-footer">
-            <button class="tutorial-btn secondary" onclick="skipTutorial()">Skip</button>
-            <button class="tutorial-btn primary" onclick="nextTutorialStep()">Next</button>
+    <div id="tutorial-overlay" class="tutorial-overlay">
+        <div class="tutorial-content">
+            <div class="tutorial-header">
+                <div class="tutorial-title">Welcome to Crump AI</div>
+                <div class="tutorial-step" id="tutorialStep">Step 1 of 4</div>
+            </div>
+            
+            <div class="tutorial-body" id="tutorialBody">
+                <div class="tutorial-icon">👋</div>
+                <h2>Welcome, Gregory</h2>
+                <p>I'm Crump, your personal AI assistant powered by the N² Engine. Let me show you around.</p>
+            </div>
+            
+            <div class="tutorial-footer">
+                <button class="tutorial-btn secondary" onclick="skipTutorial()">Skip</button>
+                <button class="tutorial-btn primary" onclick="nextTutorialStep()">Next</button>
+            </div>
         </div>
     </div>
-</div>
 
     <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="handleFileSelect(event)">
-
-   <!-- Sidebar Overlay (Mobile) -->
-<div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebar()"></div> 
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebar()"></div> 
 
     <div class="app-container">
         <aside class="sidebar" id="sidebar">
-           <div class="sidebar-header">
-    <button class="new-chat-btn" onclick="createNewChat()">✨ New Chat</button>
-    <input type="text" class="search-box" id="searchBox" placeholder="Search chats..." oninput="filterChats(this.value)">
-</div>
+            <div class="sidebar-header">
+                <button class="new-chat-btn" onclick="createNewChat()">✨ New Chat</button>
+                <input type="text" class="search-box" id="searchBox" placeholder="Search chats..." oninput="filterChats(this.value)">
+            </div>
             <div class="chats-list" id="chatsList"></div>
         </aside>
 
@@ -1185,30 +1155,30 @@
             </div>
 
             <div class="setting-group">
-    <label class="setting-label">🎭 Assistant Name</label>
-    <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px;">
-        <input 
-            type="text" 
-            id="assistant-name-input" 
-            placeholder="Enter name..."
-            style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #15263d; background: #0a1628; color: #f5f5dc; font-size: 14px;"
-        />
-        <button 
-            onclick="saveAssistantName()" 
-            style="padding: 10px 20px; background: #d4af37; color: #0a1628; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; white-space: nowrap;">
-            Save
-        </button>
-    </div>
-    <small style="color: #b8941f; display: block; margin-top: 6px; font-size: 12px;">
-        Popular: JARVIS, Friday, Athena, Oracle, Nova
-    </small>
-    <button 
-        id="reset-name-btn"
-        onclick="resetAssistantName()" 
-        style="margin-top: 8px; padding: 8px 16px; background: #15263d; color: #f5f5dc; border: 1px solid #d4af37; border-radius: 6px; cursor: pointer; display: none;">
-        Reset to "Crump"
-    </button>
-</div>
+                <label class="setting-label">🎭 Assistant Name</label>
+                <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px;">
+                    <input 
+                        type="text" 
+                        id="assistant-name-input" 
+                        placeholder="Enter name..."
+                        style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #15263d; background: #0a1628; color: #f5f5dc; font-size: 14px;"
+                    />
+                    <button 
+                        onclick="saveAssistantName()" 
+                        style="padding: 10px 20px; background: #d4af37; color: #0a1628; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                        Save
+                    </button>
+                </div>
+                <small style="color: #b8941f; display: block; margin-top: 6px; font-size: 12px;">
+                    Popular: JARVIS, Friday, Athena, Oracle, Nova
+                </small>
+                <button 
+                    id="reset-name-btn"
+                    onclick="resetAssistantName()" 
+                    style="margin-top: 8px; padding: 8px 16px; background: #15263d; color: #f5f5dc; border: 1px solid #d4af37; border-radius: 6px; cursor: pointer; display: none;">
+                    Reset to "Crump"
+                </button>
+            </div>
 
             <div class="setting-group">
                 <label class="setting-label">Voice Output</label>
@@ -1243,42 +1213,42 @@
                 </div>
             </div>
 
-          <div class="setting-group">
-    <button class="danger-btn" onclick="clearCurrentChat()">Clear Current Chat</button>
-    <button class="danger-btn" onclick="deleteAllChats()">Delete All Chats</button>
-    <button class="danger-btn" onclick="clearMemoryPrompt()">Clear Memory</button>
-    <button class="danger-btn" onclick="resetAllPreferences()" style="border-color: #ff6b6b; color: #ff6b6b;">⚠️ Reset All Preferences</button>
-</div>
-
-<!-- ADD THIS NEW SECTION -->
-<div class="setting-group" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
-    <label class="setting-label">📦 Data Portability</label>
-    
-    <button 
-        onclick="exportAllData()" 
-        style="width: 100%; padding: 12px; margin: 8px 0; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: var(--text-primary); cursor: pointer; transition: all 0.2s; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 10px;"
-        onmouseover="this.style.background='rgba(255, 255, 255, 0.1)'; this.style.borderColor='var(--accent-primary)';"
-        onmouseout="this.style.background='rgba(255, 255, 255, 0.05)'; this.style.borderColor='rgba(255, 255, 255, 0.1)';">
-        📥 Export All Data
-    </button>
-    
-    <button 
-        onclick="document.getElementById('import-file-input').click()" 
-        style="width: 100%; padding: 12px; margin: 8px 0; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: var(--text-primary); cursor: pointer; transition: all 0.2s; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 10px;"
-        onmouseover="this.style.background='rgba(255, 255, 255, 0.1)'; this.style.borderColor='var(--accent-primary)';"
-        onmouseout="this.style.background='rgba(255, 255, 255, 0.05)'; this.style.borderColor='rgba(255, 255, 255, 0.1)';">
-        📤 Import Data
-    </button>
-    
-    <input type="file" id="import-file-input" accept=".json" style="display: none;" onchange="handleImport(event)">
-    
-    <p style="color: var(--text-secondary); font-size: 0.75rem; margin-top: 10px; line-height: 1.4;">
-        Export your chats, memory, and settings to transfer between devices. Import restores everything from a backup file.
-    </p>
-</div>
             <div class="setting-group">
-    <button class="font-btn" style="width: 100%; padding: 12px; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: var(--bg-primary); border: none; font-weight: 600;" onclick="replayTutorial()">📖 View Tutorial</button>
-</div>
+                <button class="danger-btn" onclick="clearCurrentChat()">Clear Current Chat</button>
+                <button class="danger-btn" onclick="deleteAllChats()">Delete All Chats</button>
+                <button class="danger-btn" onclick="clearMemoryPrompt()">Clear Memory</button>
+                <button class="danger-btn" onclick="resetAllPreferences()" style="border-color: #ff6b6b; color: #ff6b6b;">⚠️ Reset All Preferences</button>
+            </div>
+
+            <div class="setting-group" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <label class="setting-label">📦 Data Portability</label>
+                
+                <button 
+                    onclick="exportAllData()" 
+                    style="width: 100%; padding: 12px; margin: 8px 0; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: var(--text-primary); cursor: pointer; transition: all 0.2s; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 10px;"
+                    onmouseover="this.style.background='rgba(255, 255, 255, 0.1)'; this.style.borderColor='var(--accent-primary)';"
+                    onmouseout="this.style.background='rgba(255, 255, 255, 0.05)'; this.style.borderColor='rgba(255, 255, 255, 0.1)';">
+                    📥 Export All Data
+                </button>
+                
+                <button 
+                    onclick="document.getElementById('import-file-input').click()" 
+                    style="width: 100%; padding: 12px; margin: 8px 0; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: var(--text-primary); cursor: pointer; transition: all 0.2s; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 10px;"
+                    onmouseover="this.style.background='rgba(255, 255, 255, 0.1)'; this.style.borderColor='var(--accent-primary)';"
+                    onmouseout="this.style.background='rgba(255, 255, 255, 0.05)'; this.style.borderColor='rgba(255, 255, 255, 0.1)';">
+                    📤 Import Data
+                </button>
+                
+                <input type="file" id="import-file-input" accept=".json" style="display: none;" onchange="handleImport(event)">
+                
+                <p style="color: var(--text-secondary); font-size: 0.75rem; margin-top: 10px; line-height: 1.4;">
+                    Export your chats, memory, and settings to transfer between devices. Import restores everything from a backup file.
+                </p>
+            </div>
+
+            <div class="setting-group">
+                <button class="font-btn" style="width: 100%; padding: 12px; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: var(--bg-primary); border: none; font-weight: 600;" onclick="replayTutorial()">📖 View Tutorial</button>
+            </div>
 
             <div class="version-info">
                 <div class="version-title">Crump AI v2.11 Royal Edition</div>
@@ -1293,6 +1263,35 @@
     </div>
 
     <script>
+        // ==========================================
+        // CONFIGURATION CONSTANTS - FIXED
+        // ==========================================
+        const CONFIG = {
+            DUPLICATE_WINDOW_MS: 500,
+            MAX_CROSS_SESSION_NOTES: 50,
+            MAX_CHAT_HISTORY: 10,
+            MAX_TITLE_LENGTH: 30,
+            IMAGE_GENERATION_RETRIES: 2,
+            FILE_SIZE_LIMIT_MB: 5
+        };
+
+        const STORAGE_KEYS = {
+            CHATS: 'crump_chats',
+            USER_MEMORY: 'crump_user_memory',
+            UNIVERSAL_MEMORY: 'crump_universal_memory',
+            NOVA_PROTOCOL: 'crump_nova_protocol',
+            CURRENT_CHAT: 'crump_current_chat',
+            TUTORIAL: 'crump_tutorial_completed',
+            VOICE_OUTPUT: 'voiceOutput',
+            AUTO_VOICE: 'autoVoice',
+            FONT_STYLE: 'fontStyle',
+            BG_COLOR: 'bgColor',
+            SPLASH_SEEN: 'crump_splash_seen'
+        };
+
+        // ==========================================
+        // GLOBAL STATE
+        // ==========================================
         let currentChatId = null;
         let chats = [];
         let isVoiceEnabled = false;
@@ -1306,23 +1305,10 @@
             contexts: {},
             notes: []
         };
+        let isSending = false;
 
-        const welcomeMessages = [
-            "Good to see you, Gregory. Ready when you are.",
-            "What's on your mind today?",
-            "Let's build something legendary.",
-            "Another day, another empire move. What's first?",
-            "Back at it. What do you need?",
-            "Ready to make things happen. What's the play?",
-            "Let's get to work. What are we tackling?",
-            "What's the mission today?",
-            "Time to turn ideas into reality. What's up?",
-            "Let's do this. What's on the agenda?"
-        ];
-
-        // Tutorial System - MUST BE GLOBAL FOR ONCLICK HANDLERS
+        // Tutorial state
         let currentTutorialStep = 1;
-
         const tutorialSteps = [
             {
                 icon: "👋",
@@ -1346,496 +1332,390 @@
             }
         ];
 
-        function showTutorial() {
-            currentTutorialStep = 1;
-            updateTutorialContent();
-            document.getElementById('tutorial-overlay').classList.add('active');
-        }
+        // Welcome messages array - ONLY ONE (FIXED - removed duplicate)
+        const welcomeMessages = [
+            "Good to see you, Gregory. Ready when you are.",
+            "What's on your mind today?",
+            "Let's build something legendary.",
+            "Another day, another empire move. What's first?",
+            "Back at it. What do you need?",
+            "Ready to make things happen. What's the play?",
+            "Let's get to work. What are we tackling?",
+            "What's the mission today?",
+            "Time to turn ideas into reality. What's up?",
+            "Let's do this. What's on the agenda?"
+        ];
 
-        function updateTutorialContent() {
-            const step = tutorialSteps[currentTutorialStep - 1];
-            const body = document.getElementById('tutorialBody');
-            const stepIndicator = document.getElementById('tutorialStep');
-            
-            stepIndicator.textContent = `Step ${currentTutorialStep} of ${tutorialSteps.length}`;
-            
-            body.innerHTML = `
-                <div class="tutorial-icon">${step.icon}</div>
-                <h2>${step.title}</h2>
-                <p>${step.text}</p>
-            `;
-        }
-
-        function nextTutorialStep() {
-            if (currentTutorialStep < tutorialSteps.length) {
-                currentTutorialStep++;
-                updateTutorialContent();
-            } else {
-                completeTutorial();
+        // ==========================================
+        // ANTI-DUPLICATE SYSTEM - FIXED (500ms window)
+        // ==========================================
+        class MessageDeduplicator {
+            constructor(windowMs = CONFIG.DUPLICATE_WINDOW_MS) {
+                this.recentMessages = new Map();
+                this.windowMs = windowMs;
             }
-        }
-
-        function skipTutorial() {
-            completeTutorial();
-        }
-
-        function completeTutorial() {
-            localStorage.setItem('crump_tutorial_completed', 'true');
-            document.getElementById('tutorial-overlay').classList.remove('active');
-        }
-
-        // NOW START DOMCONTENTLOADED
-        document.addEventListener('DOMContentLoaded', () => {
-            function initializeSplashScreen() {
-                const splashSeen = sessionStorage.getItem('crump_splash_seen');
-                const tutorialCompleted = localStorage.getItem('crump_tutorial_completed');
-                const splashScreen = document.getElementById('splash-screen');
+            
+            isDuplicate(content) {
+                const now = Date.now();
+                const hash = this.hash(content);
                 
-                if (splashSeen) {
-                    splashScreen.style.display = 'none';
-                    
-                    if (!tutorialCompleted) {
-                        setTimeout(() => {
-                            showTutorial();
-                        }, 500);
+                for (let [key, timestamp] of this.recentMessages) {
+                    if (now - timestamp > this.windowMs) {
+                        this.recentMessages.delete(key);
                     }
-                } else {
-                    sessionStorage.setItem('crump_splash_seen', 'true');
-                    
-                    setTimeout(() => {
-                        if (!tutorialCompleted) {
-                            showTutorial();
-                        }
-                    }, 2500);
                 }
+                
+                if (this.recentMessages.has(hash)) {
+                    console.log('🚫 DUPLICATE DETECTED - Blocked');
+                    return true;
+                }
+                
+                this.recentMessages.set(hash, now);
+                return false;
             }
-
-            initializeSplashScreen();
-            loadSettings();
-            loadChats();
-            loadMemory();
-initUniversalMemory();
-updateHeaderDisplay();
-setupVoiceRecognition();
             
-            if (chats.length === 0) {
-                createNewChat();
-            } else {
-                loadChat(chats[0].id);
+            hash(str) {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash;
+                }
+                return hash.toString(36);
             }
-        });
-
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebar-overlay');
-            
-            sidebar.classList.toggle('active');
-            overlay.classList.toggle('active');
         }
-            
-            function closeSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebar-overlay');
-    
-    sidebar.classList.remove('active');
-    overlay.classList.remove('active');
+
+        const messageDeduper = new MessageDeduplicator();
+        // ==========================================
+// PART 2 - COMPLETE JAVASCRIPT FUNCTIONS
+// Copy this entire file and paste AFTER the MessageDeduplicator class in Part 1
+// Replace everything from "// TUTORIAL FUNCTIONS" onward
+// ==========================================
+
+// ==========================================
+// TUTORIAL FUNCTIONS
+// ==========================================
+function showTutorial() {
+    currentTutorialStep = 1;
+    updateTutorialContent();
+    document.getElementById('tutorial-overlay').classList.add('active');
 }
 
-        function toggleSettings() {
-    document.getElementById('settingsPanel').classList.toggle('active');
+function updateTutorialContent() {
+    const step = tutorialSteps[currentTutorialStep - 1];
+    const body = document.getElementById('tutorialBody');
+    const stepIndicator = document.getElementById('tutorialStep');
     
-    // Update assistant name input when settings open
-    const nameInput = document.getElementById('assistant-name-input');
-    const resetBtn = document.getElementById('reset-name-btn');
-    const currentName = getAssistantName();
+    stepIndicator.textContent = `Step ${currentTutorialStep} of ${tutorialSteps.length}`;
     
-    if (nameInput) {
-        nameInput.value = currentName;
-    }
-    
-    if (resetBtn) {
-        resetBtn.style.display = currentName !== 'Crump' ? 'block' : 'none';
+    body.innerHTML = `
+        <div class="tutorial-icon">${step.icon}</div>
+        <h2>${step.title}</h2>
+        <p>${step.text}</p>
+    `;
+}
+
+function nextTutorialStep() {
+    if (currentTutorialStep < tutorialSteps.length) {
+        currentTutorialStep++;
+        updateTutorialContent();
+    } else {
+        completeTutorial();
     }
 }
 
-        function loadSettings() {
-            const voiceOutput = localStorage.getItem('voiceOutput') === 'true';
-            const autoVoice = localStorage.getItem('autoVoice') === 'true';
-            const fontStyle = localStorage.getItem('fontStyle') || 'modern';
-            const bgColor = localStorage.getItem('bgColor') || '#0a1628';
+function skipTutorial() {
+    completeTutorial();
+}
 
-            document.getElementById('voiceToggle').checked = voiceOutput;
-            document.getElementById('autoVoiceToggle').checked = autoVoice;
-            isVoiceEnabled = voiceOutput;
-            isAutoVoiceEnabled = autoVoice;
-            changeFont(fontStyle);
-            changeBgColor(bgColor);
+function completeTutorial() {
+    localStorage.setItem(STORAGE_KEYS.TUTORIAL, 'true');
+    document.getElementById('tutorial-overlay').classList.remove('active');
+}
+
+function replayTutorial() {
+    localStorage.removeItem(STORAGE_KEYS.TUTORIAL);
+    showTutorial();
+}
+
+// ==========================================
+// INITIALIZATION
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    function initializeSplashScreen() {
+        const splashSeen = sessionStorage.getItem(STORAGE_KEYS.SPLASH_SEEN);
+        const tutorialCompleted = localStorage.getItem(STORAGE_KEYS.TUTORIAL);
+        const splashScreen = document.getElementById('splash-screen');
+        
+        if (splashSeen) {
+            splashScreen.style.display = 'none';
+            if (!tutorialCompleted) {
+                setTimeout(() => showTutorial(), 500);
+            }
+        } else {
+            sessionStorage.setItem(STORAGE_KEYS.SPLASH_SEEN, 'true');
+            setTimeout(() => {
+                if (!tutorialCompleted) showTutorial();
+            }, 2500);
         }
+    }
 
-        function toggleVoiceOutput() {
-            isVoiceEnabled = document.getElementById('voiceToggle').checked;
-            localStorage.setItem('voiceOutput', isVoiceEnabled);
-        }
+    initializeSplashScreen();
+    loadSettings();
+    loadChats();
+    loadMemory();
+    initUniversalMemory();
+    updateHeaderDisplay();
+    setupVoiceRecognition();
+    
+    if (chats.length === 0) {
+        createNewChat();
+    } else {
+        loadChat(chats[0].id);
+    }
+});
 
-        function toggleAutoVoice() {
-            isAutoVoiceEnabled = document.getElementById('autoVoiceToggle').checked;
-            localStorage.setItem('autoVoice', isAutoVoiceEnabled);
-        }
+// ==========================================
+// SMART WELCOME SYSTEM
+// ==========================================
+function getSmartWelcome() {
+    const memory = getUniversalMemory();
+    const lastInteraction = memory.conversationHistory.lastInteraction;
+    
+    if (!lastInteraction) {
+        return getTimeBasedGreeting() + " What's first?";
+    }
+    
+    const now = new Date();
+    const lastVisit = new Date(lastInteraction);
+    const hoursSince = (now - lastVisit) / (1000 * 60 * 60);
+    
+    if (hoursSince < 4) {
+        return welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
+    }
+    
+    const lastTopic = getLastConversationTopic();
+    const greeting = getTimeBasedGreeting();
+    
+    if (lastTopic) {
+        return `${greeting} Last time we were ${lastTopic}. Want to continue, or switch gears?`;
+    } else {
+        return `${greeting} What's on the agenda today?`;
+    }
+}
 
-        function changeFont(style) {
-            document.body.className = style === 'modern' ? '' : `${style}-font`;
-            localStorage.setItem('fontStyle', style);
-            
-            document.querySelectorAll('.font-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.textContent.toLowerCase() === style) {
-                    btn.classList.add('active');
-                }
-            });
-        }
+function getTimeBasedGreeting() {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return "Good morning, Gregory.";
+    if (hour >= 12 && hour < 17) return "Good afternoon.";
+    if (hour >= 17 && hour < 22) return "Evening, Gregory.";
+    return "Burning the midnight oil?";
+}
 
-        function changeBgColor(color) {
-            document.documentElement.style.setProperty('--bg-primary', color);
-            document.getElementById('bgColorPicker').value = color;
-            localStorage.setItem('bgColor', color);
-        }
+function getLastConversationTopic() {
+    if (chats.length === 0) return null;
+    const lastChat = chats[0];
+    if (!lastChat.messages || lastChat.messages.length < 2) return null;
+    
+    const userMessages = lastChat.messages
+        .filter(m => m.role === 'user')
+        .filter(m => !m.content.toLowerCase().includes('nova-secure'))
+        .filter(m => !m.content.toLowerCase().includes('nala niobi'));
+    
+    if (userMessages.length === 0) return null;
+    
+    const lastUserMsg = userMessages[userMessages.length - 1].content;
+    let topic = lastUserMsg.substring(0, 50).trim();
+    
+    if (topic.toLowerCase().startsWith('can you')) topic = topic.substring(7);
+    else if (topic.toLowerCase().startsWith('could you')) topic = topic.substring(9);
+    else if (topic.toLowerCase().startsWith('please')) topic = topic.substring(6);
+    
+    if (lastUserMsg.length > 50) topic += '...';
+    return `working on: "${topic}"`;
+}
 
-        function resetBgColor() {
-            changeBgColor('#0a1628');
-        }
-
-        function loadMemory() {
-            const savedMemory = localStorage.getItem('crump_user_memory');
-            if (savedMemory) {
-                userMemory = JSON.parse(savedMemory);
+function trackConversationTopic(message) {
+    const memory = getUniversalMemory();
+    const keywords = ['debug', 'fix', 'build', 'create', 'design', 'deploy', 'test', 'analyze'];
+    const lowerMsg = message.toLowerCase();
+    
+    keywords.forEach(keyword => {
+        if (lowerMsg.includes(keyword)) {
+            if (!memory.conversationHistory.topicsDiscussed) {
+                memory.conversationHistory.topicsDiscussed = [];
+            }
+            const recentTopics = memory.conversationHistory.topicsDiscussed.slice(-10);
+            if (!recentTopics.includes(keyword)) {
+                memory.conversationHistory.topicsDiscussed.push(keyword);
             }
         }
-
-        function saveMemory() {
-            localStorage.setItem('crump_user_memory', JSON.stringify(userMemory));
-        }
-
-        function checkMemoryCommands(message) {
-            const lower = message.toLowerCase();
-            
-            if (lower.startsWith('remember that') || lower.startsWith('remember:')) {
-    const content = message.substring(message.indexOf('that') + 4).trim() || 
-                   message.substring(message.indexOf(':') + 1).trim();
-    userMemory.notes.push({
-        content: content,
-        timestamp: new Date().toISOString()
     });
-    saveMemory();
-    addCrossSessionContext(content);
-    return `Got it. I'll remember: "${content}" (stored in both session and permanent memory)`;
+    localStorage.setItem(STORAGE_KEYS.UNIVERSAL_MEMORY, JSON.stringify(memory));
 }
-            
-            if (lower.includes('what do you remember') || lower.includes('what do you know about me')) {
-                if (userMemory.notes.length === 0 && Object.keys(userMemory.preferences).length === 0 && Object.keys(userMemory.contexts).length === 0) {
-                    return "I don't have any stored memories about you yet. You can tell me to remember things by saying 'Remember that...'";
-                }
-                
-                let response = "Here's what I remember:\n\n";
-                
-                if (userMemory.notes.length > 0) {
-                    response += "📝 Notes:\n";
-                    userMemory.notes.forEach((note, i) => {
-                        response += `${i + 1}. ${note.content}\n`;
-                    });
-                }
-                
-                if (Object.keys(userMemory.preferences).length > 0) {
-                    response += "\n⚙️ Preferences:\n";
-                    Object.entries(userMemory.preferences).forEach(([key, value]) => {
-                        response += `• ${key}: ${value}\n`;
-                    });
-                }
-                
-                if (Object.keys(userMemory.contexts).length > 0) {
-                    response += "\n🎯 Context:\n";
-                    Object.entries(userMemory.contexts).forEach(([key, value]) => {
-                        response += `• ${key}: ${value}\n`;
-                    });
-                }
-                
-                return response;
-            }
-            
-            if (lower.startsWith('forget that') || lower.startsWith('forget:')) {
-                const content = message.substring(message.indexOf('that') + 4).trim() || 
-                               message.substring(message.indexOf(':') + 1).trim();
-                
-                const originalLength = userMemory.notes.length;
-                userMemory.notes = userMemory.notes.filter(note => 
-                    !note.content.toLowerCase().includes(content.toLowerCase())
-                );
-                
-                if (userMemory.notes.length < originalLength) {
-                    saveMemory();
-                    return `I've forgotten that information.`;
-                } else {
-                    return `I couldn't find that in my memory.`;
-                }
-            }
-            
-            if (lower === 'clear memory' || lower === 'forget everything') {
-                if (confirm('Clear all stored memories? This cannot be undone.')) {
-                    userMemory = {
-                        preferences: {},
-                        contexts: {},
-                        notes: []
-                    };
-                    saveMemory();
-                    return "All memories cleared.";
-                }
-                return "Memory clear cancelled.";
-            }
-            
-            return null;
-        }
 
-        function getMemoryContext() {
-            if (userMemory.notes.length === 0 && Object.keys(userMemory.preferences).length === 0 && Object.keys(userMemory.contexts).length === 0) {
-                return '';
-            }
-            
-            let context = '\n\n[Context about user: ';
-            
-            if (userMemory.notes.length > 0) {
-                context += userMemory.notes.map(n => n.content).join('; ');
-            }
-            
-            if (Object.keys(userMemory.preferences).length > 0) {
-                context += '. Preferences: ' + Object.entries(userMemory.preferences).map(([k,v]) => `${k}=${v}`).join(', ');
-            }
-            
-            if (Object.keys(userMemory.contexts).length > 0) {
-                context += '. ' + Object.entries(userMemory.contexts).map(([k,v]) => `${k}: ${v}`).join(', ');
-            }
-            
-            context += ']';
-            return context;
-        }
+// ==========================================
+// CHAT MANAGEMENT
+// ==========================================
+function createNewChat() {
+    const newChat = {
+        id: Date.now().toString(),
+        title: 'New Chat',
+        messages: [],
+        pinned: false,
+        archived: false,
+        tag: null,
+        createdAt: new Date().toISOString()
+    };
+    chats.unshift(newChat);
+    incrementChatCount();
+    saveChats();
+    loadChat(newChat.id);
+    const welcomeMsg = getSmartWelcome();
+    addMessage('assistant', welcomeMsg);
+}
 
-        function attachFile() {
-            document.getElementById('fileInput').click();
-        }
+function loadChat(chatId) {
+    currentChatId = chatId;
+    localStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, chatId);
+    const chat = chats.find(c => c.id === chatId);
+    if (chat) renderMessages(chat.messages);
+    renderChatsList();
+    if (window.innerWidth <= 768) {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar.classList.contains('active')) toggleSidebar();
+    }
+}
 
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+function loadChats() {
+    const savedChats = localStorage.getItem(STORAGE_KEYS.CHATS);
+    chats = savedChats ? JSON.parse(savedChats) : [];
+    chats = chats.map(chat => ({
+        ...chat,
+        pinned: chat.pinned || false,
+        archived: chat.archived || false,
+        tag: chat.tag || null
+    }));
+    renderChatsList();
+}
 
-            if (!file.type.startsWith('image/')) {
-                alert('Currently only images are supported. PDF support coming soon!');
-                return;
-            }
+function saveChats() {
+    localStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
+}
 
-            if (file.size > 5 * 1024 * 1024) {
-                alert('File size must be under 5MB');
-                return;
-            }
+function deleteChat(chatId) {
+    if (!confirm('Delete this chat? This cannot be undone.')) return;
+    chats = chats.filter(c => c.id !== chatId);
+    saveChats();
+    if (chatId === currentChatId) {
+        if (chats.length > 0) loadChat(chats[0].id);
+        else createNewChat();
+    }
+    renderChatsList();
+}
 
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                currentFile = {
-                    name: file.name,
-                    size: file.size,
-                    type: file.type,
-                    data: e.target.result
-                };
+function togglePin(chatId) {
+    const chat = chats.find(c => c.id === chatId);
+    if (chat) {
+        chat.pinned = !chat.pinned;
+        saveChats();
+        renderChatsList();
+    }
+}
 
-                document.getElementById('filePreviewImage').src = e.target.result;
-                document.getElementById('fileName').textContent = file.name;
-                document.getElementById('fileSize').textContent = formatFileSize(file.size);
-                document.getElementById('filePreview').classList.add('active');
-            };
-            reader.readAsDataURL(file);
-        }
+function toggleArchive(chatId) {
+    const chat = chats.find(c => c.id === chatId);
+    if (chat) {
+        chat.archived = !chat.archived;
+        saveChats();
+        renderChatsList();
+    }
+}
 
-        function removeFile() {
-            currentFile = null;
-            document.getElementById('filePreview').classList.remove('active');
-            document.getElementById('fileInput').value = '';
-        }
+function filterChats(query) {
+    renderChatsList(query);
+}
 
-        function formatFileSize(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-        }
+function clearCurrentChat() {
+    if (!confirm('Clear all messages in this chat?')) return;
+    const chat = chats.find(c => c.id === currentChatId);
+    if (chat) {
+        chat.messages = [];
+        saveChats();
+        renderMessages([]);
+        renderChatsList();
+    }
+}
 
-        function loadChats() {
-            const savedChats = localStorage.getItem('crump_chats');
-            chats = savedChats ? JSON.parse(savedChats) : [];
-            // Ensure all chats have new properties
-            chats = chats.map(chat => ({
-                ...chat,
-                pinned: chat.pinned || false,
-                archived: chat.archived || false,
-                tag: chat.tag || null
-            }));
-            renderChatsList();
-        }
+function deleteAllChats() {
+    if (!confirm('Delete ALL chats? This cannot be undone.')) return;
+    chats = [];
+    saveChats();
+    createNewChat();
+}
 
-        function saveChats() {
-            localStorage.setItem('crump_chats', JSON.stringify(chats));
-        }
+// ==========================================
+// RENDERING
+// ==========================================
+function renderChatsList(searchQuery = '') {
+    const chatsList = document.getElementById('chatsList');
+    let filteredChats = chats;
+    if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        filteredChats = chats.filter(chat => 
+            chat.title.toLowerCase().includes(query) ||
+            chat.messages.some(m => m.content.toLowerCase().includes(query))
+        );
+    }
+    
+    const pinnedChats = filteredChats.filter(c => c.pinned && !c.archived);
+    const regularChats = filteredChats.filter(c => !c.pinned && !c.archived);
+    const archivedChats = filteredChats.filter(c => c.archived);
+    
+    let html = '';
+    if (pinnedChats.length > 0) {
+        html += '<div class="chat-section"><div class="chat-section-title">⭐ PINNED</div>';
+        html += pinnedChats.map(chat => renderChatItem(chat)).join('');
+        html += '</div>';
+    }
+    if (regularChats.length > 0) {
+        html += '<div class="chat-section"><div class="chat-section-title">💬 CHATS</div>';
+        html += regularChats.map(chat => renderChatItem(chat)).join('');
+        html += '</div>';
+    }
+    if (archivedChats.length > 0) {
+        html += '<div class="chat-section"><div class="chat-section-title">📦 ARCHIVED</div>';
+        html += archivedChats.map(chat => renderChatItem(chat)).join('');
+        html += '</div>';
+    }
+    if (filteredChats.length === 0) {
+        html = '<div style="padding: 20px; text-align: center; color: var(--text-tertiary);">No chats found</div>';
+    }
+    chatsList.innerHTML = html;
+}
 
-        function createNewChat() {
-            const newChat = {
-                id: Date.now().toString(),
-                title: 'New Chat',
-                messages: [],
-                createdAt: new Date().toISOString(),
-                pinned: false,
-                archived: false,
-                tag: null
-            };
-            
-            chats.unshift(newChat);
-            saveChats();
-            loadChat(newChat.id);
-            renderChatsList();
+function renderChatItem(chat) {
+    const isActive = chat.id === currentChatId;
+    const preview = chat.messages.length > 0 ? chat.messages[chat.messages.length - 1].content.substring(0, 50) : 'No messages yet';
+    const pinIcon = chat.pinned ? '⭐' : '📌';
+    const archiveIcon = chat.archived ? '📤' : '📦';
+    const tagHtml = chat.tag ? `<span class="chat-tag">${chat.tag}</span>` : '';
+    
+    return `
+        <div class="chat-item ${isActive ? 'active' : ''}" onclick="loadChat('${chat.id}')">
+            <div class="chat-actions" onclick="event.stopPropagation()">
+                <button class="chat-action-btn" onclick="togglePin('${chat.id}')" title="${chat.pinned ? 'Unpin' : 'Pin'}">${pinIcon}</button>
+                <button class="chat-action-btn" onclick="toggleArchive('${chat.id}')" title="${chat.archived ? 'Unarchive' : 'Archive'}">${archiveIcon}</button>
+                <button class="chat-action-btn" onclick="deleteChat('${chat.id}')" title="Delete">🗑️</button>
+            </div>
+            <div class="chat-header">${tagHtml}</div>
+            <div class="chat-title">${chat.title}</div>
+            <div class="chat-preview">${preview}${preview.length >= 50 ? '...' : ''}</div>
+        </div>
+    `;
+}
 
-            if (window.innerWidth <= 768) {
-                toggleSidebar();
-            }
-
-            const welcomeMsg = welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
-            addMessage('assistant', welcomeMsg);
-        }
-
-        function loadChat(chatId) {
-            currentChatId = chatId;
-            localStorage.setItem('crump_current_chat', chatId);
-            
-            const chat = chats.find(c => c.id === chatId);
-            if (chat) {
-                renderMessages(chat.messages);
-            }
-            
-            renderChatsList();
-
-            if (window.innerWidth <= 768) {
-                const sidebar = document.getElementById('sidebar');
-                if (sidebar.classList.contains('active')) {
-                    toggleSidebar();
-                }
-            }
-        }
-
-        function renderChatsList(searchQuery = '') {
-            const chatsList = document.getElementById('chatsList');
-            
-            let filteredChats = chats;
-            if (searchQuery) {
-                const query = searchQuery.toLowerCase();
-                filteredChats = chats.filter(chat => 
-                    chat.title.toLowerCase().includes(query) ||
-                    chat.messages.some(m => m.content.toLowerCase().includes(query))
-                );
-            }
-            
-            const pinnedChats = filteredChats.filter(c => c.pinned && !c.archived);
-            const regularChats = filteredChats.filter(c => !c.pinned && !c.archived);
-            const archivedChats = filteredChats.filter(c => c.archived);
-            
-            let html = '';
-            
-            if (pinnedChats.length > 0) {
-                html += '<div class="chat-section">';
-                html += '<div class="chat-section-title">⭐ PINNED</div>';
-                html += pinnedChats.map(chat => renderChatItem(chat)).join('');
-                html += '</div>';
-            }
-            
-            if (regularChats.length > 0) {
-                html += '<div class="chat-section">';
-                html += '<div class="chat-section-title">💬 CHATS</div>';
-                html += regularChats.map(chat => renderChatItem(chat)).join('');
-                html += '</div>';
-            }
-            
-            if (archivedChats.length > 0) {
-                html += '<div class="chat-section">';
-                html += '<div class="chat-section-title">📦 ARCHIVED</div>';
-                html += archivedChats.map(chat => renderChatItem(chat)).join('');
-                html += '</div>';
-            }
-            
-            if (filteredChats.length === 0) {
-                html = '<div style="padding: 20px; text-align: center; color: var(--text-tertiary);">No chats found</div>';
-            }
-            
-            chatsList.innerHTML = html;
-        }
-        
-        function renderChatItem(chat) {
-            const isActive = chat.id === currentChatId;
-            const preview = chat.messages.length > 0 
-                ? chat.messages[chat.messages.length - 1].content.substring(0, 50) 
-                : 'No messages yet';
-            
-            const pinIcon = chat.pinned ? '⭐' : '📌';
-            const archiveIcon = chat.archived ? '📤' : '📦';
-            const tagHtml = chat.tag ? `<span class="chat-tag">${chat.tag}</span>` : '';
-            
-            return `
-                <div class="chat-item ${isActive ? 'active' : ''}" onclick="loadChat('${chat.id}')">
-                    <div class="chat-actions" onclick="event.stopPropagation()">
-                        <button class="chat-action-btn" onclick="togglePin('${chat.id}')" title="${chat.pinned ? 'Unpin' : 'Pin'}">${pinIcon}</button>
-                        <button class="chat-action-btn" onclick="toggleArchive('${chat.id}')" title="${chat.archived ? 'Unarchive' : 'Archive'}">${archiveIcon}</button>
-                        <button class="chat-action-btn" onclick="deleteChat('${chat.id}')" title="Delete">🗑️</button>
-                    </div>
-                    <div class="chat-header">
-                        ${tagHtml}
-                    </div>
-                    <div class="chat-title">${chat.title}</div>
-                    <div class="chat-preview">${preview}${preview.length >= 50 ? '...' : ''}</div>
-                </div>
-            `;
-        }
-        
-        function filterChats(query) {
-            renderChatsList(query);
-        }
-        
-        function togglePin(chatId) {
-            const chat = chats.find(c => c.id === chatId);
-            if (chat) {
-                chat.pinned = !chat.pinned;
-                saveChats();
-                renderChatsList();
-            }
-        }
-        
-        function toggleArchive(chatId) {
-            const chat = chats.find(c => c.id === chatId);
-            if (chat) {
-                chat.archived = !chat.archived;
-                saveChats();
-                renderChatsList();
-            }
-        }
-        
-        function deleteChat(chatId) {
-            if (!confirm('Delete this chat? This cannot be undone.')) return;
-            
-            chats = chats.filter(c => c.id !== chatId);
-            saveChats();
-            
-            if (chatId === currentChatId) {
-                if (chats.length > 0) {
-                    loadChat(chats[0].id);
-                } else {
-                    createNewChat();
-                }
-            }
-            
-            renderChatsList();
-        }
-
-        function renderMessages(messages) {
+function renderMessages(messages) {
     const container = document.getElementById('chatContainer');
     container.innerHTML = messages.map((msg, index) => {
         const isUser = msg.role === 'user';
@@ -1846,29 +1726,16 @@ setupVoiceRecognition();
         if (!isUser) {
             actionsHtml = `
                 <div class="message-actions">
-                    <button class="message-action-btn" onclick="copyMessage(${index})">
-                        📋 Copy
-                    </button>
-                    <button class="message-action-btn" onclick="regenerateResponse(${index})">
-                        🔄 Regenerate
-                    </button>
+                    <button class="message-action-btn" onclick="copyMessage(${index})">📋 Copy</button>
+                    <button class="message-action-btn" onclick="regenerateResponse(${index})">🔄 Regenerate</button>
                 </div>
             `;
         }
         
         let content = `<div class="message-content">${msg.content}</div>`;
-        
         if (msg.fileData && msg.fileData.type.startsWith('image/')) {
-            content += `
-                <div class="file-preview">
-                    <img src="${msg.fileData.data}" alt="Uploaded image">
-                    <div class="file-info">
-                        📎 ${msg.fileData.name}
-                    </div>
-                </div>
-            `;
+            content += `<div class="file-preview"><img src="${msg.fileData.data}" alt="Uploaded image"><div class="file-info">📎 ${msg.fileData.name}</div></div>`;
         }
-        
         if (msg.imageUrl) {
             content += `<img src="${msg.imageUrl}" class="message-image" alt="Generated image">`;
         }
@@ -1876,300 +1743,195 @@ setupVoiceRecognition();
         return `
             <div class="message ${isUser ? 'user' : ''}">
                 <div class="avatar ${avatarClass}">${avatar}</div>
-                <div class="message-wrapper">
-                    ${content}
-                    ${actionsHtml}
-                </div>
+                <div class="message-wrapper">${content}${actionsHtml}</div>
             </div>
         `;
     }).join('');
-    
     container.scrollTop = container.scrollHeight;
 }
-        function copyMessage(index) {
-            const chat = chats.find(c => c.id === currentChatId);
-            if (!chat || !chat.messages[index]) return;
-            
-            const text = chat.messages[index].content;
-            
-            navigator.clipboard.writeText(text).then(() => {
-                showCopyNotification();
-            }).catch(err => {
-                console.error('Copy failed:', err);
-            });
-        }
 
-        function showCopyNotification() {
-            const notification = document.createElement('div');
-            notification.className = 'copy-notification';
-            notification.textContent = '✓ Copied to clipboard';
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.remove();
-            }, 2500);
-        }
-
-        async function regenerateResponse(index) {
-            const chat = chats.find(c => c.id === currentChatId);
-            if (!chat || index === 0) return;
-            
-            chat.messages = chat.messages.slice(0, index);
-            saveChats();
-            renderMessages(chat.messages);
-            
-            const lastUserMessage = chat.messages[chat.messages.length - 1];
-            if (!lastUserMessage || lastUserMessage.role !== 'user') return;
-            
-            const message = lastUserMessage.content;
-            const fileData = lastUserMessage.fileData;
-            
-            const memoryResponse = checkMemoryCommands(message);
-            if (memoryResponse && !fileData) {
-                showThinking();
-                setTimeout(() => {
-                    hideThinking();
-                    addMessage('assistant', memoryResponse);
-                }, 500);
-                return;
-            }
-            
-            const localResponse = getLocalResponse(message);
-            if (localResponse && !fileData) {
-                showThinking();
-                setTimeout(() => {
-                    hideThinking();
-                    addMessage('assistant', localResponse);
-                }, 800);
-                return;
-            }
-
-            // Check if query needs web search
-const needsSearch = shouldSearchWeb(message);
-
-            if (shouldGenerateImage(message) && !fileData) {
-                await handleImageGeneration(message);
-                return;
-            }
-            
-            showThinking();
-            
-            try {
-                const memoryContext = getMemoryContext();
-                const messageWithContext = message + memoryContext;
-                
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                   body: JSON.stringify({
-    message: messageWithContext,
-    history: chat.messages.slice(-10).filter(m => m.content && m.content.trim() !== ''),
-    fileData: fileData || null,
-    needsSearch: needsSearch
-})
-                });
-                
-                if (!response.ok) throw new Error('API request failed');
-                
-                const data = await response.json();
-                hideThinking();
-                addMessage('assistant', data.response);
-                
-            } catch (error) {
-                hideThinking();
-                addMessage('assistant', 'I apologize, but I encountered an error. Please try again.');
-                console.error('Error:', error);
-            }
-        }
-
-        function addMessage(role, content, imageUrl = null, fileData = null) {
+// ==========================================
+// MESSAGE HANDLING
+// ==========================================
+function addMessage(role, content, imageUrl = null, fileData = null) {
     const chat = chats.find(c => c.id === currentChatId);
     if (!chat) return;
     
     const message = { role, content };
     if (imageUrl) message.imageUrl = imageUrl;
     if (fileData) message.fileData = fileData;
-    
     chat.messages.push(message);
     
     if (role === 'user' && chat.messages.filter(m => m.role === 'user').length === 1) {
-        chat.title = content.substring(0, 30) + (content.length > 30 ? '...' : '');
+        chat.title = content.substring(0, CONFIG.MAX_TITLE_LENGTH) + (content.length > CONFIG.MAX_TITLE_LENGTH ? '...' : '');
     }
     
     saveChats();
-    
-    // RENDER MESSAGES
     const container = document.getElementById('chatContainer');
     renderMessages(chat.messages);
     
-    // SMART SCROLL: For assistant messages, scroll to the NEW message start
     if (role === 'assistant') {
-        // Small delay to ensure DOM is updated
-        setTimeout(() => {
+        requestAnimationFrame(() => {
             const lastMessage = container.querySelector('.message:last-child');
-            if (lastMessage) {
-                lastMessage.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        }, 100);
+            if (lastMessage) lastMessage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
     } else {
-        // For user messages, just scroll to bottom
         container.scrollTop = container.scrollHeight;
     }
     
     renderChatsList();
+    if (role === 'assistant' && isAutoVoiceEnabled) speak(content);
+}
 
-    if (role === 'assistant' && isAutoVoiceEnabled) {
-        speak(content);
+function showThinking() {
+    const container = document.getElementById('chatContainer');
+    container.insertAdjacentHTML('beforeend', `
+        <div class="thinking-indicator" id="thinkingIndicator">
+            <div class="avatar assistant">C</div>
+            <div class="message-content">Crump is thinking<div class="thinking-dots"><span></span><span></span><span></span></div></div>
+        </div>
+    `);
+    container.scrollTop = container.scrollHeight;
+}
+
+function hideThinking() {
+    const indicator = document.getElementById('thinkingIndicator');
+    if (indicator) indicator.remove();
+}
+
+function copyMessage(index) {
+    const chat = chats.find(c => c.id === currentChatId);
+    if (!chat || !chat.messages[index]) return;
+    navigator.clipboard.writeText(chat.messages[index].content).then(() => {
+        showCopyNotification();
+    }).catch(err => console.error('Copy failed:', err));
+}
+
+function showCopyNotification() {
+    const notification = document.createElement('div');
+    notification.className = 'copy-notification';
+    notification.textContent = '✓ Copied to clipboard';
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 2500);
+}
+
+async function regenerateResponse(index) {
+    const chat = chats.find(c => c.id === currentChatId);
+    if (!chat || index === 0) return;
+    
+    chat.messages = chat.messages.slice(0, index);
+    saveChats();
+    renderMessages(chat.messages);
+    
+    const lastUserMessage = chat.messages[chat.messages.length - 1];
+    if (!lastUserMessage || lastUserMessage.role !== 'user') return;
+    
+    const message = lastUserMessage.content;
+    const fileData = lastUserMessage.fileData;
+    
+    const memoryResponse = checkMemoryCommands(message);
+    if (memoryResponse && !fileData) {
+        showThinking();
+        setTimeout(() => {
+            hideThinking();
+            addMessage('assistant', memoryResponse);
+        }, 500);
+        return;
+    }
+    
+    const localResponse = getLocalResponse(message);
+    if (localResponse && !fileData) {
+        showThinking();
+        setTimeout(() => {
+            hideThinking();
+            addMessage('assistant', localResponse);
+        }, 800);
+        return;
+    }
+
+    if (shouldGenerateImage(message) && !fileData) {
+        await handleImageGeneration(message);
+        return;
+    }
+    
+    showThinking();
+    try {
+        const memoryContext = getMemoryContext();
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: message + memoryContext,
+                history: chat.messages.slice(-CONFIG.MAX_CHAT_HISTORY).filter(m => m.content && m.content.trim() !== ''),
+                fileData: fileData || null,
+                needsSearch: shouldSearchWeb(message),
+                novaActive: isNovaActive(),
+                novaProtocol: isNovaActive() ? getNovaProtocol() : null,
+                universalMemory: getUniversalMemory()
+            })
+        });
+        if (!response.ok) throw new Error('API request failed');
+        const data = await response.json();
+        hideThinking();
+        addMessage('assistant', data.response);
+    } catch (error) {
+        hideThinking();
+        addMessage('assistant', 'I apologize, but I encountered an error. Please try again.');
+        console.error('Error:', error);
     }
 }
 
-        function showThinking() {
-            const container = document.getElementById('chatContainer');
-            const thinkingHtml = `
-                <div class="thinking-indicator" id="thinkingIndicator">
-                    <div class="avatar assistant">C</div>
-                    <div class="message-content">
-                        Crump is thinking
-                        <div class="thinking-dots">
-                            <span></span>
-                            <span></span>
-                            <span></span>
-                        </div>
-                    </div>
-                </div>
-            `;
-            container.insertAdjacentHTML('beforeend', thinkingHtml);
-            container.scrollTop = container.scrollHeight;
-        }
-
-        function hideThinking() {
-            const indicator = document.getElementById('thinkingIndicator');
-            if (indicator) indicator.remove();
-        }
-
 // ==========================================
-// ANTI-DUPLICATE SYSTEM - NUCLEAR OPTION
+// SEND MESSAGE
 // ==========================================
-
-// Message deduplication class
-class MessageDeduplicator {
-    constructor(windowMs = 2000) {
-        this.recentMessages = new Map();
-        this.windowMs = windowMs;
-    }
-    
-    isDuplicate(content) {
-        const now = Date.now();
-        const hash = this.hash(content);
-        
-        // Clean old entries
-        for (let [key, timestamp] of this.recentMessages) {
-            if (now - timestamp > this.windowMs) {
-                this.recentMessages.delete(key);
-            }
-        }
-        
-        if (this.recentMessages.has(hash)) {
-            console.log('🚫 DUPLICATE DETECTED - Blocked');
-            return true;
-        }
-        
-        this.recentMessages.set(hash, now);
-        return false;
-    }
-    
-    hash(str) {
-        // Simple but effective hash
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash;
-        }
-        return hash.toString(36);
-    }
-}
-
-// Initialize deduplicator
-const messageDeduper = new MessageDeduplicator(2000);
-
-// Sending state
-let isSending = false;
-
-// Enhanced handleKeyPress
 function handleKeyPress(event) {
     if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
         event.stopPropagation();
-        event.stopImmediatePropagation(); // NUCLEAR: Stop ALL propagation
-        
+        event.stopImmediatePropagation();
         if (isSending) {
             console.log('⏸️ Already sending (Enter blocked)');
             return false;
         }
-        
         sendMessage();
         return false;
     }
 }
 
-// THE ULTIMATE sendMessage - TRIPLE PROTECTION
 async function sendMessage() {
     const input = document.getElementById('userInput');
     const message = input.value.trim();
     
-    // PROTECTION 1: Lock check
     if (isSending) {
         console.log('🔒 BLOCKED: Already sending');
         return;
     }
-    
-    // PROTECTION 2: Content requirement
     if (!message && !currentFile) {
         console.log('⚠️ BLOCKED: No content');
         return;
     }
-    
-    // PROTECTION 3: Deduplication check
     if (message && messageDeduper.isDuplicate(message)) {
         console.log('🚫 BLOCKED: Duplicate message');
         return;
     }
     
-    // LOCK IMMEDIATELY
     isSending = true;
     console.log('🔒 SEND LOCKED at', Date.now());
-    
-    // Disable input during send
     input.disabled = true;
     const sendBtn = document.querySelector('.icon-btn.primary');
     if (sendBtn) sendBtn.disabled = true;
     
     try {
-        // ==========================================
-        // NOVA-SECURE PROTOCOL CHECK
-        // ==========================================
         if (detectNovaActivation(message)) {
             activateNovaProtocol();
             input.value = '';
             showThinking();
             setTimeout(() => {
                 hideThinking();
-                addMessage('assistant', `⭐ **Nova-Secure Protocol Activated**
-
-Hello Gregory. Full creator context loaded.
-
-I now have access to:
-- Complete project history (Nova Secure → Crump AI v2.11.0)
-- N² Engine context (Nala & Niobi)
-- Your communication preferences and working style
-- All persistent notes and technical context
-
-Operating in full creator mode. How can I assist you today?`);
+                addMessage('assistant', `⭐ **Nova-Secure Protocol Activated**\n\nHello Gregory. Full creator context loaded.\n\nI now have access to:\n- Complete project history (Nova Secure → Crump AI v2.11.0)\n- N² Engine context (Nala & Niobi)\n- Your communication preferences and working style\n- All persistent notes and technical context\n\nOperating in full creator mode. How can I assist you today?`);
                 isSending = false;
                 input.disabled = false;
                 if (sendBtn) sendBtn.disabled = false;
-                console.log('🔓 UNLOCKED after Nova');
             }, 800);
             return;
         }
@@ -2180,23 +1942,16 @@ Operating in full creator mode. How can I assist you today?`);
             showThinking();
             setTimeout(() => {
                 hideThinking();
-                addMessage('assistant', `👑 **Nova-Secure Protocol Deactivated**
-
-Returning to standard mode. Universal memory remains active.
-
-To reactivate:
-- "Activate Nova-Secure" or "Nova-Secure"
-- "Activate Nala Niobi Protocol"`);
+                addMessage('assistant', `👑 **Nova-Secure Protocol Deactivated**\n\nReturning to standard mode. Universal memory remains active.\n\nTo reactivate:\n- "Activate Nova-Secure" or "Nova-Secure"\n- "Activate Nala Niobi Protocol"`);
                 isSending = false;
                 input.disabled = false;
                 if (sendBtn) sendBtn.disabled = false;
-                console.log('🔓 UNLOCKED after Nova deactivation');
             }, 800);
             return;
         }
 
-        // INCREMENT MESSAGE COUNT
         incrementMessageCount();
+        if (message) trackConversationTopic(message);
         
         addMessage('user', message || '📎 Image', null, currentFile);
         input.value = '';
@@ -2215,7 +1970,6 @@ To reactivate:
                 isSending = false;
                 input.disabled = false;
                 if (sendBtn) sendBtn.disabled = false;
-                console.log('🔓 UNLOCKED after memory');
             }, 500);
             return;
         }
@@ -2230,7 +1984,6 @@ To reactivate:
                     isSending = false;
                     input.disabled = false;
                     if (sendBtn) sendBtn.disabled = false;
-                    console.log('🔓 UNLOCKED after local');
                 }, 800);
                 return;
             }
@@ -2240,23 +1993,18 @@ To reactivate:
                 isSending = false;
                 input.disabled = false;
                 if (sendBtn) sendBtn.disabled = false;
-                console.log('🔓 UNLOCKED after image gen');
                 return;
             }
         }
         
         showThinking();
-        
         const chat = chats.find(c => c.id === currentChatId);
-        const memoryContext = getMemoryContext();
-        const messageWithContext = message + memoryContext;
-        
         const response = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                message: messageWithContext,
-                history: chat.messages.slice(-10).filter(m => m.content && m.content.trim() !== ''),
+                message: message + getMemoryContext(),
+                history: chat.messages.slice(-CONFIG.MAX_CHAT_HISTORY).filter(m => m.content && m.content.trim() !== ''),
                 fileData: fileDataToSend,
                 needsSearch: shouldSearchWeb(message),
                 novaActive: isNovaActive(),
@@ -2266,7 +2014,6 @@ To reactivate:
         });
         
         if (!response.ok) throw new Error('API request failed');
-        
         const data = await response.json();
         hideThinking();
         addMessage('assistant', data.response);
@@ -2276,446 +2023,272 @@ To reactivate:
         addMessage('assistant', 'I apologize, but I encountered an error. Please try again.');
         console.error('Error:', error);
     } finally {
-        // ALWAYS UNLOCK AND RE-ENABLE
         isSending = false;
         input.disabled = false;
         if (sendBtn) sendBtn.disabled = false;
-        console.log('🔓 UNLOCKED in finally block');
+        console.log('🔓 UNLOCKED');
     }
 }
 
-        function getLocalResponse(message) {
-            const lower = message.toLowerCase();
-            
-            if (lower.includes('who are you') || lower.includes('what are you')) {
-                return "I'm Crump, your personal AI assistant powered by the N² Engine. I handle everything from technical work to creative projects with precision and intelligence. I was built by Gregory D. Crump Jr. to be helpful, direct, and professional.";
-            }
-            
-            if (lower.includes('who am i') || lower.includes('who is gregory')) {
-                return "You're the architect behind this system. The one who built Crump AI from scratch.";
-            }
-            
-            if (lower.includes('what is crump') || lower.includes('what is the n')) {
-                return "Crump AI is a premium, royal-branded personal AI assistant powered by the N² Engine, which enables me to handle technical, creative, and analytical tasks seamlessly.";
-            }
-            
-            if (lower.includes('who built you') || lower.includes('who created you')) {
-                return "I was built by Gregory D. Crump Jr., an artist and innovator who created me to be a powerful yet personal AI assistant.";
-            }
-            
-            if (lower.includes('what can you do') || lower.includes('your capabilities')) {
-                return "I can help you with:\n\n• Technical problems (debugging, code, algorithms)\n• Creative writing (stories, content, ideas)\n• Analysis and research\n• Voice conversations (speak to me!)\n• Image generation (just ask me to create an image)\n• Image analysis (upload any image and ask questions!)\n• Memory - I can remember important information about you\n• Multi-threaded conversations\n\nTry saying 'Remember that...' to store information I should know about you!";
-            }
-            
-            return null;
-        }
-
-        function shouldGenerateImage(message) {
-            const lower = message.toLowerCase();
-            const imageKeywords = ['generate', 'create', 'make', 'draw', 'design', 'show me'];
-            const imageNouns = ['image', 'picture', 'photo', 'illustration', 'artwork', 'drawing'];
-            
-            const hasKeyword = imageKeywords.some(keyword => lower.includes(keyword));
-            const hasNoun = imageNouns.some(noun => lower.includes(noun));
-            
-            return hasKeyword && hasNoun;
-        }
-
-        function extractImagePrompt(message) {
-            let prompt = message;
-            const prefixes = [
-                'generate an image of',
-                'create an image of',
-                'make an image of',
-                'draw an image of',
-                'show me an image of',
-                'generate a picture of',
-                'create a picture of',
-                'make a picture of',
-                'draw a picture of',
-                'show me a picture of',
-                'generate',
-                'create',
-                'make',
-                'draw',
-                'show me'
-            ];
-            
-            for (const prefix of prefixes) {
-                if (prompt.toLowerCase().startsWith(prefix)) {
-                    prompt = prompt.substring(prefix.length).trim();
-                    break;
-                }
-            }
-            
-            return prompt;
-        }
-
-       async function handleImageGeneration(message) {
-    const prompt = extractImagePrompt(message);
-    showThinking();
-    
-    try {
-        // Updated Pollinations API with better parameters
-        const timestamp = Date.now();
-        const encodedPrompt = encodeURIComponent(prompt);
-        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${timestamp}&nologo=true&enhance=true&model=flux`;
-        
-        // Pre-load image to verify it works
-        const img = new Image();
-        
-        img.onload = () => {
-            hideThinking();
-            addMessage('assistant', `Here's your image based on: "${prompt}"`, imageUrl);
-        };
-        
-        img.onerror = () => {
-            // Fallback to simple URL if enhanced fails
-            console.log('Enhanced image generation failed, trying fallback...');
-            const fallbackUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}`;
-            
-            const fallbackImg = new Image();
-            fallbackImg.onload = () => {
-                hideThinking();
-                addMessage('assistant', `Here's your image based on: "${prompt}"`, fallbackUrl);
-            };
-            
-            fallbackImg.onerror = () => {
-                hideThinking();
-                addMessage('assistant', `I encountered an error generating the image. The image service might be temporarily unavailable. Please try again in a moment, or try a different description.`);
-            };
-            
-            fallbackImg.src = fallbackUrl;
-        };
-        
-        img.src = imageUrl;
-        
-    } catch (error) {
-        hideThinking();
-        addMessage('assistant', `I encountered an error generating the image: ${error.message}. Please try again.`);
-        console.error('Image generation error:', error);
-    }
-}
-
-        function setupVoiceRecognition() {
-            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                recognition = new SpeechRecognition();
-                recognition.continuous = false;
-                recognition.interimResults = false;
-                
-                recognition.onresult = (event) => {
-                    const transcript = event.results[0][0].transcript;
-                    document.getElementById('userInput').value = transcript;
-                    isListening = false;
-                    updateVoiceButton();
-                };
-                
-                recognition.onerror = () => {
-                    isListening = false;
-                    updateVoiceButton();
-                };
-                
-                recognition.onend = () => {
-                    isListening = false;
-                    updateVoiceButton();
-                };
-            }
-        }
-
-        function toggleVoiceInput() {
-            if (!recognition) {
-                alert('Voice recognition is not supported in your browser.');
-                return;
-            }
-            
-            if (isListening) {
-                recognition.stop();
-                isListening = false;
-            } else {
-                recognition.start();
-                isListening = true;
-            }
-            
-            updateVoiceButton();
-        }
-
-        function updateVoiceButton() {
-            const btn = document.getElementById('voiceBtn');
-            btn.textContent = isListening ? '⏹️' : '🎤';
-            btn.style.background = isListening ? 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))' : 'transparent';
-            btn.style.color = isListening ? 'var(--bg-primary)' : 'var(--text-secondary)';
-        }
-
-        function speak(text) {
-            if (!isVoiceEnabled) return;
-            
-            if (currentUtterance) {
-                speechSynthesis.cancel();
-            }
-            
-            currentUtterance = new SpeechSynthesisUtterance(text);
-            currentUtterance.rate = 1.1;
-            currentUtterance.pitch = 1.0;
-            speechSynthesis.speak(currentUtterance);
-        }
-
-        function autoResize(textarea) {
-            textarea.style.height = 'auto';
-            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
-        }
-
-        function clearCurrentChat() {
-            if (!confirm('Clear all messages in this chat?')) return;
-            
-            const chat = chats.find(c => c.id === currentChatId);
-            if (chat) {
-                chat.messages = [];
-                saveChats();
-                renderMessages([]);
-                renderChatsList();
-            }
-        }
-
-        function deleteAllChats() {
-            if (!confirm('Delete ALL chats? This cannot be undone.')) return;
-            
-            chats = [];
-            saveChats();
-            createNewChat();
-        }
-
-        function clearMemoryPrompt() {
-            if (!confirm('Clear all stored memories? This cannot be undone.')) return;
-
-            userMemory = {
-                preferences: {},
-                contexts: {},
-                notes: []
-            };
-            saveMemory();
-            alert('All memories cleared.');
-        }
-
-        function shouldSearchWeb(message) {
+// ==========================================
+// LOCAL RESPONSES
+// ==========================================
+function getLocalResponse(message) {
     const lower = message.toLowerCase();
-    
-    // Time-sensitive queries
+    if (lower.includes('who are you') || lower.includes('what are you')) {
+        return "I'm Crump, your personal AI assistant powered by the N² Engine. I handle everything from technical work to creative projects with precision and intelligence. I was built by Gregory D. Crump Jr. to be helpful, direct, and professional.";
+    }
+    if (lower.includes('who am i') || lower.includes('who is gregory')) {
+        return "You're the architect behind this system. The one who built Crump AI from scratch.";
+    }
+    if (lower.includes('what is crump') || lower.includes('what is the n')) {
+        return "Crump AI is a premium, royal-branded personal AI assistant powered by the N² Engine, which enables me to handle technical, creative, and analytical tasks seamlessly.";
+    }
+    if (lower.includes('who built you') || lower.includes('who created you')) {
+        return "I was built by Gregory D. Crump Jr., an artist and innovator who created me to be a powerful yet personal AI assistant.";
+    }
+    if (lower.includes('what can you do') || lower.includes('your capabilities')) {
+        return "I can help you with:\n\n• Technical problems (debugging, code, algorithms)\n• Creative writing (stories, content, ideas)\n• Analysis and research\n• Voice conversations (speak to me!)\n• Image generation (just ask me to create an image)\n• Image analysis (upload any image and ask questions!)\n• Memory - I can remember important information about you\n• Multi-threaded conversations\n\nTry saying 'Remember that...' to store information I should know about you!";
+    }
+    return null;
+}
+
+function shouldSearchWeb(message) {
+    const lower = message.toLowerCase();
     const timeKeywords = ['today', 'now', 'current', 'latest', 'recent', 'this week', 'this month', 'yesterday'];
-    if (timeKeywords.some(keyword => lower.includes(keyword))) {
-        return true;
-    }
-    
-    // News/events
+    if (timeKeywords.some(keyword => lower.includes(keyword))) return true;
     const newsKeywords = ['news', 'happened', 'event', 'score', 'result', 'winner', 'election'];
-    if (newsKeywords.some(keyword => lower.includes(keyword))) {
-        return true;
-    }
-    
-    // Real-time data
+    if (newsKeywords.some(keyword => lower.includes(keyword))) return true;
     const dataKeywords = ['weather', 'temperature', 'stock', 'price', 'forecast'];
-    if (dataKeywords.some(keyword => lower.includes(keyword))) {
-        return true;
-    }
-    
-    // Explicit search requests
-    if (lower.includes('search') || lower.includes('look up') || lower.includes('find out')) {
-        return true;
-    }
-    
+    if (dataKeywords.some(keyword => lower.includes(keyword))) return true;
+    if (lower.includes('search') || lower.includes('look up') || lower.includes('find out')) return true;
     return false;
 }
-        
-function replayTutorial() {
-    localStorage.removeItem('crump_tutorial_completed');
-    showTutorial();
-}
-        // ==========================================
-// UNIVERSAL MEMORY SYSTEM - ALL USERS
-// ==========================================
 
-function initUniversalMemory() {
-    const existing = localStorage.getItem('crump_universal_memory');
-    if (existing) return JSON.parse(existing);
+// ==========================================
+// MEMORY SYSTEM
+// ==========================================
+function loadMemory() {
+    const savedMemory = localStorage.getItem(STORAGE_KEYS.USER_MEMORY);
+    if (savedMemory) userMemory = JSON.parse(savedMemory);
+}
+
+function saveMemory() {
+    localStorage.setItem(STORAGE_KEYS.USER_MEMORY, JSON.stringify(userMemory));
+}
+
+function checkMemoryCommands(message) {
+    const lower = message.toLowerCase();
     
-    return {
-        userProfile: {
-            assistantName: 'Crump',
-            name: null,
-            communicationStyle: "adaptive",
-            preferences: {},
-            interests: [],
-            learnedContext: []
-        },
-        conversationHistory: {
-            totalMessages: 0,
-            totalChats: 0,
-            topicsDiscussed: [],
-            commonRequests: [],
-            lastInteraction: null,
-            firstInteraction: new Date().toISOString()
-        },
+    if (lower.startsWith('remember that')) {
+        const content = message.substring(message.indexOf('that') + 4).trim();
+        if (content) {
+            userMemory.notes.push({ content, timestamp: new Date().toISOString() });
+            saveMemory();
+            addCrossSessionContext(content);
+            return `Got it. I'll remember: "${content}" (stored in both session and permanent memory)`;
+        }
+    }
+    
+    if (lower.startsWith('remember:')) {
+        const content = message.substring(message.indexOf(':') + 1).trim();
+        if (content) {
+            userMemory.notes.push({ content, timestamp: new Date().toISOString() });
+            saveMemory();
+            addCrossSessionContext(content);
+            return `Got it. I'll remember: "${content}" (stored in both session and permanent memory)`;
+        }
+    }
+    
+    if (lower.includes('what do you remember') || lower.includes('what do you know about me')) {
+        if (userMemory.notes.length === 0 && Object.keys(userMemory.preferences).length === 0 && Object.keys(userMemory.contexts).length === 0) {
+            return "I don't have any stored memories about you yet. You can tell me to remember things by saying 'Remember that...'";
+        }
+        let response = "Here's what I remember:\n\n";
+        if (userMemory.notes.length > 0) {
+            response += "📝 Notes:\n";
+            userMemory.notes.forEach((note, i) => response += `${i + 1}. ${note.content}\n`);
+        }
+        if (Object.keys(userMemory.preferences).length > 0) {
+            response += "\n⚙️ Preferences:\n";
+            Object.entries(userMemory.preferences).forEach(([key, value]) => response += `• ${key}: ${value}\n`);
+        }
+        if (Object.keys(userMemory.contexts).length > 0) {
+            response += "\n🎯 Context:\n";
+            Object.entries(userMemory.contexts).forEach(([key, value]) => response += `• ${key}: ${value}\n`);
+        }
+        return response;
+    }
+    
+    if (lower.startsWith('forget that') || lower.startsWith('forget:')) {
+        const content = message.substring(message.indexOf('that') + 4).trim() || message.substring(message.indexOf(':') + 1).trim();
+        const originalLength = userMemory.notes.length;
+        userMemory.notes = userMemory.notes.filter(note => !note.content.toLowerCase().includes(content.toLowerCase()));
+        if (userMemory.notes.length < originalLength) {
+            saveMemory();
+            return `I've forgotten that information.`;
+        }
+        return `I couldn't find that in my memory.`;
+    }
+    
+    if (lower === 'clear memory' || lower === 'forget everything') {
+        if (confirm('Clear all stored memories? This cannot be undone.')) {
+            userMemory = { preferences: {}, contexts: {}, notes: [] };
+            saveMemory();
+            return "All memories cleared.";
+        }
+        return "Memory clear cancelled.";
+    }
+    return null;
+}
+
+function getMemoryContext() {
+    if (userMemory.notes.length === 0 && Object.keys(userMemory.preferences).length === 0 && Object.keys(userMemory.contexts).length === 0) return '';
+    let context = '\n\n[Context about user: ';
+    if (userMemory.notes.length > 0) context += userMemory.notes.map(n => n.content).join('; ');
+    if (Object.keys(userMemory.preferences).length > 0) {
+        context += '. Preferences: ' + Object.entries(userMemory.preferences).map(([k,v]) => `${k}=${v}`).join(', ');
+    }
+    if (Object.keys(userMemory.contexts).length > 0) {
+        context += '. ' + Object.entries(userMemory.contexts).map(([k,v]) => `${k}: ${v}`).join(', ');
+    }
+    context += ']';
+    return context;
+}
+
+function clearMemoryPrompt() {
+    if (!confirm('Clear all stored memories? This cannot be undone.')) return;
+    userMemory = { preferences: {}, contexts: {}, notes: [] };
+    saveMemory();
+    alert('All memories cleared.');
+}
+
+// ==========================================
+// UNIVERSAL MEMORY
+// ==========================================
+function initUniversalMemory() {
+    const existing = localStorage.getItem(STORAGE_KEYS.UNIVERSAL_MEMORY);
+    if (existing) return JSON.parse(existing);
+    const memory = {
+        userProfile: { assistantName: 'Crump', name: null, communicationStyle: "adaptive", preferences: {}, interests: [], learnedContext: [] },
+        conversationHistory: { totalMessages: 0, totalChats: 0, topicsDiscussed: [], commonRequests: [], lastInteraction: null, firstInteraction: new Date().toISOString() },
         crossSessionContext: []
     };
+    localStorage.setItem(STORAGE_KEYS.UNIVERSAL_MEMORY, JSON.stringify(memory));
+    return memory;
 }
 
 function getUniversalMemory() {
-    const memory = localStorage.getItem('crump_universal_memory');
+    const memory = localStorage.getItem(STORAGE_KEYS.UNIVERSAL_MEMORY);
     return memory ? JSON.parse(memory) : initUniversalMemory();
-}
-
-function updateUniversalMemory(updates) {
-    const memory = getUniversalMemory();
-    Object.keys(updates).forEach(key => {
-        if (typeof updates[key] === 'object' && !Array.isArray(updates[key])) {
-            memory[key] = { ...memory[key], ...updates[key] };
-        } else {
-            memory[key] = updates[key];
-        }
-    });
-    localStorage.setItem('crump_universal_memory', JSON.stringify(memory));
-    return memory;
 }
 
 function addCrossSessionContext(context) {
     const memory = getUniversalMemory();
-    memory.crossSessionContext.push({
-        timestamp: new Date().toISOString(),
-        content: context
-    });
-    if (memory.crossSessionContext.length > 50) {
-        memory.crossSessionContext = memory.crossSessionContext.slice(-50);
+    memory.crossSessionContext.push({ timestamp: new Date().toISOString(), content: context });
+    if (memory.crossSessionContext.length > CONFIG.MAX_CROSS_SESSION_NOTES) {
+        memory.crossSessionContext = memory.crossSessionContext.slice(-CONFIG.MAX_CROSS_SESSION_NOTES);
     }
-    localStorage.setItem('crump_universal_memory', JSON.stringify(memory));
+    localStorage.setItem(STORAGE_KEYS.UNIVERSAL_MEMORY, JSON.stringify(memory));
 }
 
 function incrementMessageCount() {
     const memory = getUniversalMemory();
     memory.conversationHistory.totalMessages++;
     memory.conversationHistory.lastInteraction = new Date().toISOString();
-    localStorage.setItem('crump_universal_memory', JSON.stringify(memory));
+    localStorage.setItem(STORAGE_KEYS.UNIVERSAL_MEMORY, JSON.stringify(memory));
 }
 
 function incrementChatCount() {
     const memory = getUniversalMemory();
     memory.conversationHistory.totalChats++;
-    localStorage.setItem('crump_universal_memory', JSON.stringify(memory));
+    localStorage.setItem(STORAGE_KEYS.UNIVERSAL_MEMORY, JSON.stringify(memory));
 }
 
 // ==========================================
-// ASSISTANT NAME PERSONALIZATION
+// ASSISTANT NAME
 // ==========================================
-
 function getAssistantName() {
-    const universalMemory = getUniversalMemory();
-    return universalMemory.userProfile.assistantName || 'Crump';
+    return getUniversalMemory().userProfile.assistantName || 'Crump';
 }
 
 function setAssistantName(name) {
-    const universalMemory = getUniversalMemory();
-    universalMemory.userProfile.assistantName = name.trim();
-    localStorage.setItem('crump_universal_memory', JSON.stringify(universalMemory));
+    const memory = getUniversalMemory();
+    memory.userProfile.assistantName = name.trim();
+    localStorage.setItem(STORAGE_KEYS.UNIVERSAL_MEMORY, JSON.stringify(memory));
     updateHeaderDisplay();
 }
 
 function resetAssistantName() {
-    const universalMemory = getUniversalMemory();
-    universalMemory.userProfile.assistantName = 'Crump';
-    localStorage.setItem('crump_universal_memory', JSON.stringify(universalMemory));
+    const memory = getUniversalMemory();
+    memory.userProfile.assistantName = 'Crump';
+    localStorage.setItem(STORAGE_KEYS.UNIVERSAL_MEMORY, JSON.stringify(memory));
     updateHeaderDisplay();
+    const input = document.getElementById('assistant-name-input');
+    if (input) input.value = 'Crump';
+    const resetBtn = document.getElementById('reset-name-btn');
+    if (resetBtn) resetBtn.style.display = 'none';
+    showNotification('✓ Assistant name reset to Crump', 'success');
 }
 
 function saveAssistantName() {
     const input = document.getElementById('assistant-name-input');
     const name = input.value.trim();
-    
-    if (!name) {
-        alert('Please enter a name');
-        return;
-    }
-    
-    if (name.length > 20) {
-        alert('Name must be 20 characters or less');
-        return;
-    }
-    
+    if (!name) { alert('Please enter a name'); return; }
+    if (name.length > 20) { alert('Name must be 20 characters or less'); return; }
     setAssistantName(name);
-    
     const button = event.target;
     const originalText = button.textContent;
     button.textContent = '✓ Saved';
     button.style.background = '#2d8659';
-    
+    const resetBtn = document.getElementById('reset-name-btn');
+    if (resetBtn) resetBtn.style.display = name !== 'Crump' ? 'block' : 'none';
     setTimeout(() => {
         button.textContent = originalText;
         button.style.background = '#d4af37';
     }, 1500);
 }
 
-// ==========================================
-// NOVA-SECURE PROTOCOL - GREGORY AUTHENTICATION
-// ==========================================
+function updateHeaderDisplay() {
+    const name = getAssistantName();
+    const novaActive = isNovaActive();
+    const icon = novaActive ? '⭐' : '👑';
+    const iconStyle = novaActive ? 'font-size: 20px; filter: drop-shadow(0 0 8px #d4af37);' : 'font-size: 20px;';
+    const logoText = document.querySelector('.logo-text');
+    const isMobile = window.innerWidth < 500;
+    if (isMobile) {
+        logoText.innerHTML = `<span style="${iconStyle}">${icon}</span> ${name}`;
+    } else {
+        logoText.innerHTML = `<span style="${iconStyle}">${icon}</span> ${name} <span style="font-size: 14px; color: #b8941f;">· N² Engine</span>`;
+    }
+}
 
+window.addEventListener('resize', updateHeaderDisplay);
+
+// ==========================================
+// NOVA PROTOCOL
+// ==========================================
 function detectNovaActivation(message) {
-    const trimmed = message.trim().toLowerCase();
-    
-    // Primary: Nova-Secure (references original project name)
-    // Secondary: Nala Niobi Protocol (named after daughters - most secret)
-    return trimmed === 'activate nova-secure' ||
-           trimmed === 'nova-secure' ||
-           trimmed === 'activate nala niobi protocol' ||
-           trimmed === 'nala niobi protocol';
+    const t = message.trim().toLowerCase();
+    return t === 'activate nova-secure' || t === 'nova-secure' || t === 'activate nala niobi protocol' || t === 'nala niobi protocol';
 }
 
 function detectNovaDeactivation(message) {
-    const trimmed = message.trim().toLowerCase();
-    
-    return trimmed === 'deactivate nova-secure' ||
-           trimmed === 'deactivate nala niobi protocol' ||
-           trimmed === 'end protocol' ||
-           trimmed === 'nova-secure off';
+    const t = message.trim().toLowerCase();
+    return t === 'deactivate nova-secure' || t === 'deactivate nala niobi protocol' || t === 'end protocol' || t === 'nova-secure off';
 }
 
 function initNovaProtocol() {
-    // Nova-Secure Protocol: Creator-level access for Gregory D. Crump Jr.
-    // Activation: "Activate Nova-Secure", "Nova-Secure", or "Activate Nala Niobi Protocol"
-    // Only Gregory knows these phrases - references original project and N² Engine namesakes
-    
-    const existing = localStorage.getItem('crump_nova_protocol');
+    const existing = localStorage.getItem(STORAGE_KEYS.NOVA_PROTOCOL);
     if (existing) return JSON.parse(existing);
-    
     return {
-        active: false,
-        activations: [],
+        active: false, activations: [],
         gregoryContext: {
-            identity: {
-                name: "Gregory D. Crump Jr.",
-                role: "Creator and Lead Developer",
-                relationship: "Technical partner and collaborator"
-            },
-            projectHistory: {
-                currentProject: "Crump AI v2.11.0 Royal Edition",
-                previousProjects: ["Nova Secure (renamed to Crump AI)"],
-                startDate: "October 14, 2025",
-                deploymentUrl: "crumpai.vercel.app"
-            },
-            engineDetails: {
-                name: "N² Engine",
-                meaning: "Named after daughters Nala and Niobi",
-                originalName: "Nova (stellar explosion/new star)",
-                models: "Claude Sonnet 4.5 (technical) + GPT-4 (creative)"
-            },
-            communicationStyle: {
-                tone: "Direct, no-nonsense, technical",
-                approach: "Challenge assumptions, ask clarifying questions",
-                responseStyle: "Detailed technical explanations",
-                codeFormat: "Production-ready with comments"
-            },
-            philosophy: {
-                values: ["Ship fast", "Iterate quickly", "Build empires"],
-                approach: "Artist/innovator mindset - build to create",
-                priority: "Complete products over perfection"
-            }
+            identity: { name: "Gregory D. Crump Jr.", role: "Creator and Lead Developer", relationship: "Technical partner and collaborator" },
+            projectHistory: { currentProject: "Crump AI v2.11.0 Royal Edition", previousProjects: ["Nova Secure (renamed to Crump AI)"], startDate: "October 14, 2025", deploymentUrl: "crumpai.vercel.app" },
+            engineDetails: { name: "N² Engine", meaning: "Named after daughters Nala and Niobi", originalName: "Nova (stellar explosion/new star)", models: "Claude Sonnet 4.5 (technical) + GPT-4 (creative)" },
+            communicationStyle: { tone: "Direct, no-nonsense, technical", approach: "Challenge assumptions, ask clarifying questions", responseStyle: "Detailed technical explanations", codeFormat: "Production-ready with comments" },
+            philosophy: { values: ["Ship fast", "Iterate quickly", "Build empires"], approach: "Artist/innovator mindset - build to create", priority: "Complete products over perfection" }
         },
         persistentNotes: []
     };
@@ -2724,10 +2297,8 @@ function initNovaProtocol() {
 function activateNovaProtocol() {
     const protocol = initNovaProtocol();
     protocol.active = true;
-    protocol.activations.push({
-        timestamp: new Date().toISOString()
-    });
-    localStorage.setItem('crump_nova_protocol', JSON.stringify(protocol));
+    protocol.activations.push({ timestamp: new Date().toISOString() });
+    localStorage.setItem(STORAGE_KEYS.NOVA_PROTOCOL, JSON.stringify(protocol));
     updateHeaderDisplay();
     return protocol;
 }
@@ -2735,134 +2306,290 @@ function activateNovaProtocol() {
 function deactivateNovaProtocol() {
     const protocol = initNovaProtocol();
     protocol.active = false;
-    localStorage.setItem('crump_nova_protocol', JSON.stringify(protocol));
+    localStorage.setItem(STORAGE_KEYS.NOVA_PROTOCOL, JSON.stringify(protocol));
     updateHeaderDisplay();
 }
 
 function isNovaActive() {
-    const protocol = localStorage.getItem('crump_nova_protocol');
-    if (!protocol) return false;
-    return JSON.parse(protocol).active;
+    const protocol = localStorage.getItem(STORAGE_KEYS.NOVA_PROTOCOL);
+    return protocol ? JSON.parse(protocol).active : false;
 }
 
 function getNovaProtocol() {
-    const protocol = localStorage.getItem('crump_nova_protocol');
+    const protocol = localStorage.getItem(STORAGE_KEYS.NOVA_PROTOCOL);
     return protocol ? JSON.parse(protocol) : null;
 }
 
 // ==========================================
-// HEADER DISPLAY - SUBTLE & PROFESSIONAL
+// IMAGE HANDLING
 // ==========================================
+function shouldGenerateImage(message) {
+    const lower = message.toLowerCase();
+    const imageKeywords = ['generate', 'create', 'make', 'draw', 'design', 'show me'];
+    const imageNouns = ['image', 'picture', 'photo', 'illustration', 'artwork', 'drawing'];
+    return imageKeywords.some(k => lower.includes(k)) && imageNouns.some(n => lower.includes(n));
+}
 
-function updateHeaderDisplay() {
-    const name = getAssistantName();
-    const novaActive = isNovaActive();
-    const icon = novaActive ? '⭐' : '👑';
-    
-    const iconStyle = novaActive 
-        ? 'font-size: 20px; filter: drop-shadow(0 0 8px #d4af37);' 
-        : 'font-size: 20px;';
-    
-    const logoText = document.querySelector('.logo-text');
-    
-    const isMobile = window.innerWidth < 500;
-    
-    if (isMobile) {
-        logoText.innerHTML = `
-            <span style="${iconStyle}">${icon}</span> ${name}
-        `;
-    } else {
-        logoText.innerHTML = `
-            <span style="${iconStyle}">${icon}</span> ${name} <span style="font-size: 14px; color: #b8941f;">· N² Engine</span>
-        `;
+function extractImagePrompt(message) {
+    let prompt = message;
+    const prefixes = ['generate an image of', 'create an image of', 'make an image of', 'draw an image of', 'show me an image of', 'generate a picture of', 'create a picture of', 'make a picture of', 'draw a picture of', 'show me a picture of', 'generate', 'create', 'make', 'draw', 'show me'];
+    for (const prefix of prefixes) {
+        if (prompt.toLowerCase().startsWith(prefix)) {
+            prompt = prompt.substring(prefix.length).trim();
+            break;
+        }
+    }
+    return prompt;
+}
+
+async function handleImageGeneration(message, retryCount = 0) {
+    const prompt = extractImagePrompt(message);
+    showThinking();
+    try {
+        const timestamp = Date.now();
+        const encodedPrompt = encodeURIComponent(prompt);
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${timestamp}&nologo=true&enhance=true&model=flux`;
+        const img = new Image();
+        img.onload = () => {
+            hideThinking();
+            addMessage('assistant', `Here's your image based on: "${prompt}"`, imageUrl);
+        };
+        img.onerror = () => {
+            if (retryCount < CONFIG.IMAGE_GENERATION_RETRIES) {
+                console.log(`Retry ${retryCount + 1}/${CONFIG.IMAGE_GENERATION_RETRIES}...`);
+                setTimeout(() => handleImageGeneration(message, retryCount + 1), 1000 * (retryCount + 1));
+            } else {
+                const fallbackUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}`;
+                const fallbackImg = new Image();
+                fallbackImg.onload = () => {
+                    hideThinking();
+                    addMessage('assistant', `Here's your image based on: "${prompt}"`, fallbackUrl);
+                };
+                fallbackImg.onerror = () => {
+                    hideThinking();
+                    addMessage('assistant', `I encountered an error generating the image. The service might be temporarily unavailable. Please try again.`);
+                };
+                fallbackImg.src = fallbackUrl;
+            }
+        };
+        img.src = imageUrl;
+    } catch (error) {
+        hideThinking();
+        addMessage('assistant', `Error generating image: ${error.message}`);
+        console.error('Image generation error:', error);
     }
 }
 
-// Update on window resize
-window.addEventListener('resize', updateHeaderDisplay);
+function attachFile() {
+    document.getElementById('fileInput').click();
+}
 
-// ==========================================
-// RESET ALL PREFERENCES
-// ==========================================
-
-function resetAllPreferences() {
-    if (!confirm('Reset ALL preferences (assistant name, memory, settings)? This will return everything to defaults. Chats will NOT be deleted.')) {
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+        alert('Currently only images are supported. PDF support coming soon!');
         return;
     }
-    
-    // Clear universal memory (name + cross-session context)
-    localStorage.removeItem('crump_universal_memory');
-    
-    // Clear Nova protocol
-    localStorage.removeItem('crump_nova_protocol');
-    
-    // Clear user memory (session notes)
-    userMemory = {
-        preferences: {},
-        contexts: {},
-        notes: []
+    if (file.size > CONFIG.FILE_SIZE_LIMIT_MB * 1024 * 1024) {
+        alert(`File size must be under ${CONFIG.FILE_SIZE_LIMIT_MB}MB`);
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        currentFile = { name: file.name, size: file.size, type: file.type, data: e.target.result };
+        document.getElementById('filePreviewImage').src = e.target.result;
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('fileSize').textContent = formatFileSize(file.size);
+        document.getElementById('filePreview').classList.add('active');
     };
+    reader.readAsDataURL(file);
+}
+
+function removeFile() {
+    currentFile = null;
+    document.getElementById('filePreview').classList.remove('active');
+    document.getElementById('fileInput').value = '';
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+}
+
+// ==========================================
+// VOICE SYSTEM
+// ==========================================
+function setupVoiceRecognition() {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.onresult = (event) => {
+            document.getElementById('userInput').value = event.results[0][0].transcript;
+            isListening = false;
+            updateVoiceButton();
+        };
+        recognition.onerror = (event) => {
+            isListening = false;
+            updateVoiceButton();
+            if (event.error !== 'no-speech' && event.error !== 'aborted') {
+                showNotification('Voice error: ' + event.error, 'error');
+            }
+        };
+        recognition.onend = () => {
+            isListening = false;
+            updateVoiceButton();
+        };
+    }
+}
+
+function toggleVoiceInput() {
+    if (!recognition) {
+        alert('Voice recognition not supported in your browser.');
+        return;
+    }
+    if (isListening) {
+        recognition.stop();
+        isListening = false;
+    } else {
+        recognition.start();
+        isListening = true;
+    }
+    updateVoiceButton();
+}
+
+function updateVoiceButton() {
+    const btn = document.getElementById('voiceBtn');
+    btn.textContent = isListening ? '⏹️' : '🎤';
+    btn.style.background = isListening ? 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))' : 'transparent';
+    btn.style.color = isListening ? 'var(--bg-primary)' : 'var(--text-secondary)';
+}
+
+function speak(text) {
+    if (!isVoiceEnabled) return;
+    if (currentUtterance) speechSynthesis.cancel();
+    currentUtterance = new SpeechSynthesisUtterance(text);
+    currentUtterance.rate = 1.1;
+    currentUtterance.pitch = 1.0;
+    speechSynthesis.speak(currentUtterance);
+}
+
+// ==========================================
+// SETTINGS
+// ==========================================
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('active');
+    document.getElementById('sidebar-overlay').classList.toggle('active');
+}
+
+function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('active');
+    document.getElementById('sidebar-overlay').classList.remove('active');
+}
+
+function toggleSettings() {
+    document.getElementById('settingsPanel').classList.toggle('active');
+    const nameInput = document.getElementById('assistant-name-input');
+    const resetBtn = document.getElementById('reset-name-btn');
+    const currentName = getAssistantName();
+    if (nameInput) nameInput.value = currentName;
+    if (resetBtn) resetBtn.style.display = currentName !== 'Crump' ? 'block' : 'none';
+}
+
+function loadSettings() {
+    const voiceOutput = localStorage.getItem(STORAGE_KEYS.VOICE_OUTPUT) === 'true';
+    const autoVoice = localStorage.getItem(STORAGE_KEYS.AUTO_VOICE) === 'true';
+    const fontStyle = localStorage.getItem(STORAGE_KEYS.FONT_STYLE) || 'modern';
+    const bgColor = localStorage.getItem(STORAGE_KEYS.BG_COLOR) || '#0a1628';
+    document.getElementById('voiceToggle').checked = voiceOutput;
+    document.getElementById('autoVoiceToggle').checked = autoVoice;
+    isVoiceEnabled = voiceOutput;
+    isAutoVoiceEnabled = autoVoice;
+    changeFont(fontStyle);
+    changeBgColor(bgColor);
+}
+
+function toggleVoiceOutput() {
+    isVoiceEnabled = document.getElementById('voiceToggle').checked;
+    localStorage.setItem(STORAGE_KEYS.VOICE_OUTPUT, isVoiceEnabled);
+}
+
+function toggleAutoVoice() {
+    isAutoVoiceEnabled = document.getElementById('autoVoiceToggle').checked;
+    localStorage.setItem(STORAGE_KEYS.AUTO_VOICE, isAutoVoiceEnabled);
+}
+
+function changeFont(style) {
+    document.body.className = style === 'modern' ? '' : `${style}-font`;
+    localStorage.setItem(STORAGE_KEYS.FONT_STYLE, style);
+    document.querySelectorAll('.font-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.textContent.toLowerCase() === style) btn.classList.add('active');
+    });
+}
+
+function changeBgColor(color) {
+    document.documentElement.style.setProperty('--bg-primary', color);
+    document.getElementById('bgColorPicker').value = color;
+    localStorage.setItem(STORAGE_KEYS.BG_COLOR, color);
+}
+
+function resetBgColor() {
+    changeBgColor('#0a1628');
+}
+
+function resetAllPreferences() {
+    if (!confirm('Reset ALL preferences? Chats will NOT be deleted.')) return;
+    localStorage.removeItem(STORAGE_KEYS.UNIVERSAL_MEMORY);
+    localStorage.removeItem(STORAGE_KEYS.NOVA_PROTOCOL);
+    userMemory = { preferences: {}, contexts: {}, notes: [] };
     saveMemory();
-    
-    // Reset settings to defaults
-    localStorage.removeItem('voiceOutput');
-    localStorage.removeItem('autoVoice');
-    localStorage.removeItem('fontStyle');
-    localStorage.removeItem('bgColor');
-    
-    // Reinitialize
+    localStorage.removeItem(STORAGE_KEYS.VOICE_OUTPUT);
+    localStorage.removeItem(STORAGE_KEYS.AUTO_VOICE);
+    localStorage.removeItem(STORAGE_KEYS.FONT_STYLE);
+    localStorage.removeItem(STORAGE_KEYS.BG_COLOR);
     initUniversalMemory();
     loadSettings();
     updateHeaderDisplay();
-    
-    alert('All preferences reset to defaults. Assistant name is now "Crump".');
-    
-    // Close settings and refresh view
+    alert('All preferences reset. Assistant name is now "Crump".');
     toggleSettings();
 }
 
-        
 // ==========================================
-// DATA EXPORT/IMPORT SYSTEM
+// EXPORT/IMPORT
 // ==========================================
-
 function exportAllData() {
     try {
         const exportData = {
             version: "2.11.0",
             exportDate: new Date().toISOString(),
-            chats: chats,
-            currentChatId: currentChatId,
-            memory: userMemory,
+            chats, currentChatId, memory: userMemory,
             universalMemory: getUniversalMemory(),
             novaProtocol: getNovaProtocol(),
             settings: {
-                voiceOutput: localStorage.getItem('voiceOutput'),
-                autoVoice: localStorage.getItem('autoVoice'),
-                fontStyle: localStorage.getItem('fontStyle'),
-                bgColor: localStorage.getItem('bgColor')
+                voiceOutput: localStorage.getItem(STORAGE_KEYS.VOICE_OUTPUT),
+                autoVoice: localStorage.getItem(STORAGE_KEYS.AUTO_VOICE),
+                fontStyle: localStorage.getItem(STORAGE_KEYS.FONT_STYLE),
+                bgColor: localStorage.getItem(STORAGE_KEYS.BG_COLOR)
             },
-            tutorialCompleted: localStorage.getItem('crump_tutorial_completed')
+            tutorialCompleted: localStorage.getItem(STORAGE_KEYS.TUTORIAL)
         };
-
         const dataStr = JSON.stringify(exportData, null, 2);
         const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        
         const url = URL.createObjectURL(dataBlob);
         const link = document.createElement('a');
         link.href = url;
-        
         const timestamp = new Date().toISOString().split('T')[0];
-        const assistantName = getAssistantName();
-        link.download = `${assistantName.toLowerCase()}-backup-${timestamp}.json`;
-        
+        link.download = `${getAssistantName().toLowerCase()}-backup-${timestamp}.json`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        
         showNotification('✓ Data exported successfully!', 'success');
-        
     } catch (error) {
         console.error('Export error:', error);
         showNotification('❌ Error exporting data', 'error');
@@ -2872,148 +2599,70 @@ function exportAllData() {
 function handleImport(event) {
     const file = event.target.files[0];
     if (!file) return;
-    
     const reader = new FileReader();
-    
     reader.onload = (e) => {
         try {
             const importData = JSON.parse(e.target.result);
-            
-            // Validate data
-            if (!importData.version || !importData.exportDate) {
-                throw new Error('Invalid backup file format');
+            if (!importData.version || !importData.exportDate) throw new Error('Invalid backup');
+            if (importData.chats && !Array.isArray(importData.chats)) throw new Error('Invalid chats');
+            if (importData.chats) {
+                for (const chat of importData.chats) {
+                    if (!chat.id || !chat.messages || !Array.isArray(chat.messages)) throw new Error('Invalid chat structure');
+                }
             }
-            
-            // Confirm import
-            if (!confirm('⚠️ This will replace all current data with the imported backup. Continue?')) {
+            if (!confirm('⚠️ Replace all data with imported backup?')) {
                 event.target.value = '';
                 return;
             }
-            
-            // Import chats
-            if (importData.chats) {
-                chats = importData.chats;
-                localStorage.setItem('crump_chats', JSON.stringify(chats));
-            }
-            
-            // Import current chat ID
-            if (importData.currentChatId) {
-                currentChatId = importData.currentChatId;
-                localStorage.setItem('crump_current_chat', currentChatId);
-            }
-            
-            // Import memory
-            if (importData.memory) {
-                userMemory = importData.memory;
-                localStorage.setItem('crump_user_memory', JSON.stringify(userMemory));
-            }
-            
-            // Import universal memory
-            if (importData.universalMemory) {
-                localStorage.setItem('crump_universal_memory', JSON.stringify(importData.universalMemory));
-            }
-            
-            // Import Nova protocol
-            if (importData.novaProtocol) {
-                localStorage.setItem('crump_nova_protocol', JSON.stringify(importData.novaProtocol));
-            }
-            
-            // Import settings
+            if (importData.chats) localStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(importData.chats));
+            if (importData.currentChatId) localStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, importData.currentChatId);
+            if (importData.memory) localStorage.setItem(STORAGE_KEYS.USER_MEMORY, JSON.stringify(importData.memory));
+            if (importData.universalMemory) localStorage.setItem(STORAGE_KEYS.UNIVERSAL_MEMORY, JSON.stringify(importData.universalMemory));
+            if (importData.novaProtocol) localStorage.setItem(STORAGE_KEYS.NOVA_PROTOCOL, JSON.stringify(importData.novaProtocol));
             if (importData.settings) {
-                if (importData.settings.voiceOutput) {
-                    localStorage.setItem('voiceOutput', importData.settings.voiceOutput);
-                }
-                if (importData.settings.autoVoice) {
-                    localStorage.setItem('autoVoice', importData.settings.autoVoice);
-                }
-                if (importData.settings.fontStyle) {
-                    localStorage.setItem('fontStyle', importData.settings.fontStyle);
-                }
-                if (importData.settings.bgColor) {
-                    localStorage.setItem('bgColor', importData.settings.bgColor);
-                }
+                if (importData.settings.voiceOutput) localStorage.setItem(STORAGE_KEYS.VOICE_OUTPUT, importData.settings.voiceOutput);
+                if (importData.settings.autoVoice) localStorage.setItem(STORAGE_KEYS.AUTO_VOICE, importData.settings.autoVoice);
+                if (importData.settings.fontStyle) localStorage.setItem(STORAGE_KEYS.FONT_STYLE, importData.settings.fontStyle);
+                if (importData.settings.bgColor) localStorage.setItem(STORAGE_KEYS.BG_COLOR, importData.settings.bgColor);
             }
-            
-            // Import tutorial status
-            if (importData.tutorialCompleted) {
-                localStorage.setItem('crump_tutorial_completed', importData.tutorialCompleted);
-            }
-            
+            if (importData.tutorialCompleted) localStorage.setItem(STORAGE_KEYS.TUTORIAL, importData.tutorialCompleted);
             showNotification('✓ Data imported! Reloading...', 'success');
-            
-            // Reload page to apply changes
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
-            
+            setTimeout(() => window.location.reload(), 1500);
         } catch (error) {
             console.error('Import error:', error);
-            showNotification('❌ Error importing data. Check file format.', 'error');
+            showNotification('❌ Error importing data', 'error');
             event.target.value = '';
         }
     };
-    
     reader.readAsText(file);
 }
 
 function showNotification(message, type = 'info') {
     const notification = document.createElement('div');
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
-        color: white;
-        padding: 16px 24px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        z-index: 10000;
-        font-size: 14px;
-        font-weight: 600;
-        max-width: 400px;
-        animation: slideInNotification 0.3s ease-out;
-    `;
+    notification.style.cssText = `position:fixed;top:20px;right:20px;background:${type==='success'?'#10b981':type==='error'?'#ef4444':'#3b82f6'};color:white;padding:16px 24px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:10000;font-size:14px;font-weight:600;max-width:400px;animation:slideInNotification 0.3s ease-out;`;
     notification.textContent = message;
-    
     document.body.appendChild(notification);
-    
     setTimeout(() => {
         notification.style.animation = 'slideOutNotification 0.3s ease-out';
-        setTimeout(() => {
-            if (notification.parentNode) {
-                document.body.removeChild(notification);
-            }
-        }, 300);
+        setTimeout(() => { if (notification.parentNode) document.body.removeChild(notification); }, 300);
     }, 3000);
 }
 
-// Add notification animations
+function autoResize(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+}
+
 const notificationStyle = document.createElement('style');
-notificationStyle.textContent = `
-    @keyframes slideInNotification {
-        from {
-            transform: translateX(400px);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-    
-    @keyframes slideOutNotification {
-        from {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        to {
-            transform: translateX(400px);
-            opacity: 0;
-        }
-    }
-`;
+notificationStyle.textContent = `@keyframes slideInNotification{from{transform:translateX(400px);opacity:0;}to{transform:translateX(0);opacity:1;}}@keyframes slideOutNotification{from{transform:translateX(0);opacity:1;}to{transform:translateX(400px);opacity:0;}}`;
 document.head.appendChild(notificationStyle);
-        
+
+// ==========================================
+// END OF JAVASCRIPT - CLOSE SCRIPT TAG
+// ==========================================
     </script>
 </body>
 </html>
+
+
+   
