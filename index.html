@@ -1094,7 +1094,11 @@
         </div>
     </div>
 
-    <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="handleFileSelect(event)">
+   <!-- CHANGE THIS -->
+<input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="handleFileSelect(event)">
+
+<!-- TO THIS -->
+<input type="file" id="fileInput" accept="image/*" multiple style="display: none;" onchange="handleFileSelect(event)">
     <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebar()"></div> 
 
     <div class="app-container">
@@ -1300,7 +1304,7 @@
         let isListening = false;
         let recognition = null;
         let currentUtterance = null;
-        let currentFile = null;
+        let currentFiles = [];   // Array for multiple images
         let userMemory = {
             preferences: {},
             contexts: {},
@@ -2113,13 +2117,17 @@ async function sendMessage() {
         const suggestion = message ? suggestionEngine.trackQuery(message) : null;
         const contextSuggestions = message ? contextTracker.trackMessage(message) : [];
         
-        addMessage('user', message || '📎 Image', null, currentFile);
-        input.value = '';
-        autoResize(input);
-        
-        const hasFile = currentFile !== null;
-        const fileDataToSend = currentFile;
-        removeFile();
+        const imageText = currentFiles.length > 0 
+    ? (message || `📎 ${currentFiles.length} image${currentFiles.length > 1 ? 's' : ''}`)
+    : message;
+
+addMessage('user', imageText, null, currentFiles.length > 0 ? currentFiles[0] : null);
+input.value = '';
+autoResize(input);
+
+const hasFile = currentFiles.length > 0;
+const fileDataToSend = currentFiles.length > 0 ? currentFiles : null;
+removeFile();
         
         const memoryResponse = checkMemoryCommands(message);
         if (memoryResponse && !hasFile) {
@@ -2553,29 +2561,79 @@ function attachFile() {
 }
 
 function handleFileSelect(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-        alert('Currently only images are supported. PDF support coming soon!');
-        return;
+    const files = Array.from(event.target.files);
+    if (!files.length) return;
+    
+    // Limit to 5 images
+    if (files.length > 5) {
+        alert('Maximum 5 images at once');
+        files.length = 5;
     }
-    if (file.size > CONFIG.FILE_SIZE_LIMIT_MB * 1024 * 1024) {
-        alert(`File size must be under ${CONFIG.FILE_SIZE_LIMIT_MB}MB`);
-        return;
+    
+    // Validate all files
+    for (const file of files) {
+        if (!file.type.startsWith('image/')) {
+            alert('Only images are supported');
+            return;
+        }
+        if (file.size > CONFIG.FILE_SIZE_LIMIT_MB * 1024 * 1024) {
+            alert(`Files must be under ${CONFIG.FILE_SIZE_LIMIT_MB}MB`);
+            return;
+        }
     }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        currentFile = { name: file.name, size: file.size, type: file.type, data: e.target.result };
-        document.getElementById('filePreviewImage').src = e.target.result;
-        document.getElementById('fileName').textContent = file.name;
-        document.getElementById('fileSize').textContent = formatFileSize(file.size);
-        document.getElementById('filePreview').classList.add('active');
-    };
-    reader.readAsDataURL(file);
+    
+    // Process all files
+    currentFiles = [];
+    let processed = 0;
+    
+    files.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            currentFiles.push({
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                data: e.target.result
+            });
+            processed++;
+            
+            // When all files processed, update preview
+            if (processed === files.length) {
+                updateFilePreview();
+            }
+        };
+        reader.readAsDataURL(file);
+    });
 }
-
+        function updateFilePreview() {
+    const preview = document.getElementById('filePreview');
+    const previewImage = document.getElementById('filePreviewImage');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    
+    if (currentFiles.length === 0) {
+        preview.classList.remove('active');
+        return;
+    }
+    
+    // Show first image as main preview
+    previewImage.src = currentFiles[0].data;
+    
+    // Update text
+    if (currentFiles.length === 1) {
+        fileName.textContent = currentFiles[0].name;
+        fileSize.textContent = formatFileSize(currentFiles[0].size);
+    } else {
+        fileName.textContent = `${currentFiles.length} images selected`;
+        const totalSize = currentFiles.reduce((sum, f) => sum + f.size, 0);
+        fileSize.textContent = formatFileSize(totalSize);
+    }
+    
+    preview.classList.add('active');
+}
+        
 function removeFile() {
-    currentFile = null;
+    currentFiles = [];
     document.getElementById('filePreview').classList.remove('active');
     document.getElementById('fileInput').value = '';
 }
