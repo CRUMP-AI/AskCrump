@@ -1286,7 +1286,8 @@
             AUTO_VOICE: 'autoVoice',
             FONT_STYLE: 'fontStyle',
             BG_COLOR: 'bgColor',
-            SPLASH_SEEN: 'crump_splash_seen'
+            SPLASH_SEEN: 'crump_splash_seen',
+            SUGGESTIONS: 'crump_suggestions'
         };
 
         // ==========================================
@@ -1332,7 +1333,7 @@
             }
         ];
 
-        // Welcome messages array - ONLY ONE (FIXED - removed duplicate)
+        // Welcome messages array
         const welcomeMessages = [
             "Good to see you, Gregory. Ready when you are.",
             "What's on your mind today?",
@@ -1347,7 +1348,7 @@
         ];
 
         // ==========================================
-        // ANTI-DUPLICATE SYSTEM - FIXED (500ms window)
+        // ANTI-DUPLICATE SYSTEM
         // ==========================================
         class MessageDeduplicator {
             constructor(windowMs = CONFIG.DUPLICATE_WINDOW_MS) {
@@ -1386,10 +1387,156 @@
         }
 
         const messageDeduper = new MessageDeduplicator();
+
         // ==========================================
-// PART 2 - COMPLETE JAVASCRIPT FUNCTIONS
-// Copy this entire file and paste AFTER the MessageDeduplicator class in Part 1
-// Replace everything from "// TUTORIAL FUNCTIONS" onward
+        // 🔥 NEW: AUTONOMOUS SUGGESTION ENGINE
+        // ==========================================
+        class SuggestionEngine {
+            constructor() {
+                this.patterns = {
+                    repeatedQueries: new Map(),
+                    lastSuggestion: null
+                };
+                this.load();
+            }
+            
+            trackQuery(message) {
+                const topic = this.extractTopic(message);
+                const count = (this.patterns.repeatedQueries.get(topic) || 0) + 1;
+                this.patterns.repeatedQueries.set(topic, count);
+                
+                if (count >= 3 && this.shouldSuggest()) {
+                    const suggestion = this.generateSuggestion(topic, count);
+                    this.save();
+                    return suggestion;
+                }
+                
+                this.save();
+                return null;
+            }
+            
+            extractTopic(message) {
+                const keywords = {
+                    'deploy': 'deployment',
+                    'vercel': 'deployment',
+                    'git': 'version control',
+                    'bug': 'debugging',
+                    'error': 'debugging',
+                    'fix': 'debugging',
+                    'image': 'image generation',
+                    'picture': 'image generation',
+                    'code': 'coding',
+                    'function': 'coding'
+                };
+                
+                const lower = message.toLowerCase();
+                for (const [keyword, topic] of Object.entries(keywords)) {
+                    if (lower.includes(keyword)) return topic;
+                }
+                return 'general';
+            }
+            
+            shouldSuggest() {
+                if (!this.patterns.lastSuggestion) return true;
+                const hoursSince = (Date.now() - this.patterns.lastSuggestion) / (1000 * 60 * 60);
+                return hoursSince >= 4;
+            }
+            
+            generateSuggestion(topic, count) {
+                this.patterns.lastSuggestion = Date.now();
+                
+                const suggestions = {
+                    'deployment': `💡 I noticed you've asked about deployment ${count} times. Want me to create a quick-deploy script?`,
+                    'debugging': `💡 You've been debugging a lot. Want me to add a debug helper tool?`,
+                    'image generation': `💡 You generate images frequently. Want me to save your favorite prompts?`,
+                    'coding': `💡 You're coding often. Need a template library or snippet manager?`
+                };
+                
+                return suggestions[topic] || `💡 I've noticed you asking about ${topic} ${count} times. Need any shortcuts?`;
+            }
+            
+            save() {
+                const data = {
+                    repeatedQueries: Array.from(this.patterns.repeatedQueries),
+                    lastSuggestion: this.patterns.lastSuggestion
+                };
+                localStorage.setItem(STORAGE_KEYS.SUGGESTIONS, JSON.stringify(data));
+            }
+            
+            load() {
+                const saved = localStorage.getItem(STORAGE_KEYS.SUGGESTIONS);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    this.patterns.repeatedQueries = new Map(data.repeatedQueries || []);
+                    this.patterns.lastSuggestion = data.lastSuggestion;
+                }
+            }
+        }
+
+        // ==========================================
+        // 🔥 NEW: CONTEXT TRACKER (SESSION MONITORING)
+        // ==========================================
+        class ContextTracker {
+            constructor() {
+                this.session = {
+                    startTime: Date.now(),
+                    currentTopic: null,
+                    topicStartTime: null,
+                    breaksSuggested: 0
+                };
+            }
+            
+            trackMessage(message) {
+                const now = Date.now();
+                const newTopic = this.extractTopic(message);
+                
+                if (newTopic !== this.session.currentTopic) {
+                    this.session.currentTopic = newTopic;
+                    this.session.topicStartTime = now;
+                }
+                
+                return this.checkContextSuggestions();
+            }
+            
+            checkContextSuggestions() {
+                const suggestions = [];
+                
+                // Check session duration (2+ hours)
+                const sessionHours = (Date.now() - this.session.startTime) / (1000 * 60 * 60);
+                if (sessionHours >= 2 && this.session.breaksSuggested === 0) {
+                    suggestions.push("⏰ You've been at it for 2 hours. Quick break, or keep pushing?");
+                    this.session.breaksSuggested++;
+                }
+                
+                // Check topic focus (45+ mins)
+                if (this.session.topicStartTime) {
+                    const topicMins = (Date.now() - this.session.topicStartTime) / (1000 * 60);
+                    if (topicMins >= 45) {
+                        suggestions.push(`💭 We've been on ${this.session.currentTopic} for 45 minutes. Try a different angle?`);
+                        this.session.topicStartTime = null; // Reset to avoid spam
+                    }
+                }
+                
+                return suggestions;
+            }
+            
+            extractTopic(message) {
+                const keywords = ['deploy', 'bug', 'fix', 'error', 'image', 'code', 'design'];
+                const lower = message.toLowerCase();
+                for (const keyword of keywords) {
+                    if (lower.includes(keyword)) return keyword;
+                }
+                return 'general';
+            }
+        }
+
+        // Initialize autonomous engines
+        const suggestionEngine = new SuggestionEngine();
+        const contextTracker = new ContextTracker();
+
+        // ==========================================
+// PART 2 - CONTINUATION FROM PART 1
+// Paste this AFTER the ContextTracker initialization
 // ==========================================
 
 // ==========================================
@@ -1476,14 +1623,23 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// SMART WELCOME SYSTEM
+// 🔥 ENHANCED: SMART WELCOME SYSTEM WITH TIME AWARENESS
 // ==========================================
 function getSmartWelcome() {
     const memory = getUniversalMemory();
     const lastInteraction = memory.conversationHistory.lastInteraction;
+    const hour = new Date().getHours();
+    
+    // Time-based concern
+    let timeConcern = '';
+    if (hour >= 22 || hour < 5) {
+        timeConcern = ' You\'re up late—everything alright?';
+    } else if (hour >= 5 && hour < 7) {
+        timeConcern = ' Early start today. Coffee ready?';
+    }
     
     if (!lastInteraction) {
-        return getTimeBasedGreeting() + " What's first?";
+        return getTimeBasedGreeting() + timeConcern + " What's first?";
     }
     
     const now = new Date();
@@ -1491,16 +1647,16 @@ function getSmartWelcome() {
     const hoursSince = (now - lastVisit) / (1000 * 60 * 60);
     
     if (hoursSince < 4) {
-        return welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
+        return welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)] + timeConcern;
     }
     
     const lastTopic = getLastConversationTopic();
     const greeting = getTimeBasedGreeting();
     
     if (lastTopic) {
-        return `${greeting} Last time we were ${lastTopic}. Want to continue, or switch gears?`;
+        return `${greeting}${timeConcern} Last time we were ${lastTopic}. Want to continue, or switch gears?`;
     } else {
-        return `${greeting} What's on the agenda today?`;
+        return `${greeting}${timeConcern} What's on the agenda today?`;
     }
 }
 
@@ -1882,7 +2038,7 @@ async function regenerateResponse(index) {
 }
 
 // ==========================================
-// SEND MESSAGE
+// 🔥 ENHANCED: SEND MESSAGE WITH AUTONOMOUS SUGGESTIONS
 // ==========================================
 function handleKeyPress(event) {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -1953,6 +2109,10 @@ async function sendMessage() {
         incrementMessageCount();
         if (message) trackConversationTopic(message);
         
+        // 🔥 NEW: Track query patterns and context
+        const suggestion = message ? suggestionEngine.trackQuery(message) : null;
+        const contextSuggestions = message ? contextTracker.trackMessage(message) : [];
+        
         addMessage('user', message || '📎 Image', null, currentFile);
         input.value = '';
         autoResize(input);
@@ -2016,7 +2176,15 @@ async function sendMessage() {
         if (!response.ok) throw new Error('API request failed');
         const data = await response.json();
         hideThinking();
-        addMessage('assistant', data.response);
+        
+        // 🔥 NEW: Inject autonomous suggestions into response
+        let finalResponse = data.response;
+        if (suggestion) finalResponse += '\n\n' + suggestion;
+        if (contextSuggestions.length > 0) {
+            finalResponse += '\n\n' + contextSuggestions.join('\n');
+        }
+        
+        addMessage('assistant', finalResponse);
         
     } catch (error) {
         hideThinking();
@@ -2048,7 +2216,7 @@ function getLocalResponse(message) {
         return "I was built by Gregory D. Crump Jr., an artist and innovator who created me to be a powerful yet personal AI assistant.";
     }
     if (lower.includes('what can you do') || lower.includes('your capabilities')) {
-        return "I can help you with:\n\n• Technical problems (debugging, code, algorithms)\n• Creative writing (stories, content, ideas)\n• Analysis and research\n• Voice conversations (speak to me!)\n• Image generation (just ask me to create an image)\n• Image analysis (upload any image and ask questions!)\n• Memory - I can remember important information about you\n• Multi-threaded conversations\n\nTry saying 'Remember that...' to store information I should know about you!";
+        return "I can help you with:\n\n• Technical problems (debugging, code, algorithms)\n• Creative writing (stories, content, ideas)\n• Analysis and research\n• Voice conversations (speak to me!)\n• Image generation (just ask me to create an image)\n• Image analysis (upload any image and ask questions!)\n• Memory - I can remember important information about you\n• Multi-threaded conversations\n• Autonomous suggestions - I learn your patterns!\n\nTry saying 'Remember that...' to store information I should know about you!";
     }
     return null;
 }
@@ -2546,6 +2714,7 @@ function resetAllPreferences() {
     if (!confirm('Reset ALL preferences? Chats will NOT be deleted.')) return;
     localStorage.removeItem(STORAGE_KEYS.UNIVERSAL_MEMORY);
     localStorage.removeItem(STORAGE_KEYS.NOVA_PROTOCOL);
+    localStorage.removeItem(STORAGE_KEYS.SUGGESTIONS);
     userMemory = { preferences: {}, contexts: {}, notes: [] };
     saveMemory();
     localStorage.removeItem(STORAGE_KEYS.VOICE_OUTPUT);
@@ -2570,6 +2739,7 @@ function exportAllData() {
             chats, currentChatId, memory: userMemory,
             universalMemory: getUniversalMemory(),
             novaProtocol: getNovaProtocol(),
+            suggestions: localStorage.getItem(STORAGE_KEYS.SUGGESTIONS),
             settings: {
                 voiceOutput: localStorage.getItem(STORAGE_KEYS.VOICE_OUTPUT),
                 autoVoice: localStorage.getItem(STORAGE_KEYS.AUTO_VOICE),
@@ -2619,6 +2789,7 @@ function handleImport(event) {
             if (importData.memory) localStorage.setItem(STORAGE_KEYS.USER_MEMORY, JSON.stringify(importData.memory));
             if (importData.universalMemory) localStorage.setItem(STORAGE_KEYS.UNIVERSAL_MEMORY, JSON.stringify(importData.universalMemory));
             if (importData.novaProtocol) localStorage.setItem(STORAGE_KEYS.NOVA_PROTOCOL, JSON.stringify(importData.novaProtocol));
+            if (importData.suggestions) localStorage.setItem(STORAGE_KEYS.SUGGESTIONS, importData.suggestions);
             if (importData.settings) {
                 if (importData.settings.voiceOutput) localStorage.setItem(STORAGE_KEYS.VOICE_OUTPUT, importData.settings.voiceOutput);
                 if (importData.settings.autoVoice) localStorage.setItem(STORAGE_KEYS.AUTO_VOICE, importData.settings.autoVoice);
@@ -2657,12 +2828,6 @@ const notificationStyle = document.createElement('style');
 notificationStyle.textContent = `@keyframes slideInNotification{from{transform:translateX(400px);opacity:0;}to{transform:translateX(0);opacity:1;}}@keyframes slideOutNotification{from{transform:translateX(0);opacity:1;}to{transform:translateX(400px);opacity:0;}}`;
 document.head.appendChild(notificationStyle);
 
-// ==========================================
-// END OF JAVASCRIPT - CLOSE SCRIPT TAG
-// ==========================================
     </script>
 </body>
 </html>
-
-
-   
