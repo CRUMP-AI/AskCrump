@@ -2050,23 +2050,103 @@ const needsSearch = shouldSearchWeb(message);
        // Add this at the top of your script section with other variables
 let isSending = false;
 
-// Then UPDATE the sendMessage function:
+// ==========================================
+// ANTI-DUPLICATE SYSTEM - NUCLEAR OPTION
+// ==========================================
+
+// Message deduplication class
+class MessageDeduplicator {
+    constructor(windowMs = 2000) {
+        this.recentMessages = new Map();
+        this.windowMs = windowMs;
+    }
+    
+    isDuplicate(content) {
+        const now = Date.now();
+        const hash = this.hash(content);
+        
+        // Clean old entries
+        for (let [key, timestamp] of this.recentMessages) {
+            if (now - timestamp > this.windowMs) {
+                this.recentMessages.delete(key);
+            }
+        }
+        
+        if (this.recentMessages.has(hash)) {
+            console.log('🚫 DUPLICATE DETECTED - Blocked');
+            return true;
+        }
+        
+        this.recentMessages.set(hash, now);
+        return false;
+    }
+    
+    hash(str) {
+        // Simple but effective hash
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return hash.toString(36);
+    }
+}
+
+// Initialize deduplicator
+const messageDeduper = new MessageDeduplicator(2000);
+
+// Sending state
+let isSending = false;
+
+// Enhanced handleKeyPress
+function handleKeyPress(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation(); // NUCLEAR: Stop ALL propagation
+        
+        if (isSending) {
+            console.log('⏸️ Already sending (Enter blocked)');
+            return false;
+        }
+        
+        sendMessage();
+        return false;
+    }
+}
+
+// THE ULTIMATE sendMessage - TRIPLE PROTECTION
 async function sendMessage() {
     const input = document.getElementById('userInput');
     const message = input.value.trim();
     
-    // FIRST CHECK: Prevent double sends BEFORE anything else
+    // PROTECTION 1: Lock check
     if (isSending) {
-        console.log('Already sending, please wait...');
+        console.log('🔒 BLOCKED: Already sending');
         return;
     }
     
-    // SECOND CHECK: Require message OR file
-    if (!message && !currentFile) return;
+    // PROTECTION 2: Content requirement
+    if (!message && !currentFile) {
+        console.log('⚠️ BLOCKED: No content');
+        return;
+    }
     
-    // LOCK IT
+    // PROTECTION 3: Deduplication check
+    if (message && messageDeduper.isDuplicate(message)) {
+        console.log('🚫 BLOCKED: Duplicate message');
+        return;
+    }
+    
+    // LOCK IMMEDIATELY
     isSending = true;
-    console.log('🔒 Send locked - isSending now TRUE');
+    console.log('🔒 SEND LOCKED at', Date.now());
+    
+    // Disable input during send
+    input.disabled = true;
+    const sendBtn = document.querySelector('.icon-btn.primary');
+    if (sendBtn) sendBtn.disabled = true;
     
     try {
         // ==========================================
@@ -2089,8 +2169,10 @@ I now have access to:
 - All persistent notes and technical context
 
 Operating in full creator mode. How can I assist you today?`);
-                isSending = false; // UNLOCK
-                console.log('🔓 Send unlocked after Nova activation');
+                isSending = false;
+                input.disabled = false;
+                if (sendBtn) sendBtn.disabled = false;
+                console.log('🔓 UNLOCKED after Nova');
             }, 800);
             return;
         }
@@ -2108,8 +2190,10 @@ Returning to standard mode. Universal memory remains active.
 To reactivate:
 - "Activate Nova-Secure" or "Nova-Secure"
 - "Activate Nala Niobi Protocol"`);
-                isSending = false; // UNLOCK
-                console.log('🔓 Send unlocked after Nova deactivation');
+                isSending = false;
+                input.disabled = false;
+                if (sendBtn) sendBtn.disabled = false;
+                console.log('🔓 UNLOCKED after Nova deactivation');
             }, 800);
             return;
         }
@@ -2131,8 +2215,10 @@ To reactivate:
             setTimeout(() => {
                 hideThinking();
                 addMessage('assistant', memoryResponse);
-                isSending = false; // UNLOCK
-                console.log('🔓 Send unlocked after memory response');
+                isSending = false;
+                input.disabled = false;
+                if (sendBtn) sendBtn.disabled = false;
+                console.log('🔓 UNLOCKED after memory');
             }, 500);
             return;
         }
@@ -2144,16 +2230,20 @@ To reactivate:
                 setTimeout(() => {
                     hideThinking();
                     addMessage('assistant', localResponse);
-                    isSending = false; // UNLOCK
-                    console.log('🔓 Send unlocked after local response');
+                    isSending = false;
+                    input.disabled = false;
+                    if (sendBtn) sendBtn.disabled = false;
+                    console.log('🔓 UNLOCKED after local');
                 }, 800);
                 return;
             }
 
             if (shouldGenerateImage(message)) {
                 await handleImageGeneration(message);
-                isSending = false; // UNLOCK
-                console.log('🔓 Send unlocked after image generation');
+                isSending = false;
+                input.disabled = false;
+                if (sendBtn) sendBtn.disabled = false;
+                console.log('🔓 UNLOCKED after image gen');
                 return;
             }
         }
@@ -2189,9 +2279,11 @@ To reactivate:
         addMessage('assistant', 'I apologize, but I encountered an error. Please try again.');
         console.error('Error:', error);
     } finally {
-        // ALWAYS UNLOCK
+        // ALWAYS UNLOCK AND RE-ENABLE
         isSending = false;
-        console.log('🔓 Send unlocked in finally block');
+        input.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
+        console.log('🔓 UNLOCKED in finally block');
     }
 }
 
