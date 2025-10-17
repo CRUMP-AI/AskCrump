@@ -1354,7 +1354,7 @@
         }
 
         function completeTutorial() {
-            sessionStorage.setItem('crump_tutorial_completed', 'true');
+            localStorage.setItem('crump_tutorial_completed', 'true');
             document.getElementById('tutorial-overlay').classList.remove('active');
         }
 
@@ -1362,7 +1362,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             function initializeSplashScreen() {
                 const splashSeen = sessionStorage.getItem('crump_splash_seen');
-                const tutorialCompleted = sessionStorage.getItem('crump_tutorial_completed');
+                const tutorialCompleted = localStorage.getItem('crump_tutorial_completed');
                 const splashScreen = document.getElementById('splash-screen');
                 
                 if (splashSeen) {
@@ -2190,16 +2190,51 @@ To reactivate:
             return prompt;
         }
 
-        async function handleImageGeneration(message) {
-            const prompt = extractImagePrompt(message);
-            showThinking();
+       async function handleImageGeneration(message) {
+    const prompt = extractImagePrompt(message);
+    showThinking();
+    
+    try {
+        // Updated Pollinations API with better parameters
+        const timestamp = Date.now();
+        const encodedPrompt = encodeURIComponent(prompt);
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${timestamp}&nologo=true&enhance=true&model=flux`;
+        
+        // Pre-load image to verify it works
+        const img = new Image();
+        
+        img.onload = () => {
+            hideThinking();
+            addMessage('assistant', `Here's your image based on: "${prompt}"`, imageUrl);
+        };
+        
+        img.onerror = () => {
+            // Fallback to simple URL if enhanced fails
+            console.log('Enhanced image generation failed, trying fallback...');
+            const fallbackUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}`;
             
-            setTimeout(() => {
+            const fallbackImg = new Image();
+            fallbackImg.onload = () => {
                 hideThinking();
-                const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=800&height=800&nologo=true`;
-                addMessage('assistant', `Here's your image:`, imageUrl);
-            }, 800);
-        }
+                addMessage('assistant', `Here's your image based on: "${prompt}"`, fallbackUrl);
+            };
+            
+            fallbackImg.onerror = () => {
+                hideThinking();
+                addMessage('assistant', `I encountered an error generating the image. The image service might be temporarily unavailable. Please try again in a moment, or try a different description.`);
+            };
+            
+            fallbackImg.src = fallbackUrl;
+        };
+        
+        img.src = imageUrl;
+        
+    } catch (error) {
+        hideThinking();
+        addMessage('assistant', `I encountered an error generating the image: ${error.message}. Please try again.`);
+        console.error('Image generation error:', error);
+    }
+}
 
         function setupVoiceRecognition() {
             if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -2336,11 +2371,10 @@ To reactivate:
     
     return false;
 }
-
-         function replayTutorial() {
-    sessionStorage.removeItem('crump_splash_seen');
-    sessionStorage.removeItem('crump_tutorial_completed');
-    location.reload();
+        
+function replayTutorial() {
+    localStorage.removeItem('crump_tutorial_completed');
+    showTutorial();
 }
         // ==========================================
 // UNIVERSAL MEMORY SYSTEM - ALL USERS
