@@ -2052,27 +2052,33 @@ let isSending = false;
 
 // Then UPDATE the sendMessage function:
 async function sendMessage() {
-    // PREVENT DOUBLE SENDS
-    if (isSending) return;
-    
     const input = document.getElementById('userInput');
     const message = input.value.trim();
     
-    if (!message) return;
+    // FIRST CHECK: Prevent double sends BEFORE anything else
+    if (isSending) {
+        console.log('Already sending, please wait...');
+        return;
+    }
+    
+    // SECOND CHECK: Require message OR file
+    if (!message && !currentFile) return;
     
     // LOCK IT
     isSending = true;
+    console.log('🔒 Send locked - isSending now TRUE');
     
-    // ==========================================
-    // NOVA-SECURE PROTOCOL CHECK
-    // ==========================================
-    if (detectNovaActivation(message)) {
-        activateNovaProtocol();
-        input.value = '';
-        showThinking();
-        setTimeout(() => {
-            hideThinking();
-            addMessage('assistant', `⭐ **Nova-Secure Protocol Activated**
+    try {
+        // ==========================================
+        // NOVA-SECURE PROTOCOL CHECK
+        // ==========================================
+        if (detectNovaActivation(message)) {
+            activateNovaProtocol();
+            input.value = '';
+            showThinking();
+            setTimeout(() => {
+                hideThinking();
+                addMessage('assistant', `⭐ **Nova-Secure Protocol Activated**
 
 Hello Gregory. Full creator context loaded.
 
@@ -2083,73 +2089,77 @@ I now have access to:
 - All persistent notes and technical context
 
 Operating in full creator mode. How can I assist you today?`);
-            isSending = false; // UNLOCK
-        }, 800);
-        return;
-    }
+                isSending = false; // UNLOCK
+                console.log('🔓 Send unlocked after Nova activation');
+            }, 800);
+            return;
+        }
 
-    if (detectNovaDeactivation(message)) {
-        deactivateNovaProtocol();
-        input.value = '';
-        showThinking();
-        setTimeout(() => {
-            hideThinking();
-            addMessage('assistant', `👑 **Nova-Secure Protocol Deactivated**
+        if (detectNovaDeactivation(message)) {
+            deactivateNovaProtocol();
+            input.value = '';
+            showThinking();
+            setTimeout(() => {
+                hideThinking();
+                addMessage('assistant', `👑 **Nova-Secure Protocol Deactivated**
 
 Returning to standard mode. Universal memory remains active.
 
 To reactivate:
 - "Activate Nova-Secure" or "Nova-Secure"
 - "Activate Nala Niobi Protocol"`);
-            isSending = false; // UNLOCK
-        }, 800);
-        return;
-    }
-
-    // INCREMENT MESSAGE COUNT
-    incrementMessageCount();
-    
-    addMessage('user', message, null, currentFile);
-    input.value = '';
-    autoResize(input);
-    
-    const hasFile = currentFile !== null;
-    const fileDataToSend = currentFile;
-    removeFile();
-    
-    const memoryResponse = checkMemoryCommands(message);
-    if (memoryResponse && !hasFile) {
-        showThinking();
-        setTimeout(() => {
-            hideThinking();
-            addMessage('assistant', memoryResponse);
-            isSending = false; // UNLOCK
-        }, 500);
-        return;
-    }
-    
-    if (!hasFile) {
-        const localResponse = getLocalResponse(message);
-        if (localResponse) {
-            showThinking();
-            setTimeout(() => {
-                hideThinking();
-                addMessage('assistant', localResponse);
                 isSending = false; // UNLOCK
+                console.log('🔓 Send unlocked after Nova deactivation');
             }, 800);
             return;
         }
 
-        if (shouldGenerateImage(message)) {
-            await handleImageGeneration(message);
-            isSending = false; // UNLOCK
+        // INCREMENT MESSAGE COUNT
+        incrementMessageCount();
+        
+        addMessage('user', message || '📎 Image', null, currentFile);
+        input.value = '';
+        autoResize(input);
+        
+        const hasFile = currentFile !== null;
+        const fileDataToSend = currentFile;
+        removeFile();
+        
+        const memoryResponse = checkMemoryCommands(message);
+        if (memoryResponse && !hasFile) {
+            showThinking();
+            setTimeout(() => {
+                hideThinking();
+                addMessage('assistant', memoryResponse);
+                isSending = false; // UNLOCK
+                console.log('🔓 Send unlocked after memory response');
+            }, 500);
             return;
         }
-    }
-    
-    showThinking();
-    
-    try {
+        
+        if (!hasFile) {
+            const localResponse = getLocalResponse(message);
+            if (localResponse) {
+                showThinking();
+                setTimeout(() => {
+                    hideThinking();
+                    addMessage('assistant', localResponse);
+                    isSending = false; // UNLOCK
+                    console.log('🔓 Send unlocked after local response');
+                }, 800);
+                return;
+            }
+
+            if (shouldGenerateImage(message)) {
+                await handleImageGeneration(message);
+                isSending = false; // UNLOCK
+                console.log('🔓 Send unlocked after image generation');
+                return;
+            }
+        }
+        
+        showThinking();
+        
         const chat = chats.find(c => c.id === currentChatId);
         const memoryContext = getMemoryContext();
         const messageWithContext = message + memoryContext;
@@ -2181,6 +2191,7 @@ To reactivate:
     } finally {
         // ALWAYS UNLOCK
         isSending = false;
+        console.log('🔓 Send unlocked in finally block');
     }
 }
 
