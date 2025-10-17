@@ -4,10 +4,8 @@
   "description": "Your personal AI assistant powered by the N² Engine",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "
-#0a1628",
-  "theme_color": "
-#d4af37",
+  "background_color": "#0a1628",
+  "theme_color": "#d4af37",
   "orientation": "portrait-primary",
   "icons": [
     {
