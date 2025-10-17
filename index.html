@@ -2468,13 +2468,6 @@ To reactivate:
             textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
         }
 
-        function handleKeyPress(event) {
-            if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                sendMessage();
-            }
-        }
-
         function clearCurrentChat() {
             if (!confirm('Clear all messages in this chat?')) return;
             
