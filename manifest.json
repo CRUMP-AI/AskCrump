@@ -1,24 +1,138 @@
 {
-  "name": "Crump AI",
+  "name": "Crump AI - Royal Edition",
   "short_name": "Crump",
-  "description": "Your personal AI assistant powered by the N² Engine",
+  "description": "Your autonomous AI assistant powered by the N² Engine. Features voice I/O, image generation, web search, and intelligent memory systems.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#0a1628",
   "theme_color": "#d4af37",
-  "orientation": "portrait-primary",
+  "orientation": "any",
+  "categories": ["productivity", "utilities", "business"],
+  "lang": "en-US",
+  "dir": "ltr",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/assets/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/assets/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
-  ]
+  ],
+  "screenshots": [
+    {
+      "src": "/assets/screenshot-desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Crump AI Desktop Interface"
+    },
+    {
+      "src": "/assets/screenshot-mobile.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Crump AI Mobile Interface"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Chat",
+      "short_name": "New",
+      "description": "Start a new conversation with Crump",
+      "url": "/?action=new-chat",
+      "icons": [
+        {
+          "src": "/assets/icon-new-chat.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Voice Input",
+      "short_name": "Voice",
+      "description": "Start voice conversation",
+      "url": "/?action=voice",
+      "icons": [
+        {
+          "src": "/assets/icon-voice.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Settings",
+      "short_name": "Settings",
+      "description": "Open Crump AI settings",
+      "url": "/?action=settings",
+      "icons": [
+        {
+          "src": "/assets/icon-settings.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "image",
+          "accept": ["image/*"]
+        }
+      ]
+    }
+  },
+  "related_applications": [],
+  "iarc_rating_id": "",
+  "protocol_handlers": [
+    {
+      "protocol": "web+crumpai",
+      "url": "/?query=%s"
+    }
+  ],
+  "handle_links": "preferred",
+  "launch_handler": {
+    "client_mode": ["navigate-existing", "auto"]
+  },
+  "file_handlers": [
+    {
+      "action": "/",
+      "accept": {
+        "image/*": [".png", ".jpg", ".jpeg", ".gif", ".webp"]
+      }
+    }
+  ],
+  "edge_side_panel": {
+    "preferred_width": 400
+  }
 }
