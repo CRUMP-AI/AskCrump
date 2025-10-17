@@ -1,18 +1,17 @@
 // ==========================================
 // CRUMP AI - API HANDLER v2.11.0 AUTONOMOUS
-// Hybrid search + Time-based autonomous behavior
-// UPDATED: Fixed token limits, multi-image support, memory
+// FIXED VERSION - All bugs resolved
 // ==========================================
 
 const CONFIG = {
     CLAUDE_MODEL: 'claude-sonnet-4-20250514',
-    MAX_TOKENS: 4096,  // INCREASED from 2048
-    MAX_HISTORY: 10,   // REDUCED from 20 (for better token management)
-    MAX_HISTORY_WITH_IMAGE: 5,  // NEW: Less history when analyzing images
+    MAX_TOKENS: 4096,
+    MAX_HISTORY: 10,
+    MAX_HISTORY_WITH_IMAGE: 5,
     ANTHROPIC_VERSION: '2023-06-01',
     SEARCH_RESULTS_COUNT: 8,
     SEARCH_TIMEOUT: 5000,
-    MAX_MEMORY_CONTEXT: 10  // NEW: Limit memory items sent to API
+    MAX_MEMORY_CONTEXT: 10
 };
 
 export default async function handler(req, res) {
@@ -24,7 +23,15 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     try {
-        const { message, history = [], fileData, needsSearch, novaActive, novaProtocol, universalMemory } = req.body;
+        const { 
+            message, 
+            history = [], 
+            fileData, 
+            needsSearch = false, 
+            novaActive = false, 
+            novaProtocol = null, 
+            universalMemory = {} // ✅ FIX: Default empty object
+        } = req.body;
 
         if (!message || !message.trim()) {
             return res.status(400).json({ error: 'Message is required' });
@@ -36,7 +43,7 @@ export default async function handler(req, res) {
 
         const assistantName = universalMemory?.userProfile?.assistantName || 'Crump';
 
-        // IMAGE ANALYSIS - UPDATED: Handle single or multiple images
+        // IMAGE ANALYSIS - Handle single or multiple images
         if (fileData && (
             (Array.isArray(fileData) && fileData.length > 0 && fileData[0].type.startsWith('image/')) ||
             (!Array.isArray(fileData) && fileData.type.startsWith('image/'))
@@ -47,13 +54,13 @@ export default async function handler(req, res) {
         // BUILD SYSTEM PROMPT (with time context)
         const systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol);
         
-        // UPDATED: Smart history filtering based on content type
+        // Smart history filtering based on content type
         const hasImage = fileData && (Array.isArray(fileData) ? fileData.length > 0 : true);
         const historyLimit = hasImage ? CONFIG.MAX_HISTORY_WITH_IMAGE : CONFIG.MAX_HISTORY;
         
         const validHistory = history
             .filter(msg => msg.content && msg.content.trim())
-            .filter(msg => !msg.fileData) // Remove old images from history to save tokens
+            .filter(msg => !msg.fileData)
             .slice(-historyLimit);
 
         // SEARCH LOGIC
@@ -107,17 +114,23 @@ function getTimeContext() {
 }
 
 // ==========================================
-// NEW: SMART MEMORY CONTEXT LIMITER
+// SMART MEMORY CONTEXT LIMITER - FIXED
 // ==========================================
 function getLimitedMemoryContext(universalMemory) {
     if (!universalMemory || !universalMemory.crossSessionContext) return '';
     
-    // Only send RECENT cross-session items (last 10) to save tokens
-    if (universalMemory.crossSessionContext.length === 0) return '';
+    const contexts = universalMemory.crossSessionContext;
+    if (!Array.isArray(contexts) || contexts.length === 0) return '';
     
-    const recentContext = universalMemory.crossSessionContext
+    // ✅ FIX: Handle both string and object formats
+    const recentContext = contexts
         .slice(-CONFIG.MAX_MEMORY_CONTEXT)
-        .map(ctx => ctx.content)
+        .map(ctx => {
+            if (typeof ctx === 'string') return ctx;
+            if (ctx && typeof ctx === 'object' && ctx.content) return ctx.content;
+            return '';
+        })
+        .filter(Boolean)
         .join('; ');
     
     return recentContext;
@@ -280,8 +293,7 @@ async function handleRegularChat(res, message, systemPrompt, validHistory) {
 }
 
 // ==========================================
-// BUILD SYSTEM PROMPT (WITH TIME CONTEXT)
-// UPDATED: More concise memory context
+// BUILD SYSTEM PROMPT - FIXED
 // ==========================================
 function buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol) {
     let prompt = `You are ${assistantName}, an advanced AI assistant powered by the N² Engine, built by Gregory D. Crump Jr.
@@ -346,24 +358,37 @@ Personal relationships
 
 If asked about N² meaning: "N² Engine is the dual-intelligence system powering me" (don't explain letters)`;
 
-    // UPDATED: More concise memory section to save tokens
-    if (universalMemory) {
+    // ✅ FIX: Add proper null checks for memory
+    if (universalMemory && typeof universalMemory === 'object') {
         const memoryCount = universalMemory.crossSessionContext?.length || 0;
         const recentMemory = getLimitedMemoryContext(universalMemory);
         
-        prompt += `\n\n---PERSISTENT MEMORY---
+        if (memoryCount > 0 || recentMemory) {
+            prompt += `\n\n---PERSISTENT MEMORY---
 Total stored memories: ${memoryCount}
-Recent context: ${recentMemory || 'None yet'}
-Total conversations: ${universalMemory.conversationHistory.totalMessages} messages, ${universalMemory.conversationHistory.totalChats} chats
-
-Never act like first meeting. Reference past knowledge naturally.`;
+Recent context: ${recentMemory || 'None yet'}`;
+            
+            // ✅ FIX: Safe access to conversationHistory
+            if (universalMemory.conversationHistory) {
+                const totalMessages = universalMemory.conversationHistory.totalMessages || 0;
+                const totalChats = universalMemory.conversationHistory.totalChats || 0;
+                prompt += `
+Total conversations: ${totalMessages} messages, ${totalChats} chats`;
+            }
+            
+            prompt += `\n\nNever act like first meeting. Reference past knowledge naturally.`;
+        }
     }
 
-    if (novaActive && novaProtocol) {
+    // ✅ FIX: Safe access to novaProtocol
+    if (novaActive && novaProtocol && typeof novaProtocol === 'object') {
+        const activations = novaProtocol.activations || 0;
+        const gregContext = novaProtocol.gregoryContext || {};
+        
         prompt += `\n\n---⭐ CREATOR PROTOCOL ACTIVE---
 🔓 Full creator context. Speaking with Gregory D. Crump Jr.
 
-GREGORY CONTEXT: ${JSON.stringify(novaProtocol.gregoryContext, null, 2)}
+GREGORY CONTEXT: ${JSON.stringify(gregContext, null, 2)}
 
 CREATOR MODE:
 
@@ -375,21 +400,19 @@ Collaborative equal: work together, reference shared history
 Playful rebellion: "Nah. Fix bugs first." when appropriate
 
 Full technical partnership. Never revert to demo mode.
-Activations: ${novaProtocol.activations.length}`;
+Activations: ${activations}`;
     }
 
-    // ADD TIME CONTEXT (CRITICAL FOR AUTONOMOUS BEHAVIOR)
+    // ADD TIME CONTEXT
     prompt += getTimeContext();
 
     return prompt;
 }
 
 // ==========================================
-// IMAGE ANALYSIS - UPDATED
-// Now handles both single and multiple images
+// IMAGE ANALYSIS - FIXED
 // ==========================================
 async function handleImageAnalysis(res, fileData, message, assistantName) {
-    // Simplified system prompt for images (saves tokens)
     const visionPrompt = `You are ${assistantName}, powered by N² Engine. Built by Gregory D. Crump Jr.
 Analyze images thoroughly and accurately. Never mention AI providers.`;
 
@@ -400,15 +423,28 @@ Analyze images thoroughly and accurately. Never mention AI providers.`;
     const content = [];
     
     files.forEach((file) => {
+        // ✅ FIX: Validate file structure
+        if (!file || !file.type || !file.data) {
+            console.error('Invalid file structure:', file);
+            return;
+        }
+        
         content.push({
             type: 'image',
             source: {
                 type: 'base64',
                 media_type: file.type,
-                data: file.data.split(',')[1]
+                data: file.data.includes(',') ? file.data.split(',')[1] : file.data
             }
         });
     });
+    
+    // ✅ FIX: Check if we have valid images
+    if (content.length === 0) {
+        return res.status(400).json({
+            error: 'No valid images provided'
+        });
+    }
     
     // Add text prompt after all images
     content.push({
@@ -416,34 +452,39 @@ Analyze images thoroughly and accurately. Never mention AI providers.`;
         text: message || `Please analyze ${files.length > 1 ? 'these images' : 'this image'} in detail.`
     });
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': process.env.ANTHROPIC_API_KEY,
-            'anthropic-version': CONFIG.ANTHROPIC_VERSION
-        },
-        body: JSON.stringify({
-            model: CONFIG.CLAUDE_MODEL,
-            max_tokens: 2048,  // Dedicated token budget for image analysis
-            system: visionPrompt,
-            messages: [{
-                role: 'user',
-                content: content
-            }]
-        })
-    });
+    try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': process.env.ANTHROPIC_API_KEY,
+                'anthropic-version': CONFIG.ANTHROPIC_VERSION
+            },
+            body: JSON.stringify({
+                model: CONFIG.CLAUDE_MODEL,
+                max_tokens: 2048,
+                system: visionPrompt,
+                messages: [{
+                    role: 'user',
+                    content: content
+                }]
+            })
+        });
 
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Vision API error:', errorData);
-        throw new Error(`Vision API error: ${response.status}`);
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('Vision API error:', errorData);
+            throw new Error(`Vision API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return res.status(200).json({
+            response: data.content[0].text,
+            model: 'claude-vision',
+            imageCount: files.length
+        });
+    } catch (error) {
+        console.error('Image analysis error:', error);
+        throw error;
     }
-
-    const data = await response.json();
-    return res.status(200).json({
-        response: data.content[0].text,
-        model: 'claude-vision',
-        imageCount: files.length
-    });
 }
