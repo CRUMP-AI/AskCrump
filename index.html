@@ -1571,6 +1571,13 @@ async function sendMessage() {
             clearFiles();
             return;
         }
+
+        // Check for Nova activation
+if (message && detectNovaActivation(message)) {
+    activateNovaProtocol();
+    input.value = '';
+    return;
+}
         
         // Prepare files to send
         const filesToSend = currentFiles.length > 0 ? [...currentFiles] : null;
@@ -2173,24 +2180,6 @@ function setupVoiceRecognition() {
             voiceBtn.textContent = '🎤';
         }
     };
-}
-
-function toggleVoiceInput() {
-    if (!voiceEnabled) {
-        showNotification('Voice input is disabled in settings', 'info');
-        return;
-    }
-    
-    if (!recognition) {
-        showNotification('Voice recognition not available', 'error');
-        return;
-    }
-    
-    if (isListening) {
-        stopVoiceInput();
-    } else {
-        startVoiceInput();
-    }
 }
 
 function startVoiceInput() {
