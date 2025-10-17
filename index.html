@@ -1836,57 +1836,56 @@ setupVoiceRecognition();
         }
 
         function renderMessages(messages) {
-            const container = document.getElementById('chatContainer');
-            container.innerHTML = messages.map((msg, index) => {
-                const isUser = msg.role === 'user';
-                const avatar = isUser ? 'G' : 'C';
-                const avatarClass = isUser ? 'user' : 'assistant';
-                
-                let actionsHtml = '';
-                if (!isUser) {
-                    actionsHtml = `
-                        <div class="message-actions">
-                            <button class="message-action-btn" onclick="copyMessage(${index})">
-                                📋 Copy
-                            </button>
-                            <button class="message-action-btn" onclick="regenerateResponse(${index})">
-                                🔄 Regenerate
-                            </button>
-                        </div>
-                    `;
-                }
-                
-                let content = `<div class="message-content">${msg.content}</div>`;
-                
-                if (msg.fileData && msg.fileData.type.startsWith('image/')) {
-                    content += `
-                        <div class="file-preview">
-                            <img src="${msg.fileData.data}" alt="Uploaded image">
-                            <div class="file-info">
-                                📎 ${msg.fileData.name}
-                            </div>
-                        </div>
-                    `;
-                }
-                
-                if (msg.imageUrl) {
-                    content += `<img src="${msg.imageUrl}" class="message-image" alt="Generated image">`;
-                }
-                
-                return `
-                    <div class="message ${isUser ? 'user' : ''}">
-                        <div class="avatar ${avatarClass}">${avatar}</div>
-                        <div class="message-wrapper">
-                            ${content}
-                            ${actionsHtml}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            container.scrollTop = container.scrollHeight;
+    const container = document.getElementById('chatContainer');
+    container.innerHTML = messages.map((msg, index) => {
+        const isUser = msg.role === 'user';
+        const avatar = isUser ? 'G' : 'C';
+        const avatarClass = isUser ? 'user' : 'assistant';
+        
+        let actionsHtml = '';
+        if (!isUser) {
+            actionsHtml = `
+                <div class="message-actions">
+                    <button class="message-action-btn" onclick="copyMessage(${index})">
+                        📋 Copy
+                    </button>
+                    <button class="message-action-btn" onclick="regenerateResponse(${index})">
+                        🔄 Regenerate
+                    </button>
+                </div>
+            `;
         }
-
+        
+        let content = `<div class="message-content">${msg.content}</div>`;
+        
+        if (msg.fileData && msg.fileData.type.startsWith('image/')) {
+            content += `
+                <div class="file-preview">
+                    <img src="${msg.fileData.data}" alt="Uploaded image">
+                    <div class="file-info">
+                        📎 ${msg.fileData.name}
+                    </div>
+                </div>
+            `;
+        }
+        
+        if (msg.imageUrl) {
+            content += `<img src="${msg.imageUrl}" class="message-image" alt="Generated image">`;
+        }
+        
+        return `
+            <div class="message ${isUser ? 'user' : ''}">
+                <div class="avatar ${avatarClass}">${avatar}</div>
+                <div class="message-wrapper">
+                    ${content}
+                    ${actionsHtml}
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.scrollTop = container.scrollHeight;
+}
         function copyMessage(index) {
             const chat = chats.find(c => c.id === currentChatId);
             if (!chat || !chat.messages[index]) return;
@@ -1984,27 +1983,45 @@ const needsSearch = shouldSearchWeb(message);
         }
 
         function addMessage(role, content, imageUrl = null, fileData = null) {
-            const chat = chats.find(c => c.id === currentChatId);
-            if (!chat) return;
-            
-            const message = { role, content };
-            if (imageUrl) message.imageUrl = imageUrl;
-            if (fileData) message.fileData = fileData;
-            
-            chat.messages.push(message);
-            
-            if (role === 'user' && chat.messages.filter(m => m.role === 'user').length === 1) {
-                chat.title = content.substring(0, 30) + (content.length > 30 ? '...' : '');
+    const chat = chats.find(c => c.id === currentChatId);
+    if (!chat) return;
+    
+    const message = { role, content };
+    if (imageUrl) message.imageUrl = imageUrl;
+    if (fileData) message.fileData = fileData;
+    
+    chat.messages.push(message);
+    
+    if (role === 'user' && chat.messages.filter(m => m.role === 'user').length === 1) {
+        chat.title = content.substring(0, 30) + (content.length > 30 ? '...' : '');
+    }
+    
+    saveChats();
+    
+    // RENDER MESSAGES
+    const container = document.getElementById('chatContainer');
+    renderMessages(chat.messages);
+    
+    // SMART SCROLL: For assistant messages, scroll to the NEW message start
+    if (role === 'assistant') {
+        // Small delay to ensure DOM is updated
+        setTimeout(() => {
+            const lastMessage = container.querySelector('.message:last-child');
+            if (lastMessage) {
+                lastMessage.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
-            
-            saveChats();
-            renderMessages(chat.messages);
-            renderChatsList();
+        }, 100);
+    } else {
+        // For user messages, just scroll to bottom
+        container.scrollTop = container.scrollHeight;
+    }
+    
+    renderChatsList();
 
-            if (role === 'assistant' && isAutoVoiceEnabled) {
-                speak(content);
-            }
-        }
+    if (role === 'assistant' && isAutoVoiceEnabled) {
+        speak(content);
+    }
+}
 
         function showThinking() {
             const container = document.getElementById('chatContainer');
@@ -2030,11 +2047,21 @@ const needsSearch = shouldSearchWeb(message);
             if (indicator) indicator.remove();
         }
 
-        async function sendMessage() {
+       // Add this at the top of your script section with other variables
+let isSending = false;
+
+// Then UPDATE the sendMessage function:
+async function sendMessage() {
+    // PREVENT DOUBLE SENDS
+    if (isSending) return;
+    
     const input = document.getElementById('userInput');
     const message = input.value.trim();
     
     if (!message) return;
+    
+    // LOCK IT
+    isSending = true;
     
     // ==========================================
     // NOVA-SECURE PROTOCOL CHECK
@@ -2056,6 +2083,7 @@ I now have access to:
 - All persistent notes and technical context
 
 Operating in full creator mode. How can I assist you today?`);
+            isSending = false; // UNLOCK
         }, 800);
         return;
     }
@@ -2073,6 +2101,7 @@ Returning to standard mode. Universal memory remains active.
 To reactivate:
 - "Activate Nova-Secure" or "Nova-Secure"
 - "Activate Nala Niobi Protocol"`);
+            isSending = false; // UNLOCK
         }, 800);
         return;
     }
@@ -2081,73 +2110,79 @@ To reactivate:
     incrementMessageCount();
     
     addMessage('user', message, null, currentFile);
-            input.value = '';
-            autoResize(input);
-            
-            const hasFile = currentFile !== null;
-            const fileDataToSend = currentFile;
-            removeFile();
-            
-            const memoryResponse = checkMemoryCommands(message);
-            if (memoryResponse && !hasFile) {
-                showThinking();
-                setTimeout(() => {
-                    hideThinking();
-                    addMessage('assistant', memoryResponse);
-                }, 500);
-                return;
-            }
-            
-            if (!hasFile) {
-                const localResponse = getLocalResponse(message);
-                if (localResponse) {
-                    showThinking();
-                    setTimeout(() => {
-                        hideThinking();
-                        addMessage('assistant', localResponse);
-                    }, 800);
-                    return;
-                }
-
-                if (shouldGenerateImage(message)) {
-                    await handleImageGeneration(message);
-                    return;
-                }
-            }
-            
+    input.value = '';
+    autoResize(input);
+    
+    const hasFile = currentFile !== null;
+    const fileDataToSend = currentFile;
+    removeFile();
+    
+    const memoryResponse = checkMemoryCommands(message);
+    if (memoryResponse && !hasFile) {
+        showThinking();
+        setTimeout(() => {
+            hideThinking();
+            addMessage('assistant', memoryResponse);
+            isSending = false; // UNLOCK
+        }, 500);
+        return;
+    }
+    
+    if (!hasFile) {
+        const localResponse = getLocalResponse(message);
+        if (localResponse) {
             showThinking();
-            
-            try {
-                const chat = chats.find(c => c.id === currentChatId);
-                const memoryContext = getMemoryContext();
-                const messageWithContext = message + memoryContext;
-                
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                   body: JSON.stringify({
-    message: messageWithContext,
-    history: chat.messages.slice(-10).filter(m => m.content && m.content.trim() !== ''),
-    fileData: fileDataToSend,
-    needsSearch: shouldSearchWeb(message),
-    novaActive: isNovaActive(),
-    novaProtocol: isNovaActive() ? getNovaProtocol() : null,
-    universalMemory: getUniversalMemory()
-})
-                });
-                
-                if (!response.ok) throw new Error('API request failed');
-                
-                const data = await response.json();
+            setTimeout(() => {
                 hideThinking();
-                addMessage('assistant', data.response);
-                
-            } catch (error) {
-                hideThinking();
-                addMessage('assistant', 'I apologize, but I encountered an error. Please try again.');
-                console.error('Error:', error);
-            }
+                addMessage('assistant', localResponse);
+                isSending = false; // UNLOCK
+            }, 800);
+            return;
         }
+
+        if (shouldGenerateImage(message)) {
+            await handleImageGeneration(message);
+            isSending = false; // UNLOCK
+            return;
+        }
+    }
+    
+    showThinking();
+    
+    try {
+        const chat = chats.find(c => c.id === currentChatId);
+        const memoryContext = getMemoryContext();
+        const messageWithContext = message + memoryContext;
+        
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: messageWithContext,
+                history: chat.messages.slice(-10).filter(m => m.content && m.content.trim() !== ''),
+                fileData: fileDataToSend,
+                needsSearch: shouldSearchWeb(message),
+                novaActive: isNovaActive(),
+                novaProtocol: isNovaActive() ? getNovaProtocol() : null,
+                universalMemory: getUniversalMemory()
+            })
+        });
+        
+        if (!response.ok) throw new Error('API request failed');
+        
+        const data = await response.json();
+        hideThinking();
+        addMessage('assistant', data.response);
+        
+    } catch (error) {
+        hideThinking();
+        addMessage('assistant', 'I apologize, but I encountered an error. Please try again.');
+        console.error('Error:', error);
+    } finally {
+        // ALWAYS UNLOCK
+        isSending = false;
+    }
+}
 
         function getLocalResponse(message) {
             const lower = message.toLowerCase();
