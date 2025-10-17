@@ -2066,10 +2066,10 @@ async function sendMessage() {
         console.log('🔒 BLOCKED: Already sending');
         return;
     }
-    if (!message && !currentFile) {
-        console.log('⚠️ BLOCKED: No content');
-        return;
-    }
+   if (!message && currentFiles.length === 0) {
+    console.log('⚠️ BLOCKED: No content');
+    return;
+}
     if (message && messageDeduper.isDuplicate(message)) {
         console.log('🚫 BLOCKED: Duplicate message');
         return;
