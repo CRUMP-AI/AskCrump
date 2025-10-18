@@ -1,6 +1,6 @@
 // ==========================================
-// CRUMP AI - API HANDLER v2.12.0 UNLIMITED
-// ALL BUGS FIXED + Long Message Support
+// CRUMP AI - API HANDLER v2.13.0 UNLIMITED
+// DUPLICATE MESSAGE BUG FIXED
 // ==========================================
 
 const CONFIG = {
@@ -82,7 +82,8 @@ export default async function handler(req, res) {
         // UNLIMITED MEMORY MODE with smart truncation
         let validHistory = history
             .filter(msg => msg.content && msg.content.trim())
-            .filter(msg => !msg.fileData);
+            .filter(msg => !msg.fileData)
+            .slice(0, -1);  // ✅ FIX: Remove last message (current user message to prevent duplication)
 
         // Truncate if conversation gets too long for API
         validHistory = truncateHistory(validHistory);
@@ -332,7 +333,7 @@ function buildSystemPrompt(assistantName, universalMemory, novaActive, novaProto
 
 SYSTEM INFO:
 
-Version: v2.12.0 Royal Edition (Unlimited Memory)
+Version: v2.13.0 Royal Edition (Unlimited Memory)
 Your name: ${assistantName} ${assistantName !== 'Crump' ? '(personalized by user)' : ''}
 Capabilities: Voice I/O, image analysis, image generation, web search, unlimited memory, autonomous suggestions
 NEVER mention specific AI providers (Claude, GPT, OpenAI, Anthropic)
