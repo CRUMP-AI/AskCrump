@@ -5,9 +5,9 @@
 
 const CONFIG = {
     CLAUDE_MODEL: 'claude-sonnet-4-20250514',
-    MAX_TOKENS: 4096,
-    MAX_HISTORY: 10,
-    MAX_HISTORY_WITH_IMAGE: 5,
+    MAX_TOKENS: 8192,  // ✅ DOUBLED for longer responses
+    MAX_HISTORY: 999999,  // ✅ UNLIMITED (not used anymore anyway)
+    MAX_HISTORY_WITH_IMAGE: 999999,  // ✅ UNLIMITED
     ANTHROPIC_VERSION: '2023-06-01',
     SEARCH_RESULTS_COUNT: 8,
     SEARCH_TIMEOUT: 5000,
@@ -54,14 +54,11 @@ export default async function handler(req, res) {
         // BUILD SYSTEM PROMPT (with time context)
         const systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol);
         
-        // Smart history filtering based on content type
-        const hasImage = fileData && (Array.isArray(fileData) ? fileData.length > 0 : true);
-        const historyLimit = hasImage ? CONFIG.MAX_HISTORY_WITH_IMAGE : CONFIG.MAX_HISTORY;
-        
-        const validHistory = history
-            .filter(msg => msg.content && msg.content.trim())
-            .filter(msg => !msg.fileData)
-            .slice(-historyLimit);
+        // UNLIMITED MEMORY MODE - No message limit
+const validHistory = history
+    .filter(msg => msg.content && msg.content.trim())
+    .filter(msg => !msg.fileData);
+// No .slice() - keeps entire conversation history
 
         // SEARCH LOGIC
         if (needsSearch) {
