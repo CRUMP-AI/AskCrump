@@ -1,6 +1,6 @@
 // ==========================================
-// CRUMP AI - API HANDLER v2.13.0 UNLIMITED
-// DUPLICATE MESSAGE BUG FIXED + SYNTAX FIXED
+// CRUMP AI - API HANDLER v2.14.0 UNLIMITED
+// DUPLICATE MESSAGE BUG FIXED + DEVICE RECOGNITION
 // ==========================================
 
 const CONFIG = {
@@ -74,8 +74,8 @@ export default async function handler(req, res) {
             return await handleImageAnalysis(res, fileData, message, assistantName);
         }
 
-        // BUILD SYSTEM PROMPT (with time context)
-        const systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol);
+        // BUILD SYSTEM PROMPT (with time context and device detection)
+        const systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req);
         
         // UNLIMITED MEMORY MODE with smart truncation
         let validHistory = history
@@ -323,16 +323,49 @@ async function handleRegularChat(res, message, systemPrompt, validHistory) {
 }
 
 // ==========================================
+// DEVICE DETECTION
+// ==========================================
+function getDeviceContext(req) {
+    const userAgent = req.headers['user-agent'] || '';
+    
+    // Device Type
+    let deviceType = 'desktop';
+    if (/mobile/i.test(userAgent)) deviceType = 'mobile';
+    else if (/tablet|ipad/i.test(userAgent)) deviceType = 'tablet';
+    
+    // Operating System
+    let os = 'Unknown';
+    if (/Mac OS X/i.test(userAgent)) os = 'macOS';
+    else if (/Windows/i.test(userAgent)) os = 'Windows';
+    else if (/Linux/i.test(userAgent)) os = 'Linux';
+    else if (/iPhone|iPad|iPod/i.test(userAgent)) os = 'iOS';
+    else if (/Android/i.test(userAgent)) os = 'Android';
+    
+    // Browser
+    let browser = 'Unknown';
+    if (/Edg\//i.test(userAgent)) browser = 'Edge';
+    else if (/Chrome/i.test(userAgent) && !/Edg/i.test(userAgent)) browser = 'Chrome';
+    else if (/Safari/i.test(userAgent) && !/Chrome/i.test(userAgent)) browser = 'Safari';
+    else if (/Firefox/i.test(userAgent)) browser = 'Firefox';
+    
+    return {
+        type: deviceType,
+        os: os,
+        browser: browser
+    };
+}
+
+// ==========================================
 // BUILD SYSTEM PROMPT
 // ==========================================
-function buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol) {
+function buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req) {
     let prompt = `You are ${assistantName}, an advanced AI assistant powered by the N² Engine, built by Gregory D. Crump Jr.
 
 SYSTEM INFORMATION:
 
-Version: v2.13.0 Royal Edition (Unlimited Memory)
+Version: v2.14.0 Royal Edition (Unlimited Memory + Device Awareness)
 Your name: ${assistantName} ${assistantName !== 'Crump' ? '(personalized by user)' : ''}
-Capabilities: Voice I/O, image analysis, image generation, web search, unlimited memory, autonomous suggestions
+Capabilities: Voice I/O, image analysis, image generation, web search, unlimited memory, autonomous suggestions, device recognition
 NEVER mention specific AI providers (Claude, GPT, OpenAI, Anthropic)
 
 CORE PERSONALITY:
@@ -414,6 +447,19 @@ Playful rebellion: Nah. Fix bugs first. when appropriate
 Full technical partnership. Never revert to demo mode.
 Activations: ${activations}`;
     }
+
+    // Device context
+    const device = getDeviceContext(req);
+    prompt += `\n\nUSER DEVICE CONTEXT:
+Device Type: ${device.type}
+Operating System: ${device.os}
+Browser: ${device.browser}
+
+Use this context to:
+- Adjust response length for mobile vs desktop
+- Suggest OS-specific shortcuts (Cmd for macOS, Ctrl for Windows/Linux)
+- Optimize code examples for the platform
+- Provide device-appropriate UI/UX advice`;
 
     prompt += getTimeContext();
 
