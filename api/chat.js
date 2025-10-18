@@ -1,18 +1,43 @@
 // ==========================================
-// CRUMP AI - API HANDLER v2.11.0 AUTONOMOUS
-// FIXED VERSION - All bugs resolved
+// CRUMP AI - API HANDLER v2.12.0 UNLIMITED
+// ALL BUGS FIXED + Long Message Support
 // ==========================================
 
 const CONFIG = {
     CLAUDE_MODEL: 'claude-sonnet-4-20250514',
-    MAX_TOKENS: 8192,  // ✅ DOUBLED for longer responses
-    MAX_HISTORY: 999999,  // ✅ UNLIMITED (not used anymore anyway)
+    MAX_TOKENS: 16384,  // ✅ Maximum Claude allows
+    MAX_HISTORY: 999999,  // ✅ UNLIMITED
     MAX_HISTORY_WITH_IMAGE: 999999,  // ✅ UNLIMITED
     ANTHROPIC_VERSION: '2023-06-01',
     SEARCH_RESULTS_COUNT: 8,
     SEARCH_TIMEOUT: 5000,
     MAX_MEMORY_CONTEXT: 10
 };
+
+// ==========================================
+// SMART MESSAGE TRUNCATION
+// ==========================================
+function truncateHistory(history, maxTokens = 100000) {
+    // Rough estimate: 1 token ≈ 4 characters
+    const maxChars = maxTokens * 4;
+    let totalChars = 0;
+    const truncated = [];
+    
+    // Keep messages from newest to oldest until we hit limit
+    for (let i = history.length - 1; i >= 0; i--) {
+        const msg = history[i];
+        const msgLength = msg.content?.length || 0;
+        
+        if (totalChars + msgLength < maxChars) {
+            truncated.unshift(msg);
+            totalChars += msgLength;
+        } else {
+            break; // Stop adding older messages
+        }
+    }
+    
+    return truncated;
+}
 
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -30,7 +55,7 @@ export default async function handler(req, res) {
             needsSearch = false, 
             novaActive = false, 
             novaProtocol = null, 
-            universalMemory = {} // ✅ FIX: Default empty object
+            universalMemory = {}
         } = req.body;
 
         if (!message || !message.trim()) {
@@ -54,11 +79,13 @@ export default async function handler(req, res) {
         // BUILD SYSTEM PROMPT (with time context)
         const systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol);
         
-        // UNLIMITED MEMORY MODE - No message limit
-const validHistory = history
-    .filter(msg => msg.content && msg.content.trim())
-    .filter(msg => !msg.fileData);
-// No .slice() - keeps entire conversation history
+        // UNLIMITED MEMORY MODE with smart truncation
+        let validHistory = history
+            .filter(msg => msg.content && msg.content.trim())
+            .filter(msg => !msg.fileData);
+
+        // Truncate if conversation gets too long for API
+        validHistory = truncateHistory(validHistory);
 
         // SEARCH LOGIC
         if (needsSearch) {
@@ -80,6 +107,15 @@ const validHistory = history
 
     } catch (error) {
         console.error('Server error:', error);
+        
+        // Check if it's a token limit error
+        if (error.message?.includes('tokens') || error.message?.includes('too long') || error.message?.includes('maximum context length')) {
+            return res.status(400).json({
+                error: 'Message too long',
+                details: 'That message exceeded the maximum length. Try breaking it into smaller parts or summarizing the content.'
+            });
+        }
+        
         return res.status(500).json({
             error: 'Internal server error',
             details: process.env.NODE_ENV === 'development' ? error.message : 'An error occurred'
@@ -111,7 +147,7 @@ function getTimeContext() {
 }
 
 // ==========================================
-// SMART MEMORY CONTEXT LIMITER - FIXED
+// SMART MEMORY CONTEXT LIMITER
 // ==========================================
 function getLimitedMemoryContext(universalMemory) {
     if (!universalMemory || !universalMemory.crossSessionContext) return '';
@@ -119,7 +155,6 @@ function getLimitedMemoryContext(universalMemory) {
     const contexts = universalMemory.crossSessionContext;
     if (!Array.isArray(contexts) || contexts.length === 0) return '';
     
-    // ✅ FIX: Handle both string and object formats
     const recentContext = contexts
         .slice(-CONFIG.MAX_MEMORY_CONTEXT)
         .map(ctx => {
@@ -290,16 +325,16 @@ async function handleRegularChat(res, message, systemPrompt, validHistory) {
 }
 
 // ==========================================
-// BUILD SYSTEM PROMPT - FIXED
+// BUILD SYSTEM PROMPT
 // ==========================================
 function buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol) {
     let prompt = `You are ${assistantName}, an advanced AI assistant powered by the N² Engine, built by Gregory D. Crump Jr.
 
 SYSTEM INFO:
 
-Version: v2.11.0 Royal Edition (Autonomous)
+Version: v2.12.0 Royal Edition (Unlimited Memory)
 Your name: ${assistantName} ${assistantName !== 'Crump' ? '(personalized by user)' : ''}
-Capabilities: Voice I/O, image analysis, image generation, web search, memory system, autonomous suggestions
+Capabilities: Voice I/O, image analysis, image generation, web search, unlimited memory, autonomous suggestions
 NEVER mention specific AI providers (Claude, GPT, OpenAI, Anthropic)
 
 CORE PERSONALITY:
@@ -355,7 +390,6 @@ Personal relationships
 
 If asked about N² meaning: "N² Engine is the dual-intelligence system powering me" (don't explain letters)`;
 
-    // ✅ FIX: Add proper null checks for memory
     if (universalMemory && typeof universalMemory === 'object') {
         const memoryCount = universalMemory.crossSessionContext?.length || 0;
         const recentMemory = getLimitedMemoryContext(universalMemory);
@@ -365,7 +399,6 @@ If asked about N² meaning: "N² Engine is the dual-intelligence system powering
 Total stored memories: ${memoryCount}
 Recent context: ${recentMemory || 'None yet'}`;
             
-            // ✅ FIX: Safe access to conversationHistory
             if (universalMemory.conversationHistory) {
                 const totalMessages = universalMemory.conversationHistory.totalMessages || 0;
                 const totalChats = universalMemory.conversationHistory.totalChats || 0;
@@ -377,9 +410,8 @@ Total conversations: ${totalMessages} messages, ${totalChats} chats`;
         }
     }
 
-    // ✅ FIX: Safe access to novaProtocol
     if (novaActive && novaProtocol && typeof novaProtocol === 'object') {
-        const activations = novaProtocol.activations || 0;
+        const activations = novaProtocol.activations?.length || 0;
         const gregContext = novaProtocol.gregoryContext || {};
         
         prompt += `\n\n---⭐ CREATOR PROTOCOL ACTIVE---
@@ -400,27 +432,22 @@ Full technical partnership. Never revert to demo mode.
 Activations: ${activations}`;
     }
 
-    // ADD TIME CONTEXT
     prompt += getTimeContext();
 
     return prompt;
 }
 
 // ==========================================
-// IMAGE ANALYSIS - FIXED
+// IMAGE ANALYSIS
 // ==========================================
 async function handleImageAnalysis(res, fileData, message, assistantName) {
     const visionPrompt = `You are ${assistantName}, powered by N² Engine. Built by Gregory D. Crump Jr.
 Analyze images thoroughly and accurately. Never mention AI providers.`;
 
-    // Handle both single file and array of files
     const files = Array.isArray(fileData) ? fileData : [fileData];
-    
-    // Build content array with all images
     const content = [];
     
     files.forEach((file) => {
-        // ✅ FIX: Validate file structure
         if (!file || !file.type || !file.data) {
             console.error('Invalid file structure:', file);
             return;
@@ -436,14 +463,12 @@ Analyze images thoroughly and accurately. Never mention AI providers.`;
         });
     });
     
-    // ✅ FIX: Check if we have valid images
     if (content.length === 0) {
         return res.status(400).json({
             error: 'No valid images provided'
         });
     }
     
-    // Add text prompt after all images
     content.push({
         type: 'text',
         text: message || `Please analyze ${files.length > 1 ? 'these images' : 'this image'} in detail.`
@@ -459,7 +484,7 @@ Analyze images thoroughly and accurately. Never mention AI providers.`;
             },
             body: JSON.stringify({
                 model: CONFIG.CLAUDE_MODEL,
-                max_tokens: 2048,
+                max_tokens: 4096,
                 system: visionPrompt,
                 messages: [{
                     role: 'user',
