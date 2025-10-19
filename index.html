@@ -1094,10 +1094,6 @@
         </div>
     </div>
 
-   <!-- CHANGE THIS -->
-<input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="handleFileSelect(event)">
-
-<!-- TO THIS -->
 <input type="file" id="fileInput" accept="image/*" multiple style="display: none;" onchange="handleFileSelect(event)">
     <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebar()"></div> 
 
@@ -1135,7 +1131,7 @@
                 </div>
 
                 <div class="input-wrapper">
-                   <textarea 
+<textarea 
     id="userInput" 
     class="input-field" 
     placeholder="Message Crump AI..."
@@ -1144,34 +1140,14 @@
     oninput="autoResize(this); updateCharCount()"
     maxlength="50000"
 ></textarea>
-
-                    function updateCharCount() {
-    const input = document.getElementById('userInput');
-    const counter = document.getElementById('charCount');
-    const count = input.value.length;
-    
-    if (count > 0) {
-        counter.style.display = 'block';
-        counter.textContent = `${count.toLocaleString()} / 50,000`;
-        
-        if (count > 40000) {
-            counter.style.color = '#ff4444';
-        } else if (count > 30000) {
-            counter.style.color = '#f59e0b';
-        } else {
-            counter.style.color = 'var(--text-tertiary)';
-        }
-    } else {
-        counter.style.display = 'none';
-    }
-}
-                    
-<div id="charCount" style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px; display: none;">0 / 50,000</div>
                     <div class="input-actions">
                         <button class="icon-btn" onclick="attachFile()" title="Attach image">📎</button>
                         <button class="icon-btn" onclick="toggleVoiceInput()" id="voiceBtn" title="Voice input">🎤</button>
                         <button class="icon-btn primary" onclick="sendMessage()" title="Send message">➤</button>
                     </div>
+                </div>
+                <div id="charCount" style="font-size: 11px; color: var(--text-tertiary); padding: 4px 8px; display: none;">0 / 50,000</div>
+            </div>
                 </div>
             </div>
         </main>
@@ -1279,7 +1255,7 @@
             </div>
 
             <div class="version-info">
-                <div class="version-title">Crump AI v2.13 Royal Edition</div>
+                <div class="version-title">Crump AI v2.15 Royal Edition</div>
                 <div class="version-detail">Powered by N² Engine</div>
                 <div class="version-detail">Built by Gregory D. Crump Jr.</div>
                 <div class="status-indicator">
@@ -1415,157 +1391,6 @@
         }
 
         const messageDeduper = new MessageDeduplicator();
-
-        // ==========================================
-        // 🔥 NEW: AUTONOMOUS SUGGESTION ENGINE
-        // ==========================================
-        class SuggestionEngine {
-            constructor() {
-                this.patterns = {
-                    repeatedQueries: new Map(),
-                    lastSuggestion: null
-                };
-                this.load();
-            }
-            
-            trackQuery(message) {
-                const topic = this.extractTopic(message);
-                const count = (this.patterns.repeatedQueries.get(topic) || 0) + 1;
-                this.patterns.repeatedQueries.set(topic, count);
-                
-                if (count >= 3 && this.shouldSuggest()) {
-                    const suggestion = this.generateSuggestion(topic, count);
-                    this.save();
-                    return suggestion;
-                }
-                
-                this.save();
-                return null;
-            }
-            
-            extractTopic(message) {
-                const keywords = {
-                    'deploy': 'deployment',
-                    'vercel': 'deployment',
-                    'git': 'version control',
-                    'bug': 'debugging',
-                    'error': 'debugging',
-                    'fix': 'debugging',
-                    'image': 'image generation',
-                    'picture': 'image generation',
-                    'code': 'coding',
-                    'function': 'coding'
-                };
-                
-                const lower = message.toLowerCase();
-                for (const [keyword, topic] of Object.entries(keywords)) {
-                    if (lower.includes(keyword)) return topic;
-                }
-                return 'general';
-            }
-            
-            shouldSuggest() {
-                if (!this.patterns.lastSuggestion) return true;
-                const hoursSince = (Date.now() - this.patterns.lastSuggestion) / (1000 * 60 * 60);
-                return hoursSince >= 4;
-            }
-            
-            generateSuggestion(topic, count) {
-                this.patterns.lastSuggestion = Date.now();
-                
-                const suggestions = {
-                    'deployment': `💡 I noticed you've asked about deployment ${count} times. Want me to create a quick-deploy script?`,
-                    'debugging': `💡 You've been debugging a lot. Want me to add a debug helper tool?`,
-                    'image generation': `💡 You generate images frequently. Want me to save your favorite prompts?`,
-                    'coding': `💡 You're coding often. Need a template library or snippet manager?`
-                };
-                
-                return suggestions[topic] || `💡 I've noticed you asking about ${topic} ${count} times. Need any shortcuts?`;
-            }
-            
-            save() {
-                const data = {
-                    repeatedQueries: Array.from(this.patterns.repeatedQueries),
-                    lastSuggestion: this.patterns.lastSuggestion
-                };
-                localStorage.setItem(STORAGE_KEYS.SUGGESTIONS, JSON.stringify(data));
-            }
-            
-            load() {
-                const saved = localStorage.getItem(STORAGE_KEYS.SUGGESTIONS);
-                if (saved) {
-                    const data = JSON.parse(saved);
-                    this.patterns.repeatedQueries = new Map(data.repeatedQueries || []);
-                    this.patterns.lastSuggestion = data.lastSuggestion;
-                }
-            }
-        }
-
-        // ==========================================
-        // 🔥 NEW: CONTEXT TRACKER (SESSION MONITORING)
-        // ==========================================
-        class ContextTracker {
-            constructor() {
-                this.session = {
-                    startTime: Date.now(),
-                    currentTopic: null,
-                    topicStartTime: null,
-                    breaksSuggested: 0
-                };
-            }
-            
-            trackMessage(message) {
-                const now = Date.now();
-                const newTopic = this.extractTopic(message);
-                
-                if (newTopic !== this.session.currentTopic) {
-                    this.session.currentTopic = newTopic;
-                    this.session.topicStartTime = now;
-                }
-                
-                return this.checkContextSuggestions();
-            }
-            
-            checkContextSuggestions() {
-                const suggestions = [];
-                
-                // Check session duration (2+ hours)
-                const sessionHours = (Date.now() - this.session.startTime) / (1000 * 60 * 60);
-                if (sessionHours >= 2 && this.session.breaksSuggested === 0) {
-                    suggestions.push("⏰ You've been at it for 2 hours. Quick break, or keep pushing?");
-                    this.session.breaksSuggested++;
-                }
-                
-                // Check topic focus (45+ mins)
-                if (this.session.topicStartTime) {
-                    const topicMins = (Date.now() - this.session.topicStartTime) / (1000 * 60);
-                    if (topicMins >= 45) {
-                        suggestions.push(`💭 We've been on ${this.session.currentTopic} for 45 minutes. Try a different angle?`);
-                        this.session.topicStartTime = null; // Reset to avoid spam
-                    }
-                }
-                
-                return suggestions;
-            }
-            
-            extractTopic(message) {
-                const keywords = ['deploy', 'bug', 'fix', 'error', 'image', 'code', 'design'];
-                const lower = message.toLowerCase();
-                for (const keyword of keywords) {
-                    if (lower.includes(keyword)) return keyword;
-                }
-                return 'general';
-            }
-        }
-
-        // Initialize autonomous engines
-        const suggestionEngine = new SuggestionEngine();
-        const contextTracker = new ContextTracker();
-
-        // ==========================================
-// PART 2 - CONTINUATION FROM PART 1
-// Paste this AFTER the ContextTracker initialization
-// ==========================================
 
 // ==========================================
 // TUTORIAL FUNCTIONS
@@ -2137,10 +1962,6 @@ async function sendMessage() {
         incrementMessageCount();
         if (message) trackConversationTopic(message);
         
-        // 🔥 NEW: Track query patterns and context
-        addMessage('assistant', data.response);
-        const contextSuggestions = message ? contextTracker.trackMessage(message) : [];
-        
         const imageText = currentFiles.length > 0 
     ? (message || `📎 ${currentFiles.length} image${currentFiles.length > 1 ? 's' : ''}`)
     : message;
@@ -2208,10 +2029,8 @@ removeFile();
         if (!response.ok) throw new Error('API request failed');
         const data = await response.json();
         hideThinking();
-        
-        // 🔥 NEW: Inject autonomous suggestions into response
-       
-        addMessage('assistant', finalResponse);
+
+       addMessage('assistant', data.response); 
         
    } catch (error) {
     hideThinking();
@@ -2260,15 +2079,40 @@ function getLocalResponse(message) {
 }
 
 function shouldSearchWeb(message) {
-    const lower = message.toLowerCase();
-    const timeKeywords = ['today', 'now', 'current', 'latest', 'recent', 'this week', 'this month', 'yesterday'];
-    if (timeKeywords.some(keyword => lower.includes(keyword))) return true;
-    const newsKeywords = ['news', 'happened', 'event', 'score', 'result', 'winner', 'election'];
-    if (newsKeywords.some(keyword => lower.includes(keyword))) return true;
-    const dataKeywords = ['weather', 'temperature', 'stock', 'price', 'forecast'];
-    if (dataKeywords.some(keyword => lower.includes(keyword))) return true;
-    if (lower.includes('search') || lower.includes('look up') || lower.includes('find out')) return true;
-    return false;
+    const lower = message.toLowerCase().trim();
+    
+    // EXPLICIT search requests - always search
+    if (lower.includes('search for') || 
+        lower.includes('look up') || 
+        lower.includes('find information about') ||
+        lower.startsWith('google ')) {
+        return true;
+    }
+    
+    // Too short - likely conversational, don't search
+    if (message.split(' ').length < 4) {
+        return false;
+    }
+    
+    // Real-time data requests
+    const realtimeKeywords = [
+        'current weather', 'today\'s weather',
+        'stock price', 'latest news',
+        'current score', 'live score',
+        'right now', 'as of today'
+    ];
+    if (realtimeKeywords.some(keyword => lower.includes(keyword))) {
+        return true;
+    }
+    
+    // Has time indicator AND factual question
+    const timeIndicators = ['today', 'now', 'current', 'latest', 'recent', 'this week', 'this month'];
+    const factualWords = ['what', 'who', 'when', 'where', 'how many', 'is there'];
+    
+    const hasTime = timeIndicators.some(t => lower.includes(t));
+    const hasFactual = factualWords.some(f => lower.includes(f));
+    
+    return hasTime && hasFactual;
 }
 
 // ==========================================
@@ -2912,6 +2756,27 @@ function autoResize(textarea) {
     textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
 }
 
+function updateCharCount() {
+    const input = document.getElementById('userInput');
+    const counter = document.getElementById('charCount');
+    const count = input.value.length;
+    
+    if (count > 0) {
+        counter.style.display = 'block';
+        counter.textContent = `${count.toLocaleString()} / 50,000`;
+        
+        if (count > 40000) {
+            counter.style.color = '#ff4444';
+        } else if (count > 30000) {
+            counter.style.color = '#f59e0b';
+        } else {
+            counter.style.color = 'var(--text-tertiary)';
+        }
+    } else {
+        counter.style.display = 'none';
+    }
+}
+        
 const notificationStyle = document.createElement('style');
 notificationStyle.textContent = `@keyframes slideInNotification{from{transform:translateX(400px);opacity:0;}to{transform:translateX(0);opacity:1;}}@keyframes slideOutNotification{from{transform:translateX(0);opacity:1;}to{transform:translateX(400px);opacity:0;}}`;
 document.head.appendChild(notificationStyle);
