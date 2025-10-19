@@ -1286,8 +1286,18 @@
                 <button class="font-btn" style="width: 100%; padding: 12px; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: var(--bg-primary); border: none; font-weight: 600;" onclick="replayTutorial()">📖 View Tutorial</button>
             </div>
 
+             <div class="setting-group">
+                <label class="setting-label">🧠 Learning Engine</label>
+                <button class="font-btn" style="width: 100%; padding: 12px; margin-bottom: 8px;" onclick="viewLearningStats()">📊 View Learning Stats</button>
+                <button class="font-btn" style="width: 100%; padding: 12px;" onclick="clearLearningData()">🗑️ Clear Learning Data</button>
+                <small style="color: var(--text-tertiary); display: block; margin-top: 8px; font-size: 12px;">
+                    Crump learns from corrections and feedback to improve over time.
+                </small>
+            </div>
+
+
             <div class="version-info">
-                <div class="version-title">Crump AI v2.17 Royal Edition</div>
+                <div class="version-title">Crump AI v3.0 Cognition</div>
                 <div class="version-detail">Powered by N² Engine</div>
                 <div class="version-detail">Built by Gregory D. Crump Jr.</div>
                 <div class="status-indicator">
@@ -1326,7 +1336,11 @@
    SUGGESTIONS: 'crump_suggestions',
     AUTONOMOUS_MESSAGES: 'crump_autonomous_messages',
     AUTONOMOUS_INTERVAL: 'crump_autonomous_interval',
-    IMAGE_GENERATOR: 'crump_image_generator'
+    IMAGE_GENERATOR: 'crump_image_generator',
+    LEARNING_ENGINE: 'crump_learning_engine',
+    CORRECTIONS: 'crump_corrections',
+    USER_PREFERENCES: 'crump_user_preferences',
+    PERFORMANCE_METRICS: 'crump_performance_metrics'
 };
 
         // ==========================================
@@ -1354,6 +1368,11 @@ let autonomousCheckInterval = null;
 
         // Image generation state
 let preferredImageGenerator = 'pollinations'; // 'pollinations' or 'segmind'
+
+        // Learning Engine state
+let learningEngine = null;
+let lastAssistantMessage = null;
+let awaitingCorrection = false;
 
         // Tutorial state
         let currentTutorialStep = 1;
@@ -1576,7 +1595,164 @@ class AutonomousMessageEngine {
     }
 }
 
-const autonomousEngine = new AutonomousMessageEngine();   
+const autonomousEngine = new AutonomousMessageEngine();
+
+        // ==========================================
+// LEARNING ENGINE - COGNITION SYSTEM
+// ==========================================
+class LearningEngine {
+    constructor() {
+        this.corrections = [];
+        this.preferences = {
+            responseLength: 'adaptive', // brief, detailed, adaptive
+            codeStyle: 'modern',
+            tone: 'direct',
+            explanationLevel: 'medium'
+        };
+        this.metrics = {
+            totalInteractions: 0,
+            correctionsReceived: 0,
+            thumbsUp: 0,
+            thumbsDown: 0,
+            topicsLearned: [],
+            improvementRate: 0
+        };
+        this.loadLearningData();
+    }
+    
+    loadLearningData() {
+        // Load corrections
+        const savedCorrections = localStorage.getItem(STORAGE_KEYS.CORRECTIONS);
+        if (savedCorrections) this.corrections = JSON.parse(savedCorrections);
+        
+        // Load preferences
+        const savedPreferences = localStorage.getItem(STORAGE_KEYS.USER_PREFERENCES);
+        if (savedPreferences) this.preferences = { ...this.preferences, ...JSON.parse(savedPreferences) };
+        
+        // Load metrics
+        const savedMetrics = localStorage.getItem(STORAGE_KEYS.PERFORMANCE_METRICS);
+        if (savedMetrics) this.metrics = { ...this.metrics, ...JSON.parse(savedMetrics) };
+    }
+    
+    saveLearningData() {
+        localStorage.setItem(STORAGE_KEYS.CORRECTIONS, JSON.stringify(this.corrections));
+        localStorage.setItem(STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(this.preferences));
+        localStorage.setItem(STORAGE_KEYS.PERFORMANCE_METRICS, JSON.stringify(this.metrics));
+    }
+    
+    recordCorrection(originalResponse, correction, context) {
+        const correctionEntry = {
+            id: Date.now().toString(),
+            timestamp: new Date().toISOString(),
+            original: originalResponse,
+            corrected: correction,
+            context: context,
+            applied: false,
+            frequency: 0
+        };
+        
+        this.corrections.push(correctionEntry);
+        this.metrics.correctionsReceived++;
+        this.metrics.totalInteractions++;
+        this.saveLearningData();
+        
+        console.log('📚 Learning: Correction recorded', correctionEntry);
+        return correctionEntry;
+    }
+    
+    detectCorrectionPattern(userMessage, lastResponse) {
+        // Detect correction phrases
+        const correctionIndicators = [
+            'no, actually', 'incorrect', 'wrong', 'not quite',
+            'actually it should be', 'the correct', 'fix:',
+            'instead do', 'better approach', 'should be'
+        ];
+        
+        const lowerMsg = userMessage.toLowerCase();
+        const isCorrection = correctionIndicators.some(indicator => lowerMsg.includes(indicator));
+        
+        if (isCorrection && lastResponse) {
+            return {
+                isCorrection: true,
+                original: lastResponse,
+                correction: userMessage,
+                confidence: 0.8
+            };
+        }
+        
+        return { isCorrection: false };
+    }
+    
+    recordFeedback(messageId, feedbackType) {
+        // feedbackType: 'thumbsUp' or 'thumbsDown'
+        if (feedbackType === 'thumbsUp') {
+            this.metrics.thumbsUp++;
+        } else {
+            this.metrics.thumbsDown++;
+        }
+        
+        this.metrics.totalInteractions++;
+        this.calculateImprovementRate();
+        this.saveLearningData();
+    }
+    
+    learnPreference(key, value) {
+        this.preferences[key] = value;
+        this.saveLearningData();
+        console.log(`📚 Learning: Preference updated - ${key}: ${value}`);
+    }
+    
+    detectPreferenceFromMessage(message) {
+        const lower = message.toLowerCase();
+        
+        // Detect length preference
+        if (lower.includes('too long') || lower.includes('be brief')) {
+            this.learnPreference('responseLength', 'brief');
+        } else if (lower.includes('more detail') || lower.includes('explain more')) {
+            this.learnPreference('responseLength', 'detailed');
+        }
+        
+        // Detect tone preference
+        if (lower.includes('more casual') || lower.includes('less formal')) {
+            this.learnPreference('tone', 'casual');
+        } else if (lower.includes('more professional') || lower.includes('formal')) {
+            this.learnPreference('tone', 'professional');
+        }
+    }
+    
+    calculateImprovementRate() {
+        if (this.metrics.totalInteractions === 0) {
+            this.metrics.improvementRate = 0;
+            return;
+        }
+        
+        const positiveRate = this.metrics.thumbsUp / this.metrics.totalInteractions;
+        const correctionRate = this.metrics.correctionsReceived / this.metrics.totalInteractions;
+        
+        // Lower correction rate + higher positive rate = better
+        this.metrics.improvementRate = Math.round((positiveRate * 0.7 + (1 - correctionRate) * 0.3) * 100);
+    }
+    
+    getRelevantCorrections(context) {
+        // Find corrections related to current context
+        return this.corrections.filter(c => 
+            c.context && context && c.context.toLowerCase().includes(context.toLowerCase())
+        ).slice(-5); // Last 5 relevant corrections
+    }
+    
+    getLearningStats() {
+        return {
+            totalCorrections: this.corrections.length,
+            totalInteractions: this.metrics.totalInteractions,
+            positiveRate: this.metrics.totalInteractions > 0 
+                ? Math.round((this.metrics.thumbsUp / this.metrics.totalInteractions) * 100) 
+                : 0,
+            improvementRate: this.metrics.improvementRate,
+            preferences: this.preferences,
+            recentCorrections: this.corrections.slice(-10)
+        };
+    }
+}
 
   // ==========================================
 // BROWSER NOTIFICATIONS
@@ -1666,15 +1842,18 @@ document.addEventListener('DOMContentLoaded', () => {
         Notification.requestPermission();
     }
     
-    loadSettings();
+   loadSettings();
     loadChats();
     loadMemory();
     initUniversalMemory();
     updateHeaderDisplay();
     setupVoiceRecognition();
     
+    // Initialize Learning Engine
+    learningEngine = new LearningEngine();
+    console.log('🧠 Learning Engine initialized', learningEngine.getLearningStats());
+    
     if (chats.length === 0) {
-        createNewChat();
     } else {
         loadChat(chats[0].id);
     }
@@ -1942,7 +2121,12 @@ function renderMessages(messages) {
                 <div class="message-actions">
                     <button class="message-action-btn" onclick="copyMessage(${index})">📋 Copy</button>
                     <button class="message-action-btn" onclick="regenerateResponse(${index})">🔄 Regenerate</button>
+                    <button class="message-action-btn" onclick="provideFeedback(${index}, 'thumbsUp')">👍</button>
+                    <button class="message-action-btn" onclick="provideFeedback(${index}, 'thumbsDown')">👎</button>
+                    <button class="message-action-btn" onclick="provideCorrection(${index})">✏️ Correct</button>
                 </div>
+            `;
+        }
             `;
         }
         
@@ -1993,10 +2177,14 @@ function addMessage(role, content, imageUrl = null, fileData = null) {
         container.scrollTop = container.scrollHeight;
     }
     
-    renderChatsList();
+   renderChatsList();
     if (role === 'assistant' && isAutoVoiceEnabled) speak(content);
+    
+    // Track last assistant message for learning
+    if (role === 'assistant') {
+        lastAssistantMessage = { content, timestamp: Date.now() };
+    }
 }
-
 function showThinking() {
     const container = document.getElementById('chatContainer');
     container.insertAdjacentHTML('beforeend', `
@@ -2169,6 +2357,22 @@ async function sendMessage() {
 
         incrementMessageCount();
         if (message) trackConversationTopic(message);
+        
+        // Check if user is correcting Crump
+        if (lastAssistantMessage && learningEngine) {
+            const correctionDetection = learningEngine.detectCorrectionPattern(message, lastAssistantMessage.content);
+            if (correctionDetection.isCorrection) {
+                const correction = learningEngine.recordCorrection(
+                    lastAssistantMessage.content,
+                    message,
+                    'general'
+                );
+                console.log('🎓 Correction detected and learned!', correction);
+            }
+            
+            // Detect preference changes
+            learningEngine.detectPreferenceFromMessage(message);
+        }
         
         const imageText = currentFiles.length > 0 
     ? (message || `📎 ${currentFiles.length} image${currentFiles.length > 1 ? 's' : ''}`)
@@ -2961,6 +3165,101 @@ function toggleVoiceOutput() {
     };
     
     showNotification(`✓ Autonomous messages: ${labels[interval]}`, 'success');
+}
+
+        // ==========================================
+// LEARNING ENGINE FEEDBACK FUNCTIONS
+// ==========================================
+function provideFeedback(messageIndex, feedbackType) {
+    if (!learningEngine) return;
+    
+    const chat = chats.find(c => c.id === currentChatId);
+    if (!chat || !chat.messages[messageIndex]) return;
+    
+    const messageId = `${currentChatId}-${messageIndex}`;
+    learningEngine.recordFeedback(messageId, feedbackType);
+    
+    const emoji = feedbackType === 'thumbsUp' ? '👍' : '👎';
+    const message = feedbackType === 'thumbsUp' 
+        ? 'Thanks! I\'m learning from positive feedback.'
+        : 'Noted. I\'ll work on improving.';
+    
+    showNotification(`${emoji} ${message}`, 'success');
+    
+    // Log learning stats
+    const stats = learningEngine.getLearningStats();
+    console.log('📊 Learning Stats:', stats);
+}
+
+function provideCorrection(messageIndex) {
+    const chat = chats.find(c => c.id === currentChatId);
+    if (!chat || !chat.messages[messageIndex]) return;
+    
+    const originalMessage = chat.messages[messageIndex].content;
+    
+    const correction = prompt(
+        '✏️ How should I have responded?\n\n' +
+        'Original response (first 100 chars):\n' +
+        originalMessage.substring(0, 100) + '...\n\n' +
+        'Your correction:'
+    );
+    
+    if (correction && correction.trim()) {
+        learningEngine.recordCorrection(
+            originalMessage,
+            correction.trim(),
+            'user_correction'
+        );
+        
+        showNotification('✓ Correction learned! I\'ll remember this.', 'success');
+        
+        // Show learning confirmation
+        const stats = learningEngine.getLearningStats();
+        console.log('🎓 New correction recorded. Total corrections:', stats.totalCorrections);
+    }
+}
+
+function viewLearningStats() {
+    if (!learningEngine) return;
+    
+    const stats = learningEngine.getLearningStats();
+    
+    const statsMessage = `
+📊 CRUMP LEARNING STATS
+
+Total Interactions: ${stats.totalInteractions}
+Corrections Received: ${stats.totalCorrections}
+Positive Feedback: ${stats.positiveRate}%
+Improvement Rate: ${stats.improvementRate}%
+
+Recent Corrections: ${stats.recentCorrections.length}
+Preferences Learned: ${Object.keys(stats.preferences).length}
+
+Current Preferences:
+- Response Length: ${stats.preferences.responseLength}
+- Code Style: ${stats.preferences.codeStyle}
+- Tone: ${stats.preferences.tone}
+    `.trim();
+    
+    alert(statsMessage);
+    console.log('📊 Full Learning Stats:', stats);
+}
+
+        function clearLearningData() {
+    if (!confirm('⚠️ Clear all learning data? This will erase:\n\n- All corrections\n- Learned preferences\n- Performance metrics\n\nThis cannot be undone.')) {
+        return;
+    }
+    
+    localStorage.removeItem(STORAGE_KEYS.CORRECTIONS);
+    localStorage.removeItem(STORAGE_KEYS.USER_PREFERENCES);
+    localStorage.removeItem(STORAGE_KEYS.PERFORMANCE_METRICS);
+    
+    // Reinitialize learning engine
+    if (learningEngine) {
+        learningEngine = new LearningEngine();
+    }
+    
+    showNotification('✓ Learning data cleared', 'success');
 }
 
 function toggleAutoVoice() {
