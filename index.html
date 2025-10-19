@@ -2783,6 +2783,11 @@ async function regenerateResponse(index) {
         }
         
    } catch (error) {
+        hideThinking();
+        addMessage('assistant', 'I encountered an error while regenerating. Please try again.');
+        console.error('Regenerate error:', error);
+    }
+}
 
 // ==========================================
 // 🔥 ENHANCED: SEND MESSAGE WITH AUTONOMOUS SUGGESTIONS
@@ -2963,7 +2968,9 @@ removeFile();
 
        addMessage('assistant', data.response);
         
-        // Check if Crump should proactively request training
+       addMessage('assistant', data.response);
+
+         // Check if Crump should proactively request training
         if (learningEngine && Math.random() < 0.15) { // 15% chance to check
             const trainingRequest = learningEngine.getProactiveTrainingRequest();
             if (trainingRequest) {
@@ -2974,6 +2981,11 @@ removeFile();
         }
         
    } catch (error) {
+        hideThinking();
+        addMessage('assistant', 'I encountered an error while regenerating. Please try again.');
+        console.error('Regenerate error:', error);
+    }
+}
     hideThinking();
     console.error('Error details:', error);
     
