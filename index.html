@@ -1201,6 +1201,17 @@
             </div>
 
             <div class="setting-group">
+                <label class="setting-label">💭 Autonomous Messages</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="autonomousToggle" onchange="toggleAutonomousMessages()">
+                    <span class="toggle-slider"></span>
+                </label>
+                <small style="color: var(--text-tertiary); display: block; margin-top: 8px; font-size: 12px;">
+                    Crump can send unprompted check-ins and reminders (max once per 15min)
+                </small>
+            </div>
+
+            <div class="setting-group">
                 <label class="setting-label">Font Style</label>
                 <div class="font-options">
                     <button class="font-btn active" onclick="changeFont('modern')">Modern</button>
@@ -1292,6 +1303,7 @@
             BG_COLOR: 'bgColor',
             SPLASH_SEEN: 'crump_splash_seen',
             SUGGESTIONS: 'crump_suggestions'
+            AUTONOMOUS_MESSAGES: 'crump_autonomous_messages'
         };
 
         // ==========================================
@@ -1311,6 +1323,11 @@
             notes: []
         };
         let isSending = false;
+        
+        // Autonomous messaging state
+let autonomousMessagesEnabled = false;
+let lastUserActivity = Date.now();
+let autonomousCheckInterval = null;
 
         // Tutorial state
         let currentTutorialStep = 1;
@@ -1392,6 +1409,136 @@
 
         const messageDeduper = new MessageDeduplicator();
 
+    // ==========================================
+// AUTONOMOUS MESSAGE ENGINE
+// ==========================================
+class AutonomousMessageEngine {
+    constructor() {
+        this.lastAutonomousMessage = null;
+        this.MIN_INTERVAL = 15 * 60 * 1000; // 15 minutes
+        this.IDLE_THRESHOLD = 15 * 60 * 1000; // 15 minutes
+        this.checkInterval = null;
+    }
+    
+    start() {
+        if (this.checkInterval) return;
+        console.log('🤖 Autonomous messages activated');
+        
+        this.checkInterval = setInterval(() => {
+            this.checkForAutonomousMessage();
+        }, 60 * 1000); // Check every minute
+    }
+    
+    stop() {
+        if (this.checkInterval) {
+            clearInterval(this.checkInterval);
+            this.checkInterval = null;
+            console.log('🤖 Autonomous messages deactivated');
+        }
+    }
+    
+    checkForAutonomousMessage() {
+        const now = Date.now();
+        const timeSinceLastActivity = now - lastUserActivity;
+        const timeSinceLastAutonomous = this.lastAutonomousMessage ? now - this.lastAutonomousMessage : Infinity;
+        
+        // Don't send if we sent one recently
+        if (timeSinceLastAutonomous < this.MIN_INTERVAL) return;
+        
+        // Check for idle user (15+ min no activity)
+        if (timeSinceLastActivity >= this.IDLE_THRESHOLD) {
+            this.sendAutonomousMessage(this.getIdleMessage());
+            return;
+        }
+        
+        // Check for late night work (2am-5am)
+        const hour = new Date().getHours();
+        if (hour >= 2 && hour < 5) {
+            this.sendAutonomousMessage(this.getLateNightMessage());
+            return;
+        }
+        
+        // Check for long session (2+ hours)
+        const memory = getUniversalMemory();
+        if (memory.conversationHistory.lastInteraction) {
+            const sessionStart = new Date(memory.conversationHistory.lastInteraction);
+            const sessionDuration = (now - sessionStart.getTime()) / (1000 * 60 * 60);
+            
+            if (sessionDuration >= 2 && timeSinceLastActivity < 5 * 60 * 1000) {
+                this.sendAutonomousMessage(this.getLongSessionMessage());
+                return;
+            }
+        }
+    }
+    
+    sendAutonomousMessage(message) {
+        if (!message) return;
+        
+        this.lastAutonomousMessage = Date.now();
+        
+        // Send browser notification if tab is not visible
+        if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+            new Notification('Crump AI', {
+                body: message,
+                icon: '/assets/icon-192.png',
+                badge: '/assets/icon-192.png',
+                tag: 'autonomous-message'
+            });
+        }
+        
+        // Add message to chat
+        addMessage('assistant', '💭 ' + message);
+    }
+    
+    getIdleMessage() {
+        const messages = [
+            "Still there? Just checking in. Everything alright?",
+            "Haven't heard from you in a bit. Need anything?",
+            "Quiet on your end. Let me know if you need help.",
+            "Been a while. Want to pick up where we left off?",
+            "Checking in—everything good over there?"
+        ];
+        return messages[Math.floor(Math.random() * messages.length)];
+    }
+    
+    getLateNightMessage() {
+        const messages = [
+            "It's past 2am, Gregory. Seriously, get some sleep. This can wait.",
+            "2am and still going? I respect the hustle, but your health matters more.",
+            "Late night grind? Remember—rest is part of productivity too.",
+            "Past 2am. Whatever you're working on will be there tomorrow. Sleep.",
+            "It's very late. Consider wrapping up soon—you'll think clearer after rest."
+        ];
+        return messages[Math.floor(Math.random() * messages.length)];
+    }
+    
+    getLongSessionMessage() {
+        const messages = [
+            "We've been at this for 2+ hours. Want to take a quick break?",
+            "Long session today. Stretch, hydrate, then back at it?",
+            "2 hours in. Quick break might help you think clearer.",
+            "Solid focus session. Consider a 5-min break to recharge.",
+            "Been pushing hard. A brief pause could boost productivity."
+        ];
+        return messages[Math.floor(Math.random() * messages.length)];
+    }
+}
+
+const autonomousEngine = new AutonomousMessageEngine();   
+
+  // ==========================================
+// BROWSER NOTIFICATIONS
+// ==========================================
+function sendBrowserNotification(title, body) {
+    if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
+        new Notification(title, {
+            body: body,
+            icon: '/assets/icon-192.png',
+            badge: '/assets/icon-192.png'
+        });
+    }
+}      
+
 // ==========================================
 // TUTORIAL FUNCTIONS
 // ==========================================
@@ -1461,6 +1608,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     initializeSplashScreen();
+
+     // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+    
     loadSettings();
     loadChats();
     loadMemory();
@@ -1910,6 +2063,9 @@ function handleKeyPress(event) {
 async function sendMessage() {
     const input = document.getElementById('userInput');
     const message = input.value.trim();
+
+    // Track activity for autonomous messages
+    lastUserActivity = Date.now();
     
     if (isSending) {
         console.log('🔒 BLOCKED: Already sending');
@@ -2546,6 +2702,23 @@ function setupVoiceRecognition() {
     }
 }
 
+        // ==========================================
+// AUTONOMOUS MESSAGES CONTROL
+// ==========================================
+function startAutonomousMessages() {
+    autonomousMessagesEnabled = true;
+    autonomousEngine.start();
+    localStorage.setItem(STORAGE_KEYS.AUTONOMOUS_MESSAGES, 'true');
+    showNotification('✓ Autonomous messages enabled', 'success');
+}
+
+function stopAutonomousMessages() {
+    autonomousMessagesEnabled = false;
+    autonomousEngine.stop();
+    localStorage.setItem(STORAGE_KEYS.AUTONOMOUS_MESSAGES, 'false');
+    showNotification('Autonomous messages disabled', 'info');
+}
+
 function toggleVoiceInput() {
     if (!recognition) {
         alert('Voice recognition not supported in your browser.');
@@ -2602,12 +2775,23 @@ function toggleSettings() {
 function loadSettings() {
     const voiceOutput = localStorage.getItem(STORAGE_KEYS.VOICE_OUTPUT) === 'true';
     const autoVoice = localStorage.getItem(STORAGE_KEYS.AUTO_VOICE) === 'true';
+    const autonomousMessages = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_MESSAGES) === 'true';
     const fontStyle = localStorage.getItem(STORAGE_KEYS.FONT_STYLE) || 'modern';
     const bgColor = localStorage.getItem(STORAGE_KEYS.BG_COLOR) || '#0a1628';
+    
     document.getElementById('voiceToggle').checked = voiceOutput;
     document.getElementById('autoVoiceToggle').checked = autoVoice;
+    document.getElementById('autonomousToggle').checked = autonomousMessages;
+    
     isVoiceEnabled = voiceOutput;
     isAutoVoiceEnabled = autoVoice;
+    autonomousMessagesEnabled = autonomousMessages;
+    
+    // Start autonomous engine if enabled
+    if (autonomousMessages) {
+        autonomousEngine.start();
+    }
+    
     changeFont(fontStyle);
     changeBgColor(bgColor);
 }
@@ -2615,6 +2799,15 @@ function loadSettings() {
 function toggleVoiceOutput() {
     isVoiceEnabled = document.getElementById('voiceToggle').checked;
     localStorage.setItem(STORAGE_KEYS.VOICE_OUTPUT, isVoiceEnabled);
+}
+
+        function toggleAutonomousMessages() {
+    const enabled = document.getElementById('autonomousToggle').checked;
+    if (enabled) {
+        startAutonomousMessages();
+    } else {
+        stopAutonomousMessages();
+    }
 }
 
 function toggleAutoVoice() {
