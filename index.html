@@ -1135,14 +1135,38 @@
                 </div>
 
                 <div class="input-wrapper">
-                    <textarea 
-                        id="userInput" 
-                        class="input-field" 
-                        placeholder="Message Crump AI..."
-                        rows="1"
-                        onkeydown="handleKeyPress(event)"
-                        oninput="autoResize(this)"
-                    ></textarea>
+                   <textarea 
+    id="userInput" 
+    class="input-field" 
+    placeholder="Message Crump AI..."
+    rows="1"
+    onkeydown="handleKeyPress(event)"
+    oninput="autoResize(this); updateCharCount()"
+    maxlength="50000"
+></textarea>
+
+                    function updateCharCount() {
+    const input = document.getElementById('userInput');
+    const counter = document.getElementById('charCount');
+    const count = input.value.length;
+    
+    if (count > 0) {
+        counter.style.display = 'block';
+        counter.textContent = `${count.toLocaleString()} / 50,000`;
+        
+        if (count > 40000) {
+            counter.style.color = '#ff4444';
+        } else if (count > 30000) {
+            counter.style.color = '#f59e0b';
+        } else {
+            counter.style.color = 'var(--text-tertiary)';
+        }
+    } else {
+        counter.style.display = 'none';
+    }
+}
+                    
+<div id="charCount" style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px; display: none;">0 / 50,000</div>
                     <div class="input-actions">
                         <button class="icon-btn" onclick="attachFile()" title="Attach image">📎</button>
                         <button class="icon-btn" onclick="toggleVoiceInput()" id="voiceBtn" title="Voice input">🎤</button>
@@ -2114,7 +2138,7 @@ async function sendMessage() {
         if (message) trackConversationTopic(message);
         
         // 🔥 NEW: Track query patterns and context
-        const suggestion = message ? suggestionEngine.trackQuery(message) : null;
+        addMessage('assistant', data.response);
         const contextSuggestions = message ? contextTracker.trackMessage(message) : [];
         
         const imageText = currentFiles.length > 0 
@@ -2186,18 +2210,24 @@ removeFile();
         hideThinking();
         
         // 🔥 NEW: Inject autonomous suggestions into response
-        let finalResponse = data.response;
-        if (suggestion) finalResponse += '\n\n' + suggestion;
-        if (contextSuggestions.length > 0) {
-            finalResponse += '\n\n' + contextSuggestions.join('\n');
-        }
-        
+       
         addMessage('assistant', finalResponse);
         
-    } catch (error) {
-        hideThinking();
-        addMessage('assistant', 'I apologize, but I encountered an error. Please try again.');
-        console.error('Error:', error);
+   } catch (error) {
+    hideThinking();
+    console.error('Error details:', error);
+    
+    let errorMsg = 'I encountered an error: ';
+    if (error.message?.includes('fetch')) {
+        errorMsg += 'Connection issue. Check your internet and try again.';
+    } else if (error.message?.includes('token') || error.message?.includes('too long')) {
+        errorMsg += 'Message too long. Try breaking it into smaller parts.';
+    } else {
+        errorMsg += error.message || 'Unknown error. Please try again.';
+    }
+    
+    addMessage('assistant', errorMsg + '\n\n(Your conversation history is preserved - just resend when ready)');
+}
     } finally {
         isSending = false;
         input.disabled = false;
