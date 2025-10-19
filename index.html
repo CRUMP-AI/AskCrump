@@ -1233,6 +1233,31 @@
             </div>
 
             <div class="setting-group">
+                <label class="setting-label">🎨 Image Generator</label>
+                <div class="font-options">
+                    <button class="font-btn active" id="genPollinations" onclick="setImageGenerator('pollinations')">Pollinations AI</button>
+                    <button class="font-btn" id="genSegmind" onclick="setImageGenerator('segmind')">Segmind</button>
+                </div>
+                <small style="color: var(--text-tertiary); display: block; margin-top: 8px; font-size: 12px;">
+                    Choose your preferred AI image generator. Automatically falls back to the other if one fails.
+                </small>
+            </div>
+
+            <div class="setting-group">
+                <label class="setting-label">🎯 Show Confidence Scores</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="confidenceToggle" onchange="toggleConfidenceDisplay()">
+                    <span class="toggle-slider"></span>
+                </label>
+                <small style="color: var(--text-tertiary); display: block; margin-top: 8px; font-size: 12px;">
+                    Display Crump's confidence level and reasoning on each response
+                </small>
+            </div>
+
+            <div class="setting-group">
+                <label class="setting-label">Font Style</label>
+
+            <div class="setting-group">
                 <label class="setting-label">Font Style</label>
                 <div class="font-options">
                     <button class="font-btn active" onclick="changeFont('modern')">Modern</button>
@@ -1286,14 +1311,15 @@
                 <button class="font-btn" style="width: 100%; padding: 12px; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: var(--bg-primary); border: none; font-weight: 600;" onclick="replayTutorial()">📖 View Tutorial</button>
             </div>
 
-             <div class="setting-group">
+            <div class="setting-group">
                 <label class="setting-label">🧠 Learning Engine</label>
-                <button class="font-btn" style="width: 100%; padding: 12px; margin-bottom: 8px;" onclick="viewLearningStats()">📊 View Learning Stats</button>
+                <button class="font-btn" style="width: 100%; padding: 12px; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: var(--bg-primary); border: none; font-weight: 600;" onclick="showLearningDashboard()">📊 View Learning Dashboard</button>
+                <button class="font-btn" style="width: 100%; padding: 12px; margin-bottom: 8px;" onclick="viewLearningStats()">📈 View Quick Stats</button>
                 <button class="font-btn" style="width: 100%; padding: 12px;" onclick="clearLearningData()">🗑️ Clear Learning Data</button>
                 <small style="color: var(--text-tertiary); display: block; margin-top: 8px; font-size: 12px;">
                     Crump learns from corrections and feedback to improve over time.
                 </small>
-            </div>
+            </div> 
 
 
             <div class="version-info">
@@ -1340,7 +1366,8 @@
     LEARNING_ENGINE: 'crump_learning_engine',
     CORRECTIONS: 'crump_corrections',
     USER_PREFERENCES: 'crump_user_preferences',
-    PERFORMANCE_METRICS: 'crump_performance_metrics'
+    PERFORMANCE_METRICS: 'crump_performance_metrics',
+    SHOW_CONFIDENCE: 'crump_show_confidence'
 };
 
         // ==========================================
@@ -1369,10 +1396,11 @@ let autonomousCheckInterval = null;
         // Image generation state
 let preferredImageGenerator = 'pollinations'; // 'pollinations' or 'segmind'
 
-        // Learning Engine state
+       // Learning Engine state
 let learningEngine = null;
 let lastAssistantMessage = null;
 let awaitingCorrection = false;
+let showConfidence = false;
 
         // Tutorial state
         let currentTutorialStep = 1;
@@ -1751,6 +1779,87 @@ class LearningEngine {
             preferences: this.preferences,
             recentCorrections: this.corrections.slice(-10)
         };
+    }
+    
+    calculateConfidence(context, hasSearched = false) {
+        // Calculate confidence based on various factors
+        let confidence = 50; // Base confidence
+        
+        // Increase confidence for topics we've learned about
+        const relevantCorrections = this.getRelevantCorrections(context);
+        if (relevantCorrections.length > 0) {
+            confidence += 15; // We've learned from mistakes here
+        }
+        
+        // Increase confidence if we searched
+        if (hasSearched) {
+            confidence += 20;
+        }
+        
+        // Increase based on positive feedback history
+        if (this.metrics.totalInteractions > 0) {
+            const successRate = this.metrics.thumbsUp / this.metrics.totalInteractions;
+            confidence += Math.round(successRate * 15);
+        }
+        
+        // Cap at 95% (never 100% certain)
+        confidence = Math.min(confidence, 95);
+        
+        return {
+            score: confidence,
+            level: this.getConfidenceLevel(confidence),
+            reason: this.getConfidenceReason(confidence, relevantCorrections, hasSearched)
+        };
+    }
+    
+    getConfidenceLevel(score) {
+        if (score >= 80) return 'Very High';
+        if (score >= 65) return 'High';
+        if (score >= 50) return 'Medium';
+        if (score >= 35) return 'Low';
+        return 'Very Low';
+    }
+    
+    getConfidenceReason(score, corrections, searched) {
+        const reasons = [];
+        
+        if (corrections.length > 0) {
+            reasons.push(`Learned from ${corrections.length} similar correction${corrections.length > 1 ? 's' : ''}`);
+        }
+        
+        if (searched) {
+            reasons.push('Verified with web search');
+        }
+        
+        if (this.metrics.thumbsUp > 0) {
+            const rate = Math.round((this.metrics.thumbsUp / this.metrics.totalInteractions) * 100);
+            reasons.push(`${rate}% positive feedback rate`);
+        }
+        
+        if (reasons.length === 0) {
+            return 'Based on training data';
+        }
+        
+        return reasons.join(' • ');
+    }
+    
+    identifyKnowledgeGaps() {
+        // Analyze corrections to find patterns of weakness
+        const topicCounts = {};
+        
+        this.corrections.forEach(correction => {
+            const context = correction.context || 'general';
+            topicCounts[context] = (topicCounts[context] || 0) + 1;
+        });
+        
+        // Topics with 2+ corrections are knowledge gaps
+        const gaps = Object.entries(topicCounts)
+            .filter(([topic, count]) => count >= 2)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([topic, count]) => ({ topic, corrections: count }));
+        
+        return gaps;
     }
 }
 
@@ -2174,15 +2283,65 @@ function addMessage(role, content, imageUrl = null, fileData = null) {
     } else {
         container.scrollTop = container.scrollHeight;
     }
-    
-   renderChatsList();
+
+    renderChatsList();
     if (role === 'assistant' && isAutoVoiceEnabled) speak(content);
     
     // Track last assistant message for learning
     if (role === 'assistant') {
         lastAssistantMessage = { content, timestamp: Date.now() };
+        
+        // Add confidence indicator if enabled
+        if (showConfidence && learningEngine) {
+            const confidence = learningEngine.calculateConfidence('general', false);
+            addConfidenceIndicator(chat.messages.length - 1, confidence);
+        }
     }
 }
+
+function addConfidenceIndicator(messageIndex, confidence) {
+    const container = document.getElementById('chatContainer');
+    const messages = container.querySelectorAll('.message');
+    const targetMessage = messages[messageIndex];
+    
+    if (!targetMessage) return;
+    
+    const wrapper = targetMessage.querySelector('.message-wrapper');
+    if (!wrapper) return;
+    
+    // Remove existing confidence indicator if present
+    const existing = wrapper.querySelector('.confidence-indicator');
+    if (existing) existing.remove();
+    
+    // Create confidence bar
+    const barColor = confidence.score >= 80 ? '#10b981' : 
+                     confidence.score >= 65 ? '#3b82f6' : 
+                     confidence.score >= 50 ? '#f59e0b' : '#ef4444';
+    
+    const indicator = document.createElement('div');
+    indicator.className = 'confidence-indicator';
+    indicator.style.cssText = `
+        margin-top: 8px;
+        padding: 8px 12px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    `;
+    
+    indicator.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <span style="font-size: 11px; font-weight: 600; color: var(--text-tertiary);">CONFIDENCE</span>
+            <span style="font-size: 11px; font-weight: 700; color: ${barColor};">${confidence.level} (${confidence.score}%)</span>
+        </div>
+        <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
+            <div style="width: ${confidence.score}%; height: 100%; background: ${barColor}; transition: width 0.3s;"></div>
+        </div>
+        <div style="font-size: 10px; color: var(--text-tertiary); margin-top: 4px;">${confidence.reason}</div>
+    `;
+    
+    wrapper.appendChild(indicator);
+}
+   
 function showThinking() {
     const container = document.getElementById('chatContainer');
     container.insertAdjacentHTML('beforeend', `
@@ -3064,19 +3223,23 @@ function toggleSettings() {
     if (nameInput) nameInput.value = currentName;
     if (resetBtn) resetBtn.style.display = currentName !== 'Crump' ? 'block' : 'none';
 }
-
 function loadSettings() {
     const voiceOutput = localStorage.getItem(STORAGE_KEYS.VOICE_OUTPUT) === 'true';
     const autoVoice = localStorage.getItem(STORAGE_KEYS.AUTO_VOICE) === 'true';
     const autonomousMessages = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_MESSAGES) === 'true';
     const autonomousInterval = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_INTERVAL) || 'balanced';
     const imageGenerator = localStorage.getItem(STORAGE_KEYS.IMAGE_GENERATOR) || 'pollinations';
+    const showConfidenceSetting = localStorage.getItem(STORAGE_KEYS.SHOW_CONFIDENCE) === 'true';
     const fontStyle = localStorage.getItem(STORAGE_KEYS.FONT_STYLE) || 'modern';
     const bgColor = localStorage.getItem(STORAGE_KEYS.BG_COLOR) || '#0a1628';
     
    document.getElementById('voiceToggle').checked = voiceOutput;
     document.getElementById('autoVoiceToggle').checked = autoVoice;
     document.getElementById('autonomousToggle').checked = autonomousMessages;
+    document.getElementById('confidenceToggle').checked = showConfidenceSetting;
+    
+    showConfidence = showConfidenceSetting;
+
     
     // Set autonomous interval preference
     autonomousEngine.setIntervalPreset(autonomousInterval);
@@ -3243,6 +3406,81 @@ Current Preferences:
     console.log('📊 Full Learning Stats:', stats);
 }
 
+        function showLearningDashboard() {
+    if (!learningEngine) return;
+    
+    const stats = learningEngine.getLearningStats();
+    const gaps = learningEngine.identifyKnowledgeGaps();
+    
+    const dashboardHTML = `
+<div style="background: var(--bg-secondary); border: 2px solid var(--accent-primary); border-radius: 16px; padding: 24px; max-width: 600px;">
+    <div style="text-align: center; margin-bottom: 24px;">
+        <div style="font-size: 24px; font-weight: 700; color: var(--accent-primary); margin-bottom: 8px;">🧠 LEARNING DASHBOARD</div>
+        <div style="font-size: 14px; color: var(--text-tertiary);">Crump AI v3.0 Cognition System</div>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+        <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; text-align: center;">
+            <div style="font-size: 32px; font-weight: 700; color: var(--accent-primary);">${stats.totalInteractions}</div>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Total Interactions</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; text-align: center;">
+            <div style="font-size: 32px; font-weight: 700; color: var(--accent-primary);">${stats.totalCorrections}</div>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Corrections Learned</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; text-align: center;">
+            <div style="font-size: 32px; font-weight: 700; color: #10b981;">${stats.positiveRate}%</div>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Positive Feedback</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; text-align: center;">
+            <div style="font-size: 32px; font-weight: 700; color: #3b82f6;">${stats.improvementRate}%</div>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Improvement Rate</div>
+        </div>
+    </div>
+    
+    <div style="margin-bottom: 20px;">
+        <div style="font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px;">📚 Learned Preferences</div>
+        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; font-size: 13px; color: var(--text-primary);">
+            <div>• Response Length: <strong>${stats.preferences.responseLength}</strong></div>
+            <div>• Code Style: <strong>${stats.preferences.codeStyle}</strong></div>
+            <div>• Tone: <strong>${stats.preferences.tone}</strong></div>
+            <div>• Explanation Level: <strong>${stats.preferences.explanationLevel}</strong></div>
+        </div>
+    </div>
+    
+    ${gaps.length > 0 ? `
+    <div>
+        <div style="font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px;">🎯 Knowledge Gaps</div>
+        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; font-size: 13px; color: var(--text-primary);">
+            ${gaps.map(gap => `<div>• ${gap.topic}: ${gap.corrections} corrections needed</div>`).join('')}
+        </div>
+        <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 8px; font-style: italic;">
+            These are areas where I've been corrected multiple times. I'm working on improving!
+        </div>
+    </div>
+    ` : `
+    <div style="background: rgba(16, 185, 129, 0.1); padding: 12px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 14px; color: #10b981; font-weight: 600;">✓ No significant knowledge gaps detected</div>
+    </div>
+    `}
+</div>
+    `.trim();
+    
+    addMessage('assistant', '📊 Here\'s my current learning status:');
+    
+    // Add dashboard as a special message
+    const chat = chats.find(c => c.id === currentChatId);
+    if (chat) {
+        const container = document.getElementById('chatContainer');
+        container.insertAdjacentHTML('beforeend', `
+            <div class="message" style="max-width: 100%; align-self: center;">
+                ${dashboardHTML}
+            </div>
+        `);
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
         function clearLearningData() {
     if (!confirm('⚠️ Clear all learning data? This will erase:\n\n- All corrections\n- Learned preferences\n- Performance metrics\n\nThis cannot be undone.')) {
         return;
@@ -3258,6 +3496,19 @@ Current Preferences:
     }
     
     showNotification('✓ Learning data cleared', 'success');
+}
+
+        function toggleConfidenceDisplay() {
+    showConfidence = document.getElementById('confidenceToggle').checked;
+    localStorage.setItem(STORAGE_KEYS.SHOW_CONFIDENCE, showConfidence);
+    
+    if (showConfidence) {
+        showNotification('✓ Confidence indicators enabled', 'success');
+    } else {
+        showNotification('Confidence indicators disabled', 'info');
+        // Remove all existing confidence indicators
+        document.querySelectorAll('.confidence-indicator').forEach(el => el.remove());
+    }
 }
 
 function toggleAutoVoice() {
