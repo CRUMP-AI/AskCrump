@@ -2962,12 +2962,10 @@ removeFile();
             })
         });
         
-       if (!response.ok) throw new Error('API request failed');
+     if (!response.ok) throw new Error('API request failed');
         const data = await response.json();
         hideThinking();
 
-       addMessage('assistant', data.response);
-        
        addMessage('assistant', data.response);
 
          // Check if Crump should proactively request training
@@ -2978,7 +2976,7 @@ removeFile();
                     addMessage('assistant', trainingRequest);
                 }, 2000); // Wait 2 seconds before asking
             }
-        }
+        } 
         
    } catch (error) {
         hideThinking();
