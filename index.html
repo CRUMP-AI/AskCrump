@@ -1322,7 +1322,7 @@
 
 
             <div class="version-info">
-                <div class="version-title">Crump AI v3.1 Cognition</div>
+                <div class="version-title">Crump AI v3.1 Proactive Learning</div>
                 <div class="version-detail">Powered by N² Engine</div>
                 <div class="version-detail">Built by Gregory D. Crump Jr.</div>
                 <div class="status-indicator">
@@ -2771,8 +2771,8 @@ async function regenerateResponse(index) {
         hideThinking();
 
        addMessage('assistant', data.response);
-        
-        // Check if Crump should proactively request training
+
+         // Check if Crump should proactively request training
         if (learningEngine && Math.random() < 0.15) { // 15% chance to check
             const trainingRequest = learningEngine.getProactiveTrainingRequest();
             if (trainingRequest) {
@@ -2957,11 +2957,21 @@ removeFile();
             })
         });
         
-        if (!response.ok) throw new Error('API request failed');
+       if (!response.ok) throw new Error('API request failed');
         const data = await response.json();
         hideThinking();
 
-       addMessage('assistant', data.response); 
+       addMessage('assistant', data.response);
+        
+        // Check if Crump should proactively request training
+        if (learningEngine && Math.random() < 0.15) { // 15% chance to check
+            const trainingRequest = learningEngine.getProactiveTrainingRequest();
+            if (trainingRequest) {
+                setTimeout(() => {
+                    addMessage('assistant', trainingRequest);
+                }, 2000); // Wait 2 seconds before asking
+            }
+        }
         
    } catch (error) {
     hideThinking();
