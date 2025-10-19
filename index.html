@@ -2982,23 +2982,18 @@ removeFile();
         
    } catch (error) {
         hideThinking();
-        addMessage('assistant', 'I encountered an error while regenerating. Please try again.');
-        console.error('Regenerate error:', error);
-    }
-}
-    hideThinking();
-    console.error('Error details:', error);
-    
-    let errorMsg = 'I encountered an error: ';
-    if (error.message?.includes('fetch')) {
-        errorMsg += 'Connection issue. Check your internet and try again.';
-    } else if (error.message?.includes('token') || error.message?.includes('too long')) {
-        errorMsg += 'Message too long. Try breaking it into smaller parts.';
-    } else {
-        errorMsg += error.message || 'Unknown error. Please try again.';
-    }
-    
-    addMessage('assistant', errorMsg + '\n\n(Your conversation history is preserved - just resend when ready)');
+        console.error('Error details:', error);
+        
+        let errorMsg = 'I encountered an error: ';
+        if (error.message?.includes('fetch')) {
+            errorMsg += 'Connection issue. Check your internet and try again.';
+        } else if (error.message?.includes('token') || error.message?.includes('too long')) {
+            errorMsg += 'Message too long. Try breaking it into smaller parts.';
+        } else {
+            errorMsg += error.message || 'Unknown error. Please try again.';
+        }
+        
+        addMessage('assistant', errorMsg + '\n\n(Your conversation history is preserved - just resend when ready)');
     } finally {
         isSending = false;
         input.disabled = false;
