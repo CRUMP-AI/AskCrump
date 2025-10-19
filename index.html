@@ -1312,16 +1312,17 @@
             <div class="setting-group">
                 <label class="setting-label">🧠 Learning Engine</label>
                 <button class="font-btn" style="width: 100%; padding: 12px; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: var(--bg-primary); border: none; font-weight: 600;" onclick="showLearningDashboard()">📊 View Learning Dashboard</button>
+                <button class="font-btn" style="width: 100%; padding: 12px; margin-bottom: 8px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; font-weight: 600;" onclick="showLearningHistory()">📚 View Learning History</button>
                 <button class="font-btn" style="width: 100%; padding: 12px; margin-bottom: 8px;" onclick="viewLearningStats()">📈 View Quick Stats</button>
                 <button class="font-btn" style="width: 100%; padding: 12px;" onclick="clearLearningData()">🗑️ Clear Learning Data</button>
                 <small style="color: var(--text-tertiary); display: block; margin-top: 8px; font-size: 12px;">
-                    Crump learns from corrections and feedback to improve over time.
+                    Crump learns from corrections and feedback to improve over time. View timeline to see improvement journey!
                 </small>
-            </div> 
+            </div>
 
 
             <div class="version-info">
-                <div class="version-title">Crump AI v3.0 Cognition</div>
+                <div class="version-title">Crump AI v3.1 Cognition</div>
                 <div class="version-detail">Powered by N² Engine</div>
                 <div class="version-detail">Built by Gregory D. Crump Jr.</div>
                 <div class="status-indicator">
@@ -1988,6 +1989,171 @@ class LearningEngine {
         
         return alternatives;
     }
+    
+    shouldRequestTraining() {
+        // Determine if Crump should proactively ask for training
+        const gaps = this.identifyKnowledgeGaps();
+        const lowConfidenceResponses = this.metrics.thumbsDown;
+        const totalResponses = this.metrics.totalInteractions;
+        
+        // If 3+ knowledge gaps OR 30%+ negative feedback
+        if (gaps.length >= 3 || (totalResponses > 5 && lowConfidenceResponses / totalResponses > 0.3)) {
+            return {
+                shouldAsk: true,
+                reason: gaps.length >= 3 ? 'knowledge_gaps' : 'low_confidence',
+                gaps: gaps
+            };
+        }
+        
+        return { shouldAsk: false };
+    }
+    
+    getProactiveTrainingRequest() {
+        const request = this.shouldRequestTraining();
+        if (!request.shouldAsk) return null;
+        
+        if (request.reason === 'knowledge_gaps') {
+            const topGap = request.gaps[0];
+            return `📚 **Learning Request**\n\nI've noticed I've been corrected ${topGap.corrections} times on **${topGap.topic}**. Would you mind training me on this? Say "train me on ${topGap.topic}" to start a quick training session.`;
+        } else {
+            return `📚 **Learning Request**\n\nI've received some negative feedback recently. Could we do a quick training session to help me improve? What topic would you like to train me on?`;
+        }
+    }
+    
+    learnCodingStyle(codeSnippet) {
+        // Analyze code to learn user's style
+        const style = {
+            indentation: this.detectIndentation(codeSnippet),
+            quotes: this.detectQuoteStyle(codeSnippet),
+            semicolons: this.detectSemicolonUsage(codeSnippet),
+            namingConvention: this.detectNamingConvention(codeSnippet),
+            timestamp: new Date().toISOString()
+        };
+        
+        // Store in preferences
+        this.preferences.codingStyle = style;
+        this.saveLearningData();
+        
+        console.log('🎨 Coding style learned:', style);
+        return style;
+    }
+    
+    detectIndentation(code) {
+        const lines = code.split('\n');
+        let spaces = 0;
+        let tabs = 0;
+        
+        lines.forEach(line => {
+            if (line.startsWith('    ')) spaces++;
+            if (line.startsWith('\t')) tabs++;
+        });
+        
+        if (spaces > tabs) return spaces >= 4 ? '4 spaces' : '2 spaces';
+        if (tabs > 0) return 'tabs';
+        return 'unknown';
+    }
+    
+    detectQuoteStyle(code) {
+        const single = (code.match(/'/g) || []).length;
+        const double = (code.match(/"/g) || []).length;
+        const backtick = (code.match(/`/g) || []).length;
+        
+        if (backtick > single && backtick > double) return 'backticks';
+        if (single > double) return 'single';
+        if (double > single) return 'double';
+        return 'mixed';
+    }
+    
+    detectSemicolonUsage(code) {
+        const lines = code.split('\n').filter(l => l.trim().length > 0);
+        const withSemi = lines.filter(l => l.trim().endsWith(';')).length;
+        const ratio = withSemi / lines.length;
+        
+        if (ratio > 0.7) return 'always';
+        if (ratio < 0.3) return 'never';
+        return 'sometimes';
+    }
+    
+    detectNamingConvention(code) {
+        const camelCase = (code.match(/[a-z][A-Z]/g) || []).length;
+        const snake_case = (code.match(/[a-z]_[a-z]/g) || []).length;
+        
+        if (camelCase > snake_case) return 'camelCase';
+        if (snake_case > camelCase) return 'snake_case';
+        return 'mixed';
+    }
+    
+    getLearningHistory() {
+        // Generate timeline of learning events
+        const history = [];
+        
+        // Add correction milestones
+        if (this.corrections.length > 0) {
+            const firstCorrection = this.corrections[0];
+            history.push({
+                type: 'correction',
+                timestamp: firstCorrection.timestamp,
+                description: 'First correction received',
+                icon: '📝'
+            });
+            
+            if (this.corrections.length >= 5) {
+                const fifthCorrection = this.corrections[4];
+                history.push({
+                    type: 'milestone',
+                    timestamp: fifthCorrection.timestamp,
+                    description: '5 corrections learned',
+                    icon: '🎓'
+                });
+            }
+            
+            if (this.corrections.length >= 10) {
+                const tenthCorrection = this.corrections[9];
+                history.push({
+                    type: 'milestone',
+                    timestamp: tenthCorrection.timestamp,
+                    description: '10 corrections learned',
+                    icon: '🏆'
+                });
+            }
+        }
+        
+        // Add learned topics
+        this.metrics.topicsLearned.forEach(topic => {
+            history.push({
+                type: 'training',
+                timestamp: topic.timestamp,
+                description: `Completed training on ${topic.topic} (${topic.accuracy}% accuracy)`,
+                icon: '✅'
+            });
+        });
+        
+        // Sort by timestamp
+        history.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        
+        return history;
+    }
+    
+    verifyKnowledge(topic) {
+        // Check if knowledge on topic is solid
+        const relevantCorrections = this.corrections.filter(c => 
+            c.context && c.context.toLowerCase().includes(topic.toLowerCase())
+        );
+        
+        const learnedTopics = this.metrics.topicsLearned.filter(t =>
+            t.topic.toLowerCase().includes(topic.toLowerCase())
+        );
+        
+        const confidence = {
+            hasCorrections: relevantCorrections.length > 0,
+            hasTraining: learnedTopics.length > 0,
+            correctionCount: relevantCorrections.length,
+            trainingAccuracy: learnedTopics.length > 0 ? learnedTopics[0].accuracy : 0,
+            verified: relevantCorrections.length === 0 && learnedTopics.length > 0
+        };
+        
+        return confidence;
+    }
 }
 
   // ==========================================
@@ -2600,16 +2766,23 @@ async function regenerateResponse(index) {
                 universalMemory: getUniversalMemory()
             })
         });
-        if (!response.ok) throw new Error('API request failed');
+       if (!response.ok) throw new Error('API request failed');
         const data = await response.json();
         hideThinking();
-        addMessage('assistant', data.response);
-    } catch (error) {
-        hideThinking();
-        addMessage('assistant', 'I apologize, but I encountered an error. Please try again.');
-        console.error('Error:', error);
-    }
-}
+
+       addMessage('assistant', data.response);
+        
+        // Check if Crump should proactively request training
+        if (learningEngine && Math.random() < 0.15) { // 15% chance to check
+            const trainingRequest = learningEngine.getProactiveTrainingRequest();
+            if (trainingRequest) {
+                setTimeout(() => {
+                    addMessage('assistant', trainingRequest);
+                }, 2000); // Wait 2 seconds before asking
+            }
+        }
+        
+   } catch (error) {
 
 // ==========================================
 // 🔥 ENHANCED: SEND MESSAGE WITH AUTONOMOUS SUGGESTIONS
@@ -2711,6 +2884,12 @@ async function sendMessage() {
             const prefPatterns = learningEngine.recognizePattern(message, 'preference');
             if (prefPatterns.length > 0) {
                 console.log('🎯 Preference patterns detected:', prefPatterns);
+            }
+            
+            // Learn coding style from code snippets
+            if (message.includes('```') && message.length > 100) {
+                const style = learningEngine.learnCodingStyle(message);
+                console.log('🎨 Coding style updated:', style);
             }
         }
         
@@ -2824,11 +3003,10 @@ function getLocalResponse(message) {
         return "I was built by Gregory D. Crump Jr., an artist and innovator who created me to be a powerful yet personal AI assistant.";
     }
     if (lower.includes('what can you do') || lower.includes('your capabilities')) {
-        return "I can help you with:\n\n• Technical problems (debugging, code, algorithms)\n• Creative writing (stories, content, ideas)\n• Analysis and research\n• Voice conversations (speak to me!)\n• Image generation (just ask me to create an image)\n• Image analysis (upload any image and ask questions!)\n• Memory - I can remember important information about you\n• Multi-threaded conversations\n• Autonomous suggestions - I learn your patterns!\n\nTry saying 'Remember that...' to store information I should know about you!";
+        return "I can help you with:\n\n• Technical problems (debugging, code, algorithms)\n• Creative writing (stories, content, ideas)\n• Analysis and research\n• Voice conversations (speak to me!)\n• Image generation (just ask me to create an image)\n• Image analysis (upload any image and ask questions!)\n• Memory - I can remember important information about you\n• Multi-threaded conversations\n• Autonomous suggestions - I learn your patterns!\n• Self-improvement through training and corrections\n\n**Learning Commands:**\n• 'Remember that...' - Store information\n• 'Explain your reasoning' - See my thought process\n• 'Train me on X' - Interactive training\n• 'Show learning history' - View improvement timeline\n• 'Verify knowledge on X' - Test my understanding";
     }
     return null;
 }
-
 function shouldSearchWeb(message) {
     const lower = message.toLowerCase().trim();
     
@@ -2976,6 +3154,66 @@ function checkMemoryCommands(message) {
         trainingSession = null;
         
         return `🎓 **Training Session Complete!**\n\n**Topic:** ${results.topic}\n**Duration:** ${results.duration} seconds\n**Questions:** ${results.questionsAsked}\n**Correct:** ${results.correctAnswers}\n**Accuracy:** ${Math.round(accuracy * 100)}%\n**Grade:** ${grade}\n\n${accuracy >= 0.7 ? '✅ Great job! This topic has been marked as learned.' : '📚 Keep practicing! You can retry this training anytime.'}`;
+    }
+    
+    // Learning history command
+    if (lower === 'show learning history' || lower === 'learning timeline' || lower === 'my learning history') {
+        if (!learningEngine) {
+            return "Learning engine not initialized.";
+        }
+        
+        const history = learningEngine.getLearningHistory();
+        if (history.length === 0) {
+            return "No learning history yet. Start correcting me or doing training sessions to build your history!";
+        }
+        
+        let response = '📚 **Learning History Timeline**\n\n';
+        history.forEach(event => {
+            const date = new Date(event.timestamp).toLocaleDateString();
+            response += `${event.icon} **${date}** - ${event.description}\n`;
+        });
+        
+        return response;
+    }
+    
+    // Verify knowledge command
+    if (lower.startsWith('verify knowledge on') || lower.startsWith('test knowledge on')) {
+        const topic = lower.replace('verify knowledge on', '').replace('test knowledge on', '').trim();
+        if (!topic) {
+            return "What topic would you like me to verify my knowledge on?";
+        }
+        
+        const verification = learningEngine.verifyKnowledge(topic);
+        
+        let response = `🔍 **Knowledge Verification: ${topic}**\n\n`;
+        
+        if (verification.verified) {
+            response += `✅ **Status: VERIFIED**\n\n`;
+            response += `I have solid knowledge on this topic:\n`;
+            response += `• Completed training with ${verification.trainingAccuracy}% accuracy\n`;
+            response += `• No recent corrections needed\n\n`;
+            response += `I'm confident in my understanding of ${topic}!`;
+        } else if (verification.hasTraining && !verification.hasCorrections) {
+            response += `✓ **Status: GOOD**\n\n`;
+            response += `• Completed training with ${verification.trainingAccuracy}% accuracy\n`;
+            response += `• Minor corrections: ${verification.correctionCount}\n\n`;
+            response += `My knowledge is solid, with room for improvement.`;
+        } else if (verification.hasCorrections) {
+            response += `⚠️ **Status: NEEDS IMPROVEMENT**\n\n`;
+            response += `• Corrections received: ${verification.correctionCount}\n`;
+            if (verification.hasTraining) {
+                response += `• Training completed: ${verification.trainingAccuracy}% accuracy\n`;
+            } else {
+                response += `• No formal training yet\n`;
+            }
+            response += `\nWould you like to train me on ${topic} to improve my knowledge?`;
+        } else {
+            response += `❓ **Status: UNKNOWN**\n\n`;
+            response += `I don't have any training or corrections on this topic yet.\n\n`;
+            response += `Say "train me on ${topic}" to help me learn!`;
+        }
+        
+        return response;
     }
     
     return null;
@@ -3627,6 +3865,96 @@ Current Preferences:
     
     alert(statsMessage);
     console.log('📊 Full Learning Stats:', stats);
+}
+
+       function showLearningHistory() {
+    if (!learningEngine) return;
+    
+    const history = learningEngine.getLearningHistory();
+    const stats = learningEngine.getLearningStats();
+    
+    if (history.length === 0) {
+        addMessage('assistant', "No learning history yet. Start correcting me or doing training sessions to build your history!");
+        return;
+    }
+    
+    const historyHTML = `
+<div style="background: var(--bg-secondary); border: 2px solid var(--accent-primary); border-radius: 16px; padding: 24px; max-width: 700px;">
+    <div style="text-align: center; margin-bottom: 24px;">
+        <div style="font-size: 24px; font-weight: 700; color: var(--accent-primary); margin-bottom: 8px;">📚 LEARNING TIMELINE</div>
+        <div style="font-size: 14px; color: var(--text-tertiary);">My journey of improvement with you</div>
+    </div>
+    
+    <div style="margin-bottom: 24px; padding: 16px; background: rgba(255,255,255,0.05); border-radius: 12px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; text-align: center;">
+            <div>
+                <div style="font-size: 24px; font-weight: 700; color: var(--accent-primary);">${stats.totalCorrections}</div>
+                <div style="font-size: 11px; color: var(--text-tertiary);">Corrections</div>
+            </div>
+            <div>
+                <div style="font-size: 24px; font-weight: 700; color: #10b981;">${stats.preferences.codingStyle ? '✓' : '-'}</div>
+                <div style="font-size: 11px; color: var(--text-tertiary);">Style Learned</div>
+            </div>
+            <div>
+                <div style="font-size: 24px; font-weight: 700; color: #3b82f6;">${learningEngine.metrics.topicsLearned.length}</div>
+                <div style="font-size: 11px; color: var(--text-tertiary);">Topics Mastered</div>
+            </div>
+        </div>
+    </div>
+    
+    <div style="position: relative; padding-left: 24px; border-left: 2px solid var(--accent-primary);">
+        ${history.map((event, index) => {
+            const date = new Date(event.timestamp);
+            const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            
+            return `
+            <div style="position: relative; margin-bottom: 24px; padding-left: 16px;">
+                <div style="position: absolute; left: -36px; top: 0; width: 24px; height: 24px; background: var(--bg-secondary); border: 2px solid var(--accent-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px;">
+                    ${event.icon}
+                </div>
+                <div style="background: rgba(255,255,255,0.05); padding: 12px 16px; border-radius: 8px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
+                        ${event.description}
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-tertiary);">
+                        ${dateStr} at ${timeStr}
+                    </div>
+                </div>
+            </div>
+            `;
+        }).join('')}
+    </div>
+    
+    ${stats.preferences.codingStyle ? `
+    <div style="margin-top: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 3px solid #3b82f6; border-radius: 8px;">
+        <div style="font-weight: 600; color: #3b82f6; margin-bottom: 8px; font-size: 13px;">🎨 YOUR CODING STYLE</div>
+        <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+            <div>• Indentation: <strong>${stats.preferences.codingStyle.indentation}</strong></div>
+            <div>• Quotes: <strong>${stats.preferences.codingStyle.quotes}</strong></div>
+            <div>• Semicolons: <strong>${stats.preferences.codingStyle.semicolons}</strong></div>
+            <div>• Naming: <strong>${stats.preferences.codingStyle.namingConvention}</strong></div>
+        </div>
+        <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 8px; font-style: italic;">
+            I'll match this style in all code I generate for you.
+        </div>
+    </div>
+    ` : ''}
+</div>
+    `.trim();
+    
+    addMessage('assistant', '📚 Here\'s your complete learning history with me:');
+    
+    const chat = chats.find(c => c.id === currentChatId);
+    if (chat) {
+        const container = document.getElementById('chatContainer');
+        container.insertAdjacentHTML('beforeend', `
+            <div class="message" style="max-width: 100%; align-self: center;">
+                ${historyHTML}
+            </div>
+        `);
+        container.scrollTop = container.scrollHeight;
+    }
 }
 
         function showLearningDashboard() {
