@@ -1067,6 +1067,315 @@
             from { opacity: 0; }
             to { opacity: 1; }
         }
+        /* ==========================================
+   v3.2 CONTEXT AWARENESS ENGINE - STYLES
+   ========================================== */
+
+/* Context Cards Bar */
+.context-cards-container {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    padding: 12px 24px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.context-cards-container::-webkit-scrollbar {
+    display: none;
+}
+
+.context-cards {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.context-cards::-webkit-scrollbar {
+    display: none;
+}
+
+.context-card {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    position: relative;
+}
+
+.context-card:hover {
+    background: var(--bg-secondary);
+    border-color: var(--accent-primary);
+    transform: translateY(-2px);
+}
+
+.context-card.active {
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    color: var(--bg-primary);
+    border-color: var(--accent-primary);
+}
+
+.context-card-icon {
+    font-size: 14px;
+}
+
+.context-card-text {
+    font-weight: 500;
+}
+
+.context-card-remove {
+    margin-left: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.context-card-remove:hover {
+    opacity: 1;
+}
+
+.context-add-btn {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border: 1px dashed var(--border-color);
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.context-add-btn:hover {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+    background: var(--bg-tertiary);
+}
+
+/* Context Insights */
+.context-insight {
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05));
+    border-left: 3px solid #3b82f6;
+    border-radius: 8px;
+    animation: slideIn 0.3s ease;
+}
+
+.context-insight-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #3b82f6;
+}
+
+.context-insight-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 8px;
+}
+
+.context-insight-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.context-insight-action {
+    padding: 6px 12px;
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid #3b82f6;
+    border-radius: 6px;
+    color: #3b82f6;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.context-insight-action:hover {
+    background: #3b82f6;
+    color: white;
+    transform: translateY(-1px);
+}
+
+/* Context Picker Modal */
+.context-picker-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10, 22, 40, 0.9);
+    z-index: 10002;
+    backdrop-filter: blur(4px);
+}
+
+.context-picker-overlay.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.context-picker {
+    background: var(--bg-secondary);
+    border: 2px solid var(--accent-primary);
+    border-radius: 16px;
+    max-width: 500px;
+    width: 90%;
+    padding: 24px;
+}
+
+.context-picker-header {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent-primary);
+    margin-bottom: 16px;
+}
+
+.context-picker-input {
+    width: 100%;
+    padding: 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+
+.context-picker-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.context-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.context-suggestion {
+    padding: 8px 14px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.context-suggestion:hover {
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+    border-color: var(--accent-primary);
+}
+
+.context-picker-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.context-picker-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.context-picker-btn.primary {
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    color: var(--bg-primary);
+}
+
+.context-picker-btn.secondary {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+/* Continue Context Banner */
+.continue-context-banner {
+    padding: 12px 24px;
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(184, 148, 31, 0.05));
+    border-bottom: 1px solid var(--accent-primary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.continue-context-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.continue-context-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.continue-context-btn {
+    padding: 6px 14px;
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.continue-context-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);
+}
+
+.continue-context-btn.secondary {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
     </style>
 </head>
 <body>
@@ -1107,6 +1416,43 @@
         </aside>
 
         <main class="main-content">
+            <!-- v3.2 CONTEXT AWARENESS UI -->
+            <div id="continueContextBanner" style="display: none;"></div>
+
+            <div class="context-cards-container">
+                <div class="context-cards" id="contextCards">
+                    <!-- Context cards will be dynamically added here -->
+                </div>
+                <button class="context-add-btn" onclick="showContextPicker()" title="Add context">+</button>
+            </div>
+
+            <!-- Context Picker Modal -->
+            <div id="contextPickerOverlay" class="context-picker-overlay" onclick="closeContextPicker()">
+                <div class="context-picker" onclick="event.stopPropagation()">
+                    <div class="context-picker-header">Add Context</div>
+                    <input 
+                        type="text" 
+                        id="contextPickerInput" 
+                        class="context-picker-input" 
+                        placeholder="What are you working on?"
+                        onkeydown="if(event.key==='Enter') addCustomContext()"
+                    />
+                    <div class="context-suggestions">
+                        <div class="context-suggestion" onclick="addContextFromSuggestion('🔧 Debugging')">🔧 Debugging</div>
+                        <div class="context-suggestion" onclick="addContextFromSuggestion('📊 Data Analysis')">📊 Data Analysis</div>
+                        <div class="context-suggestion" onclick="addContextFromSuggestion('🎨 Design')">🎨 Design</div>
+                        <div class="context-suggestion" onclick="addContextFromSuggestion('📝 Writing')">📝 Writing</div>
+                        <div class="context-suggestion" onclick="addContextFromSuggestion('🚀 Deployment')">🚀 Deployment</div>
+                        <div class="context-suggestion" onclick="addContextFromSuggestion('🧪 Testing')">🧪 Testing</div>
+                        <div class="context-suggestion" onclick="addContextFromSuggestion('📖 Research')">📖 Research</div>
+                        <div class="context-suggestion" onclick="addContextFromSuggestion('💡 Planning')">💡 Planning</div>
+                    </div>
+                    <div class="context-picker-actions">
+                        <button class="context-picker-btn secondary" onclick="closeContextPicker()">Cancel</button>
+                        <button class="context-picker-btn primary" onclick="addCustomContext()">Add Context</button>
+                    </div>
+                </div>
+            </div>
             <header class="header">
                 <div class="header-left">
                     <button class="hamburger-btn" onclick="toggleSidebar()">☰</button>
@@ -1485,6 +1831,299 @@ let metaCommentaryEnabled = false;
         const messageDeduper = new MessageDeduplicator();
 
     // ==========================================
+        // ==========================================
+// v3.2 CONTEXT AWARENESS ENGINE
+// ==========================================
+
+class ContextAwarenessEngine {
+    constructor() {
+        this.contexts = [];
+        this.activeContext = null;
+        this.conversationTopics = [];
+        this.projectState = null;
+        this.loadContexts();
+    }
+    
+    loadContexts() {
+        const saved = localStorage.getItem('crump_contexts');
+        if (saved) {
+            const data = JSON.parse(saved);
+            this.contexts = data.contexts || [];
+            this.activeContext = data.activeContext || null;
+            this.conversationTopics = data.conversationTopics || [];
+            this.projectState = data.projectState || null;
+        }
+    }
+    
+    saveContexts() {
+        localStorage.setItem('crump_contexts', JSON.stringify({
+            contexts: this.contexts,
+            activeContext: this.activeContext,
+            conversationTopics: this.conversationTopics,
+            projectState: this.projectState
+        }));
+    }
+    
+    addContext(label, icon = '📌') {
+        const context = {
+            id: Date.now().toString(),
+            label,
+            icon,
+            createdAt: new Date().toISOString(),
+            messageCount: 0,
+            lastUsed: new Date().toISOString()
+        };
+        
+        this.contexts.push(context);
+        this.setActiveContext(context.id);
+        this.saveContexts();
+        this.renderContextCards();
+        
+        console.log('✅ Context added:', label);
+        return context;
+    }
+    
+    removeContext(contextId) {
+        this.contexts = this.contexts.filter(c => c.id !== contextId);
+        if (this.activeContext === contextId) {
+            this.activeContext = this.contexts.length > 0 ? this.contexts[0].id : null;
+        }
+        this.saveContexts();
+        this.renderContextCards();
+    }
+    
+    setActiveContext(contextId) {
+        this.activeContext = contextId;
+        const context = this.contexts.find(c => c.id === contextId);
+        if (context) {
+            context.lastUsed = new Date().toISOString();
+        }
+        this.saveContexts();
+        this.renderContextCards();
+    }
+    
+    getActiveContext() {
+        return this.contexts.find(c => c.id === this.activeContext);
+    }
+    
+    detectTopicFromMessage(message) {
+        const topicKeywords = {
+            '🔧 Debugging': ['debug', 'error', 'bug', 'fix', 'issue', 'problem'],
+            '💻 Code': ['function', 'code', 'class', 'api', 'algorithm'],
+            '🎨 Design': ['design', 'ui', 'ux', 'layout', 'style', 'css'],
+            '📊 Data': ['data', 'database', 'sql', 'query', 'analytics'],
+            '🚀 Deploy': ['deploy', 'production', 'build', 'release'],
+            '📝 Writing': ['write', 'article', 'content', 'blog', 'documentation'],
+            '🧪 Testing': ['test', 'testing', 'unit test', 'e2e'],
+            '📖 Learning': ['learn', 'understand', 'explain', 'tutorial']
+        };
+        
+        const lower = message.toLowerCase();
+        for (const [topic, keywords] of Object.entries(topicKeywords)) {
+            if (keywords.some(kw => lower.includes(kw))) {
+                return topic;
+            }
+        }
+        return null;
+    }
+    
+    trackMessage(role, content) {
+        // Update active context
+        if (this.activeContext) {
+            const context = this.contexts.find(c => c.id === this.activeContext);
+            if (context) {
+                context.messageCount++;
+                context.lastUsed = new Date().toISOString();
+                this.saveContexts();
+            }
+        }
+        
+        // Auto-detect and suggest topics
+        if (role === 'user' && this.contexts.length === 0) {
+            const topic = this.detectTopicFromMessage(content);
+            if (topic) {
+                setTimeout(() => {
+                    this.suggestContext(topic);
+                }, 1000);
+            }
+        }
+        
+        // Track conversation topics
+        const topic = this.detectTopicFromMessage(content);
+        if (topic && !this.conversationTopics.includes(topic)) {
+            this.conversationTopics.push(topic);
+            this.saveContexts();
+        }
+    }
+    
+    suggestContext(topic) {
+        const chat = chats.find(c => c.id === currentChatId);
+        if (!chat) return;
+        
+        const container = document.getElementById('chatContainer');
+        const insight = document.createElement('div');
+        insight.className = 'context-insight';
+        insight.innerHTML = `
+            <div class="context-insight-header">
+                <span>💡</span>
+                <span>Context Suggestion</span>
+            </div>
+            <div class="context-insight-text">
+                It looks like you're working on ${topic}. Would you like to add this as a context for better tracking?
+            </div>
+            <div class="context-insight-actions">
+                <button class="context-insight-action" onclick="contextEngine.addContext('${topic.replace(/'/g, "\\'")}'); this.closest('.context-insight').remove();">
+                    Add "${topic}"
+                </button>
+                <button class="context-insight-action" onclick="this.closest('.context-insight').remove();">
+                    No thanks
+                </button>
+            </div>
+        `;
+        
+        container.appendChild(insight);
+        container.scrollTop = container.scrollHeight;
+    }
+    
+    generateInsight() {
+        const context = this.getActiveContext();
+        if (!context) return null;
+        
+        const insights = [
+            {
+                text: `You've sent ${context.messageCount} messages about ${context.label}. Would you like me to summarize our progress?`,
+                actions: ['Summarize progress', 'Continue working']
+            },
+            {
+                text: `We're discussing ${context.label}. Need help with something specific?`,
+                actions: ['Get suggestions', 'Ask a question', 'Switch context']
+            },
+            {
+                text: `Working on ${context.label}. I can help with related tasks.`,
+                actions: ['Show related topics', 'Get best practices', 'Continue']
+            }
+        ];
+        
+        // Show insight after every 5 messages in a context
+        if (context.messageCount % 5 === 0 && context.messageCount > 0) {
+            return insights[Math.floor(Math.random() * insights.length)];
+        }
+        
+        return null;
+    }
+    
+    renderContextCards() {
+        const container = document.getElementById('contextCards');
+        if (!container) return;
+        
+        container.innerHTML = this.contexts.map(context => `
+            <div class="context-card ${context.id === this.activeContext ? 'active' : ''}" 
+                 onclick="contextEngine.setActiveContext('${context.id}')">
+                <span class="context-card-icon">${context.icon}</span>
+                <span class="context-card-text">${context.label}</span>
+                <span class="context-card-remove" onclick="event.stopPropagation(); contextEngine.removeContext('${context.id}')">×</span>
+            </div>
+        `).join('');
+    }
+    
+    showContinueBanner() {
+        if (this.contexts.length === 0) return;
+        
+        const lastContext = this.contexts[this.contexts.length - 1];
+        const banner = document.getElementById('continueContextBanner');
+        if (!banner) return;
+        
+        banner.className = 'continue-context-banner';
+        banner.style.display = 'flex';
+        banner.innerHTML = `
+            <div class="continue-context-text">
+                💬 Continue working on <strong>${lastContext.label}</strong>?
+            </div>
+            <div class="continue-context-actions">
+                <button class="continue-context-btn" onclick="contextEngine.setActiveContext('${lastContext.id}'); this.closest('.continue-context-banner').style.display='none'">
+                    Yes, continue
+                </button>
+                <button class="continue-context-btn secondary" onclick="this.closest('.continue-context-banner').style.display='none'">
+                    Start fresh
+                </button>
+            </div>
+        `;
+    }
+}
+
+// Initialize Context Engine
+const contextEngine = new ContextAwarenessEngine();
+
+// Context UI Functions
+function showContextPicker() {
+    document.getElementById('contextPickerOverlay').classList.add('active');
+    document.getElementById('contextPickerInput').focus();
+}
+
+function closeContextPicker() {
+    document.getElementById('contextPickerOverlay').classList.remove('active');
+    document.getElementById('contextPickerInput').value = '';
+}
+
+function addCustomContext() {
+    const input = document.getElementById('contextPickerInput');
+    const label = input.value.trim();
+    
+    if (!label) {
+        alert('Please enter a context label');
+        return;
+    }
+    
+    contextEngine.addContext(label);
+    closeContextPicker();
+    showNotification(`✓ Context "${label}" added`, 'success');
+}
+
+function addContextFromSuggestion(label) {
+    contextEngine.addContext(label);
+    closeContextPicker();
+    showNotification(`✓ Context "${label}" added`, 'success');
+}
+
+// Hook into existing addMessage function
+const originalAddMessage = addMessage;
+window.addMessage = function(role, content, imageUrl = null, fileData = null) {
+    // Track message in context engine
+    if (contextEngine) {
+        contextEngine.trackMessage(role, content);
+        
+        // Generate insights for assistant messages
+        if (role === 'assistant') {
+            setTimeout(() => {
+                const insight = contextEngine.generateInsight();
+                if (insight) {
+                    const container = document.getElementById('chatContainer');
+                    const insightEl = document.createElement('div');
+                    insightEl.className = 'context-insight';
+                    insightEl.innerHTML = `
+                        <div class="context-insight-header">
+                            <span>💡</span>
+                            <span>Context Insight</span>
+                        </div>
+                        <div class="context-insight-text">${insight.text}</div>
+                        <div class="context-insight-actions">
+                            ${insight.actions.map(action => `
+                                <button class="context-insight-action" onclick="this.closest('.context-insight').remove()">
+                                    ${action}
+                                </button>
+                            `).join('')}
+                        </div>
+                    `;
+                    container.appendChild(insightEl);
+                    container.scrollTop = container.scrollHeight;
+                }
+            }, 500);
+        }
+    }
+    
+    // Call original function
+    return originalAddMessage.call(this, role, content, imageUrl, fileData);
+};
 // AUTONOMOUS MESSAGE ENGINE
 // ==========================================
 class AutonomousMessageEngine {
@@ -2254,6 +2893,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize Learning Engine
     learningEngine = new LearningEngine();
     console.log('🧠 Learning Engine initialized', learningEngine.getLearningStats());
+    // Initialize Context Awareness Engine
+    contextEngine.renderContextCards();
+    
+    // Show continue banner if returning user with contexts
+    if (contextEngine.contexts.length > 0) {
+        setTimeout(() => {
+            contextEngine.showContinueBanner();
+        }, 1000);
+    }
     
     if (chats.length === 0) {
     } else {
