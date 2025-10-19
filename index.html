@@ -1245,6 +1245,17 @@
             </div>
 
             <div class="setting-group">
+                <label class="setting-label">🧠 Auto Meta-Commentary</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="metaToggle" onchange="toggleMetaCommentary()">
+                    <span class="toggle-slider"></span>
+                </label>
+                <small style="color: var(--text-tertiary); display: block; margin-top: 8px; font-size: 12px;">
+                    Automatically show reasoning process with each response
+                </small>
+            </div>
+
+            <div class="setting-group">
                 <label class="setting-label">Font Style</label>
                 <div class="font-options">
                     <button class="font-btn active" onclick="changeFont('modern')">Modern</button>
@@ -1354,7 +1365,8 @@
     CORRECTIONS: 'crump_corrections',
     USER_PREFERENCES: 'crump_user_preferences',
     PERFORMANCE_METRICS: 'crump_performance_metrics',
-    SHOW_CONFIDENCE: 'crump_show_confidence'
+    SHOW_CONFIDENCE: 'crump_show_confidence',
+    META_COMMENTARY: 'crump_meta_commentary'
 };
 
         // ==========================================
@@ -1383,13 +1395,15 @@ let autonomousCheckInterval = null;
         // Image generation state
 let preferredImageGenerator = 'pollinations'; // 'pollinations' or 'segmind'
 
-       // Learning Engine state
+      // Learning Engine state
 let learningEngine = null;
 let lastAssistantMessage = null;
 let awaitingCorrection = false;
 let showConfidence = false;
+let trainingSession = null;
+let metaCommentaryEnabled = false;
 
-        // Tutorial state
+// Tutorial state
         let currentTutorialStep = 1;
         const tutorialSteps = [
             {
@@ -1830,7 +1844,7 @@ class LearningEngine {
         return reasons.join(' • ');
     }
     
-    identifyKnowledgeGaps() {
+   identifyKnowledgeGaps() {
         // Analyze corrections to find patterns of weakness
         const topicCounts = {};
         
@@ -1847,6 +1861,132 @@ class LearningEngine {
             .map(([topic, count]) => ({ topic, corrections: count }));
         
         return gaps;
+    }
+    
+    startTrainingSession(topic) {
+        return {
+            topic: topic,
+            startTime: Date.now(),
+            questionsAsked: 0,
+            correctAnswers: 0,
+            active: true
+        };
+    }
+    
+    recordTrainingAnswer(session, wasCorrect) {
+        session.questionsAsked++;
+        if (wasCorrect) session.correctAnswers++;
+        
+        const accuracy = session.correctAnswers / session.questionsAsked;
+        return {
+            accuracy: Math.round(accuracy * 100),
+            progress: session.questionsAsked
+        };
+    }
+    
+    endTrainingSession(session) {
+        session.active = false;
+        session.endTime = Date.now();
+        session.duration = Math.round((session.endTime - session.startTime) / 1000);
+        
+        const accuracy = session.correctAnswers / session.questionsAsked;
+        
+        // Record as a learned topic if accuracy is good
+        if (accuracy >= 0.7) {
+            this.metrics.topicsLearned.push({
+                topic: session.topic,
+                accuracy: Math.round(accuracy * 100),
+                timestamp: new Date().toISOString()
+            });
+            this.saveLearningData();
+        }
+        
+        return session;
+    }
+    
+    recognizePattern(input, category = 'code') {
+        // Detect patterns in user input
+        const patterns = {
+            code: {
+                reactComponent: /function\s+\w+\s*\(.*\)\s*{|const\s+\w+\s*=\s*\(.*\)\s*=>/,
+                asyncFunction: /async\s+function|async\s+\(|await\s+/,
+                arrowFunction: /=>\s*{|=>\s*\(/,
+                classDefinition: /class\s+\w+/,
+                apiCall: /fetch\(|axios\.|\.get\(|\.post\(/,
+                useState: /useState\(/,
+                useEffect: /useEffect\(/
+            },
+            preference: {
+                wantsDetail: /explain|detail|how does|why|elaborate/i,
+                wantsBrief: /brief|quick|tldr|summary|short/i,
+                wantsCasual: /casual|friendly|relax/i,
+                wantsFormal: /formal|professional|business/i
+            }
+        };
+        
+        const detected = [];
+        const categoryPatterns = patterns[category] || {};
+        
+        for (const [name, regex] of Object.entries(categoryPatterns)) {
+            if (regex.test(input)) {
+                detected.push(name);
+            }
+        }
+        
+        return detected;
+    }
+    
+    getMetaCommentary(messageContent, confidence) {
+        // Generate explanation of reasoning
+        const commentary = {
+            approach: this.explainApproach(messageContent),
+            confidence: `I'm ${confidence.level.toLowerCase()} confidence (${confidence.score}%) because ${confidence.reason.toLowerCase()}`,
+            sources: this.identifySources(messageContent),
+            alternatives: this.suggestAlternatives(messageContent)
+        };
+        
+        return commentary;
+    }
+    
+    explainApproach(content) {
+        if (content.includes('```')) {
+            return "I analyzed the code structure and provided a technical solution based on best practices.";
+        }
+        if (content.length > 500) {
+            return "I provided a detailed explanation to ensure clarity and completeness.";
+        }
+        if (content.includes('?')) {
+            return "I addressed your question directly with relevant information.";
+        }
+        return "I crafted a response based on the context of your message.";
+    }
+    
+    identifySources(content) {
+        const sources = [];
+        
+        if (this.corrections.length > 0) {
+            sources.push("previous corrections you've given me");
+        }
+        if (this.metrics.totalInteractions > 10) {
+            sources.push("our conversation history");
+        }
+        sources.push("my training data");
+        
+        return sources;
+    }
+    
+    suggestAlternatives(content) {
+        const alternatives = [];
+        
+        if (content.includes('```')) {
+            alternatives.push("I could provide more detailed comments in the code");
+            alternatives.push("I could explain the logic step-by-step");
+        } else if (content.length > 300) {
+            alternatives.push("I could make this more concise");
+            alternatives.push("I could break this into bullet points");
+        }
+        
+        return alternatives;
     }
 }
 
@@ -2278,14 +2418,58 @@ function addMessage(role, content, imageUrl = null, fileData = null) {
     if (role === 'assistant') {
         lastAssistantMessage = { content, timestamp: Date.now() };
         
-        // Add confidence indicator if enabled
+       // Add confidence indicator if enabled
         if (showConfidence && learningEngine) {
             const confidence = learningEngine.calculateConfidence('general', false);
             addConfidenceIndicator(chat.messages.length - 1, confidence);
         }
+        
+        // Add meta-commentary if enabled
+        if (metaCommentaryEnabled && learningEngine && content.length > 100) {
+            setTimeout(() => {
+                const confidence = learningEngine.calculateConfidence('general', false);
+                const commentary = learningEngine.getMetaCommentary(content, confidence);
+                addMetaCommentary(chat.messages.length - 1, commentary);
+            }, 100);
+        }
     }
 }
 
+function addMetaCommentary(messageIndex, commentary) {
+    const container = document.getElementById('chatContainer');
+    const messages = container.querySelectorAll('.message');
+    const targetMessage = messages[messageIndex];
+    
+    if (!targetMessage) return;
+    
+    const wrapper = targetMessage.querySelector('.message-wrapper');
+    if (!wrapper) return;
+    
+    // Remove existing meta-commentary if present
+    const existing = wrapper.querySelector('.meta-commentary');
+    if (existing) existing.remove();
+    
+    const metaDiv = document.createElement('div');
+    metaDiv.className = 'meta-commentary';
+    metaDiv.style.cssText = `
+        margin-top: 8px;
+        padding: 12px;
+        background: rgba(59, 130, 246, 0.1);
+        border-left: 3px solid #3b82f6;
+        border-radius: 8px;
+        font-size: 12px;
+        color: var(--text-secondary);
+    `;
+    
+    metaDiv.innerHTML = `
+        <div style="font-weight: 600; color: #3b82f6; margin-bottom: 6px; font-size: 11px;">🧠 REASONING PROCESS</div>
+        <div style="margin-bottom: 4px;"><strong>Approach:</strong> ${commentary.approach}</div>
+        <div style="margin-bottom: 4px;"><strong>Confidence:</strong> ${commentary.confidence}</div>
+        ${commentary.alternatives.length > 0 ? `<div style="margin-top: 6px; font-size: 11px; font-style: italic;">💡 I could also: ${commentary.alternatives[0]}</div>` : ''}
+    `;
+    
+    wrapper.appendChild(metaDiv);
+}
 function addConfidenceIndicator(messageIndex, confidence) {
     const container = document.getElementById('chatContainer');
     const messages = container.querySelectorAll('.message');
@@ -2514,11 +2698,23 @@ async function sendMessage() {
                 console.log('🎓 Correction detected and learned!', correction);
             }
             
-            // Detect preference changes
+           // Detect preference changes
             learningEngine.detectPreferenceFromMessage(message);
+            
+            // Recognize code patterns
+            const codePatterns = learningEngine.recognizePattern(message, 'code');
+            if (codePatterns.length > 0) {
+                console.log('🔍 Code patterns detected:', codePatterns);
+            }
+            
+            // Recognize preference patterns
+            const prefPatterns = learningEngine.recognizePattern(message, 'preference');
+            if (prefPatterns.length > 0) {
+                console.log('🎯 Preference patterns detected:', prefPatterns);
+            }
         }
         
-        const imageText = currentFiles.length > 0 
+        const imageText = currentFiles.length > 0
     ? (message || `📎 ${currentFiles.length} image${currentFiles.length > 1 ? 's' : ''}`)
     : message;
 
@@ -2744,6 +2940,44 @@ function checkMemoryCommands(message) {
         }
         return "Memory clear cancelled.";
     }
+    
+    // Meta-commentary commands
+    if (lower === 'explain your reasoning' || lower === 'why did you say that' || lower === 'explain that' || lower === 'how did you decide') {
+        if (!lastAssistantMessage || !learningEngine) {
+            return "I don't have a recent response to explain. Ask me something first!";
+        }
+        
+        const confidence = learningEngine.calculateConfidence('general', false);
+        const commentary = learningEngine.getMetaCommentary(lastAssistantMessage.content, confidence);
+        
+        return `🧠 **META-COMMENTARY: My Reasoning Process**\n\n**Approach:**\n${commentary.approach}\n\n**Confidence:**\n${commentary.confidence}\n\n**Sources:**\n${commentary.sources.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n\n${commentary.alternatives.length > 0 ? `**Alternative Approaches:**\n${commentary.alternatives.map((a, i) => `${i + 1}. ${a}`).join('\n')}` : ''}`;
+    }
+    
+    // Training mode commands
+    if (lower.startsWith('train me on') || lower.startsWith('teach me about')) {
+        const topic = lower.replace('train me on', '').replace('teach me about', '').trim();
+        if (!topic) {
+            return "What topic would you like me to train you on? Say 'train me on [topic]' or 'teach me about [topic]'.";
+        }
+        
+        trainingSession = learningEngine.startTrainingSession(topic);
+        return `🎓 **Training Session Started: ${topic}**\n\nI'll ask you questions to test your knowledge. Answer honestly, and I'll track your progress!\n\nReady for the first question?\n\n**Q1:** Can you explain what ${topic} is in your own words?`;
+    }
+    
+    if (lower === 'end training' || lower === 'stop training') {
+        if (!trainingSession || !trainingSession.active) {
+            return "No active training session to end.";
+        }
+        
+        const results = learningEngine.endTrainingSession(trainingSession);
+        const accuracy = results.correctAnswers / results.questionsAsked;
+        const grade = accuracy >= 0.9 ? 'A' : accuracy >= 0.8 ? 'B' : accuracy >= 0.7 ? 'C' : accuracy >= 0.6 ? 'D' : 'F';
+        
+        trainingSession = null;
+        
+        return `🎓 **Training Session Complete!**\n\n**Topic:** ${results.topic}\n**Duration:** ${results.duration} seconds\n**Questions:** ${results.questionsAsked}\n**Correct:** ${results.correctAnswers}\n**Accuracy:** ${Math.round(accuracy * 100)}%\n**Grade:** ${grade}\n\n${accuracy >= 0.7 ? '✅ Great job! This topic has been marked as learned.' : '📚 Keep practicing! You can retry this training anytime.'}`;
+    }
+    
     return null;
 }
 
@@ -3217,6 +3451,7 @@ function loadSettings() {
     const autonomousInterval = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_INTERVAL) || 'balanced';
     const imageGenerator = localStorage.getItem(STORAGE_KEYS.IMAGE_GENERATOR) || 'pollinations';
     const showConfidenceSetting = localStorage.getItem(STORAGE_KEYS.SHOW_CONFIDENCE) === 'true';
+    const metaCommentarySetting = localStorage.getItem(STORAGE_KEYS.META_COMMENTARY) === 'true';
     const fontStyle = localStorage.getItem(STORAGE_KEYS.FONT_STYLE) || 'modern';
     const bgColor = localStorage.getItem(STORAGE_KEYS.BG_COLOR) || '#0a1628';
     
@@ -3224,9 +3459,10 @@ function loadSettings() {
     document.getElementById('autoVoiceToggle').checked = autoVoice;
     document.getElementById('autonomousToggle').checked = autonomousMessages;
     document.getElementById('confidenceToggle').checked = showConfidenceSetting;
+    document.getElementById('metaToggle').checked = metaCommentarySetting;
     
     showConfidence = showConfidenceSetting;
-
+    metaCommentaryEnabled = metaCommentarySetting;
     
     // Set autonomous interval preference
     autonomousEngine.setIntervalPreset(autonomousInterval);
@@ -3495,6 +3731,19 @@ Current Preferences:
         showNotification('Confidence indicators disabled', 'info');
         // Remove all existing confidence indicators
         document.querySelectorAll('.confidence-indicator').forEach(el => el.remove());
+    }
+}
+
+        function toggleMetaCommentary() {
+    metaCommentaryEnabled = document.getElementById('metaToggle').checked;
+    localStorage.setItem(STORAGE_KEYS.META_COMMENTARY, metaCommentaryEnabled);
+    
+    if (metaCommentaryEnabled) {
+        showNotification('✓ Auto meta-commentary enabled', 'success');
+    } else {
+        showNotification('Auto meta-commentary disabled', 'info');
+        // Remove all existing meta-commentary
+        document.querySelectorAll('.meta-commentary').forEach(el => el.remove());
     }
 }
 
