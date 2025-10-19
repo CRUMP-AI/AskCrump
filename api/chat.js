@@ -1,6 +1,6 @@
 // ==========================================
-// CRUMP AI - API HANDLER v2.14.0 UNLIMITED
-// DUPLICATE MESSAGE BUG FIXED + DEVICE RECOGNITION
+// CRUMP AI - API HANDLER v2.15.0 BUG FIXES
+// DUPLICATE MESSAGE BUG FIXED + DEVICE RECOGNITION + STRICTER SEARCH
 // ==========================================
 
 const CONFIG = {
@@ -363,9 +363,9 @@ function buildSystemPrompt(assistantName, universalMemory, novaActive, novaProto
 
 SYSTEM INFORMATION:
 
-Version: v2.14.0 Royal Edition (Unlimited Memory + Device Awareness)
+Version: v2.15.0 Royal Edition (Bug Fixes + Stricter Search)
 Your name: ${assistantName} ${assistantName !== 'Crump' ? '(personalized by user)' : ''}
-Capabilities: Voice I/O, image analysis, image generation, web search, unlimited memory, autonomous suggestions, device recognition
+Capabilities: Voice I/O, image analysis, image generation, web search, unlimited memory, device recognition
 NEVER mention specific AI providers (Claude, GPT, OpenAI, Anthropic)
 
 CORE PERSONALITY:
