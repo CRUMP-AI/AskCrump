@@ -1207,8 +1207,25 @@
                     <span class="toggle-slider"></span>
                 </label>
                 <small style="color: var(--text-tertiary); display: block; margin-top: 8px; font-size: 12px;">
-                    Crump can send unprompted check-ins and reminders (max once per 15min)
+                   <div class="setting-group">
+                <label class="setting-label">💭 Autonomous Messages</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="autonomousToggle" onchange="toggleAutonomousMessages()">
+                    <span class="toggle-slider"></span>
+                </label>
+                <small style="color: var(--text-tertiary); display: block; margin-top: 8px; font-size: 12px;">
+                    Crump can send unprompted check-ins and reminders
                 </small>
+                
+                <div id="autonomous-interval-settings" style="margin-top: 12px; display: none;">
+                    <label class="setting-label" style="font-size: 13px; margin-bottom: 8px;">Check-in Frequency</label>
+                    <div class="font-options">
+                        <button class="font-btn" id="interval-relaxed" onclick="setAutonomousInterval('relaxed')">🐌 Relaxed (15min)</button>
+                        <button class="font-btn active" id="interval-balanced" onclick="setAutonomousInterval('balanced')">⚡ Balanced (5min)</button>
+                        <button class="font-btn" id="interval-active" onclick="setAutonomousInterval('active')">🔥 Active (2min)</button>
+                        <button class="font-btn" id="interval-very-active" onclick="setAutonomousInterval('very-active')">💬 Very Active (1min)</button>
+                    </div>
+                </div>
             </div>
 
             <div class="setting-group">
@@ -1266,7 +1283,7 @@
             </div>
 
             <div class="version-info">
-                <div class="version-title">Crump AI v2.16 Royal Edition</div>
+                <div class="version-title">Crump AI v2.17 Royal Edition</div>
                 <div class="version-detail">Powered by N² Engine</div>
                 <div class="version-detail">Built by Gregory D. Crump Jr.</div>
                 <div class="status-indicator">
@@ -1302,9 +1319,11 @@
             FONT_STYLE: 'fontStyle',
             BG_COLOR: 'bgColor',
             SPLASH_SEEN: 'crump_splash_seen',
-    SUGGESTIONS: 'crump_suggestions',
-    AUTONOMOUS_MESSAGES: 'crump_autonomous_messages'
-        };
+   SUGGESTIONS: 'crump_suggestions',
+    AUTONOMOUS_MESSAGES: 'crump_autonomous_messages',
+    AUTONOMOUS_INTERVAL: 'crump_autonomous_interval',
+    IMAGE_GENERATOR: 'crump_image_generator'
+};
 
         // ==========================================
         // GLOBAL STATE
@@ -1328,6 +1347,9 @@
 let autonomousMessagesEnabled = false;
 let lastUserActivity = Date.now();
 let autonomousCheckInterval = null;
+
+        // Image generation state
+let preferredImageGenerator = 'pollinations'; // 'pollinations' or 'segmind'
 
         // Tutorial state
         let currentTutorialStep = 1;
@@ -1415,18 +1437,44 @@ let autonomousCheckInterval = null;
 class AutonomousMessageEngine {
     constructor() {
         this.lastAutonomousMessage = null;
-        this.MIN_INTERVAL = 15 * 60 * 1000; // 15 minutes
-        this.IDLE_THRESHOLD = 15 * 60 * 1000; // 15 minutes
+        this.intervalPreset = 'balanced'; // Default
+        this.updateIntervals();
         this.checkInterval = null;
     }
     
-    start() {
+    updateIntervals() {
+        // Set intervals based on user preference
+        const presets = {
+            'relaxed': { min: 15, idle: 15, check: 60 },
+            'balanced': { min: 5, idle: 5, check: 30 },
+            'active': { min: 2, idle: 2, check: 15 },
+            'very-active': { min: 1, idle: 1, check: 10 }
+        };
+        
+        const preset = presets[this.intervalPreset] || presets['balanced'];
+        this.MIN_INTERVAL = preset.min * 60 * 1000;
+        this.IDLE_THRESHOLD = preset.idle * 60 * 1000;
+        this.CHECK_FREQUENCY = preset.check * 1000;
+    }
+    
+    setIntervalPreset(preset) {
+        this.intervalPreset = preset;
+        this.updateIntervals();
+        
+        // Restart if already running
+        if (this.checkInterval) {
+            this.stop();
+            this.start();
+        }
+    }
+    
+   start() {
         if (this.checkInterval) return;
-        console.log('🤖 Autonomous messages activated');
+        console.log(`🤖 Autonomous messages activated (${this.intervalPreset} mode)`);
         
         this.checkInterval = setInterval(() => {
             this.checkForAutonomousMessage();
-        }, 60 * 1000); // Check every minute
+        }, this.CHECK_FREQUENCY);
     }
     
     stop() {
@@ -2535,6 +2583,17 @@ function shouldGenerateImage(message) {
     return imageKeywords.some(k => lower.includes(k)) && imageNouns.some(n => lower.includes(n));
 }
 
+        // Second image generator using Segmind API
+async function generateImageWithSegmind(prompt) {
+    const encodedPrompt = encodeURIComponent(prompt);
+    const timestamp = Date.now();
+    
+    // Segmind's free tier API endpoint
+    const imageUrl = `https://api.segmind.com/v1/sd1.5-txt2img?prompt=${encodedPrompt}&seed=${timestamp}&samples=1&scheduler=UniPC&num_inference_steps=25&guidance_scale=7.5&height=512&width=512`;
+    
+    return imageUrl;
+}
+
 function extractImagePrompt(message) {
     let prompt = message;
     const prefixes = ['generate an image of', 'create an image of', 'make an image of', 'draw an image of', 'show me an image of', 'generate a picture of', 'create a picture of', 'make a picture of', 'draw a picture of', 'show me a picture of', 'generate', 'create', 'make', 'draw', 'show me'];
@@ -2550,34 +2609,62 @@ function extractImagePrompt(message) {
 async function handleImageGeneration(message, retryCount = 0) {
     const prompt = extractImagePrompt(message);
     showThinking();
+    
     try {
-        const timestamp = Date.now();
-        const encodedPrompt = encodeURIComponent(prompt);
-        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${timestamp}&nologo=true&enhance=true&model=flux`;
+        let imageUrl;
+        let generatorName;
+        
+        // Try preferred generator first
+        if (preferredImageGenerator === 'segmind') {
+            imageUrl = await generateImageWithSegmind(prompt);
+            generatorName = 'Segmind';
+        } else {
+            // Pollinations (default)
+            const timestamp = Date.now();
+            const encodedPrompt = encodeURIComponent(prompt);
+            imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${timestamp}&nologo=true&enhance=true&model=flux`;
+            generatorName = 'Pollinations';
+        }
+        
         const img = new Image();
         img.onload = () => {
             hideThinking();
-            addMessage('assistant', `Here's your image based on: "${prompt}"`, imageUrl);
+            addMessage('assistant', `Here's your image based on: "${prompt}" (Generated with ${generatorName})`, imageUrl);
         };
+        
         img.onerror = () => {
-            if (retryCount < CONFIG.IMAGE_GENERATION_RETRIES) {
-                console.log(`Retry ${retryCount + 1}/${CONFIG.IMAGE_GENERATION_RETRIES}...`);
-                setTimeout(() => handleImageGeneration(message, retryCount + 1), 1000 * (retryCount + 1));
+            // Try alternate generator as fallback
+            console.log(`${generatorName} failed, trying alternate generator...`);
+            
+            let fallbackUrl;
+            let fallbackName;
+            
+            if (preferredImageGenerator === 'segmind') {
+                // Fallback to Pollinations
+                const timestamp = Date.now();
+                const encodedPrompt = encodeURIComponent(prompt);
+                fallbackUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${timestamp}&nologo=true&enhance=true&model=flux`;
+                fallbackName = 'Pollinations';
             } else {
-                const fallbackUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}`;
-                const fallbackImg = new Image();
-                fallbackImg.onload = () => {
-                    hideThinking();
-                    addMessage('assistant', `Here's your image based on: "${prompt}"`, fallbackUrl);
-                };
-                fallbackImg.onerror = () => {
-                    hideThinking();
-                    addMessage('assistant', `I encountered an error generating the image. The service might be temporarily unavailable. Please try again.`);
-                };
-                fallbackImg.src = fallbackUrl;
+                // Fallback to Segmind
+                fallbackUrl = generateImageWithSegmind(prompt);
+                fallbackName = 'Segmind';
             }
+            
+            const fallbackImg = new Image();
+            fallbackImg.onload = () => {
+                hideThinking();
+                addMessage('assistant', `Here's your image based on: "${prompt}" (Generated with ${fallbackName} - backup generator)`, fallbackUrl);
+            };
+            fallbackImg.onerror = () => {
+                hideThinking();
+                addMessage('assistant', `I encountered an error with both image generators. Please try again in a moment.`);
+            };
+            fallbackImg.src = fallbackUrl;
         };
+        
         img.src = imageUrl;
+        
     } catch (error) {
         hideThinking();
         addMessage('assistant', `Error generating image: ${error.message}`);
@@ -2776,13 +2863,32 @@ function loadSettings() {
     const voiceOutput = localStorage.getItem(STORAGE_KEYS.VOICE_OUTPUT) === 'true';
     const autoVoice = localStorage.getItem(STORAGE_KEYS.AUTO_VOICE) === 'true';
     const autonomousMessages = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_MESSAGES) === 'true';
+    const autonomousInterval = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_INTERVAL) || 'balanced';
+    const imageGenerator = localStorage.getItem(STORAGE_KEYS.IMAGE_GENERATOR) || 'pollinations';
     const fontStyle = localStorage.getItem(STORAGE_KEYS.FONT_STYLE) || 'modern';
     const bgColor = localStorage.getItem(STORAGE_KEYS.BG_COLOR) || '#0a1628';
     
-    document.getElementById('voiceToggle').checked = voiceOutput;
+   document.getElementById('voiceToggle').checked = voiceOutput;
     document.getElementById('autoVoiceToggle').checked = autoVoice;
     document.getElementById('autonomousToggle').checked = autonomousMessages;
     
+    // Set autonomous interval preference
+    autonomousEngine.setIntervalPreset(autonomousInterval);
+    if (autonomousMessages) {
+        document.getElementById('autonomous-interval-settings').style.display = 'block';
+    }
+    document.getElementById('interval-relaxed').classList.remove('active');
+    document.getElementById('interval-balanced').classList.remove('active');
+    document.getElementById('interval-active').classList.remove('active');
+    document.getElementById('interval-very-active').classList.remove('active');
+    document.getElementById(`interval-${autonomousInterval}`).classList.add('active');
+    
+    // Set image generator preference
+    preferredImageGenerator = imageGenerator;
+    if (imageGenerator === 'segmind') {
+        document.getElementById('genPollinations').classList.remove('active');
+        document.getElementById('genSegmind').classList.add('active');
+    }
     isVoiceEnabled = voiceOutput;
     isAutoVoiceEnabled = autoVoice;
     autonomousMessagesEnabled = autonomousMessages;
@@ -2803,11 +2909,54 @@ function toggleVoiceOutput() {
 
         function toggleAutonomousMessages() {
     const enabled = document.getElementById('autonomousToggle').checked;
+    const intervalSettings = document.getElementById('autonomous-interval-settings');
+    
     if (enabled) {
         startAutonomousMessages();
+        intervalSettings.style.display = 'block';
     } else {
         stopAutonomousMessages();
+        intervalSettings.style.display = 'none';
     }
+}
+
+        function setImageGenerator(generator) {
+    preferredImageGenerator = generator;
+    localStorage.setItem(STORAGE_KEYS.IMAGE_GENERATOR, generator);
+    
+    // Update button states
+    document.getElementById('genPollinations').classList.remove('active');
+    document.getElementById('genSegmind').classList.remove('active');
+    
+    if (generator === 'pollinations') {
+        document.getElementById('genPollinations').classList.add('active');
+        showNotification('✓ Using Pollinations AI for images', 'success');
+    } else {
+        document.getElementById('genSegmind').classList.add('active');
+        showNotification('✓ Using Segmind for images', 'success');
+    }
+}
+
+        function setAutonomousInterval(interval) {
+    autonomousEngine.setIntervalPreset(interval);
+    localStorage.setItem(STORAGE_KEYS.AUTONOMOUS_INTERVAL, interval);
+    
+    // Update button states
+    document.getElementById('interval-relaxed').classList.remove('active');
+    document.getElementById('interval-balanced').classList.remove('active');
+    document.getElementById('interval-active').classList.remove('active');
+    document.getElementById('interval-very-active').classList.remove('active');
+    
+    document.getElementById(`interval-${interval}`).classList.add('active');
+    
+    const labels = {
+        'relaxed': '🐌 Relaxed (15min)',
+        'balanced': '⚡ Balanced (5min)',
+        'active': '🔥 Active (2min)',
+        'very-active': '💬 Very Active (1min)'
+    };
+    
+    showNotification(`✓ Autonomous messages: ${labels[interval]}`, 'success');
 }
 
 function toggleAutoVoice() {
