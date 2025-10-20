@@ -2886,12 +2886,22 @@ function updateHeaderDisplay() {
     const novaActive = isNovaActive();
     const icon = novaActive ? '⭐' : '👑';
     const iconStyle = novaActive ? 'font-size: 20px; filter: drop-shadow(0 0 8px #d4af37);' : 'font-size: 20px;';
-    const logoText = document.querySelector('.logo-text');
-    const isMobile = window.innerWidth < 500;
-    if (isMobile) {
-        logoText.innerHTML = `<span style="${iconStyle}">${icon}</span> ${name}`;
-    } else {
-        logoText.innerHTML = `<span style="${iconStyle}">${icon}</span> ${name} <span style="font-size: 14px; color: #b8941f;">· N² Engine</span>`;
+    
+    // Update main header
+    const headerLogoText = document.querySelector('.header .logo-text');
+    if (headerLogoText) {
+        const isMobile = window.innerWidth < 500;
+        if (isMobile) {
+            headerLogoText.innerHTML = `<span style="${iconStyle}">${icon}</span> ${name}`;
+        } else {
+            headerLogoText.innerHTML = `<span style="${iconStyle}">${icon}</span> ${name} <span style="font-size: 14px; color: #b8941f;">· N² Engine</span>`;
+        }
+    }
+    
+    // Update sidebar logo (no crown here)
+    const sidebarLogoText = document.querySelector('.sidebar .logo-text');
+    if (sidebarLogoText) {
+        sidebarLogoText.textContent = `${name} · N² Engine`;
     }
 }
 
