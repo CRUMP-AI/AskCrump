@@ -1698,7 +1698,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// (Continue in next message due to length...)
+
 // ==========================================
 // SMART WELCOME SYSTEM WITH TIME AWARENESS
 // ==========================================
@@ -2518,7 +2518,6 @@ function shouldSearchWeb(message) {
     return hasTime && hasFactual;
 }
 
-// (Continue in next message...)
 // ==========================================
 // MEMORY SYSTEM
 // ==========================================
