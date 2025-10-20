@@ -299,7 +299,7 @@ let shownTips = [];
 // CONTEXT-AWARE SUGGESTIONS SYSTEM
 // ==========================================
 
-const contextSuggestions = [
+const contextsuggestions = [
     {
         id: 'image-generation-after-upload',
         trigger: 'image_upload',
@@ -392,7 +392,7 @@ const contextSuggestions = [
     }
 ];
 
-class ContextSuggestionEngine {
+class contextsuggestionsEngine {
     constructor() {
         this.shownSuggestions = [];
         this.lastSuggestionTime = 0;
@@ -407,7 +407,7 @@ class ContextSuggestionEngine {
         if (shown) this.shownSuggestions = JSON.parse(shown);
         if (cooldown) this.lastSuggestionTime = parseInt(cooldown);
         
-        contextSuggestionsEnabled = localStorage.getItem(STORAGE_KEYS.CONTEXT_SUGGESTIONS_ENABLED) === 'true';
+        contextsuggestionsEnabled = localStorage.getItem(STORAGE_KEYS.CONTEXT_SUGGESTIONS_ENABLED) === 'true';
     }
     
     saveState() {
@@ -480,7 +480,7 @@ class ContextSuggestionEngine {
     }
     
     shouldShowSuggestion() {
-        if (!contextSuggestionsEnabled) return false;
+        if (!contextsuggestionsEnabled) return false;
         const now = Date.now();
         if (now - this.lastSuggestionTime < SUGGESTION_COOLDOWN_MS) return false;
         return true;
@@ -491,7 +491,7 @@ class ContextSuggestionEngine {
         const context = this.analyzeContext(userMessage, chat);
         const now = Date.now();
         
-        const eligibleSuggestions = contextSuggestions.filter(suggestion => {
+        const eligibleSuggestions = contextsuggestions.filter(suggestion => {
             const lastShown = this.suggestionCooldowns.get(suggestion.id) || 0;
             if (now - lastShown < suggestion.cooldown) return false;
             if (!suggestion.condition(context)) return false;
@@ -568,7 +568,7 @@ class ContextSuggestionEngine {
     }
     
     checkAndShowSuggestion(userMessage, chat) {
-        if (!contextSuggestionsEnabled) return;
+        if (!contextsuggestionsEnabled) return;
         const suggestion = this.findRelevantSuggestion(userMessage, chat);
         if (suggestion) {
             setTimeout(() => {
@@ -578,28 +578,28 @@ class ContextSuggestionEngine {
     }
 }
 
-function toggleContextSuggestions() {
-    contextSuggestionsEnabled = document.getElementById('contextSuggestionsToggle').checked;
-    localStorage.setItem(STORAGE_KEYS.CONTEXT_SUGGESTIONS_ENABLED, contextSuggestionsEnabled);
+function togglecontextsuggestions() {
+    contextsuggestionsEnabled = document.getElementById('contextsuggestionsToggle').checked;
+    localStorage.setItem(STORAGE_KEYS.CONTEXT_SUGGESTIONS_ENABLED, contextsuggestionsEnabled);
     
-    if (contextSuggestionsEnabled) {
+    if (contextsuggestionsEnabled) {
         showNotification('✓ Context-aware suggestions enabled', 'success');
     } else {
         showNotification('Context suggestions disabled', 'info');
     }
 }
 
-function loadcontextsuggestionss() {
+function loadcontextsuggestions() {
     const enabled = localStorage.getItem(STORAGE_KEYS.CONTEXT_SUGGESTIONS_ENABLED) === 'true';
-    contextSuggestionsEnabled = enabled;
+    contextsuggestionsEnabled = enabled;
     
-    if (document.getElementById('contextSuggestionsToggle')) {
-        document.getElementById('contextSuggestionsToggle').checked = enabled;
+    if (document.getElementById('contextsuggestionsToggle')) {
+        document.getElementById('contextsuggestionsToggle').checked = enabled;
     }
 }
 
         // Context suggestions state
-let contextSuggestionsEnabled = false;
+let contextsuggestionsEnabled = false;
 let shownSuggestions = [];
 let lastSuggestionTime = 0;
 const SUGGESTION_COOLDOWN_MS = 5 * 60 * 1000;
@@ -608,7 +608,7 @@ const SUGGESTION_COOLDOWN_MS = 5 * 60 * 1000;
 // CONTEXT-AWARE SUGGESTIONS SYSTEM
 // ==========================================
 
-const contextSuggestions = [
+const contextsuggestions = [
     {
         id: 'image-generation-after-upload',
         trigger: 'image_upload',
@@ -701,7 +701,7 @@ const contextSuggestions = [
     }
 ];
 
-class ContextSuggestionEngine {
+class contextsuggestionsEngine {
     constructor() {
         this.shownSuggestions = [];
         this.lastSuggestionTime = 0;
@@ -716,7 +716,7 @@ class ContextSuggestionEngine {
         if (shown) this.shownSuggestions = JSON.parse(shown);
         if (cooldown) this.lastSuggestionTime = parseInt(cooldown);
         
-        contextSuggestionsEnabled = localStorage.getItem(STORAGE_KEYS.CONTEXT_SUGGESTIONS_ENABLED) === 'true';
+        contextsuggestionsEnabled = localStorage.getItem(STORAGE_KEYS.CONTEXT_SUGGESTIONS_ENABLED) === 'true';
     }
     
     saveState() {
@@ -789,7 +789,7 @@ class ContextSuggestionEngine {
     }
     
     shouldShowSuggestion() {
-        if (!contextSuggestionsEnabled) return false;
+        if (!contextsuggestionsEnabled) return false;
         const now = Date.now();
         if (now - this.lastSuggestionTime < SUGGESTION_COOLDOWN_MS) return false;
         return true;
@@ -800,7 +800,7 @@ class ContextSuggestionEngine {
         const context = this.analyzeContext(userMessage, chat);
         const now = Date.now();
         
-        const eligibleSuggestions = contextSuggestions.filter(suggestion => {
+        const eligibleSuggestions = contextsuggestions.filter(suggestion => {
             const lastShown = this.suggestionCooldowns.get(suggestion.id) || 0;
             if (now - lastShown < suggestion.cooldown) return false;
             if (!suggestion.condition(context)) return false;
@@ -877,7 +877,7 @@ class ContextSuggestionEngine {
     }
     
     checkAndShowSuggestion(userMessage, chat) {
-        if (!contextSuggestionsEnabled) return;
+        if (!contextsuggestionsEnabled) return;
         const suggestion = this.findRelevantSuggestion(userMessage, chat);
         if (suggestion) {
             setTimeout(() => {
@@ -887,23 +887,23 @@ class ContextSuggestionEngine {
     }
 }
 
-function toggleContextSuggestions() {
-    contextSuggestionsEnabled = document.getElementById('contextSuggestionsToggle').checked;
-    localStorage.setItem(STORAGE_KEYS.CONTEXT_SUGGESTIONS_ENABLED, contextSuggestionsEnabled);
+function togglecontextsuggestions() {
+    contextsuggestionsEnabled = document.getElementById('contextsuggestionsToggle').checked;
+    localStorage.setItem(STORAGE_KEYS.CONTEXT_SUGGESTIONS_ENABLED, contextsuggestionsEnabled);
     
-    if (contextSuggestionsEnabled) {
+    if (contextsuggestionsEnabled) {
         showNotification('✓ Context-aware suggestions enabled', 'success');
     } else {
         showNotification('Context suggestions disabled', 'info');
     }
 }
 
-function loadcontextsuggestionss() {
+function loadcontextsuggestions() {
     const enabled = localStorage.getItem(STORAGE_KEYS.CONTEXT_SUGGESTIONS_ENABLED) === 'true';
-    contextSuggestionsEnabled = enabled;
+    contextsuggestionsEnabled = enabled;
     
-    if (document.getElementById('contextSuggestionsToggle')) {
-        document.getElementById('contextSuggestionsToggle').checked = enabled;
+    if (document.getElementById('contextsuggestionsToggle')) {
+        document.getElementById('contextsuggestionsToggle').checked = enabled;
     }
 }
         // ==========================================
@@ -2045,7 +2045,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('🧠 Learning Engine initialized', learningEngine.getLearningStats());
     
     // Initialize Suggestion Engine
-    suggestionEngine = new ContextSuggestionEngine();
+    suggestionEngine = new contextsuggestionsEngine();
     console.log('💡 Suggestion Engine initialized');
     
     // Initialize Context Awareness Engine
@@ -2791,7 +2791,7 @@ removeFile();
        addMessage('assistant', data.response);
 
          // Check for context-aware suggestions
-        if (suggestionEngine && contextSuggestionsEnabled) {
+        if (suggestionEngine && contextsuggestionsEnabled) {
             suggestionEngine.checkAndShowSuggestion(message, chat);
         }
 
@@ -3645,7 +3645,7 @@ function loadSettings() {
         autonomousEngine.start();
     }
 loadFeatureReminders();
-    loadcontextsuggestionss();
+    loadcontextsuggestions();
     
     changeFont(fontStyle);
     changeBgColor(bgColor);
