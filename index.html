@@ -1548,7 +1548,20 @@
 
            <div class="setting-group">
                 <label class="setting-label">💭 Autonomous Messages</label>
-                <label class="toggle-switch">
+                <label class="toggle-switch"></div>
+
+<div class="setting-group">
+    <label class="setting-label">💡 Feature Reminders</label>
+    <label class="toggle-switch">
+        <input type="checkbox" id="featureRemindersToggle" onchange="toggleFeatureReminders()">
+        <span class="toggle-slider"></span>
+    </label>
+    <small style="color: var(--text-tertiary); display: block; margin-top: 8px; font-size: 12px;">
+        Crump will occasionally remind you of helpful features during idle time
+    </small>
+</div>
+
+<div class="setting-group">
                     <input type="checkbox" id="autonomousToggle" onchange="toggleAutonomousMessages()">
                     <span class="toggle-slider"></span>
                 </label>
@@ -1714,6 +1727,8 @@
     PERFORMANCE_METRICS: 'crump_performance_metrics',
     SHOW_CONFIDENCE: 'crump_show_confidence',
     META_COMMENTARY: 'crump_meta_commentary'
+             FEATURE_REMINDERS: 'crump_feature_reminders',
+            SHOWN_TIPS: 'crump_shown_tips'
 };
 
         // ==========================================
@@ -1887,6 +1902,64 @@ let metaCommentaryEnabled = false;
             "Time to turn ideas into reality. What's up?",
             "Let's do this. What's on the agenda?"
         ];
+
+// Feature reminder tips
+const featureTips = [
+    {
+        id: 'image-generation',
+        message: "Just thinking—you can ask me to generate images anytime. Just say 'create an image of...' and I'll handle it.",
+        category: 'creative'
+    },
+    {
+        id: 'image-analysis',
+        message: "Quick tip: You can upload images and ask me questions about them. I can analyze, describe, or extract text.",
+        category: 'analysis'
+    },
+    {
+        id: 'voice-input',
+        message: "By the way, see that microphone button? You can talk to me instead of typing. Makes long messages easier.",
+        category: 'interface'
+    },
+    {
+        id: 'memory-system',
+        message: "Heads up: Tell me to 'Remember that...' and I'll store important info permanently. I can recall it anytime.",
+        category: 'memory'
+    },
+    {
+        id: 'context-cards',
+        message: "Notice those context cards at the top? You can organize conversations by project. Helps me stay focused on what you're working on.",
+        category: 'organization'
+    },
+    {
+        id: 'learning-feedback',
+        message: "Saw those 👍👎 buttons? Use them to help me learn your preferences. I actually get smarter from your feedback.",
+        category: 'learning'
+    },
+    {
+        id: 'nova-protocol',
+        message: "For deep technical work, type 'Nova-Secure' to activate my full creator context. I'll have access to your complete project history.",
+        category: 'advanced'
+    },
+    {
+        id: 'corrections',
+        message: "If I get something wrong, just say 'no, actually...' and I'll learn from it. I track corrections to improve over time.",
+        category: 'learning'
+    },
+    {
+        id: 'code-style',
+        message: "Fun fact: I learn your coding style automatically. Show me code a few times and I'll match your formatting preferences.",
+        category: 'technical'
+    },
+    {
+        id: 'multi-chat',
+        message: "You can have multiple conversations going. Create new chats to separate different projects or topics.",
+        category: 'organization'
+    }
+];
+
+// Feature reminders state
+let featureRemindersEnabled = false;
+let shownTips = [];
 
         // ==========================================
         // ANTI-DUPLICATE SYSTEM
@@ -2285,16 +2358,45 @@ class AutonomousMessageEngine {
     
     const now = Date.now();
     const timeSinceLastActivity = now - lastUserActivity;
-        const timeSinceLastAutonomous = this.lastAutonomousMessage ? now - this.lastAutonomousMessage : Infinity;
-        
-        // Don't send if we sent one recently
-        if (timeSinceLastAutonomous < this.MIN_INTERVAL) return;
-        
-        // Check for idle user (15+ min no activity)
-        if (timeSinceLastActivity >= this.IDLE_THRESHOLD) {
-            this.sendAutonomousMessage(this.getIdleMessage());
+    const timeSinceLastAutonomous = this.lastAutonomousMessage ? now - this.lastAutonomousMessage : Infinity;
+    
+    // Don't send if we sent one recently
+    if (timeSinceLastAutonomous < this.MIN_INTERVAL) return;
+    
+    // Check if we should show a feature tip instead (20% chance)
+    if (shouldShowFeatureTip() && timeSinceLastActivity >= this.IDLE_THRESHOLD) {
+        const tip = getRandomFeatureTip();
+        if (tip) {
+            this.sendAutonomousMessage(tip.message);
             return;
         }
+    }
+    
+    // Check for idle user (based on preference)
+    if (timeSinceLastActivity >= this.IDLE_THRESHOLD) {
+        this.sendAutonomousMessage(this.getIdleMessage());
+        return;
+    }
+    
+    // Check for late night work (2am-5am)
+    const hour = new Date().getHours();
+    if (hour >= 2 && hour < 5) {
+        this.sendAutonomousMessage(this.getLateNightMessage());
+        return;
+    }
+    
+    // Check for long session (2+ hours)
+    const memory = getUniversalMemory();
+    if (memory.conversationHistory.lastInteraction) {
+        const sessionStart = new Date(memory.conversationHistory.lastInteraction);
+        const sessionDuration = (now - sessionStart.getTime()) / (1000 * 60 * 60);
+        
+        if (sessionDuration >= 2 && timeSinceLastActivity < 5 * 60 * 1000) {
+            this.sendAutonomousMessage(this.getLongSessionMessage());
+            return;
+        }
+    }
+}
         
         // Check for late night work (2am-5am)
         const hour = new Date().getHours();
@@ -4429,6 +4531,67 @@ function setupVoiceRecognition() {
     }
 }
 
+      // ==========================================
+// FEATURE REMINDERS SYSTEM
+// ==========================================
+function toggleFeatureReminders() {
+    featureRemindersEnabled = document.getElementById('featureRemindersToggle').checked;
+    localStorage.setItem(STORAGE_KEYS.FEATURE_REMINDERS, featureRemindersEnabled);
+    
+    if (featureRemindersEnabled) {
+        showNotification('✓ Feature reminders enabled', 'success');
+    } else {
+        showNotification('Feature reminders disabled', 'info');
+    }
+}
+
+function loadFeatureReminders() {
+    const enabled = localStorage.getItem(STORAGE_KEYS.FEATURE_REMINDERS) === 'true';
+    const shown = localStorage.getItem(STORAGE_KEYS.SHOWN_TIPS);
+    
+    featureRemindersEnabled = enabled;
+    shownTips = shown ? JSON.parse(shown) : [];
+    
+    if (document.getElementById('featureRemindersToggle')) {
+        document.getElementById('featureRemindersToggle').checked = enabled;
+    }
+}
+
+function getRandomFeatureTip() {
+    if (!featureRemindersEnabled) return null;
+    
+    // Filter out tips we've shown recently (within last 20 tips)
+    const recentlyShown = shownTips.slice(-20);
+    const availableTips = featureTips.filter(tip => !recentlyShown.includes(tip.id));
+    
+    // If we've shown all tips, reset and start over
+    if (availableTips.length === 0) {
+        shownTips = [];
+        localStorage.setItem(STORAGE_KEYS.SHOWN_TIPS, JSON.stringify(shownTips));
+        return featureTips[Math.floor(Math.random() * featureTips.length)];
+    }
+    
+    // Pick a random available tip
+    const tip = availableTips[Math.floor(Math.random() * availableTips.length)];
+    
+    // Mark as shown
+    shownTips.push(tip.id);
+    localStorage.setItem(STORAGE_KEYS.SHOWN_TIPS, JSON.stringify(shownTips));
+    
+    return tip;
+}
+
+function shouldShowFeatureTip() {
+    if (!featureRemindersEnabled) return false;
+    
+    // Show feature tip 20% of the time during autonomous checks
+    return Math.random() < 0.2;
+}
+
+// ==========================================
+// AUTONOMOUS MESSAGES CONTROL
+// ==========================================  
+
         // ==========================================
 // AUTONOMOUS MESSAGES CONTROL
 // ==========================================
@@ -4543,6 +4706,7 @@ function loadSettings() {
     if (autonomousMessages) {
         autonomousEngine.start();
     }
+loadFeatureReminders();
     
     changeFont(fontStyle);
     changeBgColor(bgColor);
