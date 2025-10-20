@@ -1746,6 +1746,29 @@ SUGGESTION_COOLDOWN: 'crump_suggestion_cooldown'
 };
 
         // ==========================================
+        // FETCH WITH TIMEOUT HELPER
+        // ==========================================
+        async function fetchWithTimeout(url, options = {}, timeout = 9000) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+            
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                return response;
+            } catch (error) {
+                clearTimeout(timeoutId);
+                if (error.name === 'AbortError') {
+                    throw new Error('Request timed out after ' + (timeout/1000) + ' seconds');
+                }
+                throw error;
+            }
+        }
+
+        // ==========================================
         // GLOBAL STATE
         // ==========================================
         let currentChatId = null;
@@ -4244,7 +4267,7 @@ async function regenerateResponse(index) {
     showThinking();
     try {
         const memoryContext = getMemoryContext();
-        const response = await fetch('/api/chat', {
+        const response = await fetchWithTimeout('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -4453,7 +4476,7 @@ removeFile();
             chatTitle: chat.title
         };
         
-        const response = await fetch('/api/chat', {
+        const response = await fetchWithTimeout('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -5840,6 +5863,24 @@ const notificationStyle = document.createElement('style');
 notificationStyle.textContent = `@keyframes slideInNotification{from{transform:translateX(400px);opacity:0;}to{transform:translateX(0);opacity:1;}}@keyframes slideOutNotification{from{transform:translateX(0);opacity:1;}to{transform:translateX(400px);opacity:0;}}`;
 document.head.appendChild(notificationStyle);
 
+    </script>
+    
+    <script>
+        // ==========================================
+        // BLOCK PHANTOM API CALLS
+        // ==========================================
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+            const url = args[0];
+            if (typeof url === 'string' && 
+                (url.includes('/api/usage-summary') || 
+                 url.includes('/api/jwt') || 
+                 url.includes('/api/toolbar'))) {
+                console.warn('🚫 Blocked phantom API call:', url);
+                return Promise.reject(new Error('Blocked phantom API call'));
+            }
+            return originalFetch.apply(this, args);
+        };
     </script>
 </body>
 </html>
