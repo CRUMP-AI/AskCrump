@@ -1726,7 +1726,7 @@
     USER_PREFERENCES: 'crump_user_preferences',
     PERFORMANCE_METRICS: 'crump_performance_metrics',
     SHOW_CONFIDENCE: 'crump_show_confidence',
-    META_COMMENTARY: 'crump_meta_commentary'
+    META_COMMENTARY: 'crump_meta_commentary',
              FEATURE_REMINDERS: 'crump_feature_reminders',
             SHOWN_TIPS: 'crump_shown_tips'
 };
@@ -2397,26 +2397,6 @@ class AutonomousMessageEngine {
         }
     }
 }
-        
-        // Check for late night work (2am-5am)
-        const hour = new Date().getHours();
-        if (hour >= 2 && hour < 5) {
-            this.sendAutonomousMessage(this.getLateNightMessage());
-            return;
-        }
-        
-        // Check for long session (2+ hours)
-        const memory = getUniversalMemory();
-        if (memory.conversationHistory.lastInteraction) {
-            const sessionStart = new Date(memory.conversationHistory.lastInteraction);
-            const sessionDuration = (now - sessionStart.getTime()) / (1000 * 60 * 60);
-            
-            if (sessionDuration >= 2 && timeSinceLastActivity < 5 * 60 * 1000) {
-                this.sendAutonomousMessage(this.getLongSessionMessage());
-                return;
-            }
-        }
-    }
     
     sendAutonomousMessage(message) {
         if (!message) return;
