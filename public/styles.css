@@ -529,8 +529,9 @@ body.mono-font {
     top: calc(100% + 8px);
     left: 0;
     min-width: 240px;
-    max-height: 400px;
+    max-height: 350px;
     overflow-y: auto;
+    overflow-x: hidden;
     background: var(--bg-secondary);
     border: 1px solid var(--accent-primary);
     border-radius: 12px;
