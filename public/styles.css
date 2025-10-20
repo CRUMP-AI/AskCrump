@@ -31,6 +31,8 @@ body {
     height: 100vh;
     overflow: hidden;
     display: flex;
+    -webkit-text-size-adjust: 100%;
+    touch-action: manipulation;
 }
 
 /* Font Styles */
@@ -509,7 +511,7 @@ body.mono-font {
     border: 1px solid rgba(212, 175, 55, 0.3);
     border-radius: 8px;
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: 16px;
     transition: all 0.2s;
 }
 
@@ -541,6 +543,12 @@ body.mono-font {
     transform: translateY(-10px);
     transition: all 0.2s ease;
     z-index: 1000;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.context-dropdown-menu::-webkit-scrollbar {
+    display: none;
 }
 
 .context-dropdown-menu.active {
@@ -585,16 +593,6 @@ body.mono-font {
 
 .context-dropdown-menu button:last-child {
     margin-bottom: 0;
-}
-
-/* Scrollbar for dropdown */
-.context-dropdown-menu::-webkit-scrollbar {
-    width: 6px;
-}
-
-.context-dropdown-menu::-webkit-scrollbar-thumb {
-    background: var(--accent-primary);
-    border-radius: 3px;
 }
 
 /* ==========================================
@@ -664,18 +662,18 @@ body.mono-font {
 
 .message-actions {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     margin-top: 8px;
     flex-wrap: wrap;
 }
 
 .message-action-btn {
-    padding: 6px 12px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
+    padding: 4px 10px;
+    background: transparent;
+    border: 1px solid rgba(212, 175, 55, 0.2);
     border-radius: 6px;
-    color: var(--text-secondary);
-    font-size: 11px;
+    color: var(--text-tertiary);
+    font-size: 10px;
     cursor: pointer;
     transition: all 0.2s;
 }
@@ -788,7 +786,7 @@ textarea {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     color: var(--text-primary);
-    font-size: 14px;
+    font-size: 16px;
     font-family: inherit;
     resize: none;
     min-height: 48px;
@@ -1189,5 +1187,27 @@ textarea:focus {
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+@keyframes slideInNotification {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutNotification {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(400px);
+        opacity: 0;
     }
 }
