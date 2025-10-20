@@ -2295,7 +2295,7 @@ function toggleContextSuggestions() {
     }
 }
 
-function loadContextSuggestions() {
+function loadcontextsuggestionss() {
     const enabled = localStorage.getItem(STORAGE_KEYS.CONTEXT_SUGGESTIONS_ENABLED) === 'true';
     contextSuggestionsEnabled = enabled;
     
@@ -2604,7 +2604,7 @@ function toggleContextSuggestions() {
     }
 }
 
-function loadContextSuggestions() {
+function loadcontextsuggestionss() {
     const enabled = localStorage.getItem(STORAGE_KEYS.CONTEXT_SUGGESTIONS_ENABLED) === 'true';
     contextSuggestionsEnabled = enabled;
     
@@ -5351,7 +5351,7 @@ function loadSettings() {
         autonomousEngine.start();
     }
 loadFeatureReminders();
-    loadContextSuggestions();
+    loadcontextsuggestionss();
     
     changeFont(fontStyle);
     changeBgColor(bgColor);
