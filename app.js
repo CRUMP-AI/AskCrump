@@ -4156,22 +4156,3 @@ function updateCharCount() {
 const notificationStyle = document.createElement('style');
 notificationStyle.textContent = `@keyframes slideInNotification{from{transform:translateX(400px);opacity:0;}to{transform:translateX(0);opacity:1;}}@keyframes slideOutNotification{from{transform:translateX(0);opacity:1;}to{transform:translateX(400px);opacity:0;}}`;
 document.head.appendChild(notificationStyle);
-
-    </script>
-    
-    <script>
-        // ==========================================
-        // BLOCK PHANTOM API CALLS
-        // ==========================================
-        const originalFetch = window.fetch;
-        window.fetch = function(...args) {
-            const url = args[0];
-            if (typeof url === 'string' && 
-                (url.includes('/api/usage-summary') || 
-                 url.includes('/api/jwt') || 
-                 url.includes('/api/toolbar'))) {
-                console.warn('🚫 Blocked phantom API call:', url);
-                return Promise.reject(new Error('Blocked phantom API call'));
-            }
-            return originalFetch.apply(this, args);
-        };
