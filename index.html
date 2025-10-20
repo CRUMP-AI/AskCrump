@@ -1668,7 +1668,7 @@
 
 
             <div class="version-info">
-                <div class="version-title">Crump AI v3.1 Proactive Learning</div>
+                <div class="version-title">Crump AI v3.3 phase 1</div>
                 <div class="version-detail">Powered by N² Engine</div>
                 <div class="version-detail">Built by Gregory D. Crump Jr.</div>
                 <div class="status-indicator">
@@ -3364,9 +3364,8 @@ function addMessage(role, content, imageUrl = null, fileData = null) {
             addConfidenceIndicator(chat.messages.length - 1, confidence);
         }
         
-        // Add meta-commentary if enabled
-        if (metaCommentaryEnabled && learningEngine && content.length > 100) {
-            setTimeout(() => {
+       // Add meta-commentary if enabled (but NOT on errors)
+    if (metaCommentaryEnabled && learningEngine && !isError && content.length > 100) {            setTimeout(() => {
                 const confidence = learningEngine.calculateConfidence('general', false);
                 const commentary = learningEngine.getMetaCommentary(content, confidence);
                 addMetaCommentary(chat.messages.length - 1, commentary);
@@ -3546,6 +3545,12 @@ async function regenerateResponse(index) {
 
        addMessage('assistant', data.response);
 
+        // Manual unlock on success
+        isSending = false;
+        input.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
+        console.log('🔓 UNLOCKED (success)');
+
          // Check if Crump should proactively request training
         if (learningEngine && Math.random() < 0.15) { // 15% chance to check
             const trainingRequest = learningEngine.getProactiveTrainingRequest();
@@ -3618,7 +3623,6 @@ async function sendMessage() {
                 input.disabled = false;
                 if (sendBtn) sendBtn.disabled = false;
             }, 800);
-            return;
         }
 
         if (detectNovaDeactivation(message)) {
@@ -3758,14 +3762,19 @@ removeFile();
                     addMessage('assistant', trainingRequest);
                 }, 2000); // Wait 2 seconds before asking
             }
-        } 
+        }
+        // Manual unlock on success
+        isSending = false;
+        input.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
+        console.log('🔓 UNLOCKED (success)');
         
-  } catch (error) {
+    } catch (error) {
         hideThinking();
-        enterErrorState(); // NEW: Trigger error state
+        enterErrorState();
         console.error('Error details:', error);
 
-         // Restore context from backup if corruption occurred
+        // Restore context from backup if corruption occurred
         if (contextBackup && chat.messages.length !== contextBackup.messages.length) {
             console.log('🔧 Restoring context from backup');
             chat.messages = contextBackup.messages;
@@ -3782,11 +3791,12 @@ removeFile();
         }
         
         addMessage('assistant', errorMsg + '\n\n(Your conversation history is preserved - just resend when ready)');
-    } finally {
+        
+        // Manual unlock on error
         isSending = false;
         input.disabled = false;
         if (sendBtn) sendBtn.disabled = false;
-        console.log('🔓 UNLOCKED');
+        console.log('🔓 UNLOCKED (error)');
     }
 }
 
