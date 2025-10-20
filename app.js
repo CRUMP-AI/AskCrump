@@ -1,4 +1,3 @@
- <script>
         // ==========================================
         // CONFIGURATION CONSTANTS - FIXED
         // ==========================================
@@ -4176,4 +4175,3 @@ document.head.appendChild(notificationStyle);
             }
             return originalFetch.apply(this, args);
         };
-    </script>
