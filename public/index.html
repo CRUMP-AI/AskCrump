@@ -104,4 +104,184 @@
         <div id="continueContextBanner" class="continue-context-banner" style="display: none;"></div>
 
         <!-- Chat Container -->
-        <di
+        <div id="chatContainer" class="chat-container"></div>
+
+        <!-- Input Area -->
+        <div class="input-area">
+            <!-- File Preview -->
+            <div id="filePreview" class="file-preview">
+                <img id="filePreviewImage" alt="Preview" />
+                <div class="file-preview-info">
+                    <div id="fileName"></div>
+                    <div id="fileSize"></div>
+                </div>
+                <button class="file-preview-remove" onclick="removeFile()">×</button>
+            </div>
+
+            <div class="input-wrapper">
+                <button class="icon-btn" onclick="attachFile()" title="Attach Image">📎</button>
+                <button class="icon-btn" id="voiceBtn" onclick="toggleVoiceInput()" title="Voice Input">🎤</button>
+                <textarea 
+                    id="userInput" 
+                    placeholder="Message Crump AI..." 
+                    rows="1"
+                    oninput="autoResize(this); updateCharCount();"
+                    onkeydown="handleKeyPress(event)"
+                ></textarea>
+                <div id="charCount" class="char-count"></div>
+                <button class="icon-btn primary" onclick="sendMessage()" title="Send Message">➤</button>
+            </div>
+            <input type="file" id="fileInput" accept="image/*" multiple style="display: none;" onchange="handleFileSelect(event)" />
+        </div>
+    </div>
+
+    <!-- Settings Panel -->
+    <div id="settingsPanel" class="settings-panel">
+        <div class="settings-header">
+            <h2>⚙️ Settings</h2>
+            <button class="icon-btn" onclick="toggleSettings()">×</button>
+        </div>
+
+        <div class="settings-content">
+            <!-- Assistant Name -->
+            <div class="settings-section">
+                <h3>🤖 Assistant Identity</h3>
+                <div class="settings-group">
+                    <label>Assistant Name</label>
+                    <input type="text" id="assistant-name-input" placeholder="Crump" maxlength="20" />
+                    <button onclick="saveAssistantName()" class="settings-btn">Save Name</button>
+                    <button id="reset-name-btn" onclick="resetAssistantName()" class="settings-btn secondary" style="display: none;">Reset to Crump</button>
+                </div>
+            </div>
+
+            <!-- Voice Settings -->
+            <div class="settings-section">
+                <h3>🎤 Voice & Audio</h3>
+                <div class="settings-group">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="voiceToggle" onchange="toggleVoiceOutput()" />
+                        <span>Voice Output</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="autoVoiceToggle" onchange="toggleAutoVoice()" />
+                        <span>Auto-Voice (read responses aloud)</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Autonomous Messages -->
+            <div class="settings-section">
+                <h3>🤖 Autonomous Messages</h3>
+                <div class="settings-group">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="autonomousToggle" onchange="toggleAutonomousMessages()" />
+                        <span>Enable autonomous check-ins</span>
+                    </label>
+                    <div id="autonomous-interval-settings" style="display: none; margin-top: 12px;">
+                        <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 8px;">Check-in Frequency</label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            <button id="interval-relaxed" class="interval-btn" onclick="setAutonomousInterval('relaxed')">🐌 Relaxed</button>
+                            <button id="interval-balanced" class="interval-btn active" onclick="setAutonomousInterval('balanced')">⚡ Balanced</button>
+                            <button id="interval-active" class="interval-btn" onclick="setAutonomousInterval('active')">🔥 Active</button>
+                            <button id="interval-very-active" class="interval-btn" onclick="setAutonomousInterval('very-active')">💬 Very Active</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Learning System -->
+            <div class="settings-section">
+                <h3>🧠 Learning System</h3>
+                <div class="settings-group">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="confidenceToggle" onchange="toggleConfidenceDisplay()" />
+                        <span>Show confidence scores</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="metaToggle" onchange="toggleMetaCommentary()" />
+                        <span>Auto meta-commentary</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="featureRemindersToggle" onchange="toggleFeatureReminders()" />
+                        <span>Feature reminders</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="contextSuggestionsToggle" onchange="toggleContextSuggestions()" />
+                        <span>Context-aware suggestions</span>
+                    </label>
+                    <button onclick="showLearningDashboard()" class="settings-btn">📊 Learning Dashboard</button>
+                    <button onclick="showLearningHistory()" class="settings-btn">📚 Learning History</button>
+                    <button onclick="clearLearningData()" class="settings-btn secondary">Clear Learning Data</button>
+                </div>
+            </div>
+
+            <!-- Image Generation -->
+            <div class="settings-section">
+                <h3>🎨 Image Generation</h3>
+                <div class="settings-group">
+                    <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 8px;">Preferred Generator</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <button id="genPollinations" class="interval-btn active" onclick="setImageGenerator('pollinations')">🌸 Pollinations</button>
+                        <button id="genSegmind" class="interval-btn" onclick="setImageGenerator('segmind')">🎯 Segmind</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Appearance -->
+            <div class="settings-section">
+                <h3>🎨 Appearance</h3>
+                <div class="settings-group">
+                    <label>Font Style</label>
+                    <div class="font-selector">
+                        <button class="font-btn active" onclick="changeFont('modern')">Modern</button>
+                        <button class="font-btn" onclick="changeFont('serif')">Serif</button>
+                        <button class="font-btn" onclick="changeFont('mono')">Mono</button>
+                    </div>
+                    <label>Background Color</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="color" id="bgColorPicker" onchange="changeBgColor(this.value)" />
+                        <button onclick="resetBgColor()" class="settings-btn secondary">Reset</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Memory Management -->
+            <div class="settings-section">
+                <h3>🧠 Memory Management</h3>
+                <div class="settings-group">
+                    <button onclick="clearMemoryPrompt()" class="settings-btn secondary">Clear Memory</button>
+                    <button onclick="clearCurrentChat()" class="settings-btn secondary">Clear Current Chat</button>
+                    <button onclick="deleteAllChats()" class="settings-btn secondary">Delete All Chats</button>
+                </div>
+            </div>
+
+            <!-- Data Management -->
+            <div class="settings-section">
+                <h3>💾 Data Management</h3>
+                <div class="settings-group">
+                    <button onclick="exportAllData()" class="settings-btn">Export All Data</button>
+                    <label class="settings-btn secondary" style="cursor: pointer; text-align: center;">
+                        Import Data
+                        <input type="file" accept=".json" onchange="handleImport(event)" style="display: none;" />
+                    </label>
+                </div>
+            </div>
+
+            <!-- Tutorial -->
+            <div class="settings-section">
+                <h3>📖 Help</h3>
+                <div class="settings-group">
+                    <button onclick="replayTutorial()" class="settings-btn">Replay Tutorial</button>
+                </div>
+            </div>
+
+            <!-- Reset -->
+            <div class="settings-section">
+                <button onclick="resetAllPreferences()" class="settings-btn danger">Reset All Preferences</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>
