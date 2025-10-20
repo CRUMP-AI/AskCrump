@@ -1733,6 +1733,105 @@
             notes: []
         };
         let isSending = false;
+
+        // ==========================================
+// FIX #2: ERROR STATE MANAGEMENT
+// ==========================================
+let isInErrorState = false;
+let lastErrorTime = 0;
+let errorCooldownMs = 30000; // 30 seconds
+
+function enterErrorState() {
+    isInErrorState = true;
+    lastErrorTime = Date.now();
+    console.log('🚨 Entered error state - cooldown active');
+}
+
+function canExitErrorState() {
+    if (!isInErrorState) return true;
+    const cooldownExpired = Date.now() - lastErrorTime > errorCooldownMs;
+    if (cooldownExpired) {
+        isInErrorState = false;
+        console.log('✅ Exited error state - system ready');
+    }
+    return !isInErrorState;
+}
+
+        // ==========================================
+// FIX #3: TIME/DATE AWARENESS FOR CRUMP
+// ==========================================
+function getCurrentTimeContext() {
+    const now = new Date();
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    const dayName = now.toLocaleDateString('en-US', { weekday: 'long' });
+    const monthName = now.toLocaleDateString('en-US', { month: 'long' });
+    const dayNum = now.getDate();
+    const year = now.getFullYear();
+    
+    // Determine time period
+    let timePeriod = '';
+    let timeEmoji = '';
+    if (hour >= 5 && hour < 12) {
+        timePeriod = 'morning';
+        timeEmoji = '☀️';
+    } else if (hour >= 12 && hour < 17) {
+        timePeriod = 'afternoon';
+        timeEmoji = '🌤️';
+    } else if (hour >= 17 && hour < 22) {
+        timePeriod = 'evening';
+        timeEmoji = '🌆';
+    } else if (hour >= 22 || hour < 2) {
+        timePeriod = 'late night';
+        timeEmoji = '🌙';
+    } else {
+        timePeriod = 'very late night';
+        timeEmoji = '🌃';
+    }
+    
+    const formattedTime = now.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+    });
+    
+    return {
+        hour,
+        minute,
+        dayName,
+        monthName,
+        dayNum,
+        year,
+        timePeriod,
+        timeEmoji,
+        formattedTime,
+        fullDate: `${dayName}, ${monthName} ${dayNum}, ${year}`,
+        timestamp: now.toISOString(),
+        isLateNight: hour >= 22 || hour < 5,
+        isVeryLate: hour >= 2 && hour < 5,
+        isWeekend: now.getDay() === 0 || now.getDay() === 6
+    };
+}
+
+function getTimeAwareContext() {
+    const time = getCurrentTimeContext();
+    
+    let context = `\n\n[CURRENT TIME CONTEXT:\n`;
+    context += `Date: ${time.fullDate}\n`;
+    context += `Time: ${time.formattedTime} (${time.timePeriod})\n`;
+    
+    if (time.isVeryLate) {
+        context += `⚠️ It's ${time.formattedTime} - Gregory is up VERY late. Show genuine concern.\n`;
+    } else if (time.isLateNight) {
+        context += `${time.timeEmoji} Late ${time.timePeriod} work session.\n`;
+    } else if (time.isWeekend) {
+        context += `📅 Weekend ${time.timePeriod}.\n`;
+    }
+    
+    context += `Use this context to reference time naturally in responses.]`;
+    
+    return context;
+}
         
         // Autonomous messaging state
 let autonomousMessagesEnabled = false;
@@ -2177,9 +2276,15 @@ class AutonomousMessageEngine {
         }
     }
     
-    checkForAutonomousMessage() {
-        const now = Date.now();
-        const timeSinceLastActivity = now - lastUserActivity;
+   checkForAutonomousMessage() {
+    // Block autonomous messages during error state
+    if (!canExitErrorState()) {
+        console.log('⏸️ Autonomous message blocked - error cooldown active');
+        return;
+    }
+    
+    const now = Date.now();
+    const timeSinceLastActivity = now - lastUserActivity;
         const timeSinceLastAutonomous = this.lastAutonomousMessage ? now - this.lastAutonomousMessage : Infinity;
         
         // Don't send if we sent one recently
@@ -2877,6 +2982,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     initializeSplashScreen();
+    // ==========================================
+    // FIX #1: RESET AUTONOMOUS TIMER ON TYPING
+    // ==========================================
+    const userInputField = document.getElementById('userInput');
+    if (userInputField) {
+        userInputField.addEventListener('input', () => {
+            lastUserActivity = Date.now();
+            // console.log('🔄 Activity timer reset (typing)');
+        });
+        
+        userInputField.addEventListener('focus', () => {
+            lastUserActivity = Date.now();
+            // console.log('🔄 Activity timer reset (focus)');
+        });
+    }
 
      // Request notification permission
     if ('Notification' in window && Notification.permission === 'default') {
@@ -3228,12 +3348,18 @@ function addMessage(role, content, imageUrl = null, fileData = null) {
     renderChatsList();
     if (role === 'assistant' && isAutoVoiceEnabled) speak(content);
     
-    // Track last assistant message for learning
+   // Track last assistant message for learning
     if (role === 'assistant') {
         lastAssistantMessage = { content, timestamp: Date.now() };
         
-       // Add confidence indicator if enabled
-        if (showConfidence && learningEngine) {
+        // Check if this is an error message
+        const isError = content.toLowerCase().includes('error') || 
+                       content.toLowerCase().includes('failed') ||
+                       content.toLowerCase().includes('encountered an issue') ||
+                       content.startsWith('I encountered');
+        
+       // Add confidence indicator if enabled (but NOT on errors)
+        if (showConfidence && learningEngine && !isError) {
             const confidence = learningEngine.calculateConfidence('general', false);
             addConfidenceIndicator(chat.messages.length - 1, confidence);
         }
@@ -3405,7 +3531,7 @@ async function regenerateResponse(index) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                message: message + memoryContext,
+                message: message + memoryContext + getTimeAwareContext(),
                 history: chat.messages.slice(-CONFIG.MAX_CHAT_HISTORY).filter(m => m.content && m.content.trim() !== ''),
                 fileData: fileData || null,
                 needsSearch: shouldSearchWeb(message),
@@ -3594,13 +3720,21 @@ removeFile();
             }
         }
         
-        showThinking();
+       showThinking();
         const chat = chats.find(c => c.id === currentChatId);
+        
+        // Backup context before API call (in case of failure)
+        const contextBackup = {
+            messages: [...chat.messages],
+            activeContext: contextEngine.activeContext,
+            chatTitle: chat.title
+        };
+        
         const response = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                message: message + getMemoryContext(),
+                message: message + getMemoryContext() + getTimeAwareContext(),
                 history: chat.messages.slice(-CONFIG.MAX_CHAT_HISTORY).filter(m => m.content && m.content.trim() !== ''),
                 fileData: fileDataToSend,
                 needsSearch: shouldSearchWeb(message),
@@ -3617,7 +3751,7 @@ removeFile();
        addMessage('assistant', data.response);
 
          // Check if Crump should proactively request training
-        if (learningEngine && Math.random() < 0.15) { // 15% chance to check
+        if (learningEngine && canExitErrorState() && Math.random() < 0.15) { // 15% chance to check
             const trainingRequest = learningEngine.getProactiveTrainingRequest();
             if (trainingRequest) {
                 setTimeout(() => {
@@ -3626,9 +3760,17 @@ removeFile();
             }
         } 
         
-   } catch (error) {
+  } catch (error) {
         hideThinking();
+        enterErrorState(); // NEW: Trigger error state
         console.error('Error details:', error);
+
+         // Restore context from backup if corruption occurred
+        if (contextBackup && chat.messages.length !== contextBackup.messages.length) {
+            console.log('🔧 Restoring context from backup');
+            chat.messages = contextBackup.messages;
+            saveChats();
+        }
         
         let errorMsg = 'I encountered an error: ';
         if (error.message?.includes('fetch')) {
