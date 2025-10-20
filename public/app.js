@@ -2285,10 +2285,17 @@ async function sendMessage() {
     const input = document.getElementById('userInput');
     const message = input.value.trim();
 
+    // Better debugging
+    console.log('🚀 SEND MESSAGE TRIGGERED');
+    console.log('📝 Message:', message);
+    console.log('🔒 isSending:', isSending);
+    console.log('📁 Files:', currentFiles.length);
+    
     lastUserActivity = Date.now();
     
     if (isSending) {
         console.log('🔒 BLOCKED: Already sending');
+        showNotification('⏸️ Please wait - message in progress', 'info');
         return;
     }
     
@@ -2418,6 +2425,21 @@ async function sendMessage() {
         }
         
         showThinking();
+        
+        // Safety timeout - auto-unlock after 30 seconds
+        const safetyTimeout = setTimeout(() => {
+            if (isSending) {
+                console.error('⚠️ SAFETY TIMEOUT: Force unlocking after 30s');
+                hideThinking();
+                isSending = false;
+                input.disabled = false;
+                const sendBtn = document.querySelector('.icon-btn.primary');
+                if (sendBtn) sendBtn.disabled = false;
+                addMessage('assistant', '⏱️ **Request Timeout**\n\nThe request took too long (30+ seconds). This usually means:\n\n• Server is overloaded\n• Network connection issues\n• Message is too complex\n\nPlease try again with a shorter message or check your connection.');
+                showNotification('⏱️ Request timed out - interface unlocked', 'error');
+            }
+        }, 30000);
+        
         const chat = chats.find(c => c.id === currentChatId);
         
         const contextBackup = {
@@ -2444,7 +2466,10 @@ async function sendMessage() {
         const data = await response.json();
         hideThinking();
 
-        addMessage('assistant', data.response);
+       addMessage('assistant', data.response);
+
+        // Clear safety timeout
+        clearTimeout(safetyTimeout);
 
         if (suggestionEngine && contextSuggestionsEnabled) {
             suggestionEngine.checkAndShowSuggestion(message, chat);
@@ -2466,8 +2491,22 @@ async function sendMessage() {
         
     } catch (error) {
         hideThinking();
+        
+        // Clear safety timeout
+        if (typeof safetyTimeout !== 'undefined') {
+            clearTimeout(safetyTimeout);
+        }
+        
         enterErrorState();
-        console.error('Error details:', error);
+        console.error('❌ SEND ERROR:', error);
+        console.error('Error stack:', error.stack);
+
+        // CRITICAL: Always unlock on error
+        isSending = false;
+        input.disabled = false;
+        const sendBtn = document.querySelector('.icon-btn.primary');
+        if (sendBtn) sendBtn.disabled = false;
+        console.log('🔓 FORCE UNLOCKED (error caught)');
 
         if (contextBackup && chat.messages.length !== contextBackup.messages.length) {
             console.log('🔧 Restoring context from backup');
@@ -2475,21 +2514,36 @@ async function sendMessage() {
             saveChats();
         }
         
-        let errorMsg = 'I encountered an error: ';
-        if (error.message?.includes('fetch')) {
-            errorMsg += 'Connection issue. Check your internet and try again.';
+        let errorMsg = '⚠️ **Message Failed**\n\n';
+        
+        if (error.message?.includes('fetch') || error.message?.includes('Failed to fetch')) {
+            errorMsg += '**Connection Error:** Cannot reach server.\n\n';
+            errorMsg += '• Check your internet connection\n';
+            errorMsg += '• Verify server status\n';
+            errorMsg += '• Try refreshing the page\n\n';
+        } else if (error.message?.includes('timeout') || error.message?.includes('timed out')) {
+            errorMsg += '**Timeout Error:** Request took too long.\n\n';
+            errorMsg += '• Message might be too complex\n';
+            errorMsg += '• Try a shorter message\n';
+            errorMsg += '• Check your connection speed\n\n';
         } else if (error.message?.includes('token') || error.message?.includes('too long')) {
-            errorMsg += 'Message too long. Try breaking it into smaller parts.';
+            errorMsg += '**Message Too Long:** Exceeded character limit.\n\n';
+            errorMsg += '• Break into smaller messages\n';
+            errorMsg += '• Remove unnecessary content\n\n';
+        } else if (error.message?.includes('429') || error.message?.includes('rate limit')) {
+            errorMsg += '**Rate Limited:** Too many requests.\n\n';
+            errorMsg += '• Wait 60 seconds and try again\n\n';
         } else {
-            errorMsg += error.message || 'Unknown error. Please try again.';
+            errorMsg += `**Unknown Error:** ${error.message || 'Something went wrong'}\n\n`;
+            errorMsg += 'Debug info:\n';
+            errorMsg += `• Error type: ${error.name}\n`;
+            errorMsg += `• Time: ${new Date().toLocaleTimeString()}\n\n`;
         }
         
-        addMessage('assistant', errorMsg + '\n\n(Your conversation history is preserved - just resend when ready)');
+        errorMsg += '🔄 **Your message is preserved.** Just hit send again when ready.';
         
-        isSending = false;
-        input.disabled = false;
-        if (sendBtn) sendBtn.disabled = false;
-        console.log('🔓 UNLOCKED (error)');
+        addMessage('assistant', errorMsg);
+        showNotification('❌ Message failed - check details above', 'error');
     }
 }
 
