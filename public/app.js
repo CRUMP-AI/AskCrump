@@ -860,14 +860,23 @@ class ContextAwarenessEngine {
 
 const contextEngine = new ContextAwarenessEngine();
 
+// ==========================================
+// PREMIUM CONTEXT DROPDOWN
+// ==========================================
 function showContextPicker() {
-    document.getElementById('contextPickerOverlay').classList.add('active');
-    document.getElementById('contextPickerInput').focus();
+    const menu = document.getElementById('contextDropdownMenu');
+    const input = document.getElementById('contextPickerInput');
+    
+    menu.classList.add('active');
+    input.focus();
 }
 
 function closeContextPicker() {
-    document.getElementById('contextPickerOverlay').classList.remove('active');
-    document.getElementById('contextPickerInput').value = '';
+    const menu = document.getElementById('contextDropdownMenu');
+    const input = document.getElementById('contextPickerInput');
+    
+    menu.classList.remove('active');
+    input.value = '';
 }
 
 function addCustomContext() {
@@ -875,8 +884,7 @@ function addCustomContext() {
     const label = input.value.trim();
     
     if (!label) {
-        alert('Please enter a context label');
-        return;
+        return; // Just close silently if empty
     }
     
     contextEngine.addContext(label);
@@ -1663,6 +1671,29 @@ document.addEventListener('DOMContentLoaded', () => {
         
         userInputField.addEventListener('focus', () => {
             lastUserActivity = Date.now();
+        });
+    }
+
+    // Premium Context Dropdown Event Listeners
+    const contextInput = document.getElementById('contextPickerInput');
+    const contextMenu = document.getElementById('contextDropdownMenu');
+    
+    if (contextInput && contextMenu) {
+        contextInput.addEventListener('focus', () => {
+            contextMenu.classList.add('active');
+        });
+        
+        contextInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                addCustomContext();
+            }
+        });
+        
+        // Close on click outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.context-dropdown')) {
+                contextMenu.classList.remove('active');
+            }
         });
     }
 
