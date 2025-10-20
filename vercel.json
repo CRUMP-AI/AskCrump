@@ -3,19 +3,5 @@
     "api/chat.js": {
       "maxDuration": 10
     }
-  },
-  "rewrites": [
-    {
-      "source": "/api/usage-summary",
-      "destination": "/404"
-    },
-    {
-      "source": "/api/jwt",
-      "destination": "/404"
-    },
-    {
-      "source": "/api/toolbar/(.*)",
-      "destination": "/404"
-    }
-  ]
+  }
 }
