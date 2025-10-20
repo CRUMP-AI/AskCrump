@@ -1,12 +1,4 @@
 // ==========================================
-// VERCEL CONFIGURATION
-// ==========================================
-export const config = {
-    maxDuration: 10, // Vercel Hobby tier max (10 seconds)
-    // For Pro tier: maxDuration: 60
-};
-
-// ==========================================
 // CRUMP AI - API HANDLER v2.15.0 BUG FIXES
 // DUPLICATE MESSAGE BUG FIXED + DEVICE RECOGNITION + STRICTER SEARCH
 // ==========================================
