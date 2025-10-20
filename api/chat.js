@@ -1,4 +1,12 @@
 // ==========================================
+// VERCEL CONFIGURATION
+// ==========================================
+export const config = {
+    maxDuration: 10, // Vercel Hobby tier max (10 seconds)
+    // For Pro tier: maxDuration: 60
+};
+
+// ==========================================
 // CRUMP AI - API HANDLER v2.15.0 BUG FIXES
 // DUPLICATE MESSAGE BUG FIXED + DEVICE RECOGNITION + STRICTER SEARCH
 // ==========================================
@@ -104,15 +112,26 @@ export default async function handler(req, res) {
         // REGULAR CHAT
         return await handleRegularChat(res, message, systemPrompt, validHistory);
 
-    } catch (error) {
-        console.error('Server error:', error);
-        
-        if (error.message?.includes('tokens') || error.message?.includes('too long') || error.message?.includes('maximum context length')) {
-            return res.status(400).json({
-                error: 'Message too long',
-                details: 'That message exceeded the maximum length. Try breaking it into smaller parts or summarizing the content.'
-            });
-        }
+   } catch (error) {
+    console.error('❌ Server error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error message:', error.message);
+    
+    // Handle timeout errors specifically
+    if (error.name === 'AbortError') {
+        console.error('⏱️ Request timed out after 9 seconds');
+        return res.status(504).json({
+            error: 'Request timeout',
+            details: 'The AI took too long to respond. Try a shorter message or simpler request.'
+        });
+    }
+    
+    if (error.message?.includes('tokens') || error.message?.includes('too long') || error.message?.includes('maximum context length')) {
+        return res.status(400).json({
+            error: 'Message too long',
+            details: 'That message exceeded the maximum length. Try breaking it into smaller parts or summarizing the content.'
+        });
+    }
         
         return res.status(500).json({
             error: 'Internal server error',
@@ -213,13 +232,14 @@ async function handleBraveSearchResponse(res, message, searchResults, systemProm
     searchContext += 'CRITICAL: These results contain the answer. Extract ALL relevant information and present it clearly. Do not say you cannot find data if it exists here.]\n';
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': process.env.ANTHROPIC_API_KEY,
-            'anthropic-version': CONFIG.ANTHROPIC_VERSION
-        },
-        body: JSON.stringify({
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': CONFIG.ANTHROPIC_VERSION
+    },
+    signal: AbortSignal.timeout(9000), // ⚡ 9 second timeout
+    body: JSON.stringify({
             model: CONFIG.CLAUDE_MODEL,
             max_tokens: CONFIG.MAX_TOKENS,
             system: systemPrompt,
@@ -246,13 +266,14 @@ async function handleBraveSearchResponse(res, message, searchResults, systemProm
 // ==========================================
 async function handleClaudeNativeSearch(res, message, systemPrompt, validHistory) {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': process.env.ANTHROPIC_API_KEY,
-            'anthropic-version': CONFIG.ANTHROPIC_VERSION
-        },
-        body: JSON.stringify({
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': CONFIG.ANTHROPIC_VERSION
+    },
+    signal: AbortSignal.timeout(9000), // ⚡ 9 second timeout
+    body: JSON.stringify({
             model: CONFIG.CLAUDE_MODEL,
             max_tokens: CONFIG.MAX_TOKENS,
             system: systemPrompt,
@@ -296,13 +317,14 @@ async function handleClaudeNativeSearch(res, message, systemPrompt, validHistory
 // ==========================================
 async function handleRegularChat(res, message, systemPrompt, validHistory) {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': process.env.ANTHROPIC_API_KEY,
-            'anthropic-version': CONFIG.ANTHROPIC_VERSION
-        },
-        body: JSON.stringify({
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': CONFIG.ANTHROPIC_VERSION
+    },
+    signal: AbortSignal.timeout(9000), // ⚡ 9 second timeout
+    body: JSON.stringify({
             model: CONFIG.CLAUDE_MODEL,
             max_tokens: CONFIG.MAX_TOKENS,
             system: systemPrompt,
@@ -504,15 +526,16 @@ async function handleImageAnalysis(res, fileData, message, assistantName) {
 
     try {
         const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': process.env.ANTHROPIC_API_KEY,
-                'anthropic-version': CONFIG.ANTHROPIC_VERSION
-            },
-            body: JSON.stringify({
-                model: CONFIG.CLAUDE_MODEL,
-                max_tokens: 4096,
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': CONFIG.ANTHROPIC_VERSION
+    },
+    signal: AbortSignal.timeout(9000), // ⚡ 9 second timeout
+    body: JSON.stringify({
+        model: CONFIG.CLAUDE_MODEL,
+        max_tokens: 2048, // ⚡ REDUCED from 4096
                 system: visionPrompt,
                 messages: [{
                     role: 'user',
