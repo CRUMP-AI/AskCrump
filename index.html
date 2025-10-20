@@ -1878,6 +1878,9 @@ let showConfidence = false;
 let trainingSession = null;
 let metaCommentaryEnabled = false;
 
+ // Suggestion Engine state
+let suggestionEngine = null;       
+
 // Tutorial state
         let currentTutorialStep = 1;
         const tutorialSteps = [
@@ -3422,7 +3425,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('🧠 Learning Engine initialized', learningEngine.getLearningStats());
     
     // Initialize Suggestion Engine
-    const suggestionEngine = new ContextSuggestionEngine();
+    suggestionEngine = new ContextSuggestionEngine();
     console.log('💡 Suggestion Engine initialized');
     
     // Initialize Context Awareness Engine
@@ -5022,7 +5025,7 @@ function loadSettings() {
         autonomousEngine.start();
     }
 loadFeatureReminders();
-    loadcontextsuggestion();
+    loadContextSuggestions();
     
     changeFont(fontStyle);
     changeBgColor(bgColor);
