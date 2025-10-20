@@ -1978,6 +1978,309 @@ const featureTips = [
 let featureRemindersEnabled = false;
 let shownTips = [];
 
+        // ==========================================
+// CONTEXT-AWARE SUGGESTIONS SYSTEM
+// ==========================================
+
+const contextSuggestions = [
+    {
+        id: 'image-generation-after-upload',
+        trigger: 'image_upload',
+        condition: (context) => context.hasUploadedImage && !context.askedToGenerate,
+        message: "I can also generate similar images if you describe what you want.",
+        action: "Try: 'Create an image of...'",
+        priority: 'high',
+        cooldown: 10 * 60 * 1000
+    },
+    {
+        id: 'code-style-learning',
+        trigger: 'code_in_message',
+        condition: (context) => context.hasCode && !context.hasLearnedStyle,
+        message: "I can learn your coding style from the code you share with me.",
+        action: "Keep sharing code and I'll adapt!",
+        priority: 'medium',
+        cooldown: 20 * 60 * 1000
+    },
+    {
+        id: 'confidence-scores',
+        trigger: 'user_correction',
+        condition: (context) => context.userCorrected && !context.confidenceEnabled,
+        message: "Enable confidence scores in Settings to see how certain I am about responses.",
+        action: "⚙️ Settings → Show Confidence Scores",
+        priority: 'high',
+        cooldown: 15 * 60 * 1000
+    },
+    {
+        id: 'context-card-suggestion',
+        trigger: 'long_conversation',
+        condition: (context) => context.messageCount > 10 && context.activeContexts === 0,
+        message: "This is becoming a longer conversation. Want to add a context card to organize it?",
+        action: "Click the + button at the top",
+        priority: 'medium',
+        cooldown: 30 * 60 * 1000
+    },
+    {
+        id: 'voice-input-suggestion',
+        trigger: 'long_user_message',
+        condition: (context) => context.messageLength > 500,
+        message: "Long message! You can use voice input (🎤) to talk instead of typing.",
+        action: "Click the microphone button",
+        priority: 'low',
+        cooldown: 20 * 60 * 1000
+    },
+    {
+        id: 'memory-system',
+        trigger: 'repeated_info',
+        condition: (context) => context.repeatedInfo && !context.hasMemoryNotes,
+        message: "You can tell me to 'Remember that...' and I'll store information permanently.",
+        action: "Say: 'Remember that [info]'",
+        priority: 'medium',
+        cooldown: 25 * 60 * 1000
+    },
+    {
+        id: 'image-analysis',
+        trigger: 'question_about_uploaded_image',
+        condition: (context) => context.hasUploadedImage && context.askingQuestion,
+        message: "I can analyze images in detail—ask me specific questions about what you uploaded.",
+        action: "Try: 'What colors are in this?'",
+        priority: 'medium',
+        cooldown: 15 * 60 * 1000
+    },
+    {
+        id: 'multi-chat',
+        trigger: 'topic_shift',
+        condition: (context) => context.topicChanged && context.totalChats < 3,
+        message: "Switching topics? You can create separate chats to keep conversations organized.",
+        action: "Click ✨ New Chat in the sidebar",
+        priority: 'low',
+        cooldown: 30 * 60 * 1000
+    },
+    {
+        id: 'learning-feedback',
+        trigger: 'multiple_responses',
+        condition: (context) => context.responseCount > 5 && context.feedbackGiven === 0,
+        message: "Use 👍👎 buttons to help me learn your preferences and improve over time.",
+        action: "Found after each of my responses",
+        priority: 'medium',
+        cooldown: 20 * 60 * 1000
+    },
+    {
+        id: 'nova-protocol',
+        trigger: 'technical_deep_dive',
+        condition: (context) => context.isTechnical && context.messageCount > 5 && !context.novaActive,
+        message: "For deep technical work, activate Nova-Secure protocol for full creator context.",
+        action: "Type: 'Nova-Secure'",
+        priority: 'high',
+        cooldown: 40 * 60 * 1000
+    }
+];
+
+class ContextSuggestionEngine {
+    constructor() {
+        this.shownSuggestions = [];
+        this.lastSuggestionTime = 0;
+        this.suggestionCooldowns = new Map();
+        this.loadState();
+    }
+    
+    loadState() {
+        const shown = localStorage.getItem(STORAGE_KEYS.SHOWN_SUGGESTIONS);
+        const cooldown = localStorage.getItem(STORAGE_KEYS.SUGGESTION_COOLDOWN);
+        
+        if (shown) this.shownSuggestions = JSON.parse(shown);
+        if (cooldown) this.lastSuggestionTime = parseInt(cooldown);
+        
+        contextSuggestionsEnabled = localStorage.getItem(STORAGE_KEYS.CONTEXT_SUGGESTIONS_ENABLED) === 'true';
+    }
+    
+    saveState() {
+        localStorage.setItem(STORAGE_KEYS.SHOWN_SUGGESTIONS, JSON.stringify(this.shownSuggestions));
+        localStorage.setItem(STORAGE_KEYS.SUGGESTION_COOLDOWN, this.lastSuggestionTime.toString());
+    }
+    
+    analyzeContext(userMessage, chat) {
+        if (!chat) return {};
+        
+        const context = {
+            messageLength: userMessage.length,
+            hasCode: /```|function|const|let|var|class|import/.test(userMessage),
+            hasUploadedImage: currentFiles.length > 0,
+            askingQuestion: /\?|what|how|why|when|where|can you|could you/i.test(userMessage),
+            messageCount: chat.messages.filter(m => m.role === 'user').length,
+            responseCount: chat.messages.filter(m => m.role === 'assistant').length,
+            userCorrected: learningEngine ? learningEngine.corrections.length > 0 : false,
+            feedbackGiven: learningEngine ? (learningEngine.metrics.thumbsUp + learningEngine.metrics.thumbsDown) : 0,
+            confidenceEnabled: showConfidence,
+            novaActive: isNovaActive(),
+            activeContexts: contextEngine ? contextEngine.contexts.length : 0,
+            hasMemoryNotes: userMemory.notes.length > 0,
+            hasLearnedStyle: learningEngine?.preferences?.codingStyle !== undefined,
+            isTechnical: /code|function|api|debug|error|bug|algorithm|database|deploy/.test(userMessage.toLowerCase()),
+            topicChanged: this.detectTopicShift(chat),
+            repeatedInfo: this.detectRepeatedInfo(chat),
+            askedToGenerate: /generate|create|make.*image/.test(userMessage.toLowerCase()),
+            totalChats: chats.length
+        };
+        
+        return context;
+    }
+    
+    detectTopicShift(chat) {
+        if (chat.messages.length < 4) return false;
+        const recentMessages = chat.messages.slice(-4);
+        const topics = recentMessages.map(m => this.extractTopic(m.content));
+        const lastTopic = topics[topics.length - 1];
+        const previousTopics = topics.slice(0, -1);
+        return lastTopic && !previousTopics.includes(lastTopic);
+    }
+    
+    extractTopic(message) {
+        const topicPatterns = {
+            'code': /code|function|program|algorithm/i,
+            'image': /image|picture|photo|visual/i,
+            'data': /data|database|query|analytics/i,
+            'design': /design|ui|ux|layout/i,
+            'debug': /bug|error|fix|debug/i
+        };
+        
+        for (const [topic, pattern] of Object.entries(topicPatterns)) {
+            if (pattern.test(message)) return topic;
+        }
+        return null;
+    }
+    
+    detectRepeatedInfo(chat) {
+        if (chat.messages.length < 6) return false;
+        const userMessages = chat.messages.filter(m => m.role === 'user').map(m => m.content.toLowerCase()).slice(-5);
+        const wordCounts = {};
+        userMessages.forEach(msg => {
+            const words = msg.split(/\s+/).filter(w => w.length > 5);
+            words.forEach(word => {
+                wordCounts[word] = (wordCounts[word] || 0) + 1;
+            });
+        });
+        return Object.values(wordCounts).some(count => count >= 3);
+    }
+    
+    shouldShowSuggestion() {
+        if (!contextSuggestionsEnabled) return false;
+        const now = Date.now();
+        if (now - this.lastSuggestionTime < SUGGESTION_COOLDOWN_MS) return false;
+        return true;
+    }
+    
+    findRelevantSuggestion(userMessage, chat) {
+        if (!this.shouldShowSuggestion()) return null;
+        const context = this.analyzeContext(userMessage, chat);
+        const now = Date.now();
+        
+        const eligibleSuggestions = contextSuggestions.filter(suggestion => {
+            const lastShown = this.suggestionCooldowns.get(suggestion.id) || 0;
+            if (now - lastShown < suggestion.cooldown) return false;
+            if (!suggestion.condition(context)) return false;
+            return true;
+        });
+        
+        if (eligibleSuggestions.length === 0) return null;
+        
+        const priorityOrder = { high: 3, medium: 2, low: 1 };
+        eligibleSuggestions.sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority]);
+        
+        return eligibleSuggestions[0];
+    }
+    
+    showSuggestion(suggestion) {
+        if (!suggestion) return;
+        
+        const now = Date.now();
+        this.lastSuggestionTime = now;
+        this.suggestionCooldowns.set(suggestion.id, now);
+        this.shownSuggestions.push({ id: suggestion.id, timestamp: now });
+        
+        if (this.shownSuggestions.length > 50) {
+            this.shownSuggestions = this.shownSuggestions.slice(-50);
+        }
+        
+        this.saveState();
+        this.displaySuggestion(suggestion);
+    }
+    
+    displaySuggestion(suggestion) {
+        const container = document.getElementById('chatContainer');
+        if (!container) return;
+        
+        const suggestionEl = document.createElement('div');
+        suggestionEl.className = 'context-suggestion-bubble';
+        suggestionEl.style.cssText = `
+            margin: 16px auto;
+            max-width: 500px;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(184, 148, 31, 0.05));
+            border: 1px solid var(--accent-primary);
+            border-radius: 12px;
+            animation: slideIn 0.3s ease;
+            position: relative;
+        `;
+        
+        suggestionEl.innerHTML = `
+            <div style="display: flex; align-items: start; gap: 12px;">
+                <div style="font-size: 24px; flex-shrink: 0;">💡</div>
+                <div style="flex: 1;">
+                    <div style="font-size: 14px; font-weight: 600; color: var(--accent-primary); margin-bottom: 6px;">
+                        Suggestion
+                    </div>
+                    <div style="font-size: 13px; color: var(--text-primary); margin-bottom: 8px; line-height: 1.5;">
+                        ${suggestion.message}
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-secondary); padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 6px; border-left: 2px solid var(--accent-primary);">
+                        ${suggestion.action}
+                    </div>
+                </div>
+                <button 
+                    onclick="this.closest('.context-suggestion-bubble').remove()"
+                    style="background: transparent; border: none; color: var(--text-tertiary); font-size: 18px; cursor: pointer; padding: 4px; flex-shrink: 0; transition: color 0.2s;"
+                    onmouseover="this.style.color='var(--accent-primary)'"
+                    onmouseout="this.style.color='var(--text-tertiary)'"
+                >×</button>
+            </div>
+        `;
+        
+        container.appendChild(suggestionEl);
+        container.scrollTop = container.scrollHeight;
+        console.log('💡 Suggestion shown:', suggestion.id);
+    }
+    
+    checkAndShowSuggestion(userMessage, chat) {
+        if (!contextSuggestionsEnabled) return;
+        const suggestion = this.findRelevantSuggestion(userMessage, chat);
+        if (suggestion) {
+            setTimeout(() => {
+                this.showSuggestion(suggestion);
+            }, 2000);
+        }
+    }
+}
+
+function toggleContextSuggestions() {
+    contextSuggestionsEnabled = document.getElementById('contextSuggestionsToggle').checked;
+    localStorage.setItem(STORAGE_KEYS.CONTEXT_SUGGESTIONS_ENABLED, contextSuggestionsEnabled);
+    
+    if (contextSuggestionsEnabled) {
+        showNotification('✓ Context-aware suggestions enabled', 'success');
+    } else {
+        showNotification('Context suggestions disabled', 'info');
+    }
+}
+
+function loadContextSuggestions() {
+    const enabled = localStorage.getItem(STORAGE_KEYS.CONTEXT_SUGGESTIONS_ENABLED) === 'true';
+    contextSuggestionsEnabled = enabled;
+    
+    if (document.getElementById('contextSuggestionsToggle')) {
+        document.getElementById('contextSuggestionsToggle').checked = enabled;
+    }
+}
+
         // Context suggestions state
 let contextSuggestionsEnabled = false;
 let shownSuggestions = [];
