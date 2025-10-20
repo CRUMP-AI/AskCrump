@@ -2,341 +2,106 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CRUMP AI - Royal Edition</title>
-    
-    <!-- Link to external CSS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crump AI - N² Engine</title>
     <link rel="stylesheet" href="/styles.css">
-    
-    <!-- PWA Meta Tags -->
+    <link rel="icon" type="image/png" href="/assets/icon-192.png">
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#d4af37">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Crump AI">
-    <link rel="apple-touch-icon" href="/assets/icon-192.png">
+    <meta name="theme-color" content="#0a1628">
 </head>
 <body>
-    <div id="splash-screen">
-        <img src="assets/splash-screen.png" alt="Crump AI">
+    <!-- Splash Screen -->
+    <div id="splash-screen" class="splash-screen">
+        <div class="splash-content">
+            <div class="splash-icon">👑</div>
+            <div class="splash-title">Crump AI</div>
+            <div class="splash-subtitle">N² Engine</div>
+            <div class="splash-loader"></div>
+        </div>
     </div>
 
+    <!-- Tutorial Overlay -->
     <div id="tutorial-overlay" class="tutorial-overlay">
-        <div class="tutorial-content">
-            <div class="tutorial-header">
-                <div class="tutorial-title">Welcome to Crump AI</div>
-                <div class="tutorial-step" id="tutorialStep">Step 1 of 4</div>
+        <div class="tutorial-modal">
+            <div class="tutorial-progress">
+                <div class="tutorial-progress-bar" id="tutorialProgressBar"></div>
             </div>
-            
-            <div class="tutorial-body" id="tutorialBody">
-                <div class="tutorial-icon">👋</div>
-                <h2>Welcome, Gregory</h2>
-                <p>I'm Crump, your personal AI assistant powered by the N² Engine. Let me show you around.</p>
-            </div>
-            
+            <div class="tutorial-body" id="tutorialBody"></div>
             <div class="tutorial-footer">
-                <button class="tutorial-btn secondary" onclick="skipTutorial()">Skip</button>
-                <button class="tutorial-btn primary" onclick="nextTutorialStep()">Next</button>
+                <span id="tutorialStep" class="tutorial-step-indicator"></span>
+                <div class="tutorial-actions">
+                    <button onclick="skipTutorial()" class="tutorial-btn secondary">Skip</button>
+                    <button onclick="nextTutorialStep()" class="tutorial-btn primary">Next</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <input type="file" id="fileInput" accept="image/*" multiple style="display: none;" onchange="handleFileSelect(event)">
-    <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebar()"></div> 
-
-    <div class="app-container">
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <button class="new-chat-btn" onclick="createNewChat()">✨ New Chat</button>
-                <input type="text" class="search-box" id="searchBox" placeholder="Search chats..." oninput="filterChats(this.value)">
+    <!-- Sidebar -->
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <span class="logo-icon">👑</span>
+                <span class="logo-text">Crump · N² Engine</span>
             </div>
-            <div class="chats-list" id="chatsList"></div>
-        </aside>
+            <button class="icon-btn" onclick="createNewChat()" title="New Chat">
+                <span style="font-size: 18px;">✨</span>
+            </button>
+        </div>
 
-        <main class="main-content">
-            <!-- v3.2 CONTEXT AWARENESS UI -->
-            <div id="continueContextBanner" style="display: none;"></div>
+        <div class="search-bar">
+            <input type="text" placeholder="Search chats..." oninput="filterChats(this.value)" />
+        </div>
 
+        <div id="chatsList" class="chats-list"></div>
+
+        <div class="sidebar-footer">
+            <button class="sidebar-footer-btn" onclick="toggleSettings()">
+                <span>⚙️</span> Settings
+            </button>
+            <button class="sidebar-footer-btn" onclick="exportAllData()">
+                <span>💾</span> Export Data
+            </button>
+        </div>
+    </div>
+
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Header -->
+        <div class="header">
+            <button class="icon-btn mobile-only" onclick="toggleSidebar()">☰</button>
+            <div class="logo-text">👑 Crump <span style="font-size: 14px; color: #b8941f;">· N² Engine</span></div>
+            
+            <!-- Context Cards Container -->
             <div class="context-cards-container">
-                <div class="context-cards" id="contextCards">
-                    <!-- Context cards will be dynamically added here -->
-                </div>
-                <button class="context-add-btn" onclick="showContextPicker()" title="Add context">+</button>
-            </div>
-
-            <!-- Context Picker Modal -->
-            <div id="contextPickerOverlay" class="context-picker-overlay" onclick="closeContextPicker()">
-                <div class="context-picker" onclick="event.stopPropagation()">
-                    <div class="context-picker-header">Add Context</div>
-                    <input 
-                        type="text" 
-                        id="contextPickerInput" 
-                        class="context-picker-input" 
-                        placeholder="What are you working on?"
-                        onkeydown="if(event.key==='Enter') addCustomContext()"
-                    />
-                    <div class="context-suggestions">
-                        <div class="context-suggestion" onclick="addContextFromSuggestion('🔧 Debugging')">🔧 Debugging</div>
-                        <div class="context-suggestion" onclick="addContextFromSuggestion('📊 Data Analysis')">📊 Data Analysis</div>
-                        <div class="context-suggestion" onclick="addContextFromSuggestion('🎨 Design')">🎨 Design</div>
-                        <div class="context-suggestion" onclick="addContextFromSuggestion('📝 Writing')">📝 Writing</div>
-                        <div class="context-suggestion" onclick="addContextFromSuggestion('🚀 Deployment')">🚀 Deployment</div>
-                        <div class="context-suggestion" onclick="addContextFromSuggestion('🧪 Testing')">🧪 Testing</div>
-                        <div class="context-suggestion" onclick="addContextFromSuggestion('📖 Research')">📖 Research</div>
-                        <div class="context-suggestion" onclick="addContextFromSuggestion('💡 Planning')">💡 Planning</div>
-                    </div>
-                    <div class="context-picker-actions">
-                        <button class="context-picker-btn secondary" onclick="closeContextPicker()">Cancel</button>
-                        <button class="context-picker-btn primary" onclick="addCustomContext()">Add Context</button>
-                    </div>
-                </div>
-            </div>
-
-            <header class="header">
-                <div class="header-left">
-                    <button class="hamburger-btn" onclick="toggleSidebar()">☰</button>
-                    <div class="logo-container">
-                        <img src="assets/crump-crest.png" alt="Crump Crest" class="logo-img">
-                        <div class="logo-text">CRUMP AI</div>
-                    </div>
-                </div>
-                <button class="settings-btn" onclick="toggleSettings()">⚙️</button>
-            </header>
-
-            <div class="chat-container" id="chatContainer"></div>
-
-            <div class="input-container">
-                <div class="file-upload-preview" id="filePreview">
-                    <img id="filePreviewImage" src="" alt="File preview">
-                    <div class="file-upload-info">
-                        <div class="file-upload-name" id="fileName"></div>
-                        <div class="file-upload-size" id="fileSize"></div>
-                    </div>
-                    <button class="file-upload-remove" onclick="removeFile()">×</button>
-                </div>
-
-                <div class="input-wrapper">
-                    <textarea 
-                        id="userInput" 
-                        class="input-field" 
-                        placeholder="Message Crump AI..."
-                        rows="1"
-                        onkeydown="handleKeyPress(event)"
-                        oninput="autoResize(this); updateCharCount()"
-                        maxlength="50000"
-                    ></textarea>
-                    <div class="input-actions">
-                        <button class="icon-btn" onclick="attachFile()" title="Attach image">📎</button>
-                        <button class="icon-btn" onclick="toggleVoiceInput()" id="voiceBtn" title="Voice input">🎤</button>
-                        <button class="icon-btn primary" onclick="sendMessage()" title="Send message">➤</button>
-                    </div>
-                </div>
-                <div id="charCount" style="font-size: 11px; color: var(--text-tertiary); padding: 4px 8px; display: none;">0 / 50,000</div>
-            </div>
-        </main>
-
-        <div class="settings-panel" id="settingsPanel">
-            <div class="settings-header">
-                <div class="settings-title">Settings</div>
-                <button class="close-settings-btn" onclick="toggleSettings()">×</button>
-            </div>
-
-            <div class="setting-group">
-                <label class="setting-label">🎭 Assistant Name</label>
-                <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px;">
-                    <input 
-                        type="text" 
-                        id="assistant-name-input" 
-                        placeholder="Enter name..."
-                        style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #15263d; background: #0a1628; color: #f5f5dc; font-size: 14px;"
-                    />
-                    <button 
-                        onclick="saveAssistantName()" 
-                        style="padding: 10px 20px; background: #d4af37; color: #0a1628; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; white-space: nowrap;">
-                        Save
-                    </button>
-                </div>
-                <small style="color: #b8941f; display: block; margin-top: 6px; font-size: 12px;">
-                    Popular: JARVIS, Friday, Athena, Oracle, Nova
-                </small>
-                <button 
-                    id="reset-name-btn"
-                    onclick="resetAssistantName()" 
-                    style="margin-top: 8px; padding: 8px 16px; background: #15263d; color: #f5f5dc; border: 1px solid #d4af37; border-radius: 6px; cursor: pointer; display: none;">
-                    Reset to "Crump"
-                </button>
-            </div>
-
-            <div class="setting-group">
-                <label class="setting-label">Voice Output</label>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="voiceToggle" onchange="toggleVoiceOutput()">
-                    <span class="toggle-slider"></span>
-                </label>
-            </div>
-
-            <div class="setting-group">
-                <label class="setting-label">Auto-Voice Responses</label>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="autoVoiceToggle" onchange="toggleAutoVoice()">
-                    <span class="toggle-slider"></span>
-                </label>
-            </div>
-
-            <div class="setting-group">
-                <label class="setting-label">💭 Autonomous Messages</label>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="autonomousToggle" onchange="toggleAutonomousMessages()">
-                    <span class="toggle-slider"></span>
-                </label>
-                <small style="color: var(--text-tertiary); display: block; margin-top: 8px; font-size: 12px;">
-                    Crump can send unprompted check-ins and reminders
-                </small>
+                <div id="contextCards" class="context-cards"></div>
                 
-                <div id="autonomous-interval-settings" style="margin-top: 12px; display: none;">
-                    <label class="setting-label" style="font-size: 13px; margin-bottom: 8px;">Check-in Frequency</label>
-                    <div class="font-options">
-                        <button class="font-btn" id="interval-relaxed" onclick="setAutonomousInterval('relaxed')">🐌 Relaxed (15min)</button>
-                        <button class="font-btn active" id="interval-balanced" onclick="setAutonomousInterval('balanced')">⚡ Balanced (5min)</button>
-                        <button class="font-btn" id="interval-active" onclick="setAutonomousInterval('active')">🔥 Active (2min)</button>
-                        <button class="font-btn" id="interval-very-active" onclick="setAutonomousInterval('very-active')">💬 Very Active (1min)</button>
+                <!-- Premium Context Dropdown -->
+                <div id="contextDropdown" class="context-dropdown">
+                    <input type="text" id="contextPickerInput" placeholder="Add context..." class="context-input" />
+                    <div id="contextDropdownMenu" class="context-dropdown-menu">
+                        <div class="context-dropdown-section">
+                            <div class="context-dropdown-label">QUICK ADD</div>
+                            <button onclick="addContextFromSuggestion('🔧 Debugging')">🔧 Debugging</button>
+                            <button onclick="addContextFromSuggestion('📊 Data Analysis')">📊 Data Analysis</button>
+                            <button onclick="addContextFromSuggestion('🎨 Design')">🎨 Design</button>
+                            <button onclick="addContextFromSuggestion('✍️ Writing')">✍️ Writing</button>
+                            <button onclick="addContextFromSuggestion('🚀 Deployment')">🚀 Deployment</button>
+                            <button onclick="addContextFromSuggestion('🧪 Testing')">🧪 Testing</button>
+                            <button onclick="addContextFromSuggestion('📖 Research')">📖 Research</button>
+                            <button onclick="addContextFromSuggestion('📋 Planning')">📋 Planning</button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="setting-group">
-                <label class="setting-label">💡 Feature Reminders</label>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="featureRemindersToggle" onchange="toggleFeatureReminders()">
-                    <span class="toggle-slider"></span>
-                </label>
-                <small style="color: var(--text-tertiary); display: block; margin-top: 8px; font-size: 12px;">
-                    Crump will occasionally remind you of helpful features during idle time
-                </small>
-            </div>
-
-            <div class="setting-group">
-                <label class="setting-label">🎯 Context-Aware Suggestions</label>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="contextSuggestionsToggle" onchange="toggleContextSuggestions()">
-                    <span class="toggle-slider"></span>
-                </label>
-                <small style="color: var(--text-tertiary); display: block; margin-top: 8px; font-size: 12px;">
-                    Get smart suggestions based on what you're doing (e.g., "I can generate images too!")
-                </small>
-            </div>
-
-            <div class="setting-group">
-                <label class="setting-label">🎨 Image Generator</label>
-                <div class="font-options">
-                    <button class="font-btn active" id="genPollinations" onclick="setImageGenerator('pollinations')">Pollinations AI</button>
-                    <button class="font-btn" id="genSegmind" onclick="setImageGenerator('segmind')">Segmind</button>
-                </div>
-                <small style="color: var(--text-tertiary); display: block; margin-top: 8px; font-size: 12px;">
-                    Choose your preferred AI image generator. Automatically falls back to the other if one fails.
-                </small>
-            </div>
-
-            <div class="setting-group">
-                <label class="setting-label">🎯 Show Confidence Scores</label>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="confidenceToggle" onchange="toggleConfidenceDisplay()">
-                    <span class="toggle-slider"></span>
-                </label>
-                <small style="color: var(--text-tertiary); display: block; margin-top: 8px; font-size: 12px;">
-                    Display Crump's confidence level and reasoning on each response
-                </small>
-            </div>
-
-            <div class="setting-group">
-                <label class="setting-label">🧠 Auto Meta-Commentary</label>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="metaToggle" onchange="toggleMetaCommentary()">
-                    <span class="toggle-slider"></span>
-                </label>
-                <small style="color: var(--text-tertiary); display: block; margin-top: 8px; font-size: 12px;">
-                    Automatically show reasoning process with each response
-                </small>
-            </div>
-
-            <div class="setting-group">
-                <label class="setting-label">Font Style</label>
-                <div class="font-options">
-                    <button class="font-btn active" onclick="changeFont('modern')">Modern</button>
-                    <button class="font-btn" onclick="changeFont('classic')">Classic</button>
-                    <button class="font-btn" onclick="changeFont('elegant')">Elegant</button>
-                </div>
-            </div>
-
-            <div class="setting-group">
-                <label class="setting-label">Background Color</label>
-                <div class="color-picker-wrapper">
-                    <input type="color" id="bgColorPicker" class="color-picker" value="#0a1628" onchange="changeBgColor(this.value)">
-                    <button class="font-btn" onclick="resetBgColor()">Reset</button>
-                </div>
-            </div>
-
-            <div class="setting-group">
-                <button class="danger-btn" onclick="clearCurrentChat()">Clear Current Chat</button>
-                <button class="danger-btn" onclick="deleteAllChats()">Delete All Chats</button>
-                <button class="danger-btn" onclick="clearMemoryPrompt()">Clear Memory</button>
-                <button class="danger-btn" onclick="resetAllPreferences()" style="border-color: #ff6b6b; color: #ff6b6b;">⚠️ Reset All Preferences</button>
-            </div>
-
-            <div class="setting-group" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
-                <label class="setting-label">📦 Data Portability</label>
-                
-                <button 
-                    onclick="exportAllData()" 
-                    style="width: 100%; padding: 12px; margin: 8px 0; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: var(--text-primary); cursor: pointer; transition: all 0.2s; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 10px;"
-                    onmouseover="this.style.background='rgba(255, 255, 255, 0.1)'; this.style.borderColor='var(--accent-primary)';"
-                    onmouseout="this.style.background='rgba(255, 255, 255, 0.05)'; this.style.borderColor='rgba(255, 255, 255, 0.1)';">
-                    📥 Export All Data
-                </button>
-                
-                <button 
-                    onclick="document.getElementById('import-file-input').click()" 
-                    style="width: 100%; padding: 12px; margin: 8px 0; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: var(--text-primary); cursor: pointer; transition: all 0.2s; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 10px;"
-                    onmouseover="this.style.background='rgba(255, 255, 255, 0.1)'; this.style.borderColor='var(--accent-primary)';"
-                    onmouseout="this.style.background='rgba(255, 255, 255, 0.05)'; this.style.borderColor='rgba(255, 255, 255, 0.1)';">
-                    📤 Import Data
-                </button>
-                
-                <input type="file" id="import-file-input" accept=".json" style="display: none;" onchange="handleImport(event)">
-                
-                <p style="color: var(--text-secondary); font-size: 0.75rem; margin-top: 10px; line-height: 1.4;">
-                    Export your chats, memory, and settings to transfer between devices. Import restores everything from a backup file.
-                </p>
-            </div>
-
-            <div class="setting-group">
-                <button class="font-btn" style="width: 100%; padding: 12px; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: var(--bg-primary); border: none; font-weight: 600;" onclick="replayTutorial()">📖 View Tutorial</button>
-            </div>
-
-            <div class="setting-group">
-                <label class="setting-label">🧠 Learning Engine</label>
-                <button class="font-btn" style="width: 100%; padding: 12px; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: var(--bg-primary); border: none; font-weight: 600;" onclick="showLearningDashboard()">📊 View Learning Dashboard</button>
-                <button class="font-btn" style="width: 100%; padding: 12px; margin-bottom: 8px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; font-weight: 600;" onclick="showLearningHistory()">📚 View Learning History</button>
-                <button class="font-btn" style="width: 100%; padding: 12px; margin-bottom: 8px;" onclick="viewLearningStats()">📈 View Quick Stats</button>
-                <button class="font-btn" style="width: 100%; padding: 12px;" onclick="clearLearningData()">🗑️ Clear Learning Data</button>
-                <small style="color: var(--text-tertiary); display: block; margin-top: 8px; font-size: 12px;">
-                    Crump learns from corrections and feedback to improve over time. View timeline to see improvement journey!
-                </small>
-            </div>
-
-            <div class="version-info">
-                <div class="version-title">Crump AI v3.3 phase 1</div>
-                <div class="version-detail">Powered by N² Engine</div>
-                <div class="version-detail">Built by Gregory D. Crump Jr.</div>
-                <div class="status-indicator">
-                    <span class="status-dot"></span>
-                    Operational
-                </div>
-            </div>
+            <button class="icon-btn" onclick="toggleSettings()">⚙️</button>
         </div>
-    </div>
 
-    <!-- Link to external JavaScript -->
-    <script src="/app.js"></script>
-</body>
-</html>
+        <!-- Continue Context Banner -->
+        <div id="continueContextBanner" class="continue-context-banner" style="display: none;"></div>
+
+        <!-- Chat Container -->
+        <di
