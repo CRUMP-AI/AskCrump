@@ -5,12 +5,12 @@
 
 const CONFIG = {
     CLAUDE_MODEL: 'claude-sonnet-4-20250514',
-    MAX_TOKENS: 8192,
+    MAX_TOKENS: 16384,
     MAX_HISTORY: 999999,
     MAX_HISTORY_WITH_IMAGE: 999999,
     ANTHROPIC_VERSION: '2023-06-01',
     SEARCH_RESULTS_COUNT: 8,
-    SEARCH_TIMEOUT: 5000,
+    SEARCH_TIMEOUT: 55000,
     MAX_MEMORY_CONTEXT: 10
 };
 
@@ -236,7 +236,7 @@ async function handleBraveSearchResponse(res, message, searchResults, systemProm
         'x-api-key': process.env.ANTHROPIC_API_KEY,
         'anthropic-version': CONFIG.ANTHROPIC_VERSION
     },
-    signal: AbortSignal.timeout(25000), // ⚡ 25 second timeout
+    signal: AbortSignal.timeout(CONFIG.API_TIMEOUT), // ⚡ 25 second timeout
     body: JSON.stringify({
             model: CONFIG.CLAUDE_MODEL,
             max_tokens: CONFIG.MAX_TOKENS,
@@ -270,7 +270,7 @@ async function handleClaudeNativeSearch(res, message, systemPrompt, validHistory
         'x-api-key': process.env.ANTHROPIC_API_KEY,
         'anthropic-version': CONFIG.ANTHROPIC_VERSION
     },
-    signal: AbortSignal.timeout(25000), // ⚡ 25 second timeout
+    signal: AbortSignal.timeout(CONFIG.API_TIMEOUT), // ⚡ 25 second timeout
     body: JSON.stringify({
             model: CONFIG.CLAUDE_MODEL,
             max_tokens: CONFIG.MAX_TOKENS,
@@ -321,7 +321,7 @@ async function handleRegularChat(res, message, systemPrompt, validHistory) {
         'x-api-key': process.env.ANTHROPIC_API_KEY,
         'anthropic-version': CONFIG.ANTHROPIC_VERSION
     },
-    signal: AbortSignal.timeout(25000), // ⚡ 25 second timeout
+    signal: AbortSignal.timeout(CONFIG.API_TIMEOUT), // ⚡ 25 second timeout
     body: JSON.stringify({
             model: CONFIG.CLAUDE_MODEL,
             max_tokens: CONFIG.MAX_TOKENS,
@@ -530,10 +530,10 @@ async function handleImageAnalysis(res, fileData, message, assistantName) {
         'x-api-key': process.env.ANTHROPIC_API_KEY,
         'anthropic-version': CONFIG.ANTHROPIC_VERSION
     },
-    signal: AbortSignal.timeout(25000), // ⚡ 25 second timeout
+    signal: AbortSignal.timeout(CONFIG.API_TIMEOUT), // ⚡ 25 second timeout
     body: JSON.stringify({
         model: CONFIG.CLAUDE_MODEL,
-        max_tokens: 2048, // ⚡ REDUCED from 4096
+       max_tokens: 4096, // Sufficient for detailed image analysis
                 system: visionPrompt,
                 messages: [{
                     role: 'user',
