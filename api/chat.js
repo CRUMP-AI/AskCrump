@@ -5,7 +5,7 @@
 
 const CONFIG = {
     CLAUDE_MODEL: 'claude-sonnet-4-20250514',
-    MAX_TOKENS: 16384,
+    MAX_TOKENS: 8192,
     MAX_HISTORY: 999999,
     MAX_HISTORY_WITH_IMAGE: 999999,
     ANTHROPIC_VERSION: '2023-06-01',
@@ -108,10 +108,12 @@ export default async function handler(req, res) {
     console.error('❌ Server error:', error);
     console.error('Error stack:', error.stack);
     console.error('Error message:', error.message);
+    console.error('Request body keys:', Object.keys(req.body || {}));  // ← ADD THIS
+    console.error('Message length:', req.body?.message?.length || 0);  // ← ADD THIS
     
     // Handle timeout errors specifically
     if (error.name === 'AbortError') {
-        console.error('⏱️ Request timed out after 9 seconds');
+        console.error('⏱️ Request timed out');
         return res.status(504).json({
             error: 'Request timeout',
             details: 'The AI took too long to respond. Try a shorter message or simpler request.'
