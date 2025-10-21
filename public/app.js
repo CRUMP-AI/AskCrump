@@ -548,7 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupVoiceRecognition();
     
     // Initialize engines
-    messageDeduper = new window.MessageDeduplicator();
+    messageDeduper = new window.MessageDeduplicator(2000); // 2 seconds instead of 500ms
     contextEngine = new window.ContextAwarenessEngine();
     learningEngine = new window.LearningEngine();
     suggestionEngine = new window.ContextSuggestionEngine();
@@ -1034,13 +1034,50 @@ async function sendMessage() {
         console.log('🚫 BLOCKED: Duplicate message');
         return;
     }
+
+    // ============================================
+    // SAFETY: Unified unlock function
+    // ============================================
+    const unlockUI = () => {
+        isSending = false;
+        window.isSending = false;
+        input.disabled = false;
+        const sendBtn = document.querySelector('.icon-btn.primary');
+        if (sendBtn) sendBtn.disabled = false;
+        console.log('🔓 UI UNLOCKED');
+    };
     
+    // ============================================
+    // SAFETY: Global error handler (catches uncaught errors)
+    // ============================================
+    const globalErrorHandler = (e) => {
+        if (isSending) {
+            console.error('⚠️ Global error detected, force unlocking UI:', e.message);
+            unlockUI();
+        }
+    };
+    window.addEventListener('error', globalErrorHandler, { once: true });
+    window.addEventListener('unhandledrejection', globalErrorHandler, { once: true });
+    
+    // Now lock the UI
     isSending = true;
     window.isSending = true;
     console.log('🔒 SEND LOCKED at', Date.now());
     input.disabled = true;
     const sendBtn = document.querySelector('.icon-btn.primary');
     if (sendBtn) sendBtn.disabled = true;
+
+    // ============================================
+    // SAFETY: Absolute timeout (65s - longer than backend)
+    // ============================================
+    const absoluteSafetyTimeout = setTimeout(() => {
+        if (isSending) {
+            console.error('⚠️ ABSOLUTE SAFETY: Force unlock after 65s');
+            unlockUI();
+            window.hideThinking();
+            addMessage('assistant', '⏱️ **Absolute Timeout**\n\nThe system failed to respond within 65 seconds. The interface has been automatically unlocked.\n\nPlease try again with a shorter message.');
+        }
+    }, 65000);
     
     try {
         if (detectNovaActivation(message)) {
@@ -1157,10 +1194,18 @@ async function sendMessage() {
         }
         
         window.showThinking();
-        
-        // MOVED: Define these BEFORE try block
+
+        // Define chat and backup BEFORE try block
         const chat = chats.find(c => c.id === currentChatId);
         let contextBackup = null;
+        
+        if (chat) {
+            contextBackup = {
+                messages: [...chat.messages],
+                activeContext: contextEngine ? contextEngine.activeContext : null,
+                chatTitle: chat.title
+            };
+        }
         
         const safetyTimeout = setTimeout(() => {
             if (isSending) {
@@ -1171,17 +1216,10 @@ async function sendMessage() {
                 input.disabled = false;
                 const sendBtn = document.querySelector('.icon-btn.primary');
                 if (sendBtn) sendBtn.disabled = false;
-                addMessage('assistant', '⏱️ **Request Timeout**\n\nThe request took too long (30+ seconds). This usually means:\n\n• Server is overloaded\n• Network connection issues\n• Message is too complex\n\nPlease try again with a shorter message or check your connection.');
+                addMessage('assistant', '⏱️ **Request Timeout**\n\nThe request took too long (62+ seconds). This usually means:\n\n• Server is overloaded\n• Network connection issues\n• Message is too complex\n\nPlease try again with a shorter message or check your connection.');
                 window.showNotification('⏱️ Request timed out - interface unlocked', 'error');
             }
-        }, 30000);
-        
-        // Create backup (chat already defined above)
-        contextBackup = {
-            messages: [...chat.messages],
-            activeContext: contextEngine.activeContext,
-            chatTitle: chat.title
-        };
+        }, 62000);
         
         const response = await fetchWithTimeout('/api/chat', {
             method: 'POST',
@@ -1195,7 +1233,7 @@ async function sendMessage() {
                 novaProtocol: isNovaActive() ? getNovaProtocol() : null,
                 universalMemory: getUniversalMemory()
             })
-        }, 30000);
+        }, 60000);
         
         if (!response.ok) throw new Error('API request failed');
         const data = await response.json();
@@ -1218,11 +1256,10 @@ async function sendMessage() {
             }
         }
         
-        isSending = false;
-        window.isSending = false;
-        input.disabled = false;
-        if (sendBtn) sendBtn.disabled = false;
-        console.log('🔓 UNLOCKED (success)');
+       clearTimeout(absoluteSafetyTimeout);
+        window.removeEventListener('error', globalErrorHandler);
+        window.removeEventListener('unhandledrejection', globalErrorHandler);
+        unlockUI();
         
     } catch (error) {
         window.hideThinking();
@@ -1235,15 +1272,12 @@ async function sendMessage() {
         console.error('❌ SEND ERROR:', error);
         console.error('Error stack:', error.stack);
 
-        isSending = false;
-        window.isSending = false;
-        input.disabled = false;
-        const sendBtn = document.querySelector('.icon-btn.primary');
-        if (sendBtn) sendBtn.disabled = false;
-       console.log('🔓 FORCE UNLOCKED (error caught)');
+        clearTimeout(absoluteSafetyTimeout);
+        window.removeEventListener('error', globalErrorHandler);
+        window.removeEventListener('unhandledrejection', globalErrorHandler);
+        unlockUI();
 
-        // FIXED: Re-get chat in catch block (in case try failed early)
-        const chat = chats.find(c => c.id === currentChatId);
+        // Restore from backup (chat already defined above)
         if (contextBackup && chat && chat.messages.length !== contextBackup.messages.length) {
             console.log('🔧 Restoring context from backup');
             chat.messages = contextBackup.messages;
