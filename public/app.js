@@ -1520,15 +1520,30 @@ function checkMemoryCommands(message) {
 
 function getMemoryContext() {
     if (userMemory.notes.length === 0 && Object.keys(userMemory.preferences).length === 0 && Object.keys(userMemory.contexts).length === 0) return '';
+    
     let context = '\n\n[Context about user: ';
-    if (userMemory.notes.length > 0) context += userMemory.notes.map(n => n.content).join('; ');
+    
+    // FIXED: Only send last 5 notes, not all of them
+    if (userMemory.notes.length > 0) {
+        const recentNotes = userMemory.notes.slice(-5);  // ← LIMIT TO 5
+        context += recentNotes.map(n => n.content).join('; ');
+    }
+    
     if (Object.keys(userMemory.preferences).length > 0) {
         context += '. Preferences: ' + Object.entries(userMemory.preferences).map(([k,v]) => `${k}=${v}`).join(', ');
     }
+    
     if (Object.keys(userMemory.contexts).length > 0) {
         context += '. ' + Object.entries(userMemory.contexts).map(([k,v]) => `${k}: ${v}`).join(', ');
     }
+    
     context += ']';
+    
+    // SAFETY: If context is > 2000 chars, truncate it
+    if (context.length > 2000) {
+        context = context.substring(0, 2000) + '... (truncated)]';
+    }
+    
     return context;
 }
 
