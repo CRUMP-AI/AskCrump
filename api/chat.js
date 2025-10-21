@@ -12,6 +12,7 @@ const CONFIG = {
     SEARCH_RESULTS_COUNT: 8,
     SEARCH_TIMEOUT: 55000,
     MAX_MEMORY_CONTEXT: 10
+    API_TIMEOUT: 55000
 };
 
 // ==========================================
