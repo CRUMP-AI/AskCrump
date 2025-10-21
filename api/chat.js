@@ -38,6 +38,10 @@ function truncateHistory(history, maxTokens = 100000) {
 }
 
 export default async function handler(req, res) {
+    console.log('📊 API Request received');
+    console.log('📊 Message length:', req.body?.message?.length || 0);
+    console.log('📊 History messages:', req.body?.history?.length || 0);
+    console.log('📊 Has file:', !!req.body?.fileData);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
