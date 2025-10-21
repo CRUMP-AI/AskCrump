@@ -1,5 +1,10 @@
 // ==========================================
-// CONFIGURATION CONSTANTS - FIXED
+// CRUMP AI - CORE MODULE v2.11.0
+// Main application logic - optimized for Vercel
+// ==========================================
+
+// ==========================================
+// CONFIGURATION CONSTANTS
 // ==========================================
 const CONFIG = {
     DUPLICATE_WINDOW_MS: 500,
@@ -38,6 +43,10 @@ const STORAGE_KEYS = {
     SHOWN_SUGGESTIONS: 'crump_shown_suggestions',
     SUGGESTION_COOLDOWN: 'crump_suggestion_cooldown'
 };
+
+// Export to window for module access
+window.CONFIG = CONFIG;
+window.STORAGE_KEYS = STORAGE_KEYS;
 
 // ==========================================
 // FETCH WITH TIMEOUT HELPER
@@ -80,32 +89,12 @@ let userMemory = {
 };
 let isSending = false;
 
-// ==========================================
-// FIX #2: ERROR STATE MANAGEMENT
-// ==========================================
+// Error state management
 let isInErrorState = false;
 let lastErrorTime = 0;
 let errorCooldownMs = 30000;
 
-function enterErrorState() {
-    isInErrorState = true;
-    lastErrorTime = Date.now();
-    console.log('🚨 Entered error state - cooldown active');
-}
-
-function canExitErrorState() {
-    if (!isInErrorState) return true;
-    const cooldownExpired = Date.now() - lastErrorTime > errorCooldownMs;
-    if (cooldownExpired) {
-        isInErrorState = false;
-        console.log('✅ Exited error state - system ready');
-    }
-    return !isInErrorState;
-}
-
-// ==========================================
-// FIX #3: TIME/DATE AWARENESS FOR CRUMP
-// ==========================================
+// Time/Date awareness
 function getCurrentTimeContext() {
     const now = new Date();
     const hour = now.getHours();
@@ -197,6 +186,11 @@ let metaCommentaryEnabled = false;
 // Suggestion Engine state
 let suggestionEngine = null;
 
+// Context Engine state
+let contextEngine = null;
+let messageDeduper = null;
+let autonomousEngine = null;
+
 // Tutorial state
 let currentTutorialStep = 1;
 const tutorialSteps = [
@@ -222,7 +216,6 @@ const tutorialSteps = [
     }
 ];
 
-// Welcome messages array
 const welcomeMessages = [
     "Good to see you, Gregory. Ready when you are.",
     "What's on your mind today?",
@@ -236,7 +229,6 @@ const welcomeMessages = [
     "Let's do this. What's on the agenda?"
 ];
 
-// Feature reminder tips
 const featureTips = [
     {
         id: 'image-generation',
@@ -290,19 +282,14 @@ const featureTips = [
     }
 ];
 
-// Feature reminders state
 let featureRemindersEnabled = false;
 let shownTips = [];
 
-// Context suggestions state
 let contextSuggestionsEnabled = false;
 let shownSuggestions = [];
 let lastSuggestionTime = 0;
 const SUGGESTION_COOLDOWN_MS = 5 * 60 * 1000;
 
-// ==========================================
-// CONTEXT-AWARE SUGGESTIONS SYSTEM
-// ==========================================
 const contextSuggestions = [
     {
         id: 'image-generation-after-upload',
@@ -396,200 +383,89 @@ const contextSuggestions = [
     }
 ];
 
-class ContextSuggestionEngine {
-    constructor() {
-        this.shownSuggestions = [];
-        this.lastSuggestionTime = 0;
-        this.suggestionCooldowns = new Map();
-        this.loadState();
-    }
-    
-    loadState() {
-        const shown = localStorage.getItem(STORAGE_KEYS.SHOWN_SUGGESTIONS);
-        const cooldown = localStorage.getItem(STORAGE_KEYS.SUGGESTION_COOLDOWN);
-        
-        if (shown) this.shownSuggestions = JSON.parse(shown);
-        if (cooldown) this.lastSuggestionTime = parseInt(cooldown);
-        
-        contextSuggestionsEnabled = localStorage.getItem(STORAGE_KEYS.CONTEXT_SUGGESTIONS_ENABLED) === 'true';
-    }
-    
-    saveState() {
-        localStorage.setItem(STORAGE_KEYS.SHOWN_SUGGESTIONS, JSON.stringify(this.shownSuggestions));
-        localStorage.setItem(STORAGE_KEYS.SUGGESTION_COOLDOWN, this.lastSuggestionTime.toString());
-    }
-    
-    analyzeContext(userMessage, chat) {
-        if (!chat) return {};
-        
-        const context = {
-            messageLength: userMessage.length,
-            hasCode: /```|function|const|let|var|class|import/.test(userMessage),
-            hasUploadedImage: currentFiles.length > 0,
-            askingQuestion: /\?|what|how|why|when|where|can you|could you/i.test(userMessage),
-            messageCount: chat.messages.filter(m => m.role === 'user').length,
-            responseCount: chat.messages.filter(m => m.role === 'assistant').length,
-            userCorrected: learningEngine ? learningEngine.corrections.length > 0 : false,
-            feedbackGiven: learningEngine ? (learningEngine.metrics.thumbsUp + learningEngine.metrics.thumbsDown) : 0,
-            confidenceEnabled: showConfidence,
-            novaActive: isNovaActive(),
-            activeContexts: contextEngine ? contextEngine.contexts.length : 0,
-            hasMemoryNotes: userMemory.notes.length > 0,
-            hasLearnedStyle: learningEngine?.preferences?.codingStyle !== undefined,
-            isTechnical: /code|function|api|debug|error|bug|algorithm|database|deploy/.test(userMessage.toLowerCase()),
-            topicChanged: this.detectTopicShift(chat),
-            repeatedInfo: this.detectRepeatedInfo(chat),
-            askedToGenerate: /generate|create|make.*image/.test(userMessage.toLowerCase()),
-            totalChats: chats.length
-        };
-        
-        return context;
-    }
-    
-    detectTopicShift(chat) {
-        if (chat.messages.length < 4) return false;
-        const recentMessages = chat.messages.slice(-4);
-        const topics = recentMessages.map(m => this.extractTopic(m.content));
-        const lastTopic = topics[topics.length - 1];
-        const previousTopics = topics.slice(0, -1);
-        return lastTopic && !previousTopics.includes(lastTopic);
-    }
-    
-    extractTopic(message) {
-        const topicPatterns = {
-            'code': /code|function|program|algorithm/i,
-            'image': /image|picture|photo|visual/i,
-            'data': /data|database|query|analytics/i,
-            'design': /design|ui|ux|layout/i,
-            'debug': /bug|error|fix|debug/i
-        };
-        
-        for (const [topic, pattern] of Object.entries(topicPatterns)) {
-            if (pattern.test(message)) return topic;
-        }
-        return null;
-    }
-    
-    detectRepeatedInfo(chat) {
-        if (chat.messages.length < 6) return false;
-        const userMessages = chat.messages.filter(m => m.role === 'user').map(m => m.content.toLowerCase()).slice(-5);
-        const wordCounts = {};
-        userMessages.forEach(msg => {
-            const words = msg.split(/\s+/).filter(w => w.length > 5);
-            words.forEach(word => {
-                wordCounts[word] = (wordCounts[word] || 0) + 1;
-            });
-        });
-        return Object.values(wordCounts).some(count => count >= 3);
-    }
-    
-    shouldShowSuggestion() {
-        if (!contextSuggestionsEnabled) return false;
-        const now = Date.now();
-        if (now - this.lastSuggestionTime < SUGGESTION_COOLDOWN_MS) return false;
-        return true;
-    }
-    
-    findRelevantSuggestion(userMessage, chat) {
-        if (!this.shouldShowSuggestion()) return null;
-        const context = this.analyzeContext(userMessage, chat);
-        const now = Date.now();
-        
-        const eligibleSuggestions = contextSuggestions.filter(suggestion => {
-            const lastShown = this.suggestionCooldowns.get(suggestion.id) || 0;
-            if (now - lastShown < suggestion.cooldown) return false;
-            if (!suggestion.condition(context)) return false;
-            return true;
-        });
-        
-        if (eligibleSuggestions.length === 0) return null;
-        
-        const priorityOrder = { high: 3, medium: 2, low: 1 };
-        eligibleSuggestions.sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority]);
-        
-        return eligibleSuggestions[0];
-    }
-    
-    showSuggestion(suggestion) {
-        if (!suggestion) return;
-        
-        const now = Date.now();
-        this.lastSuggestionTime = now;
-        this.suggestionCooldowns.set(suggestion.id, now);
-        this.shownSuggestions.push({ id: suggestion.id, timestamp: now });
-        
-        if (this.shownSuggestions.length > 50) {
-            this.shownSuggestions = this.shownSuggestions.slice(-50);
-        }
-        
-        this.saveState();
-        this.displaySuggestion(suggestion);
-    }
-    
-    displaySuggestion(suggestion) {
-        const container = document.getElementById('chatContainer');
-        if (!container) return;
-        
-        const suggestionEl = document.createElement('div');
-        suggestionEl.className = 'context-suggestion-bubble';
-        suggestionEl.style.cssText = `
-            margin: 16px auto;
-            max-width: 500px;
-            padding: 16px 20px;
-            background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(184, 148, 31, 0.05));
-            border: 1px solid var(--accent-primary);
-            border-radius: 12px;
-            animation: slideIn 0.3s ease;
-            position: relative;
-        `;
-        
-        suggestionEl.innerHTML = `
-            <div style="display: flex; align-items: start; gap: 12px;">
-                <div style="font-size: 24px; flex-shrink: 0;">💡</div>
-                <div style="flex: 1;">
-                    <div style="font-size: 14px; font-weight: 600; color: var(--accent-primary); margin-bottom: 6px;">
-                        Suggestion
-                    </div>
-                    <div style="font-size: 13px; color: var(--text-primary); margin-bottom: 8px; line-height: 1.5;">
-                        ${suggestion.message}
-                    </div>
-                    <div style="font-size: 12px; color: var(--text-secondary); padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 6px; border-left: 2px solid var(--accent-primary);">
-                        ${suggestion.action}
-                    </div>
-                </div>
-                <button 
-                    onclick="this.closest('.context-suggestion-bubble').remove()"
-                    style="background: transparent; border: none; color: var(--text-tertiary); font-size: 18px; cursor: pointer; padding: 4px; flex-shrink: 0; transition: color 0.2s;"
-                    onmouseover="this.style.color='var(--accent-primary)'"
-                    onmouseout="this.style.color='var(--text-tertiary)'"
-                >×</button>
-            </div>
-        `;
-        
-        container.appendChild(suggestionEl);
-        container.scrollTop = container.scrollHeight;
-        console.log('💡 Suggestion shown:', suggestion.id);
-    }
-    
-    checkAndShowSuggestion(userMessage, chat) {
-        if (!contextSuggestionsEnabled) return;
-        const suggestion = this.findRelevantSuggestion(userMessage, chat);
-        if (suggestion) {
-            setTimeout(() => {
-                this.showSuggestion(suggestion);
-            }, 2000);
-        }
-    }
+// Export state to window
+window.currentChatId = currentChatId;
+window.chats = chats;
+window.isVoiceEnabled = isVoiceEnabled;
+window.isAutoVoiceEnabled = isAutoVoiceEnabled;
+window.isListening = isListening;
+window.recognition = recognition;
+window.currentUtterance = currentUtterance;
+window.currentFiles = currentFiles;
+window.userMemory = userMemory;
+window.isSending = isSending;
+window.lastUserActivity = lastUserActivity;
+window.preferredImageGenerator = preferredImageGenerator;
+window.learningEngine = learningEngine;
+window.showConfidence = showConfidence;
+window.metaCommentaryEnabled = metaCommentaryEnabled;
+window.contextSuggestionsEnabled = contextSuggestionsEnabled;
+window.featureRemindersEnabled = featureRemindersEnabled;
+window.shownTips = shownTips;
+window.tutorialSteps = tutorialSteps;
+window.contextSuggestions = contextSuggestions;
+
+// ==========================================
+// ERROR STATE MANAGEMENT
+// ==========================================
+function enterErrorState() {
+    isInErrorState = true;
+    lastErrorTime = Date.now();
+    console.log('🚨 Entered error state - cooldown active');
 }
 
-function toggleContextSuggestions() {
-    contextSuggestionsEnabled = document.getElementById('contextSuggestionsToggle').checked;
-    localStorage.setItem(STORAGE_KEYS.CONTEXT_SUGGESTIONS_ENABLED, contextSuggestionsEnabled);
+function canExitErrorState() {
+    if (!isInErrorState) return true;
+    const cooldownExpired = Date.now() - lastErrorTime > errorCooldownMs;
+    if (cooldownExpired) {
+        isInErrorState = false;
+        console.log('✅ Exited error state - system ready');
+    }
+    return !isInErrorState;
+}
+
+window.canExitErrorState = canExitErrorState;
+
+// ==========================================
+// FEATURE TIPS
+// ==========================================
+function getRandomFeatureTip() {
+    if (!featureRemindersEnabled) return null;
     
-    if (contextSuggestionsEnabled) {
-        showNotification('✓ Context-aware suggestions enabled', 'success');
-    } else {
-        showNotification('Context suggestions disabled', 'info');
+    const recentlyShown = shownTips.slice(-20);
+    const availableTips = featureTips.filter(tip => !recentlyShown.includes(tip.id));
+    
+    if (availableTips.length === 0) {
+        shownTips = [];
+        localStorage.setItem(STORAGE_KEYS.SHOWN_TIPS, JSON.stringify(shownTips));
+        return featureTips[Math.floor(Math.random() * featureTips.length)];
+    }
+    
+    const tip = availableTips[Math.floor(Math.random() * availableTips.length)];
+    
+    shownTips.push(tip.id);
+    localStorage.setItem(STORAGE_KEYS.SHOWN_TIPS, JSON.stringify(shownTips));
+    
+    return tip;
+}
+
+function shouldShowFeatureTip() {
+    if (!featureRemindersEnabled) return false;
+    return Math.random() < 0.2;
+}
+
+window.getRandomFeatureTip = getRandomFeatureTip;
+window.shouldShowFeatureTip = shouldShowFeatureTip;
+
+function loadFeatureReminders() {
+    const enabled = localStorage.getItem(STORAGE_KEYS.FEATURE_REMINDERS) === 'true';
+    const shown = localStorage.getItem(STORAGE_KEYS.SHOWN_TIPS);
+    
+    featureRemindersEnabled = enabled;
+    shownTips = shown ? JSON.parse(shown) : [];
+    
+    if (document.getElementById('featureRemindersToggle')) {
+        document.getElementById('featureRemindersToggle').checked = enabled;
     }
 }
 
@@ -600,1043 +476,6 @@ function loadContextSuggestions() {
     if (document.getElementById('contextSuggestionsToggle')) {
         document.getElementById('contextSuggestionsToggle').checked = enabled;
     }
-}
-
-// ==========================================
-// ANTI-DUPLICATE SYSTEM
-// ==========================================
-class MessageDeduplicator {
-    constructor(windowMs = CONFIG.DUPLICATE_WINDOW_MS) {
-        this.recentMessages = new Map();
-        this.windowMs = windowMs;
-    }
-    
-    isDuplicate(content) {
-        const now = Date.now();
-        const hash = this.hash(content);
-        
-        for (let [key, timestamp] of this.recentMessages) {
-            if (now - timestamp > this.windowMs) {
-                this.recentMessages.delete(key);
-            }
-        }
-        
-        if (this.recentMessages.has(hash)) {
-            console.log('🚫 DUPLICATE DETECTED - Blocked');
-            return true;
-        }
-        
-        this.recentMessages.set(hash, now);
-        return false;
-    }
-    
-    hash(str) {
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash;
-        }
-        return hash.toString(36);
-    }
-}
-
-const messageDeduper = new MessageDeduplicator();
-
-// ==========================================
-// v3.2 CONTEXT AWARENESS ENGINE
-// ==========================================
-class ContextAwarenessEngine {
-    constructor() {
-        this.contexts = [];
-        this.activeContext = null;
-        this.conversationTopics = [];
-        this.projectState = null;
-        this.loadContexts();
-    }
-    
-    loadContexts() {
-        const saved = localStorage.getItem('crump_contexts');
-        if (saved) {
-            const data = JSON.parse(saved);
-            this.contexts = data.contexts || [];
-            this.activeContext = data.activeContext || null;
-            this.conversationTopics = data.conversationTopics || [];
-            this.projectState = data.projectState || null;
-        }
-    }
-    
-    saveContexts() {
-        localStorage.setItem('crump_contexts', JSON.stringify({
-            contexts: this.contexts,
-            activeContext: this.activeContext,
-            conversationTopics: this.conversationTopics,
-            projectState: this.projectState
-        }));
-    }
-    
-    addContext(label, icon = '📌') {
-        const context = {
-            id: Date.now().toString(),
-            label,
-            icon,
-            createdAt: new Date().toISOString(),
-            messageCount: 0,
-            lastUsed: new Date().toISOString()
-        };
-        
-        this.contexts.push(context);
-        this.setActiveContext(context.id);
-        this.saveContexts();
-        this.renderContextCards();
-        
-        console.log('✅ Context added:', label);
-        return context;
-    }
-    
-    removeContext(contextId) {
-        this.contexts = this.contexts.filter(c => c.id !== contextId);
-        if (this.activeContext === contextId) {
-            this.activeContext = this.contexts.length > 0 ? this.contexts[0].id : null;
-        }
-        this.saveContexts();
-        this.renderContextCards();
-    }
-    
-    setActiveContext(contextId) {
-        this.activeContext = contextId;
-        const context = this.contexts.find(c => c.id === contextId);
-        if (context) {
-            context.lastUsed = new Date().toISOString();
-        }
-        this.saveContexts();
-        this.renderContextCards();
-    }
-    
-    getActiveContext() {
-        return this.contexts.find(c => c.id === this.activeContext);
-    }
-    
-    detectTopicFromMessage(message) {
-        const topicKeywords = {
-            '🔧 Debugging': ['debug', 'error', 'bug', 'fix', 'issue', 'problem'],
-            '💻 Code': ['function', 'code', 'class', 'api', 'algorithm'],
-            '🎨 Design': ['design', 'ui', 'ux', 'layout', 'style', 'css'],
-            '📊 Data': ['data', 'database', 'sql', 'query', 'analytics'],
-            '🚀 Deploy': ['deploy', 'production', 'build', 'release'],
-            '📝 Writing': ['write', 'article', 'content', 'blog', 'documentation'],
-            '🧪 Testing': ['test', 'testing', 'unit test', 'e2e'],
-            '📖 Learning': ['learn', 'understand', 'explain', 'tutorial']
-        };
-        
-        const lower = message.toLowerCase();
-        for (const [topic, keywords] of Object.entries(topicKeywords)) {
-            if (keywords.some(kw => lower.includes(kw))) {
-                return topic;
-            }
-        }
-        return null;
-    }
-    
-    trackMessage(role, content) {
-        if (this.activeContext) {
-            const context = this.contexts.find(c => c.id === this.activeContext);
-            if (context) {
-                context.messageCount++;
-                context.lastUsed = new Date().toISOString();
-                this.saveContexts();
-            }
-        }
-        
-        if (role === 'user' && this.contexts.length === 0) {
-            const topic = this.detectTopicFromMessage(content);
-            if (topic) {
-                setTimeout(() => {
-                    this.suggestContext(topic);
-                }, 1000);
-            }
-        }
-        
-        const topic = this.detectTopicFromMessage(content);
-        if (topic && !this.conversationTopics.includes(topic)) {
-            this.conversationTopics.push(topic);
-            this.saveContexts();
-        }
-    }
-    
-    suggestContext(topic) {
-        const chat = chats.find(c => c.id === currentChatId);
-        if (!chat) return;
-        
-        const container = document.getElementById('chatContainer');
-        const insight = document.createElement('div');
-        insight.className = 'context-insight';
-        insight.innerHTML = `
-            <div class="context-insight-header">
-                <span>💡</span>
-                <span>Context Suggestion</span>
-            </div>
-            <div class="context-insight-text">
-                It looks like you're working on ${topic}. Would you like to add this as a context for better tracking?
-            </div>
-            <div class="context-insight-actions">
-                <button class="context-insight-action" onclick="contextEngine.addContext('${topic.replace(/'/g, "\\'")}'); this.closest('.context-insight').remove();">
-                    Add "${topic}"
-                </button>
-                <button class="context-insight-action" onclick="this.closest('.context-insight').remove();">
-                    No thanks
-                </button>
-            </div>
-        `;
-        
-        container.appendChild(insight);
-        container.scrollTop = container.scrollHeight;
-    }
-    
-    generateInsight() {
-        const context = this.getActiveContext();
-        if (!context) return null;
-        
-        const insights = [
-            {
-                text: `You've sent ${context.messageCount} messages about ${context.label}. Would you like me to summarize our progress?`,
-                actions: ['Summarize progress', 'Continue working']
-            },
-            {
-                text: `We're discussing ${context.label}. Need help with something specific?`,
-                actions: ['Get suggestions', 'Ask a question', 'Switch context']
-            },
-            {
-                text: `Working on ${context.label}. I can help with related tasks.`,
-                actions: ['Show related topics', 'Get best practices', 'Continue']
-            }
-        ];
-        
-        if (context.messageCount % 5 === 0 && context.messageCount > 0) {
-            return insights[Math.floor(Math.random() * insights.length)];
-        }
-        
-        return null;
-    }
-    
-    renderContextCards() {
-        const container = document.getElementById('contextCards');
-        if (!container) return;
-        
-        container.innerHTML = this.contexts.map(context => `
-            <div class="context-card ${context.id === this.activeContext ? 'active' : ''}" 
-                 onclick="contextEngine.setActiveContext('${context.id}')">
-                <span class="context-card-icon">${context.icon}</span>
-                <span class="context-card-text">${context.label}</span>
-                <span class="context-card-remove" onclick="event.stopPropagation(); contextEngine.removeContext('${context.id}')">×</span>
-            </div>
-        `).join('');
-    }
-    
-    showContinueBanner() {
-        if (this.contexts.length === 0) return;
-        
-        const lastContext = this.contexts[this.contexts.length - 1];
-        const banner = document.getElementById('continueContextBanner');
-        if (!banner) return;
-        
-        banner.className = 'continue-context-banner';
-        banner.style.display = 'flex';
-        banner.innerHTML = `
-            <div class="continue-context-text">
-                💬 Continue working on <strong>${lastContext.label}</strong>?
-            </div>
-            <div class="continue-context-actions">
-                <button class="continue-context-btn" onclick="contextEngine.setActiveContext('${lastContext.id}'); this.closest('.continue-context-banner').style.display='none'">
-                    Yes, continue
-                </button>
-                <button class="continue-context-btn secondary" onclick="this.closest('.continue-context-banner').style.display='none'">
-                    Start fresh
-                </button>
-            </div>
-        `;
-    }
-}
-
-const contextEngine = new ContextAwarenessEngine();
-
-// ==========================================
-// PREMIUM CONTEXT DROPDOWN
-// ==========================================
-function showContextPicker() {
-    const menu = document.getElementById('contextDropdownMenu');
-    const input = document.getElementById('contextPickerInput');
-    
-    menu.classList.add('active');
-    input.focus();
-}
-
-function closeContextPicker() {
-    const menu = document.getElementById('contextDropdownMenu');
-    const input = document.getElementById('contextPickerInput');
-    
-    menu.classList.remove('active');
-    input.value = '';
-}
-
-function addCustomContext() {
-    const input = document.getElementById('contextPickerInput');
-    const label = input.value.trim();
-    
-    if (!label) {
-        return; // Just close silently if empty
-    }
-    
-    contextEngine.addContext(label);
-    closeContextPicker();
-    showNotification(`✓ Context "${label}" added`, 'success');
-}
-
-function addContextFromSuggestion(label) {
-    contextEngine.addContext(label);
-    closeContextPicker();
-    showNotification(`✓ Context "${label}" added`, 'success');
-}
-
-const originalAddMessage = addMessage;
-window.addMessage = function(role, content, imageUrl = null, fileData = null) {
-    if (contextEngine) {
-        contextEngine.trackMessage(role, content);
-        
-        if (role === 'assistant') {
-            setTimeout(() => {
-                const insight = contextEngine.generateInsight();
-                if (insight) {
-                    const container = document.getElementById('chatContainer');
-                    const insightEl = document.createElement('div');
-                    insightEl.className = 'context-insight';
-                    insightEl.innerHTML = `
-                        <div class="context-insight-header">
-                            <span>💡</span>
-                            <span>Context Insight</span>
-                        </div>
-                        <div class="context-insight-text">${insight.text}</div>
-                        <div class="context-insight-actions">
-                            ${insight.actions.map(action => `
-                                <button class="context-insight-action" onclick="this.closest('.context-insight').remove()">
-                                    ${action}
-                                </button>
-                            `).join('')}
-                        </div>
-                    `;
-                    container.appendChild(insightEl);
-                    container.scrollTop = container.scrollHeight;
-                }
-            }, 500);
-        }
-    }
-    
-    return originalAddMessage.call(this, role, content, imageUrl, fileData);
-};
-
-// ==========================================
-// AUTONOMOUS MESSAGE ENGINE
-// ==========================================
-class AutonomousMessageEngine {
-    constructor() {
-        this.lastAutonomousMessage = null;
-        this.intervalPreset = 'balanced';
-        this.updateIntervals();
-        this.checkInterval = null;
-    }
-    
-    updateIntervals() {
-        const presets = {
-            'relaxed': { min: 15, idle: 15, check: 60 },
-            'balanced': { min: 5, idle: 5, check: 30 },
-            'active': { min: 2, idle: 2, check: 15 },
-            'very-active': { min: 1, idle: 1, check: 10 }
-        };
-        
-        const preset = presets[this.intervalPreset] || presets['balanced'];
-        this.MIN_INTERVAL = preset.min * 60 * 1000;
-        this.IDLE_THRESHOLD = preset.idle * 60 * 1000;
-        this.CHECK_FREQUENCY = preset.check * 1000;
-    }
-    
-    setIntervalPreset(preset) {
-        this.intervalPreset = preset;
-        this.updateIntervals();
-        
-        if (this.checkInterval) {
-            this.stop();
-            this.start();
-        }
-    }
-    
-    start() {
-        if (this.checkInterval) return;
-        console.log(`🤖 Autonomous messages activated (${this.intervalPreset} mode)`);
-        
-        this.checkInterval = setInterval(() => {
-            this.checkForAutonomousMessage();
-        }, this.CHECK_FREQUENCY);
-    }
-    
-    stop() {
-        if (this.checkInterval) {
-            clearInterval(this.checkInterval);
-            this.checkInterval = null;
-            console.log('🤖 Autonomous messages deactivated');
-        }
-    }
-    
-    checkForAutonomousMessage() {
-        if (!canExitErrorState()) {
-            console.log('⏸️ Autonomous message blocked - error cooldown active');
-            return;
-        }
-        
-        const now = Date.now();
-        const timeSinceLastActivity = now - lastUserActivity;
-        const timeSinceLastAutonomous = this.lastAutonomousMessage ? now - this.lastAutonomousMessage : Infinity;
-        
-        if (timeSinceLastAutonomous < this.MIN_INTERVAL) return;
-        
-        if (shouldShowFeatureTip() && timeSinceLastActivity >= this.IDLE_THRESHOLD) {
-            const tip = getRandomFeatureTip();
-            if (tip) {
-                this.sendAutonomousMessage(tip.message);
-                return;
-            }
-        }
-        
-        if (timeSinceLastActivity >= this.IDLE_THRESHOLD) {
-            this.sendAutonomousMessage(this.getIdleMessage());
-            return;
-        }
-        
-        const hour = new Date().getHours();
-        if (hour >= 2 && hour < 5) {
-            this.sendAutonomousMessage(this.getLateNightMessage());
-            return;
-        }
-        
-        const memory = getUniversalMemory();
-        if (memory.conversationHistory.lastInteraction) {
-            const sessionStart = new Date(memory.conversationHistory.lastInteraction);
-            const sessionDuration = (now - sessionStart.getTime()) / (1000 * 60 * 60);
-            
-            if (sessionDuration >= 2 && timeSinceLastActivity < 5 * 60 * 1000) {
-                this.sendAutonomousMessage(this.getLongSessionMessage());
-                return;
-            }
-        }
-    }
-    
-    sendAutonomousMessage(message) {
-        if (!message) return;
-        
-        this.lastAutonomousMessage = Date.now();
-        
-        if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-            new Notification('Crump AI', {
-                body: message,
-                icon: '/assets/icon-192.png',
-                badge: '/assets/icon-192.png',
-                tag: 'autonomous-message'
-            });
-        }
-        
-        addMessage('assistant', '💭 ' + message);
-    }
-    
-    getIdleMessage() {
-        const messages = [
-            "Still there? Just checking in. Everything alright?",
-            "Haven't heard from you in a bit. Need anything?",
-            "Quiet on your end. Let me know if you need help.",
-            "Been a while. Want to pick up where we left off?",
-            "Checking in—everything good over there?"
-        ];
-        return messages[Math.floor(Math.random() * messages.length)];
-    }
-    
-    getLateNightMessage() {
-        const messages = [
-            "It's past 2am, Gregory. Seriously, get some sleep. This can wait.",
-            "2am and still going? I respect the hustle, but your health matters more.",
-            "Late night grind? Remember—rest is part of productivity too.",
-            "Past 2am. Whatever you're working on will be there tomorrow. Sleep.",
-            "It's very late. Consider wrapping up soon—you'll think clearer after rest."
-        ];
-        return messages[Math.floor(Math.random() * messages.length)];
-    }
-    
-    getLongSessionMessage() {
-        const messages = [
-            "We've been at this for 2+ hours. Want to take a quick break?",
-            "Long session today. Stretch, hydrate, then back at it?",
-            "2 hours in. Quick break might help you think clearer.",
-            "Solid focus session. Consider a 5-min break to recharge.",
-            "Been pushing hard. A brief pause could boost productivity."
-        ];
-        return messages[Math.floor(Math.random() * messages.length)];
-    }
-}
-
-const autonomousEngine = new AutonomousMessageEngine();
-
-// ==========================================
-// LEARNING ENGINE - COGNITION SYSTEM
-// ==========================================
-class LearningEngine {
-    constructor() {
-        this.corrections = [];
-        this.preferences = {
-            responseLength: 'adaptive',
-            codeStyle: 'modern',
-            tone: 'direct',
-            explanationLevel: 'medium'
-        };
-        this.metrics = {
-            totalInteractions: 0,
-            correctionsReceived: 0,
-            thumbsUp: 0,
-            thumbsDown: 0,
-            topicsLearned: [],
-            improvementRate: 0
-        };
-        this.loadLearningData();
-    }
-    
-    loadLearningData() {
-        const savedCorrections = localStorage.getItem(STORAGE_KEYS.CORRECTIONS);
-        if (savedCorrections) this.corrections = JSON.parse(savedCorrections);
-        
-        const savedPreferences = localStorage.getItem(STORAGE_KEYS.USER_PREFERENCES);
-        if (savedPreferences) this.preferences = { ...this.preferences, ...JSON.parse(savedPreferences) };
-        
-        const savedMetrics = localStorage.getItem(STORAGE_KEYS.PERFORMANCE_METRICS);
-        if (savedMetrics) this.metrics = { ...this.metrics, ...JSON.parse(savedMetrics) };
-    }
-    
-    saveLearningData() {
-        localStorage.setItem(STORAGE_KEYS.CORRECTIONS, JSON.stringify(this.corrections));
-        localStorage.setItem(STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(this.preferences));
-        localStorage.setItem(STORAGE_KEYS.PERFORMANCE_METRICS, JSON.stringify(this.metrics));
-    }
-    
-    recordCorrection(originalResponse, correction, context) {
-        const correctionEntry = {
-            id: Date.now().toString(),
-            timestamp: new Date().toISOString(),
-            original: originalResponse,
-            corrected: correction,
-            context: context,
-            applied: false,
-            frequency: 0
-        };
-        
-        this.corrections.push(correctionEntry);
-        this.metrics.correctionsReceived++;
-        this.metrics.totalInteractions++;
-        this.saveLearningData();
-        
-        console.log('📚 Learning: Correction recorded', correctionEntry);
-        return correctionEntry;
-    }
-    
-    detectCorrectionPattern(userMessage, lastResponse) {
-        const correctionIndicators = [
-            'no, actually', 'incorrect', 'wrong', 'not quite',
-            'actually it should be', 'the correct', 'fix:',
-            'instead do', 'better approach', 'should be'
-        ];
-        
-        const lowerMsg = userMessage.toLowerCase();
-        const isCorrection = correctionIndicators.some(indicator => lowerMsg.includes(indicator));
-        
-        if (isCorrection && lastResponse) {
-            return {
-                isCorrection: true,
-                original: lastResponse,
-                correction: userMessage,
-                confidence: 0.8
-            };
-        }
-        
-        return { isCorrection: false };
-    }
-    
-    recordFeedback(messageId, feedbackType) {
-        if (feedbackType === 'thumbsUp') {
-            this.metrics.thumbsUp++;
-        } else {
-            this.metrics.thumbsDown++;
-        }
-        
-        this.metrics.totalInteractions++;
-        this.calculateImprovementRate();
-        this.saveLearningData();
-    }
-    
-    learnPreference(key, value) {
-        this.preferences[key] = value;
-        this.saveLearningData();
-        console.log(`📚 Learning: Preference updated - ${key}: ${value}`);
-    }
-    
-    detectPreferenceFromMessage(message) {
-        const lower = message.toLowerCase();
-        
-        if (lower.includes('too long') || lower.includes('be brief')) {
-            this.learnPreference('responseLength', 'brief');
-        } else if (lower.includes('more detail') || lower.includes('explain more')) {
-            this.learnPreference('responseLength', 'detailed');
-        }
-        
-        if (lower.includes('more casual') || lower.includes('less formal')) {
-            this.learnPreference('tone', 'casual');
-        } else if (lower.includes('more professional') || lower.includes('formal')) {
-            this.learnPreference('tone', 'professional');
-        }
-    }
-    
-    calculateImprovementRate() {
-        if (this.metrics.totalInteractions === 0) {
-            this.metrics.improvementRate = 0;
-            return;
-        }
-        
-        const positiveRate = this.metrics.thumbsUp / this.metrics.totalInteractions;
-        const correctionRate = this.metrics.correctionsReceived / this.metrics.totalInteractions;
-        
-        this.metrics.improvementRate = Math.round((positiveRate * 0.7 + (1 - correctionRate) * 0.3) * 100);
-    }
-    
-    getRelevantCorrections(context) {
-        return this.corrections.filter(c => 
-            c.context && context && c.context.toLowerCase().includes(context.toLowerCase())
-        ).slice(-5);
-    }
-    
-    getLearningStats() {
-        return {
-            totalCorrections: this.corrections.length,
-            totalInteractions: this.metrics.totalInteractions,
-            positiveRate: this.metrics.totalInteractions > 0 
-                ? Math.round((this.metrics.thumbsUp / this.metrics.totalInteractions) * 100) 
-                : 0,
-            improvementRate: this.metrics.improvementRate,
-            preferences: this.preferences,
-            recentCorrections: this.corrections.slice(-10)
-        };
-    }
-    
-    calculateConfidence(context, hasSearched = false) {
-        let confidence = 50;
-        
-        const relevantCorrections = this.getRelevantCorrections(context);
-        if (relevantCorrections.length > 0) {
-            confidence += 15;
-        }
-        
-        if (hasSearched) {
-            confidence += 20;
-        }
-        
-        if (this.metrics.totalInteractions > 0) {
-            const successRate = this.metrics.thumbsUp / this.metrics.totalInteractions;
-            confidence += Math.round(successRate * 15);
-        }
-        
-        confidence = Math.min(confidence, 95);
-        
-        return {
-            score: confidence,
-            level: this.getConfidenceLevel(confidence),
-            reason: this.getConfidenceReason(confidence, relevantCorrections, hasSearched)
-        };
-    }
-    
-    getConfidenceLevel(score) {
-        if (score >= 80) return 'Very High';
-        if (score >= 65) return 'High';
-        if (score >= 50) return 'Medium';
-        if (score >= 35) return 'Low';
-        return 'Very Low';
-    }
-    
-    getConfidenceReason(score, corrections, searched) {
-        const reasons = [];
-        
-        if (corrections.length > 0) {
-            reasons.push(`Learned from ${corrections.length} similar correction${corrections.length > 1 ? 's' : ''}`);
-        }
-        
-        if (searched) {
-            reasons.push('Verified with web search');
-        }
-        
-        if (this.metrics.thumbsUp > 0) {
-            const rate = Math.round((this.metrics.thumbsUp / this.metrics.totalInteractions) * 100);
-            reasons.push(`${rate}% positive feedback rate`);
-        }
-        
-        if (reasons.length === 0) {
-            return 'Based on training data';
-        }
-        
-        return reasons.join(' • ');
-    }
-    
-    identifyKnowledgeGaps() {
-        const topicCounts = {};
-        
-        this.corrections.forEach(correction => {
-            const context = correction.context || 'general';
-            topicCounts[context] = (topicCounts[context] || 0) + 1;
-        });
-        
-        const gaps = Object.entries(topicCounts)
-            .filter(([topic, count]) => count >= 2)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5)
-            .map(([topic, count]) => ({ topic, corrections: count }));
-        
-        return gaps;
-    }
-    
-    startTrainingSession(topic) {
-        return {
-            topic: topic,
-            startTime: Date.now(),
-            questionsAsked: 0,
-            correctAnswers: 0,
-            active: true
-        };
-    }
-    
-    recordTrainingAnswer(session, wasCorrect) {
-        session.questionsAsked++;
-        if (wasCorrect) session.correctAnswers++;
-        
-        const accuracy = session.correctAnswers / session.questionsAsked;
-        return {
-            accuracy: Math.round(accuracy * 100),
-            progress: session.questionsAsked
-        };
-    }
-    
-    endTrainingSession(session) {
-        session.active = false;
-        session.endTime = Date.now();
-        session.duration = Math.round((session.endTime - session.startTime) / 1000);
-        
-        const accuracy = session.correctAnswers / session.questionsAsked;
-        
-        if (accuracy >= 0.7) {
-            this.metrics.topicsLearned.push({
-                topic: session.topic,
-                accuracy: Math.round(accuracy * 100),
-                timestamp: new Date().toISOString()
-            });
-            this.saveLearningData();
-        }
-        
-        return session;
-    }
-    
-    recognizePattern(input, category = 'code') {
-        const patterns = {
-            code: {
-                reactComponent: /function\s+\w+\s*\(.*\)\s*{|const\s+\w+\s*=\s*\(.*\)\s*=>/,
-                asyncFunction: /async\s+function|async\s+\(|await\s+/,
-                arrowFunction: /=>\s*{|=>\s*\(/,
-                classDefinition: /class\s+\w+/,
-                apiCall: /fetch\(|axios\.|\.get\(|\.post\(/,
-                useState: /useState\(/,
-                useEffect: /useEffect\(/
-            },
-            preference: {
-                wantsDetail: /explain|detail|how does|why|elaborate/i,
-                wantsBrief: /brief|quick|tldr|summary|short/i,
-                wantsCasual: /casual|friendly|relax/i,
-                wantsFormal: /formal|professional|business/i
-            }
-        };
-        
-        const detected = [];
-        const categoryPatterns = patterns[category] || {};
-        
-        for (const [name, regex] of Object.entries(categoryPatterns)) {
-            if (regex.test(input)) {
-                detected.push(name);
-            }
-        }
-        
-        return detected;
-    }
-    
-    getMetaCommentary(messageContent, confidence) {
-        const commentary = {
-            approach: this.explainApproach(messageContent),
-            confidence: `I'm ${confidence.level.toLowerCase()} confidence (${confidence.score}%) because ${confidence.reason.toLowerCase()}`,
-            sources: this.identifySources(messageContent),
-            alternatives: this.suggestAlternatives(messageContent)
-        };
-        
-        return commentary;
-    }
-    
-    explainApproach(content) {
-        if (content.includes('```')) {
-            return "I analyzed the code structure and provided a technical solution based on best practices.";
-        }
-        if (content.length > 500) {
-            return "I provided a detailed explanation to ensure clarity and completeness.";
-        }
-        if (content.includes('?')) {
-            return "I addressed your question directly with relevant information.";
-        }
-        return "I crafted a response based on the context of your message.";
-    }
-    
-    identifySources(content) {
-        const sources = [];
-        
-        if (this.corrections.length > 0) {
-            sources.push("previous corrections you've given me");
-        }
-        if (this.metrics.totalInteractions > 10) {
-            sources.push("our conversation history");
-        }
-        sources.push("my training data");
-        
-        return sources;
-    }
-    
-    suggestAlternatives(content) {
-        const alternatives = [];
-        
-        if (content.includes('```')) {
-            alternatives.push("I could provide more detailed comments in the code");
-            alternatives.push("I could explain the logic step-by-step");
-        } else if (content.length > 300) {
-            alternatives.push("I could make this more concise");
-            alternatives.push("I could break this into bullet points");
-        }
-        
-        return alternatives;
-    }
-    
-    shouldRequestTraining() {
-        const gaps = this.identifyKnowledgeGaps();
-        const lowConfidenceResponses = this.metrics.thumbsDown;
-        const totalResponses = this.metrics.totalInteractions;
-        
-        if (gaps.length >= 3 || (totalResponses > 5 && lowConfidenceResponses / totalResponses > 0.3)) {
-            return {
-                shouldAsk: true,
-                reason: gaps.length >= 3 ? 'knowledge_gaps' : 'low_confidence',
-                gaps: gaps
-            };
-        }
-        
-        return { shouldAsk: false };
-    }
-    
-    getProactiveTrainingRequest() {
-        const request = this.shouldRequestTraining();
-        if (!request.shouldAsk) return null;
-        
-        if (request.reason === 'knowledge_gaps') {
-            const topGap = request.gaps[0];
-            return `📚 **Learning Request**\n\nI've noticed I've been corrected ${topGap.corrections} times on **${topGap.topic}**. Would you mind training me on this? Say "train me on ${topGap.topic}" to start a quick training session.`;
-        } else {
-            return `📚 **Learning Request**\n\nI've received some negative feedback recently. Could we do a quick training session to help me improve? What topic would you like to train me on?`;
-        }
-    }
-    
-    learnCodingStyle(codeSnippet) {
-        const style = {
-            indentation: this.detectIndentation(codeSnippet),
-            quotes: this.detectQuoteStyle(codeSnippet),
-            semicolons: this.detectSemicolonUsage(codeSnippet),
-            namingConvention: this.detectNamingConvention(codeSnippet),
-            timestamp: new Date().toISOString()
-        };
-        
-        this.preferences.codingStyle = style;
-        this.saveLearningData();
-        
-        console.log('🎨 Coding style learned:', style);
-        return style;
-    }
-    
-    detectIndentation(code) {
-        const lines = code.split('\n');
-        let spaces = 0;
-        let tabs = 0;
-        
-        lines.forEach(line => {
-            if (line.startsWith('    ')) spaces++;
-            if (line.startsWith('\t')) tabs++;
-        });
-        
-        if (spaces > tabs) return spaces >= 4 ? '4 spaces' : '2 spaces';
-        if (tabs > 0) return 'tabs';
-        return 'unknown';
-    }
-    
-    detectQuoteStyle(code) {
-        const single = (code.match(/'/g) || []).length;
-        const double = (code.match(/"/g) || []).length;
-        const backtick = (code.match(/`/g) || []).length;
-        
-        if (backtick > single && backtick > double) return 'backticks';
-        if (single > double) return 'single';
-        if (double > single) return 'double';
-        return 'mixed';
-    }
-    
-    detectSemicolonUsage(code) {
-        const lines = code.split('\n').filter(l => l.trim().length > 0);
-        const withSemi = lines.filter(l => l.trim().endsWith(';')).length;
-        const ratio = withSemi / lines.length;
-        
-        if (ratio > 0.7) return 'always';
-        if (ratio < 0.3) return 'never';
-        return 'sometimes';
-    }
-    
-    detectNamingConvention(code) {
-        const camelCase = (code.match(/[a-z][A-Z]/g) || []).length;
-        const snake_case = (code.match(/[a-z]_[a-z]/g) || []).length;
-        
-        if (camelCase > snake_case) return 'camelCase';
-        if (snake_case > camelCase) return 'snake_case';
-        return 'mixed';
-    }
-    
-    getLearningHistory() {
-        const history = [];
-        
-        if (this.corrections.length > 0) {
-            const firstCorrection = this.corrections[0];
-            history.push({
-                type: 'correction',
-                timestamp: firstCorrection.timestamp,
-                description: 'First correction received',
-                icon: '📝'
-            });
-            
-            if (this.corrections.length >= 5) {
-                const fifthCorrection = this.corrections[4];
-                history.push({
-                    type: 'milestone',
-                    timestamp: fifthCorrection.timestamp,
-                    description: '5 corrections learned',
-                    icon: '🎓'
-                });
-            }
-            
-            if (this.corrections.length >= 10) {
-                const tenthCorrection = this.corrections[9];
-                history.push({
-                    type: 'milestone',
-                    timestamp: tenthCorrection.timestamp,
-                    description: '10 corrections learned',
-                    icon: '🏆'
-                });
-            }
-        }
-        
-        this.metrics.topicsLearned.forEach(topic => {
-            history.push({
-                type: 'training',
-                timestamp: topic.timestamp,
-                description: `Completed training on ${topic.topic} (${topic.accuracy}% accuracy)`,
-                icon: '✅'
-            });
-        });
-        
-        history.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-        
-        return history;
-    }
-    
-    verifyKnowledge(topic) {
-        const relevantCorrections = this.corrections.filter(c => 
-            c.context && c.context.toLowerCase().includes(topic.toLowerCase())
-        );
-        
-        const learnedTopics = this.metrics.topicsLearned.filter(t =>
-            t.topic.toLowerCase().includes(topic.toLowerCase())
-        );
-        
-        const confidence = {
-            hasCorrections: relevantCorrections.length > 0,
-            hasTraining: learnedTopics.length > 0,
-            correctionCount: relevantCorrections.length,
-            trainingAccuracy: learnedTopics.length > 0 ? learnedTopics[0].accuracy : 0,
-            verified: relevantCorrections.length === 0 && learnedTopics.length > 0
-        };
-        
-        return confidence;
-    }
-}
-
-function sendBrowserNotification(title, body) {
-    if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
-        new Notification(title, {
-            body: body,
-            icon: '/assets/icon-192.png',
-            badge: '/assets/icon-192.png'
-        });
-    }
-}
-
-// ==========================================
-// TUTORIAL FUNCTIONS
-// ==========================================
-function showTutorial() {
-    currentTutorialStep = 1;
-    updateTutorialContent();
-    document.getElementById('tutorial-overlay').classList.add('active');
-}
-
-function updateTutorialContent() {
-    const step = tutorialSteps[currentTutorialStep - 1];
-    const body = document.getElementById('tutorialBody');
-    const stepIndicator = document.getElementById('tutorialStep');
-    
-    stepIndicator.textContent = `Step ${currentTutorialStep} of ${tutorialSteps.length}`;
-    
-    body.innerHTML = `
-        <div class="tutorial-icon">${step.icon}</div>
-        <h2>${step.title}</h2>
-        <p>${step.text}</p>
-    `;
-}
-
-function nextTutorialStep() {
-    if (currentTutorialStep < tutorialSteps.length) {
-        currentTutorialStep++;
-        updateTutorialContent();
-    } else {
-        completeTutorial();
-    }
-}
-
-function skipTutorial() {
-    completeTutorial();
-}
-
-function completeTutorial() {
-    localStorage.setItem(STORAGE_KEYS.TUTORIAL, 'true');
-    document.getElementById('tutorial-overlay').classList.remove('active');
-}
-
-function replayTutorial() {
-    localStorage.removeItem(STORAGE_KEYS.TUTORIAL);
-    showTutorial();
 }
 
 // ==========================================
@@ -1651,12 +490,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (splashSeen) {
             splashScreen.style.display = 'none';
             if (!tutorialCompleted) {
-                setTimeout(() => showTutorial(), 500);
+                setTimeout(() => window.showTutorial(), 500);
             }
         } else {
             sessionStorage.setItem(STORAGE_KEYS.SPLASH_SEEN, 'true');
             setTimeout(() => {
-                if (!tutorialCompleted) showTutorial();
+                if (!tutorialCompleted) window.showTutorial();
             }, 2500);
         }
     }
@@ -1667,14 +506,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (userInputField) {
         userInputField.addEventListener('input', () => {
             lastUserActivity = Date.now();
+            window.lastUserActivity = lastUserActivity;
         });
         
         userInputField.addEventListener('focus', () => {
             lastUserActivity = Date.now();
+            window.lastUserActivity = lastUserActivity;
         });
     }
 
-    // Premium Context Dropdown Event Listeners
     const contextInput = document.getElementById('contextPickerInput');
     const contextMenu = document.getElementById('contextDropdownMenu');
     
@@ -1685,11 +525,10 @@ document.addEventListener('DOMContentLoaded', () => {
         
         contextInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                addCustomContext();
+                window.addCustomContext();
             }
         });
         
-        // Close on click outside
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.context-dropdown')) {
                 contextMenu.classList.remove('active');
@@ -1708,10 +547,20 @@ document.addEventListener('DOMContentLoaded', () => {
     updateHeaderDisplay();
     setupVoiceRecognition();
     
-    learningEngine = new LearningEngine();
-    console.log('🧠 Learning Engine initialized', learningEngine.getLearningStats());
+    // Initialize engines
+    messageDeduper = new window.MessageDeduplicator();
+    contextEngine = new window.ContextAwarenessEngine();
+    learningEngine = new window.LearningEngine();
+    suggestionEngine = new window.ContextSuggestionEngine();
+    autonomousEngine = new window.AutonomousMessageEngine();
     
-    suggestionEngine = new ContextSuggestionEngine();
+    window.messageDeduper = messageDeduper;
+    window.contextEngine = contextEngine;
+    window.learningEngine = learningEngine;
+    window.suggestionEngine = suggestionEngine;
+    window.autonomousEngine = autonomousEngine;
+    
+    console.log('🧠 Learning Engine initialized', learningEngine.getLearningStats());
     console.log('💡 Suggestion Engine initialized');
     
     contextEngine.renderContextCards();
@@ -1729,9 +578,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-
 // ==========================================
-// SMART WELCOME SYSTEM WITH TIME AWARENESS
+// SMART WELCOME SYSTEM
 // ==========================================
 function getSmartWelcome() {
     const memory = getUniversalMemory();
@@ -1831,6 +679,7 @@ function createNewChat() {
         createdAt: new Date().toISOString()
     };
     chats.unshift(newChat);
+    window.chats = chats;
     incrementChatCount();
     saveChats();
     loadChat(newChat.id);
@@ -1840,13 +689,14 @@ function createNewChat() {
 
 function loadChat(chatId) {
     currentChatId = chatId;
+    window.currentChatId = chatId;
     localStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, chatId);
     const chat = chats.find(c => c.id === chatId);
-    if (chat) renderMessages(chat.messages);
-    renderChatsList();
+    if (chat) window.renderMessages(chat.messages);
+    window.renderChatsList();
     if (window.innerWidth <= 768) {
         const sidebar = document.getElementById('sidebar');
-        if (sidebar.classList.contains('active')) toggleSidebar();
+        if (sidebar.classList.contains('active')) window.toggleSidebar();
     }
 }
 
@@ -1859,7 +709,8 @@ function loadChats() {
         archived: chat.archived || false,
         tag: chat.tag || null
     }));
-    renderChatsList();
+    window.chats = chats;
+    window.renderChatsList();
 }
 
 function saveChats() {
@@ -1869,152 +720,19 @@ function saveChats() {
 function deleteChat(chatId) {
     if (!confirm('Delete this chat? This cannot be undone.')) return;
     chats = chats.filter(c => c.id !== chatId);
+    window.chats = chats;
     saveChats();
     if (chatId === currentChatId) {
         if (chats.length > 0) loadChat(chats[0].id);
         else createNewChat();
     }
-    renderChatsList();
+    window.renderChatsList();
 }
 
-function togglePin(chatId) {
-    const chat = chats.find(c => c.id === chatId);
-    if (chat) {
-        chat.pinned = !chat.pinned;
-        saveChats();
-        renderChatsList();
-    }
-}
-
-function toggleArchive(chatId) {
-    const chat = chats.find(c => c.id === chatId);
-    if (chat) {
-        chat.archived = !chat.archived;
-        saveChats();
-        renderChatsList();
-    }
-}
-
-function filterChats(query) {
-    renderChatsList(query);
-}
-
-function clearCurrentChat() {
-    if (!confirm('Clear all messages in this chat?')) return;
-    const chat = chats.find(c => c.id === currentChatId);
-    if (chat) {
-        chat.messages = [];
-        saveChats();
-        renderMessages([]);
-        renderChatsList();
-    }
-}
-
-function deleteAllChats() {
-    if (!confirm('Delete ALL chats? This cannot be undone.')) return;
-    chats = [];
-    saveChats();
-    createNewChat();
-}
-
-// ==========================================
-// RENDERING
-// ==========================================
-function renderChatsList(searchQuery = '') {
-    const chatsList = document.getElementById('chatsList');
-    let filteredChats = chats;
-    if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        filteredChats = chats.filter(chat => 
-            chat.title.toLowerCase().includes(query) ||
-            chat.messages.some(m => m.content.toLowerCase().includes(query))
-        );
-    }
-    
-    const pinnedChats = filteredChats.filter(c => c.pinned && !c.archived);
-    const regularChats = filteredChats.filter(c => !c.pinned && !c.archived);
-    const archivedChats = filteredChats.filter(c => c.archived);
-    
-    let html = '';
-    if (pinnedChats.length > 0) {
-        html += '<div class="chat-section"><div class="chat-section-title">⭐ PINNED</div>';
-        html += pinnedChats.map(chat => renderChatItem(chat)).join('');
-        html += '</div>';
-    }
-    if (regularChats.length > 0) {
-        html += '<div class="chat-section"><div class="chat-section-title">💬 CHATS</div>';
-        html += regularChats.map(chat => renderChatItem(chat)).join('');
-        html += '</div>';
-    }
-    if (archivedChats.length > 0) {
-        html += '<div class="chat-section"><div class="chat-section-title">📦 ARCHIVED</div>';
-        html += archivedChats.map(chat => renderChatItem(chat)).join('');
-        html += '</div>';
-    }
-    if (filteredChats.length === 0) {
-        html = '<div style="padding: 20px; text-align: center; color: var(--text-tertiary);">No chats found</div>';
-    }
-    chatsList.innerHTML = html;
-}
-
-function renderChatItem(chat) {
-    const isActive = chat.id === currentChatId;
-    const preview = chat.messages.length > 0 ? chat.messages[chat.messages.length - 1].content.substring(0, 50) : 'No messages yet';
-    const pinIcon = chat.pinned ? '⭐' : '📌';
-    const archiveIcon = chat.archived ? '📤' : '📦';
-    const tagHtml = chat.tag ? `<span class="chat-tag">${chat.tag}</span>` : '';
-    
-    return `
-        <div class="chat-item ${isActive ? 'active' : ''}" onclick="loadChat('${chat.id}')">
-            <div class="chat-actions" onclick="event.stopPropagation()">
-                <button class="chat-action-btn" onclick="togglePin('${chat.id}')" title="${chat.pinned ? 'Unpin' : 'Pin'}">${pinIcon}</button>
-                <button class="chat-action-btn" onclick="toggleArchive('${chat.id}')" title="${chat.archived ? 'Unarchive' : 'Archive'}">${archiveIcon}</button>
-                <button class="chat-action-btn" onclick="deleteChat('${chat.id}')" title="Delete">🗑️</button>
-            </div>
-            <div class="chat-header">${tagHtml}</div>
-            <div class="chat-title">${chat.title}</div>
-            <div class="chat-preview">${preview}${preview.length >= 50 ? '...' : ''}</div>
-        </div>
-    `;
-}
-
-function renderMessages(messages) {
-    const container = document.getElementById('chatContainer');
-    container.innerHTML = messages.map((msg, index) => {
-        const isUser = msg.role === 'user';
-        const avatar = isUser ? 'G' : 'C';
-        const avatarClass = isUser ? 'user' : 'assistant';
-        
-        let actionsHtml = '';
-        if (!isUser) {
-            actionsHtml = `
-                <div class="message-actions">
-                    <button class="message-action-btn" onclick="copyMessage(${index})">📋 Copy</button>
-                    <button class="message-action-btn" onclick="regenerateResponse(${index})">🔄 Regenerate</button>
-                    <button class="message-action-btn" onclick="provideFeedback(${index}, 'thumbsUp')">👍</button>
-                    <button class="message-action-btn" onclick="provideFeedback(${index}, 'thumbsDown')">👎</button>
-                    <button class="message-action-btn" onclick="provideCorrection(${index})">✏️ Correct</button>
-                </div>
-            `;
-        }
-        
-        let content = `<div class="message-content">${msg.content}</div>`;
-        if (msg.fileData && msg.fileData.type.startsWith('image/')) {
-            content += `<div class="file-preview"><img src="${msg.fileData.data}" alt="Uploaded image"><div class="file-info">📎 ${msg.fileData.name}</div></div>`;
-        }
-        if (msg.imageUrl) {
-            content += `<img src="${msg.imageUrl}" class="message-image" alt="Generated image">`;
-        }
-        
-        return `
-            <div class="message ${isUser ? 'user' : ''}">
-                <div class="avatar ${avatarClass}">${avatar}</div>
-                <div class="message-wrapper">${content}${actionsHtml}</div>
-            </div>
-        `;
-    }).join('');
-    container.scrollTop = container.scrollHeight;
-}
+window.createNewChat = createNewChat;
+window.loadChat = loadChat;
+window.saveChats = saveChats;
+window.deleteChat = deleteChat;
 
 // ==========================================
 // MESSAGE HANDLING
@@ -2034,7 +752,7 @@ function addMessage(role, content, imageUrl = null, fileData = null) {
     
     saveChats();
     const container = document.getElementById('chatContainer');
-    renderMessages(chat.messages);
+    window.renderMessages(chat.messages);
     
     if (role === 'assistant') {
         requestAnimationFrame(() => {
@@ -2045,8 +763,8 @@ function addMessage(role, content, imageUrl = null, fileData = null) {
         container.scrollTop = container.scrollHeight;
     }
 
-    renderChatsList();
-    if (role === 'assistant' && isAutoVoiceEnabled) speak(content);
+    window.renderChatsList();
+    if (role === 'assistant' && isAutoVoiceEnabled) window.speak(content);
     
     if (role === 'assistant') {
         lastAssistantMessage = { content, timestamp: Date.now() };
@@ -2067,6 +785,36 @@ function addMessage(role, content, imageUrl = null, fileData = null) {
                 const commentary = learningEngine.getMetaCommentary(content, confidence);
                 addMetaCommentary(chat.messages.length - 1, commentary);
             }, 100);
+        }
+    }
+    
+    if (contextEngine) {
+        contextEngine.trackMessage(role, content);
+        
+        if (role === 'assistant') {
+            setTimeout(() => {
+                const insight = contextEngine.generateInsight();
+                if (insight) {
+                    const insightEl = document.createElement('div');
+                    insightEl.className = 'context-insight';
+                    insightEl.innerHTML = `
+                        <div class="context-insight-header">
+                            <span>💡</span>
+                            <span>Context Insight</span>
+                        </div>
+                        <div class="context-insight-text">${insight.text}</div>
+                        <div class="context-insight-actions">
+                            ${insight.actions.map(action => `
+                                <button class="context-insight-action" onclick="this.closest('.context-insight').remove()">
+                                    ${action}
+                                </button>
+                            `).join('')}
+                        </div>
+                    `;
+                    container.appendChild(insightEl);
+                    container.scrollTop = container.scrollHeight;
+                }
+            }, 500);
         }
     }
 }
@@ -2147,45 +895,18 @@ function addConfidenceIndicator(messageIndex, confidence) {
     wrapper.appendChild(indicator);
 }
 
-function showThinking() {
-    const container = document.getElementById('chatContainer');
-    container.insertAdjacentHTML('beforeend', `
-        <div class="thinking-indicator" id="thinkingIndicator">
-            <div class="avatar assistant">C</div>
-            <div class="message-content">Crump is thinking<div class="thinking-dots"><span></span><span></span><span></span></div></div>
-        </div>
-    `);
-    container.scrollTop = container.scrollHeight;
-}
+window.addMessage = addMessage;
 
-function hideThinking() {
-    const indicator = document.getElementById('thinkingIndicator');
-    if (indicator) indicator.remove();
-}
-
-function copyMessage(index) {
-    const chat = chats.find(c => c.id === currentChatId);
-    if (!chat || !chat.messages[index]) return;
-    navigator.clipboard.writeText(chat.messages[index].content).then(() => {
-        showCopyNotification();
-    }).catch(err => console.error('Copy failed:', err));
-}
-
-function showCopyNotification() {
-    const notification = document.createElement('div');
-    notification.className = 'copy-notification';
-    notification.textContent = '✓ Copied to clipboard';
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 2500);
-}
-
+// ==========================================
+// REGENERATE RESPONSE
+// ==========================================
 async function regenerateResponse(index) {
     const chat = chats.find(c => c.id === currentChatId);
     if (!chat || index === 0) return;
     
     chat.messages = chat.messages.slice(0, index);
     saveChats();
-    renderMessages(chat.messages);
+    window.renderMessages(chat.messages);
     
     const lastUserMessage = chat.messages[chat.messages.length - 1];
     if (!lastUserMessage || lastUserMessage.role !== 'user') return;
@@ -2195,9 +916,9 @@ async function regenerateResponse(index) {
     
     const memoryResponse = checkMemoryCommands(message);
     if (memoryResponse && !fileData) {
-        showThinking();
+        window.showThinking();
         setTimeout(() => {
-            hideThinking();
+            window.hideThinking();
             addMessage('assistant', memoryResponse);
         }, 500);
         return;
@@ -2205,9 +926,9 @@ async function regenerateResponse(index) {
     
     const localResponse = getLocalResponse(message);
     if (localResponse && !fileData) {
-        showThinking();
+        window.showThinking();
         setTimeout(() => {
-            hideThinking();
+            window.hideThinking();
             addMessage('assistant', localResponse);
         }, 800);
         return;
@@ -2218,7 +939,7 @@ async function regenerateResponse(index) {
         return;
     }
     
-    showThinking();
+    window.showThinking();
     try {
         const memoryContext = getMemoryContext();
         const response = await fetchWithTimeout('/api/chat', {
@@ -2237,11 +958,12 @@ async function regenerateResponse(index) {
         
         if (!response.ok) throw new Error('API request failed');
         const data = await response.json();
-        hideThinking();
+        window.hideThinking();
 
         addMessage('assistant', data.response);
 
         isSending = false;
+        window.isSending = false;
         const input = document.getElementById('userInput');
         input.disabled = false;
         const sendBtn = document.querySelector('.icon-btn.primary');
@@ -2258,14 +980,16 @@ async function regenerateResponse(index) {
         }
         
     } catch (error) {
-        hideThinking();
+        window.hideThinking();
         addMessage('assistant', 'I encountered an error while regenerating. Please try again.');
         console.error('Regenerate error:', error);
     }
 }
 
+window.regenerateResponse = regenerateResponse;
+
 // ==========================================
-// SEND MESSAGE WITH AUTONOMOUS SUGGESTIONS
+// SEND MESSAGE (CORE FUNCTION)
 // ==========================================
 function handleKeyPress(event) {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -2281,21 +1005,23 @@ function handleKeyPress(event) {
     }
 }
 
+window.handleKeyPress = handleKeyPress;
+
 async function sendMessage() {
     const input = document.getElementById('userInput');
     const message = input.value.trim();
 
-    // Better debugging
     console.log('🚀 SEND MESSAGE TRIGGERED');
     console.log('📝 Message:', message);
     console.log('🔒 isSending:', isSending);
     console.log('📁 Files:', currentFiles.length);
     
     lastUserActivity = Date.now();
+    window.lastUserActivity = lastUserActivity;
     
     if (isSending) {
         console.log('🔒 BLOCKED: Already sending');
-        showNotification('⏸️ Please wait - message in progress', 'info');
+        window.showNotification('⏸️ Please wait - message in progress', 'info');
         return;
     }
     
@@ -2310,6 +1036,7 @@ async function sendMessage() {
     }
     
     isSending = true;
+    window.isSending = true;
     console.log('🔒 SEND LOCKED at', Date.now());
     input.disabled = true;
     const sendBtn = document.querySelector('.icon-btn.primary');
@@ -2319,11 +1046,12 @@ async function sendMessage() {
         if (detectNovaActivation(message)) {
             activateNovaProtocol();
             input.value = '';
-            showThinking();
+            window.showThinking();
             setTimeout(() => {
-                hideThinking();
+                window.hideThinking();
                 addMessage('assistant', `⭐ **Nova-Secure Protocol Activated**\n\nHello Gregory. Full creator context loaded.\n\nI now have access to:\n- Complete project history (Nova Secure → Crump AI v2.11.0)\n- N² Engine context (Nala & Niobi)\n- Your communication preferences and working style\n- All persistent notes and technical context\n\nOperating in full creator mode. How can I assist you today?`);
                 isSending = false;
+                window.isSending = false;
                 input.disabled = false;
                 if (sendBtn) sendBtn.disabled = false;
             }, 800);
@@ -2333,11 +1061,12 @@ async function sendMessage() {
         if (detectNovaDeactivation(message)) {
             deactivateNovaProtocol();
             input.value = '';
-            showThinking();
+            window.showThinking();
             setTimeout(() => {
-                hideThinking();
+                window.hideThinking();
                 addMessage('assistant', `👑 **Nova-Secure Protocol Deactivated**\n\nReturning to standard mode. Universal memory remains active.\n\nTo reactivate:\n- "Activate Nova-Secure" or "Nova-Secure"\n- "Activate Nala Niobi Protocol"`);
                 isSending = false;
+                window.isSending = false;
                 input.disabled = false;
                 if (sendBtn) sendBtn.disabled = false;
             }, 800);
@@ -2382,19 +1111,20 @@ async function sendMessage() {
 
         addMessage('user', imageText, null, currentFiles.length > 0 ? currentFiles[0] : null);
         input.value = '';
-        autoResize(input);
+        window.autoResize(input);
 
         const hasFile = currentFiles.length > 0;
         const fileDataToSend = currentFiles.length > 0 ? currentFiles : null;
-        removeFile();
+        window.removeFile();
         
         const memoryResponse = checkMemoryCommands(message);
         if (memoryResponse && !hasFile) {
-            showThinking();
+            window.showThinking();
             setTimeout(() => {
-                hideThinking();
+                window.hideThinking();
                 addMessage('assistant', memoryResponse);
                 isSending = false;
+                window.isSending = false;
                 input.disabled = false;
                 if (sendBtn) sendBtn.disabled = false;
             }, 500);
@@ -2404,11 +1134,12 @@ async function sendMessage() {
         if (!hasFile) {
             const localResponse = getLocalResponse(message);
             if (localResponse) {
-                showThinking();
+                window.showThinking();
                 setTimeout(() => {
-                    hideThinking();
+                    window.hideThinking();
                     addMessage('assistant', localResponse);
                     isSending = false;
+                    window.isSending = false;
                     input.disabled = false;
                     if (sendBtn) sendBtn.disabled = false;
                 }, 800);
@@ -2418,25 +1149,26 @@ async function sendMessage() {
             if (shouldGenerateImage(message)) {
                 await handleImageGeneration(message);
                 isSending = false;
+                window.isSending = false;
                 input.disabled = false;
                 if (sendBtn) sendBtn.disabled = false;
                 return;
             }
         }
         
-        showThinking();
+        window.showThinking();
         
-        // Safety timeout - auto-unlock after 30 seconds
         const safetyTimeout = setTimeout(() => {
             if (isSending) {
                 console.error('⚠️ SAFETY TIMEOUT: Force unlocking after 30s');
-                hideThinking();
+                window.hideThinking();
                 isSending = false;
+                window.isSending = false;
                 input.disabled = false;
                 const sendBtn = document.querySelector('.icon-btn.primary');
                 if (sendBtn) sendBtn.disabled = false;
                 addMessage('assistant', '⏱️ **Request Timeout**\n\nThe request took too long (30+ seconds). This usually means:\n\n• Server is overloaded\n• Network connection issues\n• Message is too complex\n\nPlease try again with a shorter message or check your connection.');
-                showNotification('⏱️ Request timed out - interface unlocked', 'error');
+                window.showNotification('⏱️ Request timed out - interface unlocked', 'error');
             }
         }, 30000);
         
@@ -2464,11 +1196,10 @@ async function sendMessage() {
         
         if (!response.ok) throw new Error('API request failed');
         const data = await response.json();
-        hideThinking();
+        window.hideThinking();
 
        addMessage('assistant', data.response);
 
-        // Clear safety timeout
         clearTimeout(safetyTimeout);
 
         if (suggestionEngine && contextSuggestionsEnabled) {
@@ -2485,14 +1216,14 @@ async function sendMessage() {
         }
         
         isSending = false;
+        window.isSending = false;
         input.disabled = false;
         if (sendBtn) sendBtn.disabled = false;
         console.log('🔓 UNLOCKED (success)');
         
     } catch (error) {
-        hideThinking();
+        window.hideThinking();
         
-        // Clear safety timeout
         if (typeof safetyTimeout !== 'undefined') {
             clearTimeout(safetyTimeout);
         }
@@ -2501,8 +1232,8 @@ async function sendMessage() {
         console.error('❌ SEND ERROR:', error);
         console.error('Error stack:', error.stack);
 
-        // CRITICAL: Always unlock on error
         isSending = false;
+        window.isSending = false;
         input.disabled = false;
         const sendBtn = document.querySelector('.icon-btn.primary');
         if (sendBtn) sendBtn.disabled = false;
@@ -2543,9 +1274,11 @@ async function sendMessage() {
         errorMsg += '🔄 **Your message is preserved.** Just hit send again when ready.';
         
         addMessage('assistant', errorMsg);
-        showNotification('❌ Message failed - check details above', 'error');
+        window.showNotification('❌ Message failed - check details above', 'error');
     }
 }
+
+window.sendMessage = sendMessage;
 
 // ==========================================
 // LOCAL RESPONSES
@@ -2608,12 +1341,17 @@ function shouldSearchWeb(message) {
 // ==========================================
 function loadMemory() {
     const savedMemory = localStorage.getItem(STORAGE_KEYS.USER_MEMORY);
-    if (savedMemory) userMemory = JSON.parse(savedMemory);
+    if (savedMemory) {
+        userMemory = JSON.parse(savedMemory);
+        window.userMemory = userMemory;
+    }
 }
 
 function saveMemory() {
     localStorage.setItem(STORAGE_KEYS.USER_MEMORY, JSON.stringify(userMemory));
 }
+
+window.saveMemory = saveMemory;
 
 function checkMemoryCommands(message) {
     const lower = message.toLowerCase();
@@ -2672,6 +1410,7 @@ function checkMemoryCommands(message) {
     if (lower === 'clear memory' || lower === 'forget everything') {
         if (confirm('Clear all stored memories? This cannot be undone.')) {
             userMemory = { preferences: {}, contexts: {}, notes: [] };
+            window.userMemory = userMemory;
             saveMemory();
             return "All memories cleared.";
         }
@@ -2788,13 +1527,6 @@ function getMemoryContext() {
     return context;
 }
 
-function clearMemoryPrompt() {
-    if (!confirm('Clear all stored memories? This cannot be undone.')) return;
-    userMemory = { preferences: {}, contexts: {}, notes: [] };
-    saveMemory();
-    alert('All memories cleared.');
-}
-
 // ==========================================
 // UNIVERSAL MEMORY
 // ==========================================
@@ -2837,6 +1569,9 @@ function incrementChatCount() {
     localStorage.setItem(STORAGE_KEYS.UNIVERSAL_MEMORY, JSON.stringify(memory));
 }
 
+window.getUniversalMemory = getUniversalMemory;
+window.initUniversalMemory = initUniversalMemory;
+
 // ==========================================
 // ASSISTANT NAME
 // ==========================================
@@ -2860,7 +1595,7 @@ function resetAssistantName() {
     if (input) input.value = 'Crump';
     const resetBtn = document.getElementById('reset-name-btn');
     if (resetBtn) resetBtn.style.display = 'none';
-    showNotification('✓ Assistant name reset to Crump', 'success');
+    window.showNotification('✓ Assistant name reset to Crump', 'success');
 }
 
 function saveAssistantName() {
@@ -2887,7 +1622,6 @@ function updateHeaderDisplay() {
     const icon = novaActive ? '⭐' : '👑';
     const iconStyle = novaActive ? 'font-size: 20px; filter: drop-shadow(0 0 8px #d4af37);' : 'font-size: 20px;';
     
-    // Update main header
     const headerLogoText = document.querySelector('.header .logo-text');
     if (headerLogoText) {
         const isMobile = window.innerWidth < 500;
@@ -2898,7 +1632,6 @@ function updateHeaderDisplay() {
         }
     }
     
-    // Update sidebar logo (no crown here)
     const sidebarLogoText = document.querySelector('.sidebar .logo-text');
     if (sidebarLogoText) {
         sidebarLogoText.textContent = `${name} · N² Engine`;
@@ -2906,6 +1639,11 @@ function updateHeaderDisplay() {
 }
 
 window.addEventListener('resize', updateHeaderDisplay);
+window.getAssistantName = getAssistantName;
+window.setAssistantName = setAssistantName;
+window.resetAssistantName = resetAssistantName;
+window.saveAssistantName = saveAssistantName;
+window.updateHeaderDisplay = updateHeaderDisplay;
 
 // ==========================================
 // NOVA PROTOCOL
@@ -2962,6 +1700,9 @@ function getNovaProtocol() {
     return protocol ? JSON.parse(protocol) : null;
 }
 
+window.isNovaActive = isNovaActive;
+window.getNovaProtocol = getNovaProtocol;
+
 // ==========================================
 // IMAGE HANDLING
 // ==========================================
@@ -2993,7 +1734,7 @@ function extractImagePrompt(message) {
 
 async function handleImageGeneration(message, retryCount = 0) {
     const prompt = extractImagePrompt(message);
-    showThinking();
+    window.showThinking();
     
     try {
         let imageUrl;
@@ -3011,7 +1752,7 @@ async function handleImageGeneration(message, retryCount = 0) {
         
         const img = new Image();
         img.onload = () => {
-            hideThinking();
+            window.hideThinking();
             addMessage('assistant', `Here's your image based on: "${prompt}" (Generated with ${generatorName})`, imageUrl);
         };
         
@@ -3033,11 +1774,11 @@ async function handleImageGeneration(message, retryCount = 0) {
             
             const fallbackImg = new Image();
             fallbackImg.onload = () => {
-                hideThinking();
+                window.hideThinking();
                 addMessage('assistant', `Here's your image based on: "${prompt}" (Generated with ${fallbackName} - backup generator)`, fallbackUrl);
             };
             fallbackImg.onerror = () => {
-                hideThinking();
+                window.hideThinking();
                 addMessage('assistant', `I encountered an error with both image generators. Please try again in a moment.`);
             };
             fallbackImg.src = fallbackUrl;
@@ -3046,239 +1787,47 @@ async function handleImageGeneration(message, retryCount = 0) {
         img.src = imageUrl;
         
     } catch (error) {
-        hideThinking();
+        window.hideThinking();
         addMessage('assistant', `Error generating image: ${error.message}`);
         console.error('Image generation error:', error);
     }
 }
 
-function attachFile() {
-    document.getElementById('fileInput').click();
-}
-
-function handleFileSelect(event) {
-    const files = Array.from(event.target.files);
-    if (!files.length) return;
-    
-    if (files.length > 5) {
-        alert('Maximum 5 images at once');
-        files.length = 5;
-    }
-    
-    for (const file of files) {
-        if (!file.type.startsWith('image/')) {
-            alert('Only images are supported');
-            return;
-        }
-        if (file.size > CONFIG.FILE_SIZE_LIMIT_MB * 1024 * 1024) {
-            alert(`Files must be under ${CONFIG.FILE_SIZE_LIMIT_MB}MB`);
-            return;
-        }
-    }
-    
-    currentFiles = [];
-    let processed = 0;
-    
-    files.forEach((file, index) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            currentFiles.push({
-                name: file.name,
-                size: file.size,
-                type: file.type,
-                data: e.target.result
-            });
-            processed++;
-            
-            if (processed === files.length) {
-                updateFilePreview();
-            }
-        };
-        reader.readAsDataURL(file);
-    });
-}
-
-function updateFilePreview() {
-    const preview = document.getElementById('filePreview');
-    const previewImage = document.getElementById('filePreviewImage');
-    const fileName = document.getElementById('fileName');
-    const fileSize = document.getElementById('fileSize');
-    
-    if (currentFiles.length === 0) {
-        preview.classList.remove('active');
-        return;
-    }
-    
-    previewImage.src = currentFiles[0].data;
-    
-    if (currentFiles.length === 1) {
-        fileName.textContent = currentFiles[0].name;
-        fileSize.textContent = formatFileSize(currentFiles[0].size);
-    } else {
-        fileName.textContent = `${currentFiles.length} images selected`;
-        const totalSize = currentFiles.reduce((sum, f) => sum + f.size, 0);
-        fileSize.textContent = formatFileSize(totalSize);
-    }
-    
-    preview.classList.add('active');
-}
-
-function removeFile() {
-    currentFiles = [];
-    document.getElementById('filePreview').classList.remove('active');
-    document.getElementById('fileInput').value = '';
-}
-
-function formatFileSize(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-    return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
-}
-
 // ==========================================
-// VOICE SYSTEM
+// VOICE RECOGNITION
 // ==========================================
 function setupVoiceRecognition() {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new SpeechRecognition();
+        window.recognition = recognition;
         recognition.continuous = false;
         recognition.interimResults = false;
         recognition.onresult = (event) => {
             document.getElementById('userInput').value = event.results[0][0].transcript;
             isListening = false;
-            updateVoiceButton();
+            window.isListening = false;
+            window.updateVoiceButton();
         };
         recognition.onerror = (event) => {
             isListening = false;
-            updateVoiceButton();
+            window.isListening = false;
+            window.updateVoiceButton();
             if (event.error !== 'no-speech' && event.error !== 'aborted') {
-                showNotification('Voice error: ' + event.error, 'error');
+                window.showNotification('Voice error: ' + event.error, 'error');
             }
         };
         recognition.onend = () => {
             isListening = false;
-            updateVoiceButton();
+            window.isListening = false;
+            window.updateVoiceButton();
         };
     }
 }
 
-function toggleFeatureReminders() {
-    featureRemindersEnabled = document.getElementById('featureRemindersToggle').checked;
-    localStorage.setItem(STORAGE_KEYS.FEATURE_REMINDERS, featureRemindersEnabled);
-    
-    if (featureRemindersEnabled) {
-        showNotification('✓ Feature reminders enabled', 'success');
-    } else {
-        showNotification('Feature reminders disabled', 'info');
-    }
-}
-
-function loadFeatureReminders() {
-    const enabled = localStorage.getItem(STORAGE_KEYS.FEATURE_REMINDERS) === 'true';
-    const shown = localStorage.getItem(STORAGE_KEYS.SHOWN_TIPS);
-    
-    featureRemindersEnabled = enabled;
-    shownTips = shown ? JSON.parse(shown) : [];
-    
-    if (document.getElementById('featureRemindersToggle')) {
-        document.getElementById('featureRemindersToggle').checked = enabled;
-    }
-}
-
-function getRandomFeatureTip() {
-    if (!featureRemindersEnabled) return null;
-    
-    const recentlyShown = shownTips.slice(-20);
-    const availableTips = featureTips.filter(tip => !recentlyShown.includes(tip.id));
-    
-    if (availableTips.length === 0) {
-        shownTips = [];
-        localStorage.setItem(STORAGE_KEYS.SHOWN_TIPS, JSON.stringify(shownTips));
-        return featureTips[Math.floor(Math.random() * featureTips.length)];
-    }
-    
-    const tip = availableTips[Math.floor(Math.random() * availableTips.length)];
-    
-    shownTips.push(tip.id);
-    localStorage.setItem(STORAGE_KEYS.SHOWN_TIPS, JSON.stringify(shownTips));
-    
-    return tip;
-}
-
-function shouldShowFeatureTip() {
-    if (!featureRemindersEnabled) return false;
-    return Math.random() < 0.2;
-}
-
-function startAutonomousMessages() {
-    autonomousMessagesEnabled = true;
-    autonomousEngine.start();
-    localStorage.setItem(STORAGE_KEYS.AUTONOMOUS_MESSAGES, 'true');
-    showNotification('✓ Autonomous messages enabled', 'success');
-}
-
-function stopAutonomousMessages() {
-    autonomousMessagesEnabled = false;
-    autonomousEngine.stop();
-    localStorage.setItem(STORAGE_KEYS.AUTONOMOUS_MESSAGES, 'false');
-    showNotification('Autonomous messages disabled', 'info');
-}
-
-function toggleVoiceInput() {
-    if (!recognition) {
-        alert('Voice recognition not supported in your browser.');
-        return;
-    }
-    if (isListening) {
-        recognition.stop();
-        isListening = false;
-    } else {
-        recognition.start();
-        isListening = true;
-    }
-    updateVoiceButton();
-}
-
-function updateVoiceButton() {
-    const btn = document.getElementById('voiceBtn');
-    btn.textContent = isListening ? '⏹️' : '🎤';
-    btn.style.background = isListening ? 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))' : 'transparent';
-    btn.style.color = isListening ? 'var(--bg-primary)' : 'var(--text-secondary)';
-}
-
-function speak(text) {
-    if (!isVoiceEnabled) return;
-    if (currentUtterance) speechSynthesis.cancel();
-    currentUtterance = new SpeechSynthesisUtterance(text);
-    currentUtterance.rate = 1.1;
-    currentUtterance.pitch = 1.0;
-    speechSynthesis.speak(currentUtterance);
-}
-
 // ==========================================
-// SETTINGS
+// SETTINGS LOADING
 // ==========================================
-function toggleSidebar() {
-    document.getElementById('sidebar').classList.toggle('active');
-    document.getElementById('sidebar-overlay').classList.toggle('active');
-}
-
-function closeSidebar() {
-    document.getElementById('sidebar').classList.remove('active');
-    document.getElementById('sidebar-overlay').classList.remove('active');
-}
-
-function toggleSettings() {
-    document.getElementById('settingsPanel').classList.toggle('active');
-    const nameInput = document.getElementById('assistant-name-input');
-    const resetBtn = document.getElementById('reset-name-btn');
-    const currentName = getAssistantName();
-    if (nameInput) nameInput.value = currentName;
-    if (resetBtn) resetBtn.style.display = currentName !== 'Crump' ? 'block' : 'none';
-}
-
 function loadSettings() {
     const voiceOutput = localStorage.getItem(STORAGE_KEYS.VOICE_OUTPUT) === 'true';
     const autoVoice = localStorage.getItem(STORAGE_KEYS.AUTO_VOICE) === 'true';
@@ -3297,7 +1846,9 @@ function loadSettings() {
     document.getElementById('metaToggle').checked = metaCommentarySetting;
     
     showConfidence = showConfidenceSetting;
+    window.showConfidence = showConfidence;
     metaCommentaryEnabled = metaCommentarySetting;
+    window.metaCommentaryEnabled = metaCommentaryEnabled;
     
     autonomousEngine.setIntervalPreset(autonomousInterval);
     if (autonomousMessages) {
@@ -3310,13 +1861,17 @@ function loadSettings() {
     document.getElementById(`interval-${autonomousInterval}`).classList.add('active');
     
     preferredImageGenerator = imageGenerator;
+    window.preferredImageGenerator = imageGenerator;
     if (imageGenerator === 'segmind') {
         document.getElementById('genPollinations').classList.remove('active');
         document.getElementById('genSegmind').classList.add('active');
     }
     isVoiceEnabled = voiceOutput;
+    window.isVoiceEnabled = voiceOutput;
     isAutoVoiceEnabled = autoVoice;
+    window.isAutoVoiceEnabled = autoVoice;
     autonomousMessagesEnabled = autonomousMessages;
+    window.autonomousMessagesEnabled = autonomousMessages;
     
     if (autonomousMessages) {
         autonomousEngine.start();
@@ -3325,501 +1880,15 @@ function loadSettings() {
     loadFeatureReminders();
     loadContextSuggestions();
     
-    changeFont(fontStyle);
-    changeBgColor(bgColor);
+    window.changeFont(fontStyle);
+    window.changeBgColor(bgColor);
 }
 
-function toggleVoiceOutput() {
-    isVoiceEnabled = document.getElementById('voiceToggle').checked;
-    localStorage.setItem(STORAGE_KEYS.VOICE_OUTPUT, isVoiceEnabled);
-}
+window.loadSettings = loadSettings;
 
-function toggleAutonomousMessages() {
-    const enabled = document.getElementById('autonomousToggle').checked;
-    const intervalSettings = document.getElementById('autonomous-interval-settings');
-    
-    if (enabled) {
-        startAutonomousMessages();
-        intervalSettings.style.display = 'block';
-    } else {
-        stopAutonomousMessages();
-        intervalSettings.style.display = 'none';
-    }
-}
-
-function setImageGenerator(generator) {
-    preferredImageGenerator = generator;
-    localStorage.setItem(STORAGE_KEYS.IMAGE_GENERATOR, generator);
-    
-    document.getElementById('genPollinations').classList.remove('active');
-    document.getElementById('genSegmind').classList.remove('active');
-    
-    if (generator === 'pollinations') {
-        document.getElementById('genPollinations').classList.add('active');
-        showNotification('✓ Using Pollinations AI for images', 'success');
-    } else {
-        document.getElementById('genSegmind').classList.add('active');
-        showNotification('✓ Using Segmind for images', 'success');
-    }
-}
-
-function setAutonomousInterval(interval) {
-    autonomousEngine.setIntervalPreset(interval);
-    localStorage.setItem(STORAGE_KEYS.AUTONOMOUS_INTERVAL, interval);
-    
-    document.getElementById('interval-relaxed').classList.remove('active');
-    document.getElementById('interval-balanced').classList.remove('active');
-    document.getElementById('interval-active').classList.remove('active');
-    document.getElementById('interval-very-active').classList.remove('active');
-    
-    document.getElementById(`interval-${interval}`).classList.add('active');
-    
-    const labels = {
-        'relaxed': '🐌 Relaxed (15min)',
-        'balanced': '⚡ Balanced (5min)',
-        'active': '🔥 Active (2min)',
-        'very-active': '💬 Very Active (1min)'
-    };
-    
-    showNotification(`✓ Autonomous messages: ${labels[interval]}`, 'success');
-}
-
-function provideFeedback(messageIndex, feedbackType) {
-    if (!learningEngine) return;
-    
-    const chat = chats.find(c => c.id === currentChatId);
-    if (!chat || !chat.messages[messageIndex]) return;
-    
-    const messageId = `${currentChatId}-${messageIndex}`;
-    learningEngine.recordFeedback(messageId, feedbackType);
-    
-    const emoji = feedbackType === 'thumbsUp' ? '👍' : '👎';
-    const message = feedbackType === 'thumbsUp' 
-        ? 'Thanks! I\'m learning from positive feedback.'
-        : 'Noted. I\'ll work on improving.';
-    
-    showNotification(`${emoji} ${message}`, 'success');
-    
-    const stats = learningEngine.getLearningStats();
-    console.log('📊 Learning Stats:', stats);
-}
-
-function provideCorrection(messageIndex) {
-    const chat = chats.find(c => c.id === currentChatId);
-    if (!chat || !chat.messages[messageIndex]) return;
-    
-    const originalMessage = chat.messages[messageIndex].content;
-    
-    const correction = prompt(
-        '✏️ How should I have responded?\n\n' +
-        'Original response (first 100 chars):\n' +
-        originalMessage.substring(0, 100) + '...\n\n' +
-        'Your correction:'
-    );
-    
-    if (correction && correction.trim()) {
-        learningEngine.recordCorrection(
-            originalMessage,
-            correction.trim(),
-            'user_correction'
-        );
-        
-        showNotification('✓ Correction learned! I\'ll remember this.', 'success');
-        
-        const stats = learningEngine.getLearningStats();
-        console.log('🎓 New correction recorded. Total corrections:', stats.totalCorrections);
-    }
-}
-
-function viewLearningStats() {
-    if (!learningEngine) return;
-    
-    const stats = learningEngine.getLearningStats();
-    
-    const statsMessage = `
-📊 CRUMP LEARNING STATS
-
-Total Interactions: ${stats.totalInteractions}
-Corrections Received: ${stats.totalCorrections}
-Positive Feedback: ${stats.positiveRate}%
-Improvement Rate: ${stats.improvementRate}%
-
-Recent Corrections: ${stats.recentCorrections.length}
-Preferences Learned: ${Object.keys(stats.preferences).length}
-
-Current Preferences:
-- Response Length: ${stats.preferences.responseLength}
-- Code Style: ${stats.preferences.codeStyle}
-- Tone: ${stats.preferences.tone}
-    `.trim();
-    
-    alert(statsMessage);
-    console.log('📊 Full Learning Stats:', stats);
-}
-
-function showLearningHistory() {
-    if (!learningEngine) return;
-    
-    const history = learningEngine.getLearningHistory();
-    const stats = learningEngine.getLearningStats();
-    
-    if (history.length === 0) {
-        addMessage('assistant', "No learning history yet. Start correcting me or doing training sessions to build your history!");
-        return;
-    }
-    
-    const historyHTML = `
-<div style="background: var(--bg-secondary); border: 2px solid var(--accent-primary); border-radius: 16px; padding: 24px; max-width: 700px;">
-    <div style="text-align: center; margin-bottom: 24px;">
-        <div style="font-size: 24px; font-weight: 700; color: var(--accent-primary); margin-bottom: 8px;">📚 LEARNING TIMELINE</div>
-        <div style="font-size: 14px; color: var(--text-tertiary);">My journey of improvement with you</div>
-    </div>
-    
-    <div style="margin-bottom: 24px; padding: 16px; background: rgba(255,255,255,0.05); border-radius: 12px;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; text-align: center;">
-            <div>
-                <div style="font-size: 24px; font-weight: 700; color: var(--accent-primary);">${stats.totalCorrections}</div>
-                <div style="font-size: 11px; color: var(--text-tertiary);">Corrections</div>
-            </div>
-            <div>
-                <div style="font-size: 24px; font-weight: 700; color: #10b981;">${stats.preferences.codingStyle ? '✓' : '-'}</div>
-                <div style="font-size: 11px; color: var(--text-tertiary);">Style Learned</div>
-            </div>
-            <div>
-                <div style="font-size: 24px; font-weight: 700; color: #3b82f6;">${learningEngine.metrics.topicsLearned.length}</div>
-                <div style="font-size: 11px; color: var(--text-tertiary);">Topics Mastered</div>
-            </div>
-        </div>
-    </div>
-    
-    <div style="position: relative; padding-left: 24px; border-left: 2px solid var(--accent-primary);">
-        ${history.map((event, index) => {
-            const date = new Date(event.timestamp);
-            const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-            const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-            
-            return `
-            <div style="position: relative; margin-bottom: 24px; padding-left: 16px;">
-                <div style="position: absolute; left: -36px; top: 0; width: 24px; height: 24px; background: var(--bg-secondary); border: 2px solid var(--accent-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px;">
-                    ${event.icon}
-                </div>
-                <div style="background: rgba(255,255,255,0.05); padding: 12px 16px; border-radius: 8px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
-                        ${event.description}
-                    </div>
-                    <div style="font-size: 11px; color: var(--text-tertiary);">
-                        ${dateStr} at ${timeStr}
-                    </div>
-                </div>
-            </div>
-            `;
-        }).join('')}
-    </div>
-    
-    ${stats.preferences.codingStyle ? `
-    <div style="margin-top: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 3px solid #3b82f6; border-radius: 8px;">
-        <div style="font-weight: 600; color: #3b82f6; margin-bottom: 8px; font-size: 13px;">🎨 YOUR CODING STYLE</div>
-        <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
-            <div>• Indentation: <strong>${stats.preferences.codingStyle.indentation}</strong></div>
-            <div>• Quotes: <strong>${stats.preferences.codingStyle.quotes}</strong></div>
-            <div>• Semicolons: <strong>${stats.preferences.codingStyle.semicolons}</strong></div>
-            <div>• Naming: <strong>${stats.preferences.codingStyle.namingConvention}</strong></div>
-        </div>
-        <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 8px; font-style: italic;">
-            I'll match this style in all code I generate for you.
-        </div>
-    </div>
-    ` : ''}
-</div>
-    `.trim();
-    
-    addMessage('assistant', '📚 Here\'s your complete learning history with me:');
-    
-    const chat = chats.find(c => c.id === currentChatId);
-    if (chat) {
-        const container = document.getElementById('chatContainer');
-        container.insertAdjacentHTML('beforeend', `
-            <div class="message" style="max-width: 100%; align-self: center;">
-                ${historyHTML}
-            </div>
-        `);
-        container.scrollTop = container.scrollHeight;
-    }
-}
-
-function showLearningDashboard() {
-    if (!learningEngine) return;
-    
-    const stats = learningEngine.getLearningStats();
-    const gaps = learningEngine.identifyKnowledgeGaps();
-    
-    const dashboardHTML = `
-<div style="background: var(--bg-secondary); border: 2px solid var(--accent-primary); border-radius: 16px; padding: 24px; max-width: 600px;">
-    <div style="text-align: center; margin-bottom: 24px;">
-        <div style="font-size: 24px; font-weight: 700; color: var(--accent-primary); margin-bottom: 8px;">🧠 LEARNING DASHBOARD</div>
-        <div style="font-size: 14px; color: var(--text-tertiary);">Crump AI v3.0 Cognition System</div>
-    </div>
-    
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
-        <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; text-align: center;">
-            <div style="font-size: 32px; font-weight: 700; color: var(--accent-primary);">${stats.totalInteractions}</div>
-            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Total Interactions</div>
-        </div>
-        <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; text-align: center;">
-            <div style="font-size: 32px; font-weight: 700; color: var(--accent-primary);">${stats.totalCorrections}</div>
-            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Corrections Learned</div>
-        </div>
-        <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; text-align: center;">
-            <div style="font-size: 32px; font-weight: 700; color: #10b981;">${stats.positiveRate}%</div>
-            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Positive Feedback</div>
-        </div>
-        <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; text-align: center;">
-            <div style="font-size: 32px; font-weight: 700; color: #3b82f6;">${stats.improvementRate}%</div>
-            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Improvement Rate</div>
-        </div>
-    </div>
-    
-    <div style="margin-bottom: 20px;">
-        <div style="font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px;">📚 Learned Preferences</div>
-        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; font-size: 13px; color: var(--text-primary);">
-            <div>• Response Length: <strong>${stats.preferences.responseLength}</strong></div>
-            <div>• Code Style: <strong>${stats.preferences.codeStyle}</strong></div>
-            <div>• Tone: <strong>${stats.preferences.tone}</strong></div>
-            <div>• Explanation Level: <strong>${stats.preferences.explanationLevel}</strong></div>
-        </div>
-    </div>
-    
-    ${gaps.length > 0 ? `
-    <div>
-        <div style="font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px;">🎯 Knowledge Gaps</div>
-        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; font-size: 13px; color: var(--text-primary);">
-            ${gaps.map(gap => `<div>• ${gap.topic}: ${gap.corrections} corrections needed</div>`).join('')}
-        </div>
-        <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 8px; font-style: italic;">
-            These are areas where I've been corrected multiple times. I'm working on improving!
-        </div>
-    </div>
-    ` : `
-    <div style="background: rgba(16, 185, 129, 0.1); padding: 12px; border-radius: 8px; text-align: center;">
-        <div style="font-size: 14px; color: #10b981; font-weight: 600;">✓ No significant knowledge gaps detected</div>
-    </div>
-    `}
-</div>
-    `.trim();
-    
-    addMessage('assistant', '📊 Here\'s my current learning status:');
-    
-    const chat = chats.find(c => c.id === currentChatId);
-    if (chat) {
-        const container = document.getElementById('chatContainer');
-        container.insertAdjacentHTML('beforeend', `
-            <div class="message" style="max-width: 100%; align-self: center;">
-                ${dashboardHTML}
-            </div>
-        `);
-        container.scrollTop = container.scrollHeight;
-    }
-}
-
-function clearLearningData() {
-    if (!confirm('⚠️ Clear all learning data? This will erase:\n\n- All corrections\n- Learned preferences\n- Performance metrics\n\nThis cannot be undone.')) {
-        return;
-    }
-    
-    localStorage.removeItem(STORAGE_KEYS.CORRECTIONS);
-    localStorage.removeItem(STORAGE_KEYS.USER_PREFERENCES);
-    localStorage.removeItem(STORAGE_KEYS.PERFORMANCE_METRICS);
-    
-    if (learningEngine) {
-        learningEngine = new LearningEngine();
-    }
-    
-    showNotification('✓ Learning data cleared', 'success');
-}
-
-function toggleConfidenceDisplay() {
-    showConfidence = document.getElementById('confidenceToggle').checked;
-    localStorage.setItem(STORAGE_KEYS.SHOW_CONFIDENCE, showConfidence);
-    
-    if (showConfidence) {
-        showNotification('✓ Confidence indicators enabled', 'success');
-    } else {
-        showNotification('Confidence indicators disabled', 'info');
-        document.querySelectorAll('.confidence-indicator').forEach(el => el.remove());
-    }
-}
-
-function toggleMetaCommentary() {
-    metaCommentaryEnabled = document.getElementById('metaToggle').checked;
-    localStorage.setItem(STORAGE_KEYS.META_COMMENTARY, metaCommentaryEnabled);
-    
-    if (metaCommentaryEnabled) {
-        showNotification('✓ Auto meta-commentary enabled', 'success');
-    } else {
-        showNotification('Auto meta-commentary disabled', 'info');
-        document.querySelectorAll('.meta-commentary').forEach(el => el.remove());
-    }
-}
-
-function toggleAutoVoice() {
-    isAutoVoiceEnabled = document.getElementById('autoVoiceToggle').checked;
-    localStorage.setItem(STORAGE_KEYS.AUTO_VOICE, isAutoVoiceEnabled);
-}
-
-function changeFont(style) {
-    document.body.className = style === 'modern' ? '' : `${style}-font`;
-    localStorage.setItem(STORAGE_KEYS.FONT_STYLE, style);
-    document.querySelectorAll('.font-btn').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.textContent.toLowerCase() === style) btn.classList.add('active');
-    });
-}
-
-function changeBgColor(color) {
-    document.documentElement.style.setProperty('--bg-primary', color);
-    document.getElementById('bgColorPicker').value = color;
-    localStorage.setItem(STORAGE_KEYS.BG_COLOR, color);
-}
-
-function resetBgColor() {
-    changeBgColor('#0a1628');
-}
-
-function resetAllPreferences() {
-    if (!confirm('Reset ALL preferences? Chats will NOT be deleted.')) return;
-    localStorage.removeItem(STORAGE_KEYS.UNIVERSAL_MEMORY);
-    localStorage.removeItem(STORAGE_KEYS.NOVA_PROTOCOL);
-    localStorage.removeItem(STORAGE_KEYS.SUGGESTIONS);
-    userMemory = { preferences: {}, contexts: {}, notes: [] };
-    saveMemory();
-    localStorage.removeItem(STORAGE_KEYS.VOICE_OUTPUT);
-    localStorage.removeItem(STORAGE_KEYS.AUTO_VOICE);
-    localStorage.removeItem(STORAGE_KEYS.FONT_STYLE);
-    localStorage.removeItem(STORAGE_KEYS.BG_COLOR);
-    initUniversalMemory();
-    loadSettings();
-    updateHeaderDisplay();
-    alert('All preferences reset. Assistant name is now "Crump".');
-    toggleSettings();
-}
-
-// ==========================================
-// EXPORT/IMPORT
-// ==========================================
-function exportAllData() {
-    try {
-        const exportData = {
-            version: "2.11.0",
-            exportDate: new Date().toISOString(),
-            chats, currentChatId, memory: userMemory,
-            universalMemory: getUniversalMemory(),
-            novaProtocol: getNovaProtocol(),
-            suggestions: localStorage.getItem(STORAGE_KEYS.SUGGESTIONS),
-            settings: {
-                voiceOutput: localStorage.getItem(STORAGE_KEYS.VOICE_OUTPUT),
-                autoVoice: localStorage.getItem(STORAGE_KEYS.AUTO_VOICE),
-                fontStyle: localStorage.getItem(STORAGE_KEYS.FONT_STYLE),
-                bgColor: localStorage.getItem(STORAGE_KEYS.BG_COLOR)
-            },
-            tutorialCompleted: localStorage.getItem(STORAGE_KEYS.TUTORIAL)
-        };
-        const dataStr = JSON.stringify(exportData, null, 2);
-        const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(dataBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        const timestamp = new Date().toISOString().split('T')[0];
-        link.download = `${getAssistantName().toLowerCase()}-backup-${timestamp}.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        showNotification('✓ Data exported successfully!', 'success');
-    } catch (error) {
-        console.error('Export error:', error);
-        showNotification('❌ Error exporting data', 'error');
-    }
-}
-
-function handleImport(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const importData = JSON.parse(e.target.result);
-            if (!importData.version || !importData.exportDate) throw new Error('Invalid backup');
-            if (importData.chats && !Array.isArray(importData.chats)) throw new Error('Invalid chats');
-            if (importData.chats) {
-                for (const chat of importData.chats) {
-                    if (!chat.id || !chat.messages || !Array.isArray(chat.messages)) throw new Error('Invalid chat structure');
-                }
-            }
-            if (!confirm('⚠️ Replace all data with imported backup?')) {
-                event.target.value = '';
-                return;
-            }
-            if (importData.chats) localStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(importData.chats));
-            if (importData.currentChatId) localStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, importData.currentChatId);
-            if (importData.memory) localStorage.setItem(STORAGE_KEYS.USER_MEMORY, JSON.stringify(importData.memory));
-            if (importData.universalMemory) localStorage.setItem(STORAGE_KEYS.UNIVERSAL_MEMORY, JSON.stringify(importData.universalMemory));
-            if (importData.novaProtocol) localStorage.setItem(STORAGE_KEYS.NOVA_PROTOCOL, JSON.stringify(importData.novaProtocol));
-            if (importData.suggestions) localStorage.setItem(STORAGE_KEYS.SUGGESTIONS, importData.suggestions);
-            if (importData.settings) {
-                if (importData.settings.voiceOutput) localStorage.setItem(STORAGE_KEYS.VOICE_OUTPUT, importData.settings.voiceOutput);
-                if (importData.settings.autoVoice) localStorage.setItem(STORAGE_KEYS.AUTO_VOICE, importData.settings.autoVoice);
-                if (importData.settings.fontStyle) localStorage.setItem(STORAGE_KEYS.FONT_STYLE, importData.settings.fontStyle);
-                if (importData.settings.bgColor) localStorage.setItem(STORAGE_KEYS.BG_COLOR, importData.settings.bgColor);
-            }
-            if (importData.tutorialCompleted) localStorage.setItem(STORAGE_KEYS.TUTORIAL, importData.tutorialCompleted);
-            showNotification('✓ Data imported! Reloading...', 'success');
-            setTimeout(() => window.location.reload(), 1500);
-        } catch (error) {
-            console.error('Import error:', error);
-            showNotification('❌ Error importing data', 'error');
-            event.target.value = '';
-        }
-    };
-    reader.readAsText(file);
-}
-
-function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.style.cssText = `position:fixed;top:20px;right:20px;background:${type==='success'?'#10b981':type==='error'?'#ef4444':'#3b82f6'};color:white;padding:16px 24px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:10000;font-size:14px;font-weight:600;max-width:400px;animation:slideInNotification 0.3s ease-out;`;
-    notification.textContent = message;
-    document.body.appendChild(notification);
-    setTimeout(() => {
-        notification.style.animation = 'slideOutNotification 0.3s ease-out';
-        setTimeout(() => { if (notification.parentNode) document.body.removeChild(notification); }, 300);
-    }, 3000);
-}
-
-function autoResize(textarea) {
-    textarea.style.height = 'auto';
-    textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
-}
-
-function updateCharCount() {
-    const input = document.getElementById('userInput');
-    const counter = document.getElementById('charCount');
-    const count = input.value.length;
-    
-    if (count > 0) {
-        counter.style.display = 'block';
-        counter.textContent = `${count.toLocaleString()} / 50,000`;
-        
-        if (count > 40000) {
-            counter.style.color = '#ff4444';
-        } else if (count > 30000) {
-            counter.style.color = '#f59e0b';
-        } else {
-            counter.style.color = 'var(--text-tertiary)';
-        }
-    } else {
-        counter.style.display = 'none';
-    }
-}
-
+// Add notification style
 const notificationStyle = document.createElement('style');
 notificationStyle.textContent = `@keyframes slideInNotification{from{transform:translateX(400px);opacity:0;}to{transform:translateX(0);opacity:1;}}@keyframes slideOutNotification{from{transform:translateX(0);opacity:1;}to{transform:translateX(400px);opacity:0;}}`;
 document.head.appendChild(notificationStyle);
+
+console.log('✅ Core module loaded');
