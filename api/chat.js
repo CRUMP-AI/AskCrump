@@ -230,7 +230,7 @@ async function handleBraveSearchResponse(res, message, searchResults, systemProm
         'x-api-key': process.env.ANTHROPIC_API_KEY,
         'anthropic-version': CONFIG.ANTHROPIC_VERSION
     },
-    signal: AbortSignal.timeout(9000), // ⚡ 9 second timeout
+    signal: AbortSignal.timeout(25000), // ⚡ 25 second timeout
     body: JSON.stringify({
             model: CONFIG.CLAUDE_MODEL,
             max_tokens: CONFIG.MAX_TOKENS,
@@ -264,7 +264,7 @@ async function handleClaudeNativeSearch(res, message, systemPrompt, validHistory
         'x-api-key': process.env.ANTHROPIC_API_KEY,
         'anthropic-version': CONFIG.ANTHROPIC_VERSION
     },
-    signal: AbortSignal.timeout(9000), // ⚡ 9 second timeout
+    signal: AbortSignal.timeout(25000), // ⚡ 25 second timeout
     body: JSON.stringify({
             model: CONFIG.CLAUDE_MODEL,
             max_tokens: CONFIG.MAX_TOKENS,
@@ -315,7 +315,7 @@ async function handleRegularChat(res, message, systemPrompt, validHistory) {
         'x-api-key': process.env.ANTHROPIC_API_KEY,
         'anthropic-version': CONFIG.ANTHROPIC_VERSION
     },
-    signal: AbortSignal.timeout(9000), // ⚡ 9 second timeout
+    signal: AbortSignal.timeout(25000), // ⚡ 25 second timeout
     body: JSON.stringify({
             model: CONFIG.CLAUDE_MODEL,
             max_tokens: CONFIG.MAX_TOKENS,
@@ -524,7 +524,7 @@ async function handleImageAnalysis(res, fileData, message, assistantName) {
         'x-api-key': process.env.ANTHROPIC_API_KEY,
         'anthropic-version': CONFIG.ANTHROPIC_VERSION
     },
-    signal: AbortSignal.timeout(9000), // ⚡ 9 second timeout
+    signal: AbortSignal.timeout(25000), // ⚡ 25 second timeout
     body: JSON.stringify({
         model: CONFIG.CLAUDE_MODEL,
         max_tokens: 2048, // ⚡ REDUCED from 4096
