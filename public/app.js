@@ -1850,7 +1850,11 @@ function loadSettings() {
     metaCommentaryEnabled = metaCommentarySetting;
     window.metaCommentaryEnabled = metaCommentaryEnabled;
     
-    autonomousEngine.setIntervalPreset(autonomousInterval);
+    // FIXED: Check if autonomousEngine exists before using it
+    if (window.autonomousEngine) {
+        window.autonomousEngine.setIntervalPreset(autonomousInterval);
+    }
+    
     if (autonomousMessages) {
         document.getElementById('autonomous-interval-settings').style.display = 'block';
     }
@@ -1873,8 +1877,9 @@ function loadSettings() {
     autonomousMessagesEnabled = autonomousMessages;
     window.autonomousMessagesEnabled = autonomousMessages;
     
-    if (autonomousMessages) {
-        autonomousEngine.start();
+    // FIXED: Check if autonomousEngine exists before starting it
+    if (autonomousMessages && window.autonomousEngine) {
+        window.autonomousEngine.start();
     }
     
     loadFeatureReminders();
