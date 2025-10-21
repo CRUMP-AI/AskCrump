@@ -1158,6 +1158,10 @@ async function sendMessage() {
         
         window.showThinking();
         
+        // MOVED: Define these BEFORE try block
+        const chat = chats.find(c => c.id === currentChatId);
+        let contextBackup = null;
+        
         const safetyTimeout = setTimeout(() => {
             if (isSending) {
                 console.error('⚠️ SAFETY TIMEOUT: Force unlocking after 30s');
@@ -1172,9 +1176,8 @@ async function sendMessage() {
             }
         }, 30000);
         
-        const chat = chats.find(c => c.id === currentChatId);
-        
-        const contextBackup = {
+        // Create backup (chat already defined above)
+        contextBackup = {
             messages: [...chat.messages],
             activeContext: contextEngine.activeContext,
             chatTitle: chat.title
@@ -1192,7 +1195,7 @@ async function sendMessage() {
                 novaProtocol: isNovaActive() ? getNovaProtocol() : null,
                 universalMemory: getUniversalMemory()
             })
-        });
+        }, 30000);
         
         if (!response.ok) throw new Error('API request failed');
         const data = await response.json();
@@ -1237,9 +1240,11 @@ async function sendMessage() {
         input.disabled = false;
         const sendBtn = document.querySelector('.icon-btn.primary');
         if (sendBtn) sendBtn.disabled = false;
-        console.log('🔓 FORCE UNLOCKED (error caught)');
+       console.log('🔓 FORCE UNLOCKED (error caught)');
 
-        if (contextBackup && chat.messages.length !== contextBackup.messages.length) {
+        // FIXED: Re-get chat in catch block (in case try failed early)
+        const chat = chats.find(c => c.id === currentChatId);
+        if (contextBackup && chat && chat.messages.length !== contextBackup.messages.length) {
             console.log('🔧 Restoring context from backup');
             chat.messages = contextBackup.messages;
             saveChats();
