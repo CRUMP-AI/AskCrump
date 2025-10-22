@@ -112,9 +112,11 @@ function renderChatItem(chat) {
 
 function renderMessages(messages) {
     const container = document.getElementById('chatContainer');
+    const userInitial = localStorage.getItem(window.STORAGE_KEYS.USER_INITIAL) || 'U';
+    
     container.innerHTML = messages.map((msg, index) => {
         const isUser = msg.role === 'user';
-        const avatar = isUser ? 'G' : 'C';
+        const avatar = isUser ? userInitial : 'C';
         const avatarClass = isUser ? 'user' : 'assistant';
         
         let actionsHtml = '';
