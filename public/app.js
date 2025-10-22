@@ -1804,41 +1804,10 @@ async function handleImageGeneration(message, retryCount = 0) {
             generatorName = 'Pollinations';
         }
         
-        const img = new Image();
-        img.onload = () => {
-            window.hideThinking();
-            addMessage('assistant', `Here's your image based on: "${prompt}" (Generated with ${generatorName})`, imageUrl);
-        };
-        
-        img.onerror = () => {
-            console.log(`${generatorName} failed, trying alternate generator...`);
-            
-            let fallbackUrl;
-            let fallbackName;
-            
-            if (preferredImageGenerator === 'segmind') {
-                const timestamp = Date.now();
-                const encodedPrompt = encodeURIComponent(prompt);
-                fallbackUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${timestamp}&nologo=true&enhance=true&model=flux`;
-                fallbackName = 'Pollinations';
-            } else {
-                fallbackUrl = generateImageWithSegmind(prompt);
-                fallbackName = 'Segmind';
-            }
-            
-            const fallbackImg = new Image();
-            fallbackImg.onload = () => {
-                window.hideThinking();
-                addMessage('assistant', `Here's your image based on: "${prompt}" (Generated with ${fallbackName} - backup generator)`, fallbackUrl);
-            };
-            fallbackImg.onerror = () => {
-                window.hideThinking();
-                addMessage('assistant', `I encountered an error with both image generators. Please try again in a moment.`);
-            };
-            fallbackImg.src = fallbackUrl;
-        };
-        
-        img.src = imageUrl;
+        // FIXED: Don't pre-test the image, just display it directly
+        window.hideThinking();
+        addMessage('assistant', `Here's your image: "${prompt}"`, imageUrl);
+        console.log('✅ Image generated:', imageUrl);
         
     } catch (error) {
         window.hideThinking();
