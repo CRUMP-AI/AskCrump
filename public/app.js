@@ -31,6 +31,7 @@ const STORAGE_KEYS = {
     AUTONOMOUS_MESSAGES: 'crump_autonomous_messages',
     AUTONOMOUS_INTERVAL: 'crump_autonomous_interval',
     IMAGE_GENERATOR: 'crump_image_generator',
+    WORK_MODE: 'crump_work_mode',
     LEARNING_ENGINE: 'crump_learning_engine',
     CORRECTIONS: 'crump_corrections',
     USER_PREFERENCES: 'crump_user_preferences',
@@ -952,7 +953,8 @@ async function regenerateResponse(index) {
                 needsSearch: shouldSearchWeb(message),
                 novaActive: isNovaActive(),
                 novaProtocol: isNovaActive() ? getNovaProtocol() : null,
-                universalMemory: getUniversalMemory()
+                universalMemory: getUniversalMemory(),
+                workMode: window.workMode || 'companion'
             })
         });
         
@@ -1231,7 +1233,8 @@ async function sendMessage() {
                 needsSearch: shouldSearchWeb(message),
                 novaActive: isNovaActive(),
                 novaProtocol: isNovaActive() ? getNovaProtocol() : null,
-                universalMemory: getUniversalMemory()
+                universalMemory: getUniversalMemory(),
+                workMode: window.workMode || 'companion'
             })
         }, 60000);
         
@@ -1857,6 +1860,7 @@ function loadSettings() {
     const autonomousMessages = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_MESSAGES) === 'true';
     const autonomousInterval = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_INTERVAL) || 'balanced';
     const imageGenerator = localStorage.getItem(STORAGE_KEYS.IMAGE_GENERATOR) || 'pollinations';
+    const workMode = localStorage.getItem(STORAGE_KEYS.WORK_MODE) || 'companion';
     const showConfidenceSetting = localStorage.getItem(STORAGE_KEYS.SHOW_CONFIDENCE) === 'true';
     const metaCommentarySetting = localStorage.getItem(STORAGE_KEYS.META_COMMENTARY) === 'true';
     const fontStyle = localStorage.getItem(STORAGE_KEYS.FONT_STYLE) || 'modern';
@@ -1889,10 +1893,19 @@ function loadSettings() {
     
     preferredImageGenerator = imageGenerator;
     window.preferredImageGenerator = imageGenerator;
-    if (imageGenerator === 'segmind') {
-        document.getElementById('genPollinations').classList.remove('active');
-        document.getElementById('genSegmind').classList.add('active');
+    
+    // Set dropdown values
+    const imageGeneratorSelect = document.getElementById('imageGeneratorSelect');
+    if (imageGeneratorSelect) {
+        imageGeneratorSelect.value = imageGenerator;
     }
+    
+    const workModeSelect = document.getElementById('workModeSelect');
+    if (workModeSelect) {
+        workModeSelect.value = workMode;
+    }
+    
+    window.workMode = workMode;
     isVoiceEnabled = voiceOutput;
     window.isVoiceEnabled = voiceOutput;
     isAutoVoiceEnabled = autoVoice;
