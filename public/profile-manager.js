@@ -1,11 +1,11 @@
 // ==========================================
-// CRUMP AI - USER PROFILE MANAGER v2.12.0
-// Tier management, usage tracking, limits
+// CRUMP AI - USER PROFILE MANAGER v2.12.1
+// FIXED: Initialization order bug
 // ==========================================
 
 class UserProfileManager {
     constructor() {
-        this.profile = this.loadProfile();
+        // CRITICAL FIX: Define TIER_LIMITS BEFORE calling loadProfile()
         this.TIER_LIMITS = {
             free: {
                 messagesPerMonth: 100,
@@ -35,6 +35,9 @@ class UserProfileManager {
                 pdfAnalysis: true
             }
         };
+        
+        // NOW load profile (after TIER_LIMITS is defined)
+        this.profile = this.loadProfile();
     }
     
     loadProfile() {
@@ -260,13 +263,39 @@ class UserProfileManager {
     // ==========================================
     
     updateProfile(updates) {
-        if (updates.name !== undefined) this.profile.name = updates.name;
-        if (updates.email !== undefined) this.profile.email = updates.email;
-        if (updates.initial !== undefined) this.profile.initial = updates.initial;
-        if (updates.avatar !== undefined) this.profile.avatar = updates.avatar;
+        // ADDED: Input validation
+        if (updates.name !== undefined) {
+            if (typeof updates.name === 'string' && updates.name.length <= 100) {
+                this.profile.name = updates.name.trim();
+            } else {
+                console.warn('Invalid name format');
+            }
+        }
+        
+        if (updates.email !== undefined) {
+            if (updates.email === '' || this.validateEmail(updates.email)) {
+                this.profile.email = updates.email.trim();
+            } else {
+                console.warn('Invalid email format');
+            }
+        }
+        
+        if (updates.initial !== undefined) {
+            if (typeof updates.initial === 'string' && updates.initial.length === 1) {
+                this.profile.initial = updates.initial.toUpperCase();
+            }
+        }
+        
+        if (updates.avatar !== undefined) {
+            this.profile.avatar = updates.avatar;
+        }
         
         this.saveProfile();
         console.log('✏️ Profile updated');
+    }
+    
+    validateEmail(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     }
     
     updatePreferences(preferences) {
@@ -421,4 +450,4 @@ class UserProfileManager {
 // Export to window
 window.UserProfileManager = UserProfileManager;
 
-console.log('✅ UserProfileManager loaded');
+console.log('✅ UserProfileManager v2.12.1 loaded (FIXED)');
