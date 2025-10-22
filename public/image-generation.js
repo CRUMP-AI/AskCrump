@@ -1,5 +1,5 @@
 // ==========================================
-// CRUMP AI - ROBUST IMAGE GENERATION v2.12.0
+// CRUMP AI - ROBUST IMAGE GENERATION v2.12.1
 // With validation, fallback, and retry logic
 // ==========================================
 
@@ -9,7 +9,7 @@
 async function handleImageGeneration(message, retryCount = 0) {
     const prompt = extractImagePrompt(message);
     
-    // Check usage limits FIRST
+    // CRITICAL: Check usage limits FIRST
     if (window.profileManager) {
         const imageCheck = window.profileManager.canGenerateImage();
         
@@ -31,7 +31,7 @@ async function handleImageGeneration(message, retryCount = 0) {
     console.log(`🎨 Generating image: "${prompt}" (attempt ${retryCount + 1})`);
     
     try {
-        // Try primary: Pollinations
+        // Try primary: Pollinations (Flux model)
         const imageUrl = await generateWithPollinations(prompt);
         
         // CRITICAL: Validate image before displaying
@@ -144,16 +144,16 @@ async function generateWithPollinations(prompt) {
 }
 
 // ==========================================
-// FALLBACK: POLLINATIONS (TURBO MODEL)
+// FALLBACK: POLLINATIONS (REALISM MODEL)
 // ==========================================
 async function generateWithPollinationsFallback(prompt) {
     const timestamp = Date.now() + 1; // Different seed
     const encodedPrompt = encodeURIComponent(prompt);
     
-    // Use faster "turbo" model as fallback
+    // Use "realism" model as fallback
     const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${timestamp}&nologo=true&model=flux-realism&safe=true`;
     
-    console.log('🎨 Pollinations (Turbo):', imageUrl.substring(0, 100) + '...');
+    console.log('🎨 Pollinations (Realism):', imageUrl.substring(0, 100) + '...');
     
     try {
         await fetch(imageUrl, { 
@@ -288,4 +288,4 @@ window.shouldGenerateImage = shouldGenerateImage;
 window.extractImagePrompt = extractImagePrompt;
 window.validateImageUrl = validateImageUrl;
 
-console.log('✅ Robust image generation loaded');
+console.log('✅ Robust image generation v2.12.1 loaded');
