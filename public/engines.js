@@ -219,39 +219,23 @@ class ContextAwarenessEngine {
         if (!container) return;
         
         if (this.contexts.length === 0) {
-            container.innerHTML = `
-                <div style="text-align: center; padding: 40px 20px; color: var(--text-tertiary);">
-                    <div style="font-size: 48px; margin-bottom: 16px;">📌</div>
-                    <div style="font-size: 14px;">No active contexts yet</div>
-                    <div style="font-size: 12px; margin-top: 8px;">Add a context to organize your work</div>
-                </div>
-            `;
-            // Update count badge
-            if (window.updateContextCount) {
-                window.updateContextCount();
-            }
+            container.innerHTML = '';
             return;
         }
         
         container.innerHTML = this.contexts.map(context => `
-            <div class="context-card ${context.id === this.activeContext ? 'active' : ''}" 
-                 onclick="window.contextEngine.setActiveContext('${context.id}')">
-                <div class="context-card-content">
+            <div class="context-card ${context.id === this.activeContext ? 'active' : ''}">
+                <div class="context-card-content" onclick="window.contextEngine.setActiveContext('${context.id}')">
                     <span class="context-card-icon">${context.icon}</span>
                     <span class="context-card-label">${context.label}</span>
                 </div>
                 <div class="context-card-actions">
-                    <button class="context-card-btn" onclick="event.stopPropagation(); window.removeContextCard('${context.id}')" title="Remove">
+                    <button class="context-card-btn" onclick="event.stopPropagation(); window.contextEngine.removeContext('${context.id}')" title="Remove">
                         ×
                     </button>
                 </div>
             </div>
         `).join('');
-        
-        // Update count badge
-        if (window.updateContextCount) {
-            window.updateContextCount();
-        }
     }
     
     showContinueBanner() {
