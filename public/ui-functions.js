@@ -19,9 +19,15 @@ function updateTutorialContent() {
     
     stepIndicator.textContent = `Step ${window.currentTutorialStep} of ${window.tutorialSteps.length}`;
     
+    // Personalize first step with user's name if available
+    let title = step.title;
+    if (window.currentTutorialStep === 1 && window.userName) {
+        title = `Welcome, ${window.userName}`;
+    }
+    
     body.innerHTML = `
         <div class="tutorial-icon">${step.icon}</div>
-        <h2>${step.title}</h2>
+        <h2>${title}</h2>
         <p>${step.text}</p>
     `;
 }
