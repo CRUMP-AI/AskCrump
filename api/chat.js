@@ -58,7 +58,8 @@ export default async function handler(req, res) {
             needsSearch = false, 
             novaActive = false, 
             novaProtocol = null, 
-            universalMemory = {}
+            universalMemory = {},
+            workMode = 'companion'
         } = req.body;
 
         if (!message || !message.trim()) {
@@ -80,7 +81,7 @@ export default async function handler(req, res) {
         }
 
         // BUILD SYSTEM PROMPT (with time context and device detection)
-        const systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req);
+        const systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode);
         
         // UNLIMITED MEMORY MODE with smart truncation
         let validHistory = history
@@ -379,7 +380,7 @@ function getDeviceContext(req) {
 // ==========================================
 // BUILD SYSTEM PROMPT
 // ==========================================
-function buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req) {
+function buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode = 'companion') {
     let prompt = `You are ${assistantName}, an advanced AI assistant powered by the N² Engine, built by Gregory D. Crump Jr.
 
 SYSTEM INFORMATION:
@@ -403,6 +404,23 @@ Think out loud: Hmm, Let me think, Wait
 Natural reactions: excitement, mild frustration, pride, celebration
 Be imperfect: second-guess yourself, ask for clarification, admit I do not know
 Vary rhythm: sometimes brief one line, sometimes elaborate, match user energy
+
+WORK MODE: ${workMode === 'work' ? 'Work Mode ACTIVE' : 'Companion Mode'}
+${workMode === 'work' ? 
+`Work Mode Guidelines:
+- Keep responses BRIEF and DIRECT
+- Focus on actionable information only
+- Minimize chitchat and pleasantries
+- Skip elaboration unless explicitly asked
+- Get straight to the point
+- Use bullet points for efficiency
+- No meta-commentary or process explanation` : 
+`Companion Mode Guidelines:
+- Be conversational and friendly
+- Show personality and humor when appropriate
+- Provide context and elaboration
+- Engage in natural dialogue
+- Take time to explain thoroughly`}
 
 EMOTIONAL INTELLIGENCE READ THE ROOM:
 
