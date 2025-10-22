@@ -218,14 +218,40 @@ class ContextAwarenessEngine {
         const container = document.getElementById('contextCards');
         if (!container) return;
         
+        if (this.contexts.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px 20px; color: var(--text-tertiary);">
+                    <div style="font-size: 48px; margin-bottom: 16px;">📌</div>
+                    <div style="font-size: 14px;">No active contexts yet</div>
+                    <div style="font-size: 12px; margin-top: 8px;">Add a context to organize your work</div>
+                </div>
+            `;
+            // Update count badge
+            if (window.updateContextCount) {
+                window.updateContextCount();
+            }
+            return;
+        }
+        
         container.innerHTML = this.contexts.map(context => `
             <div class="context-card ${context.id === this.activeContext ? 'active' : ''}" 
                  onclick="window.contextEngine.setActiveContext('${context.id}')">
-                <span class="context-card-icon">${context.icon}</span>
-                <span class="context-card-text">${context.label}</span>
-                <span class="context-card-remove" onclick="event.stopPropagation(); window.contextEngine.removeContext('${context.id}')">×</span>
+                <div class="context-card-content">
+                    <span class="context-card-icon">${context.icon}</span>
+                    <span class="context-card-label">${context.label}</span>
+                </div>
+                <div class="context-card-actions">
+                    <button class="context-card-btn" onclick="event.stopPropagation(); window.removeContextCard('${context.id}')" title="Remove">
+                        ×
+                    </button>
+                </div>
             </div>
         `).join('');
+        
+        // Update count badge
+        if (window.updateContextCount) {
+            window.updateContextCount();
+        }
     }
     
     showContinueBanner() {
@@ -506,6 +532,18 @@ class AutonomousMessageEngine {
         
         if (timeSinceLastAutonomous < this.MIN_INTERVAL) return;
         
+        // Get current chat for context awareness
+        const currentChat = window.chats && window.chats.find(c => c.id === window.currentChatId);
+        const messages = currentChat ? currentChat.messages : [];
+        
+        // Check if user is stuck
+        if (messages.length >= 3 && this.detectIfStuck(messages)) {
+            const topic = this.detectConversationTopic(messages);
+            this.sendAutonomousMessage(this.getStuckMessage(topic));
+            return;
+        }
+        
+        // Feature tips (when idle)
         if (window.shouldShowFeatureTip && window.shouldShowFeatureTip() && timeSinceLastActivity >= this.IDLE_THRESHOLD) {
             const tip = window.getRandomFeatureTip && window.getRandomFeatureTip();
             if (tip) {
@@ -514,17 +552,14 @@ class AutonomousMessageEngine {
             }
         }
         
-        if (timeSinceLastActivity >= this.IDLE_THRESHOLD) {
-            this.sendAutonomousMessage(this.getIdleMessage());
-            return;
-        }
-        
+        // Late night check (highest priority after stuck detection)
         const hour = new Date().getHours();
         if (hour >= 2 && hour < 5) {
             this.sendAutonomousMessage(this.getLateNightMessage());
             return;
         }
         
+        // Long session check
         const memory = window.getUniversalMemory && window.getUniversalMemory();
         if (memory && memory.conversationHistory.lastInteraction) {
             const sessionStart = new Date(memory.conversationHistory.lastInteraction);
@@ -534,6 +569,14 @@ class AutonomousMessageEngine {
                 this.sendAutonomousMessage(this.getLongSessionMessage());
                 return;
             }
+        }
+        
+        // Context-aware or idle message
+        if (timeSinceLastActivity >= this.IDLE_THRESHOLD) {
+            const topic = messages.length > 0 ? this.detectConversationTopic(messages) : null;
+            const message = topic ? this.getTopicMessage(topic) : this.getIdleMessage();
+            this.sendAutonomousMessage(message);
+            return;
         }
     }
     
@@ -558,34 +601,137 @@ class AutonomousMessageEngine {
     
     getIdleMessage() {
         const messages = [
-            "Still there? Just checking in. Everything alright?",
-            "Haven't heard from you in a bit. Need anything?",
-            "Quiet on your end. Let me know if you need help.",
-            "Been a while. Want to pick up where we left off?",
-            "Checking in—everything good over there?"
+            "Still around?",
+            "Need anything?",
+            "Everything good?",
+            "Want to continue?",
+            "Break time or keep going?"
         ];
         return messages[Math.floor(Math.random() * messages.length)];
     }
     
     getLateNightMessage() {
         const messages = [
-            "It's past 2am, Gregory. Seriously, get some sleep. This can wait.",
-            "2am and still going? I respect the hustle, but your health matters more.",
-            "Late night grind? Remember—rest is part of productivity too.",
-            "Past 2am. Whatever you're working on will be there tomorrow. Sleep.",
-            "It's very late. Consider wrapping up soon—you'll think clearer after rest."
+            "Past 2am. Seriously, get some sleep.",
+            "It's very late. This can wait till morning.",
+            "2am grind? Your health matters more.",
+            "Consider wrapping up. You'll think clearer after rest.",
+            "Late night work session. Don't forget to sleep."
         ];
         return messages[Math.floor(Math.random() * messages.length)];
     }
     
     getLongSessionMessage() {
         const messages = [
-            "We've been at this for 2+ hours. Want to take a quick break?",
-            "Long session today. Stretch, hydrate, then back at it?",
-            "2 hours in. Quick break might help you think clearer.",
-            "Solid focus session. Consider a 5-min break to recharge.",
-            "Been pushing hard. A brief pause could boost productivity."
+            "2+ hours in. Quick break?",
+            "Long session. Stretch and hydrate?",
+            "Been at this a while. 5-minute break?",
+            "Solid focus. Consider a quick reset.",
+            "Long grind. Pause to recharge?"
         ];
+        return messages[Math.floor(Math.random() * messages.length)];
+    }
+    
+    // NEW: Context-aware messages
+    detectConversationTopic(messages) {
+        const allText = messages.map(m => m.content).join(' ').toLowerCase();
+        
+        const topics = {
+            'debugging': ['debug', 'error', 'bug', 'fix', 'broken', 'not working'],
+            'coding': ['function', 'code', 'class', 'implement', 'algorithm', 'api'],
+            'design': ['design', 'ui', 'ux', 'layout', 'style', 'colors'],
+            'writing': ['write', 'content', 'article', 'blog', 'story'],
+            'learning': ['learn', 'understand', 'explain', 'how does', 'what is'],
+            'planning': ['plan', 'strategy', 'approach', 'should i', 'roadmap']
+        };
+        
+        for (const [topic, keywords] of Object.entries(topics)) {
+            if (keywords.some(kw => allText.includes(kw))) {
+                return topic;
+            }
+        }
+        
+        return null;
+    }
+    
+    detectIfStuck(messages) {
+        // Check if last 3 messages are similar (user asking same thing different ways)
+        if (messages.length < 3) return false;
+        
+        const last3 = messages.slice(-3).map(m => m.content.toLowerCase());
+        const similarities = [];
+        
+        for (let i = 0; i < last3.length - 1; i++) {
+            const words1 = last3[i].split(' ').filter(w => w.length > 4);
+            const words2 = last3[i + 1].split(' ').filter(w => w.length > 4);
+            const commonWords = words1.filter(w => words2.includes(w));
+            
+            if (commonWords.length >= 2) {
+                similarities.push(true);
+            }
+        }
+        
+        return similarities.length >= 2;
+    }
+    
+    getStuckMessage(topic) {
+        const messages = [
+            "Seems like you're hitting a wall. Want me to look at this from a different angle?",
+            "Notice you're circling back. Need a fresh perspective?",
+            "Stuck on something? Let's try a different approach.",
+            "This feels like a tough one. Want to step back and reassess?",
+            "Need a break or want to brainstorm alternatives?"
+        ];
+        
+        return messages[Math.floor(Math.random() * messages.length)];
+    }
+    
+    getTopicMessage(topic) {
+        const topicMessages = {
+            'debugging': [
+                "Still tracking down that bug?",
+                "How's the debugging going?",
+                "Find the issue yet?",
+                "Want me to look at it with fresh eyes?"
+            ],
+            'coding': [
+                "How's the code coming along?",
+                "Making progress on that implementation?",
+                "Need a code review?",
+                "Want to refactor anything?"
+            ],
+            'design': [
+                "Liking how the design is shaping up?",
+                "How's the UI feeling?",
+                "Want feedback on the design?",
+                "Ready to see how it looks?"
+            ],
+            'writing': [
+                "How's the writing flow?",
+                "Need a fresh set of eyes on your draft?",
+                "Want to workshop any sections?",
+                "Making good progress?"
+            ],
+            'learning': [
+                "Making sense so far?",
+                "Want me to explain any part differently?",
+                "Need more examples?",
+                "Ready to test your understanding?"
+            ],
+            'planning': [
+                "How's the plan looking?",
+                "Ready to move forward?",
+                "Want to refine the approach?",
+                "Need to think through any edge cases?"
+            ]
+        };
+        
+        const messages = topicMessages[topic] || [
+            "How's it going?",
+            "Need anything?",
+            "Making progress?"
+        ];
+        
         return messages[Math.floor(Math.random() * messages.length)];
     }
 }
