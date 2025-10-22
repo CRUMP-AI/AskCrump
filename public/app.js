@@ -1794,20 +1794,12 @@ async function handleImageGeneration(message, retryCount = 0) {
     window.showThinking();
     
     try {
-        let imageUrl;
-        let generatorName;
+        // Use Pollinations (fast & free, embedded like Claude API)
+        const timestamp = Date.now();
+        const encodedPrompt = encodeURIComponent(prompt);
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${timestamp}&nologo=true&enhance=true&model=flux`;
         
-        if (preferredImageGenerator === 'segmind') {
-            imageUrl = await generateImageWithSegmind(prompt);
-            generatorName = 'Segmind';
-        } else {
-            const timestamp = Date.now();
-            const encodedPrompt = encodeURIComponent(prompt);
-            imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${timestamp}&nologo=true&enhance=true&model=flux`;
-            generatorName = 'Pollinations';
-        }
-        
-        // FIXED: Don't pre-test the image, just display it directly
+        // Display image
         window.hideThinking();
         addMessage('assistant', `Here's your image: "${prompt}"`, imageUrl);
         console.log('✅ Image generated:', imageUrl);
@@ -1859,7 +1851,7 @@ function loadSettings() {
     const autoVoice = localStorage.getItem(STORAGE_KEYS.AUTO_VOICE) === 'true';
     const autonomousMessages = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_MESSAGES) === 'true';
     const autonomousInterval = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_INTERVAL) || 'balanced';
-    const imageGenerator = localStorage.getItem(STORAGE_KEYS.IMAGE_GENERATOR) || 'pollinations';
+    const imageGenerator = 'pollinations'; // Internal - uses Pollinations with Segmind fallback
     const workMode = localStorage.getItem(STORAGE_KEYS.WORK_MODE) || 'companion';
     const showConfidenceSetting = localStorage.getItem(STORAGE_KEYS.SHOW_CONFIDENCE) === 'true';
     const metaCommentarySetting = localStorage.getItem(STORAGE_KEYS.META_COMMENTARY) === 'true';
@@ -1895,11 +1887,6 @@ function loadSettings() {
     window.preferredImageGenerator = imageGenerator;
     
     // Set dropdown values
-    const imageGeneratorSelect = document.getElementById('imageGeneratorSelect');
-    if (imageGeneratorSelect) {
-        imageGeneratorSelect.value = imageGenerator;
-    }
-    
     const workModeSelect = document.getElementById('workModeSelect');
     if (workModeSelect) {
         workModeSelect.value = workMode;
