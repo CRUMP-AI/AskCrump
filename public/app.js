@@ -32,6 +32,8 @@ const STORAGE_KEYS = {
     AUTONOMOUS_INTERVAL: 'crump_autonomous_interval',
     IMAGE_GENERATOR: 'crump_image_generator',
     WORK_MODE: 'crump_work_mode',
+    USER_NAME: 'crump_user_name',
+    USER_INITIAL: 'crump_user_initial',
     LEARNING_ENGINE: 'crump_learning_engine',
     CORRECTIONS: 'crump_corrections',
     USER_PREFERENCES: 'crump_user_preferences',
@@ -156,7 +158,7 @@ function getTimeAwareContext() {
     context += `Time: ${time.formattedTime} (${time.timePeriod})\n`;
     
     if (time.isVeryLate) {
-        context += `⚠️ It's ${time.formattedTime} - Gregory is up VERY late. Show genuine concern.\n`;
+        context += `⚠️ It's ${time.formattedTime} - User is up VERY late. Show genuine concern.\n`;
     } else if (time.isLateNight) {
         context += `${time.timeEmoji} Late ${time.timePeriod} work session.\n`;
     } else if (time.isWeekend) {
@@ -196,38 +198,53 @@ let autonomousEngine = null;
 let currentTutorialStep = 1;
 const tutorialSteps = [
     {
-        icon: "👋",
-        title: "Welcome, Gregory",
-        text: "I'm Crump, your personal AI assistant powered by the N² Engine. Let me show you around."
+        icon: "👑",
+        title: "Welcome to Crump AI",
+        text: "I'm Crump, your personal AI assistant powered by the N² Engine. Built for power users who demand excellence."
     },
     {
         icon: "💬",
-        title: "Powerful Conversations",
-        text: "I can help with technical work, creative projects, analysis, and more. Just type your question and hit send."
+        title: "Natural Conversations",
+        text: "Ask me anything—technical problems, creative projects, analysis, research. I adapt to your needs and learn your style."
     },
     {
-        icon: "🎤",
-        title: "Voice & Vision",
-        text: "Use voice input to speak naturally, upload images for analysis, or ask me to generate images for you."
+        icon: "🎨",
+        title: "Multimodal Intelligence",
+        text: "Generate images, analyze photos, use voice input, search the web. I'm not just text—I'm a complete toolkit."
     },
     {
         icon: "🧠",
-        title: "Smart Memory",
-        text: "Tell me to 'Remember that...' and I'll store important information. I learn from every conversation to serve you better."
+        title: "Persistent Memory",
+        text: "Say 'Remember that...' and I'll store it forever. I learn from every interaction to serve you better over time."
+    },
+    {
+        icon: "💼",
+        title: "Work Mode",
+        text: "Toggle between Companion (conversational) and Work (brief & efficient) modes in settings. Adapts to your workflow."
+    },
+    {
+        icon: "📌",
+        title: "Context Awareness",
+        text: "Add contexts in settings to organize your work. I'll track topics and provide relevant suggestions as you go."
+    },
+    {
+        icon: "🤖",
+        title: "Autonomous Check-ins",
+        text: "Enable autonomous messages in settings. I'll check in when you're idle, stuck, or working too late. Smart, not annoying."
     }
 ];
 
 const welcomeMessages = [
-    "Good to see you, Gregory. Ready when you are.",
-    "What's on your mind today?",
-    "Let's build something legendary.",
-    "Another day, another empire move. What's first?",
+    "Ready when you are.",
+    "What's on your mind?",
+    "Let's build something great.",
+    "What are we tackling today?",
     "Back at it. What do you need?",
-    "Ready to make things happen. What's the play?",
-    "Let's get to work. What are we tackling?",
-    "What's the mission today?",
-    "Time to turn ideas into reality. What's up?",
-    "Let's do this. What's on the agenda?"
+    "Ready to make things happen.",
+    "Let's get to work.",
+    "What's the mission?",
+    "Time to turn ideas into reality.",
+    "What's first?"
 ];
 
 const featureTips = [
@@ -483,6 +500,7 @@ function loadContextSuggestions() {
 // INITIALIZATION
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
+    promptForUserName();
     function initializeSplashScreen() {
         const splashSeen = sessionStorage.getItem(STORAGE_KEYS.SPLASH_SEEN);
         const tutorialCompleted = localStorage.getItem(STORAGE_KEYS.TUTORIAL);
