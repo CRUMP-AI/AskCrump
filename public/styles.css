@@ -451,7 +451,12 @@ body.mono-font {
     border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 16px;
+}
+
+.logo-text {
+    flex: 1;
 }
 
 /* ==========================================
