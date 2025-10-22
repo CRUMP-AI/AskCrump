@@ -786,14 +786,6 @@ function sendBrowserNotification(title, body) {
 }
 
 
-function changeImageGenerator(generator) {
-    localStorage.setItem(window.STORAGE_KEYS.IMAGE_GENERATOR, generator);
-    window.preferredImageGenerator = generator;
-    
-    const genName = generator === 'pollinations' ? 'Pollinations' : 'Segmind';
-    showNotification(`✓ Image generator set to ${genName}`, 'success');
-}
-
 
 // Export functions to window
 window.showTutorial = showTutorial;
@@ -865,7 +857,6 @@ function showAddContextDialog() {
 
 window.handleImport = handleImport;
 window.showNotification = showNotification;
-window.changeImageGenerator = changeImageGenerator;
 window.showAddContextDialog = showAddContextDialog;
 window.changeWorkMode = changeWorkMode;
 window.autoResize = autoResize;
