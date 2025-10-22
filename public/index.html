@@ -182,12 +182,21 @@
                 <div class="settings-section">
                     <h3>Profile</h3>
                     <div class="form-group">
-                        <label for="settingsName">Name</label>
+                        <label for="settingsName">Your Name</label>
                         <input type="text" id="settingsName" class="form-input" placeholder="Your name">
                     </div>
                     <div class="form-group">
                         <label for="settingsEmail">Email</label>
                         <input type="email" id="settingsEmail" class="form-input" placeholder="your@email.com">
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Assistant</h3>
+                    <div class="form-group">
+                        <label for="assistantName">Assistant Name</label>
+                        <input type="text" id="assistantName" class="form-input" placeholder="Crump" maxlength="30">
+                        <small style="display: block; margin-top: 0.5rem; color: var(--color-text-tertiary); font-size: 0.875rem;">Customize your assistant's name</small>
                     </div>
                 </div>
 
@@ -200,6 +209,17 @@
                             <small>Allow proactive assistance</small>
                         </span>
                     </label>
+                    
+                    <div class="form-group" id="autonomousFrequencyGroup" style="margin-top: 1rem; display: none;">
+                        <label for="autonomousFrequency">Message Frequency</label>
+                        <select id="autonomousFrequency" class="form-input">
+                            <option value="relaxed">Relaxed (15 minutes)</option>
+                            <option value="balanced" selected>Balanced (10 minutes)</option>
+                            <option value="active">Active (5 minutes)</option>
+                            <option value="very-active">Very Active (3 minutes)</option>
+                        </select>
+                    </div>
+                    
                     <label class="checkbox-label">
                         <input type="checkbox" id="workMode">
                         <span>
