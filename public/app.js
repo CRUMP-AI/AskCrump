@@ -1,10 +1,9 @@
 /* ============================================
-   CRUMP AI - PROFESSIONAL GRADE APPLICATION
+   CRUMP AI v2.12.1 - PROFESSIONAL APPLICATION
    ============================================ */
 
 console.log('Crump AI v2.12.1 - Initializing');
 
-// ===== STATE =====
 let currentChatId = null;
 let isSending = false;
 let currentProfile = null;
@@ -18,12 +17,13 @@ const STORAGE_KEYS = {
     NOVA: 'crump_nova_protocol',
     MEMORY: 'crump_universal_memory',
     AUTONOMOUS: 'crump_autonomous_messages',
+    AUTONOMOUS_FREQUENCY: 'crump_autonomous_frequency',
+    ASSISTANT_NAME: 'crump_assistant_name',
     WORK_MODE: 'crump_work_mode',
     SETTINGS: 'crump_settings',
     HAS_ONBOARDED: 'crump_has_onboarded'
 };
 
-// ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', () => {
     const hasOnboarded = localStorage.getItem(STORAGE_KEYS.HAS_ONBOARDED);
     if (hasOnboarded) {
@@ -36,7 +36,7 @@ window.initializeApp = function() {
         const required = ['chatContainer', 'userInput', 'sendButton', 'newChatBtn', 'chatsList', 'fileInput'];
         const missing = required.filter(id => !document.getElementById(id));
         if (missing.length > 0) {
-            throw new Error(`Missing elements: ${missing.join(', ')}`);
+            throw new Error('Missing elements: ' + missing.join(', '));
         }
 
         if (typeof window.messageDeduplicator === 'undefined') {
@@ -52,6 +52,7 @@ window.initializeApp = function() {
         setupEventListeners();
         setupSidebarToggle();
         loadSettings();
+        updateAssistantNameDisplay();
 
         const savedChatId = localStorage.getItem(STORAGE_KEYS.CURRENT_CHAT);
         if (savedChatId && getChat(savedChatId)) {
@@ -73,7 +74,6 @@ window.initializeApp = function() {
     }
 };
 
-// ===== SIDEBAR TOGGLE =====
 function setupSidebarToggle() {
     const menuBtn = document.getElementById('menuBtn');
     const closeSidebarBtn = document.getElementById('closeSidebarBtn');
@@ -102,7 +102,6 @@ function setupSidebarToggle() {
     window.closeSidebarOnMobile = closeSidebar;
 }
 
-// ===== USER AVATAR =====
 function updateUserAvatar() {
     const profile = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILE) || '{}');
     if (profile.name) {
@@ -111,23 +110,31 @@ function updateUserAvatar() {
     }
 }
 
-// ===== WELCOME MESSAGE =====
+function getAssistantName() {
+    return localStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
+}
+
+function updateAssistantNameDisplay() {
+    const assistantName = getAssistantName();
+    
+    const sidebarLogo = document.querySelector('.sidebar-logo');
+    if (sidebarLogo) sidebarLogo.textContent = assistantName;
+    
+    const headerLogo = document.querySelector('.header-logo');
+    if (headerLogo) headerLogo.textContent = assistantName;
+    
+    const splashLogo = document.querySelector('.splash-logo');
+    if (splashLogo) splashLogo.textContent = assistantName;
+}
+
 function showWelcomeMessage() {
     const profile = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILE) || '{}');
     const userName = profile.name || 'there';
+    const assistantName = getAssistantName();
     
     const welcomeMessage = {
         role: 'assistant',
-        content: `Hello ${userName}. I'm Crump, your AI virtual assistant. I'm here to help you with:
-
-• Natural conversations and consultations
-• Image generation and creative tasks
-• Web research and information retrieval
-• Code development and debugging
-• Document analysis and writing
-• Learning and problem-solving
-
-How may I assist you today?`,
+        content: 'Hello ' + userName + '. I\'m ' + assistantName + ', your AI virtual assistant. I\'m here to help you with:\n\n• Natural conversations and consultations\n• Image generation and creative tasks\n• Web research and information retrieval\n• Code development and debugging\n• Document analysis and writing\n• Learning and problem-solving\n\nHow may I assist you today?',
         timestamp: Date.now()
     };
 
@@ -139,7 +146,6 @@ How may I assist you today?`,
     }
 }
 
-// ===== EVENT LISTENERS =====
 function setupEventListeners() {
     const sendButton = document.getElementById('sendButton');
     const userInput = document.getElementById('userInput');
@@ -196,9 +202,18 @@ function setupEventListeners() {
     if (voiceBtn) {
         voiceBtn.addEventListener('click', toggleVoiceRecognition);
     }
+
+    const autonomousCheck = document.getElementById('autonomousMessaging');
+    if (autonomousCheck) {
+        autonomousCheck.addEventListener('change', (e) => {
+            const frequencyGroup = document.getElementById('autonomousFrequencyGroup');
+            if (frequencyGroup) {
+                frequencyGroup.style.display = e.target.checked ? 'block' : 'none';
+            }
+        });
+    }
 }
 
-// ===== VOICE RECOGNITION =====
 function toggleVoiceRecognition() {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
         showToast('Voice recognition not supported', 'error');
@@ -245,7 +260,6 @@ function toggleVoiceRecognition() {
     recognition.start();
 }
 
-// ===== FILE HANDLING =====
 let selectedFiles = [];
 
 function handleFileSelect(event) {
@@ -263,12 +277,9 @@ function displayFilePreview() {
     }
 
     preview.style.display = 'flex';
-    preview.innerHTML = selectedFiles.map((file, index) => `
-        <div class="file-preview-item">
-            <span>${escapeHtml(file.name)}</span>
-            <button class="remove-file" onclick="removeFile(${index})">×</button>
-        </div>
-    `).join('');
+    preview.innerHTML = selectedFiles.map((file, index) => {
+        return '<div class="file-preview-item"><span>' + escapeHtml(file.name) + '</span><button class="remove-file" onclick="removeFile(' + index + ')">×</button></div>';
+    }).join('');
 }
 
 window.removeFile = function(index) {
@@ -276,7 +287,6 @@ window.removeFile = function(index) {
     displayFilePreview();
 };
 
-// ===== QUICK ACTIONS =====
 window.triggerImageGeneration = function() {
     document.getElementById('userInput').value = 'Generate an image of ';
     document.getElementById('userInput').focus();
@@ -298,7 +308,6 @@ window.triggerCodeHelp = function() {
     input.setSelectionRange(input.value.length, input.value.length);
 };
 
-// ===== CHAT MANAGEMENT =====
 function createNewChat() {
     const chatId = Date.now().toString();
     const newChat = {
@@ -353,15 +362,7 @@ function updateChatsList() {
         const isActive = chat.id === currentChatId;
         const time = formatTime(chat.updatedAt);
         
-        return `
-            <div class="chat-item ${isActive ? 'active' : ''}" onclick="loadChat('${chat.id}')">
-                <div class="chat-item-content">
-                    <div class="chat-item-title">${escapeHtml(chat.title)}</div>
-                    <div class="chat-item-time">${time}</div>
-                </div>
-                <button class="delete-chat-btn" onclick="event.stopPropagation(); deleteChat('${chat.id}')">×</button>
-            </div>
-        `;
+        return '<div class="chat-item ' + (isActive ? 'active' : '') + '" onclick="loadChat(\'' + chat.id + '\')"><div class="chat-item-content"><div class="chat-item-title">' + escapeHtml(chat.title) + '</div><div class="chat-item-time">' + time + '</div></div><button class="delete-chat-btn" onclick="event.stopPropagation(); deleteChat(\'' + chat.id + '\')">×</button></div>';
     }).join('');
 }
 
@@ -383,8 +384,7 @@ window.deleteChat = function(chatId) {
     }
 };
 
-// ===== MESSAGE SENDING =====
-async function sendMessage(messageOverride = null) {
+async function sendMessage(messageOverride) {
     const userInput = document.getElementById('userInput');
     const message = messageOverride || userInput.value.trim();
 
@@ -462,7 +462,7 @@ async function sendMessage(messageOverride = null) {
         });
 
         if (!response.ok) {
-            throw new Error(`Server error: ${response.status}`);
+            throw new Error('Server error: ' + response.status);
         }
 
         const data = await response.json();
@@ -502,31 +502,20 @@ async function sendMessage(messageOverride = null) {
     }
 }
 
-// ===== MESSAGE RENDERING =====
 function renderMessage(message) {
     const container = document.getElementById('chatContainer');
     const messageEl = document.createElement('div');
-    messageEl.className = `message ${message.role}`;
+    messageEl.className = 'message ' + message.role;
 
     const profile = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILE) || '{}');
-    const userInitial = profile.avatarInitial || profile.name?.charAt(0).toUpperCase() || 'U';
+    const userInitial = profile.avatarInitial || (profile.name && profile.name.charAt(0).toUpperCase()) || 'U';
+    const assistantName = getAssistantName();
     
     const avatar = message.role === 'user' ? userInitial : 'AI';
-    const sender = message.role === 'user' ? (profile.name || 'You') : 'Crump';
+    const sender = message.role === 'user' ? (profile.name || 'You') : assistantName;
     const time = formatTime(message.timestamp);
 
-    messageEl.innerHTML = `
-        <div class="message-header">
-            <div class="message-avatar">${escapeHtml(avatar)}</div>
-            <div>
-                <div class="message-sender">${escapeHtml(sender)}</div>
-                <div class="message-time">${time}</div>
-            </div>
-        </div>
-        <div class="message-content">
-            ${formatMessageContent(message.content)}
-        </div>
-    `;
+    messageEl.innerHTML = '<div class="message-header"><div class="message-avatar">' + escapeHtml(avatar) + '</div><div><div class="message-sender">' + escapeHtml(sender) + '</div><div class="message-time">' + time + '</div></div></div><div class="message-content">' + formatMessageContent(message.content) + '</div>';
 
     container.appendChild(messageEl);
     
@@ -542,9 +531,9 @@ function formatMessageContent(content) {
     
     formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    formatted = formatted.replace(/```(\w+)?\n([\s\S]+?)```/g, (match, lang, code) => {
+    formatted = formatted.replace(/```(\w+)?\n([\s\S]+?)```/g, function(match, lang, code) {
         const language = lang || 'plaintext';
-        return `<pre><code class="language-${language}">${code.trim()}</code></pre>`;
+        return '<pre><code class="language-' + language + '">' + code.trim() + '</code></pre>';
     });
     formatted = formatted.replace(/`(.+?)`/g, '<code>$1</code>');
     formatted = formatted.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank">$1</a>');
@@ -553,7 +542,6 @@ function formatMessageContent(content) {
     return formatted;
 }
 
-// ===== THINKING INDICATOR =====
 function showThinking() {
     const indicator = document.getElementById('thinkingIndicator');
     if (indicator) {
@@ -569,26 +557,31 @@ function hideThinking() {
     }
 }
 
-// ===== SETTINGS =====
 function openSettings() {
     const modal = document.getElementById('settingsModal');
     const profile = currentProfile ? currentProfile.getProfile() : {};
     
     document.getElementById('settingsName').value = profile.name || '';
     document.getElementById('settingsEmail').value = profile.email || '';
-    document.getElementById('autonomousMessaging').checked = 
-        localStorage.getItem(STORAGE_KEYS.AUTONOMOUS) === 'true';
+    document.getElementById('assistantName').value = getAssistantName();
+    
+    const autonomousEnabled = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS) === 'true';
+    document.getElementById('autonomousMessaging').checked = autonomousEnabled;
+    
+    const frequencyGroup = document.getElementById('autonomousFrequencyGroup');
+    if (frequencyGroup) {
+        frequencyGroup.style.display = autonomousEnabled ? 'block' : 'none';
+    }
+    
+    const frequency = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'balanced';
+    document.getElementById('autonomousFrequency').value = frequency;
+    
     document.getElementById('workMode').checked = 
         localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'work';
     
     if (currentProfile) {
         const stats = currentProfile.getUsageStats();
-        document.getElementById('usageStats').innerHTML = `
-            <p>Messages: ${stats.messages}/${stats.limits.messages === -1 ? '∞' : stats.limits.messages}</p>
-            <p>Images: ${stats.images}/${stats.limits.images === -1 ? '∞' : stats.limits.images}</p>
-            <p>Searches: ${stats.searches}/${stats.limits.searches === -1 ? '∞' : stats.limits.searches}</p>
-            <p>Resets: ${new Date(stats.resetDate).toLocaleDateString()}</p>
-        `;
+        document.getElementById('usageStats').innerHTML = '<p>Messages: ' + stats.messages + '/' + (stats.limits.messages === -1 ? '∞' : stats.limits.messages) + '</p><p>Images: ' + stats.images + '/' + (stats.limits.images === -1 ? '∞' : stats.limits.images) + '</p><p>Searches: ' + stats.searches + '/' + (stats.limits.searches === -1 ? '∞' : stats.limits.searches) + '</p><p>Resets: ' + new Date(stats.resetDate).toLocaleDateString() + '</p>';
     }
     
     modal.style.display = 'flex';
@@ -601,27 +594,31 @@ window.closeSettings = function() {
 window.saveSettings = function() {
     const name = document.getElementById('settingsName').value.trim();
     const email = document.getElementById('settingsEmail').value.trim();
+    const assistantName = document.getElementById('assistantName').value.trim() || 'Crump';
     const autonomous = document.getElementById('autonomousMessaging').checked;
+    const frequency = document.getElementById('autonomousFrequency').value;
     const workMode = document.getElementById('workMode').checked;
     
     if (currentProfile && name) {
-        currentProfile.updateProfile({ name, email });
+        currentProfile.updateProfile({ name: name, email: email });
         updateUserAvatar();
     }
     
+    localStorage.setItem(STORAGE_KEYS.ASSISTANT_NAME, assistantName);
     localStorage.setItem(STORAGE_KEYS.AUTONOMOUS, autonomous);
+    localStorage.setItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY, frequency);
     localStorage.setItem(STORAGE_KEYS.WORK_MODE, workMode ? 'work' : 'companion');
+    
+    updateAssistantNameDisplay();
+    setupAutonomousMessaging();
     
     window.closeSettings();
     showToast('Settings saved', 'success');
     updateChatsList();
 };
 
-function loadSettings() {
-    // Settings loaded in openSettings()
-}
+function loadSettings() {}
 
-// ===== TIER BADGE =====
 function updateTierBadge() {
     if (!currentProfile) return;
     
@@ -635,7 +632,6 @@ function updateTierBadge() {
     if (headerTier) headerTier.textContent = tierName;
 }
 
-// ===== AUTONOMOUS MESSAGING =====
 let autonomousInterval;
 
 function setupAutonomousMessaging() {
@@ -646,11 +642,21 @@ function setupAutonomousMessaging() {
     }
     
     if (enabled) {
-        autonomousInterval = setInterval(sendAutonomousMessage, 15 * 60 * 1000);
+        const frequency = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'balanced';
+        const intervals = {
+            'relaxed': 15 * 60 * 1000,
+            'balanced': 10 * 60 * 1000,
+            'active': 5 * 60 * 1000,
+            'very-active': 3 * 60 * 1000
+        };
+        
+        const interval = intervals[frequency] || intervals.balanced;
+        autonomousInterval = setInterval(sendAutonomousMessage, interval);
+        console.log('Autonomous messaging enabled: ' + frequency + ' (' + (interval/1000) + 's)');
     }
 }
 
-function sendAutonomousMessage() {
+async function sendAutonomousMessage() {
     const currentChat = getCurrentChat();
     if (!currentChat) return;
     
@@ -658,20 +664,90 @@ function sendAutonomousMessage() {
     if (!lastMessage) return;
     
     const timeSinceLastMessage = Date.now() - lastMessage.timestamp;
-    if (timeSinceLastMessage < 10 * 60 * 1000) return;
+    const frequency = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'balanced';
+    const minIdle = {
+        'relaxed': 15 * 60 * 1000,
+        'balanced': 10 * 60 * 1000,
+        'active': 5 * 60 * 1000,
+        'very-active': 3 * 60 * 1000
+    };
     
-    const messages = [
-        "Is there anything I can assist you with?",
-        "I'm here if you need help with anything.",
-        "Do you have any questions I can help answer?",
-        "Ready to assist whenever you need."
-    ];
+    if (timeSinceLastMessage < minIdle[frequency]) return;
+    if (isSending) return;
     
-    const randomMessage = messages[Math.floor(Math.random() * messages.length)];
-    sendMessage(randomMessage);
+    const message = await generateContextualMessage(currentChat);
+    
+    if (message) {
+        const autonomousMessage = {
+            role: 'assistant',
+            content: message,
+            timestamp: Date.now(),
+            autonomous: true
+        };
+        
+        currentChat.messages.push(autonomousMessage);
+        currentChat.updatedAt = Date.now();
+        saveChats();
+        renderMessage(autonomousMessage);
+        scrollToBottom();
+    }
 }
 
-// ===== UTILITY FUNCTIONS =====
+async function generateContextualMessage(chat) {
+    const messages = chat.messages;
+    const recentMessages = messages.slice(-5);
+    
+    if (recentMessages.length > 1) {
+        const topics = extractTopics(recentMessages);
+        
+        if (topics.length > 0) {
+            const contextualMessages = [
+                'I\'ve been thinking about ' + topics[0] + ' - would you like me to explore any specific aspect further?',
+                'Regarding ' + topics[0] + ', I can provide additional insights if you\'re interested.',
+                'I noticed we were discussing ' + topics[0] + '. Is there anything else you\'d like to know about this?',
+                'Have you made progress on ' + topics[0] + '? I\'m here if you need any assistance.',
+                'I can help you dive deeper into ' + topics[0] + ' whenever you\'re ready.'
+            ];
+            
+            return contextualMessages[Math.floor(Math.random() * contextualMessages.length)];
+        }
+    }
+    
+    const discoveries = [
+        'I came across an interesting development in AI technology. Would you like to hear about it?',
+        'There\'s been an update in the tech world that might interest you. Shall I share?',
+        'I found something fascinating while monitoring recent trends. Want to know more?',
+        'I\'ve been analyzing current events - would you like a brief on anything specific?',
+        'Is there any topic you\'d like me to research and provide insights on?',
+        'I\'m ready to help with any questions or tasks you might have.',
+        'Would you like suggestions on what I can help you with today?',
+        'I\'m here if you need assistance with research, coding, writing, or brainstorming.'
+    ];
+    
+    return discoveries[Math.floor(Math.random() * discoveries.length)];
+}
+
+function extractTopics(messages) {
+    const topics = [];
+    const userMessages = messages.filter(m => m.role === 'user');
+    
+    if (userMessages.length > 0) {
+        const lastUserMessage = userMessages[userMessages.length - 1].content;
+        const words = lastUserMessage.toLowerCase().split(' ');
+        const stopWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'can', 'you', 'how', 'what', 'when', 'where', 'why', 'is', 'are', 'was', 'were', 'do', 'does', 'did', 'will', 'would', 'should', 'could', 'may', 'might', 'i', 'me', 'my', 'we'];
+        
+        const meaningfulWords = words
+            .filter(w => w.length > 3 && !stopWords.includes(w))
+            .filter(w => /^[a-z]+$/.test(w));
+        
+        if (meaningfulWords.length > 0) {
+            topics.push(meaningfulWords[0]);
+        }
+    }
+    
+    return topics;
+}
+
 function getChats() {
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.CHATS) || '[]');
 }
@@ -691,7 +767,7 @@ function saveChats() {
 
 function scrollToBottom() {
     const container = document.getElementById('chatContainer');
-    setTimeout(() => {
+    setTimeout(function() {
         container.scrollTop = container.scrollHeight;
     }, 100);
 }
@@ -713,28 +789,32 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function showToast(message, type = 'info') {
+function showToast(message, type) {
+    type = type || 'info';
     const container = document.getElementById('toastContainer');
     if (!container) return;
     
     const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
+    toast.className = 'toast ' + type;
     toast.textContent = message;
     
     container.appendChild(toast);
     
-    setTimeout(() => {
+    setTimeout(function() {
         toast.style.animation = 'toastSlide 0.3s ease reverse';
-        setTimeout(() => toast.remove(), 300);
+        setTimeout(function() {
+            toast.remove();
+        }, 300);
     }, 3000);
 }
 
-// ===== DEBUG =====
 window.crumpDebug = {
-    getCurrentChat,
-    getChats,
-    currentProfile,
-    sendMessage,
-    createNewChat,
-    loadChat
+    getCurrentChat: getCurrentChat,
+    getChats: getChats,
+    currentProfile: currentProfile,
+    sendMessage: sendMessage,
+    createNewChat: createNewChat,
+    loadChat: loadChat,
+    getAssistantName: getAssistantName,
+    setupAutonomousMessaging: setupAutonomousMessaging
 };
