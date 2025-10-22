@@ -795,59 +795,6 @@ function changeImageGenerator(generator) {
 }
 
 
-// ==========================================
-// CONTEXT PANEL FUNCTIONS
-// ==========================================
-function toggleContextPanel() {
-    const panel = document.getElementById('contextPanel');
-    const btn = document.getElementById('contextRevealBtn');
-    
-    if (!panel || !btn) return;
-    
-    const isHidden = panel.classList.contains('hidden');
-    
-    if (isHidden) {
-        panel.classList.remove('hidden');
-        btn.classList.add('active');
-    } else {
-        panel.classList.add('hidden');
-        btn.classList.remove('active');
-    }
-}
-
-function showAddContextDialog() {
-    const label = prompt('Enter context label (e.g., "Bug Fixing", "Writing Docs"):');
-    if (label && label.trim()) {
-        if (window.contextEngine) {
-            window.contextEngine.addContext(label.trim());
-            updateContextCount();
-        }
-    }
-}
-
-function updateContextCount() {
-    if (!window.contextEngine) return;
-    
-    const count = window.contextEngine.contexts.length;
-    const badge = document.getElementById('contextCount');
-    
-    if (badge) {
-        if (count > 0) {
-            badge.textContent = count;
-            badge.style.display = 'block';
-        } else {
-            badge.style.display = 'none';
-        }
-    }
-}
-
-function removeContextCard(contextId) {
-    if (window.contextEngine) {
-        window.contextEngine.removeContext(contextId);
-        updateContextCount();
-    }
-}
-
 // Export functions to window
 window.showTutorial = showTutorial;
 window.nextTutorialStep = nextTutorialStep;
@@ -906,13 +853,20 @@ function changeWorkMode(mode) {
     showNotification(`✓ Mode set to ${modeName}: ${description}`, 'success');
 }
 
+
+function showAddContextDialog() {
+    const label = prompt('Enter context label (e.g., "Bug Fixing", "Writing Docs"):');
+    if (label && label.trim()) {
+        if (window.contextEngine) {
+            window.contextEngine.addContext(label.trim());
+        }
+    }
+}
+
 window.handleImport = handleImport;
 window.showNotification = showNotification;
 window.changeImageGenerator = changeImageGenerator;
-window.toggleContextPanel = toggleContextPanel;
 window.showAddContextDialog = showAddContextDialog;
-window.updateContextCount = updateContextCount;
-window.removeContextCard = removeContextCard;
 window.changeWorkMode = changeWorkMode;
 window.autoResize = autoResize;
 window.updateCharCount = updateCharCount;
