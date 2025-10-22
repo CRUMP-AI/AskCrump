@@ -496,6 +496,37 @@ function loadContextSuggestions() {
     }
 }
 
+
+// Get user's name and initial
+function promptForUserName() {
+    const userName = localStorage.getItem(STORAGE_KEYS.USER_NAME);
+    const userInitial = localStorage.getItem(STORAGE_KEYS.USER_INITIAL);
+    
+    if (!userName || !userInitial) {
+        setTimeout(() => {
+            const name = prompt("Welcome to Crump AI! What's your name?");
+            if (name && name.trim()) {
+                const trimmedName = name.trim();
+                const initial = trimmedName.charAt(0).toUpperCase();
+                
+                localStorage.setItem(STORAGE_KEYS.USER_NAME, trimmedName);
+                localStorage.setItem(STORAGE_KEYS.USER_INITIAL, initial);
+                window.userName = trimmedName;
+                window.userInitial = initial;
+                
+                console.log(`✅ User registered: ${trimmedName} (${initial})`);
+            } else {
+                // Default if they cancel
+                localStorage.setItem(STORAGE_KEYS.USER_INITIAL, 'U');
+                window.userInitial = 'U';
+            }
+        }, 1000); // Delay to let page load
+    } else {
+        window.userName = userName;
+        window.userInitial = userInitial;
+    }
+}
+
 // ==========================================
 // INITIALIZATION
 // ==========================================
@@ -1050,7 +1081,7 @@ async function sendMessage() {
         return;
     }
     
-    if (message && messageDeduper.isDuplicate(message)) {
+    if (message && messageDeduper && messageDeduper.isDuplicate(message)) {
         console.log('🚫 BLOCKED: Duplicate message');
         return;
     }
