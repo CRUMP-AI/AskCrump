@@ -396,7 +396,6 @@ async function sendMessage(messageOverride) {
             showToast('Message already sent', 'warning');
             return;
         }
-        window.messageDeduplicator.addMessage(message);
     }
 
     if (currentProfile) {
