@@ -32,8 +32,12 @@
     </script>
 </head>
 <body>
-    <!-- Keep your existing HTML body content here -->
-    <!-- ... -->
+    <!-- YOUR UI ELEMENTS GO HERE -->
+    <!-- Make sure you have: -->
+    <!-- - div with id="chatContainer" -->
+    <!-- - input with id="userInput" -->
+    <!-- - button with id="sendButton" -->
+    <!-- - button with id="newChatBtn" -->
     
     <!-- ============================================ -->
     <!-- SCRIPTS - Load in this specific order -->
@@ -61,7 +65,7 @@
     <script src="/ui-functions.js"></script>
     <script src="/upgrade-ui.js"></script>
     <script src="/app.js"></script>
-    <script src="/core-fixes.js"></script>
+    <!-- ❌ REMOVED: <script src="/core-fixes.js"></script> -->
     
     <!-- Service Worker Registration -->
     <script>
