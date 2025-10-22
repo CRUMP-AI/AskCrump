@@ -3,20 +3,20 @@
    ============================================ */
 
 :root {
-    /* Color Palette - Professional & Sophisticated */
-    --color-bg-primary: #fafaf9;
-    --color-bg-secondary: #f5f5f4;
-    --color-bg-tertiary: #e7e5e4;
-    --color-bg-elevated: #ffffff;
+    /* Color Palette - Dark Professional & Sophisticated */
+    --color-bg-primary: #0f1419;
+    --color-bg-secondary: #1a1f29;
+    --color-bg-tertiary: #252b37;
+    --color-bg-elevated: #2a3240;
     
-    --color-surface: #ffffff;
-    --color-border: #e7e5e4;
-    --color-border-hover: #d6d3d1;
+    --color-surface: #1a1f29;
+    --color-border: #2d3748;
+    --color-border-hover: #3d4a5c;
     
-    --color-text-primary: #1c1917;
-    --color-text-secondary: #57534e;
-    --color-text-tertiary: #78716c;
-    --color-text-muted: #a8a29e;
+    --color-text-primary: #e5e7eb;
+    --color-text-secondary: #9ca3af;
+    --color-text-tertiary: #6b7280;
+    --color-text-muted: #4b5563;
     
     --color-accent-primary: #c9b892;
     --color-accent-hover: #b8a57d;
@@ -107,7 +107,7 @@ body {
 .splash-screen {
     position: fixed;
     inset: 0;
-    background: linear-gradient(135deg, #fafaf9 0%, #f5f5f4 100%);
+    background: linear-gradient(135deg, #0f1419 0%, #1a1f29 100%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -861,6 +861,15 @@ body {
     outline: none;
     border-color: var(--color-accent-primary);
     box-shadow: 0 0 0 3px rgba(201, 184, 146, 0.1);
+}
+
+select.form-input {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%239ca3af' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right var(--space-3) center;
+    padding-right: var(--space-10);
 }
 
 .input-error {
