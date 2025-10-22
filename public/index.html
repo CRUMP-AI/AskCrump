@@ -32,12 +32,111 @@
     </script>
 </head>
 <body>
-    <!-- YOUR UI ELEMENTS GO HERE -->
-    <!-- Make sure you have: -->
-    <!-- - div with id="chatContainer" -->
-    <!-- - input with id="userInput" -->
-    <!-- - button with id="sendButton" -->
-    <!-- - button with id="newChatBtn" -->
+    <!-- ============================================ -->
+    <!-- MAIN APP CONTAINER -->
+    <!-- ============================================ -->
+    <div class="app-container">
+        
+        <!-- ============================================ -->
+        <!-- SIDEBAR (Chat List) -->
+        <!-- ============================================ -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>💬 Chats</h2>
+                <button class="icon-btn" id="newChatBtn" title="New Chat">
+                    ➕
+                </button>
+            </div>
+            
+            <div class="chats-list" id="chatsList">
+                <!-- Chat list items will be rendered here by JavaScript -->
+            </div>
+            
+            <div class="sidebar-footer">
+                <button class="icon-btn" id="settingsBtn" title="Settings">
+                    ⚙️
+                </button>
+                <button class="icon-btn" id="usageStatsBtn" title="Usage Stats" onclick="window.showUsageStats()">
+                    📊
+                </button>
+            </div>
+        </aside>
+        
+        <!-- ============================================ -->
+        <!-- MAIN CHAT AREA -->
+        <!-- ============================================ -->
+        <main class="main-content">
+            
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <button class="icon-btn mobile-menu-btn" id="toggleSidebarBtn">
+                        ☰
+                    </button>
+                    <h1 class="app-title">Crump AI</h1>
+                    <span class="version-badge">v2.12.1</span>
+                    <!-- Tier badge will be added here by JavaScript -->
+                </div>
+                
+                <div class="header-right">
+                    <button class="icon-btn" id="searchWebBtn" title="Enable Web Search">
+                        🔍
+                    </button>
+                    <button class="icon-btn" id="voiceBtn" title="Voice Input">
+                        🎤
+                    </button>
+                </div>
+            </header>
+            
+            <!-- Chat Container (Messages Display) -->
+            <div class="chat-container" id="chatContainer">
+                <!-- Messages will be rendered here by JavaScript -->
+                <div class="welcome-message">
+                    <h2>👋 Welcome to Crump AI</h2>
+                    <p>Powered by the N² Engine</p>
+                    <p class="welcome-subtext">Start a conversation to see the magic happen!</p>
+                </div>
+            </div>
+            
+            <!-- Input Area -->
+            <div class="input-container">
+                <!-- File Preview (appears when files uploaded) -->
+                <div id="filePreview" class="file-preview-container"></div>
+                
+                <!-- Main Input Box -->
+                <div class="input-wrapper">
+                    <button class="icon-btn" id="attachBtn" title="Attach File">
+                        📎
+                    </button>
+                    <input type="file" id="fileInput" style="display: none;" accept="image/*,application/pdf,.txt,.doc,.docx" multiple>
+                    
+                    <textarea 
+                        id="userInput" 
+                        placeholder="Type your message... (Shift+Enter for new line)"
+                        rows="1"
+                    ></textarea>
+                    
+                    <button class="icon-btn primary" id="sendButton" title="Send Message">
+                        ➤
+                    </button>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <span class="quick-action-hint">Quick actions:</span>
+                    <button class="quick-action-btn" onclick="document.getElementById('userInput').value='Generate an image of '; document.getElementById('userInput').focus();">
+                        🎨 Generate Image
+                    </button>
+                    <button class="quick-action-btn" onclick="document.getElementById('userInput').value='Search for '; document.getElementById('userInput').focus();">
+                        🔍 Web Search
+                    </button>
+                    <button class="quick-action-btn" onclick="document.getElementById('userInput').value='Help me code '; document.getElementById('userInput').focus();">
+                        💻 Code Help
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
     
     <!-- ============================================ -->
     <!-- SCRIPTS - Load in this specific order -->
@@ -65,7 +164,54 @@
     <script src="/ui-functions.js"></script>
     <script src="/upgrade-ui.js"></script>
     <script src="/app.js"></script>
-    <!-- ❌ REMOVED: <script src="/core-fixes.js"></script> -->
+    
+    <!-- Additional UI Helper Script -->
+    <script>
+        // Render chats list
+        window.renderChatsList = function() {
+            const container = document.getElementById('chatsList');
+            if (!container || !window.chats) return;
+            
+            container.innerHTML = window.chats.map(chat => `
+                <div class="chat-item ${chat.id === window.currentChatId ? 'active' : ''}" 
+                     onclick="window.loadChat ? window.loadChat('${chat.id}') : null">
+                    <div class="chat-title">${chat.title || 'New Chat'}</div>
+                    <div class="chat-time">${new Date(chat.updated).toLocaleDateString()}</div>
+                </div>
+            `).join('');
+        };
+        
+        // Toggle sidebar on mobile
+        document.addEventListener('DOMContentLoaded', () => {
+            const toggleBtn = document.getElementById('toggleSidebarBtn');
+            const sidebar = document.getElementById('sidebar');
+            
+            if (toggleBtn && sidebar) {
+                toggleBtn.addEventListener('click', () => {
+                    sidebar.classList.toggle('open');
+                });
+            }
+            
+            // Attach button functionality
+            const attachBtn = document.getElementById('attachBtn');
+            const fileInput = document.getElementById('fileInput');
+            
+            if (attachBtn && fileInput) {
+                attachBtn.addEventListener('click', () => {
+                    fileInput.click();
+                });
+            }
+            
+            // Auto-resize textarea
+            const textarea = document.getElementById('userInput');
+            if (textarea) {
+                textarea.addEventListener('input', function() {
+                    this.style.height = 'auto';
+                    this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+                });
+            }
+        });
+    </script>
     
     <!-- Service Worker Registration -->
     <script>
@@ -73,7 +219,7 @@
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
                     .then(reg => console.log('✅ Service Worker registered'))
-                    .catch(err => console.log('❌ SW registration failed:', err));
+                    .catch(err => console.log('⚠️ SW registration failed (expected in dev):', err));
             });
         }
     </script>
