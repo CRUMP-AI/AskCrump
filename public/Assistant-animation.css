@@ -1,14 +1,14 @@
 /* ==========================================
-   ASSISTANT CHARACTER ANIMATIONS v2.15.1
-   Floating AI character with state animations
+   ASSISTANT CHARACTER ANIMATIONS v2.15.2
+   FIXED - Smaller floating AI character
    ========================================== */
 
 .assistant-character {
     position: fixed;
-    bottom: 120px;
-    right: 32px;
-    width: 80px;
-    height: 80px;
+    bottom: 100px;
+    right: 24px;
+    width: 50px;
+    height: 50px;
     z-index: 50;
     pointer-events: none;
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -80,7 +80,7 @@
     position: fixed;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%) scale(2);
+    transform: translate(-50%, -50%) scale(1.5);
     opacity: 0;
     animation: materialize 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
@@ -92,12 +92,12 @@
         filter: drop-shadow(0 0 60px rgba(85, 195, 255, 0));
     }
     60% {
-        transform: translate(-50%, -50%) scale(2.2);
+        transform: translate(-50%, -50%) scale(1.7);
         opacity: 1;
         filter: drop-shadow(0 0 80px rgba(85, 195, 255, 1));
     }
     100% {
-        transform: translate(-50%, -50%) scale(2);
+        transform: translate(-50%, -50%) scale(1.5);
         opacity: 1;
         filter: drop-shadow(0 0 40px rgba(85, 195, 255, 0.8));
     }
@@ -112,13 +112,13 @@
     0% {
         top: 50%;
         left: 50%;
-        transform: translate(-50%, -50%) scale(2);
+        transform: translate(-50%, -50%) scale(1.5);
     }
     100% {
         top: auto;
         left: auto;
-        bottom: 120px;
-        right: 32px;
+        bottom: 100px;
+        right: 24px;
         transform: translate(0, 0) scale(1);
     }
 }
@@ -126,10 +126,10 @@
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
     .assistant-character {
-        bottom: 100px;
+        bottom: 90px;
         right: 16px;
-        width: 64px;
-        height: 64px;
+        width: 45px;
+        height: 45px;
     }
 }
 
