@@ -660,4 +660,3 @@ async function handleImageAnalysis(res, fileData, message, assistantName) {
         throw error;
     }
 }
-
