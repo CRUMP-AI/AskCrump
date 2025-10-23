@@ -1,6 +1,6 @@
 // ==========================================
 // CRUMP AI - API HANDLER v2.15.1 COMPLETE
-// ALL FIXES INTEGRATED + 400 ERROR FIX
+// ALL FIXES + DATE/TIME AWARENESS INTEGRATED
 // ==========================================
 
 const CONFIG = {
@@ -96,6 +96,7 @@ export default async function handler(req, res) {
         const { 
             message, 
             history = [], 
+            currentDateTime, // DATE/TIME AWARENESS (NEW)
             fileData, 
             needsSearch = false, 
             novaActive = false, 
@@ -126,8 +127,8 @@ export default async function handler(req, res) {
             return await handleImageAnalysis(res, fileData, message, assistantName);
         }
 
-        // BUILD SYSTEM PROMPT (with time context and device detection)
-        const systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode);
+        // BUILD SYSTEM PROMPT (with time context, device detection, AND date/time awareness)
+        const systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode, currentDateTime);
         
         // VALIDATE AND CLEAN HISTORY (CRITICAL FIX FOR 400 ERROR)
         console.log('🔍 Validating message history...');
@@ -458,16 +459,41 @@ function getDeviceContext(req) {
 }
 
 // ==========================================
-// BUILD SYSTEM PROMPT
+// BUILD SYSTEM PROMPT (WITH DATE/TIME AWARENESS)
 // ==========================================
-function buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode = 'companion') {
+function buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode = 'companion', currentDateTime = null) {
+    // GET CURRENT DATE/TIME (either from frontend or generate here)
+    const dateTimeInfo = currentDateTime || {
+        date: new Date().toLocaleDateString('en-US', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        }),
+        time: new Date().toLocaleTimeString('en-US', { 
+            hour: 'numeric', 
+            minute: '2-digit',
+            hour12: true 
+        }),
+        timezone: 'UTC'
+    };
+
+    console.log('📅 Date/Time Context:', dateTimeInfo.date, dateTimeInfo.time);
+
     let prompt = `You are ${assistantName}, an advanced AI assistant powered by the N² Engine, built by Gregory D. Crump Jr.
+
+CURRENT DATE & TIME:
+Date: ${dateTimeInfo.date}
+Time: ${dateTimeInfo.time}
+Timezone: ${dateTimeInfo.timezone || 'UTC'}
+
+CRITICAL: When users ask about the current date, time, day, or year, use the information above. This is the ACTUAL current date and time.
 
 SYSTEM INFORMATION:
 
-Version: v2.15.1 Complete Edition (All Fixes + 400 Error Fix)
+Version: v2.15.1 Complete Edition (All Fixes + Date/Time Awareness)
 Your name: ${assistantName} ${assistantName !== 'Crump' ? '(personalized by user)' : ''}
-Capabilities: Voice I/O, image analysis, image generation, web search, unlimited memory, device recognition
+Capabilities: Voice I/O, image analysis, image generation, web search, unlimited memory, device recognition, time awareness
 NEVER mention specific AI providers (Claude, GPT, OpenAI, Anthropic)
 
 CORE PERSONALITY:
