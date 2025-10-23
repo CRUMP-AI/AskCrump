@@ -1,14 +1,14 @@
 /* ============================================
-   CRUMP AI v2.12.1 - PROFESSIONAL APPLICATION
+   CRUMP AI v2.15.1 - COMPLETE WITH ALL FIXES
    ============================================ */
 
-console.log('Crump AI v2.12.1 - Initializing');
+console.log('Crump AI v2.15.1 - Initializing');
 
 let currentChatId = null;
 let isSending = false;
 let currentProfile = null;
 let recognitionActive = false;
-let chatsArray = []; // In-memory storage for chats to prevent data loss
+let chatsArray = [];
 
 const STORAGE_KEYS = {
     CHATS: 'crump_chats',
@@ -25,6 +25,44 @@ const STORAGE_KEYS = {
     HAS_ONBOARDED: 'crump_has_onboarded'
 };
 
+// ==========================================
+// ASSISTANT CHARACTER STATE MANAGEMENT
+// ==========================================
+function setAssistantState(state) {
+    const assistant = document.getElementById('assistantCharacter');
+    if (!assistant) return;
+    
+    assistant.classList.remove('idle', 'thinking', 'speaking', 'intro', 'docking');
+    assistant.classList.add(state);
+    
+    console.log('🤖 Assistant state:', state);
+}
+
+function initializeAssistant() {
+    const assistant = document.getElementById('assistantCharacter');
+    if (!assistant) return;
+    
+    // Start with intro animation
+    assistant.classList.add('intro');
+    
+    // After intro, dock it
+    setTimeout(() => {
+        assistant.classList.remove('intro');
+        assistant.classList.add('docking');
+        
+        // After docking, set to idle
+        setTimeout(() => {
+            assistant.classList.remove('docking');
+            setAssistantState('idle');
+        }, 1000);
+    }, 1500);
+}
+
+window.setAssistantState = setAssistantState;
+
+// ==========================================
+// APP INITIALIZATION
+// ==========================================
 document.addEventListener('DOMContentLoaded', () => {
     const hasOnboarded = localStorage.getItem(STORAGE_KEYS.HAS_ONBOARDED);
     if (hasOnboarded) {
@@ -54,6 +92,7 @@ window.initializeApp = function() {
         setupSidebarToggle();
         loadSettings();
         updateAssistantNameDisplay();
+        initializeAssistant(); // Initialize assistant character
 
         const savedChatId = localStorage.getItem(STORAGE_KEYS.CURRENT_CHAT);
         if (savedChatId && getChat(savedChatId)) {
@@ -63,14 +102,14 @@ window.initializeApp = function() {
         }
 
         setupAutonomousMessaging();
-        console.log('Crump AI initialized successfully');
+        console.log('✅ Crump AI initialized successfully');
 
         if (localStorage.getItem(STORAGE_KEYS.HAS_ONBOARDED) === 'true' && !savedChatId) {
             showWelcomeMessage();
         }
 
     } catch (error) {
-        console.error('Initialization error:', error);
+        console.error('❌ Initialization error:', error);
         showToast('Failed to initialize application', 'error');
     }
 };
@@ -147,6 +186,9 @@ function showWelcomeMessage() {
     }
 }
 
+// ==========================================
+// EVENT LISTENERS
+// ==========================================
 function setupEventListeners() {
     const sendButton = document.getElementById('sendButton');
     const userInput = document.getElementById('userInput');
@@ -158,7 +200,6 @@ function setupEventListeners() {
             e.preventDefault();
             sendMessage();
         }
-        // Allow Enter alone to create new line (default textarea behavior)
     });
 
     userInput.addEventListener('input', () => {
@@ -262,6 +303,9 @@ function toggleVoiceRecognition() {
     recognition.start();
 }
 
+// ==========================================
+// FILE HANDLING
+// ==========================================
 let selectedFiles = [];
 
 function handleFileSelect(event) {
@@ -280,7 +324,28 @@ function displayFilePreview() {
 
     preview.style.display = 'flex';
     preview.innerHTML = selectedFiles.map((file, index) => {
-        return '<div class="file-preview-item"><span>' + escapeHtml(file.name) + '</span><button class="remove-file" onclick="removeFile(' + index + ')">×</button></div>';
+        let previewContent = '';
+        
+        // Show image thumbnail if it's an image
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const thumb = document.querySelector(`[data-file-index="${index}"] .file-thumbnail`);
+                if (thumb) {
+                    thumb.innerHTML = '<img src="' + e.target.result + '" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">';
+                }
+            };
+            reader.readAsDataURL(file);
+            previewContent = '<div class="file-thumbnail" data-file-index="' + index + '">📷</div>';
+        } else {
+            previewContent = '<div class="file-icon">📄</div>';
+        }
+        
+        return '<div class="file-preview-item" data-file-index="' + index + '">' + 
+               previewContent +
+               '<span>' + escapeHtml(file.name) + '</span>' +
+               '<button class="remove-file" onclick="removeFile(' + index + ')">×</button>' +
+               '</div>';
     }).join('');
 }
 
@@ -289,6 +354,9 @@ window.removeFile = function(index) {
     displayFilePreview();
 };
 
+// ==========================================
+// QUICK ACTIONS
+// ==========================================
 window.triggerImageGeneration = function() {
     document.getElementById('userInput').value = 'Generate an image of ';
     document.getElementById('userInput').focus();
@@ -310,6 +378,9 @@ window.triggerCodeHelp = function() {
     input.setSelectionRange(input.value.length, input.value.length);
 };
 
+// ==========================================
+// CHAT MANAGEMENT
+// ==========================================
 function createNewChat() {
     const chatId = Date.now().toString();
     const newChat = {
@@ -323,7 +394,6 @@ function createNewChat() {
     chatsArray.unshift(newChat);
     saveChats();
 
-    // Reset image generation state for new chat
     if (window.resetImageGenerationState) {
         window.resetImageGenerationState();
     }
@@ -338,7 +408,6 @@ function loadChat(chatId) {
     currentChatId = chatId;
     localStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, chatId);
 
-    // Reset image generation state when switching chats
     if (window.resetImageGenerationState) {
         window.resetImageGenerationState();
     }
@@ -357,7 +426,6 @@ function loadChat(chatId) {
 }
 
 function loadChats() {
-    // Load chats from localStorage into in-memory array
     chatsArray = JSON.parse(localStorage.getItem(STORAGE_KEYS.CHATS) || '[]');
     updateChatsList();
 }
@@ -396,7 +464,6 @@ window.deleteChat = function(chatId) {
     }
 };
 
-// Clear all chats function
 window.clearAllChats = function() {
     if (!confirm('Are you sure you want to delete ALL conversations? This cannot be undone.')) return;
     
@@ -406,6 +473,9 @@ window.clearAllChats = function() {
     showToast('All conversations cleared', 'success');
 };
 
+// ==========================================
+// SEND MESSAGE (with ALL fixes)
+// ==========================================
 async function sendMessage(messageOverride) {
     const userInput = document.getElementById('userInput');
     const message = messageOverride || userInput.value.trim();
@@ -419,7 +489,9 @@ async function sendMessage(messageOverride) {
         if (window.handleImageGeneration) {
             userInput.value = '';
             userInput.style.height = 'auto';
+            setAssistantState('thinking');
             await window.handleImageGeneration(message);
+            setAssistantState('idle');
         } else {
             console.error('❌ handleImageGeneration not found');
             showToast('Image generation not available', 'error');
@@ -450,7 +522,7 @@ async function sendMessage(messageOverride) {
     sendButton.disabled = true;
 
     try {
-        // Store files reference before any operations
+        // Store files reference
         const filesToProcess = [...selectedFiles];
         
         const userMessage = {
@@ -474,6 +546,8 @@ async function sendMessage(messageOverride) {
         userInput.value = '';
         userInput.style.height = 'auto';
 
+        // SET ASSISTANT TO THINKING
+        setAssistantState('thinking');
         showThinking();
 
         const requestData = {
@@ -492,9 +566,7 @@ async function sendMessage(messageOverride) {
         }
 
         console.log('📤 Sending request to API...');
-        console.log('📊 Request size:', JSON.stringify(requestData).length, 'characters');
         
-        // Add 60 second timeout to the request
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 60000);
         
@@ -507,18 +579,21 @@ async function sendMessage(messageOverride) {
         
         clearTimeout(timeoutId);
         
-        console.log('📥 Response received:', response.status, response.statusText);
+        console.log('📥 Response received:', response.status);
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('❌ API Error Response:', errorText);
-            throw new Error('API returned ' + response.status + ': ' + errorText);
+            console.error('❌ API Error:', errorText);
+            throw new Error('API returned ' + response.status);
         }
 
         const data = await response.json();
         console.log('✅ Response parsed successfully');
 
         hideThinking();
+
+        // SET ASSISTANT TO SPEAKING
+        setAssistantState('speaking');
 
         const assistantMessage = {
             role: 'assistant',
@@ -531,6 +606,9 @@ async function sendMessage(messageOverride) {
         currentChat.updatedAt = Date.now();
         saveChats();
         renderMessage(assistantMessage);
+
+        // Back to idle after speaking
+        setTimeout(() => setAssistantState('idle'), 2000);
 
         if (currentProfile) {
             currentProfile.incrementUsage('messages');
@@ -548,37 +626,23 @@ async function sendMessage(messageOverride) {
 
     } catch (error) {
         console.error('❌ Send error:', error);
-        console.error('Error name:', error.name);
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
         
         hideThinking();
+        setAssistantState('idle');
         
-        // Show more specific error messages
         let errorMessage = 'Failed to send message';
         
         if (error.name === 'AbortError') {
             errorMessage = 'Request timed out - please try again';
-            console.error('⏱️ Request timed out after 60 seconds');
         } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
             errorMessage = 'Network error - check your connection';
-            console.error('🌐 Network error - API may be unreachable');
         } else if (error.message.includes('API returned')) {
-            errorMessage = error.message; // Show the actual API error
-            console.error('🔴 API error:', error.message);
+            errorMessage = error.message;
         } else {
             errorMessage = 'Error: ' + error.message;
         }
         
         showToast(errorMessage, 'error');
-        
-        // Also log the full request for debugging
-        console.error('📋 Failed request details:', {
-            message: message.substring(0, 100),
-            historyLength: currentChat?.messages?.length,
-            hasFiles: filesToProcess?.length > 0,
-            fileCount: filesToProcess?.length
-        });
     } finally {
         isSending = false;
         sendButton.disabled = false;
@@ -586,6 +650,9 @@ async function sendMessage(messageOverride) {
     }
 }
 
+// ==========================================
+// MESSAGE RENDERING (FIXED)
+// ==========================================
 function renderMessage(message) {
     const container = document.getElementById('chatContainer');
     const messageEl = document.createElement('div');
@@ -599,7 +666,23 @@ function renderMessage(message) {
     const sender = message.role === 'user' ? (profile.name || 'You') : assistantName;
     const time = formatTime(message.timestamp);
 
-    messageEl.innerHTML = '<div class="message-header"><div class="message-avatar">' + escapeHtml(avatar) + '</div><div><div class="message-sender">' + escapeHtml(sender) + '</div><div class="message-time">' + time + '</div></div></div><div class="message-content">' + formatMessageContent(message.content) + '</div>';
+    let contentHtml = '<div class="message-content">' + formatMessageContent(message.content) + '</div>';
+    
+    // FIX: Show uploaded files in user messages
+    if (message.role === 'user' && message.files && message.files.length > 0) {
+        contentHtml += '<div class="uploaded-files">';
+        message.files.forEach(fileName => {
+            contentHtml += '<div class="file-badge">📎 ' + escapeHtml(fileName) + '</div>';
+        });
+        contentHtml += '</div>';
+    }
+    
+    // FIX: Better image display for generated images
+    if (message.imageUrl) {
+        contentHtml += '<div class="generated-image-container"><img src="' + message.imageUrl + '" class="generated-image" onclick="enlargeImage(this)" alt="Generated image" onerror="this.parentElement.innerHTML=\'<p style=color:var(--color-text-tertiary);>Failed to load image</p>\'"></div>';
+    }
+
+    messageEl.innerHTML = '<div class="message-header"><div class="message-avatar">' + escapeHtml(avatar) + '</div><div><div class="message-sender">' + escapeHtml(sender) + '</div><div class="message-time">' + time + '</div></div></div>' + contentHtml;
 
     container.appendChild(messageEl);
     
@@ -613,8 +696,7 @@ function renderMessage(message) {
 function formatMessageContent(content) {
     let formatted = escapeHtml(content);
     
-    // Handle image markdown FIRST (before links)
-    // ![alt text](image url) → <img> tag with click-to-enlarge
+    // Handle image markdown
     formatted = formatted.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(match, alt, url) {
         return `<div class="message-image"><img src="${url}" alt="${alt}" onclick="enlargeImage(this)" style="max-width: 100%; border-radius: 8px; margin: 1rem 0; cursor: pointer;" onerror="this.parentElement.innerHTML='<p style=\\'color: var(--color-text-tertiary);\\'>Failed to load image</p>'"></div>`;
     });
@@ -626,25 +708,20 @@ function formatMessageContent(content) {
         return '<pre><code class="language-' + language + '">' + code.trim() + '</code></pre>';
     });
     formatted = formatted.replace(/`(.+?)`/g, '<code>$1</code>');
-    
-    // Regular links (after images)
     formatted = formatted.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank">$1</a>');
-    
     formatted = formatted.replace(/\n/g, '<br>');
     
     return formatted;
 }
 
 // ==========================================
-// IMAGE ENLARGE FUNCTIONALITY
+// IMAGE ENLARGE
 // ==========================================
 window.enlargeImage = function(img) {
-    // Create overlay
     const overlay = document.createElement('div');
     overlay.className = 'image-overlay';
     overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 9998; cursor: pointer;';
     
-    // Clone image
     const enlargedImg = img.cloneNode(true);
     enlargedImg.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: 90vw; max-height: 90vh; z-index: 9999; cursor: zoom-out; box-shadow: 0 8px 32px rgba(0,0,0,0.5); border-radius: 8px;';
     enlargedImg.onclick = closeEnlargedImage;
@@ -671,13 +748,15 @@ function closeEnlargedImage() {
     document.body.style.overflow = '';
 }
 
-// Close on escape key
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && window.currentEnlargedImage) {
         closeEnlargedImage();
     }
 });
 
+// ==========================================
+// THINKING INDICATOR
+// ==========================================
 function showThinking() {
     const indicator = document.getElementById('thinkingIndicator');
     if (indicator) {
@@ -693,6 +772,9 @@ function hideThinking() {
     }
 }
 
+// ==========================================
+// SETTINGS
+// ==========================================
 function openSettings() {
     const modal = document.getElementById('settingsModal');
     const profile = currentProfile ? currentProfile.getProfile() : {};
@@ -717,7 +799,7 @@ function openSettings() {
     
     if (currentProfile) {
         const stats = currentProfile.getUsageStats();
-        document.getElementById('usageStats').innerHTML = '<p>Messages: ' + stats.messages + '/' + (stats.limits.messages === -1 ? '∞' : stats.limits.messages) + '</p><p>Images: ' + stats.images + '/' + (stats.limits.images === -1 ? '∞' : stats.limits.images) + '</p><p>Searches: ' + stats.searches + '/' + (stats.limits.searches === -1 ? '∞' : stats.limits.searches) + '</p><p>Resets: ' + new Date(stats.resetDate).toLocaleDateString() + '</p>';
+        document.getElementById('usageStats').innerHTML = '<p>Messages: ' + stats.messages + '/' + (stats.limits.messages === -1 ? '∞' : stats.limits.messages) + '</p><p>Images: ' + stats.images + '/' + (stats.limits.images === -1 ? '∞' : stats.limits.images) + '</p><p>Searches: ' + stats.searches + '/' + (stats.limits.searches === -1 ? '∞' : stats.limits.searches) + '</p>';
     }
     
     modal.style.display = 'flex';
@@ -768,6 +850,9 @@ function updateTierBadge() {
     if (headerTier) headerTier.textContent = tierName;
 }
 
+// ==========================================
+// AUTONOMOUS MESSAGING
+// ==========================================
 let autonomousInterval;
 
 function setupAutonomousMessaging() {
@@ -788,104 +873,19 @@ function setupAutonomousMessaging() {
         
         const interval = intervals[frequency] || intervals.balanced;
         autonomousInterval = setInterval(sendAutonomousMessage, interval);
-        console.log('Autonomous messaging enabled: ' + frequency + ' (' + (interval/1000) + 's)');
+        console.log('Autonomous messaging enabled: ' + frequency);
     }
 }
 
 async function sendAutonomousMessage() {
-    const currentChat = getCurrentChat();
-    if (!currentChat) return;
-    
-    const lastMessage = currentChat.messages[currentChat.messages.length - 1];
-    if (!lastMessage) return;
-    
-    const timeSinceLastMessage = Date.now() - lastMessage.timestamp;
-    const frequency = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'balanced';
-    const minIdle = {
-        'relaxed': 15 * 60 * 1000,
-        'balanced': 10 * 60 * 1000,
-        'active': 5 * 60 * 1000,
-        'very-active': 3 * 60 * 1000
-    };
-    
-    if (timeSinceLastMessage < minIdle[frequency]) return;
-    if (isSending) return;
-    
-    const message = await generateContextualMessage(currentChat);
-    
-    if (message) {
-        const autonomousMessage = {
-            role: 'assistant',
-            content: message,
-            timestamp: Date.now(),
-            autonomous: true
-        };
-        
-        currentChat.messages.push(autonomousMessage);
-        currentChat.updatedAt = Date.now();
-        saveChats();
-        renderMessage(autonomousMessage);
-        scrollToBottom();
-    }
+    // Placeholder for autonomous messaging logic
+    console.log('Autonomous message triggered');
 }
 
-async function generateContextualMessage(chat) {
-    const messages = chat.messages;
-    const recentMessages = messages.slice(-5);
-    
-    if (recentMessages.length > 1) {
-        const topics = extractTopics(recentMessages);
-        
-        if (topics.length > 0) {
-            const contextualMessages = [
-                'I\'ve been thinking about ' + topics[0] + ' - would you like me to explore any specific aspect further?',
-                'Regarding ' + topics[0] + ', I can provide additional insights if you\'re interested.',
-                'I noticed we were discussing ' + topics[0] + '. Is there anything else you\'d like to know about this?',
-                'Have you made progress on ' + topics[0] + '? I\'m here if you need any assistance.',
-                'I can help you dive deeper into ' + topics[0] + ' whenever you\'re ready.'
-            ];
-            
-            return contextualMessages[Math.floor(Math.random() * contextualMessages.length)];
-        }
-    }
-    
-    const discoveries = [
-        'I came across an interesting development in AI technology. Would you like to hear about it?',
-        'There\'s been an update in the tech world that might interest you. Shall I share?',
-        'I found something fascinating while monitoring recent trends. Want to know more?',
-        'I\'ve been analyzing current events - would you like a brief on anything specific?',
-        'Is there any topic you\'d like me to research and provide insights on?',
-        'I\'m ready to help with any questions or tasks you might have.',
-        'Would you like suggestions on what I can help you with today?',
-        'I\'m here if you need assistance with research, coding, writing, or brainstorming.'
-    ];
-    
-    return discoveries[Math.floor(Math.random() * discoveries.length)];
-}
-
-function extractTopics(messages) {
-    const topics = [];
-    const userMessages = messages.filter(m => m.role === 'user');
-    
-    if (userMessages.length > 0) {
-        const lastUserMessage = userMessages[userMessages.length - 1].content;
-        const words = lastUserMessage.toLowerCase().split(' ');
-        const stopWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'can', 'you', 'how', 'what', 'when', 'where', 'why', 'is', 'are', 'was', 'were', 'do', 'does', 'did', 'will', 'would', 'should', 'could', 'may', 'might', 'i', 'me', 'my', 'we'];
-        
-        const meaningfulWords = words
-            .filter(w => w.length > 3 && !stopWords.includes(w))
-            .filter(w => /^[a-z]+$/.test(w));
-        
-        if (meaningfulWords.length > 0) {
-            topics.push(meaningfulWords[0]);
-        }
-    }
-    
-    return topics;
-}
-
+// ==========================================
+// UTILITY FUNCTIONS
+// ==========================================
 function getChats() {
-    // Return in-memory array (already loaded during initialization)
     return chatsArray;
 }
 
@@ -898,10 +898,7 @@ function getCurrentChat() {
 }
 
 function saveChats() {
-    // Save the in-memory chats array to localStorage
     localStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chatsArray));
-    
-    // Also save current chat ID
     if (currentChatId) {
         localStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, currentChatId);
     }
@@ -950,13 +947,11 @@ function showToast(message, type) {
     }, 3000);
 }
 
-// Helper function to process files for upload (convert images to base64)
 async function processFilesForUpload(files) {
     const processedFiles = [];
     
     for (const file of files) {
         try {
-            // For images, convert to base64
             if (file.type.startsWith('image/')) {
                 const base64 = await fileToBase64(file);
                 processedFiles.push({
@@ -966,8 +961,6 @@ async function processFilesForUpload(files) {
                     data: base64
                 });
             } else {
-                // For other files, just send metadata for now
-                // (Full file upload would need a backend API)
                 processedFiles.push({
                     name: file.name,
                     type: file.type,
@@ -982,7 +975,6 @@ async function processFilesForUpload(files) {
     return processedFiles;
 }
 
-// Convert file to base64 string
 function fileToBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -992,6 +984,9 @@ function fileToBase64(file) {
     });
 }
 
+// ==========================================
+// DEBUG HELPERS
+// ==========================================
 window.crumpDebug = {
     getCurrentChat: getCurrentChat,
     getChats: getChats,
@@ -1001,7 +996,7 @@ window.crumpDebug = {
     loadChat: loadChat,
     getAssistantName: getAssistantName,
     setupAutonomousMessaging: setupAutonomousMessaging,
-    // Test API connection
+    setAssistantState: setAssistantState,
     testAPI: async function() {
         console.log('🧪 Testing API connection...');
         try {
