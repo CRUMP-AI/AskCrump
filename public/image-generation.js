@@ -357,21 +357,46 @@ window.handleImageGeneration = async function(userMessage) {
 function extractImagePrompt(message) {
     const lowerMessage = message.toLowerCase();
     
-    // Remove common command words
+    // Remove common command phrases at the start
     let prompt = message
-        .replace(/^(generate|create|make|draw|design|illustrate|render|produce|show me|give me|i need|i want|can you|could you|would you|please)\s+(an?|the|some)?\s*/i, '')
-        .replace(/\s*(image|picture|photo|illustration|artwork|graphic|visual|painting|drawing|render|design|art|pic)\s*(of|for|with|about)?\s*/i, ' ')
+        .replace(/^(generate|create|make|draw|design|illustrate|render|produce|build|craft|paint|sketch)\s+(me\s+)?(an?|the|some)?\s*/i, '')
+        .replace(/^(show me|give me|let me see|i need|i want)\s+(an?|the|some)?\s*/i, '')
+        .replace(/^(can you|could you|would you|will you|please)\s+(make|create|generate|draw|design)\s+(me\s+)?(an?|the|some)?\s*/i, '')
         .trim();
     
-    // If prompt is too short or empty, use full message
+    // Remove image type words and prepositions
+    prompt = prompt
+        .replace(/^\s*(image|picture|photo|illustration|artwork|graphic|visual|painting|drawing|render|design|art|pic|logo|icon|banner)\s+(of|for|with|about|showing)?\s*/i, '')
+        .trim();
+    
+    // If prompt is too short or empty, try alternative extraction
+    if (prompt.length < 3) {
+        // Try to find the main subject after common patterns
+        const patterns = [
+            /(?:of|for|with|about|showing)\s+(.+)/i,
+            /(?:a|an|the)\s+(.+)/i,
+            /\s+(.+)$/i
+        ];
+        
+        for (const pattern of patterns) {
+            const match = message.match(pattern);
+            if (match && match[1] && match[1].length > 2) {
+                prompt = match[1].trim();
+                break;
+            }
+        }
+    }
+    
+    // If still too short, use full message
     if (prompt.length < 3) {
         prompt = message;
     }
     
     // Clean up
     prompt = prompt
-        .replace(/^(of|for|with|about)\s+/i, '')
+        .replace(/^(of|for|with|about|showing)\s+/i, '')
         .replace(/\s+/g, ' ')
+        .replace(/^(a|an|the)\s+/i, '')
         .trim();
     
     console.log('📝 Extracted prompt:', prompt);
