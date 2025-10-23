@@ -613,6 +613,12 @@ function renderMessage(message) {
 function formatMessageContent(content) {
     let formatted = escapeHtml(content);
     
+    // Handle image markdown FIRST (before links)
+    // ![alt text](image url) → <img> tag with click-to-enlarge
+    formatted = formatted.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(match, alt, url) {
+        return `<div class="message-image"><img src="${url}" alt="${alt}" onclick="enlargeImage(this)" style="max-width: 100%; border-radius: 8px; margin: 1rem 0; cursor: pointer;" onerror="this.parentElement.innerHTML='<p style=\\'color: var(--color-text-tertiary);\\'>Failed to load image</p>'"></div>`;
+    });
+    
     formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
     formatted = formatted.replace(/```(\w+)?\n([\s\S]+?)```/g, function(match, lang, code) {
@@ -620,11 +626,57 @@ function formatMessageContent(content) {
         return '<pre><code class="language-' + language + '">' + code.trim() + '</code></pre>';
     });
     formatted = formatted.replace(/`(.+?)`/g, '<code>$1</code>');
+    
+    // Regular links (after images)
     formatted = formatted.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank">$1</a>');
+    
     formatted = formatted.replace(/\n/g, '<br>');
     
     return formatted;
 }
+
+// ==========================================
+// IMAGE ENLARGE FUNCTIONALITY
+// ==========================================
+window.enlargeImage = function(img) {
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'image-overlay';
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 9998; cursor: pointer;';
+    
+    // Clone image
+    const enlargedImg = img.cloneNode(true);
+    enlargedImg.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: 90vw; max-height: 90vh; z-index: 9999; cursor: zoom-out; box-shadow: 0 8px 32px rgba(0,0,0,0.5); border-radius: 8px;';
+    enlargedImg.onclick = closeEnlargedImage;
+    
+    overlay.onclick = closeEnlargedImage;
+    
+    document.body.appendChild(overlay);
+    document.body.appendChild(enlargedImg);
+    document.body.style.overflow = 'hidden';
+    
+    window.currentEnlargedImage = enlargedImg;
+    window.currentOverlay = overlay;
+};
+
+function closeEnlargedImage() {
+    if (window.currentEnlargedImage) {
+        window.currentEnlargedImage.remove();
+        window.currentEnlargedImage = null;
+    }
+    if (window.currentOverlay) {
+        window.currentOverlay.remove();
+        window.currentOverlay = null;
+    }
+    document.body.style.overflow = '';
+}
+
+// Close on escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && window.currentEnlargedImage) {
+        closeEnlargedImage();
+    }
+});
 
 function showThinking() {
     const indicator = document.getElementById('thinkingIndicator');
