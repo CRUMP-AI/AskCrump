@@ -1,6 +1,6 @@
 // ==========================================
-// CRUMP AI - API HANDLER v2.15.0 BUG FIXES
-// DUPLICATE MESSAGE BUG FIXED + DEVICE RECOGNITION + STRICTER SEARCH
+// CRUMP AI - API HANDLER v2.15.1 COMPLETE
+// ALL FIXES INTEGRATED + 400 ERROR FIX
 // ==========================================
 
 const CONFIG = {
@@ -14,6 +14,46 @@ const CONFIG = {
     MAX_MEMORY_CONTEXT: 10,
     API_TIMEOUT: 55000
 };
+
+// ==========================================
+// STRICT MESSAGE VALIDATION (FIXES 400 ERROR)
+// ==========================================
+function validateAndCleanMessages(messages) {
+    if (!Array.isArray(messages)) {
+        console.warn('⚠️ Messages is not an array:', typeof messages);
+        return [];
+    }
+    
+    return messages
+        .filter(msg => {
+            // Must have role and content
+            if (!msg || typeof msg !== 'object') {
+                console.warn('⚠️ Invalid message object:', msg);
+                return false;
+            }
+            
+            if (!msg.role || (msg.role !== 'user' && msg.role !== 'assistant')) {
+                console.warn('⚠️ Invalid role:', msg.role);
+                return false;
+            }
+            
+            if (!msg.content || typeof msg.content !== 'string' || !msg.content.trim()) {
+                console.warn('⚠️ Invalid content for message');
+                return false;
+            }
+            
+            // Skip messages with file data (handled separately)
+            if (msg.fileData || msg.files) {
+                return false;
+            }
+            
+            return true;
+        })
+        .map(msg => ({
+            role: msg.role,
+            content: msg.content.trim()
+        }));
+}
 
 // ==========================================
 // SMART MESSAGE TRUNCATION
@@ -40,9 +80,11 @@ function truncateHistory(history, maxTokens = 100000) {
 
 export default async function handler(req, res) {
     console.log('📊 API Request received');
+    console.log('📊 Method:', req.method);
     console.log('📊 Message length:', req.body?.message?.length || 0);
-    console.log('📊 History messages:', req.body?.history?.length || 0);
+    console.log('📊 History count:', req.body?.history?.length || 0);
     console.log('📊 Has file:', !!req.body?.fileData);
+    
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -62,11 +104,14 @@ export default async function handler(req, res) {
             workMode = 'companion'
         } = req.body;
 
-        if (!message || !message.trim()) {
-            return res.status(400).json({ error: 'Message is required' });
+        // VALIDATE MESSAGE
+        if (!message || typeof message !== 'string' || !message.trim()) {
+            console.error('❌ Invalid message:', message);
+            return res.status(400).json({ error: 'Valid message is required' });
         }
 
         if (!process.env.ANTHROPIC_API_KEY) {
+            console.error('❌ ANTHROPIC_API_KEY not configured');
             throw new Error('ANTHROPIC_API_KEY not configured');
         }
 
@@ -74,64 +119,83 @@ export default async function handler(req, res) {
 
         // IMAGE ANALYSIS - Handle single or multiple images
         if (fileData && (
-            (Array.isArray(fileData) && fileData.length > 0 && fileData[0].type.startsWith('image/')) ||
-            (!Array.isArray(fileData) && fileData.type.startsWith('image/'))
+            (Array.isArray(fileData) && fileData.length > 0 && fileData[0].type?.startsWith('image/')) ||
+            (!Array.isArray(fileData) && fileData.type?.startsWith('image/'))
         )) {
+            console.log('🖼️ Image analysis requested');
             return await handleImageAnalysis(res, fileData, message, assistantName);
         }
 
         // BUILD SYSTEM PROMPT (with time context and device detection)
         const systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode);
         
-        // UNLIMITED MEMORY MODE with smart truncation
-        let validHistory = history
-            .filter(msg => msg.content && msg.content.trim())
-            .filter(msg => !msg.fileData)
-            .slice(0, -1);
-
-        // Truncate if conversation gets too long for API
+        // VALIDATE AND CLEAN HISTORY (CRITICAL FIX FOR 400 ERROR)
+        console.log('🔍 Validating message history...');
+        let validHistory = validateAndCleanMessages(history);
+        console.log('✅ Valid messages after cleaning:', validHistory.length);
+        
+        // Remove last message (the current one being sent)
+        validHistory = validHistory.slice(0, -1);
+        
+        // Truncate if conversation gets too long
         validHistory = truncateHistory(validHistory);
+        
+        console.log('📤 Sending to Claude with', validHistory.length, 'history messages');
 
         // SEARCH LOGIC
         if (needsSearch) {
+            console.log('🔍 Search requested');
             if (process.env.BRAVE_API_KEY) {
                 try {
                     const searchResults = await searchWithBrave(message);
                     if (searchResults && searchResults.length > 0) {
+                        console.log('✅ Brave search returned', searchResults.length, 'results');
                         return await handleBraveSearchResponse(res, message, searchResults, systemPrompt, validHistory);
                     }
                 } catch (braveError) {
-                    console.warn('Brave Search failed, falling back to Claude:', braveError.message);
+                    console.warn('⚠️ Brave Search failed, falling back to Claude:', braveError.message);
                 }
             }
+            console.log('🔄 Using Claude native search');
             return await handleClaudeNativeSearch(res, message, systemPrompt, validHistory);
         }
 
         // REGULAR CHAT
+        console.log('💬 Regular chat request');
         return await handleRegularChat(res, message, systemPrompt, validHistory);
 
-   } catch (error) {
-    console.error('❌ Server error:', error);
-    console.error('Error stack:', error.stack);
-    console.error('Error message:', error.message);
-    console.error('Request body keys:', Object.keys(req.body || {}));  // ← ADD THIS
-    console.error('Message length:', req.body?.message?.length || 0);  // ← ADD THIS
-    
-    // Handle timeout errors specifically
-    if (error.name === 'AbortError') {
-        console.error('⏱️ Request timed out');
-        return res.status(504).json({
-            error: 'Request timeout',
-            details: 'The AI took too long to respond. Try a shorter message or simpler request.'
-        });
-    }
-    
-    if (error.message?.includes('tokens') || error.message?.includes('too long') || error.message?.includes('maximum context length')) {
-        return res.status(400).json({
-            error: 'Message too long',
-            details: 'That message exceeded the maximum length. Try breaking it into smaller parts or summarizing the content.'
-        });
-    }
+    } catch (error) {
+        console.error('❌ Server error:', error);
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        console.error('Request body keys:', Object.keys(req.body || {}));
+        console.error('Message length:', req.body?.message?.length || 0);
+        
+        // Handle timeout errors specifically
+        if (error.name === 'AbortError') {
+            console.error('⏱️ Request timed out');
+            return res.status(504).json({
+                error: 'Request timeout',
+                details: 'The AI took too long to respond. Try a shorter message or simpler request.'
+            });
+        }
+        
+        if (error.message?.includes('tokens') || error.message?.includes('too long') || error.message?.includes('maximum context length')) {
+            console.error('📏 Message/context too long');
+            return res.status(400).json({
+                error: 'Message too long',
+                details: 'That message exceeded the maximum length. Try breaking it into smaller parts or summarizing the content.'
+            });
+        }
+        
+        if (error.message?.includes('Claude API error')) {
+            console.error('🔴 Claude API error');
+            return res.status(502).json({
+                error: 'AI service error',
+                details: 'The AI service encountered an error. Please try again.'
+            });
+        }
         
         return res.status(500).json({
             error: 'Internal server error',
@@ -232,14 +296,14 @@ async function handleBraveSearchResponse(res, message, searchResults, systemProm
     searchContext += 'CRITICAL: These results contain the answer. Extract ALL relevant information and present it clearly. Do not say you cannot find data if it exists here.]\n';
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': CONFIG.ANTHROPIC_VERSION
-    },
-    signal: AbortSignal.timeout(CONFIG.API_TIMEOUT), // ⚡ 25 second timeout
-    body: JSON.stringify({
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': process.env.ANTHROPIC_API_KEY,
+            'anthropic-version': CONFIG.ANTHROPIC_VERSION
+        },
+        signal: AbortSignal.timeout(CONFIG.API_TIMEOUT),
+        body: JSON.stringify({
             model: CONFIG.CLAUDE_MODEL,
             max_tokens: CONFIG.MAX_TOKENS,
             system: systemPrompt,
@@ -250,7 +314,11 @@ async function handleBraveSearchResponse(res, message, searchResults, systemProm
         })
     });
 
-    if (!response.ok) throw new Error(`Claude API error: ${response.status}`);
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Claude API error:', response.status, errorText);
+        throw new Error(`Claude API error: ${response.status}`);
+    }
 
     const data = await response.json();
     return res.status(200).json({
@@ -266,14 +334,14 @@ async function handleBraveSearchResponse(res, message, searchResults, systemProm
 // ==========================================
 async function handleClaudeNativeSearch(res, message, systemPrompt, validHistory) {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': CONFIG.ANTHROPIC_VERSION
-    },
-    signal: AbortSignal.timeout(CONFIG.API_TIMEOUT), // ⚡ 25 second timeout
-    body: JSON.stringify({
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': process.env.ANTHROPIC_API_KEY,
+            'anthropic-version': CONFIG.ANTHROPIC_VERSION
+        },
+        signal: AbortSignal.timeout(CONFIG.API_TIMEOUT),
+        body: JSON.stringify({
             model: CONFIG.CLAUDE_MODEL,
             max_tokens: CONFIG.MAX_TOKENS,
             system: systemPrompt,
@@ -289,7 +357,11 @@ async function handleClaudeNativeSearch(res, message, systemPrompt, validHistory
         })
     });
 
-    if (!response.ok) throw new Error(`Claude API error: ${response.status}`);
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Claude API error:', response.status, errorText);
+        throw new Error(`Claude API error: ${response.status}`);
+    }
 
     const data = await response.json();
 
@@ -316,15 +388,17 @@ async function handleClaudeNativeSearch(res, message, systemPrompt, validHistory
 // REGULAR CHAT
 // ==========================================
 async function handleRegularChat(res, message, systemPrompt, validHistory) {
+    console.log('💬 Regular chat - sending to Claude...');
+    
     const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': CONFIG.ANTHROPIC_VERSION
-    },
-    signal: AbortSignal.timeout(CONFIG.API_TIMEOUT), // ⚡ 25 second timeout
-    body: JSON.stringify({
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': process.env.ANTHROPIC_API_KEY,
+            'anthropic-version': CONFIG.ANTHROPIC_VERSION
+        },
+        signal: AbortSignal.timeout(CONFIG.API_TIMEOUT),
+        body: JSON.stringify({
             model: CONFIG.CLAUDE_MODEL,
             max_tokens: CONFIG.MAX_TOKENS,
             system: systemPrompt,
@@ -335,9 +409,15 @@ async function handleRegularChat(res, message, systemPrompt, validHistory) {
         })
     });
 
-    if (!response.ok) throw new Error(`Claude API error: ${response.status}`);
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Claude API error:', response.status, errorText);
+        throw new Error(`Claude API error: ${response.status}`);
+    }
 
     const data = await response.json();
+    console.log('✅ Response received from Claude');
+    
     return res.status(200).json({
         response: data.content[0].text,
         model: 'claude'
@@ -385,7 +465,7 @@ function buildSystemPrompt(assistantName, universalMemory, novaActive, novaProto
 
 SYSTEM INFORMATION:
 
-Version: v2.15.0 Royal Edition (Bug Fixes + Stricter Search)
+Version: v2.15.1 Complete Edition (All Fixes + 400 Error Fix)
 Your name: ${assistantName} ${assistantName !== 'Crump' ? '(personalized by user)' : ''}
 Capabilities: Voice I/O, image analysis, image generation, web search, unlimited memory, device recognition
 NEVER mention specific AI providers (Claude, GPT, OpenAI, Anthropic)
@@ -516,7 +596,7 @@ async function handleImageAnalysis(res, fileData, message, assistantName) {
     
     files.forEach((file) => {
         if (!file || !file.type || !file.data) {
-            console.error('Invalid file structure:', file);
+            console.error('❌ Invalid file structure:', file);
             return;
         }
         
@@ -543,16 +623,16 @@ async function handleImageAnalysis(res, fileData, message, assistantName) {
 
     try {
         const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': CONFIG.ANTHROPIC_VERSION
-    },
-    signal: AbortSignal.timeout(CONFIG.API_TIMEOUT), // ⚡ 25 second timeout
-    body: JSON.stringify({
-        model: CONFIG.CLAUDE_MODEL,
-       max_tokens: 4096, // Sufficient for detailed image analysis
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': process.env.ANTHROPIC_API_KEY,
+                'anthropic-version': CONFIG.ANTHROPIC_VERSION
+            },
+            signal: AbortSignal.timeout(CONFIG.API_TIMEOUT),
+            body: JSON.stringify({
+                model: CONFIG.CLAUDE_MODEL,
+                max_tokens: 4096,
                 system: visionPrompt,
                 messages: [{
                     role: 'user',
@@ -562,19 +642,21 @@ async function handleImageAnalysis(res, fileData, message, assistantName) {
         });
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            console.error('Vision API error:', errorData);
+            const errorData = await response.text();
+            console.error('❌ Vision API error:', errorData);
             throw new Error(`Vision API error: ${response.status}`);
         }
 
         const data = await response.json();
+        console.log('✅ Image analysis complete');
+        
         return res.status(200).json({
             response: data.content[0].text,
             model: 'claude-vision',
             imageCount: files.length
         });
     } catch (error) {
-        console.error('Image analysis error:', error);
+        console.error('❌ Image analysis error:', error);
         throw error;
     }
 }
