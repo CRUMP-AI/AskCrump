@@ -1,0 +1,159 @@
+/* ==========================================
+   ASSISTANT CHARACTER ANIMATIONS v2.15.1
+   Floating AI character with state animations
+   ========================================== */
+
+.assistant-character {
+    position: fixed;
+    bottom: 120px;
+    right: 32px;
+    width: 80px;
+    height: 80px;
+    z-index: 50;
+    pointer-events: none;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.assistant-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 0 20px rgba(85, 195, 255, 0.6));
+    transition: all 0.3s ease;
+}
+
+/* ===== STATES ===== */
+
+/* Idle - gentle breathing */
+.assistant-character.idle .assistant-img {
+    animation: breathe 4s ease-in-out infinite;
+}
+
+@keyframes breathe {
+    0%, 100% {
+        transform: scale(1) translateY(0);
+        filter: drop-shadow(0 0 20px rgba(85, 195, 255, 0.6));
+    }
+    50% {
+        transform: scale(1.05) translateY(-4px);
+        filter: drop-shadow(0 0 28px rgba(85, 195, 255, 0.8));
+    }
+}
+
+/* Thinking - faster pulse */
+.assistant-character.thinking .assistant-img {
+    animation: think 1.5s ease-in-out infinite;
+}
+
+@keyframes think {
+    0%, 100% {
+        transform: scale(1) rotate(0deg);
+        filter: drop-shadow(0 0 24px rgba(85, 195, 255, 0.7));
+    }
+    25% {
+        transform: scale(1.08) rotate(-2deg);
+        filter: drop-shadow(0 0 32px rgba(85, 195, 255, 0.9));
+    }
+    75% {
+        transform: scale(1.08) rotate(2deg);
+        filter: drop-shadow(0 0 32px rgba(85, 195, 255, 0.9));
+    }
+}
+
+/* Speaking - vibrant glow pulse */
+.assistant-character.speaking .assistant-img {
+    animation: speak 0.8s ease-in-out infinite;
+}
+
+@keyframes speak {
+    0%, 100% {
+        filter: drop-shadow(0 0 24px rgba(85, 195, 255, 0.7));
+    }
+    50% {
+        filter: drop-shadow(0 0 36px rgba(85, 195, 255, 1));
+        transform: scale(1.1);
+    }
+}
+
+/* ===== INTRO ANIMATION ===== */
+.assistant-character.intro {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(2);
+    opacity: 0;
+    animation: materialize 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes materialize {
+    0% {
+        transform: translate(-50%, -50%) scale(0.5);
+        opacity: 0;
+        filter: drop-shadow(0 0 60px rgba(85, 195, 255, 0));
+    }
+    60% {
+        transform: translate(-50%, -50%) scale(2.2);
+        opacity: 1;
+        filter: drop-shadow(0 0 80px rgba(85, 195, 255, 1));
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(2);
+        opacity: 1;
+        filter: drop-shadow(0 0 40px rgba(85, 195, 255, 0.8));
+    }
+}
+
+/* Docking animation */
+.assistant-character.docking {
+    animation: dock 1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes dock {
+    0% {
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(2);
+    }
+    100% {
+        top: auto;
+        left: auto;
+        bottom: 120px;
+        right: 32px;
+        transform: translate(0, 0) scale(1);
+    }
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .assistant-character {
+        bottom: 100px;
+        right: 16px;
+        width: 64px;
+        height: 64px;
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .assistant-character,
+    .assistant-img,
+    .assistant-character.idle .assistant-img,
+    .assistant-character.thinking .assistant-img,
+    .assistant-character.speaking .assistant-img {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* ===== ADDITIONAL POLISH ===== */
+
+/* Hover effect (optional, can be disabled with pointer-events: none) */
+.assistant-character:hover .assistant-img {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 32px rgba(85, 195, 255, 0.9));
+}
+
+/* Smooth transitions between states */
+.assistant-character .assistant-img {
+    will-change: transform, filter;
+}
