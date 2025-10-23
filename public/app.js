@@ -8,6 +8,7 @@ let currentChatId = null;
 let isSending = false;
 let currentProfile = null;
 let recognitionActive = false;
+let chatsArray = []; // In-memory storage for chats to prevent data loss
 
 const STORAGE_KEYS = {
     CHATS: 'crump_chats',
@@ -153,10 +154,11 @@ function setupEventListeners() {
     sendButton.addEventListener('click', () => sendMessage());
     
     userInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if (e.key === 'Enter' && e.shiftKey) {
             e.preventDefault();
             sendMessage();
         }
+        // Allow Enter alone to create new line (default textarea behavior)
     });
 
     userInput.addEventListener('input', () => {
@@ -318,9 +320,8 @@ function createNewChat() {
         updatedAt: Date.now()
     };
 
-    const chats = getChats();
-    chats.unshift(newChat);
-    localStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
+    chatsArray.unshift(newChat);
+    saveChats();
 
     loadChat(chatId);
 }
@@ -346,6 +347,8 @@ function loadChat(chatId) {
 }
 
 function loadChats() {
+    // Load chats from localStorage into in-memory array
+    chatsArray = JSON.parse(localStorage.getItem(STORAGE_KEYS.CHATS) || '[]');
     updateChatsList();
 }
 
@@ -369,19 +372,28 @@ function updateChatsList() {
 window.deleteChat = function(chatId) {
     if (!confirm('Delete this conversation?')) return;
 
-    const chats = getChats();
-    const filtered = chats.filter(c => c.id !== chatId);
-    localStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(filtered));
+    chatsArray = chatsArray.filter(c => c.id !== chatId);
+    saveChats();
 
     if (chatId === currentChatId) {
-        if (filtered.length > 0) {
-            loadChat(filtered[0].id);
+        if (chatsArray.length > 0) {
+            loadChat(chatsArray[0].id);
         } else {
             createNewChat();
         }
     } else {
         updateChatsList();
     }
+};
+
+// Clear all chats function
+window.clearAllChats = function() {
+    if (!confirm('Are you sure you want to delete ALL conversations? This cannot be undone.')) return;
+    
+    chatsArray = [];
+    saveChats();
+    createNewChat();
+    showToast('All conversations cleared', 'success');
 };
 
 async function sendMessage(messageOverride) {
@@ -414,11 +426,14 @@ async function sendMessage(messageOverride) {
     sendButton.disabled = true;
 
     try {
+        // Store files reference before any operations
+        const filesToProcess = [...selectedFiles];
+        
         const userMessage = {
             role: 'user',
             content: message,
             timestamp: Date.now(),
-            files: selectedFiles.length > 0 ? selectedFiles.map(f => f.name) : undefined
+            files: filesToProcess.length > 0 ? filesToProcess.map(f => f.name) : undefined
         };
 
         const currentChat = getCurrentChat();
@@ -434,15 +449,13 @@ async function sendMessage(messageOverride) {
 
         userInput.value = '';
         userInput.style.height = 'auto';
-        selectedFiles = [];
-        displayFilePreview();
 
         showThinking();
 
         const requestData = {
             message: message,
             history: currentChat.messages.slice(-10),
-            fileData: selectedFiles.length > 0 ? selectedFiles : undefined,
+            fileData: filesToProcess.length > 0 ? await processFilesForUpload(filesToProcess) : undefined,
             needsSearch: message.toLowerCase().includes('search') || message.toLowerCase().includes('latest'),
             universalMemory: JSON.parse(localStorage.getItem(STORAGE_KEYS.MEMORY) || '{}'),
             workMode: localStorage.getItem(STORAGE_KEYS.WORK_MODE) || 'companion'
@@ -489,6 +502,10 @@ async function sendMessage(messageOverride) {
         }
 
         updateChatsList();
+        
+        // Clear files after successful send
+        selectedFiles = [];
+        displayFilePreview();
 
     } catch (error) {
         console.error('Send error:', error);
@@ -748,20 +765,26 @@ function extractTopics(messages) {
 }
 
 function getChats() {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.CHATS) || '[]');
+    // Return in-memory array (already loaded during initialization)
+    return chatsArray;
 }
 
 function getChat(chatId) {
-    return getChats().find(c => c.id === chatId);
+    return chatsArray.find(c => c.id === chatId);
 }
 
 function getCurrentChat() {
-    return getChat(currentChatId);
+    return chatsArray.find(c => c.id === currentChatId);
 }
 
 function saveChats() {
-    const chats = getChats();
-    localStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
+    // Save the in-memory chats array to localStorage
+    localStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chatsArray));
+    
+    // Also save current chat ID
+    if (currentChatId) {
+        localStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, currentChatId);
+    }
 }
 
 function scrollToBottom() {
@@ -805,6 +828,48 @@ function showToast(message, type) {
             toast.remove();
         }, 300);
     }, 3000);
+}
+
+// Helper function to process files for upload (convert images to base64)
+async function processFilesForUpload(files) {
+    const processedFiles = [];
+    
+    for (const file of files) {
+        try {
+            // For images, convert to base64
+            if (file.type.startsWith('image/')) {
+                const base64 = await fileToBase64(file);
+                processedFiles.push({
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    data: base64
+                });
+            } else {
+                // For other files, just send metadata for now
+                // (Full file upload would need a backend API)
+                processedFiles.push({
+                    name: file.name,
+                    type: file.type,
+                    size: file.size
+                });
+            }
+        } catch (error) {
+            console.error('Error processing file:', file.name, error);
+        }
+    }
+    
+    return processedFiles;
+}
+
+// Convert file to base64 string
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
 }
 
 window.crumpDebug = {
