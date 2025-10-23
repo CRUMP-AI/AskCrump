@@ -1,5 +1,5 @@
 /* ============================================
-   CRUMP AI v2.15.1 - COMPLETE WITH ALL FIXES
+   CRUMP AI v2.15.1 - COMPLETE WITH DATE/TIME AWARENESS
    ============================================ */
 
 console.log('Crump AI v2.15.1 - Initializing');
@@ -474,7 +474,7 @@ window.clearAllChats = function() {
 };
 
 // ==========================================
-// SEND MESSAGE (with ALL fixes)
+// SEND MESSAGE (with DATE/TIME AWARENESS)
 // ==========================================
 async function sendMessage(messageOverride) {
     const userInput = document.getElementById('userInput');
@@ -550,9 +550,28 @@ async function sendMessage(messageOverride) {
         setAssistantState('thinking');
         showThinking();
 
+        // GET CURRENT DATE AND TIME
+        const now = new Date();
+        const currentDateTime = {
+            date: now.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            }),
+            time: now.toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
+                minute: '2-digit',
+                hour12: true 
+            }),
+            timestamp: now.toISOString(),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        };
+
         const requestData = {
             message: message,
             history: currentChat.messages.slice(-10),
+            currentDateTime: currentDateTime, // DATE/TIME AWARENESS
             fileData: filesToProcess.length > 0 ? await processFilesForUpload(filesToProcess) : undefined,
             needsSearch: message.toLowerCase().includes('search') || message.toLowerCase().includes('latest'),
             universalMemory: JSON.parse(localStorage.getItem(STORAGE_KEYS.MEMORY) || '{}'),
@@ -566,6 +585,7 @@ async function sendMessage(messageOverride) {
         }
 
         console.log('📤 Sending request to API...');
+        console.log('📅 Current date/time:', currentDateTime.date, currentDateTime.time);
         
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 60000);
@@ -1006,6 +1026,11 @@ window.crumpDebug = {
                 body: JSON.stringify({
                     message: 'test',
                     history: [],
+                    currentDateTime: {
+                        date: new Date().toLocaleDateString('en-US'),
+                        time: new Date().toLocaleTimeString('en-US'),
+                        timezone: 'UTC'
+                    },
                     universalMemory: {},
                     workMode: 'companion'
                 })
