@@ -1,291 +1,452 @@
-// ==========================================
-// CRUMP AI - ROBUST IMAGE GENERATION v2.12.1
-// With validation, fallback, and retry logic
-// ==========================================
+/* ============================================
+   CRUMP AI - ENHANCED IMAGE GENERATION
+   Context-aware, Natural Language Detection
+   ============================================ */
+
+// Track conversation state
+window.imageGenerationState = {
+    lastResponseWasImage: false,
+    lastImagePrompt: null,
+    lastImageUrl: null,
+    conversationContext: []
+};
 
 // ==========================================
-// MAIN IMAGE GENERATION HANDLER
+// SMART IMAGE DETECTION (Enhanced)
 // ==========================================
-async function handleImageGeneration(message, retryCount = 0) {
-    const prompt = extractImagePrompt(message);
+window.shouldGenerateImage = function(message) {
+    if (!message || typeof message !== 'string') return false;
     
-    // CRITICAL: Check usage limits FIRST
-    if (window.profileManager) {
-        const imageCheck = window.profileManager.canGenerateImage();
+    const lowerMessage = message.toLowerCase().trim();
+    
+    // 1. FOLLOW-UP DETECTION (if last response was an image)
+    if (window.imageGenerationState.lastResponseWasImage) {
+        const followUpPhrases = [
+            'try again', 'another one', 'different one', 'one more',
+            'another', 'different', 'new one', 'remake', 'redo',
+            'change it', 'modify it', 'adjust it', 'tweak it',
+            'make it', 'do it', 'create it', 'show me',
+            'more like', 'similar to', 'but with', 'except',
+            'instead', 'rather', 'not that', 'better',
+            'darker', 'lighter', 'bigger', 'smaller',
+            'more colorful', 'less colorful', 'brighter', 'softer',
+            'different style', 'different color', 'different size',
+            'in a different', 'with a different', 'using a different'
+        ];
         
-        if (!imageCheck.allowed) {
-            window.hideThinking();
-            addMessage('assistant', imageCheck.message);
-            if (imageCheck.action === 'upgrade') {
-                setTimeout(() => window.showUpgradePrompt(), 1000);
+        // Check if message is a follow-up request
+        for (const phrase of followUpPhrases) {
+            if (lowerMessage.includes(phrase)) {
+                console.log('🔄 Follow-up image request detected');
+                return true;
             }
-            return;
         }
         
-        if (imageCheck.warning) {
-            window.showNotification(imageCheck.warning, 'info');
+        // Short affirmative responses after image = wants another
+        const shortAffirmatives = ['yes', 'yeah', 'yep', 'sure', 'ok', 'okay', 'yup'];
+        if (shortAffirmatives.includes(lowerMessage) && lowerMessage.length < 10) {
+            console.log('🔄 Affirmative follow-up detected');
+            return true;
         }
     }
     
-    window.showThinking();
-    console.log(`🎨 Generating image: "${prompt}" (attempt ${retryCount + 1})`);
-    
-    try {
-        // Try primary: Pollinations (Flux model)
-        const imageUrl = await generateWithPollinations(prompt);
-        
-        // CRITICAL: Validate image before displaying
-        console.log('🔍 Validating image...');
-        const isValid = await validateImageUrl(imageUrl, 15000);
-        
-        if (isValid) {
-            window.hideThinking();
-            addMessage('assistant', `Here's your image: **"${prompt}"**`, imageUrl);
-            console.log('✅ Image generated successfully');
-            
-            // Increment usage counter
-            if (window.profileManager) {
-                window.profileManager.incrementImageUsage();
-            }
-            
-            return;
-        }
-        
-        throw new Error('Image validation failed - image did not load properly');
-        
-    } catch (primaryError) {
-        console.warn('⚠️ Pollinations failed:', primaryError.message);
-        
-        // Try fallback: Different Pollinations model
-        try {
-            console.log('🔄 Trying fallback model...');
-            const fallbackUrl = await generateWithPollinationsFallback(prompt);
-            const isValid = await validateImageUrl(fallbackUrl, 15000);
-            
-            if (isValid) {
-                window.hideThinking();
-                addMessage('assistant', `Here's your image: **"${prompt}"**\n\n*(Generated with fallback model)*`, fallbackUrl);
-                console.log('✅ Fallback image generated');
-                
-                if (window.profileManager) {
-                    window.profileManager.incrementImageUsage();
-                }
-                
-                return;
-            }
-        } catch (fallbackError) {
-            console.error('❌ Fallback also failed:', fallbackError.message);
-        }
-        
-        // Final retry with exponential backoff
-        if (retryCount < 2) {
-            console.log(`🔄 Retry ${retryCount + 1}/2 after delay...`);
-            const delay = (retryCount + 1) * 2000; // 2s, 4s
-            await new Promise(resolve => setTimeout(resolve, delay));
-            return handleImageGeneration(message, retryCount + 1);
-        }
-        
-        // All attempts failed
-        window.hideThinking();
-        
-        const errorMsg = `❌ **Image Generation Failed**
-
-I couldn't generate your image after multiple attempts.
-
-**Possible reasons:**
-• Image generation service temporarily unavailable
-• Prompt might violate content policy
-• Network connectivity issues
-• Server overload
-
-**What you can try:**
-1. **Simplify your prompt** - Try a shorter, clearer description
-2. **Wait a minute** - Service might be temporarily down
-3. **Try a different prompt** - Some phrases may be restricted
-
-**Your prompt:** "${prompt}"
-
-Would you like me to help you rephrase it?`;
-        
-        addMessage('assistant', errorMsg);
-        console.error('❌ All image generation attempts failed');
-    }
-}
-
-// ==========================================
-// PRIMARY: POLLINATIONS (FLUX MODEL)
-// ==========================================
-async function generateWithPollinations(prompt) {
-    const timestamp = Date.now();
-    const encodedPrompt = encodeURIComponent(prompt);
-    
-    // Pollinations URL with best settings
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${timestamp}&nologo=true&enhance=true&model=flux&safe=true`;
-    
-    console.log('🎨 Pollinations (Flux):', imageUrl.substring(0, 100) + '...');
-    
-    // Pre-warm the image (trigger generation on their server)
-    try {
-        await fetch(imageUrl, { 
-            method: 'HEAD', 
-            mode: 'no-cors',
-            cache: 'no-cache'
-        }).catch(() => {
-            // Ignore CORS errors on HEAD request
-        });
-    } catch (e) {
-        // Ignore
-    }
-    
-    // Give Pollinations time to generate (they generate on-demand)
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    return imageUrl;
-}
-
-// ==========================================
-// FALLBACK: POLLINATIONS (REALISM MODEL)
-// ==========================================
-async function generateWithPollinationsFallback(prompt) {
-    const timestamp = Date.now() + 1; // Different seed
-    const encodedPrompt = encodeURIComponent(prompt);
-    
-    // Use "realism" model as fallback
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${timestamp}&nologo=true&model=flux-realism&safe=true`;
-    
-    console.log('🎨 Pollinations (Realism):', imageUrl.substring(0, 100) + '...');
-    
-    try {
-        await fetch(imageUrl, { 
-            method: 'HEAD', 
-            mode: 'no-cors',
-            cache: 'no-cache'
-        }).catch(() => {});
-    } catch (e) {
-        // Ignore
-    }
-    
-    await new Promise(resolve => setTimeout(resolve, 2500));
-    
-    return imageUrl;
-}
-
-// ==========================================
-// IMAGE URL VALIDATION
-// ==========================================
-async function validateImageUrl(url, timeout = 15000) {
-    return new Promise((resolve) => {
-        const img = new Image();
-        
-        const timeoutId = setTimeout(() => {
-            console.warn('⏱️ Image validation timeout');
-            img.src = ''; // Stop loading
-            resolve(false);
-        }, timeout);
-        
-        img.onload = () => {
-            clearTimeout(timeoutId);
-            
-            // Check if it's a valid image (not an error page)
-            if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-                // Check minimum size (error images are often tiny)
-                if (img.naturalWidth >= 256 && img.naturalHeight >= 256) {
-                    console.log(`✅ Image validated: ${img.naturalWidth}x${img.naturalHeight}`);
-                    resolve(true);
-                } else {
-                    console.warn(`⚠️ Image too small: ${img.naturalWidth}x${img.naturalHeight}`);
-                    resolve(false);
-                }
-            } else {
-                console.warn('⚠️ Image loaded but dimensions are 0');
-                resolve(false);
-            }
-        };
-        
-        img.onerror = (error) => {
-            clearTimeout(timeoutId);
-            console.error('❌ Image load error:', error);
-            resolve(false);
-        };
-        
-        // Start loading
-        img.src = url;
-    });
-}
-
-// ==========================================
-// PROMPT EXTRACTION
-// ==========================================
-function extractImagePrompt(message) {
-    let prompt = message.trim();
-    
-    // Remove common prefixes
-    const prefixes = [
-        'generate an image of ',
-        'generate image of ',
-        'generate a picture of ',
-        'generate picture of ',
-        'create an image of ',
-        'create image of ',
-        'create a picture of ',
-        'create picture of ',
-        'make an image of ',
-        'make image of ',
-        'make a picture of ',
-        'make picture of ',
-        'draw an image of ',
-        'draw image of ',
-        'draw a picture of ',
-        'draw picture of ',
-        'show me an image of ',
-        'show me image of ',
-        'show me a picture of ',
-        'show me picture of ',
-        'show me ',
-        'generate ',
-        'create ',
-        'make ',
-        'draw '
+    // 2. EXPLICIT IMAGE KEYWORDS (Original)
+    const explicitKeywords = [
+        'generate', 'create', 'make', 'draw', 'design',
+        'illustrate', 'render', 'produce', 'build', 'craft',
+        'paint', 'sketch', 'compose', 'construct'
     ];
     
-    const lowerPrompt = prompt.toLowerCase();
+    const imageTypes = [
+        'image', 'picture', 'photo', 'illustration', 'artwork',
+        'graphic', 'visual', 'painting', 'drawing', 'render',
+        'design', 'art', 'pic'
+    ];
     
-    for (const prefix of prefixes) {
-        if (lowerPrompt.startsWith(prefix)) {
-            prompt = prompt.substring(prefix.length).trim();
-            break;
+    // Check explicit patterns
+    for (const keyword of explicitKeywords) {
+        if (lowerMessage.includes(keyword)) {
+            for (const type of imageTypes) {
+                if (lowerMessage.includes(type)) {
+                    console.log('🎨 Explicit image request detected');
+                    return true;
+                }
+            }
         }
     }
     
-    // Remove "an image of" / "a picture of" from middle
-    prompt = prompt.replace(/\b(an? )?(image|picture|photo|drawing) of /gi, '');
+    // 3. IMPLICIT IMAGE REQUESTS
+    const implicitPatterns = [
+        // Need/want patterns
+        'i need a logo',
+        'i need an icon',
+        'i need a banner',
+        'i need a header',
+        'i need a background',
+        'i want a logo',
+        'i want an icon',
+        'i want a banner',
+        'need a logo for',
+        'need an icon for',
+        'need a banner for',
+        'want a logo for',
+        'want an icon for',
+        
+        // Show me patterns
+        'show me a',
+        'show me an',
+        'show me what',
+        'let me see a',
+        'let me see an',
+        
+        // Can you patterns
+        'can you make a',
+        'can you make an',
+        'can you create a',
+        'can you create an',
+        'can you draw a',
+        'can you draw an',
+        'can you design a',
+        'can you design an',
+        'could you make a',
+        'could you create a',
+        'could you draw a',
+        'could you design a',
+        
+        // Would you patterns
+        'would you make',
+        'would you create',
+        'would you draw',
+        'would you design',
+        
+        // Visualization patterns
+        'visualize a',
+        'visualize an',
+        'imagine a',
+        'imagine an',
+        'picture a',
+        'picture an',
+        
+        // Logo/Brand specific
+        'logo for',
+        'icon for',
+        'banner for',
+        'header for',
+        'thumbnail for',
+        'cover for',
+        'background for',
+        'wallpaper for',
+        'poster for',
+        'flyer for',
+        'card for',
+        'badge for',
+        
+        // Art style indicators
+        'in the style of',
+        'watercolor of',
+        'oil painting of',
+        'sketch of',
+        'cartoon of',
+        'anime of',
+        'realistic photo of',
+        'abstract art of',
+        'vector art of',
+        'pixel art of',
+        '3d render of',
+        'photorealistic'
+    ];
     
+    for (const pattern of implicitPatterns) {
+        if (lowerMessage.includes(pattern)) {
+            console.log('🎨 Implicit image request detected:', pattern);
+            return true;
+        }
+    }
+    
+    // 4. QUESTION PATTERNS ABOUT IMAGES
+    const questionPatterns = [
+        'what would',
+        'how would',
+        'what does',
+        'how does',
+        'what if'
+    ];
+    
+    const visualVerbs = ['look like', 'appear', 'seem'];
+    
+    for (const qPattern of questionPatterns) {
+        if (lowerMessage.includes(qPattern)) {
+            for (const vVerb of visualVerbs) {
+                if (lowerMessage.includes(vVerb)) {
+                    console.log('🎨 Visual question detected');
+                    return true;
+                }
+            }
+        }
+    }
+    
+    // 5. SINGLE WORD + "OF" PATTERN
+    // "painting of a sunset", "drawing of a cat", etc.
+    const singleWordImageTypes = [
+        'painting', 'drawing', 'sketch', 'illustration',
+        'photo', 'picture', 'image', 'render', 'graphic',
+        'artwork', 'design', 'logo', 'icon', 'banner'
+    ];
+    
+    for (const type of singleWordImageTypes) {
+        const pattern = new RegExp(`\\b${type}\\s+of\\b`, 'i');
+        if (pattern.test(message)) {
+            console.log('🎨 Single-word pattern detected:', type);
+            return true;
+        }
+    }
+    
+    // 6. CONTEXT-BASED: Check recent messages
+    // If user mentioned images in last 2 messages, be more lenient
+    const recentContext = window.imageGenerationState.conversationContext.slice(-2);
+    const mentionedImagesRecently = recentContext.some(msg => 
+        msg.includes('image') || msg.includes('picture') || msg.includes('visual')
+    );
+    
+    if (mentionedImagesRecently) {
+        // More lenient detection
+        const contextualKeywords = [
+            'that', 'this', 'it', 'one', 'another', 'different',
+            'better', 'worse', 'similar', 'like that', 'like this'
+        ];
+        
+        for (const keyword of contextualKeywords) {
+            if (lowerMessage === keyword || lowerMessage.includes(keyword + ' ')) {
+                console.log('🎨 Contextual image request detected');
+                return true;
+            }
+        }
+    }
+    
+    // Add to conversation context
+    window.imageGenerationState.conversationContext.push(lowerMessage);
+    if (window.imageGenerationState.conversationContext.length > 5) {
+        window.imageGenerationState.conversationContext.shift();
+    }
+    
+    return false;
+};
+
+// ==========================================
+// ENHANCED IMAGE GENERATION
+// ==========================================
+window.handleImageGeneration = async function(userMessage) {
+    try {
+        console.log('🎨 Generating image for:', userMessage);
+        
+        const currentChat = window.crumpDebug?.getCurrentChat?.();
+        if (!currentChat) {
+            console.error('❌ No current chat found');
+            return;
+        }
+
+        // Extract or reuse prompt
+        let prompt = extractImagePrompt(userMessage);
+        
+        // If it's a follow-up, combine with previous prompt
+        if (window.imageGenerationState.lastResponseWasImage && 
+            window.imageGenerationState.lastImagePrompt) {
+            prompt = enhancePromptWithContext(userMessage, window.imageGenerationState.lastImagePrompt);
+        }
+
+        // Add user message
+        const userMsg = {
+            role: 'user',
+            content: userMessage,
+            timestamp: Date.now()
+        };
+        currentChat.messages.push(userMsg);
+        currentChat.updatedAt = Date.now();
+        
+        if (typeof window.crumpDebug?.getCurrentChat === 'function') {
+            const chats = JSON.parse(localStorage.getItem('crump_chats') || '[]');
+            const chatIndex = chats.findIndex(c => c.id === currentChat.id);
+            if (chatIndex !== -1) {
+                chats[chatIndex] = currentChat;
+                localStorage.setItem('crump_chats', JSON.stringify(chats));
+            }
+        }
+
+        // Render user message
+        if (typeof renderMessage === 'function') {
+            renderMessage(userMsg);
+        }
+
+        // Show generating indicator
+        const assistantMsg = {
+            role: 'assistant',
+            content: 'Generating image...',
+            timestamp: Date.now(),
+            generating: true
+        };
+        currentChat.messages.push(assistantMsg);
+        
+        if (typeof renderMessage === 'function') {
+            renderMessage(assistantMsg);
+        }
+
+        // Generate image
+        const imageUrl = await generateImageWithPollinations(prompt);
+        
+        if (!imageUrl) {
+            throw new Error('Failed to generate image');
+        }
+
+        // Update state
+        window.imageGenerationState.lastResponseWasImage = true;
+        window.imageGenerationState.lastImagePrompt = prompt;
+        window.imageGenerationState.lastImageUrl = imageUrl;
+
+        // Remove generating message and add final message
+        currentChat.messages.pop();
+        
+        const finalMsg = {
+            role: 'assistant',
+            content: `Here's your image:\n\n![Generated Image](${imageUrl})\n\nPrompt: "${prompt}"\n\nWould you like me to create a different version or modify this?`,
+            timestamp: Date.now(),
+            imageUrl: imageUrl
+        };
+        
+        currentChat.messages.push(finalMsg);
+        currentChat.updatedAt = Date.now();
+        
+        if (typeof window.crumpDebug?.getCurrentChat === 'function') {
+            const chats = JSON.parse(localStorage.getItem('crump_chats') || '[]');
+            const chatIndex = chats.findIndex(c => c.id === currentChat.id);
+            if (chatIndex !== -1) {
+                chats[chatIndex] = currentChat;
+                localStorage.setItem('crump_chats', JSON.stringify(chats));
+            }
+        }
+
+        // Re-render chat to show image
+        const container = document.getElementById('chatContainer');
+        container.innerHTML = '';
+        currentChat.messages.forEach(msg => {
+            if (!msg.generating && typeof renderMessage === 'function') {
+                renderMessage(msg);
+            }
+        });
+        
+        if (typeof scrollToBottom === 'function') {
+            scrollToBottom();
+        }
+
+        console.log('✅ Image generated successfully');
+
+    } catch (error) {
+        console.error('❌ Image generation error:', error);
+        
+        // Reset state on error
+        window.imageGenerationState.lastResponseWasImage = false;
+        
+        if (typeof showToast === 'function') {
+            showToast('Failed to generate image', 'error');
+        }
+    }
+};
+
+// ==========================================
+// SMART PROMPT EXTRACTION
+// ==========================================
+function extractImagePrompt(message) {
+    const lowerMessage = message.toLowerCase();
+    
+    // Remove common command words
+    let prompt = message
+        .replace(/^(generate|create|make|draw|design|illustrate|render|produce|show me|give me|i need|i want|can you|could you|would you|please)\s+(an?|the|some)?\s*/i, '')
+        .replace(/\s*(image|picture|photo|illustration|artwork|graphic|visual|painting|drawing|render|design|art|pic)\s*(of|for|with|about)?\s*/i, ' ')
+        .trim();
+    
+    // If prompt is too short or empty, use full message
+    if (prompt.length < 3) {
+        prompt = message;
+    }
+    
+    // Clean up
+    prompt = prompt
+        .replace(/^(of|for|with|about)\s+/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    
+    console.log('📝 Extracted prompt:', prompt);
     return prompt;
 }
 
 // ==========================================
-// IMAGE DETECTION
+// CONTEXT-AWARE PROMPT ENHANCEMENT
 // ==========================================
-function shouldGenerateImage(message) {
-    const lower = message.toLowerCase();
+function enhancePromptWithContext(newMessage, previousPrompt) {
+    const lowerMessage = newMessage.toLowerCase();
     
-    // Must have an action word
-    const actionWords = ['generate', 'create', 'make', 'draw', 'design', 'show me', 'give me'];
-    const hasAction = actionWords.some(word => lower.includes(word));
+    // If asking for modifications
+    const modificationKeywords = [
+        'darker', 'lighter', 'bigger', 'smaller', 'brighter',
+        'more colorful', 'less colorful', 'different color',
+        'different style', 'another style', 'in the style of',
+        'more', 'less', 'with', 'without', 'but', 'except'
+    ];
     
-    // Must have an image noun
-    const imageNouns = ['image', 'picture', 'photo', 'illustration', 'artwork', 'drawing', 'art'];
-    const hasImageNoun = imageNouns.some(noun => lower.includes(noun));
+    for (const keyword of modificationKeywords) {
+        if (lowerMessage.includes(keyword)) {
+            // Combine previous prompt with modification
+            return `${previousPrompt}, ${newMessage}`;
+        }
+    }
     
-    return hasAction && hasImageNoun;
+    // If asking for "try again" or "another", use similar prompt
+    const retryKeywords = ['try again', 'another', 'different', 'one more', 'new'];
+    for (const keyword of retryKeywords) {
+        if (lowerMessage.includes(keyword)) {
+            return previousPrompt; // Use same prompt
+        }
+    }
+    
+    // Otherwise, extract new prompt
+    return extractImagePrompt(newMessage);
 }
 
 // ==========================================
-// EXPORT TO WINDOW
+// POLLINATIONS IMAGE GENERATION
 // ==========================================
-window.handleImageGeneration = handleImageGeneration;
-window.shouldGenerateImage = shouldGenerateImage;
-window.extractImagePrompt = extractImagePrompt;
-window.validateImageUrl = validateImageUrl;
+async function generateImageWithPollinations(prompt) {
+    try {
+        const encodedPrompt = encodeURIComponent(prompt);
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true`;
+        
+        console.log('🌸 Pollinations URL:', imageUrl);
+        
+        // Preload image to verify it works
+        await new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(imageUrl);
+            img.onerror = () => reject(new Error('Image failed to load'));
+            img.src = imageUrl;
+        });
+        
+        return imageUrl;
+    } catch (error) {
+        console.error('❌ Pollinations error:', error);
+        throw error;
+    }
+}
 
-console.log('✅ Robust image generation v2.12.1 loaded');
+// ==========================================
+// RESET STATE (call when starting new chat)
+// ==========================================
+window.resetImageGenerationState = function() {
+    window.imageGenerationState = {
+        lastResponseWasImage: false,
+        lastImagePrompt: null,
+        lastImageUrl: null,
+        conversationContext: []
+    };
+    console.log('🔄 Image generation state reset');
+};
+
+console.log('✅ Enhanced image generation loaded');
