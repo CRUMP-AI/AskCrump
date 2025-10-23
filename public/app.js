@@ -323,6 +323,11 @@ function createNewChat() {
     chatsArray.unshift(newChat);
     saveChats();
 
+    // Reset image generation state for new chat
+    if (window.resetImageGenerationState) {
+        window.resetImageGenerationState();
+    }
+
     loadChat(chatId);
 }
 
@@ -332,6 +337,11 @@ function loadChat(chatId) {
 
     currentChatId = chatId;
     localStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, chatId);
+
+    // Reset image generation state when switching chats
+    if (window.resetImageGenerationState) {
+        window.resetImageGenerationState();
+    }
 
     const container = document.getElementById('chatContainer');
     container.innerHTML = '';
@@ -403,6 +413,20 @@ async function sendMessage(messageOverride) {
     if (!message && selectedFiles.length === 0) return;
     if (isSending) return;
 
+    // CHECK FOR IMAGE GENERATION REQUEST FIRST
+    if (window.shouldGenerateImage && window.shouldGenerateImage(message)) {
+        console.log('🎨 Image generation request detected');
+        if (window.handleImageGeneration) {
+            userInput.value = '';
+            userInput.style.height = 'auto';
+            await window.handleImageGeneration(message);
+        } else {
+            console.error('❌ handleImageGeneration not found');
+            showToast('Image generation not available', 'error');
+        }
+        return;
+    }
+
     if (window.messageDeduplicator && !messageOverride) {
         if (window.messageDeduplicator.isDuplicate(message)) {
             showToast('Message already sent', 'warning');
@@ -467,17 +491,32 @@ async function sendMessage(messageOverride) {
             requestData.novaProtocol = JSON.parse(novaActive);
         }
 
+        console.log('📤 Sending request to API...');
+        console.log('📊 Request size:', JSON.stringify(requestData).length, 'characters');
+        
+        // Add 60 second timeout to the request
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
+        
         const response = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestData)
+            body: JSON.stringify(requestData),
+            signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
+        
+        console.log('📥 Response received:', response.status, response.statusText);
 
         if (!response.ok) {
-            throw new Error('Server error: ' + response.status);
+            const errorText = await response.text();
+            console.error('❌ API Error Response:', errorText);
+            throw new Error('API returned ' + response.status + ': ' + errorText);
         }
 
         const data = await response.json();
+        console.log('✅ Response parsed successfully');
 
         hideThinking();
 
@@ -508,9 +547,38 @@ async function sendMessage(messageOverride) {
         displayFilePreview();
 
     } catch (error) {
-        console.error('Send error:', error);
+        console.error('❌ Send error:', error);
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        
         hideThinking();
-        showToast('Failed to send message', 'error');
+        
+        // Show more specific error messages
+        let errorMessage = 'Failed to send message';
+        
+        if (error.name === 'AbortError') {
+            errorMessage = 'Request timed out - please try again';
+            console.error('⏱️ Request timed out after 60 seconds');
+        } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+            errorMessage = 'Network error - check your connection';
+            console.error('🌐 Network error - API may be unreachable');
+        } else if (error.message.includes('API returned')) {
+            errorMessage = error.message; // Show the actual API error
+            console.error('🔴 API error:', error.message);
+        } else {
+            errorMessage = 'Error: ' + error.message;
+        }
+        
+        showToast(errorMessage, 'error');
+        
+        // Also log the full request for debugging
+        console.error('📋 Failed request details:', {
+            message: message.substring(0, 100),
+            historyLength: currentChat?.messages?.length,
+            hasFiles: filesToProcess?.length > 0,
+            fileCount: filesToProcess?.length
+        });
     } finally {
         isSending = false;
         sendButton.disabled = false;
@@ -880,5 +948,28 @@ window.crumpDebug = {
     createNewChat: createNewChat,
     loadChat: loadChat,
     getAssistantName: getAssistantName,
-    setupAutonomousMessaging: setupAutonomousMessaging
+    setupAutonomousMessaging: setupAutonomousMessaging,
+    // Test API connection
+    testAPI: async function() {
+        console.log('🧪 Testing API connection...');
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: 'test',
+                    history: [],
+                    universalMemory: {},
+                    workMode: 'companion'
+                })
+            });
+            console.log('Response status:', response.status);
+            const data = await response.text();
+            console.log('Response:', data);
+            return { status: response.status, data: data };
+        } catch (error) {
+            console.error('API test failed:', error);
+            return { error: error.message };
+        }
+    }
 };
