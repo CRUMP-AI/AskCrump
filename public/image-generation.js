@@ -1,6 +1,6 @@
 /* ============================================
-   CRUMP AI - ENHANCED IMAGE GENERATION
-   Context-aware, Natural Language Detection
+   CRUMP AI - SMART IMAGE GENERATION v2.15.1
+   Context-aware with minimal false positives
    ============================================ */
 
 // Track conversation state
@@ -12,7 +12,7 @@ window.imageGenerationState = {
 };
 
 // ==========================================
-// SMART IMAGE DETECTION (Enhanced)
+// SMART IMAGE DETECTION (FIXED - Much Less Sensitive)
 // ==========================================
 window.shouldGenerateImage = function(message) {
     if (!message || typeof message !== 'string') return false;
@@ -22,19 +22,11 @@ window.shouldGenerateImage = function(message) {
     // 1. FOLLOW-UP DETECTION (if last response was an image)
     if (window.imageGenerationState.lastResponseWasImage) {
         const followUpPhrases = [
-            'try again', 'another one', 'different one', 'one more',
-            'another', 'different', 'new one', 'remake', 'redo',
-            'change it', 'modify it', 'adjust it', 'tweak it',
-            'make it', 'do it', 'create it', 'show me',
-            'more like', 'similar to', 'but with', 'except',
-            'instead', 'rather', 'not that', 'better',
-            'darker', 'lighter', 'bigger', 'smaller',
-            'more colorful', 'less colorful', 'brighter', 'softer',
-            'different style', 'different color', 'different size',
-            'in a different', 'with a different', 'using a different'
+            'try again', 'another one', 'different one', 'one more', 'another', 
+            'different', 'new one', 'remake', 'redo', 'change it', 'modify it',
+            'adjust it', 'tweak it', 'make it', 'more like', 'but with'
         ];
         
-        // Check if message is a follow-up request
         for (const phrase of followUpPhrases) {
             if (lowerMessage.includes(phrase)) {
                 console.log('🔄 Follow-up image request detected');
@@ -42,151 +34,72 @@ window.shouldGenerateImage = function(message) {
             }
         }
         
-        // Short affirmative responses after image = wants another
-        const shortAffirmatives = ['yes', 'yeah', 'yep', 'sure', 'ok', 'okay', 'yup'];
+        // Short affirmatives after image = wants another
+        const shortAffirmatives = ['yes', 'yeah', 'yep', 'sure', 'ok', 'okay'];
         if (shortAffirmatives.includes(lowerMessage) && lowerMessage.length < 10) {
             console.log('🔄 Affirmative follow-up detected');
             return true;
         }
     }
     
-    // 2. EXPLICIT IMAGE KEYWORDS (Original)
-    const explicitKeywords = [
-        'generate', 'create', 'make', 'draw', 'design',
-        'illustrate', 'render', 'produce', 'build', 'craft',
-        'paint', 'sketch', 'compose', 'construct'
+    // 2. CONTEXT BLACKLIST (never trigger on these contexts) - CHECK FIRST
+    const blacklistContexts = [
+        'bug', 'error', 'issue', 'problem', 'fix', 'debug', 'test', 'testing',
+        'example', 'instance', 'case', 'scenario', 'situation',
+        'think', 'maybe', 'perhaps', 'might', 'could be', 'probably',
+        'word', 'causing', 'certain', 'moment', 'startup', 'splash',
+        'logo for you', 'i want to', 'come up with', 'describe'
     ];
     
-    const imageTypes = [
-        'image', 'picture', 'photo', 'illustration', 'artwork',
-        'graphic', 'visual', 'painting', 'drawing', 'render',
-        'design', 'art', 'pic'
-    ];
-    
-    // Check explicit patterns
-    for (const keyword of explicitKeywords) {
-        if (lowerMessage.includes(keyword)) {
-            for (const type of imageTypes) {
-                if (lowerMessage.includes(type)) {
-                    console.log('🎨 Explicit image request detected');
-                    return true;
-                }
-            }
+    for (const context of blacklistContexts) {
+        if (lowerMessage.includes(context)) {
+            console.log('🚫 Blacklisted context detected:', context, '- blocking image gen');
+            return false;
         }
     }
     
-    // 3. IMPLICIT IMAGE REQUESTS
-    const implicitPatterns = [
-        // Need/want patterns
-        'i need a logo',
-        'i need an icon',
-        'i need a banner',
-        'i need a header',
-        'i need a background',
-        'i want a logo',
-        'i want an icon',
-        'i want a banner',
-        'need a logo for',
-        'need an icon for',
-        'need a banner for',
-        'want a logo for',
-        'want an icon for',
-        
-        // Show me patterns
-        'show me a',
-        'show me an',
-        'show me what',
-        'let me see a',
-        'let me see an',
-        
-        // Can you patterns
-        'can you make a',
-        'can you make an',
-        'can you create a',
-        'can you create an',
-        'can you draw a',
-        'can you draw an',
-        'can you design a',
-        'can you design an',
-        'could you make a',
-        'could you create a',
-        'could you draw a',
-        'could you design a',
-        
-        // Would you patterns
-        'would you make',
-        'would you create',
-        'would you draw',
-        'would you design',
-        
-        // Visualization patterns
-        'visualize a',
-        'visualize an',
-        'imagine a',
-        'imagine an',
-        'picture a',
-        'picture an',
-        
-        // Logo/Brand specific
-        'logo for',
-        'icon for',
-        'banner for',
-        'header for',
-        'thumbnail for',
-        'cover for',
-        'background for',
-        'wallpaper for',
-        'poster for',
-        'flyer for',
-        'card for',
-        'badge for',
-        
-        // Art style indicators
-        'in the style of',
-        'watercolor of',
-        'oil painting of',
-        'sketch of',
-        'cartoon of',
-        'anime of',
-        'realistic photo of',
-        'abstract art of',
-        'vector art of',
-        'pixel art of',
-        '3d render of',
-        'photorealistic'
+    // 3. EXPLICIT MULTI-WORD PATTERNS (must have BOTH action AND image type)
+    const actionWords = ['generate', 'create', 'make', 'draw', 'design', 'produce', 'show me'];
+    const imageWords = ['image', 'picture', 'photo', 'illustration', 'logo', 'icon', 'banner', 'graphic', 'artwork'];
+    
+    let hasAction = false;
+    let hasImageWord = false;
+    
+    for (const action of actionWords) {
+        if (lowerMessage.includes(action)) {
+            hasAction = true;
+            break;
+        }
+    }
+    
+    for (const imageWord of imageWords) {
+        if (lowerMessage.includes(imageWord)) {
+            hasImageWord = true;
+            break;
+        }
+    }
+    
+    // CRITICAL: Must have BOTH to trigger
+    if (hasAction && hasImageWord) {
+        console.log('🎨 Explicit image request detected');
+        return true;
+    }
+    
+    // 4. SPECIFIC SAFE PATTERNS (high confidence only)
+    const safePatterns = [
+        /^(generate|create|make|draw)\s+(me\s+)?(a|an)\s+\w+\s+(image|picture|logo|icon)/i,
+        /^show me (a|an)\s+\w+\s+(image|picture)/i,
+        /i (need|want)\s+(a|an)\s+(logo|icon|banner|image|picture)/i
     ];
     
-    for (const pattern of implicitPatterns) {
-        if (lowerMessage.includes(pattern)) {
-            console.log('🎨 Implicit image request detected:', pattern);
+    for (const pattern of safePatterns) {
+        if (pattern.test(message)) {
+            console.log('🎨 Safe pattern matched');
             return true;
         }
     }
     
-    // 4. QUESTION PATTERNS ABOUT IMAGES
-    const questionPatterns = [
-        'what would',
-        'how would',
-        'what does',
-        'how does',
-        'what if'
-    ];
-    
-    const visualVerbs = ['look like', 'appear', 'seem'];
-    
-    for (const qPattern of questionPatterns) {
-        if (lowerMessage.includes(qPattern)) {
-            for (const vVerb of visualVerbs) {
-                if (lowerMessage.includes(vVerb)) {
-                    console.log('🎨 Visual question detected');
-                    return true;
-                }
-            }
-        }
-    }
-    
-    // 5. SINGLE WORD + "OF" PATTERN
-    // "painting of a sunset", "drawing of a cat", etc.
+    // 5. SINGLE WORD + "OF" PATTERN (but ONLY for obvious image types)
     const singleWordImageTypes = [
         'painting', 'drawing', 'sketch', 'illustration',
         'photo', 'picture', 'image', 'render', 'graphic',
@@ -194,32 +107,10 @@ window.shouldGenerateImage = function(message) {
     ];
     
     for (const type of singleWordImageTypes) {
-        const pattern = new RegExp(`\\b${type}\\s+of\\b`, 'i');
+        const pattern = new RegExp(`^${type}\\s+of\\b`, 'i');
         if (pattern.test(message)) {
             console.log('🎨 Single-word pattern detected:', type);
             return true;
-        }
-    }
-    
-    // 6. CONTEXT-BASED: Check recent messages
-    // If user mentioned images in last 2 messages, be more lenient
-    const recentContext = window.imageGenerationState.conversationContext.slice(-2);
-    const mentionedImagesRecently = recentContext.some(msg => 
-        msg.includes('image') || msg.includes('picture') || msg.includes('visual')
-    );
-    
-    if (mentionedImagesRecently) {
-        // More lenient detection
-        const contextualKeywords = [
-            'that', 'this', 'it', 'one', 'another', 'different',
-            'better', 'worse', 'similar', 'like that', 'like this'
-        ];
-        
-        for (const keyword of contextualKeywords) {
-            if (lowerMessage === keyword || lowerMessage.includes(keyword + ' ')) {
-                console.log('🎨 Contextual image request detected');
-                return true;
-            }
         }
     }
     
@@ -233,7 +124,7 @@ window.shouldGenerateImage = function(message) {
 };
 
 // ==========================================
-// ENHANCED IMAGE GENERATION
+// IMAGE GENERATION HANDLER (LESS VERBOSE)
 // ==========================================
 window.handleImageGeneration = async function(userMessage) {
     try {
@@ -305,11 +196,13 @@ window.handleImageGeneration = async function(userMessage) {
         // Remove generating message and add final message
         currentChat.messages.pop();
         
+        // FIX: Much less verbose response - just the image!
         const finalMsg = {
             role: 'assistant',
-            content: `Here's your image:\n\n![Generated Image](${imageUrl})\n\nPrompt: "${prompt}"\n\nWould you like me to create a different version or modify this?`,
+            content: `![Generated Image](${imageUrl})`, // Clean and simple!
             timestamp: Date.now(),
-            imageUrl: imageUrl
+            imageUrl: imageUrl,
+            imagePrompt: prompt // Store but don't display
         };
         
         currentChat.messages.push(finalMsg);
@@ -371,7 +264,6 @@ function extractImagePrompt(message) {
     
     // If prompt is too short or empty, try alternative extraction
     if (prompt.length < 3) {
-        // Try to find the main subject after common patterns
         const patterns = [
             /(?:of|for|with|about|showing)\s+(.+)/i,
             /(?:a|an|the)\s+(.+)/i,
@@ -419,7 +311,6 @@ function enhancePromptWithContext(newMessage, previousPrompt) {
     
     for (const keyword of modificationKeywords) {
         if (lowerMessage.includes(keyword)) {
-            // Combine previous prompt with modification
             return `${previousPrompt}, ${newMessage}`;
         }
     }
@@ -428,7 +319,7 @@ function enhancePromptWithContext(newMessage, previousPrompt) {
     const retryKeywords = ['try again', 'another', 'different', 'one more', 'new'];
     for (const keyword of retryKeywords) {
         if (lowerMessage.includes(keyword)) {
-            return previousPrompt; // Use same prompt
+            return previousPrompt;
         }
     }
     
@@ -474,4 +365,4 @@ window.resetImageGenerationState = function() {
     console.log('🔄 Image generation state reset');
 };
 
-console.log('✅ Enhanced image generation loaded');
+console.log('✅ Smart image generation v2.15.1 loaded');
