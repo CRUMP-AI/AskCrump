@@ -1,752 +1,486 @@
 // ==========================================
-// CRUMP AI - ENGINES v3.0
-// Core intelligence engines + NEW Search Detection
+// CRUMP AI - DETECTION ENGINES v3.1.0
+// Smart API routing and image generation
 // ==========================================
-
-// ==========================================
-// SECURITY UTILITY - XSS Protection
-// ==========================================
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
 
 // ==========================================
 // MESSAGE DEDUPLICATION ENGINE
-// Prevents duplicate message sends
 // ==========================================
 class MessageDeduplicator {
-    constructor(windowMs = 500) {
-        this.recentMessages = new Map();
-        this.windowMs = windowMs;
-        
-        this.cleanupInterval = setInterval(() => {
-            const now = Date.now();
-            for (let [key, timestamp] of this.recentMessages) {
-                if (now - timestamp > this.windowMs) {
-                    this.recentMessages.delete(key);
-                }
-            }
-            
-            if (this.recentMessages.size > 100) {
-                console.warn('⚠️ MessageDeduplicator has', this.recentMessages.size, 'entries - cleaning up');
-            }
-        }, 5000);
-        
-        console.log('✅ MessageDeduplicator initialized with auto-cleanup');
+    constructor() {
+        this.recentMessages = [];
+        this.maxHistory = 10;
+        this.timeWindow = 5000; // 5 seconds
     }
     
     isDuplicate(message) {
-        const hash = this.hashMessage(message);
         const now = Date.now();
+        const normalized = message.trim().toLowerCase();
         
-        if (this.recentMessages.has(hash)) {
-            const timestamp = this.recentMessages.get(hash);
-            if (now - timestamp < this.windowMs) {
-                console.log('🚫 Duplicate message blocked:', message.substring(0, 50));
-                return true;
+        // Clean old messages
+        this.recentMessages = this.recentMessages.filter(
+            msg => now - msg.timestamp < this.timeWindow
+        );
+        
+        // Check for duplicate
+        const isDupe = this.recentMessages.some(
+            msg => msg.content === normalized
+        );
+        
+        if (!isDupe) {
+            this.recentMessages.push({
+                content: normalized,
+                timestamp: now
+            });
+            
+            if (this.recentMessages.length > this.maxHistory) {
+                this.recentMessages.shift();
             }
         }
         
-        this.recentMessages.set(hash, now);
-        return false;
-    }
-    
-    hashMessage(message) {
-        let hash = 0;
-        for (let i = 0; i < message.length; i++) {
-            const char = message.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash;
-        }
-        return hash.toString();
-    }
-    
-    destroy() {
-        if (this.cleanupInterval) {
-            clearInterval(this.cleanupInterval);
-            this.cleanupInterval = null;
-        }
-        this.recentMessages.clear();
-        console.log('🗑️ MessageDeduplicator destroyed');
-    }
-    
-    clear() {
-        this.recentMessages.clear();
+        return isDupe;
     }
 }
 
 // ==========================================
-// SEARCH DETECTION ENGINE (NEW!)
-// Intelligent detection of queries needing web search
+// IMAGE GENERATION DETECTION
+// ==========================================
+class ImageGenerationDetector {
+    constructor() {
+        this.triggers = [
+            // Direct commands
+            /^(generate|create|make|draw|paint|design|build|show me)\s+(an?|some|the)?\s*(image|picture|photo|pic|drawing|illustration|artwork|visual|graphic)/i,
+            
+            // Image of/for patterns
+            /^(generate|create|make|draw|design|show me)\s+.*\s+(image|picture|photo|illustration)\s+of/i,
+            
+            // Specific requests
+            /^(can you|could you|please)\s+(generate|create|make|draw)\s+.*\s+(image|picture|photo)/i,
+            
+            // Art styles
+            /^(generate|create|make|draw)\s+.*\s+(in the style of|like|similar to|as if|photorealistic|realistic|cartoon|anime|pixel art|oil painting|watercolor)/i,
+            
+            // Visualize
+            /^(visualize|show|display|render)/i,
+            
+            // I want/need
+            /^(i want|i need|i'd like)\s+(an?|some)?\s*(image|picture|photo|illustration)/i
+        ];
+        
+        this.exclusions = [
+            /upload/i,
+            /attach/i,
+            /send me/i,
+            /show me (how|what|where|when|why)/i,
+            /analyze/i,
+            /describe/i,
+            /what (is|are|does)/i
+        ];
+    }
+    
+    shouldGenerateImage(message) {
+        const text = message.trim();
+        
+        // Check exclusions first
+        if (this.exclusions.some(pattern => pattern.test(text))) {
+            return false;
+        }
+        
+        // Check triggers
+        return this.triggers.some(pattern => pattern.test(text));
+    }
+    
+    extractPrompt(message) {
+        // Remove trigger words to get clean prompt
+        let prompt = message.trim();
+        
+        // Remove common prefixes
+        prompt = prompt.replace(/^(generate|create|make|draw|paint|design|show me|visualize|i want|i need|i'd like)\s+(an?|some|the)?\s*(image|picture|photo|pic|drawing|illustration|artwork|visual|graphic)\s+(of|for|with|showing)?\s*/i, '');
+        
+        return prompt.trim();
+    }
+}
+
+// ==========================================
+// SEARCH DETECTION ENGINE
 // ==========================================
 class SearchDetectionEngine {
     constructor() {
-        this.patterns = {
-            // Explicit search requests
-            explicit: [
-                /search for/i,
-                /look up/i,
-                /find out about/i,
-                /google/i,
-                /what.*happening/i
-            ],
-            
-            // Temporal indicators (current/recent info)
-            temporal: [
-                /today/i,
-                /tonight/i,
-                /this week/i,
-                /this weekend/i,
-                /this month/i,
-                /this year/i,
-                /currently/i,
-                /current/i,
-                /latest/i,
-                /recent/i,
-                /now/i,
-                /right now/i,
-                /at the moment/i
-            ],
-            
-            // Question words suggesting current events
-            currentEvents: [
-                /who (is|are|won|will win|leading)/i,
-                /what (is|are|happened|happening)/i,
-                /when (is|are|will)/i,
-                /where (is|are)/i,
-                /how much (is|are|cost)/i
-            ],
-            
-            // Sports queries
-            sports: [
-                /\b(nfl|nba|mlb|nhl|fifa|premier league|champions league)\b/i,
-                /\b(game|match|score|playoff|championship|tournament)\b/i,
-                /who (won|will win|is winning|is playing)/i,
-                /\b(team|teams) (play|playing|won|lost)/i
-            ],
-            
-            // Weather queries
-            weather: [
-                /weather/i,
-                /temperature/i,
-                /forecast/i,
-                /rain/i,
-                /snow/i,
-                /storm/i
-            ],
-            
-            // News queries
-            news: [
-                /news about/i,
-                /breaking news/i,
-                /headlines/i,
-                /what.*news/i
-            ],
-            
-            // Stock/finance queries
-            finance: [
-                /stock price/i,
-                /\b(stock|stocks|market|markets)\b/i,
-                /\b(nasdaq|dow|s&p)\b/i,
-                /share price/i
-            ],
-            
-            // Technology/product queries
-            tech: [
-                /latest (version|release|update)/i,
-                /new (iphone|android|windows|mac)/i,
-                /specs for/i,
-                /price of.*\d{4}/i // "price of iPhone 16" etc
-            ]
-        };
-        
-        // Blacklist - never search for these
-        this.blacklist = [
-            /how (do|can) i/i,  // "How do I..." = instructions
-            /explain/i,          // "Explain..." = concept explanation
-            /what (is|are) the (difference|meaning)/i,  // Definitions
-            /tell me about (yourself|you|your)/i,       // About the assistant
-            /help me (with|understand)/i                // Help requests
+        this.triggers = [
+            /^(search|google|look up|find|research|investigate)/i,
+            /what (is|are) the (latest|current|recent)/i,
+            /what happened/i,
+            /who (is|are|was|were)/i,
+            /when (is|was|did)/i,
+            /tell me about (recent|current|latest)/i
         ];
-        
-        console.log('✅ Search Detection Engine initialized');
     }
     
     shouldSearch(message) {
-        if (!message || typeof message !== 'string') return false;
-        
-        const lowerMessage = message.toLowerCase().trim();
-        
-        // Check blacklist first
-        for (const pattern of this.blacklist) {
-            if (pattern.test(message)) {
-                console.log('🚫 Blacklisted query pattern - no search');
-                return false;
-            }
-        }
-        
-        // Check each category
-        let score = 0;
-        let reasons = [];
-        
-        // Explicit search requests = instant trigger
-        for (const pattern of this.patterns.explicit) {
-            if (pattern.test(message)) {
-                console.log('🔍 Explicit search request detected');
-                return true;
-            }
-        }
-        
-        // Temporal indicators
-        for (const pattern of this.patterns.temporal) {
-            if (pattern.test(message)) {
-                score += 2;
-                reasons.push('temporal');
-                break;
-            }
-        }
-        
-        // Current events question structure
-        for (const pattern of this.patterns.currentEvents) {
-            if (pattern.test(message)) {
-                score += 2;
-                reasons.push('current-events');
-                break;
-            }
-        }
-        
-        // Sports
-        for (const pattern of this.patterns.sports) {
-            if (pattern.test(message)) {
-                score += 2;
-                reasons.push('sports');
-                break;
-            }
-        }
-        
-        // Weather
-        for (const pattern of this.patterns.weather) {
-            if (pattern.test(message)) {
-                score += 3; // Weather almost always needs search
-                reasons.push('weather');
-                break;
-            }
-        }
-        
-        // News
-        for (const pattern of this.patterns.news) {
-            if (pattern.test(message)) {
-                score += 3;
-                reasons.push('news');
-                break;
-            }
-        }
-        
-        // Finance
-        for (const pattern of this.patterns.finance) {
-            if (pattern.test(message)) {
-                score += 2;
-                reasons.push('finance');
-                break;
-            }
-        }
-        
-        // Tech
-        for (const pattern of this.patterns.tech) {
-            if (pattern.test(message)) {
-                score += 2;
-                reasons.push('tech');
-                break;
-            }
-        }
-        
-        // Decision threshold
-        const shouldSearch = score >= 2;
-        
-        if (shouldSearch) {
-            console.log(`🔍 Search triggered (score: ${score}, reasons: ${reasons.join(', ')})`);
-        } else {
-            console.log(`📚 No search needed (score: ${score})`);
-        }
-        
-        return shouldSearch;
-    }
-    
-    // For testing/debugging
-    analyzeQuery(message) {
-        const result = {
-            shouldSearch: this.shouldSearch(message),
-            message: message,
-            patterns: []
-        };
-        
-        // Check which patterns matched
-        for (const [category, patterns] of Object.entries(this.patterns)) {
-            for (const pattern of patterns) {
-                if (pattern.test(message)) {
-                    result.patterns.push(category);
-                    break;
-                }
-            }
-        }
-        
-        return result;
+        return this.triggers.some(pattern => pattern.test(message.trim()));
     }
 }
 
 // ==========================================
-// CONTEXT AWARENESS ENGINE
-// Tracks conversation topics and suggests relevant contexts
+// API DETECTION ENGINE (NEW - COMPREHENSIVE)
 // ==========================================
-class ContextAwarenessEngine {
+class APIDetectionEngine {
     constructor() {
-        this.activeContexts = new Map();
-        this.conversationTopics = [];
-        this.maxTopics = 20;
-        this.maxContexts = 10;
+        this.apiPatterns = {
+            // Weather API
+            weather: {
+                keywords: ['weather', 'temperature', 'forecast', 'rain', 'snow', 'sunny', 'cloudy', 'hot', 'cold', 'humidity', 'wind'],
+                patterns: [
+                    /what'?s? the weather/i,
+                    /weather (in|for|at)/i,
+                    /how (hot|cold|warm)/i,
+                    /will it rain/i,
+                    /temperature (in|at)/i,
+                    /forecast for/i
+                ],
+                examples: ['What\'s the weather in Atlanta?', 'Will it rain tomorrow?', 'Temperature in NYC']
+            },
+            
+            // Sports API
+            sports: {
+                keywords: ['game', 'score', 'match', 'nfl', 'nba', 'mlb', 'nhl', 'soccer', 'football', 'basketball', 'baseball', 'hockey', 'team', 'player', 'win', 'lose', 'playoff'],
+                patterns: [
+                    /(who won|score of|result of).*(game|match)/i,
+                    /(nfl|nba|mlb|nhl|football|basketball|baseball|hockey)\s+(score|game|match|schedule)/i,
+                    /when (is|does).*(play|playing)/i,
+                    /(team|player)\s+stats/i,
+                    /(cowboys|lakers|yankees|patriots|chiefs|warriors)/i // Popular teams
+                ],
+                examples: ['Who won the Cowboys game?', 'NBA scores today', 'When do the Lakers play?']
+            },
+            
+            // Stocks API
+            stocks: {
+                keywords: ['stock', 'share', 'price', 'market', 'nasdaq', 'dow', 'trading', 'ticker', 'tsla', 'aapl', 'googl', 'msft', 'amzn'],
+                patterns: [
+                    /(stock|share) price/i,
+                    /(what'?s?|what is) (tesla|apple|google|microsoft|amazon|meta|netflix|nvidia)/i,
+                    /\b(tsla|aapl|googl|msft|amzn|meta|nflx|nvda)\b/i,
+                    /market (status|close|open)/i,
+                    /stock market/i
+                ],
+                examples: ['Tesla stock price', 'What\'s AAPL trading at?', 'Market status']
+            },
+            
+            // News API
+            news: {
+                keywords: ['news', 'headline', 'breaking', 'latest', 'article', 'story', 'report'],
+                patterns: [
+                    /latest news/i,
+                    /breaking news/i,
+                    /news about/i,
+                    /what'?s? happening (in|with)/i,
+                    /headlines (about|for|on)/i
+                ],
+                examples: ['Latest news about AI', 'Breaking news today', 'Headlines about politics']
+            },
+            
+            // Movies/TV API
+            movies: {
+                keywords: ['movie', 'film', 'tv show', 'series', 'actor', 'director', 'imdb', 'rating', 'review', 'cinema', 'netflix', 'streaming'],
+                patterns: [
+                    /(movie|film|show)\s+(about|starring|with|by)/i,
+                    /who (directed|starred in|played)/i,
+                    /(rating|review) for/i,
+                    /best (movies|films|shows)/i,
+                    /when (was|did).*(release|come out)/i
+                ],
+                examples: ['Movies starring Tom Cruise', 'Best sci-fi films', 'When was Inception released?']
+            },
+            
+            // YouTube API
+            youtube: {
+                keywords: ['youtube', 'video', 'watch', 'tutorial', 'vlog', 'channel', 'subscribe'],
+                patterns: [
+                    /(search|find).*(youtube|video)/i,
+                    /youtube (video|channel)/i,
+                    /(tutorial|how to).*(video|youtube)/i,
+                    /watch (video|tutorial)/i
+                ],
+                examples: ['Search YouTube for Python tutorials', 'Find cooking videos', 'Best tech channels']
+            },
+            
+            // Spotify API
+            spotify: {
+                keywords: ['song', 'music', 'artist', 'album', 'playlist', 'spotify', 'track', 'listen', 'play'],
+                patterns: [
+                    /(find|search|play|show me)\s+(song|music|artist|album|track)/i,
+                    /spotify (song|playlist|artist)/i,
+                    /songs? (by|from|like)/i,
+                    /music (by|like|similar to)/i,
+                    /(who sang|who sings)/i
+                ],
+                examples: ['Find songs by Drake', 'Music like Bohemian Rhapsody', 'Who sang Hotel California?']
+            },
+            
+            // Google Maps API
+            googleMaps: {
+                keywords: ['directions', 'navigate', 'route', 'nearby', 'location', 'address', 'map', 'restaurant', 'store', 'coffee', 'gas station', 'parking'],
+                patterns: [
+                    /(directions|navigate|route|how to get) (to|from)/i,
+                    /(nearby|near me|closest|nearest)/i,
+                    /(find|show|locate)\s+.*(restaurant|store|coffee|gas|hotel|hospital|bank)/i,
+                    /where (is|are|can i find)/i,
+                    /address (of|for)/i
+                ],
+                examples: ['Directions to nearest Starbucks', 'Find Italian restaurants nearby', 'Where is the closest gas station?']
+            },
+            
+            // Recipes API
+            recipes: {
+                keywords: ['recipe', 'cook', 'cooking', 'bake', 'baking', 'ingredient', 'meal', 'dish', 'cuisine', 'food'],
+                patterns: [
+                    /(recipe|recipes) (for|with)/i,
+                    /how to (cook|make|bake|prepare)/i,
+                    /(find|show|give me)\s+(recipe|recipes)/i,
+                    /ingredients (for|to make)/i,
+                    /(italian|mexican|chinese|japanese|indian)\s+(food|dish|recipe)/i
+                ],
+                examples: ['Recipe for chocolate chip cookies', 'How to make pasta carbonara', 'Find chicken recipes']
+            },
+            
+            // Translation API
+            translation: {
+                keywords: ['translate', 'translation', 'spanish', 'french', 'german', 'chinese', 'japanese', 'italian', 'language'],
+                patterns: [
+                    /translate.*(to|into|in)/i,
+                    /how do you say.*(in|spanish|french|german)/i,
+                    /what (is|does).*(mean in|spanish|french|german)/i,
+                    /(spanish|french|german|chinese|japanese|italian)\s+(for|word for|translation)/i
+                ],
+                examples: ['Translate hello to Spanish', 'How do you say thank you in French?', 'What does bonjour mean?']
+            },
+            
+            // GitHub API
+            github: {
+                keywords: ['github', 'repository', 'repo', 'code', 'open source', 'library', 'framework', 'package'],
+                patterns: [
+                    /(search|find).*(github|repository|repo)/i,
+                    /github (repository|repo|project)/i,
+                    /(open source|library|framework|package)\s+(for|in)/i
+                ],
+                examples: ['Search GitHub for React hooks', 'Find open source image libraries', 'Best Python packages']
+            },
+            
+            // Crypto API
+            crypto: {
+                keywords: ['bitcoin', 'ethereum', 'crypto', 'cryptocurrency', 'btc', 'eth', 'blockchain', 'coin'],
+                patterns: [
+                    /(bitcoin|ethereum|crypto|btc|eth)\s+(price|value|rate)/i,
+                    /cryptocurrency (price|market)/i,
+                    /what'?s?.*(bitcoin|ethereum|btc|eth)/i
+                ],
+                examples: ['Bitcoin price', 'What\'s Ethereum worth?', 'Crypto market status']
+            },
+            
+            // Wikipedia (Unlimited)
+            wikipedia: {
+                keywords: ['wikipedia', 'wiki', 'what is', 'who is', 'define', 'explain', 'tell me about'],
+                patterns: [
+                    /wikipedia (article|page|entry)/i,
+                    /(what|who) (is|are|was|were)/i,
+                    /(tell me|explain).*(about|what is)/i,
+                    /information (about|on)/i
+                ],
+                examples: ['Wikipedia article on quantum physics', 'Who is Albert Einstein?', 'Tell me about the Roman Empire']
+            },
+            
+            // Dictionary (Unlimited)
+            dictionary: {
+                keywords: ['define', 'definition', 'meaning', 'what does', 'dictionary'],
+                patterns: [
+                    /(define|definition of|meaning of)/i,
+                    /what does.*(mean|means)/i,
+                    /dictionary (for|of)/i
+                ],
+                examples: ['Define ephemeral', 'What does serendipity mean?', 'Meaning of ubiquitous']
+            },
+            
+            // Gmail (Premium)
+            gmail: {
+                keywords: ['email', 'gmail', 'inbox', 'send', 'mail', 'message'],
+                patterns: [
+                    /(check|read|show|get)\s+(my\s+)?(email|gmail|inbox|mail)/i,
+                    /(send|write|compose)\s+(email|mail)/i,
+                    /emails? from/i
+                ],
+                examples: ['Check my Gmail', 'Send email to boss', 'Show emails from yesterday']
+            },
+            
+            // Google Calendar (Premium)
+            googleCalendar: {
+                keywords: ['calendar', 'schedule', 'appointment', 'meeting', 'event', 'remind', 'reminder'],
+                patterns: [
+                    /(check|show|get)\s+(my\s+)?(calendar|schedule|appointments|meetings)/i,
+                    /(add|create|schedule)\s+(meeting|appointment|event)/i,
+                    /when (is|do i have|am i)/i,
+                    /(set|create)\s+reminder/i
+                ],
+                examples: ['Check my calendar', 'Schedule meeting for tomorrow', 'When is my next appointment?']
+            },
+            
+            // Google Drive (Premium)
+            googleDrive: {
+                keywords: ['drive', 'file', 'document', 'folder', 'upload', 'download', 'share'],
+                patterns: [
+                    /(find|search|get|show)\s+.*\s+(file|document|folder)/i,
+                    /(upload|save|store).*(drive|document|file)/i,
+                    /google drive/i,
+                    /share (file|document|folder)/i
+                ],
+                examples: ['Find files in my Drive', 'Upload document to Drive', 'Search for Q4 report']
+            },
+            
+            // Flight Tracking (Premium)
+            flightTracking: {
+                keywords: ['flight', 'plane', 'airline', 'airport', 'departure', 'arrival', 'layover'],
+                patterns: [
+                    /flight (status|number|from|to)/i,
+                    /(track|check)\s+flight/i,
+                    /(departure|arrival)\s+time/i,
+                    /(airport|airline)\s+(status|delay)/i
+                ],
+                examples: ['Flight status for AA123', 'Track flight from NYC to LAX', 'Airport delays today']
+            }
+        };
     }
     
-    analyzeMessage(message) {
-        const words = message.toLowerCase()
-            .replace(/[^\w\s]/g, ' ')
-            .split(/\s+/)
-            .filter(word => word.length > 4);
+    detectAPI(message) {
+        const text = message.toLowerCase().trim();
+        const detectedAPIs = [];
         
-        const stopWords = new Set(['about', 'would', 'could', 'should', 'there', 'their', 'which', 'where', 'these', 'those']);
-        
-        const topics = words.filter(word => !stopWords.has(word));
-        
-        topics.forEach(topic => {
-            if (!this.conversationTopics.includes(topic)) {
-                this.conversationTopics.unshift(topic);
-                if (this.conversationTopics.length > this.maxTopics) {
-                    this.conversationTopics.pop();
-                }
+        // Check each API type
+        for (const [apiName, config] of Object.entries(this.apiPatterns)) {
+            // Check patterns first (more specific)
+            const patternMatch = config.patterns.some(pattern => pattern.test(message));
+            
+            // Check keywords (more general)
+            const keywordMatch = config.keywords.some(keyword => 
+                text.includes(keyword.toLowerCase())
+            );
+            
+            if (patternMatch || keywordMatch) {
+                detectedAPIs.push({
+                    api: apiName,
+                    confidence: patternMatch ? 'high' : 'medium',
+                    matchType: patternMatch ? 'pattern' : 'keyword'
+                });
             }
+        }
+        
+        // Sort by confidence
+        detectedAPIs.sort((a, b) => {
+            if (a.confidence === 'high' && b.confidence !== 'high') return -1;
+            if (a.confidence !== 'high' && b.confidence === 'high') return 1;
+            return 0;
         });
         
-        return topics;
+        return detectedAPIs;
     }
     
-    addContext(contextName, metadata = {}) {
-        if (this.activeContexts.size >= this.maxContexts) {
-            const firstKey = this.activeContexts.keys().next().value;
-            this.activeContexts.delete(firstKey);
-        }
-        
-        this.activeContexts.set(contextName, {
-            added: Date.now(),
-            metadata,
-            mentions: 1
-        });
-        
-        console.log('📍 Context added:', contextName);
-        if (window.showNotification) {
-            window.showNotification(`📍 Added context: ${contextName}`, 'success');
-        }
-        
-        this.saveContexts();
+    getBestAPI(message) {
+        const detected = this.detectAPI(message);
+        return detected.length > 0 ? detected[0].api : null;
     }
     
-    removeContext(contextName) {
-        this.activeContexts.delete(contextName);
-        console.log('🗑️ Context removed:', contextName);
-        this.saveContexts();
-    }
-    
-    getActiveContexts() {
-        return Array.from(this.activeContexts.keys());
-    }
-    
-    suggestContext(topic) {
-        const chat = window.chats?.find(c => c.id === window.currentChatId);
-        if (!chat) return;
-        
-        const container = document.getElementById('chatContainer');
-        if (!container) return;
-        
-        const insight = document.createElement('div');
-        insight.className = 'context-insight';
-        
-        const escapedTopic = escapeHtml(topic);
-        const safeTopic = topic.replace(/'/g, "\\'").replace(/"/g, '\\"');
-        
-        insight.innerHTML = `
-            <div class="context-insight-header">
-                <span>💡</span>
-                <span>Context Suggestion</span>
-            </div>
-            <div class="context-insight-text">
-                It looks like you're working on <strong>${escapedTopic}</strong>. Would you like to add this as a context for better tracking?
-            </div>
-            <div class="context-insight-actions">
-                <button class="context-insight-action" onclick="window.contextEngine.addContext('${safeTopic}'); this.closest('.context-insight').remove();">
-                    Add "${escapedTopic}"
-                </button>
-                <button class="context-insight-action" onclick="this.closest('.context-insight').remove();">
-                    No thanks
-                </button>
-            </div>
-        `;
-        
-        container.appendChild(insight);
-        container.scrollTop = container.scrollHeight;
-    }
-    
-    loadChatContext(chatId) {
-        const saved = localStorage.getItem(`crump_context_${chatId}`);
-        if (saved) {
-            try {
-                this.activeContexts = new Map(JSON.parse(saved));
-                console.log('📍 Loaded contexts:', this.getActiveContexts());
-            } catch (e) {
-                console.error('Failed to load contexts:', e);
-            }
-        }
-    }
-    
-    saveContexts() {
-        if (window.currentChatId) {
-            const serialized = JSON.stringify(Array.from(this.activeContexts.entries()));
-            localStorage.setItem(`crump_context_${window.currentChatId}`, serialized);
-        }
+    needsAPI(message) {
+        return this.detectAPI(message).length > 0;
     }
 }
 
 // ==========================================
-// SUGGESTION ENGINE
-// Provides contextual suggestions and tips
-// ==========================================
-class SuggestionEngine {
-    constructor() {
-        this.suggestions = [
-            {
-                trigger: ['code', 'program', 'script', 'function'],
-                suggestion: '💡 Tip: I can help debug code, explain algorithms, or write complete programs in any language.',
-                cooldown: 3600000
-            },
-            {
-                trigger: ['image', 'picture', 'generate', 'create'],
-                suggestion: '🎨 Tip: Try "generate an image of [description]" to create AI artwork!',
-                cooldown: 3600000
-            },
-            {
-                trigger: ['search', 'find', 'look up', 'google'],
-                suggestion: '🔍 Tip: I can search the web for current information. Just ask naturally!',
-                cooldown: 3600000
-            },
-            {
-                trigger: ['remember', 'recall', 'mentioned'],
-                suggestion: '🧠 Tip: I have unlimited memory and remember all our conversations!',
-                cooldown: 7200000
-            }
-        ];
-        
-        this.shownSuggestions = this.loadShownSuggestions();
-        this.cooldownTimers = new Map();
-    }
-    
-    checkAndShowSuggestion(message, chat) {
-        if (!window.contextSuggestionsEnabled) return;
-        
-        const lowerMessage = message.toLowerCase();
-        
-        for (const suggestion of this.suggestions) {
-            const hasMatch = suggestion.trigger.some(trigger => lowerMessage.includes(trigger));
-            
-            if (hasMatch && !this.isOnCooldown(suggestion)) {
-                const suggestionKey = suggestion.suggestion;
-                const lastShown = this.shownSuggestions.get(suggestionKey);
-                
-                if (!lastShown || Date.now() - lastShown > suggestion.cooldown) {
-                    this.showSuggestion(suggestion);
-                    this.markAsShown(suggestionKey);
-                    this.startCooldown(suggestion);
-                    break;
-                }
-            }
-        }
-    }
-    
-    showSuggestion(suggestion) {
-        const container = document.getElementById('chatContainer');
-        if (!container) return;
-        
-        const div = document.createElement('div');
-        div.className = 'context-insight';
-        div.innerHTML = `
-            <div class="context-insight-header">
-                <span>💡</span>
-                <span>Suggestion</span>
-            </div>
-            <div class="context-insight-text">
-                ${escapeHtml(suggestion.suggestion)}
-            </div>
-            <div class="context-insight-actions">
-                <button class="context-insight-action" onclick="this.closest('.context-insight').remove();">
-                    Got it!
-                </button>
-            </div>
-        `;
-        
-        container.appendChild(div);
-        container.scrollTop = container.scrollHeight;
-    }
-    
-    isOnCooldown(suggestion) {
-        return this.cooldownTimers.has(suggestion.suggestion);
-    }
-    
-    startCooldown(suggestion) {
-        const timer = setTimeout(() => {
-            this.cooldownTimers.delete(suggestion.suggestion);
-        }, suggestion.cooldown);
-        
-        this.cooldownTimers.set(suggestion.suggestion, timer);
-    }
-    
-    markAsShown(suggestionKey) {
-        this.shownSuggestions.set(suggestionKey, Date.now());
-        this.saveShownSuggestions();
-    }
-    
-    loadShownSuggestions() {
-        const saved = localStorage.getItem('crump_shown_suggestions');
-        if (saved) {
-            try {
-                return new Map(JSON.parse(saved));
-            } catch (e) {
-                return new Map();
-            }
-        }
-        return new Map();
-    }
-    
-    saveShownSuggestions() {
-        const serialized = JSON.stringify(Array.from(this.shownSuggestions.entries()));
-        localStorage.setItem('crump_shown_suggestions', serialized);
-    }
-}
-
-// ==========================================
-// AUTONOMOUS MESSAGING ENGINE
-// Sends proactive messages based on user activity
-// ==========================================
-class AutonomousEngine {
-    constructor() {
-        this.enabled = false;
-        this.checkInterval = null;
-        this.intervalPresets = {
-            'relaxed': 900000,
-            'balanced': 600000,
-            'active': 300000,
-            'very-active': 180000
-        };
-        this.currentInterval = this.intervalPresets.balanced;
-        this.lastCheck = Date.now();
-        
-        this.messages = [
-            "Still here if you need anything! 😊",
-            "Working on something interesting?",
-            "Need help with anything? I'm ready when you are.",
-            "Just checking in - everything going okay?",
-            "Taking a break? Let me know if you need assistance!",
-            "I'm here whenever you're ready to continue.",
-            "Got any questions? I'm all ears! 👂",
-            "Feel free to ask me anything - I don't bite! 😄"
-        ];
-    }
-    
-    start() {
-        if (this.checkInterval) {
-            clearInterval(this.checkInterval);
-        }
-        
-        this.enabled = true;
-        this.checkInterval = setInterval(() => this.checkActivity(), 30000);
-        console.log('🤖 Autonomous messaging enabled');
-    }
-    
-    stop() {
-        if (this.checkInterval) {
-            clearInterval(this.checkInterval);
-            this.checkInterval = null;
-        }
-        this.enabled = false;
-        console.log('🤖 Autonomous messaging disabled');
-    }
-    
-    checkActivity() {
-        if (!this.enabled || !window.lastUserActivity) return;
-        
-        const timeSinceActivity = Date.now() - window.lastUserActivity;
-        
-        if (timeSinceActivity > this.currentInterval) {
-            this.sendAutonomousMessage();
-            window.lastUserActivity = Date.now();
-        }
-    }
-    
-    sendAutonomousMessage() {
-        const message = this.messages[Math.floor(Math.random() * this.messages.length)];
-        
-        if (window.addMessage) {
-            window.addMessage('assistant', `*[Autonomous Message]*\n\n${message}`);
-            console.log('🤖 Sent autonomous message');
-        }
-    }
-    
-    setIntervalPreset(preset) {
-        if (this.intervalPresets[preset]) {
-            this.currentInterval = this.intervalPresets[preset];
-            console.log(`🤖 Autonomous interval set to: ${preset} (${this.currentInterval}ms)`);
-            
-            if (this.enabled) {
-                this.stop();
-                this.start();
-            }
-        }
-    }
-}
-
-// ==========================================
-// LEARNING ENGINE
-// Learns from user corrections and preferences
+// LEARNING ENGINE (Basic pattern learning)
 // ==========================================
 class LearningEngine {
     constructor() {
         this.corrections = this.loadCorrections();
-        this.preferences = this.loadPreferences();
-        this.performanceMetrics = {
-            totalResponses: 0,
-            corrections: 0,
-            thumbsUp: 0,
-            thumbsDown: 0
-        };
-        this.loadMetrics();
+        this.feedback = this.loadFeedback();
     }
     
-    recordCorrection(originalResponse, correctedResponse, context = '') {
-        const correction = {
-            timestamp: Date.now(),
-            original: originalResponse,
-            corrected: correctedResponse,
-            context: context
-        };
+    recordCorrection(original, corrected) {
+        this.corrections.push({
+            original: original,
+            corrected: corrected,
+            timestamp: Date.now()
+        });
         
-        this.corrections.push(correction);
+        // Keep last 100 corrections
         if (this.corrections.length > 100) {
             this.corrections.shift();
         }
         
         this.saveCorrections();
-        this.updateMetrics('correction');
-        
         console.log('📝 Correction recorded');
-        if (window.showNotification) {
-            window.showNotification('✅ Thanks! I\'ll learn from this.', 'success');
-        }
     }
     
-    recordFeedback(messageIndex, feedbackType) {
-        this.updateMetrics(feedbackType);
+    recordFeedback(messageIndex, type) {
+        this.feedback.push({
+            messageIndex: messageIndex,
+            type: type,
+            timestamp: Date.now()
+        });
         
-        const emoji = feedbackType === 'thumbsUp' ? '👍' : '👎';
-        if (window.showNotification) {
-            window.showNotification(`${emoji} Feedback recorded`, 'success');
-        }
-    }
-    
-    detectCorrectionPattern(userMessage, lastAssistantMessage) {
-        const correctionPhrases = [
-            'no,', 'actually,', 'wrong', 'incorrect', 'not quite',
-            'fix that', 'correction:', 'should be', 'meant to',
-            'not right', 'that\'s wrong', 'you\'re wrong'
-        ];
-        
-        const lowerMessage = userMessage.toLowerCase();
-        const hasCorrection = correctionPhrases.some(phrase => lowerMessage.includes(phrase));
-        
-        return {
-            isCorrection: hasCorrection && lastAssistantMessage,
-            originalResponse: lastAssistantMessage,
-            correctedResponse: userMessage
-        };
-    }
-    
-    updateMetrics(type) {
-        if (type === 'response') {
-            this.performanceMetrics.totalResponses++;
-        } else if (type === 'correction') {
-            this.performanceMetrics.corrections++;
-        } else if (type === 'thumbsUp') {
-            this.performanceMetrics.thumbsUp++;
-        } else if (type === 'thumbsDown') {
-            this.performanceMetrics.thumbsDown++;
+        // Keep last 100 feedback items
+        if (this.feedback.length > 100) {
+            this.feedback.shift();
         }
         
-        this.saveMetrics();
-    }
-    
-    getAccuracyScore() {
-        const total = this.performanceMetrics.thumbsUp + this.performanceMetrics.thumbsDown;
-        if (total === 0) return 100;
-        return Math.round((this.performanceMetrics.thumbsUp / total) * 100);
-    }
-    
-    getProactiveTrainingRequest() {
-        if (Math.random() < 0.3) {
-            const requests = [
-                "By the way, if I ever make a mistake, just correct me directly - I learn from it! 📝",
-                "Feel free to give me feedback (👍/👎) on my responses - it helps me improve!",
-                "If something I said wasn't quite right, let me know - I want to get better! 🎯"
-            ];
-            return requests[Math.floor(Math.random() * requests.length)];
-        }
-        return null;
+        this.saveFeedback();
+        console.log('👍 Feedback recorded:', type);
     }
     
     loadCorrections() {
-        const saved = localStorage.getItem('crump_corrections');
-        return saved ? JSON.parse(saved) : [];
+        try {
+            const saved = localStorage.getItem('crump_corrections');
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            return [];
+        }
     }
     
     saveCorrections() {
         localStorage.setItem('crump_corrections', JSON.stringify(this.corrections));
     }
     
-    loadPreferences() {
-        const saved = localStorage.getItem('crump_user_preferences');
-        return saved ? JSON.parse(saved) : {};
-    }
-    
-    savePreferences() {
-        localStorage.setItem('crump_user_preferences', JSON.stringify(this.preferences));
-    }
-    
-    loadMetrics() {
-        const saved = localStorage.getItem('crump_performance_metrics');
-        if (saved) {
-            Object.assign(this.performanceMetrics, JSON.parse(saved));
+    loadFeedback() {
+        try {
+            const saved = localStorage.getItem('crump_feedback');
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            return [];
         }
     }
     
-    saveMetrics() {
-        localStorage.setItem('crump_performance_metrics', JSON.stringify(this.performanceMetrics));
+    saveFeedback() {
+        localStorage.setItem('crump_feedback', JSON.stringify(this.feedback));
     }
 }
 
 // ==========================================
-// EXPORT TO WINDOW
+// EXPORTS
 // ==========================================
 window.MessageDeduplicator = MessageDeduplicator;
-window.SearchDetectionEngine = SearchDetectionEngine; // NEW!
-window.ContextAwarenessEngine = ContextAwarenessEngine;
-window.SuggestionEngine = SuggestionEngine;
-window.AutonomousEngine = AutonomousEngine;
+window.ImageGenerationDetector = ImageGenerationDetector;
+window.SearchDetectionEngine = SearchDetectionEngine;
+window.APIDetectionEngine = APIDetectionEngine;
 window.LearningEngine = LearningEngine;
-window.escapeHtml = escapeHtml;
 
-console.log('✅ Engines v3.0 loaded - Search Detection Engine added');
+// Create global instances
+window.messageDeduplicator = new MessageDeduplicator();
+window.imageGenerationDetector = new ImageGenerationDetector();
+window.searchDetectionEngine = new SearchDetectionEngine();
+window.apiDetectionEngine = new APIDetectionEngine();
+window.learningEngine = new LearningEngine();
+
+// Helper functions for backward compatibility
+window.shouldGenerateImage = function(message) {
+    return window.imageGenerationDetector.shouldGenerateImage(message);
+};
+
+console.log('✅ Detection Engines v3.1.0 loaded');
+console.log('🧠 APIs supported:', Object.keys(window.apiDetectionEngine.apiPatterns).length);
