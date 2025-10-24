@@ -1,6 +1,6 @@
 // ==========================================
-// CRUMP AI - ENGINES v2.12.1
-// Core intelligence engines with memory leak fixes
+// CRUMP AI - ENGINES v3.0
+// Core intelligence engines + NEW Search Detection
 // ==========================================
 
 // ==========================================
@@ -21,7 +21,6 @@ class MessageDeduplicator {
         this.recentMessages = new Map();
         this.windowMs = windowMs;
         
-        // CRITICAL FIX: Periodic cleanup to prevent memory leak
         this.cleanupInterval = setInterval(() => {
             const now = Date.now();
             for (let [key, timestamp] of this.recentMessages) {
@@ -30,11 +29,10 @@ class MessageDeduplicator {
                 }
             }
             
-            // Log warning if Map grows too large
             if (this.recentMessages.size > 100) {
                 console.warn('⚠️ MessageDeduplicator has', this.recentMessages.size, 'entries - cleaning up');
             }
-        }, 5000); // Cleanup every 5 seconds
+        }, 5000);
         
         console.log('✅ MessageDeduplicator initialized with auto-cleanup');
     }
@@ -56,17 +54,15 @@ class MessageDeduplicator {
     }
     
     hashMessage(message) {
-        // Simple hash function
         let hash = 0;
         for (let i = 0; i < message.length; i++) {
             const char = message.charCodeAt(i);
             hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; // Convert to 32bit integer
+            hash = hash & hash;
         }
         return hash.toString();
     }
     
-    // Cleanup method for proper disposal
     destroy() {
         if (this.cleanupInterval) {
             clearInterval(this.cleanupInterval);
@@ -78,6 +74,225 @@ class MessageDeduplicator {
     
     clear() {
         this.recentMessages.clear();
+    }
+}
+
+// ==========================================
+// SEARCH DETECTION ENGINE (NEW!)
+// Intelligent detection of queries needing web search
+// ==========================================
+class SearchDetectionEngine {
+    constructor() {
+        this.patterns = {
+            // Explicit search requests
+            explicit: [
+                /search for/i,
+                /look up/i,
+                /find out about/i,
+                /google/i,
+                /what.*happening/i
+            ],
+            
+            // Temporal indicators (current/recent info)
+            temporal: [
+                /today/i,
+                /tonight/i,
+                /this week/i,
+                /this weekend/i,
+                /this month/i,
+                /this year/i,
+                /currently/i,
+                /current/i,
+                /latest/i,
+                /recent/i,
+                /now/i,
+                /right now/i,
+                /at the moment/i
+            ],
+            
+            // Question words suggesting current events
+            currentEvents: [
+                /who (is|are|won|will win|leading)/i,
+                /what (is|are|happened|happening)/i,
+                /when (is|are|will)/i,
+                /where (is|are)/i,
+                /how much (is|are|cost)/i
+            ],
+            
+            // Sports queries
+            sports: [
+                /\b(nfl|nba|mlb|nhl|fifa|premier league|champions league)\b/i,
+                /\b(game|match|score|playoff|championship|tournament)\b/i,
+                /who (won|will win|is winning|is playing)/i,
+                /\b(team|teams) (play|playing|won|lost)/i
+            ],
+            
+            // Weather queries
+            weather: [
+                /weather/i,
+                /temperature/i,
+                /forecast/i,
+                /rain/i,
+                /snow/i,
+                /storm/i
+            ],
+            
+            // News queries
+            news: [
+                /news about/i,
+                /breaking news/i,
+                /headlines/i,
+                /what.*news/i
+            ],
+            
+            // Stock/finance queries
+            finance: [
+                /stock price/i,
+                /\b(stock|stocks|market|markets)\b/i,
+                /\b(nasdaq|dow|s&p)\b/i,
+                /share price/i
+            ],
+            
+            // Technology/product queries
+            tech: [
+                /latest (version|release|update)/i,
+                /new (iphone|android|windows|mac)/i,
+                /specs for/i,
+                /price of.*\d{4}/i // "price of iPhone 16" etc
+            ]
+        };
+        
+        // Blacklist - never search for these
+        this.blacklist = [
+            /how (do|can) i/i,  // "How do I..." = instructions
+            /explain/i,          // "Explain..." = concept explanation
+            /what (is|are) the (difference|meaning)/i,  // Definitions
+            /tell me about (yourself|you|your)/i,       // About the assistant
+            /help me (with|understand)/i                // Help requests
+        ];
+        
+        console.log('✅ Search Detection Engine initialized');
+    }
+    
+    shouldSearch(message) {
+        if (!message || typeof message !== 'string') return false;
+        
+        const lowerMessage = message.toLowerCase().trim();
+        
+        // Check blacklist first
+        for (const pattern of this.blacklist) {
+            if (pattern.test(message)) {
+                console.log('🚫 Blacklisted query pattern - no search');
+                return false;
+            }
+        }
+        
+        // Check each category
+        let score = 0;
+        let reasons = [];
+        
+        // Explicit search requests = instant trigger
+        for (const pattern of this.patterns.explicit) {
+            if (pattern.test(message)) {
+                console.log('🔍 Explicit search request detected');
+                return true;
+            }
+        }
+        
+        // Temporal indicators
+        for (const pattern of this.patterns.temporal) {
+            if (pattern.test(message)) {
+                score += 2;
+                reasons.push('temporal');
+                break;
+            }
+        }
+        
+        // Current events question structure
+        for (const pattern of this.patterns.currentEvents) {
+            if (pattern.test(message)) {
+                score += 2;
+                reasons.push('current-events');
+                break;
+            }
+        }
+        
+        // Sports
+        for (const pattern of this.patterns.sports) {
+            if (pattern.test(message)) {
+                score += 2;
+                reasons.push('sports');
+                break;
+            }
+        }
+        
+        // Weather
+        for (const pattern of this.patterns.weather) {
+            if (pattern.test(message)) {
+                score += 3; // Weather almost always needs search
+                reasons.push('weather');
+                break;
+            }
+        }
+        
+        // News
+        for (const pattern of this.patterns.news) {
+            if (pattern.test(message)) {
+                score += 3;
+                reasons.push('news');
+                break;
+            }
+        }
+        
+        // Finance
+        for (const pattern of this.patterns.finance) {
+            if (pattern.test(message)) {
+                score += 2;
+                reasons.push('finance');
+                break;
+            }
+        }
+        
+        // Tech
+        for (const pattern of this.patterns.tech) {
+            if (pattern.test(message)) {
+                score += 2;
+                reasons.push('tech');
+                break;
+            }
+        }
+        
+        // Decision threshold
+        const shouldSearch = score >= 2;
+        
+        if (shouldSearch) {
+            console.log(`🔍 Search triggered (score: ${score}, reasons: ${reasons.join(', ')})`);
+        } else {
+            console.log(`📚 No search needed (score: ${score})`);
+        }
+        
+        return shouldSearch;
+    }
+    
+    // For testing/debugging
+    analyzeQuery(message) {
+        const result = {
+            shouldSearch: this.shouldSearch(message),
+            message: message,
+            patterns: []
+        };
+        
+        // Check which patterns matched
+        for (const [category, patterns] of Object.entries(this.patterns)) {
+            for (const pattern of patterns) {
+                if (pattern.test(message)) {
+                    result.patterns.push(category);
+                    break;
+                }
+            }
+        }
+        
+        return result;
     }
 }
 
@@ -94,18 +309,15 @@ class ContextAwarenessEngine {
     }
     
     analyzeMessage(message) {
-        // Extract potential topics (basic NLP)
         const words = message.toLowerCase()
             .replace(/[^\w\s]/g, ' ')
             .split(/\s+/)
             .filter(word => word.length > 4);
         
-        // Common words to ignore
         const stopWords = new Set(['about', 'would', 'could', 'should', 'there', 'their', 'which', 'where', 'these', 'those']);
         
         const topics = words.filter(word => !stopWords.has(word));
         
-        // Add to recent topics
         topics.forEach(topic => {
             if (!this.conversationTopics.includes(topic)) {
                 this.conversationTopics.unshift(topic);
@@ -131,7 +343,9 @@ class ContextAwarenessEngine {
         });
         
         console.log('📍 Context added:', contextName);
-        window.showNotification(`📍 Added context: ${contextName}`, 'success');
+        if (window.showNotification) {
+            window.showNotification(`📍 Added context: ${contextName}`, 'success');
+        }
         
         this.saveContexts();
     }
@@ -147,14 +361,15 @@ class ContextAwarenessEngine {
     }
     
     suggestContext(topic) {
-        const chat = window.chats.find(c => c.id === window.currentChatId);
+        const chat = window.chats?.find(c => c.id === window.currentChatId);
         if (!chat) return;
         
         const container = document.getElementById('chatContainer');
+        if (!container) return;
+        
         const insight = document.createElement('div');
         insight.className = 'context-insight';
         
-        // SECURITY FIX: Proper XSS protection
         const escapedTopic = escapeHtml(topic);
         const safeTopic = topic.replace(/'/g, "\\'").replace(/"/g, '\\"');
         
@@ -210,7 +425,7 @@ class SuggestionEngine {
             {
                 trigger: ['code', 'program', 'script', 'function'],
                 suggestion: '💡 Tip: I can help debug code, explain algorithms, or write complete programs in any language.',
-                cooldown: 3600000 // 1 hour
+                cooldown: 3600000
             },
             {
                 trigger: ['image', 'picture', 'generate', 'create'],
@@ -239,11 +454,9 @@ class SuggestionEngine {
         const lowerMessage = message.toLowerCase();
         
         for (const suggestion of this.suggestions) {
-            // Check if any trigger word is in message
             const hasMatch = suggestion.trigger.some(trigger => lowerMessage.includes(trigger));
             
             if (hasMatch && !this.isOnCooldown(suggestion)) {
-                // Don't show if recently shown
                 const suggestionKey = suggestion.suggestion;
                 const lastShown = this.shownSuggestions.get(suggestionKey);
                 
@@ -259,6 +472,8 @@ class SuggestionEngine {
     
     showSuggestion(suggestion) {
         const container = document.getElementById('chatContainer');
+        if (!container) return;
+        
         const div = document.createElement('div');
         div.className = 'context-insight';
         div.innerHTML = `
@@ -298,7 +513,7 @@ class SuggestionEngine {
     }
     
     loadShownSuggestions() {
-        const saved = localStorage.getItem(window.STORAGE_KEYS.SHOWN_SUGGESTIONS);
+        const saved = localStorage.getItem('crump_shown_suggestions');
         if (saved) {
             try {
                 return new Map(JSON.parse(saved));
@@ -311,7 +526,7 @@ class SuggestionEngine {
     
     saveShownSuggestions() {
         const serialized = JSON.stringify(Array.from(this.shownSuggestions.entries()));
-        localStorage.setItem(window.STORAGE_KEYS.SHOWN_SUGGESTIONS, serialized);
+        localStorage.setItem('crump_shown_suggestions', serialized);
     }
 }
 
@@ -324,10 +539,10 @@ class AutonomousEngine {
         this.enabled = false;
         this.checkInterval = null;
         this.intervalPresets = {
-            'relaxed': 900000,      // 15 minutes
-            'balanced': 600000,     // 10 minutes
-            'active': 300000,       // 5 minutes
-            'very-active': 180000   // 3 minutes
+            'relaxed': 900000,
+            'balanced': 600000,
+            'active': 300000,
+            'very-active': 180000
         };
         this.currentInterval = this.intervalPresets.balanced;
         this.lastCheck = Date.now();
@@ -350,7 +565,7 @@ class AutonomousEngine {
         }
         
         this.enabled = true;
-        this.checkInterval = setInterval(() => this.checkActivity(), 30000); // Check every 30s
+        this.checkInterval = setInterval(() => this.checkActivity(), 30000);
         console.log('🤖 Autonomous messaging enabled');
     }
     
@@ -370,7 +585,7 @@ class AutonomousEngine {
         
         if (timeSinceActivity > this.currentInterval) {
             this.sendAutonomousMessage();
-            window.lastUserActivity = Date.now(); // Reset timer
+            window.lastUserActivity = Date.now();
         }
     }
     
@@ -388,7 +603,6 @@ class AutonomousEngine {
             this.currentInterval = this.intervalPresets[preset];
             console.log(`🤖 Autonomous interval set to: ${preset} (${this.currentInterval}ms)`);
             
-            // Restart with new interval if already running
             if (this.enabled) {
                 this.stop();
                 this.start();
@@ -431,14 +645,18 @@ class LearningEngine {
         this.updateMetrics('correction');
         
         console.log('📝 Correction recorded');
-        window.showNotification('✅ Thanks! I\'ll learn from this.', 'success');
+        if (window.showNotification) {
+            window.showNotification('✅ Thanks! I\'ll learn from this.', 'success');
+        }
     }
     
     recordFeedback(messageIndex, feedbackType) {
         this.updateMetrics(feedbackType);
         
         const emoji = feedbackType === 'thumbsUp' ? '👍' : '👎';
-        window.showNotification(`${emoji} Feedback recorded`, 'success');
+        if (window.showNotification) {
+            window.showNotification(`${emoji} Feedback recorded`, 'success');
+        }
     }
     
     detectCorrectionPattern(userMessage, lastAssistantMessage) {
@@ -491,32 +709,32 @@ class LearningEngine {
     }
     
     loadCorrections() {
-        const saved = localStorage.getItem(window.STORAGE_KEYS.CORRECTIONS);
+        const saved = localStorage.getItem('crump_corrections');
         return saved ? JSON.parse(saved) : [];
     }
     
     saveCorrections() {
-        localStorage.setItem(window.STORAGE_KEYS.CORRECTIONS, JSON.stringify(this.corrections));
+        localStorage.setItem('crump_corrections', JSON.stringify(this.corrections));
     }
     
     loadPreferences() {
-        const saved = localStorage.getItem(window.STORAGE_KEYS.USER_PREFERENCES);
+        const saved = localStorage.getItem('crump_user_preferences');
         return saved ? JSON.parse(saved) : {};
     }
     
     savePreferences() {
-        localStorage.setItem(window.STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(this.preferences));
+        localStorage.setItem('crump_user_preferences', JSON.stringify(this.preferences));
     }
     
     loadMetrics() {
-        const saved = localStorage.getItem(window.STORAGE_KEYS.PERFORMANCE_METRICS);
+        const saved = localStorage.getItem('crump_performance_metrics');
         if (saved) {
             Object.assign(this.performanceMetrics, JSON.parse(saved));
         }
     }
     
     saveMetrics() {
-        localStorage.setItem(window.STORAGE_KEYS.PERFORMANCE_METRICS, JSON.stringify(this.performanceMetrics));
+        localStorage.setItem('crump_performance_metrics', JSON.stringify(this.performanceMetrics));
     }
 }
 
@@ -524,10 +742,11 @@ class LearningEngine {
 // EXPORT TO WINDOW
 // ==========================================
 window.MessageDeduplicator = MessageDeduplicator;
+window.SearchDetectionEngine = SearchDetectionEngine; // NEW!
 window.ContextAwarenessEngine = ContextAwarenessEngine;
 window.SuggestionEngine = SuggestionEngine;
 window.AutonomousEngine = AutonomousEngine;
 window.LearningEngine = LearningEngine;
 window.escapeHtml = escapeHtml;
 
-console.log('✅ Engines v2.12.1 loaded - Memory leak fixes applied');
+console.log('✅ Engines v3.0 loaded - Search Detection Engine added');
