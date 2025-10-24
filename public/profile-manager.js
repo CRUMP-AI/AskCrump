@@ -1,6 +1,6 @@
 // ==========================================
-// CRUMP AI - USER PROFILE MANAGER v2.12.1
-// Tier management, usage tracking, and limits
+// CRUMP AI - USER PROFILE MANAGER v3.0
+// Fixed: incrementUsage() method compatibility
 // ==========================================
 
 class UserProfileManager {
@@ -32,16 +32,16 @@ class UserProfileManager {
                 name: 'Premium',
                 icon: '👑',
                 limits: {
-                    messages: -1, // Unlimited
+                    messages: -1,
                     images: 500,
-                    searches: -1  // Unlimited
+                    searches: -1
                 },
                 features: ['Everything in Pro', 'Unlimited messages & searches', 'Extended memory', 'Custom themes', 'API access', 'Priority support']
             }
         };
         
         this.initializeProfile();
-        console.log('👤 ProfileManager initialized:', this.getTierInfo());
+        console.log('👤 ProfileManager v3.0 initialized:', this.getTierInfo());
     }
     
     initializeProfile() {
@@ -65,7 +65,6 @@ class UserProfileManager {
     // ==========================================
     
     updateProfile(updates) {
-        // VALIDATION FIX: Proper input validation
         if (updates.name !== undefined) {
             if (typeof updates.name === 'string' && updates.name.length > 0 && updates.name.length <= 100) {
                 this.profile.name = updates.name.trim();
@@ -91,7 +90,6 @@ class UserProfileManager {
         }
         
         if (updates.avatar !== undefined) {
-            // Validate avatar is a data URL or null
             if (updates.avatar === null || updates.avatar.startsWith('data:image/')) {
                 this.profile.avatar = updates.avatar;
             } else {
@@ -164,9 +162,10 @@ class UserProfileManager {
     }
     
     // ==========================================
-    // USAGE TRACKING
+    // USAGE TRACKING (FIXED METHODS)
     // ==========================================
     
+    // NEW: Individual increment methods (preferred)
     incrementMessageUsage() {
         this.ensureCurrentMonth();
         this.usage.messages++;
@@ -182,6 +181,21 @@ class UserProfileManager {
     incrementSearchUsage() {
         this.ensureCurrentMonth();
         this.usage.searches++;
+        this.saveUsage();
+    }
+    
+    // NEW: Legacy compatibility method for app.js
+    incrementUsage(type, count = 1) {
+        this.ensureCurrentMonth();
+        
+        if (type === 'messages') {
+            this.usage.messages += count;
+        } else if (type === 'images') {
+            this.usage.images += count;
+        } else if (type === 'searches') {
+            this.usage.searches += count;
+        }
+        
         this.saveUsage();
     }
     
@@ -234,12 +248,10 @@ class UserProfileManager {
         const limits = this.tiers[tier].limits;
         const usage = this.getUsage();
         
-        // Unlimited
         if (limits.messages === -1) {
             return { allowed: true };
         }
         
-        // Check limit
         if (usage.messages >= limits.messages) {
             return {
                 allowed: false,
@@ -248,7 +260,6 @@ class UserProfileManager {
             };
         }
         
-        // Warning at 90%
         const percentage = (usage.messages / limits.messages) * 100;
         if (percentage >= 90) {
             return {
@@ -265,12 +276,10 @@ class UserProfileManager {
         const limits = this.tiers[tier].limits;
         const usage = this.getUsage();
         
-        // Unlimited
         if (limits.images === -1) {
             return { allowed: true };
         }
         
-        // Check limit
         if (usage.images >= limits.images) {
             return {
                 allowed: false,
@@ -279,7 +288,6 @@ class UserProfileManager {
             };
         }
         
-        // Warning at 90%
         const percentage = (usage.images / limits.images) * 100;
         if (percentage >= 90) {
             return {
@@ -296,12 +304,10 @@ class UserProfileManager {
         const limits = this.tiers[tier].limits;
         const usage = this.getUsage();
         
-        // Unlimited
         if (limits.searches === -1) {
             return { allowed: true };
         }
         
-        // Check limit
         if (usage.searches >= limits.searches) {
             return {
                 allowed: false,
@@ -310,7 +316,6 @@ class UserProfileManager {
             };
         }
         
-        // Warning at 90%
         const percentage = (usage.searches / limits.searches) * 100;
         if (percentage >= 90) {
             return {
@@ -405,4 +410,4 @@ class UserProfileManager {
 // ==========================================
 window.UserProfileManager = UserProfileManager;
 
-console.log('✅ ProfileManager v2.12.1 loaded - Validation fixes applied');
+console.log('✅ ProfileManager v3.0 loaded - Usage tracking fixed');
