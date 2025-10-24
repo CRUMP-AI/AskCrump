@@ -1,8 +1,5 @@
 {
   "version": 2,
-  "buildCommand": "echo 'No build needed - static files'",
-  "outputDirectory": "public",
-  "framework": null,
   "functions": {
     "api/**/*.js": {
       "maxDuration": 60,
@@ -73,19 +70,6 @@
           "value": "no-store, no-cache, must-revalidate"
         }
       ]
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "/api/:path*"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/.*",
-      "dest": "/api/$1",
-      "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
     }
   ]
 }
