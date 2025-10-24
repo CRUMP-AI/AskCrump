@@ -1,19 +1,189 @@
 // ==========================================
-// CRUMP AI - DEVELOPER MODE v3.0
-// Secret bypass for development/testing
+// CRUMP AI - DEVELOPER LOGIN v3.0
+// Professional admin access system
 // ==========================================
 
 class DeveloperMode {
     constructor() {
         this.enabled = this.loadDevMode();
-        this.secretCode = 'CRUMP-DEV-2025';
+        this.credentials = {
+            username: 'greg@crumpai.com',
+            password: 'N2-Engine-2025'
+        };
         
         if (this.enabled) {
             this.activate();
         }
         
-        this.setupKeyboardShortcut();
-        console.log('🔧 Developer Mode ready (Ctrl+Shift+D to toggle)');
+        this.setupDevLoginButton();
+        console.log('🔧 Developer Login ready');
+    }
+    
+    // ==========================================
+    // LOGIN UI
+    // ==========================================
+    
+    setupDevLoginButton() {
+        // Add hidden developer login button to sidebar footer
+        const sidebarFooter = document.querySelector('.sidebar-footer');
+        if (sidebarFooter) {
+            const devLoginBtn = document.createElement('button');
+            devLoginBtn.className = 'sidebar-footer-btn dev-login-trigger';
+            devLoginBtn.style.cssText = 'opacity: 0.3; transition: opacity 0.2s;';
+            devLoginBtn.innerHTML = `
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                <span>Developer Access</span>
+            `;
+            devLoginBtn.onmouseover = () => devLoginBtn.style.opacity = '1';
+            devLoginBtn.onmouseout = () => devLoginBtn.style.opacity = '0.3';
+            devLoginBtn.onclick = () => this.showLoginModal();
+            
+            // Insert before the tier badge
+            const tierBadge = document.getElementById('tierBadge');
+            if (tierBadge) {
+                sidebarFooter.insertBefore(devLoginBtn, tierBadge);
+            }
+        }
+    }
+    
+    showLoginModal() {
+        // Remove existing modal if any
+        const existing = document.getElementById('devLoginModal');
+        if (existing) existing.remove();
+        
+        const modal = document.createElement('div');
+        modal.id = 'devLoginModal';
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 400px;">
+                <div class="modal-header">
+                    <h2>🔐 Developer Access</h2>
+                    <button class="btn-icon" onclick="document.getElementById('devLoginModal').remove()" aria-label="Close">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="modal-body">
+                    <p style="color: var(--color-text-secondary); margin-bottom: 1.5rem; font-size: 0.875rem;">
+                        Enter your developer credentials to unlock all features
+                    </p>
+                    
+                    <div class="form-group">
+                        <label for="devUsername">Username</label>
+                        <input type="text" id="devUsername" class="form-input" placeholder="developer@crumpai.com" autocomplete="username">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="devPassword">Password</label>
+                        <input type="password" id="devPassword" class="form-input" placeholder="Enter password" autocomplete="current-password">
+                    </div>
+                    
+                    <div id="devLoginError" style="display: none; color: var(--color-error); font-size: 0.875rem; margin-bottom: 1rem; padding: 0.5rem; background: rgba(220, 38, 38, 0.1); border-radius: 6px;">
+                    </div>
+                    
+                    <button id="devLoginBtn" class="btn btn-primary btn-block btn-large" onclick="window.developerMode.attemptLogin()">
+                        Sign In
+                    </button>
+                    
+                    ${this.enabled ? `
+                        <button class="btn btn-secondary btn-block" style="margin-top: 0.5rem;" onclick="window.developerMode.logout()">
+                            Logout
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Focus username field
+        setTimeout(() => document.getElementById('devUsername')?.focus(), 100);
+        
+        // Enable Enter key
+        const form = modal.querySelector('.modal-body');
+        form.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.attemptLogin();
+            }
+        });
+    }
+    
+    attemptLogin() {
+        const username = document.getElementById('devUsername')?.value.trim();
+        const password = document.getElementById('devPassword')?.value;
+        const errorDiv = document.getElementById('devLoginError');
+        const loginBtn = document.getElementById('devLoginBtn');
+        
+        if (!username || !password) {
+            this.showError('Please enter both username and password');
+            return;
+        }
+        
+        // Disable button during check
+        if (loginBtn) {
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Signing in...';
+        }
+        
+        // Simulate checking (you could add a small delay for realism)
+        setTimeout(() => {
+            if (username === this.credentials.username && password === this.credentials.password) {
+                // Success!
+                this.activate();
+                document.getElementById('devLoginModal')?.remove();
+                
+                if (window.showNotification) {
+                    window.showNotification('👨‍💻 Developer Access Granted', 'success');
+                }
+                
+                // Reload to apply unlimited features
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                // Failed
+                this.showError('Invalid credentials. Please try again.');
+                
+                if (loginBtn) {
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = 'Sign In';
+                }
+                
+                // Clear password field
+                const passwordInput = document.getElementById('devPassword');
+                if (passwordInput) {
+                    passwordInput.value = '';
+                    passwordInput.focus();
+                }
+            }
+        }, 500);
+    }
+    
+    showError(message) {
+        const errorDiv = document.getElementById('devLoginError');
+        if (errorDiv) {
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+    }
+    
+    logout() {
+        this.deactivate();
+        document.getElementById('devLoginModal')?.remove();
+        
+        if (window.showNotification) {
+            window.showNotification('👋 Logged out (Reload to apply)', 'info');
+        }
+        
+        setTimeout(() => window.location.reload(), 1500);
     }
     
     // ==========================================
@@ -25,8 +195,6 @@ class DeveloperMode {
         
         // Override profile manager to give unlimited access
         if (window.profileManager) {
-            const originalGetTier = window.profileManager.getTier.bind(window.profileManager);
-            
             window.profileManager.getTier = function() {
                 return 'developer';
             };
@@ -62,58 +230,12 @@ class DeveloperMode {
         this.enabled = true;
         this.saveDevMode();
         this.updateUI();
-        
-        if (window.showNotification) {
-            window.showNotification('👨‍💻 Developer Mode: ACTIVATED', 'success');
-        }
     }
     
     deactivate() {
         console.log('👨‍💻 DEVELOPER MODE DEACTIVATED');
-        
         this.enabled = false;
         this.saveDevMode();
-        
-        if (window.showNotification) {
-            window.showNotification('👨‍💻 Developer Mode: DEACTIVATED (Reload to apply)', 'info');
-        }
-        
-        // Reload to restore normal functions
-        setTimeout(() => window.location.reload(), 1500);
-    }
-    
-    toggle() {
-        if (this.enabled) {
-            this.deactivate();
-        } else {
-            this.activate();
-        }
-    }
-    
-    // ==========================================
-    // KEYBOARD SHORTCUT
-    // ==========================================
-    
-    setupKeyboardShortcut() {
-        document.addEventListener('keydown', (e) => {
-            // Ctrl+Shift+D (or Cmd+Shift+D on Mac)
-            if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'D') {
-                e.preventDefault();
-                this.showActivationPrompt();
-            }
-        });
-    }
-    
-    showActivationPrompt() {
-        const code = prompt('🔐 Enter Developer Access Code:');
-        
-        if (code === this.secretCode) {
-            this.toggle();
-        } else if (code !== null) {
-            if (window.showNotification) {
-                window.showNotification('❌ Invalid access code', 'error');
-            }
-        }
     }
     
     // ==========================================
@@ -177,6 +299,6 @@ window.developerMode = new DeveloperMode();
 // Export
 window.DeveloperMode = DeveloperMode;
 
-console.log('✅ Developer Mode v3.0 loaded');
-console.log('💡 Press Ctrl+Shift+D to toggle');
-console.log('🔐 Access Code: CRUMP-DEV-2025');
+console.log('✅ Developer Login v3.0 loaded');
+console.log('🔐 Username: greg@crumpai.com');
+console.log('🔐 Password: N2-Engine-2025');
