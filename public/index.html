@@ -94,17 +94,14 @@
             </div>
             
             <div class="sidebar-footer">
-                <button id="settingsBtn" class="sidebar-footer-btn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3m15.4 6.4l-4.2-4.2m-6 0l-4.2 4.2M20.6 3.6L16.4 7.8m-6 0L6.2 3.6"></path>
-                    </svg>
+                <button id="settingsBtn" class="sidebar-footer-btn" onclick="openSettings()">
+                    <span style="font-size: 20px;">⚙️</span>
                     <span>Settings</span>
                 </button>
                 
                 <div class="sidebar-divider"></div>
                 
-                <button id="tierBadge" class="sidebar-footer-btn tier-info">
+                <button id="tierBadge" class="sidebar-footer-btn tier-info" onclick="showUpgradePrompt()">
                     <div>
                         <span class="tier-label">Plan</span>
                         <span id="tierName" class="tier-name">Free</span>
@@ -144,7 +141,7 @@
                     <img src="/assets/logo-c.png" alt="C" class="header-logo-icon">
                     <h1 class="header-logo">Crump</h1>
                 </div>
-                <button id="headerTierBadge" class="tier-badge-compact">
+                <button id="headerTierBadge" class="tier-badge-compact" onclick="showUpgradePrompt()">
                     <span id="headerTierName">Free</span>
                 </button>
             </header>
