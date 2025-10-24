@@ -1,9 +1,8 @@
 /* ============================================
-   CRUMP AI - SMART IMAGE GENERATION v2.15.1
-   Context-aware with minimal false positives
+   CRUMP AI - SMART IMAGE GENERATION v3.0
+   Fixed: "another" sensitivity + better blacklist
    ============================================ */
 
-// Track conversation state
 window.imageGenerationState = {
     lastResponseWasImage: false,
     lastImagePrompt: null,
@@ -12,7 +11,7 @@ window.imageGenerationState = {
 };
 
 // ==========================================
-// SMART IMAGE DETECTION (FIXED - Much Less Sensitive)
+// SMART IMAGE DETECTION (FIXED)
 // ==========================================
 window.shouldGenerateImage = function(message) {
     if (!message || typeof message !== 'string') return false;
@@ -22,9 +21,10 @@ window.shouldGenerateImage = function(message) {
     // 1. FOLLOW-UP DETECTION (if last response was an image)
     if (window.imageGenerationState.lastResponseWasImage) {
         const followUpPhrases = [
-            'try again', 'another one', 'different one', 'one more', 'another', 
-            'different', 'new one', 'remake', 'redo', 'change it', 'modify it',
-            'adjust it', 'tweak it', 'make it', 'more like', 'but with'
+            'try again', 'another image', 'another picture', 'different image', 
+            'different picture', 'one more image', 'new image', 'remake', 'redo', 
+            'change it', 'modify it', 'adjust it', 'tweak it', 'make it', 
+            'more like', 'but with', 'similar but'
         ];
         
         for (const phrase of followUpPhrases) {
@@ -42,13 +42,29 @@ window.shouldGenerateImage = function(message) {
         }
     }
     
-    // 2. CONTEXT BLACKLIST (never trigger on these contexts) - CHECK FIRST
+    // 2. CONTEXT BLACKLIST - EXPANDED (never trigger on these contexts)
     const blacklistContexts = [
+        // Technical/debugging
         'bug', 'error', 'issue', 'problem', 'fix', 'debug', 'test', 'testing',
-        'example', 'instance', 'case', 'scenario', 'situation',
+        
+        // Analysis/discussion
+        'example', 'instance', 'case', 'scenario', 'situation', 
         'think', 'maybe', 'perhaps', 'might', 'could be', 'probably',
+        
+        // File upload indicators
+        'can you see', 'do you see', 'look at', 'view', 'analyze', 
+        'check', 'inspect', 'uploaded', 'attached', 'sent you',
+        
+        // Questions/explanations
+        'why', 'how', 'what does', 'explain', 'describe',
+        
+        // UI/code references
         'word', 'causing', 'certain', 'moment', 'startup', 'splash',
-        'logo for you', 'i want to', 'come up with', 'describe'
+        'logo for you', 'i want to', 'come up with',
+        
+        // Conversation meta
+        'another bug', 'another problem', 'another issue', 'another question',
+        'another error', 'another test'
     ];
     
     for (const context of blacklistContexts) {
@@ -60,7 +76,7 @@ window.shouldGenerateImage = function(message) {
     
     // 3. EXPLICIT MULTI-WORD PATTERNS (must have BOTH action AND image type)
     const actionWords = ['generate', 'create', 'make', 'draw', 'design', 'produce', 'show me'];
-    const imageWords = ['image', 'picture', 'photo', 'illustration', 'logo', 'icon', 'banner', 'graphic', 'artwork'];
+    const imageWords = ['image', 'picture', 'photo', 'illustration', 'logo', 'icon', 'banner', 'graphic', 'artwork', 'visual'];
     
     let hasAction = false;
     let hasImageWord = false;
@@ -124,11 +140,25 @@ window.shouldGenerateImage = function(message) {
 };
 
 // ==========================================
-// IMAGE GENERATION HANDLER (LESS VERBOSE)
+// IMAGE GENERATION HANDLER
 // ==========================================
 window.handleImageGeneration = async function(userMessage) {
     try {
         console.log('🎨 Generating image for:', userMessage);
+        
+        // Check usage limits
+        if (window.currentProfile) {
+            const canGenerate = window.currentProfile.canGenerateImage();
+            if (!canGenerate.allowed) {
+                if (window.showToast) {
+                    window.showToast(canGenerate.message || 'Image generation limit reached', 'error');
+                }
+                if (typeof showUpgradePrompt === 'function') {
+                    setTimeout(() => showUpgradePrompt(), 1000);
+                }
+                return;
+            }
+        }
         
         const currentChat = window.crumpDebug?.getCurrentChat?.();
         if (!currentChat) {
@@ -196,13 +226,12 @@ window.handleImageGeneration = async function(userMessage) {
         // Remove generating message and add final message
         currentChat.messages.pop();
         
-        // FIX: Much less verbose response - just the image!
         const finalMsg = {
             role: 'assistant',
-            content: `![Generated Image](${imageUrl})`, // Clean and simple!
+            content: `![Generated Image](${imageUrl})`,
             timestamp: Date.now(),
             imageUrl: imageUrl,
-            imagePrompt: prompt // Store but don't display
+            imagePrompt: prompt
         };
         
         currentChat.messages.push(finalMsg);
@@ -235,7 +264,6 @@ window.handleImageGeneration = async function(userMessage) {
     } catch (error) {
         console.error('❌ Image generation error:', error);
         
-        // Reset state on error
         window.imageGenerationState.lastResponseWasImage = false;
         
         if (typeof showToast === 'function') {
@@ -250,19 +278,16 @@ window.handleImageGeneration = async function(userMessage) {
 function extractImagePrompt(message) {
     const lowerMessage = message.toLowerCase();
     
-    // Remove common command phrases at the start
     let prompt = message
         .replace(/^(generate|create|make|draw|design|illustrate|render|produce|build|craft|paint|sketch)\s+(me\s+)?(an?|the|some)?\s*/i, '')
         .replace(/^(show me|give me|let me see|i need|i want)\s+(an?|the|some)?\s*/i, '')
         .replace(/^(can you|could you|would you|will you|please)\s+(make|create|generate|draw|design)\s+(me\s+)?(an?|the|some)?\s*/i, '')
         .trim();
     
-    // Remove image type words and prepositions
     prompt = prompt
         .replace(/^\s*(image|picture|photo|illustration|artwork|graphic|visual|painting|drawing|render|design|art|pic|logo|icon|banner)\s+(of|for|with|about|showing)?\s*/i, '')
         .trim();
     
-    // If prompt is too short or empty, try alternative extraction
     if (prompt.length < 3) {
         const patterns = [
             /(?:of|for|with|about|showing)\s+(.+)/i,
@@ -279,12 +304,10 @@ function extractImagePrompt(message) {
         }
     }
     
-    // If still too short, use full message
     if (prompt.length < 3) {
         prompt = message;
     }
     
-    // Clean up
     prompt = prompt
         .replace(/^(of|for|with|about|showing)\s+/i, '')
         .replace(/\s+/g, ' ')
@@ -301,7 +324,6 @@ function extractImagePrompt(message) {
 function enhancePromptWithContext(newMessage, previousPrompt) {
     const lowerMessage = newMessage.toLowerCase();
     
-    // If asking for modifications
     const modificationKeywords = [
         'darker', 'lighter', 'bigger', 'smaller', 'brighter',
         'more colorful', 'less colorful', 'different color',
@@ -315,15 +337,13 @@ function enhancePromptWithContext(newMessage, previousPrompt) {
         }
     }
     
-    // If asking for "try again" or "another", use similar prompt
-    const retryKeywords = ['try again', 'another', 'different', 'one more', 'new'];
+    const retryKeywords = ['try again', 'different', 'new'];
     for (const keyword of retryKeywords) {
         if (lowerMessage.includes(keyword)) {
             return previousPrompt;
         }
     }
     
-    // Otherwise, extract new prompt
     return extractImagePrompt(newMessage);
 }
 
@@ -337,7 +357,6 @@ async function generateImageWithPollinations(prompt) {
         
         console.log('🌸 Pollinations URL:', imageUrl);
         
-        // Preload image to verify it works
         await new Promise((resolve, reject) => {
             const img = new Image();
             img.onload = () => resolve(imageUrl);
@@ -353,7 +372,7 @@ async function generateImageWithPollinations(prompt) {
 }
 
 // ==========================================
-// RESET STATE (call when starting new chat)
+// RESET STATE
 // ==========================================
 window.resetImageGenerationState = function() {
     window.imageGenerationState = {
@@ -365,4 +384,4 @@ window.resetImageGenerationState = function() {
     console.log('🔄 Image generation state reset');
 };
 
-console.log('✅ Smart image generation v2.15.1 loaded');
+console.log('✅ Smart image generation v3.0 loaded - Fixed sensitivity');
