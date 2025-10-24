@@ -1,8 +1,9 @@
 /* ============================================
-   CRUMP AI v3.0 - PRODUCTION GRADE
+   CRUMP AI - COMPLETE STYLES v3.0.1
+   SETTINGS BUTTON FIXED + API READY
    ============================================ */
 
-console.log('Crump AI v3.0 - Initializing');
+console.log('Crump AI v3.0.1 - Initializing');
 
 let currentChatId = null;
 let isSending = false;
@@ -126,7 +127,7 @@ window.initializeApp = function() {
         }
 
         setupAutonomousMessaging();
-        console.log('✅ Crump AI v3.0 initialized successfully');
+        console.log('✅ Crump AI v3.0.1 initialized successfully');
 
         if (localStorage.getItem(STORAGE_KEYS.HAS_ONBOARDED) === 'true' && !savedChatId) {
             showWelcomeMessage();
@@ -951,9 +952,9 @@ function hideThinking() {
 }
 
 // ==========================================
-// SETTINGS
+// SETTINGS (CRITICAL FIX - EXPORTED TO WINDOW)
 // ==========================================
-function openSettings() {
+window.openSettings = function() {
     const modal = document.getElementById('settingsModal');
     const profile = currentProfile ? currentProfile.getProfile() : {};
     
@@ -981,7 +982,7 @@ function openSettings() {
     }
     
     modal.style.display = 'flex';
-}
+};
 
 window.closeSettings = function() {
     document.getElementById('settingsModal').style.display = 'none';
@@ -1203,4 +1204,4 @@ window.crumpDebug = {
     }
 };
 
-console.log('✅ Crump AI v3.0 loaded - All systems operational');
+console.log('✅ Crump AI v3.0.1 loaded - Settings button FIXED ✅');
