@@ -1,35 +1,32 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Crump - AI Virtual Assistant</title>
 
-```
-<!-- Use the C logo as favicon -->
-<link rel="icon" type="image/png" href="/assets/logo-c.png">
-<link rel="manifest" href="/manifest.json">
+    <!-- Use the C logo as favicon -->
+    <link rel="icon" type="image/png" href="/assets/logo-c.png">
+    <link rel="manifest" href="/manifest.json">
 
-<!-- Professional Typography -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Pro:wght@400;600&display=swap" rel="stylesheet">
+    <!-- Professional Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Pro:wght@400;600&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="/styles.css">
-<link rel="stylesheet" href="/new-features.css">
-<link rel="stylesheet" href="/assistant-animations.css">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/new-features.css">
+    <link rel="stylesheet" href="/assistant-character.css">
 
-<!-- Code highlighting -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <!-- Code highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
 
-<!-- Math rendering -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-```
+    <!-- Math rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 
 </head>
 <body>
@@ -43,291 +40,284 @@
         </div>
     </div>
 
-```
-<!-- ONBOARDING -->
-<div id="onboardingModal" class="modal" style="display: none;">
-    <div class="modal-content onboarding-modal">
-        <img src="/assets/logo-c.png" alt="Crump" class="onboarding-logo">
-        <h2>Welcome to Crump</h2>
-        <p class="modal-subtitle">Let's personalize your experience</p>
-        <div class="form-group">
-            <label for="onboardingName">Your Name</label>
-            <input type="text" id="onboardingName" class="form-input" placeholder="Enter your name" maxlength="50">
-        </div>
-        <button class="btn btn-primary btn-large" onclick="completeOnboarding()">Continue</button>
-    </div>
-</div>
-
-<!-- APP -->
-<div id="appContainer" class="app-container" style="display: none;">
-    
-    <!-- SIDEBAR -->
-    <aside id="sidebar" class="sidebar">
-        <div class="sidebar-header">
-            <div class="sidebar-branding">
-                <img src="/assets/logo-c.png" alt="C" class="sidebar-logo-icon">
-                <h1 class="sidebar-logo">Crump</h1>
-                <span class="sidebar-version">v2.15.1</span>
+    <!-- ONBOARDING -->
+    <div id="onboardingModal" class="modal" style="display: none;">
+        <div class="modal-content onboarding-modal">
+            <img src="/assets/logo-c.png" alt="Crump" class="onboarding-logo">
+            <h2>Welcome to Crump</h2>
+            <p class="modal-subtitle">Let's personalize your experience</p>
+            <div class="form-group">
+                <label for="onboardingName">Your Name</label>
+                <input type="text" id="onboardingName" class="form-input" placeholder="Enter your name" maxlength="50">
             </div>
-            <button id="closeSidebarBtn" class="btn-icon" aria-label="Close">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-            </button>
-        </div>
-        
-        <div class="sidebar-actions">
-            <button id="newChatBtn" class="btn btn-secondary btn-block">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M8 3.5V12.5M3.5 8H12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                </svg>
-                New Conversation
-            </button>
-            
-            <button id="clearChatsBtn" class="btn btn-danger-outline btn-block" onclick="clearAllChats()" style="margin-top: 0.5rem;">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M3 4H13M5 4V3C5 2.44772 5.44772 2 6 2H10C10.5523 2 11 2.44772 11 3V4M6.5 7V11M9.5 7V11M4 4H12V13C12 13.5523 11.5523 14 11 14H5C4.44772 14 4 13.5523 4 13V4Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                Clear All Chats
-            </button>
-        </div>
-        
-        <div class="sidebar-section">
-            <span class="section-title">Conversations</span>
-            <div id="chatsList" class="chats-list"></div>
-        </div>
-        
-        <div class="sidebar-footer">
-            <button id="settingsBtn" class="sidebar-footer-btn">
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                    <circle cx="9" cy="9" r="2.5" stroke="currentColor" stroke-width="1.5"/>
-                    <path d="M14 9c0 .5.3 1 .8 1.2l.5.2c.3.1.5.4.5.7v.8c0 .3-.2.6-.5.7l-.5.2c-.5.2-.8.7-.8 1.2v.2c0 .5-.3 1-.8 1.2l-.5.2c-.3.1-.5.4-.5.7v.2c0 .4-.3.7-.7.7h-.8c-.4 0-.7-.3-.7-.7v-.2c0-.3-.2-.6-.5-.7l-.5-.2c-.5-.2-1-.2-1.5 0l-.5.2c-.3.1-.6-.1-.7-.4l-.4-.8c-.1-.3 0-.6.3-.8l.5-.3c.5-.3.8-.8.8-1.3v-1c0-.5-.3-1-.8-1.2l-.5-.2c-.3-.1-.5-.4-.5-.7v-.8c0-.3.2-.6.5-.7l.5-.2c.5-.2.8-.7.8-1.2v-.2c0-.5.3-1 .8-1.2l.5-.2c.3-.1.5-.4.5-.7v-.2c0-.4.3-.7.7-.7h.8c.4 0 .7.3.7.7v.2c0 .3.2.6.5.7l.5.2c.5.2 1 .2 1.5 0l.5-.2c.3-.1.6.1.7.4l.4.8c.1.3 0 .6-.3.8l-.5.3c-.5.3-.8.8-.8 1.3V9z" stroke="currentColor" stroke-width="1.5"/>
-                </svg>
-                <span>Settings</span>
-            </button>
-            
-            <div class="sidebar-divider"></div>
-            
-            <button id="tierBadge" class="sidebar-footer-btn tier-info">
-                <div>
-                    <span class="tier-label">Plan</span>
-                    <span id="tierName" class="tier-name">Free</span>
-                </div>
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M12 6L8 10L4 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </button>
-            
-            <div class="sidebar-divider"></div>
-            <div class="sidebar-branding-footer">
-                <div class="branding-line">
-                    <span class="branding-powered">Powered by</span>
-                    <span class="branding-engine">N² Engine</span>
-                </div>
-                <div class="branding-status">
-                    <span class="status-indicator status-online"></span>
-                    <span class="status-text">Operational</span>
-                </div>
-            </div>
-        </div>
-    </aside>
-
-    <div id="sidebarOverlay" class="sidebar-overlay"></div>
-
-    <!-- MAIN CONTENT -->
-    <main class="main-content">
-        
-        <!-- HEADER -->
-        <header class="header">
-            <button id="menuBtn" class="btn-icon" aria-label="Menu">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                </svg>
-            </button>
-            <div class="header-branding">
-                <img src="/assets/logo-c.png" alt="C" class="header-logo-icon">
-                <h1 class="header-logo">Crump</h1>
-            </div>
-            <button id="headerTierBadge" class="tier-badge-compact">
-                <span id="headerTierName">Free</span>
-            </button>
-        </header>
-
-        <!-- ASSISTANT CHARACTER (floating) -->
-        <div id="assistantCharacter" class="assistant-character idle">
-            <img src="/assets/assistant.png" alt="AI Assistant" class="assistant-img">
-        </div>
-
-        <!-- CHAT -->
-        <div id="chatContainer" class="chat-container"></div>
-
-        <!-- THINKING -->
-        <div id="thinkingIndicator" class="thinking-indicator" style="display: none;">
-            <div class="thinking-spinner"></div>
-            <span class="thinking-text">Processing</span>
-        </div>
-
-        <!-- INPUT -->
-        <div class="input-area">
-            <div id="filePreview" class="file-preview" style="display: none;"></div>
-            
-            <div class="input-container">
-                <button id="attachBtn" class="btn-icon" title="Attach" aria-label="Attach file">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <path d="M16.5 9.5L9.5 16.5C8.11929 17.8807 5.88071 17.8807 4.5 16.5C3.11929 15.1193 3.11929 12.8807 4.5 11.5L12.5 3.5C13.3284 2.67157 14.6716 2.67157 15.5 3.5C16.3284 4.32843 16.3284 5.67157 15.5 6.5L8.5 13.5C8.22386 13.7761 7.77614 13.7761 7.5 13.5C7.22386 13.2239 7.22386 12.7761 7.5 12.5L13.5 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    </svg>
-                </button>
-                
-                <textarea id="userInput" class="message-input" placeholder="Send a message..." rows="1" maxlength="4000" aria-label="Message"></textarea>
-                
-                <button id="voiceBtn" class="btn-icon" title="Voice" aria-label="Voice input">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <rect x="7" y="2" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.5"/>
-                        <path d="M4 10C4 13.3137 6.68629 16 10 16C13.3137 16 16 13.3137 16 10M10 16V19M7 19H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    </svg>
-                </button>
-                
-                <button id="sendButton" class="btn-icon btn-send" title="Send" aria-label="Send">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <path d="M17.5 10L3.5 3.5L6 10L3.5 16.5L17.5 10Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-                    </svg>
-                </button>
-            </div>
-
-            <div class="quick-actions">
-                <button class="quick-action-btn" onclick="triggerImageGeneration()">Image Generation</button>
-                <button class="quick-action-btn" onclick="triggerWebSearch()">Web Search</button>
-                <button class="quick-action-btn" onclick="triggerCodeHelp()">Code Assistance</button>
-            </div>
-        </div>
-    </main>
-</div>
-
-<!-- SETTINGS MODAL -->
-<div id="settingsModal" class="modal">
-    <div class="modal-content settings-modal">
-        <div class="modal-header">
-            <h2>Settings</h2>
-            <button class="btn-icon" onclick="closeSettings()" aria-label="Close">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-            </button>
-        </div>
-        
-        <div class="modal-body">
-            <div class="settings-section">
-                <h3>Profile</h3>
-                <div class="form-group">
-                    <label for="settingsName">Your Name</label>
-                    <input type="text" id="settingsName" class="form-input" placeholder="Your name">
-                </div>
-                <div class="form-group">
-                    <label for="settingsEmail">Email</label>
-                    <input type="email" id="settingsEmail" class="form-input" placeholder="your@email.com">
-                </div>
-            </div>
-
-            <div class="settings-section">
-                <h3>Assistant</h3>
-                <div class="form-group">
-                    <label for="assistantName">Assistant Name</label>
-                    <input type="text" id="assistantName" class="form-input" placeholder="Crump" maxlength="30">
-                    <small style="display: block; margin-top: 0.5rem; color: var(--color-text-tertiary); font-size: 0.875rem;">Customize your assistant's name</small>
-                </div>
-            </div>
-
-            <div class="settings-section">
-                <h3>Preferences</h3>
-                <label class="checkbox-label">
-                    <input type="checkbox" id="autonomousMessaging">
-                    <span>
-                        <strong>Autonomous Messaging</strong>
-                        <small>Allow proactive assistance</small>
-                    </span>
-                </label>
-                
-                <div class="form-group" id="autonomousFrequencyGroup" style="margin-top: 1rem; display: none;">
-                    <label for="autonomousFrequency">Message Frequency</label>
-                    <select id="autonomousFrequency" class="form-input">
-                        <option value="relaxed">Relaxed (15 minutes)</option>
-                        <option value="balanced" selected>Balanced (10 minutes)</option>
-                        <option value="active">Active (5 minutes)</option>
-                        <option value="very-active">Very Active (3 minutes)</option>
-                    </select>
-                </div>
-                
-                <label class="checkbox-label">
-                    <input type="checkbox" id="workMode">
-                    <span>
-                        <strong>Professional Mode</strong>
-                        <small>Concise, business-focused responses</small>
-                    </span>
-                </label>
-            </div>
-
-            <div class="settings-section">
-                <h3>Usage Statistics</h3>
-                <div id="usageStats" class="usage-stats"></div>
-            </div>
-        </div>
-
-        <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
-            <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
+            <button class="btn btn-primary btn-large" onclick="completeOnboarding()">Continue</button>
         </div>
     </div>
-</div>
 
-<div id="upgradeModal" class="modal">
-    <div class="modal-content upgrade-modal"></div>
-</div>
-
-<div id="toastContainer" class="toast-container"></div>
-<input type="file" id="fileInput" style="display: none;" accept="image/*,.pdf,.txt,.doc,.docx" multiple>
-
-<script src="/engines.js"></script>
-<script src="/profile-manager.js"></script>
-<script src="/image-generation.js"></script>
-<script src="/ui-functions.js"></script>
-<script src="/upgrade-ui.js"></script>
-<script src="/app.js"></script>
-
-<script>
-    window.addEventListener('load', () => {
-        const hasOnboarded = localStorage.getItem('crump_has_onboarded');
-        if (!hasOnboarded) {
-            setTimeout(() => {
-                document.getElementById('splashScreen').style.display = 'none';
-                document.getElementById('onboardingModal').style.display = 'flex';
-            }, 2000);
-        } else {
-            setTimeout(() => {
-                document.getElementById('splashScreen').style.display = 'none';
-                document.getElementById('appContainer').style.display = 'flex';
-            }, 1500);
-        }
-    });
-
-    function completeOnboarding() {
-        const name = document.getElementById('onboardingName').value.trim();
-        if (!name) return;
+    <!-- APP -->
+    <div id="appContainer" class="app-container" style="display: none;">
         
-        const profile = JSON.parse(localStorage.getItem('crump_user_profile') || '{}');
-        profile.name = name;
-        profile.avatarInitial = name.charAt(0).toUpperCase();
-        localStorage.setItem('crump_user_profile', JSON.stringify(profile));
-        localStorage.setItem('crump_has_onboarded', 'true');
-        
-        document.getElementById('onboardingModal').style.display = 'none';
-        document.getElementById('appContainer').style.display = 'flex';
-        
-        if (typeof window.initializeApp === 'function') {
-            window.initializeApp();
-        }
-    }
-</script>
-```
+        <!-- SIDEBAR -->
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-branding">
+                    <img src="/assets/logo-c.png" alt="C" class="sidebar-logo-icon">
+                    <h1 class="sidebar-logo">Crump</h1>
+                    <span class="sidebar-version">v3.0</span>
+                </div>
+                <button id="closeSidebarBtn" class="btn-icon" aria-label="Close">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="sidebar-actions">
+                <button id="newChatBtn" class="btn btn-secondary btn-block">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M8 3.5V12.5M3.5 8H12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    New Conversation
+                </button>
+                
+                <button id="clearChatsBtn" class="btn btn-danger-outline btn-block" onclick="clearAllChats()" style="margin-top: 0.5rem;">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M3 4H13M5 4V3C5 2.44772 5.44772 2 6 2H10C10.5523 2 11 2.44772 11 3V4M6.5 7V11M9.5 7V11M4 4H12V13C12 13.5523 11.5523 14 11 14H5C4.44772 14 4 13.5523 4 13V4Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Clear All Chats
+                </button>
+            </div>
+            
+            <div class="sidebar-section">
+                <span class="section-title">Conversations</span>
+                <div id="chatsList" class="chats-list"></div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <button id="settingsBtn" class="sidebar-footer-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3m15.4 6.4l-4.2-4.2m-6 0l-4.2 4.2M20.6 3.6L16.4 7.8m-6 0L6.2 3.6"></path>
+                    </svg>
+                    <span>Settings</span>
+                </button>
+                
+                <div class="sidebar-divider"></div>
+                
+                <button id="tierBadge" class="sidebar-footer-btn tier-info">
+                    <div>
+                        <span class="tier-label">Plan</span>
+                        <span id="tierName" class="tier-name">Free</span>
+                    </div>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M12 6L8 10L4 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                
+                <div class="sidebar-divider"></div>
+                <div class="sidebar-branding-footer">
+                    <div class="branding-line">
+                        <span class="branding-powered">Powered by</span>
+                        <span class="branding-engine">N² Engine</span>
+                    </div>
+                    <div class="branding-status">
+                        <span class="status-indicator status-online"></span>
+                        <span class="status-text">Operational</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
 
-</body>
-</html>
+        <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content">
+            
+            <!-- HEADER -->
+            <header class="header">
+                <button id="menuBtn" class="btn-icon" aria-label="Menu">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <div class="header-branding">
+                    <img src="/assets/logo-c.png" alt="C" class="header-logo-icon">
+                    <h1 class="header-logo">Crump</h1>
+                </div>
+                <button id="headerTierBadge" class="tier-badge-compact">
+                    <span id="headerTierName">Free</span>
+                </button>
+            </header>
+
+            <!-- ASSISTANT CHARACTER (floating) -->
+            <div id="assistantCharacter" class="assistant-character idle">
+                <img src="/assets/assistant.png" alt="AI Assistant" class="assistant-img">
+            </div>
+
+            <!-- CHAT -->
+            <div id="chatContainer" class="chat-container"></div>
+
+            <!-- THINKING -->
+            <div id="thinkingIndicator" class="thinking-indicator" style="display: none;">
+                <div class="thinking-spinner"></div>
+                <span class="thinking-text">Processing</span>
+            </div>
+
+            <!-- INPUT -->
+            <div class="input-area">
+                <div id="filePreview" class="file-preview" style="display: none;"></div>
+                
+                <div class="input-container">
+                    <button id="attachBtn" class="btn-icon" title="Attach" aria-label="Attach file">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M16.5 9.5L9.5 16.5C8.11929 17.8807 5.88071 17.8807 4.5 16.5C3.11929 15.1193 3.11929 12.8807 4.5 11.5L12.5 3.5C13.3284 2.67157 14.6716 2.67157 15.5 3.5C16.3284 4.32843 16.3284 5.67157 15.5 6.5L8.5 13.5C8.22386 13.7761 7.77614 13.7761 7.5 13.5C7.22386 13.2239 7.22386 12.7761 7.5 12.5L13.5 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                    
+                    <textarea id="userInput" class="message-input" placeholder="Send a message..." rows="1" maxlength="4000" aria-label="Message"></textarea>
+                    
+                    <button id="voiceBtn" class="btn-icon" title="Voice" aria-label="Voice input">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <rect x="7" y="2" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.5"/>
+                            <path d="M4 10C4 13.3137 6.68629 16 10 16C13.3137 16 16 13.3137 16 10M10 16V19M7 19H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                    
+                    <button id="sendButton" class="btn-icon btn-send" title="Send" aria-label="Send">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M17.5 10L3.5 3.5L6 10L3.5 16.5L17.5 10Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="quick-actions">
+                    <button class="quick-action-btn" onclick="triggerImageGeneration()">Image Generation</button>
+                    <button class="quick-action-btn" onclick="triggerWebSearch()">Web Search</button>
+                    <button class="quick-action-btn" onclick="triggerCodeHelp()">Code Assistance</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- SETTINGS MODAL -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content settings-modal">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button class="btn-icon" onclick="closeSettings()" aria-label="Close">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="settings-section">
+                    <h3>Profile</h3>
+                    <div class="form-group">
+                        <label for="settingsName">Your Name</label>
+                        <input type="text" id="settingsName" class="form-input" placeholder="Your name">
+                    </div>
+                    <div class="form-group">
+                        <label for="settingsEmail">Email</label>
+                        <input type="email" id="settingsEmail" class="form-input" placeholder="your@email.com">
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Assistant</h3>
+                    <div class="form-group">
+                        <label for="assistantName">Assistant Name</label>
+                        <input type="text" id="assistantName" class="form-input" placeholder="Crump" maxlength="30">
+                        <small style="display: block; margin-top: 0.5rem; color: var(--color-text-tertiary); font-size: 0.875rem;">Customize your assistant's name</small>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Preferences</h3>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="autonomousMessaging">
+                        <span>
+                            <strong>Autonomous Messaging</strong>
+                            <small>Allow proactive assistance</small>
+                        </span>
+                    </label>
+                    
+                    <div class="form-group" id="autonomousFrequencyGroup" style="margin-top: 1rem; display: none;">
+                        <label for="autonomousFrequency">Message Frequency</label>
+                        <select id="autonomousFrequency" class="form-input">
+                            <option value="relaxed">Relaxed (15 minutes)</option>
+                            <option value="balanced" selected>Balanced (10 minutes)</option>
+                            <option value="active">Active (5 minutes)</option>
+                            <option value="very-active">Very Active (3 minutes)</option>
+                        </select>
+                    </div>
+                    
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="workMode">
+                        <span>
+                            <strong>Professional Mode</strong>
+                            <small>Concise, business-focused responses</small>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Usage Statistics</h3>
+                    <div id="usageStats" class="usage-stats"></div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="upgradeModal" class="modal">
+        <div class="modal-content upgrade-modal"></div>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+    <input type="file" id="fileInput" style="display: none;" accept="image/*,.pdf,.txt,.doc,.docx" multiple>
+
+    <script src="/developer-mode.js"></script>
+    <script src="/engines.js"></script>
+    <script src="/profile-manager.js"></script>
+    <script src="/image-generation.js"></script>
+    <script src="/ui-functions.js"></script>
+    <script src="/upgrade-ui.js"></script>
+    <script src="/app.js"></script>
+
+    <script>
+        window.addEventListener('load', () => {
+            const hasOnboarded = localStorage.getItem('crump_has_onboarded');
+            if (!hasOnboarded) {
+                setTimeout(() => {
+                    document.getElementById('splashScreen').style.display = 'none';
+                    document.getElementById('onboardingModal').style.display = 'flex';
+                }, 2000);
+            } else {
+                setTimeout(() => {
+                    document.getElementById('splashScreen').style.display = 'none';
+                    document.getElementById('appContainer').style.display = 'flex';
+                }, 1500);
+            }
+        });
+
+        function completeOnboarding() {
+            const name = document.getElementById('onboardingName').value.trim();
+            if (!name) return;
+            
+            const profile = JSON.parse(localStorage.getItem('crump_user_profile') || '{}');
+            profile.name = name;
+            profile.avatarInitial = name.charAt(0).toUpperCase();
+            localStorage.setItem('crump_user_profile', JSON.stringify(profile));
+            localStorage.setItem('crump_has_onboarded', 'true');
+            
+            document.getElementById('onboardingModal').style.display = 'none';
+            document.getElementById('appContainer').style.display = 'flex';
+            
+            if (typeof window.initializeApp === 'function') {
+                window.initializeApp();
