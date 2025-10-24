@@ -1,8 +1,8 @@
 /* ============================================
-   CRUMP AI v2.15.1 - COMPLETE WITH DATE/TIME AWARENESS
+   CRUMP AI v3.0 - PRODUCTION GRADE
    ============================================ */
 
-console.log('Crump AI v2.15.1 - Initializing');
+console.log('Crump AI v3.0 - Initializing');
 
 let currentChatId = null;
 let isSending = false;
@@ -26,6 +26,24 @@ const STORAGE_KEYS = {
 };
 
 // ==========================================
+// FILE UPLOAD CONFIGURATION
+// ==========================================
+const FILE_CONFIG = {
+    MAX_SIZE: 5 * 1024 * 1024, // 5MB
+    MAX_FILES: 10,
+    ALLOWED_TYPES: {
+        images: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
+        documents: ['application/pdf', 'text/plain', 'text/csv'],
+        office: ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+    },
+    IMAGE_COMPRESSION: {
+        maxWidth: 1920,
+        maxHeight: 1920,
+        quality: 0.85
+    }
+};
+
+// ==========================================
 // ASSISTANT CHARACTER STATE MANAGEMENT
 // ==========================================
 function setAssistantState(state) {
@@ -42,15 +60,12 @@ function initializeAssistant() {
     const assistant = document.getElementById('assistantCharacter');
     if (!assistant) return;
     
-    // Start with intro animation
     assistant.classList.add('intro');
     
-    // After intro, dock it
     setTimeout(() => {
         assistant.classList.remove('intro');
         assistant.classList.add('docking');
         
-        // After docking, set to idle
         setTimeout(() => {
             assistant.classList.remove('docking');
             setAssistantState('idle');
@@ -82,8 +97,17 @@ window.initializeApp = function() {
             window.messageDeduplicator = new MessageDeduplicator();
         }
 
+        // Initialize search detection engine
+        if (typeof window.SearchDetectionEngine !== 'undefined') {
+            window.searchDetectionEngine = new SearchDetectionEngine();
+            console.log('✅ Search Detection Engine initialized');
+        }
+
         if (typeof window.ProfileManager !== 'undefined') {
             currentProfile = new ProfileManager();
+            updateUserAvatar();
+        } else if (typeof window.UserProfileManager !== 'undefined') {
+            currentProfile = new UserProfileManager();
             updateUserAvatar();
         }
 
@@ -92,7 +116,7 @@ window.initializeApp = function() {
         setupSidebarToggle();
         loadSettings();
         updateAssistantNameDisplay();
-        initializeAssistant(); // Initialize assistant character
+        initializeAssistant();
 
         const savedChatId = localStorage.getItem(STORAGE_KEYS.CURRENT_CHAT);
         if (savedChatId && getChat(savedChatId)) {
@@ -102,7 +126,7 @@ window.initializeApp = function() {
         }
 
         setupAutonomousMessaging();
-        console.log('✅ Crump AI initialized successfully');
+        console.log('✅ Crump AI v3.0 initialized successfully');
 
         if (localStorage.getItem(STORAGE_KEYS.HAS_ONBOARDED) === 'true' && !savedChatId) {
             showWelcomeMessage();
@@ -221,6 +245,8 @@ function setupEventListeners() {
         tierBadge.addEventListener('click', () => {
             if (typeof showUpgradeModal === 'function') {
                 showUpgradeModal();
+            } else if (typeof showUpgradePrompt === 'function') {
+                showUpgradePrompt();
             }
         });
     }
@@ -229,6 +255,8 @@ function setupEventListeners() {
         headerTierBadge.addEventListener('click', () => {
             if (typeof showUpgradeModal === 'function') {
                 showUpgradeModal();
+            } else if (typeof showUpgradePrompt === 'function') {
+                showUpgradePrompt();
             }
         });
     }
@@ -304,14 +332,106 @@ function toggleVoiceRecognition() {
 }
 
 // ==========================================
-// FILE HANDLING
+// FILE HANDLING (ENHANCED WITH VALIDATION & COMPRESSION)
 // ==========================================
 let selectedFiles = [];
 
-function handleFileSelect(event) {
+async function handleFileSelect(event) {
     const files = Array.from(event.target.files);
-    selectedFiles = [...selectedFiles, ...files];
+    
+    // Validate file count
+    if (selectedFiles.length + files.length > FILE_CONFIG.MAX_FILES) {
+        showToast(`Maximum ${FILE_CONFIG.MAX_FILES} files allowed`, 'error');
+        return;
+    }
+    
+    // Validate and process each file
+    for (const file of files) {
+        try {
+            // Check file size
+            if (file.size > FILE_CONFIG.MAX_SIZE) {
+                showToast(`${file.name} is too large (max 5MB)`, 'error');
+                continue;
+            }
+            
+            // Check file type
+            const isAllowed = Object.values(FILE_CONFIG.ALLOWED_TYPES).flat().includes(file.type);
+            if (!isAllowed) {
+                showToast(`${file.name} file type not supported`, 'error');
+                continue;
+            }
+            
+            // Compress images if needed
+            if (file.type.startsWith('image/')) {
+                const compressed = await compressImage(file);
+                selectedFiles.push(compressed);
+            } else {
+                selectedFiles.push(file);
+            }
+            
+        } catch (error) {
+            console.error('Error processing file:', file.name, error);
+            showToast(`Failed to process ${file.name}`, 'error');
+        }
+    }
+    
     displayFilePreview();
+    event.target.value = ''; // Reset input
+}
+
+async function compressImage(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            const img = new Image();
+            
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                
+                // Calculate new dimensions
+                if (width > FILE_CONFIG.IMAGE_COMPRESSION.maxWidth || height > FILE_CONFIG.IMAGE_COMPRESSION.maxHeight) {
+                    if (width > height) {
+                        height = Math.round(height * FILE_CONFIG.IMAGE_COMPRESSION.maxWidth / width);
+                        width = FILE_CONFIG.IMAGE_COMPRESSION.maxWidth;
+                    } else {
+                        width = Math.round(width * FILE_CONFIG.IMAGE_COMPRESSION.maxHeight / height);
+                        height = FILE_CONFIG.IMAGE_COMPRESSION.maxHeight;
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Convert to blob
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        // Create new file with compressed data
+                        const compressedFile = new File([blob], file.name, {
+                            type: file.type,
+                            lastModified: Date.now()
+                        });
+                        
+                        console.log(`📦 Compressed ${file.name}: ${(file.size / 1024).toFixed(1)}KB → ${(compressedFile.size / 1024).toFixed(1)}KB`);
+                        resolve(compressedFile);
+                    } else {
+                        reject(new Error('Compression failed'));
+                    }
+                }, file.type, FILE_CONFIG.IMAGE_COMPRESSION.quality);
+            };
+            
+            img.onerror = () => reject(new Error('Image load failed'));
+            img.src = e.target.result;
+        };
+        
+        reader.onerror = () => reject(new Error('File read failed'));
+        reader.readAsDataURL(file);
+    });
 }
 
 function displayFilePreview() {
@@ -326,7 +446,6 @@ function displayFilePreview() {
     preview.innerHTML = selectedFiles.map((file, index) => {
         let previewContent = '';
         
-        // Show image thumbnail if it's an image
         if (file.type.startsWith('image/')) {
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -341,9 +460,11 @@ function displayFilePreview() {
             previewContent = '<div class="file-icon">📄</div>';
         }
         
+        const sizeKB = (file.size / 1024).toFixed(1);
+        
         return '<div class="file-preview-item" data-file-index="' + index + '">' + 
                previewContent +
-               '<span>' + escapeHtml(file.name) + '</span>' +
+               '<div style="flex: 1;"><span style="display: block;">' + escapeHtml(file.name) + '</span><span style="font-size: 11px; color: var(--color-text-tertiary);">' + sizeKB + ' KB</span></div>' +
                '<button class="remove-file" onclick="removeFile(' + index + ')">×</button>' +
                '</div>';
     }).join('');
@@ -474,7 +595,7 @@ window.clearAllChats = function() {
 };
 
 // ==========================================
-// SEND MESSAGE (with DATE/TIME AWARENESS)
+// SEND MESSAGE (FIXED EXECUTION ORDER + SMART SEARCH)
 // ==========================================
 async function sendMessage(messageOverride) {
     const userInput = document.getElementById('userInput');
@@ -483,8 +604,11 @@ async function sendMessage(messageOverride) {
     if (!message && selectedFiles.length === 0) return;
     if (isSending) return;
 
-    // CHECK FOR IMAGE GENERATION REQUEST FIRST
-    if (window.shouldGenerateImage && window.shouldGenerateImage(message)) {
+    // CRITICAL FIX #1: CHECK FILES FIRST, BEFORE IMAGE GENERATION
+    const hasFiles = selectedFiles.length > 0;
+    
+    // CRITICAL FIX #2: Only check image generation if NO files attached
+    if (!hasFiles && window.shouldGenerateImage && window.shouldGenerateImage(message)) {
         console.log('🎨 Image generation request detected');
         if (window.handleImageGeneration) {
             userInput.value = '';
@@ -499,6 +623,7 @@ async function sendMessage(messageOverride) {
         return;
     }
 
+    // Check for duplicate messages
     if (window.messageDeduplicator && !messageOverride) {
         if (window.messageDeduplicator.isDuplicate(message)) {
             showToast('Message already sent', 'warning');
@@ -506,12 +631,15 @@ async function sendMessage(messageOverride) {
         }
     }
 
+    // Check usage limits
     if (currentProfile) {
         const canSend = currentProfile.canSendMessage();
         if (!canSend.allowed) {
-            showToast(canSend.reason, 'error');
+            showToast(canSend.message || canSend.reason, 'error');
             if (typeof showUpgradeModal === 'function') {
                 setTimeout(() => showUpgradeModal(), 1000);
+            } else if (typeof showUpgradePrompt === 'function') {
+                setTimeout(() => showUpgradePrompt(), 1000);
             }
             return;
         }
@@ -522,7 +650,6 @@ async function sendMessage(messageOverride) {
     sendButton.disabled = true;
 
     try {
-        // Store files reference
         const filesToProcess = [...selectedFiles];
         
         const userMessage = {
@@ -546,11 +673,10 @@ async function sendMessage(messageOverride) {
         userInput.value = '';
         userInput.style.height = 'auto';
 
-        // SET ASSISTANT TO THINKING
         setAssistantState('thinking');
         showThinking();
 
-        // GET CURRENT DATE AND TIME
+        // Get current date and time
         const now = new Date();
         const currentDateTime = {
             date: now.toLocaleDateString('en-US', { 
@@ -568,12 +694,23 @@ async function sendMessage(messageOverride) {
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
         };
 
+        // CRITICAL FIX #3: Smart search detection
+        let needsSearch = false;
+        if (window.searchDetectionEngine) {
+            needsSearch = window.searchDetectionEngine.shouldSearch(message);
+            console.log('🔍 Search detection:', needsSearch ? 'YES' : 'NO');
+        } else {
+            // Fallback to basic detection
+            needsSearch = message.toLowerCase().includes('search') || 
+                         message.toLowerCase().includes('latest');
+        }
+
         const requestData = {
             message: message,
             history: currentChat.messages.slice(-10),
-            currentDateTime: currentDateTime, // DATE/TIME AWARENESS
+            currentDateTime: currentDateTime,
             fileData: filesToProcess.length > 0 ? await processFilesForUpload(filesToProcess) : undefined,
-            needsSearch: message.toLowerCase().includes('search') || message.toLowerCase().includes('latest'),
+            needsSearch: needsSearch,
             universalMemory: JSON.parse(localStorage.getItem(STORAGE_KEYS.MEMORY) || '{}'),
             workMode: localStorage.getItem(STORAGE_KEYS.WORK_MODE) || 'companion'
         };
@@ -586,6 +723,7 @@ async function sendMessage(messageOverride) {
 
         console.log('📤 Sending request to API...');
         console.log('📅 Current date/time:', currentDateTime.date, currentDateTime.time);
+        if (needsSearch) console.log('🔍 Search enabled for this query');
         
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 60000);
@@ -611,8 +749,6 @@ async function sendMessage(messageOverride) {
         console.log('✅ Response parsed successfully');
 
         hideThinking();
-
-        // SET ASSISTANT TO SPEAKING
         setAssistantState('speaking');
 
         const assistantMessage = {
@@ -627,14 +763,36 @@ async function sendMessage(messageOverride) {
         saveChats();
         renderMessage(assistantMessage);
 
-        // Back to idle after speaking
         setTimeout(() => setAssistantState('idle'), 2000);
 
+        // CRITICAL FIX #4: Fixed usage tracking method names
         if (currentProfile) {
-            currentProfile.incrementUsage('messages');
-            if (data.imageCount) {
-                currentProfile.incrementUsage('images', data.imageCount);
+            if (currentProfile.incrementMessageUsage) {
+                currentProfile.incrementMessageUsage();
+            } else if (currentProfile.incrementUsage) {
+                currentProfile.incrementUsage('messages');
             }
+            
+            // Track image generation if it happened
+            if (data.imageCount) {
+                if (currentProfile.incrementImageUsage) {
+                    for (let i = 0; i < data.imageCount; i++) {
+                        currentProfile.incrementImageUsage();
+                    }
+                } else if (currentProfile.incrementUsage) {
+                    currentProfile.incrementUsage('images', data.imageCount);
+                }
+            }
+            
+            // Track web search if it happened
+            if (needsSearch || data.usedSearch) {
+                if (currentProfile.incrementSearchUsage) {
+                    currentProfile.incrementSearchUsage();
+                } else if (currentProfile.incrementUsage) {
+                    currentProfile.incrementUsage('searches');
+                }
+            }
+            
             updateTierBadge();
         }
 
@@ -671,7 +829,7 @@ async function sendMessage(messageOverride) {
 }
 
 // ==========================================
-// MESSAGE RENDERING (FIXED)
+// MESSAGE RENDERING (ENHANCED)
 // ==========================================
 function renderMessage(message) {
     const container = document.getElementById('chatContainer');
@@ -688,7 +846,7 @@ function renderMessage(message) {
 
     let contentHtml = '<div class="message-content">' + formatMessageContent(message.content) + '</div>';
     
-    // FIX: Show uploaded files in user messages
+    // Show uploaded files in user messages
     if (message.role === 'user' && message.files && message.files.length > 0) {
         contentHtml += '<div class="uploaded-files">';
         message.files.forEach(fileName => {
@@ -697,7 +855,7 @@ function renderMessage(message) {
         contentHtml += '</div>';
     }
     
-    // FIX: Better image display for generated images
+    // Show generated images
     if (message.imageUrl) {
         contentHtml += '<div class="generated-image-container"><img src="' + message.imageUrl + '" class="generated-image" onclick="enlargeImage(this)" alt="Generated image" onerror="this.parentElement.innerHTML=\'<p style=color:var(--color-text-tertiary);>Failed to load image</p>\'"></div>';
     }
@@ -898,7 +1056,6 @@ function setupAutonomousMessaging() {
 }
 
 async function sendAutonomousMessage() {
-    // Placeholder for autonomous messaging logic
     console.log('Autonomous message triggered');
 }
 
@@ -1045,3 +1202,5 @@ window.crumpDebug = {
         }
     }
 };
+
+console.log('✅ Crump AI v3.0 loaded - All systems operational');
