@@ -140,8 +140,8 @@ body {
 }
 
 .header-logo-icon {
-    width: 32px;
-    height: 32px;
+    width: 48px;
+    height: 48px;
 }
 
 .header-logo {
@@ -934,20 +934,22 @@ body {
     display: flex;
     gap: var(--space-2);
     margin-top: var(--space-3);
+    margin-bottom: var(--space-3);
     flex-wrap: wrap;
+    padding-bottom: 8px;
 }
 
 .quick-action-btn {
-    padding: var(--space-2) var(--space-3);
+    padding: 8px 12px;
     background: var(--color-bg-secondary);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    font-size: var(--font-size-xs);
+    font-size: 12px;
     color: var(--color-text-secondary);
     cursor: pointer;
     transition: all var(--transition-fast);
+    white-space: nowrap;
 }
-
 .quick-action-btn:hover {
     background: var(--color-bg-tertiary);
     border-color: var(--color-border-hover);
@@ -1249,10 +1251,12 @@ body {
         padding: var(--space-3);
     }
 
-    .quick-actions {
-        overflow-x: auto;
-        flex-wrap: nowrap;
-    }
+   .quick-actions {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-right: 16px;
+    padding-bottom: 12px;
+}
 
     .toast-container {
         left: var(--space-3);
