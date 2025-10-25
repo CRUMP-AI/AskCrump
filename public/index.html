@@ -110,6 +110,13 @@
                         <path d="M12 6L8 10L4 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </button>
+
+                <div class="sidebar-divider"></div>
+
+<a href="/legal.html" class="sidebar-footer-btn" style="text-decoration: none;">
+    <span style="font-size: 18px;">⚖️</span>
+    <span>Legal & Privacy</span>
+</a>
                 
                 <div class="sidebar-divider"></div>
                 <div class="sidebar-branding-footer">
@@ -276,16 +283,23 @@
         <div class="modal-content upgrade-modal"></div>
     </div>
 
+    <!-- Inside settings modal preferences section -->
+<button class="btn btn-secondary btn-block" onclick="if(window.tutorial) window.tutorial.restart()" style="margin-top: 1rem;">
+    🎓 Restart Tutorial
+</button>
+
     <div id="toastContainer" class="toast-container"></div>
     <input type="file" id="fileInput" style="display: none;" accept="image/*,.pdf,.txt,.doc,.docx" multiple>
 
-    <script src="/engines.js"></script>
-    <script src="/profile-manager.js"></script>
-    <script src="/image-generation.js"></script>
-    <script src="/ui-functions.js"></script>
-    <script src="/upgrade-ui.js"></script>
-    <script src="/developer-mode.js"></script>
-    <script src="/app.js"></script>
+<script src="/tutorial.js"></script>
+<script src="/autonomous.js"></script>
+<script src="/engines.js"></script>
+<script src="/profile-manager.js"></script>
+<script src="/image-generation.js"></script>
+<script src="/ui-functions.js"></script>
+<script src="/upgrade-ui.js"></script>
+<script src="/developer-mode.js"></script>
+<script src="/app.js"></script>
 
     <script>
         window.addEventListener('load', () => {
