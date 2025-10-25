@@ -94,6 +94,21 @@ window.initializeApp = function() {
             throw new Error('Missing elements: ' + missing.join(', '));
         }
 
+
+// Load tutorial system
+if (typeof window.tutorial !== 'undefined') {
+    const hasOnboarded = localStorage.getItem(STORAGE_KEYS.HAS_ONBOARDED);
+    const tutorialCompleted = localStorage.getItem('crump_tutorial_completed');
+    
+    if (hasOnboarded === 'true' && tutorialCompleted !== 'true') {
+        setTimeout(() => {
+            window.tutorial.start();
+        }, 1500);
+    }
+}
+
+console.log('✅ Crump AI v3.0.1 initialized successfully');
+
         if (typeof window.messageDeduplicator === 'undefined') {
             window.messageDeduplicator = new MessageDeduplicator();
         }
