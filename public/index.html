@@ -28,6 +28,66 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 
+    <style>
+        /* SCROLL TO END BUTTON */
+        .scroll-to-end-btn {
+            position: fixed;
+            bottom: 140px;
+            right: 2rem;
+            width: 48px;
+            height: 48px;
+            background: var(--color-accent-primary);
+            border: 2px solid var(--color-border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(20px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+        }
+        
+        .scroll-to-end-btn.visible {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        
+        .scroll-to-end-btn:hover {
+            background: var(--color-accent-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+        }
+        
+        .scroll-to-end-btn:active {
+            transform: translateY(0);
+        }
+        
+        .scroll-to-end-btn svg {
+            width: 24px;
+            height: 24px;
+            color: var(--color-bg-primary);
+        }
+        
+        /* Mobile adjustment */
+        @media (max-width: 768px) {
+            .scroll-to-end-btn {
+                bottom: 120px;
+                right: 1rem;
+                width: 44px;
+                height: 44px;
+            }
+            .scroll-to-end-btn svg {
+                width: 20px;
+                height: 20px;
+            }
+        }
+    </style>
+
 </head>
 <body>
     <!-- SPLASH SCREEN -->
@@ -157,6 +217,13 @@
             <div id="assistantCharacter" class="assistant-character idle">
                 <img src="/assets/assistant.png" alt="AI Assistant" class="assistant-img">
             </div>
+
+            <!-- SCROLL TO END BUTTON -->
+            <button id="scrollToEndBtn" class="scroll-to-end-btn" aria-label="Scroll to end" title="Scroll to end">
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M12 5V19M12 19L19 12M12 19L5 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
 
             <!-- CHAT -->
             <div id="chatContainer" class="chat-container"></div>
