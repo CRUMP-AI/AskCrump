@@ -1,6 +1,6 @@
 // ==========================================
-// CRUMP AI - USER PROFILE MANAGER v3.1.0
-// Complete API Ecosystem + Annual Billing
+// CRUMP AI - USER PROFILE MANAGER v3.2.0
+// CLEANED - Only Real APIs (13 total)
 // ==========================================
 
 class UserProfileManager {
@@ -13,16 +13,16 @@ class UserProfileManager {
                 icon: '🆓',
                 price: { monthly: 0, annual: 0 },
                 limits: {
+                    // Core features
                     messages: 100,
                     images: 10,
                     searches: 20,
-                    // Free APIs
+                    
+                    // APIs with keys (limited)
                     weather: 20,
                     news: 20,
-                    sports: 20,
-                    stocks: 10,
-                    movies: 10,
-                    // Unlimited free
+                    
+                    // Free APIs (unlimited)
                     wikipedia: -1,
                     dictionary: -1,
                     jokes: -1,
@@ -32,17 +32,19 @@ class UserProfileManager {
                     urlShortener: -1
                 },
                 features: [
-                    'Basic chat',
-                    'File uploads',
-                    'Voice I/O',
+                    '100 messages/month',
+                    '10 images/month',
+                    '20 web searches/month',
                     '🌤️ Weather (20/mo)',
                     '📰 News (20/mo)',
-                    '🏈 Sports scores (20/mo)',
-                    '📈 Stock quotes (10/mo)',
-                    '🎬 Movies/TV (10/mo)',
                     '📚 Wikipedia (unlimited)',
                     '📖 Dictionary (unlimited)',
-                    '😂 Jokes & Trivia (unlimited)'
+                    '😂 Jokes & Trivia (unlimited)',
+                    '💱 Currency converter (unlimited)',
+                    '📱 QR codes (unlimited)',
+                    '🔗 URL shortener (unlimited)',
+                    'File uploads',
+                    'Voice I/O'
                 ]
             },
             pro: {
@@ -54,21 +56,8 @@ class UserProfileManager {
                     messages: 1000,
                     images: 100,
                     searches: 200,
-                    // Enhanced APIs
                     weather: 100,
                     news: 100,
-                    sports: 100,
-                    stocks: 50,
-                    movies: 50,
-                    youtube: 50,
-                    recipes: 50,
-                    translation: 100,
-                    github: 50,
-                    crypto: 100,
-                    spotify: 50,
-                    googleMaps: 50,
-                    googleSearch: 50,
-                    // Unlimited free
                     wikipedia: -1,
                     dictionary: -1,
                     jokes: -1,
@@ -82,14 +71,8 @@ class UserProfileManager {
                     '1,000 messages/month',
                     '100 images/month',
                     '200 web searches/month',
-                    '📺 YouTube search (50/mo)',
-                    '🍳 Recipe search (50/mo)',
-                    '🌐 Translation (100/mo)',
-                    '💻 GitHub search (50/mo)',
-                    '₿ Crypto prices (100/mo)',
-                    '🎵 Spotify search (50/mo)',
-                    '🗺️ Google Maps (50/mo)',
-                    '🔍 Enhanced search (50/mo)',
+                    '🌤️ Weather (100/mo)',
+                    '📰 News (100/mo)',
                     'Multi-file uploads',
                     'PDF analysis',
                     'Priority responses',
@@ -105,57 +88,33 @@ class UserProfileManager {
                     messages: -1, // Unlimited
                     images: 500,
                     searches: -1, // Unlimited
-                    // All APIs unlimited or high limits
                     weather: -1,
                     news: -1,
-                    sports: -1,
-                    stocks: -1,
-                    movies: -1,
-                    youtube: -1,
-                    recipes: -1,
-                    translation: -1,
-                    github: -1,
-                    crypto: -1,
-                    spotify: -1,
-                    googleMaps: -1,
-                    googleSearch: -1,
                     wikipedia: -1,
                     dictionary: -1,
                     jokes: -1,
                     trivia: -1,
                     currency: -1,
                     qr: -1,
-                    urlShortener: -1,
-                    // Premium exclusive
-                    gmail: -1,
-                    googleCalendar: -1,
-                    googleDrive: -1,
-                    flightTracking: 500,
-                    sportsDataPro: -1,
-                    stocksPro: -1
+                    urlShortener: -1
                 },
                 features: [
                     'Everything in Pro',
                     '∞ Unlimited messages',
                     '500 images/month',
                     '∞ Unlimited searches',
-                    '📧 Gmail integration',
-                    '📅 Google Calendar',
-                    '📁 Google Drive',
-                    '✈️ Flight tracking (500/mo)',
-                    '🏈 Real-time sports',
-                    '📈 Professional stocks',
-                    'All APIs unlimited',
+                    '🌤️ Weather (unlimited)',
+                    '📰 News (unlimited)',
                     'Extended memory',
-                    'Custom themes',
-                    'API access',
+                    'Custom themes (soon)',
+                    'API access (soon)',
                     'Priority support'
                 ]
             }
         };
         
         this.initializeProfile();
-        console.log('👤 ProfileManager v3.1.0 initialized:', this.getTierInfo());
+        console.log('👤 ProfileManager v3.2.0 initialized:', this.getTierInfo());
     }
     
     initializeProfile() {
@@ -330,10 +289,9 @@ class UserProfileManager {
     }
     
     // ==========================================
-    // USAGE TRACKING (ALL API METHODS)
+    // USAGE TRACKING - CORE FEATURES
     // ==========================================
     
-    // Core usage
     incrementMessageUsage() {
         this.ensureCurrentMonth();
         this.usage.messages++;
@@ -352,7 +310,10 @@ class UserProfileManager {
         this.saveUsage();
     }
     
-    // API usage - Free tier
+    // ==========================================
+    // USAGE TRACKING - APIs
+    // ==========================================
+    
     incrementWeatherUsage() {
         this.ensureCurrentMonth();
         this.usage.weather = (this.usage.weather || 0) + 1;
@@ -365,107 +326,17 @@ class UserProfileManager {
         this.saveUsage();
     }
     
-    incrementSportsUsage() {
-        this.ensureCurrentMonth();
-        this.usage.sports = (this.usage.sports || 0) + 1;
-        this.saveUsage();
-    }
-    
-    incrementStocksUsage() {
-        this.ensureCurrentMonth();
-        this.usage.stocks = (this.usage.stocks || 0) + 1;
-        this.saveUsage();
-    }
-    
-    incrementMoviesUsage() {
-        this.ensureCurrentMonth();
-        this.usage.movies = (this.usage.movies || 0) + 1;
-        this.saveUsage();
-    }
-    
-    // API usage - Pro tier
-    incrementYoutubeUsage() {
-        this.ensureCurrentMonth();
-        this.usage.youtube = (this.usage.youtube || 0) + 1;
-        this.saveUsage();
-    }
-    
-    incrementRecipesUsage() {
-        this.ensureCurrentMonth();
-        this.usage.recipes = (this.usage.recipes || 0) + 1;
-        this.saveUsage();
-    }
-    
-    incrementTranslationUsage() {
-        this.ensureCurrentMonth();
-        this.usage.translation = (this.usage.translation || 0) + 1;
-        this.saveUsage();
-    }
-    
-    incrementGithubUsage() {
-        this.ensureCurrentMonth();
-        this.usage.github = (this.usage.github || 0) + 1;
-        this.saveUsage();
-    }
-    
-    incrementCryptoUsage() {
-        this.ensureCurrentMonth();
-        this.usage.crypto = (this.usage.crypto || 0) + 1;
-        this.saveUsage();
-    }
-    
-    incrementSpotifyUsage() {
-        this.ensureCurrentMonth();
-        this.usage.spotify = (this.usage.spotify || 0) + 1;
-        this.saveUsage();
-    }
-    
-    incrementGoogleMapsUsage() {
-        this.ensureCurrentMonth();
-        this.usage.googleMaps = (this.usage.googleMaps || 0) + 1;
-        this.saveUsage();
-    }
-    
-    incrementGoogleSearchUsage() {
-        this.ensureCurrentMonth();
-        this.usage.googleSearch = (this.usage.googleSearch || 0) + 1;
-        this.saveUsage();
-    }
-    
-    // API usage - Premium tier
-    incrementGmailUsage() {
-        this.ensureCurrentMonth();
-        this.usage.gmail = (this.usage.gmail || 0) + 1;
-        this.saveUsage();
-    }
-    
-    incrementGoogleCalendarUsage() {
-        this.ensureCurrentMonth();
-        this.usage.googleCalendar = (this.usage.googleCalendar || 0) + 1;
-        this.saveUsage();
-    }
-    
-    incrementGoogleDriveUsage() {
-        this.ensureCurrentMonth();
-        this.usage.googleDrive = (this.usage.googleDrive || 0) + 1;
-        this.saveUsage();
-    }
-    
-    incrementFlightTrackingUsage() {
-        this.ensureCurrentMonth();
-        this.usage.flightTracking = (this.usage.flightTracking || 0) + 1;
-        this.saveUsage();
-    }
+    // Wikipedia, dictionary, jokes, trivia, currency, qr, urlShortener are unlimited
+    // No need to track usage for unlimited APIs
     
     // Legacy compatibility method
     incrementUsage(type, count = 1) {
         this.ensureCurrentMonth();
         
         const validTypes = [
-            'messages', 'images', 'searches', 'weather', 'news', 'sports',
-            'stocks', 'movies', 'youtube', 'recipes', 'translation', 'github',
-            'crypto', 'spotify', 'googleMaps', 'googleSearch', 'gmail',
-            'googleCalendar', 'googleDrive', 'flightTracking'
+            'messages', 'images', 'searches', 
+            'weather', 'news'
+            // Unlimited APIs don't need tracking
         ];
         
         if (validTypes.includes(type)) {
@@ -490,6 +361,8 @@ class UserProfileManager {
             messages: usage.messages || 0,
             images: usage.images || 0,
             searches: usage.searches || 0,
+            weather: usage.weather || 0,
+            news: usage.news || 0,
             limits: limits
         };
         
@@ -615,24 +488,18 @@ class UserProfileManager {
         return { allowed: true };
     }
     
-    // Specific API checkers
+    // Specific API checkers (only real APIs)
     canUseWeather() { return this.canUseAPI('weather'); }
     canUseNews() { return this.canUseAPI('news'); }
-    canUseSports() { return this.canUseAPI('sports'); }
-    canUseStocks() { return this.canUseAPI('stocks'); }
-    canUseMovies() { return this.canUseAPI('movies'); }
-    canUseYoutube() { return this.canUseAPI('youtube'); }
-    canUseRecipes() { return this.canUseAPI('recipes'); }
-    canUseTranslation() { return this.canUseAPI('translation'); }
-    canUseGithub() { return this.canUseAPI('github'); }
-    canUseCrypto() { return this.canUseAPI('crypto'); }
-    canUseSpotify() { return this.canUseAPI('spotify'); }
-    canUseGoogleMaps() { return this.canUseAPI('googleMaps'); }
-    canUseGoogleSearch() { return this.canUseAPI('googleSearch'); }
-    canUseGmail() { return this.canUseAPI('gmail'); }
-    canUseGoogleCalendar() { return this.canUseAPI('googleCalendar'); }
-    canUseGoogleDrive() { return this.canUseAPI('googleDrive'); }
-    canUseFlightTracking() { return this.canUseAPI('flightTracking'); }
+    
+    // Unlimited APIs always return true
+    canUseWikipedia() { return { allowed: true }; }
+    canUseDictionary() { return { allowed: true }; }
+    canUseJokes() { return { allowed: true }; }
+    canUseTrivia() { return { allowed: true }; }
+    canUseCurrency() { return { allowed: true }; }
+    canUseQR() { return { allowed: true }; }
+    canUseUrlShortener() { return { allowed: true }; }
     
     // ==========================================
     // MONTH MANAGEMENT
@@ -654,24 +521,8 @@ class UserProfileManager {
             messages: 0,
             images: 0,
             searches: 0,
-            // All API usage counters
             weather: 0,
             news: 0,
-            sports: 0,
-            stocks: 0,
-            movies: 0,
-            youtube: 0,
-            recipes: 0,
-            translation: 0,
-            github: 0,
-            crypto: 0,
-            spotify: 0,
-            googleMaps: 0,
-            googleSearch: 0,
-            gmail: 0,
-            googleCalendar: 0,
-            googleDrive: 0,
-            flightTracking: 0,
             resetAt: Date.now()
         };
         this.saveUsage();
@@ -727,21 +578,6 @@ class UserProfileManager {
             searches: 0,
             weather: 0,
             news: 0,
-            sports: 0,
-            stocks: 0,
-            movies: 0,
-            youtube: 0,
-            recipes: 0,
-            translation: 0,
-            github: 0,
-            crypto: 0,
-            spotify: 0,
-            googleMaps: 0,
-            googleSearch: 0,
-            gmail: 0,
-            googleCalendar: 0,
-            googleDrive: 0,
-            flightTracking: 0,
             resetAt: Date.now()
         };
     }
@@ -753,4 +589,4 @@ class UserProfileManager {
 window.UserProfileManager = UserProfileManager;
 window.ProfileManager = UserProfileManager; // Alias for compatibility
 
-console.log('✅ ProfileManager v3.1.0 loaded - Complete API ecosystem ready');
+console.log('✅ ProfileManager v3.2.0 loaded - 13 Real APIs only');
