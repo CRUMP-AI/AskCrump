@@ -97,3 +97,516 @@
             transform: translateY(-2px);
         }
         .highlight {
+            background: rgba(201, 184, 146, 0.1);
+            padding: 1rem;
+            border-left: 3px solid var(--color-accent-primary);
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+        .warning-box {
+            background: rgba(239, 88, 12, 0.1);
+            border: 2px solid #ea580c;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        .warning-box strong {
+            color: #ea580c;
+        }
+    </style>
+</head>
+<body style="background: var(--color-bg-primary);">
+    
+    <div class="legal-container">
+        <a href="/" class="back-button">← Back to Crump AI</a>
+        
+        <div class="legal-header">
+            <h1>Legal Information</h1>
+            <p style="color: var(--color-text-secondary); margin-top: 1rem;">
+                Last Updated: October 25, 2025
+            </p>
+        </div>
+
+        <div class="legal-nav">
+            <a href="#privacy">Privacy Policy</a>
+            <a href="#terms">Terms of Service</a>
+            <a href="#age">Age Requirements</a>
+            <a href="#ratings">Content Rating</a>
+        </div>
+
+        <!-- PRIVACY POLICY -->
+        <div class="legal-section" id="privacy">
+            <h2>🔒 Privacy Policy</h2>
+            <p class="effective-date">Effective Date: October 25, 2025</p>
+
+            <h3>1. Information We Collect</h3>
+            <p>Crump AI is designed with privacy in mind. We collect and store minimal information:</p>
+            <ul>
+                <li><strong>Account Information:</strong> Name, email address (optional), and profile preferences</li>
+                <li><strong>Usage Data:</strong> Message counts, feature usage, and tier information (stored locally in your browser)</li>
+                <li><strong>Conversation Data:</strong> Your chat history is stored locally on your device only</li>
+                <li><strong>API Usage:</strong> We log API requests for billing and rate limiting purposes</li>
+                <li><strong>Payment Information:</strong> Processed securely by Stripe (we never see your card details)</li>
+            </ul>
+
+            <div class="highlight">
+                <strong>🔐 Your Privacy Guarantee:</strong> Your conversations are stored locally in your browser's localStorage. We do NOT store your conversation content on our servers. Only you have access to your chat history.
+            </div>
+
+            <h3>2. How We Use Your Information</h3>
+            <ul>
+                <li>Provide and improve Crump AI services</li>
+                <li>Process payments for Pro and Premium tiers</li>
+                <li>Send important service updates (with your permission)</li>
+                <li>Enforce usage limits and prevent abuse</li>
+                <li>Comply with legal obligations</li>
+                <li>Generate anonymized usage analytics</li>
+            </ul>
+
+            <h3>3. Third-Party Services</h3>
+            <p>Crump AI integrates with third-party APIs to provide enhanced functionality. When you use these features, your data may be processed by:</p>
+            <ul>
+                <li><strong>Anthropic (Claude AI):</strong> AI conversation processing - <a href="https://www.anthropic.com/privacy" target="_blank" style="color: var(--color-accent-primary);">Privacy Policy</a></li>
+                <li><strong>OpenAI (GPT-4):</strong> Fallback AI processing - <a href="https://openai.com/privacy" target="_blank" style="color: var(--color-accent-primary);">Privacy Policy</a></li>
+                <li><strong>Brave Search:</strong> Web search functionality - <a href="https://brave.com/privacy" target="_blank" style="color: var(--color-accent-primary);">Privacy Policy</a></li>
+                <li><strong>Pollinations AI:</strong> Image generation (no data collection)</li>
+                <li><strong>NewsAPI:</strong> News articles</li>
+                <li><strong>OpenWeatherMap:</strong> Weather data</li>
+                <li><strong>Stripe:</strong> Payment processing - <a href="https://stripe.com/privacy" target="_blank" style="color: var(--color-accent-primary);">Privacy Policy</a></li>
+            </ul>
+
+            <h3>4. Data Storage and Security</h3>
+            <ul>
+                <li>Conversations stored locally in browser localStorage (not on our servers)</li>
+                <li>API requests transmitted over HTTPS encryption (TLS 1.3)</li>
+                <li>Payment processing via Stripe (PCI-DSS Level 1 compliant)</li>
+                <li>Server logs retained for 30 days for debugging and security</li>
+                <li>No conversation content stored on servers</li>
+                <li>API keys encrypted at rest in Vercel environment</li>
+            </ul>
+
+            <h3>5. Your Rights</h3>
+            <p>You have the right to:</p>
+            <ul>
+                <li><strong>Access:</strong> Request a copy of your account data</li>
+                <li><strong>Delete:</strong> Clear your conversations via browser settings or request account deletion</li>
+                <li><strong>Export:</strong> Export your data (coming soon)</li>
+                <li><strong>Opt-Out:</strong> Unsubscribe from marketing emails</li>
+                <li><strong>Rectify:</strong> Correct inaccurate account information</li>
+                <li><strong>Data Portability:</strong> Transfer your data to another service</li>
+            </ul>
+
+            <h3>6. Age Policy (17+ Only)</h3>
+            <p>Crump AI is intended for users aged <strong>17 and older</strong>. We do not knowingly collect information from users under 17. By using our service, you certify that you are at least 17 years old.</p>
+            <p>If you are a parent and believe your child under 17 has created an account, please contact us immediately at <a href="mailto:privacy@crumpai.com" style="color: var(--color-accent-primary);">privacy@crumpai.com</a> and we will:</p>
+            <ul>
+                <li>Delete the account immediately</li>
+                <li>Purge all associated data</li>
+                <li>Block future account creation from that email</li>
+            </ul>
+
+            <h3>7. Cookies and Tracking</h3>
+            <p>We use minimal tracking:</p>
+            <ul>
+                <li><strong>Essential Cookies:</strong> Session management and authentication</li>
+                <li><strong>localStorage:</strong> Store your conversations and preferences locally</li>
+                <li><strong>Analytics:</strong> Vercel Analytics for page views (no personal data)</li>
+                <li><strong>No Third-Party Ads:</strong> We do not use advertising cookies</li>
+            </ul>
+
+            <h3>8. Data Retention</h3>
+            <ul>
+                <li><strong>Conversations:</strong> Stored locally until you clear browser data</li>
+                <li><strong>Account Data:</strong> Retained while account is active</li>
+                <li><strong>Server Logs:</strong> 30 days</li>
+                <li><strong>Billing Records:</strong> 7 years (legal requirement)</li>
+                <li><strong>Deleted Accounts:</strong> All data purged within 30 days</li>
+            </ul>
+
+            <h3>9. International Users</h3>
+            <p>Crump AI is hosted in the United States (Vercel). By using our service, you consent to the transfer of data to the US. We comply with GDPR for EU users and CCPA for California residents.</p>
+
+            <h3>10. Changes to Privacy Policy</h3>
+            <p>We may update this policy with 30 days' notice via email. Material changes require explicit consent. Continued use after changes constitutes acceptance.</p>
+
+            <h3>11. Contact Us</h3>
+            <p>For privacy concerns, contact:<br>
+            Email: <a href="mailto:privacy@crumpai.com" style="color: var(--color-accent-primary);">privacy@crumpai.com</a><br>
+            Developer: Gregory D. Crump Jr.<br>
+            Response Time: Within 48 hours</p>
+        </div>
+
+        <!-- TERMS OF SERVICE -->
+        <div class="legal-section" id="terms">
+            <h2>📜 Terms of Service</h2>
+            <p class="effective-date">Effective Date: October 25, 2025</p>
+
+            <h3>1. Acceptance of Terms</h3>
+            <p>By accessing or using Crump AI ("Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, you may not use the Service.</p>
+
+            <div class="warning-box">
+                <strong>⚠️ Age Requirement:</strong> You must be at least 17 years old to use Crump AI. By using this service, you certify that you meet this age requirement.
+            </div>
+
+            <h3>2. Service Description</h3>
+            <p>Crump AI is an AI-powered virtual assistant providing:</p>
+            <ul>
+                <li>Natural language conversation powered by Claude Sonnet 4.5 and GPT-4</li>
+                <li>Image generation via Pollinations AI</li>
+                <li>Web search and information retrieval via Brave Search</li>
+                <li>API integrations (weather, news, dictionary, etc.)</li>
+                <li>File upload and analysis (images, PDFs, text)</li>
+                <li>Voice input and output</li>
+            </ul>
+
+            <h3>3. User Accounts and Tiers</h3>
+            <p><strong>Free Tier ($0):</strong></p>
+            <ul>
+                <li>100 messages per month</li>
+                <li>10 images per month</li>
+                <li>20 web searches per month</li>
+                <li>Limited API access (weather, news, etc.)</li>
+                <li>Unlimited: Wikipedia, Dictionary, Jokes, Trivia</li>
+            </ul>
+
+            <p><strong>Pro Tier ($9.99/month or $95/year):</strong></p>
+            <ul>
+                <li>1,000 messages per month</li>
+                <li>100 images per month</li>
+                <li>200 web searches per month</li>
+                <li>Enhanced API limits</li>
+                <li>Priority response times</li>
+                <li>Advanced memory features</li>
+            </ul>
+
+            <p><strong>Premium Tier ($24.99/month or $239/year):</strong></p>
+            <ul>
+                <li>Unlimited messages</li>
+                <li>500 images per month</li>
+                <li>Unlimited web searches</li>
+                <li>All APIs unlimited</li>
+                <li>Extended memory</li>
+                <li>Custom themes (coming soon)</li>
+                <li>API access (coming soon)</li>
+                <li>Priority support</li>
+            </ul>
+
+            <h3>4. Acceptable Use Policy</h3>
+            <p>You agree NOT to use Crump AI to:</p>
+            <ul>
+                <li>Generate illegal, harmful, or abusive content</li>
+                <li>Create content that violates others' intellectual property rights</li>
+                <li>Harass, threaten, dox, or impersonate others</li>
+                <li>Distribute malware, viruses, or conduct cyberattacks</li>
+                <li>Violate any local, state, national, or international laws</li>
+                <li>Reverse engineer, decompile, or scrape our services</li>
+                <li>Bypass usage limits or abuse free tier features</li>
+                <li>Create multiple accounts to circumvent restrictions</li>
+                <li>Use automated tools or bots without permission</li>
+                <li>Generate CSAM or any illegal sexual content</li>
+                <li>Create misleading deepfakes or disinformation</li>
+            </ul>
+
+            <div class="warning-box">
+                <strong>⚠️ Violation Consequences:</strong> Immediate account suspension or termination. We report illegal activity to law enforcement. Legal action may be taken for damages.
+            </div>
+
+            <h3>5. Payment and Billing</h3>
+            <ul>
+                <li><strong>Payment Processor:</strong> Stripe (PCI-DSS compliant)</li>
+                <li><strong>Billing Cycles:</strong> Monthly or annual (billed upfront)</li>
+                <li><strong>Auto-Renewal:</strong> Subscriptions auto-renew unless cancelled</li>
+                <li><strong>Cancellation:</strong> Cancel anytime via settings (access until period ends)</li>
+                <li><strong>Refund Policy:</strong> 14-day money-back guarantee for first-time subscribers</li>
+                <li><strong>No Refunds After 14 Days:</strong> Prorated refunds not available</li>
+                <li><strong>Price Changes:</strong> 30-day notice required, affects next billing cycle</li>
+                <li><strong>Failed Payments:</strong> Account downgraded to free tier after 3 failed attempts</li>
+            </ul>
+
+            <h3>6. Intellectual Property</h3>
+            <ul>
+                <li><strong>Your Content:</strong> You retain ownership of all text, files, and data you input</li>
+                <li><strong>AI-Generated Content:</strong> You own generated images and text outputs, subject to third-party API terms</li>
+                <li><strong>Crump AI Platform:</strong> All code, design, branding, documentation, and "N² Engine" trademark owned by Gregory D. Crump Jr.</li>
+                <li><strong>License to Use:</strong> You grant us a license to process your inputs to provide the Service</li>
+                <li><strong>Third-Party Rights:</strong> Some generated content may be subject to third-party terms (Anthropic, OpenAI, etc.)</li>
+            </ul>
+
+            <h3>7. Disclaimers</h3>
+            <p>Crump AI is provided "AS IS" and "AS AVAILABLE" without warranties of any kind:</p>
+            <ul>
+                <li><strong>Accuracy:</strong> AI responses may contain errors, inaccuracies, or hallucinations</li>
+                <li><strong>Uptime:</strong> Service uptime not guaranteed (target: 99% uptime)</li>
+                <li><strong>Third-Party APIs:</strong> Availability and accuracy not guaranteed</li>
+                <li><strong>Not Professional Advice:</strong> Not a replacement for legal, medical, financial, or professional advice</li>
+                <li><strong>Security:</strong> While we implement security measures, no system is 100% secure</li>
+                <li><strong>Data Loss:</strong> Browser data (localStorage) may be lost if you clear cookies/cache</li>
+            </ul>
+
+            <h3>8. Limitation of Liability</h3>
+            <p>To the maximum extent permitted by law, Crump AI, its developer, and affiliates are NOT liable for:</p>
+            <ul>
+                <li>Indirect, incidental, consequential, or punitive damages</li>
+                <li>Loss of data, profits, revenue, or business opportunities</li>
+                <li>Damages from third-party API failures or inaccuracies</li>
+                <li>Damages from AI-generated content errors</li>
+                <li>Unauthorized access or security breaches</li>
+                <li><strong>Maximum Liability:</strong> Amount you paid in the last 12 months (or $100, whichever is greater)</li>
+            </ul>
+
+            <h3>9. Indemnification</h3>
+            <p>You agree to indemnify and hold harmless Crump AI and Gregory D. Crump Jr. from any claims, damages, or expenses arising from:</p>
+            <ul>
+                <li>Your violation of these Terms</li>
+                <li>Your misuse of the Service</li>
+                <li>Your content or inputs</li>
+                <li>Your violation of any laws or third-party rights</li>
+            </ul>
+
+            <h3>10. Termination</h3>
+            <p><strong>You may terminate:</strong> Cancel your account anytime via settings</p>
+            <p><strong>We may terminate accounts for:</strong></p>
+            <ul>
+                <li>Terms of Service violations</li>
+                <li>Abuse, fraud, or illegal activity</li>
+                <li>Non-payment after 3 failed attempts</li>
+                <li>Inactivity for 12+ months</li>
+            </ul>
+            <p><strong>Effect of Termination:</strong> All data deleted within 30 days. No refunds for remaining subscription time (except 14-day guarantee).</p>
+
+            <h3>11. Changes to Terms</h3>
+            <p>We may update these Terms with 30 days' notice via email. Material changes require explicit consent. Continued use after notice period constitutes acceptance.</p>
+
+            <h3>12. Dispute Resolution</h3>
+            <ul>
+                <li><strong>Informal Resolution:</strong> Contact us first at <a href="mailto:legal@crumpai.com" style="color: var(--color-accent-primary);">legal@crumpai.com</a></li>
+                <li><strong>Arbitration:</strong> Disputes resolved via binding arbitration (AAA rules)</li>
+                <li><strong>Class Action Waiver:</strong> No class actions or representative actions</li>
+                <li><strong>Small Claims Court:</strong> You may pursue claims in small claims court</li>
+            </ul>
+
+            <h3>13. Governing Law</h3>
+            <p>These Terms are governed by the laws of the State of Georgia, USA, without regard to conflict of law principles. Exclusive jurisdiction in Georgia courts.</p>
+
+            <h3>14. Severability</h3>
+            <p>If any provision is found unenforceable, the remaining provisions remain in full effect.</p>
+
+            <h3>15. Entire Agreement</h3>
+            <p>These Terms constitute the entire agreement between you and Crump AI, superseding all prior agreements.</p>
+
+            <h3>16. Contact</h3>
+            <p>Questions about these Terms?<br>
+            Email: <a href="mailto:legal@crumpai.com" style="color: var(--color-accent-primary);">legal@crumpai.com</a><br>
+            Developer: Gregory D. Crump Jr.<br>
+            Response Time: Within 72 hours</p>
+        </div>
+
+        <!-- AGE REQUIREMENTS -->
+        <div class="legal-section" id="age">
+            <h2>🔞 Age Requirements</h2>
+            <p class="effective-date">Minimum Age: 17 Years Old (Mature Users Only)</p>
+
+            <div class="warning-box">
+                <strong>⚠️ IMPORTANT:</strong> Crump AI is rated 17+ (Mature). You must be at least 17 years old to create an account or use this service. By using Crump AI, you certify that you meet this age requirement.
+            </div>
+
+            <h3>Age Verification and Compliance</h3>
+            <p>Crump AI requires users to be at least 17 years old:</p>
+            <ul>
+                <li><strong>Minimum Age:</strong> Users must be at least 17 years old</li>
+                <li><strong>Parental Consent:</strong> Users under 18 should have explicit parental permission</li>
+                <li><strong>Adult Supervision:</strong> Strongly recommended for all users under 18</li>
+                <li><strong>Verification:</strong> We reserve the right to request government-issued ID for age verification</li>
+                <li><strong>False Information:</strong> Providing false age information results in immediate account termination</li>
+            </ul>
+
+            <div class="highlight">
+                <strong>For Parents/Guardians:</strong> If your child under 17 has created an account, please contact us immediately at <a href="mailto:privacy@crumpai.com" style="color: var(--color-accent-primary);">privacy@crumpai.com</a> and we will:
+                <ul style="margin-top: 0.5rem;">
+                    <li>Delete the account immediately</li>
+                    <li>Purge all associated data and conversation history</li>
+                    <li>Block future account creation from that email address</li>
+                    <li>Report to appropriate authorities if illegal activity detected</li>
+                </ul>
+            </div>
+
+            <h3>Why 17+ Rating?</h3>
+            <p>We set the minimum age at 17 (Mature rating) to ensure appropriate and responsible use because Crump AI includes:</p>
+            <ul>
+                <li><strong>Unrestricted Web Access:</strong> Search features can access any internet content, including mature themes</li>
+                <li><strong>AI Content Unpredictability:</strong> Even with safety filters, AI responses cannot be 100% guaranteed safe or appropriate for minors</li>
+                <li><strong>Real-Time News:</strong> Includes coverage of violence, politics, wars, disasters, and other mature themes</li>
+                <li><strong>User Responsibility:</strong> Requires mature judgment to use AI tools responsibly and ethically</li>
+                <li><strong>Third-Party Content:</strong> External APIs (news, search, etc.) may contain mature, controversial, or disturbing content</li>
+                <li><strong>No Content Filtering:</strong> We do not implement strict content filtering (at user's request for creative freedom)</li>
+                <li><strong>Strong Language Possible:</strong> AI may occasionally generate strong language or discuss mature topics</li>
+            </ul>
+
+            <h3>Safety Features for Young Adults (17-18)</h3>
+            <p>While Crump AI is designed for mature users, we implement some safety measures:</p>
+            <ul>
+                <li><strong>AI Safety Filters:</strong> Claude and GPT-4 have built-in systems to prevent extremely harmful content</li>
+                <li><strong>Abuse Reporting:</strong> Report concerning content to <a href="mailto:abuse@crumpai.com" style="color: var(--color-accent-primary);">abuse@crumpai.com</a> (reviewed within 24 hours)</li>
+                <li><strong>Parental Oversight Encouraged:</strong> Parents/guardians should monitor usage for users under 18</li>
+                <li><strong>Account Suspension:</strong> Immediate action for illegal or extremely harmful use</li>
+                <li><strong>Usage Limits:</strong> Free tier limits help prevent excessive or problematic use</li>
+            </ul>
+
+            <h3>Legal Disclaimer</h3>
+            <p>By creating an account or using Crump AI, you certify under penalty of perjury that you are at least 17 years old. False representation of age is grounds for:</p>
+            <ul>
+                <li>Immediate account termination</li>
+                <li>Ban from future use</li>
+                <li>Potential legal action if fraud or harm occurs</li>
+                <li>Notification of parents/guardians and authorities if user is a minor</li>
+            </ul>
+
+            <h3>International Age Requirements</h3>
+            <p>Users outside the United States must comply with their local age requirements for accessing AI services and mature content. In some jurisdictions, the minimum age may be 18 or higher.</p>
+        </div>
+
+        <!-- CONTENT RATING -->
+        <div class="legal-section" id="ratings">
+            <h2>⭐ Content Rating & Safety Information</h2>
+            <p class="effective-date">Official Rating: 17+ (Mature)</p>
+
+            <div class="warning-box">
+                <strong>⚠️ MATURE CONTENT WARNING:</strong> Crump AI is rated 17+ and may expose users to mature themes, strong language, real-world violence (via news), and unpredictable AI-generated content. Not suitable for children or young teenagers.
+            </div>
+
+            <h3>ESRB-Style Rating: M (Mature 17+)</h3>
+            <p><strong>Content Descriptors:</strong></p>
+            <ul>
+                <li><strong>🌐 Unrestricted Internet Access:</strong> Web search can access ANY content on the internet</li>
+                <li><strong>📰 Mature Themes:</strong> News includes violence, death, politics, wars, disasters</li>
+                <li><strong>💬 Strong Language:</strong> AI may occasionally generate profanity or strong language</li>
+                <li><strong>👥 User-Generated Content:</strong> Users can create uncensored content</li>
+                <li><strong>🤖 AI Unpredictability:</strong> AI responses cannot be fully controlled or predicted</li>
+                <li><strong>🔞 Real-World Information:</strong> Access to controversial, political, and mature topics</li>
+                <li><strong>⚠️ No Parental Controls:</strong> Limited content filtering at launch</li>
+            </ul>
+
+            <h3>App Store / Google Play Rating</h3>
+            <p><strong>Rating: 17+ (Mature)</strong></p>
+            <p><strong>Reasons for 17+ rating:</strong></p>
+            <ul>
+                <li>✅ Unrestricted web access via Brave Search API</li>
+                <li>✅ User-generated content (no pre-moderation)</li>
+                <li>✅ AI-generated content with unpredictable nature</li>
+                <li>✅ Real-time news covering violence and mature themes</li>
+                <li>✅ Third-party API integrations with varying content standards</li>
+                <li>✅ No strict parental controls or content filtering</li>
+                <li>✅ Strong language and mature topics not blocked</li>
+                <li>✅ Political, religious, and controversial content accessible</li>
+            </ul>
+
+            <h3>Content Safety Measures</h3>
+            <p>While we cannot guarantee complete content safety, we implement:</p>
+            <ul>
+                <li><strong>AI Safety Filters:</strong> Claude Sonnet 4.5 and GPT-4 have built-in safety systems that refuse extremely harmful requests</li>
+                <li><strong>Abuse Reporting:</strong> Report inappropriate content to <a href="mailto:abuse@crumpai.com" style="color: var(--color-accent-primary);">abuse@crumpai.com</a> (24-hour review)</li>
+                <li><strong>Usage Monitoring:</strong> We monitor for severe policy violations and illegal activity</li>
+                <li><strong>Account Suspension:</strong> Immediate action for CSAM, terrorism, extreme violence, or illegal content</li>
+                <li><strong>Rate Limiting:</strong> Usage limits help prevent abuse</li>
+                <li><strong>Law Enforcement Cooperation:</strong> We report illegal activity to authorities</li>
+            </ul>
+
+            <div class="highlight">
+                <strong>⚠️ CRITICAL DISCLAIMER:</strong> While we implement AI safety measures, AI-generated content and web search results are inherently unpredictable. Users must be 17+ and exercise mature, responsible judgment. We are NOT responsible for third-party content accessed through our platform or for AI responses that may be inaccurate, offensive, or inappropriate.
+            </div>
+
+            <h3>Third-Party Content & APIs</h3>
+            <p>Crump AI aggregates content from third-party sources. <strong>We do not control, review, endorse, or guarantee the accuracy, safety, or appropriateness of this content:</strong></p>
+            <ul>
+                <li><strong>📰 News Articles:</strong> Violence, death, politics, wars, disasters (via NewsAPI)</li>
+                <li><strong>🔍 Web Search:</strong> Unrestricted internet content (via Brave Search)</li>
+                <li><strong>🌤️ Weather Data:</strong> Public information (via OpenWeatherMap)</li>
+                <li><strong>🤖 AI Responses:</strong> Generated by Claude (Anthropic) and GPT-4 (OpenAI) with inherent unpredictability</li>
+                <li><strong>🎨 Generated Images:</strong> Created by Pollinations AI with unpredictable results</li>
+                <li><strong>📚 Reference Data:</strong> Wikipedia, dictionaries, and other public databases</li>
+            </ul>
+
+            <p><strong style="color: var(--color-accent-primary);">USERS MUST VERIFY CRITICAL INFORMATION FROM AUTHORITATIVE SOURCES.</strong> Do not rely solely on AI responses for important decisions.</p>
+
+            <h3>Not Suitable For:</h3>
+            <ul>
+                <li>❌ Children or teenagers under 17</li>
+                <li>❌ Unsupervised use by minors (even 17-18)</li>
+                <li>❌ Users seeking guaranteed "safe" or filtered AI interactions</li>
+                <li>❌ Environments requiring strict content control (schools, youth programs, etc.)</li>
+                <li>❌ Users sensitive to mature themes, violence, or strong language</li>
+                <li>❌ Professional use requiring 100% accuracy (medical, legal, financial advice)</li>
+            </ul>
+
+            <h3>Suitable For:</h3>
+            <ul>
+                <li>✅ Adults (17+) seeking a powerful, unrestricted AI assistant</li>
+                <li>✅ Professionals needing research and information tools</li>
+                <li>✅ Creative users wanting uncensored AI collaboration</li>
+                <li>✅ Tech-savvy users comfortable with AI limitations</li>
+                <li>✅ Users who verify critical information from multiple sources</li>
+            </ul>
+
+            <h3>Educational & Professional Use</h3>
+            <p><strong>Not Recommended For:</strong></p>
+            <ul>
+                <li>K-12 schools (too mature)</li>
+                <li>Youth programs or supervised minor use</li>
+                <li>Environments requiring COPPA/FERPA compliance</li>
+            </ul>
+
+            <p><strong>May Be Suitable For:</strong></p>
+            <ul>
+                <li>University/college students (17+)</li>
+                <li>Professional development and business use</li>
+                <li>Adult education and training</li>
+                <li>Research and academic work</li>
+            </ul>
+
+            <h3>Parental Guidance</h3>
+            <p>If you are a parent of a 17-18 year old user:</p>
+            <ul>
+                <li>Discuss responsible AI use and digital literacy</li>
+                <li>Monitor their usage periodically</li>
+                <li>Explain the difference between AI information and verified facts</li>
+                <li>Set expectations about mature content they may encounter</li>
+                <li>Keep communication open about concerning content</li>
+                <li>Consider if your teen is mature enough for unrestricted AI access</li>
+            </ul>
+
+            <h3>Content Reporting</h3>
+            <p>Report content that violates our policies:</p>
+            <ul>
+                <li><strong>Email:</strong> <a href="mailto:abuse@crumpai.com" style="color: var(--color-accent-primary);">abuse@crumpai.com</a></li>
+                <li><strong>Response Time:</strong> 24 hours for review</li>
+                <li><strong>What to Report:</strong> Illegal content, CSAM, terrorism, extreme violence, harassment</li>
+                <li><strong>Investigation:</strong> We investigate all reports and take action as needed</li>
+                <li><strong>Law Enforcement:</strong> Illegal content reported to authorities</li>
+            </ul>
+
+            <h3>Rating Appeals</h3>
+            <p>If you believe this rating is incorrect or have concerns, contact: <a href="mailto:legal@crumpai.com" style="color: var(--color-accent-primary);">legal@crumpai.com</a></p>
+        </div>
+
+        <!-- FOOTER -->
+        <div style="text-align: center; padding: 3rem 0; border-top: 2px solid var(--color-border); margin-top: 3rem;">
+            <p style="color: var(--color-text-secondary); margin-bottom: 1rem; font-size: 1rem;">
+                Powered by the <span style="color: var(--color-accent-primary); font-weight: 700; font-size: 1.125rem;">N² Engine</span>
+            </p>
+            <p style="color: var(--color-text-tertiary); font-size: 0.875rem;">
+                © 2025 Gregory D. Crump Jr. All rights reserved.
+            </p>
+            <p style="color: var(--color-text-tertiary); font-size: 0.875rem; margin-top: 0.5rem;">
+                Built for <strong style="color: var(--color-accent-primary);">Nala & Niobi</strong> (N²)
+            </p>
+            <p style="color: var(--color-text-tertiary); font-size: 0.875rem; margin-top: 1rem;">
+                Questions or concerns?<br>
+                Legal: <a href="mailto:legal@crumpai.com" style="color: var(--color-accent-primary);">legal@crumpai.com</a><br>
+                Privacy: <a href="mailto:privacy@crumpai.com" style="color: var(--color-accent-primary);">privacy@crumpai.com</a><br>
+                Abuse: <a href="mailto:abuse@crumpai.com" style="color: var(--color-accent-primary);">abuse@crumpai.com</a>
+            </p>
+        </div>
+    </div>
+
+</body>
+</html>
