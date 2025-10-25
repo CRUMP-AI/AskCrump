@@ -63,7 +63,7 @@
                 <div class="sidebar-branding">
                     <img src="/assets/logo-c.png" alt="C" class="sidebar-logo-icon">
                     <h1 class="sidebar-logo">Crump</h1>
-                    <span class="sidebar-version">v3.0</span>
+                    <span class="sidebar-version">v2.11.0</span>
                 </div>
                 <button id="closeSidebarBtn" class="btn-icon" aria-label="Close">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -113,10 +113,10 @@
 
                 <div class="sidebar-divider"></div>
 
-<a href="/legal.html" class="sidebar-footer-btn" style="text-decoration: none;">
-    <span style="font-size: 18px;">⚖️</span>
-    <span>Legal & Privacy</span>
-</a>
+                <a href="/legal.html" class="sidebar-footer-btn" style="text-decoration: none;">
+                    <span style="font-size: 18px;">⚖️</span>
+                    <span>Legal & Privacy</span>
+                </a>
                 
                 <div class="sidebar-divider"></div>
                 <div class="sidebar-branding-footer">
@@ -163,18 +163,17 @@
 
             <!-- THINKING -->
             <div id="thinkingIndicator" class="thinking-indicator" style="display: none;">
-                <div class="thinking-spinner"></div>
-                <span class="thinking-text">Processing</span>
+                <span class="thinking-dot"></span>
+                <span class="thinking-dot"></span>
+                <span class="thinking-dot"></span>
             </div>
 
             <!-- INPUT -->
-            <div class="input-area">
-                <div id="filePreview" class="file-preview" style="display: none;"></div>
-                
+            <div class="input-section">
                 <div class="input-container">
                     <button id="attachBtn" class="btn-icon" title="Attach" aria-label="Attach file">
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                            <path d="M16.5 9.5L9.5 16.5C8.11929 17.8807 5.88071 17.8807 4.5 16.5C3.11929 15.1193 3.11929 12.8807 4.5 11.5L12.5 3.5C13.3284 2.67157 14.6716 2.67157 15.5 3.5C16.3284 4.32843 16.3284 5.67157 15.5 6.5L8.5 13.5C8.22386 13.7761 7.77614 13.7761 7.5 13.5C7.22386 13.2239 7.22386 12.7761 7.5 12.5L13.5 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            <path d="M16.5 10.5L10 17L3.5 10.5C2.11929 9.11929 2.11929 6.88071 3.5 5.5C4.88071 4.11929 7.11929 4.11929 8.5 5.5L10 7L11.5 5.5C12.8807 4.11929 15.1193 4.11929 16.5 5.5C17.8807 6.88071 17.8807 9.11929 16.5 10.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                         </svg>
                     </button>
                     
@@ -284,22 +283,22 @@
     </div>
 
     <!-- Inside settings modal preferences section -->
-<button class="btn btn-secondary btn-block" onclick="if(window.tutorial) window.tutorial.restart()" style="margin-top: 1rem;">
-    🎓 Restart Tutorial
-</button>
+    <button class="btn btn-secondary btn-block" onclick="if(window.tutorial) window.tutorial.restart()" style="margin-top: 1rem;">
+        🎓 Restart Tutorial
+    </button>
 
     <div id="toastContainer" class="toast-container"></div>
     <input type="file" id="fileInput" style="display: none;" accept="image/*,.pdf,.txt,.doc,.docx" multiple>
 
-<script src="/tutorial.js"></script>
-<script src="/autonomous.js"></script>
-<script src="/engines.js"></script>
-<script src="/profile-manager.js"></script>
-<script src="/image-generation.js"></script>
-<script src="/ui-functions.js"></script>
-<script src="/upgrade-ui.js"></script>
-<script src="/developer-mode.js"></script>
-<script src="/app.js"></script>
+    <script src="/tutorial.js"></script>
+    <script src="/autonomous.js"></script>
+    <script src="/engines.js"></script>
+    <script src="/profile-manager.js"></script>
+    <script src="/image-generation.js"></script>
+    <script src="/ui-functions.js"></script>
+    <script src="/upgrade-ui.js"></script>
+    <script src="/developer-mode.js"></script>
+    <script src="/app.js"></script>
 
     <script>
         window.addEventListener('load', () => {
