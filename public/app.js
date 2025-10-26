@@ -1,4 +1,3 @@
-<artifact identifier="crump-app-js" type="application/vnd.ant.code" language="javascript" title="app.js - Main Application v1.0">
 // ==========================================
 // CRUMP AI - MAIN APPLICATION v1.0
 // Complete with all fixes
@@ -719,4 +718,3 @@ getProfile: () => currentProfile?.getProfile(),
 version: '1.0.0'
 };
 console.log('✅ Crump AI v1.0 loaded');
-</artifact>
