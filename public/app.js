@@ -1,6 +1,6 @@
 /*
 ==========================================
-CRUMP AI - MAIN APPLICATION v1.0
+CRUMP AI - MAIN APPLICATION v1.0 FIXED
 Complete with all fixes
 ==========================================
 */
@@ -420,10 +420,83 @@ setAssistantState('idle');
 isProcessing = false;
 }
 
+// ==========================================
+// AI RESPONSE - FIXED VERSION
+// ==========================================
 async function getAIResponse(message, files, conversationHistory) {
-// This function should be implemented to call your AI API
-// For now, return a placeholder
-return "I'm Crump AI. This response function needs to be connected to your AI backend.";
+    console.log('📤 Sending message to API...');
+    
+    try {
+        // Prepare the request body
+        const requestBody = {
+            message: message,
+            history: conversationHistory || [],
+            currentDateTime: {
+                date: new Date().toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                }),
+                time: new Date().toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    second: '2-digit',
+                    hour12: true
+                }),
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+            },
+            fileData: files && files.length > 0 ? files : undefined,
+            needsSearch: window.searchDetectionEngine?.needsSearch(message) || false,
+            workMode: localStorage.getItem(STORAGE_KEYS.WORK_MODE) || 'companion'
+        };
+
+        // Check for image generation request
+        if (window.shouldGenerateImage && window.shouldGenerateImage(message)) {
+            console.log('🎨 Image generation requested');
+            await window.handleImageGeneration(message);
+            return 'Generating your image...';
+        }
+
+        // Make API call
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `API returned ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('✅ Response received from API');
+        
+        // Track usage
+        if (currentProfile) {
+            currentProfile.incrementMessageUsage();
+            if (requestBody.needsSearch) {
+                currentProfile.incrementSearchUsage();
+            }
+        }
+
+        return data.response || 'Sorry, I received an empty response.';
+        
+    } catch (error) {
+        console.error('❌ API Error:', error);
+        
+        // Provide user-friendly error messages
+        if (error.message.includes('timeout')) {
+            throw new Error('Request timed out. Please try a shorter message.');
+        } else if (error.message.includes('too long')) {
+            throw new Error('Message is too long. Please shorten it and try again.');
+        } else {
+            throw new Error('Failed to get response: ' + error.message);
+        }
+    }
 }
 
 // ==========================================
@@ -721,7 +794,7 @@ window.crumpDebug = {
 getChats: () => chats,
 getCurrentChat: () => chats.find(c => c.id === currentChatId),
 getProfile: () => currentProfile?.getProfile(),
-version: '1.0.0'
+version: '1.0.0-FIXED'
 };
 
-console.log('✅ Crump AI v1.0 loaded');
+console.log('✅ Crump AI v1.0 loaded (FIXED VERSION - API Connected)');
