@@ -168,7 +168,14 @@
     // ==========================================
     async function fetchCode(fileName) {
         try {
-            const response = await fetch(`/${fileName}`);
+            // Try /public/ folder first (Vercel structure)
+            let response = await fetch(`/public/${fileName}`);
+            
+            // If not found, try root
+            if (!response.ok) {
+                response = await fetch(`/${fileName}`);
+            }
+            
             if (!response.ok) {
                 console.warn(`❌ Failed to fetch ${fileName}: ${response.status}`);
                 return null;
@@ -499,11 +506,13 @@ ${codeToAnalyze}
 
 FOR DEVELOPER (Greg):
 
-1. Login via Developer Login button in sidebar
+1. Place self-debug-v3.js in /public/ folder (same location as app.js)
+
+2. Login via Developer Login button in sidebar
    - Username: greg@crumpai.com
    - Password: N2-Engine-2025
 
-2. Once logged in, self-debug features activate automatically
+3. Once logged in, self-debug features activate automatically
 
 COMMANDS:
 
@@ -517,6 +526,14 @@ COMMANDS:
 DOWNLOAD FIXED FILES:
   "download app.js"
   "download engines.js"
+
+FILE STRUCTURE:
+/public/
+  ├── index.html
+  ├── app.js
+  ├── engines.js
+  ├── self-debug-v3.js  ← Place here
+  └── ... other files
 
 PUBLIC USERS:
 - Never see this feature
