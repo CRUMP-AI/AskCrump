@@ -1,4 +1,3 @@
-<artifact identifier="crump-vercel-json" type="application/vnd.ant.code" language="json" title="vercel.json - Deployment Config">
 {
   "version": 2,
   "functions": {
@@ -73,4 +72,3 @@
     }
   ]
 }
-</artifact>
