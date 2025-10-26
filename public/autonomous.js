@@ -1,4 +1,3 @@
-<artifact identifier="crump-autonomous" type="application/vnd.ant.code" language="javascript" title="autonomous.js - Contextual Autonomous Messages">
 // ==========================================
 // CRUMP AI - AUTONOMOUS MESSAGING v1.0
 // Contextual, natural, proactive assistance
@@ -214,4 +213,3 @@ setFrequency(frequency) {
 // Initialize
 window.autonomousMessaging = new AutonomousMessaging();
 console.log('✅ Autonomous Messaging v1.0 loaded');
-</artifact>
