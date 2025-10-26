@@ -11,6 +11,27 @@
 --color-surface: #1a1f29;
 --color-border: #2d3748;
 --color-border-hover: #3d4a5c;
+   
+   /* ============================================ */
+    /* ALIASES FOR new-features.css COMPATIBILITY */
+    /* ============================================ */
+    --bg-primary: var(--color-bg-primary);
+    --bg-secondary: var(--color-bg-secondary);
+    --bg-tertiary: var(--color-bg-tertiary);
+    --text-primary: var(--color-text-primary);
+    --text-secondary: var(--color-text-secondary);
+    --text-tertiary: var(--color-text-tertiary);
+    --accent-primary: var(--color-accent-primary);
+    --accent-hover: var(--color-accent-hover);
+    --border: var(--color-border);
+    --success: var(--color-success);
+    --error: var(--color-error);
+    --warning: var(--color-warning, #f59e0b);
+    --info: var(--color-info, #3b82f6);
+    
+    /* Surface colors */
+    --surface: var(--color-bg-secondary);
+    --surface-hover: var(--color-bg-tertiary);
 
 --color-text-primary: #e5e7eb;
 --color-text-secondary: #9ca3af;
