@@ -1,4 +1,3 @@
-<artifact identifier="crump-profile-manager" type="application/vnd.ant.code" language="javascript" title="profile-manager.js - No Tier Limits v1.0">
 // ==========================================
 // CRUMP AI - PROFILE MANAGER v1.0
 // Unlimited usage - no tier restrictions
@@ -187,4 +186,3 @@ getDefaultUsage() {
 window.UserProfileManager = UserProfileManager;
 window.ProfileManager = UserProfileManager;
 console.log('✅ ProfileManager v1.0 loaded - Unlimited usage');
-</artifact>
