@@ -136,6 +136,55 @@ resetUsage(month) {
     this.saveUsage();
 }
 
+ // ==========================================
+    // TIER MANAGEMENT (for upgrade-ui.js)
+    // ==========================================
+    
+    getTierInfo() {
+        // For testing: return premium features
+        return {
+            current: 'free', // Change to 'pro' or 'premium' for testing
+            name: 'Free',
+            icon: '🆓',
+            billingPeriod: 'monthly',
+            limits: {
+                messages: -1,  // -1 = unlimited (for testing)
+                images: -1,
+                searches: -1,
+                weather: -1,
+                news: -1,
+                sports: -1,
+                spotify: -1,
+                youtube: -1,
+                gmail: -1
+            },
+            features: ['All features unlocked for testing']
+        };
+    }
+    
+    upgradeTier(tier, billingPeriod = 'monthly') {
+        console.log(`✅ Upgrade to ${tier} (${billingPeriod}) - Testing mode`);
+        this.profile.tier = tier;
+        this.profile.billingPeriod = billingPeriod;
+        this.saveProfile();
+        
+        // Reset usage for new tier
+        const now = new Date();
+        const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        this.resetUsage(currentMonth);
+        
+        return true;
+    }
+    
+    downgradeTier(reason = 'user_request') {
+        console.log(`⬇️ Downgrade to free tier - Reason: ${reason}`);
+        this.profile.tier = 'free';
+        delete this.profile.billingPeriod;
+        this.saveProfile();
+        
+        return true;
+    }
+   
 // Persistence
 loadProfile() {
     const saved = localStorage.getItem('crump_user_profile');
