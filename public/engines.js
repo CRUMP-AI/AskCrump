@@ -1,4 +1,3 @@
-<artifact identifier="crump-engines-js" type="application/vnd.ant.code" language="javascript" title="engines.js - Detection Engines">
 // ==========================================
 // CRUMP AI - DETECTION ENGINES v1.0
 // Image generation, search, API routing
@@ -105,4 +104,3 @@ window.MessageDeduplicator = MessageDeduplicator;
 window.SearchDetectionEngine = SearchDetectionEngine;
 window.ImageDetectionEngine = ImageDetectionEngine;
 console.log('✅ Detection Engines v1.0 loaded');
-</artifact>
