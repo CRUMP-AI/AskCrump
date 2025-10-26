@@ -404,4 +404,14 @@ window.showThinking = showThinking;
 window.hideThinking = hideThinking;
 window.showNotification = showNotification;
 
+// COMPATIBILITY: Single message wrapper for image-generation.js and self-debug-v3.js
+window.renderMessage = function(message) {
+    const chat = window.chats?.find(c => c.id === window.currentChatId);
+    if (chat && chat.messages) {
+        renderMessages(chat.messages);
+    } else {
+        console.warn('⚠️ renderMessage: No active chat found');
+    }
+};
+
 console.log('✅ UI Functions v2.12.1 loaded');
