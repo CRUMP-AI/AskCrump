@@ -1,7 +1,10 @@
+/*
 ==========================================
-// CRUMP AI - MAIN APPLICATION v1.0
-// Complete with all fixes
-// ==========================================
+CRUMP AI - MAIN APPLICATION v1.0
+Complete with all fixes
+==========================================
+*/
+
 // Storage Keys
 const STORAGE_KEYS = {
 CHATS: 'crump_chats',
@@ -14,6 +17,7 @@ AUTONOMOUS_ENABLED: 'crump_autonomous_enabled',
 AUTONOMOUS_FREQUENCY: 'crump_autonomous_frequency',
 HAS_ONBOARDED: 'crump_has_onboarded'
 };
+
 // Global State
 let chats = [];
 let currentChatId = null;
@@ -23,6 +27,7 @@ let isProcessing = false;
 window.chats = chats;
 window.currentChatId = currentChatId;
 window.STORAGE_KEYS = STORAGE_KEYS;
+
 // ==========================================
 // INITIALIZATION
 // ==========================================
@@ -87,6 +92,7 @@ throw new Error('Missing elements: ' + missing.join(', '));
     showToast('Failed to initialize application', 'error');
 }
 };
+
 // ==========================================
 // EVENT LISTENERS
 // ==========================================
@@ -97,6 +103,7 @@ const newChatBtn = document.getElementById('newChatBtn');
 const attachBtn = document.getElementById('attachBtn');
 const fileInput = document.getElementById('fileInput');
 const voiceBtn = document.getElementById('voiceBtn');
+
 // Send message
 sendButton.addEventListener('click', () => sendMessage());
 
@@ -126,11 +133,13 @@ if (voiceBtn) {
     voiceBtn.addEventListener('click', handleVoiceInput);
 }
 }
+
 function setupSidebarToggle() {
 const menuBtn = document.getElementById('menuBtn');
 const sidebar = document.getElementById('sidebar');
 const sidebarOverlay = document.getElementById('sidebarOverlay');
 const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+
 if (menuBtn && sidebar && sidebarOverlay) {
     menuBtn.addEventListener('click', () => {
         sidebar.classList.add('active');
@@ -150,6 +159,7 @@ if (menuBtn && sidebar && sidebarOverlay) {
     }
 }
 }
+
 // ==========================================
 // CHAT MANAGEMENT
 // ==========================================
@@ -167,10 +177,12 @@ window.chats = chats;
 }
 renderChatsList();
 }
+
 function saveChats() {
 localStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
 }
 window.saveChats = saveChats;
+
 function createNewChat() {
 const chat = {
 id: 'chat_' + Date.now(),
@@ -179,6 +191,7 @@ messages: [],
 createdAt: Date.now(),
 updatedAt: Date.now()
 };
+
 chats.unshift(chat);
 currentChatId = chat.id;
 window.currentChatId = currentChatId;
@@ -194,9 +207,11 @@ document.getElementById('userInput').focus();
 
 console.log('✅ New chat created:', chat.id);
 }
+
 function loadChat(chatId) {
 const chat = chats.find(c => c.id === chatId);
 if (!chat) return;
+
 currentChatId = chatId;
 window.currentChatId = currentChatId;
 localStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, chatId);
@@ -206,11 +221,14 @@ renderMessages(chat.messages);
 
 console.log('📖 Chat loaded:', chatId);
 }
+
 function getChat(chatId) {
 return chats.find(c => c.id === chatId);
 }
+
 function deleteChat(chatId) {
 if (!confirm('Delete this conversation?')) return;
+
 chats = chats.filter(c => c.id !== chatId);
 window.chats = chats;
 saveChats();
@@ -227,46 +245,116 @@ renderChatsList();
 console.log('🗑️ Chat deleted:', chatId);
 }
 window.deleteChat = deleteChat;
+
 function clearAllChats() {
-if (!confirm('Delete ALL conversations? This cannot be undone.')) return;
+if (!confirm('Clear all conversations? This cannot be undone.')) return;
+
 chats = [];
 window.chats = chats;
 saveChats();
-localStorage.removeItem(STORAGE_KEYS.CURRENT_CHAT);
-
 createNewChat();
-showToast('All conversations deleted', 'info');
+
+console.log('🗑️ All chats cleared');
+showToast('All conversations cleared', 'success');
 }
 window.clearAllChats = clearAllChats;
+
 function renderChatsList() {
 const chatsList = document.getElementById('chatsList');
 if (!chatsList) return;
+
 if (chats.length === 0) {
-    chatsList.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--color-text-tertiary); font-size: 0.875rem;">No conversations yet</div>';
+    chatsList.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--color-text-tertiary);">No conversations yet</div>';
     return;
 }
 
 chatsList.innerHTML = chats.map(chat => {
     const isActive = chat.id === currentChatId;
-    const time = formatTime(chat.updatedAt);
-    
     return `
         <div class="chat-item ${isActive ? 'active' : ''}" onclick="loadChat('${chat.id}')">
-            <div class="chat-item-content">
-                <div class="chat-item-title">${escapeHtml(chat.title)}</div>
-                <div class="chat-item-time">${time}</div>
+            <div style="flex: 1; min-width: 0;">
+                <div class="chat-title">${escapeHtml(chat.title)}</div>
+                <div class="chat-preview">${formatTime(chat.updatedAt)}</div>
             </div>
-            <button class="delete-chat-btn" onclick="event.stopPropagation(); deleteChat('${chat.id}')">×</button>
+            <button class="delete-chat" onclick="event.stopPropagation(); deleteChat('${chat.id}')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+                </svg>
+            </button>
         </div>
     `;
 }).join('');
 }
+
 // ==========================================
 // MESSAGE HANDLING
 // ==========================================
-async function sendMessage(messageText) {
-const userInput = document.getElementById('userInput');
-const message = messageText || userInput.value.trim();
+function renderMessages(messages) {
+const container = document.getElementById('chatContainer');
+if (!container) return;
+
+if (messages.length === 0) {
+    container.innerHTML = '';
+    return;
+}
+
+container.innerHTML = messages.map((msg, index) => {
+    const isUser = msg.role === 'user';
+    const messageId = 'msg_' + index;
+    
+    return `
+        <div class="message ${isUser ? 'user' : 'assistant'}" id="${messageId}">
+            <div class="message-avatar">
+                ${isUser ? 
+                    '<div class="avatar-circle">' + (currentProfile?.profile?.initial || 'U') + '</div>' :
+                    '<div class="avatar-circle assistant-avatar">C</div>'
+                }
+            </div>
+            <div class="message-content">
+                ${formatMessageContent(msg.content, msg.images)}
+            </div>
+        </div>
+    `;
+}).join('');
+
+// Scroll to bottom
+setTimeout(() => {
+    container.scrollTop = container.scrollHeight;
+}, 100);
+}
+
+function formatMessageContent(content, images) {
+let html = '';
+
+// Add images if present
+if (images && images.length > 0) {
+    html += '<div class="message-images">';
+    images.forEach(img => {
+        html += `<img src="${img.data}" alt="${escapeHtml(img.name)}" class="message-image">`;
+    });
+    html += '</div>';
+}
+
+// Format text content
+html += '<div class="message-text">' + formatText(content) + '</div>';
+
+return html;
+}
+
+function formatText(text) {
+// Convert markdown-like formatting
+text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+text = text.replace(/`(.*?)`/g, '<code>$1</code>');
+text = text.replace(/\n/g, '<br>');
+
+return text;
+}
+
+async function sendMessage() {
+const input = document.getElementById('userInput');
+const message = input.value.trim();
+
 if (!message && selectedFiles.length === 0) return;
 if (isProcessing) return;
 
@@ -274,20 +362,22 @@ const chat = chats.find(c => c.id === currentChatId);
 if (!chat) return;
 
 isProcessing = true;
+showThinking();
+setAssistantState('thinking');
 
-// User message
+// Create user message
 const userMessage = {
     role: 'user',
     content: message,
     timestamp: Date.now(),
-    fileData: selectedFiles.length > 0 ? [...selectedFiles] : null
+    images: selectedFiles.length > 0 ? [...selectedFiles] : undefined
 };
 
 chat.messages.push(userMessage);
 chat.updatedAt = Date.now();
 
-// Update title from first message
-if (chat.messages.length === 1) {
+// Update title if first message
+if (chat.messages.length === 1 || chat.title === 'New Conversation') {
     chat.title = message.substring(0, 50) + (message.length > 50 ? '...' : '');
 }
 
@@ -295,192 +385,78 @@ saveChats();
 renderChatsList();
 renderMessages(chat.messages);
 
-// Clear input
-userInput.value = '';
-userInput.style.height = 'auto';
+input.value = '';
+input.style.height = 'auto';
 selectedFiles = [];
 displayFilePreview();
 
-// Show thinking
-showThinking();
-setAssistantState('thinking');
-
-// Track usage
-if (currentProfile) {
-    currentProfile.incrementMessageUsage();
-}
-
 try {
-    // Get AI response
-    const response = await getAIResponse(chat.messages);
-
-    // Assistant message
+    const response = await getAIResponse(message, selectedFiles, chat.messages);
+    
     const assistantMessage = {
         role: 'assistant',
         content: response,
         timestamp: Date.now()
     };
-
+    
     chat.messages.push(assistantMessage);
     chat.updatedAt = Date.now();
     
     saveChats();
-    hideThinking();
-    setAssistantState('idle');
     renderMessages(chat.messages);
-
-    // CRITICAL: Scroll to TOP of new Crump message
-    setTimeout(() => {
-        const messages = document.querySelectorAll('.message');
-        const lastMessage = messages[messages.length - 1];
-        if (lastMessage && window.crumpScrollManager) {
-            window.crumpScrollManager.scrollToMessageTop(lastMessage);
-        }
-    }, 100);
-
+    
 } catch (error) {
-    console.error('❌ Error getting response:', error);
-    hideThinking();
-    setAssistantState('idle');
+    console.error('Error getting AI response:', error);
     showToast('Failed to get response. Please try again.', 'error');
-} finally {
-    isProcessing = false;
-}
-}
-window.sendMessage = sendMessage;
-async function getAIResponse(messages) {
-const workMode = localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true';
-const response = await fetch('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-        message: messages[messages.length - 1].content,
-        history: messages.slice(0, -1),
-        currentDateTime: {
-            date: new Date().toLocaleDateString('en-US'),
-            time: new Date().toLocaleTimeString('en-US'),
-            timestamp: new Date().toISOString(),
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-        },
-        universalMemory: buildMemoryContext(messages),
-        workMode: workMode,
-        needsSearch: false
-    })
-});
-
-if (!response.ok) {
-    throw new Error('API error: ' + response.status);
-}
-
-const data = await response.json();
-return data.response || 'I apologize, but I encountered an error processing your request.';
-}
-function buildMemoryContext(messages) {
-// Build comprehensive memory from all conversations
-const allMessages = chats.flatMap(chat => chat.messages);
-const memory = {
-    conversationCount: chats.length,
-    totalMessages: allMessages.length,
-    recentTopics: extractRecentTopics(messages),
-    userPreferences: getUserPreferences()
-};
-
-return memory;
-}
-function extractRecentTopics(messages) {
-// Extract key topics from recent messages
-const recentMessages = messages.slice(-10);
-const topics = new Set();
-const keywords = ['code', 'project', 'work', 'help', 'learn', 'create', 
-                 'build', 'design', 'problem', 'question'];
-
-recentMessages.forEach(msg => {
-    keywords.forEach(keyword => {
-        if (msg.content.toLowerCase().includes(keyword)) {
-            topics.add(keyword);
-        }
-    });
-});
-
-return Array.from(topics);
-}
-function getUserPreferences() {
-return {
-name: currentProfile?.profile?.name || 'User',
-workMode: localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true',
-assistantName: localStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump'
-};
-}
-// ==========================================
-// MESSAGE RENDERING
-// ==========================================
-function renderMessages(messages) {
-const container = document.getElementById('chatContainer');
-if (!container) return;
-const userInitial = localStorage.getItem(STORAGE_KEYS.USER_INITIAL) || 
-                   currentProfile?.profile?.initial || 'U';
-
-container.innerHTML = messages.map((msg, index) => {
-    const isUser = msg.role === 'user';
-    const avatar = isUser ? userInitial : 'C';
     
-    let content = msg.content || '';
-    
-    if (!isUser && typeof window.processMarkdown === 'function') {
-        content = window.processMarkdown(content);
-    } else {
-        content = escapeHtml(content);
-    }
-
-    return `
-        <div class="message ${isUser ? 'user' : ''}">
-            <div class="message-header">
-                <div class="message-avatar ${isUser ? 'user' : 'assistant'}">${avatar}</div>
-                <div class="message-sender">${isUser ? 'You' : (localStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump')}</div>
-                <div class="message-time">${formatTime(msg.timestamp)}</div>
-            </div>
-            <div class="message-content">${content}</div>
-        </div>
-    `;
-}).join('');
-
-// Scroll to bottom initially
-container.scrollTop = container.scrollHeight;
+    // Remove the user message if we couldn't get a response
+    chat.messages.pop();
+    saveChats();
+    renderMessages(chat.messages);
 }
-window.renderMessages = renderMessages;
+
+hideThinking();
+setAssistantState('idle');
+isProcessing = false;
+}
+
+async function getAIResponse(message, files, conversationHistory) {
+// This function should be implemented to call your AI API
+// For now, return a placeholder
+return "I'm Crump AI. This response function needs to be connected to your AI backend.";
+}
+
 // ==========================================
-// FILE HANDLING (FIXED)
+// FILE HANDLING
 // ==========================================
-function handleFileSelect(e) {
-const files = Array.from(e.target.files);
+function handleFileSelect(event) {
+const files = Array.from(event.target.files);
+
 files.forEach(file => {
-    if (file.size > 5 * 1024 * 1024) {
-        showToast(file.name + ' is too large (max 5MB)', 'error');
+    if (file.size > 10 * 1024 * 1024) {
+        showToast('File too large: ' + file.name, 'error');
         return;
     }
-
+    
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = (e) => {
         selectedFiles.push({
             name: file.name,
             type: file.type,
             size: file.size,
-            data: event.target.result
+            data: e.target.result
         });
         displayFilePreview();
     };
     reader.readAsDataURL(file);
 });
 
-e.target.value = '';
+event.target.value = '';
 }
+
 function displayFilePreview() {
 const preview = document.getElementById('filePreview');
-// CRITICAL FIX: Check if element exists
-if (!preview) {
-    console.error('❌ filePreview element not found');
-    return;
-}
+if (!preview) return;
 
 if (selectedFiles.length === 0) {
     preview.style.display = 'none';
@@ -503,10 +479,12 @@ preview.innerHTML = selectedFiles.map((file, index) => {
     `;
 }).join('');
 }
+
 window.removeFile = function(index) {
 selectedFiles.splice(index, 1);
 displayFilePreview();
 };
+
 // ==========================================
 // VOICE INPUT
 // ==========================================
@@ -515,6 +493,7 @@ if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) 
 showToast('Voice input not supported in this browser', 'error');
 return;
 }
+
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const recognition = new SpeechRecognition();
 
@@ -537,6 +516,7 @@ recognition.onerror = (event) => {
 
 recognition.start();
 }
+
 // ==========================================
 // QUICK ACTIONS
 // ==========================================
@@ -544,14 +524,17 @@ window.triggerImageGeneration = function() {
 document.getElementById('userInput').value = 'Generate an image of ';
 document.getElementById('userInput').focus();
 };
+
 window.triggerWebSearch = function() {
 document.getElementById('userInput').value = 'Search the web for ';
 document.getElementById('userInput').focus();
 };
+
 window.triggerCodeHelp = function() {
 document.getElementById('userInput').value = 'Help me with code: ';
 document.getElementById('userInput').focus();
 };
+
 // ==========================================
 // SETTINGS
 // ==========================================
@@ -559,19 +542,24 @@ window.openSettings = function() {
 document.getElementById('settingsModal').style.display = 'flex';
 loadSettingsValues();
 };
+
 window.closeSettings = function() {
 document.getElementById('settingsModal').style.display = 'none';
 };
+
 function loadSettings() {
 const autonomousEnabled = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_ENABLED) === 'true';
 const autonomousFrequency = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'balanced';
+
 if (window.autonomousMessaging) {
     window.autonomousMessaging.setEnabled(autonomousEnabled);
     window.autonomousMessaging.setFrequency(autonomousFrequency);
 }
 }
+
 function loadSettingsValues() {
 const profile = currentProfile?.getProfile() || {};
+
 document.getElementById('settingsName').value = profile.name || '';
 document.getElementById('settingsEmail').value = profile.email || '';
 document.getElementById('assistantName').value = localStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
@@ -586,6 +574,7 @@ document.getElementById('autonomousMessaging').addEventListener('change', (e) =>
     freqGroup.style.display = e.target.checked ? 'block' : 'none';
 });
 }
+
 window.saveSettings = function() {
 const name = document.getElementById('settingsName').value.trim();
 const email = document.getElementById('settingsEmail').value.trim();
@@ -593,6 +582,7 @@ const assistantName = document.getElementById('assistantName').value.trim() || '
 const autonomousEnabled = document.getElementById('autonomousMessaging').checked;
 const autonomousFrequency = document.getElementById('autonomousFrequency').value;
 const workMode = document.getElementById('workMode').checked;
+
 if (currentProfile && name) {
     currentProfile.updateProfile({
         name: name,
@@ -616,6 +606,7 @@ updateUserAvatar();
 closeSettings();
 showToast('Settings saved', 'success');
 };
+
 // ==========================================
 // UI HELPERS
 // ==========================================
@@ -625,14 +616,17 @@ document.querySelectorAll('.assistant-name').forEach(el => {
 el.textContent = name;
 });
 }
+
 function updateUserAvatar() {
 const initial = currentProfile?.profile?.initial ||
 localStorage.getItem(STORAGE_KEYS.USER_INITIAL) || 'U';
 localStorage.setItem(STORAGE_KEYS.USER_INITIAL, initial);
 }
+
 function initializeAssistant() {
 setAssistantState('idle');
 }
+
 function setAssistantState(state) {
 const character = document.getElementById('assistantCharacter');
 if (character) {
@@ -640,19 +634,23 @@ character.className = 'assistant-character ' + state;
 }
 }
 window.setAssistantState = setAssistantState;
+
 function showThinking() {
 const indicator = document.getElementById('thinkingIndicator');
 if (indicator) indicator.style.display = 'flex';
 }
+
 function hideThinking() {
 const indicator = document.getElementById('thinkingIndicator');
 if (indicator) indicator.style.display = 'none';
 }
 window.showThinking = showThinking;
 window.hideThinking = hideThinking;
+
 function showWelcomeMessage() {
 const userName = currentProfile?.profile?.name || 'there';
 const assistantName = localStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
+
 const welcomeMessage = {
     role: 'assistant',
     content: 'Hey ' + userName + '! I\'m ' + assistantName + ', your AI assistant. I\'m here to help with anything you need - from answering questions to helping with projects. What can I help you with today?',
@@ -666,17 +664,21 @@ if (chat && chat.messages.length === 0) {
     renderMessages(chat.messages);
 }
 }
+
 function setupAutonomousMessaging() {
 const enabled = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_ENABLED) === 'true';
 const frequency = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'balanced';
+
 if (window.autonomousMessaging) {
     window.autonomousMessaging.setEnabled(enabled);
     window.autonomousMessaging.setFrequency(frequency);
 }
 }
+
 function showToast(message, type) {
 const container = document.getElementById('toastContainer');
 if (!container) return;
+
 const toast = document.createElement('div');
 toast.className = 'toast ' + type;
 toast.textContent = message;
@@ -688,6 +690,7 @@ setTimeout(() => {
 }, 3000);
 }
 window.showToast = showToast;
+
 // ==========================================
 // UTILITIES
 // ==========================================
@@ -696,18 +699,21 @@ const date = new Date(timestamp);
 const now = new Date();
 const diffMs = now - date;
 const diffMins = Math.floor(diffMs / 60000);
+
 if (diffMins < 1) return 'Just now';
 if (diffMins < 60) return diffMins + 'm ago';
 if (diffMins < 1440) return Math.floor(diffMins / 60) + 'h ago';
 
 return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
+
 function escapeHtml(text) {
 const div = document.createElement('div');
 div.textContent = text;
 return div.innerHTML;
 }
 window.escapeHtml = escapeHtml;
+
 // ==========================================
 // DEVELOPER DEBUG ACCESS
 // ==========================================
@@ -717,4 +723,5 @@ getCurrentChat: () => chats.find(c => c.id === currentChatId),
 getProfile: () => currentProfile?.getProfile(),
 version: '1.0.0'
 };
+
 console.log('✅ Crump AI v1.0 loaded');
