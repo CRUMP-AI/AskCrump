@@ -1,4 +1,3 @@
-<artifact identifier="crump-tutorial-js" type="application/vnd.ant.code" language="javascript" title="tutorial.js - Tutorial System v1.0">
 // ==========================================
 // CRUMP AI - TUTORIAL SYSTEM v1.0
 // First-time user onboarding
@@ -239,4 +238,3 @@ if (hasOnboarded === 'true' && tutorialCompleted !== 'true') {
 }
 });
 console.log('✅ Tutorial System v1.0 loaded');
-</artifact>
