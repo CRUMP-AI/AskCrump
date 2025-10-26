@@ -1,4 +1,3 @@
-<artifact identifier="crump-service-worker" type="application/vnd.ant.code" language="javascript" title="sw.js - Service Worker v1.0">
 // Crump AI Service Worker v1.0
 const CACHE_NAME = 'crump-v1.0.0';
 const urlsToCache = [
@@ -74,4 +73,3 @@ const responseClone = response.clone();
   })
 );
 });
-</artifact>
