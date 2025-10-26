@@ -1,4 +1,3 @@
-<artifact identifier="crump-manifest-json" type="application/vnd.ant.code" language="json" title="manifest.json - PWA Manifest v1.0">
 {
   "name": "Crump AI",
   "short_name": "Crump",
@@ -32,4 +31,3 @@
   "categories": ["productivity", "utilities"],
   "version": "1.0.0"
 }
-</artifact>
