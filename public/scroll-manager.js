@@ -1,4 +1,3 @@
-<artifact identifier="crump-scroll-manager" type="application/vnd.ant.code" language="javascript" title="scroll-manager.js - Scroll to Message Start">
 // ==========================================
 // CRUMP AI - SCROLL MANAGER v1.0
 // Scrolls to TOP of new Crump messages
@@ -113,4 +112,4 @@ window.crumpScrollManager = {
 // Don't auto-init - let app.js call it after app is ready
 console.log('✅ Scroll Manager v1.0 loaded');
 })();
-</artifact>
+
