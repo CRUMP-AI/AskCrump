@@ -1,4 +1,4 @@
-// ==========================================
+==========================================
 // CRUMP AI - MAIN APPLICATION v1.0
 // Complete with all fixes
 // ==========================================
@@ -369,7 +369,7 @@ const response = await fetch('/api/chat', {
 });
 
 if (!response.ok) {
-    throw new Error(`API error: ${response.status}`);
+    throw new Error('API error: ' + response.status);
 }
 
 const data = await response.json();
@@ -455,7 +455,7 @@ function handleFileSelect(e) {
 const files = Array.from(e.target.files);
 files.forEach(file => {
     if (file.size > 5 * 1024 * 1024) {
-        showToast(`${file.name} is too large (max 5MB)`, 'error');
+        showToast(file.name + ' is too large (max 5MB)', 'error');
         return;
     }
 
@@ -493,12 +493,12 @@ preview.innerHTML = selectedFiles.map((file, index) => {
     
     return `
         <div class="file-preview-item">
-            ${isImage ? `<img src="${file.data}" class="file-thumbnail" alt="${file.name}">` : '<div class="file-icon">📄</div>'}
+            ${isImage ? '<img src="' + file.data + '" class="file-thumbnail" alt="' + file.name + '">' : '<div class="file-icon">📄</div>'}
             <div style="flex: 1; min-width: 0;">
                 <div style="font-size: 0.875rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(file.name)}</div>
                 <div style="font-size: 0.75rem; color: var(--color-text-tertiary);">${(file.size / 1024).toFixed(1)} KB</div>
             </div>
-            <button class="remove-file" onclick="removeFile(${index})">×</button>
+            <button class="remove-file" onclick="removeFile(' + index + ')">×</button>
         </div>
     `;
 }).join('');
@@ -636,7 +636,7 @@ setAssistantState('idle');
 function setAssistantState(state) {
 const character = document.getElementById('assistantCharacter');
 if (character) {
-character.className = assistant-character ${state};
+character.className = 'assistant-character ' + state;
 }
 }
 window.setAssistantState = setAssistantState;
@@ -655,7 +655,7 @@ const userName = currentProfile?.profile?.name || 'there';
 const assistantName = localStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
 const welcomeMessage = {
     role: 'assistant',
-    content: `Hey ${userName}! I'm ${assistantName}, your AI assistant. I'm here to help with anything you need - from answering questions to helping with projects. What can I help you with today?`,
+    content: 'Hey ' + userName + '! I\'m ' + assistantName + ', your AI assistant. I\'m here to help with anything you need - from answering questions to helping with projects. What can I help you with today?',
     timestamp: Date.now()
 };
 
@@ -674,11 +674,11 @@ if (window.autonomousMessaging) {
     window.autonomousMessaging.setFrequency(frequency);
 }
 }
-function showToast(message, type = 'info') {
+function showToast(message, type) {
 const container = document.getElementById('toastContainer');
 if (!container) return;
 const toast = document.createElement('div');
-toast.className = `toast ${type}`;
+toast.className = 'toast ' + type;
 toast.textContent = message;
 
 container.appendChild(toast);
@@ -697,8 +697,8 @@ const now = new Date();
 const diffMs = now - date;
 const diffMins = Math.floor(diffMs / 60000);
 if (diffMins < 1) return 'Just now';
-if (diffMins < 60) return `${diffMins}m ago`;
-if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+if (diffMins < 60) return diffMins + 'm ago';
+if (diffMins < 1440) return Math.floor(diffMins / 60) + 'h ago';
 
 return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
