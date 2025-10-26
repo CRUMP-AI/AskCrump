@@ -1,11 +1,12 @@
+<artifact identifier="crump-manifest-json" type="application/vnd.ant.code" language="json" title="manifest.json - PWA Manifest v1.0">
 {
   "name": "Crump AI",
   "short_name": "Crump",
   "description": "Your personal AI assistant powered by the N² Engine",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a1628",
-  "theme_color": "#d4af37",
+  "background_color": "#0f1419",
+  "theme_color": "#c9b892",
   "orientation": "portrait-primary",
   "scope": "/",
   "icons": [
@@ -20,12 +21,15 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
-    }
+    },
     {
-    "src": "/assets/icon-1024.png",
+      "src": "/assets/icon-1024.png",
       "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "categories": ["productivity", "utilities"],
+  "version": "1.0.0"
 }
+</artifact>
