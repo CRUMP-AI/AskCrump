@@ -6,10 +6,11 @@
 class DeveloperMode {
     constructor() {
         this.enabled = this.loadDevMode();
-        this.credentials = {
-            username: 'greg@crumpai.com',
-            password: 'N2-Engine-2025'
-        };
+       // Credentials stored as base64 (still visible in source, but less obvious)
+this.credentials = {
+    username: atob('Z3JlZ0BjcnVtcGFpLmNvbQ=='),  // greg@crumpai.com
+    password: atob('TjItRW5naW5lLTIwMjU=')        // N2-Engine-2025
+};
         
         if (this.enabled) {
             this.activate();
@@ -300,5 +301,8 @@ window.developerMode = new DeveloperMode();
 window.DeveloperMode = DeveloperMode;
 
 console.log('✅ Developer Login v3.0 loaded');
-console.log('🔐 Username: greg@crumpai.com');
-console.log('🔐 Password: N2-Engine-2025');
+
+// NOTE: This is client-side authentication only - for development/testing purposes.
+// Credentials are stored in code (line 7-11) and visible to anyone who inspects the source.
+// For production use, implement server-side authentication with session tokens.
+// Current approach: Security through obscurity (hidden button + manual login).
