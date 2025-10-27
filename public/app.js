@@ -79,10 +79,10 @@ window.initializeApp = function() {
             createNewChat();
         }
 
-        setupAutonomousMessaging();
+       setupAutonomousMessaging();
+        setupMobileKeyboardHandler(); // ADDED
         
         console.log('✅ Crump AI v1.0 initialized successfully');
-
         if (localStorage.getItem(STORAGE_KEYS.HAS_ONBOARDED) === 'true' && !savedChatId) {
             showWelcomeMessage();
         }
@@ -746,8 +746,45 @@ function escapeHtml(text) {
 window.escapeHtml = escapeHtml;
 
 // ==========================================
-// DEVELOPER DEBUG ACCESS
+// MOBILE KEYBOARD HANDLER
 // ==========================================
+function setupMobileKeyboardHandler() {
+    // Only run on mobile devices
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (!isMobile) return;
+    
+    console.log('📱 Mobile detected - setting up keyboard handler');
+    
+    // Use Visual Viewport API if available
+    if ('visualViewport' in window) {
+        const inputArea = document.querySelector('.input-area');
+        if (!inputArea) return;
+        
+        let originalHeight = window.visualViewport.height;
+        
+        window.visualViewport.addEventListener('resize', () => {
+            const currentHeight = window.visualViewport.height;
+            const heightDiff = originalHeight - currentHeight;
+            
+            // Keyboard is open if viewport shrunk significantly
+            if (heightDiff > 150) {
+                inputArea.style.transform = `translateY(-${heightDiff}px)`;
+                inputArea.style.transition = 'transform 0.2s ease';
+            } else {
+                inputArea.style.transform = 'translateY(0)';
+            }
+        });
+        
+        // Reset on scroll
+        window.visualViewport.addEventListener('scroll', () => {
+            const currentHeight = window.visualViewport.height;
+            if (currentHeight === originalHeight) {
+                inputArea.style.transform = 'translateY(0)';
+            }
+        });
+    }
+}
+
 window.crumpDebug = {
     getChats: () => chats,
     getCurrentChat: () => chats.find(c => c.id === currentChatId),
