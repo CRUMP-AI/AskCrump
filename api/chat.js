@@ -4,7 +4,7 @@
 // ==========================================
 
 const CONFIG = {
-    CLAUDE_MODEL: 'claude-sonnet-4-20241022',
+    CLAUDE_MODEL: 'claude-sonnet-4.5-20250929',
     MAX_TOKENS: 16384,
     MAX_HISTORY: 999999,
     MAX_HISTORY_WITH_IMAGE: 999999,
