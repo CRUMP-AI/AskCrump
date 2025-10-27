@@ -1,23 +1,51 @@
 // ==========================================
-// CRUMP AI - DEVELOPER LOGIN v3.0
+// CRUMP AI - DEVELOPER LOGIN v3.1
 // Professional admin access system
 // ==========================================
 
 class DeveloperMode {
     constructor() {
         this.enabled = this.loadDevMode();
-       // Credentials stored as base64 (still visible in source, but less obvious)
-this.credentials = {
-    username: atob('Z3JlZ0BjcnVtcGFpLmNvbQ=='),  // greg@crumpai.com
-    password: atob('TjItRW5naW5lLTIwMjU=')        // N2-Engine-2025
-};
+        // Credentials stored as base64 (still visible in source, but less obvious)
+        this.credentials = {
+            username: atob('Z3JlZ0BjcnVtcGFpLmNvbQ=='),  // greg@crumpai.com
+            password: atob('TjItRW5naW5lLTIwMjU=')        // N2-Engine-2025
+        };
         
         if (this.enabled) {
             this.activate();
         }
         
-        this.setupDevLoginButton();
+        // FIXED: Delay button setup until DOM is ready
+        this.initWhenReady();
+        
         console.log('🔧 Developer Login ready');
+    }
+    
+    // ==========================================
+    // INITIALIZATION FIX
+    // ==========================================
+    
+    initWhenReady() {
+        // Wait for sidebar to be rendered
+        const checkSidebar = () => {
+            const sidebarFooter = document.querySelector('.sidebar-footer');
+            if (sidebarFooter) {
+                this.setupDevLoginButton();
+                if (this.enabled) {
+                    this.updateUI();
+                }
+            } else {
+                // Retry after a short delay
+                setTimeout(checkSidebar, 100);
+            }
+        };
+        
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', checkSidebar);
+        } else {
+            checkSidebar();
+        }
     }
     
     // ==========================================
@@ -25,29 +53,36 @@ this.credentials = {
     // ==========================================
     
     setupDevLoginButton() {
+        // Remove existing button if any
+        const existing = document.querySelector('.dev-login-trigger');
+        if (existing) existing.remove();
+        
         // Add hidden developer login button to sidebar footer
         const sidebarFooter = document.querySelector('.sidebar-footer');
-        if (sidebarFooter) {
-            const devLoginBtn = document.createElement('button');
-            devLoginBtn.className = 'sidebar-footer-btn dev-login-trigger';
-            devLoginBtn.style.cssText = 'opacity: 0.3; transition: opacity 0.2s;';
-            devLoginBtn.innerHTML = `
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                </svg>
-                <span>Developer Access</span>
-            `;
-            devLoginBtn.onmouseover = () => devLoginBtn.style.opacity = '1';
-            devLoginBtn.onmouseout = () => devLoginBtn.style.opacity = '0.3';
-            devLoginBtn.onclick = () => this.showLoginModal();
-            
-            // Insert before the tier badge
-            const tierBadge = document.getElementById('tierBadge');
-            if (tierBadge) {
-                sidebarFooter.insertBefore(devLoginBtn, tierBadge);
-            }
+        if (!sidebarFooter) {
+            console.warn('⚠️ Sidebar footer not found, retrying...');
+            setTimeout(() => this.setupDevLoginButton(), 500);
+            return;
         }
+        
+        const devLoginBtn = document.createElement('button');
+        devLoginBtn.className = 'sidebar-footer-btn dev-login-trigger';
+        devLoginBtn.style.cssText = 'opacity: 0.3; transition: opacity 0.2s;';
+        devLoginBtn.innerHTML = `
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>Developer Access</span>
+        `;
+        devLoginBtn.onmouseover = () => devLoginBtn.style.opacity = '1';
+        devLoginBtn.onmouseout = () => devLoginBtn.style.opacity = '0.3';
+        devLoginBtn.onclick = () => this.showLoginModal();
+        
+        // Insert before the branding footer (at the end)
+        sidebarFooter.appendChild(devLoginBtn);
+        
+        console.log('✅ Developer login button added');
     }
     
     showLoginModal() {
@@ -139,8 +174,8 @@ this.credentials = {
                 this.activate();
                 document.getElementById('devLoginModal')?.remove();
                 
-                if (window.showNotification) {
-                    window.showNotification('👨‍💻 Developer Access Granted', 'success');
+                if (window.showToast) {
+                    window.showToast('👨‍💻 Developer Access Granted', 'success');
                 }
                 
                 // Reload to apply unlimited features
@@ -180,8 +215,8 @@ this.credentials = {
         this.deactivate();
         document.getElementById('devLoginModal')?.remove();
         
-        if (window.showNotification) {
-            window.showNotification('👋 Logged out (Reload to apply)', 'info');
+        if (window.showToast) {
+            window.showToast('👋 Logged out (Reload to apply)', 'info');
         }
         
         setTimeout(() => window.location.reload(), 1500);
@@ -195,12 +230,14 @@ this.credentials = {
         console.log('👨‍💻 DEVELOPER MODE ACTIVATED');
         
         // Override profile manager to give unlimited access
-        if (window.profileManager) {
-            window.profileManager.getTier = function() {
+        if (window.profileManager || window.currentProfile) {
+            const pm = window.profileManager || window.currentProfile;
+            
+            pm.getTier = function() {
                 return 'developer';
             };
             
-            window.profileManager.getTierInfo = function() {
+            pm.getTierInfo = function() {
                 return {
                     current: 'developer',
                     name: 'Developer',
@@ -219,18 +256,22 @@ this.credentials = {
             };
             
             // Override all limit checks
-            window.profileManager.canSendMessage = () => ({ allowed: true });
-            window.profileManager.canGenerateImage = () => ({ allowed: true });
-            window.profileManager.canSearchWeb = () => ({ allowed: true });
-            window.profileManager.canUseSportsAPI = () => ({ allowed: true });
-            window.profileManager.canUseWeatherAPI = () => ({ allowed: true });
-            window.profileManager.canUseStocksAPI = () => ({ allowed: true });
-            window.profileManager.canUseNewsAPI = () => ({ allowed: true });
+            pm.canSendMessage = () => ({ allowed: true });
+            pm.canGenerateImage = () => ({ allowed: true });
+            pm.canSearchWeb = () => ({ allowed: true });
+            pm.canUseSportsAPI = () => ({ allowed: true });
+            pm.canUseWeatherAPI = () => ({ allowed: true });
+            pm.canUseStocksAPI = () => ({ allowed: true });
+            pm.canUseNewsAPI = () => ({ allowed: true });
         }
         
         this.enabled = true;
         this.saveDevMode();
-        this.updateUI();
+        
+        // Update UI if DOM is ready
+        if (document.querySelector('.sidebar-footer')) {
+            this.updateUI();
+        }
     }
     
     deactivate() {
@@ -244,17 +285,6 @@ this.credentials = {
     // ==========================================
     
     updateUI() {
-        // Update tier badges
-        const tierBadges = document.querySelectorAll('#tierName, #headerTierName');
-        tierBadges.forEach(badge => {
-            if (badge) {
-                badge.textContent = '👨‍💻 DEV';
-                badge.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-                badge.style.webkitBackgroundClip = 'text';
-                badge.style.webkitTextFillColor = 'transparent';
-            }
-        });
-        
         // Add dev indicator to sidebar
         const sidebar = document.getElementById('sidebar');
         if (sidebar && !document.getElementById('devIndicator')) {
@@ -300,9 +330,4 @@ window.developerMode = new DeveloperMode();
 // Export
 window.DeveloperMode = DeveloperMode;
 
-console.log('✅ Developer Login v3.0 loaded');
-
-// NOTE: This is client-side authentication only - for development/testing purposes.
-// Credentials are stored in code (line 7-11) and visible to anyone who inspects the source.
-// For production use, implement server-side authentication with session tokens.
-// Current approach: Security through obscurity (hidden button + manual login).
+console.log('✅ Developer Login v3.1 loaded');
