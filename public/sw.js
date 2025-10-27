@@ -1,23 +1,28 @@
 // Crump AI Service Worker v1.0
-const CACHE_NAME = 'crump-v1.0.0';
+const CACHE_NAME = 'crump-v1.0.1'; // Bump version to force cache update
 const urlsToCache = [
-'/',
-'/index.html',
-'/styles.css',
-'/app.js',
-'/engines.js',
-'/autonomous.js',
-'/profile-manager.js',
-'/image-generation.js',
-'/ui-functions.js',
-'/developer-mode.js',
-'/scroll-manager.js',
-'/tutorial.js',
-'/manifest.json',
-'/assets/logo-c.png',
-'/assets/icon-192.png',
-'/assets/icon-512.png',
-'/assets/assistant.png'
+    '/',
+    '/index.html',
+    '/styles.css',
+    '/new-features.css',          // ADDED
+    '/assistant-character.css',   // ADDED (might as well include it)
+    '/app.js',
+    '/engines.js',
+    '/autonomous.js',
+    '/profile-manager.js',
+    '/image-generation.js',
+    '/ui-functions.js',
+    '/upgrade-ui.js',             // ADDED
+    '/developer-mode.js',
+    '/scroll-manager.js',
+    '/tutorial.js',
+    '/self-debug-v3.js',          // ADDED
+    '/manifest.json',
+    '/assets/logo-c.png',
+    '/assets/icon-192.png',
+    '/assets/icon-512.png',
+    '/assets/icon-1024.png',      // ADDED
+    '/assets/assistant.png'
 ];
 // Install event
 self.addEventListener('install', (event) => {
