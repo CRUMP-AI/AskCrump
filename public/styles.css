@@ -925,3 +925,56 @@ background: var(--color-bg-elevated);
 background: var(--color-accent-primary);
 color: var(--color-bg-primary);
 }
+
+/* ============================================ */
+/* ACCESSIBILITY - KEYBOARD FOCUS */
+/* ============================================ */
+
+/* Remove default outlines */
+*:focus {
+    outline: none;
+}
+
+/* Custom focus indicator for keyboard navigation */
+*:focus-visible {
+    outline: 2px solid var(--color-accent-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* Buttons get special focus treatment */
+button:focus-visible,
+.btn:focus-visible {
+    outline: 3px solid var(--color-accent-primary);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(201, 184, 146, 0.2);
+}
+
+/* Input fields */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+    outline: 2px solid var(--color-accent-primary);
+    outline-offset: 0;
+    border-color: var(--color-accent-primary);
+}
+
+/* Links */
+a:focus-visible {
+    outline: 2px dashed var(--color-accent-primary);
+    outline-offset: 4px;
+}
+
+/* Chat items in sidebar */
+.chat-item:focus-visible {
+    outline: 2px solid var(--color-accent-primary);
+    outline-offset: -2px;
+    background: var(--color-bg-tertiary);
+}
+
+/* Skip focus on decorative elements */
+.message-avatar:focus,
+.tier-icon:focus,
+.assistant-character:focus {
+    outline: none;
+}
