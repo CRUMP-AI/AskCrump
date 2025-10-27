@@ -164,22 +164,33 @@ function setupSidebarToggle() {
 // CHAT MANAGEMENT
 // ==========================================
 function loadChats() {
-    const saved = localStorage.getItem(STORAGE_KEYS.CHATS);
-    if (saved) {
-        try {
-            chats = JSON.parse(saved);
-            window.chats = chats;
-        } catch (e) {
-            console.error('Failed to load chats:', e);
-            chats = [];
-            window.chats = chats;
+    try {
+        const saved = localStorage.getItem(STORAGE_KEYS.CHATS);
+        if (saved) {
+            try {
+                chats = JSON.parse(saved);
+                window.chats = chats;
+            } catch (e) {
+                console.error('Failed to parse chats:', e);
+                chats = [];
+                window.chats = chats;
+            }
         }
+    } catch (storageError) {
+        console.warn('⚠️ localStorage unavailable (private browsing?)');
+        chats = [];
+        window.chats = chats;
     }
     renderChatsList();
 }
 
 function saveChats() {
-    localStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
+    try {
+        localStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
+    } catch (storageError) {
+        console.warn('⚠️ Failed to save chats (localStorage unavailable)');
+        // Continue without saving - app still works in-memory
+    }
 }
 window.saveChats = saveChats;
 
