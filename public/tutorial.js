@@ -235,6 +235,39 @@ if (hasOnboarded === 'true' && tutorialCompleted !== 'true') {
     setTimeout(() => {
         window.tutorial.start();
     }, 1000);
+
+    /* ============================================ */
+/* TUTORIAL ANIMATIONS */
+/* ============================================ */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Apply to tutorial modal when active */
+#tutorialOverlay {
+    animation: fadeIn 0.3s ease;
+}
+
+#tutorialOverlay > div {
+    animation: slideUp 0.4s ease;
+}
 }
 });
 console.log('✅ Tutorial System v1.0 loaded');
