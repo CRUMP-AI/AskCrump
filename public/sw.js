@@ -56,25 +56,49 @@ self.clients.claim();
 });
 // Fetch event - Network first, fallback to cache
 self.addEventListener('fetch', (event) => {
-// Skip API calls from cache
-if (event.request.url.includes('/api/')) {
-return fetch(event.request);
-}
-event.respondWith(
-fetch(event.request)
-.then((response) => {
-// Clone response for cache
-const responseClone = response.clone();
-    // Update cache in background
-    caches.open(CACHE_NAME).then((cache) => {
-      cache.put(event.request, responseClone);
-    });
+    // Skip API calls - let them go directly to network
+    if (event.request.url.includes('/api/')) {
+        return; // Don't call respondWith for API requests
+    }
     
-    return response;
-  })
-  .catch(() => {
-    // Network failed, try cache
-    return caches.match(event.request);
-  })
-);
+    // Skip non-GET requests
+    if (event.request.method !== 'GET') {
+        return;
+    }
+    
+    event.respondWith(
+        fetch(event.request)
+        .then((response) => {
+            // Only cache successful responses
+            if (!response || response.status !== 200 || response.type === 'error') {
+                return response;
+            }
+            
+            // Clone response for cache
+            const responseClone = response.clone();
+            
+            // Update cache in background
+            caches.open(CACHE_NAME).then((cache) => {
+                cache.put(event.request, responseClone);
+            }).catch(err => {
+                console.warn('Cache write failed:', err);
+            });
+            
+            return response;
+        })
+        .catch(() => {
+            // Network failed, try cache
+            return caches.match(event.request).then(cachedResponse => {
+                if (cachedResponse) {
+                    console.log('📦 Serving from cache:', event.request.url);
+                    return cachedResponse;
+                }
+                // No cache, return offline page or basic error
+                return new Response('Offline - content not cached', {
+                    status: 503,
+                    statusText: 'Service Unavailable'
+                });
+            });
+        })
+    );
 });
