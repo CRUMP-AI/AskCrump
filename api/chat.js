@@ -1,10 +1,10 @@
 // ==========================================
-// CRUMP AI - API HANDLER v2.15.1 COMPLETE
-// ALL FIXES + DATE/TIME AWARENESS INTEGRATED
+// CRUMP AI - API HANDLER v2.15.2 FIXED
+// BODY PARSING FIX + ALL PREVIOUS FIXES
 // ==========================================
 
 const CONFIG = {
-    CLAUDE_MODEL: 'claude-sonnet-4-20250514',
+    CLAUDE_MODEL: 'claude-sonnet-4-20241022',
     MAX_TOKENS: 16384,
     MAX_HISTORY: 999999,
     MAX_HISTORY_WITH_IMAGE: 999999,
@@ -14,6 +14,42 @@ const CONFIG = {
     MAX_MEMORY_CONTEXT: 10,
     API_TIMEOUT: 55000
 };
+
+// ==========================================
+// BODY PARSER HELPER
+// ==========================================
+async function parseBody(req) {
+    // If body is already parsed, return it
+    if (req.body && typeof req.body === 'object') {
+        return req.body;
+    }
+    
+    // If body is a string, parse it
+    if (typeof req.body === 'string') {
+        try {
+            return JSON.parse(req.body);
+        } catch (e) {
+            console.error('Failed to parse body string:', e);
+            return null;
+        }
+    }
+    
+    // Manual parsing for raw requests
+    return new Promise((resolve) => {
+        let data = '';
+        req.on('data', chunk => {
+            data += chunk;
+        });
+        req.on('end', () => {
+            try {
+                resolve(JSON.parse(data));
+            } catch (e) {
+                console.error('Failed to parse request data:', e);
+                resolve(null);
+            }
+        });
+    });
+}
 
 // ==========================================
 // STRICT MESSAGE VALIDATION (FIXES 400 ERROR)
@@ -81,9 +117,6 @@ function truncateHistory(history, maxTokens = 100000) {
 export default async function handler(req, res) {
     console.log('📊 API Request received');
     console.log('📊 Method:', req.method);
-    console.log('📊 Message length:', req.body?.message?.length || 0);
-    console.log('📊 History count:', req.body?.history?.length || 0);
-    console.log('📊 Has file:', !!req.body?.fileData);
     
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -93,17 +126,30 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     try {
+        // PARSE BODY (FIX FOR UNDEFINED req.body)
+        const body = await parseBody(req);
+        
+        if (!body) {
+            console.error('❌ Failed to parse request body');
+            return res.status(400).json({ error: 'Invalid request body' });
+        }
+        
+        console.log('📊 Body parsed successfully');
+        console.log('📊 Message length:', body.message?.length || 0);
+        console.log('📊 History count:', body.history?.length || 0);
+        console.log('📊 Has file:', !!body.fileData);
+        
         const { 
             message, 
             history = [], 
-            currentDateTime, // DATE/TIME AWARENESS (NEW)
+            currentDateTime,
             fileData, 
             needsSearch = false, 
             novaActive = false, 
             novaProtocol = null, 
             universalMemory = {},
             workMode = 'companion'
-        } = req.body;
+        } = body;
 
         // VALIDATE MESSAGE
         if (!message || typeof message !== 'string' || !message.trim()) {
@@ -127,10 +173,10 @@ export default async function handler(req, res) {
             return await handleImageAnalysis(res, fileData, message, assistantName);
         }
 
-        // BUILD SYSTEM PROMPT (with time context, device detection, AND date/time awareness)
+        // BUILD SYSTEM PROMPT
         const systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode, currentDateTime);
         
-        // VALIDATE AND CLEAN HISTORY (CRITICAL FIX FOR 400 ERROR)
+        // VALIDATE AND CLEAN HISTORY
         console.log('🔍 Validating message history...');
         let validHistory = validateAndCleanMessages(history);
         console.log('✅ Valid messages after cleaning:', validHistory.length);
@@ -170,8 +216,6 @@ export default async function handler(req, res) {
         console.error('Error name:', error.name);
         console.error('Error message:', error.message);
         console.error('Error stack:', error.stack);
-        console.error('Request body keys:', Object.keys(req.body || {}));
-        console.error('Message length:', req.body?.message?.length || 0);
         
         // Handle timeout errors specifically
         if (error.name === 'AbortError') {
@@ -204,6 +248,9 @@ export default async function handler(req, res) {
         });
     }
 }
+
+// Rest of the functions remain the same...
+// (I'll add them in the next part to keep the file complete)
 
 // ==========================================
 // TIME CONTEXT FOR AUTONOMOUS BEHAVIOR
