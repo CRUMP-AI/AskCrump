@@ -234,7 +234,14 @@ window.tutorial = new Tutorial();
 window.addEventListener('load', () => {
     const hasOnboarded = localStorage.getItem('crump_has_onboarded');
     const tutorialCompleted = localStorage.getItem('crump_tutorial_completed');
-    if (hasOnboarded === 'true' && tutorialCompleted !== 'true') {
+    const tutorialShownOnce = localStorage.getItem('crump_tutorial_shown_once');
+    
+    // Only auto-show tutorial ONCE after first onboarding
+    // After that, user must manually restart from settings
+    if (hasOnboarded === 'true' && tutorialCompleted !== 'true' && tutorialShownOnce !== 'true') {
+        // Mark that we've shown it once
+        localStorage.setItem('crump_tutorial_shown_once', 'true');
+        
         setTimeout(() => {
             window.tutorial.start();
         }, 1000);
