@@ -181,8 +181,12 @@ async generateContextualMessage(context) {
 }
 
 isWorkHours() {
+    // Get user-configured work hours (default 9-5)
+    const workStart = parseInt(localStorage.getItem('crump_work_start') || '9');
+    const workEnd = parseInt(localStorage.getItem('crump_work_end') || '17');
+    
     const hour = new Date().getHours();
-    return hour >= 9 && hour < 17; // 9 AM - 5 PM
+    return hour >= workStart && hour < workEnd;
 }
 
 shouldCheckNews() {
