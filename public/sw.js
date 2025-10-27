@@ -1,8 +1,8 @@
 // ==========================================
-// CRUMP AI - SERVICE WORKER v1.0.2
-// All files in /public/ directory
+// CRUMP AI - SERVICE WORKER v1.0.3
+// Files served from ROOT directory
 // ==========================================
-const CACHE_NAME = 'crump-v1.0.2';
+const CACHE_NAME = 'crump-v1.0.3';
 
 const urlsToCache = [
     // Core HTML/JSON
@@ -10,37 +10,34 @@ const urlsToCache = [
     '/index.html',
     '/manifest.json',
     
-    // CSS files - /public/
-    '/public/styles.css',
-    '/public/new-features.css',
-    '/public/assistant-character.css',
+    // CSS files - ROOT directory
+    '/styles.css',
+    '/new-features.css',
     
-    // JavaScript files - /public/
-    '/public/app.js',
-    '/public/engines.js',
-    '/public/autonomous.js',
-    '/public/profile-manager.js',
-    '/public/image-generation.js',
-    '/public/ui-functions.js',
-    '/public/upgrade-ui.js',
-    '/public/developer-mode.js',
-    '/public/scroll-manager.js',
-    '/public/tutorial.js',
-    '/public/self-debug-v3.js',
+    // JavaScript files - ROOT directory (confirmed from network tab)
+    '/app.js',
+    '/engines.js',
+    '/autonomous.js',
+    '/profile-manager.js',
+    '/image-generation.js',
+    '/ui-functions.js',
+    '/developer-mode.js',
+    '/scroll-manager.js',
+    '/tutorial.js',
+    '/self-debug-v3.js',
     
     // Images - /assets/
     '/assets/logo-c.png',
+    '/assets/assistant.png',
     '/assets/icon-192.png',
-    '/assets/icon-512.png',
-    '/assets/icon-1024.png',
-    '/assets/assistant.png'
+    '/assets/icon-512.png'
 ];
 
 // ==========================================
 // INSTALL - Cache all files
 // ==========================================
 self.addEventListener('install', (event) => {
-    console.log('🔧 Service Worker: Installing v1.0.2...');
+    console.log('🔧 Service Worker: Installing v1.0.3...');
     
     event.waitUntil(
         caches.open(CACHE_NAME)
@@ -101,12 +98,22 @@ self.addEventListener('fetch', (event) => {
         return;
     }
     
+    // Skip external CDN resources
+    if (event.request.url.includes('googleapis.com') ||
+        event.request.url.includes('cdnjs.cloudflare.com') ||
+        event.request.url.includes('jsdelivr.net') ||
+        event.request.url.includes('stripe.com') ||
+        event.request.url.includes('stripe.network') ||
+        event.request.url.includes('gstatic.com')) {
+        return;
+    }
+    
     // Skip non-GET requests
     if (event.request.method !== 'GET') {
         return;
     }
     
-    // Skip non-HTTP protocols (chrome-extension, etc)
+    // Skip non-HTTP protocols
     if (!event.request.url.startsWith('http')) {
         return;
     }
@@ -154,4 +161,4 @@ self.addEventListener('fetch', (event) => {
     );
 });
 
-console.log('✅ Service Worker v1.0.2 loaded');
+console.log('✅ Service Worker v1.0.3 loaded');
