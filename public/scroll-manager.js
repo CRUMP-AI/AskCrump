@@ -45,7 +45,7 @@ function handleScroll() {
     
     scrollTimeout = setTimeout(() => {
         isUserScrolling = false;
-    }, 1000);
+    }, 3000);
 }
 
 function scrollToBottom(behavior = 'smooth') {
