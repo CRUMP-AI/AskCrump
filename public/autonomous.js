@@ -46,6 +46,39 @@ async checkForAutonomousMessage() {
     // Only send if enough time has passed
     if (timeSinceLastMessage < interval) return;
 
+    // PROTECTION #1: Don't interrupt if user is actively typing
+    const userInput = document.getElementById('userInput');
+    if (userInput && userInput === document.activeElement) {
+        console.log('⏸️ Autonomous: User is typing - skipping');
+        return;
+    }
+    
+    // PROTECTION #2: Don't send if user typed recently (within 30 seconds)
+    if (userInput && userInput.value && userInput.value.trim().length > 0) {
+        console.log('⏸️ Autonomous: User has unsent message - skipping');
+        return;
+    }
+    
+    // PROTECTION #3: Don't send if page is not visible
+    if (document.hidden) {
+        console.log('⏸️ Autonomous: Tab is hidden - skipping');
+        return;
+    }
+    
+    // PROTECTION #4: Limit messages per session (prevent overnight spam)
+    const sessionStart = sessionStorage.getItem('crump_session_start');
+    const autonomousCount = parseInt(sessionStorage.getItem('crump_autonomous_count') || '0');
+    const maxPerSession = 10; // Max 10 autonomous messages per session
+    
+    if (!sessionStart) {
+        sessionStorage.setItem('crump_session_start', Date.now().toString());
+        sessionStorage.setItem('crump_autonomous_count', '0');
+    } else if (autonomousCount >= maxPerSession) {
+        console.log('⏸️ Autonomous: Session limit reached (10 messages) - stopping');
+        this.enabled = false;
+        return;
+    }
+
     // Get current context
     const context = this.analyzeContext();
     
@@ -55,6 +88,9 @@ async checkForAutonomousMessage() {
     if (message) {
         this.sendAutonomousMessage(message);
         this.lastMessageTime = Date.now();
+        
+        // Increment session counter
+        sessionStorage.setItem('crump_autonomous_count', (autonomousCount + 1).toString());
     }
 }
 
