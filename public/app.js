@@ -608,7 +608,9 @@ function loadSettingsValues() {
     document.getElementById('autonomousMessaging').checked = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_ENABLED) === 'true';
     document.getElementById('autonomousFrequency').value = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'balanced';
     document.getElementById('workMode').checked = localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true';
-
+    document.getElementById('workStart').value = localStorage.getItem('crump_work_start') || '9';
+    document.getElementById('workEnd').value = localStorage.getItem('crump_work_end') || '17';
+    
     const freqGroup = document.getElementById('autonomousFrequencyGroup');
     freqGroup.style.display = document.getElementById('autonomousMessaging').checked ? 'block' : 'none';
 
@@ -624,7 +626,9 @@ window.saveSettings = function() {
     const autonomousEnabled = document.getElementById('autonomousMessaging').checked;
     const autonomousFrequency = document.getElementById('autonomousFrequency').value;
     const workMode = document.getElementById('workMode').checked;
-
+    const workStart = document.getElementById('workStart').value;
+    const workEnd = document.getElementById('workEnd').value;
+    
     if (currentProfile && name) {
         currentProfile.updateProfile({
             name: name,
@@ -637,6 +641,8 @@ window.saveSettings = function() {
     localStorage.setItem(STORAGE_KEYS.AUTONOMOUS_ENABLED, autonomousEnabled);
     localStorage.setItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY, autonomousFrequency);
     localStorage.setItem(STORAGE_KEYS.WORK_MODE, workMode);
+    localStorage.setItem('crump_work_start', workStart);
+    localStorage.setItem('crump_work_end', workEnd);
 
     if (window.autonomousMessaging) {
         window.autonomousMessaging.setEnabled(autonomousEnabled);
