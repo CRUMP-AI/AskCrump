@@ -2,7 +2,7 @@
 // CRUMP AI - SERVICE WORKER v1.0.3
 // Files served from ROOT directory
 // ==========================================
-const CACHE_NAME = 'crump-v1.0.3';
+const CACHE_NAME = 'crump-v1.0.4-bugfix';
 
 const urlsToCache = [
     // Core HTML/JSON
