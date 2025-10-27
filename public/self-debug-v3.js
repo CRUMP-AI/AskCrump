@@ -1,5 +1,5 @@
 // ==========================================
-// CRUMP SELF-DEBUGGING MODULE v3.0
+// CRUMP SELF-DEBUGGING MODULE v3.0 FIXED
 // DEVELOPER ONLY - PRODUCTION READY
 // ==========================================
 
@@ -37,26 +37,36 @@
     // INITIALIZATION
     // ==========================================
     function init() {
-        console.log('🔐 Self-Debug Module v3.0 loaded (requires developer login)');
+        console.log('🔐 Self-Debug Module v3.0 FIXED loaded (requires developer login)');
         interceptMessages();
     }
     
     // ==========================================
-    // MESSAGE INTERCEPTION
+    // MESSAGE INTERCEPTION (FIXED - COMBINED BOTH HANDLERS)
     // ==========================================
     function interceptMessages() {
         const originalSend = window.sendMessage;
         
+        // FIXED: Single unified handler for BOTH self-analysis AND download commands
         window.sendMessage = function(msg) {
             const lower = (msg || '').toLowerCase();
             
-            // Only process self-debug commands if developer mode is active
+            // Only process commands if developer mode is active
             if (!checkDevAccess()) {
                 if (originalSend) originalSend(msg);
                 return;
             }
             
-            // Self-analysis commands
+            // PRIORITY 1: DOWNLOAD COMMANDS (most specific, check first)
+            if (lower.startsWith('download ')) {
+                const fileName = msg.substring(9).trim();
+                if (CODEBASE[fileName]) {
+                    handleDownloadCommand(fileName);
+                    return;
+                }
+            }
+            
+            // PRIORITY 2: SELF-ANALYSIS COMMANDS
             if (lower.includes('analyze your code') ||
                 lower.includes('check your code') ||
                 lower.includes('debug yourself') ||
@@ -67,7 +77,7 @@
                 return;
             }
             
-            // Specific file analysis
+            // PRIORITY 3: SPECIFIC FILE ANALYSIS
             for (const fileName in CODEBASE) {
                 const fileBase = fileName.replace('.js', '');
                 if (lower.includes(fileBase) && 
@@ -77,7 +87,7 @@
                 }
             }
             
-            // Normal message flow
+            // PRIORITY 4: Normal message flow
             if (originalSend) originalSend(msg);
         };
     }
@@ -419,18 +429,8 @@ ${codeToAnalyze}
         }
     }
     
-    // Hook download commands
-    const originalSend = window.sendMessage;
-    window.sendMessage = function(msg) {
-        if (checkDevAccess() && msg && msg.toLowerCase().startsWith('download ')) {
-            const fileName = msg.substring(9).trim();
-            if (CODEBASE[fileName]) {
-                handleDownloadCommand(fileName);
-                return;
-            }
-        }
-        if (originalSend) originalSend(msg);
-    };
+    // NOTE: Second window.sendMessage assignment REMOVED - no longer needed!
+    // The unified handler in interceptMessages() handles both self-analysis AND downloads
     
     // ==========================================
     // UTILITY FUNCTIONS
@@ -499,54 +499,4 @@ ${codeToAnalyze}
     
 })();
 
-// ==========================================
-// USAGE
-// ==========================================
-/*
-
-FOR DEVELOPER (Greg):
-
-1. Place self-debug-v3.js in /public/ folder (same location as app.js)
-
-2. Login via Developer Login button in sidebar
-   - Username: greg@crumpai.com
-   - Password: N2-Engine-2025
-
-3. Once logged in, self-debug features activate automatically
-
-COMMANDS:
-
-  "analyze your code"
-  "check app.js"
-  "debug yourself"
-  "health check"
-  "quick health check"
-  "full codebase analysis"
-
-DOWNLOAD FIXED FILES:
-  "download app.js"
-  "download engines.js"
-
-FILE STRUCTURE:
-/public/
-  ├── index.html
-  ├── app.js
-  ├── engines.js
-  ├── self-debug-v3.js  ← Place here
-  └── ... other files
-
-PUBLIC USERS:
-- Never see this feature
-- Commands don't work
-- No indication it exists
-- Normal Crump experience
-
-INTEGRATION:
-- Uses existing developer-mode.js for authentication
-- No duplicate login system
-- Activates when developer mode is enabled
-- Single unified authentication
-
-*/
-
-console.log('✅ Self-Debug Module v3.0 loaded (requires developer login)');
+console.log('✅ Self-Debug Module v3.0 FIXED loaded (requires developer login)');
