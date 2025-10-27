@@ -679,9 +679,13 @@
                 document.getElementById('tosModal').style.display = 'flex';
             } else if (!hasOnboarded) {
                 document.getElementById('onboardingModal').style.display = 'flex';
-            } else {
-                document.getElementById('appContainer').style.display = 'flex';
-            }
+          } else {
+    document.getElementById('appContainer').style.display = 'flex';
+    // Initialize app for returning users
+    if (typeof window.initializeApp === 'function') {
+        window.initializeApp();
+    }
+}
         }, 1500);
     });
 
