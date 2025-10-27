@@ -187,15 +187,21 @@ resetUsage(month) {
    
 // Persistence
 loadProfile() {
-    const saved = localStorage.getItem('crump_user_profile');
-    if (saved) {
-        try {
-            return JSON.parse(saved);
-        } catch (e) {
-            return {};
+    try {
+        const saved = localStorage.getItem('crump_user_profile');
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch (e) {
+                console.warn('Failed to parse profile:', e);
+                return {};
+            }
         }
+        return {};
+    } catch (storageError) {
+        console.warn('⚠️ localStorage unavailable - using session-only profile');
+        return {};
     }
-    return {};
 }
 
 saveProfile() {
