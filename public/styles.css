@@ -977,4 +977,39 @@ a:focus-visible {
 .tier-icon:focus,
 .assistant-character:focus {
     outline: none;
+
+   /* ============================================ */
+/* ACCESSIBILITY - IMPROVED CONTRAST */
+/* ============================================ */
+
+/* Ensure text meets WCAG AA standards */
+.text-secondary,
+.chat-preview,
+.setting-description {
+    color: #a8b2bf; /* Lighter than original #9ca3af for better contrast */
+}
+
+.text-tertiary {
+    color: #8591a0; /* Lighter than original #6b7280 */
+}
+
+/* Improve link visibility */
+a {
+    color: #e5d4a3; /* Lighter gold for better contrast */
+    text-decoration: underline;
+}
+
+a:hover {
+    color: var(--color-accent-hover);
+}
+
+/* Better button contrast */
+.btn-secondary {
+    border: 1px solid #4a5568; /* More visible border */
+}
+
+.btn-secondary:hover {
+    background: var(--color-bg-tertiary);
+    border-color: var(--color-accent-primary);
+}
 }
