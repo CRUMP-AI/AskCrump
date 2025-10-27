@@ -478,6 +478,7 @@ async function sendMessage() {
         isProcessing = false;
     }
 }
+window.sendMessage = sendMessage;
 
 function readFileAsBase64(file) {
     return new Promise((resolve, reject) => {
