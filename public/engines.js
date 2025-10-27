@@ -4,35 +4,21 @@
 // ==========================================
 // Message Deduplication
 class MessageDeduplicator {
-constructor() {
-this.recentMessages = new Set();
-this.timeout = 5000; // 5 seconds
-}
-isDuplicate(content) {
-    const hash = this.hashMessage(content);
-    
-    if (this.recentMessages.has(hash)) {
-        return true;
+    constructor() {
+        this.recentHashes = new Set();
+        this.maxSize = 100;
     }
-
-    this.recentMessages.add(hash);
     
-    setTimeout(() => {
-        this.recentMessages.delete(hash);
-    }, this.timeout);
-
-    return false;
-}
-
-hashMessage(content) {
-    let hash = 0;
-    for (let i = 0; i < content.length; i++) {
-        const char = content.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash;
+    // Better hash function - FNV-1a algorithm (fewer collisions)
+    hash(str) {
+        let hash = 2166136261; // FNV offset basis
+        for (let i = 0; i < str.length; i++) {
+            hash ^= str.charCodeAt(i);
+            hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+        }
+        // Return positive integer
+        return hash >>> 0;
     }
-    return hash;
-}
 }
 // Search Detection Engine
 class SearchDetectionEngine {
