@@ -419,7 +419,20 @@ async function sendMessage() {
                 role: m.role,
                 content: m.content
             })),
-            currentDateTime: new Date().toISOString(),
+            currentDateTime: {
+                date: new Date().toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                }),
+                time: new Date().toLocaleTimeString('en-US', { 
+                    hour: 'numeric', 
+                    minute: '2-digit',
+                    hour12: true 
+                }),
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+            },
             needsSearch: needsSearch,
             workMode: localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true' ? 'work' : 'companion'
         };
