@@ -54,9 +54,14 @@ window.initializeApp = function() {
             window.messageDeduplicator = new MessageDeduplicator();
         }
 
-        if (typeof window.SearchDetectionEngine !== 'undefined') {
+       if (typeof window.SearchDetectionEngine !== 'undefined') {
             window.searchDetectionEngine = new SearchDetectionEngine();
             console.log('✅ Search Detection Engine initialized');
+        }
+        
+        if (typeof window.WeatherDetectionEngine !== 'undefined') {
+            window.weatherDetectionEngine = new WeatherDetectionEngine();
+            console.log('✅ Weather Detection Engine initialized');
         }
 
         loadChats();
@@ -422,10 +427,16 @@ async function sendMessage() {
         showThinking();
         setAssistantState('thinking');
         
-        // Detect if search is needed
+       // Detect if search is needed
         let needsSearch = false;
         if (window.searchDetectionEngine) {
             needsSearch = window.searchDetectionEngine.needsSearch(message);
+        }
+        
+        // Detect if weather is needed
+        let needsWeather = false;
+        if (window.weatherDetectionEngine) {
+            needsWeather = window.weatherDetectionEngine.needsWeather(message);
         }
         
         // Prepare request
@@ -450,6 +461,7 @@ async function sendMessage() {
                 timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
             },
             needsSearch: needsSearch,
+            needsWeather: needsWeather,
             workMode: localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true' ? 'work' : 'companion'
         };
         
