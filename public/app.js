@@ -391,10 +391,17 @@ async function sendMessage() {
             userMessage.imageData = fileData;
         }
         
-        // Add user message to chat
+       // Add user message to chat
         chat.messages.push(userMessage);
         saveChats();
         renderMessages(chat.messages);
+        
+        // Scroll to user's message immediately
+        setTimeout(() => {
+            if (window.crumpScrollManager) {
+                window.crumpScrollManager.scrollToBottom('auto');
+            }
+        }, 100);
         
         // Show read receipt on user's message
         setTimeout(() => {
