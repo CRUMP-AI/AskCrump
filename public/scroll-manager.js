@@ -48,8 +48,11 @@ function handleScroll() {
     }, 3000);
 }
 
-function scrollToBottom(behavior = 'smooth') {
+function scrollToBottom(behaviorOrEvent) {
     if (!chatContainer) return;
+    
+    // If called from click event, use 'smooth', otherwise use the passed value
+    const behavior = (typeof behaviorOrEvent === 'string') ? behaviorOrEvent : 'smooth';
     
     chatContainer.scrollTo({
         top: chatContainer.scrollHeight,
