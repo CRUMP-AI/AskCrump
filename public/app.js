@@ -439,6 +439,20 @@ async function sendMessage() {
             needsWeather = window.weatherDetectionEngine.needsWeather(message);
         }
         
+        // CHECK FOR IMAGE GENERATION REQUEST (must be BEFORE API call)
+        if (message && !fileData && window.shouldGenerateImage && window.shouldGenerateImage(message)) {
+            console.log('🎨 Image generation detected, routing to image handler');
+            
+            // Hide thinking
+            hideThinking();
+            setAssistantState('idle');
+            isProcessing = false;
+            
+            // Call image generation handler
+            await window.handleImageGeneration(message);
+            return; // EXIT - don't call chat API
+        }
+        
         // Prepare request
         const requestBody = {
             message: message,
