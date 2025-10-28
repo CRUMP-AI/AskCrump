@@ -1183,3 +1183,115 @@ body.keyboard-open {
         padding-bottom: calc(120px + env(safe-area-inset-bottom, 0));
     }
 }
+/* ============================================ */
+/* TYPING INDICATOR & READ RECEIPTS */
+/* ============================================ */
+
+/* Enhanced thinking indicator with avatar and text */
+.thinking-indicator {
+    display: none;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.thinking-indicator[style*="display: flex"],
+.thinking-indicator[style*="display: inline-flex"] {
+    display: flex !important;
+}
+
+.thinking-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.thinking-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.thinking-content {
+    flex: 1;
+}
+
+.thinking-text {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 0.25rem;
+}
+
+.thinking-dots-wrapper {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.thinking-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-accent-primary);
+    animation: typingBounce 1.4s ease-in-out infinite;
+}
+
+.thinking-dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.thinking-dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typingBounce {
+    0%, 60%, 100% {
+        transform: translateY(0);
+        opacity: 0.4;
+    }
+    30% {
+        transform: translateY(-8px);
+        opacity: 1;
+    }
+}
+
+/* Read receipt under user messages */
+.message-status {
+    font-size: 0.75rem;
+    color: var(--color-text-tertiary);
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    opacity: 0;
+    animation: fadeInStatus 0.3s ease forwards;
+    animation-delay: 0.2s;
+}
+
+@keyframes fadeInStatus {
+    from {
+        opacity: 0;
+        transform: translateY(-2px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.message-status.read {
+    color: var(--color-accent-primary);
+}
+
+.message-status svg {
+    width: 12px;
+    height: 12px;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .thinking-avatar {
+        width: 28px;
+        height: 28px;
+    }
+}
