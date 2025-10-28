@@ -83,8 +83,38 @@ extractImagePrompt(message) {
     return message;
 }
 }
+// Weather Detection Engine
+class WeatherDetectionEngine {
+    constructor() {
+        this.weatherTriggers = [
+            'weather',
+            'temperature',
+            'forecast',
+            'how hot',
+            'how cold',
+            'how warm',
+            'is it raining',
+            'will it rain',
+            'is it snowing',
+            'what\'s the temp',
+            'whats the temp',
+            'conditions outside'
+        ];
+    }
+    
+    needsWeather(message) {
+        const lower = message.toLowerCase();
+        return this.weatherTriggers.some(trigger => lower.includes(trigger));
+    }
+    
+    extractWeatherQuery(message) {
+        return message.trim();
+    }
+}
+
 // Export to global
 window.MessageDeduplicator = MessageDeduplicator;
 window.SearchDetectionEngine = SearchDetectionEngine;
 window.ImageDetectionEngine = ImageDetectionEngine;
+window.WeatherDetectionEngine = WeatherDetectionEngine; // ADD THIS LINE
 console.log('✅ Detection Engines v1.0 loaded');
