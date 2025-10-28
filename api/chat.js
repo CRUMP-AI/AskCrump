@@ -177,24 +177,7 @@ export default async function handler(req, res) {
        // BUILD SYSTEM PROMPT
         let systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode, currentDateTime);
         
-        // Add weather data if available
-        if (weatherData) {
-            systemPrompt += `\n\n<current_weather>\n${weatherData}\n</current_weather>\n\nThe user asked about weather. Use the data above to answer their question naturally.`;
-        }
-        // VALIDATE AND CLEAN HISTORY
-        console.log('🔍 Validating message history...');
-        let validHistory = validateAndCleanMessages(history);
-        console.log('✅ Valid messages after cleaning:', validHistory.length);
-        
-        // Remove last message (the current one being sent)
-        validHistory = validHistory.slice(0, -1);
-        
-        // Truncate if conversation gets too long
-        validHistory = truncateHistory(validHistory);
-        
-        console.log('📤 Sending to Claude with', validHistory.length, 'history messages');
-
-        // WEATHER LOGIC
+        // WEATHER LOGIC - MUST COME FIRST
         let weatherData = null;
         if (needsWeather) {
             console.log('🌤️ Weather requested');
@@ -224,6 +207,24 @@ export default async function handler(req, res) {
             }
         }
         
+        // Add weather data to system prompt if available
+        if (weatherData) {
+            systemPrompt += `\n\n<current_weather>\n${weatherData}\n</current_weather>\n\nThe user asked about weather. Use the data above to answer their question naturally.`;
+        }
+        
+        // VALIDATE AND CLEAN HISTORY
+        console.log('🔍 Validating message history...');
+        let validHistory = validateAndCleanMessages(history);
+        console.log('✅ Valid messages after cleaning:', validHistory.length);
+        
+        // Remove last message (the current one being sent)
+        validHistory = validHistory.slice(0, -1);
+        
+        // Truncate if conversation gets too long
+        validHistory = truncateHistory(validHistory);
+        
+        console.log('📤 Sending to Claude with', validHistory.length, 'history messages');
+
         // SEARCH LOGIC
         if (needsSearch) {
             console.log('🔍 Search requested');
