@@ -139,12 +139,13 @@ export default async function handler(req, res) {
         console.log('📊 History count:', body.history?.length || 0);
         console.log('📊 Has file:', !!body.fileData);
         
-        const { 
+       const { 
             message, 
             history = [], 
             currentDateTime,
             fileData, 
-            needsSearch = false, 
+            needsSearch = false,
+            needsWeather = false,
             novaActive = false, 
             novaProtocol = null, 
             universalMemory = {},
@@ -173,9 +174,13 @@ export default async function handler(req, res) {
             return await handleImageAnalysis(res, fileData, message, assistantName);
         }
 
-        // BUILD SYSTEM PROMPT
-        const systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode, currentDateTime);
+       // BUILD SYSTEM PROMPT
+        let systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode, currentDateTime);
         
+        // Add weather data if available
+        if (weatherData) {
+            systemPrompt += `\n\n<current_weather>\n${weatherData}\n</current_weather>\n\nThe user asked about weather. Use the data above to answer their question naturally.`;
+        }
         // VALIDATE AND CLEAN HISTORY
         console.log('🔍 Validating message history...');
         let validHistory = validateAndCleanMessages(history);
@@ -189,6 +194,36 @@ export default async function handler(req, res) {
         
         console.log('📤 Sending to Claude with', validHistory.length, 'history messages');
 
+        // WEATHER LOGIC
+        let weatherData = null;
+        if (needsWeather) {
+            console.log('🌤️ Weather requested');
+            try {
+                const BASE_URL = req.headers.host?.includes('localhost') 
+                    ? 'http://localhost:3000' 
+                    : `https://${req.headers.host}`;
+                
+                const weatherResponse = await fetch(`${BASE_URL}/api/weather.js`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        query: message,
+                        context: 'chat'
+                    })
+                });
+                
+                if (weatherResponse.ok) {
+                    const weatherJson = await weatherResponse.json();
+                    if (weatherJson.success) {
+                        weatherData = weatherJson.formatted;
+                        console.log('✅ Weather data retrieved for', weatherJson.location);
+                    }
+                }
+            } catch (weatherError) {
+                console.warn('⚠️ Weather API failed:', weatherError.message);
+            }
+        }
+        
         // SEARCH LOGIC
         if (needsSearch) {
             console.log('🔍 Search requested');
