@@ -1,7 +1,7 @@
 /*
 ==========================================
 CRUMP AI - MAIN APPLICATION v1.0 FIXED
-Complete with all fixes
+Complete with all fixes + Read Receipts + Typing Indicator
 ==========================================
 */
 
@@ -295,7 +295,11 @@ function renderMessages(messages) {
     const container = document.getElementById('chatContainer');
     if (!container) return;
     
-    container.innerHTML = '';
+    // Keep typing indicator if it exists
+    const typingIndicator = document.getElementById('typingIndicator');
+    const typingHTML = typingIndicator ? typingIndicator.outerHTML : '';
+    
+    container.innerHTML = typingHTML;
     
     messages.forEach((msg, index) => {
         const messageEl = createMessageElement(msg, index);
@@ -396,14 +400,24 @@ async function sendMessage() {
         saveChats();
         renderMessages(chat.messages);
         
+        // Show read receipt on user's message
+        setTimeout(() => {
+            const messages = document.querySelectorAll('.message.user');
+            const lastUserMessage = messages[messages.length - 1];
+            if (lastUserMessage) {
+                showReadReceipt(lastUserMessage);
+            }
+        }, 300);
+        
         // Clear input and files
         userInput.value = '';
         userInput.style.height = 'auto';
         selectedFiles = [];
         displayFilePreview();
         
-        // Show thinking
+        // Show thinking and typing indicator
         showThinking();
+        showTypingIndicator();
         setAssistantState('thinking');
         
         // Detect if search is needed
@@ -478,13 +492,15 @@ async function sendMessage() {
         renderMessages(chat.messages);
         renderChatsList();
         
-        // Hide thinking
+        // Hide thinking and typing
         hideThinking();
+        hideTypingIndicator();
         setAssistantState('idle');
         
     } catch (error) {
         console.error('Error sending message:', error);
         hideThinking();
+        hideTypingIndicator();
         setAssistantState('idle');
         showToast('Failed to send message: ' + error.message, 'error');
     } finally {
@@ -816,11 +832,63 @@ function setupMobileKeyboardHandler() {
     }
 }
 
+// ==========================================
+// READ RECEIPTS & TYPING INDICATOR
+// ==========================================
+function showReadReceipt(messageElement) {
+    if (!messageElement) return;
+    
+    const messageContent = messageElement.querySelector('.message-content');
+    if (!messageContent) return;
+    
+    // Check if status already exists
+    if (messageContent.querySelector('.message-status')) return;
+    
+    const status = document.createElement('div');
+    status.className = 'message-status read';
+    status.innerHTML = `
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M2 8l4 4 8-8"/>
+        </svg>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M2 8l4 4 8-8"/>
+        </svg>
+        <span>Read</span>
+    `;
+    messageContent.appendChild(status);
+}
+
+function showTypingIndicator() {
+    const indicator = document.getElementById('typingIndicator');
+    if (indicator) {
+        indicator.classList.add('active');
+        
+        // Scroll to show typing indicator
+        if (window.crumpScrollManager) {
+            setTimeout(() => {
+                window.crumpScrollManager.scrollToBottom(true);
+            }, 100);
+        } else {
+            const chatContainer = document.getElementById('chatContainer');
+            if (chatContainer) {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+        }
+    }
+}
+
+function hideTypingIndicator() {
+    const indicator = document.getElementById('typingIndicator');
+    if (indicator) {
+        indicator.classList.remove('active');
+    }
+}
+
 window.crumpDebug = {
     getChats: () => chats,
     getCurrentChat: () => chats.find(c => c.id === currentChatId),
     getProfile: () => currentProfile?.getProfile(),
-    version: '1.0.0-FIXED'
+    version: '1.0.0-FIXED-WITH-RECEIPTS'
 };
 
-console.log('✅ Crump AI v1.0 loaded (FIXED VERSION - API Connected)');
+console.log('✅ Crump AI v1.0 loaded (FIXED VERSION - API Connected + Read Receipts + Typing Indicator)');
