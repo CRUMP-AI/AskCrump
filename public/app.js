@@ -486,6 +486,14 @@ async function sendMessage() {
         saveChats();
         renderMessages(chat.messages);
         renderChatsList();
+
+        // Scroll to show new assistant message
+        setTimeout(() => {
+            const container = document.getElementById('chatContainer');
+            if (container) {
+                container.scrollTop = container.scrollHeight;
+            }
+        }, 200);   
         
         // Hide thinking
         hideThinking();
