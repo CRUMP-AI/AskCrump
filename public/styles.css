@@ -1224,8 +1224,7 @@ body.keyboard-open {
 }
 
 .thinking-dots-wrapper {
-    display: flex;
-    gap: 0.25rem;
+    display: none; /* Hide dots */
 }
 
 .thinking-dot {
