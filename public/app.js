@@ -396,6 +396,15 @@ async function sendMessage() {
         saveChats();
         renderMessages(chat.messages);
         
+        // Show read receipt on user's message
+        setTimeout(() => {
+            const messages = document.querySelectorAll('.message.user');
+            const lastUserMessage = messages[messages.length - 1];
+            if (lastUserMessage) {
+                showReadReceipt(lastUserMessage);
+            }
+        }, 300);
+        
         // Clear input and files
         userInput.value = '';
         userInput.style.height = 'auto';
@@ -697,6 +706,35 @@ function setAssistantState(state) {
 }
 window.setAssistantState = setAssistantState;
 
+// ==========================================
+// READ RECEIPTS
+// ==========================================
+function showReadReceipt(messageElement) {
+    if (!messageElement) return;
+    
+    const messageContent = messageElement.querySelector('.message-content');
+    if (!messageContent) return;
+    
+    // Check if status already exists
+    if (messageContent.querySelector('.message-status')) return;
+    
+    const status = document.createElement('div');
+    status.className = 'message-status read';
+    status.innerHTML = `
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M2 8l4 4 8-8"/>
+        </svg>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M2 8l4 4 8-8"/>
+        </svg>
+        <span>Read</span>
+    `;
+    messageContent.appendChild(status);
+}
+
+// ==========================================
+// UI HELPERS
+// ==========================================
 function showThinking() {
     const indicator = document.getElementById('thinkingIndicator');
     if (indicator) indicator.style.display = 'flex';
