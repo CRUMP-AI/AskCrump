@@ -20,73 +20,108 @@ class MessageDeduplicator {
         return hash >>> 0;
     }
 }
+
 // Search Detection Engine
 class SearchDetectionEngine {
-constructor() {
-this.searchTriggers = [
-'search for',
-'search the web',
-'look up',
-'find information',
-'what is happening',
-'latest news',
-'current events',
-'who won',
-'what happened',
-'breaking news'
-];
-}
-needsSearch(message) {
-    const lower = message.toLowerCase();
-    return this.searchTriggers.some(trigger => lower.includes(trigger));
-}
-
-extractSearchQuery(message) {
-    const lower = message.toLowerCase();
-    
-    for (const trigger of this.searchTriggers) {
-        if (lower.includes(trigger)) {
-            const index = lower.indexOf(trigger);
-            return message.substring(index + trigger.length).trim();
-        }
+    constructor() {
+        this.searchTriggers = [
+            'search for',
+            'search the web',
+            'look up',
+            'find information',
+            'what is happening',
+            'latest news',
+            'current events',
+            'who won',
+            'what happened',
+            'breaking news'
+        ];
     }
     
-    return message;
+    needsSearch(message) {
+        const lower = message.toLowerCase();
+        return this.searchTriggers.some(trigger => lower.includes(trigger));
+    }
+    
+    extractSearchQuery(message) {
+        const lower = message.toLowerCase();
+        
+        for (const trigger of this.searchTriggers) {
+            if (lower.includes(trigger)) {
+                const index = lower.indexOf(trigger);
+                return message.substring(index + trigger.length).trim();
+            }
+        }
+        
+        return message;
+    }
 }
-}
+
 // Image Generation Detection
 class ImageDetectionEngine {
-constructor() {
-this.imageTriggers = [
-'generate an image',
-'create an image',
-'draw',
-'make a picture',
-'generate a picture',
-'create artwork',
-'visualize'
-];
-}
-needsImage(message) {
-    const lower = message.toLowerCase();
-    return this.imageTriggers.some(trigger => lower.includes(trigger));
-}
-
-extractImagePrompt(message) {
-    const lower = message.toLowerCase();
-    
-    for (const trigger of this.imageTriggers) {
-        if (lower.includes(trigger)) {
-            const index = lower.indexOf(trigger);
-            return message.substring(index + trigger.length).trim();
-        }
+    constructor() {
+        this.imageTriggers = [
+            'generate an image',
+            'create an image',
+            'draw',
+            'make a picture',
+            'generate a picture',
+            'create artwork',
+            'visualize'
+        ];
     }
     
-    return message;
+    needsImage(message) {
+        const lower = message.toLowerCase();
+        return this.imageTriggers.some(trigger => lower.includes(trigger));
+    }
+    
+    extractImagePrompt(message) {
+        const lower = message.toLowerCase();
+        
+        for (const trigger of this.imageTriggers) {
+            if (lower.includes(trigger)) {
+                const index = lower.indexOf(trigger);
+                return message.substring(index + trigger.length).trim();
+            }
+        }
+        
+        return message;
+    }
 }
+
+// Weather Detection Engine
+class WeatherDetectionEngine {
+    constructor() {
+        this.weatherTriggers = [
+            'weather',
+            'temperature',
+            'forecast',
+            'how hot',
+            'how cold',
+            'how warm',
+            'is it raining',
+            'will it rain',
+            'is it snowing',
+            'what\'s the temp',
+            'whats the temp',
+            'conditions outside'
+        ];
+    }
+    
+    needsWeather(message) {
+        const lower = message.toLowerCase();
+        return this.weatherTriggers.some(trigger => lower.includes(trigger));
+    }
+    
+    extractWeatherQuery(message) {
+        return message.trim();
+    }
 }
+
 // Export to global
 window.MessageDeduplicator = MessageDeduplicator;
 window.SearchDetectionEngine = SearchDetectionEngine;
 window.ImageDetectionEngine = ImageDetectionEngine;
+window.WeatherDetectionEngine = WeatherDetectionEngine;
 console.log('✅ Detection Engines v1.0 loaded');
