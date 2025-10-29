@@ -1,7 +1,7 @@
 /*
 ==========================================
 CRUMP AI - MAIN APPLICATION v1.0 FIXED
-Complete with all fixes
+Complete with all fixes + autonomous corrections
 ==========================================
 */
 
@@ -684,6 +684,7 @@ window.closeSettings = function() {
     document.getElementById('settingsModal').style.display = 'none';
 };
 
+// FIXED: Changed setEnabled → toggle, 'balanced' → 'medium'
 function loadSettings() {
     const autonomousEnabled = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_ENABLED) === 'true';
     const autonomousFrequency = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'medium';
@@ -701,7 +702,7 @@ function loadSettingsValues() {
     document.getElementById('settingsEmail').value = profile.email || '';
     document.getElementById('assistantName').value = localStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
     document.getElementById('autonomousMessaging').checked = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_ENABLED) === 'true';
-    document.getElementById('autonomousFrequency').value = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'balanced';
+    document.getElementById('autonomousFrequency').value = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'medium';
     document.getElementById('workMode').checked = localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true';
     document.getElementById('workStart').value = localStorage.getItem('crump_work_start') || '9';
     document.getElementById('workEnd').value = localStorage.getItem('crump_work_end') || '17';
@@ -714,6 +715,7 @@ function loadSettingsValues() {
     });
 }
 
+// FIXED: Changed setEnabled → toggle
 window.saveSettings = function() {
     const name = document.getElementById('settingsName').value.trim();
     const email = document.getElementById('settingsEmail').value.trim();
@@ -837,12 +839,13 @@ function showWelcomeMessage() {
     }
 }
 
+// FIXED: Changed setEnabled → toggle, 'balanced' → 'medium'
 function setupAutonomousMessaging() {
     const enabled = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_ENABLED) === 'true';
-    const frequency = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'balanced';
+    const frequency = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'medium';
 
     if (window.autonomousMessaging) {
-        window.autonomousMessaging.setEnabled(enabled);
+        window.autonomousMessaging.toggle(enabled);
         window.autonomousMessaging.setFrequency(frequency);
     }
 }
@@ -930,7 +933,7 @@ window.crumpDebug = {
     getChats: () => chats,
     getCurrentChat: () => chats.find(c => c.id === currentChatId),
     getProfile: () => currentProfile?.getProfile(),
-    version: '1.0.0-FIXED'
+    version: '1.0.0-FIXED-AUTONOMOUS'
 };
 
-console.log('✅ Crump AI v1.0 loaded (FIXED VERSION - API Connected)');
+console.log('✅ Crump AI v1.0 loaded (FIXED VERSION - Autonomous corrected)');
