@@ -1,6 +1,6 @@
 // ==========================================
-// CRUMP AI - TUTORIAL SYSTEM v1.0
-// First-time user onboarding
+// CRUMP AI - TUTORIAL SYSTEM v1.1 FIXED
+// Fixed: iOS app shutdown persistence
 // ==========================================
 class Tutorial {
     constructor() {
@@ -231,21 +231,45 @@ class Tutorial {
 window.Tutorial = Tutorial;
 window.tutorial = new Tutorial();
 
+// ==========================================
+// AUTO-START LOGIC (FIXED FOR iOS)
+// ==========================================
 window.addEventListener('load', () => {
     const hasOnboarded = localStorage.getItem('crump_has_onboarded');
     const tutorialCompleted = localStorage.getItem('crump_tutorial_completed');
-    const tutorialShownOnce = localStorage.getItem('crump_tutorial_shown_once');
     
-    // Only auto-show tutorial ONCE after first onboarding
-    // After that, user must manually restart from settings
-    if (hasOnboarded === 'true' && tutorialCompleted !== 'true' && tutorialShownOnce !== 'true') {
-        // Mark that we've shown it once
-        localStorage.setItem('crump_tutorial_shown_once', 'true');
+    // FIXED: Only show tutorial once after onboarding is complete
+    // After completion, it never auto-shows again
+    if (hasOnboarded === 'true' && tutorialCompleted !== 'true') {
+        // Check if we should show it (first time OR hasn't been completed yet)
+        const tutorialDismissed = localStorage.getItem('crump_tutorial_dismissed');
         
+        // If user previously dismissed (skipped), don't show again automatically
+        // But if they just never completed it (closed app mid-tutorial), show it again
+        if (tutorialDismissed === 'true') {
+            console.log('📚 Tutorial was dismissed, not showing again');
+            return;
+        }
+        
+        // Show tutorial after a delay
         setTimeout(() => {
             window.tutorial.start();
         }, 1000);
     }
 });
 
-console.log('✅ Tutorial System v1.0 loaded');
+// Update skip function to mark as dismissed
+const originalSkip = Tutorial.prototype.skip;
+Tutorial.prototype.skip = function() {
+    localStorage.setItem('crump_tutorial_dismissed', 'true');
+    originalSkip.call(this);
+};
+
+// Update complete to remove dismissed flag (user completed successfully)
+const originalComplete = Tutorial.prototype.complete;
+Tutorial.prototype.complete = function() {
+    localStorage.removeItem('crump_tutorial_dismissed');
+    originalComplete.call(this);
+};
+
+console.log('✅ Tutorial System v1.1 loaded - iOS persistence fixed');
