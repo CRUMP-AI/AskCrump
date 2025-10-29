@@ -542,6 +542,11 @@ if (message && !fileData && window.shouldGenerateImage && window.shouldGenerateI
         renderMessages(chat.messages);
         renderChatsList();
 
+        // Notify autonomous system that user sent a message
+        if (window.autonomousMessaging) {
+            window.autonomousMessaging.onUserResponse(message);
+        }
+
        // Scroll to show new assistant message
         setTimeout(() => {
             if (window.crumpScrollManager) {
