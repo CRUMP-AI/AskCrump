@@ -1,12 +1,11 @@
 // ==========================================
-// CRUMP AI - DEVELOPER LOGIN v3.1
-// Professional admin access system
+// CRUMP AI - DEVELOPER ACCESS v2.0
+// Professional admin authentication
 // ==========================================
 
 class DeveloperMode {
     constructor() {
         this.enabled = this.loadDevMode();
-        // Credentials stored as base64 (still visible in source, but less obvious)
         this.credentials = {
             username: atob('Z3JlZ0BjcnVtcGFpLmNvbQ=='),  // greg@crumpai.com
             password: atob('TjItRW5naW5lLTIwMjU=')        // N2-Engine-2025
@@ -16,18 +15,11 @@ class DeveloperMode {
             this.activate();
         }
         
-        // FIXED: Delay button setup until DOM is ready
         this.initWhenReady();
-        
-        console.log('🔧 Developer Login ready');
+        console.log('[DevMode] System ready');
     }
     
-    // ==========================================
-    // INITIALIZATION FIX
-    // ==========================================
-    
     initWhenReady() {
-        // Wait for sidebar to be rendered
         const checkSidebar = () => {
             const sidebarFooter = document.querySelector('.sidebar-footer');
             if (sidebarFooter) {
@@ -36,7 +28,6 @@ class DeveloperMode {
                     this.updateUI();
                 }
             } else {
-                // Retry after a short delay
                 setTimeout(checkSidebar, 100);
             }
         };
@@ -48,19 +39,12 @@ class DeveloperMode {
         }
     }
     
-    // ==========================================
-    // LOGIN UI
-    // ==========================================
-    
     setupDevLoginButton() {
-        // Remove existing button if any
         const existing = document.querySelector('.dev-login-trigger');
         if (existing) existing.remove();
         
-        // Add hidden developer login button to sidebar footer
         const sidebarFooter = document.querySelector('.sidebar-footer');
         if (!sidebarFooter) {
-            console.warn('⚠️ Sidebar footer not found, retrying...');
             setTimeout(() => this.setupDevLoginButton(), 500);
             return;
         }
@@ -79,14 +63,11 @@ class DeveloperMode {
         devLoginBtn.onmouseout = () => devLoginBtn.style.opacity = '0.3';
         devLoginBtn.onclick = () => this.showLoginModal();
         
-        // Insert before the branding footer (at the end)
         sidebarFooter.appendChild(devLoginBtn);
-        
-        console.log('✅ Developer login button added');
+        console.log('[DevMode] Login button added');
     }
     
     showLoginModal() {
-        // Remove existing modal if any
         const existing = document.getElementById('devLoginModal');
         if (existing) existing.remove();
         
@@ -97,8 +78,8 @@ class DeveloperMode {
         modal.innerHTML = `
             <div class="modal-content" style="max-width: 400px;">
                 <div class="modal-header">
-                    <h2>🔐 Developer Access</h2>
-                    <button class="btn-icon" onclick="document.getElementById('devLoginModal').remove()" aria-label="Close">
+                    <h2>Developer Access</h2>
+                    <button class="btn-icon" onclick="document.getElementById('devLoginModal').remove()">
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                             <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                         </svg>
@@ -106,7 +87,7 @@ class DeveloperMode {
                 </div>
                 
                 <div class="modal-body">
-                    <p style="color: var(--color-text-secondary); margin-bottom: 1.5rem; font-size: 0.875rem;">
+                    <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.875rem;">
                         Enter your developer credentials to unlock all features
                     </p>
                     
@@ -120,7 +101,7 @@ class DeveloperMode {
                         <input type="password" id="devPassword" class="form-input" placeholder="Enter password" autocomplete="current-password">
                     </div>
                     
-                    <div id="devLoginError" style="display: none; color: var(--color-error); font-size: 0.875rem; margin-bottom: 1rem; padding: 0.5rem; background: rgba(220, 38, 38, 0.1); border-radius: 6px;">
+                    <div id="devLoginError" style="display: none; color: #ef4444; font-size: 0.875rem; margin-bottom: 1rem; padding: 0.5rem; background: rgba(220, 38, 38, 0.1); border-radius: 6px;">
                     </div>
                     
                     <button id="devLoginBtn" class="btn btn-primary btn-block btn-large" onclick="window.developerMode.attemptLogin()">
@@ -137,23 +118,17 @@ class DeveloperMode {
         `;
         
         document.body.appendChild(modal);
-        
-        // Focus username field
         setTimeout(() => document.getElementById('devUsername')?.focus(), 100);
         
-        // Enable Enter key
         const form = modal.querySelector('.modal-body');
         form.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.attemptLogin();
-            }
+            if (e.key === 'Enter') this.attemptLogin();
         });
     }
     
     attemptLogin() {
         const username = document.getElementById('devUsername')?.value.trim();
         const password = document.getElementById('devPassword')?.value;
-        const errorDiv = document.getElementById('devLoginError');
         const loginBtn = document.getElementById('devLoginBtn');
         
         if (!username || !password) {
@@ -161,35 +136,23 @@ class DeveloperMode {
             return;
         }
         
-        // Disable button during check
         if (loginBtn) {
             loginBtn.disabled = true;
             loginBtn.textContent = 'Signing in...';
         }
         
-        // Simulate checking (you could add a small delay for realism)
         setTimeout(() => {
             if (username === this.credentials.username && password === this.credentials.password) {
-                // Success!
                 this.activate();
                 document.getElementById('devLoginModal')?.remove();
-                
-                if (window.showToast) {
-                    window.showToast('👨‍💻 Developer Access Granted', 'success');
-                }
-                
-                // Reload to apply unlimited features
+                this.showNotification('Developer Access Granted', 'success');
                 setTimeout(() => window.location.reload(), 1000);
             } else {
-                // Failed
                 this.showError('Invalid credentials. Please try again.');
-                
                 if (loginBtn) {
                     loginBtn.disabled = false;
                     loginBtn.textContent = 'Sign In';
                 }
-                
-                // Clear password field
                 const passwordInput = document.getElementById('devPassword');
                 if (passwordInput) {
                     passwordInput.value = '';
@@ -204,7 +167,6 @@ class DeveloperMode {
         if (errorDiv) {
             errorDiv.textContent = message;
             errorDiv.style.display = 'block';
-            
             setTimeout(() => {
                 errorDiv.style.display = 'none';
             }, 5000);
@@ -214,22 +176,13 @@ class DeveloperMode {
     logout() {
         this.deactivate();
         document.getElementById('devLoginModal')?.remove();
-        
-        if (window.showToast) {
-            window.showToast('👋 Logged out (Reload to apply)', 'info');
-        }
-        
+        this.showNotification('Logged out (Reload to apply)', 'info');
         setTimeout(() => window.location.reload(), 1500);
     }
     
-    // ==========================================
-    // ACTIVATION
-    // ==========================================
-    
     activate() {
-        console.log('👨‍💻 DEVELOPER MODE ACTIVATED');
+        console.log('[DevMode] ACTIVATED');
         
-        // Override profile manager to give unlimited access
         if (window.profileManager || window.currentProfile) {
             const pm = window.profileManager || window.currentProfile;
             
@@ -241,51 +194,41 @@ class DeveloperMode {
                 return {
                     current: 'developer',
                     name: 'Developer',
-                    icon: '👨‍💻',
+                    billingPeriod: 'unlimited',
                     limits: {
                         messages: -1,
                         images: -1,
                         searches: -1,
-                        sports: -1,
                         weather: -1,
-                        stocks: -1,
-                        news: -1
+                        news: -1,
+                        sports: -1,
+                        autonomous: true
                     },
-                    features: ['UNLIMITED EVERYTHING', 'All Premium Features', 'API Access', 'No Restrictions']
+                    features: ['Unlimited Everything', 'All Premium Features', 'No Restrictions']
                 };
             };
             
-            // Override all limit checks
             pm.canSendMessage = () => ({ allowed: true });
             pm.canGenerateImage = () => ({ allowed: true });
             pm.canSearchWeb = () => ({ allowed: true });
-            pm.canUseSportsAPI = () => ({ allowed: true });
-            pm.canUseWeatherAPI = () => ({ allowed: true });
-            pm.canUseStocksAPI = () => ({ allowed: true });
-            pm.canUseNewsAPI = () => ({ allowed: true });
+            pm.canUseAPI = () => ({ allowed: true });
         }
         
         this.enabled = true;
         this.saveDevMode();
         
-        // Update UI if DOM is ready
         if (document.querySelector('.sidebar-footer')) {
             this.updateUI();
         }
     }
     
     deactivate() {
-        console.log('👨‍💻 DEVELOPER MODE DEACTIVATED');
+        console.log('[DevMode] DEACTIVATED');
         this.enabled = false;
         this.saveDevMode();
     }
     
-    // ==========================================
-    // UI UPDATES
-    // ==========================================
-    
     updateUI() {
-        // Add dev indicator to sidebar
         const sidebar = document.getElementById('sidebar');
         if (sidebar && !document.getElementById('devIndicator')) {
             const indicator = document.createElement('div');
@@ -308,10 +251,6 @@ class DeveloperMode {
         }
     }
     
-    // ==========================================
-    // PERSISTENCE
-    // ==========================================
-    
     loadDevMode() {
         const saved = localStorage.getItem('crump_dev_mode');
         return saved === 'true';
@@ -320,14 +259,17 @@ class DeveloperMode {
     saveDevMode() {
         localStorage.setItem('crump_dev_mode', this.enabled.toString());
     }
+    
+    showNotification(msg, type) {
+        if (window.showToast) {
+            window.showToast(msg, type);
+        } else {
+            console.log(`[${type.toUpperCase()}] ${msg}`);
+        }
+    }
 }
 
-// ==========================================
-// INITIALIZE
-// ==========================================
 window.developerMode = new DeveloperMode();
-
-// Export
 window.DeveloperMode = DeveloperMode;
 
-console.log('✅ Developer Login v3.1 loaded');
+console.log('[DevMode] Professional system loaded');
