@@ -8,10 +8,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Crump - AI Virtual Assistant</title>
 
-<!-- PWA -->
-<link rel="icon" type="image/png" href="/assets/icon-192.png">
+<!-- PWA - UPDATED FOR v2.0 -->
+<link rel="icon" type="image/png" href="/public/assets/icon-192.png">
 <link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/assets/icon-192.png">
+<link rel="apple-touch-icon" href="/public/assets/icon-192.png">
+<meta name="apple-mobile-web-app-title" content="Crump AI">
+<meta name="theme-color" content="#c9b892">
+<meta name="msapplication-TileColor" content="#c9b892">
 
 <!-- Typography -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,8 +22,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Pro:wght@400;600&display=swap" rel="stylesheet">
 
 <!-- Styles -->
-<link rel="stylesheet" href="/styles.css">
-<link rel="stylesheet" href="/new-features.css">
+<link rel="stylesheet" href="/public/styles.css">
+<link rel="stylesheet" href="/public/new-features.css">
+<link rel="stylesheet" href="/public/pwa-styles.css">
 
 <!-- Code highlighting -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
@@ -195,7 +199,7 @@
 <!-- SPLASH SCREEN -->
 <div id="splashScreen" class="splash-screen">
     <div class="splash-content">
-        <img src="/assets/logo-c.png" alt="Crump Logo" class="splash-logo-img">
+        <img src="/public/assets/logo-c.png" alt="Crump Logo" class="splash-logo-img">
         <h1 class="splash-logo">Crump</h1>
         <p class="splash-tagline">AI Virtual Assistant</p>
         <div class="splash-loader"><div class="loader-bar"></div></div>
@@ -257,7 +261,7 @@
 <!-- ONBOARDING MODAL -->
 <div id="onboardingModal" class="modal" style="display: none;">
     <div class="modal-content onboarding-modal">
-        <img src="/assets/logo-c.png" alt="Crump" class="onboarding-logo">
+        <img src="/public/assets/logo-c.png" alt="Crump" class="onboarding-logo">
         <h2>Welcome to Crump</h2>
         <p class="modal-subtitle">Let's personalize your experience</p>
         <div class="form-group">
@@ -275,7 +279,7 @@
     <aside id="sidebar" class="sidebar">
         <div class="sidebar-header">
             <div class="sidebar-branding">
-                <img src="/assets/logo-c.png" alt="C" class="sidebar-logo-icon">
+                <img src="/public/assets/logo-c.png" alt="C" class="sidebar-logo-icon">
                 <h1 class="sidebar-logo">Crump</h1>
                 <span class="sidebar-version">v2.0</span>
             </div>
@@ -354,7 +358,7 @@
                 </svg>
             </button>
             <div class="header-branding">
-                <img src="/assets/logo-c.png" alt="C" class="header-logo-icon">
+                <img src="/public/assets/logo-c.png" alt="C" class="header-logo-icon">
                 <h1 class="header-logo">Crump</h1>
             </div>
             <!-- NEW: Usage & Upgrade buttons -->
@@ -373,7 +377,7 @@
 
         <!-- ASSISTANT CHARACTER -->
         <div id="assistantCharacter" class="assistant-character idle">
-            <img src="/assets/assistant.png" alt="AI Assistant" class="assistant-img">
+            <img src="/public/assets/assistant.png" alt="AI Assistant" class="assistant-img">
         </div>
 
         <!-- SCROLL TO END BUTTON -->
@@ -389,7 +393,7 @@
         <!-- THINKING INDICATOR -->
         <div id="thinkingIndicator" class="thinking-indicator" style="display: none;">
             <div class="thinking-avatar">
-                <img src="/assets/logo-c.png" alt="Assistant">
+                <img src="/public/assets/logo-c.png" alt="Assistant">
             </div>
             <div class="thinking-content">
                 <div class="thinking-text"><span class="assistant-name">Crump</span> is typing</div>
@@ -582,24 +586,28 @@
 <input type="file" id="fileInput" style="display: none;" accept="image/*,.pdf,.txt,.doc,.docx" multiple>
 
 <!-- SCRIPTS - PROFESSIONAL TIER SYSTEM -->
-<script src="/tutorial.js"></script>
-<script src="/engines.js"></script>
-<script src="/scroll-manager.js"></script>
-<script src="/mobile-keyboard-handler.js"></script>
+<script src="/public/tutorial.js"></script>
+<script src="/public/engines.js"></script>
+<script src="/public/scroll-manager.js"></script>
+<script src="/public/mobile-keyboard-handler.js"></script>
 
 <!-- NEW: Professional Tier Management -->
-<script src="/profile-manager.js"></script>
-<script src="/upgrade-ui.js"></script>
-<script src="/developer-mode.js"></script>
+<script src="/public/profile-manager.js"></script>
+<script src="/public/upgrade-ui.js"></script>
+<script src="/public/developer-mode.js"></script>
 
 <!-- Core Modules -->
-<script src="/autonomous.js"></script>
-<script src="/image-generation.js"></script>
-<script src="/ui-functions.js"></script>
-<script src="/self-debug-v3.js"></script>
+<script src="/public/autonomous.js"></script>
+<script src="/public/image-generation.js"></script>
+<script src="/public/ui-functions.js"></script>
+<script src="/public/self-debug-v3.js"></script>
+
+<!-- PWA Scripts - NEW -->
+<script src="/public/pwa-manager.js"></script>
+<script src="/public/network-status.js"></script>
 
 <!-- Main App (loads last) -->
-<script src="/app.js"></script>
+<script src="/public/app.js"></script>
 
 <script>
     // PWA Install Prompt
@@ -723,8 +731,8 @@
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('/sw.js')
-                .then(reg => console.log('[PWA] Service worker registered'))
-                .catch(err => console.error('[PWA] Registration failed', err));
+                .then(reg => console.log('[PWA] Service worker registered:', reg.scope))
+                .catch(err => console.error('[PWA] Registration failed:', err));
         });
     }
 </script>
