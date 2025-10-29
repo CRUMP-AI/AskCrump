@@ -787,14 +787,128 @@ color: var(--color-text-primary);
 }
 
 .input-container {
-display: flex;
-align-items: flex-end;
-gap: var(--space-2);
-padding: var(--space-3);
-background: var(--color-bg-secondary);
-border: 1px solid var(--color-border);
-border-radius: var(--radius-lg);
-transition: border-color var(--transition-fast);
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    transition: border-color var(--transition-fast);
+    
+    /* FIXED: Position at bottom of screen */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    
+    /* FIXED: Add safe area padding for iPhone home indicator */
+    padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 16px));
+    
+    /* FIXED: Prevent keyboard from hiding input */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+}
+
+/* ============================================
+   ADDITIONAL FIX: Update .input-area wrapper
+   Replace lines 752-761 in your styles.css with this
+   ============================================ */
+
+.input-area {
+    border-top: 1px solid var(--color-border);
+    background: var(--color-surface);
+    padding: var(--space-4) var(--space-6);
+    padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 16px));
+    flex-shrink: 0;
+    
+    /* FIXED: Position at bottom */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 99;
+    
+    /* FIXED: Ensure it stays above keyboard */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+}
+
+/* ============================================
+   ADDITIONAL FIX: Adjust chat container padding
+   Add this to account for fixed input at bottom
+   ============================================ */
+
+.chat-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-8) var(--space-6);
+    
+    /* FIXED: Add bottom padding so messages aren't hidden */
+    padding-bottom: 180px; /* Adjust based on your input height */
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 768px) {
+    .chat-container {
+        padding: var(--space-4);
+        padding-bottom: 200px; /* Slightly more on mobile */
+    }
+    
+    .input-area {
+        padding: var(--space-3);
+        padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 16px));
+    }
+    
+    .input-container {
+        margin: 0 var(--space-2);
+        border-radius: var(--radius-md);
+    }
+}
+
+/* ============================================
+   iOS SPECIFIC FIXES
+   ============================================ */
+
+/* iOS viewport fix */
+@supports (-webkit-touch-callout: none) {
+    .input-area,
+    .input-container {
+        /* Ensure input stays at bottom even when keyboard opens */
+        position: fixed;
+        bottom: 0;
+    }
+    
+    /* Prevent iOS bounce scroll from interfering */
+    .chat-container {
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+    }
+    
+    /* Fix for iOS keyboard overlay */
+    body.keyboard-open .input-area,
+    body.keyboard-open .input-container {
+        bottom: 0;
+        transform: translateY(0);
+    }
+}
+
+/* ============================================
+   ANDROID SPECIFIC FIXES
+   ============================================ */
+
+/* Android Chrome keyboard behavior */
+@media screen and (max-width: 768px) {
+    /* Ensure input is always visible */
+    .input-area {
+        min-height: 80px;
+    }
+    
+    /* Prevent content shift when keyboard opens */
+    .message-input:focus {
+        scroll-margin-bottom: 100px;
+    }
 }
 
 .input-container:focus-within {
