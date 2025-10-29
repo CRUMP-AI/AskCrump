@@ -205,13 +205,13 @@ window.handleImageGeneration = async function(userMessage) {
         // Remove generating message and add final message
         currentChat.messages.pop();
         
-        const finalMsg = {
-            role: 'assistant',
-            content: `![Generated Image](${imageUrl})`,
-            timestamp: Date.now(),
-            imageUrl: imageUrl,
-            imagePrompt: prompt
-        };
+       const finalMsg = {
+    role: 'assistant',
+    content: '', // Empty - image will render from imageUrl property
+    timestamp: Date.now(),
+    imageUrl: imageUrl,
+    imagePrompt: prompt
+};
         
         currentChat.messages.push(finalMsg);
         currentChat.updatedAt = Date.now();
