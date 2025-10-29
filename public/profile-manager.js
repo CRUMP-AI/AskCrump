@@ -141,14 +141,38 @@ resetUsage(month) {
     // ==========================================
     
     getTierInfo() {
-        // For testing: return premium features
+        // For testing/developer mode: return developer tier features
+        const isUnlimited = true; // Set to true for testing
+        
+        if (isUnlimited) {
+            return {
+                current: 'developer',
+                name: 'Developer',
+                icon: '👨‍💻',
+                billingPeriod: 'unlimited',
+                limits: {
+                    messages: -1,  // -1 = unlimited
+                    images: -1,
+                    searches: -1,
+                    weather: -1,
+                    news: -1,
+                    sports: -1,
+                    spotify: -1,
+                    youtube: -1,
+                    gmail: -1
+                },
+                features: ['Unlimited Everything', 'All Premium Features', 'No Restrictions']
+            };
+        }
+        
+        // For production: return based on actual tier
         return {
-            current: 'free', // Change to 'pro' or 'premium' for testing
+            current: 'free',
             name: 'Free',
             icon: '🆓',
             billingPeriod: 'monthly',
             limits: {
-                messages: -1,  // -1 = unlimited (for testing)
+                messages: -1,
                 images: -1,
                 searches: -1,
                 weather: -1,
