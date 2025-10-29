@@ -62,7 +62,7 @@ window.shouldGenerateImage = function(message) {
         'word', 'causing', 'certain', 'moment', 'startup', 'splash',
         'logo for you', 'i want to', 'come up with',
         
-        // Conversation meta
+        // Conversation meta (specific contexts where "another" means something else)
         'another bug', 'another problem', 'another issue', 'another question',
         'another error', 'another test'
     ];
