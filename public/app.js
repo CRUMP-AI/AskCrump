@@ -686,10 +686,10 @@ window.closeSettings = function() {
 
 function loadSettings() {
     const autonomousEnabled = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_ENABLED) === 'true';
-    const autonomousFrequency = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'balanced';
+    const autonomousFrequency = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'medium';
 
     if (window.autonomousMessaging) {
-        window.autonomousMessaging.setEnabled(autonomousEnabled);
+        window.autonomousMessaging.toggle(autonomousEnabled);
         window.autonomousMessaging.setFrequency(autonomousFrequency);
     }
 }
@@ -740,7 +740,7 @@ window.saveSettings = function() {
     localStorage.setItem('crump_work_end', workEnd);
 
     if (window.autonomousMessaging) {
-        window.autonomousMessaging.setEnabled(autonomousEnabled);
+        window.autonomousMessaging.toggle(autonomousEnabled);
         window.autonomousMessaging.setFrequency(autonomousFrequency);
     }
 
