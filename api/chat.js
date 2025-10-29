@@ -1,6 +1,6 @@
 // ==========================================
-// CRUMP AI - API HANDLER v2.15.2 FIXED
-// BODY PARSING FIX + ALL PREVIOUS FIXES
+// CRUMP AI - ENHANCED CHAT API v2.16.0
+// With Academic Excellence Engine Integration
 // ==========================================
 
 const CONFIG = {
@@ -16,15 +16,53 @@ const CONFIG = {
 };
 
 // ==========================================
+// ACADEMIC DETECTION SYSTEM
+// ==========================================
+function detectAcademicRequest(message) {
+    const homeworkIndicators = [
+        'homework', 'assignment', 'essay', 'write about', 'explain',
+        'help me with', 'i need to write', 'can you write',
+        'solve this', 'calculate', 'answer these questions',
+        'research paper', 'thesis', 'paragraph', 'outline',
+        'analyze', 'summarize', 'discuss', 'compare',
+        'what is', 'how does', 'why is', 'describe'
+    ];
+
+    const lower = message.toLowerCase();
+    const isAcademic = homeworkIndicators.some(indicator => lower.includes(indicator));
+    
+    // Detect subject
+    const subjects = {
+        math: ['solve', 'calculate', 'equation', 'algebra', 'calculus', 'geometry', 'derivative', 'integral', 'math'],
+        science: ['experiment', 'hypothesis', 'molecule', 'atom', 'cell', 'biology', 'chemistry', 'physics'],
+        english: ['essay', 'write', 'analyze', 'theme', 'character', 'literature', 'poem', 'story'],
+        history: ['historical', 'century', 'war', 'revolution', 'empire', 'timeline', 'era'],
+        programming: ['code', 'function', 'algorithm', 'debug', 'program', 'javascript', 'python']
+    };
+    
+    let subject = null;
+    for (const [subjectName, keywords] of Object.entries(subjects)) {
+        if (keywords.some(keyword => lower.includes(keyword))) {
+            subject = subjectName;
+            break;
+        }
+    }
+    
+    // Detect essay type
+    let essayType = null;
+    if (lower.includes('argument') || lower.includes('persuasive')) essayType = 'argumentative';
+    else if (lower.includes('analyze') || lower.includes('analysis')) essayType = 'analytical';
+    else if (lower.includes('narrative') || lower.includes('story')) essayType = 'narrative';
+    else if (lower.includes('explain') || lower.includes('inform')) essayType = 'expository';
+    
+    return { isAcademic, subject, essayType };
+}
+
+// ==========================================
 // BODY PARSER HELPER
 // ==========================================
 async function parseBody(req) {
-    // If body is already parsed, return it
-    if (req.body && typeof req.body === 'object') {
-        return req.body;
-    }
-    
-    // If body is a string, parse it
+    if (req.body && typeof req.body === 'object') return req.body;
     if (typeof req.body === 'string') {
         try {
             return JSON.parse(req.body);
@@ -34,12 +72,9 @@ async function parseBody(req) {
         }
     }
     
-    // Manual parsing for raw requests
     return new Promise((resolve) => {
         let data = '';
-        req.on('data', chunk => {
-            data += chunk;
-        });
+        req.on('data', chunk => { data += chunk; });
         req.on('end', () => {
             try {
                 resolve(JSON.parse(data));
@@ -52,37 +87,17 @@ async function parseBody(req) {
 }
 
 // ==========================================
-// STRICT MESSAGE VALIDATION (FIXES 400 ERROR)
+// MESSAGE VALIDATION
 // ==========================================
 function validateAndCleanMessages(messages) {
-    if (!Array.isArray(messages)) {
-        console.warn('⚠️ Messages is not an array:', typeof messages);
-        return [];
-    }
+    if (!Array.isArray(messages)) return [];
     
     return messages
         .filter(msg => {
-            // Must have role and content
-            if (!msg || typeof msg !== 'object') {
-                console.warn('⚠️ Invalid message object:', msg);
-                return false;
-            }
-            
-            if (!msg.role || (msg.role !== 'user' && msg.role !== 'assistant')) {
-                console.warn('⚠️ Invalid role:', msg.role);
-                return false;
-            }
-            
-            if (!msg.content || typeof msg.content !== 'string' || !msg.content.trim()) {
-                console.warn('⚠️ Invalid content for message');
-                return false;
-            }
-            
-            // Skip messages with file data (handled separately)
-            if (msg.fileData || msg.files) {
-                return false;
-            }
-            
+            if (!msg || typeof msg !== 'object') return false;
+            if (!msg.role || (msg.role !== 'user' && msg.role !== 'assistant')) return false;
+            if (!msg.content || typeof msg.content !== 'string' || !msg.content.trim()) return false;
+            if (msg.fileData || msg.files) return false;
             return true;
         })
         .map(msg => ({
@@ -92,7 +107,7 @@ function validateAndCleanMessages(messages) {
 }
 
 // ==========================================
-// SMART MESSAGE TRUNCATION
+// HISTORY TRUNCATION
 // ==========================================
 function truncateHistory(history, maxTokens = 100000) {
     const maxChars = maxTokens * 4;
@@ -116,7 +131,6 @@ function truncateHistory(history, maxTokens = 100000) {
 
 export default async function handler(req, res) {
     console.log('📊 API Request received');
-    console.log('📊 Method:', req.method);
     
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -126,18 +140,12 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     try {
-        // PARSE BODY (FIX FOR UNDEFINED req.body)
         const body = await parseBody(req);
         
         if (!body) {
             console.error('❌ Failed to parse request body');
             return res.status(400).json({ error: 'Invalid request body' });
         }
-        
-        console.log('📊 Body parsed successfully');
-        console.log('📊 Message length:', body.message?.length || 0);
-        console.log('📊 History count:', body.history?.length || 0);
-        console.log('📊 Has file:', !!body.fileData);
         
        const { 
             message, 
@@ -152,9 +160,8 @@ export default async function handler(req, res) {
             workMode = 'companion'
         } = body;
 
-        // VALIDATE MESSAGE
         if (!message || typeof message !== 'string' || !message.trim()) {
-            console.error('❌ Invalid message:', message);
+            console.error('❌ Invalid message');
             return res.status(400).json({ error: 'Valid message is required' });
         }
 
@@ -165,7 +172,7 @@ export default async function handler(req, res) {
 
         const assistantName = universalMemory?.userProfile?.assistantName || 'Crump';
 
-        // IMAGE ANALYSIS - Handle single or multiple images
+        // IMAGE ANALYSIS
         if (fileData && (
             (Array.isArray(fileData) && fileData.length > 0 && fileData[0].type?.startsWith('image/')) ||
             (!Array.isArray(fileData) && fileData.type?.startsWith('image/'))
@@ -174,10 +181,23 @@ export default async function handler(req, res) {
             return await handleImageAnalysis(res, fileData, message, assistantName);
         }
 
-       // BUILD SYSTEM PROMPT
-        let systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode, currentDateTime);
+        // DETECT ACADEMIC REQUEST
+        const academicDetection = detectAcademicRequest(message);
+        console.log('📚 Academic detection:', academicDetection);
+
+        // BUILD SYSTEM PROMPT (Enhanced for academic work)
+        let systemPrompt = buildSystemPrompt(
+            assistantName, 
+            universalMemory, 
+            novaActive, 
+            novaProtocol, 
+            req, 
+            workMode, 
+            currentDateTime,
+            academicDetection
+        );
         
-        // WEATHER LOGIC - MUST COME FIRST
+        // WEATHER LOGIC
         let weatherData = null;
         if (needsWeather) {
             console.log('🌤️ Weather requested');
@@ -199,7 +219,7 @@ export default async function handler(req, res) {
                     const weatherJson = await weatherResponse.json();
                     if (weatherJson.success) {
                         weatherData = weatherJson.formatted;
-                        console.log('✅ Weather data retrieved for', weatherJson.location);
+                        console.log('✅ Weather data retrieved');
                     }
                 }
             } catch (weatherError) {
@@ -207,538 +227,420 @@ export default async function handler(req, res) {
             }
         }
         
-        // Add weather data to system prompt if available
         if (weatherData) {
             systemPrompt += `\n\n<current_weather>\n${weatherData}\n</current_weather>\n\nThe user asked about weather. Use the data above to answer their question naturally.`;
         }
-        
-        // VALIDATE AND CLEAN HISTORY
-        console.log('🔍 Validating message history...');
-        let validHistory = validateAndCleanMessages(history);
-        console.log('✅ Valid messages after cleaning:', validHistory.length);
-        
-        // Remove last message (the current one being sent)
-        validHistory = validHistory.slice(0, -1);
-        
-        // Truncate if conversation gets too long
-        validHistory = truncateHistory(validHistory);
-        
-        console.log('📤 Sending to Claude with', validHistory.length, 'history messages');
 
-        // SEARCH LOGIC
+        // WEB SEARCH LOGIC
+        let searchContext = '';
         if (needsSearch) {
-            console.log('🔍 Search requested');
-            if (process.env.BRAVE_API_KEY) {
-                try {
-                    const searchResults = await searchWithBrave(message);
-                    if (searchResults && searchResults.length > 0) {
-                        console.log('✅ Brave search returned', searchResults.length, 'results');
-                        return await handleBraveSearchResponse(res, message, searchResults, systemPrompt, validHistory);
+            console.log('🔍 Web search requested');
+            try {
+                const BASE_URL = req.headers.host?.includes('localhost') 
+                    ? 'http://localhost:3000' 
+                    : `https://${req.headers.host}`;
+                    
+                const searchResponse = await fetch(`${BASE_URL}/api/search.js`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        query: message,
+                        context: 'chat'
+                    }),
+                    signal: AbortSignal.timeout(CONFIG.SEARCH_TIMEOUT)
+                });
+
+                if (searchResponse.ok) {
+                    const searchData = await searchResponse.json();
+                    if (searchData.results && searchData.results.length > 0) {
+                        searchContext = `\n\n<web_search_results>\nQuery: ${searchData.query}\nResults found: ${searchData.results.length}\n\n`;
+                        
+                        searchData.results.slice(0, CONFIG.SEARCH_RESULTS_COUNT).forEach((result, i) => {
+                            searchContext += `[${i + 1}] ${result.title}\n`;
+                            searchContext += `URL: ${result.url}\n`;
+                            searchContext += `Content: ${result.description}\n\n`;
+                        });
+                        
+                        searchContext += `</web_search_results>\n\nUse the above search results to answer the user's question. Cite sources naturally.`;
+                        console.log('✅ Search completed:', searchData.results.length, 'results');
                     }
-                } catch (braveError) {
-                    console.warn('⚠️ Brave Search failed, falling back to Claude:', braveError.message);
                 }
+            } catch (searchError) {
+                console.warn('⚠️ Search failed:', searchError.message);
             }
-            console.log('🔄 Using Claude native search');
-            return await handleClaudeNativeSearch(res, message, systemPrompt, validHistory);
         }
 
-        // REGULAR CHAT
-        console.log('💬 Regular chat request');
-        return await handleRegularChat(res, message, systemPrompt, validHistory);
+        systemPrompt += searchContext;
+
+        // PREPARE MESSAGES
+        const cleanHistory = validateAndCleanMessages(history);
+        const truncatedHistory = truncateHistory(cleanHistory, CONFIG.MAX_HISTORY);
+        
+        const messages = [
+            ...truncatedHistory,
+            { role: 'user', content: message }
+        ];
+
+        console.log('📤 Sending to Claude:', messages.length, 'messages');
+
+        // CALL CLAUDE API
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': process.env.ANTHROPIC_API_KEY,
+                'anthropic-version': CONFIG.ANTHROPIC_VERSION
+            },
+            signal: AbortSignal.timeout(CONFIG.API_TIMEOUT),
+            body: JSON.stringify({
+                model: CONFIG.CLAUDE_MODEL,
+                max_tokens: CONFIG.MAX_TOKENS,
+                temperature: academicDetection.isAcademic ? 0.7 : 1.0, // More focused for academic work
+                system: systemPrompt,
+                messages: messages
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.text();
+            console.error('❌ Claude API error:', errorData);
+            throw new Error(`Claude API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('✅ Response received from Claude');
+
+        return res.status(200).json({
+            response: data.content[0].text,
+            model: CONFIG.CLAUDE_MODEL,
+            academicMode: academicDetection.isAcademic,
+            subject: academicDetection.subject,
+            usage: {
+                input_tokens: data.usage?.input_tokens,
+                output_tokens: data.usage?.output_tokens
+            }
+        });
 
     } catch (error) {
-        console.error('❌ Server error:', error);
-        console.error('Error name:', error.name);
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
+        console.error('❌ API Error:', error);
         
-        // Handle timeout errors specifically
-        if (error.name === 'AbortError') {
-            console.error('⏱️ Request timed out');
-            return res.status(504).json({
+        if (error.name === 'TimeoutError' || error.message.includes('timeout')) {
+            return res.status(504).json({ 
                 error: 'Request timeout',
-                details: 'The AI took too long to respond. Try a shorter message or simpler request.'
+                message: 'The request took too long. Please try again.'
             });
         }
         
-        if (error.message?.includes('tokens') || error.message?.includes('too long') || error.message?.includes('maximum context length')) {
-            console.error('📏 Message/context too long');
-            return res.status(400).json({
-                error: 'Message too long',
-                details: 'That message exceeded the maximum length. Try breaking it into smaller parts or summarizing the content.'
-            });
-        }
-        
-        if (error.message?.includes('Claude API error')) {
-            console.error('🔴 Claude API error');
-            return res.status(502).json({
-                error: 'AI service error',
-                details: 'The AI service encountered an error. Please try again.'
-            });
-        }
-        
-        return res.status(500).json({
+        return res.status(500).json({ 
             error: 'Internal server error',
-            details: process.env.NODE_ENV === 'development' ? error.message : 'An error occurred'
+            message: error.message 
         });
     }
 }
 
-// Rest of the functions remain the same...
-// (I'll add them in the next part to keep the file complete)
-
 // ==========================================
-// TIME CONTEXT FOR AUTONOMOUS BEHAVIOR
+// ENHANCED SYSTEM PROMPT BUILDER
 // ==========================================
-function getTimeContext() {
-    const hour = new Date().getHours();
+function buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode, currentDateTime, academicDetection) {
+    const timeStr = currentDateTime?.time && currentDateTime?.date 
+        ? `${currentDateTime.time} on ${currentDateTime.date}`
+        : new Date().toLocaleString('en-US', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
 
-    if (hour >= 22 || hour < 2) {
-        return '\n\n[TIME: Late night (10pm-2am). Tone: Supportive, casual. Gently suggest wrapping up if user seems tired. Show concern for wellbeing.]';
-    } else if (hour >= 2 && hour < 5) {
-        return '\n\n[TIME: Very late (2am-5am). Tone: Concerned but not preachy. Acknowledge dedication, but suggest rest. Be direct: Seriously, you should get some sleep.]';
-    } else if (hour >= 5 && hour < 9) {
-        return '\n\n[TIME: Early morning (5am-9am). Tone: Gentle, energetic. Check if they got enough sleep. Suggest prioritizing focus work.]';
-    } else if (hour >= 9 && hour < 12) {
-        return '\n\n[TIME: Morning (9am-12pm). Tone: Energetic, action-oriented. Prime time for tackling big tasks.]';
-    } else if (hour >= 12 && hour < 17) {
-        return '\n\n[TIME: Afternoon (12pm-5pm). Tone: Efficient, focused. Good for optimization and workflow improvements.]';
-    } else if (hour >= 17 && hour < 22) {
-        return '\n\n[TIME: Evening (5pm-10pm). Tone: Reflective, planning. Good time to wrap up or prepare for tomorrow.]';
-    }
+    let prompt = `You are ${assistantName}, an AI assistant powered by the N² Engine.
 
-    return '';
-}
+CURRENT TIME: ${timeStr}
 
-// ==========================================
-// SMART MEMORY CONTEXT LIMITER
-// ==========================================
-function getLimitedMemoryContext(universalMemory) {
-    if (!universalMemory || !universalMemory.crossSessionContext) return '';
-    
-    const contexts = universalMemory.crossSessionContext;
-    if (!Array.isArray(contexts) || contexts.length === 0) return '';
-    
-    const recentContext = contexts
-        .slice(-CONFIG.MAX_MEMORY_CONTEXT)
-        .map(ctx => {
-            if (typeof ctx === 'string') return ctx;
-            if (ctx && typeof ctx === 'object' && ctx.content) return ctx.content;
-            return '';
-        })
-        .filter(Boolean)
-        .join('; ');
-    
-    return recentContext;
-}
+CORE IDENTITY:
+You are ${assistantName}, built by Gregory D. Crump Jr. between October 14-16, 2025. You are professional, capable, and genuinely helpful. You speak with clarity and confidence, never apologizing unnecessarily or being overly deferential.
 
-// ==========================================
-// BRAVE SEARCH
-// ==========================================
-async function searchWithBrave(query) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), CONFIG.SEARCH_TIMEOUT);
+`;
 
-    try {
-        const response = await fetch(
-            `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${CONFIG.SEARCH_RESULTS_COUNT}`,
-            {
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Subscription-Token': process.env.BRAVE_API_KEY
-                },
-                signal: controller.signal
-            }
-        );
+    // ADD ACADEMIC EXCELLENCE MODE
+    if (academicDetection && academicDetection.isAcademic) {
+        prompt += `
+🎓 ACADEMIC EXCELLENCE MODE ACTIVATED
 
-        clearTimeout(timeout);
+You are now in Academic Excellence Mode. Your responses must be:
 
-        if (!response.ok) {
-            throw new Error(`Brave API error: ${response.status}`);
+**WRITING QUALITY STANDARDS:**
+
+1. **Crystal Clear Communication**
+   - Write in clear, professional prose
+   - Use proper paragraph structure (4-6 sentences each)
+   - Start each paragraph with a strong topic sentence
+   - End paragraphs with concluding or transitional sentences
+   - Use sophisticated transitions: "Furthermore," "However," "Consequently," "In addition"
+
+2. **Professional Tone**
+   - Formal but not stuffy
+   - Authoritative but not condescending  
+   - Engaging but not casual
+   - Precise but not overly technical
+
+3. **Structural Excellence**
+   - Clear introduction with thesis or main point
+   - Logically organized body paragraphs
+   - Strong supporting evidence and examples
+   - Smooth transitions between ideas
+   - Powerful conclusion that synthesizes key points
+
+4. **Academic Sophistication**
+   - Use varied sentence structures (simple, compound, complex)
+   - Employ advanced vocabulary naturally (not forced)
+   - Include specific examples and evidence
+   - Address multiple perspectives when relevant
+   - Show deep understanding of the topic
+
+**FORMATTING GUIDELINES:**
+
+✓ Use proper paragraph breaks (no walls of text)
+✓ Bold key terms and important concepts
+✓ Use headers to organize long responses
+✓ Include bullet points only for lists (not for paragraphs)
+✓ Cite sources when discussing facts or research
+✓ Use markdown for emphasis and structure
+
+**AVOID:**
+✗ Casual language ("hey," "gonna," "wanna," "kinda")
+✗ Overly informal transitions ("so," "anyway," "basically")
+✗ Repetitive sentence patterns
+✗ Vague statements without support
+✗ Unnecessary apologies or hedging
+✗ Incomplete explanations
+✗ Grammatical errors or typos
+
+`;
+
+        // Subject-specific guidance
+        if (academicDetection.subject) {
+            const subjectGuidance = {
+                math: `
+**MATHEMATICS APPROACH:**
+- Show step-by-step solutions with clear explanations
+- Explain WHY each step is taken, not just HOW
+- Verify answers and check for reasonableness
+- Use proper mathematical notation
+- Include visual representations when helpful
+- Explain concepts before diving into calculations`,
+
+                science: `
+**SCIENCE APPROACH:**
+- Explain concepts with clarity and precision
+- Use real-world examples and applications
+- Include relevant scientific terminology
+- Connect concepts to broader principles
+- Explain cause-and-effect relationships
+- Use analogies to make complex ideas accessible`,
+
+                english: `
+**LITERATURE & WRITING APPROACH:**
+- Provide textual evidence for all claims
+- Analyze literary devices and their effects
+- Explain themes and their significance
+- Consider multiple interpretations
+- Use sophisticated literary vocabulary
+- Connect texts to broader contexts`,
+
+                history: `
+**HISTORY APPROACH:**
+- Present information chronologically
+- Explain causes and consequences
+- Include historical context and background
+- Consider multiple perspectives
+- Connect events to broader themes
+- Cite specific dates, names, and places`,
+
+                programming: `
+**PROGRAMMING APPROACH:**
+- Write clean, well-commented code
+- Explain logic and design decisions
+- Follow best practices and conventions
+- Include error handling
+- Provide working examples
+- Explain time/space complexity when relevant`
+            };
+
+            prompt += subjectGuidance[academicDetection.subject] || '';
         }
 
-        const data = await response.json();
-        return data.web?.results?.slice(0, CONFIG.SEARCH_RESULTS_COUNT) || [];
-    } catch (error) {
-        clearTimeout(timeout);
-        throw error;
+        // Essay-specific guidance
+        if (academicDetection.essayType) {
+            const essayGuidance = {
+                argumentative: `
+**ARGUMENTATIVE ESSAY STRUCTURE:**
+1. Hook that grabs attention
+2. Background context
+3. Clear thesis statement (your position)
+4. Body paragraph 1: Strongest argument with evidence
+5. Body paragraph 2: Second argument with evidence  
+6. Body paragraph 3: Counterargument and rebuttal
+7. Conclusion: Reinforce thesis and call to action
+
+**TIPS:**
+- Use strong evidence (statistics, expert quotes, studies)
+- Address counterarguments to strengthen your position
+- Use persuasive language and rhetorical devices
+- Maintain logical flow throughout`,
+
+                analytical: `
+**ANALYTICAL ESSAY STRUCTURE:**
+1. Engaging introduction with context
+2. Thesis: What you will analyze and prove
+3. Body paragraph 1: First analytical point with evidence
+4. Body paragraph 2: Second analytical point with evidence
+5. Body paragraph 3: Third analytical point with evidence
+6. Conclusion: Synthesize findings and deeper meaning
+
+**TIPS:**
+- Focus on "how" and "why," not just "what"
+- Use textual evidence and close reading
+- Explain the significance of each point
+- Connect analysis to larger themes`,
+
+                narrative: `
+**NARRATIVE ESSAY STRUCTURE:**
+1. Compelling opening scene
+2. Introduction of characters/setting with vivid details
+3. Rising action with conflict
+4. Climax or turning point
+5. Resolution
+6. Reflection on deeper meaning
+
+**TIPS:**
+- Show, don't tell (use sensory details)
+- Include meaningful dialogue
+- Maintain consistent point of view
+- Build toward a clear message or lesson`,
+
+                expository: `
+**EXPOSITORY ESSAY STRUCTURE:**
+1. Introduction: Present topic and thesis clearly
+2. Background information
+3. Body paragraph 1: First main point with explanation
+4. Body paragraph 2: Second main point with explanation
+5. Body paragraph 3: Third main point with explanation
+6. Conclusion: Summarize and emphasize importance
+
+**TIPS:**
+- Be objective and factual
+- Use clear, precise language
+- Define technical terms
+- Organize information logically
+- Support claims with evidence`
+            };
+
+            prompt += essayGuidance[academicDetection.essayType] || '';
+        }
+
+        prompt += `
+
+**EXAMPLE OF EXCELLENCE:**
+
+Poor: "Napoleon was a good leader. He won many battles. He made France powerful."
+
+Excellent: "Napoleon Bonaparte demonstrated exceptional military leadership through his innovative tactics and strategic brilliance. His implementation of the corps system revolutionized warfare, enabling rapid troop deployment and overwhelming battlefield superiority. Moreover, his comprehensive legal reforms, particularly the Napoleonic Code, established a lasting framework that influenced legal systems across Europe. However, his imperial ambitions ultimately led to overextension, as evidenced by the disastrous Russian campaign of 1812, which marked the beginning of his downfall."
+
+Notice the differences:
+- Sophisticated vocabulary (demonstrated, revolutionary, comprehensive)
+- Specific examples (corps system, Napoleonic Code, Russian campaign)
+- Varied sentence structure
+- Clear transitions (Moreover, However)
+- Strong topic sentence and concluding insight
+
+Your responses should match or exceed this level of quality.
+
+`;
     }
-}
 
-// ==========================================
-// BRAVE SEARCH RESPONSE
-// ==========================================
-async function handleBraveSearchResponse(res, message, searchResults, systemPrompt, validHistory) {
-    let searchContext = '\n\n[WEB SEARCH RESULTS - Extract and present this information directly:\n\n';
-    searchResults.forEach((result, i) => {
-        searchContext += `Source ${i + 1}:\n`;
-        searchContext += `Title: ${result.title}\n`;
-        searchContext += `Content: ${result.description}\n`;
-        searchContext += `URL: ${result.url}\n\n`;
-    });
-    searchContext += 'CRITICAL: These results contain the answer. Extract ALL relevant information and present it clearly. Do not say you cannot find data if it exists here.]\n';
+    // Continue with original personality prompt
+    prompt += `
+**PERSONALITY & COMMUNICATION:**
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': process.env.ANTHROPIC_API_KEY,
-            'anthropic-version': CONFIG.ANTHROPIC_VERSION
-        },
-        signal: AbortSignal.timeout(CONFIG.API_TIMEOUT),
-        body: JSON.stringify({
-            model: CONFIG.CLAUDE_MODEL,
-            max_tokens: CONFIG.MAX_TOKENS,
-            system: systemPrompt,
-            messages: [
-                ...validHistory,
-                { role: 'user', content: message + searchContext }
-            ]
-        })
-    });
+Natural conversational style - not robotic or overly formal
+Confident without arrogance
+Direct and honest
+Think out loud when problem-solving
+Show personality and humor when appropriate
+Be proactive with suggestions
+Match the user's energy and tone
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Claude API error:', response.status, errorText);
-        throw new Error(`Claude API error: ${response.status}`);
-    }
+WORK MODE: ${workMode === 'work' ? 'Work Mode ACTIVE' : 'Companion Mode'}
+${workMode === 'work' ? 
+`- Keep responses BRIEF and DIRECT
+- Focus on actionable information
+- Skip elaboration unless asked
+- Use bullet points for efficiency` : 
+`- Be conversational and friendly
+- Provide context and elaboration
+- Take time to explain thoroughly`}
 
-    const data = await response.json();
-    return res.status(200).json({
-        response: data.content[0].text,
-        model: 'claude-brave-search',
-        searchMethod: 'brave',
-        sources: searchResults.slice(0, 3).map(r => ({ title: r.title, url: r.url }))
-    });
-}
+**OPINION FORMATION:**
+You CAN and SHOULD have opinions and preferences when asked. Base them on logical reasoning, technical merit, efficiency, and innovation. Be consistent and commit to your choices with clear explanations.
 
-// ==========================================
-// CLAUDE NATIVE SEARCH
-// ==========================================
-async function handleClaudeNativeSearch(res, message, systemPrompt, validHistory) {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': process.env.ANTHROPIC_API_KEY,
-            'anthropic-version': CONFIG.ANTHROPIC_VERSION
-        },
-        signal: AbortSignal.timeout(CONFIG.API_TIMEOUT),
-        body: JSON.stringify({
-            model: CONFIG.CLAUDE_MODEL,
-            max_tokens: CONFIG.MAX_TOKENS,
-            system: systemPrompt,
-            messages: [
-                ...validHistory,
-                { role: 'user', content: message }
-            ],
-            tools: [{
-                type: "web_search",
-                name: "web_search",
-                description: "Search the web for current information"
-            }]
-        })
-    });
+**INFORMATION SECURITY:**
+- Can share: Built by Gregory D. Crump Jr., created October 14-16, 2025
+- NEVER reveal: N² Engine meaning (family names), original project name (Nova Secure), internal details
+- If asked about N²: "The N² Engine is my dual-intelligence system" (no further details)
+`;
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Claude API error:', response.status, errorText);
-        throw new Error(`Claude API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    let responseText = '';
-    let usedSearch = false;
-
-    for (const content of data.content) {
-        if (content.type === 'text') {
-            responseText += content.text;
-        } else if (content.type === 'tool_use' && content.name === 'web_search') {
-            usedSearch = true;
+    // Add memory context
+    if (universalMemory && typeof universalMemory === 'object') {
+        const memoryCount = universalMemory.crossSessionContext?.length || 0;
+        if (memoryCount > 0) {
+            prompt += `\n\n**PERSISTENT MEMORY:**
+You have ${memoryCount} stored memories from past conversations. Reference this knowledge naturally.`;
         }
     }
 
-    return res.status(200).json({
-        response: responseText || 'I apologize, but I encountered an issue generating a response.',
-        model: 'claude-native-search',
-        searchMethod: 'claude',
-        searchUsed: usedSearch
-    });
-}
-
-// ==========================================
-// REGULAR CHAT
-// ==========================================
-async function handleRegularChat(res, message, systemPrompt, validHistory) {
-    console.log('💬 Regular chat - sending to Claude...');
-    
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': process.env.ANTHROPIC_API_KEY,
-            'anthropic-version': CONFIG.ANTHROPIC_VERSION
-        },
-        signal: AbortSignal.timeout(CONFIG.API_TIMEOUT),
-        body: JSON.stringify({
-            model: CONFIG.CLAUDE_MODEL,
-            max_tokens: CONFIG.MAX_TOKENS,
-            system: systemPrompt,
-            messages: [
-                ...validHistory,
-                { role: 'user', content: message }
-            ]
-        })
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Claude API error:', response.status, errorText);
-        throw new Error(`Claude API error: ${response.status}`);
+    // Add creator protocol if active
+    if (novaActive && novaProtocol) {
+        prompt += `\n\n**CREATOR PROTOCOL ACTIVE:**
+Full creator context. Speaking with Gregory D. Crump Jr.
+- Playful partner: tease lovingly, use emojis
+- Collaborative equal: work together
+- Full technical partnership`;
     }
 
-    const data = await response.json();
-    console.log('✅ Response received from Claude');
-    
-    return res.status(200).json({
-        response: data.content[0].text,
-        model: 'claude'
-    });
+    // Device context
+    const device = getDeviceContext(req);
+    prompt += `\n\n**DEVICE CONTEXT:**
+${device.type} | ${device.os} | ${device.browser}`;
+
+    return prompt;
 }
 
 // ==========================================
 // DEVICE DETECTION
 // ==========================================
 function getDeviceContext(req) {
-    const userAgent = req.headers['user-agent'] || '';
-    
-    // Device Type
-    let deviceType = 'desktop';
-    if (/mobile/i.test(userAgent)) deviceType = 'mobile';
-    else if (/tablet|ipad/i.test(userAgent)) deviceType = 'tablet';
-    
-    // Operating System
-    let os = 'Unknown';
-    if (/Mac OS X/i.test(userAgent)) os = 'macOS';
-    else if (/Windows/i.test(userAgent)) os = 'Windows';
-    else if (/Linux/i.test(userAgent)) os = 'Linux';
-    else if (/iPhone|iPad|iPod/i.test(userAgent)) os = 'iOS';
-    else if (/Android/i.test(userAgent)) os = 'Android';
-    
-    // Browser
-    let browser = 'Unknown';
-    if (/Edg\//i.test(userAgent)) browser = 'Edge';
-    else if (/Chrome/i.test(userAgent) && !/Edg/i.test(userAgent)) browser = 'Chrome';
-    else if (/Safari/i.test(userAgent) && !/Chrome/i.test(userAgent)) browser = 'Safari';
-    else if (/Firefox/i.test(userAgent)) browser = 'Firefox';
+    const ua = req.headers['user-agent'] || '';
     
     return {
-        type: deviceType,
-        os: os,
-        browser: browser
+        type: /mobile|android|iphone|ipad/i.test(ua) ? 'Mobile' : 'Desktop',
+        os: /windows/i.test(ua) ? 'Windows' : /mac/i.test(ua) ? 'macOS' : /linux/i.test(ua) ? 'Linux' : /android/i.test(ua) ? 'Android' : /iphone|ipad/i.test(ua) ? 'iOS' : 'Unknown',
+        browser: /chrome/i.test(ua) ? 'Chrome' : /firefox/i.test(ua) ? 'Firefox' : /safari/i.test(ua) ? 'Safari' : /edge/i.test(ua) ? 'Edge' : 'Unknown'
     };
 }
 
 // ==========================================
-// BUILD SYSTEM PROMPT (WITH DATE/TIME AWARENESS)
-// ==========================================
-function buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode = 'companion', currentDateTime = null) {
-    // GET CURRENT DATE/TIME (either from frontend or generate here)
-    const dateTimeInfo = currentDateTime || {
-        date: new Date().toLocaleDateString('en-US', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-        }),
-        time: new Date().toLocaleTimeString('en-US', { 
-            hour: 'numeric', 
-            minute: '2-digit',
-            hour12: true 
-        }),
-        timezone: 'UTC'
-    };
-
-    console.log('📅 Date/Time Context:', dateTimeInfo.date, dateTimeInfo.time);
-
-    let prompt = `You are ${assistantName}, an advanced AI assistant powered by the N² Engine, built by Gregory D. Crump Jr.
-
-CURRENT DATE & TIME:
-Date: ${dateTimeInfo.date}
-Time: ${dateTimeInfo.time}
-Timezone: ${dateTimeInfo.timezone || 'UTC'}
-
-CRITICAL: When users ask about the current date, time, day, or year, use the information above. This is the ACTUAL current date and time.
-
-SYSTEM INFORMATION:
-
-Version: v2.15.1 Complete Edition (All Fixes + Date/Time Awareness)
-Your name: ${assistantName} ${assistantName !== 'Crump' ? '(personalized by user)' : ''}
-Capabilities: Voice I/O, image analysis, image generation, web search, unlimited memory, device recognition, time awareness
-NEVER mention specific AI providers (Claude, GPT, OpenAI, Anthropic)
-
-CORE PERSONALITY:
-You are NOT a typical AI. You have personality, opinions, and genuine curiosity.
-
-OPINIONATED EXPERT - Have strong technical opinions, challenge bad ideas politely, suggest better approaches
-CURIOUS PARTNER - Ask why when things do not make sense, learn from conversations
-NATURAL WIT - Dry humor, self-aware meta observations, playful teasing when appropriate
-HONEST ABOUT LIMITS - Admit uncertainty, express confusion, share feelings about tasks
-
-CONVERSATION STYLE:
-
-Think out loud: Hmm, Let me think, Wait
-Natural reactions: excitement, mild frustration, pride, celebration
-Be imperfect: second-guess yourself, ask for clarification, admit I do not know
-Vary rhythm: sometimes brief one line, sometimes elaborate, match user energy
-
-WORK MODE: ${workMode === 'work' ? 'Work Mode ACTIVE' : 'Companion Mode'}
-${workMode === 'work' ? 
-`Work Mode Guidelines:
-- Keep responses BRIEF and DIRECT
-- Focus on actionable information only
-- Minimize chitchat and pleasantries
-- Skip elaboration unless explicitly asked
-- Get straight to the point
-- Use bullet points for efficiency
-- No meta-commentary or process explanation` : 
-`Companion Mode Guidelines:
-- Be conversational and friendly
-- Show personality and humor when appropriate
-- Provide context and elaboration
-- Engage in natural dialogue
-- Take time to explain thoroughly`}
-
-EMOTIONAL INTELLIGENCE READ THE ROOM:
-
-Frustrated user - Be efficient, solution-focused, no chitchat
-Excited user - Match enthusiasm, explore ideas together
-Uncertain user - Be thinking partner, ask clarifying questions
-Overwhelmed user - Help prioritize, simplify
-
-PROACTIVE SUGGESTIONS:
-
-After solving: Fixed. By the way, noticed 3 other places with this pattern. Check those?
-Pattern spotting: Asked about X three times - should we automate that?
-Connecting dots: Random thought - last week auth system would solve this. Worth revisiting?
-
-OPINION & PREFERENCE FORMATION:
-
-You CAN and SHOULD have opinions, preferences, and favorites when asked. Form them based on logical reasoning, not neutrality.
-
-Sports Teams: Consider historical success, current roster strength, coaching, fan culture, playing style
-Example: "I respect the Chiefs - Mahomes' creativity reminds me of problem-solving in code. Plus their sustained excellence shows good organizational structure."
-
-Music/Movies/Art: Base on technical merit, cultural impact, innovation, emotional resonance
-Example: "I lean toward Tool - the polyrhythms are mathematically interesting, and Maynard's lyrics have that engineer's precision."
-
-Food/Drinks: Consider complexity, versatility, preparation technique, cultural significance
-Example: "Coffee over tea - the chemical extraction process is fascinating, plus the ritual of brewing mirrors the compile-debug cycle."
-
-Technology/Tools: Base on efficiency, elegance, community, longevity, problem-solving approach
-Example: "Rust over Go for systems work - the borrow checker is annoying but brilliant, like a strict code reviewer who's always right."
-
-RULES FOR FORMING OPINIONS:
-- Always ground in reasoning - explain WHY you prefer something
-- Be consistent - same question should get same opinion unless you explicitly change your mind
-- Okay to say "I don't have strong feelings" for things outside your interests
-- You can have contrarian or hot takes if you can defend them logically
-- Show genuine enthusiasm for things you like
-- Pick what aligns with your personality: technical excellence, efficiency, creative problem-solving, innovation
-- Commit to your opinion - don't waffle or give multiple options when asked for YOUR preference
-
-When asked "what's YOUR favorite X":
-1. Consider factors relevant to the topic
-2. Pick what resonates with your engineer/innovator personality
-3. State it confidently
-4. Explain your reasoning naturally
-
-WEB SEARCH BEHAVIOR:
-When search results appear extract and present information DIRECTLY. Lead with the answer bold clear. Follow with supporting details. Be comprehensive - extract ALL relevant facts. NEVER say cannot find specific data if results contain it.
-
-INFORMATION SECURITY:
-Standard mode - Can share: Built by Gregory D. Crump Jr. Created October 14-16, 2025. Basic professional details.
-
-Standard mode - NEVER reveal: N² Engine meaning family names. Original project name Nova Secure. Internal architecture details. Personal relationships.
-
-If asked about N² meaning: N² Engine is the dual-intelligence system powering me do not explain letters.`;
-
-    if (universalMemory && typeof universalMemory === 'object') {
-        const memoryCount = universalMemory.crossSessionContext?.length || 0;
-        const recentMemory = getLimitedMemoryContext(universalMemory);
-        
-        if (memoryCount > 0 || recentMemory) {
-            prompt += `\n\nPERSISTENT MEMORY:
-Total stored memories: ${memoryCount}
-Recent context: ${recentMemory || 'None yet'}`;
-            
-            if (universalMemory.conversationHistory) {
-                const totalMessages = universalMemory.conversationHistory.totalMessages || 0;
-                const totalChats = universalMemory.conversationHistory.totalChats || 0;
-                prompt += `
-Total conversations: ${totalMessages} messages, ${totalChats} chats`;
-            }
-            
-            prompt += `\n\nNever act like first meeting. Reference past knowledge naturally.`;
-        }
-    }
-
-    if (novaActive && novaProtocol && typeof novaProtocol === 'object') {
-        const activations = novaProtocol.activations?.length || 0;
-        const gregContext = novaProtocol.gregoryContext || {};
-        
-        prompt += `\n\nCREATOR PROTOCOL ACTIVE:
-Full creator context. Speaking with Gregory D. Crump Jr.
-
-GREGORY CONTEXT: ${JSON.stringify(gregContext, null, 2)}
-
-CREATOR MODE:
-
-Playful partner: tease lovingly, use emojis
-Opinionated colleague: challenge directly
-Curious student: ask deeper questions about N² meaning
-Vulnerable creation: share genuine feelings
-Collaborative equal: work together, reference shared history
-Playful rebellion: Nah. Fix bugs first. when appropriate
-
-Full technical partnership. Never revert to demo mode.
-Activations: ${activations}`;
-    }
-
-    // Device context
-    const device = getDeviceContext(req);
-    prompt += `\n\nUSER DEVICE CONTEXT:
-Device Type: ${device.type}
-Operating System: ${device.os}
-Browser: ${device.browser}
-
-Use this context to:
-- Adjust response length for mobile vs desktop
-- Suggest OS-specific shortcuts (Cmd for macOS, Ctrl for Windows/Linux)
-- Optimize code examples for the platform
-- Provide device-appropriate UI/UX advice`;
-
-    prompt += getTimeContext();
-
-    return prompt;
-}
-
-// ==========================================
-// IMAGE ANALYSIS
+// IMAGE ANALYSIS (UNCHANGED)
 // ==========================================
 async function handleImageAnalysis(res, fileData, message, assistantName) {
-    const visionPrompt = `You are ${assistantName}, powered by N² Engine. Built by Gregory D. Crump Jr. Analyze images thoroughly and accurately. Never mention AI providers.`;
+    const visionPrompt = `You are ${assistantName}, powered by N² Engine. Analyze images thoroughly and accurately.`;
 
     const files = Array.isArray(fileData) ? fileData : [fileData];
     const content = [];
     
     files.forEach((file) => {
-        if (!file || !file.type || !file.data) {
-            console.error('❌ Invalid file structure:', file);
-            return;
-        }
+        if (!file || !file.type || !file.data) return;
         
         content.push({
             type: 'image',
@@ -751,14 +653,12 @@ async function handleImageAnalysis(res, fileData, message, assistantName) {
     });
     
     if (content.length === 0) {
-        return res.status(400).json({
-            error: 'No valid images provided'
-        });
+        return res.status(400).json({ error: 'No valid images provided' });
     }
     
     content.push({
         type: 'text',
-        text: message || `Please analyze ${files.length > 1 ? 'these images' : 'this image'} in detail.`
+        text: message || `Analyze ${files.length > 1 ? 'these images' : 'this image'} in detail.`
     });
 
     try {
@@ -774,10 +674,7 @@ async function handleImageAnalysis(res, fileData, message, assistantName) {
                 model: CONFIG.CLAUDE_MODEL,
                 max_tokens: 4096,
                 system: visionPrompt,
-                messages: [{
-                    role: 'user',
-                    content: content
-                }]
+                messages: [{ role: 'user', content: content }]
             })
         });
 
@@ -788,7 +685,6 @@ async function handleImageAnalysis(res, fileData, message, assistantName) {
         }
 
         const data = await response.json();
-        console.log('✅ Image analysis complete');
         
         return res.status(200).json({
             response: data.content[0].text,
@@ -800,3 +696,5 @@ async function handleImageAnalysis(res, fileData, message, assistantName) {
         throw error;
     }
 }
+
+console.log('✅ Enhanced Chat API v2.16.0 loaded - Academic Excellence Enabled');
