@@ -175,28 +175,7 @@ window.handleImageGeneration = async function(userMessage) {
             prompt = enhancePromptWithContext(userMessage, window.imageGenerationState.lastImagePrompt);
         }
 
-        // Add user message
-        const userMsg = {
-            role: 'user',
-            content: userMessage,
-            timestamp: Date.now()
-        };
-        currentChat.messages.push(userMsg);
-        currentChat.updatedAt = Date.now();
-        
-        if (typeof window.crumpDebug?.getCurrentChat === 'function') {
-            const chats = JSON.parse(localStorage.getItem('crump_chats') || '[]');
-            const chatIndex = chats.findIndex(c => c.id === currentChat.id);
-            if (chatIndex !== -1) {
-                chats[chatIndex] = currentChat;
-                localStorage.setItem('crump_chats', JSON.stringify(chats));
-            }
-        }
-
-        // Render user message
-        if (typeof renderMessage === 'function') {
-            renderMessage(userMsg);
-        }
+       // NOTE: User message already added and rendered by app.js - don't duplicate!
 
         // Show generating indicator
         const assistantMsg = {
