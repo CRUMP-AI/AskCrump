@@ -7,6 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Crump - AI Virtual Assistant</title>
+
 <!-- PWA -->
 <link rel="icon" type="image/png" href="/assets/icon-192.png">
 <link rel="manifest" href="/manifest.json">
@@ -20,10 +21,6 @@
 <!-- Styles -->
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/new-features.css">
-<style>
-/* Assistant Character Animations */
-.assistant-character{position:fixed;bottom:140px;right:24px;width:50px;height:50px;z-index:50;pointer-events:none;transition:all .4s cubic-bezier(.4,0,.2,1)}.assistant-img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 0 20px rgba(85,195,255,.6));transition:all .3s ease}.assistant-character.idle .assistant-img{animation:breathe 4s ease-in-out infinite}@keyframes breathe{0%,100%{transform:scale(1) translateY(0);filter:drop-shadow(0 0 20px rgba(85,195,255,.6))}50%{transform:scale(1.05) translateY(-4px);filter:drop-shadow(0 0 28px rgba(85,195,255,.8))}}.assistant-character.thinking .assistant-img{animation:think 1.5s ease-in-out infinite}@keyframes think{0%,100%{transform:scale(1) rotate(0);filter:drop-shadow(0 0 24px rgba(85,195,255,.7))}25%{transform:scale(1.08) rotate(-2deg);filter:drop-shadow(0 0 32px rgba(85,195,255,.9))}75%{transform:scale(1.08) rotate(2deg);filter:drop-shadow(0 0 32px rgba(85,195,255,.9))}}.assistant-character.speaking .assistant-img{animation:speak .8s ease-in-out infinite}@keyframes speak{0%,100%{filter:drop-shadow(0 0 24px rgba(85,195,255,.7))}50%{filter:drop-shadow(0 0 36px rgba(85,195,255,1));transform:scale(1.1)}}.assistant-character.intro{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(1.5);opacity:0;animation:materialize 1.2s cubic-bezier(.34,1.56,.64,1) forwards}@keyframes materialize{0%{transform:translate(-50%,-50%) scale(.5);opacity:0;filter:drop-shadow(0 0 60px rgba(85,195,255,0))}60%{transform:translate(-50%,-50%) scale(1.7);opacity:1;filter:drop-shadow(0 0 80px rgba(85,195,255,1))}100%{transform:translate(-50%,-50%) scale(1.5);opacity:1;filter:drop-shadow(0 0 40px rgba(85,195,255,.8))}}.assistant-character.docking{animation:dock 1s cubic-bezier(.4,0,.2,1) forwards}@keyframes dock{0%{top:50%;left:50%;transform:translate(-50%,-50%) scale(1.5)}100%{top:auto;left:auto;bottom:140px;right:24px;transform:translate(0,0) scale(1)}}@media(max-width:768px){.assistant-character{bottom:130px;right:16px;width:45px;height:45px}}@media(prefers-reduced-motion:reduce){.assistant-character,.assistant-img,.assistant-character.idle .assistant-img,.assistant-character.thinking .assistant-img,.assistant-character.speaking .assistant-img{animation:none!important;transition:none!important}}.assistant-character:hover .assistant-img{transform:scale(1.1);filter:drop-shadow(0 0 32px rgba(85,195,255,.9))}.assistant-character .assistant-img{will-change:transform,filter}
-</style>
 
 <!-- Code highlighting -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
@@ -51,6 +48,9 @@
         -webkit-overflow-scrolling: touch;
     }
     
+    /* Assistant Character Animations */
+    .assistant-character{position:fixed;bottom:140px;right:24px;width:50px;height:50px;z-index:50;pointer-events:none;transition:all .4s cubic-bezier(.4,0,.2,1)}.assistant-img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 0 20px rgba(85,195,255,.6));transition:all .3s ease}.assistant-character.idle .assistant-img{animation:breathe 4s ease-in-out infinite}@keyframes breathe{0%,100%{transform:scale(1) translateY(0);filter:drop-shadow(0 0 20px rgba(85,195,255,.6))}50%{transform:scale(1.05) translateY(-4px);filter:drop-shadow(0 0 28px rgba(85,195,255,.8))}}.assistant-character.thinking .assistant-img{animation:think 1.5s ease-in-out infinite}@keyframes think{0%,100%{transform:scale(1) rotate(0);filter:drop-shadow(0 0 24px rgba(85,195,255,.7))}25%{transform:scale(1.08) rotate(-2deg);filter:drop-shadow(0 0 32px rgba(85,195,255,.9))}75%{transform:scale(1.08) rotate(2deg);filter:drop-shadow(0 0 32px rgba(85,195,255,.9))}}.assistant-character.speaking .assistant-img{animation:speak .8s ease-in-out infinite}@keyframes speak{0%,100%{filter:drop-shadow(0 0 24px rgba(85,195,255,.7))}50%{filter:drop-shadow(0 0 36px rgba(85,195,255,1));transform:scale(1.1)}}.assistant-character.intro{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(1.5);opacity:0;animation:materialize 1.2s cubic-bezier(.34,1.56,.64,1) forwards}@keyframes materialize{0%{transform:translate(-50%,-50%) scale(.5);opacity:0;filter:drop-shadow(0 0 60px rgba(85,195,255,0))}60%{transform:translate(-50%,-50%) scale(1.7);opacity:1;filter:drop-shadow(0 0 80px rgba(85,195,255,1))}100%{transform:translate(-50%,-50%) scale(1.5);opacity:1;filter:drop-shadow(0 0 40px rgba(85,195,255,.8))}}.assistant-character.docking{animation:dock 1s cubic-bezier(.4,0,.2,1) forwards}@keyframes dock{0%{top:50%;left:50%;transform:translate(-50%,-50%) scale(1.5)}100%{top:auto;left:auto;bottom:140px;right:24px;transform:translate(0,0) scale(1)}}@media(max-width:768px){.assistant-character{bottom:130px;right:16px;width:45px;height:45px}}@media(prefers-reduced-motion:reduce){.assistant-character,.assistant-img,.assistant-character.idle .assistant-img,.assistant-character.thinking .assistant-img,.assistant-character.speaking .assistant-img{animation:none!important;transition:none!important}}.assistant-character:hover .assistant-img{transform:scale(1.1);filter:drop-shadow(0 0 32px rgba(85,195,255,.9))}.assistant-character .assistant-img{will-change:transform,filter}
+    
     /* PWA Install Banner */
     .pwa-install-banner {
         position: fixed;
@@ -69,21 +69,13 @@
     }
     
     @keyframes slideUpBanner {
-        from {
-            transform: translateY(100%);
-        }
-        to {
-            transform: translateY(0);
-        }
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
     }
     
-    .pwa-install-banner.visible {
-        display: flex;
-    }
+    .pwa-install-banner.visible { display: flex; }
     
-    .pwa-install-content {
-        flex: 1;
-    }
+    .pwa-install-content { flex: 1; }
     
     .pwa-install-content h3 {
         margin: 0 0 0.25rem 0;
@@ -117,9 +109,7 @@
         color: var(--color-accent-primary);
     }
     
-    .pwa-install-btn-primary:hover {
-        transform: scale(1.05);
-    }
+    .pwa-install-btn-primary:hover { transform: scale(1.05); }
     
     .pwa-install-btn-secondary {
         background: transparent;
@@ -184,13 +174,8 @@
             gap: 0.75rem;
         }
         
-        .pwa-install-actions {
-            width: 100%;
-        }
-        
-        .pwa-install-btn {
-            flex: 1;
-        }
+        .pwa-install-actions { width: 100%; }
+        .pwa-install-btn { flex: 1; }
     }
 </style>
 </head>
@@ -198,7 +183,7 @@
 <!-- PWA INSTALL BANNER -->
 <div id="pwaInstallBanner" class="pwa-install-banner">
     <div class="pwa-install-content">
-        <h3>📱 Install Crump AI</h3>
+        <h3>Install Crump AI</h3>
         <p>Add to your home screen for instant access</p>
     </div>
     <div class="pwa-install-actions">
@@ -231,11 +216,11 @@
             <div style="background: var(--color-bg-tertiary); padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;">
                 <h3 style="margin-bottom: 1rem; color: var(--color-accent-primary);">Quick Summary</h3>
                 <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.75rem;">
-                    <li>✅ Your chats are stored locally on your device only</li>
-                    <li>✅ We use AI (Claude & GPT-4) to power responses</li>
-                    <li>✅ You must be 17+ to use this service</li>
-                    <li>⚠️ AI responses may not always be accurate</li>
-                    <li>⚠️ Not for medical, legal, or financial advice</li>
+                    <li>Your chats are stored locally on your device only</li>
+                    <li>We use AI (Claude & GPT-4) to power responses</li>
+                    <li>You must be 17+ to use this service</li>
+                    <li>AI responses may not always be accurate</li>
+                    <li>Not for medical, legal, or financial advice</li>
                 </ul>
             </div>
 
@@ -292,7 +277,7 @@
             <div class="sidebar-branding">
                 <img src="/assets/logo-c.png" alt="C" class="sidebar-logo-icon">
                 <h1 class="sidebar-logo">Crump</h1>
-                <span class="sidebar-version">v1.0</span>
+                <span class="sidebar-version">v2.0</span>
             </div>
             <button id="closeSidebarBtn" class="btn-icon" aria-label="Close">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -324,14 +309,20 @@
         
         <div class="sidebar-footer">
             <button id="settingsBtn" class="sidebar-footer-btn" onclick="openSettings()">
-                <span style="font-size: 20px;">⚙️</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M12 1v6m0 6v6m0-6h6m-6 0H6"/>
+                </svg>
                 <span>Settings</span>
             </button>
             
             <div class="sidebar-divider"></div>
 
             <a href="/legal.html" class="sidebar-footer-btn" style="text-decoration: none;">
-                <span style="font-size: 18px;">⚖️</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
                 <span>Legal & Privacy</span>
             </a>
             
@@ -366,7 +357,18 @@
                 <img src="/assets/logo-c.png" alt="C" class="header-logo-icon">
                 <h1 class="header-logo">Crump</h1>
             </div>
-            <div style="width: 40px;"></div>
+            <!-- NEW: Usage & Upgrade buttons -->
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="btn-icon" onclick="showUsageStats()" title="Usage Stats">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 6v6l4 2"/>
+                    </svg>
+                </button>
+                <button class="btn btn-primary" onclick="showUpgradePrompt()" style="padding: 0.5rem 1rem; font-size: 0.875rem;">
+                    Upgrade
+                </button>
+            </div>
         </header>
 
         <!-- ASSISTANT CHARACTER -->
@@ -405,9 +407,9 @@
         <!-- INPUT SECTION -->
         <div class="input-area">
             <div class="quick-actions">
-                <button class="quick-action-btn" onclick="triggerImageGeneration()">🎨 Image</button>
-                <button class="quick-action-btn" onclick="triggerWebSearch()">🔍 Search</button>
-                <button class="quick-action-btn" onclick="triggerCodeHelp()">💻 Code</button>
+                <button class="quick-action-btn" onclick="triggerImageGeneration()">Image</button>
+                <button class="quick-action-btn" onclick="triggerWebSearch()">Search</button>
+                <button class="quick-action-btn" onclick="triggerCodeHelp()">Code</button>
             </div>
 
             <div class="input-container">
@@ -476,7 +478,7 @@
                     <input type="checkbox" id="autonomousMessaging">
                     <span>
                         <strong>Autonomous Check-ins</strong>
-                        <small>Proactive assistance</small>
+                        <small>Proactive assistance (Pro+ only)</small>
                     </span>
                 </label>
                 
@@ -496,65 +498,66 @@
                         <small>Business-focused responses</small>
                     </span>
                 </label>
+                
                 <div style="margin-top: 1.5rem;">
-    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Work Hours</label>
-    <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 0.5rem;">
-        <select id="workStart" class="form-input" style="flex: 1;">
-            <option value="0">12 AM</option>
-            <option value="1">1 AM</option>
-            <option value="2">2 AM</option>
-            <option value="3">3 AM</option>
-            <option value="4">4 AM</option>
-            <option value="5">5 AM</option>
-            <option value="6">6 AM</option>
-            <option value="7">7 AM</option>
-            <option value="8">8 AM</option>
-            <option value="9" selected>9 AM</option>
-            <option value="10">10 AM</option>
-            <option value="11">11 AM</option>
-            <option value="12">12 PM</option>
-            <option value="13">1 PM</option>
-            <option value="14">2 PM</option>
-            <option value="15">3 PM</option>
-            <option value="16">4 PM</option>
-            <option value="17">5 PM</option>
-            <option value="18">6 PM</option>
-            <option value="19">7 PM</option>
-            <option value="20">8 PM</option>
-            <option value="21">9 PM</option>
-            <option value="22">10 PM</option>
-            <option value="23">11 PM</option>
-        </select>
-        <span>to</span>
-        <select id="workEnd" class="form-input" style="flex: 1;">
-            <option value="0">12 AM</option>
-            <option value="1">1 AM</option>
-            <option value="2">2 AM</option>
-            <option value="3">3 AM</option>
-            <option value="4">4 AM</option>
-            <option value="5">5 AM</option>
-            <option value="6">6 AM</option>
-            <option value="7">7 AM</option>
-            <option value="8">8 AM</option>
-            <option value="9">9 AM</option>
-            <option value="10">10 AM</option>
-            <option value="11">11 AM</option>
-            <option value="12">12 PM</option>
-            <option value="13">1 PM</option>
-            <option value="14">2 PM</option>
-            <option value="15">3 PM</option>
-            <option value="16">4 PM</option>
-            <option value="17" selected>5 PM</option>
-            <option value="18">6 PM</option>
-            <option value="19">7 PM</option>
-            <option value="20">8 PM</option>
-            <option value="21">9 PM</option>
-            <option value="22">10 PM</option>
-            <option value="23">11 PM</option>
-        </select>
-    </div>
-    <small style="color: var(--color-text-secondary); font-size: 0.875rem;">When autonomous messages consider you "at work"</small>
-</div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Work Hours</label>
+                    <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 0.5rem;">
+                        <select id="workStart" class="form-input" style="flex: 1;">
+                            <option value="0">12 AM</option>
+                            <option value="1">1 AM</option>
+                            <option value="2">2 AM</option>
+                            <option value="3">3 AM</option>
+                            <option value="4">4 AM</option>
+                            <option value="5">5 AM</option>
+                            <option value="6">6 AM</option>
+                            <option value="7">7 AM</option>
+                            <option value="8">8 AM</option>
+                            <option value="9" selected>9 AM</option>
+                            <option value="10">10 AM</option>
+                            <option value="11">11 AM</option>
+                            <option value="12">12 PM</option>
+                            <option value="13">1 PM</option>
+                            <option value="14">2 PM</option>
+                            <option value="15">3 PM</option>
+                            <option value="16">4 PM</option>
+                            <option value="17" selected>5 PM</option>
+                            <option value="18">6 PM</option>
+                            <option value="19">7 PM</option>
+                            <option value="20">8 PM</option>
+                            <option value="21">9 PM</option>
+                            <option value="22">10 PM</option>
+                            <option value="23">11 PM</option>
+                        </select>
+                        <span>to</span>
+                        <select id="workEnd" class="form-input" style="flex: 1;">
+                            <option value="0">12 AM</option>
+                            <option value="1">1 AM</option>
+                            <option value="2">2 AM</option>
+                            <option value="3">3 AM</option>
+                            <option value="4">4 AM</option>
+                            <option value="5">5 AM</option>
+                            <option value="6">6 AM</option>
+                            <option value="7">7 AM</option>
+                            <option value="8">8 AM</option>
+                            <option value="9">9 AM</option>
+                            <option value="10">10 AM</option>
+                            <option value="11">11 AM</option>
+                            <option value="12">12 PM</option>
+                            <option value="13">1 PM</option>
+                            <option value="14">2 PM</option>
+                            <option value="15">3 PM</option>
+                            <option value="16">4 PM</option>
+                            <option value="17" selected>5 PM</option>
+                            <option value="18">6 PM</option>
+                            <option value="19">7 PM</option>
+                            <option value="20">8 PM</option>
+                            <option value="21">9 PM</option>
+                            <option value="22">10 PM</option>
+                            <option value="23">11 PM</option>
+                        </select>
+                    </div>
+                    <small style="color: var(--color-text-secondary); font-size: 0.875rem;">When autonomous messages consider you "at work"</small>
+                </div>
             </div>
 
             <div class="settings-section">
@@ -563,7 +566,7 @@
                     Conversations stored locally. We never see your chats.
                 </p>
                 <button class="btn btn-secondary btn-block" onclick="exportChats()">
-                    📦 Export Conversations
+                    Export Conversations
                 </button>
             </div>
         </div>
@@ -578,48 +581,44 @@
 <div id="toastContainer" class="toast-container"></div>
 <input type="file" id="fileInput" style="display: none;" accept="image/*,.pdf,.txt,.doc,.docx" multiple>
 
-<!-- SCRIPTS -->
+<!-- SCRIPTS - PROFESSIONAL TIER SYSTEM -->
 <script src="/tutorial.js"></script>
-<script src="/autonomous.js"></script>
 <script src="/engines.js"></script>
+<script src="/scroll-manager.js"></script>
+<script src="/mobile-keyboard-handler.js"></script>
+
+<!-- NEW: Professional Tier Management -->
 <script src="/profile-manager.js"></script>
+<script src="/upgrade-ui.js"></script>
+<script src="/developer-mode.js"></script>
+
+<!-- Core Modules -->
+<script src="/autonomous.js"></script>
 <script src="/image-generation.js"></script>
 <script src="/ui-functions.js"></script>
-<script src="/developer-mode.js"></script>
-<script src="/scroll-manager.js"></script>
-<script src="/mobile-keyboard-handler.js"></script>    
 <script src="/self-debug-v3.js"></script>
+
+<!-- Main App (loads last) -->
 <script src="/app.js"></script>
 
 <script>
-    // PWA Install Prompt (FIXED - hides when installed)
+    // PWA Install Prompt
     let deferredPrompt;
     
-    // Check if already installed
     function isPWAInstalled() {
-        // Check if running as installed PWA
-        if (window.matchMedia('(display-mode: standalone)').matches) {
-            return true;
-        }
-        // Check if user already installed
-        if (localStorage.getItem('crump_pwa_installed') === 'true') {
-            return true;
-        }
+        if (window.matchMedia('(display-mode: standalone)').matches) return true;
+        if (localStorage.getItem('crump_pwa_installed') === 'true') return true;
         return false;
     }
     
-    // Hide banner if already installed
     if (isPWAInstalled()) {
-        console.log('✅ PWA already installed');
+        console.log('[PWA] Already installed');
     } else {
-        // Listen for install prompt
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
             
-            // Only show if not dismissed and not installed
             if (!localStorage.getItem('crump_pwa_dismissed') && !isPWAInstalled()) {
-                // Wait 3 seconds before showing banner
                 setTimeout(() => {
                     document.getElementById('pwaInstallBanner').classList.add('visible');
                 }, 3000);
@@ -627,38 +626,25 @@
         });
     }
     
-    // Handle install button click
     document.getElementById('pwaInstallBtn').addEventListener('click', async () => {
-        if (!deferredPrompt) {
-            console.log('⚠️ No install prompt available');
-            return;
-        }
+        if (!deferredPrompt) return;
         
-        const banner = document.getElementById('pwaInstallBanner');
-        banner.classList.remove('visible');
-        
+        document.getElementById('pwaInstallBanner').classList.remove('visible');
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
         
         if (outcome === 'accepted') {
-            console.log('✅ PWA install accepted');
             localStorage.setItem('crump_pwa_installed', 'true');
-        } else {
-            console.log('❌ PWA install declined');
         }
-        
         deferredPrompt = null;
     });
     
-    // Handle dismiss button
     document.getElementById('pwaDismissBtn').addEventListener('click', () => {
         document.getElementById('pwaInstallBanner').classList.remove('visible');
         localStorage.setItem('crump_pwa_dismissed', 'true');
     });
     
-    // Listen for successful install
     window.addEventListener('appinstalled', () => {
-        console.log('✅ PWA installed successfully');
         localStorage.setItem('crump_pwa_installed', 'true');
         document.getElementById('pwaInstallBanner').classList.remove('visible');
     });
@@ -688,13 +674,12 @@
                 document.getElementById('tosModal').style.display = 'flex';
             } else if (!hasOnboarded) {
                 document.getElementById('onboardingModal').style.display = 'flex';
-          } else {
-    document.getElementById('appContainer').style.display = 'flex';
-    // Initialize app for returning users
-    if (typeof window.initializeApp === 'function') {
-        window.initializeApp();
-    }
-}
+            } else {
+                document.getElementById('appContainer').style.display = 'flex';
+                if (typeof window.initializeApp === 'function') {
+                    window.initializeApp();
+                }
+            }
         }, 1500);
     });
 
@@ -738,8 +723,8 @@
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('/sw.js')
-                .then(reg => console.log('✅ PWA registered'))
-                .catch(err => console.error('❌ PWA failed', err));
+                .then(reg => console.log('[PWA] Service worker registered'))
+                .catch(err => console.error('[PWA] Registration failed', err));
         });
     }
 </script>
