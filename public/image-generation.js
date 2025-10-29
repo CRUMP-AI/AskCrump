@@ -1,6 +1,6 @@
 /* ============================================
-   CRUMP AI - SMART IMAGE GENERATION v3.0
-   Fixed: "another" sensitivity + better blacklist
+   CRUMP AI - SMART IMAGE GENERATION v3.1 FIXED
+   Fixed: Expanded blacklist + better context detection
    ============================================ */
 
 window.imageGenerationState = {
@@ -11,7 +11,7 @@ window.imageGenerationState = {
 };
 
 // ==========================================
-// SMART IMAGE DETECTION (FIXED)
+// SMART IMAGE DETECTION (FIXED v3.1)
 // ==========================================
 window.shouldGenerateImage = function(message) {
     if (!message || typeof message !== 'string') return false;
@@ -42,10 +42,30 @@ window.shouldGenerateImage = function(message) {
         }
     }
     
-    // 2. CONTEXT BLACKLIST - EXPANDED (never trigger on these contexts)
+    // 2. EXPANDED CONTEXT BLACKLIST - NEVER trigger on these
     const blacklistContexts = [
-        // Technical/debugging
+        // Technical/debugging - EXPANDED
         'bug', 'error', 'issue', 'problem', 'fix', 'debug', 'test', 'testing',
+        'broken', 'crash', 'fail', 'failing', 'failed',
+        
+        // Conversational indicators - NEW
+        'there is', 'there\'s', 'theres', 'there was',
+        'i found', 'i see', 'i noticed', 'i see a', 'i see an',
+        'let me show', 'let me explain', 'let me describe',
+        'i want to show', 'want to show you',
+        
+        // Reference words - NEW
+        'the image', 'an image', 'this image', 'that image',
+        'the picture', 'this picture', 'that picture',
+        'the photo', 'this photo', 'that photo',
+        
+        // Action verbs that indicate problems - NEW
+        'causing', 'making', 'creating', 'showing', 'displaying',
+        'rendering', 'loading', 'appearing',
+        
+        // Negative states - NEW
+        'doesn\'t work', 'not working', 'won\'t load', 'not loading',
+        'isn\'t showing', 'not appearing', 'missing',
         
         // Analysis/discussion
         'example', 'instance', 'case', 'scenario', 'situation', 
@@ -54,17 +74,24 @@ window.shouldGenerateImage = function(message) {
         // File upload indicators
         'can you see', 'do you see', 'look at', 'view', 'analyze', 
         'check', 'inspect', 'uploaded', 'attached', 'sent you',
+        'i uploaded', 'i attached', 'i sent',
         
         // Questions/explanations
         'why', 'how', 'what does', 'explain', 'describe',
+        'what is', 'what are', 'tell me about',
         
         // UI/code references
-        'word', 'causing', 'certain', 'moment', 'startup', 'splash',
+        'word', 'certain', 'moment', 'startup', 'splash',
         'logo for you', 'i want to', 'come up with',
+        'in the code', 'in my code', 'code shows',
         
-        // Conversation meta (specific contexts where "another" means something else)
+        // Conversation meta
         'another bug', 'another problem', 'another issue', 'another question',
-        'another error', 'another test'
+        'another error', 'another test', 'another example',
+        
+        // NEW: Temporal/sequential phrases
+        'next', 'then', 'after that', 'before', 'when',
+        'while', 'during', 'at the same time'
     ];
     
     for (const context of blacklistContexts) {
@@ -140,7 +167,7 @@ window.shouldGenerateImage = function(message) {
 };
 
 // ==========================================
-// IMAGE GENERATION HANDLER
+// IMAGE GENERATION HANDLER (FIXED ERROR HANDLING)
 // ==========================================
 window.handleImageGeneration = async function(userMessage) {
     try {
@@ -175,7 +202,7 @@ window.handleImageGeneration = async function(userMessage) {
             prompt = enhancePromptWithContext(userMessage, window.imageGenerationState.lastImagePrompt);
         }
 
-       // NOTE: User message already added and rendered by app.js - don't duplicate!
+        // NOTE: User message already added and rendered by app.js - don't duplicate!
 
         // Show generating indicator
         const assistantMsg = {
@@ -205,13 +232,13 @@ window.handleImageGeneration = async function(userMessage) {
         // Remove generating message and add final message
         currentChat.messages.pop();
         
-       const finalMsg = {
-    role: 'assistant',
-    content: '', // Empty - image will render from imageUrl property
-    timestamp: Date.now(),
-    imageUrl: imageUrl,
-    imagePrompt: prompt
-};
+        const finalMsg = {
+            role: 'assistant',
+            content: '', // Empty - image will render from imageUrl property
+            timestamp: Date.now(),
+            imageUrl: imageUrl,
+            imagePrompt: prompt
+        };
         
         currentChat.messages.push(finalMsg);
         currentChat.updatedAt = Date.now();
@@ -225,7 +252,7 @@ window.handleImageGeneration = async function(userMessage) {
             }
         }
 
-       // Re-render chat to show image using app.js renderMessages
+        // Re-render chat to show image using app.js renderMessages
         if (typeof renderMessages === 'function') {
             renderMessages(currentChat.messages);
         }
@@ -241,6 +268,38 @@ window.handleImageGeneration = async function(userMessage) {
         console.error('❌ Image generation error:', error);
         
         window.imageGenerationState.lastResponseWasImage = false;
+        
+        // FIXED: Add error message to chat so user knows what happened
+        const currentChat = window.crumpDebug?.getCurrentChat?.();
+        if (currentChat) {
+            // Remove the "Generating..." message if it exists
+            if (currentChat.messages[currentChat.messages.length - 1]?.generating) {
+                currentChat.messages.pop();
+            }
+            
+            const errorMsg = {
+                role: 'assistant',
+                content: `I apologize, but I wasn't able to generate that image. ${error.message || 'Please try again or rephrase your request.'}`,
+                timestamp: Date.now(),
+                error: true
+            };
+            
+            currentChat.messages.push(errorMsg);
+            currentChat.updatedAt = Date.now();
+            
+            if (typeof window.crumpDebug?.getCurrentChat === 'function') {
+                const chats = JSON.parse(localStorage.getItem('crump_chats') || '[]');
+                const chatIndex = chats.findIndex(c => c.id === currentChat.id);
+                if (chatIndex !== -1) {
+                    chats[chatIndex] = currentChat;
+                    localStorage.setItem('crump_chats', JSON.stringify(chats));
+                }
+            }
+            
+            if (typeof renderMessages === 'function') {
+                renderMessages(currentChat.messages);
+            }
+        }
         
         if (typeof showToast === 'function') {
             showToast('Failed to generate image', 'error');
@@ -335,8 +394,18 @@ async function generateImageWithPollinations(prompt) {
         
         await new Promise((resolve, reject) => {
             const img = new Image();
-            img.onload = () => resolve(imageUrl);
-            img.onerror = () => reject(new Error('Image failed to load'));
+            const timeout = setTimeout(() => {
+                reject(new Error('Image load timeout'));
+            }, 30000); // 30 second timeout
+            
+            img.onload = () => {
+                clearTimeout(timeout);
+                resolve(imageUrl);
+            };
+            img.onerror = () => {
+                clearTimeout(timeout);
+                reject(new Error('Image failed to load'));
+            };
             img.src = imageUrl;
         });
         
@@ -360,4 +429,4 @@ window.resetImageGenerationState = function() {
     console.log('🔄 Image generation state reset');
 };
 
-console.log('✅ Smart image generation v3.0 loaded - Fixed sensitivity');
+console.log('✅ Smart image generation v3.1 loaded - FIXED sensitivity + error handling');
