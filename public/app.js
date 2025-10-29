@@ -354,6 +354,24 @@ function createMessageElement(msg, index) {
     }
     
     content.appendChild(text);
+
+    // Handle generated images
+if (msg.imageUrl) {
+    const imgWrapper = document.createElement('div');
+    imgWrapper.className = 'generated-image-wrapper';
+    imgWrapper.style.cssText = 'margin-top: 0.5rem;';
+    
+    const img = document.createElement('img');
+    img.src = msg.imageUrl;
+    img.style.cssText = 'max-width: 100%; border-radius: 8px; display: block;';
+    img.alt = 'Generated image';
+    img.onerror = function() {
+        this.parentElement.innerHTML = '<div style="color: var(--color-error);">❌ Image failed to load</div>';
+    };
+    
+    imgWrapper.appendChild(img);
+    content.appendChild(imgWrapper);
+}
     
     div.appendChild(avatar);
     div.appendChild(content);
