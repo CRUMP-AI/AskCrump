@@ -439,19 +439,23 @@ async function sendMessage() {
             needsWeather = window.weatherDetectionEngine.needsWeather(message);
         }
         
-        // CHECK FOR IMAGE GENERATION REQUEST (must be BEFORE API call)
-        if (message && !fileData && window.shouldGenerateImage && window.shouldGenerateImage(message)) {
-            console.log('🎨 Image generation detected, routing to image handler');
-            
-            // Hide thinking
-            hideThinking();
-            setAssistantState('idle');
-            isProcessing = false;
-            
-            // Call image generation handler
-            await window.handleImageGeneration(message);
-            return; // EXIT - don't call chat API
-        }
+       // CHECK FOR IMAGE GENERATION REQUEST (must be BEFORE API call)
+if (message && !fileData && window.shouldGenerateImage && window.shouldGenerateImage(message)) {
+    console.log('🎨 Image generation detected, routing to image handler');
+    
+    // REMOVE the user message we just added (line 175) to prevent duplication
+    chat.messages.pop();
+    saveChats();
+    
+    // Hide thinking
+    hideThinking();
+    setAssistantState('idle');
+    isProcessing = false;
+    
+    // Call image generation handler (it will add message itself)
+    await window.handleImageGeneration(message);
+    return; // EXIT - don't call chat API
+}
         
         // Prepare request
         const requestBody = {
