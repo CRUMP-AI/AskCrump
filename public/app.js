@@ -509,7 +509,7 @@ if (message && !fileData && window.shouldGenerateImage && window.shouldGenerateI
         }
         
         // Call API
-        const response = await fetch('/api/chat.js', {
+        const response = await fetch('/api/chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
