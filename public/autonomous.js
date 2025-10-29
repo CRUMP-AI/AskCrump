@@ -1,6 +1,6 @@
 // ==========================================
-// CRUMP AI - AUTONOMOUS MESSAGING v2.0 FIXED
-// Fixed: Crump remembers what he said autonomously
+// CRUMP AI - AUTONOMOUS MESSAGING v2.1 FIXED
+// Fixed: Immediate recording - Crump always remembers what he said
 // ==========================================
 
 class AutonomousMessaging {
@@ -10,8 +10,9 @@ class AutonomousMessaging {
         this.timerId = null;
         this.lastMessageTime = Date.now();
         this.autonomousHistory = this.loadAutonomousHistory();
+        this.lastAutonomousMessageId = null; // NEW: Track last autonomous message for updating
         
-        console.log('🤖 Autonomous Messaging v2.0 initialized');
+        console.log('🤖 Autonomous Messaging v2.1 initialized');
         console.log('   Enabled:', this.enabled);
         console.log('   Frequency:', this.frequency);
         console.log('   Previous autonomous messages:', this.autonomousHistory.length);
@@ -43,24 +44,7 @@ class AutonomousMessaging {
         }
     }
     
-    recordAutonomousMessage(message, response) {
-        const record = {
-            timestamp: Date.now(),
-            message: message,
-            response: response,
-            chatId: window.currentChatId
-        };
-        
-        this.autonomousHistory.push(record);
-        
-        // Keep only last 50
-        if (this.autonomousHistory.length > 50) {
-            this.autonomousHistory.shift();
-        }
-        
-        this.saveAutonomousHistory();
-        console.log('📝 Autonomous message recorded:', message);
-    }
+    // REMOVED: recordAutonomousMessage() - no longer needed, recording happens immediately
     
     getRecentAutonomousContext(limit = 5) {
         // Get the last N autonomous messages for context
@@ -72,7 +56,10 @@ class AutonomousMessaging {
         
         return recent.map(record => {
             const timeAgo = this.getTimeAgo(record.timestamp);
-            return `[${timeAgo}] I said autonomously: "${record.message}"\nYour response: "${record.response}"`;
+            const responseText = record.response 
+                ? `Your response: "${record.response}"`
+                : "(no response yet)";
+            return `[${timeAgo}] I said autonomously: "${record.message}"\n${responseText}`;
         }).join('\n\n');
     }
     
@@ -173,7 +160,7 @@ class AutonomousMessaging {
     }
 
     // ==========================================
-    // MESSAGE GENERATION (FIXED WITH MEMORY)
+    // MESSAGE GENERATION (FIXED WITH IMMEDIATE RECORDING)
     // ==========================================
 
     async sendAutonomousMessage() {
@@ -224,7 +211,7 @@ class AutonomousMessaging {
                 },
                 body: JSON.stringify({
                     conversationContext: conversationContext,
-                    autonomousContext: autonomousContext, // NEW: Previous autonomous messages
+                    autonomousContext: autonomousContext,
                     chatHistory: recentMessages,
                     currentDateTime: {
                         date: new Date().toLocaleDateString('en-US', { 
@@ -289,14 +276,31 @@ class AutonomousMessaging {
             // Play notification sound (optional)
             this.playNotificationSound();
 
-            // FIXED: Record this autonomous message so Crump remembers it
-            // Note: We'll record the user's response when they reply
-            this.lastAutonomousMessage = {
+            // ==========================================
+            // FIXED: IMMEDIATE RECORDING
+            // Record this autonomous message RIGHT NOW so it's never lost
+            // ==========================================
+            const autonomousRecord = {
+                timestamp: Date.now(),
                 message: data.message,
-                timestamp: Date.now()
+                response: null, // Will be filled in when user responds
+                chatId: window.currentChatId
             };
 
-            console.log('✅ Autonomous message sent:', data.message.substring(0, 50) + '...');
+            this.autonomousHistory.push(autonomousRecord);
+
+            // Keep only last 50
+            if (this.autonomousHistory.length > 50) {
+                this.autonomousHistory.shift();
+            }
+
+            this.saveAutonomousHistory();
+
+            // Store reference for updating when user responds
+            this.lastAutonomousMessageId = autonomousRecord.timestamp;
+
+            console.log('📝 Autonomous message recorded immediately:', data.message.substring(0, 50) + '...');
+            console.log('✅ Autonomous message sent successfully');
 
         } catch (error) {
             console.error('❌ Autonomous message error:', error);
@@ -307,20 +311,24 @@ class AutonomousMessaging {
     }
 
     // ==========================================
-    // HOOK INTO USER RESPONSES
+    // HOOK INTO USER RESPONSES (FIXED)
     // ==========================================
     
     onUserResponse(userMessage) {
-        // If user is responding to an autonomous message, record the full exchange
-        if (this.lastAutonomousMessage && 
-            (Date.now() - this.lastAutonomousMessage.timestamp) < 300000) { // 5 minutes
-            
-            this.recordAutonomousMessage(
-                this.lastAutonomousMessage.message,
-                userMessage
+        // Find the most recent autonomous message and update it with user's response
+        if (this.lastAutonomousMessageId) {
+            const record = this.autonomousHistory.find(
+                r => r.timestamp === this.lastAutonomousMessageId
             );
             
-            this.lastAutonomousMessage = null;
+            if (record && !record.response) {
+                record.response = userMessage;
+                this.saveAutonomousHistory();
+                console.log('📝 Updated autonomous record with user response');
+            }
+            
+            // Clear the reference (user has now responded)
+            this.lastAutonomousMessageId = null;
         }
         
         // Update last message time
@@ -361,18 +369,13 @@ class AutonomousMessaging {
 window.autonomousMessaging = new AutonomousMessaging();
 
 // ==========================================
-// HOOK INTO APP'S SEND MESSAGE
+// NOTE: Event listener removed - app.js calls onUserResponse() directly
+// This is the correct approach - no need for event dispatching
 // ==========================================
-// This should be called from app.js after user sends a message
-window.addEventListener('userMessageSent', (event) => {
-    if (window.autonomousMessaging && event.detail?.message) {
-        window.autonomousMessaging.onUserResponse(event.detail.message);
-    }
-});
 
 // ==========================================
 // PUBLIC API
 // ==========================================
 window.AutonomousMessaging = AutonomousMessaging;
 
-console.log('✅ Autonomous Messaging v2.0 loaded - Now with memory!');
+console.log('✅ Autonomous Messaging v2.1 loaded - FIXED: Immediate recording!');
