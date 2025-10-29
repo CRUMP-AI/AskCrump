@@ -1,33 +1,131 @@
 {
-  "name": "Crump AI",
+  "name": "Crump AI - Personal AI Assistant",
   "short_name": "Crump",
-  "description": "Your personal AI assistant powered by the N² Engine",
+  "description": "Your personal AI assistant powered by the N² Engine. Built for productivity, powered by Claude Sonnet.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f1419",
   "theme_color": "#c9b892",
   "orientation": "portrait-primary",
   "scope": "/",
+  "lang": "en-US",
+  "dir": "ltr",
+  "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/assets/icon-192.png",
+      "src": "/public/assets/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/assets/icon-512.png",
+      "src": "/public/assets/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/assets/icon-1024.png",
+      "src": "/public/assets/icon-1024.png",
       "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any maskable"
     }
   ],
-  "categories": ["productivity", "utilities"],
-  "version": "1.0.0"
+  "screenshots": [
+    {
+      "src": "/public/assets/screenshot-desktop.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Crump AI on desktop"
+    },
+    {
+      "src": "/public/assets/screenshot-mobile.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Crump AI on mobile"
+    }
+  ],
+  "categories": [
+    "productivity",
+    "utilities",
+    "business",
+    "lifestyle"
+  ],
+  "shortcuts": [
+    {
+      "name": "New Chat",
+      "short_name": "New",
+      "description": "Start a new conversation",
+      "url": "/?action=new-chat",
+      "icons": [
+        {
+          "src": "/public/assets/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Generate Image",
+      "short_name": "Image",
+      "description": "Generate an AI image",
+      "url": "/?action=generate-image",
+      "icons": [
+        {
+          "src": "/public/assets/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Web Search",
+      "short_name": "Search",
+      "description": "Search the web",
+      "url": "/?action=web-search",
+      "icons": [
+        {
+          "src": "/public/assets/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "related_applications": [],
+  "protocol_handlers": [
+    {
+      "protocol": "web+crump",
+      "url": "/?query=%s"
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "file",
+          "accept": ["image/*", "application/pdf", "text/*"]
+        }
+      ]
+    }
+  },
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "iarc_rating_id": "",
+  "edge_side_panel": {
+    "preferred_width": 400
+  }
 }
