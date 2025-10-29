@@ -225,17 +225,14 @@ window.handleImageGeneration = async function(userMessage) {
             }
         }
 
-        // Re-render chat to show image
-        const container = document.getElementById('chatContainer');
-        container.innerHTML = '';
-        currentChat.messages.forEach(msg => {
-            if (!msg.generating && typeof renderMessage === 'function') {
-                renderMessage(msg);
-            }
-        });
+       // Re-render chat to show image using app.js renderMessages
+        if (typeof renderMessages === 'function') {
+            renderMessages(currentChat.messages);
+        }
         
-        if (typeof scrollToBottom === 'function') {
-            scrollToBottom();
+        // Scroll to bottom
+        if (window.crumpScrollManager) {
+            window.crumpScrollManager.scrollToBottom('smooth');
         }
 
         console.log('✅ Image generated successfully');
