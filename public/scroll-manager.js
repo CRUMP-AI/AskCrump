@@ -1,118 +1,195 @@
 // ==========================================
-// CRUMP AI - SCROLL MANAGER v1.0
-// Scrolls to TOP of new Crump messages
+// CRUMP AI - SERVICE WORKER v2.0.0
+// FOR /public/ DIRECTORY STRUCTURE
 // ==========================================
-(function() {
-'use strict';
-let chatContainer = null;
-let scrollToEndBtn = null;
-let isUserScrolling = false;
-let scrollTimeout = null;
+const CACHE_NAME = 'crump-v2.0.0-pwa-ready';
 
-function initScrollToEnd() {
-    chatContainer = document.getElementById('chatContainer');
-    scrollToEndBtn = document.getElementById('scrollToEndBtn');
+const urlsToCache = [
+    // Core HTML/JSON
+    '/',
+    '/index.html',
+    '/manifest.json',
     
-    if (!chatContainer || !scrollToEndBtn) {
-        console.warn('⚠️ Scroll manager: Required elements not found');
+    // CSS files - /public/ directory
+    '/public/styles.css',
+    '/public/new-features.css',
+    '/public/professional-tiers.css',
+    '/public/assistant-character.css',
+    '/public/pwa-styles.css',
+    
+    // JavaScript files - /public/ directory
+    '/public/app.js',
+    '/public/engines.js',
+    '/public/autonomous.js',
+    '/public/profile-manager.js',
+    '/public/image-generation.js',
+    '/public/ui-functions.js',
+    '/public/developer-mode.js',
+    '/public/scroll-manager.js',
+    '/public/tutorial.js',
+    '/public/self-debug-v3.js',
+    '/public/pwa-manager.js',
+    '/public/network-status.js',
+    '/public/upgrade-ui.js',
+    '/public/mobile-keyboard-handler.js',
+    
+    // Images - /public/assets/
+    '/public/assets/logo-c.png',
+    '/public/assets/assistant.png',
+    '/public/assets/icon-192.png',
+    '/public/assets/icon-512.png',
+    '/public/assets/icon-1024.png'
+];
+
+// ==========================================
+// INSTALL - Cache all files
+// ==========================================
+self.addEventListener('install', (event) => {
+    console.log('🔧 Service Worker: Installing v2.0.0...');
+    
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then((cache) => {
+                console.log('✅ Service Worker: Cache opened');
+                
+                // Cache files individually for better error reporting
+                return Promise.allSettled(
+                    urlsToCache.map(url => 
+                        cache.add(url)
+                            .then(() => console.log('✅ Cached:', url))
+                            .catch(err => console.warn('⚠️ Failed to cache:', url, err.message))
+                    )
+                );
+            })
+            .then((results) => {
+                const succeeded = results.filter(r => r.status === 'fulfilled').length;
+                const failed = results.filter(r => r.status === 'rejected').length;
+                console.log(`✅ Service Worker: Cached ${succeeded}/${urlsToCache.length} files (${failed} failed)`);
+            })
+            .catch((err) => {
+                console.error('❌ Service Worker: Cache failed', err);
+            })
+    );
+    
+    // Force immediate activation
+    self.skipWaiting();
+});
+
+// ==========================================
+// ACTIVATE - Clean up old caches
+// ==========================================
+self.addEventListener('activate', (event) => {
+    console.log('🔧 Service Worker: Activating v2.0.0...');
+    
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cacheName) => {
+                    if (cacheName !== CACHE_NAME) {
+                        console.log('🗑️ Service Worker: Deleting old cache', cacheName);
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        }).then(() => {
+            console.log('✅ Service Worker: Cache cleanup complete');
+        })
+    );
+    
+    // Take control immediately
+    return self.clients.claim();
+});
+
+// ==========================================
+// MESSAGE HANDLER (for skip waiting)
+// ==========================================
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        console.log('📱 Received SKIP_WAITING message');
+        self.skipWaiting();
+    }
+});
+
+// ==========================================
+// FETCH - Network first, cache fallback
+// ==========================================
+self.addEventListener('fetch', (event) => {
+    // Skip API calls - always fetch fresh
+    if (event.request.url.includes('/api/')) {
         return;
     }
     
-    chatContainer.addEventListener('scroll', handleScroll);
-    scrollToEndBtn.addEventListener('click', scrollToBottom);
-    
-    console.log('✅ Scroll manager initialized');
-}
-
-function handleScroll() {
-    if (!chatContainer || !scrollToEndBtn) return;
-    
-    const { scrollTop, scrollHeight, clientHeight } = chatContainer;
-    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-    
-    // Show button if scrolled up more than 200px
-    if (distanceFromBottom > 200) {
-        scrollToEndBtn.classList.add('visible');
-        isUserScrolling = true;
-    } else {
-        scrollToEndBtn.classList.remove('visible');
-        isUserScrolling = false;
-    }
-    
-    if (scrollTimeout) {
-        clearTimeout(scrollTimeout);
-    }
-    
-    scrollTimeout = setTimeout(() => {
-        isUserScrolling = false;
-    }, 3000);
-}
-
-function scrollToBottom(behaviorOrEvent) {
-    if (!chatContainer) return;
-    
-    // If called from click event, use 'smooth', otherwise use the passed value
-    const behavior = (typeof behaviorOrEvent === 'string') ? behaviorOrEvent : 'smooth';
-    
-    chatContainer.scrollTo({
-        top: chatContainer.scrollHeight,
-        behavior: behavior
-    });
-    
-    if (scrollToEndBtn) {
-        scrollToEndBtn.classList.remove('visible');
-    }
-    
-    isUserScrolling = false;
-}
-
-// CRITICAL: Scroll to TOP of new Crump message
-function scrollToMessageTop(messageElement) {
-    if (!chatContainer || !messageElement) return;
-    
-    // Only auto-scroll if user isn't actively scrolling up
-    if (isUserScrolling) {
-        console.log('User scrolling - skipping auto-scroll');
+    // Skip external CDN resources
+    if (event.request.url.includes('googleapis.com') ||
+        event.request.url.includes('cdnjs.cloudflare.com') ||
+        event.request.url.includes('jsdelivr.net') ||
+        event.request.url.includes('stripe.com') ||
+        event.request.url.includes('stripe.network') ||
+        event.request.url.includes('gstatic.com')) {
         return;
     }
     
-    setTimeout(() => {
-        const containerTop = chatContainer.getBoundingClientRect().top;
-        const messageTop = messageElement.getBoundingClientRect().top;
-        const offset = messageTop - containerTop + chatContainer.scrollTop - 20;
-        
-        chatContainer.scrollTo({
-            top: offset,
-            behavior: 'smooth'
-        });
-    }, 100);
-}
-
-function autoScrollToBottom() {
-    if (!chatContainer || isUserScrolling) return;
-    scrollToBottom('smooth');
-}
-
-function isNearBottom() {
-    if (!chatContainer) return false;
+    // Skip non-GET requests
+    if (event.request.method !== 'GET') {
+        return;
+    }
     
-    const { scrollTop, scrollHeight, clientHeight } = chatContainer;
-    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    // Skip non-HTTP protocols
+    if (!event.request.url.startsWith('http')) {
+        return;
+    }
     
-    return distanceFromBottom < 100;
-}
+    event.respondWith(
+        // Try network first (ensures latest version)
+        fetch(event.request)
+            .then((response) => {
+                // Only cache successful responses
+                if (!response || response.status !== 200 || response.type === 'error') {
+                    return response;
+                }
+                
+                // Clone for cache
+                const responseClone = response.clone();
+                
+                // Update cache in background
+                caches.open(CACHE_NAME)
+                    .then((cache) => {
+                        cache.put(event.request, responseClone);
+                    })
+                    .catch(err => {
+                        console.warn('⚠️ Cache write failed:', err.message);
+                    });
+                
+                return response;
+            })
+            .catch(() => {
+                // Network failed, try cache
+                return caches.match(event.request)
+                    .then(cachedResponse => {
+                        if (cachedResponse) {
+                            console.log('📦 Serving from cache:', event.request.url);
+                            return cachedResponse;
+                        }
+                        
+                        // No cache available
+                        return new Response('Offline - content not cached', {
+                            status: 503,
+                            statusText: 'Service Unavailable',
+                            headers: { 'Content-Type': 'text/plain' }
+                        });
+                    });
+            })
+    );
+});
 
-// Public API
-window.crumpScrollManager = {
-    init: initScrollToEnd,
-    scrollToBottom: scrollToBottom,
-    scrollToMessageTop: scrollToMessageTop,
-    autoScrollToBottom: autoScrollToBottom,
-    isNearBottom: isNearBottom,
-    setUserScrolling: (value) => { isUserScrolling = value; }
-};
+// ==========================================
+// BACKGROUND SYNC (Optional - for offline features)
+// ==========================================
+self.addEventListener('sync', (event) => {
+    if (event.tag === 'sync-messages') {
+        console.log('🔄 Background sync triggered');
+        // Could implement message queue sync here
+    }
+});
 
-// Don't auto-init - let app.js call it after app is ready
-console.log('✅ Scroll Manager v1.0 loaded');
-})();
-
+console.log('✅ Service Worker v2.0.0 loaded - Auto-updates enabled');
