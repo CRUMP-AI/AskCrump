@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crump AI - Offline</title>
+    <style>
+        :root {
+            --color-bg-primary: #0f1419;
+            --color-bg-secondary: #1a1f2e;
+            --color-accent-primary: #c9b892;
+            --color-text-primary: #e8e9ed;
+            --color-text-secondary: #8a8f98;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+            background: var(--color-bg-primary);
+            color: var(--color-text-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .icon {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 2rem;
+            background: var(--color-bg-secondary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid var(--color-accent-primary);
+        }
+
+        .icon svg {
+            width: 64px;
+            height: 64px;
+            stroke: var(--color-accent-primary);
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--color-accent-primary);
+        }
+
+        p {
+            font-size: 1.125rem;
+            line-height: 1.6;
+            color: var(--color-text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: var(--color-accent-primary);
+            color: var(--color-bg-primary);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(201, 184, 146, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--color-bg-secondary);
+            color: var(--color-text-primary);
+            border: 1px solid var(--color-accent-primary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--color-accent-primary);
+            color: var(--color-bg-primary);
+        }
+
+        .status {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: var(--color-bg-secondary);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+        }
+
+        .status.online {
+            border: 1px solid #10b981;
+            color: #10b981;
+        }
+
+        .status.offline {
+            border: 1px solid #ef4444;
+            color: #ef4444;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .checking {
+            animation: pulse 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+            </svg>
+        </div>
+
+        <h1>You're Offline</h1>
+        <p>It looks like you've lost your internet connection. Check your network and try again.</p>
+
+        <div class="actions">
+            <button class="btn btn-primary" onclick="location.reload()">Try Again</button>
+            <a href="/" class="btn btn-secondary">Go to Home</a>
+        </div>
+
+        <div class="status checking" id="status">
+            Checking connection...
+        </div>
+    </div>
+
+    <script>
+        // Check connection status
+        function updateStatus() {
+            const statusEl = document.getElementById('status');
+            
+            if (navigator.onLine) {
+                statusEl.textContent = '✅ Back online! Click "Try Again" to continue.';
+                statusEl.className = 'status online';
+            } else {
+                statusEl.textContent = '📡 Still offline. Waiting for connection...';
+                statusEl.className = 'status offline';
+            }
+        }
+
+        // Listen for online/offline events
+        window.addEventListener('online', updateStatus);
+        window.addEventListener('offline', updateStatus);
+
+        // Check status on load
+        setTimeout(updateStatus, 1000);
+
+        // Periodically check connection
+        setInterval(updateStatus, 5000);
+    </script>
+</body>
+</html>
