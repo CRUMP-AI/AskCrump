@@ -1,29 +1,33 @@
 {
   "name": "crump-ai",
   "version": "2.0.0",
-  "description": "Personal AI Virtual Assistant with 40+ API integrations",
+  "description": "Personal AI Assistant powered by the N² Engine - Built by Gregory D. Crump Jr.",
   "type": "module",
+  "main": "public/index.html",
   "scripts": {
-    "dev": "npx serve . -p 3000",
-    "build": "echo 'Static site - no build needed'",
+    "dev": "npx serve public -p 3000",
+    "start": "npx serve public -p 8080",
     "deploy": "vercel --prod",
-    "test": "echo 'Tests coming soon'",
-    "lint": "echo 'Linting coming soon'"
+    "deploy:preview": "vercel"
   },
   "keywords": [
     "ai",
     "assistant",
     "chatbot",
     "pwa",
-    "virtual-assistant"
+    "claude",
+    "gpt-4",
+    "personal-assistant"
   ],
-  "author": "Crump AI",
+  "author": "Gregory D. Crump Jr.",
   "license": "MIT",
-  "dependencies": {},
-  "devDependencies": {
-    "serve": "^14.2.1"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/CRUMP-AI.git"
   },
+  "homepage": "https://crumpai.vercel.app",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   }
 }
