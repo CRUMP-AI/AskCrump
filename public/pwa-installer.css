@@ -1,33 +1,58 @@
-/* ==========================================
-   CRUMP AI - PWA INSTALLER STYLES v2.0
-   Professional, minimalistic design
-   ========================================== */
+/* ============================================
+   CRUMP AI - PWA INSTALLER CSS v2.0 ENHANCED
+   Professional PWA installation experience
+   ============================================ */
 
-/* ==========================================
-   INSTALL BANNER (Bottom Banner)
-   ========================================== */
+/* ============================================
+   TABLE OF CONTENTS
+   1. Install Banner (Bottom Banner)
+   2. Sidebar Install Button
+   3. iOS Instructions Modal
+   4. Android Instructions
+   5. Installation States
+   6. Responsive Design
+   7. Accessibility
+   ============================================ */
+
+/* ============================================
+   1. INSTALL BANNER (BOTTOM BANNER)
+   Slide-up banner prompting installation
+   ============================================ */
 .pwa-install-banner {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    background: linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-secondary) 100%);
-    color: var(--color-bg-primary);
-    padding: 1rem 1.5rem;
+    background: linear-gradient(135deg, 
+        var(--color-accent-primary, #c9b892) 0%, 
+        var(--color-accent-hover, #b8a57d) 100%
+    );
+    color: var(--color-bg-primary, #0f1419);
+    padding: var(--space-4, 1rem) var(--space-6, 1.5rem);
     display: flex;
     align-items: center;
-    gap: 1rem;
-    z-index: 9999;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+    gap: var(--space-4, 1rem);
+    z-index: var(--z-toast, 9999);
+    box-shadow: var(--shadow-xl, 0 -4px 20px rgba(0, 0, 0, 0.4));
     transform: translateY(100%);
     transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     border-top: 1px solid rgba(255, 255, 255, 0.2);
+    
+    /* Safe area insets */
+    padding-left: max(var(--space-6, 1.5rem), env(safe-area-inset-left));
+    padding-right: max(var(--space-6, 1.5rem), env(safe-area-inset-right));
+    padding-bottom: max(var(--space-4, 1rem), env(safe-area-inset-bottom));
+    
+    /* Performance optimization */
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .pwa-install-banner.visible {
     transform: translateY(0);
 }
 
+/* ===== BANNER ICON ===== */
 .pwa-install-icon {
     display: flex;
     align-items: center;
@@ -35,8 +60,16 @@
     width: 48px;
     height: 48px;
     background: rgba(255, 255, 255, 0.15);
-    border-radius: 12px;
+    border-radius: var(--radius-lg, 12px);
     flex-shrink: 0;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: all var(--transition-fast, 0.2s ease);
+}
+
+.pwa-install-banner:hover .pwa-install-icon {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
 }
 
 .pwa-install-icon svg {
@@ -44,47 +77,64 @@
     height: 28px;
 }
 
+.pwa-install-icon img {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md, 8px);
+}
+
+/* ===== BANNER CONTENT ===== */
 .pwa-install-content {
     flex: 1;
     min-width: 0;
 }
 
 .pwa-install-content h3 {
-    margin: 0 0 0.25rem 0;
-    font-size: 1rem;
-    font-weight: 700;
+    margin: 0 0 var(--space-1, 0.25rem) 0;
+    font-size: var(--font-size-base, 1rem);
+    font-weight: var(--font-weight-bold, 700);
     letter-spacing: -0.01em;
+    line-height: var(--line-height-tight, 1.25);
 }
 
 .pwa-install-content p {
     margin: 0;
-    font-size: 0.875rem;
+    font-size: var(--font-size-sm, 0.875rem);
     opacity: 0.9;
-    font-weight: 400;
+    font-weight: var(--font-weight-normal, 400);
+    line-height: var(--line-height-normal, 1.5);
 }
 
+/* ===== BANNER ACTIONS ===== */
 .pwa-install-actions {
     display: flex;
-    gap: 0.75rem;
+    gap: var(--space-3, 0.75rem);
     flex-shrink: 0;
 }
 
 .pwa-install-btn {
-    padding: 0.625rem 1.25rem;
+    padding: var(--space-2, 0.625rem) var(--space-5, 1.25rem);
     border: none;
-    border-radius: 8px;
-    font-size: 0.9375rem;
-    font-weight: 600;
+    border-radius: var(--radius-md, 8px);
+    font-size: var(--font-size-sm, 0.9375rem);
+    font-weight: var(--font-weight-semibold, 600);
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--transition-fast, 0.2s cubic-bezier(0.4, 0, 0.2, 1));
     white-space: nowrap;
     letter-spacing: -0.01em;
+    user-select: none;
+}
+
+.pwa-install-btn:focus-visible {
+    outline: 2px solid var(--color-bg-primary, #0f1419);
+    outline-offset: 2px;
 }
 
 .pwa-btn-dismiss {
     background: rgba(255, 255, 255, 0.15);
-    color: var(--color-bg-primary);
+    color: var(--color-bg-primary, #0f1419);
     backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
 .pwa-btn-dismiss:hover {
@@ -92,70 +142,141 @@
     transform: translateY(-1px);
 }
 
+.pwa-btn-dismiss:active {
+    transform: translateY(0);
+}
+
 .pwa-btn-install {
-    background: var(--color-bg-primary);
-    color: var(--color-accent-primary);
-    font-weight: 700;
+    background: var(--color-bg-primary, #0f1419);
+    color: var(--color-accent-primary, #c9b892);
+    font-weight: var(--font-weight-bold, 700);
 }
 
 .pwa-btn-install:hover {
-    background: var(--color-bg-secondary);
+    background: var(--color-bg-secondary, #1a1f29);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* ==========================================
-   SIDEBAR INSTALL BUTTON
-   ========================================== */
+.pwa-btn-install:active {
+    transform: translateY(0);
+}
+
+/* ============================================
+   2. SIDEBAR INSTALL BUTTON
+   Prominent install button in sidebar
+   ============================================ */
 #install-app-btn {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.875rem 1.25rem;
-    background: linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-secondary) 100%);
-    color: var(--color-bg-primary);
+    gap: var(--space-3, 0.75rem);
+    padding: var(--space-4, 0.875rem) var(--space-5, 1.25rem);
+    background: linear-gradient(135deg, 
+        var(--color-accent-primary, #c9b892) 0%, 
+        var(--color-accent-hover, #b8a57d) 100%
+    );
+    color: var(--color-bg-primary, #0f1419);
     border: none;
-    border-radius: 10px;
-    font-size: 0.9375rem;
-    font-weight: 600;
+    border-radius: var(--radius-md, 10px);
+    font-size: var(--font-size-sm, 0.9375rem);
+    font-weight: var(--font-weight-semibold, 600);
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--transition-fast, 0.2s cubic-bezier(0.4, 0, 0.2, 1));
     width: 100%;
     justify-content: center;
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-3, 0.75rem);
     letter-spacing: -0.01em;
+    user-select: none;
+    
+    /* Performance optimization */
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 #install-app-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
+    box-shadow: 0 6px 20px rgba(201, 184, 146, 0.4);
 }
 
 #install-app-btn:active {
     transform: translateY(0);
 }
 
-#install-app-btn svg {
-    flex-shrink: 0;
+#install-app-btn:focus-visible {
+    outline: 2px solid var(--color-accent-primary, #c9b892);
+    outline-offset: 2px;
 }
 
-/* ==========================================
-   IOS INSTRUCTIONS MODAL
-   ========================================== */
+#install-app-btn svg {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+}
+
+/* Disabled state */
+#install-app-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Loading state */
+#install-app-btn.loading {
+    position: relative;
+    color: transparent;
+}
+
+#install-app-btn.loading::after {
+    content: "";
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(15, 20, 25, 0.3);
+    border-top-color: var(--color-bg-primary, #0f1419);
+    border-radius: 50%;
+    animation: btnSpin 0.6s linear infinite;
+}
+
+@keyframes btnSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ============================================
+   3. IOS INSTRUCTIONS MODAL
+   Step-by-step installation guide for iOS
+   ============================================ */
 #ios-install-modal .modal-content {
     max-width: 440px;
 }
 
+#ios-install-modal .modal-body {
+    padding: var(--space-6, 1.5rem);
+}
+
+#ios-install-modal h3 {
+    font-family: var(--font-display, 'Crimson Pro', Georgia, serif);
+    font-size: var(--font-size-xl, 1.25rem);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--color-accent-primary, #c9b892);
+    margin-bottom: var(--space-4, 1rem);
+    text-align: center;
+}
+
 #ios-install-modal ol {
-    background: var(--color-bg-tertiary);
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
-    padding: 1.5rem 1.5rem 1.5rem 2.5rem;
+    background: var(--color-bg-tertiary, #252b37);
+    border: 1px solid var(--color-border, #2d3748);
+    border-radius: var(--radius-lg, 12px);
+    padding: var(--space-6, 1.5rem) var(--space-6, 1.5rem) var(--space-6, 1.5rem) var(--space-10, 2.5rem);
+    margin: var(--space-4, 1rem) 0;
+    line-height: var(--line-height-relaxed, 1.75);
 }
 
 #ios-install-modal ol li {
-    margin-bottom: 0.75rem;
-    color: var(--color-text-primary);
+    margin-bottom: var(--space-3, 0.75rem);
+    color: var(--color-text-primary, #e5e7eb);
+    font-size: var(--font-size-sm, 0.875rem);
 }
 
 #ios-install-modal ol li:last-child {
@@ -163,16 +284,136 @@
 }
 
 #ios-install-modal ol strong {
-    color: var(--color-accent-primary);
-    font-weight: 600;
+    color: var(--color-accent-primary, #c9b892);
+    font-weight: var(--font-weight-semibold, 600);
 }
 
-/* ==========================================
-   RESPONSIVE DESIGN
-   ========================================== */
+#ios-install-modal .share-icon,
+#ios-install-modal .plus-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: var(--color-accent-primary, #c9b892);
+    color: var(--color-bg-primary, #0f1419);
+    border-radius: var(--radius-sm, 4px);
+    font-size: 16px;
+    font-weight: bold;
+    vertical-align: middle;
+    margin: 0 var(--space-1, 0.25rem);
+}
+
+/* ============================================
+   4. ANDROID INSTRUCTIONS
+   Installation prompts for Android devices
+   ============================================ */
+#android-install-modal .modal-content {
+    max-width: 440px;
+}
+
+#android-install-modal .instruction-card {
+    background: var(--color-bg-tertiary, #252b37);
+    border: 1px solid var(--color-border, #2d3748);
+    border-radius: var(--radius-lg, 12px);
+    padding: var(--space-4, 1rem);
+    margin-bottom: var(--space-3, 0.75rem);
+    transition: all var(--transition-fast, 0.2s ease);
+}
+
+#android-install-modal .instruction-card:hover {
+    border-color: var(--color-accent-primary, #c9b892);
+    background: var(--color-bg-elevated, #2a3240);
+}
+
+#android-install-modal .instruction-card h4 {
+    color: var(--color-accent-primary, #c9b892);
+    margin-bottom: var(--space-2, 0.5rem);
+    font-size: var(--font-size-base, 1rem);
+    font-weight: var(--font-weight-semibold, 600);
+}
+
+#android-install-modal .instruction-card p {
+    color: var(--color-text-secondary, #9ca3af);
+    font-size: var(--font-size-sm, 0.875rem);
+    line-height: var(--line-height-normal, 1.5);
+    margin: 0;
+}
+
+/* ============================================
+   5. INSTALLATION STATES
+   Visual feedback during installation
+   ============================================ */
+
+/* Success animation */
+.pwa-install-banner.success {
+    animation: installSuccess 0.6s ease forwards;
+}
+
+@keyframes installSuccess {
+    0% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: translateY(-10px) scale(1.02);
+        opacity: 0.9;
+    }
+    100% {
+        transform: translateY(100%) scale(1);
+        opacity: 0;
+    }
+}
+
+/* Installing state */
+.pwa-install-banner.installing {
+    pointer-events: none;
+}
+
+.pwa-install-banner.installing .pwa-btn-install {
+    position: relative;
+    color: transparent;
+}
+
+.pwa-install-banner.installing .pwa-btn-install::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border: 2px solid rgba(201, 184, 146, 0.3);
+    border-top-color: var(--color-accent-primary, #c9b892);
+    border-radius: 50%;
+    animation: btnSpin 0.6s linear infinite;
+}
+
+/* Error state */
+.pwa-install-banner.error {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    animation: errorShake 0.5s ease;
+}
+
+@keyframes errorShake {
+    0%, 100% {
+        transform: translateY(0) translateX(0);
+    }
+    25% {
+        transform: translateY(0) translateX(-10px);
+    }
+    75% {
+        transform: translateY(0) translateX(10px);
+    }
+}
+
+/* ============================================
+   6. RESPONSIVE DESIGN
+   Mobile and tablet optimizations
+   ============================================ */
 @media (max-width: 768px) {
     .pwa-install-banner {
-        padding: 1rem;
+        padding: var(--space-4, 1rem);
         flex-wrap: wrap;
     }
     
@@ -186,76 +427,120 @@
         height: 24px;
     }
     
+    .pwa-install-icon img {
+        width: 28px;
+        height: 28px;
+    }
+    
     .pwa-install-content h3 {
-        font-size: 0.9375rem;
+        font-size: var(--font-size-sm, 0.9375rem);
     }
     
     .pwa-install-content p {
-        font-size: 0.8125rem;
+        font-size: var(--font-size-xs, 0.8125rem);
     }
     
     .pwa-install-actions {
         width: 100%;
-        margin-top: 0.5rem;
+        margin-top: var(--space-2, 0.5rem);
     }
     
     .pwa-install-btn {
         flex: 1;
-        padding: 0.75rem 1rem;
-        font-size: 0.875rem;
+        padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+        font-size: var(--font-size-sm, 0.875rem);
+    }
+    
+    /* Adjust modal padding */
+    #ios-install-modal ol {
+        padding: var(--space-4, 1rem) var(--space-4, 1rem) var(--space-4, 1rem) var(--space-8, 2rem);
     }
 }
 
 @media (max-width: 480px) {
     .pwa-install-banner {
-        padding: 0.875rem;
+        padding: var(--space-3, 0.875rem);
+    }
+    
+    .pwa-install-icon {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .pwa-install-icon svg {
+        width: 20px;
+        height: 20px;
     }
     
     .pwa-install-content h3 {
-        font-size: 0.875rem;
+        font-size: var(--font-size-sm, 0.875rem);
     }
     
     .pwa-install-content p {
-        font-size: 0.75rem;
+        font-size: var(--font-size-xs, 0.75rem);
     }
     
     .pwa-install-btn {
-        padding: 0.625rem 0.875rem;
-        font-size: 0.8125rem;
-    }
-}
-
-/* ==========================================
-   REDUCED MOTION
-   ========================================== */
-@media (prefers-reduced-motion: reduce) {
-    .pwa-install-banner {
-        transition: none;
+        padding: var(--space-2, 0.625rem) var(--space-3, 0.875rem);
+        font-size: var(--font-size-xs, 0.8125rem);
     }
     
-    .pwa-install-btn,
     #install-app-btn {
-        transition: none;
+        padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+        font-size: var(--font-size-sm, 0.875rem);
     }
 }
 
-/* ==========================================
-   SAFE AREA INSETS (For notched devices)
-   ========================================== */
-@supports (padding: max(0px)) {
+/* ============================================
+   7. ACCESSIBILITY
+   Screen reader support and reduced motion
+   ============================================ */
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .pwa-install-banner,
+    .pwa-install-btn,
+    #install-app-btn,
+    .pwa-install-icon {
+        transition: none !important;
+        animation: none !important;
+    }
+    
+    .pwa-install-banner.visible {
+        transform: translateY(0);
+    }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
     .pwa-install-banner {
-        padding-left: max(1.5rem, env(safe-area-inset-left));
-        padding-right: max(1.5rem, env(safe-area-inset-right));
-        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+        border-top: 2px solid currentColor;
+    }
+    
+    .pwa-btn-install {
+        border: 2px solid currentColor;
     }
 }
 
-/* ==========================================
+/* Focus visible styles */
+.pwa-install-btn:focus-visible,
+#install-app-btn:focus-visible {
+    outline: 3px solid var(--color-accent-primary, #c9b892);
+    outline-offset: 2px;
+}
+
+/* Screen reader announcements */
+.pwa-install-banner[aria-hidden="true"] {
+    display: none;
+}
+
+/* ============================================
    DARK MODE ADJUSTMENTS
-   ========================================== */
+   Enhanced appearance in dark mode
+   ============================================ */
 @media (prefers-color-scheme: dark) {
     .pwa-install-banner {
-        box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.6);
+        box-shadow: var(--shadow-2xl, 0 -4px 24px rgba(0, 0, 0, 0.6));
     }
     
     .pwa-btn-dismiss {
@@ -265,36 +550,49 @@
     .pwa-btn-dismiss:hover {
         background: rgba(255, 255, 255, 0.2);
     }
-}
-
-/* ==========================================
-   ANIMATIONS
-   ========================================== */
-@keyframes installSuccess {
-    0% {
-        transform: scale(1);
-        opacity: 1;
-    }
-    50% {
-        transform: scale(1.05);
-        opacity: 0.8;
-    }
-    100% {
-        transform: scale(1);
-        opacity: 0;
+    
+    .pwa-install-icon {
+        background: rgba(255, 255, 255, 0.12);
     }
 }
 
-.pwa-install-banner.success {
-    animation: installSuccess 0.6s ease forwards;
-}
-
-/* ==========================================
+/* ============================================
    PRINT STYLES
-   ========================================== */
+   Hide installation prompts when printing
+   ============================================ */
 @media print {
+    .pwa-install-banner,
+    #install-app-btn,
+    #ios-install-modal,
+    #android-install-modal {
+        display: none !important;
+    }
+}
+
+/* ============================================
+   PERFORMANCE OPTIMIZATIONS
+   GPU acceleration for smooth animations
+   ============================================ */
+.pwa-install-banner,
+.pwa-install-btn,
+#install-app-btn,
+.pwa-install-icon {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+
+/* ============================================
+   STANDALONE MODE DETECTION
+   Hide prompts when already installed
+   ============================================ */
+@media all and (display-mode: standalone) {
     .pwa-install-banner,
     #install-app-btn {
         display: none !important;
     }
 }
+
+/* ============================================
+   END OF PWA INSTALLER CSS
+   Professional installation experience
+   ============================================ */
