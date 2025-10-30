@@ -331,7 +331,7 @@
             <div class="sidebar-branding-footer">
                 <div class="branding-line">
                     <span class="branding-powered">Powered by</span>
-                    <span class="branding-engine">N² Engine</span>
+                    <span class="branding-engine">NÂ² Engine</span>
                 </div>
                 <div class="branding-status">
                     <span class="status-indicator status-online"></span>
@@ -581,6 +581,9 @@
 <div id="toastContainer" class="toast-container"></div>
 <input type="file" id="fileInput" style="display: none;" accept="image/*,.pdf,.txt,.doc,.docx" multiple>
 
+<!-- CRITICAL: Load config and error handler FIRST -->
+<script src="/config-error-handler.js"></script>
+
 <!-- SCRIPTS - PROFESSIONAL TIER SYSTEM -->
 <script src="/tutorial.js"></script>
 <script src="/engines.js"></script>
@@ -610,28 +613,28 @@ let deferredPrompt = null;
 function isPWAInstalled() {
     // Check if running in standalone mode (installed)
     if (window.matchMedia('(display-mode: standalone)').matches) {
-        console.log('[PWA] ✅ Running in standalone mode');
+        console.log('[PWA] âœ… Running in standalone mode');
         return true;
     }
     
     // Check if user previously installed
     if (localStorage.getItem('crump_pwa_installed') === 'true') {
-        console.log('[PWA] ✅ Previously marked as installed');
+        console.log('[PWA] âœ… Previously marked as installed');
         return true;
     }
     
     // Check iOS standalone mode
     if (window.navigator.standalone === true) {
-        console.log('[PWA] ✅ Running as iOS web app');
+        console.log('[PWA] âœ… Running as iOS web app');
         return true;
     }
     
-    console.log('[PWA] ❌ Not installed');
+    console.log('[PWA] âŒ Not installed');
     return false;
 }
 
 // Initialize on load
-console.log('[PWA] 🚀 Initializing install prompt system...');
+console.log('[PWA] ðŸš€ Initializing install prompt system...');
 
 if (isPWAInstalled()) {
     console.log('[PWA] Already installed - hiding banner');
@@ -641,7 +644,7 @@ if (isPWAInstalled()) {
     
     // Listen for the install prompt
     window.addEventListener('beforeinstallprompt', (e) => {
-        console.log('[PWA] 🎯 beforeinstallprompt event fired!');
+        console.log('[PWA] ðŸŽ¯ beforeinstallprompt event fired!');
         
         // Prevent Chrome 67 and earlier from automatically showing the prompt
         e.preventDefault();
@@ -658,33 +661,33 @@ if (isPWAInstalled()) {
         if (!dismissedTime || (now - parseInt(dismissedTime)) > sevenDays) {
             // Wait 3 seconds after page load, then show banner
             setTimeout(() => {
-                console.log('[PWA] 📢 Showing install banner');
+                console.log('[PWA] ðŸ“¢ Showing install banner');
                 const banner = document.getElementById('pwaInstallBanner');
                 if (banner) {
                     banner.classList.add('visible');
                 }
             }, 3000);
         } else {
-            console.log('[PWA] ⏰ Banner was dismissed recently, waiting...');
+            console.log('[PWA] â° Banner was dismissed recently, waiting...');
         }
     });
 }
 
 // Install button click handler
 document.getElementById('pwaInstallBtn').addEventListener('click', async () => {
-    console.log('[PWA] 🖱️ Install button clicked');
+    console.log('[PWA] ðŸ–±ï¸ Install button clicked');
     
     const banner = document.getElementById('pwaInstallBanner');
     
     if (!deferredPrompt) {
-        console.error('[PWA] ❌ No deferred prompt available');
+        console.error('[PWA] âŒ No deferred prompt available');
         if (banner) banner.classList.remove('visible');
         
         // Show helpful message
         alert('Install option not available. Try:\n\n' +
-              '• Chrome: Menu → Install Crump\n' +
-              '• Safari (iOS): Share → Add to Home Screen\n' +
-              '• Edge: Menu → Apps → Install Crump');
+              'â€¢ Chrome: Menu â†’ Install Crump\n' +
+              'â€¢ Safari (iOS): Share â†’ Add to Home Screen\n' +
+              'â€¢ Edge: Menu â†’ Apps â†’ Install Crump');
         return;
     }
     
@@ -693,22 +696,22 @@ document.getElementById('pwaInstallBtn').addEventListener('click', async () => {
     
     try {
         // Show the install prompt
-        console.log('[PWA] 📱 Showing native install prompt');
+        console.log('[PWA] ðŸ“± Showing native install prompt');
         await deferredPrompt.prompt();
         
         // Wait for the user's response
         const { outcome } = await deferredPrompt.userChoice;
-        console.log('[PWA] 📊 User choice:', outcome);
+        console.log('[PWA] ðŸ“Š User choice:', outcome);
         
         if (outcome === 'accepted') {
-            console.log('[PWA] ✅ User accepted the install');
+            console.log('[PWA] âœ… User accepted the install');
             localStorage.setItem('crump_pwa_installed', 'true');
             localStorage.removeItem('crump_pwa_dismissed_time');
         } else {
-            console.log('[PWA] ❌ User dismissed the install');
+            console.log('[PWA] âŒ User dismissed the install');
         }
     } catch (error) {
-        console.error('[PWA] ❌ Install prompt error:', error);
+        console.error('[PWA] âŒ Install prompt error:', error);
     }
     
     // Clear the deferred prompt
@@ -717,7 +720,7 @@ document.getElementById('pwaInstallBtn').addEventListener('click', async () => {
 
 // Dismiss button click handler
 document.getElementById('pwaDismissBtn').addEventListener('click', () => {
-    console.log('[PWA] ⏸️ User dismissed banner');
+    console.log('[PWA] â¸ï¸ User dismissed banner');
     
     const banner = document.getElementById('pwaInstallBanner');
     if (banner) banner.classList.remove('visible');
@@ -728,7 +731,7 @@ document.getElementById('pwaDismissBtn').addEventListener('click', () => {
 
 // Listen for successful installation
 window.addEventListener('appinstalled', (e) => {
-    console.log('[PWA] 🎉 App installed successfully!');
+    console.log('[PWA] ðŸŽ‰ App installed successfully!');
     
     // Mark as installed
     localStorage.setItem('crump_pwa_installed', 'true');
@@ -768,8 +771,8 @@ window.crumpPWADebug = {
     }
 };
 
-console.log('[PWA] ✅ Install prompt system loaded');
-console.log('[PWA] 💡 Run window.crumpPWADebug.checkStatus() to debug');
+console.log('[PWA] âœ… Install prompt system loaded');
+console.log('[PWA] ðŸ’¡ Run window.crumpPWADebug.checkStatus() to debug');
     
     // TOS handling
     document.getElementById('tosAccept').addEventListener('change', function() {
