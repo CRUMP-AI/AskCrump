@@ -50,34 +50,34 @@ const MAX_IMAGE_CACHE = 100;
 // INSTALL - Cache static assets
 // ==========================================
 self.addEventListener('install', (event) => {
-    console.log('🔧 Service Worker v2.0: Installing...');
+    console.log('ðŸ”§ Service Worker v2.0: Installing...');
     
     event.waitUntil(
         Promise.all([
             // Cache static assets
             caches.open(CACHE_STATIC).then(cache => {
-                console.log('📦 Caching static assets...');
+                console.log('ðŸ“¦ Caching static assets...');
                 return Promise.allSettled(
                     STATIC_ASSETS.map(url =>
                         cache.add(url)
-                            .then(() => console.log('✅ Cached:', url))
-                            .catch(err => console.warn('⚠️ Failed:', url))
+                            .then(() => console.log('âœ… Cached:', url))
+                            .catch(err => console.warn('âš ï¸ Failed:', url))
                     )
                 );
             }),
             // Cache images
             caches.open(CACHE_IMAGES).then(cache => {
-                console.log('🖼️ Caching images...');
+                console.log('ðŸ–¼ï¸ Caching images...');
                 return Promise.allSettled(
                     IMAGE_ASSETS.map(url =>
                         cache.add(url)
-                            .then(() => console.log('✅ Cached:', url))
-                            .catch(err => console.warn('⚠️ Failed:', url))
+                            .then(() => console.log('âœ… Cached:', url))
+                            .catch(err => console.warn('âš ï¸ Failed:', url))
                     )
                 );
             })
         ]).then(() => {
-            console.log('✅ Service Worker: Installation complete');
+            console.log('âœ… Service Worker: Installation complete');
             self.skipWaiting();
         })
     );
@@ -87,20 +87,20 @@ self.addEventListener('install', (event) => {
 // ACTIVATE - Clean up old caches
 // ==========================================
 self.addEventListener('activate', (event) => {
-    console.log('🔧 Service Worker v2.0: Activating...');
+    console.log('ðŸ”§ Service Worker v2.0: Activating...');
     
     event.waitUntil(
         caches.keys().then(cacheNames => {
             return Promise.all(
                 cacheNames.map(cacheName => {
                     if (!cacheName.startsWith(CACHE_VERSION)) {
-                        console.log('🗑️ Deleting old cache:', cacheName);
+                        console.log('ðŸ—‘ï¸ Deleting old cache:', cacheName);
                         return caches.delete(cacheName);
                     }
                 })
             );
         }).then(() => {
-            console.log('✅ Service Worker: Active and claiming clients');
+            console.log('âœ… Service Worker: Active and claiming clients');
             return self.clients.claim();
         })
     );
@@ -241,7 +241,7 @@ async function trimCache(cacheName, maxItems) {
     if (keys.length > maxItems) {
         const toDelete = keys.slice(0, keys.length - maxItems);
         await Promise.all(toDelete.map(key => cache.delete(key)));
-        console.log(`🗑️ Trimmed ${toDelete.length} items from ${cacheName}`);
+        console.log(`ðŸ—‘ï¸ Trimmed ${toDelete.length} items from ${cacheName}`);
     }
 }
 
@@ -256,7 +256,7 @@ self.addEventListener('sync', (event) => {
 
 async function syncMessages() {
     // Future: Sync pending messages when back online
-    console.log('🔄 Syncing messages...');
+    console.log('ðŸ”„ Syncing messages...');
 }
 
 // ==========================================
@@ -306,4 +306,4 @@ self.addEventListener('message', (event) => {
     }
 });
 
-console.log('✅ Service Worker v2.0 loaded - Enhanced caching ready');
+console.log('âœ… Service Worker v2.0 loaded - Enhanced caching ready');
