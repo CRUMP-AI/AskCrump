@@ -1,300 +1,261 @@
-/* ==========================================
-   CRUMP AI - PWA INSTALLER STYLES v2.0
-   Professional, minimalistic design
-   ========================================== */
+// ==========================================
+// CRUMP AI - PWA INSTALLER v2.0
+// Claude-level installation experience
+// ==========================================
 
-/* ==========================================
-   INSTALL BANNER (Bottom Banner)
-   ========================================== */
-.pwa-install-banner {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-secondary) 100%);
-    color: var(--color-bg-primary);
-    padding: 1rem 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    z-index: 9999;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
-    transform: translateY(100%);
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.pwa-install-banner.visible {
-    transform: translateY(0);
-}
-
-.pwa-install-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 48px;
-    height: 48px;
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 12px;
-    flex-shrink: 0;
-}
-
-.pwa-install-icon svg {
-    width: 28px;
-    height: 28px;
-}
-
-.pwa-install-content {
-    flex: 1;
-    min-width: 0;
-}
-
-.pwa-install-content h3 {
-    margin: 0 0 0.25rem 0;
-    font-size: 1rem;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-}
-
-.pwa-install-content p {
-    margin: 0;
-    font-size: 0.875rem;
-    opacity: 0.9;
-    font-weight: 400;
-}
-
-.pwa-install-actions {
-    display: flex;
-    gap: 0.75rem;
-    flex-shrink: 0;
-}
-
-.pwa-install-btn {
-    padding: 0.625rem 1.25rem;
-    border: none;
-    border-radius: 8px;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    white-space: nowrap;
-    letter-spacing: -0.01em;
-}
-
-.pwa-btn-dismiss {
-    background: rgba(255, 255, 255, 0.15);
-    color: var(--color-bg-primary);
-    backdrop-filter: blur(10px);
-}
-
-.pwa-btn-dismiss:hover {
-    background: rgba(255, 255, 255, 0.25);
-    transform: translateY(-1px);
-}
-
-.pwa-btn-install {
-    background: var(--color-bg-primary);
-    color: var(--color-accent-primary);
-    font-weight: 700;
-}
-
-.pwa-btn-install:hover {
-    background: var(--color-bg-secondary);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-/* ==========================================
-   SIDEBAR INSTALL BUTTON
-   ========================================== */
-#install-app-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.875rem 1.25rem;
-    background: linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-secondary) 100%);
-    color: var(--color-bg-primary);
-    border: none;
-    border-radius: 10px;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    width: 100%;
-    justify-content: center;
-    margin-bottom: 0.75rem;
-    letter-spacing: -0.01em;
-}
-
-#install-app-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
-}
-
-#install-app-btn:active {
-    transform: translateY(0);
-}
-
-#install-app-btn svg {
-    flex-shrink: 0;
-}
-
-/* ==========================================
-   IOS INSTRUCTIONS MODAL
-   ========================================== */
-#ios-install-modal .modal-content {
-    max-width: 440px;
-}
-
-#ios-install-modal ol {
-    background: var(--color-bg-tertiary);
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
-    padding: 1.5rem 1.5rem 1.5rem 2.5rem;
-}
-
-#ios-install-modal ol li {
-    margin-bottom: 0.75rem;
-    color: var(--color-text-primary);
-}
-
-#ios-install-modal ol li:last-child {
-    margin-bottom: 0;
-}
-
-#ios-install-modal ol strong {
-    color: var(--color-accent-primary);
-    font-weight: 600;
-}
-
-/* ==========================================
-   RESPONSIVE DESIGN
-   ========================================== */
-@media (max-width: 768px) {
-    .pwa-install-banner {
-        padding: 1rem;
-        flex-wrap: wrap;
+class PWAInstaller {
+    constructor() {
+        this.deferredPrompt = null;
+        this.isInstalled = this.checkIfInstalled();
+        this.isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+        this.isAndroid = /Android/.test(navigator.userAgent);
+        this.installBannerDismissed = localStorage.getItem('crump_install_dismissed') === 'true';
+        
+        this.init();
+        console.log('📱 PWA Installer v2.0 initialized');
     }
-    
-    .pwa-install-icon {
-        width: 40px;
-        height: 40px;
-    }
-    
-    .pwa-install-icon svg {
-        width: 24px;
-        height: 24px;
-    }
-    
-    .pwa-install-content h3 {
-        font-size: 0.9375rem;
-    }
-    
-    .pwa-install-content p {
-        font-size: 0.8125rem;
-    }
-    
-    .pwa-install-actions {
-        width: 100%;
-        margin-top: 0.5rem;
-    }
-    
-    .pwa-install-btn {
-        flex: 1;
-        padding: 0.75rem 1rem;
-        font-size: 0.875rem;
-    }
-}
 
-@media (max-width: 480px) {
-    .pwa-install-banner {
-        padding: 0.875rem;
-    }
-    
-    .pwa-install-content h3 {
-        font-size: 0.875rem;
-    }
-    
-    .pwa-install-content p {
-        font-size: 0.75rem;
-    }
-    
-    .pwa-install-btn {
-        padding: 0.625rem 0.875rem;
-        font-size: 0.8125rem;
-    }
-}
+    init() {
+        // Listen for install prompt
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            this.deferredPrompt = e;
+            console.log('💾 Install prompt ready');
+            
+            // Show install UI if not dismissed and not installed
+            if (!this.installBannerDismissed && !this.isInstalled) {
+                this.showInstallPrompt();
+            }
+        });
 
-/* ==========================================
-   REDUCED MOTION
-   ========================================== */
-@media (prefers-reduced-motion: reduce) {
-    .pwa-install-banner {
-        transition: none;
-    }
-    
-    .pwa-install-btn,
-    #install-app-btn {
-        transition: none;
-    }
-}
+        // Listen for successful installation
+        window.addEventListener('appinstalled', () => {
+            console.log('✅ PWA installed successfully');
+            this.isInstalled = true;
+            this.hideInstallPrompt();
+            this.showSuccessNotification();
+            localStorage.setItem('crump_pwa_installed', 'true');
+        });
 
-/* ==========================================
-   SAFE AREA INSETS (For notched devices)
-   ========================================== */
-@supports (padding: max(0px)) {
-    .pwa-install-banner {
-        padding-left: max(1.5rem, env(safe-area-inset-left));
-        padding-right: max(1.5rem, env(safe-area-inset-right));
-        padding-bottom: max(1rem, env(safe-area-inset-bottom));
-    }
-}
+        // Check if already installed
+        if (this.isInstalled) {
+            console.log('✅ Running as installed PWA');
+            this.hideInstallPrompt();
+        }
 
-/* ==========================================
-   DARK MODE ADJUSTMENTS
-   ========================================== */
-@media (prefers-color-scheme: dark) {
-    .pwa-install-banner {
-        box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.6);
+        // iOS-specific handling
+        if (this.isIOS && !this.isInstalled && !this.installBannerDismissed) {
+            setTimeout(() => this.showIOSInstructions(), 3000);
+        }
+
+        // Add install button to sidebar if applicable
+        this.addInstallButtonToSidebar();
     }
-    
-    .pwa-btn-dismiss {
-        background: rgba(255, 255, 255, 0.12);
+
+    checkIfInstalled() {
+        // Check if running as PWA
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            return true;
+        }
+        if (window.navigator.standalone === true) {
+            return true; // iOS
+        }
+        if (localStorage.getItem('crump_pwa_installed') === 'true') {
+            return true;
+        }
+        return false;
     }
-    
-    .pwa-btn-dismiss:hover {
-        background: rgba(255, 255, 255, 0.2);
+
+    showInstallPrompt() {
+        // Don't show if already shown or dismissed
+        if (document.getElementById('pwa-install-banner')) return;
+
+        const banner = document.createElement('div');
+        banner.id = 'pwa-install-banner';
+        banner.className = 'pwa-install-banner';
+        banner.innerHTML = `
+            <div class="pwa-install-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+            </div>
+            <div class="pwa-install-content">
+                <h3>Install Crump AI</h3>
+                <p>Get the full app experience with offline access</p>
+            </div>
+            <div class="pwa-install-actions">
+                <button class="pwa-install-btn pwa-btn-dismiss" onclick="window.pwaInstaller.dismissInstallPrompt()">
+                    Not Now
+                </button>
+                <button class="pwa-install-btn pwa-btn-install" onclick="window.pwaInstaller.installApp()">
+                    Install
+                </button>
+            </div>
+        `;
+
+        document.body.appendChild(banner);
+        
+        // Animate in
+        requestAnimationFrame(() => {
+            banner.classList.add('visible');
+        });
+
+        console.log('📱 Install banner shown');
+    }
+
+    showIOSInstructions() {
+        if (this.isInstalled || this.installBannerDismissed) return;
+
+        const modal = document.createElement('div');
+        modal.id = 'ios-install-modal';
+        modal.className = 'modal active';
+        modal.innerHTML = `
+            <div class="modal-overlay" onclick="this.parentElement.remove()"></div>
+            <div class="modal-content" style="max-width: 400px;">
+                <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
+                
+                <div style="text-align: center; margin-bottom: 1.5rem;">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-primary)" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                </div>
+                
+                <h2 style="text-align: center; margin-bottom: 1rem;">Install Crump AI</h2>
+                
+                <p style="color: var(--color-text-secondary); margin-bottom: 1.5rem; text-align: center;">
+                    To install Crump on your iPhone or iPad:
+                </p>
+                
+                <ol style="color: var(--color-text-secondary); margin-bottom: 2rem; padding-left: 1.5rem; line-height: 1.8;">
+                    <li>Tap the <strong>Share</strong> button <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="vertical-align: middle;"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg></li>
+                    <li>Scroll down and tap <strong>"Add to Home Screen"</strong></li>
+                    <li>Tap <strong>"Add"</strong> to confirm</li>
+                </ol>
+                
+                <button class="btn-primary btn-block" onclick="this.closest('.modal').remove(); window.pwaInstaller.dismissInstallPrompt();">
+                    Got It
+                </button>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        console.log('📱 iOS install instructions shown');
+    }
+
+    async installApp() {
+        if (!this.deferredPrompt) {
+            console.warn('⚠️ No install prompt available');
+            
+            // Show iOS instructions if on iOS
+            if (this.isIOS) {
+                this.showIOSInstructions();
+            }
+            return;
+        }
+
+        try {
+            // Show the install prompt
+            this.deferredPrompt.prompt();
+            
+            // Wait for the user's response
+            const { outcome } = await this.deferredPrompt.userChoice;
+            
+            console.log(`📱 Install outcome: ${outcome}`);
+            
+            if (outcome === 'accepted') {
+                console.log('✅ User accepted installation');
+                this.hideInstallPrompt();
+            } else {
+                console.log('❌ User dismissed installation');
+            }
+            
+            // Clear the deferred prompt
+            this.deferredPrompt = null;
+            
+        } catch (error) {
+            console.error('❌ Installation error:', error);
+        }
+    }
+
+    dismissInstallPrompt() {
+        this.installBannerDismissed = true;
+        localStorage.setItem('crump_install_dismissed', 'true');
+        this.hideInstallPrompt();
+        console.log('📱 Install prompt dismissed');
+    }
+
+    hideInstallPrompt() {
+        const banner = document.getElementById('pwa-install-banner');
+        if (banner) {
+            banner.classList.remove('visible');
+            setTimeout(() => banner.remove(), 300);
+        }
+    }
+
+    showSuccessNotification() {
+        if (window.showNotification) {
+            window.showNotification('✅ Crump AI installed successfully!', 'success');
+        } else {
+            console.log('✅ App installed successfully');
+        }
+    }
+
+    addInstallButtonToSidebar() {
+        // Only add if not installed and not iOS (iOS uses share button)
+        if (this.isInstalled || this.isIOS) return;
+
+        const checkForSidebar = () => {
+            const sidebarFooter = document.querySelector('.sidebar-footer');
+            if (!sidebarFooter) {
+                setTimeout(checkForSidebar, 100);
+                return;
+            }
+
+            // Check if button already exists
+            if (document.getElementById('install-app-btn')) return;
+
+            const installBtn = document.createElement('button');
+            installBtn.id = 'install-app-btn';
+            installBtn.className = 'sidebar-footer-btn';
+            installBtn.innerHTML = `
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <span>Install App</span>
+            `;
+            installBtn.onclick = () => this.installApp();
+
+            // Insert before the first button
+            sidebarFooter.insertBefore(installBtn, sidebarFooter.firstChild);
+            console.log('📱 Install button added to sidebar');
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', checkForSidebar);
+        } else {
+            checkForSidebar();
+        }
+    }
+
+    // Reset for testing
+    reset() {
+        localStorage.removeItem('crump_install_dismissed');
+        localStorage.removeItem('crump_pwa_installed');
+        this.installBannerDismissed = false;
+        console.log('🔄 PWA installer reset');
     }
 }
 
-/* ==========================================
-   ANIMATIONS
-   ========================================== */
-@keyframes installSuccess {
-    0% {
-        transform: scale(1);
-        opacity: 1;
-    }
-    50% {
-        transform: scale(1.05);
-        opacity: 0.8;
-    }
-    100% {
-        transform: scale(1);
-        opacity: 0;
-    }
-}
+// ==========================================
+// INITIALIZE
+// ==========================================
+window.pwaInstaller = new PWAInstaller();
+window.PWAInstaller = PWAInstaller;
 
-.pwa-install-banner.success {
-    animation: installSuccess 0.6s ease forwards;
-}
-
-/* ==========================================
-   PRINT STYLES
-   ========================================== */
-@media print {
-    .pwa-install-banner,
-    #install-app-btn {
-        display: none !important;
-    }
-}
+console.log('✅ PWA Installer v2.0 loaded');
