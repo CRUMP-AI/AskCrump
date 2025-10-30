@@ -1295,3 +1295,47 @@ body.keyboard-open {
         height: 28px;
     }
 }
+
+/* ============================================ */
+/* SAFE AREA INSETS - COMPLETE FIX */
+/* Added: October 30, 2024 */
+/* ============================================ */
+
+/* Top bar - prevent overlap with status bar */
+.header {
+    padding-top: max(1rem, env(safe-area-inset-top)) !important;
+    min-height: calc(var(--header-height) + env(safe-area-inset-top, 0));
+}
+
+/* Sidebar - respect notch on left side */
+.sidebar {
+    padding-top: max(0, env(safe-area-inset-top));
+}
+
+/* Input area - respect home indicator */
+.input-area {
+    padding-bottom: max(var(--space-4), calc(var(--space-4) + env(safe-area-inset-bottom))) !important;
+}
+
+/* Chat container - proper spacing at bottom */
+.chat-container {
+    padding-bottom: calc(180px + env(safe-area-inset-bottom, 0));
+}
+
+/* Quick actions - spacing above input */
+.quick-actions {
+    margin-bottom: max(var(--space-3), calc(var(--space-3) + env(safe-area-inset-bottom, 0)));
+}
+
+/* Toast notifications - respect safe areas */
+.toast-container {
+    bottom: max(var(--space-6), calc(var(--space-6) + env(safe-area-inset-bottom)));
+    right: max(var(--space-6), calc(var(--space-6) + env(safe-area-inset-right)));
+}
+
+/* Left/right padding for landscape mode */
+.main-content,
+.chat-container {
+    padding-left: max(var(--space-6), env(safe-area-inset-left));
+    padding-right: max(var(--space-6), env(safe-area-inset-right));
+}
