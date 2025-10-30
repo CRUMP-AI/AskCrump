@@ -1297,14 +1297,14 @@ body.keyboard-open {
 }
 
 /* ============================================ */
-/* SAFE AREA INSETS - COMPLETE FIX */
-/* Added: October 30, 2024 */
+/* SAFE AREA INSETS - COMPLETE FIX v2 */
 /* ============================================ */
 
 /* Top bar - prevent overlap with status bar */
 .header {
     padding-top: max(1rem, env(safe-area-inset-top)) !important;
     min-height: calc(var(--header-height) + env(safe-area-inset-top, 0));
+    /* NO side padding - header should be full width */
 }
 
 /* Sidebar - respect notch on left side */
@@ -1320,6 +1320,9 @@ body.keyboard-open {
 /* Chat container - proper spacing at bottom */
 .chat-container {
     padding-bottom: calc(180px + env(safe-area-inset-bottom, 0));
+    /* Side padding for chat content only */
+    padding-left: max(var(--space-6), env(safe-area-inset-left));
+    padding-right: max(var(--space-6), env(safe-area-inset-right));
 }
 
 /* Quick actions - spacing above input */
@@ -1333,9 +1336,5 @@ body.keyboard-open {
     right: max(var(--space-6), calc(var(--space-6) + env(safe-area-inset-right)));
 }
 
-/* Left/right padding for landscape mode */
-.main-content,
-.chat-container {
-    padding-left: max(var(--space-6), env(safe-area-inset-left));
-    padding-right: max(var(--space-6), env(safe-area-inset-right));
-}
+/* IMPORTANT: Don't add side padding to main-content */
+/* Let individual elements handle their own padding */
