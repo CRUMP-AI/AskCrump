@@ -1,9 +1,24 @@
-/* ==========================================
-   CRUMP AI - PROFESSIONAL STYLES v2.0
-   Minimalist, emoji-free design
-   ========================================== */
+/* ============================================
+   CRUMP AI - PROFESSIONAL TIERS CSS v2.0 ENHANCED
+   Minimalist professional tier system with billing options
+   ============================================ */
 
-/* Tier Badge Icons (replacing emojis) */
+/* ============================================
+   TABLE OF CONTENTS
+   1. Tier Badge Icons (emoji-free)
+   2. Upgrade Modal
+   3. Billing Toggle
+   4. Tier Cards
+   5. Usage Stats Modal
+   6. Buttons
+   7. Notifications
+   8. Responsive Design
+   ============================================ */
+
+/* ============================================
+   1. TIER BADGE ICONS (EMOJI-FREE)
+   Professional text-based tier indicators
+   ============================================ */
 .tier-icon-free::before {
     content: "F";
     display: inline-flex;
@@ -11,12 +26,14 @@
     justify-content: center;
     width: 48px;
     height: 48px;
-    background: var(--bg-tertiary);
-    border: 2px solid var(--border-color);
-    border-radius: 50%;
-    font-weight: 700;
-    font-size: 24px;
-    color: var(--text-secondary);
+    background: var(--bg-tertiary, var(--color-bg-tertiary));
+    border: 2px solid var(--border, var(--color-border));
+    border-radius: var(--radius-full, 50%);
+    font-family: var(--font-display, 'Crimson Pro', Georgia, serif);
+    font-weight: var(--font-weight-bold, 700);
+    font-size: var(--font-size-2xl, 24px);
+    color: var(--text-secondary, var(--color-text-secondary));
+    transition: all var(--transition-fast, 0.2s ease);
 }
 
 .tier-icon-pro::before {
@@ -26,11 +43,17 @@
     justify-content: center;
     width: 48px;
     height: 48px;
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-    border-radius: 50%;
-    font-weight: 700;
-    font-size: 24px;
-    color: var(--bg-primary);
+    background: linear-gradient(135deg, 
+        var(--accent-primary, var(--color-accent-primary)), 
+        var(--accent-hover, var(--color-accent-hover))
+    );
+    border-radius: var(--radius-full, 50%);
+    font-family: var(--font-display, 'Crimson Pro', Georgia, serif);
+    font-weight: var(--font-weight-bold, 700);
+    font-size: var(--font-size-2xl, 24px);
+    color: var(--bg-primary, var(--color-bg-primary));
+    box-shadow: 0 4px 12px rgba(201, 184, 146, 0.3);
+    transition: all var(--transition-fast, 0.2s ease);
 }
 
 .tier-icon-premium::before {
@@ -41,252 +64,335 @@
     width: 48px;
     height: 48px;
     background: linear-gradient(135deg, #8b5cf6, #6366f1);
-    border-radius: 50%;
-    font-weight: 700;
+    border-radius: var(--radius-full, 50%);
+    font-family: var(--font-display, 'Crimson Pro', Georgia, serif);
+    font-weight: var(--font-weight-bold, 700);
     font-size: 20px;
     color: white;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+    transition: all var(--transition-fast, 0.2s ease);
 }
 
 .tier-icon-dev::before {
-    content: "<>";
+    content: "</>";
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 48px;
     height: 48px;
     background: linear-gradient(135deg, #10b981, #059669);
-    border-radius: 50%;
-    font-weight: 700;
+    border-radius: var(--radius-full, 50%);
+    font-family: var(--font-mono, 'Monaco', 'Menlo', monospace);
+    font-weight: var(--font-weight-bold, 700);
     font-size: 20px;
     color: white;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    transition: all var(--transition-fast, 0.2s ease);
 }
 
-/* Upgrade Modal */
+/* Hover effects for tier icons */
+.tier-card:hover .tier-icon-free::before,
+.tier-card:hover .tier-icon-pro::before,
+.tier-card:hover .tier-icon-premium::before,
+.tier-card:hover .tier-icon-dev::before {
+    transform: scale(1.1);
+}
+
+/* ============================================
+   2. UPGRADE MODAL
+   Main modal for tier comparison
+   ============================================ */
 .upgrade-modal {
     position: fixed;
     inset: 0;
-    z-index: 10000;
+    z-index: var(--z-modal, 10000);
     display: flex;
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    pointer-events: none;
+    transition: opacity var(--transition-base, 0.3s ease);
 }
 
 .upgrade-modal.active {
     opacity: 1;
+    pointer-events: auto;
 }
 
 .upgrade-overlay {
     position: absolute;
     inset: 0;
     background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
 
 .upgrade-content {
     position: relative;
-    background: var(--bg-secondary);
-    border: 2px solid var(--accent-primary);
-    border-radius: 20px;
-    padding: 40px;
+    background: var(--bg-secondary, var(--color-bg-secondary));
+    border: 2px solid var(--accent-primary, var(--color-accent-primary));
+    border-radius: var(--radius-2xl, 20px);
+    padding: var(--space-10, 40px);
     max-width: 1100px;
     width: 95%;
     max-height: 90vh;
     overflow-y: auto;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    box-shadow: var(--shadow-2xl, 0 20px 60px rgba(0, 0, 0, 0.5));
+    transform: scale(0.95);
+    transition: transform var(--transition-base, 0.3s ease);
+    
+    /* Performance optimization */
+    will-change: transform;
+}
+
+.upgrade-modal.active .upgrade-content {
+    transform: scale(1);
 }
 
 .upgrade-close {
     position: absolute;
-    top: 20px;
-    right: 20px;
+    top: var(--space-5, 20px);
+    right: var(--space-5, 20px);
     background: transparent;
     border: none;
-    color: var(--text-secondary);
-    font-size: 24px;
+    color: var(--text-secondary, var(--color-text-secondary));
+    font-size: var(--font-size-2xl, 24px);
     cursor: pointer;
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
-    transition: all 0.2s ease;
+    border-radius: var(--radius-full, 50%);
+    transition: all var(--transition-fast, 0.2s ease);
+    line-height: 1;
 }
 
 .upgrade-close:hover {
-    background: var(--bg-tertiary);
-    color: var(--accent-primary);
+    background: var(--bg-tertiary, var(--color-bg-tertiary));
+    color: var(--accent-primary, var(--color-accent-primary));
 }
 
+.upgrade-close:focus-visible {
+    outline: 2px solid var(--accent-primary, var(--color-accent-primary));
+    outline-offset: 2px;
+}
+
+/* ===== MODAL HEADER ===== */
 .upgrade-header {
     text-align: center;
-    margin-bottom: 40px;
+    margin-bottom: var(--space-10, 40px);
 }
 
 .upgrade-header h2 {
-    font-size: 32px;
-    font-weight: 600;
-    color: var(--accent-primary);
-    margin-bottom: 8px;
+    font-family: var(--font-display, 'Crimson Pro', Georgia, serif);
+    font-size: var(--font-size-4xl, 32px);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--accent-primary, var(--color-accent-primary));
+    margin-bottom: var(--space-2, 8px);
+    letter-spacing: -0.02em;
 }
 
 .upgrade-header p {
-    color: var(--text-secondary);
-    font-size: 16px;
+    color: var(--text-secondary, var(--color-text-secondary));
+    font-size: var(--font-size-base, 16px);
+    line-height: var(--line-height-normal, 1.5);
 }
 
-/* Billing Toggle */
+/* ============================================
+   3. BILLING TOGGLE
+   Monthly vs Annual billing selector
+   ============================================ */
 .billing-toggle-container {
-    margin-bottom: 40px;
+    margin-bottom: var(--space-10, 40px);
     text-align: center;
 }
 
 .billing-toggle {
     display: inline-flex;
-    background: var(--bg-tertiary);
-    border-radius: 10px;
-    padding: 4px;
-    gap: 4px;
+    background: var(--bg-tertiary, var(--color-bg-tertiary));
+    border-radius: var(--radius-md, 10px);
+    padding: var(--space-1, 4px);
+    gap: var(--space-1, 4px);
+    border: 1px solid var(--border, var(--color-border));
 }
 
 .billing-option {
-    padding: 10px 24px;
+    padding: var(--space-3, 10px) var(--space-6, 24px);
     border: none;
     background: transparent;
-    color: var(--text-secondary);
-    font-size: 14px;
-    font-weight: 600;
-    border-radius: 8px;
+    color: var(--text-secondary, var(--color-text-secondary));
+    font-size: var(--font-size-sm, 14px);
+    font-weight: var(--font-weight-semibold, 600);
+    border-radius: var(--radius-md, 8px);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--transition-fast, 0.2s ease);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2, 8px);
+    user-select: none;
+}
+
+.billing-option:hover:not(.active) {
+    background: rgba(201, 184, 146, 0.1);
+    color: var(--text-primary, var(--color-text-primary));
 }
 
 .billing-option.active {
-    background: var(--accent-primary);
-    color: var(--bg-primary);
+    background: var(--accent-primary, var(--color-accent-primary));
+    color: var(--bg-primary, var(--color-bg-primary));
+    box-shadow: 0 2px 8px rgba(201, 184, 146, 0.3);
+}
+
+.billing-option:focus-visible {
+    outline: 2px solid var(--accent-primary, var(--color-accent-primary));
+    outline-offset: 2px;
 }
 
 .save-badge {
-    font-size: 10px;
-    font-weight: 700;
+    font-size: var(--font-size-xs, 10px);
+    font-weight: var(--font-weight-bold, 700);
     letter-spacing: 0.5px;
-    padding: 2px 6px;
+    padding: var(--space-1, 2px) var(--space-2, 6px);
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
+    border-radius: var(--radius-sm, 4px);
+    text-transform: uppercase;
 }
 
-/* Tier Cards */
+/* ============================================
+   4. TIER CARDS
+   Individual subscription tier displays
+   ============================================ */
 .tier-comparison {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 24px;
-    margin-bottom: 40px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--space-6, 24px);
+    margin-bottom: var(--space-10, 40px);
 }
 
 .tier-card {
-    background: var(--bg-tertiary);
-    border: 2px solid var(--border-color);
-    border-radius: 16px;
-    padding: 32px;
+    background: var(--bg-tertiary, var(--color-bg-tertiary));
+    border: 2px solid var(--border, var(--color-border));
+    border-radius: var(--radius-xl, 16px);
+    padding: var(--space-8, 32px);
     position: relative;
-    transition: all 0.3s ease;
+    transition: all var(--transition-base, 0.3s ease);
+    
+    /* Performance optimization */
+    will-change: transform, box-shadow;
 }
 
 .tier-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-xl, 0 8px 24px rgba(0, 0, 0, 0.3));
+    border-color: var(--accent-primary, var(--color-accent-primary));
 }
 
 .tier-card.featured {
-    border-color: var(--accent-primary);
-    background: linear-gradient(135deg, var(--bg-tertiary) 0%, rgba(212, 175, 55, 0.1) 100%);
+    border-color: var(--accent-primary, var(--color-accent-primary));
+    background: linear-gradient(135deg, 
+        var(--bg-tertiary, var(--color-bg-tertiary)) 0%, 
+        rgba(201, 184, 146, 0.1) 100%
+    );
     transform: scale(1.05);
 }
 
-.tier-card.current {
-    border-color: #10b981;
+.tier-card.featured:hover {
+    transform: scale(1.08) translateY(-4px);
 }
 
+.tier-card.current {
+    border-color: var(--success, #10b981);
+}
+
+/* ===== TIER BADGES ===== */
 .popular-badge {
     position: absolute;
     top: -12px;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--accent-primary);
-    color: var(--bg-primary);
-    padding: 4px 16px;
-    border-radius: 12px;
-    font-size: 11px;
-    font-weight: 700;
+    background: var(--accent-primary, var(--color-accent-primary));
+    color: var(--bg-primary, var(--color-bg-primary));
+    padding: var(--space-1, 4px) var(--space-4, 16px);
+    border-radius: var(--radius-lg, 12px);
+    font-size: var(--font-size-xs, 11px);
+    font-weight: var(--font-weight-bold, 700);
     letter-spacing: 0.5px;
+    text-transform: uppercase;
+    box-shadow: var(--shadow-md, 0 4px 6px rgba(0, 0, 0, 0.2));
 }
 
 .current-badge {
-    background: #10b981;
+    background: var(--success, #10b981);
     color: white;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 10px;
-    font-weight: 700;
+    padding: var(--space-1, 4px) var(--space-3, 12px);
+    border-radius: var(--radius-lg, 12px);
+    font-size: var(--font-size-xs, 10px);
+    font-weight: var(--font-weight-bold, 700);
     letter-spacing: 0.5px;
     display: inline-block;
-    margin-top: 8px;
+    margin-top: var(--space-2, 8px);
+    text-transform: uppercase;
 }
 
+/* ===== TIER CARD CONTENT ===== */
 .tier-header {
     text-align: center;
-    margin-bottom: 24px;
+    margin-bottom: var(--space-6, 24px);
 }
 
 .tier-header h3 {
-    font-size: 24px;
-    font-weight: 600;
-    color: var(--accent-primary);
-    margin: 12px 0 0 0;
+    font-family: var(--font-display, 'Crimson Pro', Georgia, serif);
+    font-size: var(--font-size-2xl, 24px);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--accent-primary, var(--color-accent-primary));
+    margin: var(--space-3, 12px) 0 0 0;
+    letter-spacing: -0.01em;
 }
 
 .tier-price {
     text-align: center;
-    margin-bottom: 24px;
-    padding-bottom: 24px;
-    border-bottom: 1px solid var(--border-color);
+    margin-bottom: var(--space-6, 24px);
+    padding-bottom: var(--space-6, 24px);
+    border-bottom: 1px solid var(--border, var(--color-border));
 }
 
 .price-amount {
     font-size: 48px;
-    font-weight: 700;
-    color: var(--accent-primary);
+    font-weight: var(--font-weight-bold, 700);
+    color: var(--accent-primary, var(--color-accent-primary));
+    line-height: 1;
 }
 
 .price-period {
-    font-size: 16px;
-    color: var(--text-secondary);
+    font-size: var(--font-size-base, 16px);
+    color: var(--text-secondary, var(--color-text-secondary));
+    margin-top: var(--space-2, 8px);
 }
 
 .price-savings {
-    margin-top: 8px;
-    font-size: 14px;
-    color: #10b981;
+    margin-top: var(--space-2, 8px);
+    font-size: var(--font-size-sm, 14px);
+    color: var(--success, #10b981);
+    font-weight: var(--font-weight-medium, 500);
 }
 
+/* ===== TIER FEATURES LIST ===== */
 .tier-features {
     list-style: none;
     padding: 0;
-    margin: 0 0 24px 0;
+    margin: 0 0 var(--space-6, 24px) 0;
 }
 
 .tier-features li {
-    padding: 12px 0;
-    border-bottom: 1px solid var(--border-color);
+    padding: var(--space-3, 12px) 0;
+    border-bottom: 1px solid var(--border, var(--color-border));
     display: flex;
     align-items: center;
-    gap: 12px;
-    font-size: 14px;
+    gap: var(--space-3, 12px);
+    font-size: var(--font-size-sm, 14px);
+    color: var(--text-primary, var(--color-text-primary));
+    line-height: var(--line-height-normal, 1.5);
 }
 
 .tier-features li:last-child {
@@ -295,139 +401,187 @@
 
 .feature-check {
     min-width: 18px;
-    color: var(--accent-primary);
+    color: var(--accent-primary, var(--color-accent-primary));
+    font-size: 18px;
+    line-height: 1;
+    flex-shrink: 0;
 }
 
+/* ===== TIER BUTTONS ===== */
 .tier-button {
     width: 100%;
-    padding: 14px;
+    padding: var(--space-4, 14px);
     border: none;
-    border-radius: 10px;
-    font-size: 16px;
-    font-weight: 700;
+    border-radius: var(--radius-md, 10px);
+    font-size: var(--font-size-base, 16px);
+    font-weight: var(--font-weight-bold, 700);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--transition-fast, 0.2s ease);
+    text-align: center;
+    user-select: none;
 }
 
 .tier-button.primary {
-    background: var(--accent-primary);
-    color: var(--bg-primary);
+    background: var(--accent-primary, var(--color-accent-primary));
+    color: var(--bg-primary, var(--color-bg-primary));
 }
 
 .tier-button.primary:hover {
-    background: var(--accent-hover);
+    background: var(--accent-hover, var(--color-accent-hover));
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(201, 184, 146, 0.4);
+}
+
+.tier-button.primary:active {
+    transform: translateY(0);
 }
 
 .tier-button.secondary {
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
+    background: var(--bg-primary, var(--color-bg-primary));
+    color: var(--text-primary, var(--color-text-primary));
+    border: 1px solid var(--border, var(--color-border));
+}
+
+.tier-button.secondary:hover {
+    background: var(--bg-secondary, var(--color-bg-secondary));
+    border-color: var(--accent-primary, var(--color-accent-primary));
 }
 
 .tier-button.disabled {
-    background: var(--bg-primary);
-    color: var(--text-tertiary);
+    background: var(--bg-primary, var(--color-bg-primary));
+    color: var(--text-tertiary, var(--color-text-tertiary));
     cursor: not-allowed;
     opacity: 0.5;
+    pointer-events: none;
 }
 
-/* Usage Stats Modal */
+/* ============================================
+   5. USAGE STATS MODAL
+   Current usage tracking display
+   ============================================ */
 .usage-stats-modal {
     position: fixed;
     inset: 0;
-    z-index: 10000;
+    z-index: var(--z-modal, 10000);
     display: flex;
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    pointer-events: none;
+    transition: opacity var(--transition-base, 0.3s ease);
 }
 
 .usage-stats-modal.active {
     opacity: 1;
+    pointer-events: auto;
 }
 
 .modal-content {
     position: relative;
-    background: var(--bg-secondary);
-    border: 2px solid var(--accent-primary);
-    border-radius: 16px;
-    padding: 32px;
+    background: var(--bg-secondary, var(--color-bg-secondary));
+    border: 2px solid var(--accent-primary, var(--color-accent-primary));
+    border-radius: var(--radius-xl, 16px);
+    padding: var(--space-8, 32px);
     max-width: 600px;
     width: 90%;
     max-height: 90vh;
     overflow-y: auto;
+    box-shadow: var(--shadow-2xl, 0 20px 60px rgba(0, 0, 0, 0.5));
+    
+    /* Performance optimization */
+    transform: translateZ(0);
 }
 
 .modal-close {
     position: absolute;
-    top: 16px;
-    right: 16px;
+    top: var(--space-4, 16px);
+    right: var(--space-4, 16px);
     background: transparent;
     border: none;
-    color: var(--text-secondary);
-    font-size: 24px;
+    color: var(--text-secondary, var(--color-text-secondary));
+    font-size: var(--font-size-2xl, 24px);
     cursor: pointer;
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
+    border-radius: var(--radius-full, 50%);
+    transition: all var(--transition-fast, 0.2s ease);
+    line-height: 1;
 }
 
 .modal-close:hover {
-    background: var(--bg-tertiary);
-    color: var(--accent-primary);
+    background: var(--bg-tertiary, var(--color-bg-tertiary));
+    color: var(--accent-primary, var(--color-accent-primary));
 }
 
+.modal-close:focus-visible {
+    outline: 2px solid var(--accent-primary, var(--color-accent-primary));
+    outline-offset: 2px;
+}
+
+/* ===== TIER BADGE IN MODAL ===== */
 .tier-badge {
     display: inline-flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 24px;
-    background: var(--bg-tertiary);
-    border: 2px solid var(--accent-primary);
-    border-radius: 24px;
-    font-weight: 700;
-    margin-bottom: 24px;
+    gap: var(--space-3, 12px);
+    padding: var(--space-3, 12px) var(--space-6, 24px);
+    background: var(--bg-tertiary, var(--color-bg-tertiary));
+    border: 2px solid var(--accent-primary, var(--color-accent-primary));
+    border-radius: var(--radius-2xl, 24px);
+    font-weight: var(--font-weight-bold, 700);
+    margin-bottom: var(--space-6, 24px);
 }
 
+/* ===== STATS GRID ===== */
 .stats-grid {
     display: grid;
-    gap: 16px;
-    margin-bottom: 24px;
+    gap: var(--space-4, 16px);
+    margin-bottom: var(--space-6, 24px);
 }
 
 .stat-card {
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 16px;
+    background: var(--bg-tertiary, var(--color-bg-tertiary));
+    border: 1px solid var(--border, var(--color-border));
+    border-radius: var(--radius-lg, 12px);
+    padding: var(--space-4, 16px);
+    transition: all var(--transition-fast, 0.2s ease);
+}
+
+.stat-card:hover {
+    border-color: var(--accent-primary, var(--color-accent-primary));
+    background: var(--bg-elevated, var(--color-bg-elevated));
 }
 
 .stat-label {
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 12px;
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--text-primary, var(--color-text-primary));
+    margin-bottom: var(--space-3, 12px);
     display: block;
     text-transform: capitalize;
+    font-size: var(--font-size-sm, 14px);
 }
 
 .stat-bar {
     height: 8px;
-    background: var(--bg-primary);
-    border-radius: 4px;
+    background: var(--bg-primary, var(--color-bg-primary));
+    border-radius: var(--radius-sm, 4px);
     overflow: hidden;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-2, 8px);
 }
 
 .stat-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
-    transition: width 0.5s ease;
-    border-radius: 4px;
+    background: linear-gradient(90deg, 
+        var(--accent-primary, var(--color-accent-primary)), 
+        var(--accent-hover, var(--color-accent-hover))
+    );
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: var(--radius-sm, 4px);
+    
+    /* Performance optimization */
+    will-change: width;
 }
 
 .stat-fill.warning {
@@ -438,26 +592,40 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 14px;
-    color: var(--text-secondary);
+    font-size: var(--font-size-sm, 14px);
+    color: var(--text-secondary, var(--color-text-secondary));
 }
 
-/* Buttons */
+/* ============================================
+   6. BUTTONS
+   Reusable button components
+   ============================================ */
 .btn-primary {
-    padding: 12px 24px;
-    background: var(--accent-primary);
-    color: var(--bg-primary);
+    padding: var(--space-3, 12px) var(--space-6, 24px);
+    background: var(--accent-primary, var(--color-accent-primary));
+    color: var(--bg-primary, var(--color-bg-primary));
     border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 700;
+    border-radius: var(--radius-md, 8px);
+    font-size: var(--font-size-sm, 14px);
+    font-weight: var(--font-weight-bold, 700);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--transition-fast, 0.2s ease);
+    user-select: none;
 }
 
 .btn-primary:hover {
-    background: var(--accent-hover);
+    background: var(--accent-hover, var(--color-accent-hover));
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(201, 184, 146, 0.4);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-primary:focus-visible {
+    outline: 2px solid var(--accent-primary, var(--color-accent-primary));
+    outline-offset: 2px;
 }
 
 .btn-block {
@@ -465,55 +633,60 @@
 }
 
 .btn-secondary {
-    padding: 12px 24px;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
+    padding: var(--space-3, 12px) var(--space-6, 24px);
+    background: var(--bg-primary, var(--color-bg-primary));
+    color: var(--text-primary, var(--color-text-primary));
+    border: 1px solid var(--border, var(--color-border));
+    border-radius: var(--radius-md, 8px);
+    font-size: var(--font-size-sm, 14px);
+    font-weight: var(--font-weight-medium, 500);
     cursor: pointer;
+    transition: all var(--transition-fast, 0.2s ease);
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-    .tier-comparison {
-        grid-template-columns: 1fr;
-    }
-    
-    .tier-card.featured {
-        transform: scale(1);
-    }
-    
-    .upgrade-content {
-        padding: 24px;
-    }
+.btn-secondary:hover {
+    background: var(--bg-secondary, var(--color-bg-secondary));
+    border-color: var(--accent-primary, var(--color-accent-primary));
 }
 
-/* Notification */
+.btn-secondary:focus-visible {
+    outline: 2px solid var(--accent-primary, var(--color-accent-primary));
+    outline-offset: 2px;
+}
+
+/* ============================================
+   7. NOTIFICATIONS
+   Toast-style notifications
+   ============================================ */
 .notification {
     position: fixed;
-    top: 20px;
-    right: 20px;
-    padding: 14px 24px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    z-index: 10001;
-    font-size: 14px;
-    font-weight: 500;
-    animation: slideIn 0.3s ease;
+    top: var(--space-5, 20px);
+    right: var(--space-5, 20px);
+    padding: var(--space-4, 14px) var(--space-6, 24px);
+    border-radius: var(--radius-md, 8px);
+    box-shadow: var(--shadow-lg, 0 4px 12px rgba(0, 0, 0, 0.3));
+    z-index: calc(var(--z-modal, 10000) + 1);
+    font-size: var(--font-size-sm, 14px);
+    font-weight: var(--font-weight-medium, 500);
+    animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* Safe area insets */
+    top: max(var(--space-5, 20px), calc(var(--space-5, 20px) + env(safe-area-inset-top)));
+    right: max(var(--space-5, 20px), calc(var(--space-5, 20px) + env(safe-area-inset-right)));
 }
 
 .notification.success {
-    background: #10b981;
+    background: var(--success, #10b981);
     color: white;
 }
 
 .notification.error {
-    background: #ef4444;
+    background: var(--error, #ef4444);
     color: white;
 }
 
 .notification.info {
-    background: #3b82f6;
+    background: var(--info, #3b82f6);
     color: white;
 }
 
@@ -527,3 +700,111 @@
         opacity: 1;
     }
 }
+
+/* ============================================
+   8. RESPONSIVE DESIGN
+   Mobile and tablet optimizations
+   ============================================ */
+@media (max-width: 768px) {
+    /* Single column tier comparison */
+    .tier-comparison {
+        grid-template-columns: 1fr;
+    }
+    
+    /* Featured card no longer scaled on mobile */
+    .tier-card.featured {
+        transform: scale(1);
+    }
+    
+    .tier-card.featured:hover {
+        transform: scale(1.02) translateY(-4px);
+    }
+    
+    /* Reduce modal padding */
+    .upgrade-content {
+        padding: var(--space-6, 24px);
+    }
+    
+    /* Stack billing toggle on very small screens */
+    .billing-toggle {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .billing-option {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Full-width modals on very small screens */
+    .upgrade-content,
+    .modal-content {
+        width: 100%;
+        padding: var(--space-4, 16px);
+        border-radius: var(--radius-lg, 12px);
+    }
+    
+    /* Smaller tier icons */
+    .tier-icon-free::before,
+    .tier-icon-pro::before,
+    .tier-icon-premium::before,
+    .tier-icon-dev::before {
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
+    }
+    
+    /* Smaller price */
+    .price-amount {
+        font-size: 36px;
+    }
+    
+    /* Notification adjustments */
+    .notification {
+        left: var(--space-3, 12px);
+        right: var(--space-3, 12px);
+        top: auto;
+        bottom: var(--space-3, 12px);
+    }
+}
+
+/* ============================================
+   PERFORMANCE OPTIMIZATIONS
+   GPU acceleration and rendering hints
+   ============================================ */
+.tier-card,
+.tier-button,
+.upgrade-content,
+.modal-content,
+.stat-fill,
+.billing-option,
+.notification {
+    /* Force GPU acceleration */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+
+/* ============================================
+   ACCESSIBILITY ENHANCEMENTS
+   ============================================ */
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+    .tier-card,
+    .tier-button,
+    .upgrade-modal,
+    .usage-stats-modal,
+    .stat-fill,
+    .notification,
+    .billing-option {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ============================================
+   END OF PROFESSIONAL TIERS CSS
+   Production-ready tier system styles
+   ============================================ */
