@@ -1,0 +1,209 @@
+/* ==========================================
+   CRUMP AI - UPDATE NOTIFICATION STYLES v1.0
+   Claude-style update prompts
+   ========================================== */
+
+.update-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--color-bg-secondary);
+    border: 2px solid var(--color-accent-primary);
+    border-radius: 12px;
+    padding: 1.25rem;
+    max-width: 420px;
+    width: calc(100% - 40px);
+    z-index: 10000;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    transform: translateX(calc(100% + 40px));
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.update-notification.visible {
+    transform: translateX(0);
+}
+
+.update-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.update-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: rgba(201, 184, 146, 0.15);
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.update-icon svg {
+    stroke: var(--color-accent-primary);
+}
+
+.update-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.update-text strong {
+    display: block;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.update-text span {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    line-height: 1.4;
+}
+
+.update-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
+.update-btn {
+    padding: 0.625rem 1.25rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    letter-spacing: -0.01em;
+}
+
+.update-btn-later {
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+}
+
+.update-btn-later:hover {
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+}
+
+.update-btn-update {
+    background: var(--color-accent-primary);
+    color: var(--color-bg-primary);
+    font-weight: 700;
+}
+
+.update-btn-update:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(201, 184, 146, 0.4);
+}
+
+/* Spinning animation for loading state */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spinning {
+    animation: spin 1s linear infinite;
+}
+
+/* ==========================================
+   RESPONSIVE
+   ========================================== */
+@media (max-width: 768px) {
+    .update-notification {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        width: auto;
+        padding: 1rem;
+        max-width: none;
+    }
+
+    .update-content {
+        gap: 0.75rem;
+    }
+
+    .update-icon {
+        width: 36px;
+        height: 36px;
+    }
+
+    .update-icon svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .update-text strong {
+        font-size: 0.9375rem;
+    }
+
+    .update-text span {
+        font-size: 0.8125rem;
+    }
+
+    .update-actions {
+        flex-direction: column-reverse;
+        gap: 0.5rem;
+    }
+
+    .update-btn {
+        width: 100%;
+        padding: 0.75rem;
+    }
+}
+
+/* ==========================================
+   REDUCED MOTION
+   ========================================== */
+@media (prefers-reduced-motion: reduce) {
+    .update-notification {
+        transition: none;
+    }
+
+    .update-btn {
+        transition: none;
+    }
+
+    .spinning {
+        animation: none;
+    }
+}
+
+/* ==========================================
+   PRINT
+   ========================================== */
+@media print {
+    .update-notification {
+        display: none !important;
+    }
+}
+
+/* ==========================================
+   SAFE AREA INSETS
+   ========================================== */
+@supports (padding: max(0px)) {
+    .update-notification {
+        top: max(20px, env(safe-area-inset-top));
+        right: max(20px, env(safe-area-inset-right));
+    }
+
+    @media (max-width: 768px) {
+        .update-notification {
+            top: max(10px, env(safe-area-inset-top));
+            right: max(10px, env(safe-area-inset-right));
+            left: max(10px, env(safe-area-inset-left));
+        }
+    }
+}
