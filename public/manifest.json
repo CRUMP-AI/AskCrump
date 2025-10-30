@@ -1,31 +1,31 @@
 {
   "name": "Crump AI - Personal AI Assistant",
   "short_name": "Crump",
-  "description": "Your personal AI assistant powered by the N² Engine. Built for productivity, powered by Claude Sonnet.",
+  "description": "Your personal AI assistant powered by the N² Engine. Professional AI conversations, image generation, and more.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#0f1419",
   "theme_color": "#c9b892",
-  "orientation": "portrait-primary",
-  "scope": "/",
+  "categories": ["productivity", "utilities", "business"],
   "lang": "en-US",
   "dir": "ltr",
-  "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/public/assets/icon-192.png",
+      "src": "/assets/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/public/assets/icon-512.png",
+      "src": "/assets/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/public/assets/icon-1024.png",
+      "src": "/assets/icon-1024.png",
       "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any maskable"
@@ -33,99 +33,73 @@
   ],
   "screenshots": [
     {
-      "src": "/public/assets/screenshot-desktop.png",
-      "sizes": "1920x1080",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Crump AI on desktop"
-    },
-    {
-      "src": "/public/assets/screenshot-mobile.png",
+      "src": "/assets/screenshot-mobile.png",
       "sizes": "750x1334",
       "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Crump AI on mobile"
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/assets/screenshot-desktop.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide"
     }
-  ],
-  "categories": [
-    "productivity",
-    "utilities",
-    "business",
-    "lifestyle"
   ],
   "shortcuts": [
     {
-      "name": "New Chat",
-      "short_name": "New",
-      "description": "Start a new conversation",
-      "url": "/?action=new-chat",
+      "name": "New Conversation",
+      "short_name": "New Chat",
+      "description": "Start a new conversation with Crump",
+      "url": "/?action=new",
       "icons": [
         {
-          "src": "/public/assets/icon-192.png",
+          "src": "/assets/icon-192.png",
           "sizes": "192x192",
           "type": "image/png"
         }
       ]
     },
     {
-      "name": "Generate Image",
-      "short_name": "Image",
-      "description": "Generate an AI image",
-      "url": "/?action=generate-image",
+      "name": "Recent Chats",
+      "short_name": "History",
+      "description": "View your recent conversations",
+      "url": "/?action=history",
       "icons": [
         {
-          "src": "/public/assets/icon-192.png",
+          "src": "/assets/icon-192.png",
           "sizes": "192x192",
           "type": "image/png"
         }
       ]
-    },
-    {
-      "name": "Web Search",
-      "short_name": "Search",
-      "description": "Search the web",
-      "url": "/?action=web-search",
-      "icons": [
-        {
-          "src": "/public/assets/icon-192.png",
-          "sizes": "192x192",
-          "type": "image/png"
-        }
-      ]
-    }
-  ],
-  "related_applications": [],
-  "protocol_handlers": [
-    {
-      "protocol": "web+crump",
-      "url": "/?query=%s"
     }
   ],
   "share_target": {
     "action": "/share",
-    "method": "POST",
-    "enctype": "multipart/form-data",
+    "method": "GET",
     "params": {
       "title": "title",
       "text": "text",
-      "url": "url",
-      "files": [
-        {
-          "name": "file",
-          "accept": ["image/*", "application/pdf", "text/*"]
-        }
-      ]
+      "url": "url"
     }
   },
-  "display_override": [
-    "standalone",
-    "minimal-ui"
+  "prefer_related_applications": false,
+  "protocol_handlers": [
+    {
+      "protocol": "web+crump",
+      "url": "/?chat=%s"
+    }
   ],
   "launch_handler": {
-    "client_mode": "navigate-existing"
+    "client_mode": "focus-existing"
   },
-  "iarc_rating_id": "",
   "edge_side_panel": {
-    "preferred_width": 400
-  }
+    "preferred_width": 480
+  },
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui",
+    "browser"
+  ],
+  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7"
 }
