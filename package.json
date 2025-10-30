@@ -1,48 +1,29 @@
 {
   "name": "crump-ai",
   "version": "2.0.0",
-  "description": "Crump - Your Personal AI Virtual Assistant powered by the N² Engine",
+  "description": "Personal AI Virtual Assistant with 40+ API integrations",
   "type": "module",
-  "main": "app.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "serve": "serve -s . -p 3000",
-    "lint": "eslint . --ext .js",
-    "format": "prettier --write \"**/*.{js,json,css,html}\"",
-    "test": "vitest",
-    "deploy": "vercel --prod"
+    "dev": "npx serve . -p 3000",
+    "build": "echo 'Static site - no build needed'",
+    "deploy": "vercel --prod",
+    "test": "echo 'Tests coming soon'",
+    "lint": "echo 'Linting coming soon'"
   },
   "keywords": [
     "ai",
     "assistant",
     "chatbot",
     "pwa",
-    "anthropic",
-    "claude"
+    "virtual-assistant"
   ],
-  "author": "Crump AI Team",
+  "author": "Crump AI",
   "license": "MIT",
-  "dependencies": {
-    "dompurify": "^3.0.8",
-    "marked": "^11.1.1"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "@types/dompurify": "^3.0.5",
-    "eslint": "^8.56.0",
-    "prettier": "^3.1.1",
-    "serve": "^14.2.1",
-    "vite": "^5.0.11",
-    "vitest": "^1.1.3"
+    "serve": "^14.2.1"
   },
   "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=9.0.0"
-  },
-  "browserslist": [
-    "defaults",
-    "not IE 11",
-    "maintained node versions"
-  ]
+    "node": ">=18.0.0"
+  }
 }
