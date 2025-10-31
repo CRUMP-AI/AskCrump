@@ -56,76 +56,6 @@
     /* Assistant Character Animations */
     .assistant-character{position:fixed;bottom:140px;right:24px;width:50px;height:50px;z-index:50;pointer-events:none;transition:all .4s cubic-bezier(.4,0,.2,1)}.assistant-img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 0 20px rgba(85,195,255,.6));transition:all .3s ease}.assistant-character.idle .assistant-img{animation:breathe 4s ease-in-out infinite}@keyframes breathe{0%,100%{transform:scale(1) translateY(0);filter:drop-shadow(0 0 20px rgba(85,195,255,.6))}50%{transform:scale(1.05) translateY(-4px);filter:drop-shadow(0 0 28px rgba(85,195,255,.8))}}.assistant-character.thinking .assistant-img{animation:think 1.5s ease-in-out infinite}@keyframes think{0%,100%{transform:scale(1) rotate(0);filter:drop-shadow(0 0 24px rgba(85,195,255,.7))}25%{transform:scale(1.08) rotate(-2deg);filter:drop-shadow(0 0 32px rgba(85,195,255,.9))}75%{transform:scale(1.08) rotate(2deg);filter:drop-shadow(0 0 32px rgba(85,195,255,.9))}}.assistant-character.speaking .assistant-img{animation:speak .8s ease-in-out infinite}@keyframes speak{0%,100%{filter:drop-shadow(0 0 24px rgba(85,195,255,.7))}50%{filter:drop-shadow(0 0 36px rgba(85,195,255,1));transform:scale(1.1)}}.assistant-character.intro{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(1.5);opacity:0;animation:materialize 1.2s cubic-bezier(.34,1.56,.64,1) forwards}@keyframes materialize{0%{transform:translate(-50%,-50%) scale(.5);opacity:0;filter:drop-shadow(0 0 60px rgba(85,195,255,0))}60%{transform:translate(-50%,-50%) scale(1.7);opacity:1;filter:drop-shadow(0 0 80px rgba(85,195,255,1))}100%{transform:translate(-50%,-50%) scale(1.5);opacity:1;filter:drop-shadow(0 0 40px rgba(85,195,255,.8))}}.assistant-character.docking{animation:dock 1s cubic-bezier(.4,0,.2,1) forwards}@keyframes dock{0%{top:50%;left:50%;transform:translate(-50%,-50%) scale(1.5)}100%{top:auto;left:auto;bottom:140px;right:24px;transform:translate(0,0) scale(1)}}@media(max-width:768px){.assistant-character{bottom:130px;right:16px;width:45px;height:45px}}@media(prefers-reduced-motion:reduce){.assistant-character,.assistant-img,.assistant-character.idle .assistant-img,.assistant-character.thinking .assistant-img,.assistant-character.speaking .assistant-img{animation:none!important;transition:none!important}}.assistant-character:hover .assistant-img{transform:scale(1.1);filter:drop-shadow(0 0 32px rgba(85,195,255,.9))}.assistant-character .assistant-img{will-change:transform,filter}
     
-    /* PWA Install Banner */
-    .pwa-install-banner {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: var(--color-accent-primary);
-        color: var(--color-bg-primary);
-        padding: 1rem;
-        display: none;
-        align-items: center;
-        justify-content: space-between;
-        z-index: 1000;
-        box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
-        animation: slideUpBanner 0.3s ease;
-    }
-    
-    @keyframes slideUpBanner {
-        from { transform: translateY(100%); }
-        to { transform: translateY(0); }
-    }
-    
-    .pwa-install-banner.visible { display: flex; }
-    
-    .pwa-install-content { flex: 1; }
-    
-    .pwa-install-content h3 {
-        margin: 0 0 0.25rem 0;
-        font-size: 1rem;
-        font-weight: 600;
-    }
-    
-    .pwa-install-content p {
-        margin: 0;
-        font-size: 0.875rem;
-        opacity: 0.9;
-    }
-    
-    .pwa-install-actions {
-        display: flex;
-        gap: 0.5rem;
-    }
-    
-    .pwa-install-btn {
-        padding: 0.5rem 1rem;
-        border: none;
-        border-radius: 6px;
-        font-weight: 600;
-        cursor: pointer;
-        font-size: 0.875rem;
-        transition: all 0.2s ease;
-    }
-    
-    .pwa-install-btn-primary {
-        background: var(--color-bg-primary);
-        color: var(--color-accent-primary);
-    }
-    
-    .pwa-install-btn-primary:hover { transform: scale(1.05); }
-    
-    .pwa-install-btn-secondary {
-        background: transparent;
-        color: var(--color-bg-primary);
-        border: 1px solid var(--color-bg-primary);
-    }
-    
-    .pwa-install-btn-secondary:hover {
-        background: rgba(15, 20, 25, 0.2);
-    }
-    
     /* Scroll button */
     .scroll-to-end-btn {
         position: fixed;
@@ -173,29 +103,10 @@
             width: 44px;
             height: 44px;
         }
-        
-        .pwa-install-banner {
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-        
-        .pwa-install-actions { width: 100%; }
-        .pwa-install-btn { flex: 1; }
     }
 </style>
 </head>
 <body>
-<!-- PWA INSTALL BANNER -->
-<div id="pwaInstallBanner" class="pwa-install-banner">
-    <div class="pwa-install-content">
-        <h3>Install Crump AI</h3>
-       <p id="pwaInstallText">Add to your home screen for instant access</p>
-    </div>
-    <div class="pwa-install-actions">
-        <button id="pwaInstallBtn" class="pwa-install-btn pwa-install-btn-primary">Install</button>
-        <button id="pwaDismissBtn" class="pwa-install-btn pwa-install-btn-secondary">Not Now</button>
-    </div>
-</div>
 
 <!-- SPLASH SCREEN -->
 <div id="splashScreen" class="splash-screen">
@@ -221,11 +132,11 @@
             <div style="background: var(--color-bg-tertiary); padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;">
                 <h3 style="margin-bottom: 1rem; color: var(--color-accent-primary);">Quick Summary</h3>
                 <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.75rem;">
-                    <li>Your chats are stored locally on your device only</li>
-                    <li>We use AI (Claude & GPT-4) to power responses</li>
-                    <li>You must be 17+ to use this service</li>
-                    <li>AI responses may not always be accurate</li>
-                    <li>Not for medical, legal, or financial advice</li>
+                    <li>✓ Your chats are stored locally on your device only</li>
+                    <li>✓ We use AI (Claude & GPT-4) to power responses</li>
+                    <li>✓ You must be 17+ to use this service</li>
+                    <li>✓ AI responses may not always be accurate</li>
+                    <li>✓ Not for medical, legal, or financial advice</li>
                 </ul>
             </div>
 
@@ -362,7 +273,7 @@
                 <img src="/assets/logo-c.png" alt="C" class="header-logo-icon">
                 <h1 class="header-logo">Crump</h1>
             </div>
-            <!-- NEW: Usage & Upgrade buttons -->
+            <!-- Usage & Upgrade buttons -->
             <div style="display: flex; gap: 0.5rem;">
                 <button class="btn-icon" onclick="showUsageStats()" title="Usage Stats">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -608,7 +519,6 @@
 <script src="/app.js"></script>
 
 <script>
-    
     // TOS handling
     document.getElementById('tosAccept').addEventListener('change', function() {
         const btn = document.getElementById('tosAcceptBtn');
