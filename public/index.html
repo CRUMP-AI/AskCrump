@@ -21,6 +21,7 @@
 <!-- Styles -->
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/new-features.css">
+<link rel="stylesheet" href="/pwa-install-universal.css">    
 
 <!-- Code highlighting -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
@@ -184,7 +185,7 @@
 <div id="pwaInstallBanner" class="pwa-install-banner">
     <div class="pwa-install-content">
         <h3>Install Crump AI</h3>
-        <p>Add to your home screen for instant access</p>
+       <p id="pwaInstallText">Add to your home screen for instant access</p>
     </div>
     <div class="pwa-install-actions">
         <button id="pwaInstallBtn" class="pwa-install-btn pwa-install-btn-primary">Install</button>
@@ -582,6 +583,7 @@
 <input type="file" id="fileInput" style="display: none;" accept="image/*,.pdf,.txt,.doc,.docx" multiple>
 
 <!-- SCRIPTS - PROFESSIONAL TIER SYSTEM -->
+<script src="/pwa-install-universal.js"></script>    
 <script src="/tutorial.js"></script>
 <script src="/engines.js"></script>
 <script src="/scroll-manager.js"></script>
@@ -602,52 +604,6 @@
 <script src="/app.js"></script>
 
 <script>
-    // PWA Install Prompt
-    let deferredPrompt;
-    
-    function isPWAInstalled() {
-        if (window.matchMedia('(display-mode: standalone)').matches) return true;
-        if (localStorage.getItem('crump_pwa_installed') === 'true') return true;
-        return false;
-    }
-    
-    if (isPWAInstalled()) {
-        console.log('[PWA] Already installed');
-    } else {
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            
-            if (!localStorage.getItem('crump_pwa_dismissed') && !isPWAInstalled()) {
-                setTimeout(() => {
-                    document.getElementById('pwaInstallBanner').classList.add('visible');
-                }, 3000);
-            }
-        });
-    }
-    
-    document.getElementById('pwaInstallBtn').addEventListener('click', async () => {
-        if (!deferredPrompt) return;
-        
-        document.getElementById('pwaInstallBanner').classList.remove('visible');
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        
-        if (outcome === 'accepted') {
-            localStorage.setItem('crump_pwa_installed', 'true');
-        }
-        deferredPrompt = null;
-    });
-    
-    document.getElementById('pwaDismissBtn').addEventListener('click', () => {
-        document.getElementById('pwaInstallBanner').classList.remove('visible');
-        localStorage.setItem('crump_pwa_dismissed', 'true');
-    });
-    
-    window.addEventListener('appinstalled', () => {
-        localStorage.setItem('crump_pwa_installed', 'true');
-        document.getElementById('pwaInstallBanner').classList.remove('visible');
-    });
     
     // TOS handling
     document.getElementById('tosAccept').addEventListener('change', function() {
