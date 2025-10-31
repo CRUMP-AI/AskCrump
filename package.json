@@ -1,25 +1,29 @@
 {
-  "name": "ai-assistant-app",
-  "version": "1.0.0",
-  "type": "module",
-  "description": "Professional AI Assistant with Multi-Device Authentication",
+  "name": "crump-ai",
+  "version": "3.0.1",
+  "description": "Crump AI - Your Intelligent Assistant",
+  "main": "public/index.html",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
+    "build": "echo 'No build step required'",
     "dev": "vercel dev",
-    "build": "vercel build",
     "deploy": "vercel --prod"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.39.3",
-    "resend": "^3.2.0",
+    "@supabase/supabase-js": "^2.39.0",
+    "bcrypt": "^5.1.1",
     "jsonwebtoken": "^9.0.2",
-    "bcryptjs": "^2.4.3",
-    "cookie": "^0.6.0",
-    "dotenv": "^16.4.1"
+    "resend": "^3.0.0"
   },
-  "devDependencies": {
-    "vercel": "^33.0.1"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  }
+  "devDependencies": {},
+  "keywords": [
+    "ai",
+    "assistant",
+    "chatbot",
+    "pwa"
+  ],
+  "author": "Gregory D. Crump Jr.",
+  "license": "MIT"
 }
