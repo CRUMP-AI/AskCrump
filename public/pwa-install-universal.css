@@ -1,0 +1,368 @@
+/* ==========================================
+   UNIVERSAL PWA INSTALL - STYLES
+   Complete styling for install banner, modal, and instructions
+   ========================================== */
+
+/* ===== INSTALL BANNER ===== */
+.pwa-install-banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--color-accent-primary, #c9b892);
+    color: var(--color-bg-primary, #0f1419);
+    padding: 1rem;
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 1000;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+    animation: slideUpBanner 0.3s ease;
+    gap: 1rem;
+}
+
+@keyframes slideUpBanner {
+    from { 
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to { 
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.pwa-install-banner.visible { 
+    display: flex;
+}
+
+.pwa-install-content { 
+    flex: 1;
+    min-width: 0;
+}
+
+.pwa-install-content h3 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-bg-primary, #0f1419);
+}
+
+.pwa-install-content p {
+    margin: 0;
+    font-size: 0.875rem;
+    opacity: 0.9;
+    color: var(--color-bg-primary, #0f1419);
+}
+
+.pwa-install-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.pwa-install-btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.pwa-install-btn-primary {
+    background: var(--color-bg-primary, #0f1419);
+    color: var(--color-accent-primary, #c9b892);
+}
+
+.pwa-install-btn-primary:hover { 
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.pwa-install-btn-secondary {
+    background: transparent;
+    color: var(--color-bg-primary, #0f1419);
+    border: 1px solid var(--color-bg-primary, #0f1419);
+}
+
+.pwa-install-btn-secondary:hover {
+    background: rgba(15, 20, 25, 0.1);
+}
+
+/* ===== INSTRUCTIONS MODAL ===== */
+.pwa-instructions-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.pwa-instructions-modal.active {
+    opacity: 1;
+}
+
+.pwa-modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+}
+
+.pwa-modal-content {
+    position: relative;
+    background: var(--color-bg-secondary, #1a1f29);
+    border-radius: 12px;
+    max-width: 500px;
+    width: calc(100% - 2rem);
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    animation: modalSlideUp 0.3s ease;
+}
+
+@keyframes modalSlideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.pwa-modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: var(--color-bg-tertiary, #252b37);
+    color: var(--color-text-secondary, #9ca3af);
+    border-radius: 6px;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pwa-modal-close:hover {
+    background: var(--color-bg-elevated, #2a3240);
+    color: var(--color-text-primary, #e5e7eb);
+    transform: scale(1.1);
+}
+
+.pwa-modal-header {
+    padding: 2rem 2rem 1rem;
+    text-align: center;
+}
+
+.pwa-modal-header h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-text-primary, #e5e7eb);
+    margin: 0 0 0.5rem 0;
+}
+
+.pwa-modal-header p {
+    color: var(--color-text-secondary, #9ca3af);
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+.pwa-instructions {
+    padding: 1rem 2rem;
+}
+
+.instruction-step {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    align-items: flex-start;
+}
+
+.instruction-step:last-child {
+    margin-bottom: 0;
+}
+
+.step-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--color-accent-primary, #c9b892);
+    color: var(--color-bg-primary, #0f1419);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+.step-content {
+    flex: 1;
+}
+
+.step-content strong {
+    display: block;
+    color: var(--color-text-primary, #e5e7eb);
+    font-size: 0.9375rem;
+    margin-bottom: 0.25rem;
+}
+
+.step-content p {
+    color: var(--color-text-secondary, #9ca3af);
+    font-size: 0.875rem;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.pwa-modal-footer {
+    padding: 1rem 2rem 2rem;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
+.pwa-btn-primary,
+.pwa-btn-secondary {
+    padding: 0.625rem 1.25rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.pwa-btn-primary {
+    background: var(--color-accent-primary, #c9b892);
+    color: var(--color-bg-primary, #0f1419);
+}
+
+.pwa-btn-primary:hover {
+    background: var(--color-accent-hover, #b8a57d);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(201, 184, 146, 0.3);
+}
+
+.pwa-btn-secondary {
+    background: transparent;
+    color: var(--color-text-secondary, #9ca3af);
+    border: 1px solid var(--color-border, #2d3748);
+}
+
+.pwa-btn-secondary:hover {
+    background: var(--color-bg-tertiary, #252b37);
+    border-color: var(--color-border-hover, #3d4a5c);
+    color: var(--color-text-primary, #e5e7eb);
+}
+
+/* ===== SUCCESS TOAST ===== */
+.pwa-success-toast {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    background: var(--color-success, #16a34a);
+    color: white;
+    padding: 1rem 1.25rem;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    z-index: 10001;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+}
+
+.pwa-success-toast.visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.toast-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.toast-content svg {
+    flex-shrink: 0;
+}
+
+.toast-content span {
+    font-weight: 500;
+    font-size: 0.9375rem;
+}
+
+/* ===== RESPONSIVE MOBILE ===== */
+@media (max-width: 768px) {
+    .pwa-install-banner {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+        padding: 0.875rem;
+    }
+    
+    .pwa-install-actions {
+        width: 100%;
+    }
+    
+    .pwa-install-btn {
+        flex: 1;
+    }
+    
+    .pwa-modal-content {
+        width: calc(100% - 1rem);
+        margin: 0.5rem;
+    }
+    
+    .pwa-modal-header,
+    .pwa-instructions,
+    .pwa-modal-footer {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
+    
+    .pwa-modal-footer {
+        flex-direction: column;
+    }
+    
+    .pwa-btn-primary,
+    .pwa-btn-secondary {
+        width: 100%;
+    }
+    
+    .pwa-success-toast {
+        top: auto;
+        bottom: 5rem;
+        left: 1rem;
+        right: 1rem;
+    }
+}
+
+/* ===== DARK MODE SAFE ===== */
+@media (prefers-color-scheme: dark) {
+    .pwa-modal-overlay {
+        background: rgba(0, 0, 0, 0.8);
+    }
+}
+
+/* ===== PRINT HIDE ===== */
+@media print {
+    .pwa-install-banner,
+    .pwa-instructions-modal,
+    .pwa-success-toast {
+        display: none !important;
+    }
+}
