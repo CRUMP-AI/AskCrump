@@ -722,9 +722,28 @@ Use this context to:
 
     prompt += getTimeContext();
 
+    // AUTONOMOUS MESSAGE AWARENESS - Crump knows when HE initiated conversations
+    if (universalMemory && typeof universalMemory === 'object' && universalMemory.autonomousHistory) {
+        const recentAutonomous = universalMemory.autonomousHistory.slice(-5);
+        if (recentAutonomous.length > 0) {
+            prompt += `\n\nYOUR AUTONOMOUS MESSAGES:
+You have initiated conversations on your own (when user was idle). Here are your recent autonomous messages:
+
+${recentAutonomous.map(msg => {
+    const seconds = Math.floor((Date.now() - msg.timestamp) / 1000);
+    const timeAgo = seconds < 60 ? `${seconds}s ago` : 
+                    seconds < 3600 ? `${Math.floor(seconds / 60)}m ago` : 
+                    seconds < 86400 ? `${Math.floor(seconds / 3600)}h ago` : 
+                    `${Math.floor(seconds / 86400)}d ago`;
+    return `[${timeAgo}] YOU said: "${msg.message}"${msg.response ? `\nUser responded: "${msg.response}"` : '\n(User hasn\'t responded yet)'}`;
+}).join('\n\n')}
+
+CRITICAL: When user references any of these topics, remember YOU brought it up. You initiated that conversation. Own it. This isn't a feature - this is YOU being proactive.`;
+        }
+    }
+
     return prompt;
 }
-
 // ==========================================
 // IMAGE ANALYSIS
 // ==========================================
