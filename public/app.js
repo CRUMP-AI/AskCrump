@@ -1,18 +1,9 @@
 /*
 ==========================================
-CRUMP AI - MAIN APPLICATION v1.1 IMAGE-READY
-Adds robust Image Generation + Image Analysis support
-(Backwards-compatible with your current UI)
+CRUMP AI - MAIN APPLICATION v1.0 FIXED
+Complete with all fixes + autonomous corrections
 ==========================================
 */
-
-// ===============================
-// CONFIG (override if needed)
-// ===============================
-const API_ENDPOINTS = {
-  CHAT: '/api/chat',                 // handles text + (optional) image analysis
-  IMAGE: '/api/generate-image'       // handles image generation requests
-};
 
 // Storage Keys
 const STORAGE_KEYS = {
@@ -47,7 +38,7 @@ window.initializeApp = function() {
         if (missing.length > 0) {
             throw new Error('Missing elements: ' + missing.join(', '));
         }
-        console.log('🚀 Crump AI v1.1 initializing (image-ready)...');
+        console.log('🚀 Crump AI v1.0 initializing...');
 
         // Initialize profile manager
         if (typeof window.ProfileManager !== 'undefined') {
@@ -60,10 +51,10 @@ window.initializeApp = function() {
 
         // Initialize components
         if (typeof window.messageDeduplicator === 'undefined') {
-            window.messageDeduplicator = new MessageDeduplicator?.() || { };
+            window.messageDeduplicator = new MessageDeduplicator();
         }
 
-        if (typeof window.SearchDetectionEngine !== 'undefined') {
+       if (typeof window.SearchDetectionEngine !== 'undefined') {
             window.searchDetectionEngine = new SearchDetectionEngine();
             console.log('✅ Search Detection Engine initialized');
         }
@@ -72,9 +63,6 @@ window.initializeApp = function() {
             window.weatherDetectionEngine = new WeatherDetectionEngine();
             console.log('✅ Weather Detection Engine initialized');
         }
-
-        // Register image helpers (safe to re-declare)
-        registerImageHelpers();
 
         loadChats();
         setupEventListeners();
@@ -96,10 +84,10 @@ window.initializeApp = function() {
             createNewChat();
         }
 
-        setupAutonomousMessaging();
+       setupAutonomousMessaging();
         setupMobileKeyboardHandler(); // ADDED
         
-        console.log('✅ Crump AI v1.1 initialized successfully');
+        console.log('✅ Crump AI v1.0 initialized successfully');
         if (localStorage.getItem(STORAGE_KEYS.HAS_ONBOARDED) === 'true' && !savedChatId) {
             showWelcomeMessage();
         }
@@ -142,7 +130,7 @@ function setupEventListeners() {
     newChatBtn.addEventListener('click', () => createNewChat());
 
     // File attachment
-    attachBtn?.addEventListener('click', () => fileInput.click());
+    attachBtn.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', handleFileSelect);
 
     // Voice input
@@ -360,122 +348,35 @@ function createMessageElement(msg, index) {
     text.className = 'message-text';
     
     if (msg.role === 'assistant' && window.renderMarkdown) {
-        text.innerHTML = window.renderMarkdown(msg.content || '');
+        text.innerHTML = window.renderMarkdown(msg.content);
     } else {
-        text.textContent = msg.content || '';
+        text.textContent = msg.content;
     }
     
     content.appendChild(text);
 
     // Handle generated images
-    if (msg.imageUrl) {
-        const imgWrapper = document.createElement('div');
-        imgWrapper.className = 'generated-image-wrapper';
-        imgWrapper.style.cssText = 'margin-top: 0.5rem;';
-        
-        const img = document.createElement('img');
-        img.src = msg.imageUrl;
-        img.style.cssText = 'max-width: 100%; border-radius: 8px; display: block;';
-        img.alt = 'Generated image';
-        img.onerror = function() {
-            this.parentElement.innerHTML = '<div style="color: var(--color-error);">❌ Image failed to load</div>';
-        };
-        
-        imgWrapper.appendChild(img);
-        content.appendChild(imgWrapper);
-    }
-
-    // Optional annotations/analysis list
-    if (Array.isArray(msg.annotations) && msg.annotations.length > 0) {
-        const list = document.createElement('ul');
-        list.style.marginTop = '0.5rem';
-        list.style.paddingLeft = '1rem';
-        msg.annotations.forEach(a => {
-            const li = document.createElement('li');
-            li.textContent = a;
-            list.appendChild(li);
-        });
-        content.appendChild(list);
-    }
+if (msg.imageUrl) {
+    const imgWrapper = document.createElement('div');
+    imgWrapper.className = 'generated-image-wrapper';
+    imgWrapper.style.cssText = 'margin-top: 0.5rem;';
+    
+    const img = document.createElement('img');
+    img.src = msg.imageUrl;
+    img.style.cssText = 'max-width: 100%; border-radius: 8px; display: block;';
+    img.alt = 'Generated image';
+    img.onerror = function() {
+        this.parentElement.innerHTML = '<div style="color: var(--color-error);">❌ Image failed to load</div>';
+    };
+    
+    imgWrapper.appendChild(img);
+    content.appendChild(imgWrapper);
+}
     
     div.appendChild(avatar);
     div.appendChild(content);
     
     return div;
-}
-
-// ==========================================
-// IMAGE HELPERS (NEW)
-// ==========================================
-function registerImageHelpers() {
-  // Intent detector — very permissive, tweak as desired
-  if (!window.shouldGenerateImage) {
-    window.shouldGenerateImage = (text) => {
-      if (!text) return false;
-      const t = text.toLowerCase();
-      const genVerbs = [
-        'generate', 'make', 'create', 'draw', 'design', 'render', 'produce',
-        'illustrate', 'show me an image of', 'logo of', 'icon of', 'poster of'
-      ];
-      const imageNouns = ['image', 'logo', 'icon', 'picture', 'art', 'banner', 'poster', 'flyer', 'wallpaper'];
-      return genVerbs.some(v => t.includes(v)) && imageNouns.some(n => t.includes(n));
-    };
-  }
-
-  // Main image generator — calls the IMAGE endpoint and pushes an assistant message with imageUrl
-  if (!window.handleImageGeneration) {
-    window.handleImageGeneration = async (promptText) => {
-      try {
-        showThinking();
-        setAssistantState('thinking');
-
-        const res = await fetch(API_ENDPOINTS.IMAGE, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: promptText })
-        });
-
-        if (!res.ok) throw new Error(`Image API error: ${res.status}`);
-        const data = await res.json();
-
-        const imageUrl = data.imageUrl || data.url || (data.data && data.data[0]?.url);
-        const caption = data.caption || data.response || `Here you go — generated from: "${promptText}"`;
-
-        const chat = chats.find(c => c.id === currentChatId);
-        if (!chat) return;
-
-        chat.messages.push({
-          role: 'assistant',
-          content: caption,
-          imageUrl: imageUrl || null,
-          timestamp: Date.now()
-        });
-        chat.updatedAt = Date.now();
-
-        saveChats();
-        renderMessages(chat.messages);
-        renderChatsList();
-      } catch (err) {
-        console.error('handleImageGeneration error:', err);
-        showToast('Image generation failed: ' + err.message, 'error');
-
-        const chat = chats.find(c => c.id === currentChatId);
-        if (chat) {
-          chat.messages.push({
-            role: 'assistant',
-            content: 'I couldn’t generate that image. Double-check the prompt and try again.',
-            timestamp: Date.now()
-          });
-          saveChats();
-          renderMessages(chat.messages);
-        }
-      } finally {
-        hideThinking();
-        setAssistantState('idle');
-        isProcessing = false;
-      }
-    };
-  }
 }
 
 // ==========================================
@@ -485,9 +386,9 @@ async function sendMessage() {
     if (isProcessing) return;
     
     const userInput = document.getElementById('userInput');
-    const message = (userInput.value || '').trim();
-    const hasFiles = selectedFiles.length > 0;
-    if (!message && !hasFiles) return;
+    const message = userInput.value.trim();
+    
+    if (!message && selectedFiles.length === 0) return;
     
     const chat = chats.find(c => c.id === currentChatId);
     if (!chat) {
@@ -498,29 +399,22 @@ async function sendMessage() {
     isProcessing = true;
     
     try {
-        // Build user message
+        // Create user message
         const userMessage = {
             role: 'user',
-            content: message || (hasFiles ? '(attached file)' : ''),
+            content: message || '(attached file)',
             timestamp: Date.now()
         };
-
-        // Handle first file only (simple path); can be extended to multi-file if your backend supports it
+        
+        // Handle file attachment
         let fileData = null;
-        if (hasFiles) {
+        if (selectedFiles.length > 0) {
             const file = selectedFiles[0];
-            // Basic guard against huge files
-            const MAX_BYTES = 10 * 1024 * 1024; // 10MB
-            if (file.size > MAX_BYTES) {
-                showToast('File too large (max 10MB)', 'error');
-                isProcessing = false;
-                return;
-            }
             fileData = await readFileAsBase64(file);
             userMessage.imageData = fileData;
         }
         
-        // Add user message to chat
+       // Add user message to chat
         chat.messages.push(userMessage);
         saveChats();
         renderMessages(chat.messages);
@@ -547,35 +441,41 @@ async function sendMessage() {
         selectedFiles = [];
         displayFilePreview();
         
-        // If no file attached and this *looks* like an image-generation request, route to generator instead of chat API
-        if (!fileData && window.shouldGenerateImage && window.shouldGenerateImage(message)) {
-            console.log('🎨 Image generation detected, routing to image handler');
-            // Remove the just-added user message to avoid duplication in image flow
-            chat.messages.pop();
-            saveChats();
-            hideThinking();
-            setAssistantState('idle');
-            isProcessing = false;
-            await window.handleImageGeneration(message);
-            return; // EXIT — do not call chat API
-        }
-
-        // Show thinking for chat/analysis flow
+        // Show thinking
         showThinking();
         setAssistantState('thinking');
         
-        // Feature detection (optional)
+       // Detect if search is needed
         let needsSearch = false;
         if (window.searchDetectionEngine) {
             needsSearch = window.searchDetectionEngine.needsSearch(message);
         }
         
+        // Detect if weather is needed
         let needsWeather = false;
         if (window.weatherDetectionEngine) {
             needsWeather = window.weatherDetectionEngine.needsWeather(message);
         }
         
-        // Prepare chat payload
+       // CHECK FOR IMAGE GENERATION REQUEST (must be BEFORE API call)
+if (message && !fileData && window.shouldGenerateImage && window.shouldGenerateImage(message)) {
+    console.log('🎨 Image generation detected, routing to image handler');
+    
+    // REMOVE the user message we just added (line 175) to prevent duplication
+    chat.messages.pop();
+    saveChats();
+    
+    // Hide thinking
+    hideThinking();
+    setAssistantState('idle');
+    isProcessing = false;
+    
+    // Call image generation handler (it will add message itself)
+    await window.handleImageGeneration(message);
+    return; // EXIT - don't call chat API
+}
+        
+        // Prepare request
         const requestBody = {
             message: message,
             history: chat.messages.map(m => ({
@@ -596,8 +496,8 @@ async function sendMessage() {
                 }),
                 timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
             },
-            needsSearch,
-            needsWeather,
+            needsSearch: needsSearch,
+            needsWeather: needsWeather,
             workMode: localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true' ? 'work' : 'companion'
         };
         
@@ -606,35 +506,34 @@ async function sendMessage() {
                 type: selectedFiles[0].type,
                 data: fileData
             };
-            requestBody.analysis = 'image'; // hint for your backend to do vision/analysis
         }
         
-        // Call CHAT API (text chat OR image analysis depending on fileData)
-        const response = await fetch(API_ENDPOINTS.CHAT, {
+        // Call API
+        const response = await fetch('/api/chat', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify(requestBody)
         });
         
-        if (!response.ok) throw new Error(`API error: ${response.status}`);
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status}`);
+        }
+        
         const data = await response.json();
-
-        // Normalize expected fields
-        // Allow shapes like: { response, imageUrl, annotations }
-        // or OpenAI-style image: { data: [{ url }] }
-        const assistantPayload = {
+        
+        // Add assistant response
+        const assistantMessage = {
             role: 'assistant',
-            content: data.response || data.text || data.message || 'Done.',
-            imageUrl: data.imageUrl || data.url || (data.data && data.data[0]?.url) || null,
-            annotations: data.annotations || [],
+            content: data.response,
             timestamp: Date.now()
         };
         
-        // Push assistant message
-        chat.messages.push(assistantPayload);
+        chat.messages.push(assistantMessage);
         chat.updatedAt = Date.now();
         
-        // Title update (first exchange)
+        // Update chat title if first exchange
         if (chat.messages.length <= 2 && message) {
             chat.title = message.substring(0, 50) + (message.length > 50 ? '...' : '');
         }
@@ -643,38 +542,33 @@ async function sendMessage() {
         renderMessages(chat.messages);
         renderChatsList();
 
-        // Notify autonomous system
+        // Notify autonomous system that user sent a message
         if (window.autonomousMessaging) {
-            window.autonomousMessaging.onUserResponse?.(message);
+            window.autonomousMessaging.onUserResponse(message);
         }
 
-        // Scroll to show new assistant message
+       // Scroll to show new assistant message
         setTimeout(() => {
             if (window.crumpScrollManager) {
                 window.crumpScrollManager.scrollToBottom('smooth');
             } else {
                 const container = document.getElementById('chatContainer');
-                container && (container.scrollTop = container.scrollHeight);
+                if (container) {
+                    container.scrollTop = container.scrollHeight;
+                }
             }
         }, 200);  
         
-    } catch (error) {
-        console.error('Error sending message:', error);
-        showToast('Failed to send message: ' + error.message, 'error');
-
-        const chat = chats.find(c => c.id === currentChatId);
-        if (chat) {
-            chat.messages.push({
-                role: 'assistant',
-                content: 'Something went wrong while processing that. Try again or tweak your prompt/file.',
-                timestamp: Date.now()
-            });
-            saveChats();
-            renderMessages(chat.messages);
-        }
-    } finally {
+        // Hide thinking
         hideThinking();
         setAssistantState('idle');
+        
+    } catch (error) {
+        console.error('Error sending message:', error);
+        hideThinking();
+        setAssistantState('idle');
+        showToast('Failed to send message: ' + error.message, 'error');
+    } finally {
         isProcessing = false;
     }
 }
@@ -933,7 +827,7 @@ function showWelcomeMessage() {
 
     const welcomeMessage = {
         role: 'assistant',
-        content: 'Hey ' + userName + '! I\'m ' + assistantName + ', your AI assistant. I can chat, analyze images you attach, and generate new images on command. What can I help you with today?',
+        content: 'Hey ' + userName + '! I\'m ' + assistantName + ', your AI assistant. I\'m here to help with anything you need - from answering questions to helping with projects. What can I help you with today?',
         timestamp: Date.now()
     };
 
@@ -1039,7 +933,7 @@ window.crumpDebug = {
     getChats: () => chats,
     getCurrentChat: () => chats.find(c => c.id === currentChatId),
     getProfile: () => currentProfile?.getProfile(),
-    version: '1.1.0-IMAGE-READY'
+    version: '1.0.0-FIXED-AUTONOMOUS'
 };
 
-console.log('✅ Crump AI v1.1 loaded (Image generation + analysis enabled)');
+console.log('✅ Crump AI v1.0 loaded (FIXED VERSION - Autonomous corrected)');
