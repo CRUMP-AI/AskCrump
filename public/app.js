@@ -406,12 +406,27 @@ async function sendMessage() {
             timestamp: Date.now()
         };
         
-        // Handle file attachment
+       // Handle file attachment FIRST (before clearing)
         let fileData = null;
+        let fileType = null;
+        let fileName = null;
+        
         if (selectedFiles.length > 0) {
             const file = selectedFiles[0];
+            console.log('📎 Processing file:', file.name, file.type, file.size);
             fileData = await readFileAsBase64(file);
-            userMessage.imageData = fileData;
+            fileType = file.type;
+            fileName = file.name;
+            console.log('✅ File data captured:', fileType, fileName);
+        }
+        
+      // Store image data for display (FIXED: use fileData structure that ui-functions.js expects)
+        if (fileData && fileType) {
+            userMessage.fileData = {
+                type: fileType,
+                data: fileData,
+                name: fileName
+            };
         }
         
        // Add user message to chat
@@ -501,10 +516,12 @@ if (message && !fileData && window.shouldGenerateImage && window.shouldGenerateI
             workMode: localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true' ? 'work' : 'companion'
         };
         
-        if (fileData) {
+       if (fileData && fileType) {
+            console.log('📤 Sending file to API:', fileType, fileName);
             requestBody.fileData = {
-                type: selectedFiles[0].type,
-                data: fileData
+                type: fileType,
+                data: fileData,
+                name: fileName
             };
         }
         
