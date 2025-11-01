@@ -13,7 +13,8 @@
     function isPWAInstalled() {
         return window.matchMedia('(display-mode: standalone)').matches ||
                window.navigator.standalone === true ||
-               localStorage.getItem('crump_pwa_installed') === 'true';
+               localStorage.getItem('crump_pwa_installed') === 'true' ||
+               localStorage.getItem('crump_pwa_install_prompted') === 'true';
     }
     
     // Create floating install button
@@ -116,6 +117,10 @@
         }
         
         alert(message);
+        
+        // Mark as shown so we don't keep prompting the user
+        localStorage.setItem('crump_pwa_install_prompted', 'true');
+        hideInstallButton();
     }
     
     // Detect platform
