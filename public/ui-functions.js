@@ -334,7 +334,6 @@ function showThinking() {
 const container = document.getElementById(‘chatContainer’);
 if (!container) return;
 
-```
 const existing = document.getElementById('thinkingIndicator');
 if (existing) return; // Already showing
 
@@ -358,7 +357,6 @@ thinking.innerHTML = `
 
 container.appendChild(thinking);
 container.scrollTop = container.scrollHeight;
-```
 
 }
 
