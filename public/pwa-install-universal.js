@@ -17,10 +17,28 @@
                localStorage.getItem('crump_pwa_install_prompted') === 'true';
     }
     
-    // Check if main app is visible (not onboarding/splash)
+    // Check if main app is visible (not onboarding/splash) and no modals/sidebars are open
     function isMainAppVisible() {
         const appContainer = document.getElementById('appContainer');
-        return appContainer && appContainer.style.display !== 'none';
+        const sidebar = document.getElementById('sidebar');
+        const settingsModal = document.getElementById('settingsModal');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        
+        // Check if app container is visible
+        const appVisible = appContainer && appContainer.style.display !== 'none';
+        
+        // Check if sidebar is open
+        const sidebarOpen = sidebar && sidebar.classList.contains('active');
+        
+        // Check if any modal is open (settings or others)
+        const modalOpen = settingsModal && settingsModal.style.display !== 'none';
+        
+        // Check if sidebar overlay is visible
+        const overlayVisible = sidebarOverlay && 
+                               window.getComputedStyle(sidebarOverlay).display !== 'none';
+        
+        // Only show if app is visible AND no sidebar/modal is open
+        return appVisible && !sidebarOpen && !modalOpen && !overlayVisible;
     }
     
     // Create floating install button
@@ -52,9 +70,9 @@
     
     // Show the install button
     function showInstallButton() {
-        // Only show if main app is visible
+        // Only show if main app is visible and no modals/sidebars open
         if (!isMainAppVisible()) {
-            console.log('[PWA] Main app not visible, skipping install button');
+            console.log('[PWA] Main app not visible or modal/sidebar open, skipping install button');
             return;
         }
         
@@ -64,8 +82,10 @@
         
         // Small delay for smooth animation
         setTimeout(() => {
-            installButton.classList.add('visible');
-            console.log('[PWA] Install button shown');
+            if (installButton && isMainAppVisible()) {
+                installButton.classList.add('visible');
+                console.log('[PWA] Install button shown');
+            }
         }, 100);
     }
     
@@ -167,6 +187,15 @@
         }, 3000);
     }
     
+    // Check visibility and toggle button
+    function checkVisibilityAndToggle() {
+        if (isMainAppVisible() && deferredPrompt && !installButton) {
+            showInstallButton();
+        } else if (!isMainAppVisible() && installButton) {
+            hideInstallButton();
+        }
+    }
+    
     // Initialize
     function init() {
         console.log('[PWA] One-click installer initializing...');
@@ -206,23 +235,48 @@
             }
         }, 3000);
         
-        // Watch for appContainer visibility changes
-        const observer = new MutationObserver(() => {
-            if (isMainAppVisible() && deferredPrompt && !installButton) {
-                showInstallButton();
-            } else if (!isMainAppVisible() && installButton) {
-                hideInstallButton();
-            }
-        });
+        // Watch for various UI changes that might affect visibility
+        const observer = new MutationObserver(checkVisibilityAndToggle);
         
-        // Observe the appContainer for style changes
+        // Observe multiple elements
         const appContainer = document.getElementById('appContainer');
+        const sidebar = document.getElementById('sidebar');
+        const settingsModal = document.getElementById('settingsModal');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        
         if (appContainer) {
             observer.observe(appContainer, { 
                 attributes: true, 
                 attributeFilter: ['style'] 
             });
         }
+        
+        if (sidebar) {
+            observer.observe(sidebar, { 
+                attributes: true, 
+                attributeFilter: ['class'] 
+            });
+        }
+        
+        if (settingsModal) {
+            observer.observe(settingsModal, { 
+                attributes: true, 
+                attributeFilter: ['style'] 
+            });
+        }
+        
+        if (sidebarOverlay) {
+            observer.observe(sidebarOverlay, { 
+                attributes: true, 
+                attributeFilter: ['style'] 
+            });
+        }
+        
+        // Also listen for click events on sidebar/modal controls
+        document.addEventListener('click', (e) => {
+            // Small delay to let animations complete
+            setTimeout(checkVisibilityAndToggle, 100);
+        });
     }
     
     // Start when DOM is ready
