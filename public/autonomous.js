@@ -307,12 +307,23 @@ class AutonomousMessaging {
             // Play notification sound (optional)
             this.playNotificationSound();
 
-            // FIXED: Record this autonomous message so Crump remembers it
+           // FIXED: Record this autonomous message so Crump remembers it
             // Note: We'll record the user's response when they reply
             this.lastAutonomousMessage = {
                 message: data.message,
                 timestamp: Date.now()
             };
+
+            // CRITICAL: Store in universalMemory for main chat API
+            if (typeof window.universalMemory === 'undefined') {
+                window.universalMemory = {};
+            }
+            window.universalMemory.autonomousHistory = this.autonomousHistory;
+
+            // Record this autonomous message (without response yet)
+            this.recordAutonomousMessage(data.message);
+
+            console.log('✅ Autonomous message sent:', data.message.substring(0, 50) + '...');
 
             console.log('✅ Autonomous message sent:', data.message.substring(0, 50) + '...');
 
