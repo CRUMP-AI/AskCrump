@@ -314,7 +314,7 @@
 /* User Profile */
 .auth-trigger-btn {
     position: fixed;
-    top: 20px;
+    top: calc(20px + env(safe-area-inset-top, 0px));
     right: 20px;
     padding: 10px 20px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
