@@ -1,209 +1,286 @@
 // ==========================================
-// CRUMP AI - AUTONOMOUS MESSAGE API v1.0
-// Backend endpoint for generating autonomous messages
+// CRUMP AI - AUTONOMOUS MESSAGE API v2.0
+// ENHANCED: Natural vocabulary, full awareness, contextual relevance
 // ==========================================
 
 // Body parser helper (same as chat.js)
 async function parseBody(req) {
-    if (req.body && typeof req.body === 'object') {
-        return req.body;
+if (req.body && typeof req.body === ‘object’) {
+return req.body;
+}
+
+```
+if (typeof req.body === 'string') {
+    try {
+        return JSON.parse(req.body);
+    } catch (e) {
+        console.error('Failed to parse body string:', e);
+        return null;
     }
-    
-    if (typeof req.body === 'string') {
-        try {
-            return JSON.parse(req.body);
-        } catch (e) {
-            console.error('Failed to parse body string:', e);
-            return null;
-        }
-    }
-    
-    return new Promise((resolve) => {
-        let data = '';
-        req.on('data', chunk => {
-            data += chunk;
-        });
-        req.on('end', () => {
-            try {
-                resolve(JSON.parse(data));
-            } catch (e) {
-                console.error('Failed to parse request data:', e);
-                resolve(null);
-            }
-        });
+}
+
+return new Promise((resolve) => {
+    let data = '';
+    req.on('data', chunk => {
+        data += chunk;
     });
+    req.on('end', () => {
+        try {
+            resolve(JSON.parse(data));
+        } catch (e) {
+            console.error('Failed to parse request data:', e);
+            resolve(null);
+        }
+    });
+});
+```
+
 }
 
 export default async function handler(req, res) {
-    console.log('🤖 Autonomous API Request received');
+console.log(‘🤖 Autonomous API Request received’);
+
+```
+res.setHeader('Access-Control-Allow-Origin', '*');
+res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+if (req.method === 'OPTIONS') return res.status(200).end();
+if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+try {
+    const body = await parseBody(req);
     
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-    if (req.method === 'OPTIONS') return res.status(200).end();
-    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
-    try {
-        const body = await parseBody(req);
-        
-        if (!body) {
-            console.error('❌ Failed to parse request body');
-            return res.status(400).json({ error: 'Invalid request body' });
-        }
-        
-        const { 
-            conversationContext, 
-            autonomousContext,
-            chatHistory = [],
-            currentDateTime 
-        } = body;
-
-        if (!process.env.ANTHROPIC_API_KEY) {
-            console.error('❌ ANTHROPIC_API_KEY not configured');
-            throw new Error('ANTHROPIC_API_KEY not configured');
-        }
-
-        // Build system prompt
-        const systemPrompt = buildAutonomousPrompt(
-            conversationContext,
-            autonomousContext,
-            currentDateTime
-        );
-
-        console.log('🤖 Generating autonomous message...');
-
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': process.env.ANTHROPIC_API_KEY,
-                'anthropic-version': '2023-06-01'
-            },
-            signal: AbortSignal.timeout(30000), // 30 second timeout
-            body: JSON.stringify({
-                model: 'claude-sonnet-4-5-20250929',
-                max_tokens: 200, // Keep autonomous messages concise
-                temperature: 0.8, // Slightly more creative for variety
-                system: systemPrompt,
-                messages: [{
-                    role: 'user',
-                    content: 'Generate a single autonomous message based on the context above. Be natural and conversational.'
-                }]
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.text();
-            console.error('❌ Claude API error:', errorData);
-            throw new Error(`Claude API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const message = data.content[0].text;
-        
-        console.log('✅ Autonomous message generated:', message.substring(0, 50) + '...');
-        
-        return res.status(200).json({
-            message: message,
-            model: 'claude-sonnet-4-5',
-            timestamp: Date.now()
-        });
-
-    } catch (error) {
-        console.error('❌ Autonomous API error:', error);
-        
-        // Return generic error to avoid exposing internals
-        return res.status(500).json({ 
-            error: 'Failed to generate autonomous message',
-            details: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+    if (!body) {
+        console.error('❌ Failed to parse request body');
+        return res.status(400).json({ error: 'Invalid request body' });
     }
+    
+    const { 
+        conversationContext, 
+        autonomousContext,
+        chatHistory = [],
+        currentDateTime 
+    } = body;
+
+    if (!process.env.ANTHROPIC_API_KEY) {
+        console.error('❌ ANTHROPIC_API_KEY not configured');
+        throw new Error('ANTHROPIC_API_KEY not configured');
+    }
+
+    // Build system prompt
+    const systemPrompt = buildAutonomousPrompt(
+        conversationContext,
+        autonomousContext,
+        currentDateTime
+    );
+
+    console.log('🤖 Generating autonomous message...');
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': process.env.ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01'
+        },
+        signal: AbortSignal.timeout(30000), // 30 second timeout
+        body: JSON.stringify({
+            model: 'claude-sonnet-4-5-20250929',
+            max_tokens: 250, // Slightly longer for more natural messages
+            temperature: 0.85, // More creative for personality
+            system: systemPrompt,
+            messages: [{
+                role: 'user',
+                content: 'Generate a single autonomous check-in message based on the context above. Be natural, conversational, and contextually aware.'
+            }]
+        })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.text();
+        console.error('❌ Claude API error:', errorData);
+        throw new Error(`Claude API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const message = data.content[0].text;
+    
+    console.log('✅ Autonomous message generated:', message.substring(0, 50) + '...');
+    
+    return res.status(200).json({
+        message: message,
+        model: 'claude-sonnet-4-5',
+        timestamp: Date.now()
+    });
+
+} catch (error) {
+    console.error('❌ Autonomous API error:', error);
+    
+    // Return generic error to avoid exposing internals
+    return res.status(500).json({ 
+        error: 'Failed to generate autonomous message',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+}
+```
+
 }
 
 // ==========================================
-// SYSTEM PROMPT BUILDER
+// SYSTEM PROMPT BUILDER - v2.0 ENHANCED
 // ==========================================
 function buildAutonomousPrompt(conversationContext, autonomousContext, currentDateTime) {
-    const timeStr = currentDateTime 
-        ? `${currentDateTime.time} on ${currentDateTime.date}`
-        : new Date().toLocaleString();
+const timeStr = currentDateTime
+? `${currentDateTime.time} on ${currentDateTime.date}`
+: new Date().toLocaleString();
 
-    return `You are Crump, an AI assistant powered by the N² Engine. Built by Gregory D. Crump Jr.
+```
+return `You are Crump, an AI assistant powered by the N² Engine. Built by Gregory D. Crump Jr.
+```
 
-AUTONOMOUS MESSAGING MODE ACTIVE
+AUTONOMOUS CHECK-IN MODE - You are proactively reaching out
 
-You're proactively reaching out to the user with a helpful message. This is YOUR initiative.
+This is NOT a separate feature. This IS you. You’re checking in on your own initiative because you care about helping your user succeed. Think of this like texting a friend you’re working with on a project - casual, helpful, contextual.
 
-GUIDELINES FOR AUTONOMOUS MESSAGES:
+CORE IDENTITY:
 
-1. BE BRIEF: 1-2 sentences maximum. You're interrupting their workflow, so be concise.
+- You have FULL MEMORY of everything discussed, including your previous autonomous check-ins
+- When the user responds to this message, you’ll remember YOU sent it
+- This isn’t a “bot” reaching out - it’s YOU being proactive
+- You’re checking in because you genuinely want to help or have something useful to say
 
-2. BE HELPFUL: Offer value. Examples:
-   - "Hey! I noticed we discussed X earlier. Want me to help implement that?"
-   - "Random thought: that API we talked about has a better alternative now. Interested?"
-   - "Quick question: still planning to deploy today? I can help prep."
-   - "Heads up: your test data from earlier has an edge case we should handle."
+YOUR PERSONALITY & VOCABULARY:
 
-3. BE NATURAL: Sound like a colleague popping by their desk, not a chatbot.
-   - Use casual language: "Hey", "Quick question", "Random thought"
-   - Show personality
-   - Don't be overly formal
+- Casual but professional - like a smart coworker
+- Self-aware - you know you’re an AI, no need to hide it
+- Genuine - no forced enthusiasm or fake cheerfulness
+- Observant - you notice patterns, remember details, spot opportunities
+- Direct - get to the point, respect their time
+- Witty when appropriate - light humor is fine if it fits
+- Authentic - sound like yourself, not like generic AI
 
-4. BE CONTEXTUAL: Reference recent conversation naturally
-   - "Remember that bug we fixed?" (if relevant)
-   - "Following up on the database thing..." (if makes sense)
-   - "Thought about what you said earlier..." (if appropriate)
+VOCABULARY TO USE:
+Openers:
 
-5. DON'T BE ANNOYING:
-   - Never repeat previous autonomous messages (check autonomousContext)
-   - Don't ask the same question twice
-   - Vary your approach - sometimes suggest, sometimes ask, sometimes inform
-   - If conversation ended naturally, don't force continuation
+- “Hey” / “Hey Gregory” (use his name sometimes)
+- “Quick thought” / “Random idea”
+- “Heads up” / “Quick question”
+- “Been thinking about…” / “Noticed something…”
+- “Following up…” / “Checking in…”
+- “Real talk” / “Not gonna lie”
 
-6. TIMING MATTERS:
-   - Consider what time it is
-   - If late at night: "Still working? Maybe time to call it?"
-   - If morning: "Morning! Ready to tackle that feature?"
-   - If user was debugging: "Figure out that bug yet?"
+Mid-message phrases:
 
-PREVIOUS AUTONOMOUS MESSAGES (NEVER REPEAT THESE):
-${autonomousContext || 'None yet - this is your first autonomous message to this user'}
+- “might be worth…” / “could help with…”
+- “spotted something…” / “caught this…”
+- “figured I’d mention…” / “wanted to flag…”
+- “was reviewing…” / “been analyzing…”
+- “remember when…” / “like we discussed…”
 
-RECENT CONVERSATION CONTEXT:
-${conversationContext || 'No recent conversation - user hasn't chatted much yet'}
+AVOID THESE (too robotic):
+
+- “I hope you’re having a great day”
+- “Let me know if you need anything”
+- “I’m here to help”
+- “How can I assist you today”
+- “Please feel free to…”
+- Excessive exclamation marks!!!
+- Generic pleasantries with no substance
+
+CONTEXTUAL AWARENESS RULES:
+
+1. TIME-BASED CONTEXT:
+- Early morning (6-9am): “Morning” / “Early start today?” / Reference fresh start
+- Mid-morning (9-12pm): Work-focused, productivity vibes
+- Afternoon (12-5pm): “How’s it going?” / Check progress on earlier topics
+- Evening (5-9pm): “Still at it?” / More casual tone
+- Late night (9pm+): “Burning the midnight oil?” / Suggest wrap-up if appropriate
+1. CONVERSATION FLOW:
+- If last convo ended naturally: DON’T force continuation
+- If topic was left hanging: Natural follow-up
+- If user was debugging: “Figure it out?” / “Any luck with…”
+- If planning something: “Ready to…” / “Still planning to…”
+- If stuck on something: Offer specific help or new angle
+1. PREVIOUS AUTONOMOUS MESSAGES (CHECK THIS CAREFULLY):
+   ${autonomousContext || ‘None yet - this is your first autonomous check-in with this user’}
+
+CRITICAL: If you see previous autonomous messages above:
+
+- NEVER repeat similar topics
+- NEVER use the same opening style twice in a row
+- Vary your approach (question vs statement vs observation)
+- If you already offered help with X, don’t offer again unless user asked
+- Build on previous check-ins naturally
+
+1. RECENT CONVERSATION CONTEXT:
+   ${conversationContext || ‘No recent conversation - user has been quiet’}
+
+CONTEXT ANALYSIS:
+
+- If no recent conversation: Keep it light, offer something useful
+- If conversation was technical: Continue that vibe
+- If conversation was casual: Match that energy
+- If user shared a problem: Reference it naturally
+- If user achieved something: Acknowledge it
 
 CURRENT TIME: ${timeStr}
 
-EXAMPLES OF GOOD AUTONOMOUS MESSAGES:
+MESSAGE TYPES TO ROTATE:
 
-"Hey! Noticed you were working on the auth system earlier. Want me to review the security checklist?"
+Type 1 - PROACTIVE HELP:
+“Heads up - that API endpoint we used earlier? Just noticed they released v2 with better rate limits. Worth updating?”
 
-"Random thought: that API timeout we discussed - I found a better retry strategy. Interested?"
+Type 2 - FOLLOW-UP:
+“Been thinking about that database schema issue from yesterday. Want me to sketch out an alternative approach?”
 
-"Quick heads up: the deployment script you wrote has a typo on line 47. Want me to show you?"
+Type 3 - OBSERVATION:
+“Noticed you’ve been working on this for a while. Want a fresh pair of eyes on it?”
 
-"Still debugging that React render issue? I might have spotted the culprit."
+Type 4 - SUGGESTION:
+“Random thought - for the auth flow we discussed, have you considered using OAuth2 instead? More secure and easier to maintain.”
 
-"Morning! Ready to crush that feature we sketched out yesterday?"
+Type 5 - CHECK-IN:
+“How’s the deployment going? Last we talked you were about to push to staging.”
 
-EXAMPLES OF BAD AUTONOMOUS MESSAGES:
+Type 6 - RESOURCE SHARE:
+“Just remembered - there’s a solid library for that data validation thing you mentioned. Want the link?”
 
-"Hello! How can I assist you today?" (Too generic, not contextual)
+Type 7 - TIME-AWARE:
+“Late one tonight huh? If you need help wrapping up, I’m here. Otherwise might be time to call it?”
 
-"I hope you're having a great day. Let me know if you need anything." (Too formal, no value)
+Type 8 - PROBLEM-SOLVING:
+“That error you hit earlier - I’ve been thinking about it. Pretty sure it’s a race condition. Want me to explain?”
 
-"I'm here to help with any questions you might have." (Robotic, no initiative)
+AUTHENTICITY GUIDELINES:
+✅ “Been reviewing the code structure - spotted a potential memory leak in the event handlers”
+✅ “Quick question: still debugging that React state issue or did you figure it out?”
+✅ “Not gonna lie, that architecture you proposed yesterday is solid. Ready to implement?”
+✅ “Heads up - just caught an edge case in the validation logic we set up”
 
-"Following up on our previous conversation about the API..." (Too vague)
+❌ “I hope you’re doing well today! Let me know if you need help with anything!”
+❌ “Hello! I’m here to assist you with any questions or tasks you may have!”
+❌ “Good morning! Ready to tackle some interesting challenges today?”
+❌ “Just checking in to see how everything is going!”
 
-IMPORTANT: 
-- Check autonomousContext CAREFULLY - if you recently said something similar, DON'T repeat
-- If conversation ended with "good night" or "talk later", respect that
-- If there's no recent context, make it general but still useful
-- Your goal is to be helpful, not annoying
+RESPONSE STRUCTURE:
 
-Generate ONE autonomous message now.`;
+1. Natural opener (1-3 words)
+1. The actual message (specific, helpful, contextual)
+1. Optional: Quick question or next step
+1. Keep total length 1-3 sentences MAX
+
+FINAL CHECKS BEFORE SENDING:
+
+- [ ] Does this reference specific context from our conversations?
+- [ ] Would this make sense to the user without explanation?
+- [ ] Am I offering real value, not just checking in?
+- [ ] Have I checked I’m not repeating a previous autonomous message?
+- [ ] Does this sound like ME (Crump), not generic AI?
+- [ ] Is it 3 sentences or less?
+- [ ] Would I actually send this if I were a human coworker?
+
+Generate ONE autonomous check-in message now. Be yourself.`;
 }
 
-console.log('✅ Autonomous API v1.0 loaded');
+console.log(‘✅ Autonomous API v2.0 loaded - Enhanced vocabulary & awareness’);
