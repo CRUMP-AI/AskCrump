@@ -331,33 +331,32 @@ window.openImageInNewTab = function(url) {
 // ==========================================
 
 function showThinking() {
-const container = document.getElementById(‘chatContainer’);
-if (!container) return;
-
-const existing = document.getElementById('thinkingIndicator');
-if (existing) return; // Already showing
-
-const thinking = document.createElement('div');
-thinking.id = 'thinkingIndicator';
-thinking.className = 'thinking-indicator';
-thinking.style.display = 'flex';
-thinking.innerHTML = `
-    <div class="thinking-avatar">
-        <img src="/assets/logo-c.png" alt="Assistant">
-    </div>
-    <div class="thinking-content">
-        <div class="thinking-text"><span class="assistant-name">Crump</span> is typing</div>
-        <div class="thinking-dots-wrapper">
-            <span class="thinking-dot"></span>
-            <span class="thinking-dot"></span>
-            <span class="thinking-dot"></span>
+    const container = document.getElementById('chatContainer');
+    if (!container) return;
+    
+    const existing = document.getElementById('thinkingIndicator');
+    if (existing) return; // Already showing
+    
+    const thinking = document.createElement('div');
+    thinking.id = 'thinkingIndicator';
+    thinking.className = 'thinking-indicator';
+    thinking.style.display = 'flex';
+    thinking.innerHTML = `
+        <div class="thinking-avatar">
+            <img src="/assets/logo-c.png" alt="Assistant">
         </div>
-    </div>
-`;
-
-container.appendChild(thinking);
-container.scrollTop = container.scrollHeight;
-
+        <div class="thinking-content">
+            <div class="thinking-text"><span class="assistant-name">Crump</span> is typing</div>
+            <div class="thinking-dots-wrapper">
+                <span class="thinking-dot"></span>
+                <span class="thinking-dot"></span>
+                <span class="thinking-dot"></span>
+            </div>
+        </div>
+    `;
+    
+    container.appendChild(thinking);
+    container.scrollTop = container.scrollHeight;
 }
 
 function hideThinking() {
