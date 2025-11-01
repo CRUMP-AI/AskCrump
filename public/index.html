@@ -616,21 +616,6 @@
         }, 300);
     }
 </script>
-</script>        // Close settings modal first
-        closeSettings();
-        
-        // Small delay to let modal close animation complete
-        setTimeout(() => {
-            if (window.tutorial && typeof window.tutorial.restart === 'function') {
-                window.tutorial.restart();
-            } else {
-                console.error('Tutorial system not found');
-                if (window.showToast) {
-                    window.showToast('Tutorial system not available', 'error');
-                }
-            }
-        }, 300);
-    }
 
 <!-- PWA Service Worker -->
 <script>
