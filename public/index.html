@@ -437,7 +437,7 @@
                             <option value="14">2 PM</option>
                             <option value="15">3 PM</option>
                             <option value="16">4 PM</option>
-                            <option value="17" selected>5 PM</option>
+                            <option value="17">5 PM</option>
                             <option value="18">6 PM</option>
                             <option value="19">7 PM</option>
                             <option value="20">8 PM</option>
@@ -482,20 +482,9 @@
                 <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: 1rem;">
                     Conversations stored locally. We never see your chats.
                 </p>
-                <button class="btn btn-secondary btn-block" onclick="exportChats()">
-                    Export Conversations
-                </button>
             </div>
-        </div>
 
-        <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
-            <button class="btn btn-primary" onclick="saveSettings()">Save</button>
-        </div>
-    </div>
-</div>
-
-    <div class="settings-section">
+            <div class="settings-section">
                 <h3>Help & Support</h3>
                 <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: 1rem;">
                     Need a refresher? View the interactive tutorial anytime.
@@ -508,6 +497,14 @@
                     View Tutorial
                 </button>
             </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveSettings()">Save</button>
+        </div>
+    </div>
+</div>
     
 <div id="toastContainer" class="toast-container"></div>
 <input type="file" id="fileInput" style="display: none;" accept="image/*,.pdf,.txt,.doc,.docx" multiple>
@@ -618,6 +615,7 @@
             }
         }, 300);
     }
+</script>
 </script>        // Close settings modal first
         closeSettings();
         
