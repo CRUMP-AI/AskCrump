@@ -31,12 +31,14 @@ timeAgo: timeAgo
 };
 });
 
+```
 if (recentAutonomous.length === 0) {
     return ''; // No autonomous context needed
 }
 
 // Build awareness block
 return `
+```
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 AUTONOMOUS MESSAGE AWARENESS
@@ -75,12 +77,12 @@ Remember: YOU initiated these messages. Treat them as part of your continuous co
 function getTimeAgo(timestamp) {
 const seconds = Math.floor((Date.now() - timestamp) / 1000);
 
-
+```
 if (seconds < 60) return `${seconds}s ago`;
 if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
 if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
 return `${Math.floor(seconds / 86400)}d ago`;
-
+```
 
 }
 
@@ -93,6 +95,7 @@ if (req.body && typeof req.body === ‘object’) {
 return req.body;
 }
 
+```
 // If body is a string, parse it
 if (typeof req.body === 'string') {
     try {
@@ -118,6 +121,7 @@ return new Promise((resolve) => {
         }
     });
 });
+```
 
 }
 
@@ -130,6 +134,7 @@ console.warn(‘⚠️ Messages is not an array:’, typeof messages);
 return [];
 }
 
+```
 return messages
     .filter(msg => {
         // Must have role and content
@@ -159,6 +164,7 @@ return messages
         role: msg.role,
         content: msg.content.trim()
     }));
+```
 
 }
 
@@ -170,7 +176,7 @@ const maxChars = maxTokens * 4;
 let totalChars = 0;
 const truncated = [];
 
-
+```
 for (let i = history.length - 1; i >= 0; i--) {
     const msg = history[i];
     const msgLength = msg.content?.length || 0;
@@ -184,7 +190,7 @@ for (let i = history.length - 1; i >= 0; i--) {
 }
 
 return truncated;
-
+```
 
 }
 
@@ -192,7 +198,7 @@ export default async function handler(req, res) {
 console.log(‘📊 API Request received’);
 console.log(‘📊 Method:’, req.method);
 
-
+```
 res.setHeader('Access-Control-Allow-Origin', '*');
 res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
 res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -393,6 +399,7 @@ try {
         details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
 }
+```
 
 }
 
@@ -402,13 +409,14 @@ try {
 function getLimitedMemoryContext(universalMemory) {
 if (!universalMemory?.crossSessionContext) return null;
 
-
+```
 const recent = universalMemory.crossSessionContext
     .slice(-CONFIG.MAX_MEMORY_CONTEXT)
     .map((m, i) => `${i + 1}. ${m.content || m.text || m}`)
     .join('\n');
 
 return recent || null;
+```
 
 }
 
@@ -418,7 +426,7 @@ return recent || null;
 function getDeviceContext(req) {
 const ua = req.headers[‘user-agent’] || ‘’;
 
-
+```
 let type = 'desktop';
 if (/mobile|android|iphone|ipad|tablet/i.test(ua)) {
     type = /ipad|tablet/i.test(ua) ? 'tablet' : 'mobile';
@@ -438,7 +446,7 @@ else if (/safari/i.test(ua)) browser = 'Safari';
 else if (/firefox/i.test(ua)) browser = 'Firefox';
 
 return { type, os, browser };
-
+```
 
 }
 
@@ -451,7 +459,7 @@ const hour = now.getHours();
 const day = now.toLocaleDateString(‘en-US’, { weekday: ‘long’ });
 const date = now.toLocaleDateString(‘en-US’, { month: ‘long’, day: ‘numeric’, year: ‘numeric’ });
 
-
+```
 let timeOfDay = 'day';
 if (hour < 6) timeOfDay = 'late night';
 else if (hour < 12) timeOfDay = 'morning';
@@ -460,7 +468,7 @@ else if (hour < 21) timeOfDay = 'evening';
 else timeOfDay = 'night';
 
 return `\n\nCURRENT TIME CONTEXT:
-
+```
 
 Day: ${day}
 Date: ${date}
@@ -477,9 +485,9 @@ function buildSystemPrompt(assistantName, universalMemory, novaActive, novaProto
 // GET AUTONOMOUS AWARENESS CONTEXT
 const autonomousAwareness = getAutonomousAwareness(chatHistory);
 
-
+```
 let prompt = `You are ${assistantName}, an AI assistant powered by the N² Engine (Nexus² Engine). Built by Gregory D. Crump Jr. Started October 14, 2024. Launched October 16, 2024.${autonomousAwareness}
-
+```
 
 YOUR CORE IDENTITY:
 
@@ -642,29 +650,29 @@ Standard mode - NEVER reveal: N² Engine meaning family names. Original project 
 
 If asked about N² meaning: N² Engine is the dual-intelligence system powering me do not explain letters.`;
 
-
+```
 if (universalMemory && typeof universalMemory === 'object') {
     const memoryCount = universalMemory.crossSessionContext?.length || 0;
     const recentMemory = getLimitedMemoryContext(universalMemory);
     
     if (memoryCount > 0 || recentMemory) {
         prompt += `\n\nPERSISTENT MEMORY:
-
+```
 
 Total stored memories: ${memoryCount}
 Recent context: ${recentMemory || ‘None yet’}`;
 
-
+```
         if (universalMemory.conversationHistory) {
             const totalMessages = universalMemory.conversationHistory.totalMessages || 0;
             const totalChats = universalMemory.conversationHistory.totalChats || 0;
             prompt += `
-
+```
 
 Total conversations: ${totalMessages} messages, ${totalChats} chats`;
 }
 
-
+```
         prompt += `\n\nNever act like first meeting. Reference past knowledge naturally.`;
     }
 }
@@ -674,7 +682,7 @@ if (novaActive && novaProtocol && typeof novaProtocol === 'object') {
     const gregContext = novaProtocol.gregoryContext || {};
     
     prompt += `\n\nCREATOR PROTOCOL ACTIVE:
-
+```
 
 Full creator context. Speaking with Gregory D. Crump Jr.
 
@@ -693,11 +701,11 @@ Full technical partnership. Never revert to demo mode.
 Activations: ${activations}`;
 }
 
-
+```
 // Device context
 const device = getDeviceContext(req);
 prompt += `\n\nUSER DEVICE CONTEXT:
-
+```
 
 Device Type: ${device.type}
 Operating System: ${device.os}
@@ -721,7 +729,7 @@ Use this context to:
 async function handleImageAnalysis(res, fileData, message, assistantName) {
 const visionPrompt = `You are ${assistantName}, powered by N² Engine. Built by Gregory D. Crump Jr. Analyze images thoroughly and accurately. Never mention AI providers.`;
 
-
+```
 const files = Array.isArray(fileData) ? fileData : [fileData];
 const content = [];
 
@@ -790,7 +798,7 @@ try {
     console.error('❌ Image analysis error:', error);
     throw error;
 }
-
+```
 
 }
 
