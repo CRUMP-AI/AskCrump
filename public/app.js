@@ -562,8 +562,15 @@ if (message && !fileData && window.shouldGenerateImage && window.shouldGenerateI
         // Notify autonomous system that user sent a message
         if (window.autonomousMessaging) {
             window.autonomousMessaging.onUserResponse(message);
+            
+            // Check if this is a response to an autonomous message
+            const lastAssistantMsg = chat.messages.slice().reverse().find(m => m.role === 'assistant' && m.autonomous);
+            if (lastAssistantMsg) {
+                // User is responding to Crump's autonomous message - record the response
+                window.autonomousMessaging.recordAutonomousMessage(lastAssistantMsg.content, message);
+            }
         }
-
+        
        // Scroll to show new assistant message
         setTimeout(() => {
             if (window.crumpScrollManager) {
