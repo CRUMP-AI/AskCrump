@@ -790,3 +790,37 @@ a:hover { color: var(--color-accent-primary); text-decoration-thickness: 2px; }
   }
   .assistant-character, .thinking-dot, .loader-bar { animation: none !important; }
 }
+
+/* ============================================
+   FULL SCREEN FIX - Added to eliminate bottom gap
+   ============================================ */
+
+/* Ensure main content uses full viewport */
+.main-content {
+  overflow: hidden !important;
+}
+
+/* Add bottom padding to chat so content isn't hidden behind input */
+.chat-container {
+  padding-bottom: calc(180px + env(safe-area-inset-bottom, 0px)) !important;
+  overflow-x: hidden !important;
+}
+
+/* Remove transform that might create gaps */
+.input-area {
+  transform: none !important;
+}
+
+/* Mobile adjustment */
+@media (max-width: 768px) {
+  .chat-container {
+    padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* iOS Safari specific */
+@supports (-webkit-touch-callout: none) {
+  .chat-container {
+    padding-bottom: calc(200px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
