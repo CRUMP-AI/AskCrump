@@ -17,6 +17,12 @@
                localStorage.getItem('crump_pwa_install_prompted') === 'true';
     }
     
+    // Check if main app is visible (not onboarding/splash)
+    function isMainAppVisible() {
+        const appContainer = document.getElementById('appContainer');
+        return appContainer && appContainer.style.display !== 'none';
+    }
+    
     // Create floating install button
     function createInstallButton() {
         // Remove old banner if it exists
@@ -46,6 +52,12 @@
     
     // Show the install button
     function showInstallButton() {
+        // Only show if main app is visible
+        if (!isMainAppVisible()) {
+            console.log('[PWA] Main app not visible, skipping install button');
+            return;
+        }
+        
         if (!installButton) {
             createInstallButton();
         }
@@ -193,6 +205,24 @@
                 }
             }
         }, 3000);
+        
+        // Watch for appContainer visibility changes
+        const observer = new MutationObserver(() => {
+            if (isMainAppVisible() && deferredPrompt && !installButton) {
+                showInstallButton();
+            } else if (!isMainAppVisible() && installButton) {
+                hideInstallButton();
+            }
+        });
+        
+        // Observe the appContainer for style changes
+        const appContainer = document.getElementById('appContainer');
+        if (appContainer) {
+            observer.observe(appContainer, { 
+                attributes: true, 
+                attributeFilter: ['style'] 
+            });
+        }
     }
     
     // Start when DOM is ready
