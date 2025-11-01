@@ -38,7 +38,7 @@ window.initializeApp = function() {
         if (missing.length > 0) {
             throw new Error('Missing elements: ' + missing.join(', '));
         }
-        console.log('ðŸš€ Crump AI v1.0 initializing...');
+        console.log('🚀 Crump AI v1.0 initializing...');
 
         // Initialize profile manager
         if (typeof window.ProfileManager !== 'undefined') {
@@ -56,12 +56,12 @@ window.initializeApp = function() {
 
        if (typeof window.SearchDetectionEngine !== 'undefined') {
             window.searchDetectionEngine = new SearchDetectionEngine();
-            console.log('âœ… Search Detection Engine initialized');
+            console.log('✅ Search Detection Engine initialized');
         }
         
         if (typeof window.WeatherDetectionEngine !== 'undefined') {
             window.weatherDetectionEngine = new WeatherDetectionEngine();
-            console.log('âœ… Weather Detection Engine initialized');
+            console.log('✅ Weather Detection Engine initialized');
         }
 
         loadChats();
@@ -74,7 +74,7 @@ window.initializeApp = function() {
         // CRITICAL: Initialize scroll manager AFTER app is ready
         if (window.crumpScrollManager && typeof window.crumpScrollManager.init === 'function') {
             window.crumpScrollManager.init();
-            console.log('âœ… Scroll manager initialized');
+            console.log('✅ Scroll manager initialized');
         }
 
         const savedChatId = localStorage.getItem(STORAGE_KEYS.CURRENT_CHAT);
@@ -87,13 +87,13 @@ window.initializeApp = function() {
        setupAutonomousMessaging();
         setupMobileKeyboardHandler(); // ADDED
         
-        console.log('âœ… Crump AI v1.0 initialized successfully');
+        console.log('✅ Crump AI v1.0 initialized successfully');
         if (localStorage.getItem(STORAGE_KEYS.HAS_ONBOARDED) === 'true' && !savedChatId) {
             showWelcomeMessage();
         }
 
     } catch (error) {
-        console.error('âŒ Initialization error:', error);
+        console.error('❌ Initialization error:', error);
         showToast('Failed to initialize application', 'error');
     }
 };
@@ -182,7 +182,7 @@ function loadChats() {
             }
         }
     } catch (storageError) {
-        console.warn('âš ï¸ localStorage unavailable (private browsing?)');
+        console.warn('⚠️ localStorage unavailable (private browsing?)');
         chats = [];
         window.chats = chats;
     }
@@ -193,7 +193,7 @@ function saveChats() {
     try {
         localStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
     } catch (storageError) {
-        console.warn('âš ï¸ Failed to save chats (localStorage unavailable)');
+        console.warn('⚠️ Failed to save chats (localStorage unavailable)');
         // Continue without saving - app still works in-memory
     }
 }
@@ -221,7 +221,7 @@ function createNewChat() {
     document.getElementById('userInput').value = '';
     document.getElementById('userInput').focus();
 
-    console.log('âœ… New chat created:', chat.id);
+    console.log('✅ New chat created:', chat.id);
 }
 
 function loadChat(chatId) {
@@ -235,7 +235,7 @@ function loadChat(chatId) {
     renderChatsList();
     renderMessages(chat.messages);
 
-    console.log('ðŸ“– Chat loaded:', chatId);
+    console.log('📖 Chat loaded:', chatId);
 }
 
 function getChat(chatId) {
@@ -258,7 +258,7 @@ function deleteChat(chatId) {
     }
 
     renderChatsList();
-    console.log('ðŸ—‘ï¸ Chat deleted:', chatId);
+    console.log('🗑️ Chat deleted:', chatId);
 }
 window.deleteChat = deleteChat;
 
@@ -366,7 +366,7 @@ if (msg.imageUrl) {
     img.style.cssText = 'max-width: 100%; border-radius: 8px; display: block;';
     img.alt = 'Generated image';
     img.onerror = function() {
-        this.parentElement.innerHTML = '<div style="color: var(--color-error);">âŒ Image failed to load</div>';
+        this.parentElement.innerHTML = '<div style="color: var(--color-error);">❌ Image failed to load</div>';
     };
     
     imgWrapper.appendChild(img);
@@ -399,15 +399,6 @@ async function sendMessage() {
     isProcessing = true;
     
     try {
-        // Handle file attachment FIRST (before clearing)
-        let fileData = null;
-        let fileType = null;
-        if (selectedFiles.length > 0) {
-            const file = selectedFiles[0];
-            fileData = await readFileAsBase64(file);
-            fileType = file.type;
-        }
-        
         // Create user message
         const userMessage = {
             role: 'user',
@@ -415,8 +406,11 @@ async function sendMessage() {
             timestamp: Date.now()
         };
         
-        // Store image data for display
-        if (fileData) {
+        // Handle file attachment
+        let fileData = null;
+        if (selectedFiles.length > 0) {
+            const file = selectedFiles[0];
+            fileData = await readFileAsBase64(file);
             userMessage.imageData = fileData;
         }
         
@@ -465,7 +459,7 @@ async function sendMessage() {
         
        // CHECK FOR IMAGE GENERATION REQUEST (must be BEFORE API call)
 if (message && !fileData && window.shouldGenerateImage && window.shouldGenerateImage(message)) {
-    console.log('ðŸŽ¨ Image generation detected, routing to image handler');
+    console.log('🎨 Image generation detected, routing to image handler');
     
     // REMOVE the user message we just added (line 175) to prevent duplication
     chat.messages.pop();
@@ -509,7 +503,7 @@ if (message && !fileData && window.shouldGenerateImage && window.shouldGenerateI
         
         if (fileData) {
             requestBody.fileData = {
-                type: fileType,
+                type: selectedFiles[0].type,
                 data: fileData
             };
         }
@@ -612,13 +606,13 @@ function displayFilePreview() {
     preview.innerHTML = selectedFiles.map((file, index) => `
         <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--color-bg-secondary); border-radius: 8px;">
             <div style="width: 40px; height: 40px; background: var(--color-accent-primary); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--color-bg-primary); font-weight: 600;">
-                ${file.type.startsWith('image/') ? 'ðŸ–¼ï¸' : 'ðŸ“„'}
+                ${file.type.startsWith('image/') ? '🖼️' : '📄'}
             </div>
             <div style="flex: 1; min-width: 0;">
                 <div style="font-size: 0.875rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(file.name)}</div>
                 <div style="font-size: 0.75rem; color: var(--color-text-tertiary);">${(file.size / 1024).toFixed(1)} KB</div>
             </div>
-            <button class="remove-file" onclick="removeFile(${index})">Ã—</button>
+            <button class="remove-file" onclick="removeFile(${index})">×</button>
         </div>
     `).join('');
 }
@@ -690,7 +684,7 @@ window.closeSettings = function() {
     document.getElementById('settingsModal').style.display = 'none';
 };
 
-// FIXED: Changed setEnabled â†’ toggle, 'balanced' â†’ 'medium'
+// FIXED: Changed setEnabled → toggle, 'balanced' → 'medium'
 function loadSettings() {
     const autonomousEnabled = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_ENABLED) === 'true';
     const autonomousFrequency = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'medium';
@@ -721,7 +715,7 @@ function loadSettingsValues() {
     });
 }
 
-// FIXED: Changed setEnabled â†’ toggle
+// FIXED: Changed setEnabled → toggle
 window.saveSettings = function() {
     const name = document.getElementById('settingsName').value.trim();
     const email = document.getElementById('settingsEmail').value.trim();
@@ -845,7 +839,7 @@ function showWelcomeMessage() {
     }
 }
 
-// FIXED: Changed setEnabled â†’ toggle, 'balanced' â†’ 'medium'
+// FIXED: Changed setEnabled → toggle, 'balanced' → 'medium'
 function setupAutonomousMessaging() {
     const enabled = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_ENABLED) === 'true';
     const frequency = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'medium';
@@ -903,7 +897,7 @@ function setupMobileKeyboardHandler() {
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if (!isMobile) return;
     
-    console.log('ðŸ“± Mobile detected - setting up keyboard handler');
+    console.log('📱 Mobile detected - setting up keyboard handler');
     
     // Use Visual Viewport API if available
     if ('visualViewport' in window) {
@@ -942,4 +936,4 @@ window.crumpDebug = {
     version: '1.0.0-FIXED-AUTONOMOUS'
 };
 
-console.log('âœ… Crump AI v1.0 loaded (FIXED VERSION - Autonomous corrected)');
+console.log('✅ Crump AI v1.0 loaded (FIXED VERSION - Autonomous corrected)');
