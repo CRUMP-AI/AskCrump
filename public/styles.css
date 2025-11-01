@@ -716,6 +716,11 @@ a:hover { color: var(--color-accent-primary); text-decoration-thickness: 2px; }
    ============================================ */
 @media (max-width: 768px) {
   :root { --header-height: 56px; --space-6: 1rem; --space-8: 1.5rem; }
+  
+  .header {
+    height: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+  }
+  
   .header-logo { font-size: var(--font-size-2xl); }
   .header-logo-icon { width: 36px; height: 36px; }
   .chat-container { padding: var(--space-4); }
