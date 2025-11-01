@@ -325,7 +325,6 @@ class AutonomousMessaging {
 
             console.log('✅ Autonomous message sent:', data.message.substring(0, 50) + '...');
 
-            console.log('✅ Autonomous message sent:', data.message.substring(0, 50) + '...');
 
         } catch (error) {
             console.error('❌ Autonomous message error:', error);
