@@ -326,33 +326,40 @@ window.openImageInNewTab = function(url) {
 };
 
 // ==========================================
-// THINKING INDICATOR
+// REPLACE the showThinking() function in ui-functions.js
+// Around line 331-356
 // ==========================================
+
 function showThinking() {
-    const container = document.getElementById('chatContainer');
-    if (!container) return;
-    
-    const existing = document.getElementById('thinkingIndicator');
-    if (existing) return; // Already showing
-    
-    const thinking = document.createElement('div');
-    thinking.id = 'thinkingIndicator';
-    thinking.className = 'message';
-    thinking.innerHTML = `
-        <div class="avatar assistant">C</div>
-        <div class="message-wrapper">
-            <div class="message-content">
-                <div class="thinking-animation">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </div>
-            </div>
+const container = document.getElementById(‘chatContainer’);
+if (!container) return;
+
+```
+const existing = document.getElementById('thinkingIndicator');
+if (existing) return; // Already showing
+
+const thinking = document.createElement('div');
+thinking.id = 'thinkingIndicator';
+thinking.className = 'thinking-indicator';
+thinking.style.display = 'flex';
+thinking.innerHTML = `
+    <div class="thinking-avatar">
+        <img src="/assets/logo-c.png" alt="Assistant">
+    </div>
+    <div class="thinking-content">
+        <div class="thinking-text"><span class="assistant-name">Crump</span> is typing</div>
+        <div class="thinking-dots-wrapper">
+            <span class="thinking-dot"></span>
+            <span class="thinking-dot"></span>
+            <span class="thinking-dot"></span>
         </div>
-    `;
-    
-    container.appendChild(thinking);
-    container.scrollTop = container.scrollHeight;
+    </div>
+`;
+
+container.appendChild(thinking);
+container.scrollTop = container.scrollHeight;
+```
+
 }
 
 function hideThinking() {
