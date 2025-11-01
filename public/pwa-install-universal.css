@@ -11,8 +11,8 @@
 /* One-click floating install button */
 .pwa-install-floating {
     position: fixed;
-    top: 20px;
-    right: 140px; /* Positioned left of Upgrade button */
+    bottom: 100px; /* Positioned above the input area */
+    right: 20px; /* Right side with space from edge */
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border: none;
@@ -28,13 +28,13 @@
     box-shadow: 0 4px 16px rgba(102, 126, 234, 0.35);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     font-family: 'Inter', -apple-system, system-ui, sans-serif;
-    animation: slideInFromTop 0.4s ease;
+    animation: slideInFromBottom 0.4s ease;
 }
 
-@keyframes slideInFromTop {
+@keyframes slideInFromBottom {
     from {
         opacity: 0;
-        transform: translateY(-20px);
+        transform: translateY(20px);
     }
     to {
         opacity: 1;
@@ -75,17 +75,17 @@
 /* Mobile responsive */
 @media (max-width: 768px) {
     .pwa-install-floating {
-        top: 14px;
-        right: auto;
-        left: 50%;
-        transform: translateX(-50%);
+        bottom: 90px;
+        right: 16px;
+        left: auto;
+        transform: none;
         padding: 9px 18px;
         font-size: 0.8125rem;
         border-radius: 8px;
     }
     
     .pwa-install-floating:hover {
-        transform: translateX(-50%) translateY(-2px);
+        transform: translateY(-2px);
     }
     
     .pwa-install-floating.visible {
