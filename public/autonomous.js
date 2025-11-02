@@ -14,9 +14,13 @@ class AutonomousMessaging {
         console.log('🤖 Autonomous Messaging v2.0 initialized');
         console.log('   Enabled:', this.enabled);
         console.log('   Frequency:', this.frequency);
-        console.log('   Previous autonomous messages:', this.autonomousHistory.length);
+console.log('   Previous autonomous messages:', this.autonomousHistory.length);
+        
+        // Auto-start if enabled
+        if (this.enabled) {
+            this.start();
+        }
     }
-
     // ==========================================
     // AUTONOMOUS HISTORY TRACKING
     // ==========================================
@@ -168,11 +172,11 @@ class AutonomousMessaging {
 
     getInterval() {
         const intervals = {
-            low: 10 * 60 * 1000,      // 10 minutes
-            medium: 5 * 60 * 1000,     // 5 minutes
-            high: 2 * 60 * 1000        // 2 minutes
+            relaxed: 15 * 60 * 1000,   // 15 minutes
+            balanced: 10 * 60 * 1000,  // 10 minutes
+            active: 5 * 60 * 1000      // 5 minutes
         };
-        return intervals[this.frequency] || intervals.medium;
+        return intervals[this.frequency] || intervals.balanced;
     }
 
     scheduleNext() {
