@@ -489,32 +489,6 @@ if (message && !fileData && window.shouldGenerateImage && window.shouldGenerateI
     await window.handleImageGeneration(message);
     return; // EXIT - don't call chat API
 }
-        
-        // Prepare request
-        const requestBody = {
-            message: message,
-            history: chat.messages.map(m => ({
-                role: m.role,
-                content: m.content
-            })),
-            currentDateTime: {
-                date: new Date().toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                }),
-                time: new Date().toLocaleTimeString('en-US', { 
-                    hour: 'numeric', 
-                    minute: '2-digit',
-                    hour12: true 
-                }),
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-            },
-            needsSearch: needsSearch,
-            needsWeather: needsWeather,
-            workMode: localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true' ? 'work' : 'companion'
-        };
 
         // Prepare request
         const requestBody = {
