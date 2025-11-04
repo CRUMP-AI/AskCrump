@@ -5,7 +5,7 @@
 
 const CONFIG = {
     CLAUDE_MODEL: 'claude-sonnet-4-5-20250929',
-    MAX_TOKENS: 16384,
+    MAX_TOKENS: 8192,
     MAX_HISTORY: 999999,
     MAX_HISTORY_WITH_IMAGE: 999999,
     ANTHROPIC_VERSION: '2023-06-01',
@@ -94,7 +94,7 @@ function validateAndCleanMessages(messages) {
 // ==========================================
 // SMART MESSAGE TRUNCATION
 // ==========================================
-function truncateHistory(history, maxTokens = 100000) {
+function truncateHistory(history, maxTokens = 180000) {
     const maxChars = maxTokens * 4;
     let totalChars = 0;
     const truncated = [];
