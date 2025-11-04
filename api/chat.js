@@ -472,7 +472,22 @@ async function handleClaudeNativeSearch(res, message, systemPrompt, validHistory
 // REGULAR CHAT
 // ==========================================
 async function handleRegularChat(res, message, systemPrompt, validHistory) {
-    console.log('💬 Regular chat - sending to Claude...');
+    console.log('💬 Regular chat - sending to Claude with image tool...');
+    
+    const tools = [{
+        name: "generate_image",
+        description: "Generate an image when user wants to see something visually. Use for: requests to see/show/visualize something, create artwork, or when an image would help. Do NOT use for: debugging code, discussing existing images, or technical questions about images.",
+        input_schema: {
+            type: "object",
+            properties: {
+                prompt: {
+                    type: "string",
+                    description: "Detailed image description. Be specific about subject, style, composition, colors, mood."
+                }
+            },
+            required: ["prompt"]
+        }
+    }];
     
     const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -489,7 +504,8 @@ async function handleRegularChat(res, message, systemPrompt, validHistory) {
             messages: [
                 ...validHistory,
                 { role: 'user', content: message }
-            ]
+            ],
+            tools: tools
         })
     });
 
@@ -502,8 +518,36 @@ async function handleRegularChat(res, message, systemPrompt, validHistory) {
     const data = await response.json();
     console.log('✅ Response received from Claude');
     
+    let textResponse = '';
+    let shouldGenerateImage = false;
+    let imagePrompt = null;
+    
+    for (const content of data.content) {
+        if (content.type === 'text') {
+            textResponse += content.text;
+        } else if (content.type === 'tool_use' && content.name === 'generate_image') {
+            console.log('🎨 Claude decided to generate image');
+            shouldGenerateImage = true;
+            imagePrompt = content.input.prompt;
+        }
+    }
+    
+    if (shouldGenerateImage && imagePrompt) {
+        console.log('🎨 Image prompt:', imagePrompt);
+        
+        const encodedPrompt = encodeURIComponent(imagePrompt);
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true`;
+        
+        return res.status(200).json({
+            response: textResponse || '',
+            imageUrl: imageUrl,
+            imagePrompt: imagePrompt,
+            model: 'claude-with-image'
+        });
+    }
+    
     return res.status(200).json({
-        response: data.content[0].text,
+        response: textResponse,
         model: 'claude'
     });
 }
