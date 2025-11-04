@@ -151,6 +151,10 @@ ${autonomousContext || 'This is the first time you\'re reaching out on your own'
 
 CURRENT TIME: ${timeStr}
 
+TEXT FORMATTING:
+Write in plain text ONLY. Do not use markdown asterisks or special formatting.
+The UI handles all text styling automatically.
+
 RULES FOR THIS MESSAGE:
 
 1. **Be Contextual**
