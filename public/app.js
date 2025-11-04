@@ -471,24 +471,6 @@ async function sendMessage() {
         if (window.weatherDetectionEngine) {
             needsWeather = window.weatherDetectionEngine.needsWeather(message);
         }
-        
-       // CHECK FOR IMAGE GENERATION REQUEST (must be BEFORE API call)
-if (message && !fileData && window.shouldGenerateImage && window.shouldGenerateImage(message)) {
-    console.log('🎨 Image generation detected, routing to image handler');
-    
-    // REMOVE the user message we just added (line 175) to prevent duplication
-    chat.messages.pop();
-    saveChats();
-    
-    // Hide thinking
-    hideThinking();
-    setAssistantState('idle');
-    isProcessing = false;
-    
-    // Call image generation handler (it will add message itself)
-    await window.handleImageGeneration(message);
-    return; // EXIT - don't call chat API
-}
 
         // Prepare request
         const requestBody = {
@@ -539,7 +521,7 @@ if (message && !fileData && window.shouldGenerateImage && window.shouldGenerateI
             throw new Error(`API error: ${response.status}`);
         }
         
-        const data = await response.json();
+       const data = await response.json();
         
         // Add assistant response
         const assistantMessage = {
@@ -547,6 +529,13 @@ if (message && !fileData && window.shouldGenerateImage && window.shouldGenerateI
             content: data.response,
             timestamp: Date.now()
         };
+        
+        // Add image data if present
+        if (data.imageUrl) {
+            console.log('🎨 Response includes generated image');
+            assistantMessage.imageUrl = data.imageUrl;
+            assistantMessage.imagePrompt = data.imagePrompt;
+        }
         
         chat.messages.push(assistantMessage);
         chat.updatedAt = Date.now();
