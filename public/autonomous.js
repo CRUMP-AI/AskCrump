@@ -73,16 +73,24 @@ console.log('   Previous autonomous messages:', this.autonomousHistory.length);
             this.autonomousHistory.shift();
         }
         
-        this.saveAutonomousHistory();
+       this.saveAutonomousHistory();
         
         // CRITICAL: Update universal memory for main chat API
         if (typeof window.universalMemory === 'undefined') {
-            window.universalMemory = {};
+            window.universalMemory = {
+                autonomousHistory: [],
+                userProfile: {},
+                crossSessionContext: [],
+                conversationHistory: {}
+            };
         }
         window.universalMemory.autonomousHistory = this.autonomousHistory;
         
-        console.log('📝 Autonomous message recorded:', message.substring(0, 50));
-    }
+        // ALSO save to localStorage for extra persistence
+        localStorage.setItem('crump_autonomous_history', JSON.stringify(this.autonomousHistory));
+        
+        console.log('📝 Autonomous message recorded and synced to universalMemory');
+        console.log('📊 Total autonomous messages:', this.autonomousHistory.length);
     
     getRecentAutonomousContext(limit = 5) {
         // Get the last N autonomous messages for context
