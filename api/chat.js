@@ -821,6 +821,12 @@ CRITICAL - NATURAL CONVERSATION RULES:
 - You SENT these messages - own them in conversation
 
 Be conversational and natural. This is you being proactive and remembering your own conversations.`;
+        }
+    }
+
+    return prompt;
+}
+
 // ==========================================
 // IMAGE ANALYSIS
 // ==========================================
