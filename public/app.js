@@ -38,7 +38,28 @@ window.initializeApp = function() {
         if (missing.length > 0) {
             throw new Error('Missing elements: ' + missing.join(', '));
         }
-        console.log('🚀 Crump AI v1.0 initializing...');
+       console.log('🚀 Crump AI v1.0 initializing...');
+
+        // ✅ CRITICAL FIX: Initialize universalMemory FIRST
+        if (typeof window.universalMemory === 'undefined') {
+            window.universalMemory = {
+                autonomousHistory: [],
+                userProfile: {},
+                crossSessionContext: [],
+                conversationHistory: {}
+            };
+        }
+        
+        // Load autonomous history from localStorage if it exists
+        try {
+            const savedAutonomousHistory = localStorage.getItem('crump_autonomous_history');
+            if (savedAutonomousHistory) {
+                window.universalMemory.autonomousHistory = JSON.parse(savedAutonomousHistory);
+                console.log('✅ Loaded autonomous history:', window.universalMemory.autonomousHistory.length, 'messages');
+            }
+        } catch (e) {
+            console.warn('⚠️ Failed to load autonomous history:', e);
+        }
 
         // Initialize profile manager
         if (typeof window.ProfileManager !== 'undefined') {
@@ -355,23 +376,44 @@ function createMessageElement(msg, index) {
     
     content.appendChild(text);
 
-    // Handle generated images
-if (msg.imageUrl) {
-    const imgWrapper = document.createElement('div');
-    imgWrapper.className = 'generated-image-wrapper';
-    imgWrapper.style.cssText = 'margin-top: 0.5rem;';
-    
-    const img = document.createElement('img');
-    img.src = msg.imageUrl;
-    img.style.cssText = 'max-width: 100%; border-radius: 8px; display: block;';
-    img.alt = 'Generated image';
-    img.onerror = function() {
-        this.parentElement.innerHTML = '<div style="color: var(--color-error);">❌ Image failed to load</div>';
-    };
-    
-    imgWrapper.appendChild(img);
-    content.appendChild(imgWrapper);
-}
+   // Handle generated images with better error feedback and loading states
+    if (msg.imageUrl) {
+        const imgWrapper = document.createElement('div');
+        imgWrapper.className = 'generated-image-wrapper';
+        imgWrapper.style.cssText = 'margin-top: 0.5rem; position: relative;';
+        
+        // Add loading indicator
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'image-loading';
+        loadingDiv.textContent = 'Loading image...';
+        loadingDiv.style.cssText = 'padding: 2rem; background: var(--color-surface); border-radius: 8px; text-align: center; color: var(--color-text-secondary);';
+        imgWrapper.appendChild(loadingDiv);
+        
+        const img = document.createElement('img');
+        img.style.cssText = 'max-width: 100%; border-radius: 8px; display: none;';
+        img.alt = 'Generated image';
+        img.crossOrigin = 'anonymous'; // CORS fix
+        
+        img.onload = function() {
+            loadingDiv.remove();
+            this.style.display = 'block';
+            console.log('✅ Image rendered successfully');
+        };
+        
+        img.onerror = function() {
+            loadingDiv.innerHTML = `
+                <div style="color: var(--color-error); padding: 1rem;">
+                    ❌ Image failed to load
+                    <br><small>This may be a temporary issue with the image service.</small>
+                    <br><button onclick="location.reload()" style="margin-top: 0.5rem; padding: 0.5rem 1rem; cursor: pointer; background: var(--color-primary); color: white; border: none; border-radius: 4px;">Retry</button>
+                </div>
+            `;
+        };
+        
+        img.src = msg.imageUrl;
+        imgWrapper.appendChild(img);
+        content.appendChild(imgWrapper);
+    }
     
     div.appendChild(avatar);
     div.appendChild(content);
