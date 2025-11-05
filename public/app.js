@@ -706,21 +706,6 @@ function displayFilePreview() {
         preview.appendChild(container);
     });
 }
-    
-    preview.style.display = 'block';
-    preview.innerHTML = selectedFiles.map((file, index) => `
-        <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--color-bg-secondary); border-radius: 8px;">
-            <div style="width: 40px; height: 40px; background: var(--color-accent-primary); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--color-bg-primary); font-weight: 600;">
-                ${file.type.startsWith('image/') ? '🖼️' : '📄'}
-            </div>
-            <div style="flex: 1; min-width: 0;">
-                <div style="font-size: 0.875rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(file.name)}</div>
-                <div style="font-size: 0.75rem; color: var(--color-text-tertiary);">${(file.size / 1024).toFixed(1)} KB</div>
-            </div>
-            <button class="remove-file" onclick="removeFile(${index})">×</button>
-        </div>
-    `).join('');
-}
 
 window.removeFile = function(index) {
     selectedFiles.splice(index, 1);
