@@ -659,6 +659,55 @@ function displayFilePreview() {
     }
     
     preview.style.display = 'block';
+    preview.innerHTML = '';
+    
+    selectedFiles.forEach((file, index) => {
+        const container = document.createElement('div');
+        container.style.cssText = 'display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--color-bg-secondary); border-radius: 8px; margin-bottom: 0.5rem;';
+        
+        // If it's an image, show thumbnail
+        if (file.type.startsWith('image/')) {
+            const imgContainer = document.createElement('div');
+            imgContainer.style.cssText = 'width: 60px; height: 60px; border-radius: 6px; overflow: hidden; flex-shrink: 0;';
+            
+            const img = document.createElement('img');
+            img.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+            img.src = URL.createObjectURL(file);
+            
+            // Clean up object URL when done
+            img.onload = () => URL.revokeObjectURL(img.src);
+            
+            imgContainer.appendChild(img);
+            container.appendChild(imgContainer);
+        } else {
+            // For non-images, show file icon
+            const iconDiv = document.createElement('div');
+            iconDiv.style.cssText = 'width: 60px; height: 60px; background: var(--color-accent-primary); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--color-bg-primary); font-weight: 600; font-size: 1.5rem;';
+            iconDiv.textContent = '📄';
+            container.appendChild(iconDiv);
+        }
+        
+        // File info
+        const infoDiv = document.createElement('div');
+        infoDiv.style.cssText = 'flex: 1; min-width: 0;';
+        infoDiv.innerHTML = `
+            <div style="font-size: 0.875rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(file.name)}</div>
+            <div style="font-size: 0.75rem; color: var(--color-text-tertiary);">${(file.size / 1024).toFixed(1)} KB</div>
+        `;
+        container.appendChild(infoDiv);
+        
+        // Remove button
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-file';
+        removeBtn.textContent = '×';
+        removeBtn.onclick = () => removeFile(index);
+        container.appendChild(removeBtn);
+        
+        preview.appendChild(container);
+    });
+}
+    
+    preview.style.display = 'block';
     preview.innerHTML = selectedFiles.map((file, index) => `
         <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--color-bg-secondary); border-radius: 8px;">
             <div style="width: 40px; height: 40px; background: var(--color-accent-primary); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--color-bg-primary); font-weight: 600;">
