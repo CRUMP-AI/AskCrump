@@ -387,25 +387,34 @@ function enhancePromptWithContext(newMessage, previousPrompt) {
 // ==========================================
 async function generateImageWithPollinations(prompt) {
     try {
+        // Add cache-busting timestamp to ensure fresh images
+        const timestamp = Date.now();
         const encodedPrompt = encodeURIComponent(prompt);
-        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true`;
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&seed=${timestamp}`;
         
         console.log('🌸 Pollinations URL:', imageUrl);
         
+        // Preload and verify the image loads
         await new Promise((resolve, reject) => {
             const img = new Image();
             const timeout = setTimeout(() => {
-                reject(new Error('Image load timeout'));
+                reject(new Error('Image load timeout (30s exceeded)'));
             }, 30000); // 30 second timeout
             
             img.onload = () => {
                 clearTimeout(timeout);
+                console.log('✅ Image successfully loaded and verified');
                 resolve(imageUrl);
             };
-            img.onerror = () => {
+            
+            img.onerror = (e) => {
                 clearTimeout(timeout);
-                reject(new Error('Image failed to load'));
+                console.error('❌ Image load error:', e);
+                reject(new Error('Image failed to load from Pollinations API'));
             };
+            
+            // Set crossOrigin BEFORE src to avoid CORS issues
+            img.crossOrigin = 'anonymous';
             img.src = imageUrl;
         });
         
