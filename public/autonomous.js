@@ -91,6 +91,7 @@ console.log('   Previous autonomous messages:', this.autonomousHistory.length);
         
         console.log('📝 Autonomous message recorded and synced to universalMemory');
         console.log('📊 Total autonomous messages:', this.autonomousHistory.length);
+    }   
     
     getRecentAutonomousContext(limit = 5) {
         // Get the last N autonomous messages for context
