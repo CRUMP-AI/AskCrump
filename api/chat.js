@@ -152,11 +152,14 @@ export default async function handler(req, res) {
             workMode = 'companion'
         } = body;
 
-        // VALIDATE MESSAGE
-        if (!message || typeof message !== 'string' || !message.trim()) {
+        // VALIDATE MESSAGE - Allow empty if there's an image
+        if ((!message || typeof message !== 'string' || !message.trim()) && !fileData) {
             console.error('❌ Invalid message:', message);
             return res.status(400).json({ error: 'Valid message is required' });
         }
+        
+        // If no text message but there's a file, use placeholder
+        const actualMessage = (message && message.trim()) ? message : 'Analyze this image';
 
         if (!process.env.ANTHROPIC_API_KEY) {
             console.error('❌ ANTHROPIC_API_KEY not configured');
@@ -171,7 +174,7 @@ export default async function handler(req, res) {
             (!Array.isArray(fileData) && fileData.type?.startsWith('image/'))
         )) {
             console.log('🖼️ Image analysis requested');
-            return await handleImageAnalysis(res, fileData, message, assistantName);
+            return await handleImageAnalysis(res, fileData, actualMessage, assistantName);
         }
 
        // BUILD SYSTEM PROMPT
@@ -393,7 +396,7 @@ async function handleBraveSearchResponse(res, message, searchResults, systemProm
             system: systemPrompt,
             messages: [
                 ...validHistory,
-                { role: 'user', content: message + searchContext }
+                { role: 'user', content: actualMessage + searchContext }
             ]
         })
     });
@@ -431,7 +434,7 @@ async function handleClaudeNativeSearch(res, message, systemPrompt, validHistory
             system: systemPrompt,
             messages: [
                 ...validHistory,
-                { role: 'user', content: message }
+                { role: 'user', content: actualMessage }
             ],
             tools: [{
                 type: "web_search",
@@ -503,7 +506,7 @@ async function handleRegularChat(res, message, systemPrompt, validHistory) {
             system: systemPrompt,
             messages: [
                 ...validHistory,
-                { role: 'user', content: message }
+                { role: 'user', content: actualMessage }
             ],
             tools: tools
         })
