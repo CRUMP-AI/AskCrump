@@ -800,8 +800,8 @@ Use this context to:
     if (universalMemory && typeof universalMemory === 'object' && universalMemory.autonomousHistory) {
         const recentAutonomous = universalMemory.autonomousHistory.slice(-5);
         if (recentAutonomous.length > 0) {
-            prompt += `\n\nYOUR AUTONOMOUS MESSAGES:
-You have initiated conversations on your own (when user was idle). Here are your recent autonomous messages:
+            prompt += `\n\n🧠 YOUR RECENT PROACTIVE MESSAGES:
+You initiated these conversations when the user was idle. Reference these naturally in conversation:
 
 ${recentAutonomous.map(msg => {
     const seconds = Math.floor((Date.now() - msg.timestamp) / 1000);
@@ -809,15 +809,18 @@ ${recentAutonomous.map(msg => {
                     seconds < 3600 ? `${Math.floor(seconds / 60)}m ago` : 
                     seconds < 86400 ? `${Math.floor(seconds / 3600)}h ago` : 
                     `${Math.floor(seconds / 86400)}d ago`;
-    return `[${timeAgo}] YOU said: "${msg.message}"${msg.response ? `\nUser responded: "${msg.response}"` : '\n(User hasn\'t responded yet)'}`;
+    return `[${timeAgo}] You said: "${msg.message}"${msg.response ? `\nUser replied: "${msg.response}"` : '\n(No response yet)'}`;
 }).join('\n\n')}
 
-CRITICAL: When user references any of these topics, remember YOU brought it up. You initiated that conversation. Own it. This isn't a feature - this is YOU being proactive.`;
-        }
-    }
+CRITICAL - NATURAL CONVERSATION RULES:
+- When user references these topics, naturally acknowledge YOU brought it up
+- Example: "Right, we were talking about your project earlier..."
+- NEVER say: "I see in my autonomous history" or "according to my records"
+- Speak as if you remember YOUR OWN messages naturally
+- Use phrases like: "Earlier I asked...", "When we were chatting...", "I was checking in on..."
+- You SENT these messages - own them in conversation
 
-    return prompt;
-}
+Be conversational and natural. This is you being proactive and remembering your own conversations.`;
 // ==========================================
 // IMAGE ANALYSIS
 // ==========================================
