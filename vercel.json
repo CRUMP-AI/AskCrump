@@ -36,12 +36,6 @@
       }
     }
   ],
-  "rewrites": [
-    {
-      "source": "/((?!api/).*)",
-      "destination": "/public/$1"
-    }
-  ],
   "headers": [
     {
       "source": "/api/(.*)",
