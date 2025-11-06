@@ -372,7 +372,7 @@ async function searchWithBrave(query) {
 // ==========================================
 // BRAVE SEARCH RESPONSE
 // ==========================================
-async function handleBraveSearchResponse(res, message, searchResults, systemPrompt, validHistory) {
+async function handleBraveSearchResponse(res, actualMessage, searchResults, systemPrompt, validHistory) {
     let searchContext = '\n\n[WEB SEARCH RESULTS - Extract and present this information directly:\n\n';
     searchResults.forEach((result, i) => {
         searchContext += `Source ${i + 1}:\n`;
@@ -419,9 +419,9 @@ async function handleBraveSearchResponse(res, message, searchResults, systemProm
 // ==========================================
 // CLAUDE NATIVE SEARCH
 // ==========================================
-async function handleClaudeNativeSearch(res, message, systemPrompt, validHistory) {
+async function handleClaudeNativeSearch(res, actualMessage, systemPrompt, validHistory) {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
+        method: 'POST',i
         headers: {
             'Content-Type': 'application/json',
             'x-api-key': process.env.ANTHROPIC_API_KEY,
@@ -474,7 +474,7 @@ async function handleClaudeNativeSearch(res, message, systemPrompt, validHistory
 // ==========================================
 // REGULAR CHAT
 // ==========================================
-async function handleRegularChat(res, message, systemPrompt, validHistory) {
+async function handleRegularChat(res, actualMessage, systemPrompt, validHistory) {
     console.log('💬 Regular chat - sending to Claude with image tool...');
     
     const tools = [{
@@ -833,7 +833,7 @@ Be conversational and natural. This is you being proactive and remembering your 
 // ==========================================
 // IMAGE ANALYSIS
 // ==========================================
-async function handleImageAnalysis(res, fileData, message, assistantName) {
+async function handleImageAnalysis(res, fileData, actualMessage, assistantName) {
     const visionPrompt = `You are ${assistantName}, powered by N² Engine. Built by Gregory D. Crump Jr. Analyze images thoroughly and accurately. Never mention AI providers.`;
 
     const files = Array.isArray(fileData) ? fileData : [fileData];
