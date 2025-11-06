@@ -396,7 +396,7 @@ async function handleBraveSearchResponse(res, message, searchResults, systemProm
             system: systemPrompt,
             messages: [
                 ...validHistory,
-                { role: 'user', content: actualMessage + searchContext }
+                { role: 'user', content: message + searchContext }
             ]
         })
     });
@@ -434,7 +434,7 @@ async function handleClaudeNativeSearch(res, message, systemPrompt, validHistory
             system: systemPrompt,
             messages: [
                 ...validHistory,
-                { role: 'user', content: actualMessage }
+                { role: 'user', content: message }
             ],
             tools: [{
                 type: "web_search",
@@ -506,7 +506,7 @@ async function handleRegularChat(res, message, systemPrompt, validHistory) {
             system: systemPrompt,
             messages: [
                 ...validHistory,
-                { role: 'user', content: actualMessage }
+                { role: 'user', content: message }
             ],
             tools: tools
         })
