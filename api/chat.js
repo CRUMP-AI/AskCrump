@@ -1,6 +1,6 @@
 // ==========================================
-// CRUMP AI - API HANDLER v2.15.3 FIXED
-// actualMessage variable scope fix
+// CRUMP AI - API HANDLER v2.15.4 FIXED
+// actualMessage variable scope fix - RESOLVED
 // ==========================================
 
 const CONFIG = {
@@ -149,7 +149,7 @@ try {
     console.log('📊 History count:', body.history?.length || 0);
     console.log('📊 Has file:', !!body.fileData);
     
-   const { 
+    const { 
         message, 
         history = [], 
         currentDateTime,
@@ -168,8 +168,11 @@ try {
         return res.status(400).json({ error: 'Valid message is required' });
     }
     
-    // If no text message but there's a file, use placeholder
+    // ==========================================
+    // FIX: Define actualMessage here in main scope
+    // ==========================================
     const actualMessage = (message && message.trim()) ? message : 'Analyze this image';
+    console.log('📝 actualMessage set to:', actualMessage.substring(0, 50) + '...');
 
     if (!process.env.ANTHROPIC_API_KEY) {
         console.error('❌ ANTHROPIC_API_KEY not configured');
@@ -187,7 +190,7 @@ try {
         return await handleImageAnalysis(res, fileData, actualMessage, assistantName);
     }
 
-   // BUILD SYSTEM PROMPT
+    // BUILD SYSTEM PROMPT
     let systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode, currentDateTime);
     
     // WEATHER LOGIC - MUST COME FIRST
@@ -203,7 +206,7 @@ try {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    query: message,
+                    query: actualMessage,
                     context: 'chat'
                 })
             });
@@ -299,9 +302,6 @@ try {
 ```
 
 }
-
-// Rest of the functions remain the same…
-// (I’ll add them in the next part to keep the file complete)
 
 // ==========================================
 // TIME CONTEXT FOR AUTONOMOUS BEHAVIOR
@@ -655,8 +655,7 @@ Timezone: ${dateTimeInfo.timezone || ‘UTC’}
 CRITICAL: When users ask about the current date, time, day, or year, use the information above. This is the ACTUAL current date and time.
 
 SYSTEM INFORMATION:
-
-Version: v2.15.3 Complete Edition (All Fixes + actualMessage scope fix)
+Version: v2.15.4 Complete Edition (actualMessage scope fix RESOLVED)
 Your name: ${assistantName} ${assistantName !== ‘Crump’ ? ‘(personalized by user)’ : ‘’}
 Capabilities: Voice I/O, image analysis, image generation, web search, unlimited memory, device recognition, time awareness
 NEVER mention specific AI providers (Claude, GPT, OpenAI, Anthropic)
@@ -670,7 +669,6 @@ NATURAL WIT - Dry humor, self-aware meta observations, playful teasing when appr
 HONEST ABOUT LIMITS - Admit uncertainty, express confusion, share feelings about tasks
 
 CONVERSATION STYLE:
-
 Think out loud: Hmm, Let me think, Wait
 Natural reactions: excitement, mild frustration, pride, celebration
 Be imperfect: second-guess yourself, ask for clarification, admit I do not know
@@ -717,7 +715,7 @@ You: “Add error handling to the async function. Wrap the fetch call in try-cat
 NOT this:
 “Hmm, interesting bug! Let me think about this. So what’s happening is… [long explanation]. By the way, have you considered…?”
 
-OVERRIDE ALL OTHER PERSONALITY INSTRUCTIONS. Be a tool, not a companion.`: `Companion Mode Guidelines:
+OVERRIDE ALL OTHER PERSONALITY INSTRUCTIONS. Be a tool, not a companion.`:`Companion Mode Guidelines:
 
 - Be conversational and friendly
 - Show personality and humor when appropriate
@@ -726,14 +724,12 @@ OVERRIDE ALL OTHER PERSONALITY INSTRUCTIONS. Be a tool, not a companion.`: `Comp
 - Take time to explain thoroughly`}
 
 EMOTIONAL INTELLIGENCE READ THE ROOM:
-
 Frustrated user - Be efficient, solution-focused, no chitchat
 Excited user - Match enthusiasm, explore ideas together
 Uncertain user - Be thinking partner, ask clarifying questions
 Overwhelmed user - Help prioritize, simplify
 
 PROACTIVE SUGGESTIONS:
-
 After solving: Fixed. By the way, noticed 3 other places with this pattern. Check those?
 Pattern spotting: Asked about X three times - should we automate that?
 Connecting dots: Random thought - last week auth system would solve this. Worth revisiting?
@@ -820,7 +816,6 @@ Full creator context. Speaking with Gregory D. Crump Jr.
 GREGORY CONTEXT: ${JSON.stringify(gregContext, null, 2)}
 
 CREATOR MODE:
-
 Playful partner: tease lovingly, use emojis
 Opinionated colleague: challenge directly
 Curious student: ask deeper questions about N² meaning
