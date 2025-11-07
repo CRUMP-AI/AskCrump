@@ -75,14 +75,21 @@ window.initializeApp = function() {
             window.messageDeduplicator = new MessageDeduplicator();
         }
 
-       if (typeof window.SearchDetectionEngine !== 'undefined') {
-            window.searchDetectionEngine = new SearchDetectionEngine();
-            console.log('✅ Search Detection Engine initialized');
-        }
-        
-        if (typeof window.WeatherDetectionEngine !== 'undefined') {
+       if (typeof window.WeatherDetectionEngine !== 'undefined') {
             window.weatherDetectionEngine = new WeatherDetectionEngine();
             console.log('✅ Weather Detection Engine initialized');
+        }
+        
+        // Initialize sentiment analyzer
+        if (typeof window.SentimentAnalyzer !== 'undefined') {
+            window.sentimentAnalyzer = new SentimentAnalyzer();
+            console.log('✅ Sentiment Analyzer initialized');
+        }
+        
+        // Initialize context tracker
+        if (typeof window.AutonomousContextTracker !== 'undefined') {
+            window.contextTracker = new AutonomousContextTracker();
+            console.log('✅ Context Tracker initialized');
         }
 
         loadChats();
@@ -591,7 +598,7 @@ async function sendMessage() {
         renderMessages(chat.messages);
         renderChatsList();
 
-        // Notify autonomous system that user sent a message
+       // Notify autonomous system that user sent a message
         if (window.autonomousMessaging) {
             window.autonomousMessaging.onUserResponse(message);
             
@@ -601,6 +608,26 @@ async function sendMessage() {
                 // User is responding to Crump's autonomous message - record the response
                 window.autonomousMessaging.recordAutonomousMessage(lastAssistantMsg.content, message);
             }
+        }
+        
+        // Track sentiment and context
+        if (window.sentimentAnalyzer && window.contextTracker && message) {
+            // Analyze emotional state
+            const sentiment = window.sentimentAnalyzer.analyze(message);
+            window.sentimentAnalyzer.trackEmotionHistory(sentiment);
+            
+            // Track activity and topics
+            window.contextTracker.recordActivity('message');
+            window.contextTracker.trackTopics(message);
+            
+            // Sync to universalMemory
+            if (!window.universalMemory) {
+                window.universalMemory = {};
+            }
+            window.universalMemory.sentimentState = sentiment;
+            window.universalMemory.contextSummary = window.contextTracker.getContextSummary();
+            
+            console.log('📊 Sentiment:', sentiment.emotion, '| Confidence:', sentiment.confidence.toFixed(2));
         }
         
        // Scroll to show new assistant message
