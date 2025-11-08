@@ -444,6 +444,44 @@ async function sendMessage() {
         console.error('No active chat');
         return;
     }
+
+    // ========================================
+    // CONSCIOUSNESS COMMAND DETECTION (NEW)
+    // ========================================
+    if (window.isConsciousnessCommand && window.isConsciousnessCommand(message)) {
+        console.log('🧠 Consciousness command detected');
+        
+        const consciousness = new window.ConsciousnessIntegration();
+        const result = consciousness.handleConsciousnessCommand(message);
+        
+        // Add user message
+        chat.messages.push({
+            role: 'user',
+            content: message,
+            timestamp: Date.now()
+        });
+        
+        // Add consciousness response
+        chat.messages.push({
+            role: 'assistant',
+            content: result.message,
+            timestamp: Date.now()
+        });
+        
+        // Update UI
+        saveChats();
+        renderMessages(chat.messages);
+        
+        // Clear input
+        userInput.value = '';
+        userInput.style.height = 'auto';
+        
+        // Exit early - don't process as normal message
+        return;
+    }
+    // ========================================
+    // END CONSCIOUSNESS COMMAND DETECTION
+    // ========================================
     
     isProcessing = true;
     
