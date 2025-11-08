@@ -2,7 +2,7 @@
 // CRUMP AI - SERVICE WORKER v1.0.3
 // Files served from ROOT directory
 // ==========================================
-const CACHE_NAME = 'crump-v1.0.4-bugfix';
+const CACHE_NAME = 'crump-v1.0.5-consciousness';
 
 const urlsToCache = [
     // Core HTML/JSON
@@ -25,6 +25,9 @@ const urlsToCache = [
     '/scroll-manager.js',
     '/tutorial.js',
     '/self-debug-v3.js',
+    '/consciousness-engine.js',
+    '/consciousness-integration.js',
+    '/consciousness-ui.js',
     
     // Images - /assets/
     '/assets/logo-c.png',
