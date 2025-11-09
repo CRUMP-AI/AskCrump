@@ -851,11 +851,13 @@ a:hover { color: var(--color-accent-primary); text-decoration-thickness: 2px; }
     transform: none !important;
   }
   
-  /* PWA Logo Fixes */
+/* PWA Logo Fixes */
   .header-full-logo {
-    width: 250px !important;
-    transform: scale(1.5) !important;
+    height: 40px !important;
+    width: auto !important;
+    transform: none !important;
   }
+}
   
   .splash-logo-img {
     width: 80vw !important;
