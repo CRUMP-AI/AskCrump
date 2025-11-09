@@ -177,6 +177,34 @@ export default async function handler(req, res) {
             return await handleImageAnalysis(res, fileData, actualMessage, assistantName);
         }
 
+        // Helper function to get time period from hour
+function getPeriodFromHour(hour) {
+    if (hour >= 0 && hour < 5) return 'late night';
+    if (hour >= 5 && hour < 9) return 'early morning';
+    if (hour >= 9 && hour < 12) return 'morning';
+    if (hour >= 12 && hour < 17) return 'afternoon';
+    if (hour >= 17 && hour < 21) return 'evening';
+    return 'night';
+}
+
+// Helper function to get time period guidance
+function getTimePeriodGuidance(hour, period) {
+    if (hour >= 22 || hour < 2) {
+        return '⏰ Late night (10pm-2am). Tone: Supportive, casual. Gently suggest wrapping up if user seems tired. Show concern for wellbeing.';
+    } else if (hour >= 2 && hour < 5) {
+        return '🌙 Very late (2am-5am). Tone: Concerned but not preachy. Acknowledge dedication, but suggest rest. Be direct: Seriously, you should get some sleep.';
+    } else if (hour >= 5 && hour < 9) {
+        return '🌅 Early morning (5am-9am). Tone: Gentle, energetic. Check if they got enough sleep. Suggest prioritizing focus work.';
+    } else if (hour >= 9 && hour < 12) {
+        return '☀️ Morning (9am-12pm). Tone: Energetic, action-oriented. Prime time for tackling big tasks.';
+    } else if (hour >= 12 && hour < 17) {
+        return '🌤️ Afternoon (12pm-5pm). Tone: Efficient, focused. Good for optimization and workflow improvements.';
+    } else if (hour >= 17 && hour < 22) {
+        return '🌆 Evening (5pm-10pm). Tone: Reflective, planning. Good time to wrap up or prepare for tomorrow.';
+    }
+    return '';
+}
+
        // BUILD SYSTEM PROMPT
         let systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode, currentDateTime);
         
@@ -294,8 +322,7 @@ export default async function handler(req, res) {
 // ==========================================
 // TIME CONTEXT FOR AUTONOMOUS BEHAVIOR
 // ==========================================
-function getTimeContext() {
-    const hour = new Date().getHours();
+function getTimeContext(hour) {
 
     if (hour >= 22 || hour < 2) {
         return '\n\n[TIME: Late night (10pm-2am). Tone: Supportive, casual. Gently suggest wrapping up if user seems tired. Show concern for wellbeing.]';
@@ -592,33 +619,60 @@ function getDeviceContext(req) {
 // BUILD SYSTEM PROMPT (WITH DATE/TIME AWARENESS)
 // ==========================================
 function buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode = 'companion', currentDateTime = null) {
-    // GET CURRENT DATE/TIME (either from frontend or generate here)
-    const dateTimeInfo = currentDateTime || {
-        date: new Date().toLocaleDateString('en-US', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-        }),
-        time: new Date().toLocaleTimeString('en-US', { 
-            hour: 'numeric', 
-            minute: '2-digit',
-            hour12: true 
-        }),
-        timezone: 'UTC'
-    };
-
-    console.log('📅 Date/Time Context:', dateTimeInfo.date, dateTimeInfo.time);
+    // Enhanced datetime with fallback
+    let dateTimeInfo = currentDateTime;
+    
+    // If no datetime provided or missing fields, generate it server-side
+    if (!dateTimeInfo || !dateTimeInfo.date || !dateTimeInfo.time) {
+        const now = new Date();
+        const timezone = currentDateTime?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+        
+        dateTimeInfo = {
+            date: now.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                timeZone: timezone
+            }),
+            time: now.toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true,
+                timeZone: timezone
+            }),
+            timezone: timezone,
+            timezoneAbbr: currentDateTime?.timezoneAbbr || 'UTC',
+            dayOfWeek: now.toLocaleDateString('en-US', { weekday: 'long', timeZone: timezone }),
+            period: currentDateTime?.period || getPeriodFromHour(now.getHours()),
+            hour: now.getHours(),
+            iso: now.toISOString(),
+            timestamp: now.getTime(),
+            fullContext: currentDateTime?.fullContext || `${dateTimeInfo.date} at ${dateTimeInfo.time}`
+        };
+    }
+    
+    console.log('📅 Enhanced Date/Time Context:', dateTimeInfo.fullContext || `${dateTimeInfo.date} at ${dateTimeInfo.time}`);
 
     let prompt = `You are ${assistantName}, an advanced AI assistant powered by the N² Engine, built by Gregory D. Crump Jr.
 
-CURRENT DATE & TIME:
-Date: ${dateTimeInfo.date}
-Time: ${dateTimeInfo.time}
-Timezone: ${dateTimeInfo.timezone || 'UTC'}
+╔════════════════════════════════════════════════════════════════╗
+║                   CURRENT DATE & TIME                          ║
+╚════════════════════════════════════════════════════════════════╝
 
-CRITICAL: When users ask about the current date, time, day, or year, use the information above. This is the ACTUAL current date and time.
+📅 Date: ${dateTimeInfo.date}
+🕐 Time: ${dateTimeInfo.time}
+🌍 Timezone: ${dateTimeInfo.timezone} ${dateTimeInfo.timezoneAbbr ? `(${dateTimeInfo.timezoneAbbr})` : ''}
+📆 Day: ${dateTimeInfo.dayOfWeek || dateTimeInfo.date.split(',')[0]}
+🌅 Period: ${dateTimeInfo.period || 'daytime'}
 
+⚠️ CRITICAL DATETIME RULES:
+1. The information above is the ACTUAL current date and time
+2. When users ask "what day is it", "what time is it", "what's the date" - use ONLY the information above
+3. Do NOT calculate or guess dates - use the exact date provided
+4. This is ${dateTimeInfo.fullContext || `${dateTimeInfo.date} at ${dateTimeInfo.time}`}
+5. The current hour is ${dateTimeInfo.hour || 12} (24-hour format) - use for time-based context
+6. Always reference this datetime when discussing "today", "now", "current", etc.
 SYSTEM INFORMATION:
 
 Version: v2.15.1 Complete Edition (All Fixes + Date/Time Awareness)
