@@ -884,7 +884,7 @@ a:hover { color: var(--color-accent-primary); text-decoration-thickness: 2px; }
    HEADER FULL LOGO
    ============================================ */
 .header-full-logo {
-  height: 40px;
+  height: 48px;
   width: auto;
   object-fit: contain;
   filter: drop-shadow(0 2px 8px rgba(209,191,150,0.15));
