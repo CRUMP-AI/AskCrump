@@ -853,12 +853,12 @@ a:hover { color: var(--color-accent-primary); text-decoration-thickness: 2px; }
   
 /* PWA Logo Fixes */
   .header-full-logo {
-    height: 40px !important;
+    height: 20px !important;
     width: auto !important;
     transform: none !important;
-    max-height: 40px !important;
+    max-height: 20px !important;
+    max-width: 150px !important;
   }
-}
   
   .splash-logo-img {
     width: 80vw !important;
