@@ -856,6 +856,7 @@ a:hover { color: var(--color-accent-primary); text-decoration-thickness: 2px; }
     height: 40px !important;
     width: auto !important;
     transform: none !important;
+    max-height: 40px !important;
   }
 }
   
