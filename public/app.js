@@ -559,31 +559,49 @@ async function sendMessage() {
             needsWeather = window.weatherDetectionEngine.needsWeather(message);
         }
 
-        // Prepare request
+      // Prepare request with accurate time awareness
+        const timeInfo = window.timeAwareness ? window.timeAwareness.getCurrentDateTime() : null;
+        
         const requestBody = {
             message: message,
             history: chat.messages.map(m => ({
                 role: m.role,
                 content: m.content
             })),
-            currentDateTime: {
+            currentDateTime: timeInfo ? {
+                date: timeInfo.date,
+                time: timeInfo.time,
+                timezone: timeInfo.timezone,
+                timezoneAbbr: timeInfo.timezoneAbbr,
+                dayOfWeek: timeInfo.dayOfWeek,
+                period: timeInfo.period,
+                hour: timeInfo.hour,
+                iso: timeInfo.iso,
+                timestamp: timeInfo.timestamp,
+                fullContext: timeInfo.fullContext
+            } : {
                 date: new Date().toLocaleDateString('en-US', { 
                     weekday: 'long', 
                     year: 'numeric', 
                     month: 'long', 
-                    day: 'numeric' 
+                    day: 'numeric',
+                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
                 }),
                 time: new Date().toLocaleTimeString('en-US', { 
                     hour: 'numeric', 
                     minute: '2-digit',
-                    hour12: true 
+                    second: '2-digit',
+                    hour12: true,
+                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
                 }),
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                iso: new Date().toISOString(),
+                timestamp: Date.now()
             },
             needsSearch: needsSearch,
             needsWeather: needsWeather,
             workMode: localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true' ? 'work' : 'companion',
-            universalMemory: window.universalMemory || {}  // ← ADD THIS LINE
+            universalMemory: window.universalMemory || {}
         };
         
        if (fileData && fileType) {
