@@ -896,9 +896,3 @@ a:hover { color: var(--color-accent-primary); text-decoration-thickness: 2px; }
 .header-full-logo:hover {
   filter: drop-shadow(0 4px 12px rgba(209,191,150,0.25));
 }
-
-@media (max-width:28px) {
-  .header-full-logo {
-    height: 40px;
-  }
-}
