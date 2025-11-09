@@ -828,7 +828,6 @@ a:hover { color: var(--color-accent-primary); text-decoration-thickness: 2px; }
     overflow-y: auto;
     overflow-x: hidden;
     padding: var(--space-4);
-    /* Adjust this value to match your input area height exactly */
     padding-bottom: 220px !important;
   }
   
@@ -838,21 +837,30 @@ a:hover { color: var(--color-accent-primary); text-decoration-thickness: 2px; }
     right: 0;
     bottom: 0;
     margin: 0 !important;
-    /* Critical: Remove ALL bottom padding/spacing */
     padding-bottom: 0 !important;
     transform: translateZ(0);
   }
   
-  /* Remove safe area from input-area, apply to container instead */
   .input-container {
     margin-bottom: env(safe-area-inset-bottom, 0) !important;
   }
   
-  /* Remove any transforms that create gaps */
   .input-area,
   .chat-container,
   .main-content {
     transform: none !important;
+  }
+  
+  /* PWA Logo Fixes */
+  .header-full-logo {
+    width: 250px !important;
+    transform: scale(1.5) !important;
+  }
+  
+  .splash-logo-img {
+    width: 80vw !important;
+    max-width: 600px !important;
+    transform: scale(1.2) !important;
   }
 }
 
@@ -876,9 +884,10 @@ a:hover { color: var(--color-accent-primary); text-decoration-thickness: 2px; }
    HEADER FULL LOGO
    ============================================ */
 .header-full-logo {
-  height: 90%;
-  width: auto;
-  max-height: 56px
+  width: 250px !important;
+  height: auto !important;
+  min-height: 50px;
+  transform: scale(1.5); /* Force it bigger */
   object-fit: contain;
   filter: drop-shadow(0 2px 8px rgba(209,191,150,0.15));
   transition: filter var(--transition-fast);
