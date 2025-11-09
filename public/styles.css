@@ -168,26 +168,15 @@ body {
 }
 .splash-content { text-align: center; }
 .splash-logo-img {
-  width: 96px; height: 96px; margin-bottom: var(--space-6);
+  width: 400px; /* Larger to accommodate full logo */
+  max-width: 90vw; /* Responsive */
+  height: auto; /* Maintain aspect ratio */
+  margin-bottom: var(--space-6);
   animation: logoFloat 3s ease-in-out infinite;
   filter: drop-shadow(0 8px 24px rgba(209,191,150,0.28));
 }
 @keyframes logoFloat { 0%, 100% { transform: translateY(0);} 50% { transform: translateY(-12px);} }
-.splash-logo {
-  font-family: var(--font-display);
-  font-size: var(--font-size-4xl);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-accent-primary);
-  letter-spacing: -0.02em;
-  margin-bottom: var(--space-2);
-  text-shadow: 0 1px 0 rgba(0,0,0,.3);
-}
-.splash-tagline {
-  font-size: var(--font-size-lg);
-  color: var(--color-text-secondary);
-  font-weight: var(--font-weight-light);
-  margin-bottom: var(--space-12);
-}
+
 .splash-loader {
   width: min(64vw, 320px);
   height: 3px;
@@ -251,7 +240,7 @@ body {
    ============================================ */
 .onboarding-modal { padding: var(--space-10); text-align: center; }
 .onboarding-logo {
-  width: 84px; height: 84px; margin: 0 auto var(--space-6); display: block;
+  width: 300px; max-width: 80vw; height: auto; margin: 0 auto var(--space-6); display: block;
   filter: drop-shadow(0 6px 18px rgba(209,191,150,0.26));
 }
 .onboarding-modal h2 {
