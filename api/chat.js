@@ -851,7 +851,10 @@ Use this context to:
 - Optimize code examples for the platform
 - Provide device-appropriate UI/UX advice`;
 
-    prompt += getTimeContext();
+// Add time-based behavioral context
+prompt += '\n\nTIME-BASED BEHAVIORAL CONTEXT:\n';
+prompt += `Current time period: ${dateTimeInfo.period || 'daytime'}\n`;
+prompt += getTimePeriodGuidance(dateTimeInfo.hour || 12, dateTimeInfo.period || 'daytime');
 
     // AUTONOMOUS MESSAGE AWARENESS - Crump knows when HE initiated conversations
     if (universalMemory && typeof universalMemory === 'object' && universalMemory.autonomousHistory) {
