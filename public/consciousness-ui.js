@@ -165,10 +165,10 @@
             styles.textContent = `
                 .consciousness-toggle {
                     position: fixed;
-                    top: calc(20px + env(safe-area-inset-top, 0px));
+                    top: 0;
                     right: 20px;
                     width: 44px;
-                    height: 44px;
+                    height: var(--header-height, 64px);
                     background: transparent;
                     border: none;
                     font-size: 24px;
@@ -179,6 +179,7 @@
                     align-items: center;
                     justify-content: center;
                     opacity: 0.6;
+                    padding-top: env(safe-area-inset-top, 0px);
                 }
                 
                 .consciousness-toggle:hover {
