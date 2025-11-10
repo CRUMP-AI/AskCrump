@@ -165,23 +165,25 @@
             styles.textContent = `
                 .consciousness-toggle {
                     position: fixed;
-                    bottom: 80px;
+                    top: calc(20px + env(safe-area-inset-top, 0px));
                     right: 20px;
-                    width: 50px;
-                    height: 50px;
-                    border-radius: 50%;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    width: 44px;
+                    height: 44px;
+                    background: transparent;
                     border: none;
                     font-size: 24px;
                     cursor: pointer;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                    z-index: 9998;
-                    transition: all 0.3s;
+                    z-index: 1001;
+                    transition: all 0.2s ease;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    opacity: 0.6;
                 }
                 
                 .consciousness-toggle:hover {
+                    opacity: 1;
                     transform: scale(1.1);
-                    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
                 }
                 
                 .consciousness-panel {
@@ -192,7 +194,7 @@
                     width: 380px;
                     max-height: 90vh;
                     background: #1a1a2e;
-                    border: 2px solid #667eea;
+                    border: 2px solid rgba(209, 191, 150, 0.3);
                     border-radius: 12px;
                     box-shadow: 0 8px 32px rgba(0,0,0,0.5);
                     z-index: 9999;
@@ -205,7 +207,8 @@
                 }
                 
                 .consciousness-header {
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+background: linear-gradient(135deg, rgba(209, 191, 150, 0.2) 0%, rgba(15, 20, 25, 0.95) 100%);
+border-bottom: 1px solid rgba(209, 191, 150, 0.3);
                     padding: 15px 20px;
                     display: flex;
                     justify-content: space-between;
@@ -241,7 +244,7 @@
                 }
                 
                 .consciousness-section h4 {
-                    color: #667eea;
+                    color: #d1bf96;
                     margin: 0 0 10px 0;
                     font-size: 14px;
                     text-transform: uppercase;
@@ -331,11 +334,11 @@
                 }
                 
                 .consciousness-btn.report,
-                .consciousness-btn.test {
-                    background: #667eea;
-                    color: white;
-                    grid-column: span 2;
-                }
+.consciousness-btn.test {
+    background: linear-gradient(135deg, #d1bf96 0%, #bfa978 100%);
+    color: #0f1419;
+    grid-column: span 2;
+}
                 
                 .consciousness-btn:hover {
                     opacity: 0.9;
