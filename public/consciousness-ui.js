@@ -173,7 +173,7 @@
                     border: none;
                     font-size: 24px;
                     cursor: pointer;
-                    z-index: 1001;
+                    z-index: 30;
                     transition: all 0.2s ease;
                     display: flex;
                     align-items: center;
