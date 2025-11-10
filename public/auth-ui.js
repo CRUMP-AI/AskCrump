@@ -162,11 +162,12 @@ class AuthUI {
             </div>
 
             <!-- Login/Signup Trigger Button -->
+            <!-- TEMPORARILY DISABLED
             <button id="auth-trigger-btn" class="auth-trigger-btn">
                 Sign In
             </button>
+            -->
         `;
-
         document.body.insertAdjacentHTML('beforeend', authHTML);
     }
 
@@ -183,11 +184,14 @@ class AuthUI {
             this.handleSignup();
         });
 
-        // Auth trigger button
-        document.getElementById('auth-trigger-btn').addEventListener('click', () => {
-            this.showLogin();
-        });
-
+        // Auth trigger button (if enabled)
+        const authTriggerBtn = document.getElementById('auth-trigger-btn');
+        if (authTriggerBtn) {
+            authTriggerBtn.addEventListener('click', () => {
+                this.showLogin();
+            });
+        }
+        
         // Close overlay on click outside
         document.getElementById('auth-overlay').addEventListener('click', (e) => {
             if (e.target.id === 'auth-overlay') {
@@ -359,8 +363,11 @@ class AuthUI {
     }
 
     updateUIForLoggedIn() {
-        document.getElementById('auth-trigger-btn').style.display = 'none';
-        document.getElementById('user-profile-container').style.display = 'block';
+        const authTriggerBtn = document.getElementById('auth-trigger-btn');
+        const profileContainer = document.getElementById('user-profile-container');
+        
+        if (authTriggerBtn) authTriggerBtn.style.display = 'none';
+        if (profileContainer) profileContainer.style.display = 'block';
         
         const avatar = this.currentUser.profilePicture || this.generateAvatar(this.currentUser.email);
         document.getElementById('user-avatar').src = avatar;
@@ -371,10 +378,13 @@ class AuthUI {
     }
 
     updateUIForLoggedOut() {
-        document.getElementById('auth-trigger-btn').style.display = 'block';
-        document.getElementById('user-profile-container').style.display = 'none';
+        const authTriggerBtn = document.getElementById('auth-trigger-btn');
+        const profileContainer = document.getElementById('user-profile-container');
+        
+        if (authTriggerBtn) authTriggerBtn.style.display = 'block';
+        if (profileContainer) profileContainer.style.display = 'none';
     }
-
+    
     generateAvatar(email) {
         // Generate a simple avatar using UI Avatars
         const name = email.split('@')[0];
