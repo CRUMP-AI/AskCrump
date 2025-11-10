@@ -173,7 +173,7 @@ body {
   height: auto; /* Maintain aspect ratio */
   margin-bottom: var(--space-6);
   animation: logoFloat 3s ease-in-out infinite;
-  filter: drop-shadow(0 8px 24px rgba(209,191,150,0.28));
+  /* Glow removed */
 }
 @keyframes logoFloat { 0%, 100% { transform: translateY(0);} 50% { transform: translateY(-12px);} }
 
@@ -890,10 +890,4 @@ a:hover { color: var(--color-accent-primary); text-decoration-thickness: 2px; }
   height: 48px;
   width: auto;
   object-fit: contain;
-  filter: drop-shadow(0 2px 8px rgba(209,191,150,0.15));
-  transition: filter var(--transition-fast);
-}
-
-.header-full-logo:hover {
-  filter: drop-shadow(0 4px 12px rgba(209,191,150,0.25));
 }
