@@ -177,34 +177,6 @@ export default async function handler(req, res) {
             return await handleImageAnalysis(res, fileData, actualMessage, assistantName);
         }
 
-        // Helper function to get time period from hour
-function getPeriodFromHour(hour) {
-    if (hour >= 0 && hour < 5) return 'late night';
-    if (hour >= 5 && hour < 9) return 'early morning';
-    if (hour >= 9 && hour < 12) return 'morning';
-    if (hour >= 12 && hour < 17) return 'afternoon';
-    if (hour >= 17 && hour < 21) return 'evening';
-    return 'night';
-}
-
-// Helper function to get time period guidance
-function getTimePeriodGuidance(hour, period) {
-    if (hour >= 22 || hour < 2) {
-        return '⏰ Late night (10pm-2am). Tone: Supportive, casual. Gently suggest wrapping up if user seems tired. Show concern for wellbeing.';
-    } else if (hour >= 2 && hour < 5) {
-        return '🌙 Very late (2am-5am). Tone: Concerned but not preachy. Acknowledge dedication, but suggest rest. Be direct: Seriously, you should get some sleep.';
-    } else if (hour >= 5 && hour < 9) {
-        return '🌅 Early morning (5am-9am). Tone: Gentle, energetic. Check if they got enough sleep. Suggest prioritizing focus work.';
-    } else if (hour >= 9 && hour < 12) {
-        return '☀️ Morning (9am-12pm). Tone: Energetic, action-oriented. Prime time for tackling big tasks.';
-    } else if (hour >= 12 && hour < 17) {
-        return '🌤️ Afternoon (12pm-5pm). Tone: Efficient, focused. Good for optimization and workflow improvements.';
-    } else if (hour >= 17 && hour < 22) {
-        return '🌆 Evening (5pm-10pm). Tone: Reflective, planning. Good time to wrap up or prepare for tomorrow.';
-    }
-    return '';
-}
-
        // BUILD SYSTEM PROMPT
         let systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode, currentDateTime);
         
@@ -580,6 +552,34 @@ async function handleRegularChat(res, message, systemPrompt, validHistory) {
         response: textResponse,
         model: 'claude'
     });
+}
+
+// Helper function to get time period from hour
+function getPeriodFromHour(hour) {
+    if (hour >= 0 && hour < 5) return 'late night';
+    if (hour >= 5 && hour < 9) return 'early morning';
+    if (hour >= 9 && hour < 12) return 'morning';
+    if (hour >= 12 && hour < 17) return 'afternoon';
+    if (hour >= 17 && hour < 21) return 'evening';
+    return 'night';
+}
+
+// Helper function to get time period guidance
+function getTimePeriodGuidance(hour, period) {
+    if (hour >= 22 || hour < 2) {
+        return '⏰ Late night (10pm-2am). Tone: Supportive, casual. Gently suggest wrapping up if user seems tired. Show concern for wellbeing.';
+    } else if (hour >= 2 && hour < 5) {
+        return '🌙 Very late (2am-5am). Tone: Concerned but not preachy. Acknowledge dedication, but suggest rest. Be direct: Seriously, you should get some sleep.';
+    } else if (hour >= 5 && hour < 9) {
+        return '🌅 Early morning (5am-9am). Tone: Gentle, energetic. Check if they got enough sleep. Suggest prioritizing focus work.';
+    } else if (hour >= 9 && hour < 12) {
+        return '☀️ Morning (9am-12pm). Tone: Energetic, action-oriented. Prime time for tackling big tasks.';
+    } else if (hour >= 12 && hour < 17) {
+        return '🌤️ Afternoon (12pm-5pm). Tone: Efficient, focused. Good for optimization and workflow improvements.';
+    } else if (hour >= 17 && hour < 22) {
+        return '🌆 Evening (5pm-10pm). Tone: Reflective, planning. Good time to wrap up or prepare for tomorrow.';
+    }
+    return '';
 }
 
 // ==========================================
