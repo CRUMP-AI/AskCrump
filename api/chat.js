@@ -2493,11 +2493,11 @@ async function handleImageAnalysis(res, fileData, message, assistantName) {
             headers: {
                 'Content-Type': 'application/json',
                 'x-api-key': process.env.ANTHROPIC_API_KEY,
-                'anthropic-version': CONFIG.ANTHROPIC_VERSION
+                'anthropic-version': '2023-06-01'
             },
             signal: AbortSignal.timeout(CONFIG.API_TIMEOUT),
             body: JSON.stringify({
-                model: CONFIG.CLAUDE_MODEL,
+                model: 'claude-3-5-sonnet-20241022',
                 max_tokens: 4096,
                 system: visionPrompt,
                 messages: [{
