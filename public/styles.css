@@ -241,7 +241,6 @@ body {
 .onboarding-modal { padding: var(--space-10); text-align: center; }
 .onboarding-logo {
   width: 300px; max-width: 80vw; height: auto; margin: 0 auto var(--space-6); display: block;
-  filter: drop-shadow(0 6px 18px rgba(209,191,150,0.26));
 }
 .onboarding-modal h2 {
   font-family: var(--font-display);
