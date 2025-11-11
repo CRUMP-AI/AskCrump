@@ -240,6 +240,12 @@ function createNewChat() {
     currentChatId = chat.id;
     window.currentChatId = currentChatId;
 
+    // CRITICAL FIX: Reset image generation state for new chat
+if (window.resetImageGenerationState) {
+    window.resetImageGenerationState();
+    console.log('🔄 Image generation state reset for new chat');
+}
+
     saveChats();
     localStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, currentChatId);
 
@@ -259,6 +265,12 @@ function loadChat(chatId) {
     currentChatId = chatId;
     window.currentChatId = currentChatId;
     localStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, chatId);
+
+    // CRITICAL FIX: Reset image generation state when switching chats
+if (window.resetImageGenerationState) {
+    window.resetImageGenerationState();
+    console.log('🔄 Image generation state reset for new chat');
+}
 
     renderChatsList();
     renderMessages(chat.messages);
