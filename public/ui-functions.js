@@ -75,15 +75,6 @@ if (msg.fileData && Array.isArray(msg.fileData)) {
         }
     });
 }
-            } else if (msg.fileData.type.startsWith('image/')) {
-                contentHtml += `
-                    <div class="file-preview">
-                        <img src="${msg.fileData.data}" alt="Uploaded image">
-                        <div class="file-info">📎 ${msg.fileData.name || 'Uploaded image'}</div>
-                    </div>
-                `;
-            }
-        }
         
         // Handle generated images
         if (msg.imageUrl) {
