@@ -59,19 +59,22 @@ function renderMessages(messages) {
         
         let contentHtml = `<div class="message-content">${content}</div>`;
         
-        // Handle file attachments
-        if (msg.fileData) {
-            if (Array.isArray(msg.fileData)) {
-                msg.fileData.forEach(file => {
-                    if (file.type.startsWith('image/')) {
-                        contentHtml += `
-                            <div class="file-preview">
-                                <img src="${file.data}" alt="Uploaded image">
-                                <div class="file-info">📎 ${file.name}</div>
-                            </div>
-                        `;
-                    }
-                });
+       // Handle file attachments - CRITICAL FIX: Always expect array
+if (msg.fileData && Array.isArray(msg.fileData)) {
+    msg.fileData.forEach((file, fileIndex) => {
+        if (file.type && file.type.startsWith('image/')) {
+            contentHtml += `
+                <div class="file-preview">
+                    <img src="${file.data}" 
+                         alt="Uploaded image" 
+                         loading="lazy"
+                         onerror="this.parentElement.innerHTML='<div style=\\'padding: 1rem; text-align: center; background: var(--color-bg-tertiary); border-radius: 8px;\\'>❌ Failed to load uploaded image</div>'">
+                    <div class="file-info">🔎 ${file.name || 'Uploaded image'}</div>
+                </div>
+            `;
+        }
+    });
+}
             } else if (msg.fileData.type.startsWith('image/')) {
                 contentHtml += `
                     <div class="file-preview">
