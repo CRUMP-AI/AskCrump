@@ -27,6 +27,8 @@ let isProcessing = false;
 window.chats = chats;
 window.currentChatId = currentChatId;
 window.STORAGE_KEYS = STORAGE_KEYS;
+let activeObjectURLs = [];
+window.activeObjectURLs = activeObjectURLs;
 
 // ==========================================
 // INITIALIZATION
@@ -549,11 +551,19 @@ if (fileData && fileType) {
             }
         }, 300);
         
-        // Clear input and files
-        userInput.value = '';
-        userInput.style.height = 'auto';
-        selectedFiles = [];
-        displayFilePreview();
+       // Clear input and files
+userInput.value = '';
+userInput.style.height = 'auto';
+
+// CRITICAL FIX: Reset file input element
+const fileInput = document.getElementById('fileInput');
+if (fileInput) {
+    fileInput.value = '';
+    console.log('🧹 File input reset');
+}
+
+selectedFiles = [];
+displayFilePreview();
         
         // Show thinking
         showThinking();
@@ -618,11 +628,11 @@ if (fileData && fileType) {
         
        if (fileData && fileType) {
             console.log('📤 Sending file to API:', fileType, fileName);
-            requestBody.fileData = {
+            requestBody.fileData = [{
                 type: fileType,
                 data: fileData,
                 name: fileName
-            };
+            }];
         }
         
         // Call API
@@ -748,6 +758,18 @@ function displayFilePreview() {
     const preview = document.getElementById('filePreview');
     if (!preview) return;
     
+    // CRITICAL FIX: Clean up ALL previous object URLs
+    if (window.activeObjectURLs) {
+        window.activeObjectURLs.forEach(url => {
+            try {
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                console.warn('Failed to revoke URL:', e);
+            }
+        });
+        window.activeObjectURLs = [];
+    }
+    
     if (selectedFiles.length === 0) {
         preview.style.display = 'none';
         return;
@@ -767,10 +789,33 @@ function displayFilePreview() {
             
             const img = document.createElement('img');
             img.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
-            img.src = URL.createObjectURL(file);
             
-            // Clean up object URL when done
-            img.onload = () => URL.revokeObjectURL(img.src);
+            const objectURL = URL.createObjectURL(file);
+            if (!window.activeObjectURLs) window.activeObjectURLs = [];
+            window.activeObjectURLs.push(objectURL); // Track for cleanup
+            img.src = objectURL;
+            
+            // CRITICAL FIX: Clean up on BOTH load AND error
+            const cleanup = () => {
+                const urlIndex = window.activeObjectURLs.indexOf(objectURL);
+                if (urlIndex > -1) {
+                    try {
+                        URL.revokeObjectURL(objectURL);
+                        window.activeObjectURLs.splice(urlIndex, 1);
+                        console.log('🧹 Object URL cleaned up');
+                    } catch (e) {
+                        console.warn('Failed to revoke URL:', e);
+                    }
+                }
+            };
+            
+            img.onload = cleanup;
+            img.onerror = () => {
+                cleanup();
+                console.error('❌ Failed to load image preview for:', file.name);
+                // Show error icon
+                img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60"><text x="50%" y="50%" text-anchor="middle" dy=".3em" font-size="30">❌</text></svg>';
+            };
             
             imgContainer.appendChild(img);
             container.appendChild(imgContainer);
@@ -803,6 +848,19 @@ function displayFilePreview() {
 }
 
 window.removeFile = function(index) {
+    // CRITICAL FIX: Clean up object URL for removed file if it's an image
+    if (selectedFiles[index] && selectedFiles[index].type.startsWith('image/')) {
+        if (window.activeObjectURLs && window.activeObjectURLs[index]) {
+            try {
+                URL.revokeObjectURL(window.activeObjectURLs[index]);
+                window.activeObjectURLs.splice(index, 1);
+                console.log('🧹 Object URL cleaned up for removed file');
+            } catch (e) {
+                console.warn('Failed to revoke URL:', e);
+            }
+        }
+    }
+    
     selectedFiles.splice(index, 1);
     displayFilePreview();
 };
@@ -1122,3 +1180,17 @@ window.crumpDebug = {
 };
 
 console.log('✅ Crump AI v1.0 loaded (FIXED VERSION - Autonomous corrected)');
+
+// CRITICAL FIX: Clean up all object URLs when page unloads
+window.addEventListener('beforeunload', () => {
+    if (window.activeObjectURLs) {
+        window.activeObjectURLs.forEach(url => {
+            try {
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                // Ignore errors during cleanup
+            }
+        });
+    }
+    console.log('🧹 Cleaned up all object URLs on page unload');
+});
