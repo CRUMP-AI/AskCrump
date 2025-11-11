@@ -507,14 +507,14 @@ async function sendMessage() {
             console.log('✅ File data captured:', fileType, fileName);
         }
         
-      // Store image data for display (FIXED: use fileData structure that ui-functions.js expects)
-        if (fileData && fileType) {
-            userMessage.fileData = {
-                type: fileType,
-                data: fileData,
-                name: fileName
-            };
-        }
+     // CRITICAL FIX: Always use array structure, even for single file
+if (fileData && fileType) {
+    userMessage.fileData = [{  // Wrap in array
+        type: fileType,
+        data: fileData,
+        name: fileName
+    }];
+}
         
        // Add user message to chat
         chat.messages.push(userMessage);
