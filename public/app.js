@@ -377,6 +377,20 @@ function createMessageElement(msg, index) {
     const content = document.createElement('div');
     content.className = 'message-content';
     
+    // Handle uploaded images (from user fileData)
+    if (msg.fileData && Array.isArray(msg.fileData) && msg.fileData.length > 0) {
+        msg.fileData.forEach(file => {
+            if (file.type && file.type.startsWith('image/') && file.data) {
+                const img = document.createElement('img');
+                img.src = file.data;
+                img.style.cssText = 'max-width: 300px; border-radius: 8px; margin-bottom: 0.5rem; display: block;';
+                img.alt = file.name || 'Uploaded image';
+                content.appendChild(img);
+            }
+        });
+    }
+    
+    // Handle old imageData format (backward compatibility)
     if (msg.imageData) {
         const img = document.createElement('img');
         img.src = msg.imageData;
@@ -503,7 +517,7 @@ async function sendMessage() {
         // Create user message
         const userMessage = {
             role: 'user',
-            content: message || '(attached file)',
+            content: message || '', // Empty string - no ugly placeholder
             timestamp: Date.now()
         };
         
@@ -626,14 +640,24 @@ displayFilePreview();
             universalMemory: window.universalMemory || {}
         };
         
-       if (fileData && fileType) {
-            console.log('📤 Sending file to API:', fileType, fileName);
-            requestBody.fileData = [{
-                type: fileType,
-                data: fileData,
-                name: fileName
-            }];
-        }
+      if (fileData && fileType) {
+    console.log('📤 Sending file to API:', fileType, fileName);
+    
+    // CRITICAL: Ensure we send clean base64 (strip data URL prefix if present)
+    let cleanBase64 = fileData;
+    if (fileData.includes(',')) {
+        cleanBase64 = fileData.split(',')[1];
+        console.log('✂️ Stripped data URL prefix, clean base64 ready');
+    }
+    
+    requestBody.fileData = [{
+        type: fileType,
+        data: `data:${fileType};base64,${cleanBase64}`, // Rebuild proper data URL
+        name: fileName
+    }];
+    
+    console.log('✅ File data formatted for API:', fileType, fileName, `${cleanBase64.substring(0, 50)}...`);
+}
         
         // Call API
         const response = await fetch('/api/chat', {
@@ -649,6 +673,13 @@ displayFilePreview();
         }
         
        const data = await response.json();
+
+        console.log('📥 API Response:', {
+    hasResponse: !!data.response,
+    hasImage: !!data.imageUrl,
+    model: data.model,
+    responseLength: data.response?.length
+});
         
         // Add assistant response
         const assistantMessage = {
@@ -758,7 +789,7 @@ function displayFilePreview() {
     const preview = document.getElementById('filePreview');
     if (!preview) return;
     
-    // CRITICAL FIX: Clean up ALL previous object URLs
+    // Clean up previous object URLs
     if (window.activeObjectURLs) {
         window.activeObjectURLs.forEach(url => {
             try {
@@ -780,29 +811,28 @@ function displayFilePreview() {
     
     selectedFiles.forEach((file, index) => {
         const container = document.createElement('div');
-        container.style.cssText = 'display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--color-bg-secondary); border-radius: 8px; margin-bottom: 0.5rem;';
+        container.style.cssText = 'position: relative; display: inline-block; margin: 0.5rem; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); background: var(--color-bg-secondary);';
         
-        // If it's an image, show thumbnail
+        // If it's an image, show LARGE preview
         if (file.type.startsWith('image/')) {
-            const imgContainer = document.createElement('div');
-            imgContainer.style.cssText = 'width: 60px; height: 60px; border-radius: 6px; overflow: hidden; flex-shrink: 0;';
+            const imgWrapper = document.createElement('div');
+            imgWrapper.style.cssText = 'position: relative; width: 200px; height: 200px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--color-bg-tertiary);';
             
             const img = document.createElement('img');
-            img.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+            img.style.cssText = 'max-width: 100%; max-height: 100%; object-fit: contain;';
+            img.alt = file.name;
             
             const objectURL = URL.createObjectURL(file);
             if (!window.activeObjectURLs) window.activeObjectURLs = [];
-            window.activeObjectURLs.push(objectURL); // Track for cleanup
+            window.activeObjectURLs.push(objectURL);
             img.src = objectURL;
             
-            // CRITICAL FIX: Clean up on BOTH load AND error
             const cleanup = () => {
                 const urlIndex = window.activeObjectURLs.indexOf(objectURL);
                 if (urlIndex > -1) {
                     try {
                         URL.revokeObjectURL(objectURL);
                         window.activeObjectURLs.splice(urlIndex, 1);
-                        console.log('🧹 Object URL cleaned up');
                     } catch (e) {
                         console.warn('Failed to revoke URL:', e);
                     }
@@ -812,39 +842,97 @@ function displayFilePreview() {
             img.onload = cleanup;
             img.onerror = () => {
                 cleanup();
-                console.error('❌ Failed to load image preview for:', file.name);
-                // Show error icon
-                img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60"><text x="50%" y="50%" text-anchor="middle" dy=".3em" font-size="30">❌</text></svg>';
+                imgWrapper.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--color-text-secondary);">❌<br>Preview failed</div>';
             };
             
-            imgContainer.appendChild(img);
-            container.appendChild(imgContainer);
+            imgWrapper.appendChild(img);
+            
+            // File name overlay
+            const nameOverlay = document.createElement('div');
+            nameOverlay.style.cssText = 'position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.7)); color: white; padding: 0.5rem; font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
+            nameOverlay.textContent = file.name;
+            nameOverlay.title = file.name;
+            imgWrapper.appendChild(nameOverlay);
+            
+            container.appendChild(imgWrapper);
         } else {
             // For non-images, show file icon
+            const fileDisplay = document.createElement('div');
+            fileDisplay.style.cssText = 'width: 200px; height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; text-align: center;';
+            
             const iconDiv = document.createElement('div');
-            iconDiv.style.cssText = 'width: 60px; height: 60px; background: var(--color-accent-primary); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--color-bg-primary); font-weight: 600; font-size: 1.5rem;';
-            iconDiv.textContent = '📄';
-            container.appendChild(iconDiv);
+            iconDiv.style.cssText = 'font-size: 4rem; margin-bottom: 1rem;';
+            iconDiv.textContent = file.type.includes('pdf') ? '📄' : '📎';
+            
+            const nameDiv = document.createElement('div');
+            nameDiv.style.cssText = 'font-size: 0.875rem; font-weight: 500; word-break: break-word; color: var(--color-text-primary);';
+            nameDiv.textContent = file.name;
+            
+            const sizeDiv = document.createElement('div');
+            sizeDiv.style.cssText = 'font-size: 0.75rem; color: var(--color-text-tertiary); margin-top: 0.25rem;';
+            sizeDiv.textContent = `${(file.size / 1024).toFixed(1)} KB`;
+            
+            fileDisplay.appendChild(iconDiv);
+            fileDisplay.appendChild(nameDiv);
+            fileDisplay.appendChild(sizeDiv);
+            container.appendChild(fileDisplay);
         }
         
-        // File info
-        const infoDiv = document.createElement('div');
-        infoDiv.style.cssText = 'flex: 1; min-width: 0;';
-        infoDiv.innerHTML = `
-            <div style="font-size: 0.875rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(file.name)}</div>
-            <div style="font-size: 0.75rem; color: var(--color-text-tertiary);">${(file.size / 1024).toFixed(1)} KB</div>
-        `;
-        container.appendChild(infoDiv);
-        
-        // Remove button
+        // BIG RED DELETE BUTTON
         const removeBtn = document.createElement('button');
-        removeBtn.className = 'remove-file';
-        removeBtn.textContent = '×';
-        removeBtn.onclick = () => removeFile(index);
-        container.appendChild(removeBtn);
+        removeBtn.innerHTML = '×';
+        removeBtn.title = 'Remove file';
+        removeBtn.style.cssText = `
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            border: 2px solid white;
+            font-size: 1.5rem;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            z-index: 10;
+        `;
         
+        removeBtn.onmouseover = () => {
+            removeBtn.style.background = 'rgba(220, 38, 38, 1)';
+            removeBtn.style.transform = 'scale(1.1)';
+        };
+        
+        removeBtn.onmouseout = () => {
+            removeBtn.style.background = 'rgba(239, 68, 68, 0.9)';
+            removeBtn.style.transform = 'scale(1)';
+        };
+        
+        removeBtn.onclick = (e) => {
+            e.stopPropagation();
+            removeFile(index);
+        };
+        
+        container.appendChild(removeBtn);
         preview.appendChild(container);
     });
+    
+    // Status text
+    if (selectedFiles.length > 0) {
+        const helpText = document.createElement('div');
+        helpText.style.cssText = 'padding: 0.5rem 1rem; font-size: 0.875rem; color: var(--color-text-secondary); text-align: center;';
+        helpText.innerHTML = `
+            <span style="color: var(--color-accent-primary); font-weight: 500;">${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} ready to send</span>
+            <br><small>Click × to remove • Press Send to upload</small>
+        `;
+        preview.appendChild(helpText);
+    }
 }
 
 window.removeFile = function(index) {
