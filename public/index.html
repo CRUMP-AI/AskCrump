@@ -96,7 +96,7 @@
         height: 24px;
         color: var(--color-bg-primary);
     }
-    
+
     @media (max-width: 768px) {
         .scroll-to-end-btn {
             bottom: 120px;
@@ -104,6 +104,36 @@
             width: 44px;
             height: 44px;
         }
+    }
+    
+    /* CRITICAL FIX: Force auth inputs to work on iPhone */
+    #authContainer input,
+    #authContainer textarea,
+    #loginEmail,
+    #loginPassword,
+    #registerName,
+    #registerEmail,
+    #registerPassword,
+    #registerPasswordConfirm,
+    #rememberMe {
+        -webkit-appearance: none !important;
+        -webkit-user-select: text !important;
+        user-select: text !important;
+        pointer-events: auto !important;
+        touch-action: manipulation !important;
+        cursor: text !important;
+    }
+    
+    #authContainer form,
+    #loginFormElement,
+    #registerFormElement,
+    .auth-form-content {
+        pointer-events: auto !important;
+        touch-action: auto !important;
+    }
+    
+    .form-group {
+        pointer-events: auto !important;
     }
 </style>
 </head>
