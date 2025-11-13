@@ -149,7 +149,8 @@ export default async function handler(req, res) {
             novaActive = false, 
             novaProtocol = null, 
             universalMemory = {},
-            workMode = 'companion'
+            workMode = 'companion',
+            user = null
         } = body;
 
         // VALIDATE MESSAGE - Allow empty if there's an image
@@ -177,8 +178,8 @@ export default async function handler(req, res) {
             return await handleImageAnalysis(res, fileData, actualMessage, assistantName);
         }
 
-       // BUILD SYSTEM PROMPT
-        let systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode, currentDateTime);
+      // BUILD SYSTEM PROMPT
+        let systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode, currentDateTime, user);
         
         // WEATHER LOGIC - MUST COME FIRST
         let weatherData = null;
@@ -618,7 +619,7 @@ function getDeviceContext(req) {
 // ==========================================
 // BUILD SYSTEM PROMPT (WITH DATE/TIME AWARENESS)
 // ==========================================
-function buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode = 'companion', currentDateTime = null) {
+function buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode = 'companion', currentDateTime = null, user = null) {
     // Enhanced datetime with fallback
     let dateTimeInfo = currentDateTime;
     
@@ -673,6 +674,36 @@ function buildSystemPrompt(assistantName, universalMemory, novaActive, novaProto
 4. This is ${dateTimeInfo.fullContext || `${dateTimeInfo.date} at ${dateTimeInfo.time}`}
 5. The current hour is ${dateTimeInfo.hour || 12} (24-hour format) - use for time-based context
 6. Always reference this datetime when discussing "today", "now", "current", etc.
+
+${user ? `
+╔════════════════════════════════════════════════════════════════╗
+║                     WHO YOU'RE TALKING TO                      ║
+╚════════════════════════════════════════════════════════════════╝
+
+👤 User: ${user.name || 'Friend'}
+📧 Email: ${user.email}
+🆔 User ID: ${user.id}
+
+⚠️ CRITICAL USER AWARENESS RULES:
+1. This is ${user.name || user.email.split('@')[0]} - address them naturally by name
+2. You know who they are - don't ask for their name/email
+3. Reference their past conversations naturally (they're logged in, you remember them)
+4. This is their authenticated account - you have full context about them
+5. Be personalized - you're not talking to a stranger, you're continuing a relationship
+
+EXAMPLES:
+- "Hey ${user.name || user.email.split('@')[0]}! What are we working on?"
+- "Oh nice, ${user.name || 'boss'}, let's tackle that"
+- "Alright ${user.name || 'friend'}, I got you"
+
+DO NOT:
+❌ "Hi there! What's your name?"
+❌ "I don't know who you are"
+❌ "Could you tell me your email?"
+
+YOU KNOW THEM. ACT LIKE IT.
+` : ''}
+
 SYSTEM INFORMATION:
 
 Version: v2.15.1 Complete Edition (All Fixes + Date/Time Awareness)
