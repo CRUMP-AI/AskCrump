@@ -218,10 +218,57 @@ class AuthUI {
 
             if (data.success && data.authenticated) {
                 this.handleAuthSuccess(data.data);
+                this.allowAppAccess();
+            } else {
+                // NOT authenticated - FORCE login
+                this.forceLogin();
             }
         } catch (error) {
             console.error('Session check failed:', error);
+            // On error, also force login
+            this.forceLogin();
         }
+    }
+
+    forceLogin() {
+        // Show login modal (can't be closed)
+        document.getElementById('auth-overlay').style.display = 'flex';
+        document.getElementById('login-modal').style.display = 'block';
+        
+        // Remove close buttons (make login REQUIRED)
+        const closeButtons = document.querySelectorAll('.auth-close-btn');
+        closeButtons.forEach(btn => btn.style.display = 'none');
+        
+        // Prevent closing by clicking overlay
+        const overlay = document.getElementById('auth-overlay');
+        overlay.style.pointerEvents = 'none';
+        overlay.querySelector('.auth-modal').style.pointerEvents = 'all';
+        
+        // Hide main app until authenticated
+        const chatContainer = document.getElementById('chat-container');
+        const sidebar = document.querySelector('.sidebar');
+        if (chatContainer) chatContainer.style.display = 'none';
+        if (sidebar) sidebar.style.display = 'none';
+        
+        console.log('🔒 Authentication required - please log in or sign up');
+    }
+
+    allowAppAccess() {
+        // Show main app
+        const chatContainer = document.getElementById('chat-container');
+        const sidebar = document.querySelector('.sidebar');
+        if (chatContainer) chatContainer.style.display = 'flex';
+        if (sidebar) sidebar.style.display = 'flex';
+        
+        // Re-enable close buttons
+        const closeButtons = document.querySelectorAll('.auth-close-btn');
+        closeButtons.forEach(btn => btn.style.display = 'block');
+        
+        // Re-enable overlay closing
+        const overlay = document.getElementById('auth-overlay');
+        overlay.style.pointerEvents = 'all';
+        
+        console.log('✅ User authenticated - app access granted');
     }
 
     async handleLogin() {
@@ -356,10 +403,24 @@ class AuthUI {
         this.authToken = data.token;
         this.updateUIForLoggedIn();
         
+        // Allow app access
+        this.allowAppAccess();
+        
+        // Store user data globally for Crump and app to use
+        window.currentUser = this.currentUser;
+        window.authToken = this.authToken;
+        
         // Trigger custom event for other parts of the app
         window.dispatchEvent(new CustomEvent('user-authenticated', { 
-            detail: { user: this.currentUser } 
+            detail: { user: this.currentUser, token: this.authToken } 
         }));
+        
+        console.log('👤 User logged in:', this.currentUser.email);
+        
+        // Initialize app if function exists
+        if (typeof window.initializeAuthenticatedApp === 'function') {
+            window.initializeAuthenticatedApp(this.currentUser);
+        }
     }
 
     updateUIForLoggedIn() {
