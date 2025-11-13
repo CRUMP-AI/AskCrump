@@ -31,6 +31,45 @@ let activeObjectURLs = [];
 window.activeObjectURLs = activeObjectURLs;
 
 // ==========================================
+// AUTHENTICATED APP INITIALIZATION
+// ==========================================
+window.initializeAuthenticatedApp = function(user) {
+    console.log('🔐 Initializing app for authenticated user:', user.email);
+    
+    // Store user info globally
+    window.currentUser = user;
+    
+    // Update universal memory with user profile
+    if (typeof window.universalMemory !== 'undefined') {
+        window.universalMemory.userProfile = {
+            name: user.fullName || user.email.split('@')[0],
+            email: user.email,
+            userId: user.id,
+            assistantName: user.preferences?.assistantName || 'Crump',
+            createdAt: user.createdAt
+        };
+    }
+    
+    // Update settings with user's preferences
+    if (user.preferences) {
+        if (user.preferences.assistantName) {
+            localStorage.setItem(STORAGE_KEYS.ASSISTANT_NAME, user.preferences.assistantName);
+        }
+        if (user.preferences.workMode !== undefined) {
+            localStorage.setItem(STORAGE_KEYS.WORK_MODE, user.preferences.workMode);
+        }
+        if (user.preferences.autonomousEnabled !== undefined) {
+            localStorage.setItem(STORAGE_KEYS.AUTONOMOUS_ENABLED, user.preferences.autonomousEnabled);
+        }
+    }
+    
+    console.log('✅ User profile loaded into universalMemory');
+    
+    // TODO: Load user's chats from database instead of localStorage
+    // For now, we'll keep using localStorage but this is where we'd load from Supabase
+};
+
+// ==========================================
 // INITIALIZATION
 // ==========================================
 window.initializeApp = function() {
@@ -638,6 +677,13 @@ displayFilePreview();
             needsWeather: needsWeather,
             workMode: localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true' ? 'work' : 'companion',
             universalMemory: window.universalMemory || {}
+                
+        // PASS USER DATA FOR CRUMP TO KNOW WHO'S TALKING
+            user: window.currentUser ? {
+                id: window.currentUser.id,
+                email: window.currentUser.email,
+                name: window.currentUser.fullName || window.currentUser.email.split('@')[0]
+            } : null
         };
         
       if (fileData && fileType) {
