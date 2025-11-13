@@ -512,24 +512,6 @@ async function sendMessage() {
         return;
     }
 
-    // Check for recent upgrade
-recentUpgrade: (() => {
-    const upgradeStr = localStorage.getItem('crump_recent_upgrade');
-    if (!upgradeStr) return null;
-    
-    const upgrade = JSON.parse(upgradeStr);
-    const ageMinutes = (Date.now() - upgrade.timestamp) / 60000;
-    
-    // Only acknowledge if upgrade happened in last 10 minutes
-    if (ageMinutes < 10) {
-        localStorage.removeItem('crump_recent_upgrade');
-        return upgrade;
-    }
-    
-    localStorage.removeItem('crump_recent_upgrade');
-    return null;
-})()
-
     // ========================================
     // CONSCIOUSNESS COMMAND DETECTION (NEW)
     // ========================================
@@ -696,19 +678,7 @@ displayFilePreview();
             workMode: localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true' ? 'work' : 'companion',
             universalMemory: window.universalMemory || {}
         };
-
-      const requestBody = {
-    message: message,
-    history: chat.messages.map(m => ({
-        role: m.role,
-        content: m.content
-    })),
-    currentDateTime: timeInfo ? { ... },
-    needsSearch: needsSearch,
-    needsWeather: needsWeather,
-    workMode: localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true' ? 'work' : 'companion',
-    universalMemory: window.universalMemory || {},
-    
+        
     // PASS RECENT CHANGES FOR ACKNOWLEDGMENT
     recentChanges: (() => {
         const changesStr = localStorage.getItem('crump_recent_changes');
