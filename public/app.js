@@ -677,6 +677,39 @@ displayFilePreview();
             needsWeather: needsWeather,
             workMode: localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true' ? 'work' : 'companion',
             universalMemory: window.universalMemory || {}
+        };
+
+      const requestBody = {
+    message: message,
+    history: chat.messages.map(m => ({
+        role: m.role,
+        content: m.content
+    })),
+    currentDateTime: timeInfo ? { ... },
+    needsSearch: needsSearch,
+    needsWeather: needsWeather,
+    workMode: localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true' ? 'work' : 'companion',
+    universalMemory: window.universalMemory || {},
+    
+    // PASS RECENT CHANGES FOR ACKNOWLEDGMENT
+    recentChanges: (() => {
+        const changesStr = localStorage.getItem('crump_recent_changes');
+        if (!changesStr) return null;
+        
+        const changes = JSON.parse(changesStr);
+        const ageMinutes = (Date.now() - changes.timestamp) / 60000;
+        
+        // Only acknowledge if changes happened in last 5 minutes
+        if (ageMinutes < 5) {
+            // Clear after retrieving so we only acknowledge once
+            localStorage.removeItem('crump_recent_changes');
+            return changes;
+        }
+        
+        localStorage.removeItem('crump_recent_changes');
+        return null;
+    })()
+};  
                 
         // PASS USER DATA FOR CRUMP TO KNOW WHO'S TALKING
             user: window.currentUser ? {
@@ -1102,6 +1135,24 @@ window.saveSettings = function() {
     const workMode = document.getElementById('workMode').checked;
     const workStart = document.getElementById('workStart').value;
     const workEnd = document.getElementById('workEnd').value;
+    
+    // TRACK CHANGES FOR CRUMP TO ACKNOWLEDGE
+    const previousAutonomous = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_ENABLED) === 'true';
+    const previousWorkMode = localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true';
+    
+    const changes = {
+        autonomousJustEnabled: !previousAutonomous && autonomousEnabled,
+        autonomousJustDisabled: previousAutonomous && !autonomousEnabled,
+        workModeJustEnabled: !previousWorkMode && workMode,
+        workModeJustDisabled: previousWorkMode && !workMode,
+        timestamp: Date.now()
+    };
+    
+    // Store recent changes so next message can acknowledge them
+    if (changes.autonomousJustEnabled || changes.autonomousJustDisabled || 
+        changes.workModeJustEnabled || changes.workModeJustDisabled) {
+        localStorage.setItem('crump_recent_changes', JSON.stringify(changes));
+    }
     
     if (currentProfile && name) {
         currentProfile.updateProfile({
