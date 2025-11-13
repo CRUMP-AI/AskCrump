@@ -2497,7 +2497,7 @@ async function handleImageAnalysis(res, fileData, message, assistantName) {
             },
             signal: AbortSignal.timeout(CONFIG.API_TIMEOUT),
             body: JSON.stringify({
-                model: 'claude-sonnet-4-20250514'
+                model: 'claude-sonnet-4-20250514',
                 max_tokens: 4096,
                 system: visionPrompt,
                 messages: [{
