@@ -1,6 +1,7 @@
 {
   "name": "crump-ai",
   "version": "3.0.1",
+  "type": "module",
   "description": "Crump AI - Your Intelligent Assistant",
   "main": "public/index.html",
   "engines": {
