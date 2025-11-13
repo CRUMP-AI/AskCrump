@@ -556,11 +556,11 @@ async function sendMessage() {
         // Create user message
         const userMessage = {
             role: 'user',
-            content: message || '', // Empty string - no ugly placeholder
+            content: message || '',
             timestamp: Date.now()
         };
         
-       // Handle file attachment FIRST (before clearing)
+        // Handle file attachment FIRST (before clearing)
         let fileData = null;
         let fileType = null;
         let fileName = null;
@@ -574,16 +574,16 @@ async function sendMessage() {
             console.log('✅ File data captured:', fileType, fileName);
         }
         
-     // CRITICAL FIX: Always use array structure, even for single file
-if (fileData && fileType) {
-    userMessage.fileData = [{  // Wrap in array
-        type: fileType,
-        data: fileData,
-        name: fileName
-    }];
-}
+        // CRITICAL FIX: Always use array structure, even for single file
+        if (fileData && fileType) {
+            userMessage.fileData = [{
+                type: fileType,
+                data: fileData,
+                name: fileName
+            }];
+        }
         
-       // Add user message to chat
+        // Add user message to chat
         chat.messages.push(userMessage);
         saveChats();
         renderMessages(chat.messages);
@@ -604,25 +604,25 @@ if (fileData && fileType) {
             }
         }, 300);
         
-       // Clear input and files
-userInput.value = '';
-userInput.style.height = 'auto';
+        // Clear input and files
+        userInput.value = '';
+        userInput.style.height = 'auto';
 
-// CRITICAL FIX: Reset file input element
-const fileInput = document.getElementById('fileInput');
-if (fileInput) {
-    fileInput.value = '';
-    console.log('🧹 File input reset');
-}
+        // CRITICAL FIX: Reset file input element
+        const fileInput = document.getElementById('fileInput');
+        if (fileInput) {
+            fileInput.value = '';
+            console.log('🧹 File input reset');
+        }
 
-selectedFiles = [];
-displayFilePreview();
+        selectedFiles = [];
+        displayFilePreview();
         
         // Show thinking
         showThinking();
         setAssistantState('thinking');
         
-       // Detect if search is needed
+        // Detect if search is needed
         let needsSearch = false;
         if (window.searchDetectionEngine) {
             needsSearch = window.searchDetectionEngine.needsSearch(message);
@@ -634,7 +634,7 @@ displayFilePreview();
             needsWeather = window.weatherDetectionEngine.needsWeather(message);
         }
 
-      // Prepare request with accurate time awareness
+        // Prepare request with accurate time awareness
         const timeInfo = window.timeAwareness ? window.timeAwareness.getCurrentDateTime() : null;
         
         const requestBody = {
@@ -676,37 +676,16 @@ displayFilePreview();
             needsSearch: needsSearch,
             needsWeather: needsWeather,
             workMode: localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true' ? 'work' : 'companion',
-            universalMemory: window.universalMemory || {}
-        };
-        
-    // PASS RECENT CHANGES FOR ACKNOWLEDGMENT
-    recentChanges: (() => {
-        const changesStr = localStorage.getItem('crump_recent_changes');
-        if (!changesStr) return null;
-        
-        const changes = JSON.parse(changesStr);
-        const ageMinutes = (Date.now() - changes.timestamp) / 60000;
-        
-        // Only acknowledge if changes happened in last 5 minutes
-        if (ageMinutes < 5) {
-            // Clear after retrieving so we only acknowledge once
-            localStorage.removeItem('crump_recent_changes');
-            return changes;
-        }
-        
-        localStorage.removeItem('crump_recent_changes');
-        return null;
-    })()
-};  
-                
-        // PASS USER DATA FOR CRUMP TO KNOW WHO'S TALKING
+            universalMemory: window.universalMemory || {},
+            
+            // PASS USER DATA FOR CRUMP TO KNOW WHO'S TALKING
             user: window.currentUser ? {
                 id: window.currentUser.id,
                 email: window.currentUser.email,
                 name: window.currentUser.fullName || window.currentUser.email.split('@')[0]
-            } : null
-
-        // CHECK FOR RECENT UPGRADE
+            } : null,
+            
+            // CHECK FOR RECENT UPGRADE
             recentUpgrade: (() => {
                 const upgradeStr = localStorage.getItem('crump_recent_upgrade');
                 if (!upgradeStr) return null;
@@ -714,7 +693,6 @@ displayFilePreview();
                 const upgrade = JSON.parse(upgradeStr);
                 const ageMinutes = (Date.now() - upgrade.timestamp) / 60000;
                 
-                // Only acknowledge if upgrade happened in last 10 minutes
                 if (ageMinutes < 10) {
                     localStorage.removeItem('crump_recent_upgrade');
                     return upgrade;
@@ -722,28 +700,44 @@ displayFilePreview();
                 
                 localStorage.removeItem('crump_recent_upgrade');
                 return null;
+            })(),
+            
+            // PASS RECENT CHANGES FOR ACKNOWLEDGMENT
+            recentChanges: (() => {
+                const changesStr = localStorage.getItem('crump_recent_changes');
+                if (!changesStr) return null;
+                
+                const changes = JSON.parse(changesStr);
+                const ageMinutes = (Date.now() - changes.timestamp) / 60000;
+                
+                if (ageMinutes < 5) {
+                    localStorage.removeItem('crump_recent_changes');
+                    return changes;
+                }
+                
+                localStorage.removeItem('crump_recent_changes');
+                return null;
             })()
         };
-        };
         
-      if (fileData && fileType) {
-    console.log('📤 Sending file to API:', fileType, fileName);
-    
-    // CRITICAL: Ensure we send clean base64 (strip data URL prefix if present)
-    let cleanBase64 = fileData;
-    if (fileData.includes(',')) {
-        cleanBase64 = fileData.split(',')[1];
-        console.log('✂️ Stripped data URL prefix, clean base64 ready');
-    }
-    
-    requestBody.fileData = [{
-        type: fileType,
-        data: `data:${fileType};base64,${cleanBase64}`, // Rebuild proper data URL
-        name: fileName
-    }];
-    
-    console.log('✅ File data formatted for API:', fileType, fileName, `${cleanBase64.substring(0, 50)}...`);
-}
+        // Add file data if present
+        if (fileData && fileType) {
+            console.log('📤 Sending file to API:', fileType, fileName);
+            
+            let cleanBase64 = fileData;
+            if (fileData.includes(',')) {
+                cleanBase64 = fileData.split(',')[1];
+                console.log('✂️ Stripped data URL prefix, clean base64 ready');
+            }
+            
+            requestBody.fileData = [{
+                type: fileType,
+                data: `data:${fileType};base64,${cleanBase64}`,
+                name: fileName
+            }];
+            
+            console.log('✅ File data formatted for API:', fileType, fileName, `${cleanBase64.substring(0, 50)}...`);
+        }
         
         // Call API
         const response = await fetch('/api/chat', {
@@ -758,14 +752,14 @@ displayFilePreview();
             throw new Error(`API error: ${response.status}`);
         }
         
-       const data = await response.json();
+        const data = await response.json();
 
         console.log('📥 API Response:', {
-    hasResponse: !!data.response,
-    hasImage: !!data.imageUrl,
-    model: data.model,
-    responseLength: data.response?.length
-});
+            hasResponse: !!data.response,
+            hasImage: !!data.imageUrl,
+            model: data.model,
+            responseLength: data.response?.length
+        });
         
         // Add assistant response
         const assistantMessage = {
@@ -793,7 +787,7 @@ displayFilePreview();
         renderMessages(chat.messages);
         renderChatsList();
 
-       // Notify autonomous system that user sent a message
+        // Notify autonomous system that user sent a message
         if (window.autonomousMessaging) {
             window.autonomousMessaging.onUserResponse(message);
             
@@ -825,7 +819,7 @@ displayFilePreview();
             console.log('📊 Sentiment:', sentiment.emotion, '| Confidence:', sentiment.confidence.toFixed(2));
         }
         
-       // Scroll to show new assistant message
+        // Scroll to show new assistant message
         setTimeout(() => {
             if (window.crumpScrollManager) {
                 window.crumpScrollManager.scrollToBottom('smooth');
