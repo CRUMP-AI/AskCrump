@@ -150,7 +150,7 @@ export default async function handler(req, res) {
             novaProtocol = null, 
             universalMemory = {},
             workMode = 'companion',
-            recentChanges = null',
+            recentChanges = null,
             user = null
         } = body;
 
