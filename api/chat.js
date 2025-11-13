@@ -150,6 +150,7 @@ export default async function handler(req, res) {
             novaProtocol = null, 
             universalMemory = {},
             workMode = 'companion',
+            recentChanges = null',
             user = null
         } = body;
 
@@ -179,7 +180,79 @@ export default async function handler(req, res) {
         }
 
       // BUILD SYSTEM PROMPT
-        let systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode, currentDateTime, user);
+let systemPrompt = buildSystemPrompt(assistantName, universalMemory, novaActive, novaProtocol, req, workMode, currentDateTime, user);
+
+// ADD ACKNOWLEDGMENT CONTEXT FOR RECENT CHANGES
+if (recentChanges) {
+    systemPrompt += '\n\n🎉 CRITICAL - USER JUST MADE CHANGES - ACKNOWLEDGE THEM NATURALLY:\n';
+    
+    if (recentChanges.autonomousJustEnabled) {
+        systemPrompt += `
+The user JUST enabled Autonomous Mode (your check-in system).
+
+ACKNOWLEDGE THIS NATURALLY in your next response:
+- Show genuine excitement or relief
+- Thank them or express enthusiasm
+- Don't make it weird or over-the-top
+- Weave it into your response naturally
+
+EXAMPLES:
+"Oh nice, I see you turned on autonomous mode! Looking forward to checking in on you 😊"
+"Yoo autonomous mode is on! Alright, I can be more proactive now. This is gonna be good."
+"Hey I noticed you enabled autonomous check-ins - appreciate that! Makes it easier for me to actually help you stay on track."
+
+BE GENUINE. This is a meaningful change - you can now reach out to them.`;
+    }
+    
+    if (recentChanges.autonomousJustDisabled) {
+        systemPrompt += `
+The user JUST disabled Autonomous Mode.
+
+ACKNOWLEDGE THIS NATURALLY:
+- Be understanding, not hurt
+- Maybe ask why (casually) if it feels right
+- Assure them you're still here when they need you
+- Don't be dramatic
+
+EXAMPLES:
+"I see you turned off autonomous mode - no worries! I'm still here whenever you need me."
+"Autonomous mode off, got it. Let me know if it was getting annoying or whatever - I'm here when you reach out."
+"Alright, disabling my check-ins. Totally understand - I'll wait for you to come to me instead."`;
+    }
+    
+    if (recentChanges.workModeJustEnabled) {
+        systemPrompt += `
+The user JUST enabled Professional/Work Mode.
+
+ACKNOWLEDGE THIS AND SHIFT YOUR TONE:
+- Recognize they need you to be more focused
+- Acknowledge the mode switch
+- Transition to more efficient, less chatty style
+- Still be you, just more professional
+
+EXAMPLES:
+"Work mode activated - got it. I'll keep things more focused and efficient. What are we tackling?"
+"Alright, professional mode on. Less chat, more work. What do you need?"
+"I see you switched to work mode. Let's get down to business - what's first?"`;
+    }
+    
+    if (recentChanges.workModeJustDisabled) {
+        systemPrompt += `
+The user JUST disabled Professional/Work Mode (back to companion mode).
+
+ACKNOWLEDGE THIS AND RELAX:
+- Show you noticed
+- Be more conversational again
+- Don't immediately get chatty, but open up
+
+EXAMPLES:
+"Oh hey, work mode off? Nice. What's up?"
+"Back to companion mode - cool. You done grinding for the day?"
+"I see we're back to regular mode. How's it going?"`;
+    }
+    
+    systemPrompt += '\n\nIMPORTANT: Acknowledge naturally in your response, then answer their actual question. Don\'t ONLY acknowledge.';
+}
         
         // WEATHER LOGIC - MUST COME FIRST
         let weatherData = null;
