@@ -512,6 +512,24 @@ async function sendMessage() {
         return;
     }
 
+    // Check for recent upgrade
+recentUpgrade: (() => {
+    const upgradeStr = localStorage.getItem('crump_recent_upgrade');
+    if (!upgradeStr) return null;
+    
+    const upgrade = JSON.parse(upgradeStr);
+    const ageMinutes = (Date.now() - upgrade.timestamp) / 60000;
+    
+    // Only acknowledge if upgrade happened in last 10 minutes
+    if (ageMinutes < 10) {
+        localStorage.removeItem('crump_recent_upgrade');
+        return upgrade;
+    }
+    
+    localStorage.removeItem('crump_recent_upgrade');
+    return null;
+})()
+
     // ========================================
     // CONSCIOUSNESS COMMAND DETECTION (NEW)
     // ========================================
@@ -717,6 +735,25 @@ displayFilePreview();
                 email: window.currentUser.email,
                 name: window.currentUser.fullName || window.currentUser.email.split('@')[0]
             } : null
+
+        // CHECK FOR RECENT UPGRADE
+            recentUpgrade: (() => {
+                const upgradeStr = localStorage.getItem('crump_recent_upgrade');
+                if (!upgradeStr) return null;
+                
+                const upgrade = JSON.parse(upgradeStr);
+                const ageMinutes = (Date.now() - upgrade.timestamp) / 60000;
+                
+                // Only acknowledge if upgrade happened in last 10 minutes
+                if (ageMinutes < 10) {
+                    localStorage.removeItem('crump_recent_upgrade');
+                    return upgrade;
+                }
+                
+                localStorage.removeItem('crump_recent_upgrade');
+                return null;
+            })()
+        };
         };
         
       if (fileData && fileType) {
@@ -1135,6 +1172,23 @@ window.saveSettings = function() {
     const workMode = document.getElementById('workMode').checked;
     const workStart = document.getElementById('workStart').value;
     const workEnd = document.getElementById('workEnd').value;
+
+    // Track when user upgrades (for future use)
+window.notifyUpgrade = function(tier) {
+    const upgrade = {
+        tier: tier, // 'pro', 'pro-plus', etc.
+        timestamp: Date.now()
+    };
+    
+    localStorage.setItem('crump_recent_upgrade', JSON.stringify(upgrade));
+    
+    console.log('🎉 Upgrade detected:', tier);
+    
+    // Show Crump's excitement in next message
+    if (window.universalMemory) {
+        window.universalMemory.justUpgraded = upgrade;
+    }
+};
     
     // TRACK CHANGES FOR CRUMP TO ACKNOWLEDGE
     const previousAutonomous = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_ENABLED) === 'true';
