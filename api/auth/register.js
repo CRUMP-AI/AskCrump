@@ -9,7 +9,6 @@ import { generateVerificationToken } from '../utils/jwt.js';
 import { sendVerificationEmail } from '../utils/email.js';
 
 export default async function handler(req, res) {
-    // Only allow POST requests
     if (req.method !== 'POST') {
         return res.status(405).json({
             success: false,
@@ -20,7 +19,6 @@ export default async function handler(req, res) {
     try {
         const { email, password, fullName } = req.body;
 
-        // Validate input
         if (!email || !password) {
             return res.status(400).json({
                 success: false,
@@ -28,7 +26,6 @@ export default async function handler(req, res) {
             });
         }
 
-        // Validate email format
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
             return res.status(400).json({
@@ -37,7 +34,6 @@ export default async function handler(req, res) {
             });
         }
 
-        // Validate password strength
         if (password.length < 8) {
             return res.status(400).json({
                 success: false,
@@ -59,8 +55,8 @@ export default async function handler(req, res) {
                     error: 'An account with this email already exists'
                 });
             } else {
-                // Resend verification email for unverified account
-                const verificationToken = generateVerificationToken(email);
+                // Resend verification for unverified account
+                const verificationToken = generateVerificationToken(existingUser.id);
                 
                 await supabase
                     .from('users')
@@ -82,18 +78,10 @@ export default async function handler(req, res) {
         // Hash password
         const passwordHash = await bcrypt.hash(password, 12);
 
-        // Generate verification token (24 hours expiry)
-const verificationToken = generateVerificationToken(newUser.id);
-const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        // Generate verification token
+        const tempToken = generateVerificationToken(email); // Temporary token using email
+        const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-// Update user with verification token
-await supabase
-    .from('users')
-    .update({
-        verification_token: verificationToken,
-        verification_token_expires: tokenExpires.toISOString()
-    })
-    .eq('id', newUser.id);
         // Create user
         const { data: newUser, error: insertError } = await supabase
             .from('users')
@@ -103,8 +91,8 @@ await supabase
                     password_hash: passwordHash,
                     full_name: fullName || null,
                     is_verified: false,
-                    verification_token: verificationToken,
-                    verification_token_expires: verificationExpires.toISOString(),
+                    verification_token: tempToken,
+                    verification_token_expires: tokenExpires.toISOString(),
                     preferences: {
                         theme: 'dark',
                         language: 'en',
@@ -122,6 +110,17 @@ await supabase
                 error: 'Failed to create account. Please try again.'
             });
         }
+
+        // Now generate proper token with userId and update
+        const verificationToken = generateVerificationToken(newUser.id);
+        
+        await supabase
+            .from('users')
+            .update({
+                verification_token: verificationToken,
+                verification_token_expires: tokenExpires.toISOString()
+            })
+            .eq('id', newUser.id);
 
         // Create default user settings
         await supabase
@@ -141,7 +140,6 @@ await supabase
             await sendVerificationEmail(email, verificationToken, fullName);
         } catch (emailError) {
             console.error('Failed to send verification email:', emailError);
-            // Don't fail registration if email fails
         }
 
         return res.status(201).json({
