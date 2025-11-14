@@ -193,6 +193,13 @@
         </form>
 
         <div id="loginError" class="auth-error" style="display: none;"></div>
+        <div id="verificationNeeded" style="display: none; margin-top: 1rem; padding: 1rem; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+    <p style="margin: 0 0 0.5rem 0; font-weight: 600;">📧 Email not verified</p>
+    <p style="margin: 0 0 1rem 0; font-size: 0.875rem;">Check your email for verification link.</p>
+    <button id="resendVerificationBtn" class="btn btn-secondary btn-block" style="font-size: 0.875rem;">
+        Resend Verification Email
+    </button>
+</div>
         <div id="loginSuccess" class="auth-success" style="display: none;"></div>
     </div>
 
@@ -760,30 +767,87 @@
 <script src="/app.js"></script>
 
 <script>
-    // TOS handling
-    document.getElementById('tosAccept').addEventListener('change', function() {
-        const btn = document.getElementById('tosAcceptBtn');
-        btn.disabled = !this.checked;
-        btn.style.opacity = this.checked ? '1' : '0.5';
-    });
+// ============================================
+// TOS HANDLING
+// ============================================
+document.getElementById('tosAccept').addEventListener('change', function() {
+    const btn = document.getElementById('tosAcceptBtn');
+    btn.disabled = !this.checked;
+    btn.style.opacity = this.checked ? '1' : '0.5';
+});
 
-    document.getElementById('tosAcceptBtn').addEventListener('click', function() {
-        localStorage.setItem('crump_tos_accepted', 'true');
-        document.getElementById('tosModal').style.display = 'none';
-        document.getElementById('onboardingModal').style.display = 'flex';
-    });
-// Init flow
+document.getElementById('tosAcceptBtn').addEventListener('click', function() {
+    localStorage.setItem('crump_tos_accepted', 'true');
+    document.getElementById('tosModal').style.display = 'none';
+    document.getElementById('onboardingModal').style.display = 'flex';
+});
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+}
+
+// ============================================
+// UNIFIED LOAD HANDLER
+// ============================================
 window.addEventListener('load', () => {
+    const urlParams = new URLSearchParams(window.location.search);
     const tosAccepted = localStorage.getItem('crump_tos_accepted');
     const hasOnboarded = localStorage.getItem('crump_has_onboarded');
     const authToken = getCookie('auth_token');
     
+    // Check for reset password token
+    const resetToken = urlParams.get('token');
+    if (resetToken) {
+        setTimeout(() => {
+            document.getElementById('splashScreen').style.display = 'none';
+            document.getElementById('authContainer').style.display = 'flex';
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('resetPasswordForm').style.display = 'block';
+            document.getElementById('resetPasswordForm').dataset.token = resetToken;
+        }, 1500);
+        return;
+    }
+    
+    // Check for verification status
+    const verification = urlParams.get('verification');
+    if (verification) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        let message = '';
+        switch (verification) {
+            case 'success': message = '✅ Email verified! You can now log in.'; break;
+            case 'already_verified': message = 'ℹ️ Email already verified.'; break;
+            case 'failed': message = '❌ Verification failed.'; break;
+        }
+        
+        if (message) {
+            setTimeout(() => {
+                const div = document.createElement('div');
+                div.className = verification === 'success' || verification === 'already_verified' ? 'auth-success' : 'auth-error';
+                div.textContent = message;
+                div.style.display = 'block';
+                div.style.marginBottom = '1rem';
+                
+                const form = document.getElementById('loginFormElement');
+                if (form) {
+                    form.insertBefore(div, form.firstChild);
+                    setTimeout(() => div.style.display = 'none', 7000);
+                }
+            }, 2000);
+        }
+    }
+    
+    // Normal init flow
     setTimeout(() => {
         document.getElementById('splashScreen').style.display = 'none';
         
-        // Check if user is logged in
         if (!authToken) {
-            // Show auth screen
             document.getElementById('authContainer').style.display = 'flex';
             document.getElementById('loginForm').style.display = 'block';
         } else if (!tosAccepted) {
@@ -799,15 +863,9 @@ window.addEventListener('load', () => {
     }, 1500);
 });
 
-// Helper function to get cookie
-function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(';').shift();
-    return null;
-}
-
-    // AUTH FORM HANDLERS
+// ============================================
+// AUTH FORM NAVIGATION
+// ============================================
 document.getElementById('showRegisterLink').addEventListener('click', (e) => {
     e.preventDefault();
     document.getElementById('loginForm').style.display = 'none';
@@ -820,7 +878,28 @@ document.getElementById('showLoginLink').addEventListener('click', (e) => {
     document.getElementById('loginForm').style.display = 'block';
 });
 
-// Login form submission
+document.getElementById('showForgotPasswordLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('forgotPasswordForm').style.display = 'block';
+});
+
+document.getElementById('showLoginFromForgot').addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('forgotPasswordForm').style.display = 'none';
+    document.getElementById('loginForm').style.display = 'block';
+});
+
+document.getElementById('showLoginFromReset').addEventListener('click', (e) => {
+    e.preventDefault();
+    window.history.replaceState({}, document.title, window.location.pathname);
+    document.getElementById('resetPasswordForm').style.display = 'none';
+    document.getElementById('loginForm').style.display = 'block';
+});
+
+// ============================================
+// LOGIN HANDLER
+// ============================================
 document.getElementById('loginFormElement').addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -829,6 +908,7 @@ document.getElementById('loginFormElement').addEventListener('submit', async (e)
     const rememberMe = document.getElementById('rememberMe').checked;
     
     document.getElementById('loginError').style.display = 'none';
+    document.getElementById('verificationNeeded').style.display = 'none';
     
     try {
         const response = await fetch('/api/auth/login', {
@@ -843,12 +923,10 @@ document.getElementById('loginFormElement').addEventListener('submit', async (e)
             document.getElementById('loginSuccess').textContent = 'Login successful!';
             document.getElementById('loginSuccess').style.display = 'block';
             
-            // Store user data
             if (data.data && data.data.user) {
                 window.currentUser = data.data.user;
             }
             
-            // Hide auth, check TOS/onboarding
             setTimeout(() => {
                 document.getElementById('authContainer').style.display = 'none';
                 
@@ -869,6 +947,10 @@ document.getElementById('loginFormElement').addEventListener('submit', async (e)
         } else {
             document.getElementById('loginError').textContent = data.error || 'Login failed';
             document.getElementById('loginError').style.display = 'block';
+            
+            if (data.needsVerification) {
+                document.getElementById('verificationNeeded').style.display = 'block';
+            }
         }
     } catch (error) {
         document.getElementById('loginError').textContent = 'Network error. Please try again.';
@@ -876,7 +958,9 @@ document.getElementById('loginFormElement').addEventListener('submit', async (e)
     }
 });
 
-// Register form submission
+// ============================================
+// REGISTER HANDLER
+// ============================================
 document.getElementById('registerFormElement').addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -906,7 +990,6 @@ document.getElementById('registerFormElement').addEventListener('submit', async 
             document.getElementById('registerSuccess').textContent = data.message || 'Account created! Check your email.';
             document.getElementById('registerSuccess').style.display = 'block';
             
-            // Switch to login after 3 seconds
             setTimeout(() => {
                 document.getElementById('registerForm').style.display = 'none';
                 document.getElementById('loginForm').style.display = 'block';
@@ -921,58 +1004,199 @@ document.getElementById('registerFormElement').addEventListener('submit', async 
     }
 });
 
-    function completeOnboarding() {
-        const name = document.getElementById('onboardingName').value.trim();
-        if (!name) return;
+// ============================================
+// FORGOT PASSWORD HANDLER
+// ============================================
+document.getElementById('forgotPasswordFormElement').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const email = document.getElementById('forgotPasswordEmail').value;
+    
+    document.getElementById('forgotPasswordError').style.display = 'none';
+    document.getElementById('forgotPasswordSuccess').style.display = 'none';
+    
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Sending...';
+    submitBtn.disabled = true;
+    
+    try {
+        const response = await fetch('/api/auth/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
         
-        const profile = JSON.parse(localStorage.getItem('crump_user_profile') || '{}');
-        profile.name = name;
-        profile.initial = name.charAt(0).toUpperCase();
-        localStorage.setItem('crump_user_profile', JSON.stringify(profile));
-        localStorage.setItem('crump_has_onboarded', 'true');
+        const data = await response.json();
         
-        document.getElementById('onboardingModal').style.display = 'none';
-        document.getElementById('appContainer').style.display = 'flex';
-        
-        if (typeof window.initializeApp === 'function') {
-            window.initializeApp();
+        if (data.success) {
+            document.getElementById('forgotPasswordSuccess').textContent = data.message;
+            document.getElementById('forgotPasswordSuccess').style.display = 'block';
+            document.getElementById('forgotPasswordEmail').value = '';
+            
+            setTimeout(() => {
+                document.getElementById('forgotPasswordForm').style.display = 'none';
+                document.getElementById('loginForm').style.display = 'block';
+                document.getElementById('forgotPasswordSuccess').style.display = 'none';
+            }, 5000);
+        } else {
+            document.getElementById('forgotPasswordError').textContent = data.error || 'Failed to send reset link';
+            document.getElementById('forgotPasswordError').style.display = 'block';
         }
+    } catch (error) {
+        document.getElementById('forgotPasswordError').textContent = 'Network error. Please try again.';
+        document.getElementById('forgotPasswordError').style.display = 'block';
+    } finally {
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
     }
+});
 
-    function exportChats() {
-        const chats = JSON.parse(localStorage.getItem('crump_chats') || '[]');
-        const dataStr = JSON.stringify(chats, null, 2);
-        const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(dataBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `crump-conversations-${Date.now()}.json`;
-        link.click();
-        URL.revokeObjectURL(url);
+// ============================================
+// RESET PASSWORD HANDLER
+// ============================================
+document.getElementById('resetPasswordFormElement').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmNewPassword').value;
+    const token = document.getElementById('resetPasswordForm').dataset.token;
+    
+    document.getElementById('resetPasswordError').style.display = 'none';
+    document.getElementById('resetPasswordSuccess').style.display = 'none';
+    
+    if (newPassword !== confirmPassword) {
+        document.getElementById('resetPasswordError').textContent = 'Passwords do not match';
+        document.getElementById('resetPasswordError').style.display = 'block';
+        return;
+    }
+    
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Resetting...';
+    submitBtn.disabled = true;
+    
+    try {
+        const response = await fetch('/api/auth/reset-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, newPassword })
+        });
         
-        if (window.showToast) {
-            window.showToast('Exported successfully', 'success');
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('resetPasswordSuccess').textContent = data.message;
+            document.getElementById('resetPasswordSuccess').style.display = 'block';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmNewPassword').value = '';
+            
+            setTimeout(() => {
+                window.history.replaceState({}, document.title, window.location.pathname);
+                document.getElementById('resetPasswordForm').style.display = 'none';
+                document.getElementById('loginForm').style.display = 'block';
+                document.getElementById('resetPasswordSuccess').style.display = 'none';
+            }, 3000);
+        } else {
+            document.getElementById('resetPasswordError').textContent = data.error || 'Failed to reset password';
+            document.getElementById('resetPasswordError').style.display = 'block';
         }
+    } catch (error) {
+        document.getElementById('resetPasswordError').textContent = 'Network error. Please try again.';
+        document.getElementById('resetPasswordError').style.display = 'block';
+    } finally {
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
     }
+});
 
-    function restartTutorial() {
-        // Close settings modal first
-        closeSettings();
+// ============================================
+// RESEND VERIFICATION HANDLER
+// ============================================
+document.getElementById('resendVerificationBtn')?.addEventListener('click', async () => {
+    const email = document.getElementById('loginEmail').value;
+    if (!email) {
+        alert('Enter your email first');
+        return;
+    }
+    
+    const btn = document.getElementById('resendVerificationBtn');
+    btn.textContent = 'Sending...';
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch('/api/auth/resend-verification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
         
-        // Small delay to let modal close animation complete
-        setTimeout(() => {
-            if (window.tutorial && typeof window.tutorial.restart === 'function') {
-                window.tutorial.restart();
-            } else {
-                console.error('Tutorial system not found');
-                if (window.showToast) {
-                    window.showToast('Tutorial system not available', 'error');
-                }
+        const data = await response.json();
+        alert(data.success ? '✅ Email sent!' : '❌ ' + data.error);
+        if (data.success) document.getElementById('verificationNeeded').style.display = 'none';
+    } catch (error) {
+        alert('❌ Network error');
+    } finally {
+        btn.textContent = 'Resend Verification Email';
+        btn.disabled = false;
+    }
+});
+
+// ============================================
+// ONBOARDING
+// ============================================
+function completeOnboarding() {
+    const name = document.getElementById('onboardingName').value.trim();
+    if (!name) return;
+    
+    const profile = JSON.parse(localStorage.getItem('crump_user_profile') || '{}');
+    profile.name = name;
+    profile.initial = name.charAt(0).toUpperCase();
+    localStorage.setItem('crump_user_profile', JSON.stringify(profile));
+    localStorage.setItem('crump_has_onboarded', 'true');
+    
+    document.getElementById('onboardingModal').style.display = 'none';
+    document.getElementById('appContainer').style.display = 'flex';
+    
+    if (typeof window.initializeApp === 'function') {
+        window.initializeApp();
+    }
+}
+
+// ============================================
+// UTILITY FUNCTIONS
+// ============================================
+function exportChats() {
+    const chats = JSON.parse(localStorage.getItem('crump_chats') || '[]');
+    const dataStr = JSON.stringify(chats, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `crump-conversations-${Date.now()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    
+    if (window.showToast) {
+        window.showToast('Exported successfully', 'success');
+    }
+}
+
+function restartTutorial() {
+    closeSettings();
+    
+    setTimeout(() => {
+        if (window.tutorial && typeof window.tutorial.restart === 'function') {
+            window.tutorial.restart();
+        } else {
+            console.error('Tutorial system not found');
+            if (window.showToast) {
+                window.showToast('Tutorial system not available', 'error');
             }
-        }, 300);
-    }
+        }
+    }, 300);
+}
 </script>
-
 <!-- PWA Service Worker -->
 <script>
     if ('serviceWorker' in navigator) {
