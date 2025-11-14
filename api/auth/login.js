@@ -51,15 +51,16 @@ export default async function handler(req, res) {
                 error: 'Invalid email or password'
             });
         }
-
-        // Check if email is verified
-        if (!user.is_verified) {
-            return res.status(403).json({
-                success: false,
-                error: 'Please verify your email before logging in',
-                code: 'EMAIL_NOT_VERIFIED'
-            });
-        }
+ 
+ // Check if email is verified
+if (!user.is_verified) {
+    return res.status(403).json({
+        success: false,
+        error: 'Please verify your email before logging in.',
+        needsVerification: true,
+        email: user.email
+    });
+}
 
         // Generate JWT token
         const token = generateToken({
