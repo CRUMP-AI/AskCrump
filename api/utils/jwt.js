@@ -77,3 +77,52 @@ export function verifySpecialToken(token, purpose) {
         return null;
     }
 }
+
+/**
+ * Generate password reset token (expires in 1 hour)
+ */
+export function generatePasswordResetToken(userId) {
+    return jwt.sign(
+        { userId, type: 'password_reset' },
+        JWT_SECRET,
+        { expiresIn: '1h' }
+    );
+}
+
+/**
+ * Verify password reset token
+ */
+export function verifyPasswordResetToken(token) {
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        if (decoded.type !== 'password_reset') {
+            throw new Error('Invalid token type');
+        }
+        return decoded;
+    } catch (error) {
+        throw new Error('Invalid or expired token');
+    }
+}
+
+/**
+ * Generate verification token (24 hours)
+ */
+export function generateVerificationToken(userId) {
+    return jwt.sign(
+        { userId, type: 'email_verification' },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+    );
+}
+
+/**
+ * Verify special tokens (verification, password reset)
+ */
+export function verifySpecialToken(token) {
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        return decoded;
+    } catch (error) {
+        throw new Error('Invalid or expired token');
+    }
+}
