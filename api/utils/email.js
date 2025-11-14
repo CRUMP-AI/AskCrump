@@ -9,6 +9,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@yourdomain.com';
 const APP_NAME = process.env.APP_NAME || 'AI Assistant';
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || FROM_EMAIL;
 
 /**
  * Send email verification email
