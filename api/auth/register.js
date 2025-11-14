@@ -82,10 +82,18 @@ export default async function handler(req, res) {
         // Hash password
         const passwordHash = await bcrypt.hash(password, 12);
 
-        // Generate verification token
-        const verificationToken = generateVerificationToken(email);
-        const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+        // Generate verification token (24 hours expiry)
+const verificationToken = generateVerificationToken(newUser.id);
+const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
+// Update user with verification token
+await supabase
+    .from('users')
+    .update({
+        verification_token: verificationToken,
+        verification_token_expires: tokenExpires.toISOString()
+    })
+    .eq('id', newUser.id);
         // Create user
         const { data: newUser, error: insertError } = await supabase
             .from('users')
