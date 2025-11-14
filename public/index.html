@@ -267,6 +267,88 @@
         <div id="registerSuccess" class="auth-success" style="display: none;"></div>
     </div>
 </div>
+
+    <!-- FORGOT PASSWORD FORM -->
+<div id="forgotPasswordForm" class="auth-form" style="display: none;">
+    <div class="auth-header">
+        <img src="/assets/ask-crump-splash.png" alt="Ask CRUMP" class="auth-logo">
+        <h1>Reset Password</h1>
+        <p>Enter your email to receive a reset link</p>
+    </div>
+
+    <form id="forgotPasswordFormElement" class="auth-form-content">
+        <div class="form-group">
+            <label for="forgotPasswordEmail">Email</label>
+            <input 
+                type="email" 
+                id="forgotPasswordEmail" 
+                class="form-input" 
+                placeholder="your@email.com"
+                required
+                autocomplete="email"
+            >
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-large btn-block">
+            Send Reset Link
+        </button>
+
+        <p class="auth-footer-text">
+            Remember your password? 
+            <a href="#" id="showLoginFromForgot" class="auth-link">Sign in</a>
+        </p>
+    </form>
+
+    <div id="forgotPasswordError" class="auth-error" style="display: none;"></div>
+    <div id="forgotPasswordSuccess" class="auth-success" style="display: none;"></div>
+</div>
+
+<!-- RESET PASSWORD FORM -->
+<div id="resetPasswordForm" class="auth-form" style="display: none;">
+    <div class="auth-header">
+        <img src="/assets/ask-crump-splash.png" alt="Ask CRUMP" class="auth-logo">
+        <h1>Set New Password</h1>
+        <p>Enter your new password below</p>
+    </div>
+
+    <form id="resetPasswordFormElement" class="auth-form-content">
+        <div class="form-group">
+            <label for="newPassword">New Password</label>
+            <input 
+                type="password" 
+                id="newPassword" 
+                class="form-input" 
+                placeholder="At least 8 characters"
+                required
+                autocomplete="new-password"
+            >
+            <small class="form-hint">Minimum 8 characters</small>
+        </div>
+
+        <div class="form-group">
+            <label for="confirmNewPassword">Confirm Password</label>
+            <input 
+                type="password" 
+                id="confirmNewPassword" 
+                class="form-input" 
+                placeholder="Re-enter password"
+                required
+                autocomplete="new-password"
+            >
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-large btn-block">
+            Reset Password
+        </button>
+
+        <p class="auth-footer-text">
+            <a href="#" id="showLoginFromReset" class="auth-link">Back to Sign in</a>
+        </p>
+    </form>
+
+    <div id="resetPasswordError" class="auth-error" style="display: none;"></div>
+    <div id="resetPasswordSuccess" class="auth-success" style="display: none;"></div>
+</div>
     
 <!-- SPLASH SCREEN -->
 <div id="splashScreen" class="splash-screen">
