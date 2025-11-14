@@ -1,6 +1,6 @@
 // =====================================================
 // JWT UTILITY FUNCTIONS
-// Location: /api/utils/jwt.js
+// Location: /jwt.js
 // =====================================================
 
 import jwt from 'jsonwebtoken';
@@ -13,7 +13,7 @@ if (!JWT_SECRET) {
 }
 
 /**
- * Generate JWT token for user
+ * Generate JWT token for user session
  * @param {Object} payload - User data to encode
  * @returns {string} JWT token
  */
@@ -38,48 +38,22 @@ export function verifyToken(token) {
 }
 
 /**
- * Generate email verification token
- * @param {string} email - User email
+ * Generate email verification token (24 hours)
+ * @param {string} userId - User ID
  * @returns {string} Verification token
  */
-export function generateVerificationToken(email) {
-    return jwt.sign({ email, purpose: 'email-verification' }, JWT_SECRET, {
-        expiresIn: '24h' // 24 hours for email verification
-    });
+export function generateVerificationToken(userId) {
+    return jwt.sign(
+        { userId, type: 'email_verification' },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+    );
 }
 
 /**
- * Generate password reset token
- * @param {string} email - User email
+ * Generate password reset token (1 hour)
+ * @param {string} userId - User ID
  * @returns {string} Reset token
- */
-export function generateResetToken(email) {
-    return jwt.sign({ email, purpose: 'password-reset' }, JWT_SECRET, {
-        expiresIn: '1h' // 1 hour for password reset
-    });
-}
-
-/**
- * Verify special purpose token (email verification, password reset)
- * @param {string} token - Token to verify
- * @param {string} purpose - Expected purpose ('email-verification' or 'password-reset')
- * @returns {Object|null} Decoded token data or null if invalid
- */
-export function verifySpecialToken(token, purpose) {
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        if (decoded.purpose !== purpose) {
-            return null;
-        }
-        return decoded;
-    } catch (error) {
-        console.error('Special token verification failed:', error.message);
-        return null;
-    }
-}
-
-/**
- * Generate password reset token (expires in 1 hour)
  */
 export function generatePasswordResetToken(userId) {
     return jwt.sign(
@@ -91,6 +65,9 @@ export function generatePasswordResetToken(userId) {
 
 /**
  * Verify password reset token
+ * @param {string} token - Token to verify
+ * @returns {Object} Decoded token data
+ * @throws {Error} If token is invalid or expired
  */
 export function verifyPasswordResetToken(token) {
     try {
@@ -105,18 +82,10 @@ export function verifyPasswordResetToken(token) {
 }
 
 /**
- * Generate verification token (24 hours)
- */
-export function generateVerificationToken(userId) {
-    return jwt.sign(
-        { userId, type: 'email_verification' },
-        JWT_SECRET,
-        { expiresIn: '24h' }
-    );
-}
-
-/**
- * Verify special tokens (verification, password reset)
+ * Verify special tokens (verification, password reset, etc.)
+ * @param {string} token - Token to verify
+ * @returns {Object} Decoded token data
+ * @throws {Error} If token is invalid or expired
  */
 export function verifySpecialToken(token) {
     try {
