@@ -145,46 +145,68 @@ function upgradePlan(tier, billing) {
     });
 }
 
-function showPaymentModal(tier, billing, price) {
-    const modal = document.createElement('div');
-    modal.className = 'payment-modal';
-    modal.innerHTML = `
-        <div class="modal-overlay" onclick="this.parentElement.remove()"></div>
-        <div class="modal-content">
-            <button class="modal-close" onclick="this.closest('.payment-modal').remove()">×</button>
-            <h2>Complete Payment</h2>
-            <div class="payment-summary">
-                <div class="row"><span>Plan</span><span>${tier.toUpperCase()} (${billing})</span></div>
-                <div class="row total"><span>Total</span><span>$${price}</span></div>
-            </div>
-            <div id="stripe-element"><p class="placeholder">Stripe integration required</p></div>
-            <button class="btn-primary btn-block" onclick="processPayment('${tier}', '${billing}')">Complete Payment</button>
-        </div>
-    `;
-    document.body.appendChild(modal);
-}
-
-function processPayment(tier, billing) {
-    // Simulate payment for development
-    const btn = event.target;
-    btn.disabled = true;
-    btn.textContent = 'Processing...';
-    
-    setTimeout(() => {
-        window.profileManager?.upgradeTier(tier, billing);
-        document.querySelector('.payment-modal')?.remove();
-        document.querySelector('.upgrade-modal')?.remove();
-        showNotification('Payment successful! Plan upgraded.', 'success');
-        setTimeout(() => location.reload(), 1500);
-    }, 2000);
-}
-
 function downgradePlan() {
-    if (confirm('Downgrade to Free? Benefits end at billing period end.')) {
-        window.profileManager?.downgradeTier();
-        document.querySelector('.upgrade-modal')?.remove();
-        showNotification('Plan will downgrade at period end', 'info');
+    if (!confirm('Are you sure you want to cancel your subscription? Your benefits will continue until the end of your billing period.')) {
+        return;
     }
+    
+    const authToken = window.authToken || localStorage.getItem('authToken');
+    
+    if (!authToken) {
+        showNotification('Please sign in', 'error');
+        return;
+    }
+    
+    // Open Stripe customer portal for subscription management
+    fetch('/api/stripe/customer-portal', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.url) {
+            window.location.href = data.url;
+        } else {
+            throw new Error(data.error || 'Failed to open customer portal');
+        }
+    })
+    .catch(error => {
+        console.error('Customer portal error:', error);
+        showNotification(error.message || 'Failed to open subscription management', 'error');
+    });
+}
+
+function manageSubscription() {
+    const authToken = window.authToken || localStorage.getItem('authToken');
+    
+    if (!authToken) {
+        showNotification('Please sign in', 'error');
+        return;
+    }
+    
+    // Open Stripe customer portal
+    fetch('/api/stripe/customer-portal', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.url) {
+            window.location.href = data.url;
+        } else {
+            throw new Error(data.error || 'Failed to open customer portal');
+        }
+    })
+    .catch(error => {
+        console.error('Customer portal error:', error);
+        showNotification(error.message || 'Failed to open subscription management', 'error');
+    });
 }
 
 function showUsageStats() {
@@ -237,5 +259,41 @@ function showNotification(msg, type) {
 window.showUpgradePrompt = showUpgradePrompt;
 window.showUsageStats = showUsageStats;
 window.switchBillingView = switchBillingView;
+window.manageSubscription = manageSubscription;
 
-console.log('[UpgradeUI] Professional system ready');
+// Handle Stripe checkout success/cancel redirects
+window.addEventListener('load', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const upgrade = urlParams.get('upgrade');
+    const tier = urlParams.get('tier');
+    
+    if (upgrade === 'success' && tier) {
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        showNotification(`Successfully upgraded to ${tier}! 🎉`, 'success');
+        
+        // Reload user data after short delay
+        setTimeout(() => {
+            if (typeof window.checkSession === 'function') {
+                window.checkSession();
+            } else {
+                location.reload();
+            }
+        }, 2000);
+    } else if (upgrade === 'cancelled') {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        showNotification('Upgrade cancelled', 'info');
+    } else if (urlParams.get('portal') === 'returned') {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // Reload user data
+        if (typeof window.checkSession === 'function') {
+            window.checkSession();
+        } else {
+            location.reload();
+        }
+    }
+});
+
+console.log('[UpgradeUI] Professional system ready with Stripe integration');
