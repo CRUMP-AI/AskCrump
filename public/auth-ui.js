@@ -537,30 +537,60 @@ if (document.readyState === 'loading') {
     authUI = new AuthUI();
 }
 
-// Check for verification token in URL
+// Check for verification status in URL (from API redirect)
 window.addEventListener('load', async () => {
     const urlParams = new URLSearchParams(window.location.search);
-    const verificationToken = urlParams.get('token');
+    const verification = urlParams.get('verification');
+    const reason = urlParams.get('reason');
     
-    if (verificationToken) {
-        try {
-            const response = await fetch('/api/auth/verify-email', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token: verificationToken })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                authUI.showSuccess('Email Verified!', data.message);
-                // Remove token from URL
-                window.history.replaceState({}, document.title, window.location.pathname);
-            } else {
-                alert(data.error || 'Verification failed');
-            }
-        } catch (error) {
-            console.error('Verification error:', error);
+    if (verification) {
+        // Remove params from URL immediately
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        switch(verification) {
+            case 'success':
+                authUI.showSuccess(
+                    'Email Verified! ✅', 
+                    'Your email has been verified successfully. You can now sign in to your account.'
+                );
+                break;
+            
+            case 'already_verified':
+                authUI.showSuccess(
+                    'Already Verified ✓', 
+                    'Your email is already verified. You can sign in to your account.'
+                );
+                break;
+            
+            case 'failed':
+                let errorMessage = 'Email verification failed. ';
+                switch(reason) {
+                    case 'invalid_token':
+                        errorMessage += 'The verification link is invalid.';
+                        break;
+                    case 'expired':
+                        errorMessage += 'The verification link has expired. Please request a new one.';
+                        break;
+                    case 'user_not_found':
+                        errorMessage += 'User account not found.';
+                        break;
+                    case 'token_mismatch':
+                        errorMessage += 'The verification link is invalid or has already been used.';
+                        break;
+                    case 'update_error':
+                    case 'server_error':
+                        errorMessage += 'A server error occurred. Please try again or contact support.';
+                        break;
+                    default:
+                        errorMessage += 'Please try again or contact support.';
+                }
+                
+                // Show error in modal
+                authUI.showLogin();
+                setTimeout(() => {
+                    alert(errorMessage);
+                }, 500);
+                break;
         }
     }
 });
