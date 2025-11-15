@@ -3,9 +3,9 @@
 // Location: /api/auth/verify-email.js
 // =====================================================
 
-import { supabase } from '../../supabase.js';
-import { verifySpecialToken } from '../../jwt.js';
-import { sendWelcomeEmail } from '../../email.js';
+import { supabase } from '../utils/supabase.js';
+import { verifySpecialToken } from '../utils/jwt.js';
+import { sendWelcomeEmail } from '../utils/email.js';
 
 export default async function handler(req, res) {
     // Allow both GET and POST
