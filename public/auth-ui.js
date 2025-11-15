@@ -480,9 +480,115 @@ class AuthUI {
     }
 
     showForgotPassword() {
-        alert('Password reset functionality coming soon!');
+    // Hide all modals
+    document.getElementById('login-modal').style.display = 'none';
+    document.getElementById('signup-modal').style.display = 'none';
+    document.getElementById('verification-modal').style.display = 'none';
+    document.getElementById('success-modal').style.display = 'none';
+    
+    // Create forgot password modal if it doesn't exist
+    let forgotModal = document.getElementById('forgot-password-modal');
+    if (!forgotModal) {
+        const modalHTML = `
+            <div id="forgot-password-modal" class="auth-modal" style="display: none;">
+                <div class="auth-modal-header">
+                    <h2>Reset Password</h2>
+                    <button class="auth-close-btn" onclick="authUI.closeModals()">&times;</button>
+                </div>
+                <div class="auth-modal-body">
+                    <p style="color: rgba(255, 255, 255, 0.7); margin-bottom: 1.5rem;">
+                        Enter your email address and we'll send you a link to reset your password.
+                    </p>
+                    <form id="forgot-password-form" class="auth-form">
+                        <div class="auth-form-group">
+                            <label for="forgot-email">Email Address</label>
+                            <input type="email" id="forgot-email" required placeholder="your@email.com" autocomplete="email">
+                        </div>
+                        <div id="forgot-error" class="auth-error"></div>
+                        <div id="forgot-success" class="auth-success" style="display: none;"></div>
+                        <button type="submit" class="auth-btn auth-btn-primary" id="forgot-submit-btn">
+                            <span class="btn-text">Send Reset Link</span>
+                            <span class="btn-loader"></span>
+                        </button>
+                    </form>
+                    <div class="auth-divider">
+                        <span>Remember your password?</span>
+                    </div>
+                    <button class="auth-btn auth-btn-secondary" onclick="authUI.showLogin()">Back to Sign In</button>
+                </div>
+            </div>
+        `;
+        
+        // Insert modal into overlay
+        const overlay = document.getElementById('auth-overlay');
+        overlay.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Attach form handler
+        document.getElementById('forgot-password-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleForgotPassword();
+        });
     }
+    
+    // Show the modal
+    document.getElementById('auth-overlay').style.display = 'flex';
+    document.getElementById('forgot-password-modal').style.display = 'block';
+}
 
+async handleForgotPassword() {
+    const email = document.getElementById('forgot-email').value.trim();
+    const errorDiv = document.getElementById('forgot-error');
+    const successDiv = document.getElementById('forgot-success');
+    const submitBtn = document.getElementById('forgot-submit-btn');
+    
+    // Clear previous messages
+    errorDiv.textContent = '';
+    successDiv.style.display = 'none';
+    successDiv.textContent = '';
+    
+    // Validate email
+    if (!email) {
+        errorDiv.textContent = 'Please enter your email address';
+        return;
+    }
+    
+    // Show loading state
+    this.setLoading(submitBtn, true);
+    
+    try {
+        const response = await fetch('/api/auth/forgot-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email })
+        });
+        
+        const data = await response.json();
+        
+        this.setLoading(submitBtn, false);
+        
+        if (data.success) {
+            // Show success message
+            successDiv.textContent = data.message || 'If an account exists with that email, a password reset link has been sent.';
+            successDiv.style.display = 'block';
+            
+            // Clear the form
+            document.getElementById('forgot-email').value = '';
+            
+            // Auto-close after 5 seconds and go back to login
+            setTimeout(() => {
+                this.showLogin();
+            }, 5000);
+        } else {
+            errorDiv.textContent = data.error || 'Failed to send reset email. Please try again.';
+        }
+    } catch (error) {
+        console.error('Forgot password error:', error);
+        this.setLoading(submitBtn, false);
+        errorDiv.textContent = 'An error occurred. Please try again.';
+    }
+}
     showSettings() {
         alert('Settings functionality coming soon!');
     }
@@ -521,9 +627,123 @@ class AuthUI {
         return this.currentUser;
     }
 
-    // Get auth token (for authenticated API requests)
+   // Get auth token (for authenticated API requests)
     getAuthToken() {
         return this.authToken;
+    }
+    
+    showResetPassword(token) {
+        // Hide all modals
+        document.getElementById('login-modal').style.display = 'none';
+        document.getElementById('signup-modal').style.display = 'none';
+        
+        // Create reset password modal if it doesn't exist
+        let resetModal = document.getElementById('reset-password-modal');
+        if (!resetModal) {
+            const modalHTML = `
+                <div id="reset-password-modal" class="auth-modal" style="display: none;">
+                    <div class="auth-modal-header">
+                        <h2>Set New Password</h2>
+                        <button class="auth-close-btn" onclick="authUI.closeModals()">&times;</button>
+                    </div>
+                    <div class="auth-modal-body">
+                        <p style="color: rgba(255, 255, 255, 0.7); margin-bottom: 1.5rem;">
+                            Enter your new password below.
+                        </p>
+                        <form id="reset-password-form" class="auth-form">
+                            <input type="hidden" id="reset-token" value="">
+                            <div class="auth-form-group">
+                                <label for="new-password">New Password</label>
+                                <input type="password" id="new-password" required placeholder="••••••••" autocomplete="new-password">
+                                <small class="auth-hint">At least 8 characters</small>
+                            </div>
+                            <div class="auth-form-group">
+                                <label for="confirm-new-password">Confirm New Password</label>
+                                <input type="password" id="confirm-new-password" required placeholder="••••••••" autocomplete="new-password">
+                            </div>
+                            <div id="reset-error" class="auth-error"></div>
+                            <button type="submit" class="auth-btn auth-btn-primary" id="reset-submit-btn">
+                                <span class="btn-text">Reset Password</span>
+                                <span class="btn-loader"></span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            `;
+            
+            const overlay = document.getElementById('auth-overlay');
+            overlay.insertAdjacentHTML('beforeend', modalHTML);
+            
+            // Attach form handler
+            document.getElementById('reset-password-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleResetPassword();
+            });
+        }
+        
+        // Set the token
+        document.getElementById('reset-token').value = token;
+        
+        // Show the modal
+        document.getElementById('auth-overlay').style.display = 'flex';
+        document.getElementById('reset-password-modal').style.display = 'block';
+        
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    async handleResetPassword() {
+        const token = document.getElementById('reset-token').value;
+        const newPassword = document.getElementById('new-password').value;
+        const confirmPassword = document.getElementById('confirm-new-password').value;
+        const errorDiv = document.getElementById('reset-error');
+        const submitBtn = document.getElementById('reset-submit-btn');
+        
+        // Clear previous errors
+        errorDiv.textContent = '';
+        
+        // Validate passwords match
+        if (newPassword !== confirmPassword) {
+            errorDiv.textContent = 'Passwords do not match';
+            return;
+        }
+        
+        // Validate password length
+        if (newPassword.length < 8) {
+            errorDiv.textContent = 'Password must be at least 8 characters';
+            return;
+        }
+        
+        // Show loading state
+        this.setLoading(submitBtn, true);
+        
+        try {
+            const response = await fetch('/api/auth/reset-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    token: token,
+                    newPassword: newPassword
+                })
+            });
+            
+            const data = await response.json();
+            
+            this.setLoading(submitBtn, false);
+            
+            if (data.success) {
+                // Show success and redirect to login
+                this.showSuccess('Password Reset!', data.message);
+            } else {
+                errorDiv.textContent = data.error || 'Failed to reset password. Please try again.';
+            }
+        } catch (error) {
+            console.error('Reset password error:', error);
+            this.setLoading(submitBtn, false);
+            errorDiv.textContent = 'An error occurred. Please try again.';
+        }
     }
 }
 
@@ -542,8 +762,65 @@ window.addEventListener('load', async () => {
     const urlParams = new URLSearchParams(window.location.search);
     const verification = urlParams.get('verification');
     const reason = urlParams.get('reason');
+    const resetToken = urlParams.get('token');
+    
+    // Check if this is a password reset link
+    if (resetToken) {
+        authUI.showResetPassword(resetToken);
+        return;
+    }
     
     if (verification) {
+        // Remove params from URL immediately
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        switch(verification) {
+            case 'success':
+                authUI.showSuccess(
+                    'Email Verified! ✅', 
+                    'Your email has been verified successfully. You can now sign in to your account.'
+                );
+                break;
+            
+            case 'already_verified':
+                authUI.showSuccess(
+                    'Already Verified ✓', 
+                    'Your email is already verified. You can sign in to your account.'
+                );
+                break;
+            
+            case 'failed':
+                let errorMessage = 'Email verification failed. ';
+                switch(reason) {
+                    case 'invalid_token':
+                        errorMessage += 'The verification link is invalid.';
+                        break;
+                    case 'expired':
+                        errorMessage += 'The verification link has expired. Please request a new one.';
+                        break;
+                    case 'user_not_found':
+                        errorMessage += 'User account not found.';
+                        break;
+                    case 'token_mismatch':
+                        errorMessage += 'The verification link is invalid or has already been used.';
+                        break;
+                    case 'update_error':
+                    case 'server_error':
+                        errorMessage += 'A server error occurred. Please try again or contact support.';
+                        break;
+                    default:
+                        errorMessage += 'Please try again or contact support.';
+                }
+                
+                // Show error in modal
+                authUI.showLogin();
+                setTimeout(() => {
+                    alert(errorMessage);
+                }, 500);
+                break;
+        }
+    }
+});
         // Remove params from URL immediately
         window.history.replaceState({}, document.title, window.location.pathname);
         
