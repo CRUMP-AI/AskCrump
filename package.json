@@ -17,7 +17,7 @@
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
     "resend": "^3.0.0",
-    "cookie": "^0.6.0"
+    "cookie": "^0.6.0",
     "stripe": "^14.0.0"
   },
   "devDependencies": {},
