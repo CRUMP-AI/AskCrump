@@ -18,7 +18,7 @@ const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || FROM_EMAIL;
  * @param {string} userName - User's name
  */
 export async function sendVerificationEmail(email, verificationToken, userName = '') {
-    const verificationUrl = `${APP_URL}/verify-email?token=${verificationToken}`;
+   const verificationUrl = `${APP_URL}/api/auth/verify-email?token=${verificationToken}`;
     
     try {
         const { data, error } = await resend.emails.send({
