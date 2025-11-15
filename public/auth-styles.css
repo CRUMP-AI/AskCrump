@@ -184,6 +184,20 @@
     display: block;
 }
 
+.auth-success {
+    padding: 12px;
+    background: rgba(34, 197, 94, 0.1);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    border-radius: 8px;
+    color: #22c55e;
+    font-size: 14px;
+    display: none;
+}
+
+.auth-success:not(:empty) {
+    display: block;
+}
+
 /* Auth Buttons */
 .auth-btn {
     padding: clamp(12px, 3.5vw, 14px) clamp(20px, 6vw, 24px);
