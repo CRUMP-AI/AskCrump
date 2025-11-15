@@ -57,7 +57,7 @@
 
 .auth-modal-header h2 {
     margin: 0;
-    font-size: 24px;
+    font-size: clamp(20px, 5vw, 24px);
     font-weight: 600;
     color: var(--color-text-primary, #fff);
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -106,18 +106,18 @@
 }
 
 .auth-form-group label {
-    font-size: 14px;
+    font-size: clamp(13px, 3.5vw, 14px);
     font-weight: 500;
     color: var(--color-text-primary, #fff);
 }
 
 .auth-form-group input {
-    padding: 12px 16px;
+    padding: clamp(10px, 3vw, 12px) clamp(12px, 4vw, 16px);
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     color: var(--color-text-primary, #fff);
-    font-size: 15px;
+    font-size: clamp(14px, 3.75vw, 15px);
     transition: all 0.2s;
 }
 
@@ -129,7 +129,7 @@
 }
 
 .auth-hint {
-    font-size: 12px;
+    font-size: clamp(11px, 3vw, 12px);
     color: var(--color-text-tertiary, #666);
 }
 
@@ -138,13 +138,15 @@
     justify-content: space-between;
     align-items: center;
     margin-top: 4px;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .auth-checkbox {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 14px;
+    font-size: clamp(12px, 3.5vw, 14px);
     color: var(--color-text-secondary, #999);
     cursor: pointer;
 }
@@ -156,10 +158,11 @@
 }
 
 .auth-link {
-    font-size: 14px;
+    font-size: clamp(12px, 3.5vw, 14px);
     color: #667eea;
     text-decoration: none;
     transition: color 0.2s;
+    white-space: nowrap;
 }
 
 .auth-link:hover {
@@ -183,10 +186,10 @@
 
 /* Auth Buttons */
 .auth-btn {
-    padding: 14px 24px;
+    padding: clamp(12px, 3.5vw, 14px) clamp(20px, 6vw, 24px);
     border: none;
     border-radius: 8px;
-    font-size: 15px;
+    font-size: clamp(14px, 3.75vw, 15px);
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
@@ -463,20 +466,62 @@
         width: 95%;
         max-width: none;
         margin: 0 10px;
+        max-height: 85vh;
     }
 
     .auth-modal-header {
-        padding: 20px 16px 12px;
+        padding: 18px 16px 12px;
     }
 
     .auth-modal-body {
-        padding: 20px 16px;
+        padding: 18px 16px;
     }
 
     .auth-trigger-btn,
     #user-profile-container {
-        top: 16px;
-        right: 16px;
+        top: 12px;
+        right: 12px;
+    }
+    
+    .auth-form {
+        gap: 14px;
+    }
+    
+    .auth-form-group {
+        gap: 6px;
+    }
+    
+    .auth-divider {
+        margin: 16px 0;
+    }
+    
+    /* Ensure text is readable on small screens */
+    .auth-message-box h3 {
+        font-size: clamp(18px, 5.5vw, 22px);
+    }
+    
+    .auth-message-box p {
+        font-size: clamp(13px, 4vw, 15px);
+    }
+}
+
+/* Very small mobile screens */
+@media (max-width: 375px) {
+    .auth-modal {
+        width: 96%;
+        margin: 0 8px;
+    }
+    
+    .auth-modal-header {
+        padding: 16px 12px 10px;
+    }
+    
+    .auth-modal-body {
+        padding: 16px 12px;
+    }
+    
+    .auth-form {
+        gap: 12px;
     }
 }
 
