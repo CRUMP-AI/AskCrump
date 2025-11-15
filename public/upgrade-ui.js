@@ -92,8 +92,57 @@ function switchBillingView(period) {
 }
 
 function upgradePlan(tier, billing) {
-    const prices = { pro: billing === 'annual' ? 95.04 : 9.99, premium: billing === 'annual' ? 191.04 : 19.99 };
-    showPaymentModal(tier, billing, prices[tier]);
+    // Map tier names to proper format
+    const tierMap = {
+        'pro': 'professional',
+        'professional': 'professional',
+        'premium': 'enterprise',
+        'enterprise': 'enterprise'
+    };
+    
+    const normalizedTier = tierMap[tier.toLowerCase()] || 'professional';
+    
+    // Show loading state
+    const button = event.target;
+    button.disabled = true;
+    button.textContent = 'Loading...';
+    
+    // Get auth token
+    const authToken = window.authToken || localStorage.getItem('authToken');
+    
+    if (!authToken) {
+        showNotification('Please sign in to upgrade', 'error');
+        button.disabled = false;
+        button.textContent = `Upgrade to ${tier}`;
+        return;
+    }
+    
+    // Create Stripe checkout session
+    fetch('/api/stripe/create-checkout-session', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+            tier: normalizedTier
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.url) {
+            // Redirect to Stripe checkout
+            window.location.href = data.url;
+        } else {
+            throw new Error(data.error || 'Failed to create checkout session');
+        }
+    })
+    .catch(error => {
+        console.error('Checkout error:', error);
+        showNotification(error.message || 'Failed to start checkout', 'error');
+        button.disabled = false;
+        button.textContent = `Upgrade to ${tier}`;
+    });
 }
 
 function showPaymentModal(tier, billing, price) {
