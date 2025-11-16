@@ -208,27 +208,35 @@ class AuthUI {
     }
 
     async checkSession() {
-        try {
-            const response = await fetch('/api/auth/check-session', {
-                method: 'GET',
-                credentials: 'include'
-            });
-
-            const data = await response.json();
-
-            if (data.success && data.authenticated) {
-                this.handleAuthSuccess(data.data);
-                this.allowAppAccess();
-            } else {
-                // NOT authenticated - FORCE login
-                this.forceLogin();
-            }
-        } catch (error) {
-            console.error('Session check failed:', error);
-            // On error, also force login
-            this.forceLogin();
-        }
-    }
+    // TEMPORARY: Bypass authentication completely
+    console.log('🔓 AUTH DISABLED - Running in no-auth mode');
+    
+    // Create fake user for app functionality
+    const fakeUser = {
+        id: 'temp-user-123',
+        email: 'gregory.d.crump@icloud.com',
+        fullName: 'Gregory Crump',
+        profilePicture: null,
+        isVerified: true
+    };
+    
+    // Set up fake auth
+    this.currentUser = fakeUser;
+    this.authToken = 'temp-token-123';
+    
+    // Make available globally
+    window.currentUser = fakeUser;
+    window.authToken = 'temp-token-123';
+    
+    // Update UI
+    this.updateUIForLoggedIn();
+    this.allowAppAccess();
+    
+    // Hide auth overlay completely
+    document.getElementById('auth-overlay').style.display = 'none';
+    
+    console.log('✅ App access granted (no-auth mode)');
+}
 
     forceLogin() {
         // Show login modal (can't be closed)
