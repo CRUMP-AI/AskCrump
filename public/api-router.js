@@ -24,7 +24,7 @@ class APIRouter {
             gmail: '/api/gmail',
             googleCalendar: '/api/google-calendar',
             googleDrive: '/api/google-drive',
-            flightTracking: '/api/flight-tracking'
+            flightTracking: '/api/flights'
         };
         
         // Free APIs that work without keys
