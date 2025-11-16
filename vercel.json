@@ -3,7 +3,6 @@
   "framework": null,
   "buildCommand": null,
   "outputDirectory": "public",
-  "installCommand": "echo 'No dependencies to install'",
   "functions": {
     "api/**/*.js": {
       "maxDuration": 60,
