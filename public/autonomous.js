@@ -215,7 +215,7 @@ class AutonomousMessaging {
             const autonomousContext = this.getRecentAutonomousContext(5);
 
             // Call API
-            const response = await fetch('/api/autonomous.js', {
+            const response = await fetch('/api/autonomous', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
