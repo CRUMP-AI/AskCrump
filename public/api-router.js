@@ -5,38 +5,38 @@
 
 class APIRouter {
     constructor() {
-        this.apiEndpoints = {
-            weather: '/api/weather',
-            sports: '/api/sports',
-            stocks: '/api/stocks',
-            news: '/api/news',
-            movies: '/api/movies',
-            youtube: '/api/youtube',
-            spotify: '/api/spotify',
-            googleMaps: '/api/google-maps',
-            googleSearch: '/api/google-search',
-            recipes: '/api/recipes',
-            translation: '/api/translation',
-            github: '/api/github',
-            crypto: '/api/crypto',
-            wikipedia: '/api/wikipedia',
-            dictionary: '/api/dictionary',
-            gmail: '/api/gmail',
-            googleCalendar: '/api/google-calendar',
-            googleDrive: '/api/google-drive',
-            flightTracking: '/api/flights'
-        };
-        
-        // Free APIs that work without keys
-        this.freeAPIs = [
-            'wikipedia',
-            'dictionary',
-            'currency',
-            'qr',
-            'urlShortener',
-            'jokes',
-            'trivia'
-        ];
+       constructor() {
+    this.apiEndpoints = {
+        weather: '/api/weather',
+        sports: '/api/sports',
+        stocks: '/api/stocks',
+        news: '/api/news',
+        movies: '/api/movies',
+        youtube: '/api/youtube',
+        spotify: '/api/spotify',
+        googleMaps: '/api/google-maps',
+        googleSearch: '/api/google-search',
+        recipes: '/api/recipes',
+        translation: '/api/translation',
+        github: '/api/github',
+        crypto: '/api/crypto',
+        gmail: '/api/gmail',
+        googleCalendar: '/api/google-calendar',
+        googleDrive: '/api/google-drive',
+        flightTracking: '/api/flights'
+    };
+    
+    // Free APIs that work without keys
+    this.freeAPIs = [
+        'wikipedia',
+        'dictionary',
+        'currency',
+        'qr',
+        'urlShortener',
+        'jokes',
+        'trivia'
+    ];
+
         
         console.log('🔌 API Router v3.1.0 initialized');
     }
