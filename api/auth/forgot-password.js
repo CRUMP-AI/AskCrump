@@ -3,9 +3,10 @@
 // Location: /api/auth/forgot-password.js
 // =====================================================
 
-import { supabase } from '../../supabase.js';
-import { generatePasswordResetToken } from '../../jwt.js';
-import { sendPasswordResetEmail } from '../../email.js';
+import { supabase } from '../utils/supabase.js';
+import { generatePasswordResetToken } from '../utils/jwt.js';
+import { sendPasswordResetEmail } from '../utils/email.js';
+
 
 export default async function handler(req, res) {
     // Only allow POST requests
