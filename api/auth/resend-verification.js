@@ -1,6 +1,7 @@
-import { supabase } from '../../supabase.js';
-import { generateVerificationToken } from '../../jwt.js';
-import { sendVerificationEmail } from '../../email.js';
+import { supabase } from '../utils/supabase.js';
+import { generateEmailVerificationToken } from '../utils/jwt.js';
+import { sendVerificationEmail } from '../utils/email.js';
+
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
