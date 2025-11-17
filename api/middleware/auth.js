@@ -15,16 +15,25 @@ import { supabase } from '../utils/supabase.js';
 export async function verifyAuth(req) {
     try {
         // Get token from cookie or Authorization header
-        const cookies = parse(req.headers.cookie || '');
-        let token = cookies.auth_token;
+        // Get token from Authorization header (preferred) or cookie (fallback)
+let token = null;
 
-        // Fallback to Authorization header
-        if (!token && req.headers.authorization) {
-            const authHeader = req.headers.authorization;
-            if (authHeader.startsWith('Bearer ')) {
-                token = authHeader.substring(7);
-            }
-        }
+// 1) Prefer Authorization: Bearer <token> (works with localStorage on frontend)
+const authHeader = req.headers.authorization || req.headers.Authorization;
+if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7);
+}
+
+// 2) Fallback to auth_token cookie if no Authorization header token
+if (!token) {
+    const cookies = parse(req.headers.cookie || '');
+    token = cookies.auth_token;
+}
+
+if (!token) {
+    return null;
+}
+
 
         if (!token) {
             return null;
