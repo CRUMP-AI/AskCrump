@@ -110,14 +110,20 @@ if (!user.is_verified) {
             .update({ last_login: new Date().toISOString() })
             .eq('id', user.id);
 
-        // Set HTTP-only cookie
-        const cookie = serialize('auth_token', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60, // seconds
-            path: '/'
-        });
+      // Set HTTP-only cookie (persistent across app restarts)
+const cookie = serialize('auth_token', token, {
+    httpOnly: true,
+    // keep this exactly as you had it so dev vs prod still works
+    secure: process.env.NODE_ENV === 'production',
+    // LAX is more forgiving than STRICT, especially with PWAs / redirects
+    sameSite: 'lax',
+    // 30 days vs 7 days, but you can make both 30 if you want “always stay signed in”
+    maxAge: rememberMe
+        ? 30 * 24 * 60 * 60   // 30 days
+        : 7  * 24 * 60 * 60,  // 7 days
+    path: '/'
+});
+
 
         res.setHeader('Set-Cookie', cookie);
 
