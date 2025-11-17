@@ -207,28 +207,38 @@ class AuthUI {
         });
     }
 
-    async checkSession() {
-        try {
-            const response = await fetch('/api/auth/check-session', {
-                method: 'GET',
-                credentials: 'include'
-            });
+   async checkSession() {
+    try {
+        // Try to recover token from localStorage
+        const storedToken = localStorage.getItem('crump_auth_token');
+        const headers = {};
 
-            const data = await response.json();
+        if (storedToken) {
+            headers['Authorization'] = `Bearer ${storedToken}`;
+        }
 
-            if (data.success && data.authenticated) {
-                this.handleAuthSuccess(data.data);
-                this.allowAppAccess();
-            } else {
-                // NOT authenticated - FORCE login
-                this.forceLogin();
-            }
-        } catch (error) {
-            console.error('Session check failed:', error);
-            // On error, also force login
+        const response = await fetch('/api/auth/check-session', {
+            method: 'GET',
+            headers,
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.authenticated) {
+            this.handleAuthSuccess(data.data);
+            this.allowAppAccess();
+        } else {
+            // NOT authenticated - FORCE login
             this.forceLogin();
         }
+    } catch (error) {
+        console.error('Session check failed:', error);
+        // On error, also force login
+        this.forceLogin();
     }
+}
+
 
     forceLogin() {
         // Show login modal (can't be closed)
@@ -380,48 +390,66 @@ class AuthUI {
         }
     }
 
-    async logout() {
-        try {
-            await fetch('/api/auth/logout', {
-                method: 'POST',
-                credentials: 'include'
-            });
+   async logout() {
+    try {
+        await fetch('/api/auth/logout', {
+            method: 'POST',
+            credentials: 'include'
+        });
 
-            this.currentUser = null;
-            this.authToken = null;
-            this.updateUIForLoggedOut();
-            
-            // Reload page to clear any cached data
-            window.location.reload();
-        } catch (error) {
-            console.error('Logout error:', error);
-        }
+        // Clear in-memory auth
+        this.currentUser = null;
+        this.authToken = null;
+
+        // Clear any persisted auth token
+        localStorage.removeItem('crump_auth_token');
+
+        this.updateUIForLoggedOut();
+        
+        // Reload page to clear any cached data
+        window.location.reload();
+    } catch (error) {
+        console.error('Logout error:', error);
     }
+}
+
 
     handleAuthSuccess(data) {
-        this.currentUser = data.user;
-        this.authToken = data.token;
-        this.updateUIForLoggedIn();
-        
-        // Allow app access
-        this.allowAppAccess();
-        
-        // Store user data globally for Crump and app to use
-        window.currentUser = this.currentUser;
-        window.authToken = this.authToken;
-        
-        // Trigger custom event for other parts of the app
-        window.dispatchEvent(new CustomEvent('user-authenticated', { 
-            detail: { user: this.currentUser, token: this.authToken } 
-        }));
-        
-        console.log('👤 User logged in:', this.currentUser.email);
-        
-        // Initialize app if function exists
-        if (typeof window.initializeAuthenticatedApp === 'function') {
-            window.initializeAuthenticatedApp(this.currentUser);
-        }
+    // Core user object
+    this.currentUser = data.user;
+
+    // Try to keep an auth token around:
+    // - Use token from /api/auth/login when available
+    // - Fall back to any previously stored token
+    const storedToken = localStorage.getItem('crump_auth_token');
+    this.authToken = data.token || storedToken || null;
+
+    // If this login came from /api/auth/login, persist the new token
+    if (data.token) {
+        localStorage.setItem('crump_auth_token', data.token);
     }
+
+    this.updateUIForLoggedIn();
+    
+    // Allow app access
+    this.allowAppAccess();
+    
+    // Store user data globally for Crump and app to use
+    window.currentUser = this.currentUser;
+    window.authToken = this.authToken;
+    
+    // Trigger custom event for other parts of the app
+    window.dispatchEvent(new CustomEvent('user-authenticated', { 
+        detail: { user: this.currentUser, token: this.authToken } 
+    }));
+    
+    console.log('👤 User logged in:', this.currentUser.email);
+    
+    // Initialize app if function exists
+    if (typeof window.initializeAuthenticatedApp === 'function') {
+        window.initializeAuthenticatedApp(this.currentUser);
+    }
+}
 
     updateUIForLoggedIn() {
         const authTriggerBtn = document.getElementById('auth-trigger-btn');
