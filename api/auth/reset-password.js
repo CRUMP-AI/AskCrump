@@ -4,8 +4,9 @@
 // =====================================================
 
 import bcrypt from 'bcryptjs';
-import { supabase } from '../../supabase.js';
-import { verifyPasswordResetToken } from '../../jwt.js';
+import { supabase } from '../utils/supabase.js';
+import { verifyPasswordResetToken, hashPassword } from '../utils/jwt.js';
+
 
 export default async function handler(req, res) {
     // Only allow POST requests
