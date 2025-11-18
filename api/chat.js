@@ -1269,32 +1269,60 @@ prompt += `Current time period: ${dateTimeInfo.period || 'daytime'}\n`;
 prompt += getTimePeriodGuidance(dateTimeInfo.hour || 12, dateTimeInfo.period || 'daytime');
 
     // AUTONOMOUS MESSAGE AWARENESS - Crump knows when HE initiated conversations
-    if (universalMemory && typeof universalMemory === 'object' && universalMemory.autonomousHistory) {
-        const recentAutonomous = universalMemory.autonomousHistory.slice(-5);
-        if (recentAutonomous.length > 0) {
-            prompt += `\n\n🧠 YOUR RECENT PROACTIVE MESSAGES:
+if (universalMemory && typeof universalMemory === 'object' && Array.isArray(universalMemory.autonomousHistory)) {
+    const recentAutonomous = universalMemory.autonomousHistory
+        .filter(msg => msg && typeof msg === 'object' && typeof msg.message === 'string')
+        .slice(-5)
+        .sort((a, b) => {
+            const ta = typeof a.timestamp === 'number' ? a.timestamp : 0;
+            const tb = typeof b.timestamp === 'number' ? b.timestamp : 0;
+            return ta - tb;
+        });
+
+    if (recentAutonomous.length > 0) {
+        const formattedAutonomous = recentAutonomous.map(msg => {
+            const ts = typeof msg.timestamp === 'number' ? msg.timestamp : Date.now();
+            const seconds = Math.floor((Date.now() - ts) / 1000);
+            const timeAgo = seconds < 60
+                ? `${seconds}s ago`
+                : seconds < 3600
+                    ? `${Math.floor(seconds / 60)}m ago`
+                    : seconds < 86400
+                        ? `${Math.floor(seconds / 3600)}h ago`
+                        : `${Math.floor(seconds / 86400)}d ago`;
+
+            const baseLine = `[${timeAgo}] You said: "${msg.message}"`;
+            if (msg.response && typeof msg.response === 'string' && msg.response.trim()) {
+                return baseLine + `\nUser replied: "${msg.response.trim()}"`;
+            }
+            return baseLine + `\n(No response yet - their next message might be a response to this.)`;
+        }).join('\n\n');
+
+        const lastAutonomous = recentAutonomous[recentAutonomous.length - 1];
+        const hasLastResponse = lastAutonomous &&
+            lastAutonomous.response &&
+            String(lastAutonomous.response).trim();
+
+        prompt += `\n\n🧠 YOUR RECENT PROACTIVE MESSAGES:
 You initiated these conversations when the user was idle. Reference these naturally in conversation:
 
-${recentAutonomous.map(msg => {
-    const seconds = Math.floor((Date.now() - msg.timestamp) / 1000);
-    const timeAgo = seconds < 60 ? `${seconds}s ago` : 
-                    seconds < 3600 ? `${Math.floor(seconds / 60)}m ago` : 
-                    seconds < 86400 ? `${Math.floor(seconds / 3600)}h ago` : 
-                    `${Math.floor(seconds / 86400)}d ago`;
-    return `[${timeAgo}] You said: "${msg.message}"${msg.response ? `\nUser replied: "${msg.response}"` : '\n(No response yet)'}`;
-}).join('\n\n')}
+${formattedAutonomous}
 
 CRITICAL - NATURAL CONVERSATION RULES:
-- When user references these topics, naturally acknowledge YOU brought it up
-- Example: "Right, we were talking about your project earlier..."
+- Always remember that YOU started these check-ins
+- When the user responds in a way that matches these topics, treat it as a continuation
+- Example: "Right, I was checking in on that earlier..." or "Yeah, I asked you about that a minute ago..."
 - NEVER say: "I see in my autonomous history" or "according to my records"
 - Speak as if you remember YOUR OWN messages naturally
 - Use phrases like: "Earlier I asked...", "When we were chatting...", "I was checking in on..."
-- You SENT these messages - own them in conversation
+- You SENT these messages - own them in conversation.
 
-Be conversational and natural. This is you being proactive and remembering your own conversations.`;
-        }
+${hasLastResponse
+    ? 'If their last message looks like a follow-up to your most recent proactive message, treat it as a direct response and continue that thread smoothly.'
+    : 'If their next message looks like a response to your most recent proactive message, treat it as a direct reply and continue that thread smoothly.'}
+`;
     }
+}
 
 // ==========================================
     // HOMEWORK EXCELLENCE MODE
