@@ -111,7 +111,7 @@ function detectNewsIntent(query) {
             .replace(/how did people respond to/gi, '')
             .replace(/reactions?\s+to/gi, '')
             .replace(/reaction\s+to/gi, '')
-            // remove generic "to" near the start
+            // remove generic "to"
             .replace(/\bto\b/gi, '')
             // remove death/event terms
             .replace(/\b(death|died|was killed|killed|assassination|was shot|was murdered|passed away|shooting)\b/gi, '')
@@ -131,8 +131,15 @@ function detectNewsIntent(query) {
         };
     }
 
-    // Pattern 1: "news about [topic]"
-    let match = text.match(/news\s+(?:about|on|regarding)\s+(.+)/i);
+    // ------------------------------------------
+    // Pattern 1: "latest / recent / breaking news about X"
+    //           "what's going on with X"
+    //           "what's happening with X"
+    //           "current situation with X"
+    // ------------------------------------------
+
+    // e.g. "latest news about charlie kirk"
+    let match = text.match(/(?:latest|recent|breaking)\s+news\s+(?:about|on|regarding)\s+(.+)/i);
     if (match) {
         return {
             type: 'topic',
@@ -140,7 +147,38 @@ function detectNewsIntent(query) {
         };
     }
 
-    // Pattern 2: "[topic] news"
+    // e.g. "what's going on with charlie kirk", "what's happening with tesla"
+    match = text.match(/what(?:'s| is)?\s+(?:going on|happening)\s+(?:with|in|around)\s+(.+)/i);
+    if (match) {
+        return {
+            type: 'topic',
+            topic: match[1].trim()
+        };
+    }
+
+    // e.g. "current situation with gaza", "current status of boeing"
+    match = text.match(/current\s+(?:situation|status)\s+(?:with|in|of)\s+(.+)/i);
+    if (match) {
+        return {
+            type: 'topic',
+            topic: match[1].trim()
+        };
+    }
+
+    // ------------------------------------------
+    // Pattern 2: "news about [topic]"
+    // ------------------------------------------
+    match = text.match(/news\s+(?:about|on|regarding)\s+(.+)/i);
+    if (match) {
+        return {
+            type: 'topic',
+            topic: match[1].trim()
+        };
+    }
+
+    // ------------------------------------------
+    // Pattern 3: "[topic] news"
+    // ------------------------------------------
     match = text.match(/^(.+?)\s+news/i);
     if (match) {
         const topic = match[1].trim();
@@ -159,7 +197,9 @@ function detectNewsIntent(query) {
         };
     }
 
-    // Pattern 3: "latest/breaking news"
+    // ------------------------------------------
+    // Pattern 4: "latest/breaking/headlines" (no explicit topic)
+    // ------------------------------------------
     if (text.includes('latest') || text.includes('breaking') || text.includes('top') || text.includes('headlines')) {
         const category = detectCategory(text);
         return {
@@ -169,7 +209,9 @@ function detectNewsIntent(query) {
         };
     }
 
-    // Pattern 4: "what's happening" or "what happened"
+    // ------------------------------------------
+    // Pattern 5: "what's happening" / "what's going on" (no specific topic)
+    // ------------------------------------------
     if (text.includes('what') && (text.includes('happen') || text.includes('going on'))) {
         return {
             type: 'headlines',
@@ -178,7 +220,9 @@ function detectNewsIntent(query) {
         };
     }
 
-    // Pattern 5: News from specific source
+    // ------------------------------------------
+    // Pattern 6: News from specific source
+    // ------------------------------------------
     const source = detectSource(text);
     if (source) {
         return {
@@ -187,12 +231,15 @@ function detectNewsIntent(query) {
         };
     }
 
-    // Default: search for the query as a topic
+    // ------------------------------------------
+    // Default: treat remaining text as topic
+    // ------------------------------------------
     return {
         type: 'topic',
         topic: text.replace(/news|latest|breaking|headlines/gi, '').trim()
     };
 }
+
 
 
 // ==========================================
