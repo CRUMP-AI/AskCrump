@@ -1303,14 +1303,15 @@ function showWelcomeMessage() {
         timestamp: Date.now()
     };
 
-    const chat = chats.find(c => c.id === currentChatId);
-   if (chat && chat.messages.length === 0) {
-    chat.messages.push(welcomeMessage);
-    saveChats();
-    if (window.renderMessages) {
-        window.renderMessages(chat.messages);
-    } else {
-        legacyRenderMessages(chat.messages);
+        const chat = chats.find(c => c.id === currentChatId);
+    if (chat && chat.messages.length === 0) {
+        chat.messages.push(welcomeMessage);
+        saveChats();
+        if (window.renderMessages) {
+            window.renderMessages(chat.messages);
+        } else {
+            legacyRenderMessages(chat.messages);
+        }
     }
 }
 
