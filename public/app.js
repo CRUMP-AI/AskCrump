@@ -290,8 +290,13 @@ if (window.resetImageGenerationState) {
     saveChats();
     localStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, currentChatId);
 
-    renderChatsList();
-    renderMessages([]);
+   renderChatsList();
+if (window.renderMessages) {
+    window.renderMessages([]);
+} else {
+    legacyRenderMessages([]);
+}
+
 
     document.getElementById('userInput').value = '';
     document.getElementById('userInput').focus();
@@ -313,8 +318,13 @@ if (window.resetImageGenerationState) {
     console.log('🔄 Image generation state reset for new chat');
 }
 
-    renderChatsList();
-    renderMessages(chat.messages);
+   renderChatsList();
+if (window.renderMessages) {
+    window.renderMessages(chat.messages);
+} else {
+    legacyRenderMessages(chat.messages);
+}
+
 
     console.log('📖 Chat loaded:', chatId);
 }
@@ -375,16 +385,16 @@ function renderChatsList() {
 }
 
 // ==========================================
-// MESSAGE RENDERING
+// MESSAGE RENDERING (LEGACY - fallback only)
 // ==========================================
-function renderMessages(messages) {
+function legacyRenderMessages(messages) {
     const container = document.getElementById('chatContainer');
     if (!container) return;
     
     container.innerHTML = '';
     
     messages.forEach((msg, index) => {
-        const messageEl = createMessageElement(msg, index);
+        const messageEl = legacyCreateMessageElement(msg, index);
         container.appendChild(messageEl);
     });
     
@@ -398,7 +408,8 @@ function renderMessages(messages) {
     }, 100);
 }
 
-function createMessageElement(msg, index) {
+
+function legacyCreateMessageElement(msg, index) {
     const div = document.createElement('div');
     div.className = `message ${msg.role}`;
     div.dataset.index = index;
@@ -536,8 +547,13 @@ async function sendMessage() {
         });
         
         // Update UI
-        saveChats();
-        renderMessages(chat.messages);
+saveChats();
+if (window.renderMessages) {
+    window.renderMessages(chat.messages);
+} else {
+    legacyRenderMessages(chat.messages);
+}
+
         
         // Clear input
         userInput.value = '';
@@ -584,9 +600,14 @@ async function sendMessage() {
         }
         
         // Add user message to chat
-        chat.messages.push(userMessage);
-        saveChats();
-        renderMessages(chat.messages);
+chat.messages.push(userMessage);
+saveChats();
+if (window.renderMessages) {
+    window.renderMessages(chat.messages);
+} else {
+    legacyRenderMessages(chat.messages);
+}
+
         
         // Scroll to user's message immediately
         setTimeout(() => {
@@ -784,8 +805,13 @@ async function sendMessage() {
         }
         
         saveChats();
-        renderMessages(chat.messages);
-        renderChatsList();
+if (window.renderMessages) {
+    window.renderMessages(chat.messages);
+} else {
+    legacyRenderMessages(chat.messages);
+}
+renderChatsList();
+
 
         // Notify autonomous system that user sent a message
         if (window.autonomousMessaging) {
@@ -1278,10 +1304,13 @@ function showWelcomeMessage() {
     };
 
     const chat = chats.find(c => c.id === currentChatId);
-    if (chat && chat.messages.length === 0) {
-        chat.messages.push(welcomeMessage);
-        saveChats();
-        renderMessages(chat.messages);
+   if (chat && chat.messages.length === 0) {
+    chat.messages.push(welcomeMessage);
+    saveChats();
+    if (window.renderMessages) {
+        window.renderMessages(chat.messages);
+    } else {
+        legacyRenderMessages(chat.messages);
     }
 }
 
