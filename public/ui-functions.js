@@ -13,33 +13,55 @@ function renderMessages(messages) {
         return;
     }
     
-    const userInitial = localStorage.getItem(window.STORAGE_KEYS?.USER_INITIAL) || 'U';
-    
-    container.innerHTML = messages.map((msg, index) => {
-        const isUser = msg.role === 'user';
-        const avatar = isUser ? userInitial : 'C';
-        const avatarClass = isUser ? 'user' : 'assistant';
-        
-        let actionsHtml = '';
-        if (!isUser) {
-            actionsHtml = `
-                <div class="message-actions">
-                    <button class="message-action-btn" onclick="copyMessage(${index})" title="Copy message">
-                        📋 Copy
-                    </button>
-                    <button class="message-action-btn" onclick="regenerateResponse(${index})" title="Regenerate response">
-                        🔄 Regenerate
-                    </button>
-                    <button class="message-action-btn" onclick="provideFeedback(${index}, 'thumbsUp')" title="Good response">
-                        👍
-                    </button>
-                    <button class="message-action-btn" onclick="provideFeedback(${index}, 'thumbsDown')" title="Bad response">
-                        👎
-                    </button>
-                    <button class="message-action-btn" onclick="provideCorrection(${index})" title="Correct this">
-                        ✏️ Correct
-                    </button>
-                </div>
+    const userInitial =
+    (window.currentProfile && window.currentProfile.profile && window.currentProfile.profile.initial) ||
+    localStorage.getItem(window.STORAGE_KEYS?.USER_INITIAL) ||
+    localStorage.getItem('crump_user_initial') ||
+    'U';
+
+container.innerHTML = messages.map((msg, index) => {
+    const isUser = msg.role === 'user';
+
+    // Build avatar HTML
+    let avatarHtml;
+    if (isUser) {
+        // Your messages → letter avatar (G, etc.)
+        avatarHtml = `
+            <div class="avatar user">
+                ${userInitial}
+            </div>
+        `;
+    } else {
+        // Crump's messages → Ask Crump logo
+        avatarHtml = `
+            <div class="avatar assistant">
+                <img src="/assets/logo-c.png"
+                     alt="Assistant"
+                     style="width: 100%; height: 100%; object-fit: contain;">
+            </div>
+        `;
+    }
+
+    let actionsHtml = '';
+    if (!isUser) {
+        actionsHtml = `
+            <div class="message-actions">
+                <button class="message-action-btn" onclick="copyMessage(${index})" title="Copy message">
+                    📋 Copy
+                </button>
+                <button class="message-action-btn" onclick="regenerateResponse(${index})" title="Regenerate response">
+                    🔄 Regenerate
+                </button>
+                <button class="message-action-btn" onclick="provideFeedback(${index}, 'thumbsUp')" title="Good response">
+                    👍
+                </button>
+                <button class="message-action-btn" onclick="provideFeedback(${index}, 'thumbsDown')" title="Bad response">
+                    👎
+                </button>
+                <button class="message-action-btn" onclick="provideCorrection(${index})" title="Correct this">
+                    ✏️ Correct
+                </button>
+            </div>
             `;
         }
         
