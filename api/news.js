@@ -87,7 +87,50 @@ export default async function handler(req, res) {
 // ==========================================
 function detectNewsIntent(query) {
     const text = query.toLowerCase().trim();
-    
+
+    // ------------------------------------------
+    // Pattern 0: Death / assassination / "what happened" / reactions
+    // e.g.:
+    //  - "how did some people react to charlie kirk's death"
+    //  - "reactions to charlie kirk's assassination"
+    //  - "what happened to charlie kirk"
+    //  - "news about the death of charlie kirk"
+    // ------------------------------------------
+    const deathOrEventTerms = /\b(death|died|was killed|killed|assassination|was shot|was murdered|passed away|shooting)\b/;
+    const reactionTerms = /\b(reaction|reactions|responded|responses|how did people react|how are people reacting|how did some people react|how did people respond)\b/;
+
+    if (deathOrEventTerms.test(text)) {
+        // Try to strip reaction framing and death/event words, keep the subject
+        let topic = text;
+
+        topic = topic
+            // remove reaction phrases
+            .replace(/how did some people react to/gi, '')
+            .replace(/how did people react to/gi, '')
+            .replace(/how are people reacting to/gi, '')
+            .replace(/how did people respond to/gi, '')
+            .replace(/reactions?\s+to/gi, '')
+            .replace(/reaction\s+to/gi, '')
+            // remove generic "to" near the start
+            .replace(/\bto\b/gi, '')
+            // remove death/event terms
+            .replace(/\b(death|died|was killed|killed|assassination|was shot|was murdered|passed away|shooting)\b/gi, '')
+            // remove filler like "about", "news", "the"
+            .replace(/\b(about|news|the)\b/gi, '')
+            // trim punctuation and spaces
+            .replace(/\?+$/g, '')
+            .trim();
+
+        if (!topic) {
+            topic = query.trim();
+        }
+
+        return {
+            type: 'topic',
+            topic
+        };
+    }
+
     // Pattern 1: "news about [topic]"
     let match = text.match(/news\s+(?:about|on|regarding)\s+(.+)/i);
     if (match) {
@@ -96,7 +139,7 @@ function detectNewsIntent(query) {
             topic: match[1].trim()
         };
     }
-    
+
     // Pattern 2: "[topic] news"
     match = text.match(/^(.+?)\s+news/i);
     if (match) {
@@ -115,7 +158,7 @@ function detectNewsIntent(query) {
             topic: topic
         };
     }
-    
+
     // Pattern 3: "latest/breaking news"
     if (text.includes('latest') || text.includes('breaking') || text.includes('top') || text.includes('headlines')) {
         const category = detectCategory(text);
@@ -125,7 +168,7 @@ function detectNewsIntent(query) {
             country: 'us'
         };
     }
-    
+
     // Pattern 4: "what's happening" or "what happened"
     if (text.includes('what') && (text.includes('happen') || text.includes('going on'))) {
         return {
@@ -134,7 +177,7 @@ function detectNewsIntent(query) {
             country: 'us'
         };
     }
-    
+
     // Pattern 5: News from specific source
     const source = detectSource(text);
     if (source) {
@@ -143,13 +186,14 @@ function detectNewsIntent(query) {
             source: source
         };
     }
-    
+
     // Default: search for the query as a topic
     return {
         type: 'topic',
         topic: text.replace(/news|latest|breaking|headlines/gi, '').trim()
     };
 }
+
 
 // ==========================================
 // DETECT CATEGORY
