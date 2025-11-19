@@ -761,7 +761,7 @@ if (window.renderMessages) {
         }
         
         // Call API
-        const response = await fetch('/api/chat', {
+        const response = await fetch('/api/chat-core', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
