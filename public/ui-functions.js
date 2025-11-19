@@ -139,15 +139,16 @@ function renderMessages(messages) {
             `;
         }
 
-        return `
-            <div class="message ${isUser ? 'user' : ''}">
-                ${avatarHtml}
-                <div class="message-wrapper">
-                    ${contentHtml}
-                    ${actionsHtml}
-                </div>
-            </div>
-        `;
+       return `
+    <div class="message ${isUser ? 'user' : ''}">
+        ${avatarHtml}
+        <div class="message-wrapper">
+            ${contentHtml}
+            ${actionsHtml}
+        </div>
+    </div>
+`;
+
     }).join('');
 
     // Highlight all code blocks after rendering
