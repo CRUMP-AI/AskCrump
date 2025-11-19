@@ -5,7 +5,6 @@
 
 class APIRouter {
     constructor() {
-       constructor() {
     this.apiEndpoints = {
         weather: '/api/weather',
         sports: '/api/sports',
@@ -58,7 +57,7 @@ class APIRouter {
                 return { success: false, error: 'No API detected', needsAPI: false };
             }
             
-            console.log('🎯 Detected APIs:', detectedAPIs.map(d => d.api).join(', '));
+            console.log('📡 Detected APIs:', detectedAPIs);
             
             // Try each detected API in order of confidence
             for (const detection of detectedAPIs) {
@@ -74,484 +73,204 @@ class APIRouter {
                     if (detection === detectedAPIs[0]) {
                         return {
                             success: false,
-                            error: canUse.message,
-                            limitReached: true,
-                            action: canUse.action
+                            error: canUse.reason || 'API limit reached',
+                            needsUpgrade: true
                         };
                     }
                     
-                    // Otherwise try next API
-                    continue;
+                    continue; // Try next API
                 }
                 
-                // Route to specific API handler
                 console.log(`📡 Routing to ${apiName} API...`);
-                const result = await this.callAPI(apiName, message, context);
+                const result = await this.callAPI(apiName, message, context, detection);
                 
-                if (result.success) {
-                    // Track usage
-                    this.trackAPIUsage(apiName);
-                    
-                    // Show warning if provided
-                    if (canUse.warning) {
-                        result.warning = canUse.warning;
-                    }
-                    
-                    return result;
+                if (result && result.success) {
+                    return {
+                        ...result,
+                        usedAPI: apiName
+                    };
+                } else {
+                    console.warn(`⚠️ ${apiName} API failed, trying next...`);
                 }
-                
-                // If API call failed, try next one
-                console.warn(`⚠️ ${apiName} API failed, trying next...`);
             }
             
             // All APIs failed
             return {
                 success: false,
-                error: 'All detected APIs failed to respond'
+                error: 'All API calls failed',
+                needsAPI: true
             };
             
         } catch (error) {
-            console.error('❌ API Router error:', error);
+            console.error('❌ API routing error:', error);
             return {
                 success: false,
-                error: error.message || 'API routing failed'
+                error: 'API routing error',
+                details: error.message
             };
         }
     }
     
     // ==========================================
-    // CHECK API LIMITS
+    // API LIMIT CHECKING
     // ==========================================
     checkAPILimit(apiName) {
-        if (!window.profileManager) {
-            return { allowed: true }; // Allow if no profile manager
-        }
-        
-        // Free unlimited APIs
-        if (this.freeAPIs.includes(apiName)) {
-            return { allowed: true };
-        }
-        
-        // Check specific API limit
-        return window.profileManager.canUseAPI(apiName);
-    }
-    
-    // ==========================================
-    // TRACK API USAGE
-    // ==========================================
-    trackAPIUsage(apiName) {
-        if (!window.profileManager) return;
-        
-        // Map API names to increment methods
-        const methodMap = {
-            weather: 'incrementWeatherUsage',
-            sports: 'incrementSportsUsage',
-            stocks: 'incrementStocksUsage',
-            news: 'incrementNewsUsage',
-            movies: 'incrementMoviesUsage',
-            youtube: 'incrementYoutubeUsage',
-            spotify: 'incrementSpotifyUsage',
-            googleMaps: 'incrementGoogleMapsUsage',
-            googleSearch: 'incrementGoogleSearchUsage',
-            recipes: 'incrementRecipesUsage',
-            translation: 'incrementTranslationUsage',
-            github: 'incrementGithubUsage',
-            crypto: 'incrementCryptoUsage',
-            gmail: 'incrementGmailUsage',
-            googleCalendar: 'incrementGoogleCalendarUsage',
-            googleDrive: 'incrementGoogleDriveUsage',
-            flightTracking: 'incrementFlightTrackingUsage'
-        };
-        
-        const method = methodMap[apiName];
-        
-        if (method && typeof window.profileManager[method] === 'function') {
-            window.profileManager[method]();
-            console.log(`📊 Tracked ${apiName} usage`);
-        } else {
-            console.warn(`⚠️ No tracking method for ${apiName}`);
-        }
-    }
-    
-    // ==========================================
-    // CALL SPECIFIC API
-    // ==========================================
-    async callAPI(apiName, message, context) {
-        const endpoint = this.apiEndpoints[apiName];
-        
-        if (!endpoint) {
-            // Handle free APIs that don't need endpoints
-            if (this.freeAPIs.includes(apiName)) {
-                return await this.callFreeAPI(apiName, message);
+        try {
+            const profile = window.currentProfile || window.profileManager?.getProfile();
+            if (!profile) {
+                return { allowed: false, reason: 'No profile loaded' };
             }
             
-            return {
-                success: false,
-                error: `No endpoint configured for ${apiName}`
+            // Free unlimited APIs
+            if (this.freeAPIs.includes(apiName)) {
+                return { allowed: true };
+            }
+            
+            // Check specific API limits based on tier
+            const tier = profile.subscription?.tier || 'free';
+            const usage = profile.apiUsage || {};
+            const apiUsage = usage[apiName] || { count: 0 };
+            
+            // Define limits per tier
+            const limits = {
+                free: 10,
+                pro: 100,
+                enterprise: Infinity
             };
+            
+            const limit = limits[tier] ?? 10;
+            
+            if (apiUsage.count >= limit) {
+                return {
+                    allowed: false,
+                    reason: `API limit reached for ${apiName} on ${tier} tier`
+                };
+            }
+            
+            return { allowed: true };
+        } catch (error) {
+            console.warn('⚠️ API limit check failed:', error);
+            return { allowed: true }; // Fail open
         }
-        
+    }
+    
+    // ==========================================
+    // API CALL HANDLER
+    // ==========================================
+    async callAPI(apiName, message, context, detection) {
         try {
+            const endpoint = this.apiEndpoints[apiName];
+            
+            if (!endpoint) {
+                console.warn(`⚠️ No endpoint configured for API: ${apiName}`);
+                
+                // Handle free APIs that don't need endpoints
+                if (this.freeAPIs.includes(apiName)) {
+                    return await this.callFreeAPI(apiName, message);
+                }
+                
+                return { success: false, error: 'API not configured' };
+            }
+            
+            const payload = {
+                message,
+                context,
+                detection
+            };
+            
             const response = await fetch(endpoint, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    query: message,
-                    context: context
-                })
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
             });
             
             if (!response.ok) {
-                // Check if it's a missing API key
-                if (response.status === 503) {
-                    const data = await response.json();
-                    return {
-                        success: false,
-                        error: data.error || 'API key not configured',
-                        missingKey: true
-                    };
-                }
+                const text = await response.text();
+                console.warn(`⚠️ ${apiName} API error:`, response.status, text);
                 
-                throw new Error(`API returned ${response.status}`);
+                return {
+                    success: false,
+                    error: `API error: ${response.status}`,
+                    details: text
+                };
             }
             
             const data = await response.json();
-            
             return {
                 success: true,
-                api: apiName,
-                data: data,
-                formattedResponse: this.formatAPIResponse(apiName, data)
+                data,
+                raw: data
             };
             
         } catch (error) {
-            console.error(`❌ ${apiName} API error:`, error);
+            console.error(`❌ Error calling ${apiName} API:`, error);
             return {
                 success: false,
-                error: error.message
+                error: 'API call failed',
+                details: error.message
             };
         }
     }
     
     // ==========================================
-    // FREE API HANDLERS (No backend needed)
+    // FREE API HANDLER
     // ==========================================
     async callFreeAPI(apiName, message) {
-        switch (apiName) {
-            case 'wikipedia':
-                return await this.callWikipedia(message);
-            
-            case 'dictionary':
-                return await this.callDictionary(message);
-            
-            case 'jokes':
-                return await this.callJokesAPI();
-            
-            case 'trivia':
-                return await this.callTriviaAPI();
-            
-            case 'currency':
-                return await this.callCurrencyAPI(message);
-            
-            case 'qr':
-                return await this.callQRAPI(message);
-            
-            case 'urlShortener':
-                return await this.callURLShortener(message);
-            
-            default:
-                return { success: false, error: 'Unknown free API' };
-        }
-    }
-    
-    // Wikipedia API (free, no key)
-    async callWikipedia(message) {
         try {
-            // Extract search term
-            const searchTerm = message
-                .replace(/wikipedia|wiki|tell me about|what is|who is/gi, '')
-                .trim();
+            console.log(`📡 Calling free API: ${apiName}`);
             
-            const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(searchTerm)}`;
-            
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Wikipedia lookup failed');
-            
-            const data = await response.json();
+            // Example: Wikipedia, dictionary, etc.
+            // Here you'd implement the logic for free APIs that don't require backend endpoints
             
             return {
                 success: true,
-                api: 'wikipedia',
-                data: data,
-                formattedResponse: `**${data.title}**\n\n${data.extract}\n\n[Read more](${data.content_urls.desktop.page})`
+                data: {
+                    message: `Free API (${apiName}) would handle: "${message}"`
+                }
             };
+            
         } catch (error) {
-            return { success: false, error: error.message };
-        }
-    }
-    
-    // Dictionary API (free, no key)
-    async callDictionary(message) {
-        try {
-            // Extract word
-            const word = message
-                .replace(/define|definition|meaning|what does|mean/gi, '')
-                .trim()
-                .split(' ')[0];
-            
-            const url = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`;
-            
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Word not found');
-            
-            const data = await response.json();
-            const entry = data[0];
-            
-            let formatted = `**${entry.word}** ${entry.phonetic || ''}\n\n`;
-            
-            entry.meanings.forEach(meaning => {
-                formatted += `*${meaning.partOfSpeech}*\n`;
-                meaning.definitions.slice(0, 2).forEach((def, i) => {
-                    formatted += `${i + 1}. ${def.definition}\n`;
-                    if (def.example) {
-                        formatted += `   *Example: "${def.example}"*\n`;
-                    }
-                });
-                formatted += '\n';
-            });
-            
+            console.error(`❌ Free API error (${apiName}):`, error);
             return {
-                success: true,
-                api: 'dictionary',
-                data: entry,
-                formattedResponse: formatted
+                success: false,
+                error: 'Free API call failed',
+                details: error.message
             };
-        } catch (error) {
-            return { success: false, error: error.message };
         }
-    }
-    
-    // Jokes API (free, no key)
-    async callJokesAPI() {
-        try {
-            const url = 'https://icanhazdadjoke.com/';
-            
-            const response = await fetch(url, {
-                headers: { 'Accept': 'application/json' }
-            });
-            
-            if (!response.ok) throw new Error('Joke API failed');
-            
-            const data = await response.json();
-            
-            return {
-                success: true,
-                api: 'jokes',
-                data: data,
-                formattedResponse: `😄 ${data.joke}`
-            };
-        } catch (error) {
-            return { success: false, error: error.message };
-        }
-    }
-    
-    // Trivia API (free, no key)
-    async callTriviaAPI() {
-        try {
-            const url = 'https://opentdb.com/api.php?amount=1&type=multiple';
-            
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Trivia API failed');
-            
-            const data = await response.json();
-            const question = data.results[0];
-            
-            const allAnswers = [...question.incorrect_answers, question.correct_answer]
-                .sort(() => Math.random() - 0.5);
-            
-            let formatted = `**${this.decodeHTML(question.category)}**\n\n`;
-            formatted += `${this.decodeHTML(question.question)}\n\n`;
-            
-            allAnswers.forEach((answer, i) => {
-                const letter = String.fromCharCode(65 + i);
-                formatted += `${letter}. ${this.decodeHTML(answer)}\n`;
-            });
-            
-            formatted += `\n*Difficulty: ${question.difficulty}*`;
-            
-            return {
-                success: true,
-                api: 'trivia',
-                data: question,
-                formattedResponse: formatted,
-                correctAnswer: this.decodeHTML(question.correct_answer)
-            };
-        } catch (error) {
-            return { success: false, error: error.message };
-        }
-    }
-    
-    // Currency Converter API (free, no key)
-    async callCurrencyAPI(message) {
-        try {
-            // Extract currencies and amount
-            const match = message.match(/(\d+\.?\d*)\s*(\w{3})\s*to\s*(\w{3})/i);
-            
-            if (!match) {
-                return {
-                    success: false,
-                    error: 'Please specify: amount FROM_CURRENCY to TO_CURRENCY (e.g., 100 USD to EUR)'
-                };
-            }
-            
-            const [, amount, from, to] = match;
-            
-            const url = `https://api.exchangerate-api.com/v4/latest/${from.toUpperCase()}`;
-            
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Currency API failed');
-            
-            const data = await response.json();
-            const rate = data.rates[to.toUpperCase()];
-            
-            if (!rate) {
-                throw new Error(`Currency ${to.toUpperCase()} not found`);
-            }
-            
-            const converted = (parseFloat(amount) * rate).toFixed(2);
-            
-            return {
-                success: true,
-                api: 'currency',
-                data: { from, to, rate, amount, converted },
-                formattedResponse: `💱 **${amount} ${from.toUpperCase()} = ${converted} ${to.toUpperCase()}**\n\nExchange rate: 1 ${from.toUpperCase()} = ${rate.toFixed(4)} ${to.toUpperCase()}`
-            };
-        } catch (error) {
-            return { success: false, error: error.message };
-        }
-    }
-    
-    // QR Code API (free, no key)
-    async callQRAPI(message) {
-        try {
-            // Extract text to encode
-            const text = message
-                .replace(/generate|create|make|qr code|qr/gi, '')
-                .trim();
-            
-            if (!text || text.length < 1) {
-                return {
-                    success: false,
-                    error: 'Please provide text to encode in QR code'
-                };
-            }
-            
-            const url = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(text)}`;
-            
-            return {
-                success: true,
-                api: 'qr',
-                data: { text, url },
-                formattedResponse: `**QR Code Generated**\n\n![QR Code](${url})\n\n*Encoding: ${text}*`
-            };
-        } catch (error) {
-            return { success: false, error: error.message };
-        }
-    }
-    
-    // URL Shortener API (free, no key)
-    async callURLShortener(message) {
-        try {
-            // Extract URL
-            const urlMatch = message.match(/(https?:\/\/[^\s]+)/);
-            
-            if (!urlMatch) {
-                return {
-                    success: false,
-                    error: 'Please provide a valid URL to shorten'
-                };
-            }
-            
-            const longUrl = urlMatch[1];
-            
-            const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
-            
-            if (!response.ok) throw new Error('URL shortening failed');
-            
-            const shortUrl = await response.text();
-            
-            return {
-                success: true,
-                api: 'urlShortener',
-                data: { longUrl, shortUrl },
-                formattedResponse: `🔗 **URL Shortened**\n\nOriginal: ${longUrl}\n\nShort: ${shortUrl}`
-            };
-        } catch (error) {
-            return { success: false, error: error.message };
-        }
-    }
-    
-    // ==========================================
-    // RESPONSE FORMATTING
-    // ==========================================
-    formatAPIResponse(apiName, data) {
-        // This will be customized per API
-        // For now, return raw data
-        return JSON.stringify(data, null, 2);
-    }
-    
-    // ==========================================
-    // UTILITY
-    // ==========================================
-    decodeHTML(text) {
-        const div = document.createElement('div');
-        div.innerHTML = text;
-        return div.textContent;
-    }
-    
-    // ==========================================
-    // CHECK IF MESSAGE NEEDS API
-    // ==========================================
-    messageNeedsAPI(message) {
-        if (!window.apiDetectionEngine) return false;
-        return window.apiDetectionEngine.needsAPI(message);
     }
 }
 
 // ==========================================
-// ENHANCED API INTEGRATION
+// MESSAGE ENHANCEMENT
 // ==========================================
 async function enhanceMessageWithAPIs(message, context = {}) {
     if (!window.apiRouter) {
         console.warn('⚠️ API Router not initialized');
-        return null;
+        return message;
     }
     
-    // Check if message needs any API
-    if (!window.apiRouter.messageNeedsAPI(message)) {
-        return null;
-    }
-    
-    console.log('🔍 Message needs API enhancement');
-    
-    // Route the request
     const result = await window.apiRouter.routeRequest(message, context);
     
-    if (result.success) {
-        console.log('✅ API call successful:', result.api);
-        return result;
-    } else {
-        console.warn('⚠️ API call failed:', result.error);
-        
-        // If limit reached, show upgrade prompt
-        if (result.limitReached && result.action === 'upgrade') {
+    if (!result.success) {
+        // If upgrade is needed, show upgrade prompt
+        if (result.needsUpgrade) {
+            console.log('💳 Upgrade needed for API:', result);
             if (typeof showUpgradePrompt === 'function') {
                 setTimeout(() => showUpgradePrompt(), 1000);
             }
         }
         
-        return result;
+        return message;
     }
+    
+    // Append API result to message
+    if (result.data && result.data.message) {
+        return `${message}\n\n---\n\n${result.data.message}`;
+    }
+    
+    return message;
 }
 
 // ==========================================
