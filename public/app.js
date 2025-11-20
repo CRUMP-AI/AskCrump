@@ -18,6 +18,9 @@ const STORAGE_KEYS = {
     HAS_ONBOARDED: 'crump_has_onboarded'
 };
 
+// Cloud sync flags (Supabase)
+const CLOUD_CHAT_SYNC_ENABLED = true;
+
 // Global State
 let chats = [];
 let currentChatId = null;
@@ -33,7 +36,7 @@ window.activeObjectURLs = activeObjectURLs;
 // ==========================================
 // AUTHENTICATED APP INITIALIZATION
 // ==========================================
-window.initializeAuthenticatedApp = function(user) {
+window.initializeAuthenticatedApp = async function(user) {
     console.log('🔐 Initializing app for authenticated user:', user.email);
     
     // Store user info globally
@@ -64,10 +67,43 @@ window.initializeAuthenticatedApp = function(user) {
     }
     
     console.log('✅ User profile loaded into universalMemory');
-    
-    // TODO: Load user's chats from database instead of localStorage
-    // For now, we'll keep using localStorage but this is where we'd load from Supabase
+
+    // 🔽 NEW: After login, try to pull chats from the cloud
+    try {
+        const cloudState = await loadChatsFromCloud();
+
+        if (cloudState && Array.isArray(cloudState.chats)) {
+            console.log('☁️ Loaded chats from cloud:', cloudState.chats.length);
+
+            chats = cloudState.chats;
+            window.chats = chats;
+
+            // Pick active chat: saved one or first chat
+            currentChatId = cloudState.selectedChatId || (chats[0]?.id ?? null);
+            window.currentChatId = currentChatId;
+
+            // Mirror into localStorage so offline still works
+            saveChats();
+
+            // Refresh sidebar & messages
+            renderChatsList();
+
+            const activeChat = chats.find(c => c.id === currentChatId);
+            if (activeChat) {
+                if (window.renderMessages) {
+                    window.renderMessages(activeChat.messages);
+                } else {
+                    legacyRenderMessages(activeChat.messages);
+                }
+            }
+        } else {
+            console.log('☁️ No cloud chats found, keeping local storage state.');
+        }
+    } catch (err) {
+        console.warn('⚠️ Failed to load chats from cloud, falling back to localStorage', err);
+    }
 };
+
 
 // ==========================================
 // INITIALIZATION
@@ -263,9 +299,71 @@ function saveChats() {
         localStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
     } catch (storageError) {
         console.warn('⚠️ Failed to save chats (localStorage unavailable)');
-        // Continue without saving - app still works in-memory
+    }
+
+    // Also push to cloud if the user is logged in (fire-and-forget)
+    saveChatsToCloud();
+}
+
+// ==========================================
+// CLOUD CHAT SYNC (Supabase)
+// ==========================================
+
+async function saveChatsToCloud() {
+    if (!CLOUD_CHAT_SYNC_ENABLED) return;
+    // Require a logged-in Supabase user
+    if (!window.currentUser || !window.currentUser.id) return;
+
+    try {
+        const payload = {
+            chats,
+            // Use the existing currentChatId instead of a non-existent index
+            selectedChatId: currentChatId || null,
+        };
+
+        // This route should use Supabase auth on the server to know which user
+        await fetch('/api/chat-state/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+    } catch (err) {
+        console.warn('⚠️ Failed to sync chats to cloud:', err);
     }
 }
+
+async function loadChatsFromCloud() {
+    if (!CLOUD_CHAT_SYNC_ENABLED) return null;
+    if (!window.currentUser || !window.currentUser.id) return null;
+
+    try {
+        const res = await fetch('/api/chat-state/get', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!res.ok) {
+            console.warn('⚠️ Cloud chat load not ok:', res.status);
+            return null;
+        }
+
+        const data = await res.json();
+        if (!data?.chatState || !Array.isArray(data.chatState.chats)) {
+            return null;
+        }
+
+        return data.chatState;
+    } catch (err) {
+        console.warn('⚠️ Failed to load chats from cloud:', err);
+        return null;
+    }
+}
+
+
 window.saveChats = saveChats;
 
 function createNewChat() {
