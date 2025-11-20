@@ -11,36 +11,28 @@ export default async function handler(req, res) {
     return;
   }
 
-  // 🔐 Use verifyAuth (this actually exists)
+  // 🔐 Use verifyAuth directly (no middleware wrapper)
   const sessionUser = await verifyAuth(req);
 
   if (!sessionUser) {
-    // Not logged in – return 401 so the frontend knows
     res.writeHead(401, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Not authenticated' }));
     return;
   }
 
-  // Support both streamed body and already-parsed body (Vercel sometimes gives req.body)
-  let payload = req.body;
+  let body = '';
+  for await (const chunk of req) {
+    body += chunk;
+  }
 
-  if (!payload || typeof payload === 'string') {
-    let body = typeof payload === 'string' ? payload : '';
-
-    if (!body) {
-      for await (const chunk of req) {
-        body += chunk;
-      }
-    }
-
-    try {
-      payload = JSON.parse(body || '{}');
-    } catch (err) {
-      console.warn('⚠️ Invalid JSON in chat-state/save:', err);
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Invalid JSON body' }));
-      return;
-    }
+  let payload;
+  try {
+    payload = JSON.parse(body || '{}');
+  } catch (err) {
+    console.warn('⚠️ Invalid JSON in chat-state/save:', err);
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+    return;
   }
 
   const { chats, selectedChatId } = payload || {};
@@ -61,12 +53,13 @@ export default async function handler(req, res) {
     const { error } = await supabase
       .from('profiles')
       .update({ chat_state: chatState })
-      .eq('id', sessionUser.userId); // assumes verifyAuth returns { userId: ... }
+      // 🔑 IMPORTANT: verifyAuth returns { id: ... }, not userId
+      .eq('id', sessionUser.id);
 
     if (error) {
       console.error('❌ Failed to save chat_state:', error);
       res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Failed to save chats', detail: error.message }));
+      res.end(JSON.stringify({ error: 'Failed to save chats' }));
       return;
     }
 
