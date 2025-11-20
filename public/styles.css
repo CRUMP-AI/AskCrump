@@ -947,4 +947,26 @@ body > img[src$="logo-c.png"],
   max-height: 48px;
 }
 
+/* ============================================
+   FIX: Correct Header Logo Size Everywhere
+   ============================================ */
+
+.header-full-logo {
+    height: 48px !important;
+    width: auto !important;
+    max-height: 48px !important;
+    max-width: 200px !important;
+}
+
+/* Prevent PWA rule from shrinking it */
+@media (display-mode: standalone) {
+    .header-full-logo {
+        height: 48px !important;
+        max-height: 48px !important;
+        transform: none !important;
+        scale: 1 !important;
+    }
+}
+
+
 
