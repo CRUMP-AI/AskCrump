@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  // 🔐 Use verifyAuth instead of requireAuth
+  // 🔐 Same pattern: verifyAuth → user row
   const sessionUser = await verifyAuth(req);
 
   if (!sessionUser) {
@@ -24,10 +24,11 @@ export default async function handler(req, res) {
     const { data, error } = await supabase
       .from('profiles')
       .select('chat_state')
-      .eq('id', sessionUser.userId)
+      // 🔑 Use sessionUser.id here
+      .eq('id', sessionUser.id)
       .single();
 
-    // Ignore "no rows found" error (code PGRST116)
+    // Ignore "no rows" error
     if (error && error.code !== 'PGRST116') {
       console.error('❌ Failed to load chat_state from profiles:', error);
       res.writeHead(500, { 'Content-Type': 'application/json' });
