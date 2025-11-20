@@ -782,6 +782,37 @@ a:hover { color: var(--color-accent-primary); text-decoration-thickness: 2px; }
 @media (prefers-color-scheme: light) { /* keep dark for brand consistency */ }
 
 /* ============================================
+   VIEWPORT FIT TWEAKS (SHORTER SCREENS)
+   ============================================ */
+@media (max-height: 800px) {
+  .header {
+    height: 56px;
+    padding: 0 var(--space-4);
+  }
+
+  .chat-container {
+    padding: var(--space-4) var(--space-4);
+  }
+
+  .message {
+    margin-bottom: var(--space-4);
+  }
+
+  .message-content {
+    padding: var(--space-4);
+  }
+
+  .input-area {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .quick-actions {
+    margin-bottom: var(--space-2);
+  }
+}
+
+
+/* ============================================
    REDUCE MOTION SUPPORT
    ============================================ */
 @media (prefers-reduced-motion: reduce) {
