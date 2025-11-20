@@ -19,7 +19,7 @@
     "resend": "^3.0.0",
     "cookie": "^0.6.0",
     "stripe": "^14.0.0",
-    "openai": "^4.0.0"
+    "openai": "^4.0.0",
     "@anthropic-ai/sdk": "^1.0.0"
   },
   "devDependencies": {},
