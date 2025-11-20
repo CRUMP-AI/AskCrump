@@ -926,3 +926,25 @@ a:hover { color: var(--color-accent-primary); text-decoration-thickness: 2px; }
   display: none !important;
 }
 
+/* ============================================
+   HARD CLAMP: Stop any giant stray logo
+   ============================================ */
+
+/* Any Ask Crump logo that is NOT inside the avatar,
+   header, or sidebar should never be huge */
+body > img[src$="logo-c.png"],
+.app-container > img[src$="logo-c.png"],
+.main-content > img[src$="logo-c.png"] {
+  display: none !important;
+}
+
+/* Safety: keep the avatar and header logos small + controlled */
+.avatar.assistant img,
+.header-logo-icon,
+.sidebar-logo-icon,
+.header-full-logo {
+  max-width: 48px;
+  max-height: 48px;
+}
+
+
