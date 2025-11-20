@@ -184,11 +184,13 @@ function renderMessages(messages) {
 // ==========================================
 // MARKDOWN & CODE PROCESSING HELPERS
 // ==========================================
+
 function processCodeBlocks(content) {
     if (!content || typeof content !== 'string') return content;
 
     // Handle ```lang\ncode``` blocks
-    content = content.replace(/```([a-zA-Z0-9]*)\\n([\\s\\S]*?)```/g, (match, lang, code) => {
+    const codeBlockRegex = /```([a-zA-Z0-9]*)\n([\s\S]*?)```/g;
+    content = content.replace(codeBlockRegex, (match, lang, code) => {
         const language = lang || 'javascript';
         const escapedCode = escapeHtml(code.trim());
         return `
@@ -199,7 +201,8 @@ function processCodeBlocks(content) {
     });
 
     // Handle inline `code`
-    content = content.replace(/`([^`]+)`/g, (match, code) => {
+    const inlineCodeRegex = /`([^`]+)`/g;
+    content = content.replace(inlineCodeRegex, (match, code) => {
         return `<code class="inline-code">${escapeHtml(code)}</code>`;
     });
 
@@ -212,25 +215,28 @@ function processMarkdown(content) {
     let html = content;
 
     // Headings: #, ##, ###
-    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+    html = html.replace(/^### (.*)$/gim, '<h3>$1</h3>');
+    html = html.replace(/^## (.*)$/gim, '<h2>$1</h2>');
+    html = html.replace(/^# (.*)$/gim, '<h1>$1</h1>');
 
     // Bold **text**
-    html = html.replace(/\\*\\*(.*?)\\*\\*/gim, '<strong>$1</strong>');
+    html = html.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
 
     // Italic *text*
-    html = html.replace(/\\*(.*?)\\*/gim, '<em>$1</em>');
+    html = html.replace(/\*(.*?)\*/gim, '<em>$1</em>');
 
     // Links [text](url)
-    html = html.replace(/\\[(.*?)\\]\\((.*?)\\)/gim, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    html = html.replace(
+        /\[(.*?)\]\((.*?)\)/gim,
+        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+    );
 
     // Lists
-    html = html.replace(/^\\s*[-*] (.*$)/gim, '<li>$1</li>');
-    html = html.replace(/(<li>.*<\\/li>)/gim, '<ul>$1</ul>');
+    html = html.replace(/^\s*[-*] (.*)$/gim, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>)/gim, '<ul>$1</ul>');
 
     // Line breaks
-    html = html.replace(/\\n/g, '<br>');
+    html = html.replace(/\n/g, '<br>');
 
     return html;
 }
@@ -244,3 +250,4 @@ function escapeHtml(unsafe) {
         .replace(/\"/g, '&quot;')
         .replace(/'/g, '&#039;');
 }
+
