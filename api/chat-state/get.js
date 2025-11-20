@@ -2,7 +2,7 @@
 // Returns the saved chats for the authenticated user
 
 import { supabase } from '../utils/supabase.js';
-import { requireAuth } from '../middleware/auth.js';
+import { verifyAuth } from '../middleware/auth.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -11,9 +11,12 @@ export default async function handler(req, res) {
     return;
   }
 
-  const sessionUser = await requireAuth(req, res);
+  // 🔐 Use verifyAuth instead of requireAuth
+  const sessionUser = await verifyAuth(req);
+
   if (!sessionUser) {
-    // requireAuth already sent 401
+    res.writeHead(401, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Not authenticated' }));
     return;
   }
 
@@ -24,6 +27,7 @@ export default async function handler(req, res) {
       .eq('id', sessionUser.userId)
       .single();
 
+    // Ignore "no rows found" error (code PGRST116)
     if (error && error.code !== 'PGRST116') {
       console.error('❌ Failed to load chat_state from profiles:', error);
       res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -37,7 +41,7 @@ export default async function handler(req, res) {
     res.end(
       JSON.stringify({
         ok: true,
-        chatState, // { chats: [...], selectedChatId: string | null } or null
+        chatState, // { chats, selectedChatId } or null
       })
     );
   } catch (err) {
