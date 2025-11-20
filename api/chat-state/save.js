@@ -2,7 +2,7 @@
 // Saves the user's chats into profiles.chat_state
 
 import { supabase } from '../utils/supabase.js';
-import { verifyAuth } from '../middleware/auth.js';
+import { requireAuth } from '../middleware/auth.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -11,12 +11,11 @@ export default async function handler(req, res) {
     return;
   }
 
-  // 🔐 Use verifyAuth directly (no middleware wrapper)
-  const sessionUser = await verifyAuth(req);
-
-  if (!sessionUser) {
+  const sessionUser = await requireAuth(req, res);
+  if (!sessionUser || !sessionUser.userId) {
+    // Not authenticated
     res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Not authenticated' }));
+    res.end(JSON.stringify({ error: 'Authentication required' }));
     return;
   }
 
@@ -53,8 +52,7 @@ export default async function handler(req, res) {
     const { error } = await supabase
       .from('profiles')
       .update({ chat_state: chatState })
-      // 🔑 IMPORTANT: verifyAuth returns { id: ... }, not userId
-      .eq('id', sessionUser.id);
+      .eq('id', sessionUser.userId);
 
     if (error) {
       console.error('❌ Failed to save chat_state:', error);
