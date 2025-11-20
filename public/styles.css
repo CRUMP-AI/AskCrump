@@ -903,3 +903,26 @@ a:hover { color: var(--color-accent-primary); text-decoration-thickness: 2px; }
   width: auto;
   object-fit: contain;
 }
+
+/* ============================================
+   FIX: Remove giant logo from chat area
+   ============================================ */
+
+/* Make sure the chat area never uses a logo background */
+.chat-container {
+  background:
+    radial-gradient(800px 400px at 100% 0%, rgba(209,191,150,.05), transparent 60%),
+    radial-gradient(600px 300px at 0% 20%, rgba(59,130,246,.06), transparent 55%),
+    var(--color-bg-primary) !important;
+  background-repeat: no-repeat !important;
+  background-size: auto !important;
+  background-image: none, none, var(--color-bg-primary) !important;
+}
+
+/* If any splash/onboarding logo ever ends up inside the chat container, hide it */
+.chat-container .splash-logo-img,
+.chat-container .header-full-logo,
+.chat-container .background-logo {
+  display: none !important;
+}
+
