@@ -18,9 +18,33 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { email, password, rememberMe = false } = req.body;
+        // Support both parsed and raw JSON body
+        let body = req.body;
+        if (typeof body === 'string') {
+            try {
+                body = JSON.parse(body);
+            } catch (parseError) {
+                console.warn('[login] Failed to parse JSON body:', parseError?.message || parseError);
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid request body'
+                });
+            }
+        }
 
-        // Validate input
+        if (!body || typeof body !== 'object') {
+            return res.status(400).json({
+                success: false,
+                error: 'Request body is required'
+            });
+        }
+
+        let { email, password, rememberMe } = body;
+
+        email = typeof email === 'string' ? email.trim() : '';
+        password = typeof password === 'string' ? password : '';
+        rememberMe = Boolean(rememberMe);
+
         if (!email || !password) {
             return res.status(400).json({
                 success: false,
@@ -28,14 +52,50 @@ export default async function handler(req, res) {
             });
         }
 
-        // Find user by email
+        // Basic email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid email format'
+            });
+        }
+
+        if (password.length < 8) {
+            return res.status(400).json({
+                success: false,
+                error: 'Password must be at least 8 characters long'
+            });
+        }
+
+        // Normalize email for lookup
+        const normalizedEmail = email.toLowerCase();
+
+        // Fetch user from Supabase
         const { data: user, error: userError } = await supabase
             .from('users')
             .select('*')
-            .eq('email', email.toLowerCase())
+            .eq('email', normalizedEmail)
             .single();
 
-        if (userError || !user) {
+        if (userError) {
+            // If Supabase explicitly says row not found, treat as invalid creds
+            if (userError.code === 'PGRST116' || userError.details?.includes('Results contain 0 rows')) {
+                return res.status(401).json({
+                    success: false,
+                    error: 'Invalid email or password'
+                });
+            }
+
+            console.error('[login] Database error fetching user:', userError);
+            return res.status(500).json({
+                success: false,
+                error: 'An unexpected error occurred. Please try again.'
+            });
+        }
+
+        if (!user) {
+            // No user found for that email
             return res.status(401).json({
                 success: false,
                 error: 'Invalid email or password'
@@ -43,24 +103,31 @@ export default async function handler(req, res) {
         }
 
         // Verify password
-        const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-        
-        if (!isPasswordValid) {
+        if (!user.password_hash) {
+            console.warn('[login] User record missing password_hash for id:', user.id);
             return res.status(401).json({
                 success: false,
                 error: 'Invalid email or password'
             });
         }
- 
- // Check if email is verified
-if (!user.is_verified) {
-    return res.status(403).json({
-        success: false,
-        error: 'Please verify your email before logging in.',
-        needsVerification: true,
-        email: user.email
-    });
-}
+
+        const passwordMatches = await bcrypt.compare(password, user.password_hash);
+        if (!passwordMatches) {
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid email or password'
+            });
+        }
+
+        // Require verified email before allowing login
+        if (!user.is_verified) {
+            return res.status(403).json({
+                success: false,
+                error: 'Please verify your email before logging in.',
+                needsVerification: true,
+                email: user.email
+            });
+        }
 
         // Generate JWT token
         const token = generateToken({
@@ -68,85 +135,56 @@ if (!user.is_verified) {
             email: user.email
         });
 
-        // Session expiry (30 days for remember me, 7 days otherwise)
-        const sessionDuration = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
-        const expiresAt = new Date(Date.now() + sessionDuration);
+        // Session expiry:
+        // - rememberMe = true  => 30 days
+        // - rememberMe = false => 7 days
+        const days = rememberMe ? 30 : 7;
+        const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
-        // Get device info from request
-        const userAgent = req.headers['user-agent'] || 'Unknown';
-        const ipAddress = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.connection.remoteAddress || null;
-
-        // Create session in database
-        const { data: session, error: sessionError } = await supabase
-            .from('sessions')
-            .insert([
-                {
-                    user_id: user.id,
-                    session_token: token,
-                    expires_at: expiresAt.toISOString(),
-                    ip_address: ipAddress,
-                    user_agent: userAgent,
-                    device_info: {
-                        userAgent,
-                        platform: req.headers['sec-ch-ua-platform'] || 'Unknown',
-                        mobile: req.headers['sec-ch-ua-mobile'] === '?1'
-                    }
-                }
-            ])
-            .select()
-            .single();
-
-        if (sessionError) {
-            console.error('Session creation error:', sessionError);
-            return res.status(500).json({
-                success: false,
-                error: 'Failed to create session'
-            });
-        }
-
-        // Update last login
-        await supabase
-            .from('users')
-            .update({ last_login: new Date().toISOString() })
-            .eq('id', user.id);
-
-      // Set HTTP-only cookie (persistent across app restarts)
-const cookie = serialize('auth_token', token, {
-    httpOnly: true,
-    // keep this exactly as you had it so dev vs prod still works
-    secure: process.env.NODE_ENV === 'production',
-    // LAX is more forgiving than STRICT, especially with PWAs / redirects
-    sameSite: 'lax',
-    // 30 days vs 7 days, but you can make both 30 if you want “always stay signed in”
-    maxAge: rememberMe
-        ? 30 * 24 * 60 * 60   // 30 days
-        : 7  * 24 * 60 * 60,  // 7 days
-    path: '/'
-});
-
+        // Set HTTP-only auth cookie
+        const cookie = serialize('auth_token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: Math.floor((expiresAt.getTime() - Date.now()) / 1000),
+            path: '/'
+        });
 
         res.setHeader('Set-Cookie', cookie);
 
-        // Get user settings
-        const { data: settings } = await supabase
-            .from('user_settings')
-            .select('*')
-            .eq('user_id', user.id)
-            .single();
+        // Try to load user settings (non-fatal if it fails)
+        let settings = null;
+        try {
+            const { data: settingsRow, error: settingsError } = await supabase
+                .from('user_settings')
+                .select('*')
+                .eq('user_id', user.id)
+                .single();
+
+            if (settingsError && settingsError.code !== 'PGRST116') {
+                console.warn('[login] Failed to load user settings:', settingsError);
+            } else {
+                settings = settingsRow || null;
+            }
+        } catch (settingsCatchError) {
+            console.warn('[login] Unexpected error loading user settings:', settingsCatchError);
+        }
+
+        // Shape the user object exactly as other endpoints expect
+        const userPayload = {
+            id: user.id,
+            email: user.email,
+            fullName: user.full_name || null,
+            isVerified: !!user.is_verified,
+            preferences: user.preferences || null,
+            createdAt: user.created_at
+        };
 
         return res.status(200).json({
             success: true,
             message: 'Login successful',
             data: {
-                user: {
-                    id: user.id,
-                    email: user.email,
-                    fullName: user.full_name,
-                    profilePicture: user.profile_picture,
-                    isVerified: user.is_verified,
-                    createdAt: user.created_at,
-                    preferences: user.preferences
-                },
+                user: userPayload,
                 settings: settings || null,
                 token: token,
                 expiresAt: expiresAt.toISOString()
