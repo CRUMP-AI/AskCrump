@@ -35,14 +35,17 @@ const OPENAI_MODELS = {
 };
 
 const ANTHROPIC_MODELS = {
+  // Ultra-fast, cheap reasoning
   fast: process.env.ANTHROPIC_FAST_MODEL || "claude-3-haiku-20240307",
 
-  // Conscious Mode → Claude Sonnet 4.5 (Anthropic's current best balance model)
+  // Deep thinking / Conscious mode → Sonnet 4.5 by default
   conscious: process.env.ANTHROPIC_CONSCIOUS_MODEL || "claude-sonnet-4-5",
 
-  // Founder-tier / SuperNova → use the strongest Anthropic reasoning model
-  supernova: process.env.ANTHROPIC_SUPERNOVA_MODEL || "claude-3-opus-latest",
+  // Founder-tier / SuperNova → also Sonnet 4.5 by default,
+  // but you can point this to an even stronger model via env.
+  supernova: process.env.ANTHROPIC_SUPERNOVA_MODEL || "claude-sonnet-4-5",
 };
+
 
 
 // ---------- SYSTEM PROMPTS ----------
