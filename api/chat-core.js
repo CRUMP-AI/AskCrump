@@ -36,9 +36,14 @@ const OPENAI_MODELS = {
 
 const ANTHROPIC_MODELS = {
   fast: process.env.ANTHROPIC_FAST_MODEL || "claude-3-haiku-20240307",
-  conscious: process.env.ANTHROPIC_CONSCIOUS_MODEL || "claude-3-sonnet-20240229",
-  supernova: process.env.ANTHROPIC_SUPERNOVA_MODEL || "claude-3-opus-20240229",
+
+  // Conscious Mode → Claude Sonnet 4.5 (Anthropic's current best balance model)
+  conscious: process.env.ANTHROPIC_CONSCIOUS_MODEL || "claude-sonnet-4-5",
+
+  // Founder-tier / SuperNova → use the strongest Anthropic reasoning model
+  supernova: process.env.ANTHROPIC_SUPERNOVA_MODEL || "claude-3-opus-latest",
 };
+
 
 // ---------- SYSTEM PROMPTS ----------
 const SYSTEM_PROMPTS = {
