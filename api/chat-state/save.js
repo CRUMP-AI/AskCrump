@@ -12,12 +12,19 @@ export default async function handler(req, res) {
   }
 
   const sessionUser = await requireAuth(req, res);
+    // If user is not authenticated, treat chat-state save as a safe no-op.
+  // We still protect real data (no write without auth), but we avoid 401
+  // so the browser doesn't scream in the console.
   if (!sessionUser || !sessionUser.userId) {
-    // Not authenticated
-    res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Authentication required' }));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      success: false,
+      error: 'Authentication required',
+      skipped: true
+    }));
     return;
   }
+
 
   let body = '';
   for await (const chunk of req) {
