@@ -262,17 +262,22 @@ export default async function handler(req, res) {
       message,
     });
 
-    // ---------------------------
+        // ---------------------------
     // 5. RESPOND TO FRONTEND
     // ---------------------------
+    // NOTE:
+    // Frontend expects `data.response`, but the internal variable is `reply`.
+    // We expose both so the UI can read `response` without any other changes.
     return res.status(200).json({
       success: true,
       tier,
       mode,
       provider,
       model,
+      response: reply,  // 👈 alias for the frontend
       reply,
     });
+
   } catch (error) {
     console.error("CHAT-CORE ERROR:", error);
 
