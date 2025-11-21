@@ -871,21 +871,34 @@ if (window.renderMessages) {
             throw new Error(`API error: ${response.status}`);
         }
         
-        const data = await response.json();
+                const data = await response.json();
 
-        console.log('📥 API Response:', {
+        // Log full response object for debugging + summary flags
+        console.log('📥 API Response (raw):', data);
+        console.log('📥 API Response (summary):', {
             hasResponse: !!data.response,
+            hasReply: !!data.reply,
             hasImage: !!data.imageUrl,
             model: data.model,
-            responseLength: data.response?.length
+            responseLength: (data.response || data.reply || '').length
         });
+        
+        // Choose best available text field from API response
+        const assistantContent =
+            data.response ??
+            data.reply ??
+            data.message ??
+            data.content ??
+            data.error ??
+            '[No response text received from API]';
         
         // Add assistant response
         const assistantMessage = {
             role: 'assistant',
-            content: data.response,
+            content: assistantContent,
             timestamp: Date.now()
         };
+
         
         // Add image data if present
         if (data.imageUrl) {
