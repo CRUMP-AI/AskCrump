@@ -1,0 +1,178 @@
+/* ==========================================
+   ONE-CLICK PWA INSTALL - MINIMAL & CLEAN
+   Floating button only, no banners or modals
+   ========================================== */
+
+/* Hide the old banner completely */
+.pwa-install-banner {
+    display: none !important;
+}
+
+/* One-click floating install button */
+.pwa-install-floating {
+    position: fixed;
+    bottom: 100px; /* Positioned above the input area */
+    right: 20px; /* Right side with space from edge */
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    display: none; /* Hidden by default */
+    align-items: center;
+    gap: 8px;
+    z-index: 999;
+    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.35);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    animation: slideInFromBottom 0.4s ease;
+}
+
+@keyframes slideInFromBottom {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Show when active */
+.pwa-install-floating.visible {
+    display: flex;
+}
+
+/* Hover effect */
+.pwa-install-floating:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(102, 126, 234, 0.5);
+    background: linear-gradient(135deg, #7a8ef5 0%, #8659b0 100%);
+}
+
+/* Active/Click effect */
+.pwa-install-floating:active {
+    transform: translateY(0);
+}
+
+/* Icon inside button */
+.pwa-install-floating svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+/* Loading state (optional) */
+.pwa-install-floating.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .pwa-install-floating {
+        bottom: 90px;
+        right: 16px;
+        left: auto;
+        transform: none;
+        padding: 9px 18px;
+        font-size: 0.8125rem;
+        border-radius: 8px;
+    }
+    
+    .pwa-install-floating:hover {
+        transform: translateY(-2px);
+    }
+    
+    .pwa-install-floating.visible {
+        display: flex;
+    }
+}
+
+@media (max-width: 480px) {
+    .pwa-install-floating {
+        padding: 8px 16px;
+        font-size: 0.75rem;
+        gap: 6px;
+    }
+    
+    .pwa-install-floating svg {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+/* Accessibility */
+.pwa-install-floating:focus {
+    outline: 2px solid rgba(102, 126, 234, 0.6);
+    outline-offset: 2px;
+}
+
+.pwa-install-floating:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .pwa-install-floating {
+        animation: none;
+        transition: opacity 0.2s;
+    }
+    
+    .pwa-install-floating:hover {
+        transform: none;
+    }
+}
+
+/* Success toast (minimal, shows after install) */
+.pwa-toast {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+}
+
+.pwa-toast.visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.pwa-toast svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+    .pwa-toast {
+        top: auto;
+        bottom: 140px;
+        left: 20px;
+        right: 20px;
+    }
+}
+
+/* Print hide */
+@media print {
+    .pwa-install-floating,
+    .pwa-toast {
+        display: none !important;
+    }
+}
