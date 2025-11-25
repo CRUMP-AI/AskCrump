@@ -268,155 +268,140 @@ function loadChats() {
 }
 
 function saveChats() {
-    // 1) Local fallback: keep everything working offline / same-device
+    // Always keep the local copy for offline / guest mode
     try {
         localStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
-        // console.log('💾 Chats saved locally');
     } catch (storageError) {
-        console.warn('⚠️ Failed to save chats (localStorage unavailable)');
-        // Continue without saving - app still works in-memory
+        console.warn('⚠️ Failed to save chats (localStorage unavailable)', storageError);
     }
 
-    // 2) Cloud sync: push the active chat to the server (for cross-device)
-    if (window.currentUser && window.currentUser.id) {
-        syncActiveChatToServer().catch((err) => {
-            console.warn('⚠️ Failed to sync active chat to server:', err);
-        });
+    // If the user is logged in, also sync to the server
+    if (window.currentUser && window.currentUser.id && typeof syncChatsToServer === 'function') {
+        // fire-and-forget: don't block the UI
+        try {
+            syncChatsToServer();
+        } catch (e) {
+            console.warn('⚠️ syncChatsToServer threw synchronously:', e);
+        }
     }
 }
 window.saveChats = saveChats;
 
 // ==========================================
-// SERVER SYNC HELPERS (CROSS-DEVICE CHATS)
+// CHAT SYNC HELPERS (Supabase-backed)
 // ==========================================
-async function syncActiveChatToServer() {
-    // Only sync if logged in
-    if (!window.currentUser || !window.currentUser.id) {
-        return;
-    }
-
-    if (!Array.isArray(chats) || chats.length === 0) {
-        return;
-    }
-
-    // Prefer current chat, fall back to most recent
-    const activeChat =
-        chats.find(c => c && c.id === currentChatId) ||
-        chats[0];
-
-    if (!activeChat || !activeChat.id) {
-        return;
-    }
-
-    try {
-        const response = await fetch('/api/chats', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                chat: activeChat
-            })
-        });
-
-        let data = null;
-        try {
-            data = await response.json();
-        } catch (_) {
-            // Non-JSON response – not fatal
-        }
-
-        if (!response.ok || !data || !data.success) {
-            console.warn('⚠️ Server did not accept chat sync for active chat');
-        } else {
-            console.log('☁️ Active chat synced to server');
-        }
-    } catch (error) {
-        console.warn('⚠️ Error syncing active chat to server:', error);
-    }
-}
-
 async function syncChatsFromServer() {
-    // Only attempt if logged in
     if (!window.currentUser || !window.currentUser.id) {
-        console.log('Skipping server chat sync – user not authenticated');
+        console.log('ℹ️ No authenticated user; skipping server chat load');
         return;
     }
 
     try {
-        const response = await fetch('/api/chats', {
+        console.log('☁️ Pulling chats from server...');
+        const res = await fetch('/api/chats', {
             method: 'GET',
-            headers: { 'Content-Type': 'application/json' }
+            headers: {
+                'Content-Type': 'application/json'
+            }
         });
 
-        if (!response.ok) {
-            console.warn('⚠️ Failed to fetch chats from server');
+        if (!res.ok) {
+            console.warn('⚠️ /api/chats GET failed with status', res.status);
             return;
         }
 
-        const payload = await response.json();
+        const data = await res.json();
+        const serverChats = data?.data?.chats || [];
 
-        if (
-            !payload ||
-            !payload.success ||
-            !payload.data ||
-            !Array.isArray(payload.data.chats)
-        ) {
-            console.log('No remote chats found for this user');
+        // If server has no chats but local does, push local up instead
+        if (serverChats.length === 0 && Array.isArray(chats) && chats.length > 0) {
+            console.log('☁️ No server chats yet, pushing local chats up...');
+            await syncChatsToServer();
             return;
         }
 
-        const serverChats = payload.data.chats;
+        // Replace local chats with server copy
+        chats = serverChats;
+        window.chats = chats;
 
-        if (!serverChats || serverChats.length === 0) {
-            console.log('Server returned an empty chat list');
-            return;
+        // Decide which chat to open
+        const savedChatId = localStorage.getItem(STORAGE_KEYS.CURRENT_CHAT);
+        let targetChatId = null;
+
+        if (savedChatId && serverChats.some(c => c.id === savedChatId)) {
+            targetChatId = savedChatId;
+        } else if (serverChats[0]) {
+            targetChatId = serverChats[0].id;
         }
 
-        // Merge local + server chats by id (server wins on conflict)
-        const byId = new Map();
+        currentChatId = targetChatId;
+        window.currentChatId = currentChatId || null;
 
-        if (Array.isArray(chats)) {
-            for (const chat of chats) {
-                if (chat && chat.id) {
-                    byId.set(chat.id, chat);
+        // Mirror chats into localStorage for offline usage
+        try {
+            localStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
+            if (currentChatId) {
+                localStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, currentChatId);
+            }
+        } catch (e) {
+            console.warn('⚠️ Failed to persist server chats to localStorage', e);
+        }
+
+        // Update UI
+        renderChatsList();
+        if (currentChatId) {
+            const chat = chats.find(c => c.id === currentChatId);
+            if (chat) {
+                if (window.renderMessages) {
+                    window.renderMessages(chat.messages || []);
+                } else {
+                    legacyRenderMessages(chat.messages || []);
                 }
             }
         }
 
-        for (const chat of serverChats) {
-            if (chat && chat.id) {
-                byId.set(chat.id, chat);
-            }
-        }
-
-        chats = Array.from(byId.values());
-        window.chats = chats;
-
-        try {
-            localStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
-        } catch (error) {
-            console.warn('⚠️ Could not persist merged chats to localStorage:', error);
-        }
-
-        // If we don't have an active chat yet, pick the first one
-        if (!currentChatId && chats.length > 0) {
-            currentChatId = chats[0].id;
-            window.currentChatId = currentChatId;
-        }
-
-        // Refresh UI
-        renderChatsList();
-
-        if (currentChatId) {
-            loadChat(currentChatId);
-        }
-
-        console.log('☁️ Chats synced from server');
-    } catch (error) {
-        console.warn('⚠️ Error syncing chats from server:', error);
+        console.log(`✅ Synced ${chats.length} chats from server`);
+    } catch (err) {
+        console.error('❌ Error syncing chats from server:', err);
     }
 }
+window.syncChatsFromServer = syncChatsFromServer;
 
-window.syncActiveChatToServer = syncActiveChatToServer;
+async function syncChatsToServer() {
+    if (!window.currentUser || !window.currentUser.id) {
+        // Not logged in; nothing to sync
+        return;
+    }
+
+    try {
+        const payload = {
+            chats: Array.isArray(chats) ? chats : []
+        };
+
+        const res = await fetch('/api/chats', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            console.warn('⚠️ /api/chats POST failed with status', res.status);
+            return;
+        }
+
+        const data = await res.json();
+        if (!data.success) {
+            console.warn('⚠️ Chat sync API returned error:', data.error);
+        } else {
+            console.log('☁️ Chats synced to server for user', window.currentUser.email);
+        }
+    } catch (err) {
+        console.warn('⚠️ Error syncing chats to server:', err);
+    }
+}
+window.syncChatsToServer = syncChatsToServer;
 window.syncChatsFromServer = syncChatsFromServer;
 
 function createNewChat() {
