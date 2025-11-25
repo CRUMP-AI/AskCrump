@@ -510,17 +510,26 @@
     <!-- MAIN CONTENT -->
     <main class="main-content">
         
-        <!-- HEADER -->
-        <header class="header">
-            <button id="menuBtn" class="btn-icon" aria-label="Menu">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                </svg>
-            </button>
-            <div class="header-branding">
-    <img src="/assets/ask-crump-header.png" alt="Ask CRUMP" class="header-full-logo">
-</div>
-        </header>
+       <!-- HEADER -->
+<header class="header">
+    <button id="menuBtn" class="btn-icon" aria-label="Menu">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+    </button>
+
+    <div class="header-branding">
+        <img src="/assets/ask-crump-header.png" alt="Ask CRUMP" class="header-full-logo">
+    </div>
+
+    <!-- NEW: Upgrade button -->
+    <button 
+        class="btn-primary header-upgrade-btn" 
+        type="button"
+        onclick="window.showUpgradePrompt && window.showUpgradePrompt()">
+        Upgrade
+    </button>
+</header>
 
         <!-- SCROLL TO END BUTTON -->
         <button id="scrollToEndBtn" class="scroll-to-end-btn" aria-label="Scroll to end">
