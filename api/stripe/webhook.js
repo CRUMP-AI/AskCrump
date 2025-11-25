@@ -6,8 +6,13 @@
 import Stripe from 'stripe';
 import { supabase } from '../utils/supabase.js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+const professionalPriceId = process.env.STRIPE_PROFESSIONAL_PRICE_ID;
+const enterprisePriceId = process.env.STRIPE_ENTERPRISE_PRICE_ID;
+
+const stripe = new Stripe(stripeSecretKey);
+
 
 // We need the raw body for Stripe signature verification
 export const config = {
