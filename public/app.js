@@ -104,14 +104,16 @@ window.initializeApp = function() {
             console.warn('⚠️ Failed to load autonomous history:', e);
         }
 
-       // Initialize profile manager
+      // Initialize profile manager
 if (typeof window.ProfileManager !== 'undefined') {
     currentProfile = new ProfileManager();
     window.currentProfile = currentProfile;
+    window.profileManager = currentProfile; // alias for upgrade-ui & others
     updateUserAvatar();
 } else if (typeof window.UserProfileManager !== 'undefined') {
     currentProfile = new UserProfileManager();
     window.currentProfile = currentProfile;
+    window.profileManager = currentProfile; // alias for upgrade-ui & others
     updateUserAvatar();
 }
 
