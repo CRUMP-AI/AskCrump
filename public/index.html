@@ -472,37 +472,53 @@
         </div>
         
         <div class="sidebar-footer">
-            <button id="settingsBtn" class="sidebar-footer-btn" onclick="openSettings()">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                </svg>
-                <span>Settings</span>
-            </button>
-            
-            <div class="sidebar-divider"></div>
+    <!-- SETTINGS -->
+    <button id="settingsBtn" class="sidebar-footer-btn" onclick="openSettings()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+        </svg>
+        <span>Settings</span>
+    </button>
 
-            <a href="/legal.html" class="sidebar-footer-btn" style="text-decoration: none;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                </svg>
-                <span>Legal & Privacy</span>
-            </a>
+    <!-- 🔼 NEW: UPGRADE BUTTON RIGHT UNDER SETTINGS -->
+    <button
+        id="upgradeBtnSidebar"
+        class="sidebar-footer-btn"
+        type="button"
+        onclick="showUpgradePrompt()"
+    >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L7 7h3v7h4V7h3l-5-5z"></path>
+            <path d="M5 20h14"></path>
+        </svg>
+        <span>Upgrade Subscription</span>
+    </button>
             
-            <div class="sidebar-divider"></div>
+    <div class="sidebar-divider"></div>
+
+    <a href="/legal.html" class="sidebar-footer-btn" style="text-decoration: none;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        <span>Legal & Privacy</span>
+    </a>
             
-            <div class="sidebar-branding-footer">
-                <div class="branding-line">
-                    <span class="branding-powered">Powered by</span>
-                    <span class="branding-engine">N² Engine</span>
-                </div>
-                <div class="branding-status">
-                    <span class="status-indicator status-online"></span>
-                    <span class="status-text">Operational</span>
-                </div>
-            </div>
+    <div class="sidebar-divider"></div>
+            
+    <div class="sidebar-branding-footer">
+        <div class="branding-line">
+            <span class="branding-powered">Powered by</span>
+            <span class="branding-engine">N² Engine</span>
         </div>
+        <div class="branding-status">
+            <span class="status-indicator status-online"></span>
+            <span class="status-text">Operational</span>
+        </div>
+    </div>
+</div>
+
     </aside>
 
     <div id="sidebarOverlay" class="sidebar-overlay"></div>
