@@ -108,7 +108,10 @@ function upgradePlan(tier, billing) {
     button.textContent = 'Loading...';
     
     // Get auth token
-    const authToken = window.authToken || localStorage.getItem('authToken');
+    const authToken =     
+        window.authToken ||    
+        localStorage.getItem('crump_auth_token') ||     
+        localStorage.getItem('authToken');
     
     if (!authToken) {
         showNotification('Please sign in to upgrade', 'error');
@@ -150,7 +153,10 @@ function downgradePlan() {
         return;
     }
     
-    const authToken = window.authToken || localStorage.getItem('authToken');
+    const authToken =    
+        window.authToken ||    
+        localStorage.getItem('crump_auth_token') ||     
+        localStorage.getItem('authToken');
     
     if (!authToken) {
         showNotification('Please sign in', 'error');
@@ -180,7 +186,10 @@ function downgradePlan() {
 }
 
 function manageSubscription() {
-    const authToken = window.authToken || localStorage.getItem('authToken');
+    const authToken =     
+        window.authToken ||    
+        localStorage.getItem('crump_auth_token') ||    
+        localStorage.getItem('authToken');
     
     if (!authToken) {
         showNotification('Please sign in', 'error');
