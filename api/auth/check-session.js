@@ -25,6 +25,25 @@ export default async function handler(req, res) {
             });
         }
 
+        // 7-DAY GLOBAL TRIAL (based on account creation)
+        let inTrial = false;
+        let trialEndsAt = null;
+
+        if (user.created_at) {
+            const createdDate = new Date(user.created_at);
+            if (!Number.isNaN(createdDate.getTime())) {
+                const end = new Date(createdDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+                trialEndsAt = end;
+                const now = new Date();
+                if (now < end) {
+                    inTrial = true;
+                }
+            }
+        }
+
+        const subscriptionTier = user.subscription_tier || 'free';
+        const subscriptionStatus = user.subscription_status || 'free';
+
         return res.status(200).json({
             success: true,
             authenticated: true,
@@ -36,7 +55,16 @@ export default async function handler(req, res) {
                     profilePicture: user.profile_picture,
                     isVerified: user.is_verified,
                     preferences: user.preferences,
-                    createdAt: user.created_at
+                    createdAt: user.created_at,
+                    // NEW: billing info for the front-end
+                    subscriptionTier,
+                    subscriptionStatus,
+                    stripeCustomerId: user.stripe_customer_id || null,
+                    stripeSubscriptionId: user.stripe_subscription_id || null,
+                    trial: {
+                        inTrial,
+                        trialEndsAt: trialEndsAt ? trialEndsAt.toISOString() : null
+                    }
                 }
             }
         });
