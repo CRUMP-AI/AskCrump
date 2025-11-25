@@ -7,7 +7,10 @@ import Stripe from 'stripe';
 import { verifyToken } from '../utils/jwt.js';
 import { supabase } from '../utils/supabase.js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const appBaseUrl = process.env.APP_BASE_URL || process.env.APP_URL || '';
+
+const stripe = new Stripe(stripeSecretKey);
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -18,8 +21,24 @@ export default async function handler(req, res) {
     }
 
     try {
+        if (!stripeSecretKey) {
+            console.error('❌ STRIPE_SECRET_KEY is not set');
+            return res.status(500).json({
+                success: false,
+                error: 'Stripe is not configured'
+            });
+        }
+
+        if (!appBaseUrl) {
+            console.error('❌ APP_BASE_URL or APP_URL is not set');
+            return res.status(500).json({
+                success: false,
+                error: 'App URL is not configured'
+            });
+        }
+
         // Verify user is authenticated
-        const authHeader = req.headers.authorization;
+        const authHeader = req.headers.authorization || req.headers.Authorization;
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({
                 success: false,
@@ -29,7 +48,7 @@ export default async function handler(req, res) {
 
         const token = authHeader.substring(7);
         let userId;
-        
+
         try {
             const decoded = verifyToken(token);
             userId = decoded.userId;
@@ -64,14 +83,13 @@ export default async function handler(req, res) {
         // Create portal session
         const portalSession = await stripe.billingPortal.sessions.create({
             customer: user.stripe_customer_id,
-            return_url: `${process.env.APP_URL}?portal=returned`,
+            return_url: `${appBaseUrl}?portal=returned`
         });
 
         return res.status(200).json({
             success: true,
             url: portalSession.url
         });
-
     } catch (error) {
         console.error('Customer portal error:', error);
         return res.status(500).json({
