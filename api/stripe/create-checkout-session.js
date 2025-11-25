@@ -6,7 +6,14 @@
 import Stripe from 'stripe';
 import { verifyToken } from '../utils/jwt.js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const professionalPriceId = process.env.STRIPE_PROFESSIONAL_PRICE_ID;
+const enterprisePriceId = process.env.STRIPE_ENTERPRISE_PRICE_ID;
+
+// Fallback: allow either APP_BASE_URL or APP_URL
+const appBaseUrl = process.env.APP_BASE_URL || process.env.APP_URL || '';
+
+const stripe = new Stripe(stripeSecretKey);
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -17,8 +24,24 @@ export default async function handler(req, res) {
     }
 
     try {
+        if (!stripeSecretKey) {
+            console.error('❌ STRIPE_SECRET_KEY is not set');
+            return res.status(500).json({
+                success: false,
+                error: 'Stripe is not configured'
+            });
+        }
+
+        if (!appBaseUrl) {
+            console.error('❌ APP_BASE_URL or APP_URL is not set');
+            return res.status(500).json({
+                success: false,
+                error: 'App URL is not configured'
+            });
+        }
+
         // Verify user is authenticated
-        const authHeader = req.headers.authorization;
+        const authHeader = req.headers.authorization || req.headers.Authorization;
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({
                 success: false,
@@ -28,7 +51,7 @@ export default async function handler(req, res) {
 
         const token = authHeader.substring(7);
         let userId, userEmail;
-        
+
         try {
             const decoded = verifyToken(token);
             userId = decoded.userId;
@@ -42,7 +65,7 @@ export default async function handler(req, res) {
 
         // Get tier from request body
         const { tier } = req.body;
-        
+
         if (!tier || !['professional', 'enterprise'].includes(tier)) {
             return res.status(400).json({
                 success: false,
@@ -53,23 +76,28 @@ export default async function handler(req, res) {
         // Define pricing
         const prices = {
             professional: {
-                priceId: process.env.STRIPE_PROFESSIONAL_PRICE_ID,
+                priceId: professionalPriceId,
                 amount: 2999,
                 name: 'Professional Plan',
-                description: 'Unlimited conversations, priority support, advanced features'
+                description:
+                    'Unlimited conversations, priority support, advanced features'
             },
             enterprise: {
-                priceId: process.env.STRIPE_ENTERPRISE_PRICE_ID,
+                priceId: enterprisePriceId,
                 amount: 9999,
                 name: 'Enterprise Plan',
-                description: 'White-label, dedicated support, custom integrations, SLA'
+                description:
+                    'White-label, dedicated support, custom integrations, SLA'
             }
         };
 
         const selectedPrice = prices[tier];
 
         if (!selectedPrice || !selectedPrice.priceId) {
-            console.error('❌ Missing Stripe price ID for tier:', tier);
+            console.error('❌ Missing Stripe price ID for tier:', tier, {
+                professionalPriceId,
+                enterprisePriceId
+            });
             return res.status(500).json({
                 success: false,
                 error: 'Subscription pricing is not configured correctly'
@@ -86,20 +114,18 @@ export default async function handler(req, res) {
                 {
                     price: selectedPrice.priceId,
                     quantity: 1
-                },
+                }
             ],
             mode: 'subscription',
 
-            // 👇 SUCCESS & CANCEL URLs
-            success_url: `${process.env.APP_URL}?upgrade=success&tier=${tier}`,
-            cancel_url: `${process.env.APP_URL}?upgrade=cancelled`,
-
+            // Success & cancel URLs
+            success_url: `${appBaseUrl}?upgrade=success&tier=${tier}`,
+            cancel_url: `${appBaseUrl}?upgrade=cancelled`,
 
             metadata: {
                 userId: userId,
                 tier: tier
             },
-
 
             subscription_data: {
                 trial_period_days: 7
@@ -111,7 +137,6 @@ export default async function handler(req, res) {
             sessionId: session.id,
             url: session.url
         });
-
     } catch (error) {
         console.error('Stripe checkout error:', error);
         return res.status(500).json({
