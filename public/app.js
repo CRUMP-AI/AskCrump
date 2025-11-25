@@ -63,10 +63,12 @@ window.initializeAuthenticatedApp = function(user) {
         }
     }
     
-    console.log('✅ User profile loaded into universalMemory');
+        console.log('✅ User profile loaded into universalMemory');
     
-    // TODO: Load user's chats from database instead of localStorage
-    // For now, we'll keep using localStorage but this is where we'd load from Supabase
+    // Load user's chats from database (cross-device)
+    if (typeof syncChatsFromServer === 'function') {
+        syncChatsFromServer();
+    }
 };
 
 // ==========================================
@@ -133,12 +135,19 @@ window.initializeApp = function() {
             console.log('✅ Context Tracker initialized');
         }
 
-        loadChats();
+               loadChats();
+
+        // If user is logged in, pull down cloud chats for cross-device sync
+        if (typeof syncChatsFromServer === 'function' && window.currentUser && window.currentUser.id) {
+            syncChatsFromServer();
+        }
+
         setupEventListeners();
         setupSidebarToggle();
         loadSettings();
         updateAssistantNameDisplay();
         initializeAssistant();
+
         
         // CRITICAL: Initialize scroll manager AFTER app is ready
         if (window.crumpScrollManager && typeof window.crumpScrollManager.init === 'function') {
@@ -259,14 +268,156 @@ function loadChats() {
 }
 
 function saveChats() {
+    // 1) Local fallback: keep everything working offline / same-device
     try {
         localStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
+        // console.log('💾 Chats saved locally');
     } catch (storageError) {
         console.warn('⚠️ Failed to save chats (localStorage unavailable)');
         // Continue without saving - app still works in-memory
     }
+
+    // 2) Cloud sync: push the active chat to the server (for cross-device)
+    if (window.currentUser && window.currentUser.id) {
+        syncActiveChatToServer().catch((err) => {
+            console.warn('⚠️ Failed to sync active chat to server:', err);
+        });
+    }
 }
 window.saveChats = saveChats;
+
+// ==========================================
+// SERVER SYNC HELPERS (CROSS-DEVICE CHATS)
+// ==========================================
+async function syncActiveChatToServer() {
+    // Only sync if logged in
+    if (!window.currentUser || !window.currentUser.id) {
+        return;
+    }
+
+    if (!Array.isArray(chats) || chats.length === 0) {
+        return;
+    }
+
+    // Prefer current chat, fall back to most recent
+    const activeChat =
+        chats.find(c => c && c.id === currentChatId) ||
+        chats[0];
+
+    if (!activeChat || !activeChat.id) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/chats', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat: activeChat
+            })
+        });
+
+        let data = null;
+        try {
+            data = await response.json();
+        } catch (_) {
+            // Non-JSON response – not fatal
+        }
+
+        if (!response.ok || !data || !data.success) {
+            console.warn('⚠️ Server did not accept chat sync for active chat');
+        } else {
+            console.log('☁️ Active chat synced to server');
+        }
+    } catch (error) {
+        console.warn('⚠️ Error syncing active chat to server:', error);
+    }
+}
+
+async function syncChatsFromServer() {
+    // Only attempt if logged in
+    if (!window.currentUser || !window.currentUser.id) {
+        console.log('Skipping server chat sync – user not authenticated');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/chats', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+            console.warn('⚠️ Failed to fetch chats from server');
+            return;
+        }
+
+        const payload = await response.json();
+
+        if (
+            !payload ||
+            !payload.success ||
+            !payload.data ||
+            !Array.isArray(payload.data.chats)
+        ) {
+            console.log('No remote chats found for this user');
+            return;
+        }
+
+        const serverChats = payload.data.chats;
+
+        if (!serverChats || serverChats.length === 0) {
+            console.log('Server returned an empty chat list');
+            return;
+        }
+
+        // Merge local + server chats by id (server wins on conflict)
+        const byId = new Map();
+
+        if (Array.isArray(chats)) {
+            for (const chat of chats) {
+                if (chat && chat.id) {
+                    byId.set(chat.id, chat);
+                }
+            }
+        }
+
+        for (const chat of serverChats) {
+            if (chat && chat.id) {
+                byId.set(chat.id, chat);
+            }
+        }
+
+        chats = Array.from(byId.values());
+        window.chats = chats;
+
+        try {
+            localStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
+        } catch (error) {
+            console.warn('⚠️ Could not persist merged chats to localStorage:', error);
+        }
+
+        // If we don't have an active chat yet, pick the first one
+        if (!currentChatId && chats.length > 0) {
+            currentChatId = chats[0].id;
+            window.currentChatId = currentChatId;
+        }
+
+        // Refresh UI
+        renderChatsList();
+
+        if (currentChatId) {
+            loadChat(currentChatId);
+        }
+
+        console.log('☁️ Chats synced from server');
+    } catch (error) {
+        console.warn('⚠️ Error syncing chats from server:', error);
+    }
+}
+
+window.syncActiveChatToServer = syncActiveChatToServer;
+window.syncChatsFromServer = syncChatsFromServer;
 
 function createNewChat() {
     const chat = {
