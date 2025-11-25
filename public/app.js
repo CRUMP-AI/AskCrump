@@ -104,14 +104,16 @@ window.initializeApp = function() {
             console.warn('⚠️ Failed to load autonomous history:', e);
         }
 
-        // Initialize profile manager
-        if (typeof window.ProfileManager !== 'undefined') {
-            currentProfile = new ProfileManager();
-            updateUserAvatar();
-        } else if (typeof window.UserProfileManager !== 'undefined') {
-            currentProfile = new UserProfileManager();
-            updateUserAvatar();
-        }
+       // Initialize profile manager
+if (typeof window.ProfileManager !== 'undefined') {
+    currentProfile = new ProfileManager();
+    window.currentProfile = currentProfile;
+    updateUserAvatar();
+} else if (typeof window.UserProfileManager !== 'undefined') {
+    currentProfile = new UserProfileManager();
+    window.currentProfile = currentProfile;
+    updateUserAvatar();
+}
 
         // Initialize components
         if (typeof window.messageDeduplicator === 'undefined') {
