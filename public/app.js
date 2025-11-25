@@ -649,17 +649,40 @@ function legacyCreateMessageElement(msg, index) {
 // ==========================================
 async function sendMessage() {
     if (isProcessing) return;
-    
+
     const userInput = document.getElementById('userInput');
     const message = userInput.value.trim();
-    
+
     if (!message && selectedFiles.length === 0) return;
-    
+
+    // Enforce plan message limits before sending
+    if (window.currentProfile && typeof window.currentProfile.canSendMessage === 'function') {
+        const canSend = window.currentProfile.canSendMessage();
+
+        if (!canSend.allowed) {
+            if (window.showToast) {
+                window.showToast(
+                    canSend.message || 'Message limit reached for your current plan',
+                    'error'
+                );
+            }
+            if (typeof window.showUpgradePrompt === 'function') {
+                setTimeout(() => window.showUpgradePrompt(), 300);
+            }
+            return;
+        }
+
+        if (canSend.warning && window.showToast) {
+            window.showToast(canSend.warning, 'warning');
+        }
+    }
+
     const chat = chats.find(c => c.id === currentChatId);
     if (!chat) {
         console.error('No active chat');
         return;
     }
+
 
     // ========================================
     // CONSCIOUSNESS COMMAND DETECTION (NEW)
@@ -737,9 +760,19 @@ if (window.renderMessages) {
             }];
         }
         
-        // Add user message to chat
-chat.messages.push(userMessage);
-saveChats();
+              // Add user message to chat
+        chat.messages.push(userMessage);
+        saveChats();
+
+        // Track message usage against current plan
+        if (window.currentProfile && typeof window.currentProfile.incrementUsage === 'function') {
+            try {
+                window.currentProfile.incrementUsage('messages');
+            } catch (e) {
+                console.warn('[App] Failed to increment message usage:', e);
+            }
+        }
+
 if (window.renderMessages) {
     window.renderMessages(chat.messages);
 } else {
