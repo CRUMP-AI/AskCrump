@@ -1,6 +1,6 @@
 // ==========================================
-// CRUMP AI - PROFESSIONAL TIER MANAGER v2.0
-// Launch-ready with real limits enforcement
+// CRUMP AI - PROFESSIONAL TIER MANAGER v2.1
+// Launch-ready with real limits + trial sync
 // ==========================================
 
 class ProfileManager {
@@ -8,7 +8,7 @@ class ProfileManager {
         this.profile = this.loadProfile();
         this.usage = this.loadUsage();
         this.initializeProfile();
-        
+
         console.log('[ProfileManager] Initialized - Tier:', this.profile.tier || 'free');
     }
 
@@ -30,67 +30,37 @@ class ProfileManager {
                     autonomous: false
                 },
                 features: [
-                    '100 AI messages per month',
-                    '10 image generations',
-                    '20 web searches',
-                    'Basic API access',
-                    'Standard support'
+                    'Core chat',
+                    'Basic tools',
+                    'Limited image generation'
                 ]
             },
             pro: {
                 name: 'Pro',
                 displayName: 'Professional',
-                price: { monthly: 9.99, annual: 95.04 },
+                price: { monthly: 15, annual: 144 }, // example
                 limits: {
                     messages: 1000,
                     images: 100,
                     searches: 200,
-                    weather: 100,
-                    news: 100,
-                    sports: 100,
-                    stocks: 50,
-                    movies: 50,
+                    weather: 200,
+                    news: 200,
+                    sports: 200,
+                    stocks: 100,
+                    movies: 100,
                     autonomous: true
                 },
                 features: [
-                    '1,000 AI messages per month',
-                    '100 image generations',
-                    '200 web searches',
-                    'Extended API access',
-                    'Autonomous messaging',
-                    'Priority support'
+                    'Priority access',
+                    'Autonomous workflows',
+                    'Expanded tools & analytics',
+                    'High image generation limits'
                 ]
             },
-            premium: {
-                name: 'Premium',
-                displayName: 'Premium',
-                price: { monthly: 19.99, annual: 191.04 },
-                limits: {
-                    messages: -1,
-                    images: 500,
-                    searches: -1,
-                    weather: -1,
-                    news: -1,
-                    sports: -1,
-                    stocks: -1,
-                    movies: -1,
-                    autonomous: true
-                },
-                features: [
-                    'Unlimited AI messages',
-                    '500 image generations',
-                    'Unlimited web searches',
-                    'Full API access',
-                    'Autonomous messaging',
-                    'Advanced features',
-                    'Premium support',
-                    'Early access to new features'
-                ]
-            },
-            developer: {
-                name: 'Developer',
-                displayName: 'Developer Access',
-                price: { monthly: 0, annual: 0 },
+            enterprise: {
+                name: 'Enterprise',
+                displayName: 'Enterprise',
+                price: { monthly: 49, annual: 480 }, // example
                 limits: {
                     messages: -1,
                     images: -1,
@@ -102,9 +72,52 @@ class ProfileManager {
                     movies: -1,
                     autonomous: true
                 },
-                features: ['Unlimited access', 'All features', 'No restrictions']
+                features: [
+                    'Unlimited usage',
+                    'Priority support',
+                    'Custom integrations',
+                    'Advanced controls'
+                ]
             }
         };
+    }
+
+    loadProfile() {
+        try {
+            const raw = localStorage.getItem('crump_user_profile');
+            if (!raw) return {};
+            return JSON.parse(raw);
+        } catch (e) {
+            console.warn('[ProfileManager] Failed to load profile:', e);
+            return {};
+        }
+    }
+
+    saveProfile() {
+        try {
+            localStorage.setItem('crump_user_profile', JSON.stringify(this.profile));
+        } catch (e) {
+            console.warn('[ProfileManager] Failed to save profile:', e);
+        }
+    }
+
+    loadUsage() {
+        try {
+            const raw = localStorage.getItem('crump_usage_v2');
+            if (!raw) return this.getDefaultUsage();
+            return JSON.parse(raw);
+        } catch (e) {
+            console.warn('[ProfileManager] Failed to load usage:', e);
+            return this.getDefaultUsage();
+        }
+    }
+
+    saveUsage() {
+        try {
+            localStorage.setItem('crump_usage_v2', JSON.stringify(this.usage));
+        } catch (e) {
+            console.warn('[ProfileManager] Failed to save usage:', e);
+        }
     }
 
     initializeProfile() {
@@ -116,6 +129,88 @@ class ProfileManager {
         this.saveProfile();
     }
 
+    // ========== TRIAL LOGIC (LOCAL VIEW) ==========
+
+    isInTrial() {
+        if (!this.profile.trialEndsAt) return false;
+
+        const end = new Date(this.profile.trialEndsAt);
+        if (Number.isNaN(end.getTime())) return false;
+
+        return new Date() < end;
+    }
+
+    /**
+     * Sync subscription + trial from backend user object
+     * Called from auth-ui.js after login / session check
+     */
+    applyServerSubscription(user) {
+        if (!user) return;
+
+        const subscriptionTier =
+            user.subscriptionTier || user.subscription_tier || null;
+        const subscriptionStatus =
+            user.subscriptionStatus || user.subscription_status || null;
+
+        const createdAt = user.createdAt || user.created_at || null;
+
+        // Store raw server info for debugging / future use
+        this.profile.serverSubscription = {
+            tier: subscriptionTier,
+            status: subscriptionStatus,
+            createdAt
+        };
+
+        let trialEndsAt = null;
+        let isTrial = false;
+
+        if (user.trial && typeof user.trial === 'object') {
+            // Prefer explicit trial info from /api/auth/check-session
+            isTrial = !!user.trial.inTrial;
+            trialEndsAt = user.trial.trialEndsAt || null;
+        } else if (createdAt) {
+            // Fallback: compute from createdAt if needed
+            const createdDate = new Date(createdAt);
+            if (!Number.isNaN(createdDate.getTime())) {
+                const end = new Date(createdDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+                trialEndsAt = end.toISOString();
+                if (new Date() < end) {
+                    isTrial = true;
+                }
+            }
+        }
+
+        this.profile.trialEndsAt = trialEndsAt;
+        this.profile.isTrial = isTrial;
+
+        if (isTrial && (!subscriptionTier || subscriptionTier === 'free')) {
+            // Treat global 7-day trial as Pro tier locally
+            this.profile.tier = 'pro';
+        } else {
+            // No trial or trial over – fall back to subscription tier or free
+            if (subscriptionTier && subscriptionTier !== 'free') {
+                // Map backend "professional" to frontend "pro"
+                if (subscriptionTier === 'professional') {
+                    this.profile.tier = 'pro';
+                } else {
+                    this.profile.tier = subscriptionTier;
+                }
+            } else {
+                this.profile.tier = this.profile.tier || 'free';
+            }
+        }
+
+        this.saveProfile();
+
+        console.log('[ProfileManager] Synced subscription from server:', {
+            tier: this.profile.tier,
+            isTrial: this.profile.isTrial,
+            trialEndsAt: this.profile.trialEndsAt
+        });
+    }
+
+    // ========== TIER INFO ==========
+
     getTier() {
         return this.profile.tier || 'free';
     }
@@ -124,16 +219,27 @@ class ProfileManager {
         const tier = this.getTier();
         const definitions = this.getTierDefinitions();
         const tierData = definitions[tier] || definitions.free;
-        
+
         return {
             current: tier,
             name: tierData.displayName,
             billingPeriod: this.profile.billingPeriod || 'monthly',
             limits: tierData.limits,
             features: tierData.features,
-            price: tierData.price
+            price: tierData.price,
+            isTrial: this.isInTrial(),
+            trialEndsAt: this.profile.trialEndsAt || null
         };
     }
+
+    getProfile() {
+        return {
+            ...this.profile,
+            tierInfo: this.getTierInfo()
+        };
+    }
+
+    // ========== TIER CHANGES ==========
 
     upgradeTier(newTier, billingPeriod = 'monthly') {
         const definitions = this.getTierDefinitions();
@@ -143,11 +249,11 @@ class ProfileManager {
         this.profile.billingPeriod = billingPeriod;
         this.profile.upgradedAt = Date.now();
         this.saveProfile();
-        
+
         const now = new Date();
         const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         this.resetUsage(currentMonth);
-        
+
         return true;
     }
 
@@ -159,23 +265,37 @@ class ProfileManager {
         return true;
     }
 
+    // ========== LIMIT ENFORCEMENT ==========
+
     checkLimit(type) {
         const tierInfo = this.getTierInfo();
         const limit = tierInfo.limits[type];
-        
+
         if (limit === -1) return { allowed: true };
-        if (limit === 0) return { allowed: false, message: `${type} not available on current plan`, action: 'upgrade' };
-        
+        if (limit === 0) {
+            return {
+                allowed: false,
+                message: `${type} not available on current plan`,
+                action: 'upgrade'
+            };
+        }
+
         this.ensureCurrentMonth();
         const used = this.usage[type] || 0;
-        
+
         if (used >= limit) {
-            return { allowed: false, message: `Monthly ${type} limit reached (${limit}/${limit})`, action: 'upgrade' };
+            return {
+                allowed: false,
+                message: `Monthly ${type} limit reached (${limit}/${limit})`,
+                action: 'upgrade'
+            };
         }
-        
+
         const percentUsed = (used / limit) * 100;
-        const warning = percentUsed >= 90 ? `${limit - used} ${type} remaining this month` : null;
-        
+        const warning = percentUsed >= 90
+            ? `${limit - used} ${type} remaining this month`
+            : null;
+
         return { allowed: true, warning };
     }
 
@@ -194,7 +314,7 @@ class ProfileManager {
     getUsageStats() {
         const usage = this.getUsage();
         const tierInfo = this.getTierInfo();
-        
+
         return {
             messages: { used: usage.messages || 0, limit: tierInfo.limits.messages },
             images: { used: usage.images || 0, limit: tierInfo.limits.images },
@@ -204,6 +324,8 @@ class ProfileManager {
             sports: { used: usage.sports || 0, limit: tierInfo.limits.sports }
         };
     }
+
+    // ========== USAGE STORAGE ==========
 
     ensureCurrentMonth() {
         const now = new Date();
@@ -232,52 +354,6 @@ class ProfileManager {
     getUsage() {
         this.ensureCurrentMonth();
         return { ...this.usage };
-    }
-
-    updateProfile(updates) {
-        if (updates.name) this.profile.name = updates.name.trim();
-        if (updates.email !== undefined) this.profile.email = updates.email.trim();
-        if (updates.initial) this.profile.initial = updates.initial.toUpperCase();
-        if (updates.assistantName) this.profile.assistantName = updates.assistantName.trim();
-        this.saveProfile();
-    }
-
-    getProfile() {
-        return { ...this.profile };
-    }
-
-    loadProfile() {
-        try {
-            const saved = localStorage.getItem('crump_user_profile');
-            return saved ? JSON.parse(saved) : {};
-        } catch (e) {
-            return {};
-        }
-    }
-
-    saveProfile() {
-        try {
-            localStorage.setItem('crump_user_profile', JSON.stringify(this.profile));
-        } catch (e) {
-            console.error('[ProfileManager] Save failed:', e);
-        }
-    }
-
-    loadUsage() {
-        try {
-            const saved = localStorage.getItem('crump_usage');
-            return saved ? JSON.parse(saved) : this.getDefaultUsage();
-        } catch (e) {
-            return this.getDefaultUsage();
-        }
-    }
-
-    saveUsage() {
-        try {
-            localStorage.setItem('crump_usage', JSON.stringify(this.usage));
-        } catch (e) {
-            console.error('[ProfileManager] Save failed:', e);
-        }
     }
 
     getDefaultUsage() {
