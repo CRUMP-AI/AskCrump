@@ -414,42 +414,51 @@ class AuthUI {
 }
 
 
-    handleAuthSuccess(data) {
-    // Core user object
-    this.currentUser = data.user;
+        handleAuthSuccess(data) {
+        // Core user object
+        this.currentUser = data.user;
 
-    // Try to keep an auth token around:
-    // - Use token from /api/auth/login when available
-    // - Fall back to any previously stored token
-    const storedToken = localStorage.getItem('crump_auth_token');
-    this.authToken = data.token || storedToken || null;
+        // Try to keep an auth token around:
+        // - Use token from /api/auth/login when available
+        // - Fall back to any previously stored token
+        const storedToken = localStorage.getItem('crump_auth_token');
+        this.authToken = data.token || storedToken || null;
 
-    // If this login came from /api/auth/login, persist the new token
-    if (data.token) {
-        localStorage.setItem('crump_auth_token', data.token);
+        // If this login came from /api/auth/login, persist the new token
+        if (data.token) {
+            localStorage.setItem('crump_auth_token', data.token);
+        }
+
+        this.updateUIForLoggedIn();
+
+        // Allow app access
+        this.allowAppAccess();
+
+        // Store user data globally for Crump and app to use
+        window.currentUser = this.currentUser;
+        window.authToken = this.authToken;
+
+        // NEW: sync subscription + trial into ProfileManager
+        if (window.currentProfile && typeof window.currentProfile.applyServerSubscription === 'function') {
+            try {
+                window.currentProfile.applyServerSubscription(this.currentUser);
+            } catch (err) {
+                console.warn('[AuthUI] Failed to sync subscription to profile manager:', err);
+            }
+        }
+
+        // Trigger custom event for other parts of the app
+        window.dispatchEvent(new CustomEvent('user-authenticated', {
+            detail: { user: this.currentUser, token: this.authToken }
+        }));
+
+        console.log('👤 User logged in:', this.currentUser.email);
+
+        // Initialize app if function exists
+        if (typeof window.initializeAuthenticatedApp === 'function') {
+            window.initializeAuthenticatedApp(this.currentUser);
+        }
     }
-
-    this.updateUIForLoggedIn();
-    
-    // Allow app access
-    this.allowAppAccess();
-    
-    // Store user data globally for Crump and app to use
-    window.currentUser = this.currentUser;
-    window.authToken = this.authToken;
-    
-    // Trigger custom event for other parts of the app
-    window.dispatchEvent(new CustomEvent('user-authenticated', { 
-        detail: { user: this.currentUser, token: this.authToken } 
-    }));
-    
-    console.log('👤 User logged in:', this.currentUser.email);
-    
-    // Initialize app if function exists
-    if (typeof window.initializeAuthenticatedApp === 'function') {
-        window.initializeAuthenticatedApp(this.currentUser);
-    }
-}
 
     updateUIForLoggedIn() {
         const authTriggerBtn = document.getElementById('auth-trigger-btn');
@@ -780,9 +789,13 @@ let authUI;
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         authUI = new AuthUI();
+        window.authUI = authUI;
+        window.checkSession = authUI.checkSession.bind(authUI);
     });
 } else {
     authUI = new AuthUI();
+    window.authUI = authUI;
+    window.checkSession = authUI.checkSession.bind(authUI);
 }
 
 // Check for verification status in URL (from API redirect)
