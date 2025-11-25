@@ -409,6 +409,12 @@ body {
   }
 }
 
+/* Temporarily hide header upgrade button (moved into Settings modal) */
+.header-upgrade-btn {
+  display: none !important;
+}
+
+
 /* ============================================
    CHAT CONTAINER & MESSAGES
    ============================================ */
