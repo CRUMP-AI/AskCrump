@@ -67,27 +67,26 @@ export default async function handler(req, res) {
         };
 
         const selectedPrice = prices[tier];
+        
+        if (!selectedPrice || !selectedPrice.priceId) {
+    console.error('❌ Missing Stripe price ID for tier:', tier);
+    return res.status(500).json({
+        success: false,
+        error: 'Subscription pricing is not configured correctly'
+    });
+}
+
 
         // Create Stripe checkout session
         const session = await stripe.checkout.sessions.create({
             customer_email: userEmail,
             client_reference_id: userId,
             line_items: [
-                {
-                    price_data: {
-                        currency: 'usd',
-                        product_data: {
-                            name: selectedPrice.name,
-                            description: selectedPrice.description,
-                        },
-                        unit_amount: selectedPrice.amount,
-                        recurring: {
-                            interval: 'month'
-                        }
-                    },
-                    quantity: 1,
-                },
-            ],
+    {
+        price: selectedPrice.priceId,
+        quantity: 1,
+    },
+],
             mode: 'subscription',
             success_url: `${process.env.APP_URL}?upgrade=success&tier=${tier}`,
             cancel_url: `${process.env.APP_URL}?upgrade=cancelled`,
