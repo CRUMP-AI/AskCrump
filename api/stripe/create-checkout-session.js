@@ -54,45 +54,55 @@ export default async function handler(req, res) {
         const prices = {
             professional: {
                 priceId: process.env.STRIPE_PROFESSIONAL_PRICE_ID,
-                amount: 2999, // $29.99
+                amount: 2999,
                 name: 'Professional Plan',
                 description: 'Unlimited conversations, priority support, advanced features'
             },
             enterprise: {
                 priceId: process.env.STRIPE_ENTERPRISE_PRICE_ID,
-                amount: 9999, // $99.99
+                amount: 9999,
                 name: 'Enterprise Plan',
                 description: 'White-label, dedicated support, custom integrations, SLA'
             }
         };
 
         const selectedPrice = prices[tier];
-        
+
         if (!selectedPrice || !selectedPrice.priceId) {
-    console.error('❌ Missing Stripe price ID for tier:', tier);
-    return res.status(500).json({
-        success: false,
-        error: 'Subscription pricing is not configured correctly'
-    });
-}
+            console.error('❌ Missing Stripe price ID for tier:', tier);
+            return res.status(500).json({
+                success: false,
+                error: 'Subscription pricing is not configured correctly'
+            });
+        }
 
-
-        // Create Stripe checkout session
+        // ===============================
+        // ✅ Create Stripe checkout session WITH free trial
+        // ===============================
         const session = await stripe.checkout.sessions.create({
             customer_email: userEmail,
             client_reference_id: userId,
             line_items: [
-    {
-        price: selectedPrice.priceId,
-        quantity: 1,
-    },
-],
+                {
+                    price: selectedPrice.priceId,
+                    quantity: 1
+                },
+            ],
             mode: 'subscription',
+
+            // 👇 SUCCESS & CANCEL URLs
             success_url: `${process.env.APP_URL}?upgrade=success&tier=${tier}`,
             cancel_url: `${process.env.APP_URL}?upgrade=cancelled`,
+
+
             metadata: {
                 userId: userId,
                 tier: tier
+            },
+
+
+            subscription_data: {
+                trial_period_days: 7
             }
         });
 
