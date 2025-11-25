@@ -391,6 +391,23 @@ body {
   color: var(--color-accent-primary);
   letter-spacing: -0.02em; margin: 0;
 }
+/* Header Upgrade Button */
+.header-upgrade-btn {
+  position: absolute;
+  right: var(--space-6);
+  padding: 0.4rem 0.9rem;
+  font-size: var(--font-size-sm);
+  border-radius: 999px;
+  line-height: 1;
+}
+
+/* Optional: tweak on small screens */
+@media (max-width: 640px) {
+  .header-upgrade-btn {
+    padding: 0.3rem 0.75rem;
+    font-size: 0.8rem;
+  }
+}
 
 /* ============================================
    CHAT CONTAINER & MESSAGES
