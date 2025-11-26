@@ -501,27 +501,33 @@ class AuthUI {
             window.initializeAuthenticatedApp(this.currentUser);
         }
 
-        // ================================
-        // ✅ FIRST-LOGIN TUTORIAL + PERSIST
-        // ================================
-
-        // Persist last known user for session recovery
+               // Persist last known user for session recovery
         try {
             localStorage.setItem('crump_user', JSON.stringify(this.currentUser));
         } catch (e) {
             console.warn('[AuthUI] Failed to persist user to localStorage:', e);
         }
 
-        // Trigger tutorial only on FIRST successful login for this device
-        const tutorialCompleted = localStorage.getItem('crump_tutorial_completed');
-        const hasOnboarded = localStorage.getItem('crump_has_onboarded');
+        // ================================
+        // ✅ FIRST-LOGIN TUTORIAL v2 + PERSIST
+        // ================================
+
+        // Use new v2 keys so old flags don't block the tutorial forever
+        const tutorialCompleted = localStorage.getItem('crump_tutorial_completed_v2');
+        const hasOnboarded = localStorage.getItem('crump_has_onboarded_v2');
 
         if (hasOnboarded !== 'true' && tutorialCompleted !== 'true') {
-            localStorage.setItem('crump_has_onboarded', 'true');
+            // Mark that this device has gone through onboarding v2
+            localStorage.setItem('crump_has_onboarded_v2', 'true');
+
+            // (Optional) Clean up old flags from earlier versions
+            localStorage.removeItem('crump_has_onboarded');
+            localStorage.removeItem('crump_tutorial_completed');
 
             if (window.tutorial && typeof window.tutorial.start === 'function') {
                 setTimeout(() => {
                     try {
+                        console.log('[AuthUI] Auto-starting tutorial v2 after first login');
                         window.tutorial.start();
                     } catch (err) {
                         console.warn('[AuthUI] Failed to start tutorial:', err);
@@ -529,7 +535,6 @@ class AuthUI {
                 }, 1500);
             }
         }
-    }
 
     updateUIForLoggedIn() {
         const authTriggerBtn = document.getElementById('auth-trigger-btn');
