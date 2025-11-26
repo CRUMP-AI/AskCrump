@@ -6,7 +6,7 @@
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_EXPIRES_IN = '30d'; // 30 days
+const JWT_EXPIRES_IN = '365';
 
 if (!JWT_SECRET) {
     throw new Error('JWT_SECRET environment variable is not set');
