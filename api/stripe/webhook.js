@@ -69,19 +69,10 @@ export default async function handler(req, res) {
                     break;
                 }
 
-               // Support multiple possible metadata keys for backwards compatibility
-const userId = session.metadata?.userId 
-    || session.metadata?.user_id 
-    || session.metadata?.userID 
-    || null;
-
-const tier = session.metadata?.tier 
-    || session.metadata?.selected_tier 
-    || session.metadata?.plan 
-    || null; // expected: 'professional' | 'enterprise'
-
-const customerId = session.customer;
-const subscriptionId = session.subscription;
+                const userId = session.metadata?.userId;
+                const tier = session.metadata?.tier; // 'professional' | 'enterprise'
+                const customerId = session.customer;
+                const subscriptionId = session.subscription;
 
                 if (!userId || !tier || !customerId || !subscriptionId) {
                     console.error('❌ Missing metadata or IDs on checkout.session.completed', {
