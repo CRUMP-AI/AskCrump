@@ -207,38 +207,79 @@ class AuthUI {
         });
     }
 
-   async checkSession() {
-    try {
-        // Try to recover token from localStorage
-        const storedToken = localStorage.getItem('crump_auth_token');
-        const headers = {};
+      async checkSession() {
+        try {
+            const storedToken = localStorage.getItem('crump_auth_token');
+            const headers = {};
 
-        if (storedToken) {
-            headers['Authorization'] = `Bearer ${storedToken}`;
-        }
+            if (storedToken) {
+                headers['Authorization'] = `Bearer ${storedToken}`;
+            }
 
-        const response = await fetch('/api/auth/check-session', {
-            method: 'GET',
-            headers,
-            credentials: 'include'
-        });
+            const response = await fetch('/api/auth/check-session', {
+                method: 'GET',
+                headers,
+                credentials: 'include'
+            });
 
-        const data = await response.json();
+            let data = null;
+            try {
+                data = await response.json();
+            } catch (e) {
+                console.warn('Session check: failed to parse JSON response', e);
+            }
 
-        if (data.success && data.authenticated) {
-            this.handleAuthSuccess(data.data);
-            this.allowAppAccess();
-        } else {
-            // NOT authenticated - FORCE login
+            // ✅ Server confirms session is valid
+            if (response.ok && data && data.success && data.authenticated) {
+                this.handleAuthSuccess(data.data);
+                this.allowAppAccess();
+                return;
+            }
+
+            // ❌ True Unauthorized → require login
+            if (response.status === 401 || response.status === 403) {
+                this.forceLogin();
+                return;
+            }
+
+            // 🔄 Soft recovery from local storage
+            const storedUserRaw = localStorage.getItem('crump_user');
+            if (storedToken && storedUserRaw) {
+                try {
+                    const user = JSON.parse(storedUserRaw);
+                    this.handleAuthSuccess({ user });
+                    this.allowAppAccess();
+                    console.warn('Recovered session from localStorage.');
+                    return;
+                } catch (e) {
+                    console.warn('Failed to recover user from localStorage', e);
+                }
+            }
+
+            // If we get here, we couldn’t recover → show login
+            this.forceLogin();
+        } catch (error) {
+            console.error('Session check failed:', error);
+
+            // 🔄 Network recovery fallback
+            const storedToken = localStorage.getItem('crump_auth_token');
+            const storedUserRaw = localStorage.getItem('crump_user');
+
+            if (storedToken && storedUserRaw) {
+                try {
+                    const user = JSON.parse(storedUserRaw);
+                    this.handleAuthSuccess({ user });
+                    this.allowAppAccess();
+                    console.warn('Recovered session after network error.');
+                    return;
+                } catch (e) {
+                    console.warn('Session recovery failed', e);
+                }
+            }
+
             this.forceLogin();
         }
-    } catch (error) {
-        console.error('Session check failed:', error);
-        // On error, also force login
-        this.forceLogin();
     }
-}
-
 
     forceLogin() {
         // Show login modal (can't be closed)
@@ -414,7 +455,7 @@ class AuthUI {
 }
 
 
-        handleAuthSuccess(data) {
+            handleAuthSuccess(data) {
         // Core user object
         this.currentUser = data.user;
 
@@ -429,6 +470,7 @@ class AuthUI {
             localStorage.setItem('crump_auth_token', data.token);
         }
 
+        // Update UI for logged-in state
         this.updateUIForLoggedIn();
 
         // Allow app access
@@ -438,7 +480,7 @@ class AuthUI {
         window.currentUser = this.currentUser;
         window.authToken = this.authToken;
 
-        // NEW: sync subscription + trial into ProfileManager
+        // Sync subscription + trial into ProfileManager if available
         if (window.currentProfile && typeof window.currentProfile.applyServerSubscription === 'function') {
             try {
                 window.currentProfile.applyServerSubscription(this.currentUser);
@@ -457,6 +499,35 @@ class AuthUI {
         // Initialize app if function exists
         if (typeof window.initializeAuthenticatedApp === 'function') {
             window.initializeAuthenticatedApp(this.currentUser);
+        }
+
+        // ================================
+        // ✅ FIRST-LOGIN TUTORIAL + PERSIST
+        // ================================
+
+        // Persist last known user for session recovery
+        try {
+            localStorage.setItem('crump_user', JSON.stringify(this.currentUser));
+        } catch (e) {
+            console.warn('[AuthUI] Failed to persist user to localStorage:', e);
+        }
+
+        // Trigger tutorial only on FIRST successful login for this device
+        const tutorialCompleted = localStorage.getItem('crump_tutorial_completed');
+        const hasOnboarded = localStorage.getItem('crump_has_onboarded');
+
+        if (hasOnboarded !== 'true' && tutorialCompleted !== 'true') {
+            localStorage.setItem('crump_has_onboarded', 'true');
+
+            if (window.tutorial && typeof window.tutorial.start === 'function') {
+                setTimeout(() => {
+                    try {
+                        window.tutorial.start();
+                    } catch (err) {
+                        console.warn('[AuthUI] Failed to start tutorial:', err);
+                    }
+                }, 1500);
+            }
         }
     }
 
