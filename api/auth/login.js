@@ -68,9 +68,11 @@ if (!user.is_verified) {
             email: user.email
         });
 
-        // Session expiry (30 days for remember me, 7 days otherwise)
-        const sessionDuration = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
-        const expiresAt = new Date(Date.now() + sessionDuration);
+       // Session expiry – 1 full year, regardless of rememberMe.
+// This is what makes Crump “act like ChatGPT/Claude” and stay signed in
+// unless you log out or change devices.
+const sessionDuration = 365 * 24 * 60 * 60 * 1000; // 1 year in ms
+const expiresAt = new Date(Date.now() + sessionDuration);
 
         // Get device info from request
         const userAgent = req.headers['user-agent'] || 'Unknown';
@@ -117,10 +119,8 @@ const cookie = serialize('auth_token', token, {
     secure: process.env.NODE_ENV === 'production',
     // LAX is more forgiving than STRICT, especially with PWAs / redirects
     sameSite: 'lax',
-    // 30 days vs 7 days, but you can make both 30 if you want “always stay signed in”
-    maxAge: rememberMe
-        ? 30 * 24 * 60 * 60   // 30 days
-        : 7  * 24 * 60 * 60,  // 7 days
+    // One-year persistent cookie so you don’t get kicked out on app restarts
+    maxAge: 365 * 24 * 60 * 60, // 1 year in seconds
     path: '/'
 });
 
