@@ -99,40 +99,50 @@ function upgradePlan(tier, billing) {
         'premium': 'enterprise',
         'enterprise': 'enterprise'
     };
-    
+
     const normalizedTier = tierMap[tier.toLowerCase()] || 'professional';
-    
+
     // Show loading state
     const button = event.target;
-    button.disabled = true;
-    button.textContent = 'Loading...';
-    
-    // Create Stripe checkout session
-    // Authentication is handled on the server via cookies (verifyAuth)
+    if (button) {
+        button.disabled = true;
+        button.textContent = 'Loading...';
+    }
+
+    // 🔑 Send the same auth token used elsewhere so verifyAuth can see you
+    const token = localStorage.getItem('crump_auth_token');
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
     fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers,
         body: JSON.stringify({
-            tier: normalizedTier
+            tier: normalizedTier,
+            billingPeriod: billing || 'monthly'
         })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success && data.url) {
-            // Redirect to Stripe checkout
-            window.location.href = data.url;
-        } else {
-            throw new Error(data.error || 'Failed to create checkout session');
-        }
-    })
-    .catch(error => {
-        console.error('Checkout error:', error);
-        showNotification(error.message || 'Failed to start checkout', 'error');
-        button.disabled = false;
-        button.textContent = `Upgrade to ${tier}`;
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.url) {
+                // Go to Stripe checkout
+                window.location.href = data.url;
+            } else {
+                throw new Error(data.error || 'Failed to create checkout session');
+            }
+        })
+        .catch(error => {
+            console.error('Checkout error:', error);
+            showNotification(error.message || 'Failed to start checkout', 'error');
+            if (button) {
+                button.disabled = false;
+                button.textContent = `Upgrade to ${tier}`;
+            }
+        });
 }
 
 function downgradePlan() {
