@@ -61,51 +61,51 @@ export default async function handler(req, res) {
             // CHECKOUT COMPLETED → NEW SUBSCRIPTION
             // ==========================================
             case 'checkout.session.completed': {
-                const session = event.data.object;
+    const session = event.data.object;
 
-                // Only handle subscription checkouts
-                if (session.mode !== 'subscription') {
-                    console.log('ℹ️ Ignoring non-subscription checkout.session.completed');
-                    break;
-                }
+    // Only handle subscription checkouts
+    if (session.mode !== 'subscription') {
+        console.log('ℹ️ Ignoring non-subscription checkout.session.completed');
+        break;
+    }
 
-               // Match the actual metadata from create-checkout-session.js
-const userId = session.metadata?.user_id;
-const tier = session.metadata?.selected_tier; // 'professional' | 'enterprise'
-const customerId = session.customer;
-const subscriptionId = session.subscription;
+    // 🔧 Match metadata keys from create-checkout-session.js
+    const userId = session.metadata?.user_id;
+    const tier = session.metadata?.selected_tier; // 'professional' | 'enterprise'
+    const customerId = session.customer;
+    const subscriptionId = session.subscription;
 
+    if (!userId || !tier || !customerId || !subscriptionId) {
+        console.error('❌ Missing metadata or IDs on checkout.session.completed', {
+            userId,
+            tier,
+            customerId,
+            subscriptionId,
+        });
+        break;
+    }
 
-                if (!userId || !tier || !customerId || !subscriptionId) {
-                    console.error('❌ Missing metadata or IDs on checkout.session.completed', {
-                        userId,
-                        tier,
-                        customerId,
-                        subscriptionId,
-                    });
-                    break;
-                }
+    const { error } = await supabase
+        .from('users')
+        .update({
+            subscription_tier: tier,
+            stripe_customer_id: customerId,
+            stripe_subscription_id: subscriptionId,
+            subscription_status: 'active',
+            subscription_start_date: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId);
 
-                const { error } = await supabase
-                    .from('users')
-                    .update({
-                        subscription_tier: tier,
-                        stripe_customer_id: customerId,
-                        stripe_subscription_id: subscriptionId,
-                        subscription_status: 'active',
-                        subscription_start_date: new Date().toISOString(),
-                        updated_at: new Date().toISOString(),
-                    })
-                    .eq('id', userId);
+    if (error) {
+        console.error('❌ Failed to update user subscription after checkout:', error);
+    } else {
+        console.log(`✅ User ${userId} upgraded to ${tier}`);
+    }
 
-                if (error) {
-                    console.error('❌ Failed to update user subscription after checkout:', error);
-                } else {
-                    console.log(`✅ User ${userId} upgraded to ${tier}`);
-                }
+    break;
+}
 
-                break;
-            }
 
             // ==========================================
             // SUBSCRIPTION UPDATED (UPGRADE/DOWNGRADE/STATUS)
