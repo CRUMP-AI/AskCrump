@@ -4,7 +4,7 @@
 // =====================================================
 
 import Stripe from 'stripe';
-import { verifyToken } from '../utils/jwt.js';
+import { verifyAuth } from '../middleware/auth.js';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const professionalPriceId = process.env.STRIPE_PROFESSIONAL_PRICE_ID;
@@ -24,111 +24,73 @@ export default async function handler(req, res) {
     }
 
     try {
-        if (!stripeSecretKey) {
-            console.error('❌ STRIPE_SECRET_KEY is not set');
-            return res.status(500).json({
-                success: false,
-                error: 'Stripe is not configured'
-            });
-        }
-
-        if (!appBaseUrl) {
-            console.error('❌ APP_BASE_URL or APP_URL is not set');
-            return res.status(500).json({
-                success: false,
-                error: 'App URL is not configured'
-            });
-        }
-
-        // Verify user is authenticated
-        const authHeader = req.headers.authorization || req.headers.Authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        // ✅ Use unified auth (cookie or header)
+        const user = await verifyAuth(req);
+        if (!user || !user.id) {
             return res.status(401).json({
                 success: false,
-                error: 'Unauthorized'
+                error: 'Authentication required'
             });
         }
 
-        const token = authHeader.substring(7);
-        let userId, userEmail;
+        const { tier } = req.body || {};
+        const normalizedTier = (tier || '').toLowerCase();
 
-        try {
-            const decoded = verifyToken(token);
-            userId = decoded.userId;
-            userEmail = decoded.email;
-        } catch (error) {
-            return res.status(401).json({
-                success: false,
-                error: 'Invalid token'
-            });
+        let priceId = null;
+        if (normalizedTier === 'professional' || normalizedTier === 'pro') {
+            priceId = professionalPriceId;
+        } else if (normalizedTier === 'enterprise' || normalizedTier === 'premium') {
+            priceId = enterprisePriceId;
         }
 
-        // Get tier from request body
-        const { tier } = req.body;
-
-        if (!tier || !['professional', 'enterprise'].includes(tier)) {
+        if (!priceId) {
             return res.status(400).json({
                 success: false,
-                error: 'Invalid subscription tier'
+                error: 'Invalid tier selected'
             });
         }
 
-        // Define pricing
-        const prices = {
-            professional: {
-                priceId: professionalPriceId,
-                amount: 2999,
-                name: 'Professional Plan',
-                description:
-                    'Unlimited conversations, priority support, advanced features'
-            },
-            enterprise: {
-                priceId: enterprisePriceId,
-                amount: 9999,
-                name: 'Enterprise Plan',
-                description:
-                    'White-label, dedicated support, custom integrations, SLA'
+        // Make sure we have a Stripe customer ID for this user
+        let stripeCustomerId = user.stripe_customer_id;
+
+        if (!stripeCustomerId) {
+            const customer = await stripe.customers.create({
+                email: user.email,
+                metadata: {
+                    user_id: user.id
+                }
+            });
+
+            stripeCustomerId = customer.id;
+
+            // Persist customer ID
+            const { supabase } = await import('../utils/supabase.js');
+            const { error: updateError } = await supabase
+                .from('users')
+                .update({ stripe_customer_id: stripeCustomerId })
+                .eq('id', user.id);
+
+            if (updateError) {
+                console.error('❌ Failed to store stripe_customer_id:', updateError);
             }
-        };
-
-        const selectedPrice = prices[tier];
-
-        if (!selectedPrice || !selectedPrice.priceId) {
-            console.error('❌ Missing Stripe price ID for tier:', tier, {
-                professionalPriceId,
-                enterprisePriceId
-            });
-            return res.status(500).json({
-                success: false,
-                error: 'Subscription pricing is not configured correctly'
-            });
         }
 
-        // ===============================
-        // ✅ Create Stripe checkout session WITH free trial
-        // ===============================
         const session = await stripe.checkout.sessions.create({
-            customer_email: userEmail,
-            client_reference_id: userId,
+            mode: 'subscription',
+            payment_method_types: ['card'],
+            customer: stripeCustomerId,
             line_items: [
                 {
-                    price: selectedPrice.priceId,
+                    price: priceId,
                     quantity: 1
                 }
             ],
-            mode: 'subscription',
-
-            // Success & cancel URLs
-            success_url: `${appBaseUrl}?upgrade=success&tier=${tier}`,
-            cancel_url: `${appBaseUrl}?upgrade=cancelled`,
-
+            allow_promotion_codes: true,
+            success_url: `${appBaseUrl}/?checkout=success`,
+            cancel_url: `${appBaseUrl}/?checkout=cancelled`,
             metadata: {
-                userId: userId,
-                tier: tier
-            },
-
-            subscription_data: {
-                trial_period_days: 7
+                user_id: user.id,
+                selected_tier: normalizedTier
             }
         });
 
