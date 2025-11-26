@@ -107,25 +107,12 @@ function upgradePlan(tier, billing) {
     button.disabled = true;
     button.textContent = 'Loading...';
     
-    // Get auth token
-    const authToken =     
-        window.authToken ||    
-        localStorage.getItem('crump_auth_token') ||     
-        localStorage.getItem('authToken');
-    
-    if (!authToken) {
-        showNotification('Please sign in to upgrade', 'error');
-        button.disabled = false;
-        button.textContent = `Upgrade to ${tier}`;
-        return;
-    }
-    
     // Create Stripe checkout session
+    // Authentication is handled on the server via cookies (verifyAuth)
     fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify({
             tier: normalizedTier
@@ -153,22 +140,12 @@ function downgradePlan() {
         return;
     }
     
-    const authToken =    
-        window.authToken ||    
-        localStorage.getItem('crump_auth_token') ||     
-        localStorage.getItem('authToken');
-    
-    if (!authToken) {
-        showNotification('Please sign in', 'error');
-        return;
-    }
-    
     // Open Stripe customer portal for subscription management
+    // Authentication is handled via cookies on the server
     fetch('/api/stripe/customer-portal', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
+            'Content-Type': 'application/json'
         }
     })
     .then(response => response.json())
@@ -186,22 +163,12 @@ function downgradePlan() {
 }
 
 function manageSubscription() {
-    const authToken =     
-        window.authToken ||    
-        localStorage.getItem('crump_auth_token') ||    
-        localStorage.getItem('authToken');
-    
-    if (!authToken) {
-        showNotification('Please sign in', 'error');
-        return;
-    }
-    
     // Open Stripe customer portal
+    // Authentication is handled via cookies on the server
     fetch('/api/stripe/customer-portal', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
+            'Content-Type': 'application/json'
         }
     })
     .then(response => response.json())
