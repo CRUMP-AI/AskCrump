@@ -816,6 +816,28 @@ a:hover { color: var(--color-accent-primary); text-decoration-thickness: 2px; }
 }
 
 /* ============================================
+   DESKTOP CHAT BOTTOM PADDING FIX
+   Prevent last messages from hiding behind input bar
+   ============================================ */
+
+/* Only devices with a mouse/trackpad (desktop browsers) */
+@media (pointer: fine) {
+  /* This is the scroll area where messages are rendered */
+  #chatContainer {
+    /* Make sure it scrolls and reserves space for the fixed input */
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: 220px; /* match PWA bottom space so last message clears input */
+    box-sizing: border-box;
+  }
+
+  /* Extra breathing room for the last message */
+  #chatContainer .message:last-child {
+    margin-bottom: 1.5rem;
+  }
+}
+
+/* ============================================
    PWA STANDALONE MODE FIX - Updated
    ============================================ */
 
