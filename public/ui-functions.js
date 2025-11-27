@@ -202,21 +202,38 @@ try {
 function processCodeBlocks(content) {
     if (!content || typeof content !== 'string') return content;
 
-    // Handle ```lang\ncode``` blocks
-    content = content.replace(/```([a-zA-Z0-9]*)\\n([\\s\\S]*?)```/g, (match, lang, code) => {
-        const language = lang || 'javascript';
-        const escapedCode = escapeHtml(code.trim());
-        return `
+    // Fenced code blocks: ```lang\ncode```
+    try {
+        const fencedBlockRegex = new RegExp(
+            '```([a-zA-Z0-9]*)\\n([\\s\\S]*?)```',
+            'g'
+        );
+
+        content = content.replace(
+            fencedBlockRegex,
+            (match, lang, code) => {
+                const language = lang || 'javascript';
+                const escapedCode = escapeHtml(code.trim());
+                return `
         <pre class="code-block">
             <code class="language-${language}">${escapedCode}</code>
         </pre>
         `;
-    });
+            }
+        );
+    } catch (e) {
+        console.warn('[ui-functions] Failed to process fenced code blocks:', e);
+    }
 
-    // Handle inline `code`
-    content = content.replace(/`([^`]+)`/g, (match, code) => {
-        return `<code class="inline-code">${escapeHtml(code)}</code>`;
-    });
+    // Inline code: `code`
+    try {
+        const inlineCodeRegex = /`([^`]+)`/g;
+        content = content.replace(inlineCodeRegex, (match, code) => {
+            return `<code class="inline-code">${escapeHtml(code)}</code>`;
+        });
+    } catch (e) {
+        console.warn('[ui-functions] Failed to process inline code:', e);
+    }
 
     return content;
 }
