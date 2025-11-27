@@ -191,8 +191,10 @@ try {
         }
     }
 
+   requestAnimationFrame(() => {
     container.scrollTop = container.scrollHeight;
-}
+});
+}   
 
 // ==========================================
 // MARKDOWN & CODE PROCESSING HELPERS
