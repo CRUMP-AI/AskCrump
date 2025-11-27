@@ -6,7 +6,7 @@
 import bcrypt from 'bcryptjs';
 import { serialize } from 'cookie';
 import { supabase } from '../utils/supabase.js';
-import { generateToken } from '../utils/jwt.js';
+import { generateAccessToken, generateRefreshToken } from '../utils/jwt.js';
 
 export default async function handler(req, res) {
     // Only allow POST requests
@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { email, password, rememberMe = false } = req.body;
+        const { email, password, rememberMe = false } = req.body || {};
 
         // Validate input
         if (!email || !password) {
@@ -44,47 +44,65 @@ export default async function handler(req, res) {
 
         // Verify password
         const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-        
+
         if (!isPasswordValid) {
             return res.status(401).json({
                 success: false,
                 error: 'Invalid email or password'
             });
         }
- 
- // Check if email is verified
-if (!user.is_verified) {
-    return res.status(403).json({
-        success: false,
-        error: 'Please verify your email before logging in.',
-        needsVerification: true,
-        email: user.email
-    });
-}
 
-        // Generate JWT token
-        const token = generateToken({
+        // Check if email is verified
+        if (!user.is_verified) {
+            return res.status(403).json({
+                success: false,
+                error: 'Please verify your email before logging in.',
+                needsVerification: true,
+                email: user.email
+            });
+        }
+
+        // =====================================================
+        // SESSION & TOKEN SETUP (ACCESS + REFRESH MODEL)
+        // =====================================================
+
+        // 1) Session lifetime – conceptual "stay signed in" window
+        const SESSION_DURATION_MS = 365 * 24 * 60 * 60 * 1000; // 1 year
+        const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
+
+        // 2) Generate tokens
+        const accessToken = generateAccessToken({
             userId: user.id,
             email: user.email
         });
 
-       // Session expiry – 1 full year, regardless of rememberMe.
-// This is what makes Crump “act like ChatGPT/Claude” and stay signed in
-// unless you log out or change devices.
-const sessionDuration = 365 * 24 * 60 * 60 * 1000; // 1 year in ms
-const expiresAt = new Date(Date.now() + sessionDuration);
+        const refreshToken = generateRefreshToken({
+            userId: user.id,
+            email: user.email
+        });
 
-        // Get device info from request
+        // 3) Device / request info
         const userAgent = req.headers['user-agent'] || 'Unknown';
-        const ipAddress = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.connection.remoteAddress || null;
+        const ipHeader =
+            req.headers['x-forwarded-for'] ||
+            req.headers['x-real-ip'] ||
+            req.connection?.remoteAddress ||
+            null;
 
-        // Create session in database
+        // If x-forwarded-for has multiple IPs, take the first one
+        const ipAddress = Array.isArray(ipHeader)
+            ? ipHeader[0]
+            : typeof ipHeader === 'string'
+                ? ipHeader.split(',')[0].trim()
+                : ipHeader;
+
+        // 4) Create session in database – store the refresh token
         const { data: session, error: sessionError } = await supabase
             .from('sessions')
             .insert([
                 {
                     user_id: user.id,
-                    session_token: token,
+                    session_token: refreshToken, // store refresh token for audit / revocation
                     expires_at: expiresAt.toISOString(),
                     ip_address: ipAddress,
                     user_agent: userAgent,
@@ -106,34 +124,49 @@ const expiresAt = new Date(Date.now() + sessionDuration);
             });
         }
 
-        // Update last login
+        // 5) Update last login
         await supabase
             .from('users')
             .update({ last_login: new Date().toISOString() })
             .eq('id', user.id);
 
-      // Set HTTP-only cookie (persistent across app restarts)
-const cookie = serialize('auth_token', token, {
-    httpOnly: true,
-    // keep this exactly as you had it so dev vs prod still works
-    secure: process.env.NODE_ENV === 'production',
-    // LAX is more forgiving than STRICT, especially with PWAs / redirects
-    sameSite: 'lax',
-    // One-year persistent cookie so you don’t get kicked out on app restarts
-    maxAge: 365 * 24 * 60 * 60, // 1 year in seconds
-    path: '/'
-});
+        // =====================================================
+        // COOKIES
+        // =====================================================
 
+        // a) Long-lived refresh token (httpOnly; used by /api/auth/refresh)
+        const refreshCookie = serialize('crump_refresh_token', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 365 * 24 * 60 * 60, // 1 year in seconds
+            path: '/'
+        });
 
-        res.setHeader('Set-Cookie', cookie);
+        // b) Short-lived auth cookie (backward compatibility with middleware)
+        const authCookie = serialize('auth_token', accessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 15 * 60, // 15 minutes in seconds
+            path: '/'
+        });
 
-        // Get user settings
+        // Attach both cookies
+        res.setHeader('Set-Cookie', [refreshCookie, authCookie]);
+
+        // =====================================================
+        // USER SETTINGS
+        // =====================================================
         const { data: settings } = await supabase
             .from('user_settings')
             .select('*')
             .eq('user_id', user.id)
             .single();
 
+        // =====================================================
+        // RESPONSE
+        // =====================================================
         return res.status(200).json({
             success: true,
             message: 'Login successful',
@@ -148,7 +181,9 @@ const cookie = serialize('auth_token', token, {
                     preferences: user.preferences
                 },
                 settings: settings || null,
-                token: token,
+                // Keep original field name so existing frontend still works:
+                token: accessToken,
+                accessToken,
                 expiresAt: expiresAt.toISOString()
             }
         });
