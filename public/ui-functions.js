@@ -13,11 +13,24 @@ function renderMessages(messages) {
         return;
     }
     
-    const userInitial =
-        (window.currentProfile && window.currentProfile.profile && window.currentProfile.profile.initial) ||
-        localStorage.getItem(window.STORAGE_KEYS?.USER_INITIAL) ||
-        localStorage.getItem('crump_user_initial') ||
-        'U';
+   let userInitial =
+    (window.currentProfile &&
+     window.currentProfile.profile &&
+     window.currentProfile.profile.initial) ||
+    'U';
+
+// Try to pull from localStorage, but avoid optional chaining
+try {
+    if (window.STORAGE_KEYS && window.STORAGE_KEYS.USER_INITIAL) {
+        const stored = localStorage.getItem(window.STORAGE_KEYS.USER_INITIAL);
+        if (stored) userInitial = stored;
+    } else {
+        const fallback = localStorage.getItem('crump_user_initial');
+        if (fallback) userInitial = fallback;
+    }
+} catch (e) {
+    console.warn('Failed to read user initial from localStorage:', e);
+}
 
     container.innerHTML = messages.map((msg, index) => {
         const isUser = msg.role === 'user';
