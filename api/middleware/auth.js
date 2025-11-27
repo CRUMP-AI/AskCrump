@@ -9,38 +9,42 @@ import { supabase } from '../utils/supabase.js';
 
 /**
  * Verify user authentication from request
+ * - Prefers Authorization: Bearer <accessToken>
+ * - Falls back to auth_token cookie (short-lived access token)
+ * - Loads user from Supabase
  * @param {Object} req - Request object
  * @returns {Object|null} User data or null if not authenticated
  */
 export async function verifyAuth(req) {
     try {
-        // Prefer Authorization header, fall back to auth_token cookie
         let token = null;
 
-        // 1) Authorization: Bearer <token>
-        const authHeader = req.headers.authorization || req.headers.Authorization;
+        // 1) Prefer Authorization header
+        const authHeader = req.headers.authorization || req.headers.Authorization || '';
         if (authHeader && authHeader.startsWith('Bearer ')) {
             token = authHeader.substring(7);
         }
 
-        // 2) Fallback: auth_token cookie
+        // 2) Fallback: auth_token cookie (set on login)
         if (!token) {
             const cookies = parse(req.headers.cookie || '');
-            token = cookies.auth_token;
+            if (cookies.auth_token) {
+                token = cookies.auth_token;
+            }
         }
 
         if (!token) {
             return null;
         }
 
-        // Verify JWT token
+        // 3) Verify JWT token
         const decoded = verifyToken(token);
         if (!decoded || !decoded.userId) {
             return null;
         }
 
-        // Get user data INCLUDING subscription info
-        const { data: user, error: userError } = await supabase
+        // 4) Load user from Supabase
+        const { data: user, error } = await supabase
             .from('users')
             .select(`
                 id,
@@ -52,27 +56,27 @@ export async function verifyAuth(req) {
                 created_at,
                 subscription_tier,
                 subscription_status,
-                subscription_start_date,
                 stripe_customer_id,
                 stripe_subscription_id
             `)
             .eq('id', decoded.userId)
             .single();
 
-        if (userError || !user) {
+        if (error || !user) {
+            console.error('verifyAuth user lookup error:', error);
             return null;
         }
 
         return user;
-    } catch (error) {
-        console.error('Auth verification error:', error);
+    } catch (err) {
+        console.error('Auth verification error:', err);
         return null;
     }
 }
 
 /**
- * Middleware to require authentication
- * Attaches user to req.user if valid
+ * Require that the user is authenticated.
+ * Attaches `req.user` if successful.
  */
 export async function requireAuth(req, res, handler) {
     const user = await verifyAuth(req);
@@ -85,22 +89,21 @@ export async function requireAuth(req, res, handler) {
     }
 
     req.user = user;
-
     return handler(req, res);
 }
 
 /**
- * Middleware to require email verification
- * Returns 403 if email not verified
+ * Require that the user is authenticated AND verified.
  */
 export async function requireVerified(req, res, handler) {
-    return requireAuth(req, res, async (req, res) => {
-        if (!req.user.is_verified) {
-            return res.status(403).json({
+    return requireAuth(req, res, async (reqWithUser, resWithUser) => {
+        if (!reqWithUser.user.is_verified) {
+            return resWithUser.status(403).json({
                 success: false,
                 error: 'Email verification required'
             });
         }
-        return handler(req, res);
+
+        return handler(reqWithUser, resWithUser);
     });
 }
