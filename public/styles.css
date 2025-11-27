@@ -460,6 +460,30 @@ body {
   box-shadow: var(--shadow-sm);
   transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
 }
+/* Paragraph & markdown spacing inside messages */
+.message-content p {
+  margin: 0 0 var(--space-3);
+}
+
+.message-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* Optional: make lists/bold headings breathe too */
+.message-content h1,
+.message-content h2,
+.message-content h3 {
+  margin: 0 0 var(--space-3);
+}
+
+.message-content ul {
+  padding-left: 1.25rem;
+  margin: 0 0 var(--space-3);
+}
+
+.message-content li {
+  margin-bottom: 0.25rem;
+}
 .message.user .message-content {
   background: linear-gradient(0deg, rgba(209,191,150,.08), rgba(209,191,150,0)), var(--color-bg-secondary);
   border-color: rgba(209,191,150,.25);
