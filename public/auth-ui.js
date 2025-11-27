@@ -207,7 +207,10 @@ class AuthUI {
         });
     }
 
-      async checkSession() {
+          // =====================================================
+    // SESSION CHECK WITH SILENT REFRESH
+    // =====================================================
+    async checkSession() {
         try {
             const storedToken = localStorage.getItem('crump_auth_token');
             const headers = {};
@@ -216,6 +219,7 @@ class AuthUI {
                 headers['Authorization'] = `Bearer ${storedToken}`;
             }
 
+            // First: try normal session check
             const response = await fetch('/api/auth/check-session', {
                 method: 'GET',
                 headers,
@@ -226,58 +230,123 @@ class AuthUI {
             try {
                 data = await response.json();
             } catch (e) {
-                console.warn('Session check: failed to parse JSON response', e);
+                console.warn('[AuthUI] Failed to parse session check response', e);
             }
 
             // ✅ Server confirms session is valid
-            if (response.ok && data && data.success && data.authenticated) {
+            if (
+                response.ok &&
+                data &&
+                data.success &&
+                data.authenticated &&
+                data.data
+            ) {
                 this.handleAuthSuccess(data.data);
                 this.allowAppAccess();
                 return;
             }
 
-            // ❌ True Unauthorized → require login
-            if (response.status === 401 || response.status === 403) {
+            // ❌ Unauthorized or not authenticated → attempt silent refresh
+            if (
+                response.status === 401 ||
+                response.status === 403 ||
+                (data && data.authenticated === false)
+            ) {
+                const refreshed = await this.trySilentRefresh();
+                if (refreshed) return;
+
+                // If refresh failed, force login
                 this.forceLogin();
                 return;
             }
 
-            // 🔄 Soft recovery from local storage
+            // 🔄 Soft recovery from local storage (fallback if server gives weird state)
             const storedUserRaw = localStorage.getItem('crump_user');
             if (storedToken && storedUserRaw) {
                 try {
                     const user = JSON.parse(storedUserRaw);
                     this.handleAuthSuccess({ user });
                     this.allowAppAccess();
-                    console.warn('Recovered session from localStorage.');
+                    console.warn('[AuthUI] Recovered session from localStorage.');
                     return;
                 } catch (e) {
-                    console.warn('Failed to recover user from localStorage', e);
+                    console.warn('[AuthUI] Failed to recover user from localStorage', e);
                 }
             }
 
             // If we get here, we couldn’t recover → show login
             this.forceLogin();
         } catch (error) {
-            console.error('Session check failed:', error);
+            console.error('[AuthUI] Session check failed:', error);
 
-            // 🔄 Network recovery fallback
-            const storedToken = localStorage.getItem('crump_auth_token');
-            const storedUserRaw = localStorage.getItem('crump_user');
+            // 🌐 Network error: try silent refresh anyway (if refresh cookie exists)
+            const refreshed = await this.trySilentRefresh();
+            if (refreshed) return;
 
-            if (storedToken && storedUserRaw) {
-                try {
+            // Last fallback: local storage
+            try {
+                const storedToken = localStorage.getItem('crump_auth_token');
+                const storedUserRaw = localStorage.getItem('crump_user');
+
+                if (storedToken && storedUserRaw) {
                     const user = JSON.parse(storedUserRaw);
                     this.handleAuthSuccess({ user });
                     this.allowAppAccess();
-                    console.warn('Recovered session after network error.');
+                    console.warn('[AuthUI] Recovered session after network error.');
                     return;
-                } catch (e) {
-                    console.warn('Session recovery failed', e);
                 }
+            } catch (e) {
+                console.warn('[AuthUI] Session recovery failed', e);
             }
 
             this.forceLogin();
+        }
+    }
+
+        // =====================================================
+    // SILENT REFRESH USING httpOnly REFRESH COOKIE
+    // =====================================================
+    async trySilentRefresh() {
+        try {
+            const response = await fetch('/api/auth/refresh', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                console.warn('[AuthUI] Silent refresh failed with status', response.status);
+                return false;
+            }
+
+            const data = await response.json();
+
+            if (
+                !data ||
+                !data.success ||
+                !data.accessToken ||
+                !data.user
+            ) {
+                console.warn('[AuthUI] Silent refresh response invalid', data);
+                return false;
+            }
+
+            // Shape it like login/check-session payload
+            const payload = {
+                user: data.user,
+                token: data.accessToken
+            };
+
+            this.handleAuthSuccess(payload);
+            this.allowAppAccess();
+
+            console.log('[AuthUI] Session silently refreshed');
+            return true;
+        } catch (error) {
+            console.warn('[AuthUI] Silent refresh error', error);
+            return false;
         }
     }
 
@@ -535,6 +604,7 @@ class AuthUI {
                 }, 1500);
             }
         }
+    }           
 
     updateUIForLoggedIn() {
         const authTriggerBtn = document.getElementById('auth-trigger-btn');
