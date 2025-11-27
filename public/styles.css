@@ -972,3 +972,14 @@ a:hover { color: var(--color-accent-primary); text-decoration-thickness: 2px; }
   width: auto;
   object-fit: contain;
 }
+/* ============================================
+   HIDE HERO / ASSISTANT LOGO ON MOBILE
+   ============================================ */
+@media (max-width: 768px) {
+  .assistant-character,
+  .hero-logo,
+  .landing-hero,
+  .splash-logo-img {
+    display: none !important;
+  }
+}
