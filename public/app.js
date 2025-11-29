@@ -948,6 +948,33 @@ if (window.renderMessages) {
         
         const data = await response.json();
 
+        // ⭐ AUTO-RETRY LOGIC FOR FAILED REQUESTS
+        if (!response.ok && data.shouldRetry) {
+            const retryAfter = data.retryAfter || 10;
+            console.log(`🔄 Error ${data.code}, retrying in ${retryAfter}s...`);
+            
+            // Show retry message to user
+            const retryMessage = document.createElement('div');
+            retryMessage.className = 'message assistant-message';
+            retryMessage.innerHTML = `<div class="message-content">⚠️ ${data.message} Retrying in ${retryAfter} seconds...</div>`;
+            chatContainer.appendChild(retryMessage);
+            scrollToBottom();
+            
+            // Wait and retry
+            await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+            
+            // Remove retry message
+            retryMessage.remove();
+            
+            // Retry the request (recursive call)
+            return sendMessage();
+        }
+        
+        // If error and shouldn't retry, throw
+        if (!response.ok) {
+            throw new Error(data.message || data.error || 'Request failed');
+        }
+
         console.log('📥 API Response:', {
             hasResponse: !!data.response,
             hasImage: !!data.imageUrl,
