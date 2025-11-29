@@ -171,16 +171,18 @@ export default async function handler(req, res) {
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
             maxAge: 365 * 24 * 60 * 60, // 1 year in seconds
-            path: '/'
+            path: '/',
+            domain: process.env.NODE_ENV === 'production' ? '.crumpai.app' : undefined // iOS compatibility
         });
-
+        
         // b) Short-lived auth cookie (backward compatibility with middleware)
-        const authCookie = serialize('auth_token', accessToken, {
+       const authCookie = serialize('auth_token', accessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            maxAge: 15 * 60, // 15 minutes in seconds
-            path: '/'
+            maxAge: 24 * 60 * 60, // 24 hours instead of 15 minutes
+            path: '/',
+            domain: process.env.NODE_ENV === 'production' ? '.crumpai.app' : undefined
         });
 
         // Attach both cookies
