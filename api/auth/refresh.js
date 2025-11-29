@@ -21,7 +21,7 @@ export default async function handler(req, res) {
 
     try {
         const cookies = parse(req.headers.cookie || '');
-        const refreshToken = cookies.refresh_token;
+        const refreshToken = cookies.crump_refresh_token;
 
         if (!refreshToken) {
             return res.status(401).json({
@@ -66,7 +66,7 @@ export default async function handler(req, res) {
         });
 
         // Refresh token cookie - 1 year (Option A)
-        const refreshCookie = serialize('refresh_token', newRefreshToken, {
+        const refreshCookie = serialize('crump_refresh_token', newRefreshToken, {
             httpOnly: true,
             secure: true,
             sameSite: 'lax',
