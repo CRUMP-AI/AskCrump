@@ -58,24 +58,25 @@ try {
         let actionsHtml = '';
         if (!isUser) {
             actionsHtml = `
-            <div class="message-actions">
-                <button class="message-action-btn" onclick="copyMessage(${index})" title="Copy message">
-                    📋 Copy
-                </button>
-                <button class="message-action-btn" onclick="regenerateResponse(${index})" title="Regenerate response">
-                    🔄 Regenerate
-                </button>
-                <button class="message-action-btn" onclick="provideFeedback(${index}, 'thumbsUp')" title="Good response">
-                    👍
-                </button>
-                <button class="message-action-btn" onclick="provideFeedback(${index}, 'thumbsDown')" title="Bad response">
-                    👎
-                </button>
-                <button class="message-action-btn" onclick="provideCorrection(${index})" title="Correct this">
-                    ✏️ Correct
-                </button>
-            </div>
-            `;
+    <div class="message-actions">
+        <button class="message-action-btn" onclick="copyMessage(${index})" title="Copy message">
+            Copy
+        </button>
+        <button class="message-action-btn" onclick="regenerateResponse(${index})" title="Regenerate response">
+            Regenerate
+        </button>
+        <button class="message-action-btn" onclick="provideFeedback(${index}, 'thumbsUp')" title="Good response">
+            Good
+        </button>
+        <button class="message-action-btn" onclick="provideFeedback(${index}, 'thumbsDown')" title="Bad response">
+            Improve
+        </button>
+        <button class="message-action-btn" onclick="provideCorrection(${index})" title="Suggest a correction">
+            Correct
+        </button>
+    </div>
+`;
+
         }
 
         // Parse markdown and code blocks
