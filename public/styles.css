@@ -972,3 +972,13 @@ a:hover { color: var(--color-accent-primary); text-decoration-thickness: 2px; }
   width: auto;
   object-fit: contain;
 }
+/* ============================================
+   TEMP: HIDE ASSISTANT AVATAR (BIG LOGO)
+   ============================================ */
+
+/* Hide only Crump's avatar bubble, keep your "G" */
+.message .avatar.assistant,
+.message .avatar.assistant img {
+  display: none !important;
+}
+
