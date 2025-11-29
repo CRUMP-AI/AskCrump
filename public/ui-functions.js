@@ -202,35 +202,23 @@ try {
 function processCodeBlocks(content) {
     if (!content || typeof content !== 'string') return content;
 
-    // Fenced code blocks: ```lang\ncode```
-    try {
-        const fencedBlockRegex = new RegExp(
-            '```(\\w*)[\\r\\n]+([\\s\\S]*?)```',
-            'g'
+    // ```lang\ncode``` blocks → <pre><code>
+    content = content.replace(/```([a-zA-Z0-9]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+        const language = lang || 'javascript';
+        const escapedCode = escapeHtml(code.trim());
+        return (
+            '<pre class="code-block">' +
+            '<code class="language-' + language + '">' +
+            escapedCode +
+            '</code>' +
+            '</pre>'
         );
+    });
 
-        content = content.replace(fencedBlockRegex, (match, lang, code) => {
-            const language = lang || 'javascript';
-            const escapedCode = escapeHtml(code.trim());
-            return `
-        <pre class="code-block">
-            <code class="language-${language}">${escapedCode}</code>
-        </pre>
-        `;
-        });
-    } catch (e) {
-        console.warn('[ui-functions] Failed to process fenced code blocks:', e);
-    }
-
-    // Inline code: `code`
-    try {
-        const inlineCodeRegex = /`([^`]+)`/g;
-        content = content.replace(inlineCodeRegex, (match, code) => {
-            return `<code class="inline-code">${escapeHtml(code)}</code>`;
-        });
-    } catch (e) {
-        console.warn('[ui-functions] Failed to process inline code:', e);
-    }
+    // Inline `code`
+    content = content.replace(/`([^`]+)`/g, (match, code) => {
+        return '<code class="inline-code">' + escapeHtml(code) + '</code>';
+    });
 
     return content;
 }
@@ -238,42 +226,53 @@ function processCodeBlocks(content) {
 function processMarkdown(content) {
     if (!content || typeof content !== 'string') return content;
 
-    // Normalize line endings
-    let html = content.replace(/\r\n/g, '\n');
+    // Split out <pre>...</pre> so we don't mess up code blocks
+    const segments = content.split(/(<pre[\s\S]*?<\/pre>)/g);
 
-    // Headings: #, ##, ###
-    html = html.replace(/^### (.*)$/gim, '<h3>$1</h3>');
-    html = html.replace(/^## (.*)$/gim, '<h2>$1</h2>');
-    html = html.replace(/^# (.*)$/gim, '<h1>$1</h1>');
+    const processed = segments.map(segment => {
+        // Leave code blocks alone
+        if (segment.startsWith('<pre') && segment.indexOf('</pre>') !== -1) {
+            return segment;
+        }
 
-    // Bold **text**
-    html = html.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
+        let html = segment;
 
-    // Italic *text*
-    html = html.replace(/\*(.*?)\*/gim, '<em>$1</em>');
+        // Normalize newlines
+        html = html.replace(/\r\n/g, '\n');
 
-    // Links [text](url)
-    html = html.replace(
-        /\[(.*?)\]\((.*?)\)/gim,
-        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
-    );
+        // Headings
+        html = html.replace(/^### (.*)$/gim, '<h3>$1</h3>');
+        html = html.replace(/^## (.*)$/gim, '<h2>$1</h2>');
+        html = html.replace(/^# (.*)$/gim, '<h1>$1</h1>');
 
-    // Simple bullet lists
-    html = html.replace(/^\s*[-*] (.*)$/gim, '<li>$1</li>');
-    html = html.replace(/(<li>.*<\/li>)/gim, '<ul>$1</ul>');
+        // Bold **text**
+        html = html.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
 
-    // Paragraphs: split on blank lines
-    const paragraphs = html.split(/\n\s*\n/);
-    if (paragraphs.length > 1) {
-        html = paragraphs
-            .map(p => `<p>${p.trim()}</p>`)
+        // Italic *text*
+        html = html.replace(/\*(.*?)\*/gim, '<em>$1</em>');
+
+        // Links [text](url)
+        html = html.replace(/\[(.*?)\]\((.*?)\)/gim, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+        // Bullet lists: - item / * item
+        html = html.replace(/^\s*[-*] (.*)$/gim, '<li>$1</li>');
+        html = html.replace(/(<li>.*<\/li>)/gim, '<ul>$1</ul>');
+
+        // Paragraphs: split on blank lines
+        const parts = html.split(/\n{2,}/);
+        html = parts
+            .map(p => p.trim())
+            .filter(Boolean)
+            .map(p => '<p>' + p + '</p>')
             .join('');
-    }
 
-    // Remaining single newlines → <br>
-    html = html.replace(/\n/g, '<br>');
+        // Any remaining single newlines → <br>
+        html = html.replace(/\n/g, '<br>');
 
-    return html;
+        return html;
+    });
+
+    return processed.join('');
 }
 
 function escapeHtml(unsafe) {
@@ -285,4 +284,3 @@ function escapeHtml(unsafe) {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 }
-
