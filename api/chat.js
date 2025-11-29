@@ -16,6 +16,54 @@ const CONFIG = {
 };
 
 // ==========================================
+// NATIVE TOOL DEFINITIONS (Claude decides when to use)
+// ==========================================
+const NATIVE_TOOLS = [
+    {
+        name: "web_search",
+        description: "Search the web for current information, news, facts, or real-time data. Use when user asks about current events, recent information, or anything requiring up-to-date knowledge.",
+        input_schema: {
+            type: "object",
+            properties: {
+                query: {
+                    type: "string",
+                    description: "The search query"
+                }
+            },
+            required: ["query"]
+        }
+    },
+    {
+        name: "get_weather",
+        description: "Get current weather conditions and forecast for any location worldwide",
+        input_schema: {
+            type: "object",
+            properties: {
+                location: {
+                    type: "string",
+                    description: "City name, zip code, or coordinates"
+                }
+            },
+            required: ["location"]
+        }
+    },
+    {
+        name: "generate_image",
+        description: "Generate an AI image based on a text description. Use when user explicitly asks to create, generate, or make an image/picture/photo.",
+        input_schema: {
+            type: "object",
+            properties: {
+                prompt: {
+                    type: "string",
+                    description: "Detailed description of the image to generate"
+                }
+            },
+            required: ["prompt"]
+        }
+    }
+];
+
+// ==========================================
 // BODY PARSER HELPER
 // ==========================================
 async function parseBody(req) {
@@ -621,19 +669,7 @@ async function handleRegularChat(res, message, systemPrompt, validHistory) {
     console.log('💬 Regular chat - sending to Claude with image tool...');
     
     const tools = [{
-        name: "generate_image",
-        description: "Generate an image when user wants to see something visually. Use for: requests to see/show/visualize something, create artwork, or when an image would help. Do NOT use for: debugging code, discussing existing images, or technical questions about images.",
-        input_schema: {
-            type: "object",
-            properties: {
-                prompt: {
-                    type: "string",
-                    description: "Detailed image description. Be specific about subject, style, composition, colors, mood."
-                }
-            },
-            required: ["prompt"]
-        }
-    }];
+        const tools = NATIVE_TOOLS; // Use the enhanced tools we defined at the top
     
     const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
