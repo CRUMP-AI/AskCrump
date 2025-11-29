@@ -57,12 +57,13 @@ export default async function handler(req, res) {
         const newRefreshToken = signRefreshToken(user);
 
         // Access token cookie - shorter lived
-        const accessCookie = serialize('auth_token', accessToken, {
+       const accessCookie = serialize('auth_token', accessToken, {
             httpOnly: true,
             secure: true,
             sameSite: 'lax',
             path: '/',
-            maxAge: 60 * 60 // 1 hour cookie; JWT itself is 15 mins
+            maxAge: 24 * 60 * 60, // 24 hours
+            domain: process.env.NODE_ENV === 'production' ? '.crumpai.app' : undefined
         });
 
         // Refresh token cookie - 1 year (Option A)
@@ -71,7 +72,8 @@ export default async function handler(req, res) {
             secure: true,
             sameSite: 'lax',
             path: '/',
-            maxAge: 365 * 24 * 60 * 60 // 1 year
+            maxAge: 365 * 24 * 60 * 60, // 1 year
+            domain: process.env.NODE_ENV === 'production' ? '.crumpai.app' : undefined
         });
 
         res.setHeader('Set-Cookie', [accessCookie, refreshCookie]);
