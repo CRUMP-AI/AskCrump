@@ -668,8 +668,7 @@ async function handleClaudeNativeSearch(res, message, systemPrompt, validHistory
 async function handleRegularChat(res, message, systemPrompt, validHistory) {
     console.log('💬 Regular chat - sending to Claude with image tool...');
     
-    const tools = [{
-        const tools = NATIVE_TOOLS; // Use the enhanced tools we defined at the top
+   const tools = NATIVE_TOOLS; // Use the enhanced tools we defined at the top
     
     const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
