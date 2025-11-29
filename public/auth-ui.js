@@ -350,6 +350,36 @@ class AuthUI {
         }
     }
 
+    // =====================================================
+    // AUTO-REFRESH TIMER - Keep session alive
+    // =====================================================
+    startAutoRefresh() {
+        // Clear any existing interval
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+        }
+        
+        // Refresh every 12 hours to keep session alive
+        this.refreshInterval = setInterval(async () => {
+            console.log('[AuthUI] Auto-refreshing session...');
+            const refreshed = await this.trySilentRefresh();
+            if (!refreshed) {
+                console.warn('[AuthUI] Auto-refresh failed, user may need to re-login');
+                clearInterval(this.refreshInterval);
+            }
+        }, 12 * 60 * 60 * 1000); // 12 hours
+        
+        console.log('[AuthUI] Auto-refresh timer started (12hr intervals)');
+    }
+
+    stopAutoRefresh() {
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+            this.refreshInterval = null;
+            console.log('[AuthUI] Auto-refresh timer stopped');
+        }
+    }
+    
     forceLogin() {
         // Show login modal (can't be closed)
         document.getElementById('auth-overlay').style.display = 'flex';
@@ -501,6 +531,9 @@ class AuthUI {
     }
 
    async logout() {
+    // ⭐ STOP AUTO-REFRESH TIMER
+    this.stopAutoRefresh();
+    
     try {
         await fetch('/api/auth/logout', {
             method: 'POST',
@@ -513,6 +546,11 @@ class AuthUI {
 
         // Clear any persisted auth token
         localStorage.removeItem('crump_auth_token');
+        
+        // ⭐ CLEAR SESSION FLAGS
+        localStorage.removeItem('crump_session_active');
+        localStorage.removeItem('crump_last_login');
+        localStorage.removeItem('crump_user');
 
         this.updateUIForLoggedOut();
         
@@ -577,6 +615,14 @@ class AuthUI {
             console.warn('[AuthUI] Failed to persist user to localStorage:', e);
         }
 
+                // ⭐ iOS FALLBACK - Store session flags
+        try {
+            localStorage.setItem('crump_session_active', 'true');
+            localStorage.setItem('crump_last_login', Date.now().toString());
+        } catch (e) {
+            console.warn('[AuthUI] Failed to store session flags:', e);
+        }
+
         // ================================
         // ✅ FIRST-LOGIN TUTORIAL v2 + PERSIST
         // ================================
@@ -604,6 +650,9 @@ class AuthUI {
                 }, 1500);
             }
         }
+        
+        // ⭐ START AUTO-REFRESH TIMER
+        this.startAutoRefresh();
     }           
 
     updateUIForLoggedIn() {
