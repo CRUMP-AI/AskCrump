@@ -20,7 +20,9 @@ export default async function handler(req, res) {
     try {
         const { email, password, rememberMe = false } = req.body || {};
 
-        // Validate input
+        // -----------------------------
+        // BASIC VALIDATION
+        // -----------------------------
         if (!email || !password) {
             return res.status(400).json({
                 success: false,
@@ -28,7 +30,9 @@ export default async function handler(req, res) {
             });
         }
 
-        // Find user by email
+        // -----------------------------
+        // LOOK UP USER
+        // -----------------------------
         const { data: user, error: userError } = await supabase
             .from('users')
             .select('*')
@@ -36,13 +40,16 @@ export default async function handler(req, res) {
             .single();
 
         if (userError || !user) {
+            console.error('Login: user lookup failed:', userError);
             return res.status(401).json({
                 success: false,
                 error: 'Invalid email or password'
             });
         }
 
-        // Verify password
+        // -----------------------------
+        // CHECK PASSWORD
+        // -----------------------------
         const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
         if (!isPasswordValid) {
@@ -52,8 +59,10 @@ export default async function handler(req, res) {
             });
         }
 
-        // Check if email is verified
-        if (!user.is_verified) {
+        // -----------------------------
+        // OPTIONAL: EMAIL VERIFIED CHECK
+        // -----------------------------
+        if (user.is_verified === false) {
             return res.status(403).json({
                 success: false,
                 error: 'Please verify your email before logging in.',
@@ -81,7 +90,7 @@ export default async function handler(req, res) {
             email: user.email
         });
 
-        // 3) Device / request info
+        // 3) Device / request info (for logging only)
         const userAgent = req.headers['user-agent'] || 'Unknown';
         const ipHeader =
             req.headers['x-forwarded-for'] ||
@@ -89,46 +98,50 @@ export default async function handler(req, res) {
             req.connection?.remoteAddress ||
             null;
 
-        // If x-forwarded-for has multiple IPs, take the first one
         const ipAddress = Array.isArray(ipHeader)
             ? ipHeader[0]
             : typeof ipHeader === 'string'
                 ? ipHeader.split(',')[0].trim()
                 : ipHeader;
 
-        // 4) Create session in database – store the refresh token
-        const { data: session, error: sessionError } = await supabase
-            .from('sessions')
-            .insert([
-                {
-                    user_id: user.id,
-                    session_token: refreshToken, // store refresh token for audit / revocation
-                    expires_at: expiresAt.toISOString(),
-                    ip_address: ipAddress,
-                    user_agent: userAgent,
-                    device_info: {
-                        userAgent,
-                        platform: req.headers['sec-ch-ua-platform'] || 'Unknown',
-                        mobile: req.headers['sec-ch-ua-mobile'] === '?1'
+        // 4) TRY to create session in database – but DO NOT break login if this fails
+        try {
+            const { error: sessionError } = await supabase
+                .from('sessions')
+                .insert([
+                    {
+                        user_id: user.id,
+                        session_token: refreshToken, // store refresh token for audit / revocation
+                        expires_at: expiresAt.toISOString(),
+                        // The following fields are OPTIONAL. If your table
+                        // does not have these columns, remove or comment them.
+                        ip_address: ipAddress,
+                        user_agent: userAgent,
+                        device_info: {
+                            userAgent,
+                            platform: req.headers['sec-ch-ua-platform'] || 'Unknown',
+                            mobile: req.headers['sec-ch-ua-mobile'] === '?1'
+                        }
                     }
-                }
-            ])
-            .select()
-            .single();
+                ]);
 
-        if (sessionError) {
-            console.error('Session creation error:', sessionError);
-            return res.status(500).json({
-                success: false,
-                error: 'Failed to create session'
-            });
+            if (sessionError) {
+                console.error('Session creation error (non-fatal):', sessionError);
+            }
+        } catch (sessionException) {
+            console.error('Session creation threw (non-fatal):', sessionException);
+            // DO NOT return here – login should still succeed
         }
 
-        // 5) Update last login
-        await supabase
-            .from('users')
-            .update({ last_login: new Date().toISOString() })
-            .eq('id', user.id);
+        // 5) Update last login (non-fatal if it fails)
+        try {
+            await supabase
+                .from('users')
+                .update({ last_login: new Date().toISOString() })
+                .eq('id', user.id);
+        } catch (updateErr) {
+            console.error('Failed to update last_login (non-fatal):', updateErr);
+        }
 
         // =====================================================
         // COOKIES
@@ -143,7 +156,7 @@ export default async function handler(req, res) {
             path: '/'
         });
 
-        // b) Short-lived auth cookie (backward compatibility with middleware)
+        // b) Short-lived auth cookie (for verifyAuth middleware)
         const authCookie = serialize('auth_token', accessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -188,14 +201,13 @@ export default async function handler(req, res) {
             }
         });
 
-   } catch (error) {
-    console.error('Login error:', error);
+    } catch (error) {
+        console.error('Login error (outer catch):', error);
 
-    return res.status(500).json({
-        success: false,
-        error: 'An unexpected error occurred. Please try again.',
-        details: error?.message || String(error),
-        stack: process.env.NODE_ENV === 'production' ? undefined : error?.stack
-    });
-}
+        return res.status(500).json({
+            success: false,
+            error: 'An unexpected error occurred. Please try again.',
+            details: error?.message || String(error)
+        });
+    }
 }
