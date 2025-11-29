@@ -1,12 +1,18 @@
 // =====================================================
-// CHECK SESSION API ENDPOINT
+// AUTH - CHECK SESSION
 // Location: /api/auth/check-session.js
 // =====================================================
 
+import { parse, serialize } from 'cookie';
 import { verifyAuth } from '../middleware/auth.js';
+import { supabase } from '../utils/supabase.js';
+import {
+    verifyRefreshToken,
+    signAccessToken,
+    signRefreshToken
+} from '../utils/jwt.js';
 
 export default async function handler(req, res) {
-    // Only allow GET requests
     if (req.method !== 'GET') {
         return res.status(405).json({
             success: false,
@@ -15,13 +21,60 @@ export default async function handler(req, res) {
     }
 
     try {
-        const user = await verifyAuth(req);
+        // 1) Try normal auth first (auth_token cookie or Authorization header)
+        let user = await verifyAuth(req);
 
         if (!user) {
-            return res.status(401).json({
-                success: false,
+            // 2) If no valid access token, try refresh token
+            const cookies = parse(req.headers.cookie || '');
+            const refreshToken = cookies.refresh_token;
+
+            if (refreshToken) {
+                const decoded = verifyRefreshToken(refreshToken);
+                if (decoded && decoded.userId) {
+                    const { data: dbUser, error } = await supabase
+                        .from('users')
+                        .select('id, email, created_at, tier, subscription_tier')
+                        .eq('id', decoded.userId)
+                        .single();
+
+                    if (!error && dbUser) {
+                        user = dbUser;
+
+                        // Issue fresh tokens
+                        const newAccessToken = signAccessToken(dbUser);
+                        const newRefreshToken = signRefreshToken(dbUser);
+
+                        const accessCookie = serialize('auth_token', newAccessToken, {
+                            httpOnly: true,
+                            secure: true,
+                            sameSite: 'lax',
+                            path: '/',
+                            maxAge: 60 * 60 // 1 hour
+                        });
+
+                        const refreshCookie = serialize('refresh_token', newRefreshToken, {
+                            httpOnly: true,
+                            secure: true,
+                            sameSite: 'lax',
+                            path: '/',
+                            maxAge: 365 * 24 * 60 * 60 // 1 year
+                        });
+
+                        res.setHeader('Set-Cookie', [accessCookie, refreshCookie]);
+                    }
+                }
+            }
+        }
+
+        // If still no user → not authenticated
+        if (!user) {
+            return res.status(200).json({
+                success: true,
                 authenticated: false,
-                error: 'Not authenticated'
+                user: null,
+                inTrial: false,
+                trialEndsAt: null
             });
         }
 
@@ -32,8 +85,10 @@ export default async function handler(req, res) {
         if (user.created_at) {
             const createdDate = new Date(user.created_at);
             if (!Number.isNaN(createdDate.getTime())) {
-                const end = new Date(createdDate.getTime() + 7 * 24 * 60 * 60 * 1000);
-                trialEndsAt = end;
+                const end = new Date(
+                    createdDate.getTime() + 7 * 24 * 60 * 60 * 1000
+                );
+                trialEndsAt = end.toISOString();
                 const now = new Date();
                 if (now < end) {
                     inTrial = true;
@@ -41,40 +96,19 @@ export default async function handler(req, res) {
             }
         }
 
-        const subscriptionTier = user.subscription_tier || 'free';
-        const subscriptionStatus = user.subscription_status || 'free';
-
         return res.status(200).json({
             success: true,
             authenticated: true,
-            data: {
-                user: {
-                    id: user.id,
-                    email: user.email,
-                    fullName: user.full_name,
-                    profilePicture: user.profile_picture,
-                    isVerified: user.is_verified,
-                    preferences: user.preferences,
-                    createdAt: user.created_at,
-                    // NEW: billing info for the front-end
-                    subscriptionTier,
-                    subscriptionStatus,
-                    stripeCustomerId: user.stripe_customer_id || null,
-                    stripeSubscriptionId: user.stripe_subscription_id || null,
-                    trial: {
-                        inTrial,
-                        trialEndsAt: trialEndsAt ? trialEndsAt.toISOString() : null
-                    }
-                }
-            }
+            user,
+            inTrial,
+            trialEndsAt
         });
-
-    } catch (error) {
-        console.error('Session check error:', error);
+    } catch (err) {
+        console.error('check-session error:', err);
         return res.status(500).json({
             success: false,
             authenticated: false,
-            error: 'Failed to verify session'
+            error: 'Internal server error'
         });
     }
 }
