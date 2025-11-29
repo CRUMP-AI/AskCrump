@@ -646,7 +646,13 @@ async function handleRegularChat(res, message, systemPrompt, validHistory) {
         body: JSON.stringify({
             model: CONFIG.CLAUDE_MODEL,
             max_tokens: CONFIG.MAX_TOKENS,
-            system: systemPrompt,
+            system: CONFIG.ENABLE_CACHING ? [
+                {
+                    type: "text",
+                    text: systemPrompt,
+                    cache_control: { type: "ephemeral" }
+                }
+            ] : systemPrompt,
             messages: [
                 ...validHistory,
                 { role: 'user', content: message }
