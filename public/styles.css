@@ -982,3 +982,53 @@ a:hover { color: var(--color-accent-primary); text-decoration-thickness: 2px; }
   display: none !important;
 }
 
+/* ============================================
+   PROFESSIONAL HOVER-ONLY MESSAGE ACTIONS
+   (No emojis, clean UI, OpenAI-style)
+   ============================================ */
+
+/* Hide by default */
+.message-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  transform: translateY(4px);
+}
+
+/* Show only when hovering the message */
+.message:hover .message-actions {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+/* Clean professional buttons */
+.message-action-btn {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* Hover effect */
+.message-action-btn:hover {
+  background: rgba(209,191,150,0.12);
+  color: var(--color-text-primary);
+  border-color: rgba(209,191,150,0.45);
+}
+
+/* Remove emoji spacing visually */
+.message-action-btn::first-letter {
+  margin-right: 0;
+}
+
+
