@@ -330,34 +330,104 @@ EXAMPLES:
         console.error('Error message:', error.message);
         console.error('Error stack:', error.stack);
         
-        // Handle timeout errors specifically
-        if (error.name === 'AbortError') {
+        // ==========================================
+        // ENHANCED ERROR HANDLING WITH RETRY LOGIC
+        // ==========================================
+        
+        // Timeout errors
+        if (error.name === 'AbortError' || error.message?.includes('timeout')) {
             console.error('⏱️ Request timed out');
             return res.status(504).json({
                 error: 'Request timeout',
-                details: 'The AI took too long to respond. Try a shorter message or simpler request.'
+                code: 'TIMEOUT',
+                message: 'The AI took too long to respond. Please try again with a shorter message.',
+                shouldRetry: true,
+                retryAfter: 5
             });
         }
         
+        // Rate limit errors (429)
+        if (error.status === 429 || error.message?.includes('rate limit')) {
+            console.error('🚦 Rate limited');
+            return res.status(429).json({
+                error: 'Rate limited',
+                code: 'RATE_LIMIT',
+                message: 'Too many requests. Please wait a moment before trying again.',
+                shouldRetry: true,
+                retryAfter: 30
+            });
+        }
+        
+        // Overloaded errors (529)
+        if (error.status === 529 || error.message?.includes('overloaded')) {
+            console.error('📈 Service overloaded');
+            return res.status(529).json({
+                error: 'Service overloaded',
+                code: 'OVERLOADED',
+                message: 'Claude is experiencing high demand. Retrying automatically...',
+                shouldRetry: true,
+                retryAfter: 10
+            });
+        }
+        
+        // Context length errors
         if (error.message?.includes('tokens') || error.message?.includes('too long') || error.message?.includes('maximum context length')) {
             console.error('📏 Message/context too long');
             return res.status(400).json({
                 error: 'Message too long',
-                details: 'That message exceeded the maximum length. Try breaking it into smaller parts or summarizing the content.'
+                code: 'CONTEXT_LENGTH',
+                message: 'That message exceeded the maximum length. Try breaking it into smaller parts or summarizing the content.',
+                shouldRetry: false
             });
         }
         
+        // Invalid API key
+        if (error.status === 401 || error.message?.includes('authentication')) {
+            console.error('🔑 Authentication error');
+            return res.status(500).json({
+                error: 'Configuration error',
+                code: 'AUTH_ERROR',
+                message: 'There was a problem with the AI service configuration. Please contact support.',
+                shouldRetry: false
+            });
+        }
+        
+        // Claude API errors
         if (error.message?.includes('Claude API error')) {
             console.error('🔴 Claude API error');
             return res.status(502).json({
                 error: 'AI service error',
-                details: 'The AI service encountered an error. Please try again.'
+                code: 'API_ERROR',
+                message: 'The AI service encountered an error. Please try again.',
+                shouldRetry: true,
+                retryAfter: 10
             });
         }
         
+        // Network errors
+        if (error.message?.includes('fetch failed') || error.message?.includes('network') || error.code === 'ECONNREFUSED') {
+            console.error('🌐 Network error');
+            return res.status(503).json({
+                error: 'Network error',
+                code: 'NETWORK_ERROR',
+                message: 'Could not connect to the AI service. Please check your internet connection.',
+                shouldRetry: true,
+                retryAfter: 15
+            });
+        }
+        
+        // Generic error with development details
         return res.status(500).json({
             error: 'Internal server error',
-            details: process.env.NODE_ENV === 'development' ? error.message : 'An error occurred'
+            code: 'INTERNAL_ERROR',
+            message: process.env.NODE_ENV === 'development' ? error.message : 'An unexpected error occurred. Please try again.',
+            shouldRetry: true,
+            retryAfter: 10,
+            details: process.env.NODE_ENV === 'development' ? {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+            } : undefined
         });
     }
 }
