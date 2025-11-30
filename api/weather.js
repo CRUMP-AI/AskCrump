@@ -182,15 +182,3 @@ function getWeatherEmoji(condition) {
 function capitalizeFirst(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
-```
-
----
-
-## **🔑 API KEY SETUP:**
-
-1. Go to: https://openweathermap.org/api
-2. Sign up (free tier: 1000 calls/day)
-3. Get your API key
-4. Add to Vercel:
-```
-   OPENWEATHER_API_KEY=your_key_here
