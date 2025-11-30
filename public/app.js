@@ -1118,8 +1118,51 @@ function displayFilePreview() {
     preview.innerHTML = '';
     
     selectedFiles.forEach((file, index) => {
-        const container = document.createElement('div');
-        container.style.cssText = 'position: relative; display: inline-block; margin: 0.5rem; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); background: var(--color-bg-secondary);';
+    const fileDiv = document.createElement('div');
+    fileDiv.className = 'file-preview-item';
+    fileDiv.style.cssText = `
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        background: var(--color-bg-secondary);
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+    `;
+    
+    // File icon based on type
+    let icon = '📄';
+    if (file.type.startsWith('image/')) icon = '🖼️';
+    else if (file.type === 'application/pdf') icon = '📕';
+    else if (file.type.includes('zip') || file.name.endsWith('.zip')) icon = '🗜️';
+    else if (file.name.endsWith('.7z')) icon = '📦';
+    else if (file.name.endsWith('.tar.gz')) icon = '📦';
+    else if (file.name.endsWith('.rar')) icon = '📦';
+    
+    // Format file size
+    const sizeKB = (file.size / 1024).toFixed(1);
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+    const displaySize = file.size > 1024 * 1024 ? `${sizeMB} MB` : `${sizeKB} KB`;
+    
+    fileDiv.innerHTML = `
+        <span style="font-size: 1.5rem; margin-right: 0.75rem;">${icon}</span>
+        <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 500; color: var(--color-text-primary); 
+                        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                ${file.name}
+            </div>
+            <div style="font-size: 0.875rem; color: var(--color-text-secondary);">
+                ${displaySize}
+            </div>
+        </div>
+        <button onclick="removeFile(${index})" 
+                style="background: none; border: none; color: var(--color-text-secondary); 
+                       cursor: pointer; font-size: 1.25rem; padding: 0.25rem 0.5rem;">
+            ×
+        </button>
+    `;
+    
+    preview.appendChild(fileDiv);
+});
         
         // If it's an image, show LARGE preview
         if (file.type.startsWith('image/')) {
