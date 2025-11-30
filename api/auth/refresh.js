@@ -52,9 +52,15 @@ export default async function handler(req, res) {
             });
         }
 
-        // Create new tokens
+       // Create new tokens
         const accessToken = signAccessToken(user);
         const newRefreshToken = signRefreshToken(user);
+
+        // Flexible domain for Vercel previews
+        const cookieDomain = process.env.COOKIE_DOMAIN || 
+                           (process.env.NODE_ENV === 'production' && req.headers.host?.includes('crumpai.app') 
+                             ? '.crumpai.app' 
+                             : undefined);
 
         // Access token cookie - shorter lived
        const accessCookie = serialize('auth_token', accessToken, {
@@ -63,7 +69,7 @@ export default async function handler(req, res) {
             sameSite: 'lax',
             path: '/',
             maxAge: 24 * 60 * 60, // 24 hours
-            domain: process.env.NODE_ENV === 'production' ? '.crumpai.app' : undefined
+            domain: cookieDomain
         });
 
         // Refresh token cookie - 1 year (Option A)
@@ -73,9 +79,8 @@ export default async function handler(req, res) {
             sameSite: 'lax',
             path: '/',
             maxAge: 365 * 24 * 60 * 60, // 1 year
-            domain: process.env.NODE_ENV === 'production' ? '.crumpai.app' : undefined
+            domain: cookieDomain
         });
-
         res.setHeader('Set-Cookie', [accessCookie, refreshCookie]);
 
         return res.status(200).json({
