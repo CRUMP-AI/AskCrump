@@ -18,6 +18,55 @@ const STORAGE_KEYS = {
     HAS_ONBOARDED: 'crump_has_onboarded'
 };
 
+// Safari ITP Detection & Fallback Storage
+const STORAGE_AVAILABLE = (function() {
+    try {
+        const test = '__storage_test__';
+        localStorage.setItem(test, test);
+        localStorage.removeItem(test);
+        return true;
+    } catch(e) {
+        console.warn('⚠️ localStorage blocked by browser - using memory fallback');
+        return false;
+    }
+})();
+
+// Safe Storage Wrapper (handles Safari ITP blocking)
+const SafeStorage = {
+    _memoryCache: {},
+    
+    getItem(key) {
+        if (STORAGE_AVAILABLE) {
+            return localStorage.getItem(key);
+        }
+        return this._memoryCache[key] || null;
+    },
+    
+    setItem(key, value) {
+        if (STORAGE_AVAILABLE) {
+            localStorage.setItem(key, value);
+        }
+        this._memoryCache[key] = value;
+    },
+    
+    removeItem(key) {
+        if (STORAGE_AVAILABLE) {
+            localStorage.removeItem(key);
+        }
+        delete this._memoryCache[key];
+    },
+    
+    clear() {
+        if (STORAGE_AVAILABLE) {
+            localStorage.clear();
+        }
+        this._memoryCache = {};
+    }
+};
+
+// Export for global use
+window.SafeStorage = SafeStorage;
+
 // Global State
 let chats = [];
 let currentChatId = null;
@@ -53,7 +102,7 @@ window.initializeAuthenticatedApp = function(user) {
     // Update settings with user's preferences
     if (user.preferences) {
         if (user.preferences.assistantName) {
-            localStorage.setItem(STORAGE_KEYS.ASSISTANT_NAME, user.preferences.assistantName);
+            SafeStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
         }
         if (user.preferences.workMode !== undefined) {
             localStorage.setItem(STORAGE_KEYS.WORK_MODE, user.preferences.workMode);
@@ -252,7 +301,7 @@ function setupSidebarToggle() {
 // ==========================================
 function loadChats() {
     try {
-        const saved = localStorage.getItem(STORAGE_KEYS.CHATS);
+        const saved = SafeStorage.getItem(STORAGE_KEYS.CHATS);
         if (saved) {
             try {
                 chats = JSON.parse(saved);
@@ -274,7 +323,7 @@ function loadChats() {
 function saveChats() {
     // Always keep the local copy for offline / guest mode
     try {
-        localStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
+        SafeStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
     } catch (storageError) {
         console.warn('⚠️ Failed to save chats (localStorage unavailable)', storageError);
     }
@@ -344,7 +393,7 @@ async function syncChatsFromServer() {
 
         // Mirror chats into localStorage for offline usage
         try {
-            localStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
+            SafeStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
             if (currentChatId) {
                 localStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, currentChatId);
             }
