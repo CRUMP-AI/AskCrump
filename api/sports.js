@@ -544,17 +544,3 @@ function formatDate(dateString) {
     const options = { month: 'short', day: 'numeric' };
     return date.toLocaleDateString('en-US', options);
 }
-```
-
----
-
-## **🔑 API KEY SETUP (OPTIONAL - FREE WORKS):**
-
-The Sports DB has a **free test key** (`"3"`) that works immediately!
-
-**For production (better rate limits):**
-1. Go to: https://www.thesportsdb.com/api.php
-2. Get your free API key (or upgrade to Patreon for more calls)
-3. Add to Vercel:
-```
-   SPORTSDB_API_KEY=your_key_here
