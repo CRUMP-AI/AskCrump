@@ -1056,6 +1056,16 @@ if (window.renderMessages) {
         }
         
         saveChats();
+        
+        // Sync to server after every message (cross-device support)
+        if (window.currentUser && window.currentUser.id) {
+            try {
+                await syncChatsToServer();
+                console.log('✅ Chat synced to server');
+            } catch (syncError) {
+                console.warn('⚠️ Failed to sync chat:', syncError);
+            }
+        }
 if (window.renderMessages) {
     window.renderMessages(chat.messages);
 } else {
@@ -1719,4 +1729,54 @@ window.addEventListener('beforeunload', () => {
         });
     }
     console.log('🧹 Cleaned up all object URLs on page unload');
+    });
+
+    // ==========================================
+// AUTO TOKEN REFRESH - KEEPS USER LOGGED IN FOREVER
+// ==========================================
+let tokenRefreshTimer = null;
+
+async function setupTokenRefresh() {
+    if (tokenRefreshTimer) {
+        clearInterval(tokenRefreshTimer);
+    }
+    
+    const REFRESH_INTERVAL = 20 * 60 * 60 * 1000; // 20 hours
+    
+    tokenRefreshTimer = setInterval(async () => {
+        try {
+            console.log('🔄 Auto-refreshing auth token...');
+            
+            const response = await fetch('/api/auth/refresh', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    console.log('✅ Token refreshed successfully');
+                    if (data.user) {
+                        window.currentUser = data.user;
+                        SafeStorage.setItem('crump_user', JSON.stringify(data.user));
+                    }
+                }
+            } else if (response.status === 401) {
+                window.location.href = '/landing.html';
+            }
+        } catch (error) {
+            console.error('❌ Token refresh error:', error);
+        }
+    }, REFRESH_INTERVAL);
+    
+    console.log('✅ Auto token refresh enabled (every 20 hours)');
+}
+
+window.addEventListener('load', () => {
+    if (window.currentUser && window.currentUser.id) {
+        setupTokenRefresh();
+    }
 });
+
+window.setupTokenRefresh = setupTokenRefresh;
