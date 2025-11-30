@@ -41,9 +41,26 @@ export default async function handler(req, res) {
 
 // CORS headers for Safari/iOS
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', 'https://crumpai.app');
+  
+  // Dynamic origin handling for Vercel previews
+  const allowedOrigins = [
+    'https://crumpai.app',
+    'https://www.crumpai.app'
+  ];
+  
+  const requestOrigin = req.headers.origin;
+  
+  // Allow Vercel preview URLs
+  if (requestOrigin && (
+    allowedOrigins.includes(requestOrigin) || 
+    requestOrigin.includes('vercel.app')
+  )) {
+    res.setHeader('Access-Control-Allow-Origin', requestOrigin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', 'https://crumpai.app');
+  }
+  
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Cookie');
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
