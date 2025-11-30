@@ -579,11 +579,15 @@ async function handleBraveSearchResponse(res, message, searchResults, systemProm
         })
     });
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Claude API error:', response.status, errorText);
-        throw new Error(`Claude API error: ${response.status}`);
-    }
+   if (!response.ok) {
+    const errorText = await response.text();
+    console.error('❌ Claude API error:', response.status, errorText);
+
+    const error = new Error(`Claude API error: ${response.status}`);
+    error.status = response.status;      // preserve HTTP status
+    error.details = errorText;           // keep the raw body if you want
+    throw error;
+}
 
     const data = await response.json();
     return res.status(200).json({
@@ -622,11 +626,16 @@ async function handleClaudeNativeSearch(res, message, systemPrompt, validHistory
         })
     });
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Claude API error:', response.status, errorText);
-        throw new Error(`Claude API error: ${response.status}`);
-    }
+   if (!response.ok) {
+    const errorText = await response.text();
+    console.error('❌ Claude API error:', response.status, errorText);
+
+    const error = new Error(`Claude API error: ${response.status}`);
+    error.status = response.status;      // preserve HTTP status
+    error.details = errorText;           // keep the raw body if you want
+    throw error;
+}
+
 
     const data = await response.json();
 
@@ -683,11 +692,16 @@ async function handleRegularChat(res, message, systemPrompt, validHistory) {
         })
     });
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Claude API error:', response.status, errorText);
-        throw new Error(`Claude API error: ${response.status}`);
-    }
+   if (!response.ok) {
+    const errorText = await response.text();
+    console.error('❌ Claude API error:', response.status, errorText);
+
+    const error = new Error(`Claude API error: ${response.status}`);
+    error.status = response.status;      // preserve HTTP status
+    error.details = errorText;           // keep the raw body if you want
+    throw error;
+}
+
 
     const data = await response.json();
     console.log('✅ Response received from Claude');
