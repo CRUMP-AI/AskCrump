@@ -302,12 +302,13 @@ async function syncChatsFromServer() {
 
     try {
         console.log('☁️ Pulling chats from server...');
-        const res = await fetch('/api/chats', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
+       const res = await fetch('/api/chats', {
+    method: 'GET',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    credentials: 'include'
+});
 
         if (!res.ok) {
             console.warn('⚠️ /api/chats GET failed with status', res.status);
@@ -383,12 +384,13 @@ async function syncChatsToServer() {
         };
 
         const res = await fetch('/api/chats', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        });
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    credentials: 'include',
+    body: JSON.stringify(payload)
+});
 
         if (!res.ok) {
             console.warn('⚠️ /api/chats POST failed with status', res.status);
