@@ -311,7 +311,7 @@ EXAMPLES:
                     ? 'http://localhost:3000' 
                     : `https://${req.headers.host}`;
                 
-                const weatherResponse = await fetch(`${BASE_URL}/api/weather.js`, {
+                const weatherResponse = await fetch(`${BASE_URL}/api/weather`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
