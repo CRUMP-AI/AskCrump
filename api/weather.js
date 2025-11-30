@@ -1,6 +1,6 @@
 // ==========================================
 // CRUMP AI - WEATHER API
-// OpenWeatherMap Integration (Improved Parsing)
+// OpenWeatherMap Integration - FIXED
 // ==========================================
 
 export default async function handler(req, res) {
@@ -18,14 +18,15 @@ export default async function handler(req, res) {
     }
     
     try {
-        const { query, context } = req.body || {};
+        const { query, context } = req.body;
         
-        if (!query || typeof query !== 'string') {
+        if (!query) {
             return res.status(400).json({ error: 'Query is required' });
         }
         
         // Check for API key
         const apiKey = process.env.OPENWEATHER_API_KEY;
+        
         if (!apiKey) {
             console.warn('⚠️ OpenWeatherMap API key not configured');
             return res.status(503).json({ 
@@ -35,10 +36,10 @@ export default async function handler(req, res) {
             });
         }
         
-        // Extract location from natural language
+        // Extract location from query
         const location = extractLocation(query);
+        
         if (!location) {
-            console.warn('⚠️ Could not extract location from query:', query);
             return res.status(400).json({ 
                 error: 'Could not determine location from query',
                 hint: 'Try: "weather in Atlanta" or "temperature in NYC"'
@@ -49,11 +50,12 @@ export default async function handler(req, res) {
         
         // Call OpenWeatherMap API
         const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(location)}&appid=${apiKey}&units=imperial`;
+        
         const weatherResponse = await fetch(weatherUrl);
         
         if (!weatherResponse.ok) {
-            const text = await weatherResponse.text().catch(() => null);
-            console.warn('⚠️ OpenWeatherMap non-OK response:', weatherResponse.status, text);
+            const errorData = await weatherResponse.json().catch(() => ({}));
+            console.warn('⚠️ OpenWeatherMap non-OK response:', weatherResponse.status, JSON.stringify(errorData));
             
             if (weatherResponse.status === 404) {
                 return res.status(404).json({ 
@@ -61,21 +63,20 @@ export default async function handler(req, res) {
                     hint: 'Try a different city name or be more specific'
                 });
             }
-            
-            return res.status(502).json({
-                error: `Weather provider error (status ${weatherResponse.status})`
-            });
+            throw new Error(`Weather API returned ${weatherResponse.status}`);
         }
         
         const weatherData = await weatherResponse.json();
+        
+        // Format response
         const formatted = formatWeatherResponse(weatherData);
         
         return res.status(200).json({
             success: true,
             api: 'weather',
-            location,
+            location: location,
             data: weatherData,
-            formatted
+            formatted: formatted
         });
         
     } catch (error) {
@@ -88,72 +89,71 @@ export default async function handler(req, res) {
 }
 
 // ==========================================
-// EXTRACT LOCATION FROM QUERY (IMPROVED)
+// EXTRACT LOCATION FROM QUERY - ENHANCED
 // ==========================================
 function extractLocation(query) {
-    if (!query || typeof query !== 'string') return null;
+    const text = query.toLowerCase().trim();
     
-    // Keep original case for nicer city names, but trim
-    let text = query.trim();
-    
-    // Strip greetings / assistant name at the start
-    text = text.replace(/^(hey|hi|hello|yo)\s+crump[,\s]*/i, '');
-    text = text.replace(/^(hey|hi|hello|yo)[,\s]*/i, '');
-    
-    // Normalize spaces
-    text = text.replace(/\s+/g, ' ').trim();
-    
-    // 1) "what's the weather like in georgia tomorrow?"
-    let match = text.match(/weather\s+like\s+(?:in|at|for)\s+(.+)/i);
+    // Pattern 1: "weather in [location]"
+    let match = text.match(/weather\s+(?:in|for|at)\s+(.+?)(?:\s+(?:today|tomorrow|this\s+week))?$/i);
     if (match) return cleanLocation(match[1]);
     
-    // 2) "weather in atlanta"
-    match = text.match(/weather\s+(?:in|for|at)\s+(.+)/i);
+    // Pattern 2: "what's the weather in [location]"
+    match = text.match(/what'?s?\s+(?:the\s+)?weather\s+(?:in|for|at)\s+(.+?)(?:\s+(?:today|tomorrow|this\s+week))?$/i);
     if (match) return cleanLocation(match[1]);
     
-    // 3) "what's the weather in atlanta"
-    match = text.match(/what'?s?\s+(?:the\s+)?weather\s+(?:in|for|at)\s+(.+)/i);
+    // Pattern 3: "what's [location]'s weather" (possessive form)
+    match = text.match(/what'?s?\s+(.+?)'?s?\s+weather/i);
     if (match) return cleanLocation(match[1]);
     
-    // 4) "temperature in atlanta"
-    match = text.match(/temperature\s+(?:in|for|at)\s+(.+)/i);
+    // Pattern 4: "[location] weather tomorrow/today"
+    match = text.match(/(.+?)\s+weather\s+(?:today|tomorrow|this\s+week)/i);
     if (match) return cleanLocation(match[1]);
     
-    // 5) "forecast for atlanta"
-    match = text.match(/forecast\s+(?:for|in|at)\s+(.+)/i);
+    // Pattern 5: "temperature in [location]"
+    match = text.match(/temperature\s+(?:in|for|at)\s+(.+?)(?:\s+(?:today|tomorrow))?$/i);
     if (match) return cleanLocation(match[1]);
     
-    // 6) "how hot is atlanta", "how cold is it in atlanta"
-    match = text.match(/how\s+(?:hot|cold|warm)\s+(?:is\s+)?(?:it\s+)?(?:in\s+)?(.+)/i);
+    // Pattern 6: "forecast for [location]"
+    match = text.match(/forecast\s+(?:for|in|at)\s+(.+?)(?:\s+(?:today|tomorrow|this\s+week))?$/i);
     if (match) return cleanLocation(match[1]);
     
-    // 7) "[location] weather"
-    match = text.match(/^(.+?)\s+weather/i);
+    // Pattern 7: "how hot is [location]"
+    match = text.match(/how\s+(?:hot|cold|warm)\s+(?:is\s+)?(?:it\s+)?(?:in\s+)?(.+?)(?:\s+(?:today|tomorrow))?$/i);
     if (match) return cleanLocation(match[1]);
     
-    // Fallback: treat the whole thing as the location and clean it
+    // Pattern 8: "[location] weather" (simple)
+    match = text.match(/^(.+?)\s+weather$/i);
+    if (match) return cleanLocation(match[1]);
+    
+    // Pattern 9: "weather [location]" (reversed)
+    match = text.match(/^weather\s+(.+)$/i);
+    if (match) return cleanLocation(match[1]);
+    
+    // Default: Clean up the entire query
     return cleanLocation(text);
 }
 
-// Clean up extra words / punctuation around the location
-function cleanLocation(str) {
-    if (!str) return null;
+// ==========================================
+// CLEAN LOCATION STRING
+// ==========================================
+function cleanLocation(location) {
+    if (!location) return null;
     
-    let cleaned = str
-        // Drop trailing punctuation
-        .replace(/[?!.]+$/, '')
-        // Remove time words
-        .replace(/\b(today|tomorrow|tonight|this (?:morning|afternoon|evening|weekend)|right now|outside)\b/gi, '')
-        // Remove helper words
-        .replace(/\b(please|now|like|currently)\b/gi, '')
-        // Remove assistant references
-        .replace(/\b(crump|ask crump|assistant)\b/gi, '')
-        // Trim stray commas / spaces at ends
-        .replace(/^[,\s]+/, '')
-        .replace(/[,\s]+$/, '')
+    // Remove common noise words but preserve location names
+    let cleaned = location
+        .replace(/\b(weather|temperature|forecast|what'?s?|the|how|hot|cold|warm|is|it|today|tomorrow|this\s+week)\b/gi, '')
+        .replace(/['']s\b/gi, '') // Remove possessive 's
+        .replace(/\s+/g, ' ')      // Normalize spaces
         .trim();
     
-    return cleaned.length > 0 ? cleaned : null;
+    // If nothing left, return null
+    if (cleaned.length === 0) return null;
+    
+    // Remove trailing prepositions
+    cleaned = cleaned.replace(/\b(in|for|at)$/i, '').trim();
+    
+    return cleaned;
 }
 
 // ==========================================
@@ -181,9 +181,9 @@ function formatWeatherResponse(data) {
         formatted += `\n🔥 It's hot! Stay hydrated and seek shade.`;
     } else if (temp < 32) {
         formatted += `\n🥶 It's freezing! Bundle up and stay warm.`;
-    } else if (description.toLowerCase().includes('rain')) {
+    } else if (description.includes('rain')) {
         formatted += `\n☔ Don't forget your umbrella!`;
-    } else if (description.toLowerCase().includes('clear')) {
+    } else if (description.includes('clear')) {
         formatted += `\n☀️ Perfect weather to be outside!`;
     }
     
