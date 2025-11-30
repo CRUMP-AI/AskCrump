@@ -233,15 +233,29 @@ class ProfileManager {
     }
 
     getProfile() {
-        return {
-            ...this.profile,
-            tierInfo: this.getTierInfo()
-        };
-    }
+    return {
+        ...this.profile,
+        tierInfo: this.getTierInfo()
+    };
+}
 
-    // ========== TIER CHANGES ==========
+// Update user profile information
+updateProfile(updates) {
+    if (!updates || typeof updates !== 'object') return;
+    
+    // Update profile fields
+    if (updates.name) this.profile.name = updates.name;
+    if (updates.email !== undefined) this.profile.email = updates.email;
+    if (updates.initial) this.profile.initial = updates.initial;
+    
+    this.saveProfile();
+    
+    console.log('[ProfileManager] Profile updated:', updates);
+}
 
-    upgradeTier(newTier, billingPeriod = 'monthly') {
+// ========== TIER CHANGES ==========
+
+upgradeTier(newTier, billingPeriod = 'monthly') {
         const definitions = this.getTierDefinitions();
         if (!definitions[newTier]) return false;
 
