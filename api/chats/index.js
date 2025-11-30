@@ -4,36 +4,35 @@
 // Purpose: Keep chats in Supabase so they follow
 //          the user across devices & browsers
 // ================================================
-
 import { supabase } from '../utils/supabase.js';
 import { verifyAuth } from '../middleware/auth.js';
 
 /*
   REQUIRED SUPABASE TABLE (create this first):
-
+  
   Table name: crump_chats
-
+  
   Columns:
     id         : uuid       (primary key, default uuid_generate_v4())
-    user_id    : uuid       (references auth.users.id)
+    user_id    : uuid       (references public.users.id)
     chat_id    : text       (the ID used in the frontend, e.g. "chat_1732409...")
     title      : text
     messages   : jsonb
     created_at : timestamptz (default now())
     updated_at : timestamptz (default now())
-
+    
   Example SQL:
-
+  
   create table public.crump_chats (
     id uuid primary key default uuid_generate_v4(),
-    user_id uuid not null references auth.users (id) on delete cascade,
+    user_id uuid not null references public.users (id) on delete cascade,
     chat_id text not null,
     title text,
     messages jsonb default '[]'::jsonb,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
   );
-
+  
   create index crump_chats_user_id_idx on public.crump_chats(user_id);
   create unique index crump_chats_user_chat_id_idx on public.crump_chats(user_id, chat_id);
 */
@@ -98,7 +97,7 @@ async function handleGetChats(req, res, user) {
 
   return res.status(200).json({
     success: true,
-    data: { chats },
+    chats
   });
 }
 
@@ -135,12 +134,11 @@ async function handleSyncChats(req, res, user) {
     // Nothing else to do
     return res.status(200).json({
       success: true,
-      data: { chats: [] },
+      chats: []
     });
   }
 
   const nowIso = new Date().toISOString();
-
   const rows = chats.map((c) => ({
     user_id: user.id,
     chat_id: c.id,
@@ -168,6 +166,6 @@ async function handleSyncChats(req, res, user) {
 
   return res.status(200).json({
     success: true,
-    data: { chats },
+    chats
   });
 }
