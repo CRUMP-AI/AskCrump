@@ -1518,7 +1518,7 @@ function showWelcomeMessage() {
 // FIXED: Changed setEnabled → toggle, 'balanced' → 'medium'
 function setupAutonomousMessaging() {
     const enabled = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_ENABLED) === 'true';
-    const frequency = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'medium';
+    const frequency = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'balanced';
 
     if (window.autonomousMessaging) {
         window.autonomousMessaging.toggle(enabled);
