@@ -1153,196 +1153,202 @@ function handleFileSelect(e) {
 }
 
 function displayFilePreview() {
-    const preview = document.getElementById('filePreview');
-    if (!preview) return;
-    
-    // Clean up previous object URLs
-    if (window.activeObjectURLs) {
-        window.activeObjectURLs.forEach(url => {
-            try {
-                URL.revokeObjectURL(url);
-            } catch (e) {
-                console.warn('Failed to revoke URL:', e);
-            }
-        });
-        window.activeObjectURLs = [];
-    }
-    
-    if (selectedFiles.length === 0) {
-        preview.style.display = 'none';
-        return;
-    }
-    
-    preview.style.display = 'block';
-    preview.innerHTML = '';
-    
-    selectedFiles.forEach((file, index) => {
-    const fileDiv = document.createElement('div');
-    fileDiv.className = 'file-preview-item';
-    fileDiv.style.cssText = `
-        display: flex;
-        align-items: center;
-        padding: 0.75rem;
-        background: var(--color-bg-secondary);
-        border-radius: 8px;
-        margin-bottom: 0.5rem;
-    `;
-    
-    // File icon based on type
-    let icon = '📄';
-    if (file.type.startsWith('image/')) icon = '🖼️';
-    else if (file.type === 'application/pdf') icon = '📕';
-    else if (file.type.includes('zip') || file.name.endsWith('.zip')) icon = '🗜️';
-    else if (file.name.endsWith('.7z')) icon = '📦';
-    else if (file.name.endsWith('.tar.gz')) icon = '📦';
-    else if (file.name.endsWith('.rar')) icon = '📦';
-    
-    // Format file size
-    const sizeKB = (file.size / 1024).toFixed(1);
-    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-    const displaySize = file.size > 1024 * 1024 ? `${sizeMB} MB` : `${sizeKB} KB`;
-    
-    fileDiv.innerHTML = `
-        <span style="font-size: 1.5rem; margin-right: 0.75rem;">${icon}</span>
-        <div style="flex: 1; min-width: 0;">
-            <div style="font-weight: 500; color: var(--color-text-primary); 
-                        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                ${file.name}
-            </div>
-            <div style="font-size: 0.875rem; color: var(--color-text-secondary);">
-                ${displaySize}
-            </div>
-        </div>
-        <button onclick="removeFile(${index})" 
-                style="background: none; border: none; color: var(--color-text-secondary); 
-                       cursor: pointer; font-size: 1.25rem; padding: 0.25rem 0.5rem;">
-            ×
-        </button>
-    `;
-    
-    preview.appendChild(fileDiv);
-});
-        
-        // If it's an image, show LARGE preview
-        if (file.type.startsWith('image/')) {
-            const imgWrapper = document.createElement('div');
-            imgWrapper.style.cssText = 'position: relative; width: 200px; height: 200px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--color-bg-tertiary);';
-            
-            const img = document.createElement('img');
-            img.style.cssText = 'max-width: 100%; max-height: 100%; object-fit: contain;';
-            img.alt = file.name;
-            
-            const objectURL = URL.createObjectURL(file);
-            if (!window.activeObjectURLs) window.activeObjectURLs = [];
-            window.activeObjectURLs.push(objectURL);
-            img.src = objectURL;
-            
-            const cleanup = () => {
-                const urlIndex = window.activeObjectURLs.indexOf(objectURL);
-                if (urlIndex > -1) {
-                    try {
-                        URL.revokeObjectURL(objectURL);
-                        window.activeObjectURLs.splice(urlIndex, 1);
-                    } catch (e) {
-                        console.warn('Failed to revoke URL:', e);
-                    }
-                }
-            };
-            
-            img.onload = cleanup;
-            img.onerror = () => {
-                cleanup();
-                imgWrapper.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--color-text-secondary);">❌<br>Preview failed</div>';
-            };
-            
-            imgWrapper.appendChild(img);
-            
-            // File name overlay
-            const nameOverlay = document.createElement('div');
-            nameOverlay.style.cssText = 'position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.7)); color: white; padding: 0.5rem; font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
-            nameOverlay.textContent = file.name;
-            nameOverlay.title = file.name;
-            imgWrapper.appendChild(nameOverlay);
-            
-            container.appendChild(imgWrapper);
-        } else {
-            // For non-images, show file icon
-            const fileDisplay = document.createElement('div');
-            fileDisplay.style.cssText = 'width: 200px; height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; text-align: center;';
-            
-            const iconDiv = document.createElement('div');
-            iconDiv.style.cssText = 'font-size: 4rem; margin-bottom: 1rem;';
-            iconDiv.textContent = file.type.includes('pdf') ? '📄' : '📎';
-            
-            const nameDiv = document.createElement('div');
-            nameDiv.style.cssText = 'font-size: 0.875rem; font-weight: 500; word-break: break-word; color: var(--color-text-primary);';
-            nameDiv.textContent = file.name;
-            
-            const sizeDiv = document.createElement('div');
-            sizeDiv.style.cssText = 'font-size: 0.75rem; color: var(--color-text-tertiary); margin-top: 0.25rem;';
-            sizeDiv.textContent = `${(file.size / 1024).toFixed(1)} KB`;
-            
-            fileDisplay.appendChild(iconDiv);
-            fileDisplay.appendChild(nameDiv);
-            fileDisplay.appendChild(sizeDiv);
-            container.appendChild(fileDisplay);
-        }
-        
-        // BIG RED DELETE BUTTON
-        const removeBtn = document.createElement('button');
-        removeBtn.innerHTML = '×';
-        removeBtn.title = 'Remove file';
-        removeBtn.style.cssText = `
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: rgba(239, 68, 68, 0.9);
-            color: white;
-            border: 2px solid white;
-            font-size: 1.5rem;
-            line-height: 1;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            z-index: 10;
-        `;
-        
-        removeBtn.onmouseover = () => {
-            removeBtn.style.background = 'rgba(220, 38, 38, 1)';
-            removeBtn.style.transform = 'scale(1.1)';
-        };
-        
-        removeBtn.onmouseout = () => {
-            removeBtn.style.background = 'rgba(239, 68, 68, 0.9)';
-            removeBtn.style.transform = 'scale(1)';
-        };
-        
-        removeBtn.onclick = (e) => {
-            e.stopPropagation();
-            removeFile(index);
-        };
-        
-        container.appendChild(removeBtn);
-        preview.appendChild(container);
-    });
-    
-    // Status text
-    if (selectedFiles.length > 0) {
-        const helpText = document.createElement('div');
-        helpText.style.cssText = 'padding: 0.5rem 1rem; font-size: 0.875rem; color: var(--color-text-secondary); text-align: center;';
-        helpText.innerHTML = `
-            <span style="color: var(--color-accent-primary); font-weight: 500;">${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} ready to send</span>
-            <br><small>Click × to remove • Press Send to upload</small>
-        `;
-        preview.appendChild(helpText);
-    }
+ const preview = document.getElementById('filePreview');
+ if (!preview) return;
+ 
+ // Clean up previous object URLs
+ if (window.activeObjectURLs) {
+     window.activeObjectURLs.forEach(url => {
+         try {
+             URL.revokeObjectURL(url);
+         } catch (e) {
+             console.warn('Failed to revoke URL:', e);
+         }
+     });
+     window.activeObjectURLs = [];
+ }
+ 
+ if (selectedFiles.length === 0) {
+     preview.style.display = 'none';
+     return;
+ }
+ 
+ preview.style.display = 'block';
+ preview.innerHTML = '';
+ 
+ selectedFiles.forEach((file, index) => {
+     // Wrapper for this file’s preview
+     const container = document.createElement('div');
+     container.style.cssText = `
+         position: relative;
+         margin-bottom: 0.75rem;
+     `;
+     
+     // Top row (icon + name + size + small ×)
+     const fileDiv = document.createElement('div');
+     fileDiv.className = 'file-preview-item';
+     fileDiv.style.cssText = `
+         display: flex;
+         align-items: center;
+         padding: 0.75rem;
+         background: var(--color-bg-secondary);
+         border-radius: 8px;
+     `;
+     
+     // File icon based on type
+     let icon = '📄';
+     if (file.type.startsWith('image/')) icon = '🖼️';
+     else if (file.type === 'application/pdf') icon = '📕';
+     else if (file.type.includes('zip') || file.name.endsWith('.zip')) icon = '🗜️';
+     else if (file.name.endsWith('.7z') || file.name.endsWith('.tar.gz') || file.name.endsWith('.rar')) icon = '📦';
+     
+     const sizeKB = (file.size / 1024).toFixed(1);
+     const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+     const displaySize = file.size > 1024 * 1024 ? `${sizeMB} MB` : `${sizeKB} KB`;
+     
+     fileDiv.innerHTML = `
+         <span style="font-size: 1.5rem; margin-right: 0.75rem;">${icon}</span>
+         <div style="flex: 1; min-width: 0;">
+             <div style="font-weight: 500; color: var(--color-text-primary); 
+                         overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                 ${file.name}
+             </div>
+             <div style="font-size: 0.875rem; color: var(--color-text-secondary);">
+                 ${displaySize}
+             </div>
+         </div>
+     `;
+     
+     container.appendChild(fileDiv);
+     
+     // If it's an image, show LARGE preview block
+     if (file.type.startsWith('image/')) {
+         const imgWrapper = document.createElement('div');
+         imgWrapper.style.cssText = `
+             position: relative;
+             width: 200px;
+             height: 200px;
+             overflow: hidden;
+             display: flex;
+             align-items: center;
+             justify-content: center;
+             background: var(--color-bg-tertiary);
+             margin-top: 0.5rem;
+             border-radius: 8px;
+         `;
+         
+         const img = document.createElement('img');
+         img.style.cssText = 'max-width: 100%; max-height: 100%; object-fit: contain;';
+         img.alt = file.name;
+         
+         const objectURL = URL.createObjectURL(file);
+         if (!window.activeObjectURLs) window.activeObjectURLs = [];
+         window.activeObjectURLs.push(objectURL);
+         img.src = objectURL;
+         
+         const cleanup = () => {
+             const urlIndex = window.activeObjectURLs.indexOf(objectURL);
+             if (urlIndex > -1) {
+                 try {
+                     URL.revokeObjectURL(objectURL);
+                     window.activeObjectURLs.splice(urlIndex, 1);
+                 } catch (e) {
+                     console.warn('Failed to revoke URL:', e);
+                 }
+             }
+         };
+         
+         img.onload = cleanup;
+         img.onerror = () => {
+             cleanup();
+             imgWrapper.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--color-text-secondary);">❌<br>Preview failed</div>';
+         };
+         
+         imgWrapper.appendChild(img);
+         
+         const nameOverlay = document.createElement('div');
+         nameOverlay.style.cssText = `
+             position: absolute;
+             bottom: 0;
+             left: 0;
+             right: 0;
+             background: linear-gradient(transparent, rgba(0,0,0,0.7));
+             color: white;
+             padding: 0.5rem;
+             font-size: 0.75rem;
+             overflow: hidden;
+             text-overflow: ellipsis;
+             white-space: nowrap;
+         `;
+         nameOverlay.textContent = file.name;
+         nameOverlay.title = file.name;
+         imgWrapper.appendChild(nameOverlay);
+         
+         container.appendChild(imgWrapper);
+     }
+     
+     // BIG RED DELETE BUTTON
+     const removeBtn = document.createElement('button');
+     removeBtn.innerHTML = '×';
+     removeBtn.title = 'Remove file';
+     removeBtn.style.cssText = `
+         position: absolute;
+         top: 8px;
+         right: 8px;
+         width: 32px;
+         height: 32px;
+         border-radius: 50%;
+         background: rgba(239, 68, 68, 0.9);
+         color: white;
+         border: 2px solid white;
+         font-size: 1.5rem;
+         line-height: 1;
+         cursor: pointer;
+         display: flex;
+         align-items: center;
+         justify-content: center;
+         font-weight: 700;
+         transition: all 0.2s ease;
+         box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+         z-index: 10;
+     `;
+     
+     removeBtn.onmouseover = () => {
+         removeBtn.style.background = 'rgba(220, 38, 38, 1)';
+         removeBtn.style.transform = 'scale(1.1)';
+     };
+     
+     removeBtn.onmouseout = () => {
+         removeBtn.style.background = 'rgba(239, 68, 68, 0.9)';
+         removeBtn.style.transform = 'scale(1)';
+     };
+     
+     removeBtn.onclick = (e) => {
+         e.stopPropagation();
+         removeFile(index);
+     };
+     
+     container.appendChild(removeBtn);
+     preview.appendChild(container);
+ });
+ 
+ // Status text
+ if (selectedFiles.length > 0) {
+     const helpText = document.createElement('div');
+     helpText.style.cssText = `
+         padding: 0.5rem 1rem;
+         font-size: 0.875rem;
+         color: var(--color-text-secondary);
+         text-align: center;
+     `;
+     helpText.innerHTML = `
+         <span style="color: var(--color-accent-primary); font-weight: 500;">
+             ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} ready to send
+         </span>
+         <br><small>Click × to remove • Press Send to upload</small>
+     `;
+     preview.appendChild(helpText);
+ }
 }
 
 window.removeFile = function(index) {
