@@ -34,20 +34,6 @@ const NATIVE_TOOLS = [
         }
     },
     {
-        name: "get_weather",
-        description: "Get current weather conditions and forecast for any location worldwide",
-        input_schema: {
-            type: "object",
-            properties: {
-                location: {
-                    type: "string",
-                    description: "City name, zip code, or coordinates"
-                }
-            },
-            required: ["location"]
-        }
-    },
-    {
         name: "generate_image",
         description: "Generate an AI image based on a text description. Use when user explicitly asks to create, generate, or make an image/picture/photo.",
         input_schema: {
@@ -62,6 +48,7 @@ const NATIVE_TOOLS = [
         }
     }
 ];
+
 
 // ==========================================
 // BODY PARSER HELPER
