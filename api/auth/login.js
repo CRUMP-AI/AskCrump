@@ -165,24 +165,30 @@ export default async function handler(req, res) {
         // COOKIES
         // =====================================================
 
-        // a) Long-lived refresh token (httpOnly; used by /api/auth/refresh)
+       // a) Long-lived refresh token (httpOnly; used by /api/auth/refresh)
+        // Flexible domain for Vercel previews
+        const cookieDomain = process.env.COOKIE_DOMAIN || 
+                           (process.env.NODE_ENV === 'production' && req.headers.host?.includes('crumpai.app') 
+                             ? '.crumpai.app' 
+                             : undefined);
+        
         const refreshCookie = serialize('crump_refresh_token', refreshToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
             maxAge: 365 * 24 * 60 * 60, // 1 year in seconds
             path: '/',
-            domain: process.env.NODE_ENV === 'production' ? '.crumpai.app' : undefined // iOS compatibility
+            domain: cookieDomain
         });
         
-        // b) Short-lived auth cookie (backward compatibility with middleware)
+       // b) Short-lived auth cookie (backward compatibility with middleware)
        const authCookie = serialize('auth_token', accessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
             maxAge: 24 * 60 * 60, // 24 hours instead of 15 minutes
             path: '/',
-            domain: process.env.NODE_ENV === 'production' ? '.crumpai.app' : undefined
+            domain: cookieDomain  // Use same domain logic
         });
 
         // Attach both cookies
