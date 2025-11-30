@@ -27,7 +27,7 @@ export default async function handler(req, res) {
         if (!user) {
             // 2) If no valid access token, try refresh token
             const cookies = parse(req.headers.cookie || '');
-            const refreshToken = cookies.refresh_token;
+            const refreshToken = cookies.crump_refresh_token;
 
             if (refreshToken) {
                 const decoded = verifyRefreshToken(refreshToken);
