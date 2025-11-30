@@ -315,7 +315,7 @@ async function syncChatsFromServer() {
         }
 
         const data = await res.json();
-        const serverChats = data?.data?.chats || [];
+        const serverChats = data?.chats || [];
 
         // If server has no chats but local does, push local up instead
         if (serverChats.length === 0 && Array.isArray(chats) && chats.length > 0) {
@@ -1339,7 +1339,7 @@ function loadSettingsValues() {
     document.getElementById('settingsEmail').value = profile.email || '';
     document.getElementById('assistantName').value = localStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
     document.getElementById('autonomousMessaging').checked = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_ENABLED) === 'true';
-    document.getElementById('autonomousFrequency').value = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'medium';
+    document.getElementById('autonomousFrequency').value = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'balanced';
     document.getElementById('workMode').checked = localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true';
     document.getElementById('workStart').value = localStorage.getItem('crump_work_start') || '9';
     document.getElementById('workEnd').value = localStorage.getItem('crump_work_end') || '17';
@@ -1352,7 +1352,6 @@ function loadSettingsValues() {
     });
 }
 
-// FIXED: Changed setEnabled → toggle
 window.saveSettings = function() {
     const name = document.getElementById('settingsName').value.trim();
     const email = document.getElementById('settingsEmail').value.trim();
@@ -1362,23 +1361,6 @@ window.saveSettings = function() {
     const workMode = document.getElementById('workMode').checked;
     const workStart = document.getElementById('workStart').value;
     const workEnd = document.getElementById('workEnd').value;
-
-    // Track when user upgrades (for future use)
-window.notifyUpgrade = function(tier) {
-    const upgrade = {
-        tier: tier, // 'pro', 'pro-plus', etc.
-        timestamp: Date.now()
-    };
-    
-    localStorage.setItem('crump_recent_upgrade', JSON.stringify(upgrade));
-    
-    console.log('🎉 Upgrade detected:', tier);
-    
-    // Show Crump's excitement in next message
-    if (window.universalMemory) {
-        window.universalMemory.justUpgraded = upgrade;
-    }
-};
     
     // TRACK CHANGES FOR CRUMP TO ACKNOWLEDGE
     const previousAutonomous = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_ENABLED) === 'true';
@@ -1422,6 +1404,23 @@ window.notifyUpgrade = function(tier) {
     updateUserAvatar();
     closeSettings();
     showToast('Settings saved', 'success');
+};
+
+// Track when user upgrades (for future use)
+window.notifyUpgrade = function(tier) {
+    const upgrade = {
+        tier: tier, // 'pro', 'pro-plus', etc.
+        timestamp: Date.now()
+    };
+    
+    localStorage.setItem('crump_recent_upgrade', JSON.stringify(upgrade));
+    
+    console.log('🎉 Upgrade detected:', tier);
+    
+    // Show Crump's excitement in next message
+    if (window.universalMemory) {
+        window.universalMemory.justUpgraded = upgrade;
+    }
 };
 
 // ==========================================
