@@ -70,13 +70,16 @@ export default async function handler(req, res) {
 
         // If still no user → not authenticated
         if (!user) {
-            return res.status(200).json({
-                success: true,
-                authenticated: false,
-                user: null,
-                inTrial: false,
-                trialEndsAt: null
-            });
+                    return res.status(200).json({
+            success: true,
+            authenticated: true,
+            data: {
+                user,
+                inTrial,
+                trialEndsAt
+            }
+        });
+
         }
 
         // 7-DAY GLOBAL TRIAL (based on account creation)
