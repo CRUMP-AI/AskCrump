@@ -42,7 +42,7 @@ export default async function handler(req, res) {
                         user = dbUser;
 
                         // Issue fresh tokens
-                                               const newAccessToken = signAccessToken(dbUser);
+                        const newAccessToken = signAccessToken(dbUser);
                         const newRefreshToken = signRefreshToken(dbUser);
 
                         const accessCookie = serialize('auth_token', newAccessToken, {
@@ -62,7 +62,6 @@ export default async function handler(req, res) {
                         });
 
                         res.setHeader('Set-Cookie', [accessCookie, refreshCookie]);
-
                     }
                 }
             }
@@ -70,16 +69,10 @@ export default async function handler(req, res) {
 
         // If still no user → not authenticated
         if (!user) {
-                    return res.status(200).json({
-            success: true,
-            authenticated: true,
-            data: {
-                user,
-                inTrial,
-                trialEndsAt
-            }
-        });
-
+            return res.status(200).json({
+                success: true,
+                authenticated: false
+            });
         }
 
         // 7-DAY GLOBAL TRIAL (based on account creation)
@@ -100,12 +93,15 @@ export default async function handler(req, res) {
             }
         }
 
+        // Shape this so AuthUI.checkSession() sees data.data
         return res.status(200).json({
             success: true,
             authenticated: true,
-            user,
-            inTrial,
-            trialEndsAt
+            data: {
+                user,
+                inTrial,
+                trialEndsAt
+            }
         });
     } catch (err) {
         console.error('check-session error:', err);
