@@ -42,26 +42,27 @@ export default async function handler(req, res) {
                         user = dbUser;
 
                         // Issue fresh tokens
-                        const newAccessToken = signAccessToken(dbUser);
+                                               const newAccessToken = signAccessToken(dbUser);
                         const newRefreshToken = signRefreshToken(dbUser);
 
                         const accessCookie = serialize('auth_token', newAccessToken, {
                             httpOnly: true,
-                            secure: true,
+                            secure: process.env.NODE_ENV === 'production',
                             sameSite: 'lax',
                             path: '/',
                             maxAge: 60 * 60 // 1 hour
                         });
 
-                        const refreshCookie = serialize('refresh_token', newRefreshToken, {
+                        const refreshCookie = serialize('crump_refresh_token', newRefreshToken, {
                             httpOnly: true,
-                            secure: true,
+                            secure: process.env.NODE_ENV === 'production',
                             sameSite: 'lax',
                             path: '/',
                             maxAge: 365 * 24 * 60 * 60 // 1 year
                         });
 
                         res.setHeader('Set-Cookie', [accessCookie, refreshCookie]);
+
                     }
                 }
             }
