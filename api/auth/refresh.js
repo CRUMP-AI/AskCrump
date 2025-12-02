@@ -63,9 +63,10 @@ export default async function handler(req, res) {
                              : undefined);
 
         // Access token cookie - shorter lived
-       const accessCookie = serialize('auth_token', accessToken, {
+               // Access token cookie - shorter lived
+        const accessCookie = serialize('auth_token', accessToken, {
             httpOnly: true,
-            secure: true,
+            secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
             path: '/',
             maxAge: 24 * 60 * 60, // 24 hours
@@ -75,7 +76,7 @@ export default async function handler(req, res) {
         // Refresh token cookie - 1 year (Option A)
         const refreshCookie = serialize('crump_refresh_token', newRefreshToken, {
             httpOnly: true,
-            secure: true,
+            secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
             path: '/',
             maxAge: 365 * 24 * 60 * 60, // 1 year
@@ -85,7 +86,8 @@ export default async function handler(req, res) {
 
         return res.status(200).json({
             success: true,
-            token: accessToken,
+            accessToken: accessToken, 
+            token: accessToken,       
             user
         });
     } catch (err) {
