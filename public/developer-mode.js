@@ -1,5 +1,5 @@
 // ==========================================
-// CRUMP AI - DEVELOPER ACCESS v2.0
+// Ask Crump - DEVELOPER ACCESS v2.0
 // Professional admin authentication
 // ==========================================
 
@@ -7,7 +7,7 @@ class DeveloperMode {
     constructor() {
         this.enabled = this.loadDevMode();
         this.credentials = {
-            username: atob('Z3JlZ0BjcnVtcGFpLmNvbQ=='),  // greg@crumpai.com
+            username: atob('Z3JlZ0BjcnVtcGFpLmNvbQ=='),  // greg@clevercrump.com
             password: atob('TjItRW5naW5lLTIwMjU=')        // N2-Engine-2025
         };
         
@@ -93,7 +93,7 @@ class DeveloperMode {
                     
                     <div class="form-group">
                         <label for="devUsername">Username</label>
-                        <input type="text" id="devUsername" class="form-input" placeholder="developer@crumpai.com" autocomplete="username">
+                        <input type="text" id="devUsername" class="form-input" placeholder="developer@clevercrump.com" autocomplete="username">
                     </div>
                     
                     <div class="form-group">
