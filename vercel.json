@@ -3,6 +3,11 @@
   "framework": null,
   "buildCommand": null,
   "outputDirectory": "public",
+  "rewrites": [
+    { "source": "/app", "destination": "/index.html" },
+    { "source": "/app/(.*)", "destination": "/index.html" },
+    { "source": "/", "destination": "/landing.html" }
+  ],
   "functions": {
     "api/**/*.js": {
       "maxDuration": 60,
