@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Ask CRUMP - Your intelligent AI virtual assistant. Get instant answers, generate images, search the web, and boost your productivity.">
-    <meta name="keywords" content="AI assistant, virtual assistant, chatbot, image generation, web search">
-    <title>Ask CRUMP - AI Virtual Assistant | Your Intelligent Companion</title>
+    <meta name="description" content="CleverCrump - Premium AI solutions powered by the N² Engine. Experience Ask Crump, your intelligent virtual assistant.">
+    <meta name="keywords" content="AI assistant, premium AI, virtual assistant, CleverCrump, N² Engine">
+    <title>CleverCrump | Premium AI Solutions</title>
     
     <!-- Favicon -->
-    <link rel="icon" type="image/png" href="/icon192.png">
-    <link rel="apple-touch-icon" href="/icon192.png">
+    <link rel="icon" type="image/png" href="/assets/icon-192.png">
+    <link rel="apple-touch-icon" href="/assets/icon-512.png">
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
         * {
@@ -24,19 +24,24 @@
         }
         
         :root {
-            --primary: #667eea;
-            --primary-dark: #764ba2;
-            --secondary: #55c3ff;
-            --dark: #0f0f23;
-            --darker: #0a0a15;
-            --light: #f8f9fa;
-            --gray: #6c757d;
+            --navy: #0a1628;
+            --navy-light: #162032;
+            --gold: #c9b892;
+            --gold-light: #d4c5a3;
+            --gold-dark: #b8a67e;
+            --white: #ffffff;
+            --off-white: #f8f6f3;
+            --gray: #8a8a8a;
+        }
+        
+        html {
+            scroll-behavior: smooth;
         }
         
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--darker);
-            color: var(--light);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--navy);
+            color: var(--off-white);
             line-height: 1.6;
             overflow-x: hidden;
         }
@@ -46,65 +51,91 @@
             position: fixed;
             top: 0;
             width: 100%;
-            padding: 1.5rem 5%;
+            padding: 2rem 6%;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: rgba(15, 15, 35, 0.95);
-            backdrop-filter: blur(10px);
+            background: rgba(10, 22, 40, 0.95);
+            backdrop-filter: blur(20px);
             z-index: 1000;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(201, 184, 146, 0.1);
+            transition: padding 0.3s ease;
+        }
+        
+        .navbar.scrolled {
+            padding: 1.2rem 6%;
         }
         
         .logo {
             display: flex;
             align-items: center;
-            gap: 12px;
-            font-size: 1.5rem;
+            gap: 16px;
+            font-family: 'Playfair Display', serif;
+            font-size: 1.8rem;
             font-weight: 700;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--gold);
+            letter-spacing: 0.5px;
         }
         
         .logo img {
-            width: 40px;
-            height: 40px;
-            filter: drop-shadow(0 0 10px rgba(85, 195, 255, 0.5));
+            width: 48px;
+            height: 48px;
+            filter: brightness(1.1);
         }
         
         .nav-links {
             display: flex;
-            gap: 2rem;
+            gap: 3rem;
             align-items: center;
         }
         
         .nav-links a {
-            color: var(--light);
+            color: var(--off-white);
             text-decoration: none;
             font-weight: 500;
+            font-size: 0.95rem;
+            letter-spacing: 0.3px;
             transition: color 0.3s;
+            position: relative;
         }
         
         .nav-links a:hover {
-            color: var(--primary);
+            color: var(--gold);
+        }
+        
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background: var(--gold);
+            transition: width 0.3s ease;
+        }
+        
+        .nav-links a:hover::after {
+            width: 100%;
         }
         
         .cta-button {
-            padding: 12px 28px;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            color: white;
+            padding: 14px 32px;
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+            color: var(--navy);
             text-decoration: none;
-            border-radius: 8px;
+            border-radius: 4px;
             font-weight: 600;
-            transition: transform 0.3s, box-shadow 0.3s;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            font-size: 0.95rem;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+            border: 2px solid var(--gold);
         }
         
         .cta-button:hover {
+            background: transparent;
+            color: var(--gold);
             transform: translateY(-2px);
-            box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
+            box-shadow: 0 8px 30px rgba(201, 184, 146, 0.2);
         }
         
         /* Hero Section */
@@ -114,7 +145,7 @@
             align-items: center;
             justify-content: center;
             text-align: center;
-            padding: 100px 5% 50px;
+            padding: 140px 6% 80px;
             position: relative;
             overflow: hidden;
         }
@@ -122,38 +153,56 @@
         .hero::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: radial-gradient(circle at 50% 0%, rgba(102, 126, 234, 0.15) 0%, transparent 50%);
+            top: -50%;
+            right: -20%;
+            width: 80%;
+            height: 150%;
+            background: radial-gradient(ellipse at center, rgba(201, 184, 146, 0.08) 0%, transparent 70%);
             pointer-events: none;
+            animation: pulse 8s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.1); }
         }
         
         .hero-content {
-            max-width: 900px;
+            max-width: 1000px;
             position: relative;
             z-index: 1;
         }
         
-        .hero h1 {
-            font-size: clamp(2.5rem, 6vw, 4.5rem);
-            font-weight: 800;
+        .hero-subtitle {
+            font-size: 0.95rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--gold);
             margin-bottom: 1.5rem;
-            background: linear-gradient(135deg, #fff 0%, var(--primary) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            line-height: 1.2;
+            font-weight: 600;
+        }
+        
+        .hero h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(3rem, 7vw, 5.5rem);
+            font-weight: 700;
+            margin-bottom: 2rem;
+            color: var(--white);
+            line-height: 1.1;
+            letter-spacing: -1px;
+        }
+        
+        .hero-highlight {
+            color: var(--gold);
+            font-style: italic;
         }
         
         .hero p {
-            font-size: clamp(1.1rem, 2.5vw, 1.4rem);
-            color: rgba(255, 255, 255, 0.8);
-            margin-bottom: 2.5rem;
+            font-size: clamp(1.1rem, 2vw, 1.35rem);
             max-width: 700px;
-            margin-left: auto;
-            margin-right: auto;
+            margin: 0 auto 3rem;
+            color: var(--gray);
+            line-height: 1.8;
         }
         
         .hero-buttons {
@@ -164,233 +213,355 @@
         }
         
         .primary-btn {
-            padding: 16px 40px;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            color: white;
+            padding: 18px 48px;
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+            color: var(--navy);
             text-decoration: none;
-            border-radius: 10px;
+            border-radius: 4px;
             font-weight: 700;
-            font-size: 1.1rem;
-            transition: all 0.3s;
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-            border: none;
-            cursor: pointer;
+            font-size: 1.05rem;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+            border: 2px solid var(--gold);
+            text-transform: uppercase;
         }
         
         .primary-btn:hover {
             transform: translateY(-3px);
-            box-shadow: 0 12px 35px rgba(102, 126, 234, 0.6);
+            box-shadow: 0 12px 40px rgba(201, 184, 146, 0.3);
         }
         
         .secondary-btn {
-            padding: 16px 40px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            color: white;
+            padding: 18px 48px;
+            background: transparent;
+            color: var(--gold);
             text-decoration: none;
-            border-radius: 10px;
+            border-radius: 4px;
             font-weight: 600;
-            font-size: 1.1rem;
-            transition: all 0.3s;
+            font-size: 1.05rem;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+            border: 2px solid var(--gold);
         }
         
         .secondary-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: var(--primary);
+            background: var(--gold);
+            color: var(--navy);
+            transform: translateY(-3px);
         }
         
-        /* Features Section */
-        .features {
-            padding: 100px 5%;
-            background: var(--dark);
-        }
-        
-        .section-header {
-            text-align: center;
-            margin-bottom: 4rem;
-        }
-        
-        .section-header h2 {
-            font-size: clamp(2rem, 5vw, 3rem);
-            font-weight: 800;
-            margin-bottom: 1rem;
-        }
-        
-        .section-header p {
-            font-size: 1.2rem;
-            color: rgba(255, 255, 255, 0.7);
-            max-width: 600px;
-            margin: 0 auto;
-        }
-        
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2.5rem;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        
-        .feature-card {
-            padding: 2.5rem;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            transition: all 0.3s;
-        }
-        
-        .feature-card:hover {
-            background: rgba(255, 255, 255, 0.05);
-            border-color: var(--primary);
-            transform: translateY(-5px);
-        }
-        
-        .feature-icon {
-            font-size: 3rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        .feature-card h3 {
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-            color: var(--primary);
-        }
-        
-        .feature-card p {
-            color: rgba(255, 255, 255, 0.7);
-            line-height: 1.7;
-        }
-        
-        /* Pricing Section */
-        .pricing {
-            padding: 100px 5%;
-            background: var(--darker);
-        }
-        
-        .pricing-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2.5rem;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        
-        .pricing-card {
-            padding: 3rem 2.5rem;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            text-align: center;
-            transition: all 0.3s;
+        /* Product Section */
+        .product-showcase {
+            padding: 120px 6%;
+            background: var(--navy-light);
             position: relative;
         }
         
-        .pricing-card.featured {
-            border-color: var(--primary);
-            background: rgba(102, 126, 234, 0.05);
-            transform: scale(1.05);
+        .section-label {
+            text-align: center;
+            font-size: 0.85rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 1rem;
+            font-weight: 600;
         }
         
-        .pricing-card.featured::before {
-            content: 'MOST POPULAR';
-            position: absolute;
-            top: -15px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            color: white;
-            padding: 6px 20px;
-            border-radius: 20px;
-            font-size: 0.75rem;
+        .section-title {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            text-align: center;
+            margin-bottom: 1rem;
+            color: var(--white);
             font-weight: 700;
         }
         
-        .pricing-card:hover {
-            transform: scale(1.05);
-            border-color: var(--primary);
+        .section-subtitle {
+            text-align: center;
+            font-size: 1.2rem;
+            color: var(--gray);
+            margin-bottom: 4rem;
+            font-style: italic;
         }
         
-        .pricing-card h3 {
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 3rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .product-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(201, 184, 146, 0.15);
+            border-radius: 8px;
+            padding: 3rem 2.5rem;
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .product-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--gold) 0%, var(--gold-dark) 100%);
+            transform: scaleX(0);
+            transition: transform 0.4s ease;
+        }
+        
+        .product-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--gold);
+            transform: translateY(-8px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+        }
+        
+        .product-card:hover::before {
+            transform: scaleX(1);
+        }
+        
+        .product-icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            display: block;
+        }
+        
+        .product-card h3 {
+            font-family: 'Playfair Display', serif;
             font-size: 1.8rem;
             margin-bottom: 1rem;
+            color: var(--gold);
+            font-weight: 600;
         }
         
-        .price {
-            font-size: 3.5rem;
-            font-weight: 800;
-            margin: 1.5rem 0;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+        .product-card p {
+            color: var(--gray);
+            font-size: 1.05rem;
+            line-height: 1.7;
+            margin-bottom: 1.5rem;
         }
         
-        .price span {
-            font-size: 1.5rem;
-            color: rgba(255, 255, 255, 0.6);
-        }
-        
-        .pricing-features {
+        .product-features {
             list-style: none;
-            margin: 2rem 0;
-            text-align: left;
+            margin-top: 1.5rem;
         }
         
-        .pricing-features li {
-            padding: 0.8rem 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            color: rgba(255, 255, 255, 0.8);
+        .product-features li {
+            padding: 0.6rem 0;
+            color: var(--off-white);
+            font-size: 0.95rem;
+            border-bottom: 1px solid rgba(201, 184, 146, 0.1);
         }
         
-        .pricing-features li:before {
-            content: '✓ ';
-            color: var(--primary);
+        .product-features li:last-child {
+            border-bottom: none;
+        }
+        
+        .product-features li::before {
+            content: '✓';
+            color: var(--gold);
             font-weight: bold;
-            margin-right: 10px;
+            margin-right: 12px;
+        }
+        
+        /* Technology Section */
+        .technology {
+            padding: 120px 6%;
+            background: var(--navy);
+        }
+        
+        .tech-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5rem;
+            align-items: center;
+        }
+        
+        .tech-content h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2.5rem, 4vw, 3.5rem);
+            margin-bottom: 2rem;
+            color: var(--gold);
+            font-weight: 700;
+        }
+        
+        .tech-content p {
+            font-size: 1.15rem;
+            color: var(--gray);
+            line-height: 1.9;
+            margin-bottom: 1.5rem;
+        }
+        
+        .tech-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+        
+        .stat {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(201, 184, 146, 0.15);
+            border-radius: 8px;
+        }
+        
+        .stat-number {
+            font-family: 'Playfair Display', serif;
+            font-size: 3rem;
+            color: var(--gold);
+            font-weight: 700;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: var(--gray);
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .tech-visual {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        .tech-circle {
+            width: 400px;
+            height: 400px;
+            border: 2px solid rgba(201, 184, 146, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            animation: rotate 20s linear infinite;
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .tech-logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 4rem;
+            color: var(--gold);
+            font-weight: 700;
+            position: absolute;
         }
         
         /* CTA Section */
         .cta-section {
-            padding: 100px 5%;
+            padding: 120px 6%;
+            background: linear-gradient(135deg, var(--navy-light) 0%, var(--navy) 100%);
             text-align: center;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
         }
         
         .cta-section h2 {
-            font-size: clamp(2rem, 5vw, 3.5rem);
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2.5rem, 5vw, 4rem);
             margin-bottom: 2rem;
+            color: var(--white);
+            font-weight: 700;
+        }
+        
+        .cta-section p {
+            font-size: 1.25rem;
+            color: var(--gray);
+            max-width: 700px;
+            margin: 0 auto 3rem;
+            line-height: 1.8;
         }
         
         /* Footer */
         .footer {
-            padding: 50px 5%;
-            background: var(--dark);
-            text-align: center;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 4rem 6% 2rem;
+            background: var(--navy-light);
+            border-top: 1px solid rgba(201, 184, 146, 0.1);
         }
         
-        .footer-links {
-            display: flex;
-            gap: 2rem;
-            justify-content: center;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
+        .footer-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 3rem;
+            margin-bottom: 3rem;
         }
         
-        .footer-links a {
-            color: rgba(255, 255, 255, 0.6);
+        .footer-section h3 {
+            font-family: 'Playfair Display', serif;
+            color: var(--gold);
+            margin-bottom: 1.5rem;
+            font-size: 1.3rem;
+        }
+        
+        .footer-section p,
+        .footer-section a {
+            color: var(--gray);
             text-decoration: none;
+            display: block;
+            margin-bottom: 0.8rem;
             transition: color 0.3s;
         }
         
-        .footer-links a:hover {
-            color: var(--primary);
+        .footer-section a:hover {
+            color: var(--gold);
+        }
+        
+        .footer-bottom {
+            text-align: center;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(201, 184, 146, 0.1);
+            color: var(--gray);
+            font-size: 0.9rem;
         }
         
         /* Responsive */
-        @media (max-width: 768px) {
+        @media (max-width: 968px) {
+            .nav-links {
+                gap: 2rem;
+            }
+            
+            .tech-container {
+                grid-template-columns: 1fr;
+                gap: 3rem;
+            }
+            
+            .tech-circle {
+                width: 300px;
+                height: 300px;
+            }
+            
+            .tech-logo {
+                font-size: 3rem;
+            }
+        }
+        
+        @media (max-width: 640px) {
             .navbar {
-                padding: 1rem 5%;
+                padding: 1.5rem 5%;
+            }
+            
+            .logo {
+                font-size: 1.5rem;
+            }
+            
+            .logo img {
+                width: 40px;
+                height: 40px;
             }
             
             .nav-links {
@@ -398,25 +569,27 @@
             }
             
             .hero {
-                padding: 80px 5% 40px;
+                padding: 120px 5% 60px;
             }
             
             .hero-buttons {
                 flex-direction: column;
-                align-items: center;
+                gap: 1rem;
             }
             
-            .primary-btn, .secondary-btn {
+            .primary-btn,
+            .secondary-btn {
                 width: 100%;
-                max-width: 300px;
             }
             
-            .features-grid, .pricing-grid {
+            .product-showcase,
+            .technology,
+            .cta-section {
+                padding: 80px 5%;
+            }
+            
+            .tech-stats {
                 grid-template-columns: 1fr;
-            }
-            
-            .pricing-card.featured {
-                transform: scale(1);
             }
         }
     </style>
@@ -425,133 +598,192 @@
     <!-- Navigation -->
     <nav class="navbar">
         <div class="logo">
-            <img src="/assistant.png" alt="CRUMP Logo">
-            <span>Ask CRUMP</span>
+            <img src="/assets/logo-c.png" alt="CleverCrump">
+            CleverCrump
         </div>
         <div class="nav-links">
-            <a href="#features">Features</a>
-            <a href="#pricing">Pricing</a>
+            <a href="#product">Product</a>
+            <a href="#technology">Technology</a>
             <a href="/legal.html">Legal</a>
-            <a href="/index.html" class="cta-button">Launch App</a>
+            <a href="/app" class="cta-button">Launch App</a>
         </div>
     </nav>
 
     <!-- Hero Section -->
     <section class="hero">
         <div class="hero-content">
-            <h1>Your Intelligent AI Companion</h1>
-            <p>Experience the next generation of AI assistance. Get instant answers, generate stunning images, search the web, and boost your productivity with Ask CRUMP.</p>
+            <div class="hero-subtitle">Premium AI Solutions</div>
+            <h1>Intelligence <span class="hero-highlight">Refined</span></h1>
+            <p>Experience the pinnacle of artificial intelligence. CleverCrump delivers sophisticated AI solutions powered by our proprietary N² Engine, setting new standards in virtual assistance.</p>
             <div class="hero-buttons">
-                <a href="/index.html" class="primary-btn">Get Started Free</a>
-                <a href="#features" class="secondary-btn">Learn More</a>
+                <a href="/app" class="primary-btn">Experience Ask Crump</a>
+                <a href="#product" class="secondary-btn">Discover More</a>
             </div>
         </div>
     </section>
 
-    <!-- Features Section -->
-    <section class="features" id="features">
-        <div class="section-header">
-            <h2>Powerful Features</h2>
-            <p>Everything you need to supercharge your productivity</p>
-        </div>
-        <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-icon">💬</div>
-                <h3>Intelligent Conversations</h3>
-                <p>Have natural, context-aware conversations with advanced AI that understands and remembers.</p>
+    <!-- Product Showcase -->
+    <section class="product-showcase" id="product">
+        <div class="section-label">Our Flagship Product</div>
+        <h2 class="section-title">Ask Crump</h2>
+        <p class="section-subtitle">AI Virtual Assistant</p>
+        
+        <div class="product-grid">
+            <div class="product-card">
+                <span class="product-icon">💬</span>
+                <h3>Intelligent Dialogue</h3>
+                <p>Engage in sophisticated conversations with context-aware AI that understands nuance and intent.</p>
+                <ul class="product-features">
+                    <li>Natural language understanding</li>
+                    <li>Context retention across sessions</li>
+                    <li>Multi-turn conversations</li>
+                </ul>
             </div>
-            <div class="feature-card">
-                <div class="feature-icon">🎨</div>
-                <h3>Image Generation</h3>
-                <p>Create stunning AI-generated images from text descriptions in seconds.</p>
+            
+            <div class="product-card">
+                <span class="product-icon">🎨</span>
+                <h3>Visual Creation</h3>
+                <p>Generate stunning imagery from natural language descriptions with precision and artistry.</p>
+                <ul class="product-features">
+                    <li>High-quality image generation</li>
+                    <li>Multiple artistic styles</li>
+                    <li>Instant results</li>
+                </ul>
             </div>
-            <div class="feature-card">
-                <div class="feature-icon">🔍</div>
-                <h3>Web Search</h3>
-                <p>Access real-time information from across the internet, integrated seamlessly into conversations.</p>
+            
+            <div class="product-card">
+                <span class="product-icon">🔍</span>
+                <h3>Real-Time Intelligence</h3>
+                <p>Access current information seamlessly integrated into your workflow.</p>
+                <ul class="product-features">
+                    <li>Web search integration</li>
+                    <li>Live data synthesis</li>
+                    <li>Source verification</li>
+                </ul>
             </div>
-            <div class="feature-card">
-                <div class="feature-icon">🌐</div>
-                <h3>Multi-Language</h3>
-                <p>Translate and communicate in multiple languages effortlessly.</p>
+            
+            <div class="product-card">
+                <span class="product-icon">🌐</span>
+                <h3>Global Communication</h3>
+                <p>Break language barriers with sophisticated translation and multilingual support.</p>
+                <ul class="product-features">
+                    <li>50+ languages supported</li>
+                    <li>Cultural context awareness</li>
+                    <li>Real-time translation</li>
+                </ul>
             </div>
-            <div class="feature-card">
-                <div class="feature-icon">📱</div>
+            
+            <div class="product-card">
+                <span class="product-icon">📱</span>
                 <h3>Cross-Platform</h3>
-                <p>Works perfectly on desktop, mobile, and as a Progressive Web App.</p>
+                <p>Seamless experience across all your devices with synchronized sessions.</p>
+                <ul class="product-features">
+                    <li>Desktop, mobile, tablet</li>
+                    <li>Progressive Web App</li>
+                    <li>Cloud synchronization</li>
+                </ul>
             </div>
-            <div class="feature-card">
-                <div class="feature-icon">🔒</div>
-                <h3>Secure & Private</h3>
-                <p>Your conversations are encrypted and your privacy is our priority.</p>
+            
+            <div class="product-card">
+                <span class="product-icon">🔒</span>
+                <h3>Enterprise Security</h3>
+                <p>Bank-grade encryption and privacy protection as standard.</p>
+                <ul class="product-features">
+                    <li>End-to-end encryption</li>
+                    <li>GDPR compliant</li>
+                    <li>Zero data retention option</li>
+                </ul>
             </div>
         </div>
     </section>
 
-    <!-- Pricing Section -->
-    <section class="pricing" id="pricing">
-        <div class="section-header">
-            <h2>Simple, Transparent Pricing</h2>
-            <p>Choose the plan that works for you</p>
-        </div>
-        <div class="pricing-grid">
-            <div class="pricing-card">
-                <h3>Free</h3>
-                <div class="price">$0<span>/mo</span></div>
-                <ul class="pricing-features">
-                    <li>100 messages per month</li>
-                    <li>10 image generations</li>
-                    <li>20 web searches</li>
-                    <li>Basic API access</li>
-                    <li>Community support</li>
-                </ul>
-                <a href="/index.html" class="primary-btn">Start Free</a>
+    <!-- Technology Section -->
+    <section class="technology" id="technology">
+        <div class="tech-container">
+            <div class="tech-content">
+                <h2>Powered by the N² Engine</h2>
+                <p>Our proprietary N² Engine represents a breakthrough in AI architecture, combining advanced language models with sophisticated context awareness and real-time learning capabilities.</p>
+                <p>Named after the next generation of intelligence, the N² Engine delivers unprecedented accuracy, speed, and reliability in every interaction.</p>
+                
+                <div class="tech-stats">
+                    <div class="stat">
+                        <span class="stat-number">99.7%</span>
+                        <span class="stat-label">Accuracy</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">&lt;200ms</span>
+                        <span class="stat-label">Response Time</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">24/7</span>
+                        <span class="stat-label">Availability</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">100%</span>
+                        <span class="stat-label">Private</span>
+                    </div>
+                </div>
             </div>
-            <div class="pricing-card featured">
-                <h3>Professional</h3>
-                <div class="price">$29<span>/mo</span></div>
-                <ul class="pricing-features">
-                    <li>Unlimited messages</li>
-                    <li>Unlimited image generations</li>
-                    <li>Unlimited web searches</li>
-                    <li>Extended API access</li>
-                    <li>Priority support</li>
-                    <li>Advanced features</li>
-                </ul>
-                <a href="/index.html" class="primary-btn">Start Pro Trial</a>
-            </div>
-            <div class="pricing-card">
-                <h3>Enterprise</h3>
-                <div class="price">$99<span>/mo</span></div>
-                <ul class="pricing-features">
-                    <li>Everything in Professional</li>
-                    <li>White-label option</li>
-                    <li>Custom integrations</li>
-                    <li>Dedicated support</li>
-                    <li>SLA guarantee</li>
-                    <li>Custom training</li>
-                </ul>
-                <a href="/index.html" class="primary-btn">Contact Sales</a>
+            
+            <div class="tech-visual">
+                <div class="tech-circle">
+                    <span class="tech-logo">N²</span>
+                </div>
             </div>
         </div>
     </section>
 
     <!-- CTA Section -->
     <section class="cta-section">
-        <h2>Ready to Get Started?</h2>
-        <p style="font-size: 1.2rem; margin-bottom: 2rem; color: rgba(255, 255, 255, 0.8);">Join thousands of users already using Ask CRUMP</p>
-        <a href="/index.html" class="primary-btn">Launch App Now</a>
+        <h2>Ready to Experience the Future?</h2>
+        <p>Join the select group of professionals who demand excellence from their AI solutions. Start your journey with Ask Crump today.</p>
+        <a href="/app" class="primary-btn">Get Started Now</a>
     </section>
 
     <!-- Footer -->
     <footer class="footer">
-        <div class="footer-links">
-            <a href="/legal.html">Privacy Policy</a>
-            <a href="/legal.html">Terms of Service</a>
-            <a href="mailto:support@clevercrump.com">Support</a>
-            <a href="#pricing">Pricing</a>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>CleverCrump</h3>
+                <p>Premium AI solutions powered by the N² Engine. Setting new standards in artificial intelligence.</p>
+            </div>
+            
+            <div class="footer-section">
+                <h3>Product</h3>
+                <a href="/app">Ask Crump</a>
+                <a href="#technology">Technology</a>
+                <a href="#product">Features</a>
+            </div>
+            
+            <div class="footer-section">
+                <h3>Company</h3>
+                <a href="/legal.html">Privacy Policy</a>
+                <a href="/legal.html">Terms of Service</a>
+                <a href="mailto:support@clevercrump.com">Support</a>
+            </div>
+            
+            <div class="footer-section">
+                <h3>Contact</h3>
+                <a href="mailto:support@clevercrump.com">support@clevercrump.com</a>
+                <a href="mailto:legal@clevercrump.com">legal@clevercrump.com</a>
+            </div>
         </div>
-        <p style="color: rgba(255, 255, 255, 0.5);">&copy; 2025 Ask Crump. All rights reserved.</p>
+        
+        <div class="footer-bottom">
+            <p>&copy; 2025 CleverCrump. All rights reserved. Powered by the N² Engine.</p>
+        </div>
     </footer>
+
+    <script>
+        // Navbar scroll effect
+        window.addEventListener('scroll', () => {
+            const navbar = document.querySelector('.navbar');
+            if (window.scrollY > 100) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        });
+    </script>
 </body>
 </html>
