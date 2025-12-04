@@ -44,8 +44,8 @@ export default async function handler(req, res) {
   
   // Dynamic origin handling for Vercel previews
   const allowedOrigins = [
-    'https://crumpai.app',
-    'https://www.crumpai.app'
+    'https://clevercrump',
+    'https://www.clevercrump'
   ];
   
   const requestOrigin = req.headers.origin;
@@ -57,7 +57,7 @@ export default async function handler(req, res) {
   )) {
     res.setHeader('Access-Control-Allow-Origin', requestOrigin);
   } else {
-    res.setHeader('Access-Control-Allow-Origin', 'https://crumpai.app');
+    res.setHeader('Access-Control-Allow-Origin', 'https://clevercrump.com');
   }
   
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
