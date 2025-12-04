@@ -168,8 +168,8 @@ export default async function handler(req, res) {
        // a) Long-lived refresh token (httpOnly; used by /api/auth/refresh)
         // Flexible domain for Vercel previews
         const cookieDomain = process.env.COOKIE_DOMAIN || 
-                           (process.env.NODE_ENV === 'production' && req.headers.host?.includes('crumpai.app') 
-                             ? '.crumpai.app' 
+                           (process.env.NODE_ENV === 'production' && req.headers.host?.includes('clevercrump.com') 
+                             ? '.clevercrump.com' 
                              : undefined);
         
         const refreshCookie = serialize('crump_refresh_token', refreshToken, {
