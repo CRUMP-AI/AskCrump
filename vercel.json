@@ -5,7 +5,6 @@
   "outputDirectory": "public",
   "rewrites": [
     { "source": "/app", "destination": "/index.html" },
-    { "source": "/app/(.*)", "destination": "/index.html" },
     { "source": "/", "destination": "/landing.html" }
   ],
   "functions": {
