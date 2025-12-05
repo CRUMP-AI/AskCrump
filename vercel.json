@@ -125,3 +125,9 @@
           "key": "Referrer-Policy",
           "value": "strict-origin-when-cross-origin"
         }
+      ]
+    }
+  ],
+  "cleanUrls": true,
+  "trailingSlash": false
+}
