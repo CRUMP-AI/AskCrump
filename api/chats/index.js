@@ -44,8 +44,8 @@ export default async function handler(req, res) {
   
   // Dynamic origin handling for Vercel previews
   const allowedOrigins = [
-    'https://clevercrump',
-    'https://www.clevercrump'
+    'https://clevercrump.com',
+    'https://www.clevercrump.com'
   ];
   
   const requestOrigin = req.headers.origin;
