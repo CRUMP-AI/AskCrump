@@ -188,12 +188,12 @@ if (typeof window.ProfileManager !== 'undefined') {
             console.log('✅ Context Tracker initialized');
         }
 
-               loadChats();
+               // Load chats from localStorage first (instant)
+loadChats();
 
-        // If user is logged in, pull down cloud chats for cross-device sync
-        if (typeof syncChatsFromServer === 'function' && window.currentUser && window.currentUser.id) {
-            syncChatsFromServer();
-        }
+// Note: syncChatsFromServer() is called from initializeAuthenticatedApp()
+// after successful login. We don't call it here to avoid race conditions.
+
 
         setupEventListeners();
         setupSidebarToggle();
