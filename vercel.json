@@ -3,14 +3,14 @@
   "framework": null,
   "buildCommand": null,
   "outputDirectory": "public",
-  "routes": [
+  "rewrites": [
     {
-      "src": "/app",
-      "dest": "/index.html"
+      "source": "/app",
+      "destination": "/index.html"
     },
     {
-      "src": "/",
-      "dest": "/landing.html"
+      "source": "/",
+      "destination": "/landing.html"
     }
   ],
   "functions": {
