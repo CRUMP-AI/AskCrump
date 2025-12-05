@@ -3,9 +3,15 @@
   "framework": null,
   "buildCommand": null,
   "outputDirectory": "public",
-  "rewrites": [
-    { "source": "/app", "destination": "/index.html" },
-    { "source": "/", "destination": "/landing.html" }
+  "routes": [
+    {
+      "src": "/app",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/",
+      "dest": "/landing.html"
+    }
   ],
   "functions": {
     "api/**/*.js": {
@@ -119,9 +125,3 @@
           "key": "Referrer-Policy",
           "value": "strict-origin-when-cross-origin"
         }
-      ]
-    }
-  ],
-  "cleanUrls": true,
-  "trailingSlash": false
-}
