@@ -261,18 +261,19 @@ class AuthUI {
             }
 
             // 🔄 Soft recovery from local storage (fallback if server gives weird state)
-            const storedUserRaw = localStorage.getItem('crump_user');
-            if (storedToken && storedUserRaw) {
-                try {
-                    const user = JSON.parse(storedUserRaw);
-                    this.handleAuthSuccess({ user });
-                    this.allowAppAccess();
-                    console.warn('[AuthUI] Recovered session from localStorage.');
-                    return;
-                } catch (e) {
-                    console.warn('[AuthUI] Failed to recover user from localStorage', e);
-                }
-            }
+const storedUserRaw = localStorage.getItem('crump_user');
+if (storedUserRaw) {
+    try {
+        const user = JSON.parse(storedUserRaw);
+        this.handleAuthSuccess({ user });
+        this.allowAppAccess();
+        console.warn('[AuthUI] Recovered session from localStorage.');
+        return;
+    } catch (e) {
+        console.warn('[AuthUI] Failed to recover user from localStorage', e);
+    }
+}
+
 
             // If we get here, we couldn’t recover → show login
             this.forceLogin();
