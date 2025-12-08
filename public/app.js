@@ -341,20 +341,6 @@ function saveChats() {
         }, 2000); // Wait 2 seconds after last save
     }
 }
-    } catch (storageError) {
-        console.warn('⚠️ Failed to save chats (localStorage unavailable)', storageError);
-    }
-
-    // If the user is logged in, also sync to the server
-    if (window.currentUser && window.currentUser.id && typeof syncChatsToServer === 'function') {
-        // fire-and-forget: don't block the UI
-        try {
-            syncChatsToServer();
-        } catch (e) {
-            console.warn('⚠️ syncChatsToServer threw synchronously:', e);
-        }
-    }
-}
 window.saveChats = saveChats;
 
 // ==========================================
