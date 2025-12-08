@@ -2,7 +2,7 @@
   "name": "Ask Crump AI Virtual Assistant",
   "short_name": "Ask Crump",
   "description": "Your personal AI assistant powered by the N² Engine",
-  "start_url": "/",
+  "start_url": "/app",
   "display": "standalone",
   "background_color": "#0f1419",
   "theme_color": "#c9b892",
