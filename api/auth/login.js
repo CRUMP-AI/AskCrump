@@ -174,9 +174,9 @@ export default async function handler(req, res) {
         
         const refreshCookie = serialize('crump_refresh_token', refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'none', // CRITICAL: Changed from 'lax' to 'none' for cross-domain
-            maxAge: 365 * 24 * 60 * 60, // 1 year in seconds
+            secure: true, // ALWAYS true for sameSite: none
+            sameSite: 'none',
+            maxAge: 365 * 24 * 60 * 60,
             path: '/',
             domain: cookieDomain
         });
@@ -184,9 +184,9 @@ export default async function handler(req, res) {
        // b) Short-lived auth cookie (backward compatibility with middleware)
       const authCookie = serialize('auth_token', accessToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'none', // CRITICAL: Changed from 'lax' to 'none'
-            maxAge: 24 * 60 * 60, // 24 hours
+            secure: true, // ALWAYS true for sameSite: none
+            sameSite: 'none',
+            maxAge: 24 * 60 * 60,
             path: '/',
             domain: cookieDomain
         });
