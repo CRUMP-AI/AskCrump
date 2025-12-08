@@ -88,6 +88,16 @@ window.initializeAuthenticatedApp = function(user) {
     // Store user info globally
     window.currentUser = user;
     
+    // Sync chats from server (cross-device)
+    if (typeof window.syncChatsFromServer === 'function') {
+        window.syncChatsFromServer();
+    }
+    
+    // Start auto-sync
+    if (typeof window.startAutoSync === 'function') {
+        window.startAutoSync();
+    }
+    
     // Update universal memory with user profile
     if (typeof window.universalMemory !== 'undefined') {
         window.universalMemory.userProfile = {
@@ -321,9 +331,16 @@ function loadChats() {
 }
 
 function saveChats() {
-    // Always keep the local copy for offline / guest mode
-    try {
-        SafeStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
+    SafeStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
+    
+    // Sync to server (debounced)
+    if (typeof window.syncChatsToServer === 'function' && window.currentUser) {
+        clearTimeout(window.syncDebounceTimer);
+        window.syncDebounceTimer = setTimeout(() => {
+            window.syncChatsToServer();
+        }, 2000); // Wait 2 seconds after last save
+    }
+}
     } catch (storageError) {
         console.warn('⚠️ Failed to save chats (localStorage unavailable)', storageError);
     }
