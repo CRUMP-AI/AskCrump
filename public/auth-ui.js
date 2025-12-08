@@ -351,11 +351,8 @@ class AuthUI {
         }
     }
 
-    // =====================================================
-    // AUTO-REFRESH TIMER - Keep session alive
-    // =====================================================
    // =====================================================
-    // AUTO-REFRESH TIMER - Keep session alive (iOS-optimized)
+    // AUTO-REFRESH TIMER - iOS-optimized persistent login
     // =====================================================
     startAutoRefresh() {
         // Clear any existing interval
