@@ -578,19 +578,15 @@ class AuthUI {
 
 
             handleAuthSuccess(data) {
-        // Core user object
-        this.currentUser = data.user;
+    // Core user object
+    this.currentUser = data.user;
 
-        // Try to keep an auth token around:
-        // - Use token from /api/auth/login when available
-        // - Fall back to any previously stored token
-        const storedToken = localStorage.getItem('crump_auth_token');
-        this.authToken = data.token || storedToken || null;
+    // ⚡ FIXED: Use cookies (already set by server) instead of localStorage
+    // The httpOnly cookies handle authentication - we don't need localStorage tokens
+    this.authToken = data.token || 'cookie-based-auth';
 
-        // If this login came from /api/auth/login, persist the new token
-        if (data.token) {
-            localStorage.setItem('crump_auth_token', data.token);
-        }
+    // DON'T store token in localStorage - use cookies instead
+    // (Cookies are already set by the server and work cross-browser)
 
         // Update UI for logged-in state
         this.updateUIForLoggedIn();
