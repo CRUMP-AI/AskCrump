@@ -243,6 +243,7 @@ class AuthUI {
             ) {
                 this.handleAuthSuccess(data.data);
                 this.allowAppAccess();
+                this.startAutoRefresh(); // START AUTO-REFRESH
                 return;
             }
 
@@ -353,23 +354,40 @@ class AuthUI {
     // =====================================================
     // AUTO-REFRESH TIMER - Keep session alive
     // =====================================================
+   // =====================================================
+    // AUTO-REFRESH TIMER - Keep session alive (iOS-optimized)
+    // =====================================================
     startAutoRefresh() {
         // Clear any existing interval
         if (this.refreshInterval) {
             clearInterval(this.refreshInterval);
         }
         
-        // Refresh every 12 hours to keep session alive
+        // Refresh every 10 minutes to combat iOS Safari's aggressive cookie clearing
         this.refreshInterval = setInterval(async () => {
             console.log('[AuthUI] Auto-refreshing session...');
             const refreshed = await this.trySilentRefresh();
             if (!refreshed) {
                 console.warn('[AuthUI] Auto-refresh failed, user may need to re-login');
-                clearInterval(this.refreshInterval);
+                // Don't clear interval - keep trying
             }
-        }, 12 * 60 * 60 * 1000); // 12 hours
+        }, 10 * 60 * 1000); // 10 minutes (iOS-optimized)
         
-        console.log('[AuthUI] Auto-refresh timer started (12hr intervals)');
+        console.log('[AuthUI] Auto-refresh timer started (10min intervals for iOS)');
+        
+        // ALSO: Refresh on visibility change (when user returns to tab)
+        document.addEventListener('visibilitychange', async () => {
+            if (!document.hidden) {
+                console.log('[AuthUI] Tab visible - checking session');
+                await this.trySilentRefresh();
+            }
+        });
+        
+        // ALSO: Refresh on page focus
+        window.addEventListener('focus', async () => {
+            console.log('[AuthUI] Window focused - checking session');
+            await this.trySilentRefresh();
+        });
     }
 
     stopAutoRefresh() {
