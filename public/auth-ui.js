@@ -211,13 +211,12 @@ class AuthUI {
     // SESSION CHECK WITH SILENT REFRESH
     // =====================================================
     async checkSession() {
-        try {
-            const storedToken = localStorage.getItem('crump_auth_token');
-            const headers = {};
-
-            if (storedToken) {
-                headers['Authorization'] = `Bearer ${storedToken}`;
-            }
+    try {
+        // ⚡ FIXED: Don't rely on localStorage - use cookies instead
+        const headers = {};
+        
+        // Cookies are sent automatically with credentials: 'include'
+        // No need to manually add Authorization header
 
             // First: try normal session check
             const response = await fetch('/api/auth/check-session', {
