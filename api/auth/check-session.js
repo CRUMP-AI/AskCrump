@@ -45,20 +45,27 @@ export default async function handler(req, res) {
                         const newAccessToken = signAccessToken(dbUser);
                         const newRefreshToken = signRefreshToken(dbUser);
 
+                        const cookieDomain = process.env.COOKIE_DOMAIN || 
+                           (process.env.NODE_ENV === 'production' && req.headers.host?.includes('clevercrump.com') 
+                             ? '.clevercrump.com' 
+                             : undefined);
+
                         const accessCookie = serialize('auth_token', newAccessToken, {
                             httpOnly: true,
-                            secure: process.env.NODE_ENV === 'production',
-                            sameSite: 'lax',
+                            secure: true,
+                            sameSite: 'none',
                             path: '/',
-                            maxAge: 60 * 60 // 1 hour
+                            domain: cookieDomain,
+                            maxAge: 60 * 60
                         });
 
                         const refreshCookie = serialize('crump_refresh_token', newRefreshToken, {
                             httpOnly: true,
-                            secure: process.env.NODE_ENV === 'production',
-                            sameSite: 'lax',
+                            secure: true,
+                            sameSite: 'none',
                             path: '/',
-                            maxAge: 365 * 24 * 60 * 60 // 1 year
+                            domain: cookieDomain,
+                            maxAge: 365 * 24 * 60 * 60
                         });
 
                         res.setHeader('Set-Cookie', [accessCookie, refreshCookie]);
