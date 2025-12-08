@@ -711,6 +711,34 @@ function legacyCreateMessageElement(msg, index) {
     div.appendChild(avatar);
     div.appendChild(content);
     
+    // Add speak button for assistant messages
+    if (msg.role === 'assistant') {
+        const speakBtn = document.createElement('button');
+        speakBtn.className = 'speak-btn';
+        speakBtn.innerHTML = '🔊';
+        speakBtn.title = 'Read aloud';
+        speakBtn.style.cssText = `
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            padding: 0.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+        `;
+        speakBtn.onclick = () => window.speakText(msg.content);
+        div.style.position = 'relative';
+        div.appendChild(speakBtn);
+        
+        // Show button on hover
+        div.onmouseenter = () => speakBtn.style.opacity = '1';
+        div.onmouseleave = () => speakBtn.style.opacity = '0';
+    }
+    
     return div;
 }
 
@@ -1417,6 +1445,44 @@ function handleVoiceInput() {
 
     recognition.start();
 }
+
+// ==========================================
+// TEXT-TO-SPEECH - Read responses aloud
+// ==========================================
+window.speakText = function(text) {
+    if (!('speechSynthesis' in window)) {
+        showToast('Text-to-speech not supported in this browser', 'error');
+        return;
+    }
+
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    // Optional: Configure voice settings
+    utterance.rate = 1.0; // Speed
+    utterance.pitch = 1.0; // Pitch
+    utterance.volume = 1.0; // Volume
+    
+    // Use a better voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const preferredVoice = voices.find(voice => 
+        voice.lang === 'en-US' && (voice.name.includes('Google') || voice.name.includes('Microsoft'))
+    );
+    if (preferredVoice) {
+        utterance.voice = preferredVoice;
+    }
+
+    window.speechSynthesis.speak(utterance);
+    showToast('Reading response...', 'info');
+};
+
+window.stopSpeaking = function() {
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+    }
+};
 
 // ==========================================
 // QUICK ACTIONS
