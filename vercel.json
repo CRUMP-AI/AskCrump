@@ -3,16 +3,27 @@
   "framework": null,
   "buildCommand": null,
   "outputDirectory": "public",
-  "rewrites": [
+
+  "redirects": [
     {
       "source": "/app",
-      "destination": "/app.html"
+      "destination": "https://askcrump.com",
+      "permanent": true
     },
+    {
+      "source": "/app/",
+      "destination": "https://askcrump.com",
+      "permanent": true
+    }
+  ],
+
+  "rewrites": [
     {
       "source": "/",
       "destination": "/index.html"
     }
   ],
+
   "functions": {
     "api/**/*.js": {
       "maxDuration": 60,
