@@ -1,9 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Host-based redirect: make askcrump.com go straight to the app -->
+    <script>
+        (function () {
+            var host = window.location.hostname.toLowerCase();
+            if (host === 'askcrump.com' || host === 'www.askcrump.com') {
+                // Send AskCrump visitors directly into the app
+                window.location.replace('/app');
+            }
+        })();
+    </script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="CleverCrump - Premium AI solutions powered by the N² Engine. Experience Ask Crump, your intelligent virtual assistant.">
+
     <meta name="keywords" content="AI assistant, premium AI, virtual assistant, CleverCrump, N² Engine">
     <title>CleverCrump | Premium AI Solutions</title>
     
@@ -605,7 +617,7 @@
             <a href="#product">Product</a>
             <a href="#technology">Technology</a>
             <a href="/legal.html">Legal</a>
-            <a href="/app" class="cta-button">Launch App</a>
+            <a href="https://askcrump.com/app" class="cta-button">Launch App</a>
         </div>
     </nav>
 
@@ -750,7 +762,7 @@
             
             <div class="footer-section">
                 <h3>Product</h3>
-                <a href="/app">Ask Crump</a>
+                <a href="https://askcrump.com/app">Ask Crump</a>
                 <a href="#technology">Technology</a>
                 <a href="#product">Features</a>
             </div>
