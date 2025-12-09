@@ -45,7 +45,7 @@ export default async function handler(req, res) {
                         const newAccessToken = signAccessToken(dbUser);
                         const newRefreshToken = signRefreshToken(dbUser);
 
-                        const cookieDomain = process.env.COOKIE_DOMAIN || 
+                                               const cookieDomain = process.env.COOKIE_DOMAIN || 
                            (process.env.NODE_ENV === 'production' && req.headers.host?.includes('clevercrump.com') 
                              ? '.clevercrump.com' 
                              : undefined);
@@ -71,6 +71,7 @@ export default async function handler(req, res) {
                         });
 
                         res.setHeader('Set-Cookie', [accessCookie, refreshCookie]);
+
 
                     }
                 }
@@ -103,9 +104,10 @@ export default async function handler(req, res) {
             }
         }
 
-        // Issue a fresh short-lived access token for the frontend if needed
+                // Issue a fresh short-lived access token for the frontend if needed
         const accessToken = signAccessToken(user);
 
+        // Shape this so AuthUI.checkSession() sees data.data
         return res.status(200).json({
             success: true,
             authenticated: true,
