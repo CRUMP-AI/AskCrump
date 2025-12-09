@@ -4,10 +4,11 @@
 
 // Sync chats FROM server
 window.syncChatsFromServer = async function() {
-    if (!window.authToken || !window.currentUser) {
+    if (!window.currentUser) {
         console.log('[Sync] Not authenticated, skipping sync');
         return;
     }
+
 
     try {
         console.log('[Sync] Fetching chats from server...');
@@ -17,7 +18,7 @@ window.syncChatsFromServer = async function() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            credentials: 'include' // send auth cookies
+            credentials: 'include'
         });
 
 
@@ -109,10 +110,11 @@ window.syncChatsFromServer = async function() {
 
 // Sync chats TO server
 window.syncChatsToServer = async function() {
-    if (!window.authToken || !window.currentUser) {
+    if (!window.currentUser) {
         console.log('[Sync] Not authenticated, skipping upload');
         return;
     }
+
 
     try {
         const localChats = JSON.parse(SafeStorage.getItem(STORAGE_KEYS.CHATS) || '[]');
@@ -129,7 +131,7 @@ window.syncChatsToServer = async function() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            credentials: 'include', // send auth cookies
+            credentials: 'include',
             body: JSON.stringify({ chats: localChats })
         });
 
