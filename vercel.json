@@ -20,6 +20,26 @@
   "rewrites": [
     {
       "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "askcrump.com"
+        }
+      ],
+      "destination": "/app.html"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.askcrump.com"
+        }
+      ],
+      "destination": "/app.html"
+    },
+    {
+      "source": "/",
       "destination": "/index.html"
     }
   ],
@@ -30,6 +50,7 @@
       "memory": 1024
     }
   },
+
   "headers": [
     {
       "source": "/manifest.json",
@@ -139,6 +160,7 @@
       ]
     }
   ],
+
   "cleanUrls": true,
   "trailingSlash": false
 }
