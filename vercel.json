@@ -7,35 +7,31 @@
   "redirects": [
     {
       "source": "/app",
-      "destination": "https://askcrump.com",
+      "has": [
+        {
+          "type": "host",
+          "value": "clevercrump.com"
+        }
+      ],
+      "destination": "https://askcrump.com/app",
       "permanent": true
     },
     {
-      "source": "/app/",
-      "destination": "https://askcrump.com",
+      "source": "/app",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.clevercrump.com"
+        }
+      ],
+      "destination": "https://askcrump.com/app",
       "permanent": true
     }
   ],
 
   "rewrites": [
     {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "askcrump.com"
-        }
-      ],
-      "destination": "/app.html"
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "www.askcrump.com"
-        }
-      ],
+      "source": "/app",
       "destination": "/app.html"
     },
     {
@@ -50,7 +46,6 @@
       "memory": 1024
     }
   },
-
   "headers": [
     {
       "source": "/manifest.json",
@@ -160,7 +155,6 @@
       ]
     }
   ],
-
   "cleanUrls": true,
   "trailingSlash": false
 }
