@@ -50,10 +50,12 @@ export default async function handler(req, res) {
                              ? '.clevercrump.com' 
                              : undefined);
 
+                        const isProd = process.env.NODE_ENV === 'production';
+
                         const accessCookie = serialize('auth_token', newAccessToken, {
                             httpOnly: true,
-                            secure: true,
-                            sameSite: 'none',
+                            secure: isProd,
+                            sameSite: 'lax',
                             path: '/',
                             domain: cookieDomain,
                             maxAge: 60 * 60
@@ -61,14 +63,15 @@ export default async function handler(req, res) {
 
                         const refreshCookie = serialize('crump_refresh_token', newRefreshToken, {
                             httpOnly: true,
-                            secure: true,
-                            sameSite: 'none',
+                            secure: isProd,
+                            sameSite: 'lax',
                             path: '/',
                             domain: cookieDomain,
                             maxAge: 365 * 24 * 60 * 60
                         });
 
                         res.setHeader('Set-Cookie', [accessCookie, refreshCookie]);
+
                     }
                 }
             }
@@ -100,16 +103,20 @@ export default async function handler(req, res) {
             }
         }
 
-        // Shape this so AuthUI.checkSession() sees data.data
+        // Issue a fresh short-lived access token for the frontend if needed
+        const accessToken = signAccessToken(user);
+
         return res.status(200).json({
             success: true,
             authenticated: true,
             data: {
                 user,
                 inTrial,
-                trialEndsAt
+                trialEndsAt,
+                token: accessToken
             }
         });
+
     } catch (err) {
         console.error('check-session error:', err);
         return res.status(500).json({
