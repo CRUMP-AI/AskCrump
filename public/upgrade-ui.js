@@ -110,21 +110,19 @@ function upgradePlan(tier, billing) {
     }
 
     // 🔑 Send the same auth token used elsewhere so verifyAuth can see you
-    const token = localStorage.getItem('crump_auth_token');
     const headers = {
         'Content-Type': 'application/json'
     };
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
 
     fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
         headers,
+        credentials: 'include', // send auth cookies
         body: JSON.stringify({
             tier: normalizedTier,
             billingPeriod: billing || 'monthly'
         })
+
     })
         .then(response => response.json())
         .then(data => {
