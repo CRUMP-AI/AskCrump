@@ -3,32 +3,6 @@
   "framework": null,
   "buildCommand": null,
   "outputDirectory": "public",
-
-  "redirects": [
-    {
-      "source": "/app",
-      "has": [
-        {
-          "type": "host",
-          "value": "clevercrump.com"
-        }
-      ],
-      "destination": "https://askcrump.com/app",
-      "permanent": true
-    },
-    {
-      "source": "/app",
-      "has": [
-        {
-          "type": "host",
-          "value": "www.clevercrump.com"
-        }
-      ],
-      "destination": "https://askcrump.com/app",
-      "permanent": true
-    }
-  ],
-
   "rewrites": [
     {
       "source": "/app",
@@ -39,7 +13,6 @@
       "destination": "/index.html"
     }
   ],
-
   "functions": {
     "api/**/*.js": {
       "maxDuration": 60,
