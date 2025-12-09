@@ -15,11 +15,11 @@ window.syncChatsFromServer = async function() {
         const response = await fetch('/api/chats/sync', {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${window.authToken}`,
                 'Content-Type': 'application/json'
             },
-            credentials: 'include'
+            credentials: 'include' // send auth cookies
         });
+
 
         if (!response.ok) {
             console.warn('[Sync] Failed to fetch chats:', response.status);
@@ -127,12 +127,12 @@ window.syncChatsToServer = async function() {
         const response = await fetch('/api/chats/sync', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${window.authToken}`,
                 'Content-Type': 'application/json'
             },
-            credentials: 'include',
+            credentials: 'include', // send auth cookies
             body: JSON.stringify({ chats: localChats })
         });
+
 
         if (!response.ok) {
             console.warn('[Sync] Failed to upload chats:', response.status);
