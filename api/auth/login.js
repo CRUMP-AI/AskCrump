@@ -172,26 +172,29 @@ export default async function handler(req, res) {
                              ? '.clevercrump.com' 
                              : undefined);
         
+       const isProd = process.env.NODE_ENV === 'production';
+
         const refreshCookie = serialize('crump_refresh_token', refreshToken, {
             httpOnly: true,
-            secure: true, // ALWAYS true for sameSite: none
-            sameSite: 'none',
+            secure: isProd,
+            sameSite: 'lax',
             maxAge: 365 * 24 * 60 * 60,
             path: '/',
             domain: cookieDomain
         });
         
-       // b) Short-lived auth cookie (backward compatibility with middleware)
-      const authCookie = serialize('auth_token', accessToken, {
+        // b) Short-lived auth cookie (backward compatibility with middleware)
+        const authCookie = serialize('auth_token', accessToken, {
             httpOnly: true,
-            secure: true, // ALWAYS true for sameSite: none
-            sameSite: 'none',
+            secure: isProd,
+            sameSite: 'lax',
             maxAge: 24 * 60 * 60,
             path: '/',
             domain: cookieDomain
         });
 
         // Attach both cookies
+
         res.setHeader('Set-Cookie', [refreshCookie, authCookie]);
 
         // =====================================================
