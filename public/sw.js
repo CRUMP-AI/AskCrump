@@ -96,10 +96,16 @@ self.addEventListener('activate', (event) => {
 // FETCH - Network first, cache fallback
 // ==========================================
 self.addEventListener('fetch', (event) => {
-    // Skip API calls - always fetch fresh
-    if (event.request.url.includes('/api/')) {
-        return;
-    }
+   // Skip API calls and auth-related requests - always fetch fresh
+if (event.request.url.includes('/api/') || 
+    event.request.url.includes('/auth') ||
+    event.request.url.includes('refresh') ||
+    event.request.url.includes('login') ||
+    event.request.url.includes('manifest.json') ||
+    event.request.url.includes('check-session')) {
+    // Let browser handle these normally (with cookies)
+    return fetch(event.request);
+}
     
     // Skip external CDN resources
     if (event.request.url.includes('googleapis.com') ||
