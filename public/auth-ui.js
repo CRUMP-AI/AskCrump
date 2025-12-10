@@ -267,6 +267,30 @@ class AuthUI {
                 const refreshed = await this.trySilentRefresh();
                 if (refreshed) return;
 
+                // ✅ iOS PWA FALLBACK: Try localStorage backup before forcing login
+                try {
+                    const backup = localStorage.getItem('crump_session_backup');
+                    if (backup) {
+                        const parsed = JSON.parse(backup);
+                        
+                        // Check if backup is still valid (within 24 hours)
+                        if (parsed.expiresAt > Date.now()) {
+                            console.log('[AuthUI] [iOS PWA FIX] Recovered session from localStorage backup');
+                            this.handleAuthSuccess(parsed);
+                            this.allowAppAccess();
+                            
+                            // Try to refresh in background to get fresh cookies
+                            setTimeout(() => this.trySilentRefresh(), 1000);
+                            return;
+                        } else {
+                            console.log('[AuthUI] Session backup expired');
+                            localStorage.removeItem('crump_session_backup');
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[AuthUI] Failed to check session backup:', e);
+                }
+
                 // If refresh failed, force login
                 this.forceLogin();
                 return;
@@ -595,6 +619,7 @@ stopAutoRefresh() {
         localStorage.removeItem('crump_session_active');
         localStorage.removeItem('crump_last_login');
         localStorage.removeItem('crump_user');
+        localStorage.removeItem('crump_session_backup'); // ✅ Clear iOS PWA backup
 
         this.updateUIForLoggedOut();
         
@@ -605,7 +630,8 @@ stopAutoRefresh() {
     }
 }
 
- handleAuthSuccess(data) {
+
+            handleAuthSuccess(data) {
     // Core user object
     this.currentUser = data.user;
 
@@ -660,6 +686,21 @@ stopAutoRefresh() {
             localStorage.setItem('crump_last_login', Date.now().toString());
         } catch (e) {
             console.warn('[AuthUI] Failed to store session flags:', e);
+        }
+
+        // ✅ CRITICAL iOS PWA FIX: Store backup session in localStorage
+        // iOS sometimes clears cookies on force-close, this is our failsafe
+        try {
+            const backupData = {
+                user: this.currentUser,
+                token: this.authToken,
+                timestamp: Date.now(),
+                expiresAt: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
+            };
+            localStorage.setItem('crump_session_backup', JSON.stringify(backupData));
+            console.log('✅ [iOS PWA FIX] Session backup stored in localStorage');
+        } catch (e) {
+            console.warn('⚠️ Failed to backup session:', e);
         }
 
         // ================================
