@@ -142,6 +142,19 @@ window.initializeApp = function() {
         }
        console.log('🚀 Crump AI v1.0 initializing...');
 
+        // ✅ PWA LAUNCH FIX: Refresh session on PWA startup
+        if (window.location.search.includes('source=pwa')) {
+            console.log('🎯 PWA launched - refreshing session');
+            
+            // Clean URL
+            window.history.replaceState({}, '', window.location.pathname);
+            
+            // Trigger session check
+            if (typeof window.checkSession === 'function') {
+                setTimeout(() => window.checkSession(), 100);
+            }
+        }
+
         // ✅ CRITICAL FIX: Initialize universalMemory FIRST
         if (typeof window.universalMemory === 'undefined') {
             window.universalMemory = {
