@@ -210,10 +210,22 @@ class AuthUI {
           // =====================================================
     // SESSION CHECK WITH SILENT REFRESH
     // =====================================================
-    async checkSession() {
+   async checkSession() {
     try {
         // ⚡ FIXED: Don't rely on localStorage - use cookies instead
         const headers = {};
+        
+        // ✅ PWA FIX: More aggressive session check for iOS PWA
+        if (window.isPWA) {
+            console.log('[AuthUI] PWA mode - using enhanced session check');
+            
+            // Try silent refresh first in PWA mode
+            const refreshed = await this.trySilentRefresh();
+            if (refreshed) {
+                console.log('[AuthUI] PWA session established via refresh');
+                return;
+            }
+        }
         
         // Cookies are sent automatically with credentials: 'include'
         // No need to manually add Authorization header
