@@ -605,8 +605,7 @@ stopAutoRefresh() {
     }
 }
 
-
-            handleAuthSuccess(data) {
+ handleAuthSuccess(data) {
     // Core user object
     this.currentUser = data.user;
 
