@@ -58,9 +58,9 @@ export default async function handler(req, res) {
 
         // Flexible domain for Vercel previews
         const cookieDomain = process.env.COOKIE_DOMAIN || 
-                           (process.env.NODE_ENV === 'production' && req.headers.host?.includes('clevercrump.com') 
-                             ? '.clevercrump.com' 
-                             : undefined);
+   (process.env.NODE_ENV === 'production' && req.headers.host?.includes('askcrump.com') 
+     ? '.askcrump.com' 
+     : undefined);
 
         // Access token cookie - shorter lived
                // Access token cookie - shorter lived
