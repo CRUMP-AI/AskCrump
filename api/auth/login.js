@@ -167,31 +167,31 @@ export default async function handler(req, res) {
 
        // a) Long-lived refresh token (httpOnly; used by /api/auth/refresh)
         // Flexible domain for Vercel previews
-               const cookieDomain = process.env.COOKIE_DOMAIN || 
-                           (process.env.NODE_ENV === 'production' && req.headers.host?.includes('clevercrump.com') 
-                             ? '.clevercrump.com' 
-                             : undefined);
+              const cookieDomain = process.env.COOKIE_DOMAIN || 
+   (process.env.NODE_ENV === 'production' && req.headers.host?.includes('askcrump.com') 
+     ? '.askcrump.com' 
+     : undefined);
 
         const isProd = process.env.NODE_ENV === 'production';
 
-        const refreshCookie = serialize('crump_refresh_token', refreshToken, {
-            httpOnly: true,
-            secure: isProd,
-            sameSite: 'lax',
-            maxAge: 365 * 24 * 60 * 60,
-            path: '/',
-            domain: cookieDomain
-        });
-        
-        // b) Short-lived auth cookie (backward compatibility with middleware)
-        const authCookie = serialize('auth_token', accessToken, {
-            httpOnly: true,
-            secure: isProd,
-            sameSite: 'lax',
-            maxAge: 24 * 60 * 60,
-            path: '/',
-            domain: cookieDomain
-        });
+       const refreshCookie = serialize('crump_refresh_token', refreshToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none',
+    maxAge: 365 * 24 * 60 * 60,
+    path: '/',
+    domain: cookieDomain
+});
+
+// b) Short-lived auth cookie (backward compatibility with middleware)
+const authCookie = serialize('auth_token', accessToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none',
+    maxAge: 24 * 60 * 60,
+    path: '/',
+    domain: cookieDomain
+});
 
         // Attach both cookies
         res.setHeader('Set-Cookie', [refreshCookie, authCookie]);
