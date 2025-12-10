@@ -66,7 +66,7 @@ const cookieDomain = process.env.NODE_ENV === 'production'
         const accessCookie = serialize('auth_token', accessToken, {
     httpOnly: true,
     secure: true,
-    sameSite: 'none',
+    sameSite: 'lax',
     path: '/',
     maxAge: 24 * 60 * 60, // 24 hours
     domain: cookieDomain
