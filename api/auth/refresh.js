@@ -76,7 +76,7 @@ const cookieDomain = process.env.NODE_ENV === 'production'
 const refreshCookie = serialize('crump_refresh_token', newRefreshToken, {
     httpOnly: true,
     secure: true,
-    sameSite: 'none',
+    sameSite: 'lax',
     path: '/',
     maxAge: 365 * 24 * 60 * 60, // 1 year
     domain: cookieDomain
