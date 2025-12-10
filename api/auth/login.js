@@ -127,6 +127,13 @@ export default async function handler(req, res) {
             : ipHeader;
 
         // 4) Create session in database – store the refresh token
+        
+        // ✅ FIX: Delete any existing sessions for this user first to prevent duplicate key errors
+        await supabase
+            .from('sessions')
+            .delete()
+            .eq('user_id', user.id);
+        
         const { data: session, error: sessionError } = await supabase
             .from('sessions')
             .insert([
@@ -175,7 +182,7 @@ const cookieDomain = process.env.NODE_ENV === 'production'
        const refreshCookie = serialize('crump_refresh_token', refreshToken, {
     httpOnly: true,
     secure: true,
-    sameSite: 'none',
+    sameSite: 'lax',  // ✅ FIXED: 'lax' works with iOS PWA, 'none' gets blocked
     maxAge: 365 * 24 * 60 * 60,
     path: '/',
     domain: cookieDomain
@@ -185,7 +192,7 @@ const cookieDomain = process.env.NODE_ENV === 'production'
 const authCookie = serialize('auth_token', accessToken, {
     httpOnly: true,
     secure: true,
-    sameSite: 'none',
+    sameSite: 'lax',  // ✅ FIXED: 'lax' works with iOS PWA, 'none' gets blocked
     maxAge: 24 * 60 * 60,
     path: '/',
     domain: cookieDomain
