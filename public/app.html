@@ -41,6 +41,46 @@
 <!-- Stripe -->
 <script src="https://js.stripe.com/v3/"></script>
 
+<!-- iOS PWA Session Fix -->
+<script>
+// Detect if running as installed PWA
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                     window.navigator.standalone || 
+                     document.referrer.includes('android-app://');
+
+if (isStandalone) {
+    console.log('🎯 Running as PWA - iOS session persistence enabled');
+    
+    // Flag for auth system to use more aggressive refresh
+    window.isPWA = true;
+    
+    // Prevent iOS from suspending PWA
+    let wakeInterval = null;
+    
+    // Keep PWA "alive" with periodic wake
+    function keepAlive() {
+        // Tiny network request to prevent suspension
+        fetch('/manifest.json', { method: 'HEAD' }).catch(() => {});
+    }
+    
+    // Wake every 5 minutes when app is visible
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            keepAlive();
+            clearInterval(wakeInterval);
+            wakeInterval = setInterval(keepAlive, 5 * 60 * 1000);
+        } else {
+            clearInterval(wakeInterval);
+        }
+    });
+    
+    // Start keep-alive
+    if (!document.hidden) {
+        wakeInterval = setInterval(keepAlive, 5 * 60 * 1000);
+    }
+}
+</script>    
+
 <style>
     /* VIEWPORT LOCK */
     html, body {
