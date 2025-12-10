@@ -142,17 +142,26 @@ window.initializeApp = function() {
         }
        console.log('🚀 Crump AI v1.0 initializing...');
 
-        // ✅ PWA LAUNCH FIX: Refresh session on PWA startup
-        if (window.location.search.includes('source=pwa')) {
-            console.log('🎯 PWA launched - refreshing session');
+        // ✅ PWA LAUNCH FIX: Refresh session on PWA startup (iOS-optimized)
+        if (window.location.search.includes('source=pwa') || window.navigator.standalone) {
+            console.log('🎯 PWA launched - force session refresh');
             
             // Clean URL
-            window.history.replaceState({}, '', window.location.pathname);
-            
-            // Trigger session check
-            if (typeof window.checkSession === 'function') {
-                setTimeout(() => window.checkSession(), 100);
+            if (window.location.search) {
+                window.history.replaceState({}, '', window.location.pathname);
             }
+            
+            // CRITICAL: iOS PWA often loses cookies, force refresh immediately
+            if (typeof window.authUI !== 'undefined' && window.authUI.checkSession) {
+                setTimeout(() => {
+                    console.log('🔄 PWA: Running enhanced session check...');
+                    window.authUI.checkSession();
+                }, 100);
+            }
+            
+            // Set flag for enhanced monitoring
+            window.isPWA = true;
+            sessionStorage.setItem('isPWA', 'true');
         }
 
         // ✅ CRITICAL FIX: Initialize universalMemory FIRST
