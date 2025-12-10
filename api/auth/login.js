@@ -165,12 +165,10 @@ export default async function handler(req, res) {
         // COOKIES
         // =====================================================
 
-       // a) Long-lived refresh token (httpOnly; used by /api/auth/refresh)
-        // Flexible domain for Vercel previews
-              const cookieDomain = process.env.COOKIE_DOMAIN || 
-   (process.env.NODE_ENV === 'production' && req.headers.host?.includes('askcrump.com') 
-     ? '.askcrump.com' 
-     : undefined);
+             // Force askcrump.com domain in production
+const cookieDomain = process.env.NODE_ENV === 'production' 
+    ? '.askcrump.com' 
+    : undefined;
 
         const isProd = process.env.NODE_ENV === 'production';
 
