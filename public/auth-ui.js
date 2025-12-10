@@ -355,45 +355,62 @@ if (storedUserRaw) {
     // AUTO-REFRESH TIMER - iOS-optimized persistent login
     // =====================================================
     startAutoRefresh() {
-        // Clear any existing interval
-        if (this.refreshInterval) {
-            clearInterval(this.refreshInterval);
-        }
-        
-        // Refresh every 10 minutes to combat iOS Safari's aggressive cookie clearing
-        this.refreshInterval = setInterval(async () => {
-            console.log('[AuthUI] Auto-refreshing session...');
-            const refreshed = await this.trySilentRefresh();
-            if (!refreshed) {
-                console.warn('[AuthUI] Auto-refresh failed, user may need to re-login');
-                // Don't clear interval - keep trying
-            }
-        }, 10 * 60 * 1000); // 10 minutes (iOS-optimized)
-        
-        console.log('[AuthUI] Auto-refresh timer started (10min intervals for iOS)');
-        
-        // ALSO: Refresh on visibility change (when user returns to tab)
-        document.addEventListener('visibilitychange', async () => {
-            if (!document.hidden) {
-                console.log('[AuthUI] Tab visible - checking session');
-                await this.trySilentRefresh();
-            }
-        });
-        
-        // ALSO: Refresh on page focus
-        window.addEventListener('focus', async () => {
-            console.log('[AuthUI] Window focused - checking session');
+    // ❌ DON'T use setInterval - iOS kills it after 15 mins
+    // ✅ USE visibilitychange + pageshow instead
+    
+    console.log('[AuthUI] Starting iOS-compatible refresh system');
+    
+    // Refresh when page becomes visible (user returns to app)
+    const handleVisibilityChange = async () => {
+        if (!document.hidden) {
+            console.log('[AuthUI] App resumed - refreshing session');
             await this.trySilentRefresh();
-        });
-    }
-
-    stopAutoRefresh() {
-        if (this.refreshInterval) {
-            clearInterval(this.refreshInterval);
-            this.refreshInterval = null;
-            console.log('[AuthUI] Auto-refresh timer stopped');
         }
+    };
+    
+    // Refresh when page is shown (iOS back button, app switcher, from background)
+    const handlePageShow = async (event) => {
+        // event.persisted means loaded from bfcache (back/forward cache)
+        if (event.persisted) {
+            console.log('[AuthUI] Loaded from cache - refreshing session');
+            await this.trySilentRefresh();
+        }
+    };
+    
+    // Refresh on focus (clicking into app, switching tabs)
+    const handleFocus = async () => {
+        console.log('[AuthUI] App focused - refreshing session');
+        await this.trySilentRefresh();
+    };
+    
+    // Add all listeners
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pageshow', handlePageShow);
+    window.addEventListener('focus', handleFocus);
+    
+    // Store listeners for cleanup
+    this.refreshListeners = {
+        visibilitychange: handleVisibilityChange,
+        pageshow: handlePageShow,
+        focus: handleFocus
+    };
+    
+    // Initial refresh to establish session
+    this.trySilentRefresh();
+    
+    console.log('[AuthUI] iOS-compatible refresh system active');
+    console.log('[AuthUI] Will refresh on: visibility change, pageshow, focus');
+}
+
+stopAutoRefresh() {
+    if (this.refreshListeners) {
+        document.removeEventListener('visibilitychange', this.refreshListeners.visibilitychange);
+        window.removeEventListener('pageshow', this.refreshListeners.pageshow);
+        window.removeEventListener('focus', this.refreshListeners.focus);
+        this.refreshListeners = null;
+        console.log('[AuthUI] Refresh listeners removed');
     }
+}
     
     forceLogin() {
         // Show login modal (can't be closed)
