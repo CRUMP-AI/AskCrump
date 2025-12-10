@@ -45,10 +45,9 @@ export default async function handler(req, res) {
                         const newAccessToken = signAccessToken(dbUser);
                         const newRefreshToken = signRefreshToken(dbUser);
 
-                                               const cookieDomain = process.env.COOKIE_DOMAIN || 
-                           (process.env.NODE_ENV === 'production' && req.headers.host?.includes('clevercrump.com') 
-                             ? '.clevercrump.com' 
-                             : undefined);
+                        const cookieDomain = process.env.NODE_ENV === 'production' 
+    ? '.askcrump.com' 
+    : undefined;
 
                         const isProd = process.env.NODE_ENV === 'production';
 
