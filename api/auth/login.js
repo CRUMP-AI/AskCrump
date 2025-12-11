@@ -126,34 +126,33 @@ export default async function handler(req, res) {
             ? ipHeader.split(',')[0].trim()
             : ipHeader;
 
-        // 4) Create session in database – store the refresh token
-        
-        // ✅ FIX: Delete any existing sessions for this user first to prevent duplicate key errors
-        await supabase
-            .from('sessions')
-            .delete()
-            .eq('user_id', user.id);
+        // 4) Create session in database – UPSERT to handle duplicates
         
         const { data: session, error: sessionError } = await supabase
             .from('sessions')
-            .insert([
+            .upsert(
                 {
                     user_id: user.id,
-                    session_token: refreshToken, // store refresh token for audit / revocation
+                    session_token: refreshToken,
                     expires_at: expiresAt.toISOString(),
                     ip_address: ipAddress,
                     user_agent: userAgent,
                     device_info: {
                         userAgent,
-                        platform:
-                            req.headers['sec-ch-ua-platform'] || 'Unknown',
+                        platform: req.headers['sec-ch-ua-platform'] || 'Unknown',
                         mobile: req.headers['sec-ch-ua-mobile'] === '?1'
-                    }
+                    },
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                },
+                {
+                    onConflict: 'user_id',
+                    ignoreDuplicates: false
                 }
-            ])
+            )
             .select()
             .single();
-
+        
         if (sessionError) {
             console.error('Session creation error:', sessionError);
             return res.status(500).json({
