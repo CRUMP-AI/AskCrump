@@ -126,28 +126,30 @@ export default async function handler(req, res) {
             ? ipHeader.split(',')[0].trim()
             : ipHeader;
 
-      // 4) Create session in database – UPSERT to handle duplicates
+     // 4) Create session in database
         
+        // Delete old sessions for this user first (cleanup)
+        await supabase
+            .from('sessions')
+            .delete()
+            .eq('user_id', user.id);
+        
+        // Insert new session (no conflicts possible)
         const { data: session, error: sessionError } = await supabase
             .from('sessions')
-            .upsert(
-                {
-                    user_id: user.id,
-                    session_token: refreshToken,
-                    expires_at: expiresAt.toISOString(),
-                    ip_address: ipAddress,
-                    user_agent: userAgent,
-                    device_info: {
-                        userAgent,
-                        platform: req.headers['sec-ch-ua-platform'] || 'Unknown',
-                        mobile: req.headers['sec-ch-ua-mobile'] === '?1'
-                    }
+            .insert({
+                user_id: user.id,
+                session_token: refreshToken,
+                expires_at: expiresAt.toISOString(),
+                ip_address: ipAddress,
+                user_agent: userAgent,
+                device_info: {
+                    userAgent,
+                    platform: req.headers['sec-ch-ua-platform'] || 'Unknown',
+                    mobile: req.headers['sec-ch-ua-mobile'] === '?1'
                 },
-                {
-                    onConflict: 'user_id',
-                    ignoreDuplicates: false
-                }
-            )
+                last_activity: new Date().toISOString()
+            })
             .select()
             .single();
         
