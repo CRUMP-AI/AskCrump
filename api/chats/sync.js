@@ -4,6 +4,7 @@
 // =====================================================
 import { supabase } from '../utils/supabase.js';
 import { verifyAuth } from '../middleware/auth.js';
+import { randomUUID } from 'crypto';
 
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -57,79 +58,51 @@ export default async function handler(req, res) {
                 });
             }
             
-            // Process each chat individually to handle ID conversion
-            const results = [];
-            
-            for (const chat of chats) {
-                try {
-                    // Convert createdAt timestamp
-                    let createdAt = chat.createdAt;
-                    if (typeof createdAt === 'number') {
-                        createdAt = new Date(createdAt).toISOString();
-                    } else if (!createdAt) {
-                        createdAt = new Date().toISOString();
-                    }
-                    
-                    // Check if ID is a valid UUID
-                    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-                    const isValidUUID = uuidRegex.test(chat.id);
-                    
-                    let chatId = chat.id;
-                    
-                    if (!isValidUUID) {
-                        // Generate a new UUID for this chat
-                        const { data: newChat, error: insertError } = await supabase
-                            .from('user_chats')
-                            .insert({
-                                user_id: user.id,
-                                title: chat.title || 'New Chat',
-                                messages: chat.messages || [],
-                                created_at: createdAt,
-                                updated_at: new Date().toISOString()
-                            })
-                            .select()
-                            .single();
-                        
-                        if (insertError) {
-                            console.error('Failed to insert chat:', insertError);
-                            continue;
-                        }
-                        
-                        results.push(newChat);
-                    } else {
-                        // Valid UUID - use upsert
-                        const { data: upsertedChat, error: upsertError } = await supabase
-                            .from('user_chats')
-                            .upsert({
-                                id: chatId,
-                                user_id: user.id,
-                                title: chat.title || 'New Chat',
-                                messages: chat.messages || [],
-                                created_at: createdAt,
-                                updated_at: new Date().toISOString()
-                            }, {
-                                onConflict: 'id',
-                                ignoreDuplicates: false
-                            })
-                            .select()
-                            .single();
-                        
-                        if (upsertError) {
-                            console.error('Failed to upsert chat:', upsertError);
-                            continue;
-                        }
-                        
-                        results.push(upsertedChat);
-                    }
-                } catch (err) {
-                    console.error('Error processing chat:', err);
+            // Process chats
+            const chatData = chats.map(chat => {
+                // Convert createdAt timestamp
+                let createdAt = chat.createdAt;
+                if (typeof createdAt === 'number') {
+                    createdAt = new Date(createdAt).toISOString();
+                } else if (!createdAt) {
+                    createdAt = new Date().toISOString();
                 }
+                
+                // Check if ID is a valid UUID
+                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                const isValidUUID = uuidRegex.test(chat.id);
+                
+                return {
+                    id: isValidUUID ? chat.id : randomUUID(), // Generate new UUID if invalid
+                    user_id: user.id,
+                    title: chat.title || 'New Chat',
+                    messages: chat.messages || [],
+                    created_at: createdAt,
+                    updated_at: new Date().toISOString()
+                };
+            });
+            
+            // Upsert all chats at once
+            const { error: upsertError } = await supabase
+                .from('user_chats')
+                .upsert(chatData, {
+                    onConflict: 'id',
+                    ignoreDuplicates: false
+                });
+            
+            if (upsertError) {
+                console.error('Failed to sync chats:', upsertError);
+                return res.status(500).json({
+                    success: false,
+                    error: 'Failed to sync chats',
+                    details: upsertError.message
+                });
             }
             
             return res.status(200).json({
                 success: true,
                 message: 'Chats synced successfully',
-                count: results.length
+                count: chatData.length
             });
         }
         
