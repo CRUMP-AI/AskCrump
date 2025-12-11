@@ -126,7 +126,7 @@ export default async function handler(req, res) {
             ? ipHeader.split(',')[0].trim()
             : ipHeader;
 
-        // 4) Create session in database – UPSERT to handle duplicates
+      // 4) Create session in database – UPSERT to handle duplicates
         
         const { data: session, error: sessionError } = await supabase
             .from('sessions')
@@ -141,9 +141,7 @@ export default async function handler(req, res) {
                         userAgent,
                         platform: req.headers['sec-ch-ua-platform'] || 'Unknown',
                         mobile: req.headers['sec-ch-ua-mobile'] === '?1'
-                    },
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
+                    }
                 },
                 {
                     onConflict: 'user_id',
