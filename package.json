@@ -5,7 +5,7 @@
   "description": "Crump AI - Your Intelligent Assistant",
   "main": "public/index.html",
   "engines": {
-  "node": ">=18.0.0"
+  "node": "20.x"
   },
   "scripts": {
     "build": "echo 'No build step required'",
