@@ -12,8 +12,9 @@ import { supabase } from '../utils/supabase.js';
 const JWT_SECRET =
     process.env.JWT_SECRET || 'crump_ai_super_secret_fallback';
 
-const ACCESS_TOKEN_EXPIRES_IN = '15m';
-const REFRESH_TOKEN_EXPIRES_IN = '30d';
+// ✅ BUG FIX 1: Extended access token lifetime for iOS persistence
+const ACCESS_TOKEN_EXPIRES_IN = '7d'; // Was 15m, now 7 days
+const REFRESH_TOKEN_EXPIRES_IN = '365d'; // Extended to 1 year
 
 // Helper: create access token
 function generateAccessToken(payload) {

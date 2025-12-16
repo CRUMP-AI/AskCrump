@@ -5,8 +5,9 @@
 
 import jwt from 'jsonwebtoken';
 
-const ACCESS_TOKEN_TTL = '15m';      // Short-lived access token (good for security)
-const REFRESH_TOKEN_TTL = '365d';    // 1-year persistent login (your Option A)
+// ✅ BUG FIX 1: Extended access token lifetime for iOS persistence
+const ACCESS_TOKEN_TTL = '7d';       // 7 days (was 15m) - iOS-optimized
+const REFRESH_TOKEN_TTL = '365d';    // 1-year persistent login
 
 // Use separate secrets if you have them, otherwise fall back to one
 const JWT_SECRET = process.env.JWT_SECRET;

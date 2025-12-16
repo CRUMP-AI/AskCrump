@@ -51,13 +51,14 @@ export default async function handler(req, res) {
 
                         const isProd = process.env.NODE_ENV === 'production';
 
+                        // ✅ BUG FIX 1: Extended access token + iOS-optimized settings
                         const accessCookie = serialize('auth_token', newAccessToken, {
                             httpOnly: true,
                             secure: isProd,
                             sameSite: 'lax',
                             path: '/',
                             domain: cookieDomain,
-                            maxAge: 60 * 60
+                            maxAge: 7 * 24 * 60 * 60 // 7 days (was 1 hour)
                         });
 
                         const refreshCookie = serialize('crump_refresh_token', newRefreshToken, {
@@ -66,7 +67,7 @@ export default async function handler(req, res) {
                             sameSite: 'lax',
                             path: '/',
                             domain: cookieDomain,
-                            maxAge: 365 * 24 * 60 * 60
+                            maxAge: 365 * 24 * 60 * 60 // 365 days
                         });
 
                         res.setHeader('Set-Cookie', [accessCookie, refreshCookie]);

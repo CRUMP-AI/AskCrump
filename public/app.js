@@ -1311,32 +1311,100 @@ window.removeFile = function(index) {
 // VOICE INPUT
 // ==========================================
 function handleVoiceInput() {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        showToast('Voice input not supported in this browser', 'error');
+    // ✅ BUG FIX 3: Enhanced voice input with proper error handling
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+        showToast('Voice input not supported in this browser. Please use Chrome, Safari, or Edge.', 'error');
+        console.error('[Voice] Speech Recognition API not available');
         return;
     }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
+    try {
+        const recognition = new SpeechRecognition();
+        const voiceBtn = document.getElementById('voiceBtn');
 
-    recognition.continuous = false;
-    recognition.interimResults = false;
+        // Configure recognition
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US'; // Set language explicitly
+        recognition.maxAlternatives = 1;
 
-    recognition.onstart = () => {
-        showToast('Listening...', 'info');
-    };
+        // Visual feedback - button turns red while listening
+        recognition.onstart = () => {
+            console.log('[Voice] Listening started');
+            showToast('🎤 Listening... Speak now', 'info');
+            if (voiceBtn) {
+                voiceBtn.style.background = 'var(--color-error)';
+                voiceBtn.style.color = 'white';
+            }
+        };
 
-    recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        document.getElementById('userInput').value = transcript;
-        showToast('Speech recognized', 'success');
-    };
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            const confidence = event.results[0][0].confidence;
+            
+            console.log('[Voice] Recognized:', transcript, 'Confidence:', confidence);
+            
+            const userInput = document.getElementById('userInput');
+            if (userInput) {
+                // Append to existing text or replace
+                const currentText = userInput.value.trim();
+                userInput.value = currentText ? `${currentText} ${transcript}` : transcript;
+                userInput.focus();
+                
+                // Trigger input event for auto-resize
+                userInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            
+            showToast(`✅ Recognized: "${transcript}"`, 'success');
+        };
 
-    recognition.onerror = (event) => {
-        showToast('Speech recognition error', 'error');
-    };
+        recognition.onerror = (event) => {
+            console.error('[Voice] Error:', event.error);
+            
+            let errorMessage = 'Voice recognition failed';
+            
+            switch(event.error) {
+                case 'no-speech':
+                    errorMessage = 'No speech detected. Please try again.';
+                    break;
+                case 'audio-capture':
+                    errorMessage = 'No microphone found. Please check your device.';
+                    break;
+                case 'not-allowed':
+                    errorMessage = 'Microphone access denied. Please allow microphone access in your browser settings.';
+                    break;
+                case 'network':
+                    errorMessage = 'Network error. Please check your connection.';
+                    break;
+                case 'aborted':
+                    errorMessage = 'Voice input cancelled.';
+                    break;
+                case 'service-not-allowed':
+                    errorMessage = 'Speech service not available. Please try again later.';
+                    break;
+            }
+            
+            showToast(errorMessage, 'error');
+        };
 
-    recognition.start();
+        recognition.onend = () => {
+            console.log('[Voice] Listening ended');
+            // Reset button appearance
+            if (voiceBtn) {
+                voiceBtn.style.background = '';
+                voiceBtn.style.color = '';
+            }
+        };
+
+        // Start recognition
+        recognition.start();
+        
+    } catch (error) {
+        console.error('[Voice] Failed to start recognition:', error);
+        showToast('Failed to start voice input. Please try again.', 'error');
+    }
 }
 
 // ==========================================
