@@ -9,9 +9,11 @@ window.syncChatsFromServer = async function() {
         return;
     }
 
-
-    try {
-        console.log('[Sync] Fetching chats from server...');
+    // Add retry mechanism
+    let retries = 3;
+    while (retries > 0) {
+        try {
+            console.log('[Sync] Fetching chats from server... (attempt ' + (4 - retries) + '/3)');
         
         const response = await fetch('/api/chats/sync', {
             method: 'GET',
@@ -23,6 +25,20 @@ window.syncChatsFromServer = async function() {
 
 
         if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                console.warn('[Sync] Auth failed, attempting session refresh...');
+                
+                // Try to refresh session
+                if (window.authUI && typeof window.authUI.trySilentRefresh === 'function') {
+                    const refreshed = await window.authUI.trySilentRefresh();
+                    if (refreshed && retries > 1) {
+                        retries--;
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        continue; // Retry with fresh auth
+                    }
+                }
+            }
+            
             console.warn('[Sync] Failed to fetch chats:', response.status);
             return;
         }
@@ -102,10 +118,21 @@ window.syncChatsFromServer = async function() {
         }
 
         console.log('[Sync] ✅ Chats synced successfully:', mergedChats.length, 'total chats');
+        return; // Success, exit retry loop
         
     } catch (error) {
         console.error('[Sync] Failed to sync chats from server:', error);
+        
+        if (retries > 1) {
+            retries--;
+            console.log('[Sync] Retrying in 2 seconds...');
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        } else {
+            console.error('[Sync] All retry attempts failed');
+            return;
+        }
     }
+    } // end while loop
 };
 
 // Sync chats TO server

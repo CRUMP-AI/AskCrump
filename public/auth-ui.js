@@ -695,7 +695,7 @@ stopAutoRefresh() {
                 user: this.currentUser,
                 token: this.authToken,
                 timestamp: Date.now(),
-                expiresAt: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
+                expiresAt: Date.now() + (30 * 24 * 60 * 60 * 1000) // 30 DAYS - iOS PWA fix
             };
             localStorage.setItem('crump_session_backup', JSON.stringify(backupData));
             console.log('✅ [iOS PWA FIX] Session backup stored in localStorage');
