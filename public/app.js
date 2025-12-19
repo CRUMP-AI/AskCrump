@@ -1310,7 +1310,7 @@ window.removeFile = function(index) {
 // ==========================================
 // VOICE INPUT
 // ==========================================
-function handleVoiceInput() {
+window.handleVoiceInput = function handleVoiceInput() {
     // ✅ BUG FIX 3: Enhanced voice input with proper error handling
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
