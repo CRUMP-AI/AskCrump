@@ -54,7 +54,7 @@ export default async function handler(req, res) {
                         // ✅ BUG FIX 1: Extended access token + iOS-optimized settings
                         const accessCookie = serialize('auth_token', newAccessToken, {
                             httpOnly: true,
-                            secure: isProd,
+                            secure: true,
                             sameSite: 'lax',
                             path: '/',
                             domain: cookieDomain,
@@ -63,7 +63,7 @@ export default async function handler(req, res) {
 
                         const refreshCookie = serialize('crump_refresh_token', newRefreshToken, {
                             httpOnly: true,
-                            secure: isProd,
+                            secure: true,
                             sameSite: 'lax',
                             path: '/',
                             domain: cookieDomain,
