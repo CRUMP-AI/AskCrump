@@ -45,9 +45,9 @@ export default async function handler(req, res) {
         });
     }
 
-    try {
-        const { email, password, rememberMe = false } = req.body || {};
-
+   try {
+        const { email, password } = req.body || {};
+        const rememberMe = true;
         // Validate input
         if (!email || !password) {
             return res.status(400).json({
