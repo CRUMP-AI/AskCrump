@@ -16,6 +16,7 @@ const urlsToCache = [
     
     // JavaScript files - ROOT directory (confirmed from network tab)
     '/app.js',
+    '/chat-sync.js',
     '/engines.js',
     '/autonomous.js',
     '/profile-manager.js',
