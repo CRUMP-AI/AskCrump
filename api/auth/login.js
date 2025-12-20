@@ -192,7 +192,7 @@ const cookieDomain = process.env.NODE_ENV === 'production'
 const authCookie = serialize('auth_token', accessToken, {
     httpOnly: true,
     secure: true,
-    sameSite: 'lax',  // ✅ FIXED: 'lax' works with iOS PWA, 'none' gets blocked
+    sameSite: 'none',  // ✅ FIXED: 'lax' works with iOS PWA, 'none' gets blocked
     maxAge: 24 * 60 * 60,
     path: '/',
     domain: cookieDomain
