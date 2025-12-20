@@ -770,6 +770,13 @@ if (isStandalone) {
                 </p>
             </div>
 
+            <div class="settings-section">
+                <h3>Account</h3>
+                <button class="btn btn-danger btn-block" onclick="logoutUser()">
+                    Sign Out
+                </button>
+            </div>
+
              <div class="settings-section">
                 <h3>Help & Support</h3>
                 <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: 1rem;">
@@ -1267,6 +1274,21 @@ function restartTutorial() {
                 .catch(err => console.error('[PWA] Registration failed', err));
         });
     }
+<script>
+
+<script>
+function logoutUser() {
+    // Clear cookies
+    document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.askcrump.com';
+    document.cookie = 'crump_refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.askcrump.com';
+    
+    // Clear local storage
+    localStorage.clear();
+    
+    // Reload to login screen
+    window.location.reload();
+}
 </script>
+    
 </body>
 </html>
