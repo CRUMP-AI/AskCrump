@@ -46,7 +46,7 @@ export default async function handler(req, res) {
                         const newRefreshToken = signRefreshToken(dbUser);
 
                         const cookieDomain = process.env.NODE_ENV === 'production' 
-    ? 'askcrump.com' 
+    ? '.askcrump.com' 
     : undefined;
 
                         const isProd = process.env.NODE_ENV === 'production';
