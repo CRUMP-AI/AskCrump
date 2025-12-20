@@ -4,6 +4,15 @@
 
 // Sync chats FROM server
 window.syncChatsFromServer = async function() {
+    if (!navigator.onLine) {
+        console.log('[Sync] Offline - will retry when connection restored');
+        window.addEventListener('online', () => {
+            console.log('[Sync] Connection restored - syncing now');
+            syncChatsFromServer();
+        }, { once: true });
+        return;
+    }
+
     if (!window.currentUser) {
         console.log('[Sync] Not authenticated, skipping sync');
         return;
