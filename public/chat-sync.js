@@ -119,6 +119,12 @@ window.syncChatsFromServer = async function() {
 
 // Sync chats TO server
 window.syncChatsToServer = async function() {
+    // 🔥 MOBILE PWA FIX: Check network before syncing
+    if (!navigator.onLine) {
+        console.log('[Sync] Offline - upload queued for when online');
+        return;
+    }
+
     if (!window.currentUser) {
         console.log('[Sync] Not authenticated, skipping upload');
         return;
@@ -158,7 +164,7 @@ window.syncChatsToServer = async function() {
     }
 };
 
-// Auto-sync every 30 seconds
+// Auto-sync with adaptive intervals for mobile
 let syncInterval = null;
 
 window.startAutoSync = function() {
@@ -166,13 +172,33 @@ window.startAutoSync = function() {
         clearInterval(syncInterval);
     }
     
+    const getOptimalSyncInterval = () => {
+        const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        
+        if (connection) {
+            const effectiveType = connection.effectiveType;
+            
+            if (effectiveType === 'slow-2g' || effectiveType === '2g') {
+                return 5 * 60 * 1000;
+            }
+            
+            if (connection.type === 'cellular') {
+                return 2 * 60 * 1000;
+            }
+        }
+        
+        return 60 * 1000;
+    };
+    
+    const interval = getOptimalSyncInterval();
+    
     syncInterval = setInterval(() => {
         if (window.currentUser && window.authToken) {
             syncChatsToServer();
         }
-    }, 30000); // 30 seconds
+    }, interval);
     
-    console.log('[Sync] Auto-sync started (30s intervals)');
+    console.log(`[Sync] Auto-sync started (${interval/1000}s intervals)`);
 };
 
 window.stopAutoSync = function() {
