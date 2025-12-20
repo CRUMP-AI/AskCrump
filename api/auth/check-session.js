@@ -55,7 +55,7 @@ export default async function handler(req, res) {
                         const accessCookie = serialize('auth_token', newAccessToken, {
                             httpOnly: true,
                             secure: true,
-                            sameSite: 'lax',
+                            sameSite: 'none',
                             path: '/',
                             domain: cookieDomain,
                             maxAge: 7 * 24 * 60 * 60 // 7 days (was 1 hour)
