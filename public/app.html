@@ -989,8 +989,6 @@ document.getElementById('loginFormElement').addEventListener('submit', async (e)
     try {
         const data = await window.deviceAuth.login(email, password);
         
-        const data = await response.json();
-        
         if (data.success) {
             document.getElementById('loginSuccess').textContent = 'Login successful!';
             document.getElementById('loginSuccess').style.display = 'block';
@@ -1278,13 +1276,7 @@ function restartTutorial() {
                 .catch(err => console.error('[PWA] Registration failed', err));
         });
     }
-<script>
 
-<script>
-async function logoutUser() {
-    await window.deviceAuth.logout();
-    window.location.reload();
-}
 </script>
     
 </body>
