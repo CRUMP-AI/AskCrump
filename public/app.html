@@ -829,6 +829,9 @@ if (isStandalone) {
 <script src="/consciousness-integration.js" defer></script>
 <script src="/consciousness-ui.js" defer></script>    
 
+<!-- Device ID Auth System -->
+<script src="/device-auth.js"></script>
+
 <!-- Main App (loads last) -->
 <script src="/chat-sync.js"></script>
 <script src="/app.js"></script>
@@ -911,21 +914,27 @@ window.addEventListener('load', () => {
         }
     }
     
-    // Normal init flow
-    setTimeout(() => {
+    // Normal init flow - check device auth session
+    setTimeout(async () => {
         document.getElementById('splashScreen').style.display = 'none';
         
-        if (!authToken) {
+        const sessionCheck = await window.deviceAuth.checkSession();
+        
+        if (!sessionCheck.authenticated) {
             document.getElementById('authContainer').style.display = 'flex';
             document.getElementById('loginForm').style.display = 'block';
-        } else if (!tosAccepted) {
-            document.getElementById('tosModal').style.display = 'flex';
-        } else if (!hasOnboarded) {
-            document.getElementById('onboardingModal').style.display = 'flex';
         } else {
-            document.getElementById('appContainer').style.display = 'flex';
-            if (typeof window.initializeApp === 'function') {
-                window.initializeApp();
+            window.currentUser = sessionCheck.data.user;
+            
+            if (!tosAccepted) {
+                document.getElementById('tosModal').style.display = 'flex';
+            } else if (!hasOnboarded) {
+                document.getElementById('onboardingModal').style.display = 'flex';
+            } else {
+                document.getElementById('appContainer').style.display = 'flex';
+                if (typeof window.initializeApp === 'function') {
+                    window.initializeApp();
+                }
             }
         }
     }, 1500);
@@ -973,17 +982,12 @@ document.getElementById('loginFormElement').addEventListener('submit', async (e)
     
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
-    const rememberMe = document.getElementById('rememberMe').checked;
     
     document.getElementById('loginError').style.display = 'none';
     document.getElementById('verificationNeeded').style.display = 'none';
     
     try {
-        const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, rememberMe })
-        });
+        const data = await window.deviceAuth.login(email, password);
         
         const data = await response.json();
         
@@ -1277,15 +1281,8 @@ function restartTutorial() {
 <script>
 
 <script>
-function logoutUser() {
-    // Clear cookies
-    document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.askcrump.com';
-    document.cookie = 'crump_refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.askcrump.com';
-    
-    // Clear local storage
-    localStorage.clear();
-    
-    // Reload to login screen
+async function logoutUser() {
+    await window.deviceAuth.logout();
     window.location.reload();
 }
 </script>
