@@ -1252,6 +1252,11 @@ function exportChats() {
     }
 }
 
+async function logoutUser() {
+    await window.deviceAuth.logout();
+    window.location.reload();
+}
+
 function restartTutorial() {
     closeSettings();
     
