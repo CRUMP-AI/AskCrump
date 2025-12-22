@@ -1,19 +1,8 @@
-// =====================================================
-// AUTH - CHECK SESSION
-// Location: /api/auth/check-session.js
-// =====================================================
-
-import { parse, serialize } from 'cookie';
-import { verifyAuth } from '../middleware/auth.js';
 import { supabase } from '../utils/supabase.js';
-import {
-    verifyRefreshToken,
-    signAccessToken,
-    signRefreshToken
-} from '../utils/jwt.js';
+import { signAccessToken } from '../utils/jwt.js';
 
 export default async function handler(req, res) {
-    if (req.method !== 'GET') {
+    if (req.method !== 'POST') {
         return res.status(405).json({
             success: false,
             error: 'Method not allowed'
@@ -21,64 +10,37 @@ export default async function handler(req, res) {
     }
 
     try {
-        // 1) Try normal auth first (auth_token cookie or Authorization header)
-        let user = await verifyAuth(req);
+        const { deviceId } = req.body || {};
 
-        if (!user) {
-            // 2) If no valid access token, try refresh token
-            const cookies = parse(req.headers.cookie || '');
-            const refreshToken = cookies.crump_refresh_token;
-
-            if (refreshToken) {
-                const decoded = verifyRefreshToken(refreshToken);
-                if (decoded && decoded.userId) {
-                    const { data: dbUser, error } = await supabase
-                        .from('users')
-                        .select('id, email, created_at, tier, subscription_tier')
-                        .eq('id', decoded.userId)
-                        .single();
-
-                    if (!error && dbUser) {
-                        user = dbUser;
-
-                        // Issue fresh tokens
-                        const newAccessToken = signAccessToken(dbUser);
-                        const newRefreshToken = signRefreshToken(dbUser);
-
-                        const cookieDomain = process.env.NODE_ENV === 'production' 
-    ? '.askcrump.com' 
-    : undefined;
-
-                        const isProd = process.env.NODE_ENV === 'production';
-
-                        // ✅ BUG FIX 1: Extended access token + iOS-optimized settings
-                        const accessCookie = serialize('auth_token', newAccessToken, {
-                            httpOnly: true,
-                            secure: true,
-                            sameSite: 'none',
-                            path: '/',
-                            domain: cookieDomain,
-                            maxAge: 7 * 24 * 60 * 60 // 7 days (was 1 hour)
-                        });
-
-                        const refreshCookie = serialize('crump_refresh_token', newRefreshToken, {
-                            httpOnly: true,
-                            secure: true,
-                            sameSite: 'lax',
-                            path: '/',
-                            domain: cookieDomain,
-                            maxAge: 365 * 24 * 60 * 60 // 365 days
-                        });
-
-                        res.setHeader('Set-Cookie', [accessCookie, refreshCookie]);
-
-
-                    }
-                }
-            }
+        if (!deviceId) {
+            return res.status(200).json({
+                success: true,
+                authenticated: false
+            });
         }
 
-        // If still no user → not authenticated
+        const { data: sessions } = await supabase
+            .from('sessions')
+            .select('*')
+            .eq('device_id', deviceId)
+            .gte('expires_at', new Date().toISOString())
+            .order('last_activity', { ascending: false })
+            .limit(1);
+
+        if (!sessions || sessions.length === 0) {
+            return res.status(200).json({
+                success: true,
+                authenticated: false
+            });
+        }
+
+        const session = sessions[0];
+        const { data: user } = await supabase
+            .from('users')
+            .select('id, email, created_at, tier, subscription_tier, full_name, profile_picture, is_verified, preferences')
+            .eq('id', session.user_id)
+            .single();
+
         if (!user) {
             return res.status(200).json({
                 success: true,
@@ -86,28 +48,23 @@ export default async function handler(req, res) {
             });
         }
 
-        // 7-DAY GLOBAL TRIAL (based on account creation)
-        let inTrial = false;
-        let trialEndsAt = null;
+        await supabase
+            .from('sessions')
+            .update({ last_activity: new Date().toISOString() })
+            .eq('device_id', deviceId)
+            .eq('user_id', user.id);
 
-        if (user.created_at) {
-            const createdDate = new Date(user.created_at);
-            if (!Number.isNaN(createdDate.getTime())) {
-                const end = new Date(
-                    createdDate.getTime() + 7 * 24 * 60 * 60 * 1000
-                );
-                trialEndsAt = end.toISOString();
-                const now = new Date();
-                if (now < end) {
-                    inTrial = true;
-                }
-            }
-        }
-
-                // Issue a fresh short-lived access token for the frontend if needed
         const accessToken = signAccessToken(user);
 
-        // Shape this so AuthUI.checkSession() sees data.data
+        let inTrial = false;
+        let trialEndsAt = null;
+        if (user.created_at) {
+            const createdDate = new Date(user.created_at);
+            const end = new Date(createdDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+            trialEndsAt = end.toISOString();
+            if (new Date() < end) inTrial = true;
+        }
+
         return res.status(200).json({
             success: true,
             authenticated: true,
