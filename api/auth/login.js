@@ -45,9 +45,15 @@ export default async function handler(req, res) {
         });
     }
 
-   try {
-        const { email, password } = req.body || {};
-        const rememberMe = true;
+  try {
+        const { email, password, deviceId } = req.body || {};
+
+        if (!deviceId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Device ID required'
+            });
+        }
         // Validate input
         if (!email || !password) {
             return res.status(400).json({
@@ -168,38 +174,11 @@ export default async function handler(req, res) {
             .update({ last_login: new Date().toISOString() })
             .eq('id', user.id);
 
+       // =====================================================
+        // DEVICE ID SESSION (No cookies!)
         // =====================================================
-        // COOKIES
-        // =====================================================
-
-             // Force askcrump.com domain in production
-const cookieDomain = process.env.NODE_ENV === 'production' 
-    ? '.askcrump.com' 
-    : undefined;
-
-        const isProd = process.env.NODE_ENV === 'production';
-
-       const refreshCookie = serialize('crump_refresh_token', refreshToken, {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'lax',  // ✅ FIXED: 'lax' works with iOS PWA, 'none' gets blocked
-    maxAge: 365 * 24 * 60 * 60,
-    path: '/',
-    domain: cookieDomain
-});
-
-// b) Short-lived auth cookie (backward compatibility with middleware)
-const authCookie = serialize('auth_token', accessToken, {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'none',  // ✅ FIXED: 'lax' works with iOS PWA, 'none' gets blocked
-    maxAge: 24 * 60 * 60,
-    path: '/',
-    domain: cookieDomain
-});
-
-        // Attach both cookies
-        res.setHeader('Set-Cookie', [refreshCookie, authCookie]);
+        
+        console.log(`[Login] Session created for device: ${deviceId}`);
 
 
         // =====================================================
