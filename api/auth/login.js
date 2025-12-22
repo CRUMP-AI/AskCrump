@@ -133,19 +133,20 @@ export default async function handler(req, res) {
             ? ipHeader.split(',')[0].trim()
             : ipHeader;
 
-     // 4) Create session in database
+    // 4) Create session in database with device ID
         
-        // Delete old sessions for this user first (cleanup)
+        // Delete old sessions for this device (cleanup)
         await supabase
             .from('sessions')
             .delete()
-            .eq('user_id', user.id);
+            .eq('device_id', deviceId);
         
-        // Insert new session (no conflicts possible)
+        // Insert new session with device_id
         const { data: session, error: sessionError } = await supabase
             .from('sessions')
             .insert({
                 user_id: user.id,
+                device_id: deviceId,
                 session_token: refreshToken,
                 expires_at: expiresAt.toISOString(),
                 ip_address: ipAddress,
@@ -153,7 +154,8 @@ export default async function handler(req, res) {
                 device_info: {
                     userAgent,
                     platform: req.headers['sec-ch-ua-platform'] || 'Unknown',
-                    mobile: req.headers['sec-ch-ua-mobile'] === '?1'
+                    mobile: req.headers['sec-ch-ua-mobile'] === '?1',
+                    deviceId: deviceId
                 },
                 last_activity: new Date().toISOString()
             })
