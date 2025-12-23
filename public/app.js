@@ -1497,20 +1497,58 @@ function loadSettingsValues() {
     document.getElementById('settingsName').value = profile.name || '';
     document.getElementById('settingsEmail').value = profile.email || '';
     document.getElementById('assistantName').value = localStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
+
+    // Populate Work Hours dropdowns FIRST
+    const workStartSelect = document.getElementById('workStart');
+    const workEndSelect = document.getElementById('workEnd');
+
+    if (workStartSelect && workEndSelect && workStartSelect.options.length === 0) {
+        const makeLabel = (h) => {
+            const hour = Number(h);
+            const suffix = hour >= 12 ? 'PM' : 'AM';
+            const display = ((hour + 11) % 12) + 1;
+            return `${display} ${suffix}`;
+        };
+
+        for (let h = 0; h <= 23; h++) {
+            const opt1 = document.createElement('option');
+            opt1.value = String(h);
+            opt1.textContent = makeLabel(h);
+            workStartSelect.appendChild(opt1);
+
+            const opt2 = document.createElement('option');
+            opt2.value = String(h);
+            opt2.textContent = makeLabel(h);
+            workEndSelect.appendChild(opt2);
+        }
+    }
+
+    // Now set values AFTER options exist
     document.getElementById('autonomousMessaging').checked = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_ENABLED) === 'true';
-    document.getElementById('autonomousFrequency').value =
-    localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'medium';
-    
+    document.getElementById('autonomousFrequency').value = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'medium';
+
     document.getElementById('workMode').checked = localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true';
     document.getElementById('workStart').value = localStorage.getItem('crump_work_start') || '9';
     document.getElementById('workEnd').value = localStorage.getItem('crump_work_end') || '17';
-    
-    const freqGroup = document.getElementById('autonomousFrequencyGroup');
-    freqGroup.style.display = document.getElementById('autonomousMessaging').checked ? 'block' : 'none';
 
-    document.getElementById('autonomousMessaging').addEventListener('change', (e) => {
-        freqGroup.style.display = e.target.checked ? 'block' : 'none';
-    });
+    // Autonomous Frequency group toggle
+    const freqGroup = document.getElementById('autonomousFrequencyGroup');
+    if (freqGroup) {
+        freqGroup.style.display = document.getElementById('autonomousMessaging').checked ? 'flex' : 'none';
+        document.getElementById('autonomousMessaging').addEventListener('change', (e) => {
+            freqGroup.style.display = e.target.checked ? 'flex' : 'none';
+        });
+    }
+
+    // Work Hours group toggle
+    const workHoursGroup = document.getElementById('workHoursGroup');
+    const workModeToggle = document.getElementById('workMode');
+    if (workHoursGroup && workModeToggle) {
+        workHoursGroup.style.display = workModeToggle.checked ? 'block' : 'none';
+        workModeToggle.addEventListener('change', (e) => {
+            workHoursGroup.style.display = e.target.checked ? 'block' : 'none';
+        });
+    }
 }
 
 window.saveSettings = function() {
@@ -1678,7 +1716,7 @@ function showWelcomeMessage() {
 // FIXED: Changed setEnabled → toggle, 'balanced' → 'medium'
 function setupAutonomousMessaging() {
     const enabled = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_ENABLED) === 'true';
-    const frequency = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'balanced';
+    const frequency = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'medium';
 
     if (window.autonomousMessaging) {
         window.autonomousMessaging.toggle(enabled);
