@@ -643,227 +643,147 @@ if (isStandalone) {
 
 <!-- SETTINGS MODAL -->
 <div id="settingsModal" class="modal">
-    <div class="modal-content settings-modal-premium">
-        
-        <!-- Header -->
-        <div class="settings-header-premium">
-            <div class="settings-header-content">
-                <h2>Settings</h2>
-                <p class="settings-subtitle">Customize your Ask CRUMP experience</p>
-            </div>
-            <button class="btn-icon-close" onclick="closeSettings()" aria-label="Close">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M18 6L6 18M6 6l12 12"/>
-                </svg>
-            </button>
-        </div>
-        
-        <!-- Body -->
-        <div class="settings-body-premium">
+  <div class="modal-content settings-sheet" role="dialog" aria-modal="true" aria-label="Settings">
+    
+    <!-- Sticky Header (iOS-style) -->
+    <div class="settings-sheet-header">
+      <button class="settings-icon-btn" onclick="closeSettings()" aria-label="Close settings">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
 
-    <div class="settings-accordion-premium">
+      <div class="settings-titleblock">
+        <div class="settings-title">Settings</div>
+        <div class="settings-subtitle">Customize your Ask CRUMP experience</div>
+      </div>
 
-        <!-- GENERAL -->
-        <details class="settings-acc-premium" open>
-            <summary class="settings-acc-summary-premium">
-                <div class="acc-left">
-                    <div class="acc-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 20h9" />
-                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                        </svg>
-                    </div>
-                    <div class="acc-text">
-                        <div class="acc-title">General</div>
-                        <div class="acc-sub">Identity and assistant personalization</div>
-                    </div>
-                </div>
-                <div class="acc-chevron">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                </div>
-            </summary>
-
-            <div class="settings-acc-content-premium">
-                <div class="setting-row-premium setting-row-compact">
-                    <div class="setting-info-premium">
-                        <label for="settingsName" class="setting-title-premium">Your Name</label>
-                        <p class="setting-desc-premium">What Crump calls you</p>
-                    </div>
-                    <input type="text" id="settingsName" class="input-premium" placeholder="Enter your name">
-                </div>
-
-                <!-- IMPORTANT: this fixes the missing element your JS expects -->
-                <div class="setting-row-premium setting-row-compact">
-                    <div class="setting-info-premium">
-                        <label for="settingsEmail" class="setting-title-premium">Email</label>
-                        <p class="setting-desc-premium">Used for account and recovery</p>
-                    </div>
-                    <input type="email" id="settingsEmail" class="input-premium" placeholder="you@email.com">
-                </div>
-
-                <div class="setting-row-premium setting-row-compact">
-                    <div class="setting-info-premium">
-                        <label for="assistantName" class="setting-title-premium">Assistant Name</label>
-                        <p class="setting-desc-premium">What you want to call it</p>
-                    </div>
-                    <input type="text" id="assistantName" class="input-premium" placeholder="Crump" maxlength="30">
-                </div>
-            </div>
-        </details>
-
-        <!-- FEATURES -->
-        <details class="settings-acc-premium">
-            <summary class="settings-acc-summary-premium">
-                <div class="acc-left">
-                    <div class="acc-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2v2" />
-                            <path d="M12 20v2" />
-                            <path d="M4.93 4.93l1.41 1.41" />
-                            <path d="M17.66 17.66l1.41 1.41" />
-                            <path d="M2 12h2" />
-                            <path d="M20 12h2" />
-                            <path d="M6.34 17.66l-1.41 1.41" />
-                            <path d="M19.07 4.93l-1.41 1.41" />
-                            <circle cx="12" cy="12" r="4" />
-                        </svg>
-                    </div>
-                    <div class="acc-text">
-                        <div class="acc-title">Features</div>
-                        <div class="acc-sub">Autonomy and work mode</div>
-                    </div>
-                </div>
-                <div class="acc-chevron">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                </div>
-            </summary>
-
-            <div class="settings-acc-content-premium">
-                <div class="setting-row-premium setting-row-compact">
-                    <div class="setting-info-premium">
-                        <label for="autonomousMessaging" class="setting-title-premium">Autonomous Messaging</label>
-                        <p class="setting-desc-premium">Let Crump send proactive messages</p>
-                    </div>
-                    <label class="switch-premium">
-                        <input type="checkbox" id="autonomousMessaging">
-                        <span class="switch-slider-premium"></span>
-                    </label>
-                </div>
-
-                <div id="autonomousFrequencyGroup" style="display:none;">
-                    <div class="setting-row-premium setting-row-compact">
-                        <div class="setting-info-premium">
-                            <label for="autonomousFrequency" class="setting-title-premium">Frequency</label>
-                            <p class="setting-desc-premium">How often it runs</p>
-                        </div>
-                        <select id="autonomousFrequency" class="select-premium">
-                            <option value="low">Low</option>
-                            <option value="medium">Medium</option>
-                            <option value="high">High</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="setting-row-premium setting-row-compact">
-                    <div class="setting-info-premium">
-                        <label for="workMode" class="setting-title-premium">Work Mode</label>
-                        <p class="setting-desc-premium">Focus hours and productivity behavior</p>
-                    </div>
-                    <label class="switch-premium">
-                        <input type="checkbox" id="workMode">
-                        <span class="switch-slider-premium"></span>
-                    </label>
-                </div>
-
-                <div class="setting-row-premium setting-row-compact two-col">
-                    <div class="setting-info-premium">
-                        <label for="workStart" class="setting-title-premium">Work Hours</label>
-                        <p class="setting-desc-premium">Start → End</p>
-                    </div>
-                    <div class="inline-two">
-                        <select id="workStart" class="select-premium">
-                            <option value="0">12 AM</option><option value="1">1 AM</option><option value="2">2 AM</option><option value="3">3 AM</option>
-                            <option value="4">4 AM</option><option value="5">5 AM</option><option value="6">6 AM</option><option value="7">7 AM</option>
-                            <option value="8">8 AM</option><option value="9">9 AM</option><option value="10">10 AM</option><option value="11">11 AM</option>
-                            <option value="12">12 PM</option><option value="13">1 PM</option><option value="14">2 PM</option><option value="15">3 PM</option>
-                            <option value="16">4 PM</option><option value="17">5 PM</option><option value="18">6 PM</option><option value="19">7 PM</option>
-                            <option value="20">8 PM</option><option value="21">9 PM</option><option value="22">10 PM</option><option value="23">11 PM</option>
-                        </select>
-
-                        <select id="workEnd" class="select-premium">
-                            <option value="0">12 AM</option><option value="1">1 AM</option><option value="2">2 AM</option><option value="3">3 AM</option>
-                            <option value="4">4 AM</option><option value="5">5 AM</option><option value="6">6 AM</option><option value="7">7 AM</option>
-                            <option value="8">8 AM</option><option value="9">9 AM</option><option value="10">10 AM</option><option value="11">11 AM</option>
-                            <option value="12">12 PM</option><option value="13">1 PM</option><option value="14">2 PM</option><option value="15">3 PM</option>
-                            <option value="16">4 PM</option><option value="17">5 PM</option><option value="18">6 PM</option><option value="19">7 PM</option>
-                            <option value="20">8 PM</option><option value="21">9 PM</option><option value="22">10 PM</option><option value="23">11 PM</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-        </details>
-
-        <!-- ACCOUNT -->
-        <details class="settings-acc-premium">
-            <summary class="settings-acc-summary-premium">
-                <div class="acc-left">
-                    <div class="acc-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                            <circle cx="12" cy="7" r="4" />
-                        </svg>
-                    </div>
-                    <div class="acc-text">
-                        <div class="acc-title">Account</div>
-                        <div class="acc-sub">Session and access</div>
-                    </div>
-                </div>
-                <div class="acc-chevron">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                </div>
-            </summary>
-
-            <div class="settings-acc-content-premium">
-                <button class="action-card-premium action-card-danger-premium" onclick="logoutUser()">
-                    <div class="action-card-left-premium">
-                        <div class="action-icon-premium action-icon-danger-premium">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                                <polyline points="16 17 21 12 16 7"/>
-                                <line x1="21" y1="12" x2="9" y2="12"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <div class="action-title-premium">Sign out</div>
-                            <div class="action-desc-premium">Log out of this device</div>
-                        </div>
-                    </div>
-                </button>
-            </div>
-        </details>
-
+      <button class="settings-primary-btn" onclick="saveSettings()">
+        Save
+      </button>
     </div>
+
+    <!-- Body -->
+    <div class="settings-sheet-body">
+      
+      <!-- GENERAL -->
+      <div class="settings-group">
+        <div class="settings-group-title">General</div>
+        <div class="settings-list">
+
+          <div class="settings-row">
+            <div class="settings-row-text">
+              <div class="settings-label">Your Name</div>
+              <div class="settings-help">What Crump calls you</div>
+            </div>
+            <input type="text" id="settingsName" class="settings-field" placeholder="Enter your name" autocomplete="name">
+          </div>
+
+          <div class="settings-row">
+            <div class="settings-row-text">
+              <div class="settings-label">Email</div>
+              <div class="settings-help">Used for account and recovery</div>
+            </div>
+            <input type="email" id="settingsEmail" class="settings-field" placeholder="you@email.com" autocomplete="email">
+          </div>
+
+          <div class="settings-row">
+            <div class="settings-row-text">
+              <div class="settings-label">Assistant Name</div>
+              <div class="settings-help">What you want to call it</div>
+            </div>
+            <input type="text" id="assistantName" class="settings-field" placeholder="Crump">
+          </div>
+
+        </div>
+      </div>
+
+      <!-- FEATURES -->
+      <div class="settings-group">
+        <div class="settings-group-title">Features</div>
+        <div class="settings-list">
+
+          <div class="settings-row settings-row-toggle">
+            <div class="settings-row-text">
+              <div class="settings-label">Autonomous Messaging</div>
+              <div class="settings-help">Let Crump send proactive messages</div>
+            </div>
+
+            <!-- Keep your existing ID hook -->
+            <label class="ios-switch">
+              <input type="checkbox" id="autonomousMessaging">
+              <span class="ios-switch-ui" aria-hidden="true"></span>
+            </label>
+          </div>
+
+          <!-- IMPORTANT: keep this ID for your JS -->
+          <div id="autonomousFrequencyGroup" class="settings-row">
+            <div class="settings-row-text">
+              <div class="settings-label">Frequency</div>
+              <div class="settings-help">How often it runs</div>
+            </div>
+            <select id="autonomousFrequency" class="settings-select">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <div class="settings-row settings-row-toggle">
+            <div class="settings-row-text">
+              <div class="settings-label">Work Mode</div>
+              <div class="settings-help">Focus hours and productivity behavior</div>
+            </div>
+
+            <label class="ios-switch">
+              <input type="checkbox" id="workMode">
+              <span class="ios-switch-ui" aria-hidden="true"></span>
+            </label>
+          </div>
+
+          <!-- NEW: wrapper so hours can hide when Work Mode is off -->
+          <div id="workHoursGroup">
+            <div class="settings-row">
+              <div class="settings-row-text">
+                <div class="settings-label">Work Hours</div>
+                <div class="settings-help">Start → End</div>
+              </div>
+
+              <div class="settings-inline">
+                <select id="workStart" class="settings-select"></select>
+                <span class="settings-inline-sep">→</span>
+                <select id="workEnd" class="settings-select"></select>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ACCOUNT -->
+      <div class="settings-group">
+        <div class="settings-group-title">Account</div>
+        <div class="settings-list">
+
+          <button class="settings-row settings-danger" onclick="logoutUser()">
+            <div class="settings-row-text">
+              <div class="settings-label">Sign out</div>
+              <div class="settings-help">Log out of this device</div>
+            </div>
+            <div class="settings-chevron" aria-hidden="true">›</div>
+          </button>
+
+        </div>
+      </div>
+
+      <!-- Bottom breathing room -->
+      <div style="height: 18px;"></div>
+    </div>
+  </div>
 </div>
 
-        <!-- Footer -->
-        <div class="settings-footer-premium">
-            <button class="btn-secondary-premium" onclick="closeSettings()">Cancel</button>
-            <button class="btn-primary-premium" onclick="saveSettings()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                Save Changes
-            </button>
-        </div>
-        
-    </div>
-</div>
     
 <div id="toastContainer" class="toast-container"></div>
 <input type="file" id="fileInput" style="display: none;" 
