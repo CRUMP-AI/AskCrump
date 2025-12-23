@@ -192,6 +192,26 @@ export default async function handler(req, res) {
             .eq('user_id', user.id)
             .single();
 
+              // =====================================================
+        // DEVICE ID COOKIE (so iOS force-close/localStorage loss can still recover deviceId)
+        // =====================================================
+        const deviceIdCookie = serialize('crump_device_id', deviceId, {
+            httpOnly: false,           // not sensitive; used only to recover deviceId
+            secure: true,
+            sameSite: 'none',
+            path: '/',
+            maxAge: 60 * 60 * 24 * 365 // 1 year
+        });
+
+        // Preserve any existing Set-Cookie header behavior if added later
+        const existingSetCookie = res.getHeader('Set-Cookie');
+        if (existingSetCookie) {
+            const asArray = Array.isArray(existingSetCookie) ? existingSetCookie : [existingSetCookie];
+            res.setHeader('Set-Cookie', [...asArray, deviceIdCookie]);
+        } else {
+            res.setHeader('Set-Cookie', deviceIdCookie);
+        }
+
         // =====================================================
         // RESPONSE
         // =====================================================
