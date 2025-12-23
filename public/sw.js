@@ -28,7 +28,6 @@ const urlsToCache = [
     '/self-debug-v3.js',
     '/consciousness-engine.js',
     '/consciousness-integration.js',
-    '/consciousness-ui.js',
     
     // Images - /assets/
     '/assets/logo-c.png',
