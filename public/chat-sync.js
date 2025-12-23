@@ -22,13 +22,15 @@ window.syncChatsFromServer = async function() {
     try {
         console.log('[Sync] Fetching chats from server...');
         
-        const response = await fetch('/api/chats/sync', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            credentials: 'include'
-        });
+       const deviceId = window.deviceAuth?.getDeviceId?.();
+const result = await window.SyncManager.pull(deviceId);
+
+if (!result?.success || !Array.isArray(result.data?.chats)) {
+    console.warn('[Sync] Invalid sync response:', result);
+    return;
+}
+
+const serverChatsRaw = result.data.chats;
 
 
         if (!response.ok) {
@@ -47,29 +49,33 @@ window.syncChatsFromServer = async function() {
 
         // Merge server chats with local chats
         const localChats = JSON.parse(SafeStorage.getItem(STORAGE_KEYS.CHATS) || '[]');
-        const serverChats = data.chats.map(chat => ({
-            id: chat.id,
-            messages: chat.messages || [],
-            title: chat.title || 'Chat',
-            createdAt: chat.created_at,
-            updatedAt: chat.updated_at
-        }));
+       const serverChats = serverChatsRaw.map(chat => ({
+    id: chat.chat_id || chat.id,       
+    chat_id: chat.chat_id || chat.id,
+    messages: chat.messages || [],
+    title: chat.title || 'Chat',
+    createdAt: chat.created_at,
+    updatedAt: chat.updated_at
+}));
+
 
         // Create a map of chat IDs for quick lookup
         const chatMap = new Map();
         
         // Add local chats first
-        localChats.forEach(chat => {
-            chatMap.set(chat.id, chat);
-        });
-        
+       localChats.forEach(chat => {
+    const key = chat.chat_id || chat.id;
+    if (key) chatMap.set(key, chat);
+});
+
         // Merge server chats (server takes precedence if newer)
         serverChats.forEach(serverChat => {
-            const localChat = chatMap.get(serverChat.id);
+           const key = serverChat.chat_id || serverChat.id;
+const localChat = chatMap.get(key);
             
             if (!localChat) {
                 // New chat from server
-                chatMap.set(serverChat.id, serverChat);
+                chatMap.set(key, serverChat);
             } else {
                 // Chat exists locally - keep the newer version
                 const localTime = new Date(localChat.updatedAt || localChat.createdAt).getTime();
@@ -141,14 +147,16 @@ window.syncChatsToServer = async function() {
 
         console.log('[Sync] Uploading', localChats.length, 'chats to server...');
         
-        const response = await fetch('/api/chats/sync', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            credentials: 'include',
-            body: JSON.stringify({ chats: localChats })
-        });
+        const deviceId = window.deviceAuth?.getDeviceId?.();
+
+await window.SyncManager.push(deviceId, {
+    chats: localChats.map(chat => ({
+        chat_id: chat.chat_id || chat.id,
+        title: chat.title || 'Chat',
+        messages: chat.messages || [],
+        updated_at: chat.updatedAt || new Date().toISOString()
+    }))
+});
 
 
         if (!response.ok) {
@@ -193,9 +201,9 @@ window.startAutoSync = function() {
     const interval = getOptimalSyncInterval();
     
     syncInterval = setInterval(() => {
-        if (window.currentUser && window.authToken) {
-            syncChatsToServer();
-        }
+        if (window.currentUser) {
+    syncChatsToServer();
+}
     }, interval);
     
     console.log(`[Sync] Auto-sync started (${interval/1000}s intervals)`);
@@ -209,13 +217,24 @@ window.stopAutoSync = function() {
     }
 };
 
-// Sync on page unload
 window.addEventListener('beforeunload', () => {
-    if (window.currentUser && window.authToken) {
-        const chats = JSON.parse(SafeStorage.getItem(STORAGE_KEYS.CHATS) || '[]');
-        if (chats.length > 0) {
-            const blob = new Blob([JSON.stringify({ chats })], { type: 'application/json' });
-            navigator.sendBeacon('/api/chats/sync', blob);
-        }
-    }
+    if (!window.currentUser) return;
+
+    const chats = JSON.parse(SafeStorage.getItem(STORAGE_KEYS.CHATS) || '[]');
+    if (!chats.length) return;
+
+    const deviceId = window.deviceAuth?.getDeviceId?.();
+
+    const payload = {
+        deviceId,
+        chats: chats.map(chat => ({
+            chat_id: chat.chat_id || chat.id,
+            title: chat.title || 'Chat',
+            messages: chat.messages || [],
+            updated_at: chat.updatedAt || new Date().toISOString()
+        }))
+    };
+
+    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+    navigator.sendBeacon('/api/sync/push', blob);
 });
