@@ -643,210 +643,270 @@ if (isStandalone) {
 
 <!-- SETTINGS MODAL -->
 <div id="settingsModal" class="modal">
-    <div class="modal-content settings-modal-clean">
-        <!-- Settings Header -->
-        <div class="settings-header">
-            <h2>Settings</h2>
-            <button class="btn-icon" onclick="closeSettings()" aria-label="Close settings">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    <div class="modal-content settings-modal-premium">
+        
+        <!-- Header -->
+        <div class="settings-header-premium">
+            <div class="settings-header-content">
+                <h2>Settings</h2>
+                <p class="settings-subtitle">Customize your Ask CRUMP experience</p>
+            </div>
+            <button class="btn-icon-close" onclick="closeSettings()" aria-label="Close">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12"/>
                 </svg>
             </button>
         </div>
         
-        <!-- Settings Body -->
-        <div class="settings-body">
+        <!-- Body -->
+        <div class="settings-body-premium">
             
-            <!-- General Section -->
-            <div class="settings-group">
-                <h3 class="settings-group-title">General</h3>
-                
-                <div class="setting-item">
-                    <div class="setting-item-header">
-                        <label for="settingsName" class="setting-label">Your Name</label>
-                        <span class="setting-description">How the assistant addresses you</span>
-                    </div>
-                    <input type="text" id="settingsName" class="form-input" placeholder="Enter your name">
+            <!-- General -->
+            <div class="settings-section-premium">
+                <div class="section-header-premium">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    <h3>General</h3>
                 </div>
                 
-                <div class="setting-item">
-                    <div class="setting-item-header">
-                        <label for="assistantName" class="setting-label">Assistant Name</label>
-                        <span class="setting-description">Customize your assistant's name</span>
+                <div class="settings-items-premium">
+                    <div class="setting-row-premium">
+                        <div class="setting-info-premium">
+                            <label for="settingsName" class="setting-title-premium">Your Name</label>
+                            <p class="setting-desc-premium">How the assistant will address you</p>
+                        </div>
+                        <input type="text" id="settingsName" class="input-premium" placeholder="Enter your name">
                     </div>
-                    <input type="text" id="assistantName" class="form-input" placeholder="Crump" maxlength="30">
+                    
+                    <div class="setting-row-premium">
+                        <div class="setting-info-premium">
+                            <label for="assistantName" class="setting-title-premium">Assistant Name</label>
+                            <p class="setting-desc-premium">Personalize your assistant</p>
+                        </div>
+                        <input type="text" id="assistantName" class="input-premium" placeholder="Crump" maxlength="30">
+                    </div>
                 </div>
             </div>
 
-            <!-- Features Section -->
-            <div class="settings-group">
-                <h3 class="settings-group-title">Features</h3>
+            <!-- Features -->
+            <div class="settings-section-premium">
+                <div class="section-header-premium">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
+                    </svg>
+                    <h3>Features</h3>
+                </div>
                 
-                <div class="setting-item-toggle">
-                    <div class="setting-item-header">
-                        <div>
-                            <div class="setting-label">Autonomous Check-ins</div>
-                            <div class="setting-description">Proactive assistance (Pro+ only)</div>
+                <div class="settings-items-premium">
+                    <!-- Autonomous Messaging -->
+                    <div class="setting-toggle-row-premium">
+                        <div class="setting-info-premium">
+                            <div class="setting-title-premium">Autonomous Check-ins</div>
+                            <p class="setting-desc-premium">Proactive assistance throughout your day</p>
+                            <span class="setting-badge-premium">Pro+ only</span>
                         </div>
+                        <label class="toggle-premium">
+                            <input type="checkbox" id="autonomousMessaging">
+                            <span class="toggle-track-premium">
+                                <span class="toggle-thumb-premium"></span>
+                            </span>
+                        </label>
                     </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="autonomousMessaging">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                
-                <div class="setting-item" id="autonomousFrequencyGroup" style="display: none; margin-top: 0.5rem; padding-left: 1rem; border-left: 2px solid var(--color-border);">
-                    <div class="setting-item-header">
-                        <label for="autonomousFrequency" class="setting-label">Check-in Frequency</label>
-                    </div>
-                    <select id="autonomousFrequency" class="form-input">
-                        <option value="relaxed">Relaxed (15 min)</option>
-                        <option value="balanced" selected>Balanced (10 min)</option>
-                        <option value="active">Active (5 min)</option>
-                    </select>
-                </div>
-                
-                <div class="setting-item-toggle">
-                    <div class="setting-item-header">
-                        <div>
-                            <div class="setting-label">Professional Mode</div>
-                            <div class="setting-description">Business-focused responses and tone</div>
+                    
+                    <!-- Frequency Dropdown (Hidden by default) -->
+                    <div class="setting-row-nested-premium" id="autonomousFrequencyGroup" style="display: none;">
+                        <div class="setting-info-premium">
+                            <label for="autonomousFrequency" class="setting-title-premium">Check-in Frequency</label>
+                            <p class="setting-desc-premium">How often Crump reaches out</p>
                         </div>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="workMode">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                
-                <div class="setting-item" style="margin-top: 1rem;">
-                    <div class="setting-item-header">
-                        <label class="setting-label">Work Hours</label>
-                        <span class="setting-description">Active hours for autonomous messages</span>
-                    </div>
-                    <div style="display: flex; gap: 0.75rem; align-items: center; margin-top: 0.75rem;">
-                        <select id="workStart" class="form-input" style="flex: 1;">
-                            <option value="0">12 AM</option>
-                            <option value="1">1 AM</option>
-                            <option value="2">2 AM</option>
-                            <option value="3">3 AM</option>
-                            <option value="4">4 AM</option>
-                            <option value="5">5 AM</option>
-                            <option value="6">6 AM</option>
-                            <option value="7">7 AM</option>
-                            <option value="8">8 AM</option>
-                            <option value="9" selected>9 AM</option>
-                            <option value="10">10 AM</option>
-                            <option value="11">11 AM</option>
-                            <option value="12">12 PM</option>
-                            <option value="13">1 PM</option>
-                            <option value="14">2 PM</option>
-                            <option value="15">3 PM</option>
-                            <option value="16">4 PM</option>
-                            <option value="17">5 PM</option>
-                            <option value="18">6 PM</option>
-                            <option value="19">7 PM</option>
-                            <option value="20">8 PM</option>
-                            <option value="21">9 PM</option>
-                            <option value="22">10 PM</option>
-                            <option value="23">11 PM</option>
-                        </select>
-                        <span style="color: var(--color-text-secondary);">to</span>
-                        <select id="workEnd" class="form-input" style="flex: 1;">
-                            <option value="0">12 AM</option>
-                            <option value="1">1 AM</option>
-                            <option value="2">2 AM</option>
-                            <option value="3">3 AM</option>
-                            <option value="4">4 AM</option>
-                            <option value="5">5 AM</option>
-                            <option value="6">6 AM</option>
-                            <option value="7">7 AM</option>
-                            <option value="8">8 AM</option>
-                            <option value="9">9 AM</option>
-                            <option value="10">10 AM</option>
-                            <option value="11">11 AM</option>
-                            <option value="12">12 PM</option>
-                            <option value="13">1 PM</option>
-                            <option value="14">2 PM</option>
-                            <option value="15">3 PM</option>
-                            <option value="16">4 PM</option>
-                            <option value="17" selected>5 PM</option>
-                            <option value="18">6 PM</option>
-                            <option value="19">7 PM</option>
-                            <option value="20">8 PM</option>
-                            <option value="21">9 PM</option>
-                            <option value="22">10 PM</option>
-                            <option value="23">11 PM</option>
+                        <select id="autonomousFrequency" class="select-premium">
+                            <option value="relaxed">Relaxed (15 min)</option>
+                            <option value="balanced" selected>Balanced (10 min)</option>
+                            <option value="active">Active (5 min)</option>
                         </select>
                     </div>
-                </div>
-            </div>
-
-            <!-- Privacy Section -->
-            <div class="settings-group">
-                <h3 class="settings-group-title">Privacy & Data</h3>
-                
-                <div class="setting-item">
-                    <div class="setting-info">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0; opacity: 0.6;">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                        </svg>
-                        <span>Your conversations sync securely across all devices using end-to-end encryption.</span>
+                    
+                    <!-- Professional Mode -->
+                    <div class="setting-toggle-row-premium">
+                        <div class="setting-info-premium">
+                            <div class="setting-title-premium">Professional Mode</div>
+                            <p class="setting-desc-premium">Business-focused tone and responses</p>
+                        </div>
+                        <label class="toggle-premium">
+                            <input type="checkbox" id="workMode">
+                            <span class="toggle-track-premium">
+                                <span class="toggle-thumb-premium"></span>
+                            </span>
+                        </label>
+                    </div>
+                    
+                    <!-- Work Hours -->
+                    <div class="setting-row-premium">
+                        <div class="setting-info-premium">
+                            <div class="setting-title-premium">Work Hours</div>
+                            <p class="setting-desc-premium">Active hours for autonomous messages</p>
+                        </div>
+                        <div class="time-range-premium">
+                            <select id="workStart" class="select-premium select-time-premium">
+                                <option value="0">12 AM</option>
+                                <option value="1">1 AM</option>
+                                <option value="2">2 AM</option>
+                                <option value="3">3 AM</option>
+                                <option value="4">4 AM</option>
+                                <option value="5">5 AM</option>
+                                <option value="6">6 AM</option>
+                                <option value="7">7 AM</option>
+                                <option value="8">8 AM</option>
+                                <option value="9" selected>9 AM</option>
+                                <option value="10">10 AM</option>
+                                <option value="11">11 AM</option>
+                                <option value="12">12 PM</option>
+                                <option value="13">1 PM</option>
+                                <option value="14">2 PM</option>
+                                <option value="15">3 PM</option>
+                                <option value="16">4 PM</option>
+                                <option value="17">5 PM</option>
+                                <option value="18">6 PM</option>
+                                <option value="19">7 PM</option>
+                                <option value="20">8 PM</option>
+                                <option value="21">9 PM</option>
+                                <option value="22">10 PM</option>
+                                <option value="23">11 PM</option>
+                            </select>
+                            <span class="time-separator-premium">→</span>
+                            <select id="workEnd" class="select-premium select-time-premium">
+                                <option value="0">12 AM</option>
+                                <option value="1">1 AM</option>
+                                <option value="2">2 AM</option>
+                                <option value="3">3 AM</option>
+                                <option value="4">4 AM</option>
+                                <option value="5">5 AM</option>
+                                <option value="6">6 AM</option>
+                                <option value="7">7 AM</option>
+                                <option value="8">8 AM</option>
+                                <option value="9">9 AM</option>
+                                <option value="10">10 AM</option>
+                                <option value="11">11 AM</option>
+                                <option value="12">12 PM</option>
+                                <option value="13">1 PM</option>
+                                <option value="14">2 PM</option>
+                                <option value="15">3 PM</option>
+                                <option value="16">4 PM</option>
+                                <option value="17" selected>5 PM</option>
+                                <option value="18">6 PM</option>
+                                <option value="19">7 PM</option>
+                                <option value="20">8 PM</option>
+                                <option value="21">9 PM</option>
+                                <option value="22">10 PM</option>
+                                <option value="23">11 PM</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Help Section -->
-            <div class="settings-group">
-                <h3 class="settings-group-title">Help & Support</h3>
+            <!-- Privacy & Data -->
+            <div class="settings-section-premium">
+                <div class="section-header-premium">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                    <h3>Privacy & Data</h3>
+                </div>
                 
-                <button class="setting-action-button" onclick="restartTutorial()">
-                    <div class="setting-action-content">
+                <div class="settings-items-premium">
+                    <div class="info-card-premium">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="10"/>
                             <path d="M12 16v-4M12 8h.01"/>
                         </svg>
                         <div>
-                            <div class="setting-label">View Tutorial</div>
-                            <div class="setting-description">Learn how to use Ask CRUMP</div>
+                            <p class="info-title-premium">Secure Sync Enabled</p>
+                            <p class="info-desc-premium">Your conversations are encrypted and sync securely across all your devices.</p>
                         </div>
                     </div>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="9 18 15 12 9 6"/>
-                    </svg>
-                </button>
+                </div>
             </div>
 
-            <!-- Account Section -->
-            <div class="settings-group">
-                <h3 class="settings-group-title">Account</h3>
+            <!-- Support -->
+            <div class="settings-section-premium">
+                <div class="section-header-premium">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3m.08 4h.01"/>
+                    </svg>
+                    <h3>Help & Support</h3>
+                </div>
                 
-                <button class="setting-action-button danger" onclick="logoutUser()">
-                    <div class="setting-action-content">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                            <polyline points="16 17 21 12 16 7"/>
-                            <line x1="21" y1="12" x2="9" y2="12"/>
-                        </svg>
-                        <div>
-                            <div class="setting-label">Sign Out</div>
-                            <div class="setting-description">Log out of your account</div>
+                <div class="settings-items-premium">
+                    <button class="action-card-premium" onclick="restartTutorial()">
+                        <div class="action-card-left-premium">
+                            <div class="action-icon-premium">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <polygon points="10 8 16 12 10 16 10 8"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="action-title-premium">View Tutorial</div>
+                                <div class="action-desc-premium">Learn how to use Ask CRUMP</div>
+                            </div>
                         </div>
-                    </div>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="9 18 15 12 9 6"/>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Account -->
+            <div class="settings-section-premium">
+                <div class="section-header-premium">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
                     </svg>
-                </button>
+                    <h3>Account</h3>
+                </div>
+                
+                <div class="settings-items-premium">
+                    <button class="action-card-premium action-card-danger-premium" onclick="logoutUser()">
+                        <div class="action-card-left-premium">
+                            <div class="action-icon-premium action-icon-danger-premium">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                                    <polyline points="16 17 21 12 16 7"/>
+                                    <line x1="21" y1="12" x2="9" y2="12"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="action-title-premium action-title-danger-premium">Sign Out</div>
+                                <div class="action-desc-premium">Log out of your account</div>
+                            </div>
+                        </div>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
 
         </div>
 
-        <!-- Settings Footer -->
-        <div class="settings-footer">
-            <button class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
-            <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
+        <!-- Footer -->
+        <div class="settings-footer-premium">
+            <button class="btn-secondary-premium" onclick="closeSettings()">Cancel</button>
+            <button class="btn-primary-premium" onclick="saveSettings()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Save Changes
+            </button>
         </div>
+        
     </div>
 </div>
     
