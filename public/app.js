@@ -125,11 +125,9 @@ if (user.preferences) {
     
         console.log('✅ User profile loaded into universalMemory');
     
-    // Load user's chats from database (cross-device)
-    if (typeof syncChatsFromServer === 'function') {
-        syncChatsFromServer();
-    }
+       // (Removed) duplicate syncChatsFromServer() call
 };
+
 
 // ==========================================
 // INITIALIZATION
@@ -937,6 +935,7 @@ if (window.renderMessages) {
         // Call API
 const response = await fetch('/api/chat', {
     method: 'POST',
+    credentials: 'include',
     headers: {
         'Content-Type': 'application/json'
     },
@@ -1008,15 +1007,8 @@ if (!response.ok) {
         
         saveChats();
         
-        // Sync to server after every message (cross-device support)
-        if (window.currentUser && window.currentUser.id) {
-            try {
-                await syncChatsToServer();
-                console.log('✅ Chat synced to server');
-            } catch (syncError) {
-                console.warn('⚠️ Failed to sync chat:', syncError);
-            }
-        }
+       // Server sync handled by saveChats() debounce to prevent double-sync
+
 if (window.renderMessages) {
     window.renderMessages(chat.messages);
 } else {
@@ -1506,7 +1498,9 @@ function loadSettingsValues() {
     document.getElementById('settingsEmail').value = profile.email || '';
     document.getElementById('assistantName').value = localStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
     document.getElementById('autonomousMessaging').checked = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_ENABLED) === 'true';
-    document.getElementById('autonomousFrequency').value = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'balanced';
+    document.getElementById('autonomousFrequency').value =
+    localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'medium';
+    
     document.getElementById('workMode').checked = localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true';
     document.getElementById('workStart').value = localStorage.getItem('crump_work_start') || '9';
     document.getElementById('workEnd').value = localStorage.getItem('crump_work_end') || '17';
