@@ -170,10 +170,10 @@ class Tutorial {
     }
 
     start() {
-        if (localStorage.getItem('crump_tutorial_completed') === 'true') {
-            console.log('[Tutorial] Already completed');
-            return;
-        }
+        if (localStorage.getItem('crump_tutorial_completed_v2') === 'true') {
+    console.log('[Tutorial] Already completed (v2)');
+    return;
+}
 
         console.log('[Tutorial] Starting interactive walkthrough');
         this.isActive = true;
@@ -211,28 +211,36 @@ class Tutorial {
         }
 
         card.innerHTML = `
-            <div class="tutorial-card-content">
-                <div class="tutorial-header">
-                    <h3 class="tutorial-title">${step.title}</h3>
-                    <button class="tutorial-close" onclick="tutorial.skip()" aria-label="Close tutorial">×</button>
-                </div>
-                <p class="tutorial-description">${step.content}</p>
-                <div class="tutorial-progress">
-                    <div class="tutorial-progress-bar">
-                        <div class="tutorial-progress-fill" style="width: ${((this.currentStep + 1) / this.steps.length) * 100}%"></div>
-                    </div>
-                    <span class="tutorial-step-counter">Step ${this.currentStep + 1} of ${this.steps.length}</span>
-                </div>
-                <div class="tutorial-actions">
-                    ${this.currentStep > 0 ? 
-                        '<button class="tutorial-btn tutorial-btn-secondary" onclick="tutorial.back()">Previous</button>' : 
-                        '<button class="tutorial-btn tutorial-btn-secondary" onclick="tutorial.skip()">Skip Tutorial</button>'
-                    }
-                    <button class="tutorial-btn tutorial-btn-primary" onclick="tutorial.next()">
-                        ${this.currentStep === this.steps.length - 1 ? 'Get Started' : 'Next'}
-                    </button>
-                </div>
+            <div class="tutorial-card-content tutorial-sheet">
+    <div class="tutorial-sheet-header">
+        <div class="tutorial-header-left">
+            <h3 class="tutorial-title">${step.title}</h3>
+            <span class="tutorial-step-counter">Step ${this.currentStep + 1} of ${this.steps.length}</span>
+        </div>
+        <button class="tutorial-close" onclick="tutorial.skip()" aria-label="Close tutorial">×</button>
+    </div>
+
+    <div class="tutorial-sheet-body">
+        <p class="tutorial-description">${step.content}</p>
+
+        <div class="tutorial-progress">
+            <div class="tutorial-progress-bar">
+                <div class="tutorial-progress-fill" style="width: ${((this.currentStep + 1) / this.steps.length) * 100}%"></div>
             </div>
+        </div>
+    </div>
+
+    <div class="tutorial-actions tutorial-sheet-actions">
+        ${this.currentStep > 0 ? 
+            '<button class="tutorial-btn tutorial-btn-secondary" onclick="tutorial.back()">Previous</button>' : 
+            '<button class="tutorial-btn tutorial-btn-secondary" onclick="tutorial.skip()">Skip Tutorial</button>'
+        }
+        <button class="tutorial-btn tutorial-btn-primary" onclick="tutorial.next()">
+            ${this.currentStep === this.steps.length - 1 ? 'Get Started' : 'Next'}
+        </button>
+    </div>
+</div>
+
         `;
 
         document.body.appendChild(overlay);
@@ -384,7 +392,7 @@ class Tutorial {
     complete(skipped = false) {
         this.cleanup();
         this.isActive = false;
-        localStorage.setItem('crump_tutorial_completed', 'true');
+        localStorage.setItem('crump_tutorial_completed_v2', 'true');
         
         if (!skipped) {
             console.log('[Tutorial] Completed successfully');
@@ -397,7 +405,7 @@ class Tutorial {
     }
 
     restart() {
-        localStorage.removeItem('crump_tutorial_completed');
+        localStorage.removeItem('crump_tutorial_completed_v2');
         this.currentStep = 0;
         this.start();
     }
@@ -407,26 +415,47 @@ class Tutorial {
 window.Tutorial = Tutorial;
 window.tutorial = new Tutorial();
 
-// Auto-start logic
-window.addEventListener('load', () => {
-    const hasOnboarded = localStorage.getItem('crump_has_onboarded');
-    const tutorialCompleted = localStorage.getItem('crump_tutorial_completed');
+function shouldAutoStartTutorialV2() {
+    const hasOnboarded = localStorage.getItem('crump_has_onboarded_v2') === 'true';
+    const completed = localStorage.getItem('crump_tutorial_completed_v2') === 'true';
+    return hasOnboarded && !completed;
+}
+
+function tryStartTutorialV2() {
     const appContainer = document.getElementById('appContainer');
-    
-    if (hasOnboarded === 'true' && tutorialCompleted !== 'true') {
-        // Wait for app to be visible
-        const checkAppVisible = setInterval(() => {
-            if (appContainer && appContainer.style.display !== 'none') {
-                clearInterval(checkAppVisible);
-                setTimeout(() => {
-                    window.tutorial.start();
-                }, 1500);
+    const appVisible = appContainer && appContainer.style.display !== 'none';
+
+    if (!window.tutorial || typeof window.tutorial.start !== 'function') return;
+    if (!shouldAutoStartTutorialV2()) return;
+
+    // If app UI isn't visible yet, retry a few times (fast, not 10s polling)
+    if (!appVisible) {
+        let tries = 0;
+        const t = setInterval(() => {
+            tries++;
+            const c = document.getElementById('appContainer');
+            const visible = c && c.style.display !== 'none';
+            if (visible) {
+                clearInterval(t);
+                setTimeout(() => window.tutorial.start(), 350);
             }
+            if (tries >= 25) clearInterval(t); // ~2.5s max
         }, 100);
-        
-        // Timeout after 10 seconds
-        setTimeout(() => clearInterval(checkAppVisible), 10000);
+        return;
     }
+
+    setTimeout(() => window.tutorial.start(), 350);
+}
+
+// Start on first render
+document.addEventListener('DOMContentLoaded', () => {
+    tryStartTutorialV2();
 });
+
+// ✅ Start immediately after FIRST successful login (no second app open)
+window.addEventListener('user-authenticated', () => {
+    tryStartTutorialV2();
+});
+
 
 console.log('[Tutorial] Professional tutorial system v2.0 loaded');
