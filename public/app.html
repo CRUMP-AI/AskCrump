@@ -766,8 +766,9 @@ if (isStandalone) {
             <div class="settings-section">
                 <h3>Data & Privacy</h3>
                 <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: 1rem;">
-                    Conversations stored locally. We never see your chats.
-                </p>
+    Conversations sync securely across your devices to support persistent history.
+</p>
+
             </div>
 
             <div class="settings-section">
@@ -831,6 +832,8 @@ if (isStandalone) {
 
 <!-- Device ID Auth System -->
 <script src="/device-auth.js"></script>
+ 
+<script src="/sync-manager.js"></script>
 
 <!-- Main App (loads last) -->
 <script src="/chat-sync.js"></script>
@@ -924,19 +927,33 @@ window.addEventListener('load', () => {
             document.getElementById('authContainer').style.display = 'flex';
             document.getElementById('loginForm').style.display = 'block';
         } else {
-            window.currentUser = sessionCheck.data.user;
-            
-            if (!tosAccepted) {
-                document.getElementById('tosModal').style.display = 'flex';
-            } else if (!hasOnboarded) {
-                document.getElementById('onboardingModal').style.display = 'flex';
-            } else {
-                document.getElementById('appContainer').style.display = 'flex';
-                if (typeof window.initializeApp === 'function') {
-                    window.initializeApp();
-                }
+    window.currentUser = sessionCheck.data.user;
+
+    // ✅ NEW: pull latest server state before initializing UI
+    try {
+        const deviceId = window.deviceAuth?.getDeviceId?.();
+        if (window.SyncManager && deviceId) {
+            const sync = await window.SyncManager.pull(deviceId);
+            if (sync?.success) {
+                window.__crumpSyncData = sync.data; // available to app.js / chat-sync.js
             }
         }
+    } catch (e) {
+        console.warn('Sync pull failed:', e);
+    }
+    
+    if (!tosAccepted) {
+        document.getElementById('tosModal').style.display = 'flex';
+    } else if (!hasOnboarded) {
+        document.getElementById('onboardingModal').style.display = 'flex';
+    } else {
+        document.getElementById('appContainer').style.display = 'flex';
+        if (typeof window.initializeApp === 'function') {
+            window.initializeApp();
+        }
+    }
+}
+
     }, 1500);
 });
 
@@ -997,23 +1014,37 @@ document.getElementById('loginFormElement').addEventListener('submit', async (e)
                 window.currentUser = data.data.user;
             }
             
-            setTimeout(() => {
-                document.getElementById('authContainer').style.display = 'none';
-                
-                const tosAccepted = localStorage.getItem('crump_tos_accepted');
-                const hasOnboarded = localStorage.getItem('crump_has_onboarded');
-                
-                if (!tosAccepted) {
-                    document.getElementById('tosModal').style.display = 'flex';
-                } else if (!hasOnboarded) {
-                    document.getElementById('onboardingModal').style.display = 'flex';
-                } else {
-                    document.getElementById('appContainer').style.display = 'flex';
-                    if (typeof window.initializeApp === 'function') {
-                        window.initializeApp();
-                    }
-                }
-            }, 1000);
+            setTimeout(async () => {
+    document.getElementById('authContainer').style.display = 'none';
+
+    // ✅ NEW: pull latest server chats/settings after successful login
+    try {
+        const deviceId = window.deviceAuth?.getDeviceId?.();
+        if (window.SyncManager && deviceId) {
+            const sync = await window.SyncManager.pull(deviceId);
+            if (sync?.success) {
+                window.__crumpSyncData = sync.data;
+            }
+        }
+    } catch (e) {
+        console.warn('Sync pull after login failed:', e);
+    }
+
+    const tosAccepted = localStorage.getItem('crump_tos_accepted');
+    const hasOnboarded = localStorage.getItem('crump_has_onboarded');
+
+    if (!tosAccepted) {
+        document.getElementById('tosModal').style.display = 'flex';
+    } else if (!hasOnboarded) {
+        document.getElementById('onboardingModal').style.display = 'flex';
+    } else {
+        document.getElementById('appContainer').style.display = 'flex';
+        if (typeof window.initializeApp === 'function') {
+            window.initializeApp();
+        }
+    }
+}, 1000);
+            
         } else {
             document.getElementById('loginError').textContent = data.error || 'Login failed';
             document.getElementById('loginError').style.display = 'block';
@@ -1237,7 +1268,7 @@ function completeOnboarding() {
 // UTILITY FUNCTIONS
 // ============================================
 function exportChats() {
-    const chats = JSON.parse(localStorage.getItem('crump_chats') || '[]');
+   const chats = window.__crumpSyncData?.chats || JSON.parse(localStorage.getItem('crump_chats') || '[]');
     const dataStr = JSON.stringify(chats, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
