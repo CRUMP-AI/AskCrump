@@ -32,20 +32,7 @@ if (!result?.success || !Array.isArray(result.data?.chats)) {
 
 const serverChatsRaw = result.data.chats;
 
-
-        if (!response.ok) {
-            console.warn('[Sync] Failed to fetch chats:', response.status);
-            return;
-        }
-
-        const data = await response.json();
-        
-        if (!data.success || !data.chats) {
-            console.warn('[Sync] Invalid sync response:', data);
-            return;
-        }
-
-        console.log('[Sync] Received', data.chats.length, 'chats from server');
+ console.log('[Sync] Received', serverChatsRaw.length, 'chats from server');
 
         // Merge server chats with local chats
         const localChats = JSON.parse(SafeStorage.getItem(STORAGE_KEYS.CHATS) || '[]');
@@ -82,7 +69,7 @@ const localChat = chatMap.get(key);
                 const serverTime = new Date(serverChat.updatedAt).getTime();
                 
                 if (serverTime > localTime) {
-                    chatMap.set(serverChat.id, serverChat);
+                    chatMap.set(key, serverChat);
                 }
             }
         });
@@ -91,11 +78,11 @@ const localChat = chatMap.get(key);
         const mergedChats = Array.from(chatMap.values());
         
         // Sort by updated time
-        mergedChats.sort((a, b) => {
-            const timeA = new Date(b.updatedAt || b.createdAt).getTime();
-            const timeB = new Date(a.updatedAt || a.createdAt).getTime();
-            return timeA - timeB;
-        });
+       mergedChats.sort((a, b) => {
+    const timeA = new Date(a.updatedAt || a.createdAt).getTime();
+    const timeB = new Date(b.updatedAt || b.createdAt).getTime();
+    return timeB - timeA; // newest first
+});
 
         // Update global chats array
         window.chats = mergedChats;
@@ -159,14 +146,8 @@ await window.SyncManager.push(deviceId, {
 });
 
 
-        if (!response.ok) {
-            console.warn('[Sync] Failed to upload chats:', response.status);
-            return;
-        }
+       console.log('[Sync] ✅ Chats uploaded successfully');
 
-        const data = await response.json();
-        console.log('[Sync] ✅ Chats uploaded successfully:', data.count, 'chats');
-        
     } catch (error) {
         console.error('[Sync] Failed to sync chats to server:', error);
     }
