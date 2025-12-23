@@ -20,8 +20,27 @@ export default async function handler(req, res) {
     }
 
     try {
-        const cookies = parse(req.headers.cookie || '');
-        const refreshToken = cookies.crump_refresh_token;
+               const cookies = parse(req.headers.cookie || '');
+        let refreshToken = cookies.crump_refresh_token;
+
+        // DeviceId can come from body/header/cookie
+        const deviceId =
+            req.body?.deviceId ||
+            req.headers['x-device-id'] ||
+            cookies.crump_device_id;
+
+        // If cookie refresh token is missing, fall back to server-stored session token by deviceId
+        if (!refreshToken && deviceId) {
+            const { data: sess } = await supabase
+                .from('sessions')
+                .select('session_token, expires_at')
+                .eq('device_id', deviceId)
+                .single();
+
+            if (sess && new Date(sess.expires_at) > new Date()) {
+                refreshToken = sess.session_token;
+            }
+        }
 
         if (!refreshToken) {
             return res.status(401).json({
