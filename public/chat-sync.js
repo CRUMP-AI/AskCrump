@@ -36,13 +36,20 @@ const serverChatsRaw = result.data.chats;
 
         // Merge server chats with local chats
         const localChats = JSON.parse(SafeStorage.getItem(STORAGE_KEYS.CHATS) || '[]');
-       const serverChats = serverChatsRaw.map(chat => ({
-    id: chat.chat_id || chat.id,       
+       const normalizeISO = (v) => {
+    if (!v) return new Date().toISOString();
+    if (typeof v === 'number') return new Date(v).toISOString();
+    const t = new Date(v).getTime();
+    return Number.isFinite(t) ? new Date(t).toISOString() : new Date().toISOString();
+};
+
+const serverChats = serverChatsRaw.map(chat => ({
+    id: chat.chat_id || chat.id,
     chat_id: chat.chat_id || chat.id,
     messages: chat.messages || [],
     title: chat.title || 'Chat',
-    createdAt: chat.created_at,
-    updatedAt: chat.updated_at
+    createdAt: normalizeISO(chat.created_at || chat.createdAt),
+    updatedAt: normalizeISO(chat.updated_at || chat.updatedAt || chat.created_at || chat.createdAt)
 }));
 
 
@@ -55,24 +62,30 @@ const serverChatsRaw = result.data.chats;
     if (key) chatMap.set(key, chat);
 });
 
-        // Merge server chats (server takes precedence if newer)
-        serverChats.forEach(serverChat => {
-           const key = serverChat.chat_id || serverChat.id;
-const localChat = chatMap.get(key);
-            
-            if (!localChat) {
-                // New chat from server
-                chatMap.set(key, serverChat);
-            } else {
-                // Chat exists locally - keep the newer version
-                const localTime = new Date(localChat.updatedAt || localChat.createdAt).getTime();
-                const serverTime = new Date(serverChat.updatedAt).getTime();
-                
-                if (serverTime > localTime) {
-                    chatMap.set(key, serverChat);
-                }
-            }
-        });
+       // Merge server chats (server takes precedence if newer)
+const toTime = (v) => {
+    if (!v) return 0;
+    if (typeof v === 'number') return v;
+    const t = new Date(v).getTime();
+    return Number.isFinite(t) ? t : 0;
+};
+
+serverChats.forEach(serverChat => {
+    const key = serverChat.chat_id || serverChat.id;
+    const localChat = chatMap.get(key);
+
+    if (!localChat) {
+        chatMap.set(key, serverChat);
+        return;
+    }
+
+    const localTime = toTime(localChat.updatedAt || localChat.updated_at || localChat.createdAt || localChat.created_at);
+    const serverTime = toTime(serverChat.updatedAt || serverChat.updated_at || serverChat.createdAt || serverChat.created_at);
+
+    if (serverTime > localTime) {
+        chatMap.set(key, serverChat);
+    }
+});
 
         // Convert map back to array
         const mergedChats = Array.from(chatMap.values());
@@ -91,10 +104,10 @@ const localChat = chatMap.get(key);
         // Save merged chats to localStorage
         SafeStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(mergedChats));
         
-        // Update UI
-        if (typeof updateChatsList === 'function') {
-            updateChatsList();
-        }
+       // Update UI
+if (typeof window.renderChatsList === 'function') {
+    window.renderChatsList();
+}
         
         // If no current chat, load the first one
         if (!currentChatId && mergedChats.length > 0) {
@@ -136,12 +149,20 @@ window.syncChatsToServer = async function() {
         
         const deviceId = window.deviceAuth?.getDeviceId?.();
 
+const normalizeISO = (v) => {
+    if (!v) return new Date().toISOString();
+    if (typeof v === 'number') return new Date(v).toISOString();
+    const t = new Date(v).getTime();
+    return Number.isFinite(t) ? new Date(t).toISOString() : new Date().toISOString();
+};
+
 await window.SyncManager.push(deviceId, {
     chats: localChats.map(chat => ({
         chat_id: chat.chat_id || chat.id,
         title: chat.title || 'Chat',
         messages: chat.messages || [],
-        updated_at: chat.updatedAt || new Date().toISOString()
+        created_at: normalizeISO(chat.createdAt || chat.created_at),
+        updated_at: normalizeISO(chat.updatedAt || chat.updated_at || chat.createdAt || chat.created_at)
     }))
 });
 
