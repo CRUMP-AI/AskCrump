@@ -1,8 +1,10 @@
 import { supabase } from '../utils/supabase.js';
 import { signAccessToken } from '../utils/jwt.js';
+import { parse } from 'cookie';
 
 export default async function handler(req, res) {
-    if (req.method !== 'POST') {
+    // Allow GET and POST (GET can restore via cookie/header deviceId)
+    if (req.method !== 'POST' && req.method !== 'GET') {
         return res.status(405).json({
             success: false,
             error: 'Method not allowed'
@@ -10,7 +12,13 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { deviceId } = req.body || {};
+        const cookies = parse(req.headers.cookie || '');
+
+        const bodyDeviceId = req.body?.deviceId;
+        const headerDeviceId = req.headers['x-device-id'];
+        const cookieDeviceId = cookies.crump_device_id;
+
+        const deviceId = bodyDeviceId || headerDeviceId || cookieDeviceId;
 
         if (!deviceId) {
             return res.status(200).json({
@@ -19,35 +27,36 @@ export default async function handler(req, res) {
             });
         }
 
-        const { data: sessions } = await supabase
+        // Find active session by deviceId
+        const { data: session, error: sessionError } = await supabase
             .from('sessions')
-            .select('*')
+            .select('id, user_id, device_id, expires_at')
             .eq('device_id', deviceId)
-            .gte('expires_at', new Date().toISOString())
-            .order('last_activity', { ascending: false })
-            .limit(1);
+            .gt('expires_at', new Date().toISOString())
+            .single();
 
-        if (!sessions || sessions.length === 0) {
+        if (sessionError || !session) {
             return res.status(200).json({
                 success: true,
                 authenticated: false
             });
         }
 
-        const session = sessions[0];
-        const { data: user } = await supabase
+        // Pull user
+        const { data: user, error: userError } = await supabase
             .from('users')
-            .select('id, email, created_at, tier, subscription_tier, full_name, profile_picture, is_verified, preferences')
+            .select('*')
             .eq('id', session.user_id)
             .single();
 
-        if (!user) {
+        if (userError || !user) {
             return res.status(200).json({
                 success: true,
                 authenticated: false
             });
         }
 
+        // Update last activity
         await supabase
             .from('sessions')
             .update({ last_activity: new Date().toISOString() })
@@ -56,31 +65,21 @@ export default async function handler(req, res) {
 
         const accessToken = signAccessToken(user);
 
-        let inTrial = false;
-        let trialEndsAt = null;
-        if (user.created_at) {
-            const createdDate = new Date(user.created_at);
-            const end = new Date(createdDate.getTime() + 7 * 24 * 60 * 60 * 1000);
-            trialEndsAt = end.toISOString();
-            if (new Date() < end) inTrial = true;
-        }
-
+        // Optional: keep response shape your frontend expects
         return res.status(200).json({
             success: true,
             authenticated: true,
             data: {
                 user,
-                inTrial,
-                trialEndsAt,
-                token: accessToken
+                token: accessToken,
+                accessToken,
+                expiresAt: session.expires_at
             }
         });
-
-    } catch (err) {
-        console.error('check-session error:', err);
+    } catch (error) {
+        console.error('Check-session error:', error);
         return res.status(500).json({
             success: false,
-            authenticated: false,
             error: 'Internal server error'
         });
     }
