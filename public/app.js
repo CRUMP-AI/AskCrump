@@ -109,18 +109,19 @@ window.initializeAuthenticatedApp = function(user) {
         };
     }
     
-    // Update settings with user's preferences
-    if (user.preferences) {
-        if (user.preferences.assistantName) {
-            SafeStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
-        }
-        if (user.preferences.workMode !== undefined) {
-            localStorage.setItem(STORAGE_KEYS.WORK_MODE, user.preferences.workMode);
-        }
-        if (user.preferences.autonomousEnabled !== undefined) {
-            localStorage.setItem(STORAGE_KEYS.AUTONOMOUS_ENABLED, user.preferences.autonomousEnabled);
-        }
+   // Update settings with user's preferences
+if (user.preferences) {
+    if (user.preferences.assistantName) {
+        SafeStorage.setItem(STORAGE_KEYS.ASSISTANT_NAME, user.preferences.assistantName);
     }
+    if (user.preferences.workMode !== undefined) {
+        SafeStorage.setItem(STORAGE_KEYS.WORK_MODE, String(!!user.preferences.workMode));
+    }
+    if (user.preferences.autonomousEnabled !== undefined) {
+        SafeStorage.setItem(STORAGE_KEYS.AUTONOMOUS_ENABLED, String(!!user.preferences.autonomousEnabled));
+    }
+}
+
     
         console.log('✅ User profile loaded into universalMemory');
     
@@ -240,7 +241,7 @@ loadChats();
             console.log('✅ Scroll manager initialized');
         }
 
-        const savedChatId = localStorage.getItem(STORAGE_KEYS.CURRENT_CHAT);
+        const savedChatId = SafeStorage.getItem(STORAGE_KEYS.CURRENT_CHAT);
         if (savedChatId && getChat(savedChatId)) {
             loadChat(savedChatId);
         } else {
@@ -273,28 +274,39 @@ function setupEventListeners() {
     const voiceBtn = document.getElementById('voiceBtn');
 
     // Send message
-    sendButton.addEventListener('click', () => sendMessage());
+    if (sendButton) {
+        sendButton.addEventListener('click', () => sendMessage());
+    }
 
     // Enter to send (Shift+Enter for new line)
-    userInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
+    if (userInput) {
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
 
-    // Auto-resize textarea
-    userInput.addEventListener('input', () => {
-        userInput.style.height = 'auto';
-        userInput.style.height = userInput.scrollHeight + 'px';
-    });
+        // Auto-resize textarea
+        userInput.addEventListener('input', () => {
+            userInput.style.height = 'auto';
+            userInput.style.height = userInput.scrollHeight + 'px';
+        });
+    }
 
     // New chat
-    newChatBtn.addEventListener('click', () => createNewChat());
+    if (newChatBtn) {
+        newChatBtn.addEventListener('click', () => createNewChat());
+    }
 
-    // File attachment
-    attachBtn.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', handleFileSelect);
+    // File attachment (✅ null-safe)
+    if (attachBtn && fileInput) {
+        attachBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFileSelect);
+    } else {
+        if (!attachBtn) console.warn('[UI] attachBtn not found - file attach disabled on this page');
+        if (!fileInput) console.warn('[UI] fileInput not found - file attach disabled on this page');
+    }
 
     // Voice input
     if (voiceBtn) {
@@ -389,7 +401,7 @@ if (window.resetImageGenerationState) {
 }
 
     saveChats();
-    localStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, currentChatId);
+    SafeStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, currentChatId);
 
    renderChatsList();
 if (window.renderMessages) {
@@ -411,7 +423,7 @@ function loadChat(chatId) {
 
     currentChatId = chatId;
     window.currentChatId = currentChatId;
-    localStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, chatId);
+    SafeStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, chatId);
 
     // CRITICAL FIX: Reset image generation state when switching chats
 if (window.resetImageGenerationState) {
@@ -923,46 +935,47 @@ if (window.renderMessages) {
         }
         
         // Call API
-        const response = await fetch('/api/chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody)
-        });
-        
-        if (!response.ok) {
-            throw new Error(`API error: ${response.status}`);
-        }
-        
-        const data = await response.json();
+const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(requestBody)
+});
 
-        // ⭐ AUTO-RETRY LOGIC FOR FAILED REQUESTS
-        if (!response.ok && data.shouldRetry) {
-            const retryAfter = data.retryAfter || 10;
-            console.log(`🔄 Error ${data.code}, retrying in ${retryAfter}s...`);
-            
-            // Show retry message to user
-            const retryMessage = document.createElement('div');
-            retryMessage.className = 'message assistant-message';
-            retryMessage.innerHTML = `<div class="message-content">⚠️ ${data.message} Retrying in ${retryAfter} seconds...</div>`;
-            chatContainer.appendChild(retryMessage);
-            scrollToBottom();
-            
-            // Wait and retry
-            await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-            
-            // Remove retry message
-            retryMessage.remove();
-            
-            // Retry the request (recursive call)
-            return sendMessage();
-        }
-        
-        // If error and shouldn't retry, throw
-        if (!response.ok) {
-            throw new Error(data.message || data.error || 'Request failed');
-        }
+// ✅ Always try to parse JSON (even on non-200)
+let data = {};
+try {
+    data = await response.json();
+} catch (e) {
+    data = {};
+}
+
+// ⭐ AUTO-RETRY LOGIC (now reachable)
+if (!response.ok && data && data.shouldRetry) {
+    const retryAfter = data.retryAfter || 10;
+    console.log(`🔄 Error ${data.code || response.status}, retrying in ${retryAfter}s...`);
+
+    const retryMessage = document.createElement('div');
+    retryMessage.className = 'message assistant-message';
+    retryMessage.innerHTML = `<div class="message-content">⚠️ ${data.message || 'Temporary error.'} Retrying in ${retryAfter} seconds...</div>`;
+
+    const container = getChatContainerEl();
+    if (container) container.appendChild(retryMessage);
+    safeScrollToBottom();
+
+    await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+
+    retryMessage.remove();
+
+    // Retry the request (recursive)
+    return sendMessage();
+}
+
+// If error and no retry, throw
+if (!response.ok) {
+    throw new Error(data.message || data.error || `API error: ${response.status}`);
+}
 
         console.log('📥 API Response:', {
             hasResponse: !!data.response,
@@ -1717,6 +1730,19 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 window.escapeHtml = escapeHtml;
+
+function getChatContainerEl() {
+    return document.getElementById('chatContainer');
+}
+
+function safeScrollToBottom() {
+    if (window.crumpScrollManager && typeof window.crumpScrollManager.scrollToBottom === 'function') {
+        window.crumpScrollManager.scrollToBottom('smooth');
+        return;
+    }
+    const c = getChatContainerEl();
+    if (c) c.scrollTop = c.scrollHeight;
+}
 
 // ==========================================
 // MOBILE KEYBOARD HANDLER
