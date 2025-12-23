@@ -18,12 +18,13 @@
             this.init();
         }
         
-        init() {
+       init() {
             console.log('🎨 Initializing Consciousness UI...');
             
             // Create UI elements
             this.createConsciousnessPanel();
-            this.createToggleButton();
+            // Brain icon toggle button removed - consciousness mode accessed via settings only
+            // this.createToggleButton();
             
             // Start monitoring
             this.startMonitoring();
