@@ -10,13 +10,28 @@ class DeviceAuth {
         this.session = null;
     }
 
-    getDeviceId() {
+        getDeviceId() {
         if (this.deviceId) return this.deviceId;
-        let deviceId = localStorage.getItem(this.DEVICE_ID_KEY);
+
+        // 1) localStorage fast path
+        let deviceId = null;
+        try {
+            deviceId = localStorage.getItem(this.DEVICE_ID_KEY);
+        } catch (e) {}
+
+        // 2) cookie fallback (survives some iOS localStorage clears)
+        if (!deviceId) {
+            const match = document.cookie.match(/(?:^|;\s*)crump_device_id=([^;]+)/);
+            if (match) deviceId = decodeURIComponent(match[1]);
+        }
+
+        // 3) generate new if missing, store both
         if (!deviceId) {
             deviceId = this.generateDeviceId();
-            localStorage.setItem(this.DEVICE_ID_KEY, deviceId);
+            try { localStorage.setItem(this.DEVICE_ID_KEY, deviceId); } catch (e) {}
+            document.cookie = `crump_device_id=${encodeURIComponent(deviceId)}; path=/; max-age=${60 * 60 * 24 * 365}; Secure; SameSite=None`;
         }
+
         this.deviceId = deviceId;
         return deviceId;
     }
@@ -48,23 +63,34 @@ class DeviceAuth {
         return data;
     }
 
-    async checkSession() {
+        async checkSession() {
         const deviceId = this.getDeviceId();
-        const localSession = localStorage.getItem(this.SESSION_KEY);
-        if (!localSession) return { authenticated: false };
-        
-        this.session = JSON.parse(localSession);
+
+        // Always ask server — do NOT depend on localStorage session existing
         const response = await fetch('/api/auth/check-session', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ deviceId })
+            body: JSON.stringify({ deviceId }),
+            credentials: 'include'
         });
+
         const data = await response.json();
-        if (data.success && data.authenticated) {
-            this.session = { ...this.session, user: data.data.user, token: data.data.token };
-            localStorage.setItem(this.SESSION_KEY, JSON.stringify(this.session));
+
+        if (data.success && data.authenticated && data.data?.user) {
+            this.session = {
+                user: data.data.user,
+                token: data.data.token || data.data.accessToken,
+                deviceId,
+                expiresAt: data.data.expiresAt
+            };
+
+            try {
+                localStorage.setItem(this.SESSION_KEY, JSON.stringify(this.session));
+            } catch (e) {}
+
             return data;
         }
+
         this.clearSession();
         return { authenticated: false };
     }
