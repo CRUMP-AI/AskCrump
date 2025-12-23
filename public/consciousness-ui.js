@@ -164,29 +164,7 @@
             const styles = document.createElement('style');
             styles.id = 'consciousnessStyles';
             styles.textContent = `
-                .consciousness-toggle {
-                    position: fixed;
-                    top: 0;
-                    right: 20px;
-                    width: 44px;
-                    height: var(--header-height, 64px);
-                    background: transparent;
-                    border: none;
-                    font-size: 24px;
-                    cursor: pointer;
-                    z-index: 30;
-                    transition: all 0.2s ease;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    opacity: 0.6;
-                    padding-top: env(safe-area-inset-top, 0px);
-                }
-                
-                .consciousness-toggle:hover {
-                    opacity: 1;
-                    transform: scale(1.1);
-                }
+                /* Consciousness toggle button removed - no longer needed */
                 
                 .consciousness-panel {
                     position: fixed;
