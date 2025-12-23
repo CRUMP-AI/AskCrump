@@ -1308,4 +1308,34 @@ a:hover { color: var(--color-accent-primary); text-decoration-thickness: 2px; }
   margin-right: 0;
 }
 
+/* ==============================
+   iOS <summary> marker hard-kill
+   ============================== */
+.settings-accordion-premium > summary,
+.settings-accordion-premium summary {
+  list-style: none;
+}
 
+.settings-accordion-premium summary::-webkit-details-marker {
+  display: none !important;
+}
+
+.settings-accordion-premium summary::marker {
+  content: "" !important;
+}
+
+/* Force the summary row to stay “one line” like iOS Settings */
+.settings-acc-summary-premium{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap: 12px;
+  min-height: 52px;
+}
+
+/* Prevent icons from stacking */
+.settings-acc-left-premium,
+.settings-acc-right-premium{
+  display:flex !important;
+  align-items:center !important;
+}
