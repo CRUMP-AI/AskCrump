@@ -403,6 +403,7 @@ if (isStandalone) {
     <div class="splash-content">
         <img src="/assets/ask-crump-splash.png" alt="Ask CRUMP" class="splash-logo-img">
         <div class="splash-loader"><div class="loader-bar"></div></div>
+        <p class="splash-status">Checking session...</p>
     </div>
 </div>
 
@@ -903,16 +904,24 @@ window.addEventListener('load', () => {
     
     // Normal init flow - check device auth session
     setTimeout(async () => {
-        document.getElementById('splashScreen').style.display = 'none';
+        // ⚡ PERFORMANCE FIX: Don't hide splash until we know what to show
         
         const sessionCheck = await window.deviceAuth.checkSession();
+        
+        // ✅ Smooth fade out splash screen
+        const splash = document.getElementById('splashScreen');
+        splash.style.opacity = '0';
+        splash.style.transition = 'opacity 0.3s ease';
+        
+        setTimeout(() => {
+            splash.style.display = 'none';
+        }, 300);
         
         if (!sessionCheck.authenticated) {
             document.getElementById('authContainer').style.display = 'flex';
             document.getElementById('loginForm').style.display = 'block';
         } else {
     window.currentUser = sessionCheck.data.user;
-
     // ✅ NEW: pull latest server state before initializing UI
     try {
         const deviceId = window.deviceAuth?.getDeviceId?.();
