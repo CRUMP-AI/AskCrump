@@ -656,6 +656,35 @@ async function sendMessage() {
 
     if (!message && selectedFiles.length === 0) return;
 
+    // ✅ CHECK SERVER-SIDE USAGE BEFORE SENDING
+if (window.currentUser && window.currentUser.id) {
+    try {
+        const checkResponse = await fetch(`/api/usage/check?userId=${window.currentUser.id}`);
+        const checkData = await checkResponse.json();
+
+        if (checkData.success) {
+            const { usage, limits } = checkData;
+
+            // Check if over limit
+            if (limits.messages !== -1 && usage.messages >= limits.messages) {
+                if (typeof showToast === 'function') {
+                    showToast(
+                        `Message limit reached (${usage.messages}/${limits.messages}). Upgrade to continue.`,
+                        'error'
+                    );
+                }
+                if (typeof showUpgradePrompt === 'function') {
+                    showUpgradePrompt();
+                }
+                return;
+            }
+        }
+    } catch (error) {
+        console.warn('[Usage Check Failed]', error);
+        // Continue anyway - don't block on check failure
+    }
+}
+
     // Enforce plan message limits before sending
     if (window.currentProfile && typeof window.currentProfile.canSendMessage === 'function') {
         const canSend = window.currentProfile.canSendMessage();
