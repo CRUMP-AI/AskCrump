@@ -24,16 +24,53 @@ class MessageDeduplicator {
 class SearchDetectionEngine {
 constructor() {
 this.searchTriggers = [
-'search for',
-'search the web',
-'look up',
-'find information',
-'what is happening',
-'latest news',
-'current events',
-'who won',
-'what happened',
-'breaking news'
+    // Explicit search requests
+    'search for',
+    'search the web',
+    'look up',
+    'find information',
+    'google',
+    'find me',
+    'search',
+    
+    // Current events
+    'latest news',
+    'current events',
+    'breaking news',
+    'what is happening',
+    'what\'s happening',
+    'whats happening',
+    'news about',
+    'recent news',
+    
+    // Questions about current state
+    'who won',
+    'what happened',
+    'who is the',
+    'who\'s the',
+    'whos the',
+    'is he still',
+    'is she still',
+    'are they still',
+    'did he',
+    'did she',
+    'did they',
+    
+    // Sports/scores
+    'score',
+    'game',
+    'match result',
+    
+    // Stock/crypto prices
+    'stock price',
+    'price of',
+    'worth of',
+    'value of',
+    
+    // Weather
+    'weather',
+    'temperature',
+    'forecast'
 ];
 }
 needsSearch(message) {
