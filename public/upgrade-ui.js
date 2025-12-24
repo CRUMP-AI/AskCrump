@@ -48,69 +48,111 @@ function showUpgradePrompt() {
 function generateTierCards(currentTier, billingPeriod) {
     const tiers = [
         { 
-    id: 'free', 
-    name: 'Free', 
-    monthly: 0, 
-    annual: 0, 
-    features: [
-        '10 messages/month',  // ✅ Updated from 100
-        '3 images/month',      // ✅ Updated from 10
-        '5 searches/month',    // ✅ Updated from 20
-        'Basic features'
-    ] 
-},
-{ 
-    id: 'pro', 
-    name: 'Professional', 
-    monthly: 20,           // ✅ Updated from 9.99
-    annual: 192,           // ✅ Updated from 95.04
-    features: [
-        '1,000 messages/month', 
-        '100 images/month', 
-        '200 searches/month', 
-        'Extended features', 
-        'Autonomous messaging'
-    ], 
-    popular: true 
-},
-{ 
-    id: 'premium', 
-    name: 'Premium', 
-    monthly: 50,           // ✅ Updated from 19.99
-    annual: 480,           // ✅ Updated from 191.04
-    features: [
-        'Unlimited messages', 
-        '500 images/month', 
-        'Unlimited searches', 
-        'Full API access', 
-        'Priority support'
-    ] 
-}
+            id: 'free', 
+            name: 'Free', 
+            monthly: 0, 
+            annual: 0, 
+            features: [
+                '10 messages/month',
+                '3 images/month',
+                '5 searches/month',
+                'Basic features'
+            ] 
+        },
+        { 
+            id: 'pro', 
+            name: 'Professional', 
+            monthly: 20,
+            annual: 192,
+            features: [
+                '1,000 messages/month', 
+                '100 images/month', 
+                '200 searches/month', 
+                'Extended features', 
+                'Autonomous messaging'
+            ], 
+            popular: true 
+        },
+        { 
+            id: 'premium', 
+            name: 'Premium', 
+            monthly: 50,
+            annual: 480,
+            features: [
+                'Unlimited messages', 
+                '500 images/month', 
+                'Unlimited searches', 
+                'Full API access', 
+                'Priority support'
+            ] 
+        }
     ];
     
     return tiers.map(tier => {
-        const price = billingPeriod === 'annual' ? (tier.annual / 12).toFixed(2) : tier.monthly;
-        const savings = billingPeriod === 'annual' && tier.monthly > 0 ? ((tier.monthly * 12) - tier.annual).toFixed(2) : 0;
+        const price = billingPeriod === 'annual' ? (tier.annual / 12).toFixed(2) : tier.monthly.toFixed(2);
+        const totalAnnual = tier.monthly * 12;
+        const savings = billingPeriod === 'annual' && tier.monthly > 0 ? (totalAnnual - tier.annual).toFixed(2) : 0;
         
         return `
-            <div class="tier-card ${tier.popular ? 'featured' : ''} ${currentTier === tier.id ? 'current' : ''}">
-                ${tier.popular ? '<div class="popular-badge">MOST POPULAR</div>' : ''}
-                <div class="tier-header">
-                    <h3>${tier.name}</h3>
-                    ${currentTier === tier.id ? '<div class="current-badge">Current Plan</div>' : ''}
+            <div class="tier-card-premium ${tier.popular ? 'tier-featured' : ''} ${currentTier === tier.id ? 'tier-current' : ''}">
+                ${tier.popular ? '<div class="tier-badge-popular">MOST POPULAR</div>' : ''}
+                
+                <div class="tier-card-header">
+                    <h3 class="tier-name">${tier.name}</h3>
+                    ${currentTier === tier.id ? '<div class="tier-badge-current">Current Plan</div>' : ''}
                 </div>
-                <div class="tier-price">
-                    <span class="price-amount">$${price}</span>
-                    <span class="price-period">/month</span>
-                    ${savings > 0 ? `<div class="price-savings">Save $${savings}/year</div>` : ''}
+                
+                <div class="tier-price-section">
+                    ${tier.monthly === 0 ? `
+                        <div class="tier-price-free">
+                            <span class="price-main">Free</span>
+                            <span class="price-sub">Forever</span>
+                        </div>
+                    ` : `
+                        <div class="tier-price-paid">
+                            <span class="price-currency">$</span>
+                            <span class="price-main">${price}</span>
+                            <span class="price-period">/mo</span>
+                        </div>
+                        ${savings > 0 ? `<div class="price-savings">Save $${savings}/year</div>` : ''}
+                        ${billingPeriod === 'annual' && tier.monthly > 0 ? `<div class="price-detail">Billed ${tier.annual > 0 ? '$' + tier.annual : ''} annually</div>` : ''}
+                    `}
                 </div>
-                <ul class="tier-features">
-                    ${tier.features.map(f => `<li><svg class="check" width="18" height="18"><path d="M16.7 4.3l-9.4 9.4-4-4" stroke="currentColor" stroke-width="2" fill="none"/></svg>${f}</li>`).join('')}
+                
+                <ul class="tier-features-list">
+                    ${tier.features.map(feature => `
+                        <li class="tier-feature-item">
+                            <svg class="feature-check" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>${feature}</span>
+                        </li>
+                    `).join('')}
                 </ul>
-                ${renderButton(tier.id, currentTier, billingPeriod)}
+                
+                <div class="tier-card-footer">
+                    ${renderButtonPremium(tier.id, currentTier, billingPeriod)}
+                </div>
             </div>
         `;
     }).join('');
+}
+
+function renderButtonPremium(tier, currentTier, billing) {
+    if (tier === 'free') {
+        return `<button class="tier-btn tier-btn-disabled" disabled>Free Plan</button>`;
+    }
+    
+    if (tier === currentTier) {
+        return `<button class="tier-btn tier-btn-current" disabled>Current Plan</button>`;
+    }
+    
+    return `<button class="tier-btn tier-btn-upgrade" onclick="initiateCheckout('${tier}', '${billing}')">
+        Upgrade Now
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+    </button>`;
 }
 
 function renderButton(tier, currentTier, billing) {
