@@ -205,6 +205,33 @@ export default async function handler(req, res) {
 
         const assistantName = universalMemory?.userProfile?.assistantName || 'Crump';
 
+// ✅ SERVER-SIDE USAGE TRACKING
+if (req.user && req.user.id) {
+    try {
+        const trackResponse = await fetch(`${req.protocol}://${req.get('host')}/api/usage/track`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId: req.user.id,
+                type: 'messages'
+            })
+        });
+
+        const trackData = await trackResponse.json();
+        
+        if (!trackData.success) {
+            return res.status(403).json({
+                success: false,
+                error: trackData.error || 'Message limit reached',
+                usage: trackData.usage
+            });
+        }
+    } catch (trackError) {
+        console.error('[Usage Tracking Failed]', trackError);
+        // Continue anyway - don't block on tracking failure
+    }
+}
+
         // IMAGE ANALYSIS - Handle single or multiple images
         if (fileData && (
             (Array.isArray(fileData) && fileData.length > 0 && fileData[0].type?.startsWith('image/')) ||
