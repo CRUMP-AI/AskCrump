@@ -173,8 +173,18 @@ body {
   height: auto; /* Maintain aspect ratio */
   margin-bottom: var(--space-6);
 }
+.splash-status {
+  margin-top: 1.5rem;
+  font-size: 0.875rem;
+  color: var(--color-text-tertiary);
+  opacity: 0.7;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
 @keyframes logoFloat { 0%, 100% { transform: translateY(0);} 50% { transform: translateY(-12px);} }
-
 .splash-loader {
   width: min(64vw, 320px);
   height: 3px;
