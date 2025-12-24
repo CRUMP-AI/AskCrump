@@ -206,13 +206,13 @@ export default async function handler(req, res) {
         const assistantName = universalMemory?.userProfile?.assistantName || 'Crump';
 
 // ✅ SERVER-SIDE USAGE TRACKING
-if (req.user && req.user.id) {
+if (user && user.id) {  // ✅ FIXED: use 'user' from body, not 'req.user'
     try {
         const trackResponse = await fetch(`${req.protocol}://${req.get('host')}/api/usage/track`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                userId: req.user.id,
+                userId: user.id,  // ✅ FIXED: use 'user.id' from body
                 type: 'messages'
             })
         });
@@ -220,14 +220,18 @@ if (req.user && req.user.id) {
         const trackData = await trackResponse.json();
         
         if (!trackData.success) {
+            console.log('🚫 Usage limit reached for user:', user.id);
             return res.status(403).json({
                 success: false,
-                error: trackData.error || 'Message limit reached',
-                usage: trackData.usage
+                error: trackData.error || 'Message limit reached for your current plan',
+                usage: trackData.usage,
+                upgradeRequired: true
             });
         }
+        
+        console.log('✅ Usage tracked:', trackData.usage);
     } catch (trackError) {
-        console.error('[Usage Tracking Failed]', trackError);
+        console.error('⚠️ Usage tracking failed:', trackError);
         // Continue anyway - don't block on tracking failure
     }
 }
