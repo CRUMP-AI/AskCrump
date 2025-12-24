@@ -47,9 +47,45 @@ function showUpgradePrompt() {
 
 function generateTierCards(currentTier, billingPeriod) {
     const tiers = [
-        { id: 'free', name: 'Free', monthly: 0, annual: 0, features: ['100 messages/month', '10 images/month', '20 searches/month', 'Basic API access'] },
-        { id: 'pro', name: 'Professional', monthly: 9.99, annual: 95.04, features: ['1,000 messages/month', '100 images/month', '200 searches/month', 'Extended API access', 'Autonomous messaging'], popular: true },
-        { id: 'premium', name: 'Premium', monthly: 19.99, annual: 191.04, features: ['Unlimited messages', '500 images/month', 'Unlimited searches', 'Full API access', 'Priority support'] }
+        { 
+    id: 'free', 
+    name: 'Free', 
+    monthly: 0, 
+    annual: 0, 
+    features: [
+        '10 messages/month',  // ✅ Updated from 100
+        '3 images/month',      // ✅ Updated from 10
+        '5 searches/month',    // ✅ Updated from 20
+        'Basic features'
+    ] 
+},
+{ 
+    id: 'pro', 
+    name: 'Professional', 
+    monthly: 20,           // ✅ Updated from 9.99
+    annual: 192,           // ✅ Updated from 95.04
+    features: [
+        '1,000 messages/month', 
+        '100 images/month', 
+        '200 searches/month', 
+        'Extended features', 
+        'Autonomous messaging'
+    ], 
+    popular: true 
+},
+{ 
+    id: 'premium', 
+    name: 'Premium', 
+    monthly: 50,           // ✅ Updated from 19.99
+    annual: 480,           // ✅ Updated from 191.04
+    features: [
+        'Unlimited messages', 
+        '500 images/month', 
+        'Unlimited searches', 
+        'Full API access', 
+        'Priority support'
+    ] 
+}
     ];
     
     return tiers.map(tier => {
