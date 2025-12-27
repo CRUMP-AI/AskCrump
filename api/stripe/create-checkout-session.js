@@ -4,7 +4,7 @@
 // =====================================================
 
 import Stripe from 'stripe';
-import { verifyAuth } from '../middleware/auth.js';
+import { supabase } from '../utils/supabase.js';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const professionalPriceId = process.env.STRIPE_PROFESSIONAL_PRICE_ID;
@@ -23,17 +23,50 @@ export default async function handler(req, res) {
         });
     }
 
-    try {
-        // ✅ Use unified auth (cookie or header)
-        const user = await verifyAuth(req);
-        if (!user || !user.id) {
-            return res.status(401).json({
+   try {
+        const { tier, deviceId } = req.body || {};
+        
+        if (!deviceId) {
+            return res.status(400).json({
                 success: false,
-                error: 'Authentication required'
+                error: 'Device ID required'
             });
         }
 
-        const { tier } = req.body || {};
+        // ✅ Look up session by deviceId
+        const { data: session, error: sessionError } = await supabase
+            .from('sessions')
+            .select('user_id')
+            .eq('device_id', deviceId)
+            .gt('expires_at', new Date().toISOString())
+            .single();
+
+        if (sessionError || !session) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required - please log in'
+            });
+        }
+
+        // ✅ Load user data
+        const { data: user, error: userError } = await supabase
+            .from('users')
+            .select(`
+                id,
+                email,
+                full_name,
+                stripe_customer_id
+            `)
+            .eq('id', session.user_id)
+            .single();
+
+        if (userError || !user) {
+            return res.status(401).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+
         const normalizedTier = (tier || '').toLowerCase();
 
         let priceId = null;
@@ -64,7 +97,6 @@ export default async function handler(req, res) {
             stripeCustomerId = customer.id;
 
             // Persist customer ID
-            const { supabase } = await import('../utils/supabase.js');
             const { error: updateError } = await supabase
                 .from('users')
                 .update({ stripe_customer_id: stripeCustomerId })
