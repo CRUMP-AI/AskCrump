@@ -18,17 +18,17 @@ class ProfileManager {
                 name: 'Free',
                 displayName: 'Free Tier',
                 price: { monthly: 0, annual: 0 },
-              limits: {
-    messages: 10,  
-    images: 3,    
-    searches: 5,   
-    weather: 5,   
-    news: 5,       
-    sports: 5,    
-    stocks: 3,    
-    movies: 3,    
-    autonomous: false
-},
+             limits: {
+                    messages: 10,  
+                    images: 3,    
+                    searches: 5,   
+                    weather: 5,   
+                    news: 5,       
+                    sports: 5,    
+                    stocks: 3,    
+                    movies: 3,    
+                    autonomous: false
+                },
                 features: [
                     'Core chat',
                     'Basic tools',
