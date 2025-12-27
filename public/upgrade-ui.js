@@ -187,38 +187,46 @@ function upgradePlan(tier, billing) {
         button.textContent = 'Loading...';
     }
 
-    // 🔑 Send the same auth token used elsewhere so verifyAuth can see you
-    const headers = {
-        'Content-Type': 'application/json'
-    };
+    // ✅ Get deviceId from device-auth system
+    const deviceId = window.deviceAuth?.getDeviceId?.();
+    
+    if (!deviceId) {
+        showNotification('Authentication error - please log in again', 'error');
+        if (button) {
+            button.disabled = false;
+            button.textContent = 'Upgrade Now';
+        }
+        return;
+    }
 
     fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
-        headers,
-        credentials: 'include', // send auth cookies
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        credentials: 'include',
         body: JSON.stringify({
             tier: normalizedTier,
-            billingPeriod: billing || 'monthly'
+            billingPeriod: billing || 'monthly',
+            deviceId: deviceId  // ✅ Send deviceId for server-side auth
         })
-
     })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.url) {
-                // Go to Stripe checkout
-                window.location.href = data.url;
-            } else {
-                throw new Error(data.error || 'Failed to create checkout session');
-            }
-        })
-        .catch(error => {
-            console.error('Checkout error:', error);
-            showNotification(error.message || 'Failed to start checkout', 'error');
-            if (button) {
-                button.disabled = false;
-                button.textContent = `Upgrade to ${tier}`;
-            }
-        });
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.url) {
+            window.location.href = data.url;
+        } else {
+            throw new Error(data.error || 'Failed to create checkout session');
+        }
+    })
+    .catch(error => {
+        console.error('Checkout error:', error);
+        showNotification(error.message || 'Failed to start checkout', 'error');
+        if (button) {
+            button.disabled = false;
+            button.textContent = 'Upgrade Now';
+        }
+    });
 }
 
 function downgradePlan() {
