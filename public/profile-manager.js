@@ -28,7 +28,7 @@ class ProfileManager {
     stocks: 3,    
     movies: 3,    
     autonomous: false
-}
+},
                 features: [
                     'Core chat',
                     'Basic tools',
