@@ -18,7 +18,7 @@ class ProfileManager {
                 name: 'Free',
                 displayName: 'Free Tier',
                 price: { monthly: 0, annual: 0 },
-               limits: {
+              limits: {
     messages: 10,  
     images: 3,    
     searches: 5,   
