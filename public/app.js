@@ -139,7 +139,7 @@ window.initializeApp = function() {
         if (missing.length > 0) {
             throw new Error('Missing elements: ' + missing.join(', '));
         }
-       console.log('🚀 Crump AI v1.0 initializing...');
+       console.log('🚀 Ask Crump v1.0 initializing...');
 
         // ✅ PWA LAUNCH FIX: Refresh session on PWA startup (iOS-optimized)
         if (window.location.search.includes('source=pwa') || window.navigator.standalone) {
@@ -248,6 +248,23 @@ loadChats();
 
        setupAutonomousMessaging();
         setupMobileKeyboardHandler(); // ADDED
+        
+        // ✅ INTELLIGENCE CORE: Check for insights periodically
+        if (window.intelligenceCore) {
+            // Initial check after 30 seconds
+            setTimeout(() => {
+                if (window.intelligenceCore.isInitialized) {
+                    window.intelligenceCore.showInsightsNotification();
+                }
+            }, 30000);
+            
+            // Then check every 5 minutes
+            setInterval(() => {
+                if (window.intelligenceCore && window.intelligenceCore.isInitialized) {
+                    window.intelligenceCore.showInsightsNotification();
+                }
+            }, 5 * 60 * 1000);
+        }
         
         console.log('✅ Crump AI v1.0 initialized successfully');
         if (localStorage.getItem(STORAGE_KEYS.HAS_ONBOARDED) === 'true' && !savedChatId) {
@@ -790,10 +807,20 @@ if (window.renderMessages) {
             }];
         }
         
-              // Add user message to chat
+             // Add user message to chat
         chat.messages.push(userMessage);
+        
+        // ✅ INTELLIGENCE CORE: Dispatch sent event
+        window.dispatchEvent(new CustomEvent('crump:message:sent', {
+            detail: {
+                message: message,
+                chatId: currentChatId,
+                timestamp: Date.now()
+            }
+        }));
+        
         saveChats();
-
+        
         // Track message usage against current plan
         if (window.currentProfile && typeof window.currentProfile.incrementUsage === 'function') {
             try {
@@ -859,12 +886,22 @@ if (window.renderMessages) {
         // Prepare request with accurate time awareness
         const timeInfo = window.timeAwareness ? window.timeAwareness.getCurrentDateTime() : null;
         
-        const requestBody = {
+        // ✅ INTELLIGENCE CORE: Get relevant context from memory
+        let relevantContext = null;
+        if (window.intelligenceCore && window.intelligenceCore.isInitialized) {
+            relevantContext = window.intelligenceCore.getContextForMessage(message);
+            if (relevantContext && relevantContext.length > 0) {
+                console.log('🧵 Found related context:', relevantContext);
+            }
+        }
+        
+       const requestBody = {
             message: message,
             history: chat.messages.map(m => ({
                 role: m.role,
                 content: m.content
             })),
+            relevantContext: relevantContext,
             currentDateTime: timeInfo ? {
                 date: timeInfo.date,
                 time: timeInfo.time,
@@ -1027,6 +1064,16 @@ if (!response.ok) {
         }
         
         chat.messages.push(assistantMessage);
+        
+        // ✅ INTELLIGENCE CORE: Dispatch received event
+        window.dispatchEvent(new CustomEvent('crump:message:received', {
+            detail: {
+                message: data.response,
+                chatId: currentChatId,
+                timestamp: Date.now()
+            }
+        }));
+        
         chat.updatedAt = Date.now();
         
         // Update chat title if first exchange
