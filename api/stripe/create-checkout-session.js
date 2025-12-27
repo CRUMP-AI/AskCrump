@@ -33,20 +33,20 @@ export default async function handler(req, res) {
             });
         }
 
-        // ✅ Look up session by deviceId
-        const { data: session, error: sessionError } = await supabase
+       // ✅ Look up session by deviceId
+const { data: userSession, error: sessionError } = await supabase
             .from('sessions')
             .select('user_id')
             .eq('device_id', deviceId)
             .gt('expires_at', new Date().toISOString())
             .single();
 
-        if (sessionError || !session) {
-            return res.status(401).json({
-                success: false,
-                error: 'Authentication required - please log in'
-            });
-        }
+        if (sessionError || !userSession) {
+    return res.status(401).json({
+        success: false,
+        error: 'Authentication required - please log in'
+    });
+}
 
         // ✅ Load user data
         const { data: user, error: userError } = await supabase
@@ -57,7 +57,7 @@ export default async function handler(req, res) {
                 full_name,
                 stripe_customer_id
             `)
-            .eq('id', session.user_id)
+            .eq('id', userSession.user_id)
             .single();
 
         if (userError || !user) {
