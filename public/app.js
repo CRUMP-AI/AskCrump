@@ -82,11 +82,11 @@ window.activeObjectURLs = activeObjectURLs;
 // ==========================================
 // AUTHENTICATED APP INITIALIZATION
 // ==========================================
-window.initializeAuthenticatedApp = function(user) {
-    console.log('🔐 Initializing app for authenticated user:', user.email);
-    
-    // Store user info globally
-    window.currentUser = user;
+// Sync subscription from server to profile manager
+    if (window.profileManager && typeof window.profileManager.applyServerSubscription === 'function') {
+        window.profileManager.applyServerSubscription(user);
+        console.log('✅ Subscription synced from server on login');
+    }
     
     // Sync chats from server (cross-device)
     if (typeof window.syncChatsFromServer === 'function') {
