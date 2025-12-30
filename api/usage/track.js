@@ -1,6 +1,18 @@
-const pool = require('../../db/pool');
+// =====================================================
+// SERVER-SIDE USAGE TRACKING (Supabase)
+// Location: /api/usage/track.js
+// =====================================================
 
-module.exports = async (req, res) => {
+import { supabase } from '../utils/supabase.js';
+
+export default async function handler(req, res) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({
+            success: false,
+            error: 'Method not allowed'
+        });
+    }
+
     try {
         const { userId, type } = req.body;
         
@@ -16,19 +28,20 @@ module.exports = async (req, res) => {
         const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
         // Get user's current usage
-        const userResult = await pool.query(
-            'SELECT usage_messages, usage_images, usage_searches, usage_month, subscription_tier FROM users WHERE id = $1',
-            [userId]
-        );
+        const { data: user, error: userError } = await supabase
+            .from('users')
+            .select('usage_messages, usage_images, usage_searches, usage_weather, usage_news, usage_sports, usage_stocks, usage_movies, usage_month, subscription_tier')
+            .eq('id', userId)
+            .single();
 
-        if (userResult.rows.length === 0) {
+        if (userError || !user) {
+            console.error('[Usage Track] User not found:', userError);
             return res.status(404).json({
                 success: false,
                 error: 'User not found'
             });
         }
 
-        const user = userResult.rows[0];
         const tier = user.subscription_tier || 'free';
 
         // Define tier limits (matches profile-manager.js)
@@ -36,35 +49,65 @@ module.exports = async (req, res) => {
             free: {
                 messages: 10,
                 images: 3,
-                searches: 5
+                searches: 5,
+                weather: 5,
+                news: 5,
+                sports: 5,
+                stocks: 3,
+                movies: 3
             },
             professional: {
                 messages: 1000,
                 images: 100,
-                searches: 200
+                searches: 200,
+                weather: 200,
+                news: 200,
+                sports: 200,
+                stocks: 100,
+                movies: 100
             },
             enterprise: {
-                messages: -1,  // unlimited
+                messages: -1,
                 images: -1,
-                searches: -1
+                searches: -1,
+                weather: -1,
+                news: -1,
+                sports: -1,
+                stocks: -1,
+                movies: -1
             }
         };
 
         // Reset usage if new month
         if (user.usage_month !== currentMonth) {
-            await pool.query(
-                `UPDATE users 
-                 SET usage_messages = 0, 
-                     usage_images = 0, 
-                     usage_searches = 0,
-                     usage_month = $1,
-                     usage_reset_at = NOW()
-                 WHERE id = $2`,
-                [currentMonth, userId]
-            );
+            const { error: resetError } = await supabase
+                .from('users')
+                .update({
+                    usage_messages: 0,
+                    usage_images: 0,
+                    usage_searches: 0,
+                    usage_weather: 0,
+                    usage_news: 0,
+                    usage_sports: 0,
+                    usage_stocks: 0,
+                    usage_movies: 0,
+                    usage_month: currentMonth,
+                    usage_reset_at: new Date().toISOString()
+                })
+                .eq('id', userId);
+
+            if (resetError) {
+                console.error('[Usage Track] Reset error:', resetError);
+            }
+
             user.usage_messages = 0;
             user.usage_images = 0;
             user.usage_searches = 0;
+            user.usage_weather = 0;
+            user.usage_news = 0;
+            user.usage_sports = 0;
+            user.usage_stocks = 0;
+            user.usage_movies = 0;
         }
 
         // Check limits
@@ -72,7 +115,12 @@ module.exports = async (req, res) => {
         const columnMap = {
             messages: 'usage_messages',
             images: 'usage_images',
-            searches: 'usage_searches'
+            searches: 'usage_searches',
+            weather: 'usage_weather',
+            news: 'usage_news',
+            sports: 'usage_sports',
+            stocks: 'usage_stocks',
+            movies: 'usage_movies'
         };
 
         const column = columnMap[type];
@@ -83,7 +131,7 @@ module.exports = async (req, res) => {
             });
         }
 
-        const currentUsage = user[column];
+        const currentUsage = user[column] || 0;
         const limit = limits[type];
 
         // Check if over limit (unless unlimited)
@@ -100,10 +148,20 @@ module.exports = async (req, res) => {
         }
 
         // Increment usage
-        await pool.query(
-            `UPDATE users SET ${column} = ${column} + 1 WHERE id = $1`,
-            [userId]
-        );
+        const { error: updateError } = await supabase
+            .from('users')
+            .update({ [column]: currentUsage + 1 })
+            .eq('id', userId);
+
+        if (updateError) {
+            console.error('[Usage Track] Update error:', updateError);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to update usage'
+            });
+        }
+
+        console.log(`[Usage Track] ${type} tracked for user ${userId}: ${currentUsage + 1}/${limit === -1 ? 'unlimited' : limit}`);
 
         return res.json({
             success: true,
@@ -121,4 +179,4 @@ module.exports = async (req, res) => {
             error: 'Server error'
         });
     }
-};
+}
