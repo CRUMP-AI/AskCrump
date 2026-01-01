@@ -811,6 +811,9 @@ if (isStandalone) {
 <input type="file" id="fileInput" style="display: none;" 
        accept="image/*,.pdf,.txt,.doc,.docx,.zip,.tar.gz,.7z,.rar" multiple>
 
+    <!-- Safari ITP Protection - MUST load first -->
+<script src="/safe-storage.js"></script>
+
 <!-- SCRIPTS - PROFESSIONAL TIER SYSTEM -->
 <script src="/time-awareness.js" defer></script>
 <script src="/pwa-install-universal.js" defer></script>    
