@@ -4,7 +4,7 @@
 // This wrapper handles Safari's Intelligent Tracking Prevention
 // by providing graceful fallbacks when storage is blocked
 
-class SafeStorage {
+class SafeStorageCore {
     constructor() {
         this.memoryStore = new Map();
         this.storageAvailable = this.testStorage();
@@ -107,8 +107,10 @@ class SafeStorage {
 }
 
 // Create global instance
-window.safeStorage = new SafeStorage();
+window.safeStorage = new SafeStorageCore();
 window.SafeStorage = window.safeStorage; // Capital S alias for compatibility
+var SafeStorage = window.safeStorage;    // IMPORTANT: forces SafeStorage.getItem(...) to hit the instance
+
 
 // Optionally, override localStorage globally (careful!)
 // This makes ALL localStorage calls safe automatically
