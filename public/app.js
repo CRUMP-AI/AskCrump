@@ -82,7 +82,13 @@ window.activeObjectURLs = activeObjectURLs;
 // ==========================================
 // AUTHENTICATED APP INITIALIZATION
 // ==========================================
-// Sync subscription from server to profile manager
+window.initializeAuthenticatedApp = function(user) {
+    console.log('🔐 Initializing app for authenticated user:', user.email);
+    
+    // Store user info globally
+    window.currentUser = user;
+    
+    // Sync subscription from server to profile manager
     if (window.profileManager && typeof window.profileManager.applyServerSubscription === 'function') {
         window.profileManager.applyServerSubscription(user);
         console.log('✅ Subscription synced from server on login');
@@ -109,23 +115,20 @@ window.activeObjectURLs = activeObjectURLs;
         };
     }
     
-   // Update settings with user's preferences
-if (user.preferences) {
-    if (user.preferences.assistantName) {
-        SafeStorage.setItem(STORAGE_KEYS.ASSISTANT_NAME, user.preferences.assistantName);
+    // Update settings with user's preferences
+    if (user.preferences) {
+        if (user.preferences.assistantName) {
+            SafeStorage.setItem(STORAGE_KEYS.ASSISTANT_NAME, user.preferences.assistantName);
+        }
+        if (user.preferences.workMode !== undefined) {
+            SafeStorage.setItem(STORAGE_KEYS.WORK_MODE, String(!!user.preferences.workMode));
+        }
+        if (user.preferences.autonomousEnabled !== undefined) {
+            SafeStorage.setItem(STORAGE_KEYS.AUTONOMOUS_ENABLED, String(!!user.preferences.autonomousEnabled));
+        }
     }
-    if (user.preferences.workMode !== undefined) {
-        SafeStorage.setItem(STORAGE_KEYS.WORK_MODE, String(!!user.preferences.workMode));
-    }
-    if (user.preferences.autonomousEnabled !== undefined) {
-        SafeStorage.setItem(STORAGE_KEYS.AUTONOMOUS_ENABLED, String(!!user.preferences.autonomousEnabled));
-    }
-}
-
     
-        console.log('✅ User profile loaded into universalMemory');
-    
-       // (Removed) duplicate syncChatsFromServer() call
+    console.log('✅ User profile loaded into universalMemory');
 };
 
 
