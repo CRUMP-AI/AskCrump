@@ -108,16 +108,22 @@ class SafeStorage {
 
 // Create global instance
 window.safeStorage = new SafeStorage();
+window.SafeStorage = window.safeStorage; // Capital S alias for compatibility
 
-// Replace localStorage globally (makes all existing code Safari-safe)
+// Optionally, override localStorage globally (careful!)
+// This makes ALL localStorage calls safe automatically
 if (typeof window !== 'undefined') {
+    // Store original for fallback
     window._originalLocalStorage = window.localStorage;
     
+    // You can uncomment this to replace localStorage globally:
+    /*
     Object.defineProperty(window, 'localStorage', {
         get() {
             return window.safeStorage;
         }
     });
+    */
 }
 
 console.log('✅ SafeStorage loaded - Safari ITP protected');
