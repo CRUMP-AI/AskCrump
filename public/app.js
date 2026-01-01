@@ -31,42 +31,6 @@ const STORAGE_AVAILABLE = (function() {
     }
 })();
 
-// Safe Storage Wrapper (handles Safari ITP blocking)
-const SafeStorage = {
-    _memoryCache: {},
-    
-    getItem(key) {
-        if (STORAGE_AVAILABLE) {
-            return localStorage.getItem(key);
-        }
-        return this._memoryCache[key] || null;
-    },
-    
-    setItem(key, value) {
-        if (STORAGE_AVAILABLE) {
-            localStorage.setItem(key, value);
-        }
-        this._memoryCache[key] = value;
-    },
-    
-    removeItem(key) {
-        if (STORAGE_AVAILABLE) {
-            localStorage.removeItem(key);
-        }
-        delete this._memoryCache[key];
-    },
-    
-    clear() {
-        if (STORAGE_AVAILABLE) {
-            localStorage.clear();
-        }
-        this._memoryCache = {};
-    }
-};
-
-// Export for global use
-window.SafeStorage = SafeStorage;
-
 // Global State
 let chats = [];
 let currentChatId = null;
