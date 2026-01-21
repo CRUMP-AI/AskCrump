@@ -160,12 +160,21 @@ body {
    SPLASH SCREEN
    ============================================ */
 .splash-screen {
-  position: fixed; inset: 0;
-  background: var(--gradient-surface);
-  display: flex; align-items: center; justify-content: center;
+  position: fixed;
+  inset: 0;
+
+ 
+  background: #0B0F14;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
   z-index: var(--z-max);
   animation: fadeIn 0.4s ease;
+  overflow: hidden;
 }
+
 .splash-content { text-align: center; }
 .splash-logo-img {
   width: 400px; /* Larger to accommodate full logo */
