@@ -952,14 +952,30 @@ window.addEventListener('load', () => {
         
         const sessionCheck = await window.deviceAuth.checkSession();
         
-        // ✅ Smooth fade out splash screen
-        const splash = document.getElementById('splashScreen');
-        splash.style.opacity = '0';
-        splash.style.transition = 'opacity 0.3s ease';
-        
-        setTimeout(() => {
-            splash.style.display = 'none';
-        }, 300);
+       // ✅ Video splash-safe hide (no errors)
+const splash = document.getElementById('splashScreen');
+const vid = document.getElementById('splashVideo');
+
+const VIDEO_MS = 5000; 
+
+function hideSplash() {
+  if (!splash) return;
+  splash.style.opacity = '0';
+  splash.style.transition = 'opacity 0.3s ease';
+  setTimeout(() => {
+    splash.style.display = 'none';
+  }, 300);
+}
+
+// Try to play video (some mobile browsers can be picky, even muted)
+if (vid) {
+  try { vid.play(); } catch (e) {}
+  // hide when video ends, with a fallback timer
+  vid.addEventListener('ended', hideSplash, { once: true });
+  setTimeout(hideSplash, VIDEO_MS + 200);
+} else {
+  setTimeout(hideSplash, 800);
+}
         
         if (!sessionCheck.authenticated) {
             document.getElementById('authContainer').style.display = 'flex';
