@@ -400,13 +400,27 @@ if (isStandalone) {
 </div>
     
 <!-- SPLASH SCREEN -->
-<div id="splashScreen" class="splash-screen">
-    <div class="splash-content">
-        <img src="/assets/ask-crump-splash.png" alt="Ask CRUMP" class="splash-logo-img">
-        <div class="splash-loader"><div class="loader-bar"></div></div>
-       <p class="splash-status">Powered by Clever Crump</p>
-    </div>
+<div id="splashScreen" class="splash-screen splash-video">
+  <div class="splash-video-wrap">
+    <video
+      id="splashVideo"
+      autoplay
+      muted
+      playsinline
+      preload="auto"
+    >
+      <!-- Optional WebM first (better on some browsers) -->
+      <!-- <source src="/assets/ask-crump-splash.webm" type="video/webm"> -->
+      <source src="/assets/ask-crump-splash.mp4" type="video/mp4">
+    </video>
+  </div>
+
+  <div class="splash-content">
+    <div class="splash-loader"><div class="loader-bar"></div></div>
+    <p class="splash-status">Powered by Clever Crump</p>
+  </div>
 </div>
+
 
 <!-- TERMS OF SERVICE MODAL -->
 <div id="tosModal" class="modal" style="display: none;">
