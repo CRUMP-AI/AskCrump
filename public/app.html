@@ -400,8 +400,8 @@ if (isStandalone) {
 </div>
     
 <!-- SPLASH SCREEN -->
-<div id="splashScreen" class="splash-screen splash-video">
-  <div class="splash-video-wrap">
+<div id="splashScreen" class="splash-screen splash-video" aria-hidden="true">
+  <div class="splash-video-wrap" style="background:#0B0F14;">
     <video
       id="splashVideo"
       autoplay
@@ -409,8 +409,6 @@ if (isStandalone) {
       playsinline
       preload="auto"
     >
-      <!-- Optional WebM first (better on some browsers) -->
-      <!-- <source src="/assets/ask-crump-splash.webm" type="video/webm"> -->
       <source src="/assets/ask-crump-splash.mp4" type="video/mp4">
     </video>
   </div>
@@ -420,6 +418,7 @@ if (isStandalone) {
     <p class="splash-status">Powered by Clever Crump</p>
   </div>
 </div>
+
 
 
 <!-- TERMS OF SERVICE MODAL -->
