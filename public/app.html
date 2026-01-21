@@ -175,7 +175,53 @@ if (isStandalone) {
     
     .form-group {
         pointer-events: auto !important;
-    }
+        
+    /* ============================================
+   SPLASH VIDEO OVERRIDE (FORCES FULLSCREEN)
+   ============================================ */
+#splashScreen.splash-screen {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: #0B0F14 !important;
+  z-index: 999999 !important;
+
+  /* force center content */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-direction: column !important;
+
+  overflow: hidden !important;
+}
+
+#splashScreen .splash-video-wrap {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: #0B0F14 !important;
+  z-index: 1 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#splashScreen video#splashVideo {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important; /* change to cover if you want it to fill */
+  background: #0B0F14 !important;
+}
+
+#splashScreen .splash-content {
+  position: relative !important;
+  z-index: 2 !important;
+  text-align: center !important;
+}
+
 </style>
 </head>
 <body>
@@ -401,14 +447,15 @@ if (isStandalone) {
     
 <!-- SPLASH SCREEN -->
 <div id="splashScreen" class="splash-screen splash-video" aria-hidden="true">
-  <div class="splash-video-wrap" style="background:#0B0F14;">
-    <video
-      id="splashVideo"
-      autoplay
-      muted
-      playsinline
-      preload="auto"
-    >
+  <div class="splash-video-wrap" aria-hidden="true">
+   <video
+  id="splashVideo"
+  autoplay
+  muted
+  playsinline
+  webkit-playsinline
+  preload="auto"
+>
       <source src="/assets/ask-crump-splash.mp4" type="video/mp4">
     </video>
   </div>
