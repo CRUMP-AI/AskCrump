@@ -27,7 +27,7 @@
     "@capacitor/haptics": "8.0.0",
     "@capacitor/keyboard": "8.0.0",
     "@capacitor/network": "8.0.0",
-    "@capacitor/status-bar": "8.0.0",
+    "@capacitor/status-bar": "8.0.3",
     "@revenuecat/purchases-capacitor": "13.2.3",
     "@capacitor/push-notifications": "8.0.0"
   },
