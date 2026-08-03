@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "/app.py"
+      "destination": "/api/index.py"
     },
     {
       "source": "/app",
@@ -15,7 +15,7 @@
     }
   ],
   "functions": {
-    "app.py": {
+    "api/index.py": {
       "maxDuration": 300,
       "memory": 1024,
       "excludeFiles": "{tests/**,docs/**,dist/**,scripts/**,*.zip,.git/**,.env}"
