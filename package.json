@@ -5,7 +5,7 @@
   "description": "Cross-platform conversational assistant with synchronized chat, persistent sessions, and native mobile support.",
   "type": "module",
   "engines": {
-    "node": ">=22.0.0"
+    "node": "22.x"
   },
   "scripts": {
     "build": "node scripts/build-native.mjs",
