@@ -65,5 +65,12 @@
       "path": "/api/cron/check-ins",
       "schedule": "0 * * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 300,
+      "memory": 1024,
+      "excludeFiles": "{tests/**,docs/**,dist/**,scripts/**,*.zip,.git/**,.env}"
+    }
+  }
 }
