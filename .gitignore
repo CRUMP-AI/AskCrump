@@ -1,11 +1,41 @@
-# Environment variables - NEVER COMMIT THESE
+# Secrets and local environment
 .env
-.env.local
-.env.production
-.env.development
+.env.*
+!.env.example
+*.pem
+*.key
+*.p8
+*.p12
+*.jks
+*.keystore
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
 
-# Dependencies
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+.venv/
+venv/
+
+# Node and generated native projects
 node_modules/
+dist/
+ios/
+android/
 
-# Vercel
-.vercel
+# Platform and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+
+# Hosting
+.vercel/

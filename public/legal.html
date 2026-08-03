@@ -3,581 +3,336 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Legal - Ask Crump</title>
-    <link rel="stylesheet" href="/styles.css">
+    <meta name="description" content="Ask Crump terms of use, privacy notice, and AI service disclosures.">
+    <meta name="theme-color" content="#0f1419">
+    <title>Legal and Privacy | Ask Crump</title>
+    <link rel="icon" type="image/png" href="/assets/icon-192.png">
     <style>
-        /* CRITICAL: Enable scrolling */
-        html, body {
+        :root {
+            color-scheme: dark;
+            --bg: #0f1419;
+            --surface: #171d24;
+            --surface-2: #1d252e;
+            --text: #f5f2ea;
+            --muted: #a9b0b8;
+            --border: rgba(255, 255, 255, 0.1);
+            --accent: #c9b892;
+            --max-width: 920px;
+        }
+
+        * { box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
             margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow-x: hidden;
-            overflow-y: auto; /* ENABLE VERTICAL SCROLLING */
+            background: var(--bg);
+            color: var(--text);
+            font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            line-height: 1.7;
         }
-        
-        .legal-container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 3rem 2rem;
-            color: var(--color-text-primary);
-            min-height: 100vh; /* Ensure full height */
-        }
-        
-        /* STICKY BACK BUTTON - Always visible */
-        .back-button {
+
+        a { color: var(--accent); }
+
+        .site-header {
             position: sticky;
-            top: 1rem;
-            z-index: 1000;
-            display: inline-block;
-            margin-bottom: 2rem;
-            padding: 0.75rem 1.5rem;
-            background: var(--color-accent-primary);
-            color: var(--color-bg-primary);
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: 600;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-            cursor: pointer;
+            top: 0;
+            z-index: 10;
+            border-bottom: 1px solid var(--border);
+            background: rgba(15, 20, 25, 0.92);
+            backdrop-filter: blur(18px);
         }
-        .back-button:hover {
-            background: var(--color-accent-hover);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-        }
-        
-        .legal-header {
-            text-align: center;
-            margin-bottom: 3rem;
-            padding-bottom: 2rem;
-            border-bottom: 2px solid var(--color-accent-primary);
-        }
-        .legal-header h1 {
-            font-family: var(--font-display);
-            font-size: 3rem;
-            color: var(--color-accent-primary);
-            margin-bottom: 0.5rem;
-        }
-        .legal-nav {
+
+        .header-inner {
+            width: min(var(--max-width), calc(100% - 40px));
+            min-height: 68px;
+            margin: 0 auto;
             display: flex;
-            gap: 1rem;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-bottom: 3rem;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
         }
-        .legal-nav a {
-            padding: 0.75rem 1.5rem;
-            background: var(--color-bg-secondary);
-            border: 1px solid var(--color-border);
-            border-radius: 8px;
-            color: var(--color-text-primary);
+
+        .brand {
+            color: var(--text);
             text-decoration: none;
-            font-weight: 600;
-            transition: all 0.2s ease;
+            font-weight: 700;
+            letter-spacing: -0.01em;
         }
-        .legal-nav a:hover {
-            background: var(--color-bg-tertiary);
-            border-color: var(--color-accent-primary);
+
+        .header-links {
+            display: flex;
+            gap: 20px;
+            font-size: 0.92rem;
         }
-        .legal-section {
-            margin-bottom: 3rem;
-            padding: 2rem;
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
+
+        .header-links a {
+            color: var(--muted);
+            text-decoration: none;
+        }
+
+        .header-links a:hover,
+        .header-links a:focus-visible { color: var(--text); }
+
+        main {
+            width: min(var(--max-width), calc(100% - 40px));
+            margin: 0 auto;
+            padding: 72px 0 96px;
+        }
+
+        .eyebrow {
+            margin: 0 0 10px;
+            color: var(--accent);
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin: 0;
+            max-width: 760px;
+            font-size: clamp(2.4rem, 7vw, 4.6rem);
+            line-height: 1.05;
+            letter-spacing: -0.045em;
+        }
+
+        .intro {
+            max-width: 720px;
+            margin: 24px 0 0;
+            color: var(--muted);
+            font-size: 1.08rem;
+        }
+
+        .updated {
+            margin: 18px 0 0;
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+
+        .section-nav {
+            margin: 48px 0;
+            padding: 18px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            border: 1px solid var(--border);
             border-radius: 16px;
+            background: var(--surface);
         }
-        .legal-section h2 {
-            font-size: 1.75rem;
-            color: var(--color-accent-primary);
-            margin-bottom: 1.5rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 1px solid var(--color-border);
+
+        .section-nav a {
+            padding: 8px 12px;
+            border-radius: 9px;
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.9rem;
         }
-        .legal-section h3 {
-            font-size: 1.25rem;
-            color: var(--color-text-primary);
-            margin: 1.5rem 0 1rem;
+
+        .section-nav a:hover,
+        .section-nav a:focus-visible {
+            background: var(--surface-2);
+            color: var(--text);
         }
-        .legal-section p, .legal-section li {
-            line-height: 1.8;
-            color: var(--color-text-secondary);
-            margin-bottom: 1rem;
+
+        section {
+            scroll-margin-top: 96px;
+            padding: 42px 0;
+            border-top: 1px solid var(--border);
         }
-        .legal-section ul {
-            margin-left: 1.5rem;
-            margin-bottom: 1rem;
+
+        h2 {
+            margin: 0 0 18px;
+            font-size: 1.8rem;
+            letter-spacing: -0.025em;
         }
-        .legal-section li {
-            margin-bottom: 0.5rem;
+
+        h3 {
+            margin: 30px 0 10px;
+            font-size: 1.08rem;
         }
-        .effective-date {
-            font-style: italic;
-            color: var(--color-text-tertiary);
-            margin-bottom: 1.5rem;
+
+        p, li { color: var(--muted); }
+
+        ul { padding-left: 1.25rem; }
+        li + li { margin-top: 8px; }
+
+        .notice {
+            margin: 24px 0;
+            padding: 18px 20px;
+            border: 1px solid rgba(201, 184, 146, 0.28);
+            border-radius: 14px;
+            background: rgba(201, 184, 146, 0.07);
+            color: var(--text);
         }
-        .highlight {
-            background: rgba(201, 184, 146, 0.1);
-            padding: 1rem;
-            border-left: 3px solid var(--color-accent-primary);
-            margin: 1rem 0;
-            border-radius: 4px;
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.94rem;
         }
-        .warning-box {
-            background: rgba(239, 88, 12, 0.1);
-            border: 2px solid #ea580c;
-            padding: 1rem;
-            border-radius: 8px;
-            margin: 1rem 0;
+
+        .data-table th,
+        .data-table td {
+            padding: 14px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+            vertical-align: top;
         }
-        .warning-box strong {
-            color: #ea580c;
+
+        .data-table th {
+            color: var(--text);
+            font-weight: 650;
         }
-        
-        /* Mobile optimization */
-        @media (max-width: 768px) {
-            .legal-container {
-                padding: 2rem 1rem;
-            }
-            .legal-header h1 {
-                font-size: 2rem;
-            }
-            .back-button {
-                font-size: 0.875rem;
-                padding: 0.625rem 1.25rem;
-            }
+
+        .data-table td { color: var(--muted); }
+
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 30px 0 46px;
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+
+        footer p { margin: 6px 0; }
+
+        @media (max-width: 640px) {
+            .header-inner { width: min(var(--max-width), calc(100% - 28px)); }
+            .header-links a:first-child { display: none; }
+            main { width: min(var(--max-width), calc(100% - 28px)); padding-top: 52px; }
+            .data-table { display: block; overflow-x: auto; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
         }
     </style>
 </head>
-<body style="background: var(--color-bg-primary);">
-    
-    <div class="legal-container">
-        <!-- PROMINENT BACK BUTTON - Sticky at top -->
-        <a href="/" class="back-button">← Back to Ask Crump</a>
-        
-        <div class="legal-header">
-            <h1>Legal Information</h1>
-            <p style="color: var(--color-text-secondary); margin-top: 1rem;">
-                Last Updated: October 25, 2025
-            </p>
+<body>
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="/">Ask Crump</a>
+            <nav class="header-links" aria-label="Legal navigation">
+                <a href="#terms">Terms</a>
+                <a href="#privacy">Privacy</a>
+                <a href="/delete-account.html">Delete account</a>
+            </nav>
         </div>
+    </header>
 
-        <div class="legal-nav">
-            <a href="#privacy">Privacy Policy</a>
-            <a href="#terms">Terms of Service</a>
-            <a href="#age">Age Requirements</a>
-            <a href="#ratings">Content Rating</a>
-        </div>
+    <main>
+        <p class="eyebrow">Legal and privacy</p>
+        <h1>Clear terms for a conversational AI product.</h1>
+        <p class="intro">This page explains the rules for using Ask Crump, the information the service processes, and the limits that apply to AI-generated responses and third-party data.</p>
+        <p class="updated">Effective August 1, 2026</p>
 
-        <!-- PRIVACY POLICY -->
-        <div class="legal-section" id="privacy">
-            <h2>🔒 Privacy Policy</h2>
-            <p class="effective-date">Effective Date: October 25, 2025</p>
+        <nav class="section-nav" aria-label="Sections">
+            <a href="#terms">Terms of use</a>
+            <a href="#ai">AI disclosures</a>
+            <a href="#privacy">Privacy notice</a>
+            <a href="#subscriptions">Subscriptions</a>
+            <a href="#age">Age requirement</a>
+            <a href="#contact">Contact</a>
+        </nav>
 
-            <h3>1. Information We Collect</h3>
-            <p>Ask Crump is designed with privacy in mind. We collect and store minimal information:</p>
-            <ul>
-                <li><strong>Account Information:</strong> Name, email address (optional), and profile preferences</li>
-                <li><strong>Usage Data:</strong> Message counts, feature usage, and tier information (stored locally in your browser)</li>
-                <li><strong>Conversation Data:</strong> Your chat history is stored locally on your device only</li>
-                <li><strong>API Usage:</strong> We log API requests for billing and rate limiting purposes</li>
-                <li><strong>Payment Information:</strong> Processed securely by Stripe (we never see your card details)</li>
-            </ul>
+        <section id="terms">
+            <h2>Terms of use</h2>
+            <p>By creating an account or using Ask Crump, you agree to these terms. If you do not agree, do not use the service.</p>
 
-            <div class="highlight">
-                <strong>🔐 Your Privacy Guarantee:</strong> Your conversations are stored locally in your browser's localStorage. We do NOT store your conversation content on our servers. Only you have access to your chat history.
-            </div>
+            <h3>Permitted use</h3>
+            <p>You may use Ask Crump for lawful personal, educational, creative, and professional purposes. You are responsible for the prompts, files, and other content you submit and for how you use the output.</p>
 
-            <h3>2. How We Use Your Information</h3>
-            <ul>
-                <li>Provide and improve Ask Crump services</li>
-                <li>Process payments and manage subscriptions</li>
-                <li>Send important service updates and notifications</li>
-                <li>Monitor API usage for billing and rate limiting</li>
-                <li>Analyze aggregated usage patterns to improve features</li>
-            </ul>
+            <h3>Prohibited use</h3>
+            <p>You may not use the service to facilitate illegal activity, exploit or endanger another person, distribute malware, conduct fraud, impersonate others, violate intellectual-property rights, interfere with the service, bypass usage controls, or access another user's account or data.</p>
 
-            <h3>3. Data Storage and Security</h3>
-            <p><strong>Local Storage:</strong> Your chat conversations, preferences, and settings are stored locally in your browser's localStorage. This data never leaves your device unless you explicitly export it.</p>
-            <p><strong>Server-Side Storage:</strong> We only store account information (name, email), subscription status, and aggregated usage statistics on our secure servers.</p>
-            <p><strong>Security Measures:</strong> We implement industry-standard encryption, secure HTTPS connections, and regular security audits.</p>
+            <h3>Account responsibility</h3>
+            <p>Keep your credentials secure and provide accurate account information. Notify <a href="mailto:security@askcrump.com">security@askcrump.com</a> if you believe your account or device session has been compromised.</p>
 
-            <h3>4. Third-Party Services</h3>
-            <p>Ask Crump integrates with third-party services. Each has its own privacy policy:</p>
-            <ul>
-                <li><strong>OpenAI (GPT-4):</strong> AI responses - <a href="https://openai.com/privacy" style="color: var(--color-accent-primary);">Privacy Policy</a></li>
-                <li><strong>Anthropic (Claude):</strong> AI responses - <a href="https://anthropic.com/privacy" style="color: var(--color-accent-primary);">Privacy Policy</a></li>
-                <li><strong>Brave Search:</strong> Web search functionality - <a href="https://brave.com/privacy" style="color: var(--color-accent-primary);">Privacy Policy</a></li>
-                <li><strong>Pollinations AI:</strong> Image generation - <a href="https://pollinations.ai/privacy" style="color: var(--color-accent-primary);">Privacy Policy</a></li>
-                <li><strong>Stripe:</strong> Payment processing - <a href="https://stripe.com/privacy" style="color: var(--color-accent-primary);">Privacy Policy</a></li>
-            </ul>
+            <h3>Availability and changes</h3>
+            <p>The service may change, experience interruptions, or rely on third-party systems that are outside Clever Crump's control. Features may be modified or discontinued when required for reliability, safety, legal compliance, or product development.</p>
 
-            <h3>5. Your Rights</h3>
-            <p>You have the right to:</p>
-            <ul>
-                <li>Access your personal data</li>
-                <li>Request data deletion</li>
-                <li>Export your chat history</li>
-                <li>Opt-out of promotional emails</li>
-                <li>Revoke API access at any time</li>
-            </ul>
+            <h3>Suspension and termination</h3>
+            <p>Access may be limited or terminated for material violations of these terms, abuse of the service, security risk, nonpayment, or legal obligation. Users may delete their account from the application or follow the instructions on the <a href="/delete-account.html">account-deletion page</a>.</p>
+        </section>
 
-            <h3>6. Data Retention</h3>
-            <ul>
-                <li><strong>Chat History:</strong> Stored locally on your device indefinitely (you can clear it anytime)</li>
-                <li><strong>Account Data:</strong> Retained while your account is active, deleted within 30 days of account closure</li>
-                <li><strong>API Logs:</strong> Retained for 90 days for billing and troubleshooting</li>
-            </ul>
+        <section id="ai">
+            <h2>AI and third-party service disclosures</h2>
+            <div class="notice">Ask Crump can produce incorrect, incomplete, outdated, or unexpected output. Verify important information with authoritative sources and qualified professionals.</div>
 
-            <h3>7. Children's Privacy</h3>
-            <p><strong>Ask Crump is NOT intended for users under 17.</strong> We do not knowingly collect personal information from minors. If we discover that a minor has provided personal information, we will delete it immediately and terminate the account.</p>
+            <p>Conversational responses are generated through configured AI providers. Image requests may be sent to OpenAI. Current-information requests may use Brave Search or OpenWeather. Provider availability and behavior may change.</p>
 
-            <h3>8. International Users</h3>
-            <p>Ask Crump is operated from the United States. By using our service, you consent to the transfer and processing of your data in the United States, which may have different privacy laws than your country.</p>
+            <h3>No professional advice</h3>
+            <p>Ask Crump does not replace a physician, attorney, financial adviser, mental-health professional, emergency service, or other licensed professional. Do not rely on the service as the sole basis for a high-impact decision.</p>
 
-            <h3>9. Changes to This Policy</h3>
-            <p>We may update this Privacy Policy from time to time. We will notify users of significant changes via email or in-app notification. Continued use after changes constitutes acceptance.</p>
+            <h3>Output and intellectual property</h3>
+            <p>You may use outputs subject to applicable law, these terms, and the terms of any relevant provider. AI output may resemble existing material and may not be unique or eligible for intellectual-property protection. You are responsible for reviewing output before publication or commercial use.</p>
 
-            <h3>10. Contact Us</h3>
-            <p>For privacy-related questions or concerns:</p>
-            <ul>
-                <li><strong>Email:</strong> <a href="mailto:privacy@crumpai.com" style="color: var(--color-accent-primary);">privacy@crumpai.com</a></li>
-                <li><strong>Response Time:</strong> Within 48 hours</li>
-            </ul>
-        </div>
+            <h3>Current information</h3>
+            <p>Search results, weather data, citations, and links come from third parties. Clever Crump does not control every source and does not guarantee that third-party information is accurate, available, safe, or appropriate.</p>
+        </section>
 
-        <!-- TERMS OF SERVICE -->
-        <div class="legal-section" id="terms">
-            <h2>📜 Terms of Service</h2>
-            <p class="effective-date">Effective Date: October 25, 2025</p>
+        <section id="privacy">
+            <h2>Privacy notice</h2>
+            <p>Ask Crump processes information needed to provide accounts, conversations, synchronization, safety controls, billing, and optional notifications.</p>
 
-            <h3>1. Acceptance of Terms</h3>
-            <p>By accessing or using Ask Crump, you agree to be bound by these Terms of Service and our Privacy Policy. If you do not agree, you may not use the service.</p>
+            <table class="data-table">
+                <thead>
+                    <tr><th>Information</th><th>Purpose</th><th>Typical recipients</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Name and email</td><td>Account creation, verification, recovery, and support</td><td>Supabase and the configured email provider</td></tr>
+                    <tr><td>Conversation content</td><td>Generate responses, retain history, and synchronize devices</td><td>Supabase and relevant AI or context providers</td></tr>
+                    <tr><td>Submitted files</td><td>Perform the analysis requested by the user</td><td>Relevant AI provider during processing</td></tr>
+                    <tr><td>Session and device information</td><td>Persistent sign-in, security, revocation, and troubleshooting</td><td>Supabase and hosting logs</td></tr>
+                    <tr><td>Usage and delivery events</td><td>Limits, reliability, abuse prevention, and message status</td><td>Supabase</td></tr>
+                    <tr><td>Push token and check-in preferences</td><td>Deliver optional proactive messages</td><td>Supabase, APNs, or Firebase Cloud Messaging</td></tr>
+                    <tr><td>Subscription status</td><td>Provide paid entitlements</td><td>Stripe, Apple, Google, RevenueCat, and Supabase</td></tr>
+                </tbody>
+            </table>
 
-            <h3>2. Eligibility</h3>
-            <p><strong>Age Requirement:</strong> You must be at least 17 years old to use Ask Crump. Users under 17 are strictly prohibited.</p>
-            <p><strong>Account Accuracy:</strong> You agree to provide accurate and complete information when creating your account.</p>
+            <h3>Credentials and payment data</h3>
+            <p>Passwords are stored as one-way hashes. Session, verification, and reset credentials are stored in hashed form. Ask Crump does not receive complete payment-card numbers from Stripe or the platform stores.</p>
 
-            <h3>3. Service Description</h3>
-            <p>Ask Crump is an AI-powered virtual assistant that provides:</p>
-            <ul>
-                <li>Conversational AI via Claude Sonnet 4.5 and GPT-4</li>
-                <li>Web search capabilities via Brave Search API</li>
-                <li>Image generation via Pollinations AI</li>
-                <li>Voice input/output functionality</li>
-                <li>Autonomous messaging and proactive assistance</li>
-                <li>Chat management and memory systems</li>
-            </ul>
+            <h3>Retention</h3>
+            <p>Account and conversation data remains available while the account is active unless deleted sooner. Security, billing, fraud-prevention, backup, and legally required records may follow separate retention periods.</p>
 
-            <h3>4. User Responsibilities</h3>
-            <p>You agree to:</p>
-            <ul>
-                <li>Use Ask Crump in compliance with all applicable laws</li>
-                <li>Not use the service for illegal, harmful, or abusive purposes</li>
-                <li>Not attempt to reverse-engineer, hack, or exploit the service</li>
-                <li>Not share your account credentials with others</li>
-                <li>Not use the service to generate CSAM, terrorist content, or other illegal material</li>
-                <li>Not harass, threaten, or abuse other users or our staff</li>
-                <li>Verify critical information from authoritative sources</li>
-            </ul>
+            <h3>User controls</h3>
+            <p>Users can delete conversations, export conversation history, revoke device sessions, disable check-ins and notifications, and permanently delete the account. Deleting the Ask Crump account does not automatically cancel an Apple or Google subscription; that subscription must also be managed through the applicable store.</p>
 
-            <h3>5. Prohibited Uses</h3>
-            <p>The following uses are strictly prohibited and will result in immediate account termination:</p>
-            <ul>
-                <li>❌ Child sexual abuse material (CSAM) or exploitation</li>
-                <li>❌ Terrorist content or planning</li>
-                <li>❌ Extreme violence or gore</li>
-                <li>❌ Harassment, bullying, or threats</li>
-                <li>❌ Malware, phishing, or hacking attempts</li>
-                <li>❌ Fraud, scams, or identity theft</li>
-                <li>❌ Spamming or automated abuse</li>
-                <li>❌ Impersonation of others</li>
-                <li>❌ Violating intellectual property rights</li>
-            </ul>
+            <h3>Security</h3>
+            <p>The service uses encrypted transport, HTTP-only web cookies, secure native credential storage, account-scoped caches, rate limits, and server-side ownership checks. No online service can guarantee absolute security.</p>
+        </section>
 
-            <h3>6. Subscription and Payment</h3>
-            <p><strong>Tiers:</strong> Ask Crump offers Free, Pro, and Premium tiers with different features and usage limits.</p>
-            <p><strong>Billing:</strong> Paid subscriptions are billed monthly or annually via Stripe. You authorize us to charge your payment method.</p>
-            <p><strong>Cancellation:</strong> You may cancel your subscription at any time. Access continues until the end of your billing period. No refunds for partial months.</p>
-            <p><strong>Price Changes:</strong> We may change pricing with 30 days notice. Existing subscribers are grandfathered for 6 months.</p>
+        <section id="subscriptions">
+            <h2>Subscriptions and billing</h2>
+            <p>Web subscriptions are processed by Stripe. iOS and Android subscriptions are processed through the applicable platform store and RevenueCat. Prices, taxes, renewal terms, refund rights, and cancellation methods are shown by the billing provider before purchase.</p>
+            <p>Subscriptions renew until canceled through the provider that processed the purchase. Deleting an account does not itself cancel a store subscription.</p>
+        </section>
 
-            <h3>7. Usage Limits and Rate Limiting</h3>
-            <p>Each tier has message limits:</p>
-            <ul>
-                <li><strong>Free:</strong> 50 messages per day</li>
-                <li><strong>Pro:</strong> 500 messages per day</li>
-                <li><strong>Premium:</strong> Unlimited messages</li>
-            </ul>
-            <p>We reserve the right to implement additional rate limits to prevent abuse or ensure service stability.</p>
+        <section id="age">
+            <h2>Age requirement</h2>
+            <p>Ask Crump is intended for users age 17 or older. Users must also satisfy any higher minimum age required by local law or the applicable platform. The service is not designed for children and should not be used in environments that require child-directed controls unless those controls are separately implemented and verified.</p>
+        </section>
 
-            <h3>8. Intellectual Property</h3>
-            <p><strong>Ownership:</strong> Ask Crump, the N² Engine, and all related branding are owned by Gregory D. Crump Jr.</p>
-            <p><strong>Your Content:</strong> You retain ownership of your input and conversations. By using the service, you grant us a license to process your inputs to provide the service.</p>
-            <p><strong>AI-Generated Content:</strong> Ownership of AI-generated content is complex. You may use AI outputs for personal and commercial purposes, but we make no warranties about originality or copyright status.</p>
+        <section id="liability">
+            <h2>Warranty and liability</h2>
+            <p>To the extent permitted by law, Ask Crump is provided without warranties of uninterrupted availability, accuracy, fitness for a particular purpose, or noninfringement. Clever Crump is not responsible for decisions made solely from AI output or for third-party services outside its control.</p>
+            <p>Some jurisdictions do not allow certain warranty exclusions or liability limitations, so these provisions may not apply in full.</p>
+        </section>
 
-            <h3>9. Disclaimers and Limitations of Liability</h3>
-            <div class="warning-box">
-                <strong>⚠️ CRITICAL DISCLAIMER:</strong> Ask Crump is provided "AS IS" without warranties of any kind. We are NOT liable for:
-            </div>
-            <ul>
-                <li>❌ Accuracy of AI-generated responses</li>
-                <li>❌ Third-party content (news, web search results, etc.)</li>
-                <li>❌ Decisions made based on AI advice</li>
-                <li>❌ Data loss or service interruptions</li>
-                <li>❌ Security breaches or unauthorized access</li>
-                <li>❌ Damages resulting from service use or inability to use</li>
-            </ul>
-            <p><strong>Maximum Liability:</strong> Our total liability is limited to the amount you paid in the last 12 months (maximum $500).</p>
+        <section id="contact">
+            <h2>Contact</h2>
+            <p>Legal questions: <a href="mailto:legal@askcrump.com">legal@askcrump.com</a></p>
+            <p>Privacy requests: <a href="mailto:privacy@askcrump.com">privacy@askcrump.com</a></p>
+            <p>Security reports: <a href="mailto:security@askcrump.com">security@askcrump.com</a></p>
+            <p>Abuse reports: <a href="mailto:abuse@askcrump.com">abuse@askcrump.com</a></p>
+        </section>
 
-            <h3>10. Medical, Legal, and Financial Disclaimers</h3>
-            <p><strong>⚠️ NOT PROFESSIONAL ADVICE:</strong> Ask Crump does NOT provide professional medical, legal, financial, or therapeutic advice. Always consult licensed professionals for:</p>
-            <ul>
-                <li>Medical diagnosis or treatment</li>
-                <li>Legal matters or contracts</li>
-                <li>Financial planning or investments</li>
-                <li>Mental health crisis or suicidal thoughts</li>
-            </ul>
-            <p><strong>Emergency:</strong> If you're experiencing a medical or mental health emergency, call 911 (US) or your local emergency services immediately.</p>
-
-            <h3>11. AI Limitations and Risks</h3>
-            <p>You acknowledge that AI systems:</p>
-            <ul>
-                <li>Can produce inaccurate or nonsensical outputs ("hallucinations")</li>
-                <li>May reflect biases in training data</li>
-                <li>Cannot truly understand context or meaning</li>
-                <li>May generate offensive or inappropriate content</li>
-                <li>Are not sentient, conscious, or capable of genuine relationships</li>
-            </ul>
-            <p><strong>Verify Important Information:</strong> Always cross-reference critical information from authoritative sources.</p>
-
-            <h3>12. Service Modifications and Termination</h3>
-            <p>We reserve the right to:</p>
-            <ul>
-                <li>Modify, suspend, or discontinue any feature or the entire service</li>
-                <li>Change pricing, usage limits, or terms</li>
-                <li>Terminate accounts that violate these terms</li>
-                <li>Refuse service to anyone for any lawful reason</li>
-            </ul>
-            <p><strong>No Guarantee:</strong> We do not guarantee uninterrupted or error-free service. Maintenance and outages may occur.</p>
-
-            <h3>13. Indemnification</h3>
-            <p>You agree to indemnify and hold harmless Ask Crump, Gregory D. Crump Jr., and affiliates from any claims, damages, or expenses arising from your use of the service or violation of these terms.</p>
-
-            <h3>14. Governing Law and Disputes</h3>
-            <p><strong>Jurisdiction:</strong> These terms are governed by the laws of the State of Georgia, United States.</p>
-            <p><strong>Dispute Resolution:</strong> Any disputes will be resolved through binding arbitration in Georgia, not through class-action lawsuits.</p>
-
-            <h3>15. Changes to Terms</h3>
-            <p>We may update these Terms of Service at any time. We will notify users of material changes via email or in-app notification. Continued use after changes constitutes acceptance.</p>
-
-            <h3>16. Contact and Support</h3>
-            <p>For questions about these terms:</p>
-            <ul>
-                <li><strong>Legal:</strong> <a href="mailto:legal@crumpai.com" style="color: var(--color-accent-primary);">legal@crumpai.com</a></li>
-                <li><strong>Support:</strong> <a href="mailto:support@crumpai.com" style="color: var(--color-accent-primary);">support@crumpai.com</a></li>
-                <li><strong>Abuse:</strong> <a href="mailto:abuse@crumpai.com" style="color: var(--color-accent-primary);">abuse@crumpai.com</a></li>
-            </ul>
-        </div>
-
-        <!-- AGE REQUIREMENTS -->
-        <div class="legal-section" id="age">
-            <h2>🔞 Age Requirements & Verification</h2>
-            <p class="effective-date">Minimum Age: 17 Years Old</p>
-
-            <div class="warning-box">
-                <strong>⚠️ STRICT AGE POLICY:</strong> Ask Crump is rated 17+ (Mature) and is NOT suitable for children or young teenagers. Users under 17 are absolutely prohibited from using this service.
-            </div>
-
-            <h3>Why 17+ Only?</h3>
-            <p>Ask Crump is rated 17+ because it:</p>
-            <ul>
-                <li>Provides unrestricted web search with access to mature content</li>
-                <li>Accesses real-time news covering violence, wars, disasters, and death</li>
-                <li>May generate content with strong language or mature themes</li>
-                <li>Does not implement strict parental controls or content filtering</li>
-                <li>Involves AI-generated content with unpredictable outputs</li>
-                <li>Integrates with third-party services with varying content standards</li>
-            </ul>
-
-            <h3>Age Verification</h3>
-            <p>By creating an account, you affirm that:</p>
-            <ul>
-                <li>You are at least 17 years old</li>
-                <li>You understand the mature nature of the service</li>
-                <li>You will not allow minors to use your account</li>
-                <li>You have provided accurate age information</li>
-            </ul>
-
-            <h3>Parental Responsibility</h3>
-            <p>If you are a parent or guardian:</p>
-            <ul>
-                <li>Monitor your teen's internet usage</li>
-                <li>Discuss responsible AI use and digital literacy</li>
-                <li>Explain the difference between AI information and verified facts</li>
-                <li>Consider if your 17-18 year old is mature enough for unrestricted AI access</li>
-                <li>Keep communication open about concerning content</li>
-            </ul>
-
-            <h3>Consequences of Age Misrepresentation</h3>
-            <p>If we discover a user is under 17, we will:</p>
-            <ul>
-                <li>Immediate account termination</li>
-                <li>Ban from future use</li>
-                <li>Potential legal action if fraud or harm occurs</li>
-                <li>Notification of parents/guardians and authorities if user is a minor</li>
-            </ul>
-
-            <h3>International Age Requirements</h3>
-            <p>Users outside the United States must comply with their local age requirements for accessing AI services and mature content. In some jurisdictions, the minimum age may be 18 or higher.</p>
-        </div>
-
-        <!-- CONTENT RATING -->
-        <div class="legal-section" id="ratings">
-            <h2>⭐ Content Rating & Safety Information</h2>
-            <p class="effective-date">Official Rating: 17+ (Mature)</p>
-
-            <div class="warning-box">
-                <strong>⚠️ MATURE CONTENT WARNING:</strong> Ask Crump is rated 17+ and may expose users to mature themes, strong language, real-world violence (via news), and unpredictable AI-generated content. Not suitable for children or young teenagers.
-            </div>
-
-            <h3>ESRB-Style Rating: M (Mature 17+)</h3>
-            <p><strong>Content Descriptors:</strong></p>
-            <ul>
-                <li><strong>🌐 Unrestricted Internet Access:</strong> Web search can access ANY content on the internet</li>
-                <li><strong>📰 Mature Themes:</strong> News includes violence, death, politics, wars, disasters</li>
-                <li><strong>💬 Strong Language:</strong> AI may occasionally generate profanity or strong language</li>
-                <li><strong>👥 User-Generated Content:</strong> Users can create uncensored content</li>
-                <li><strong>🤖 AI Unpredictability:</strong> AI responses cannot be fully controlled or predicted</li>
-                <li><strong>🔞 Real-World Information:</strong> Access to controversial, political, and mature topics</li>
-                <li><strong>⚠️ No Parental Controls:</strong> Limited content filtering at launch</li>
-            </ul>
-
-            <h3>App Store / Google Play Rating</h3>
-            <p><strong>Rating: 17+ (Mature)</strong></p>
-            <p><strong>Reasons for 17+ rating:</strong></p>
-            <ul>
-                <li>✅ Unrestricted web access via Brave Search API</li>
-                <li>✅ User-generated content (no pre-moderation)</li>
-                <li>✅ AI-generated content with unpredictable nature</li>
-                <li>✅ Real-time news covering violence and mature themes</li>
-                <li>✅ Third-party API integrations with varying content standards</li>
-                <li>✅ No strict parental controls or content filtering</li>
-                <li>✅ Strong language and mature topics not blocked</li>
-                <li>✅ Political, religious, and controversial content accessible</li>
-            </ul>
-
-            <h3>Content Safety Measures</h3>
-            <p>While we cannot guarantee complete content safety, we implement:</p>
-            <ul>
-                <li><strong>AI Safety Filters:</strong> Claude Sonnet 4.5 and GPT-4 have built-in safety systems that refuse extremely harmful requests</li>
-                <li><strong>Abuse Reporting:</strong> Report inappropriate content to <a href="mailto:abuse@crumpai.com" style="color: var(--color-accent-primary);">abuse@crumpai.com</a> (24-hour review)</li>
-                <li><strong>Usage Monitoring:</strong> We monitor for severe policy violations and illegal activity</li>
-                <li><strong>Account Suspension:</strong> Immediate action for CSAM, terrorism, extreme violence, or illegal content</li>
-                <li><strong>Rate Limiting:</strong> Usage limits help prevent abuse</li>
-                <li><strong>Law Enforcement Cooperation:</strong> We report illegal activity to authorities</li>
-            </ul>
-
-            <div class="highlight">
-                <strong>⚠️ CRITICAL DISCLAIMER:</strong> While we implement AI safety measures, AI-generated content and web search results are inherently unpredictable. Users must be 17+ and exercise mature, responsible judgment. We are NOT responsible for third-party content accessed through our platform or for AI responses that may be inaccurate, offensive, or inappropriate.
-            </div>
-
-            <h3>Third-Party Content & APIs</h3>
-            <p>Ask Crump aggregates content from third-party sources. <strong>We do not control, review, endorse, or guarantee the accuracy, safety, or appropriateness of this content:</strong></p>
-            <ul>
-                <li><strong>📰 News Articles:</strong> Violence, death, politics, wars, disasters (via NewsAPI)</li>
-                <li><strong>🔍 Web Search:</strong> Unrestricted internet content (via Brave Search)</li>
-                <li><strong>🌤️ Weather Data:</strong> Public information (via OpenWeatherMap)</li>
-                <li><strong>🤖 AI Responses:</strong> Generated by Claude (Anthropic) and GPT-4 (OpenAI) with inherent unpredictability</li>
-                <li><strong>🎨 Generated Images:</strong> Created by Pollinations AI with unpredictable results</li>
-                <li><strong>📚 Reference Data:</strong> Wikipedia, dictionaries, and other public databases</li>
-            </ul>
-
-            <p><strong style="color: var(--color-accent-primary);">USERS MUST VERIFY CRITICAL INFORMATION FROM AUTHORITATIVE SOURCES.</strong> Do not rely solely on AI responses for important decisions.</p>
-
-            <h3>Not Suitable For:</h3>
-            <ul>
-                <li>❌ Children or teenagers under 17</li>
-                <li>❌ Unsupervised use by minors (even 17-18)</li>
-                <li>❌ Users seeking guaranteed "safe" or filtered AI interactions</li>
-                <li>❌ Environments requiring strict content control (schools, youth programs, etc.)</li>
-                <li>❌ Users sensitive to mature themes, violence, or strong language</li>
-                <li>❌ Professional use requiring 100% accuracy (medical, legal, financial advice)</li>
-            </ul>
-
-            <h3>Suitable For:</h3>
-            <ul>
-                <li>✅ Adults (17+) seeking a powerful, unrestricted AI assistant</li>
-                <li>✅ Professionals needing research and information tools</li>
-                <li>✅ Creative users wanting uncensored AI collaboration</li>
-                <li>✅ Tech-savvy users comfortable with AI limitations</li>
-                <li>✅ Users who verify critical information from multiple sources</li>
-            </ul>
-
-            <h3>Educational & Professional Use</h3>
-            <p><strong>Not Recommended For:</strong></p>
-            <ul>
-                <li>K-12 schools (too mature)</li>
-                <li>Youth programs or supervised minor use</li>
-                <li>Environments requiring COPPA/FERPA compliance</li>
-            </ul>
-
-            <p><strong>May Be Suitable For:</strong></p>
-            <ul>
-                <li>University/college students (17+)</li>
-                <li>Professional development and business use</li>
-                <li>Adult education and training</li>
-                <li>Research and academic work</li>
-            </ul>
-
-            <h3>Parental Guidance</h3>
-            <p>If you are a parent of a 17-18 year old user:</p>
-            <ul>
-                <li>Discuss responsible AI use and digital literacy</li>
-                <li>Monitor their usage periodically</li>
-                <li>Explain the difference between AI information and verified facts</li>
-                <li>Set expectations about mature content they may encounter</li>
-                <li>Keep communication open about concerning content</li>
-                <li>Consider if your teen is mature enough for unrestricted AI access</li>
-            </ul>
-
-            <h3>Content Reporting</h3>
-            <p>Report content that violates our policies:</p>
-            <ul>
-                <li><strong>Email:</strong> <a href="mailto:abuse@crumpai.com" style="color: var(--color-accent-primary);">abuse@crumpai.com</a></li>
-                <li><strong>Response Time:</strong> 24 hours for review</li>
-                <li><strong>What to Report:</strong> Illegal content, CSAM, terrorism, extreme violence, harassment</li>
-                <li><strong>Investigation:</strong> We investigate all reports and take action as needed</li>
-                <li><strong>Law Enforcement:</strong> Illegal content reported to authorities</li>
-            </ul>
-
-            <h3>Rating Appeals</h3>
-            <p>If you believe this rating is incorrect or have concerns, contact: <a href="mailto:legal@crumpai.com" style="color: var(--color-accent-primary);">legal@crumpai.com</a></p>
-        </div>
-
-        <!-- FOOTER -->
-        <div style="text-align: center; padding: 3rem 0; border-top: 2px solid var(--color-border); margin-top: 3rem;">
-            <p style="color: var(--color-text-secondary); margin-bottom: 1rem; font-size: 1rem;">
-                Powered by the <span style="color: var(--color-accent-primary); font-weight: 700; font-size: 1.125rem;">N² Engine</span>
-            </p>
-            <p style="color: var(--color-text-tertiary); font-size: 0.875rem;">
-                © 2025 Gregory D. Crump Jr. All rights reserved.
-            </p>
-            <p style="color: var(--color-text-tertiary); font-size: 0.875rem; margin-top: 0.5rem;">
-                Built for <strong style="color: var(--color-accent-primary);">Nala & Niobi</strong> (N²)
-            </p>
-            <p style="color: var(--color-text-tertiary); font-size: 0.875rem; margin-top: 1rem;">
-                Questions or concerns?<br>
-                Legal: <a href="mailto:legal@crumpai.com" style="color: var(--color-accent-primary);">legal@crumpai.com</a><br>
-                Privacy: <a href="mailto:privacy@crumpai.com" style="color: var(--color-accent-primary);">privacy@crumpai.com</a><br>
-                Abuse: <a href="mailto:abuse@crumpai.com" style="color: var(--color-accent-primary);">abuse@crumpai.com</a>
-            </p>
-        </div>
-        
-        <!-- SECONDARY BACK BUTTON - Bottom of page -->
-        <div style="text-align: center; margin: 2rem 0;">
-            <a href="/" class="back-button">← Back to Ask Crump</a>
-        </div>
-    </div>
-
+        <footer>
+            <p>Ask Crump is a Clever Crump product.</p>
+            <p>Copyright © 2026 Gregory D. Crump Jr. All rights reserved.</p>
+        </footer>
+    </main>
 </body>
 </html>

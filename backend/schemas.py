@@ -1,0 +1,79 @@
+"""Validated request models for the public API."""
+
+from __future__ import annotations
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+
+
+class APIModel(BaseModel):
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
+
+class LoginRequest(APIModel):
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=256)
+    deviceName: str | None = Field(default=None, max_length=160)
+    platform: str | None = Field(default=None, max_length=80)
+
+
+class RegisterRequest(APIModel):
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=256)
+    fullName: str | None = Field(default=None, max_length=160)
+
+
+class EmailRequest(APIModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(APIModel):
+    token: str = Field(min_length=20, max_length=500)
+    newPassword: str = Field(min_length=1, max_length=256)
+
+
+class DeleteAccountRequest(APIModel):
+    password: str = Field(min_length=1, max_length=256)
+    confirmation: str = Field(default="DELETE", max_length=40)
+
+
+class ProfileUpdateRequest(APIModel):
+    fullName: str = Field(min_length=1, max_length=160)
+
+
+class TermsAcceptanceRequest(APIModel):
+    version: str = Field(default="2026-08-01", min_length=1, max_length=40)
+
+
+class RevokeDeviceRequest(APIModel):
+    sessionId: str = Field(min_length=1, max_length=100)
+
+
+class CheckoutRequest(APIModel):
+    tier: str = Field(default="professional", max_length=30)
+
+
+class ChatAckRequest(APIModel):
+    chatId: str = Field(min_length=1, max_length=120)
+    messageId: str = Field(min_length=1, max_length=120)
+    message: str = Field(default="", max_length=100_000)
+    fileTypes: list[str] = Field(default_factory=list, max_length=4)
+
+
+class PresencePreferencesRequest(APIModel):
+    enabled: bool = False
+    frequency: str = Field(default="balanced", max_length=20)
+    quiet_start: int = Field(default=21, ge=0, le=23)
+    quiet_end: int = Field(default=8, ge=0, le=23)
+    timezone: str = Field(default="America/New_York", max_length=100)
+    notifications_enabled: bool = False
+    haptics_enabled: bool = True
+    allow_followups: bool = True
+    allow_reminders: bool = True
+    allow_goals: bool = True
+    allow_encouragement: bool = False
+
+
+class PushTokenRequest(APIModel):
+    token: str = Field(min_length=20, max_length=5000)
+    platform: str = Field(min_length=3, max_length=20)
+    installationId: str = Field(min_length=8, max_length=200)

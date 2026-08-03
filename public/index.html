@@ -1,40 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Host-based redirect: make askcrump.com go straight to the app -->
-    <script>
-        (function () {
-            var host = window.location.hostname.toLowerCase();
-            if (host === 'askcrump.com' || host === 'www.askcrump.com') {
-                // Send AskCrump visitors directly into the app
-                window.location.replace('/app');
-            }
-        })();
-    </script>
+    <script defer src="/landing.js"></script>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="CleverCrump - Premium AI solutions powered by the N² Engine. Experience Ask Crump, your intelligent virtual assistant.">
+    <meta name="description" content="Clever Crump presents Ask Crump, a cross-platform AI assistant with synchronized conversations.">
 
-    <meta name="keywords" content="AI assistant, premium AI, virtual assistant, CleverCrump, N² Engine">
-    <title>CleverCrump | Premium AI Solutions</title>
-    
+    <meta name="theme-color" content="#0a1628">
+    <title>Ask Crump | Clever Crump</title>
+
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/assets/icon-192.png">
     <link rel="apple-touch-icon" href="/assets/icon-512.png">
-    
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         :root {
             --navy: #0a1628;
             --navy-light: #162032;
@@ -45,11 +36,11 @@
             --off-white: #f8f6f3;
             --gray: #8a8a8a;
         }
-        
+
         html {
             scroll-behavior: smooth;
         }
-        
+
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: var(--navy);
@@ -57,7 +48,7 @@
             line-height: 1.6;
             overflow-x: hidden;
         }
-        
+
         /* Navigation */
         .navbar {
             position: fixed;
@@ -73,11 +64,11 @@
             border-bottom: 1px solid rgba(201, 184, 146, 0.1);
             transition: padding 0.3s ease;
         }
-        
+
         .navbar.scrolled {
             padding: 1.2rem 6%;
         }
-        
+
         .logo {
             display: flex;
             align-items: center;
@@ -88,19 +79,19 @@
             color: var(--gold);
             letter-spacing: 0.5px;
         }
-        
+
         .logo img {
             width: 48px;
             height: 48px;
             filter: brightness(1.1);
         }
-        
+
         .nav-links {
             display: flex;
             gap: 3rem;
             align-items: center;
         }
-        
+
         .nav-links a {
             color: var(--off-white);
             text-decoration: none;
@@ -110,11 +101,11 @@
             transition: color 0.3s;
             position: relative;
         }
-        
+
         .nav-links a:hover {
             color: var(--gold);
         }
-        
+
         .nav-links a::after {
             content: '';
             position: absolute;
@@ -125,11 +116,11 @@
             background: var(--gold);
             transition: width 0.3s ease;
         }
-        
+
         .nav-links a:hover::after {
             width: 100%;
         }
-        
+
         .cta-button {
             padding: 14px 32px;
             background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
@@ -142,14 +133,14 @@
             transition: all 0.3s ease;
             border: 2px solid var(--gold);
         }
-        
+
         .cta-button:hover {
             background: transparent;
             color: var(--gold);
             transform: translateY(-2px);
             box-shadow: 0 8px 30px rgba(201, 184, 146, 0.2);
         }
-        
+
         /* Hero Section */
         .hero {
             min-height: 100vh;
@@ -161,7 +152,7 @@
             position: relative;
             overflow: hidden;
         }
-        
+
         .hero::before {
             content: '';
             position: absolute;
@@ -173,18 +164,18 @@
             pointer-events: none;
             animation: pulse 8s ease-in-out infinite;
         }
-        
+
         @keyframes pulse {
             0%, 100% { opacity: 0.3; transform: scale(1); }
             50% { opacity: 0.5; transform: scale(1.1); }
         }
-        
+
         .hero-content {
             max-width: 1000px;
             position: relative;
             z-index: 1;
         }
-        
+
         .hero-subtitle {
             font-size: 0.95rem;
             letter-spacing: 3px;
@@ -193,7 +184,7 @@
             margin-bottom: 1.5rem;
             font-weight: 600;
         }
-        
+
         .hero h1 {
             font-family: 'Playfair Display', serif;
             font-size: clamp(3rem, 7vw, 5.5rem);
@@ -203,12 +194,12 @@
             line-height: 1.1;
             letter-spacing: -1px;
         }
-        
+
         .hero-highlight {
             color: var(--gold);
             font-style: italic;
         }
-        
+
         .hero p {
             font-size: clamp(1.1rem, 2vw, 1.35rem);
             max-width: 700px;
@@ -216,14 +207,14 @@
             color: var(--gray);
             line-height: 1.8;
         }
-        
+
         .hero-buttons {
             display: flex;
             gap: 1.5rem;
             justify-content: center;
             flex-wrap: wrap;
         }
-        
+
         .primary-btn {
             padding: 18px 48px;
             background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
@@ -237,12 +228,12 @@
             border: 2px solid var(--gold);
             text-transform: uppercase;
         }
-        
+
         .primary-btn:hover {
             transform: translateY(-3px);
             box-shadow: 0 12px 40px rgba(201, 184, 146, 0.3);
         }
-        
+
         .secondary-btn {
             padding: 18px 48px;
             background: transparent;
@@ -255,20 +246,20 @@
             transition: all 0.3s ease;
             border: 2px solid var(--gold);
         }
-        
+
         .secondary-btn:hover {
             background: var(--gold);
             color: var(--navy);
             transform: translateY(-3px);
         }
-        
+
         /* Product Section */
         .product-showcase {
             padding: 120px 6%;
             background: var(--navy-light);
             position: relative;
         }
-        
+
         .section-label {
             text-align: center;
             font-size: 0.85rem;
@@ -278,7 +269,7 @@
             margin-bottom: 1rem;
             font-weight: 600;
         }
-        
+
         .section-title {
             font-family: 'Playfair Display', serif;
             font-size: clamp(2.5rem, 5vw, 4rem);
@@ -287,7 +278,7 @@
             color: var(--white);
             font-weight: 700;
         }
-        
+
         .section-subtitle {
             text-align: center;
             font-size: 1.2rem;
@@ -295,7 +286,7 @@
             margin-bottom: 4rem;
             font-style: italic;
         }
-        
+
         .product-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -303,7 +294,7 @@
             max-width: 1400px;
             margin: 0 auto;
         }
-        
+
         .product-card {
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(201, 184, 146, 0.15);
@@ -313,7 +304,7 @@
             position: relative;
             overflow: hidden;
         }
-        
+
         .product-card::before {
             content: '';
             position: absolute;
@@ -325,24 +316,40 @@
             transform: scaleX(0);
             transition: transform 0.4s ease;
         }
-        
+
         .product-card:hover {
             background: rgba(255, 255, 255, 0.05);
             border-color: var(--gold);
-            transform: translateY(-8px);
+            transform: translateY(-3px);
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
         }
-        
+
         .product-card:hover::before {
             transform: scaleX(1);
         }
-        
+
         .product-icon {
-            font-size: 3rem;
+            width: 48px;
+            height: 48px;
             margin-bottom: 1.5rem;
-            display: block;
+            display: grid;
+            place-items: center;
+            color: var(--gold);
+            background: rgba(201, 184, 146, 0.08);
+            border: 1px solid rgba(201, 184, 146, 0.22);
+            border-radius: 14px;
         }
-        
+
+        .product-icon svg {
+            width: 24px;
+            height: 24px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.7;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
         .product-card h3 {
             font-family: 'Playfair Display', serif;
             font-size: 1.8rem;
@@ -350,43 +357,48 @@
             color: var(--gold);
             font-weight: 600;
         }
-        
+
         .product-card p {
             color: var(--gray);
             font-size: 1.05rem;
             line-height: 1.7;
             margin-bottom: 1.5rem;
         }
-        
+
         .product-features {
             list-style: none;
             margin-top: 1.5rem;
         }
-        
+
         .product-features li {
             padding: 0.6rem 0;
             color: var(--off-white);
             font-size: 0.95rem;
             border-bottom: 1px solid rgba(201, 184, 146, 0.1);
         }
-        
+
         .product-features li:last-child {
             border-bottom: none;
         }
-        
+
         .product-features li::before {
-            content: '✓';
-            color: var(--gold);
-            font-weight: bold;
+            content: '';
+            display: inline-block;
+            width: 0.4rem;
+            height: 0.4rem;
+            margin-right: 0.75rem;
+            border-radius: 999px;
+            background: var(--gold);
+            vertical-align: middle;
             margin-right: 12px;
         }
-        
+
         /* Technology Section */
         .technology {
             padding: 120px 6%;
             background: var(--navy);
         }
-        
+
         .tech-container {
             max-width: 1200px;
             margin: 0 auto;
@@ -395,7 +407,7 @@
             gap: 5rem;
             align-items: center;
         }
-        
+
         .tech-content h2 {
             font-family: 'Playfair Display', serif;
             font-size: clamp(2.5rem, 4vw, 3.5rem);
@@ -403,21 +415,21 @@
             color: var(--gold);
             font-weight: 700;
         }
-        
+
         .tech-content p {
             font-size: 1.15rem;
             color: var(--gray);
             line-height: 1.9;
             margin-bottom: 1.5rem;
         }
-        
+
         .tech-stats {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 2rem;
             margin-top: 3rem;
         }
-        
+
         .stat {
             text-align: center;
             padding: 2rem;
@@ -425,7 +437,7 @@
             border: 1px solid rgba(201, 184, 146, 0.15);
             border-radius: 8px;
         }
-        
+
         .stat-number {
             font-family: 'Playfair Display', serif;
             font-size: 3rem;
@@ -434,21 +446,21 @@
             display: block;
             margin-bottom: 0.5rem;
         }
-        
+
         .stat-label {
             color: var(--gray);
             font-size: 0.95rem;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
-        
+
         .tech-visual {
             display: flex;
             align-items: center;
             justify-content: center;
             position: relative;
         }
-        
+
         .tech-circle {
             width: 400px;
             height: 400px;
@@ -460,12 +472,12 @@
             position: relative;
             animation: rotate 20s linear infinite;
         }
-        
+
         @keyframes rotate {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-        
+
         .tech-logo {
             font-family: 'Playfair Display', serif;
             font-size: 4rem;
@@ -473,14 +485,14 @@
             font-weight: 700;
             position: absolute;
         }
-        
+
         /* CTA Section */
         .cta-section {
             padding: 120px 6%;
             background: linear-gradient(135deg, var(--navy-light) 0%, var(--navy) 100%);
             text-align: center;
         }
-        
+
         .cta-section h2 {
             font-family: 'Playfair Display', serif;
             font-size: clamp(2.5rem, 5vw, 4rem);
@@ -488,7 +500,7 @@
             color: var(--white);
             font-weight: 700;
         }
-        
+
         .cta-section p {
             font-size: 1.25rem;
             color: var(--gray);
@@ -496,14 +508,14 @@
             margin: 0 auto 3rem;
             line-height: 1.8;
         }
-        
+
         /* Footer */
         .footer {
             padding: 4rem 6% 2rem;
             background: var(--navy-light);
             border-top: 1px solid rgba(201, 184, 146, 0.1);
         }
-        
+
         .footer-content {
             max-width: 1400px;
             margin: 0 auto;
@@ -512,14 +524,14 @@
             gap: 3rem;
             margin-bottom: 3rem;
         }
-        
+
         .footer-section h3 {
             font-family: 'Playfair Display', serif;
             color: var(--gold);
             margin-bottom: 1.5rem;
             font-size: 1.3rem;
         }
-        
+
         .footer-section p,
         .footer-section a {
             color: var(--gray);
@@ -528,11 +540,11 @@
             margin-bottom: 0.8rem;
             transition: color 0.3s;
         }
-        
+
         .footer-section a:hover {
             color: var(--gold);
         }
-        
+
         .footer-bottom {
             text-align: center;
             padding-top: 2rem;
@@ -540,66 +552,66 @@
             color: var(--gray);
             font-size: 0.9rem;
         }
-        
+
         /* Responsive */
         @media (max-width: 968px) {
             .nav-links {
                 gap: 2rem;
             }
-            
+
             .tech-container {
                 grid-template-columns: 1fr;
                 gap: 3rem;
             }
-            
+
             .tech-circle {
                 width: 300px;
                 height: 300px;
             }
-            
+
             .tech-logo {
                 font-size: 3rem;
             }
         }
-        
+
         @media (max-width: 640px) {
             .navbar {
                 padding: 1.5rem 5%;
             }
-            
+
             .logo {
                 font-size: 1.5rem;
             }
-            
+
             .logo img {
                 width: 40px;
                 height: 40px;
             }
-            
+
             .nav-links {
                 display: none;
             }
-            
+
             .hero {
                 padding: 120px 5% 60px;
             }
-            
+
             .hero-buttons {
                 flex-direction: column;
                 gap: 1rem;
             }
-            
+
             .primary-btn,
             .secondary-btn {
                 width: 100%;
             }
-            
+
             .product-showcase,
             .technology,
             .cta-section {
                 padding: 80px 5%;
             }
-            
+
             .tech-stats {
                 grid-template-columns: 1fr;
             }
@@ -610,8 +622,8 @@
     <!-- Navigation -->
     <nav class="navbar">
         <div class="logo">
-            <img src="/assets/logo-c.png" alt="CleverCrump">
-            CleverCrump
+            <img src="/assets/logo-c.png" alt="Clever Crump">
+            Clever Crump
         </div>
         <div class="nav-links">
             <a href="#product">Product</a>
@@ -624,88 +636,88 @@
     <!-- Hero Section -->
     <section class="hero">
         <div class="hero-content">
-            <div class="hero-subtitle">Premium AI Solutions</div>
-            <h1>Intelligence <span class="hero-highlight">Refined</span></h1>
-            <p>Experience the pinnacle of artificial intelligence. CleverCrump delivers sophisticated AI solutions powered by our proprietary N² Engine, setting new standards in virtual assistance.</p>
+            <div class="hero-subtitle">A focused AI workspace</div>
+            <h1>Conversation that keeps its <span class="hero-highlight">context.</span></h1>
+            <p>Ask Crump combines thoughtful assistance, current-information tools, image generation, and account-based conversation history in one calm interface.</p>
             <div class="hero-buttons">
-                <a href="/app" class="primary-btn">Experience Ask Crump</a>
-                <a href="#product" class="secondary-btn">Discover More</a>
+                <a href="/app" class="primary-btn">Open Ask Crump</a>
+                <a href="#product" class="secondary-btn">Explore the product</a>
             </div>
         </div>
     </section>
 
     <!-- Product Showcase -->
     <section class="product-showcase" id="product">
-        <div class="section-label">Our Flagship Product</div>
+        <div class="section-label">Product</div>
         <h2 class="section-title">Ask Crump</h2>
-        <p class="section-subtitle">AI Virtual Assistant</p>
-        
+        <p class="section-subtitle">A conversational assistant designed for continuity.</p>
+
         <div class="product-grid">
-            <div class="product-card">
-                <span class="product-icon">💬</span>
-                <h3>Intelligent Dialogue</h3>
-                <p>Engage in sophisticated conversations with context-aware AI that understands nuance and intent.</p>
+            <article class="product-card">
+                <span class="product-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.5 9.5 9.5 0 0 1-4-.9L3 21l1.5-4.3A8.4 8.4 0 1 1 21 11.5Z"/></svg></span>
+                <h3>Message-first conversation</h3>
+                <p>Complete answers arrive as clear message bubbles, supported by honest delivery and activity states.</p>
                 <ul class="product-features">
-                    <li>Natural language understanding</li>
-                    <li>Context retention across sessions</li>
-                    <li>Multi-turn conversations</li>
+                    <li>Delivered and seen status</li>
+                    <li>Inline activity indicators</li>
+                    <li>Retry-safe message handling</li>
                 </ul>
-            </div>
-            
-            <div class="product-card">
-                <span class="product-icon">🎨</span>
-                <h3>Visual Creation</h3>
-                <p>Generate stunning imagery from natural language descriptions with precision and artistry.</p>
+            </article>
+
+            <article class="product-card">
+                <span class="product-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                <h3>Visual creation</h3>
+                <p>Create images from natural-language requests without leaving the conversation.</p>
                 <ul class="product-features">
-                    <li>High-quality image generation</li>
-                    <li>Multiple artistic styles</li>
-                    <li>Instant results</li>
+                    <li>Prompt-based generation</li>
+                    <li>Conversation-linked results</li>
+                    <li>Clear provider error states</li>
                 </ul>
-            </div>
-            
-            <div class="product-card">
-                <span class="product-icon">🔍</span>
-                <h3>Real-Time Intelligence</h3>
-                <p>Access current information seamlessly integrated into your workflow.</p>
+            </article>
+
+            <article class="product-card">
+                <span class="product-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></span>
+                <h3>Current information</h3>
+                <p>Search and weather context can be added when a request depends on information beyond the model's training data.</p>
                 <ul class="product-features">
                     <li>Web search integration</li>
-                    <li>Live data synthesis</li>
-                    <li>Source verification</li>
+                    <li>Weather context</li>
+                    <li>Source-aware responses</li>
                 </ul>
-            </div>
-            
-            <div class="product-card">
-                <span class="product-icon">🌐</span>
-                <h3>Global Communication</h3>
-                <p>Break language barriers with sophisticated translation and multilingual support.</p>
+            </article>
+
+            <article class="product-card">
+                <span class="product-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 7h-9a4 4 0 0 0-4 4v9"/><path d="m16 3 4 4-4 4"/><path d="M4 17h9a4 4 0 0 0 4-4V4"/><path d="m8 21-4-4 4-4"/></svg></span>
+                <h3>Cross-device continuity</h3>
+                <p>Conversation history and account settings follow the signed-in user across supported devices.</p>
                 <ul class="product-features">
-                    <li>50+ languages supported</li>
-                    <li>Cultural context awareness</li>
-                    <li>Real-time translation</li>
+                    <li>Server-authoritative history</li>
+                    <li>Conflict-aware synchronization</li>
+                    <li>Account-isolated offline cache</li>
                 </ul>
-            </div>
-            
-            <div class="product-card">
-                <span class="product-icon">📱</span>
-                <h3>Cross-Platform</h3>
-                <p>Seamless experience across all your devices with synchronized sessions.</p>
+            </article>
+
+            <article class="product-card">
+                <span class="product-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg></span>
+                <h3>Optional check-ins</h3>
+                <p>Crump can follow up on unfinished work when the user enables proactive messaging.</p>
                 <ul class="product-features">
-                    <li>Desktop, mobile, tablet</li>
-                    <li>Progressive Web App</li>
-                    <li>Cloud synchronization</li>
+                    <li>Quiet hours and frequency controls</li>
+                    <li>Conversation-specific follow-ups</li>
+                    <li>Optional native notifications</li>
                 </ul>
-            </div>
-            
-            <div class="product-card">
-                <span class="product-icon">🔒</span>
-                <h3>Enterprise Security</h3>
-                <p>Bank-grade encryption and privacy protection as standard.</p>
+            </article>
+
+            <article class="product-card">
+                <span class="product-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg></span>
+                <h3>Account control</h3>
+                <p>Users can review devices, revoke sessions, manage subscriptions, export history, and delete the account.</p>
                 <ul class="product-features">
-                    <li>End-to-end encryption</li>
-                    <li>GDPR compliant</li>
-                    <li>Zero data retention option</li>
+                    <li>Persistent revocable sessions</li>
+                    <li>In-app data controls</li>
+                    <li>Web and native billing separation</li>
                 </ul>
-            </div>
+            </article>
         </div>
     </section>
 
@@ -713,33 +725,33 @@
     <section class="technology" id="technology">
         <div class="tech-container">
             <div class="tech-content">
-                <h2>Powered by the N² Engine</h2>
-                <p>Our proprietary N² Engine represents a breakthrough in AI architecture, combining advanced language models with sophisticated context awareness and real-time learning capabilities.</p>
-                <p>Named after the next generation of intelligence, the N² Engine delivers unprecedented accuracy, speed, and reliability in every interaction.</p>
-                
+                <h2>Built for Continuity</h2>
+                <p>Ask Crump uses a Python service layer, durable cloud conversation storage, and an account-based synchronization model so your work follows you from phone to computer.</p>
+                <p>The interface is designed for quick, focused interactions across the web, iPhone, iPad, and Android.</p>
+
                 <div class="tech-stats">
                     <div class="stat">
-                        <span class="stat-number">99.7%</span>
-                        <span class="stat-label">Accuracy</span>
+                        <span class="stat-number">1</span>
+                        <span class="stat-label">Account Across Devices</span>
                     </div>
                     <div class="stat">
-                        <span class="stat-number">&lt;200ms</span>
-                        <span class="stat-label">Response Time</span>
+                        <span class="stat-number">365d</span>
+                        <span class="stat-label">Sliding Sign-In</span>
                     </div>
                     <div class="stat">
-                        <span class="stat-number">24/7</span>
-                        <span class="stat-label">Availability</span>
+                        <span class="stat-number">Web</span>
+                        <span class="stat-label">Installable PWA</span>
                     </div>
                     <div class="stat">
-                        <span class="stat-number">100%</span>
-                        <span class="stat-label">Private</span>
+                        <span class="stat-number">iOS + Android</span>
+                        <span class="stat-label">Native Targets</span>
                     </div>
                 </div>
             </div>
-            
+
             <div class="tech-visual">
                 <div class="tech-circle">
-                    <span class="tech-logo">N²</span>
+                    <span class="tech-logo">AC</span>
                 </div>
             </div>
         </div>
@@ -747,55 +759,44 @@
 
     <!-- CTA Section -->
     <section class="cta-section">
-        <h2>Ready to Experience the Future?</h2>
-        <p>Join the select group of professionals who demand excellence from their AI solutions. Start your journey with Ask Crump today.</p>
-        <a href="/app" class="primary-btn">Get Started Now</a>
+        <h2>Continue where you left off.</h2>
+        <p>Open Ask Crump on the web, or prepare the same codebase for iOS and Android.</p>
+        <a href="/app" class="primary-btn">Open Ask Crump</a>
     </section>
 
     <!-- Footer -->
     <footer class="footer">
         <div class="footer-content">
             <div class="footer-section">
-                <h3>CleverCrump</h3>
-                <p>Premium AI solutions powered by the N² Engine. Setting new standards in artificial intelligence.</p>
+                <h3>Clever Crump</h3>
+                <p>Focused AI assistance with account-based conversations and cross-device synchronization.</p>
             </div>
-            
+
             <div class="footer-section">
                 <h3>Product</h3>
                 <a href="https://askcrump.com/app">Ask Crump</a>
                 <a href="#technology">Technology</a>
                 <a href="#product">Features</a>
             </div>
-            
+
             <div class="footer-section">
                 <h3>Company</h3>
                 <a href="/legal.html">Privacy Policy</a>
                 <a href="/legal.html">Terms of Service</a>
-                <a href="mailto:support@clevercrump.com">Support</a>
+                <a href="/delete-account.html">Delete Account</a>
+                <a href="mailto:support@askcrump.com">Support</a>
             </div>
-            
+
             <div class="footer-section">
                 <h3>Contact</h3>
-                <a href="mailto:support@clevercrump.com">support@clevercrump.com</a>
-                <a href="mailto:legal@clevercrump.com">legal@clevercrump.com</a>
+                <a href="mailto:support@askcrump.com">support@askcrump.com</a>
+                <a href="mailto:legal@askcrump.com">legal@askcrump.com</a>
             </div>
         </div>
-        
+
         <div class="footer-bottom">
-            <p>&copy; 2025 CleverCrump. All rights reserved. Powered by the N² Engine.</p>
+            <p>&copy; 2026 Clever Crump. All rights reserved.</p>
         </div>
     </footer>
-
-    <script>
-        // Navbar scroll effect
-        window.addEventListener('scroll', () => {
-            const navbar = document.querySelector('.navbar');
-            if (window.scrollY > 100) {
-                navbar.classList.add('scrolled');
-            } else {
-                navbar.classList.remove('scrolled');
-            }
-        });
-    </script>
 </body>
 </html>

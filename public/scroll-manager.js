@@ -1,118 +1,66 @@
-// ==========================================
-// CRUMP AI - SCROLL MANAGER v1.0
-// Scrolls to TOP of new Crump messages
-// ==========================================
-(function() {
-'use strict';
-let chatContainer = null;
-let scrollToEndBtn = null;
-let isUserScrolling = false;
-let scrollTimeout = null;
+(function initializeScrollManager() {
+    'use strict';
 
-function initScrollToEnd() {
-    chatContainer = document.getElementById('chatContainer');
-    scrollToEndBtn = document.getElementById('scrollToEndBtn');
-    
-    if (!chatContainer || !scrollToEndBtn) {
-        console.warn('⚠️ Scroll manager: Required elements not found');
-        return;
+    let chatContainer = null;
+    let scrollToEndButton = null;
+    let userIsReviewingHistory = false;
+    let reviewTimeout = null;
+
+    function initialize() {
+        chatContainer = document.getElementById('chatContainer');
+        scrollToEndButton = document.getElementById('scrollToEndBtn');
+        if (!chatContainer || !scrollToEndButton) return;
+
+        chatContainer.addEventListener('scroll', handleScroll, { passive: true });
+        scrollToEndButton.addEventListener('click', scrollToBottom);
     }
-    
-    chatContainer.addEventListener('scroll', handleScroll);
-    scrollToEndBtn.addEventListener('click', scrollToBottom);
-    
-    console.log('✅ Scroll manager initialized');
-}
 
-function handleScroll() {
-    if (!chatContainer || !scrollToEndBtn) return;
-    
-    const { scrollTop, scrollHeight, clientHeight } = chatContainer;
-    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-    
-    // Show button if scrolled up more than 200px
-    if (distanceFromBottom > 200) {
-        scrollToEndBtn.classList.add('visible');
-        isUserScrolling = true;
-    } else {
-        scrollToEndBtn.classList.remove('visible');
-        isUserScrolling = false;
+    function handleScroll() {
+        const distance = distanceFromBottom();
+        const showControl = distance > 200;
+        scrollToEndButton?.classList.toggle('visible', showControl);
+        userIsReviewingHistory = showControl;
+
+        clearTimeout(reviewTimeout);
+        reviewTimeout = setTimeout(() => {
+            userIsReviewingHistory = distanceFromBottom() > 200;
+        }, 3000);
     }
-    
-    if (scrollTimeout) {
-        clearTimeout(scrollTimeout);
+
+    function distanceFromBottom() {
+        if (!chatContainer) return 0;
+        return chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight;
     }
-    
-    scrollTimeout = setTimeout(() => {
-        isUserScrolling = false;
-    }, 3000);
-}
 
-function scrollToBottom(behaviorOrEvent) {
-    if (!chatContainer) return;
-    
-    // If called from click event, use 'smooth', otherwise use the passed value
-    const behavior = (typeof behaviorOrEvent === 'string') ? behaviorOrEvent : 'smooth';
-    
-    chatContainer.scrollTo({
-        top: chatContainer.scrollHeight,
-        behavior: behavior
-    });
-    
-    if (scrollToEndBtn) {
-        scrollToEndBtn.classList.remove('visible');
+    function scrollToBottom(behaviorOrEvent) {
+        if (!chatContainer) return;
+        const behavior = typeof behaviorOrEvent === 'string' ? behaviorOrEvent : 'smooth';
+        chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior });
+        scrollToEndButton?.classList.remove('visible');
+        userIsReviewingHistory = false;
     }
-    
-    isUserScrolling = false;
-}
 
-// CRITICAL: Scroll to TOP of new Crump message
-function scrollToMessageTop(messageElement) {
-    if (!chatContainer || !messageElement) return;
-    
-    // Only auto-scroll if user isn't actively scrolling up
-    if (isUserScrolling) {
-        console.log('User scrolling - skipping auto-scroll');
-        return;
+    function scrollToMessageTop(messageElement) {
+        if (!chatContainer || !messageElement || userIsReviewingHistory) return;
+
+        setTimeout(() => {
+            const containerTop = chatContainer.getBoundingClientRect().top;
+            const messageTop = messageElement.getBoundingClientRect().top;
+            const top = messageTop - containerTop + chatContainer.scrollTop - 20;
+            chatContainer.scrollTo({ top, behavior: 'smooth' });
+        }, 100);
     }
-    
-    setTimeout(() => {
-        const containerTop = chatContainer.getBoundingClientRect().top;
-        const messageTop = messageElement.getBoundingClientRect().top;
-        const offset = messageTop - containerTop + chatContainer.scrollTop - 20;
-        
-        chatContainer.scrollTo({
-            top: offset,
-            behavior: 'smooth'
-        });
-    }, 100);
-}
 
-function autoScrollToBottom() {
-    if (!chatContainer || isUserScrolling) return;
-    scrollToBottom('smooth');
-}
+    function autoScrollToBottom() {
+        if (!userIsReviewingHistory) scrollToBottom('smooth');
+    }
 
-function isNearBottom() {
-    if (!chatContainer) return false;
-    
-    const { scrollTop, scrollHeight, clientHeight } = chatContainer;
-    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-    
-    return distanceFromBottom < 100;
-}
-
-// Public API
-window.crumpScrollManager = {
-    init: initScrollToEnd,
-    scrollToBottom: scrollToBottom,
-    scrollToMessageTop: scrollToMessageTop,
-    autoScrollToBottom: autoScrollToBottom,
-    isNearBottom: isNearBottom,
-    setUserScrolling: (value) => { isUserScrolling = value; }
-};
-
-// Don't auto-init - let app.js call it after app is ready
-console.log('✅ Scroll Manager v1.0 loaded');
-})();
-
+    window.crumpScrollManager = {
+        init: initialize,
+        scrollToBottom,
+        scrollToMessageTop,
+        autoScrollToBottom,
+        isNearBottom: () => distanceFromBottom() < 100,
+        setUserScrolling: value => { userIsReviewingHistory = Boolean(value); }
+    };
+}());

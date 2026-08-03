@@ -1,34 +1,41 @@
 {
-  "name": "crump-ai",
-  "version": "3.0.1",
+  "name": "ask-crump",
+  "version": "4.2.0",
+  "private": true,
+  "description": "Cross-platform conversational assistant with synchronized chat, persistent sessions, and native mobile support.",
   "type": "module",
-  "description": "Crump AI - Your Intelligent Assistant",
-  "main": "public/index.html",
   "engines": {
-  "node": "20.x"
+    "node": ">=22.0.0"
   },
   "scripts": {
-    "build": "echo 'No build step required'",
-    "dev": "vercel dev",
-    "deploy": "vercel --prod"
+    "build": "node scripts/build-native.mjs",
+    "cap:add:ios": "npx cap add ios",
+    "cap:add:android": "npx cap add android",
+    "cap:sync": "npm run build && npx cap sync",
+    "cap:open:ios": "npx cap open ios",
+    "cap:open:android": "npx cap open android",
+    "test:js": "node scripts/check-javascript.mjs",
+    "test": "npm run test:js",
+    "native:configure": "node scripts/configure-native.mjs",
+    "native:assets": "capacitor-assets generate --iconBackgroundColor '#0f1419' --iconBackgroundColorDark '#0f1419' --splashBackgroundColor '#0f1419' --splashBackgroundColorDark '#0f1419'",
+    "native:verify": "node scripts/verify-native-release.mjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.39.0",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2",
-    "resend": "^3.0.0",
-    "cookie": "^0.6.0",
-    "stripe": "^14.0.0",
-    "openai": "^4.0.0",
-    "@anthropic-ai/sdk": "^0.27.2"
+    "@aparajita/capacitor-secure-storage": "8.0.0",
+    "@capacitor/app": "8.0.0",
+    "@capacitor/core": "8.4.2",
+    "@capacitor/haptics": "8.0.0",
+    "@capacitor/keyboard": "8.0.0",
+    "@capacitor/network": "8.0.0",
+    "@capacitor/status-bar": "8.0.0",
+    "@revenuecat/purchases-capacitor": "13.2.3",
+    "@capacitor/push-notifications": "8.0.0"
   },
-  "devDependencies": {},
-  "keywords": [
-    "ai",
-    "assistant",
-    "chatbot",
-    "pwa"
-  ],
-  "author": "Gregory D. Crump Jr.",
-  "license": "MIT"
+  "devDependencies": {
+    "@capacitor/android": "8.4.2",
+    "@capacitor/cli": "8.4.2",
+    "@capacitor/ios": "8.4.2",
+    "esbuild": "0.25.0",
+    "@capacitor/assets": "3.0.5"
+  }
 }

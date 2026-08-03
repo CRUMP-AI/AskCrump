@@ -1,115 +1,102 @@
-// =====================================================
-// DEVICE ID AUTH SYSTEM - Mobile PWA Solution
-// =====================================================
-
 class DeviceAuth {
-    constructor() {
-        this.DEVICE_ID_KEY = 'crump_device_id';
-        this.SESSION_KEY = 'crump_session';
-        this.deviceId = null;
-        this.session = null;
+  constructor() {
+    this.session = null;
+    this.userCacheKey = 'crump_user_cache_v4';
+  }
+
+  // Retained for compatibility only. This ID is telemetry, never authentication.
+  getDeviceId() {
+    return window.CrumpAPI?.installationId?.() || 'web';
+  }
+
+  async login(email, password) {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        password,
+        platform: window.CrumpNative?.Capacitor?.getPlatform?.() || window.Capacitor?.getPlatform?.() || 'web',
+        deviceName: navigator.userAgent.slice(0, 150),
+      }),
+    });
+    const data = await response.json().catch(() => ({ success: false, error: 'Invalid server response.' }));
+    if (response.ok && data.success && data.data?.user) {
+      if (data.data.sessionToken && window.CrumpAPI?.isNative) {
+        await window.CrumpAPI.setSessionToken(data.data.sessionToken);
+      }
+      this.session = { user: data.data.user, expiresAt: data.data.expiresAt };
+      try { localStorage.setItem(this.userCacheKey, JSON.stringify(data.data.user)); } catch (_) {}
     }
+    return data;
+  }
 
-        getDeviceId() {
-        if (this.deviceId) return this.deviceId;
-
-        // 1) localStorage fast path
-        let deviceId = null;
-        try {
-            deviceId = localStorage.getItem(this.DEVICE_ID_KEY);
-        } catch (e) {}
-
-        // 2) cookie fallback (survives some iOS localStorage clears)
-        if (!deviceId) {
-            const match = document.cookie.match(/(?:^|;\s*)crump_device_id=([^;]+)/);
-            if (match) deviceId = decodeURIComponent(match[1]);
-        }
-
-        // 3) generate new if missing, store both
-        if (!deviceId) {
-            deviceId = this.generateDeviceId();
-            try { localStorage.setItem(this.DEVICE_ID_KEY, deviceId); } catch (e) {}
-            document.cookie = `crump_device_id=${encodeURIComponent(deviceId)}; path=/; max-age=${60 * 60 * 24 * 365}; Secure; SameSite=None`;
-        }
-
-        this.deviceId = deviceId;
-        return deviceId;
-    }
-
-    generateDeviceId() {
-        const timestamp = Date.now();
-        const random = Math.random().toString(36).substring(2, 15);
-        const userAgent = navigator.userAgent.substring(0, 50).replace(/[^a-zA-Z0-9]/g, '');
-        return `${timestamp}-${random}-${userAgent}`;
-    }
-
-    async login(email, password) {
-        const deviceId = this.getDeviceId();
-        const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, deviceId })
-        });
-        const data = await response.json();
-        if (data.success && data.data) {
-            this.session = {
-                user: data.data.user,
-                token: data.data.token,
-                deviceId: deviceId,
-                expiresAt: data.data.expiresAt
-            };
-            localStorage.setItem(this.SESSION_KEY, JSON.stringify(this.session));
-        }
+  async checkSession() {
+    try {
+      await window.CrumpAPI?.ready;
+      const response = await fetch('/api/auth/check-session', { method: 'GET' });
+      const data = await response.json().catch(() => ({ success: false, authenticated: false }));
+      if (response.ok && data.authenticated && data.data?.user) {
+        this.session = { user: data.data.user, expiresAt: data.data.expiresAt };
+        try { localStorage.setItem(this.userCacheKey, JSON.stringify(data.data.user)); } catch (_) {}
         return data;
-    }
-
-        async checkSession() {
-        const deviceId = this.getDeviceId();
-
-        // Always ask server — do NOT depend on localStorage session existing
-        const response = await fetch('/api/auth/check-session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ deviceId }),
-            credentials: 'include'
-        });
-
-        const data = await response.json();
-
-        if (data.success && data.authenticated && data.data?.user) {
-            this.session = {
-                user: data.data.user,
-                token: data.data.token || data.data.accessToken,
-                deviceId,
-                expiresAt: data.data.expiresAt
-            };
-
-            try {
-                localStorage.setItem(this.SESSION_KEY, JSON.stringify(this.session));
-            } catch (e) {}
-
-            return data;
+      }
+    } catch (error) {
+      console.warn('[Auth] Session check unavailable:', error);
+      try {
+        const cached = JSON.parse(localStorage.getItem(this.userCacheKey) || 'null');
+        if (cached && !navigator.onLine) {
+          this.session = { user: cached, offline: true };
+          return { success: true, authenticated: true, offline: true, data: { user: cached } };
         }
-
-        this.clearSession();
-        return { authenticated: false };
+      } catch (_) {}
     }
+    this.clearLocalState();
+    return { success: true, authenticated: false };
+  }
 
-    async logout() {
-        const deviceId = this.getDeviceId();
-        await fetch('/api/auth/logout', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ deviceId })
-        });
-        this.clearSession();
+  async logout(allDevices = false) {
+    try {
+      if (!allDevices && window.CrumpAPI?.isNative) {
+        try { await fetch('/api/notifications/register', { method: 'DELETE' }); } catch (_) {}
+      }
+      await fetch(allDevices ? '/api/auth/logout-all' : '/api/auth/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } finally {
+      await window.CrumpAPI?.clearSessionToken?.();
+      this.clearLocalState();
     }
+  }
 
-    clearSession() {
-        this.session = null;
-        localStorage.removeItem(this.SESSION_KEY);
-    }
+  clearLocalState() {
+    const userId = this.session?.user?.id || window.currentUser?.id;
+    if (userId) this.clearAccountCache(userId);
+    this.session = null;
+    window.currentUser = null;
+    try { localStorage.removeItem(this.userCacheKey); } catch (_) {}
+  }
+
+  clearAccountCache(userId) {
+    const safeUserId = String(userId || '').replace(/[^a-zA-Z0-9_-]/g, '');
+    if (!safeUserId) return;
+    const suffix = `:${safeUserId}`;
+    const removablePrefixes = [
+      'crump_chats', 'crump_current_chat', 'crump_user_profile',
+      'crump_user_initial', 'crump_assistant_name', 'crump_work_mode',
+      'crump_work_start', 'crump_work_end', 'crump_has_onboarded',
+      'crump_deleted_chats_v4', 'crump_sync_queue_v4', 'crump_last_sync_v4',
+      'crump_user_profile_v4', 'crump_tutorial_completed_v3',
+    ];
+    try {
+      for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+        const key = localStorage.key(index);
+        if (!key?.endsWith(suffix)) continue;
+        if (removablePrefixes.some(prefix => key.startsWith(prefix))) localStorage.removeItem(key);
+      }
+    } catch (_) {}
+  }
 }
 
 window.deviceAuth = new DeviceAuth();
-console.log('✅ Device Auth System loaded');

@@ -1,37 +1,39 @@
-/*
-==========================================
-CRUMP AI - MAIN APPLICATION v1.0 FIXED
-Complete with all fixes + autonomous corrections
-==========================================
-*/
 
-// Storage Keys
-const STORAGE_KEYS = {
+// Account-scoped cache keys. Supabase remains the source of truth; these are offline caches only.
+const BASE_STORAGE_KEYS = Object.freeze({
     CHATS: 'crump_chats',
     CURRENT_CHAT: 'crump_current_chat',
     USER_PROFILE: 'crump_user_profile',
     USER_INITIAL: 'crump_user_initial',
     ASSISTANT_NAME: 'crump_assistant_name',
     WORK_MODE: 'crump_work_mode',
-    AUTONOMOUS_ENABLED: 'crump_autonomous_enabled',
-    AUTONOMOUS_FREQUENCY: 'crump_autonomous_frequency',
+    WORK_START: 'crump_work_start',
+    WORK_END: 'crump_work_end',
     HAS_ONBOARDED: 'crump_has_onboarded'
+});
+const STORAGE_KEYS = { ...BASE_STORAGE_KEYS };
+
+window.configureUserStorage = function configureUserStorage(userId) {
+    const safeUserId = String(userId || '').replace(/[^a-zA-Z0-9_-]/g, '');
+    if (!safeUserId) return;
+    for (const [name, base] of Object.entries(BASE_STORAGE_KEYS)) {
+        STORAGE_KEYS[name] = `${base}:${safeUserId}`;
+    }
+
+    // Migrate a pre-v4 cache only when its stored owner is provably this account.
+    try {
+        const legacySession = JSON.parse(localStorage.getItem('crump_session') || 'null');
+        const legacyOwner = legacySession?.user?.id;
+        if (legacyOwner === userId && !localStorage.getItem(STORAGE_KEYS.CHATS)) {
+            const legacyChats = localStorage.getItem(BASE_STORAGE_KEYS.CHATS);
+            const legacyCurrent = localStorage.getItem(BASE_STORAGE_KEYS.CURRENT_CHAT);
+            if (legacyChats) localStorage.setItem(STORAGE_KEYS.CHATS, legacyChats);
+            if (legacyCurrent) localStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, legacyCurrent);
+        }
+    } catch (_) {}
 };
 
-// Safari ITP Detection & Fallback Storage
-const STORAGE_AVAILABLE = (function() {
-    try {
-        const test = '__storage_test__';
-        localStorage.setItem(test, test);
-        localStorage.removeItem(test);
-        return true;
-    } catch(e) {
-        console.warn('⚠️ localStorage blocked by browser - using memory fallback');
-        return false;
-    }
-})();
-
-// Global State
+// In-memory application state
 let chats = [];
 let currentChatId = null;
 let currentProfile = null;
@@ -40,45 +42,58 @@ let isProcessing = false;
 window.chats = chats;
 window.currentChatId = currentChatId;
 window.STORAGE_KEYS = STORAGE_KEYS;
-let activeObjectURLs = [];
-window.activeObjectURLs = activeObjectURLs;
+const previewObjectUrls = new Set();
 
-// ==========================================
-// AUTHENTICATED APP INITIALIZATION
-// ==========================================
+function asTimestamp(value) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    const parsed = new Date(value || 0).getTime();
+    return Number.isFinite(parsed) ? parsed : Date.now();
+}
+
+function touchChat(chat) {
+    if (!chat) return;
+    chat.updatedAt = new Date().toISOString();
+    chat.revision = Math.max(1, Number(chat.revision || 0) + 1);
+}
+
+function normalizeLocalChat(chat) {
+    const id = chat?.chat_id || chat?.id || crypto.randomUUID();
+    return {
+        ...chat,
+        id,
+        chat_id: id,
+        title: chat?.title || 'New Conversation',
+        messages: Array.isArray(chat?.messages) ? chat.messages : [],
+        createdAt: chat?.created_at || chat?.createdAt || new Date().toISOString(),
+        updatedAt: chat?.updated_at || chat?.updatedAt || chat?.created_at || chat?.createdAt || new Date().toISOString(),
+        revision: Math.max(1, Number(chat?.revision || 1)),
+    };
+}
+
+// Authenticated lifecycle
 window.initializeAuthenticatedApp = function(user) {
-    console.log('🔐 Initializing app for authenticated user:', user.email);
-    
-    // Store user info globally
+    // Store user info globally and isolate this account's offline cache.
     window.currentUser = user;
-    
+    window.configureUserStorage?.(user.id);
+
     // Sync subscription from server to profile manager
     if (window.profileManager && typeof window.profileManager.applyServerSubscription === 'function') {
         window.profileManager.applyServerSubscription(user);
-        console.log('✅ Subscription synced from server on login');
     }
-    
-    // Sync chats from server (cross-device)
+
+    // Sync is server-authoritative. This call is safe before or after initializeApp().
     if (typeof window.syncChatsFromServer === 'function') {
         window.syncChatsFromServer();
     }
-    
-    // Start auto-sync
     if (typeof window.startAutoSync === 'function') {
         window.startAutoSync();
     }
-    
-    // Update universal memory with user profile
-    if (typeof window.universalMemory !== 'undefined') {
-        window.universalMemory.userProfile = {
-            name: user.fullName || user.email.split('@')[0],
-            email: user.email,
-            userId: user.id,
-            assistantName: user.preferences?.assistantName || 'Crump',
-            createdAt: user.createdAt
-        };
+    if (typeof window.setupTokenRefresh === 'function') {
+        window.setupTokenRefresh();
     }
-    
+    window.CrumpPresence?.loadPreferences?.();
+    window.CrumpPresence?.registerToken?.();
+
     // Update settings with user's preferences
     if (user.preferences) {
         if (user.preferences.assistantName) {
@@ -87,18 +102,11 @@ window.initializeAuthenticatedApp = function(user) {
         if (user.preferences.workMode !== undefined) {
             SafeStorage.setItem(STORAGE_KEYS.WORK_MODE, String(!!user.preferences.workMode));
         }
-        if (user.preferences.autonomousEnabled !== undefined) {
-            SafeStorage.setItem(STORAGE_KEYS.AUTONOMOUS_ENABLED, String(!!user.preferences.autonomousEnabled));
-        }
     }
-    
-    console.log('✅ User profile loaded into universalMemory');
 };
 
 
-// ==========================================
-// INITIALIZATION
-// ==========================================
+// Application startup
 window.initializeApp = function() {
     try {
         const required = ['chatContainer', 'userInput', 'sendButton', 'newChatBtn', 'chatsList', 'fileInput'];
@@ -106,154 +114,57 @@ window.initializeApp = function() {
         if (missing.length > 0) {
             throw new Error('Missing elements: ' + missing.join(', '));
         }
-       console.log('🚀 Ask Crump v1.0 initializing...');
-
-        // ✅ PWA LAUNCH FIX: Refresh session on PWA startup (iOS-optimized)
-        if (window.location.search.includes('source=pwa') || window.navigator.standalone) {
-            console.log('🎯 PWA launched - force session refresh');
-            
-            // Clean URL
-            if (window.location.search) {
-                window.history.replaceState({}, '', window.location.pathname);
-            }
-            
-            // CRITICAL: iOS PWA often loses cookies, force refresh immediately
-            if (typeof window.authUI !== 'undefined' && window.authUI.checkSession) {
-                setTimeout(() => {
-                    console.log('🔄 PWA: Running enhanced session check...');
-                    window.authUI.checkSession();
-                }, 100);
-            }
-            
-            // Set flag for enhanced monitoring
-            window.isPWA = true;
-            sessionStorage.setItem('isPWA', 'true');
+        if (typeof window.ProfileManager !== 'undefined') {
+            currentProfile = new ProfileManager();
+        } else if (typeof window.UserProfileManager !== 'undefined') {
+            currentProfile = new UserProfileManager();
+        }
+        if (currentProfile) {
+            window.currentProfile = currentProfile;
+            window.profileManager = currentProfile;
+            updateUserAvatar();
         }
 
-        // ✅ CRITICAL FIX: Initialize universalMemory FIRST
-        if (typeof window.universalMemory === 'undefined') {
-            window.universalMemory = {
-                autonomousHistory: [],
-                userProfile: {},
-                crossSessionContext: [],
-                conversationHistory: {}
-            };
-        }
-        
-        // Load autonomous history from localStorage if it exists
-        try {
-            const savedAutonomousHistory = localStorage.getItem('crump_autonomous_history');
-            if (savedAutonomousHistory) {
-                window.universalMemory.autonomousHistory = JSON.parse(savedAutonomousHistory);
-                console.log('✅ Loaded autonomous history:', window.universalMemory.autonomousHistory.length, 'messages');
-            }
-        } catch (e) {
-            console.warn('⚠️ Failed to load autonomous history:', e);
-        }
-
-      // Initialize profile manager
-if (typeof window.ProfileManager !== 'undefined') {
-    currentProfile = new ProfileManager();
-    window.currentProfile = currentProfile;
-    window.profileManager = currentProfile; // alias for upgrade-ui & others
-    updateUserAvatar();
-} else if (typeof window.UserProfileManager !== 'undefined') {
-    currentProfile = new UserProfileManager();
-    window.currentProfile = currentProfile;
-    window.profileManager = currentProfile; // alias for upgrade-ui & others
-    updateUserAvatar();
-}
-
-        // Initialize components
-        if (typeof window.messageDeduplicator === 'undefined') {
-            window.messageDeduplicator = new MessageDeduplicator();
-        }
-
-       if (typeof window.WeatherDetectionEngine !== 'undefined') {
-            window.weatherDetectionEngine = new WeatherDetectionEngine();
-            console.log('✅ Weather Detection Engine initialized');
-        }
-        
-        // Initialize sentiment analyzer
-        if (typeof window.SentimentAnalyzer !== 'undefined') {
-            window.sentimentAnalyzer = new SentimentAnalyzer();
-            console.log('✅ Sentiment Analyzer initialized');
-        }
-        
-        // Initialize context tracker
-        if (typeof window.AutonomousContextTracker !== 'undefined') {
-            window.contextTracker = new AutonomousContextTracker();
-            console.log('✅ Context Tracker initialized');
-        }
-
-               // Load chats from localStorage first (instant)
-loadChats();
-
-// Note: syncChatsFromServer() is called from initializeAuthenticatedApp()
-// after successful login. We don't call it here to avoid race conditions.
-
+        // Render the account-scoped cache immediately. Authentication triggers
+        // a server-authoritative synchronization after the shell is ready.
+        loadChats();
 
         setupEventListeners();
         setupSidebarToggle();
         loadSettings();
         updateAssistantNameDisplay();
-        initializeAssistant();
 
-        
-        // CRITICAL: Initialize scroll manager AFTER app is ready
+
+        // Initialize scrolling after the chat shell is ready.
         if (window.crumpScrollManager && typeof window.crumpScrollManager.init === 'function') {
             window.crumpScrollManager.init();
-            console.log('✅ Scroll manager initialized');
         }
 
         const savedChatId = SafeStorage.getItem(STORAGE_KEYS.CURRENT_CHAT);
         if (savedChatId && getChat(savedChatId)) {
             loadChat(savedChatId);
+        } else if (chats.length) {
+            loadChat(chats[0].id);
         } else {
             createNewChat();
         }
-
-       setupAutonomousMessaging();
-        setupMobileKeyboardHandler(); // ADDED
-        
-        // ✅ INTELLIGENCE CORE: Check for insights periodically
-        if (window.intelligenceCore) {
-            // Initial check after 30 seconds
-            setTimeout(() => {
-                if (window.intelligenceCore.isInitialized) {
-                    window.intelligenceCore.showInsightsNotification();
-                }
-            }, 30000);
-            
-            // Then check every 5 minutes
-            setInterval(() => {
-                if (window.intelligenceCore && window.intelligenceCore.isInitialized) {
-                    window.intelligenceCore.showInsightsNotification();
-                }
-            }, 5 * 60 * 1000);
-        }
-        
-        console.log('✅ Crump AI v1.0 initialized successfully');
         if (localStorage.getItem(STORAGE_KEYS.HAS_ONBOARDED) === 'true' && !savedChatId) {
             showWelcomeMessage();
         }
 
     } catch (error) {
-        console.error('❌ Initialization error:', error);
+        console.error('[App] Initialization failed:', error);
         showToast('Failed to initialize application', 'error');
     }
 };
 
-// ==========================================
-// EVENT LISTENERS
-// ==========================================
+// Event Listeners
 function setupEventListeners() {
     const userInput = document.getElementById('userInput');
     const sendButton = document.getElementById('sendButton');
     const newChatBtn = document.getElementById('newChatBtn');
     const attachBtn = document.getElementById('attachBtn');
     const fileInput = document.getElementById('fileInput');
-    const voiceBtn = document.getElementById('voiceBtn');
 
     // Send message
     if (sendButton) {
@@ -281,7 +192,7 @@ function setupEventListeners() {
         newChatBtn.addEventListener('click', () => createNewChat());
     }
 
-    // File attachment (✅ null-safe)
+    // File attachment
     if (attachBtn && fileInput) {
         attachBtn.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', handleFileSelect);
@@ -290,10 +201,20 @@ function setupEventListeners() {
         if (!fileInput) console.warn('[UI] fileInput not found - file attach disabled on this page');
     }
 
-    // Voice input
-    if (voiceBtn) {
-        voiceBtn.addEventListener('click', handleVoiceInput);
-    }
+    const actions = [
+        ['clearChatsBtn', () => clearAllChats()],
+        ['settingsBtn', () => window.openSettings?.()],
+        ['upgradeBtnSidebar', () => window.showUpgradePrompt?.()],
+        ['imageQuickAction', () => window.triggerImageGeneration?.()],
+        ['searchQuickAction', () => window.triggerWebSearch?.()],
+        ['codeQuickAction', () => window.triggerCodeHelp?.()],
+        ['closeSettingsBtn', () => window.closeSettings?.()],
+        ['saveSettingsBtn', () => window.saveSettings?.()],
+        ['signOutBtn', () => window.logoutUser?.()],
+        ['devicesBtn', () => window.openDevices?.()],
+        ['deleteAccountBtn', () => window.openDeleteAccountDialog?.()],
+    ];
+    actions.forEach(([id, handler]) => document.getElementById(id)?.addEventListener('click', handler));
 }
 
 function setupSidebarToggle() {
@@ -322,140 +243,127 @@ function setupSidebarToggle() {
     }
 }
 
-// ==========================================
-// CHAT MANAGEMENT
-// ==========================================
+// Chat Management
 function loadChats() {
+    let local = [];
     try {
-        const saved = SafeStorage.getItem(STORAGE_KEYS.CHATS);
-        if (saved) {
-            try {
-                chats = JSON.parse(saved);
-                window.chats = chats;
-            } catch (e) {
-                console.error('Failed to parse chats:', e);
-                chats = [];
-                window.chats = chats;
-            }
-        }
-    } catch (storageError) {
-        console.warn('⚠️ localStorage unavailable (private browsing?)');
-        chats = [];
-        window.chats = chats;
+        local = JSON.parse(SafeStorage.getItem(STORAGE_KEYS.CHATS) || '[]');
+    } catch (error) {
+        console.warn('[Chats] Ignoring corrupt local cache:', error);
     }
+    const prefetched = Array.isArray(window.__crumpSyncData?.chats)
+        ? window.__crumpSyncData.chats
+        : [];
+    const source = prefetched.length ? prefetched : local;
+    chats = source.filter(chat => !(chat?.deleted_at || chat?.deletedAt)).map(normalizeLocalChat).sort((a, b) => asTimestamp(b.updatedAt) - asTimestamp(a.updatedAt));
+    window.chats = chats;
+    SafeStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
     renderChatsList();
 }
 
-function saveChats() {
+function saveChats({ sync = true } = {}) {
+    chats = chats.map(normalizeLocalChat);
+    window.chats = chats;
     SafeStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
-    
-    // Sync to server (debounced)
-    if (typeof window.syncChatsToServer === 'function' && window.currentUser) {
+    if (sync && typeof window.syncChatsToServer === 'function' && window.currentUser) {
         clearTimeout(window.syncDebounceTimer);
-        window.syncDebounceTimer = setTimeout(() => {
-            window.syncChatsToServer();
-        }, 2000); // Wait 2 seconds after last save
+        window.syncDebounceTimer = setTimeout(() => window.syncChatsToServer(), 500);
     }
 }
 window.saveChats = saveChats;
 
-// ==========================================
-// CHAT SYNC HELPERS (Supabase-backed)
-// ==========================================
+window.replaceChats = function replaceChats(nextChats) {
+    const activeId = currentChatId;
+    chats = (Array.isArray(nextChats) ? nextChats : []).map(normalizeLocalChat)
+        .sort((a, b) => asTimestamp(b.updatedAt) - asTimestamp(a.updatedAt));
+    window.chats = chats;
+    SafeStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
+    renderChatsList();
+    const preferred = chats.find(chat => chat.id === activeId) || chats[0];
+    if (preferred) {
+        currentChatId = preferred.id;
+        window.currentChatId = currentChatId;
+        SafeStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, currentChatId);
+        window.renderMessages?.(preferred.messages);
+    } else {
+        currentChatId = null;
+        window.currentChatId = null;
+        SafeStorage.removeItem(STORAGE_KEYS.CURRENT_CHAT);
+        window.renderMessages?.([]);
+    }
+};
 
 function createNewChat() {
+    const now = new Date().toISOString();
+    const id = crypto.randomUUID();
     const chat = {
-        id: 'chat_' + Date.now(),
+        id,
+        chat_id: id,
         title: 'New Conversation',
         messages: [],
-        createdAt: Date.now(),
-        updatedAt: Date.now()
+        createdAt: now,
+        updatedAt: now,
+        revision: 1,
     };
-
     chats.unshift(chat);
-    currentChatId = chat.id;
-    window.currentChatId = currentChatId;
-
-    // CRITICAL FIX: Reset image generation state for new chat
-if (window.resetImageGenerationState) {
-    window.resetImageGenerationState();
-    console.log('🔄 Image generation state reset for new chat');
-}
-
+    currentChatId = id;
+    window.currentChatId = id;
     saveChats();
-    SafeStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, currentChatId);
-
-   renderChatsList();
-if (window.renderMessages) {
-    window.renderMessages([]);
-} else {
-    legacyRenderMessages([]);
-}
-
-
-    document.getElementById('userInput').value = '';
-    document.getElementById('userInput').focus();
-
-    console.log('✅ New chat created:', chat.id);
+    SafeStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, id);
+    renderChatsList();
+    window.renderMessages?.([]);
+    const input = document.getElementById('userInput');
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
 }
 
 function loadChat(chatId) {
-    const chat = chats.find(c => c.id === chatId);
+    const chat = chats.find(item => item.id === chatId);
     if (!chat) return;
-
     currentChatId = chatId;
-    window.currentChatId = currentChatId;
+    window.currentChatId = chatId;
     SafeStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, chatId);
-
-    // CRITICAL FIX: Reset image generation state when switching chats
-if (window.resetImageGenerationState) {
-    window.resetImageGenerationState();
-    console.log('🔄 Image generation state reset for new chat');
-}
-
-   renderChatsList();
-if (window.renderMessages) {
-    window.renderMessages(chat.messages);
-} else {
-    legacyRenderMessages(chat.messages);
-}
-
-
-    console.log('📖 Chat loaded:', chatId);
+    renderChatsList();
+    window.renderMessages?.(chat.messages);
 }
 
 function getChat(chatId) {
-    return chats.find(c => c.id === chatId);
+    return chats.find(chat => chat.id === chatId);
 }
 
-function deleteChat(chatId) {
-    if (!confirm('Delete this conversation?')) return;
-
-    chats = chats.filter(c => c.id !== chatId);
-    window.chats = chats;
+async function deleteChat(chatId) {
+    const accepted = await window.confirmAction?.({
+        title: 'Delete conversation?',
+        message: 'This removes the conversation from every signed-in device. This action cannot be undone.',
+        confirmLabel: 'Delete',
+        destructive: true,
+    });
+    if (!accepted) return;
+    window.recordChatDeletion?.(chatId);
+    chats = chats.filter(chat => chat.id !== chatId);
     saveChats();
-
     if (currentChatId === chatId) {
-        if (chats.length > 0) {
-            loadChat(chats[0].id);
-        } else {
-            createNewChat();
-        }
+        if (chats.length) loadChat(chats[0].id);
+        else createNewChat();
     }
-
     renderChatsList();
-    console.log('🗑️ Chat deleted:', chatId);
 }
 window.deleteChat = deleteChat;
 
-function clearAllChats() {
-    if (!confirm('Clear all conversations? This cannot be undone.')) return;
-
+async function clearAllChats() {
+    const accepted = await window.confirmAction?.({
+        title: 'Clear all conversations?',
+        message: 'Every conversation will be removed from your account and signed-in devices. This action cannot be undone.',
+        confirmLabel: 'Clear conversations',
+        destructive: true,
+    });
+    if (!accepted) return;
+    chats.forEach(chat => window.recordChatDeletion?.(chat.id));
     chats = [];
-    window.chats = chats;
     saveChats();
     createNewChat();
-
     showToast('All conversations cleared', 'success');
 }
 window.clearAllChats = clearAllChats;
@@ -463,1024 +371,432 @@ window.clearAllChats = clearAllChats;
 function renderChatsList() {
     const chatsList = document.getElementById('chatsList');
     if (!chatsList) return;
-    
-    chatsList.innerHTML = chats.map(chat => `
-        <div class="chat-item ${chat.id === currentChatId ? 'active' : ''}" onclick="loadChat('${chat.id}')">
-            <div class="chat-item-content">
-                <div class="chat-title">${escapeHtml(chat.title)}</div>
-                <div class="chat-preview">${chat.messages.length} messages</div>
-            </div>
-            <button class="delete-chat-btn" onclick="event.stopPropagation(); deleteChat('${chat.id}')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
-                </svg>
-            </button>
-        </div>
-    `).join('');
-}
-
-// ==========================================
-// MESSAGE RENDERING (LEGACY - fallback only)
-// ==========================================
-function legacyRenderMessages(messages) {
-    const container = document.getElementById('chatContainer');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    messages.forEach((msg, index) => {
-        const messageEl = legacyCreateMessageElement(msg, index);
-        container.appendChild(messageEl);
-    });
-    
-    // Scroll to bottom after render
-    setTimeout(() => {
-        if (window.crumpScrollManager) {
-            window.crumpScrollManager.scrollToBottom(true);
-        } else {
-            container.scrollTop = container.scrollHeight;
-        }
-    }, 100);
-}
-
-
-function legacyCreateMessageElement(msg, index) {
-    const div = document.createElement('div');
-    div.className = `message ${msg.role}`;
-    div.dataset.index = index;
-    
-    const avatar = document.createElement('div');
-    avatar.className = 'message-avatar';
-    
-    if (msg.role === 'user') {
-        const initial = currentProfile?.profile?.initial || localStorage.getItem(STORAGE_KEYS.USER_INITIAL) || 'U';
-        avatar.textContent = initial;
-    } else {
-        avatar.innerHTML = '<img src="/assets/logo-c.png" alt="Assistant" style="width: 100%; height: 100%; object-fit: contain;">';
-    }
-    
-    const content = document.createElement('div');
-    content.className = 'message-content';
-    
-    // Handle uploaded images (from user fileData)
-    if (msg.fileData && Array.isArray(msg.fileData) && msg.fileData.length > 0) {
-        msg.fileData.forEach(file => {
-            if (file.type && file.type.startsWith('image/') && file.data) {
-                const img = document.createElement('img');
-                img.src = file.data;
-                img.style.cssText = 'max-width: 300px; border-radius: 8px; margin-bottom: 0.5rem; display: block;';
-                img.alt = file.name || 'Uploaded image';
-                content.appendChild(img);
-            }
+    const fragment = document.createDocumentFragment();
+    chats.forEach(chat => {
+        const item = document.createElement('div');
+        item.className = `chat-item ${chat.id === currentChatId ? 'active' : ''}`;
+        item.tabIndex = 0;
+        item.setAttribute('role', 'button');
+        item.addEventListener('click', () => loadChat(chat.id));
+        item.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); loadChat(chat.id); }
         });
-    }
-    
-    // Handle old imageData format (backward compatibility)
-    if (msg.imageData) {
-        const img = document.createElement('img');
-        img.src = msg.imageData;
-        img.style.maxWidth = '300px';
-        img.style.borderRadius = '8px';
-        img.style.marginBottom = '0.5rem';
-        content.appendChild(img);
-    }
-    
-    const text = document.createElement('div');
-    text.className = 'message-text';
-    
-    if (msg.role === 'assistant' && window.renderMarkdown) {
-        text.innerHTML = window.renderMarkdown(msg.content);
-    } else {
-        text.textContent = msg.content;
-    }
-    
-    content.appendChild(text);
 
-   // Handle generated images with better error feedback and loading states
-    if (msg.imageUrl) {
-        const imgWrapper = document.createElement('div');
-        imgWrapper.className = 'generated-image-wrapper';
-        imgWrapper.style.cssText = 'margin-top: 0.5rem; position: relative;';
-        
-        // Add loading indicator
-        const loadingDiv = document.createElement('div');
-        loadingDiv.className = 'image-loading';
-        loadingDiv.textContent = 'Loading image...';
-        loadingDiv.style.cssText = 'padding: 2rem; background: var(--color-surface); border-radius: 8px; text-align: center; color: var(--color-text-secondary);';
-        imgWrapper.appendChild(loadingDiv);
-        
-        const img = document.createElement('img');
-        img.style.cssText = 'max-width: 100%; border-radius: 8px; display: none;';
-        img.alt = 'Generated image';
-        img.crossOrigin = 'anonymous'; // CORS fix
-        
-        img.onload = function() {
-            loadingDiv.remove();
-            this.style.display = 'block';
-            console.log('✅ Image rendered successfully');
-        };
-        
-        img.onerror = function() {
-            loadingDiv.innerHTML = `
-                <div style="color: var(--color-error); padding: 1rem;">
-                    ❌ Image failed to load
-                    <br><small>This may be a temporary issue with the image service.</small>
-                    <br><button onclick="location.reload()" style="margin-top: 0.5rem; padding: 0.5rem 1rem; cursor: pointer; background: var(--color-primary); color: white; border: none; border-radius: 4px;">Retry</button>
-                </div>
-            `;
-        };
-        
-        img.src = msg.imageUrl;
-        imgWrapper.appendChild(img);
-        content.appendChild(imgWrapper);
-    }
-    
-    div.appendChild(avatar);
-    div.appendChild(content);
-    
-    // Add speak button for assistant messages
-    if (msg.role === 'assistant') {
-        const speakBtn = document.createElement('button');
-        speakBtn.className = 'speak-btn';
-        speakBtn.innerHTML = '🔊';
-        speakBtn.title = 'Read aloud';
-        speakBtn.style.cssText = `
-            position: absolute;
-            top: 0.5rem;
-            right: 0.5rem;
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
-            border-radius: 6px;
-            padding: 0.5rem;
-            cursor: pointer;
-            font-size: 1rem;
-            opacity: 0;
-            transition: opacity 0.2s;
-        `;
-        speakBtn.onclick = () => window.speakText(msg.content);
-        div.style.position = 'relative';
-        div.appendChild(speakBtn);
-        
-        // Show button on hover
-        div.onmouseenter = () => speakBtn.style.opacity = '1';
-        div.onmouseleave = () => speakBtn.style.opacity = '0';
-    }
-    
-    return div;
+        const content = document.createElement('div');
+        content.className = 'chat-item-content';
+        const title = document.createElement('div');
+        title.className = 'chat-title';
+        title.textContent = chat.title || 'New conversation';
+        const preview = document.createElement('div');
+        preview.className = 'chat-preview';
+        preview.textContent = `${chat.messages.length} messages`;
+        content.append(title, preview);
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'delete-chat-btn';
+        button.setAttribute('aria-label', 'Delete conversation');
+        button.textContent = '×';
+        button.addEventListener('click', event => { event.stopPropagation(); deleteChat(chat.id); });
+        item.append(content, button);
+        fragment.appendChild(item);
+    });
+    chatsList.replaceChildren(fragment);
+}
+window.renderChatsList = renderChatsList;
+window.loadChat = loadChat;
+window.createNewChat = createNewChat;
+
+// Message delivery and response lifecycle.
+function messageId() {
+    return crypto.randomUUID?.() || `${Date.now()}-${crypto.getRandomValues(new Uint32Array(2)).join('-')}`;
 }
 
-// ==========================================
-// SEND MESSAGE (CRITICAL FUNCTION)
-// ==========================================
+function updateMessageState(chat, message, changes, { touch = true } = {}) {
+    Object.assign(message, changes, { deliveryUpdatedAt: new Date().toISOString() });
+    if (touch) touchChat(chat);
+    saveChats();
+    window.renderMessages?.(chat.messages);
+}
+
+function checkInBeingAnswered(chat, userMessage) {
+    const index = chat.messages.indexOf(userMessage);
+    for (let position = index - 1; position >= 0; position -= 1) {
+        const previous = chat.messages[position];
+        if (previous?.role === 'user') return null;
+        if (previous?.role === 'assistant' && previous?.origin === 'check_in' && previous?.checkInId) {
+            return previous.checkInId;
+        }
+    }
+    return null;
+}
+
+async function ensureUsageAvailable() {
+    const usageResponse = await fetch('/api/usage/check');
+    if (usageResponse.status === 401) throw new Error('Your session expired. Please sign in again.');
+    const usageData = await usageResponse.json().catch(() => ({}));
+    if (usageResponse.ok && usageData.limits?.messages !== -1 && usageData.usage?.messages >= usageData.limits?.messages) {
+        window.showUpgradePrompt?.();
+        throw new Error('Your daily message limit has been reached.');
+    }
+}
+
+async function processUserMessage(chat, userMessage, attachment = null) {
+    if (!navigator.onLine || window.CrumpPresence?.online === false) {
+        updateMessageState(chat, userMessage, { deliveryStatus: 'queued', replyStatus: 'pending' });
+        throw Object.assign(new Error('This message is waiting for a connection.'), { quiet: true });
+    }
+
+    const syncResult = await window.syncChatsToServer?.();
+    if (syncResult && syncResult.success === false) {
+        updateMessageState(chat, userMessage, { deliveryStatus: 'queued', replyStatus: 'pending' });
+        throw Object.assign(new Error('This message is waiting to sync.'), { quiet: true });
+    }
+    updateMessageState(chat, userMessage, { deliveryStatus: 'delivered', replyStatus: 'pending' });
+    window.CrumpPresence?.haptic?.('light');
+
+    const ackResponse = await fetch('/api/chat/ack', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chatId: chat.id,
+            messageId: userMessage.id,
+            message: userMessage.content || '',
+            fileTypes: (userMessage.files || []).map(file => file.type),
+        }),
+    });
+    const ackData = await ackResponse.json().catch(() => ({}));
+    if (!ackResponse.ok) throw new Error(ackData.error || 'Crump could not receive the message.');
+    updateMessageState(chat, userMessage, {
+        deliveryStatus: 'seen',
+        deliveredAt: ackData.deliveredAt,
+        seenAt: ackData.seenAt,
+        replyStatus: 'processing',
+        replyError: null,
+    });
+    window.CrumpPresence?.start?.(ackData.activity || 'thinking');
+
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const requestBody = {
+        chatId: chat.id,
+        messageId: userMessage.id,
+        message: userMessage.content || '',
+        history: chat.messages.map(item => ({ role: item.role, content: item.content })),
+        currentDateTime: {
+            iso: new Date().toISOString(),
+            timezone: timeZone,
+            date: new Date().toLocaleDateString('en-US', { dateStyle: 'full', timeZone }),
+            time: new Date().toLocaleTimeString('en-US', { timeStyle: 'medium', timeZone }),
+        },
+        replyToCheckInId: checkInBeingAnswered(chat, userMessage),
+    };
+    if (attachment) requestBody.fileData = [attachment];
+
+    let response;
+    let data = {};
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+        response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+        });
+        data = await response.json().catch(() => ({}));
+        if (response.ok) break;
+        if (!(data.shouldRetry && attempt === 0)) break;
+        const retryAfter = Math.min(30, Math.max(1, Number(data.retryAfter || 5)));
+        window.CrumpPresence?.update?.('thinking');
+        await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+    }
+
+    if (!response?.ok) {
+        if (response?.status === 401) window.deviceAuth?.clearLocalState?.();
+        if (data.upgradeRequired) window.showUpgradePrompt?.();
+        throw new Error(data.message || data.error || `Request failed (${response?.status || 'network'})`);
+    }
+
+    const assistantMessage = {
+        id: messageId(),
+        role: 'assistant',
+        content: data.response || '',
+        timestamp: new Date().toISOString(),
+        origin: 'reply',
+        inReplyTo: userMessage.id,
+    };
+    if (data.imageUrl) {
+        assistantMessage.imageUrl = data.imageUrl;
+        assistantMessage.imagePrompt = data.imagePrompt;
+    }
+    chat.messages.push(assistantMessage);
+    userMessage.replyStatus = 'replied';
+    userMessage.replyError = null;
+    touchChat(chat);
+    saveChats();
+    window.CrumpPresence?.stop?.();
+    window.renderMessages?.(chat.messages);
+    renderChatsList();
+    window.CrumpPresence?.haptic?.('success');
+    window.syncChatsToServer?.();
+    setTimeout(safeScrollToBottom, 80);
+}
+
 async function sendMessage() {
     if (isProcessing) return;
-
     const userInput = document.getElementById('userInput');
-    const message = userInput.value.trim();
-
+    const message = userInput?.value.trim() || '';
     if (!message && selectedFiles.length === 0) return;
+    const chat = chats.find(item => item.id === currentChatId);
+    if (!chat) return;
+    isProcessing = true;
+    let userMessage = null;
 
-    // ✅ CHECK SERVER-SIDE USAGE BEFORE SENDING
-if (window.currentUser && window.currentUser.id) {
     try {
-        const checkResponse = await fetch(`/api/usage/check?userId=${window.currentUser.id}`);
-        const checkData = await checkResponse.json();
-
-        if (checkData.success) {
-            const { usage, limits } = checkData;
-
-            // Check if over limit
-            if (limits.messages !== -1 && usage.messages >= limits.messages) {
-                if (typeof showToast === 'function') {
-                    showToast(
-                        `Message limit reached (${usage.messages}/${limits.messages}). Upgrade to continue.`,
-                        'error'
-                    );
-                }
-                if (typeof showUpgradePrompt === 'function') {
-                    showUpgradePrompt();
-                }
-                return;
-            }
-        }
-    } catch (error) {
-        console.warn('[Usage Check Failed]', error);
-        // Continue anyway - don't block on check failure
-    }
-}
-
-    // Enforce plan message limits before sending
-    if (window.currentProfile && typeof window.currentProfile.canSendMessage === 'function') {
-        const canSend = window.currentProfile.canSendMessage();
-
-        if (!canSend.allowed) {
-            if (window.showToast) {
-                window.showToast(
-                    canSend.message || 'Message limit reached for your current plan',
-                    'error'
-                );
-            }
-            if (typeof window.showUpgradePrompt === 'function') {
-                setTimeout(() => window.showUpgradePrompt(), 300);
-            }
-            return;
+        await ensureUsageAvailable();
+        let attachment = null;
+        if (selectedFiles.length) {
+            const file = selectedFiles[0];
+            attachment = { type: file.type, name: file.name, data: await readFileAsBase64(file) };
         }
 
-        if (canSend.warning && window.showToast) {
-            window.showToast(canSend.warning, 'warning');
-        }
-    }
-
-    const chat = chats.find(c => c.id === currentChatId);
-    if (!chat) {
-        console.error('No active chat');
-        return;
-    }
-
-
-    // ========================================
-    // CONSCIOUSNESS COMMAND DETECTION (NEW)
-    // ========================================
-    if (window.isConsciousnessCommand && window.isConsciousnessCommand(message)) {
-        console.log('🧠 Consciousness command detected');
-        
-        const consciousness = new window.ConsciousnessIntegration();
-        const result = consciousness.handleConsciousnessCommand(message);
-        
-        // Add user message
-        chat.messages.push({
+        userMessage = {
+            id: messageId(),
             role: 'user',
             content: message,
-            timestamp: Date.now()
-        });
-        
-        // Add consciousness response
-        chat.messages.push({
-            role: 'assistant',
-            content: result.message,
-            timestamp: Date.now()
-        });
-        
-        // Update UI
-saveChats();
-if (window.renderMessages) {
-    window.renderMessages(chat.messages);
-} else {
-    legacyRenderMessages(chat.messages);
-}
-
-        
-        // Clear input
-        userInput.value = '';
-        userInput.style.height = 'auto';
-        
-        // Exit early - don't process as normal message
-        return;
-    }
-    // ========================================
-    // END CONSCIOUSNESS COMMAND DETECTION
-    // ========================================
-    
-    isProcessing = true;
-    
-    try {
-        // Create user message
-        const userMessage = {
-            role: 'user',
-            content: message || '',
-            timestamp: Date.now()
+            timestamp: new Date().toISOString(),
+            deliveryStatus: 'sending',
+            replyStatus: 'pending',
         };
-        
-        // Handle file attachment FIRST (before clearing)
-        let fileData = null;
-        let fileType = null;
-        let fileName = null;
-        
-        if (selectedFiles.length > 0) {
-            const file = selectedFiles[0];
-            console.log('📎 Processing file:', file.name, file.type, file.size);
-            fileData = await readFileAsBase64(file);
-            fileType = file.type;
-            fileName = file.name;
-            console.log('✅ File data captured:', fileType, fileName);
-        }
-        
-        // CRITICAL FIX: Always use array structure, even for single file
-        if (fileData && fileType) {
-            userMessage.fileData = [{
-                type: fileType,
-                data: fileData,
-                name: fileName
-            }];
-        }
-        
-             // Add user message to chat
+        if (attachment) userMessage.files = [{ type: attachment.type, name: attachment.name }];
         chat.messages.push(userMessage);
-        
-        // ✅ INTELLIGENCE CORE: Dispatch sent event
-        window.dispatchEvent(new CustomEvent('crump:message:sent', {
-            detail: {
-                message: message,
-                chatId: currentChatId,
-                timestamp: Date.now()
-            }
-        }));
-        
+        touchChat(chat);
+        if (chat.messages.length === 1 && message) chat.title = message.slice(0, 50) + (message.length > 50 ? '…' : '');
         saveChats();
-        
-        // Track message usage against current plan
-        if (window.currentProfile && typeof window.currentProfile.incrementUsage === 'function') {
-            try {
-                window.currentProfile.incrementUsage('messages');
-            } catch (e) {
-                console.warn('[App] Failed to increment message usage:', e);
-            }
-        }
+        window.renderMessages?.(chat.messages);
+        renderChatsList();
 
-if (window.renderMessages) {
-    window.renderMessages(chat.messages);
-} else {
-    legacyRenderMessages(chat.messages);
-}
-
-        
-        // Scroll to user's message immediately
-        setTimeout(() => {
-            if (window.crumpScrollManager) {
-                window.crumpScrollManager.scrollToBottom('auto');
-            }
-        }, 100);
-        
-        // Show read receipt on user's message
-        setTimeout(() => {
-            const messages = document.querySelectorAll('.message.user');
-            const lastUserMessage = messages[messages.length - 1];
-            if (lastUserMessage) {
-                showReadReceipt(lastUserMessage);
-            }
-        }, 300);
-        
-        // Clear input and files
         userInput.value = '';
         userInput.style.height = 'auto';
-
-        // CRITICAL FIX: Reset file input element
         const fileInput = document.getElementById('fileInput');
-        if (fileInput) {
-            fileInput.value = '';
-            console.log('🧹 File input reset');
-        }
-
+        if (fileInput) fileInput.value = '';
         selectedFiles = [];
         displayFilePreview();
-        
-        // Show thinking
-        showThinking();
-        setAssistantState('thinking');
-        
-        // Detect if search is needed
-        let needsSearch = false;
-        if (window.searchDetectionEngine) {
-            needsSearch = window.searchDetectionEngine.needsSearch(message);
-        }
-        
-        // Detect if weather is needed
-        let needsWeather = false;
-        if (window.weatherDetectionEngine) {
-            needsWeather = window.weatherDetectionEngine.needsWeather(message);
-        }
 
-        // Prepare request with accurate time awareness
-        const timeInfo = window.timeAwareness ? window.timeAwareness.getCurrentDateTime() : null;
-        
-        // ✅ INTELLIGENCE CORE: Get relevant context from memory
-        let relevantContext = null;
-        if (window.intelligenceCore && window.intelligenceCore.isInitialized) {
-            relevantContext = window.intelligenceCore.getContextForMessage(message);
-            if (relevantContext && relevantContext.length > 0) {
-                console.log('🧵 Found related context:', relevantContext);
-            }
-        }
-        
-       const requestBody = {
-            message: message,
-            history: chat.messages.map(m => ({
-                role: m.role,
-                content: m.content
-            })),
-            relevantContext: relevantContext,
-            currentDateTime: timeInfo ? {
-                date: timeInfo.date,
-                time: timeInfo.time,
-                timezone: timeInfo.timezone,
-                timezoneAbbr: timeInfo.timezoneAbbr,
-                dayOfWeek: timeInfo.dayOfWeek,
-                period: timeInfo.period,
-                hour: timeInfo.hour,
-                iso: timeInfo.iso,
-                timestamp: timeInfo.timestamp,
-                fullContext: timeInfo.fullContext
-            } : {
-                date: new Date().toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric',
-                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-                }),
-                time: new Date().toLocaleTimeString('en-US', { 
-                    hour: 'numeric', 
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: true,
-                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-                }),
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                iso: new Date().toISOString(),
-                timestamp: Date.now()
-            },
-            needsSearch: needsSearch,
-            needsWeather: needsWeather,
-            workMode: localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true' ? 'work' : 'companion',
-            universalMemory: window.universalMemory || {},
-            
-            // PASS USER DATA FOR CRUMP TO KNOW WHO'S TALKING
-            user: window.currentUser ? {
-                id: window.currentUser.id,
-                email: window.currentUser.email,
-                name: window.currentUser.fullName || window.currentUser.email.split('@')[0]
-            } : null,
-            
-            // CHECK FOR RECENT UPGRADE
-            recentUpgrade: (() => {
-                const upgradeStr = localStorage.getItem('crump_recent_upgrade');
-                if (!upgradeStr) return null;
-                
-                const upgrade = JSON.parse(upgradeStr);
-                const ageMinutes = (Date.now() - upgrade.timestamp) / 60000;
-                
-                if (ageMinutes < 10) {
-                    localStorage.removeItem('crump_recent_upgrade');
-                    return upgrade;
-                }
-                
-                localStorage.removeItem('crump_recent_upgrade');
-                return null;
-            })(),
-            
-            // PASS RECENT CHANGES FOR ACKNOWLEDGMENT
-            recentChanges: (() => {
-                const changesStr = localStorage.getItem('crump_recent_changes');
-                if (!changesStr) return null;
-                
-                const changes = JSON.parse(changesStr);
-                const ageMinutes = (Date.now() - changes.timestamp) / 60000;
-                
-                if (ageMinutes < 5) {
-                    localStorage.removeItem('crump_recent_changes');
-                    return changes;
-                }
-                
-                localStorage.removeItem('crump_recent_changes');
-                return null;
-            })()
-        };
-        
-        // Add file data if present
-        if (fileData && fileType) {
-            console.log('📤 Sending file to API:', fileType, fileName);
-            
-            let cleanBase64 = fileData;
-            if (fileData.includes(',')) {
-                cleanBase64 = fileData.split(',')[1];
-                console.log('✂️ Stripped data URL prefix, clean base64 ready');
-            }
-            
-            requestBody.fileData = [{
-                type: fileType,
-                data: `data:${fileType};base64,${cleanBase64}`,
-                name: fileName
-            }];
-            
-            console.log('✅ File data formatted for API:', fileType, fileName, `${cleanBase64.substring(0, 50)}...`);
-        }
-        
-        // Call API
-const response = await fetch('/api/chat', {
-    method: 'POST',
-    credentials: 'include',
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(requestBody)
-});
-
-// ✅ Always try to parse JSON (even on non-200)
-let data = {};
-try {
-    data = await response.json();
-} catch (e) {
-    data = {};
-}
-
-// ⭐ AUTO-RETRY LOGIC (now reachable)
-if (!response.ok && data && data.shouldRetry) {
-    const retryAfter = data.retryAfter || 10;
-    console.log(`🔄 Error ${data.code || response.status}, retrying in ${retryAfter}s...`);
-
-    const retryMessage = document.createElement('div');
-    retryMessage.className = 'message assistant-message';
-    retryMessage.innerHTML = `<div class="message-content">⚠️ ${data.message || 'Temporary error.'} Retrying in ${retryAfter} seconds...</div>`;
-
-    const container = getChatContainerEl();
-    if (container) container.appendChild(retryMessage);
-    safeScrollToBottom();
-
-    await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-
-    retryMessage.remove();
-
-    // Retry the request (recursive)
-    return sendMessage();
-}
-
-// If error and no retry, throw
-if (!response.ok) {
-    throw new Error(data.message || data.error || `API error: ${response.status}`);
-}
-
-        console.log('📥 API Response:', {
-            hasResponse: !!data.response,
-            hasImage: !!data.imageUrl,
-            model: data.model,
-            responseLength: data.response?.length
-        });
-        
-        // Add assistant response
-        const assistantMessage = {
-            role: 'assistant',
-            content: data.response,
-            timestamp: Date.now()
-        };
-        
-        // Add image data if present
-        if (data.imageUrl) {
-            console.log('🎨 Response includes generated image');
-            assistantMessage.imageUrl = data.imageUrl;
-            assistantMessage.imagePrompt = data.imagePrompt;
-        }
-        
-        chat.messages.push(assistantMessage);
-        
-        // ✅ INTELLIGENCE CORE: Dispatch received event
-        window.dispatchEvent(new CustomEvent('crump:message:received', {
-            detail: {
-                message: data.response,
-                chatId: currentChatId,
-                timestamp: Date.now()
-            }
-        }));
-        
-        chat.updatedAt = Date.now();
-        
-        // Update chat title if first exchange
-        if (chat.messages.length <= 2 && message) {
-            chat.title = message.substring(0, 50) + (message.length > 50 ? '...' : '');
-        }
-        
-        saveChats();
-        
-       // Server sync handled by saveChats() debounce to prevent double-sync
-
-if (window.renderMessages) {
-    window.renderMessages(chat.messages);
-} else {
-    legacyRenderMessages(chat.messages);
-}
-renderChatsList();
-
-
-        // Notify autonomous system that user sent a message
-        if (window.autonomousMessaging) {
-            window.autonomousMessaging.onUserResponse(message);
-            
-            // Check if this is a response to an autonomous message
-            const lastAssistantMsg = chat.messages.slice().reverse().find(m => m.role === 'assistant' && m.autonomous);
-            if (lastAssistantMsg) {
-                // User is responding to Crump's autonomous message - record the response
-                window.autonomousMessaging.recordAutonomousMessage(lastAssistantMsg.content, message);
-            }
-        }
-        
-        // Track sentiment and context
-        if (window.sentimentAnalyzer && window.contextTracker && message) {
-            // Analyze emotional state
-            const sentiment = window.sentimentAnalyzer.analyze(message);
-            window.sentimentAnalyzer.trackEmotionHistory(sentiment);
-            
-            // Track activity and topics
-            window.contextTracker.recordActivity('message');
-            window.contextTracker.trackTopics(message);
-            
-            // Sync to universalMemory
-            if (!window.universalMemory) {
-                window.universalMemory = {};
-            }
-            window.universalMemory.sentimentState = sentiment;
-            window.universalMemory.contextSummary = window.contextTracker.getContextSummary();
-            
-            console.log('📊 Sentiment:', sentiment.emotion, '| Confidence:', sentiment.confidence.toFixed(2));
-        }
-        
-        // Scroll to show new assistant message
-        setTimeout(() => {
-            if (window.crumpScrollManager) {
-                window.crumpScrollManager.scrollToBottom('smooth');
-            } else {
-                const container = document.getElementById('chatContainer');
-                if (container) {
-                    container.scrollTop = container.scrollHeight;
-                }
-            }
-        }, 200);  
-        
-        // Hide thinking
-        hideThinking();
-        setAssistantState('idle');
-        
+        await processUserMessage(chat, userMessage, attachment);
     } catch (error) {
-        console.error('Error sending message:', error);
-        hideThinking();
-        setAssistantState('idle');
-        showToast('Failed to send message: ' + error.message, 'error');
+        console.error('[Chat]', error);
+        window.CrumpPresence?.stop?.();
+        if (userMessage) {
+            if (error.quiet) {
+                updateMessageState(chat, userMessage, {
+                    deliveryStatus: 'queued',
+                    replyStatus: 'pending',
+                    replyError: null,
+                });
+            } else {
+                const state = userMessage.deliveryStatus === 'sending' ? 'failed' : userMessage.deliveryStatus;
+                updateMessageState(chat, userMessage, {
+                    deliveryStatus: state,
+                    replyStatus: state === 'failed' ? 'pending' : 'failed',
+                    replyError: error.message || 'Reply failed.',
+                });
+                window.CrumpPresence?.haptic?.('error');
+                showToast(error.message || 'Failed to send message.', 'error');
+            }
+        }
     } finally {
         isProcessing = false;
     }
 }
+
+window.retryMessage = async function retryMessage(id) {
+    if (isProcessing || !id) return;
+    const chat = chats.find(item => item.id === currentChatId);
+    const message = chat?.messages.find(item => item.id === id && item.role === 'user');
+    if (!chat || !message) return;
+    if (message.files?.length) {
+        showToast('Reattach the file before retrying this message.', 'warning');
+        return;
+    }
+    isProcessing = true;
+    try {
+        await ensureUsageAvailable();
+        updateMessageState(chat, message, { deliveryStatus: 'sending', replyStatus: 'pending', replyError: null });
+        await processUserMessage(chat, message, null);
+    } catch (error) {
+        console.error('[Chat retry]', error);
+        window.CrumpPresence?.stop?.();
+        if (error.quiet) {
+            updateMessageState(chat, message, {
+                deliveryStatus: 'queued',
+                replyStatus: 'pending',
+                replyError: null,
+            });
+        } else {
+            updateMessageState(chat, message, {
+                deliveryStatus: message.deliveryStatus === 'sending' ? 'failed' : message.deliveryStatus,
+                replyStatus: message.deliveryStatus === 'sending' ? 'pending' : 'failed',
+                replyError: error.message || 'Reply failed.',
+            });
+            window.CrumpPresence?.haptic?.('error');
+            showToast(error.message || 'Retry failed.', 'error');
+        }
+    } finally {
+        isProcessing = false;
+    }
+};
 window.sendMessage = sendMessage;
 
-function readFileAsBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
+async function readFileAsBase64(file) {
+    if (!file.type.startsWith('image/') || (file.size <= 2.5 * 1024 * 1024 && !file.type.includes('heic'))) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+    try {
+        const bitmap = await createImageBitmap(file);
+        const scale = Math.min(1, 2048 / Math.max(bitmap.width, bitmap.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        canvas.getContext('2d', { alpha: false }).drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        bitmap.close?.();
+        return canvas.toDataURL('image/jpeg', 0.84);
+    } catch (_) {
+        if (file.size > 3 * 1024 * 1024) throw new Error('This image could not be compressed. Choose an image smaller than 3 MB.');
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
 }
 
-// ==========================================
-// FILE HANDLING
-// ==========================================
+// File Handling
 function handleFileSelect(e) {
-    const files = Array.from(e.target.files);
-    selectedFiles = files;
-    displayFilePreview();
+    const file = Array.from(e.target.files || [])[0];
     e.target.value = '';
+    if (!file) return;
+    const supported = file.type.startsWith('image/') || file.type === 'application/pdf';
+    if (!supported) {
+        showToast('Ask Crump currently supports images and PDF attachments.', 'error');
+        return;
+    }
+    if (file.type === 'application/pdf' && file.size > 3 * 1024 * 1024) {
+        showToast('PDF attachments must be 3 MB or smaller.', 'error');
+        return;
+    }
+    selectedFiles = [file];
+    displayFilePreview();
+}
+
+function fileTypeLabel(file) {
+    const name = file.name.toLowerCase();
+    if (file.type.startsWith('image/')) return 'IMG';
+    if (file.type === 'application/pdf') return 'PDF';
+    if (name.endsWith('.zip') || name.endsWith('.7z') || name.endsWith('.rar') || name.endsWith('.tar.gz')) return 'ZIP';
+    const extension = name.includes('.') ? name.split('.').pop() : 'FILE';
+    return extension.slice(0, 4).toUpperCase();
+}
+
+function clearPreviewObjectUrls() {
+    for (const url of previewObjectUrls) URL.revokeObjectURL(url);
+    previewObjectUrls.clear();
 }
 
 function displayFilePreview() {
- const preview = document.getElementById('filePreview');
- if (!preview) return;
- 
- // Clean up previous object URLs
- if (window.activeObjectURLs) {
-     window.activeObjectURLs.forEach(url => {
-         try {
-             URL.revokeObjectURL(url);
-         } catch (e) {
-             console.warn('Failed to revoke URL:', e);
-         }
-     });
-     window.activeObjectURLs = [];
- }
- 
- if (selectedFiles.length === 0) {
-     preview.style.display = 'none';
-     return;
- }
- 
- preview.style.display = 'block';
- preview.innerHTML = '';
- 
- selectedFiles.forEach((file, index) => {
-     // Wrapper for this file’s preview
-     const container = document.createElement('div');
-     container.style.cssText = `
-         position: relative;
-         margin-bottom: 0.75rem;
-     `;
-     
-     // Top row (icon + name + size + small ×)
-     const fileDiv = document.createElement('div');
-     fileDiv.className = 'file-preview-item';
-     fileDiv.style.cssText = `
-         display: flex;
-         align-items: center;
-         padding: 0.75rem;
-         background: var(--color-bg-secondary);
-         border-radius: 8px;
-     `;
-     
-     // File icon based on type
-     let icon = '📄';
-     if (file.type.startsWith('image/')) icon = '🖼️';
-     else if (file.type === 'application/pdf') icon = '📕';
-     else if (file.type.includes('zip') || file.name.endsWith('.zip')) icon = '🗜️';
-     else if (file.name.endsWith('.7z') || file.name.endsWith('.tar.gz') || file.name.endsWith('.rar')) icon = '📦';
-     
-     const sizeKB = (file.size / 1024).toFixed(1);
-     const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-     const displaySize = file.size > 1024 * 1024 ? `${sizeMB} MB` : `${sizeKB} KB`;
-     
-     fileDiv.innerHTML = `
-         <span style="font-size: 1.5rem; margin-right: 0.75rem;">${icon}</span>
-         <div style="flex: 1; min-width: 0;">
-             <div style="font-weight: 500; color: var(--color-text-primary); 
-                         overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                 ${file.name}
-             </div>
-             <div style="font-size: 0.875rem; color: var(--color-text-secondary);">
-                 ${displaySize}
-             </div>
-         </div>
-     `;
-     
-     container.appendChild(fileDiv);
-     
-     // If it's an image, show LARGE preview block
-     if (file.type.startsWith('image/')) {
-         const imgWrapper = document.createElement('div');
-         imgWrapper.style.cssText = `
-             position: relative;
-             width: 200px;
-             height: 200px;
-             overflow: hidden;
-             display: flex;
-             align-items: center;
-             justify-content: center;
-             background: var(--color-bg-tertiary);
-             margin-top: 0.5rem;
-             border-radius: 8px;
-         `;
-         
-         const img = document.createElement('img');
-         img.style.cssText = 'max-width: 100%; max-height: 100%; object-fit: contain;';
-         img.alt = file.name;
-         
-         const objectURL = URL.createObjectURL(file);
-         if (!window.activeObjectURLs) window.activeObjectURLs = [];
-         window.activeObjectURLs.push(objectURL);
-         img.src = objectURL;
-         
-         const cleanup = () => {
-             const urlIndex = window.activeObjectURLs.indexOf(objectURL);
-             if (urlIndex > -1) {
-                 try {
-                     URL.revokeObjectURL(objectURL);
-                     window.activeObjectURLs.splice(urlIndex, 1);
-                 } catch (e) {
-                     console.warn('Failed to revoke URL:', e);
-                 }
-             }
-         };
-         
-         img.onload = cleanup;
-         img.onerror = () => {
-             cleanup();
-             imgWrapper.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--color-text-secondary);">❌<br>Preview failed</div>';
-         };
-         
-         imgWrapper.appendChild(img);
-         
-         const nameOverlay = document.createElement('div');
-         nameOverlay.style.cssText = `
-             position: absolute;
-             bottom: 0;
-             left: 0;
-             right: 0;
-             background: linear-gradient(transparent, rgba(0,0,0,0.7));
-             color: white;
-             padding: 0.5rem;
-             font-size: 0.75rem;
-             overflow: hidden;
-             text-overflow: ellipsis;
-             white-space: nowrap;
-         `;
-         nameOverlay.textContent = file.name;
-         nameOverlay.title = file.name;
-         imgWrapper.appendChild(nameOverlay);
-         
-         container.appendChild(imgWrapper);
-     }
-     
-     // BIG RED DELETE BUTTON
-     const removeBtn = document.createElement('button');
-     removeBtn.innerHTML = '×';
-     removeBtn.title = 'Remove file';
-     removeBtn.style.cssText = `
-         position: absolute;
-         top: 8px;
-         right: 8px;
-         width: 32px;
-         height: 32px;
-         border-radius: 50%;
-         background: rgba(239, 68, 68, 0.9);
-         color: white;
-         border: 2px solid white;
-         font-size: 1.5rem;
-         line-height: 1;
-         cursor: pointer;
-         display: flex;
-         align-items: center;
-         justify-content: center;
-         font-weight: 700;
-         transition: all 0.2s ease;
-         box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-         z-index: 10;
-     `;
-     
-     removeBtn.onmouseover = () => {
-         removeBtn.style.background = 'rgba(220, 38, 38, 1)';
-         removeBtn.style.transform = 'scale(1.1)';
-     };
-     
-     removeBtn.onmouseout = () => {
-         removeBtn.style.background = 'rgba(239, 68, 68, 0.9)';
-         removeBtn.style.transform = 'scale(1)';
-     };
-     
-     removeBtn.onclick = (e) => {
-         e.stopPropagation();
-         removeFile(index);
-     };
-     
-     container.appendChild(removeBtn);
-     preview.appendChild(container);
- });
- 
- // Status text
- if (selectedFiles.length > 0) {
-     const helpText = document.createElement('div');
-     helpText.style.cssText = `
-         padding: 0.5rem 1rem;
-         font-size: 0.875rem;
-         color: var(--color-text-secondary);
-         text-align: center;
-     `;
-     helpText.innerHTML = `
-         <span style="color: var(--color-accent-primary); font-weight: 500;">
-             ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} ready to send
-         </span>
-         <br><small>Click × to remove • Press Send to upload</small>
-     `;
-     preview.appendChild(helpText);
- }
+    const preview = document.getElementById('filePreview');
+    if (!preview) return;
+
+    clearPreviewObjectUrls();
+    preview.replaceChildren();
+    preview.hidden = selectedFiles.length === 0;
+    preview.style.display = selectedFiles.length ? 'grid' : 'none';
+    if (!selectedFiles.length) return;
+
+    for (const [index, file] of selectedFiles.entries()) {
+        const item = document.createElement('article');
+        item.className = 'attachment-preview';
+
+        if (file.type.startsWith('image/')) {
+            const image = document.createElement('img');
+            const objectUrl = URL.createObjectURL(file);
+            previewObjectUrls.add(objectUrl);
+            image.className = 'attachment-preview__image';
+            image.src = objectUrl;
+            image.alt = '';
+            image.addEventListener('error', () => {
+                image.remove();
+                item.classList.add('attachment-preview--unavailable');
+            }, { once: true });
+            item.appendChild(image);
+        } else {
+            const type = document.createElement('span');
+            type.className = 'attachment-preview__type';
+            type.textContent = fileTypeLabel(file);
+            type.setAttribute('aria-hidden', 'true');
+            item.appendChild(type);
+        }
+
+        const details = document.createElement('div');
+        details.className = 'attachment-preview__details';
+
+        const name = document.createElement('strong');
+        name.className = 'attachment-preview__name';
+        name.textContent = file.name;
+        name.title = file.name;
+
+        const size = document.createElement('span');
+        size.className = 'attachment-preview__size';
+        size.textContent = file.size >= 1024 * 1024
+            ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+            : `${(file.size / 1024).toFixed(1)} KB`;
+
+        details.append(name, size);
+        item.appendChild(details);
+
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'attachment-preview__remove';
+        remove.setAttribute('aria-label', `Remove ${file.name}`);
+        remove.textContent = 'Remove';
+        remove.addEventListener('click', () => window.removeFile(index));
+        item.appendChild(remove);
+
+        preview.appendChild(item);
+    }
+
+    const summary = document.createElement('p');
+    summary.className = 'attachment-preview__summary';
+    summary.textContent = `${selectedFiles.length} file${selectedFiles.length === 1 ? '' : 's'} ready to send`;
+    preview.appendChild(summary);
 }
 
-window.removeFile = function(index) {
-    // CRITICAL FIX: Clean up object URL for removed file if it's an image
-    if (selectedFiles[index] && selectedFiles[index].type.startsWith('image/')) {
-        if (window.activeObjectURLs && window.activeObjectURLs[index]) {
-            try {
-                URL.revokeObjectURL(window.activeObjectURLs[index]);
-                window.activeObjectURLs.splice(index, 1);
-                console.log('🧹 Object URL cleaned up for removed file');
-            } catch (e) {
-                console.warn('Failed to revoke URL:', e);
-            }
-        }
-    }
-    
+window.removeFile = function removeFile(index) {
     selectedFiles.splice(index, 1);
     displayFilePreview();
 };
 
-// ==========================================
-// VOICE INPUT
-// ==========================================
-window.handleVoiceInput = function handleVoiceInput() {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
-    if (!SpeechRecognition) {
-        showToast('Voice input not supported in this browser. Please use Chrome, Safari, or Edge.', 'error');
-        console.error('[Voice] Speech Recognition API not available');
-        return;
-    }
-
-    try {
-        const recognition = new SpeechRecognition();
-        const voiceBtn = document.getElementById('voiceBtn');
-
-        // Configure recognition
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.lang = 'en-US';
-        recognition.maxAlternatives = 1;
-
-        // Visual feedback - button turns red while listening
-        recognition.onstart = () => {
-            console.log('[Voice] Listening started');
-            showToast('🎤 Listening... Speak now', 'info');
-            if (voiceBtn) {
-                voiceBtn.style.background = 'var(--color-error)';
-                voiceBtn.style.color = 'white';
-            }
-        };
-
-        recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript;
-            const confidence = event.results[0][0].confidence;
-            
-            console.log('[Voice] Recognized:', transcript, 'Confidence:', confidence);
-            
-            const userInput = document.getElementById('userInput');
-            if (userInput) {
-                const currentText = userInput.value.trim();
-                userInput.value = currentText ? `${currentText} ${transcript}` : transcript;
-                userInput.focus();
-                
-                // Trigger input event for auto-resize
-                userInput.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-            
-            showToast(`✅ Recognized: "${transcript}"`, 'success');
-        };
-
-        recognition.onerror = (event) => {
-            console.error('[Voice] Error:', event.error);
-            
-            let errorMessage = 'Voice recognition failed';
-            
-            switch(event.error) {
-                case 'no-speech':
-                    errorMessage = 'No speech detected. Please try again.';
-                    break;
-                case 'audio-capture':
-                    errorMessage = 'No microphone found. Please check your device.';
-                    break;
-                case 'not-allowed':
-                    errorMessage = 'Microphone access denied. Please allow microphone access in your browser settings.';
-                    break;
-                case 'network':
-                    errorMessage = 'Network error. Please check your connection.';
-                    break;
-                case 'aborted':
-                    errorMessage = 'Voice input cancelled.';
-                    break;
-                case 'service-not-allowed':
-                    errorMessage = 'Speech service not available. Please try again later.';
-                    break;
-            }
-            
-            showToast(errorMessage, 'error');
-            
-            // Reset button appearance on error
-            if (voiceBtn) {
-                voiceBtn.style.background = '';
-                voiceBtn.style.color = '';
-            }
-        };
-
-        recognition.onend = () => {
-            console.log('[Voice] Listening ended');
-            // Reset button appearance
-            if (voiceBtn) {
-                voiceBtn.style.background = '';
-                voiceBtn.style.color = '';
-            }
-        };
-
-        // Start recognition
-        recognition.start();
-        
-    } catch (error) {
-        console.error('[Voice] Failed to start recognition:', error);
-        showToast('Failed to start voice input. Please try again.', 'error');
-    }
-}
-
-// ==========================================
-// TEXT-TO-SPEECH - Read responses aloud
-// ==========================================
+// Read assistant responses aloud.
 window.speakText = function(text) {
     if (!('speechSynthesis' in window)) {
         showToast('Text-to-speech not supported in this browser', 'error');
         return;
     }
 
-    // Cancel any ongoing speech
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
-    
-    // Optional: Configure voice settings
-    utterance.rate = 1.0; // Speed
-    utterance.pitch = 1.0; // Pitch
+
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
     utterance.volume = 1.0; // Volume
-    
+
     // Use a better voice if available
     const voices = window.speechSynthesis.getVoices();
-    const preferredVoice = voices.find(voice => 
+    const preferredVoice = voices.find(voice =>
         voice.lang === 'en-US' && (voice.name.includes('Google') || voice.name.includes('Microsoft'))
     );
     if (preferredVoice) {
@@ -1497,9 +813,7 @@ window.stopSpeaking = function() {
     }
 };
 
-// ==========================================
-// QUICK ACTIONS
-// ==========================================
+// Quick Actions
 window.triggerImageGeneration = function() {
     document.getElementById('userInput').value = 'Generate an image of ';
     document.getElementById('userInput').focus();
@@ -1515,9 +829,7 @@ window.triggerCodeHelp = function() {
     document.getElementById('userInput').focus();
 };
 
-// ==========================================
-// SETTINGS
-// ==========================================
+// Settings
 window.openSettings = function() {
     document.getElementById('settingsModal').style.display = 'flex';
     loadSettingsValues();
@@ -1527,151 +839,82 @@ window.closeSettings = function() {
     document.getElementById('settingsModal').style.display = 'none';
 };
 
-// FIXED: Changed setEnabled → toggle, 'balanced' → 'medium'
 function loadSettings() {
-    const autonomousEnabled = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_ENABLED) === 'true';
-    const autonomousFrequency = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'medium';
-
-    if (window.autonomousMessaging) {
-        window.autonomousMessaging.toggle(autonomousEnabled);
-        window.autonomousMessaging.setFrequency(autonomousFrequency);
-    }
+    // Settings are loaded from the synchronized cache by the auth controller.
 }
 
 function loadSettingsValues() {
-    const profile = currentProfile?.getProfile() || {};
+    const profile = currentProfile?.getProfile?.() || {};
+    const user = window.currentUser || {};
+    document.getElementById('settingsName').value = user.fullName || profile.name || '';
+    document.getElementById('settingsEmail').value = user.email || profile.email || '';
+    document.getElementById('settingsEmail').readOnly = true;
+    document.getElementById('assistantName').value = SafeStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
 
-    document.getElementById('settingsName').value = profile.name || '';
-    document.getElementById('settingsEmail').value = profile.email || '';
-    document.getElementById('assistantName').value = localStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
-
-    // Populate Work Hours dropdowns FIRST
     const workStartSelect = document.getElementById('workStart');
     const workEndSelect = document.getElementById('workEnd');
-
-    if (workStartSelect && workEndSelect && workStartSelect.options.length === 0) {
-        const makeLabel = (h) => {
-            const hour = Number(h);
-            const suffix = hour >= 12 ? 'PM' : 'AM';
-            const display = ((hour + 11) % 12) + 1;
-            return `${display} ${suffix}`;
-        };
-
-        for (let h = 0; h <= 23; h++) {
-            const opt1 = document.createElement('option');
-            opt1.value = String(h);
-            opt1.textContent = makeLabel(h);
-            workStartSelect.appendChild(opt1);
-
-            const opt2 = document.createElement('option');
-            opt2.value = String(h);
-            opt2.textContent = makeLabel(h);
-            workEndSelect.appendChild(opt2);
+    const quietStartSelect = document.getElementById('quietStart');
+    const quietEndSelect = document.getElementById('quietEnd');
+    const timeSelects = [workStartSelect, workEndSelect, quietStartSelect, quietEndSelect].filter(Boolean);
+    if (timeSelects.some(select => select.options.length === 0)) {
+        const label = hour => `${((hour + 11) % 12) + 1} ${hour >= 12 ? 'PM' : 'AM'}`;
+        for (const select of timeSelects) {
+            if (select.options.length) continue;
+            for (let hour = 0; hour < 24; hour += 1) select.add(new Option(label(hour), String(hour)));
         }
     }
-
-    // Now set values AFTER options exist
-    document.getElementById('autonomousMessaging').checked = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_ENABLED) === 'true';
-    document.getElementById('autonomousFrequency').value = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'medium';
-
-    document.getElementById('workMode').checked = localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true';
-    document.getElementById('workStart').value = localStorage.getItem('crump_work_start') || '9';
-    document.getElementById('workEnd').value = localStorage.getItem('crump_work_end') || '17';
-
-    // Autonomous Frequency group toggle
-    const freqGroup = document.getElementById('autonomousFrequencyGroup');
-    if (freqGroup) {
-        freqGroup.style.display = document.getElementById('autonomousMessaging').checked ? 'flex' : 'none';
-        document.getElementById('autonomousMessaging').addEventListener('change', (e) => {
-            freqGroup.style.display = e.target.checked ? 'flex' : 'none';
-        });
-    }
-
-    // Work Hours group toggle
-    const workHoursGroup = document.getElementById('workHoursGroup');
     const workModeToggle = document.getElementById('workMode');
-    if (workHoursGroup && workModeToggle) {
-        workHoursGroup.style.display = workModeToggle.checked ? 'block' : 'none';
-        workModeToggle.addEventListener('change', (e) => {
-            workHoursGroup.style.display = e.target.checked ? 'block' : 'none';
-        });
-    }
+    const workHoursGroup = document.getElementById('workHoursGroup');
+    workModeToggle.checked = SafeStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true';
+    workStartSelect.value = SafeStorage.getItem(STORAGE_KEYS.WORK_START) || '9';
+    workEndSelect.value = SafeStorage.getItem(STORAGE_KEYS.WORK_END) || '17';
+    const updateVisibility = () => { workHoursGroup.style.display = workModeToggle.checked ? 'block' : 'none'; };
+    updateVisibility();
+    workModeToggle.onchange = updateVisibility;
+    window.CrumpPresence?.applyPreferencesToForm?.();
 }
 
-window.saveSettings = function() {
+window.saveSettings = async function() {
     const name = document.getElementById('settingsName').value.trim();
-    const email = document.getElementById('settingsEmail').value.trim();
     const assistantName = document.getElementById('assistantName').value.trim() || 'Crump';
-    const autonomousEnabled = document.getElementById('autonomousMessaging').checked;
-    const autonomousFrequency = document.getElementById('autonomousFrequency').value;
     const workMode = document.getElementById('workMode').checked;
     const workStart = document.getElementById('workStart').value;
     const workEnd = document.getElementById('workEnd').value;
-    
-    // TRACK CHANGES FOR CRUMP TO ACKNOWLEDGE
-    const previousAutonomous = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_ENABLED) === 'true';
-    const previousWorkMode = localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true';
-    
-    const changes = {
-        autonomousJustEnabled: !previousAutonomous && autonomousEnabled,
-        autonomousJustDisabled: previousAutonomous && !autonomousEnabled,
-        workModeJustEnabled: !previousWorkMode && workMode,
-        workModeJustDisabled: previousWorkMode && !workMode,
-        timestamp: Date.now()
-    };
-    
-    // Store recent changes so next message can acknowledge them
-    if (changes.autonomousJustEnabled || changes.autonomousJustDisabled || 
-        changes.workModeJustEnabled || changes.workModeJustDisabled) {
-        localStorage.setItem('crump_recent_changes', JSON.stringify(changes));
-    }
-    
-    if (currentProfile && name) {
-        currentProfile.updateProfile({
-            name: name,
-            email: email,
-            initial: name.charAt(0).toUpperCase()
+    if (currentProfile && name) currentProfile.updateProfile({ name, initial: name.charAt(0).toUpperCase() });
+    SafeStorage.setItem(STORAGE_KEYS.ASSISTANT_NAME, assistantName);
+    SafeStorage.setItem(STORAGE_KEYS.WORK_MODE, String(workMode));
+    SafeStorage.setItem(STORAGE_KEYS.WORK_START, workStart);
+    SafeStorage.setItem(STORAGE_KEYS.WORK_END, workEnd);
+    try {
+        if (window.currentUser && name && name !== window.currentUser.fullName) {
+            const response = await fetch('/api/account/profile', {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fullName: name }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (response.ok && data.user) window.currentUser = data.user;
+        }
+        await window.SyncManager?.push(null, {
+            chats: [],
+            settings: {
+                assistant_name: assistantName,
+                work_mode: workMode,
+                work_start: Number(workStart),
+                work_end: Number(workEnd),
+            },
         });
-    }
-
-    localStorage.setItem(STORAGE_KEYS.ASSISTANT_NAME, assistantName);
-    localStorage.setItem(STORAGE_KEYS.AUTONOMOUS_ENABLED, autonomousEnabled);
-    localStorage.setItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY, autonomousFrequency);
-    localStorage.setItem(STORAGE_KEYS.WORK_MODE, workMode);
-    localStorage.setItem('crump_work_start', workStart);
-    localStorage.setItem('crump_work_end', workEnd);
-
-    if (window.autonomousMessaging) {
-        window.autonomousMessaging.toggle(autonomousEnabled);
-        window.autonomousMessaging.setFrequency(autonomousFrequency);
-    }
-
-    updateAssistantNameDisplay();
-    updateUserAvatar();
-    closeSettings();
-    showToast('Settings saved', 'success');
-};
-
-// Track when user upgrades (for future use)
-window.notifyUpgrade = function(tier) {
-    const upgrade = {
-        tier: tier, // 'pro', 'pro-plus', etc.
-        timestamp: Date.now()
-    };
-    
-    localStorage.setItem('crump_recent_upgrade', JSON.stringify(upgrade));
-    
-    console.log('🎉 Upgrade detected:', tier);
-    
-    // Show Crump's excitement in next message
-    if (window.universalMemory) {
-        window.universalMemory.justUpgraded = upgrade;
+        await window.CrumpPresence?.savePreferences?.();
+        updateAssistantNameDisplay();
+        updateUserAvatar();
+        closeSettings();
+        showToast('Settings saved', 'success');
+    } catch (error) {
+        console.warn('[Settings]', error);
+        showToast('Settings saved on this device; server sync will retry.', 'warning');
+        closeSettings();
     }
 };
 
-// ==========================================
-// UI HELPERS
-// ==========================================
+// UI helpers
 function updateAssistantNameDisplay() {
     const name = localStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
     document.querySelectorAll('.assistant-name').forEach(el => {
@@ -1685,55 +928,13 @@ function updateUserAvatar() {
     localStorage.setItem(STORAGE_KEYS.USER_INITIAL, initial);
 }
 
-function initializeAssistant() {
-    setAssistantState('idle');
-}
-
-function setAssistantState(state) {
-    const character = document.getElementById('assistantCharacter');
-    if (character) {
-        character.className = 'assistant-character ' + state;
-    }
-}
-window.setAssistantState = setAssistantState;
-
-// ==========================================
-// READ RECEIPTS
-// ==========================================
-function showReadReceipt(messageElement) {
-    if (!messageElement) return;
-    
-    const messageContent = messageElement.querySelector('.message-content');
-    if (!messageContent) return;
-    
-    // Check if status already exists
-    if (messageContent.querySelector('.message-status')) return;
-    
-    const status = document.createElement('div');
-    status.className = 'message-status read';
-    status.innerHTML = `
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M2 8l4 4 8-8"/>
-        </svg>
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M2 8l4 4 8-8"/>
-        </svg>
-        <span>Read</span>
-    `;
-    messageContent.appendChild(status);
-}
-
-// ==========================================
-// UI HELPERS
-// ==========================================
-function showThinking() {
-    const indicator = document.getElementById('thinkingIndicator');
-    if (indicator) indicator.style.display = 'flex';
+// UI helpers
+function showThinking(activity = 'thinking') {
+    window.CrumpPresence?.start?.(activity);
 }
 
 function hideThinking() {
-    const indicator = document.getElementById('thinkingIndicator');
-    if (indicator) indicator.style.display = 'none';
+    window.CrumpPresence?.stop?.();
 }
 window.showThinking = showThinking;
 window.hideThinking = hideThinking;
@@ -1752,64 +953,11 @@ function showWelcomeMessage() {
     if (chat && chat.messages.length === 0) {
         chat.messages.push(welcomeMessage);
         saveChats();
-        if (window.renderMessages) {
-            window.renderMessages(chat.messages);
-        } else {
-            legacyRenderMessages(chat.messages);
-        }
+        window.renderMessages?.(chat.messages);
     }
 }
 
-// FIXED: Changed setEnabled → toggle, 'balanced' → 'medium'
-function setupAutonomousMessaging() {
-    const enabled = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_ENABLED) === 'true';
-    const frequency = localStorage.getItem(STORAGE_KEYS.AUTONOMOUS_FREQUENCY) || 'medium';
-
-    if (window.autonomousMessaging) {
-        window.autonomousMessaging.toggle(enabled);
-        window.autonomousMessaging.setFrequency(frequency);
-    }
-}
-
-function showToast(message, type) {
-    const container = document.getElementById('toastContainer');
-    if (!container) return;
-
-    const toast = document.createElement('div');
-    toast.className = 'toast ' + type;
-    toast.textContent = message;
-
-    container.appendChild(toast);
-
-    setTimeout(() => {
-        toast.remove();
-    }, 3000);
-}
-window.showToast = showToast;
-
-// ==========================================
-// UTILITIES
-// ==========================================
-function formatTime(timestamp) {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return diffMins + 'm ago';
-    if (diffMins < 1440) return Math.floor(diffMins / 60) + 'h ago';
-
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-window.escapeHtml = escapeHtml;
-
+// Utilities
 function getChatContainerEl() {
     return document.getElementById('chatContainer');
 }
@@ -1822,116 +970,27 @@ function safeScrollToBottom() {
     const c = getChatContainerEl();
     if (c) c.scrollTop = c.scrollHeight;
 }
+window.addEventListener('beforeunload', clearPreviewObjectUrls);
 
-// ==========================================
-// MOBILE KEYBOARD HANDLER
-// ==========================================
-function setupMobileKeyboardHandler() {
-    // Only run on mobile devices
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (!isMobile) return;
-    
-    console.log('📱 Mobile detected - setting up keyboard handler');
-    
-    // Use Visual Viewport API if available
-    if ('visualViewport' in window) {
-        const inputArea = document.querySelector('.input-area');
-        if (!inputArea) return;
-        
-        let originalHeight = window.visualViewport.height;
-        
-        window.visualViewport.addEventListener('resize', () => {
-            const currentHeight = window.visualViewport.height;
-            const heightDiff = originalHeight - currentHeight;
-            
-            // Keyboard is open if viewport shrunk significantly
-            if (heightDiff > 150) {
-                inputArea.style.transform = `translateY(-${heightDiff}px)`;
-                inputArea.style.transition = 'transform 0.2s ease';
-            } else {
-                inputArea.style.transform = 'translateY(0)';
-            }
-        });
-        
-        // Reset on scroll
-        window.visualViewport.addEventListener('scroll', () => {
-            const currentHeight = window.visualViewport.height;
-            if (currentHeight === originalHeight) {
-                inputArea.style.transform = 'translateY(0)';
-            }
-        });
-    }
-}
-
-window.crumpDebug = {
-    getChats: () => chats,
-    getCurrentChat: () => chats.find(c => c.id === currentChatId),
-    getProfile: () => currentProfile?.getProfile(),
-    version: '1.0.0-FIXED-AUTONOMOUS'
-};
-
-console.log('✅ Crump AI v1.0 loaded (FIXED VERSION - Autonomous corrected)');
-
-// CRITICAL FIX: Clean up all object URLs when page unloads
-window.addEventListener('beforeunload', () => {
-    if (window.activeObjectURLs) {
-        window.activeObjectURLs.forEach(url => {
-            try {
-                URL.revokeObjectURL(url);
-            } catch (e) {
-                // Ignore errors during cleanup
-            }
-        });
-    }
-    console.log('🧹 Cleaned up all object URLs on page unload');
-    });
-
-    // ==========================================
-// AUTO TOKEN REFRESH - KEEPS USER LOGGED IN FOREVER
-// ==========================================
+// Session Health Check
 let tokenRefreshTimer = null;
 
 async function setupTokenRefresh() {
-    if (tokenRefreshTimer) {
-        clearInterval(tokenRefreshTimer);
-    }
-    
-    const REFRESH_INTERVAL = 20 * 60 * 60 * 1000; // 20 hours
-    
+    if (tokenRefreshTimer) clearInterval(tokenRefreshTimer);
     tokenRefreshTimer = setInterval(async () => {
+        if (document.hidden || !window.currentUser) return;
         try {
-            console.log('🔄 Auto-refreshing auth token...');
-            
-            const response = await fetch('/api/auth/refresh', {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    console.log('✅ Token refreshed successfully');
-                    if (data.user) {
-                        window.currentUser = data.user;
-                        SafeStorage.setItem('crump_user', JSON.stringify(data.user));
-                    }
-                }
+            const response = await fetch('/api/auth/check-session');
+            const data = await response.json().catch(() => ({}));
+            if (response.ok && data.authenticated && data.data?.user) {
+                window.currentUser = data.data.user;
             } else if (response.status === 401) {
-                window.location.href = '/landing.html';
+                await window.deviceAuth?.clearLocalState?.();
+                window.location.href = '/app';
             }
         } catch (error) {
-            console.error('❌ Token refresh error:', error);
+            console.warn('[Auth] Session health check failed:', error);
         }
-    }, REFRESH_INTERVAL);
-    
-    console.log('✅ Auto token refresh enabled (every 20 hours)');
+    }, 12 * 60 * 60 * 1000);
 }
-
-window.addEventListener('load', () => {
-    if (window.currentUser && window.currentUser.id) {
-        setupTokenRefresh();
-    }
-});
-
 window.setupTokenRefresh = setupTokenRefresh;

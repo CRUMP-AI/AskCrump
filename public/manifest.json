@@ -1,8 +1,8 @@
 {
-  "name": "Ask Crump AI Virtual Assistant",
+  "name": "Ask Crump",
   "short_name": "Ask Crump",
-  "description": "Your personal AI assistant powered by the N² Engine",
-  "start_url": "/?source=pwa",
+  "description": "A synchronized AI assistant for web, iPhone, iPad, and Android",
+  "start_url": "/app?source=pwa",
   "display": "standalone",
   "background_color": "#0f1419",
   "theme_color": "#c9b892",
@@ -28,6 +28,8 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["productivity", "utilities"],
-  "version": "1.0.0"
+  "categories": [
+    "productivity",
+    "utilities"
+  ]
 }

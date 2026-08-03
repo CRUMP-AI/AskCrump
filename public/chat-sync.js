@@ -1,242 +1,129 @@
-// =====================================================
-// CHAT SYNC MODULE - Cross-Device Synchronization
-// =====================================================
+(() => {
+  'use strict';
+  const DELETED_KEY = 'crump_deleted_chats_v4';
+  const deletedKey = () => `${DELETED_KEY}:${window.currentUser?.id || 'anonymous'}`;
+  let intervalId = null;
+  let syncing = false;
 
-// Sync chats FROM server
-window.syncChatsFromServer = async function() {
-    if (!navigator.onLine) {
-        console.log('[Sync] Offline - will retry when connection restored');
-        window.addEventListener('online', () => {
-            console.log('[Sync] Connection restored - syncing now');
-            syncChatsFromServer();
-        }, { once: true });
-        return;
-    }
-
-    if (!window.currentUser) {
-        console.log('[Sync] Not authenticated, skipping sync');
-        return;
-    }
-
-
-    try {
-        console.log('[Sync] Fetching chats from server...');
-        
-       const deviceId = window.deviceAuth?.getDeviceId?.();
-const result = await window.SyncManager.pull(deviceId);
-
-if (!result?.success || !Array.isArray(result.data?.chats)) {
-    console.warn('[Sync] Invalid sync response:', result);
-    return;
-}
-
-const serverChatsRaw = result.data.chats;
-
- console.log('[Sync] Received', serverChatsRaw.length, 'chats from server');
-
-        // Merge server chats with local chats
-        const localChats = JSON.parse(SafeStorage.getItem(STORAGE_KEYS.CHATS) || '[]');
-       const normalizeISO = (v) => {
-    if (!v) return new Date().toISOString();
-    if (typeof v === 'number') return new Date(v).toISOString();
-    const t = new Date(v).getTime();
-    return Number.isFinite(t) ? new Date(t).toISOString() : new Date().toISOString();
-};
-
-const serverChats = serverChatsRaw.map(chat => ({
+  const toTime = value => {
+    if (typeof value === 'number') return value;
+    const parsed = new Date(value || 0).getTime();
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+  const iso = value => new Date(toTime(value) || Date.now()).toISOString();
+  const readDeleted = () => {
+    try { return JSON.parse(localStorage.getItem(deletedKey()) || '[]'); } catch (_) { return []; }
+  };
+  const writeDeleted = value => {
+    try { localStorage.setItem(deletedKey(), JSON.stringify(value)); } catch (_) {}
+  };
+  const normalizedChat = chat => ({
     id: chat.chat_id || chat.id,
     chat_id: chat.chat_id || chat.id,
-    messages: chat.messages || [],
-    title: chat.title || 'Chat',
-    createdAt: normalizeISO(chat.created_at || chat.createdAt),
-    updatedAt: normalizeISO(chat.updated_at || chat.updatedAt || chat.created_at || chat.createdAt)
-}));
+    title: chat.title || 'New conversation',
+    messages: Array.isArray(chat.messages) ? chat.messages : [],
+    createdAt: chat.created_at || chat.createdAt || new Date().toISOString(),
+    updatedAt: chat.updated_at || chat.updatedAt || chat.created_at || chat.createdAt || new Date().toISOString(),
+    revision: Number(chat.revision || 1),
+  });
 
+  window.recordChatDeletion = chatId => {
+    if (!chatId) return;
+    const deleted = readDeleted().filter(item => (item.id || item.chat_id) !== chatId);
+    deleted.push({ id: chatId, deletedAt: new Date().toISOString(), revision: Date.now() });
+    writeDeleted(deleted.slice(-500));
+  };
 
-        // Create a map of chat IDs for quick lookup
-        const chatMap = new Map();
-        
-        // Add local chats first
-       localChats.forEach(chat => {
-    const key = chat.chat_id || chat.id;
-    if (key) chatMap.set(key, chat);
-});
+  function mergeServerState(serverRows, localRows) {
+    const map = new Map();
+    for (const local of localRows || []) {
+      const chat = normalizedChat(local);
+      if (chat.id) map.set(chat.id, chat);
+    }
+    const deleted = readDeleted();
+    const localTombstones = new Map(deleted.map(item => [item.id || item.chat_id, item]));
 
-       // Merge server chats (server takes precedence if newer)
-const toTime = (v) => {
-    if (!v) return 0;
-    if (typeof v === 'number') return v;
-    const t = new Date(v).getTime();
-    return Number.isFinite(t) ? t : 0;
-};
-
-serverChats.forEach(serverChat => {
-    const key = serverChat.chat_id || serverChat.id;
-    const localChat = chatMap.get(key);
-
-    if (!localChat) {
-        chatMap.set(key, serverChat);
-        return;
+    for (const row of serverRows || []) {
+      const id = row.chat_id || row.id;
+      if (!id) continue;
+      const serverDeletedAt = row.deleted_at || row.deletedAt;
+      if (serverDeletedAt) {
+        const local = map.get(id);
+        if (!local || toTime(serverDeletedAt) >= toTime(local.updatedAt)) map.delete(id);
+        localTombstones.delete(id);
+        continue;
+      }
+      const server = normalizedChat(row);
+      const tombstone = localTombstones.get(id);
+      if (tombstone && toTime(tombstone.deletedAt) >= toTime(server.updatedAt)) continue;
+      const local = map.get(id);
+      if (!local || toTime(server.updatedAt) > toTime(local.updatedAt) || server.revision > (local.revision || 0)) {
+        map.set(id, server);
+      }
     }
 
-    const localTime = toTime(localChat.updatedAt || localChat.updated_at || localChat.createdAt || localChat.created_at);
-    const serverTime = toTime(serverChat.updatedAt || serverChat.updated_at || serverChat.createdAt || serverChat.created_at);
+    const merged = [...map.values()].sort((a, b) => toTime(b.updatedAt) - toTime(a.updatedAt));
+    writeDeleted([...localTombstones.values()]);
+    return merged;
+  }
 
-    if (serverTime > localTime) {
-        chatMap.set(key, serverChat);
-    }
-});
+  async function pullAndMerge(prefetched = null) {
+    if (!window.currentUser || !navigator.onLine) return;
+    const result = prefetched ? { success: true, data: prefetched } : await window.SyncManager.pull(null, { full: true });
+    if (!result?.success || !Array.isArray(result.data?.chats)) return;
+    let local = [];
+    try { local = JSON.parse(SafeStorage.getItem(STORAGE_KEYS.CHATS) || '[]'); } catch (_) {}
+    const merged = mergeServerState(result.data.chats, local);
+    window.chats = merged;
+    if (typeof window.replaceChats === 'function') window.replaceChats(merged);
+    else SafeStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(merged));
+    if (typeof window.renderChatsList === 'function') window.renderChatsList();
+  }
 
-        // Convert map back to array
-        const mergedChats = Array.from(chatMap.values());
-        
-        // Sort by updated time
-       mergedChats.sort((a, b) => {
-    const timeA = new Date(a.updatedAt || a.createdAt).getTime();
-    const timeB = new Date(b.updatedAt || b.createdAt).getTime();
-    return timeB - timeA; // newest first
-});
-
-        // Update global chats array
-        window.chats = mergedChats;
-        chats = mergedChats;
-        
-        // Save merged chats to localStorage
-        SafeStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(mergedChats));
-        
-       // Update UI
-if (typeof window.renderChatsList === 'function') {
-    window.renderChatsList();
-}
-        
-        // If no current chat, load the first one
-        if (!currentChatId && mergedChats.length > 0) {
-            if (typeof loadChat === 'function') {
-                loadChat(mergedChats[0].id);
-            }
-        }
-
-        console.log('[Sync] ✅ Chats synced successfully:', mergedChats.length, 'total chats');
-        
-    } catch (error) {
-        console.error('[Sync] Failed to sync chats from server:', error);
-    }
-};
-
-// Sync chats TO server
-window.syncChatsToServer = async function() {
-    // 🔥 MOBILE PWA FIX: Check network before syncing
-    if (!navigator.onLine) {
-        console.log('[Sync] Offline - upload queued for when online');
-        return;
-    }
-
-    if (!window.currentUser) {
-        console.log('[Sync] Not authenticated, skipping upload');
-        return;
-    }
-
-
-    try {
-        const localChats = JSON.parse(SafeStorage.getItem(STORAGE_KEYS.CHATS) || '[]');
-        
-        if (localChats.length === 0) {
-            console.log('[Sync] No chats to sync');
-            return;
-        }
-
-        console.log('[Sync] Uploading', localChats.length, 'chats to server...');
-        
-        const deviceId = window.deviceAuth?.getDeviceId?.();
-
-const normalizeISO = (v) => {
-    if (!v) return new Date().toISOString();
-    if (typeof v === 'number') return new Date(v).toISOString();
-    const t = new Date(v).getTime();
-    return Number.isFinite(t) ? new Date(t).toISOString() : new Date().toISOString();
-};
-
-await window.SyncManager.push(deviceId, {
-    chats: localChats.map(chat => ({
-        chat_id: chat.chat_id || chat.id,
-        title: chat.title || 'Chat',
-        messages: chat.messages || [],
-        created_at: normalizeISO(chat.createdAt || chat.created_at),
-        updated_at: normalizeISO(chat.updatedAt || chat.updated_at || chat.createdAt || chat.created_at)
-    }))
-});
-
-
-       console.log('[Sync] ✅ Chats uploaded successfully');
-
-    } catch (error) {
-        console.error('[Sync] Failed to sync chats to server:', error);
-    }
-};
-
-// Auto-sync with adaptive intervals for mobile
-let syncInterval = null;
-
-window.startAutoSync = function() {
-    if (syncInterval) {
-        clearInterval(syncInterval);
-    }
-    
-    const getOptimalSyncInterval = () => {
-        const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-        
-        if (connection) {
-            const effectiveType = connection.effectiveType;
-            
-            if (effectiveType === 'slow-2g' || effectiveType === '2g') {
-                return 5 * 60 * 1000;
-            }
-            
-            if (connection.type === 'cellular') {
-                return 2 * 60 * 1000;
-            }
-        }
-        
-        return 60 * 1000;
-    };
-    
-    const interval = getOptimalSyncInterval();
-    
-    syncInterval = setInterval(() => {
-        if (window.currentUser) {
-    syncChatsToServer();
-}
-    }, interval);
-    
-    console.log(`[Sync] Auto-sync started (${interval/1000}s intervals)`);
-};
-
-window.stopAutoSync = function() {
-    if (syncInterval) {
-        clearInterval(syncInterval);
-        syncInterval = null;
-        console.log('[Sync] Auto-sync stopped');
-    }
-};
-
-window.addEventListener('beforeunload', () => {
+  async function pushLocal() {
     if (!window.currentUser) return;
-
-    const chats = JSON.parse(SafeStorage.getItem(STORAGE_KEYS.CHATS) || '[]');
-    if (!chats.length) return;
-
-    const deviceId = window.deviceAuth?.getDeviceId?.();
-
+    let local = [];
+    try { local = JSON.parse(SafeStorage.getItem(STORAGE_KEYS.CHATS) || '[]'); } catch (_) {}
     const payload = {
-        deviceId,
-        chats: chats.map(chat => ({
-            chat_id: chat.chat_id || chat.id,
-            title: chat.title || 'Chat',
-            messages: chat.messages || [],
-            updated_at: chat.updatedAt || new Date().toISOString()
-        }))
+      chats: local.map(chat => ({
+        chat_id: chat.chat_id || chat.id,
+        title: chat.title || 'New conversation',
+        messages: Array.isArray(chat.messages) ? chat.messages : [],
+        created_at: iso(chat.createdAt || chat.created_at),
+        updated_at: iso(chat.updatedAt || chat.updated_at),
+        revision: Number(chat.revision || 1),
+      })),
+      deletedChats: readDeleted(),
     };
+    const result = await window.SyncManager.push(null, payload);
+    if (result?.success) writeDeleted([]);
+    return result;
+  }
 
-    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-    navigator.sendBeacon('/api/sync/push', blob);
-});
+  async function synchronize(prefetched = null) {
+    if (syncing || !window.currentUser || !navigator.onLine) return;
+    syncing = true;
+    try {
+      // Pull first so stale local state never overwrites a newer device.
+      await pullAndMerge(prefetched);
+      await pushLocal();
+      await pullAndMerge();
+    } catch (error) {
+      console.warn('[Sync] Synchronization failed:', error);
+    } finally {
+      syncing = false;
+    }
+  }
+
+  window.syncChatsFromServer = () => synchronize(window.__crumpSyncData || null);
+  window.syncChatsToServer = pushLocal;
+  window.startAutoSync = () => {
+    clearInterval(intervalId);
+    intervalId = setInterval(() => synchronize(), 60_000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) synchronize();
+    });
+  };
+  window.stopAutoSync = () => clearInterval(intervalId);
+  window.addEventListener('online', () => synchronize());
+})();

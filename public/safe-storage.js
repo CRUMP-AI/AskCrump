@@ -1,131 +1,92 @@
-// ==========================================
-// SAFE STORAGE WRAPPER - Safari ITP Compatible
-// ==========================================
-// This wrapper handles Safari's Intelligent Tracking Prevention
-// by providing graceful fallbacks when storage is blocked
+(function initializeSafeStorage() {
+    'use strict';
 
-class SafeStorageCore {
-    constructor() {
-        this.memoryStore = new Map();
-        this.storageAvailable = this.testStorage();
-        
-        if (!this.storageAvailable) {
-            console.warn('⚠️ localStorage blocked (Safari ITP) - using in-memory fallback');
+    class StorageFacade {
+        constructor() {
+            this.memory = new Map();
+            this.persistent = this.detectPersistentStorage();
         }
-    }
-    
-    testStorage() {
-        try {
-            const test = '__storage_test__';
-            localStorage.setItem(test, test);
-            localStorage.removeItem(test);
-            return true;
-        } catch (e) {
-            return false;
-        }
-    }
-    
-    setItem(key, value) {
-        try {
-            if (this.storageAvailable) {
-                localStorage.setItem(key, value);
+
+        detectPersistentStorage() {
+            try {
+                const key = '__ask_crump_storage_test__';
+                window.localStorage.setItem(key, key);
+                window.localStorage.removeItem(key);
+                return true;
+            } catch {
+                console.warn('[Storage] Persistent browser storage is unavailable.');
+                return false;
             }
-        } catch (e) {
-            console.warn(`[SafeStorage] localStorage.setItem blocked for key: ${key}`);
-            this.storageAvailable = false;
         }
-        
-        // Always store in memory as backup
-        this.memoryStore.set(key, value);
-    }
-    
-    getItem(key) {
-        try {
-            if (this.storageAvailable) {
-                const value = localStorage.getItem(key);
-                if (value !== null) {
-                    return value;
+
+        setItem(key, value) {
+            const normalized = String(value);
+            this.memory.set(key, normalized);
+            if (!this.persistent) return;
+            try {
+                window.localStorage.setItem(key, normalized);
+            } catch {
+                this.persistent = false;
+                console.warn('[Storage] A write was kept in memory only.');
+            }
+        }
+
+        getItem(key) {
+            if (this.persistent) {
+                try {
+                    const value = window.localStorage.getItem(key);
+                    if (value !== null) return value;
+                } catch {
+                    this.persistent = false;
+                    console.warn('[Storage] Persistent reads are unavailable.');
                 }
             }
-        } catch (e) {
-            console.warn(`[SafeStorage] localStorage.getItem blocked for key: ${key}`);
-            this.storageAvailable = false;
+            return this.memory.get(key) ?? null;
         }
-        
-        // Fallback to memory
-        return this.memoryStore.get(key) || null;
-    }
-    
-    removeItem(key) {
-        try {
-            if (this.storageAvailable) {
-                localStorage.removeItem(key);
-            }
-        } catch (e) {
-            console.warn(`[SafeStorage] localStorage.removeItem blocked for key: ${key}`);
-        }
-        
-        this.memoryStore.delete(key);
-    }
-    
-    clear() {
-        try {
-            if (this.storageAvailable) {
-                localStorage.clear();
-            }
-        } catch (e) {
-            console.warn('[SafeStorage] localStorage.clear blocked');
-        }
-        
-        this.memoryStore.clear();
-    }
-    
-    key(index) {
-        try {
-            if (this.storageAvailable) {
-                return localStorage.key(index);
-            }
-        } catch (e) {
-            console.warn('[SafeStorage] localStorage.key blocked');
-        }
-        
-        const keys = Array.from(this.memoryStore.keys());
-        return keys[index] || null;
-    }
-    
-    get length() {
-        try {
-            if (this.storageAvailable) {
-                return localStorage.length;
-            }
-        } catch (e) {
-            console.warn('[SafeStorage] localStorage.length blocked');
-        }
-        
-        return this.memoryStore.size;
-    }
-}
 
-// Create global instance
-window.safeStorage = new SafeStorageCore();
-window.SafeStorage = window.safeStorage; // Capital S alias for compatibility
-var SafeStorage = window.safeStorage;    // IMPORTANT: forces SafeStorage.getItem(...) to hit the instance
-
-
-// Optionally, override localStorage globally (careful!)
-// This makes ALL localStorage calls safe automatically
-if (typeof window !== 'undefined') {
-    // Store original for fallback
-    window._originalLocalStorage = window.localStorage;
-    
-    // You can uncomment this to replace localStorage globally:
-    /*
-    Object.defineProperty(window, 'localStorage', {
-        get() {
-            return window.safeStorage;
+        removeItem(key) {
+            this.memory.delete(key);
+            if (!this.persistent) return;
+            try {
+                window.localStorage.removeItem(key);
+            } catch {
+                this.persistent = false;
+            }
         }
-    });
-    */
-}
 
-console.log('✅ SafeStorage loaded - Safari ITP protected');
+        clear() {
+            this.memory.clear();
+            if (!this.persistent) return;
+            try {
+                window.localStorage.clear();
+            } catch {
+                this.persistent = false;
+            }
+        }
+
+        key(index) {
+            if (this.persistent) {
+                try {
+                    return window.localStorage.key(index);
+                } catch {
+                    this.persistent = false;
+                }
+            }
+            return Array.from(this.memory.keys())[index] ?? null;
+        }
+
+        get length() {
+            if (this.persistent) {
+                try {
+                    return window.localStorage.length;
+                } catch {
+                    this.persistent = false;
+                }
+            }
+            return this.memory.size;
+        }
+    }
+
+    window.safeStorage = new StorageFacade();
+    window.SafeStorage = window.safeStorage;
+}());

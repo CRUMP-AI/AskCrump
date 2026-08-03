@@ -1,0 +1,181 @@
+/* Subscription and plan-selection interface. */
+.upgrade-modal {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 10000);
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+}
+
+.upgrade-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(3, 6, 10, 0.82);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.upgrade-content {
+  position: relative;
+  width: min(820px, 100%);
+  max-height: min(760px, calc(100dvh - 2.5rem));
+  overflow-y: auto;
+  padding: 2rem;
+  border: 1px solid rgba(209, 191, 150, 0.2);
+  border-radius: 20px;
+  background: var(--color-bg-secondary);
+  box-shadow: var(--shadow-xl);
+}
+
+.upgrade-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.upgrade-close:hover { background: rgba(255, 255, 255, 0.08); }
+
+.upgrade-header {
+  max-width: 36rem;
+  margin: 0 auto 2rem;
+  padding-inline: 2rem;
+  text-align: center;
+}
+
+.upgrade-header h2 {
+  margin: 0 0 0.5rem;
+  color: var(--color-text-primary);
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  letter-spacing: -0.025em;
+}
+
+.upgrade-header p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
+}
+
+.tier-comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.tier-card-premium {
+  position: relative;
+  display: flex;
+  min-height: 270px;
+  flex-direction: column;
+  padding: 1.5rem;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 16px;
+  background: var(--color-surface);
+}
+
+.tier-card-premium::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(209, 191, 150, 0.38), transparent);
+}
+
+.tier-featured {
+  border-color: rgba(209, 191, 150, 0.45);
+  background: linear-gradient(180deg, rgba(209, 191, 150, 0.09), transparent 55%), var(--color-surface);
+}
+
+.tier-card-header { margin-bottom: 1rem; }
+.tier-name {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 1.25rem;
+  letter-spacing: -0.015em;
+}
+
+.tier-price-section {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tier-price-free { display: flex; align-items: baseline; }
+.price-main {
+  color: var(--color-text-primary);
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.03em;
+}
+
+.tier-card-premium > p {
+  margin: 0 0 1.5rem;
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
+}
+
+.tier-card-footer { margin-top: auto; }
+.tier-btn {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.tier-btn:hover { background: rgba(255, 255, 255, 0.09); }
+.tier-btn:disabled { cursor: wait; opacity: 0.68; }
+.tier-btn-upgrade {
+  border-color: rgba(209, 191, 150, 0.42);
+  background: var(--color-accent-primary);
+  color: var(--color-bg-primary);
+}
+.tier-btn-upgrade:hover { background: #e0cc9e; }
+
+.upgrade-footer {
+  margin: 0.75rem 0 0;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-relaxed);
+  text-align: center;
+}
+
+.upgrade-footer a { color: var(--color-text-secondary); }
+
+@media (max-width: 680px) {
+  .upgrade-modal { padding: 0; align-items: end; }
+  .upgrade-content {
+    width: 100%;
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px));
+    padding: 1.5rem;
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 20px 20px 0 0;
+  }
+  .upgrade-header { padding-inline: 1.5rem; }
+  .tier-comparison { grid-template-columns: 1fr; }
+  .tier-card-premium { min-height: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .upgrade-overlay { -webkit-backdrop-filter: none; backdrop-filter: none; }
+}

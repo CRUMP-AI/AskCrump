@@ -1,88 +1,75 @@
-(function () {
-  const LAST_SYNC_KEY = 'crump_last_sync_at';
-  const PENDING_PUSH_KEY = 'crump_pending_push';
+(() => {
+  'use strict';
+  const PENDING_KEY = 'crump_sync_queue_v4';
+  const SYNC_KEY = 'crump_last_sync_v4';
 
-  function nowIso() { return new Date().toISOString(); }
-
-  function safeGet(key, fallback) {
-    try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
-  }
-  function safeSet(key, value) {
-    try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
-  }
-
-  async function pull(deviceId) {
-    const since = safeGet(LAST_SYNC_KEY, null);
-    const url = since ? `/api/sync/pull?since=${encodeURIComponent(since)}` : `/api/sync/pull`;
-
-    const res = await fetch(url, {
-      method: 'GET',
-      credentials: 'include',
-      headers: deviceId ? { 'x-device-id': deviceId } : {}
-    });
-    const data = await res.json();
-    if (!data.success) return data;
-
-    // update local cache
-    safeSet(LAST_SYNC_KEY, data.serverTime || nowIso());
-    return data;
-  }
-
-  async function push(deviceId, payload) {
-    // queue payload (offline safe)
-    const queue = safeGet(PENDING_PUSH_KEY, []);
-    queue.push({ at: nowIso(), payload });
-    safeSet(PENDING_PUSH_KEY, queue);
-
-    // flush queue
-    const current = safeGet(PENDING_PUSH_KEY, []);
-    if (!current.length) return { success: true };
-
-    const merged = mergeQueue(current);
-
-    const res = await fetch('/api/sync/push', {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(deviceId ? { 'x-device-id': deviceId } : {})
-      },
-      body: JSON.stringify(merged)
-    });
-
-    const data = await res.json();
-    if (data.success) {
-      safeSet(PENDING_PUSH_KEY, []);
-      safeSet(LAST_SYNC_KEY, data.serverTime || nowIso());
-    }
-    return data;
-  }
-
-  // Merge queued payloads into 1 push (simple last-write wins)
-  function mergeQueue(queue) {
-    const out = { chats: [], settings: null };
-
-    // chats: keep last version per chat_id
-    const chatMap = new Map();
-
-    for (const item of queue) {
-      const p = item.payload || {};
-      const chats = p.chats || [];
-      for (const c of chats) {
-        if (!c) continue;
-        const key = c.chat_id || c.id;
-        if (!key) continue;
-        chatMap.set(key, c);
-      }
-      if (p.settings) out.settings = p.settings;
-    }
-
-    out.chats = Array.from(chatMap.values());
-    return out;
-  }
-
-  window.SyncManager = {
-    pull,
-    push
+  const read = (key, fallback) => {
+    try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch (_) { return fallback; }
   };
+  const write = (key, value) => {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {}
+  };
+  const userKey = key => `${key}:${window.currentUser?.id || 'anonymous'}`;
+
+  async function pull(_legacyDeviceId, options = {}) {
+    const full = options.full !== false;
+    const since = full ? null : read(userKey(SYNC_KEY), null);
+    const url = since ? `/api/sync/pull?since=${encodeURIComponent(since)}` : '/api/sync/pull';
+    const response = await fetch(url, { method: 'GET' });
+    const data = await response.json().catch(() => ({ success: false, error: 'Invalid sync response.' }));
+    if (response.ok && data.success) write(userKey(SYNC_KEY), data.serverTime || new Date().toISOString());
+    return data;
+  }
+
+  function mergeQueue(queue) {
+    const chats = new Map();
+    const deleted = new Map();
+    let settings = null;
+    for (const entry of queue) {
+      const payload = entry?.payload || {};
+      for (const chat of payload.chats || []) {
+        const id = chat?.chat_id || chat?.id;
+        if (!id) continue;
+        chats.set(id, chat);
+      }
+      for (const tombstone of payload.deletedChats || []) {
+        const value = typeof tombstone === 'string' ? { id: tombstone } : tombstone;
+        const id = value?.chat_id || value?.id;
+        if (!id) continue;
+        deleted.set(id, value);
+        chats.delete(id);
+      }
+      if (payload.settings && typeof payload.settings === 'object') settings = payload.settings;
+    }
+    return { chats: [...chats.values()], deletedChats: [...deleted.values()], settings };
+  }
+
+  async function flush() {
+    if (!navigator.onLine || !window.currentUser) return { success: false, queued: true };
+    const key = userKey(PENDING_KEY);
+    const queue = read(key, []);
+    if (!queue.length) return { success: true };
+    const response = await fetch('/api/sync/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(mergeQueue(queue)),
+    });
+    const data = await response.json().catch(() => ({ success: false, error: 'Invalid sync response.' }));
+    if (response.ok && data.success) {
+      write(key, []);
+      write(userKey(SYNC_KEY), data.serverTime || new Date().toISOString());
+    }
+    return data;
+  }
+
+  async function push(_legacyDeviceId, payload) {
+    const key = userKey(PENDING_KEY);
+    const queue = read(key, []);
+    queue.push({ at: new Date().toISOString(), payload });
+    write(key, queue.slice(-100));
+    return flush();
+  }
+
+  window.addEventListener('online', () => flush().catch(console.warn));
+  window.SyncManager = { pull, push, flush };
 })();
