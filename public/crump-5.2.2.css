@@ -1,0 +1,49 @@
+/* Ask Crump 5.2.2 — stable conversation scrolling and visible newest-message control. */
+
+html,
+body,
+.chat-container {
+  scroll-behavior: auto !important;
+}
+
+body.crump-43 #scrollToEndBtn,
+#scrollToEndBtn[data-crump522='true'] {
+  width: 48px !important;
+  height: 48px !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+  background: linear-gradient(145deg, #ead7aa, #cdb47d) !important;
+  color: #0b1015 !important;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(215, 197, 154, 0.16) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+body.crump-43 #scrollToEndBtn svg,
+#scrollToEndBtn[data-crump522='true'] svg {
+  color: #0b1015 !important;
+  stroke: currentColor !important;
+}
+
+body.crump-43 #scrollToEndBtn:hover,
+body.crump-43 #scrollToEndBtn:focus-visible,
+#scrollToEndBtn[data-crump522='true']:hover,
+#scrollToEndBtn[data-crump522='true']:focus-visible {
+  background: linear-gradient(145deg, #f1dfb7, #d8bf89) !important;
+  color: #070b0f !important;
+}
+
+.billing51-pack[data-crump-pack] {
+  cursor: pointer;
+  -webkit-tap-highlight-color: rgba(215, 197, 154, 0.10);
+}
+
+.billing51-pack[data-crump-pack]:active {
+  transform: translateY(1px);
+}
+
+.billing51-pack[aria-busy='true'] {
+  pointer-events: none;
+  opacity: 0.82;
+}

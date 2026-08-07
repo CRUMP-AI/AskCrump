@@ -1,16 +1,12 @@
-ASK CRUMP 5.2.1 HOTFIX
+ASK CRUMP 5.2.2
 
-This assumes Ask Crump 5.2 is already installed.
-
-1. Extract this ZIP.
-2. Copy the contents into the root of the CRUMP-AI repository.
-3. Merge folders and replace matching files.
-4. Commit and push.
-5. Wait for the Vercel production deployment to become READY.
-6. Refresh AskCrump.com once so the v5.2.1 service-worker cache activates.
+Copy the contents of this folder into the ROOT of the CRUMP-AI repository.
+Choose Merge/Replace when prompted.
 
 Suggested commit summary:
-Ask Crump 5.2.1 document and checkout hotfix
+Ask Crump 5.2.2 checkout and scroll stability
 
-No database migration is required.
-No Stripe environment variables need to be changed.
+No Supabase migration is required.
+No Stripe/Vercel environment-variable changes are required.
+
+After Vercel reaches READY, refresh Ask Crump once so the v5.2.2 service worker/cache activates.
