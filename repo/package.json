@@ -1,0 +1,40 @@
+{
+  "name": "ask-crump",
+  "version": "4.4.0",
+  "private": true,
+  "description": "Cross-platform conversational assistant with synchronized chat, persistent sessions, native mobile support, memory, and intelligence orchestration.",
+  "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "build": "node scripts/build-native.mjs",
+    "cap:add:ios": "npx cap add ios",
+    "cap:add:android": "npx cap add android",
+    "cap:sync": "npm run build && npx cap sync",
+    "cap:open:ios": "npx cap open ios",
+    "cap:open:android": "npx cap open android",
+    "test:js": "node scripts/check-javascript.mjs",
+    "test": "npm run test:js",
+    "native:configure": "node scripts/configure-native.mjs",
+    "native:assets": "capacitor-assets generate --iconBackgroundColor '#0f1419' --iconBackgroundColorDark '#0f1419' --splashBackgroundColor '#0f1419' --splashBackgroundColorDark '#0f1419'",
+    "native:verify": "node scripts/verify-native-release.mjs"
+  },
+  "dependencies": {
+    "@aparajita/capacitor-secure-storage": "8.0.0",
+    "@capacitor/app": "8.0.0",
+    "@capacitor/core": "8.4.2",
+    "@capacitor/haptics": "8.0.0",
+    "@capacitor/keyboard": "8.0.0",
+    "@capacitor/network": "8.0.0",
+    "@revenuecat/purchases-capacitor": "13.2.3",
+    "@capacitor/push-notifications": "8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/android": "8.4.2",
+    "@capacitor/cli": "8.4.2",
+    "@capacitor/ios": "8.4.2",
+    "esbuild": "0.25.0",
+    "@capacitor/assets": "3.0.5"
+  }
+}

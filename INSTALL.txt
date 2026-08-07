@@ -1,0 +1,68 @@
+ASK CRUMP 4.4 INTELLIGENCE UPDATE
+==================================
+
+BASELINE
+This package was built against GitHub main commit:
+286d3877ce7c53dc624e2e398da7d1dc005bd6c9
+"Make conversation sync server authoritative"
+
+WHAT THIS UPDATE DOES
+- Preserves the current 4.3 chat appearance.
+- Adds one subtle sliders button in the header.
+- Adds a hidden intelligence control panel.
+- Enter creates a new line.
+- Ctrl+Enter / Command+Enter sends.
+- Adds Auto / Fast / Deep intelligence modes.
+- Adds durable, user-controlled memory.
+- Adds a per-conversation private-memory switch.
+- Adds optional planning and answer verification.
+- Adds tool-routing controls.
+- Adds privacy-safe operational traces.
+- Keeps server-authoritative AI reply persistence and cross-device sync.
+- Adds deterministic intelligence tests.
+- Bumps the app/service-worker version to 4.4.0.
+
+INSTALL
+1. Open this ZIP.
+2. Open the folder named "repo".
+3. Copy EVERYTHING INSIDE "repo".
+4. Paste it into the ROOT of your local CRUMP-AI repository.
+5. Choose Replace when prompted.
+6. GitHub Desktop should show modified and newly added files.
+7. Commit with:
+   Ask Crump 4.4 intelligence foundation
+8. Push origin.
+9. Tell Echo: "pushed"
+
+IMPORTANT
+The source migration is included at:
+migrations/003_intelligence_foundation.sql
+
+Do not manually run random SQL from the ZIP. After the GitHub push, Echo can
+apply the exact migration through the connected Supabase project and verify the
+Vercel deployment, API routes, memory controls, chat, login, and cross-device
+sync.
+
+ROLLBACK
+If the deployment has a problem, the previous production commit is:
+286d3877ce7c53dc624e2e398da7d1dc005bd6c9
+
+FILES ADDED
+- backend/intelligence_service.py
+- backend/routes/intelligence.py
+- public/crump-4.4.js
+- public/crump-4.4.css
+- migrations/003_intelligence_foundation.sql
+- tests/test_intelligence_service.py
+- docs/INTELLIGENCE_ARCHITECTURE.md
+
+FILES REPLACED
+- backend/application.py
+- backend/runtime.py
+- backend/routes/chat.py
+- backend/version.py
+- public/runtime-config.js
+- public/sw.js
+- scripts/check-javascript.mjs
+- package.json
+- pyproject.toml
