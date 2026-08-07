@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .http import register_exception_handlers, request_guards
-from .routes import account, auth, billing, chat, health, presence, sync
+from .routes import account, auth, billing, chat, health, intelligence, presence, sync
 from .runtime import settings
 from .version import __version__
 
@@ -55,6 +55,7 @@ def create_app() -> FastAPI:
     application.include_router(account.router)
     application.include_router(sync.router)
     application.include_router(chat.router)
+    application.include_router(intelligence.router)
     application.include_router(presence.router)
     application.include_router(billing.router)
 

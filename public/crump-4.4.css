@@ -1,0 +1,565 @@
+
+/* Ask Crump 4.4 — intelligence controls.
+   This layer intentionally leaves the 4.3 conversation design untouched. */
+
+.crump-44 .header {
+  position: relative;
+}
+
+.crump44-control-button {
+  position: absolute;
+  top: 50%;
+  right: max(18px, env(safe-area-inset-right));
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+  color: rgba(239, 241, 245, 0.78);
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease;
+  z-index: 4;
+}
+
+.crump44-control-button:hover,
+.crump44-control-button:focus-visible,
+.crump44-control-button[aria-expanded="true"] {
+  color: #d8bd70;
+  border-color: rgba(216, 189, 112, 0.28);
+  background: rgba(216, 189, 112, 0.06);
+}
+
+.crump44-control-button:active {
+  transform: translateY(-50%) scale(0.96);
+}
+
+.crump44-panel {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 78px);
+  right: max(14px, env(safe-area-inset-right));
+  width: min(390px, calc(100vw - 28px));
+  max-height: min(720px, calc(100dvh - 110px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(23, 28, 34, 0.985), rgba(14, 18, 23, 0.99)),
+    #11161c;
+  box-shadow:
+    0 26px 70px rgba(0, 0, 0, 0.46),
+    0 1px 0 rgba(255, 255, 255, 0.035) inset;
+  color: #eceff3;
+  z-index: 2200;
+  isolation: isolate;
+}
+
+.crump44-panel[hidden] {
+  display: none !important;
+}
+
+.crump44-grabber {
+  display: none;
+}
+
+.crump44-panel-header {
+  min-height: 82px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 18px 14px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.065);
+}
+
+.crump44-panel-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.crump44-eyebrow {
+  color: #cbae59;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.crump44-panel-header strong {
+  font-size: 20px;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+}
+
+.crump44-panel-header small {
+  color: rgba(229, 234, 241, 0.5);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.crump44-close,
+.crump44-back {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(238, 241, 245, 0.72);
+  cursor: pointer;
+  font: inherit;
+  font-size: 22px;
+}
+
+.crump44-close:hover,
+.crump44-back:hover,
+.crump44-close:focus-visible,
+.crump44-back:focus-visible {
+  background: rgba(255, 255, 255, 0.075);
+  color: #fff;
+}
+
+.crump44-panel-content {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px;
+  scrollbar-width: thin;
+}
+
+.crump44-section {
+  padding: 15px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.022);
+}
+
+.crump44-section + .crump44-section,
+.crump44-section + .crump44-keyboard-note,
+.crump44-keyboard-note + .crump44-section {
+  margin-top: 10px;
+}
+
+.crump44-section-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 12px;
+}
+
+.crump44-section-heading > span {
+  color: rgba(245, 247, 250, 0.92);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.crump44-section-heading > small {
+  color: rgba(224, 229, 236, 0.43);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.crump44-segmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.crump44-segment {
+  min-height: 34px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(230, 234, 240, 0.56);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, box-shadow 150ms ease;
+}
+
+.crump44-segment.active {
+  color: #f4e7bd;
+  background: rgba(202, 172, 87, 0.13);
+  box-shadow: 0 0 0 1px rgba(202, 172, 87, 0.12) inset;
+}
+
+.crump44-segment:hover:not(.active),
+.crump44-segment:focus-visible:not(.active) {
+  color: rgba(244, 246, 249, 0.82);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.crump44-mode-copy {
+  margin: 9px 2px 0;
+  color: rgba(222, 227, 233, 0.46);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.crump44-toggle-row {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 9px 0;
+}
+
+.crump44-toggle-row + .crump44-toggle-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.045);
+}
+
+.crump44-row-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.crump44-row-copy strong {
+  color: rgba(244, 246, 249, 0.86);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.crump44-row-copy span {
+  max-width: 270px;
+  color: rgba(220, 225, 231, 0.42);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.crump44-toggle {
+  position: relative;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.crump44-toggle span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(235, 238, 243, 0.72);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.32);
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+.crump44-toggle.is-on {
+  border-color: rgba(204, 174, 89, 0.42);
+  background: rgba(204, 174, 89, 0.28);
+}
+
+.crump44-toggle.is-on span {
+  transform: translateX(18px);
+  background: #e2c875;
+}
+
+.crump44-row-button,
+.crump44-clear-memory {
+  width: 100%;
+  min-height: 40px;
+  margin-top: 9px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.025);
+  color: rgba(239, 242, 246, 0.72);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 550;
+  text-align: left;
+  cursor: pointer;
+}
+
+.crump44-row-button::after {
+  content: '›';
+  float: right;
+  color: rgba(255, 255, 255, 0.28);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.crump44-row-button:hover,
+.crump44-row-button:focus-visible {
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(247, 249, 251, 0.9);
+}
+
+.crump44-tools {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.crump44-tool {
+  min-height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.028);
+  color: rgba(235, 238, 243, 0.68);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.crump44-tool:hover,
+.crump44-tool:focus-visible {
+  color: #e3cc84;
+  border-color: rgba(209, 179, 91, 0.2);
+  background: rgba(209, 179, 91, 0.055);
+}
+
+.crump44-segmented-small .crump44-segment {
+  min-height: 31px;
+  font-size: 11px;
+}
+
+.crump44-keyboard-note {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  border: 1px dashed rgba(205, 177, 95, 0.16);
+  border-radius: 14px;
+  color: rgba(233, 237, 241, 0.6);
+  background: rgba(205, 177, 95, 0.025);
+}
+
+.crump44-keyboard-note strong {
+  color: rgba(226, 201, 125, 0.8);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.crump44-keyboard-note span {
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.crump44-system {
+  margin-bottom: 2px;
+}
+
+.crump44-status-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 10px;
+}
+
+.crump44-status-grid > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: rgba(224, 228, 234, 0.5);
+  font-size: 10px;
+}
+
+.crump44-status-grid i {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.crump44-status-grid i.is-on {
+  background: #82c992;
+  box-shadow: 0 0 0 3px rgba(130, 201, 146, 0.07);
+}
+
+.crump44-subtle {
+  margin-top: 12px;
+  color: rgba(225, 229, 235, 0.48);
+}
+
+.crump44-memory-header {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 5px 2px 14px;
+}
+
+.crump44-memory-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.crump44-memory-header strong {
+  color: rgba(246, 248, 251, 0.9);
+  font-size: 14px;
+}
+
+.crump44-memory-header span {
+  color: rgba(222, 227, 233, 0.42);
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
+.crump44-back {
+  font-size: 16px;
+}
+
+.crump44-memory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.crump44-memory-card {
+  padding: 12px 12px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.crump44-memory-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+
+.crump44-memory-kind {
+  color: #cbb36c;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.crump44-forget {
+  border: 0;
+  background: transparent;
+  color: rgba(239, 151, 151, 0.62);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.crump44-forget:hover,
+.crump44-forget:focus-visible {
+  color: #f1a0a0;
+}
+
+.crump44-memory-card p {
+  margin: 0;
+  color: rgba(235, 238, 242, 0.72);
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.crump44-memory-empty {
+  padding: 24px 14px;
+  color: rgba(224, 229, 235, 0.44);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.crump44-clear-memory {
+  margin-top: 12px;
+  color: rgba(240, 145, 145, 0.68);
+  text-align: center;
+}
+
+.crump44-clear-memory::after {
+  content: none;
+}
+
+.crump44-panel :focus-visible {
+  outline: 2px solid rgba(218, 188, 99, 0.52);
+  outline-offset: 2px;
+}
+
+@media (max-width: 700px) {
+  .crump44-control-button {
+    right: max(16px, env(safe-area-inset-right));
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+  }
+
+  .crump44-panel {
+    top: auto;
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: 8px;
+    width: auto;
+    max-height: min(78dvh, 690px);
+    border-radius: 24px;
+    transform-origin: bottom center;
+  }
+
+  .crump44-grabber {
+    display: block;
+    width: 38px;
+    height: 4px;
+    margin: 8px auto 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .crump44-panel-header {
+    min-height: 72px;
+    padding-top: 11px;
+  }
+
+  .crump44-panel-content {
+    padding: 12px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  }
+
+  .crump44-row-copy span {
+    max-width: 230px;
+  }
+}
+
+@media (max-width: 390px) {
+  .crump44-status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .crump44-panel {
+    left: 6px;
+    right: 6px;
+  }
+
+  .crump44-section {
+    padding: 13px 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crump44-control-button,
+  .crump44-toggle,
+  .crump44-toggle span,
+  .crump44-segment {
+    transition: none !important;
+  }
+}

@@ -11,10 +11,12 @@ from .ai_service import AIService
 from .config import get_settings
 from .db import SupabaseDB
 from .email_service import EmailService
+from .intelligence_service import IntelligenceService
 from .push_service import PushService
 
 settings = get_settings()
 db = SupabaseDB(settings)
 ai = AIService(settings)
+intelligence = IntelligenceService(db=db, ai=ai, settings=settings)
 email_service = EmailService(settings)
 push_service = PushService(settings)

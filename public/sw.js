@@ -1,10 +1,10 @@
-const CACHE_NAME = 'ask-crump-shell-v4.3.2';
+const CACHE_NAME = 'ask-crump-shell-v4.4.0';
 const APP_SHELL = [
   '/app', '/app.html', '/legal.html', '/delete-account.html', '/manifest.json',
   '/styles.css', '/auth-styles.css', '/onboarding.css',
-  '/install-prompt.css', '/billing.css', '/conversation.css', '/crump-4.3.css',
+  '/install-prompt.css', '/billing.css', '/conversation.css', '/crump-4.3.css', '/crump-4.4.css',
   '/runtime-config.js', '/native-runtime.js', '/mobile-bridge.js', '/safe-storage.js',
-  '/install-prompt.js', '/onboarding.js', '/crump-4.3.js', '/scroll-manager.js',
+  '/install-prompt.js', '/onboarding.js', '/crump-4.3.js', '/crump-4.4.js', '/scroll-manager.js',
   '/profile-manager.js', '/billing-manager.js', '/subscription-ui.js', '/ui-functions.js', '/presence-manager.js',
   '/device-auth.js', '/sync-manager.js', '/chat-sync.js', '/account-manager.js',
   '/app.js', '/auth-controller.js', '/landing.js',
@@ -32,7 +32,7 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
 
-  // Authentication, chat, billing, and synchronization are network-only.
+  // Authentication, chat, billing, intelligence, and synchronization are network-only.
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(fetch(request));
     return;
