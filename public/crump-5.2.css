@@ -226,3 +226,8 @@
     padding-bottom: max(6px, env(safe-area-inset-bottom));
   }
 }
+
+/* 5.2.1 — the whole web credit pack is an intentional tap target. */
+.billing51-pack[data-crump-pack] { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.billing51-pack[data-crump-pack]:active { transform: translateY(1px); }
+.billing51-pack[data-crump-pack]:focus-visible { outline: 2px solid rgba(217,195,147,.55); outline-offset: 3px; }

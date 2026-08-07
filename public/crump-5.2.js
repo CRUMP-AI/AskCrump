@@ -11,6 +11,7 @@
     renderHooked: false,
     legacyFileCache: new Map(),
     legacyFileLoading: new Set(),
+    checkoutOpening: false,
   };
 
   function cssEscape(value) {
@@ -377,9 +378,38 @@
     document.body.classList.remove('billing51-open');
   }
 
+  async function openCreditCheckout(packCode, trigger) {
+    if (!packCode || state.checkoutOpening) return;
+    state.checkoutOpening = true;
+    const button = trigger?.closest?.('.billing51-buy') || trigger;
+    const prior = button?.textContent || 'Add credits';
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Opening checkout…';
+    }
+    try {
+      const result = await jsonFetch('/api/billing/credits/checkout', {
+        method: 'POST',
+        body: JSON.stringify({pack: packCode}),
+      });
+      if (!result.url) throw new Error('Stripe did not return a checkout destination.');
+      window.location.href = result.url;
+    } catch (error) {
+      state.checkoutOpening = false;
+      if (button) {
+        button.disabled = false;
+        button.textContent = prior;
+      }
+      window.showToast?.(error.message || 'Could not open secure checkout.', 'error');
+    }
+  }
+
   function creditPackCard(pack) {
     const article = document.createElement('article');
     article.className = `billing51-pack ${Number(pack.credits) === 150 ? 'is-featured' : ''}`;
+    article.dataset.crumpPack = String(pack.code || '');
+    article.tabIndex = pack.available === false ? -1 : 0;
+    if (pack.available !== false) article.setAttribute('role', 'button');
     if (Number(pack.credits) === 150) {
       const badge = document.createElement('span');
       badge.className = 'billing51-badge';
@@ -398,25 +428,9 @@
     const buy = document.createElement('button');
     buy.type = 'button';
     buy.className = 'billing51-buy';
+    buy.dataset.crumpPack = String(pack.code || '');
     buy.disabled = pack.available === false;
     buy.textContent = pack.available === false ? 'Not configured' : 'Add credits';
-    buy.addEventListener('click', async () => {
-      const prior = buy.textContent;
-      buy.disabled = true;
-      buy.textContent = 'Opening checkout…';
-      try {
-        const result = await jsonFetch('/api/billing/credits/checkout', {
-          method: 'POST',
-          body: JSON.stringify({pack: pack.code}),
-        });
-        if (!result.url) throw new Error('Stripe did not return a checkout destination.');
-        window.location.assign(result.url);
-      } catch (error) {
-        buy.disabled = pack.available === false;
-        buy.textContent = prior;
-        window.showToast?.(error.message || 'Could not open secure checkout.', 'error');
-      }
-    });
     article.append(amount, label, price, buy);
     return article;
   }
@@ -535,6 +549,28 @@
     document.body.appendChild(modal);
     state.billing = modal;
     document.body.classList.add('billing51-open');
+
+    // One capture-phase handler owns checkout for both the explicit button and
+    // the full credit card. This survives re-renders and is reliable on iOS
+    // Safari even when child buttons are replaced during hydration.
+    modal.addEventListener('click', event => {
+      const packTarget = event.target.closest?.('[data-crump-pack]');
+      if (!packTarget || !modal.contains(packTarget)) return;
+      const card = packTarget.closest('.billing51-pack');
+      const button = card?.querySelector('.billing51-buy');
+      if (!card || button?.disabled) return;
+      event.preventDefault();
+      event.stopPropagation();
+      openCreditCheckout(card.dataset.crumpPack || packTarget.dataset.crumpPack, button);
+    }, {capture: true});
+    modal.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      const card = event.target.closest?.('.billing51-pack[data-crump-pack]');
+      if (!card) return;
+      event.preventDefault();
+      const button = card.querySelector('.billing51-buy');
+      if (!button?.disabled) openCreditCheckout(card.dataset.crumpPack, button);
+    });
     hydrateBilling52(modal);
     return modal;
   }

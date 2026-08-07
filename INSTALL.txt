@@ -1,37 +1,16 @@
-ASK CRUMP 5.2 — INSTALL
+ASK CRUMP 5.2.1 HOTFIX
 
-This package is a root-level overlay for the current CRUMP-AI repository.
-It contains only new/replacement files; it does not delete existing files.
+This assumes Ask Crump 5.2 is already installed.
 
-1. Open the local CRUMP-AI repository folder used by GitHub Desktop.
-2. Copy every file/folder from this package into the repository root.
-3. Choose Replace/Merge when your OS asks. Preserve the folder structure.
-4. In GitHub Desktop, confirm the changed files match this package.
-5. Commit with: Ask Crump 5.2 multimodal continuity
-6. Push origin/main.
-7. Let Vercel deploy automatically and wait for Production = READY.
-8. After deployment, open https://askcrump.com/api/health and confirm version 5.2.0.
+1. Extract this ZIP.
+2. Copy the contents into the root of the CRUMP-AI repository.
+3. Merge folders and replace matching files.
+4. Commit and push.
+5. Wait for the Vercel production deployment to become READY.
+6. Refresh AskCrump.com once so the v5.2.1 service-worker cache activates.
 
-NO SUPABASE MIGRATION IS REQUIRED FOR 5.2.
-NO STRIPE ENVIRONMENT VARIABLE CHANGES ARE REQUIRED FOR 5.2.
+Suggested commit summary:
+Ask Crump 5.2.1 document and checkout hotfix
 
-IMAGE GENERATION NOTE
-The production logs show the current OPENAI_API_KEY is being rejected with HTTP 401.
-After 5.2 is green, replace OPENAI_API_KEY in Vercel with a valid OpenAI API key,
-Production scope only. Do not paste that key into ChatGPT or commit it to GitHub.
-Redeploy after changing the key.
-
-FILES INCLUDED
-backend/__init__.py
-backend/crump52_patches.py
-backend/routes/billing.py
-backend/routes/files.py
-backend/version.py
-public/crump-5.2.css
-public/crump-5.2.js
-public/runtime-config.js
-public/sw.js
-scripts/build-native.mjs
-scripts/check-javascript.mjs
-package.json
-pyproject.toml
+No database migration is required.
+No Stripe environment variables need to be changed.

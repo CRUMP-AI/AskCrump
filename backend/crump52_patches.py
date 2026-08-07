@@ -25,6 +25,7 @@ _ORIGINAL_EXTRACT_NONVISUAL = media_module.MediaService.extract_nonvisual
 _ORIGINAL_SANITIZE_MESSAGE = sync_module.sanitize_message
 _ORIGINAL_SAFE_IMAGE_URL = sync_module.safe_image_url
 _ORIGINAL_UNDERSTAND = media_module.MediaService.understand
+_ORIGINAL_CHAT = ai_module.AIService.chat
 _ORIGINAL_DETECT_ARTIFACT = ArtifactService.detect_request.__func__
 
 _FILE_KINDS = {"upload", "generated_image", "generated_document"}
@@ -221,6 +222,59 @@ def _priority_entries(relevant: Any) -> tuple[list[str], list[str], Any]:
     return attachments, artifact_notes, relevant
 
 
+
+def _collect_priority_entries(value: Any) -> tuple[list[str], list[str]]:
+    """Recursively find current-turn attachment/artifact entries regardless of nesting."""
+    attachments: list[str] = []
+    artifact_notes: list[str] = []
+
+    def walk(node: Any) -> None:
+        if isinstance(node, list):
+            for item in node:
+                walk(item)
+            return
+        if not isinstance(node, dict):
+            return
+        source = str(node.get("source") or "")
+        content = str(node.get("content") or "").strip()
+        if source == "uploaded_files" and content:
+            attachments.append(content)
+            return
+        if source == "artifact_request" and content:
+            artifact_notes.append(content)
+            return
+        for child in node.values():
+            if isinstance(child, (dict, list)):
+                walk(child)
+
+    walk(value)
+    return attachments, artifact_notes
+
+
+def _dedupe_text(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        text = str(value or "").strip()
+        if not text:
+            continue
+        key = text[:1000]
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(text)
+    return result
+
+
+def _attachment_manifest(attachments: list[str]) -> str:
+    names: list[str] = []
+    for block in attachments:
+        for match in re.finditer(r"(?m)^FILE:\s*(.+?)\s*$", str(block or "")):
+            name = match.group(1).strip()
+            if name and name not in names:
+                names.append(name)
+    return ", ".join(names[:10]) or "the attached file"
+
 def _system_prompt_v52(
     self: ai_module.AIService,
     payload: dict[str, Any],
@@ -229,6 +283,9 @@ def _system_prompt_v52(
 ) -> str:
     working = dict(payload)
     attachments, artifact_notes, remaining = _priority_entries(working.get("relevantContext"))
+    deep_attachments, deep_artifact_notes = _collect_priority_entries(working.get("relevantContext"))
+    attachments = _dedupe_text([*attachments, *deep_attachments])
+    artifact_notes = _dedupe_text([*artifact_notes, *deep_artifact_notes])
     if remaining:
         working["relevantContext"] = remaining
     else:
@@ -268,6 +325,31 @@ Crump personality and conversational identity:
 """
     return prompt
 
+
+
+async def _chat_v521(self: ai_module.AIService, payload: dict[str, Any]) -> dict[str, Any]:
+    """Keep a concise attachment cue adjacent to the current user turn.
+
+    Large documents live in the dedicated system attachment section. This cue
+    prevents long-context attention from making the model behave as though a
+    successfully resolved attachment was absent, especially for emoji-only or
+    very short follow-up messages.
+    """
+    working = dict(payload)
+    attachments, _artifact_notes = _collect_priority_entries(working.get("relevantContext"))
+    attachments = _dedupe_text(attachments)
+    if attachments:
+        manifest = _attachment_manifest(attachments)
+        message = str(working.get("message") or "").strip()
+        cue = (
+            f"[Current attachment received: {manifest}. The attachment is present and its extracted content "
+            "is available in the current attachment context. Treat it as part of this message. Do not say "
+            "that no attachment was received.]"
+        )
+        # Keep the user's wording intact while placing the attachment fact next
+        # to the current turn, where the model cannot lose it in long context.
+        working["message"] = f"{message}\n\n{cue}".strip()
+    return await _ORIGINAL_CHAT(self, working)
 
 def _sample_text(text: str, budget: int) -> str:
     text = str(text or "")
@@ -371,6 +453,7 @@ def apply_crump52_patches() -> None:
     sync_module.safe_image_url = _safe_image_url_v52
     sync_module.sanitize_message = _sanitize_message_v52
     ai_module.AIService._system_prompt = _system_prompt_v52
+    ai_module.AIService.chat = _chat_v521
     media_module.MediaService.extract_nonvisual = _extract_nonvisual_v52
     media_module.MediaService.understand = _understand_v52
     ArtifactService.detect_request = classmethod(_detect_artifact_v52)

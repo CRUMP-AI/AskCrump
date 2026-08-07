@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-shell-v5.2.0';
+const CACHE_NAME = 'ask-crump-shell-v5.2.1';
 const APP_SHELL = [
   '/app', '/app.html', '/legal.html', '/delete-account.html', '/manifest.json',
   '/styles.css', '/auth-styles.css', '/onboarding.css',
