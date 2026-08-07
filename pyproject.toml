@@ -1,7 +1,7 @@
 [project]
 name = "ask-crump"
-version = "4.4.0"
-description = "Cross-platform conversational assistant with synchronized chat and persistent sessions."
+version = "5.0.0"
+description = "Cross-platform multimodal AI assistant with synchronized chat, private files, generated artifacts, memory, and intelligence orchestration."
 requires-python = ">=3.12,<3.15"
 dependencies = [
   "fastapi==0.116.1",
@@ -12,6 +12,11 @@ dependencies = [
   "uvicorn[standard]==0.35.0",
   "google-auth==2.40.3",
   "PyJWT[crypto]==2.10.1",
+  "python-docx==1.2.0",
+  "python-pptx==1.0.2",
+  "openpyxl==3.1.5",
+  "pypdf==6.14.2",
+  "reportlab==5.0.0",
 ]
 
 [tool.pytest.ini_options]

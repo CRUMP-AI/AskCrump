@@ -11,18 +11,20 @@ window.CRUMP_CONFIG = Object.freeze({
 
 (() => {
   'use strict';
-  if (!document.querySelector('link[data-crump-44]')) {
-    const stylesheet = document.createElement('link');
-    stylesheet.rel = 'stylesheet';
-    stylesheet.href = '/crump-4.4.css';
-    stylesheet.dataset.crump44 = 'true';
-    document.head.appendChild(stylesheet);
-  }
-  if (!document.querySelector('script[data-crump-44]')) {
-    const script = document.createElement('script');
-    script.src = '/crump-4.4.js';
-    script.async = false;
-    script.dataset.crump44 = 'true';
-    document.head.appendChild(script);
+  const assets = [
+    ['style', '/crump-4.4.css', 'crump44'],
+    ['script', '/crump-4.4.js', 'crump44'],
+    ['style', '/crump-5.0.css', 'crump50'],
+    ['script', '/crump-5.0.js', 'crump50'],
+  ];
+  for (const [kind, url, key] of assets) {
+    if (kind === 'style' && !document.querySelector(`link[data-${key}]`)) {
+      const node = document.createElement('link');
+      node.rel = 'stylesheet'; node.href = url; node.dataset[key] = 'true'; document.head.appendChild(node);
+    }
+    if (kind === 'script' && !document.querySelector(`script[data-${key}]`)) {
+      const node = document.createElement('script');
+      node.src = url; node.async = false; node.dataset[key] = 'true'; document.head.appendChild(node);
+    }
   }
 })();

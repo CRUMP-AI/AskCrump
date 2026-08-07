@@ -28,6 +28,9 @@ class Settings:
     anthropic_model: str
     openai_api_key: str | None
     openai_image_model: str
+    openai_vision_model: str
+    storage_bucket: str
+    max_upload_bytes: int
     brave_api_key: str | None
     openweather_api_key: str | None
     resend_api_key: str | None
@@ -86,6 +89,8 @@ class Settings:
             raise RuntimeError('SESSION_DAYS must be between 1 and 3650.')
         if self.max_request_bytes < 1024:
             raise RuntimeError('MAX_REQUEST_BYTES is too small.')
+        if self.max_upload_bytes < 1024 * 1024 or self.max_upload_bytes > 100 * 1024 * 1024:
+            raise RuntimeError('MAX_UPLOAD_BYTES must be between 1 MB and 100 MB.')
         if self.max_history_messages < 1 or self.max_history_chars < 1000:
             raise RuntimeError('History limits must be positive.')
         if min(self.free_daily_messages, self.professional_daily_messages, self.enterprise_daily_messages) < 0:
@@ -120,6 +125,9 @@ def get_settings() -> Settings:
         anthropic_model=os.getenv('ANTHROPIC_MODEL', 'claude-sonnet-5'),
         openai_api_key=os.getenv('OPENAI_API_KEY'),
         openai_image_model=os.getenv('OPENAI_IMAGE_MODEL', 'gpt-image-2'),
+        openai_vision_model=os.getenv('OPENAI_VISION_MODEL', 'gpt-5.6-sol'),
+        storage_bucket=os.getenv('CRUMP_STORAGE_BUCKET', 'crump-files'),
+        max_upload_bytes=int(os.getenv('MAX_UPLOAD_BYTES', str(50 * 1024 * 1024))),
         brave_api_key=os.getenv('BRAVE_API_KEY'),
         openweather_api_key=os.getenv('OPENWEATHER_API_KEY'),
         resend_api_key=os.getenv('RESEND_API_KEY'),

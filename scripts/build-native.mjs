@@ -6,7 +6,6 @@ const publicDir = new URL('../public/', import.meta.url);
 await rm(outDir, { recursive: true, force: true });
 await mkdir(outDir, { recursive: true });
 await cp(publicDir, outDir, { recursive: true });
-// Capacitor always boots index.html. The native product must open the app, not the marketing landing page.
 await copyFile(new URL('../public/app.html', import.meta.url), new URL('../dist/index.html', import.meta.url));
 
 await build({
@@ -30,6 +29,25 @@ const config = {
   webProfessionalPriceLabel: process.env.WEB_PROFESSIONAL_PRICE_LABEL || '$20/month',
   webEnterprisePriceLabel: process.env.WEB_ENTERPRISE_PRICE_LABEL || '$50/month',
 };
-await writeFile(new URL('../dist/runtime-config.js', import.meta.url), `window.CRUMP_CONFIG = Object.freeze(${JSON.stringify(config, null, 2)});\n`);
+const loaders = `
+(() => {
+  'use strict';
+  const assets = [
+    ['style','/crump-4.4.css','crump44'],
+    ['script','/crump-4.4.js','crump44'],
+    ['style','/crump-5.0.css','crump50'],
+    ['script','/crump-5.0.js','crump50'],
+  ];
+  for (const [kind,url,key] of assets) {
+    const selector = kind === 'style' ? 'link[data-' + key + ']' : 'script[data-' + key + ']';
+    if (document.querySelector(selector)) continue;
+    const node = document.createElement(kind === 'style' ? 'link' : 'script');
+    if (kind === 'style') { node.rel='stylesheet'; node.href=url; } else { node.src=url; node.async=false; }
+    node.dataset[key]='true';
+    document.head.appendChild(node);
+  }
+})();
+`;
+await writeFile(new URL('../dist/runtime-config.js', import.meta.url), `window.CRUMP_CONFIG = Object.freeze(${JSON.stringify(config, null, 2)});\n${loaders}`);
 await rm(new URL('../dist/native-entry.js', import.meta.url), { force: true });
 console.log('Native web bundle created in dist/.');

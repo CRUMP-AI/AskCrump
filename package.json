@@ -1,12 +1,10 @@
 {
   "name": "ask-crump",
-  "version": "4.4.0",
+  "version": "5.0.0",
   "private": true,
-  "description": "Cross-platform conversational assistant with synchronized chat, persistent sessions, native mobile support, memory, and intelligence orchestration.",
+  "description": "Cross-platform multimodal AI assistant with synchronized chat, private files, generated artifacts, memory, and intelligence orchestration.",
   "type": "module",
-  "engines": {
-    "node": "22.x"
-  },
+  "engines": { "node": "22.x" },
   "scripts": {
     "build": "node scripts/build-native.mjs",
     "cap:add:ios": "npx cap add ios",
@@ -27,6 +25,7 @@
     "@capacitor/haptics": "8.0.0",
     "@capacitor/keyboard": "8.0.0",
     "@capacitor/network": "8.0.0",
+    "@capacitor/status-bar": "8.0.0",
     "@revenuecat/purchases-capacitor": "13.2.3",
     "@capacitor/push-notifications": "8.0.0"
   },
