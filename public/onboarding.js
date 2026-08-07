@@ -1,48 +1,61 @@
 (() => {
   'use strict';
 
+  function loadRevampAssets() {
+    if (!document.querySelector('link[data-crump-43]')) {
+      const stylesheet = document.createElement('link');
+      stylesheet.rel = 'stylesheet';
+      stylesheet.href = '/crump-4.3.css';
+      stylesheet.dataset.crump43 = 'true';
+      document.head.appendChild(stylesheet);
+    }
+
+    if (!document.querySelector('script[data-crump-43]')) {
+      const script = document.createElement('script');
+      script.src = '/crump-4.3.js';
+      script.async = false;
+      script.dataset.crump43 = 'true';
+      document.head.appendChild(script);
+    }
+  }
+
+  loadRevampAssets();
+
   const STEPS = Object.freeze([
     {
-      title: 'Welcome to Ask Crump',
-      content: 'Your conversations now follow your account across devices. Here is a quick tour of the controls you will use most.',
-      target: null,
-      position: 'center',
+      eyebrow: 'WELCOME',
+      title: 'Meet Crump.',
+      content: 'Ask naturally. Pick up where you left off. Your conversations stay connected to your account across your signed-in devices.',
+      icon: 'C',
+      features: ['Natural conversation', 'Conversation history', 'Account sync'],
     },
     {
-      title: 'Start a conversation',
-      content: 'Type a message here. Press Enter to send, or Shift+Enter for a new line.',
-      target: '.input-container',
-      position: 'top',
+      eyebrow: 'MORE THAN CHAT',
+      title: 'Bring the work with you.',
+      content: 'Crump can work with images and PDFs, search current information, help with code, and generate images from an idea.',
+      icon: '+',
+      features: ['Files & PDFs', 'Web search', 'Images & code'],
     },
     {
-      title: 'Use quick actions',
-      content: 'Generate an image, search current information, or begin a coding request without writing the full prompt yourself.',
-      target: '.quick-actions',
-      position: 'top',
+      eyebrow: 'CONTINUITY',
+      title: 'A conversation should stay a conversation.',
+      content: 'Start on one device and continue on another without rebuilding the context from scratch. Your latest conversation state wins automatically.',
+      icon: '↗',
+      features: ['Cross-device sync', 'Durable sessions', 'Automatic recovery'],
     },
     {
-      title: 'Attach a file',
-      content: 'Add an image or PDF for analysis. Files are sent only with the message where you attach them.',
-      target: '#attachBtn',
-      position: 'top',
+      eyebrow: 'OPTIONAL',
+      title: 'Crump can stay in the loop.',
+      content: 'If you choose, Crump can follow up on unfinished conversations. Quiet hours, frequency, notifications, and haptics stay under your control.',
+      icon: '•',
+      features: ['Check-ins', 'Quiet hours', 'Notification controls'],
     },
     {
-      title: 'Find every conversation',
-      content: 'Open the sidebar to create, rename, search, or return to synchronized conversations.',
-      target: '#menuBtn',
-      position: 'right',
-    },
-    {
-      title: 'Control your account',
-      content: 'Settings includes preferences, billing, signed-in devices, export, sign out, and permanent account deletion.',
-      target: '#settingsBtn',
-      position: 'right',
-    },
-    {
-      title: 'You are ready',
-      content: 'Ask a question, continue a conversation from another device, or explore at your own pace. You can restart this tour from Settings.',
-      target: null,
-      position: 'center',
+      eyebrow: 'READY',
+      title: 'Just talk to Crump.',
+      content: 'No special commands required. Start with a question, an idea, a file, or whatever is already on your mind. You can replay this tour from Settings anytime.',
+      icon: '→',
+      features: ['Type anything', 'Attach when useful', 'Keep going'],
     },
   ]);
 
@@ -50,13 +63,13 @@
     constructor() {
       this.currentStep = 0;
       this.isActive = false;
-      this.highlightedElement = null;
-      this.boundReposition = () => this.renderCurrentPosition();
+      this.lastFocusedElement = null;
+      this.boundKeydown = event => this.handleKeydown(event);
     }
 
     storageKey() {
       const userId = String(window.currentUser?.id || 'guest').replace(/[^a-zA-Z0-9_-]/g, '');
-      return `crump_tutorial_completed_v3:${userId || 'guest'}`;
+      return `crump_tutorial_completed_v4:${userId || 'guest'}`;
     }
 
     isComplete() {
@@ -74,85 +87,129 @@
       if (this.isActive || (!force && this.isComplete())) return;
       this.currentStep = 0;
       this.isActive = true;
-      window.addEventListener('resize', this.boundReposition, { passive: true });
-      window.addEventListener('orientationchange', this.boundReposition, { passive: true });
+      this.lastFocusedElement = document.activeElement;
+      document.body.classList.add('tutorial-open');
+      document.addEventListener('keydown', this.boundKeydown);
       this.showStep();
+    }
+
+    handleKeydown(event) {
+      if (!this.isActive) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        this.skip();
+      }
+      if (event.key === 'ArrowRight' && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        this.next();
+      }
+      if (event.key === 'ArrowLeft' && this.currentStep > 0 && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        this.back();
+      }
     }
 
     showStep() {
       this.cleanupNodes();
       const step = STEPS[this.currentStep];
+
       const overlay = document.createElement('div');
       overlay.id = 'tutorialOverlay';
       overlay.className = 'tutorial-overlay';
-      overlay.addEventListener('click', event => {
-        if (event.target === overlay) this.skip();
-      });
 
       const card = document.createElement('section');
       card.id = 'tutorialCard';
-      card.className = 'tutorial-card';
+      card.className = 'tutorial-card tutorial-card-center';
       card.setAttribute('role', 'dialog');
       card.setAttribute('aria-modal', 'true');
       card.setAttribute('aria-labelledby', 'tutorialTitle');
+      card.setAttribute('aria-describedby', 'tutorialDescription');
 
-      const sheet = document.createElement('div');
-      sheet.className = 'tutorial-card-content tutorial-sheet';
+      const topbar = document.createElement('div');
+      topbar.className = 'tutorial-topbar';
 
-      const header = document.createElement('div');
-      header.className = 'tutorial-sheet-header';
-      const headerLeft = document.createElement('div');
-      headerLeft.className = 'tutorial-header-left';
-      const title = document.createElement('h3');
+      const mark = document.createElement('div');
+      mark.className = 'tutorial-brand';
+      const markIcon = document.createElement('img');
+      markIcon.src = '/assets/logo-c.png';
+      markIcon.alt = '';
+      markIcon.className = 'tutorial-brand-icon';
+      const brandText = document.createElement('span');
+      brandText.textContent = 'Ask Crump';
+      mark.append(markIcon, brandText);
+
+      const skip = this.button('Skip tour', 'tutorial-skip', () => this.skip());
+      topbar.append(mark, skip);
+
+      const body = document.createElement('div');
+      body.className = 'tutorial-body';
+
+      const visual = document.createElement('div');
+      visual.className = 'tutorial-visual';
+      visual.textContent = step.icon;
+      visual.setAttribute('aria-hidden', 'true');
+
+      const eyebrow = document.createElement('div');
+      eyebrow.className = 'tutorial-eyebrow';
+      eyebrow.textContent = step.eyebrow;
+
+      const title = document.createElement('h2');
       title.id = 'tutorialTitle';
       title.className = 'tutorial-title';
       title.textContent = step.title;
-      const counter = document.createElement('span');
-      counter.className = 'tutorial-step-counter';
-      counter.textContent = `Step ${this.currentStep + 1} of ${STEPS.length}`;
-      headerLeft.append(title, counter);
-      const close = this.button('×', 'tutorial-close', () => this.skip());
-      close.setAttribute('aria-label', 'Close tutorial');
-      header.append(headerLeft, close);
 
-      const body = document.createElement('div');
-      body.className = 'tutorial-sheet-body';
       const description = document.createElement('p');
+      description.id = 'tutorialDescription';
       description.className = 'tutorial-description';
       description.textContent = step.content;
+
+      const featureGrid = document.createElement('div');
+      featureGrid.className = 'tutorial-feature-grid';
+      for (const feature of step.features) {
+        const item = document.createElement('div');
+        item.className = 'tutorial-feature';
+        const dot = document.createElement('span');
+        dot.className = 'tutorial-feature-dot';
+        dot.setAttribute('aria-hidden', 'true');
+        const label = document.createElement('span');
+        label.textContent = feature;
+        item.append(dot, label);
+        featureGrid.appendChild(item);
+      }
+
+      body.append(visual, eyebrow, title, description, featureGrid);
+
+      const footer = document.createElement('div');
+      footer.className = 'tutorial-footer';
+
       const progress = document.createElement('div');
-      progress.className = 'tutorial-progress';
-      progress.setAttribute('aria-hidden', 'true');
-      const track = document.createElement('div');
-      track.className = 'tutorial-progress-bar';
-      const fill = document.createElement('div');
-      fill.className = 'tutorial-progress-fill';
-      fill.style.width = `${((this.currentStep + 1) / STEPS.length) * 100}%`;
-      track.append(fill);
-      progress.append(track);
-      body.append(description, progress);
+      progress.className = 'tutorial-dots';
+      progress.setAttribute('aria-label', `Step ${this.currentStep + 1} of ${STEPS.length}`);
+      STEPS.forEach((_item, index) => {
+        const dot = document.createElement('span');
+        dot.className = `tutorial-dot${index === this.currentStep ? ' active' : ''}`;
+        progress.appendChild(dot);
+      });
 
       const actions = document.createElement('div');
-      actions.className = 'tutorial-actions tutorial-sheet-actions';
+      actions.className = 'tutorial-actions';
       if (this.currentStep > 0) {
-        actions.append(this.button('Previous', 'tutorial-btn tutorial-btn-secondary', () => this.back()));
-      } else {
-        actions.append(this.button('Skip', 'tutorial-btn tutorial-btn-secondary', () => this.skip()));
+        actions.append(this.button('Back', 'tutorial-btn tutorial-btn-secondary', () => this.back()));
       }
       actions.append(this.button(
-        this.currentStep === STEPS.length - 1 ? 'Get Started' : 'Next',
+        this.currentStep === STEPS.length - 1 ? 'Start chatting' : 'Continue',
         'tutorial-btn tutorial-btn-primary',
         () => this.next(),
       ));
 
-      sheet.append(header, body, actions);
-      card.append(sheet);
+      footer.append(progress, actions);
+      card.append(topbar, body, footer);
       document.body.append(overlay, card);
-      this.positionCard(card, step);
+
       requestAnimationFrame(() => {
         overlay.classList.add('tutorial-visible');
         card.classList.add('tutorial-visible');
-        close.focus({ preventScroll: true });
+        card.querySelector('.tutorial-btn-primary')?.focus({ preventScroll: true });
       });
     }
 
@@ -163,60 +220,6 @@
       button.textContent = label;
       button.addEventListener('click', handler);
       return button;
-    }
-
-    positionCard(card, step) {
-      const target = step.target ? document.querySelector(step.target) : null;
-      if (!target || !target.getClientRects().length) {
-        card.classList.add('tutorial-card-center');
-        return;
-      }
-
-      this.highlight(target);
-      const rect = target.getBoundingClientRect();
-      const margin = 16;
-      const cardWidth = Math.min(560, window.innerWidth - (margin * 2));
-      card.style.width = `${cardWidth}px`;
-      card.style.maxWidth = `${cardWidth}px`;
-      card.style.position = 'fixed';
-      card.style.transform = 'none';
-
-      requestAnimationFrame(() => {
-        const measured = card.getBoundingClientRect();
-        let left = rect.left + (rect.width - measured.width) / 2;
-        let top;
-        if (step.position === 'right' && rect.right + margin + measured.width <= window.innerWidth) {
-          left = rect.right + margin;
-          top = rect.top + (rect.height - measured.height) / 2;
-        } else if (step.position === 'top' && rect.top - margin - measured.height >= 0) {
-          top = rect.top - margin - measured.height;
-        } else {
-          top = Math.min(rect.bottom + margin, window.innerHeight - measured.height - margin);
-        }
-        left = Math.max(margin, Math.min(left, window.innerWidth - measured.width - margin));
-        top = Math.max(margin, Math.min(top, window.innerHeight - measured.height - margin));
-        card.style.left = `${left}px`;
-        card.style.top = `${top}px`;
-      });
-    }
-
-    highlight(element) {
-      this.highlightedElement = element;
-      element.classList.add('tutorial-target-active');
-      const highlight = document.createElement('div');
-      highlight.id = 'tutorialHighlight';
-      highlight.className = 'tutorial-highlight';
-      const rect = element.getBoundingClientRect();
-      highlight.style.top = `${Math.max(0, rect.top - 8)}px`;
-      highlight.style.left = `${Math.max(0, rect.left - 8)}px`;
-      highlight.style.width = `${Math.min(window.innerWidth, rect.width + 16)}px`;
-      highlight.style.height = `${Math.min(window.innerHeight, rect.height + 16)}px`;
-      document.body.append(highlight);
-    }
-
-    renderCurrentPosition() {
-      if (!this.isActive) return;
-      this.showStep();
     }
 
     next() {
@@ -241,7 +244,8 @@
     complete(skipped = false) {
       localStorage.setItem(this.storageKey(), 'true');
       this.stop();
-      if (!skipped) window.showToast?.('Ask Crump is ready.', 'success');
+      if (!skipped) window.showToast?.('You’re ready.', 'success');
+      document.getElementById('userInput')?.focus({ preventScroll: true });
     }
 
     restart() {
@@ -252,17 +256,18 @@
 
     stop() {
       this.isActive = false;
-      window.removeEventListener('resize', this.boundReposition);
-      window.removeEventListener('orientationchange', this.boundReposition);
+      document.body.classList.remove('tutorial-open');
+      document.removeEventListener('keydown', this.boundKeydown);
       this.cleanupNodes();
+      if (this.lastFocusedElement?.isConnected) this.lastFocusedElement.focus?.({ preventScroll: true });
+      this.lastFocusedElement = null;
     }
 
     cleanupNodes() {
       document.getElementById('tutorialOverlay')?.remove();
       document.getElementById('tutorialCard')?.remove();
       document.getElementById('tutorialHighlight')?.remove();
-      this.highlightedElement?.classList.remove('tutorial-target-active');
-      this.highlightedElement = null;
+      document.querySelectorAll('.tutorial-target-active').forEach(node => node.classList.remove('tutorial-target-active'));
     }
   }
 

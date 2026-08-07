@@ -1,0 +1,1026 @@
+/*
+ * Ask Crump 4.3
+ * Premium conversation-first visual system.
+ * Loaded last so the existing app remains structurally intact and rollback is easy.
+ */
+
+:root {
+  --crump-43-bg: #0b1015;
+  --crump-43-surface: #111820;
+  --crump-43-surface-2: #161e27;
+  --crump-43-surface-3: #1b242e;
+  --crump-43-gold: #d7c59a;
+  --crump-43-gold-strong: #e2d2ad;
+  --crump-43-gold-soft: rgba(215, 197, 154, 0.11);
+  --crump-43-text: #f1f3f5;
+  --crump-43-text-2: rgba(230, 234, 239, 0.72);
+  --crump-43-text-3: rgba(218, 224, 231, 0.46);
+  --crump-43-border: rgba(255, 255, 255, 0.075);
+  --crump-43-border-strong: rgba(255, 255, 255, 0.12);
+  --crump-43-shadow: 0 18px 54px rgba(0, 0, 0, 0.32);
+  --crump-43-header: 58px;
+  --crump-43-conversation: 790px;
+  --crump-keyboard-height: 0px;
+}
+
+html[data-crump43-booted='true'],
+html[data-crump43-booted='true'] body {
+  background: var(--crump-43-bg);
+}
+
+body.crump-43 {
+  color: var(--crump-43-text);
+  background:
+    radial-gradient(900px 520px at 50% -180px, rgba(215, 197, 154, 0.065), transparent 70%),
+    var(--crump-43-bg);
+}
+
+/* ---------- APP SHELL ---------- */
+body.crump-43 .app-container {
+  background: var(--crump-43-bg);
+}
+
+body.crump-43 .main-content {
+  min-width: 0;
+  background: transparent;
+}
+
+body.crump-43 .header {
+  height: calc(var(--crump-43-header) + env(safe-area-inset-top, 0px));
+  min-height: calc(var(--crump-43-header) + env(safe-area-inset-top, 0px));
+  padding: env(safe-area-inset-top, 0px) 18px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+  background: rgba(11, 16, 21, 0.86);
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
+  backdrop-filter: blur(18px) saturate(125%);
+  box-shadow: none;
+  isolation: isolate;
+}
+
+body.crump-43 .header #menuBtn {
+  left: max(12px, env(safe-area-inset-left, 0px));
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 13px;
+  background: transparent;
+  color: rgba(236, 239, 243, 0.76);
+}
+
+body.crump-43 .header #menuBtn:hover,
+body.crump-43 .header #menuBtn:focus-visible {
+  background: rgba(255, 255, 255, 0.055);
+  color: #fff;
+}
+
+body.crump-43 .header-branding {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 5px 10px;
+  border-radius: 14px;
+}
+
+body.crump-43 .crump-43-header-icon {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 12px rgba(215, 197, 154, 0.1));
+}
+
+body.crump-43 .crump-43-header-text {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+  text-align: left;
+}
+
+body.crump-43 .crump-43-header-text strong {
+  color: rgba(246, 247, 249, 0.94);
+  font-size: 0.9rem;
+  font-weight: 680;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+body.crump-43 .crump-43-header-text > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: rgba(223, 229, 236, 0.42);
+  font-size: 0.63rem;
+  font-weight: 560;
+  line-height: 1.2;
+}
+
+body.crump-43 .crump-43-header-text i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #65c986;
+  box-shadow: 0 0 0 3px rgba(101, 201, 134, 0.08);
+}
+
+body.crump-43 .connection-status {
+  right: max(12px, env(safe-area-inset-right, 0px));
+  padding: 5px 8px;
+  border-color: rgba(255, 179, 71, 0.18);
+  background: rgba(255, 179, 71, 0.08);
+  font-size: 0.64rem;
+}
+
+/* ---------- CONVERSATION ---------- */
+body.crump-43 .chat-container {
+  flex: 1;
+  padding: 30px max(16px, env(safe-area-inset-right, 0px)) 190px max(16px, env(safe-area-inset-left, 0px));
+  scroll-padding-top: 20px;
+  scroll-padding-bottom: 190px;
+  background:
+    radial-gradient(680px 360px at 50% -80px, rgba(215, 197, 154, 0.032), transparent 72%),
+    transparent;
+}
+
+body.crump-43 .message {
+  width: min(100%, var(--crump-43-conversation));
+  max-width: var(--crump-43-conversation);
+  margin: 0 auto 22px;
+  animation-duration: 180ms;
+  contain: content;
+}
+
+body.crump-43 .message-wrapper {
+  max-width: min(88%, 700px);
+}
+
+body.crump-43 .user-message .message-wrapper {
+  max-width: min(78%, 640px);
+}
+
+body.crump-43 .assistant-message .message-wrapper {
+  align-items: flex-start;
+}
+
+body.crump-43 .crump-message-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 7px 2px;
+  color: rgba(218, 224, 231, 0.43);
+  font-size: 0.67rem;
+  font-weight: 650;
+  letter-spacing: 0.015em;
+}
+
+body.crump-43 .crump-message-avatar {
+  width: 21px;
+  height: 21px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(215, 197, 154, 0.17);
+  border-radius: 8px;
+  background: rgba(215, 197, 154, 0.055);
+  color: rgba(215, 197, 154, 0.88);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.69rem;
+}
+
+body.crump-43 .message-content {
+  max-width: 100%;
+  padding: 13px 16px;
+  border-radius: 19px;
+  color: var(--crump-43-text);
+  font-size: clamp(0.98rem, 0.95rem + 0.2vw, 1.04rem);
+  line-height: 1.58;
+  letter-spacing: -0.006em;
+  box-shadow: none;
+}
+
+body.crump-43 .assistant-message .message-content {
+  width: 100%;
+  padding: 4px 2px 4px 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(241, 243, 245, 0.92);
+}
+
+body.crump-43 .assistant-message .message-content:hover {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+body.crump-43 .user-message .message-content {
+  border: 1px solid rgba(215, 197, 154, 0.19);
+  border-bottom-right-radius: 7px;
+  background:
+    linear-gradient(145deg, rgba(215, 197, 154, 0.135), rgba(215, 197, 154, 0.055)),
+    #151c23;
+  color: rgba(246, 247, 249, 0.95);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+body.crump-43 .user-message .message-content:hover {
+  border-color: rgba(215, 197, 154, 0.24);
+  transform: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+body.crump-43 .message-content p {
+  margin: 0 0 0.8em;
+  line-height: inherit;
+}
+
+body.crump-43 .message-content p:last-child {
+  margin-bottom: 0;
+}
+
+body.crump-43 .message-content h1,
+body.crump-43 .message-content h2,
+body.crump-43 .message-content h3 {
+  margin: 1.05em 0 0.45em;
+  color: rgba(249, 250, 251, 0.96);
+  font-weight: 680;
+  line-height: 1.22;
+  letter-spacing: -0.025em;
+}
+
+body.crump-43 .message-content h1:first-child,
+body.crump-43 .message-content h2:first-child,
+body.crump-43 .message-content h3:first-child {
+  margin-top: 0;
+}
+
+body.crump-43 .message-content ul {
+  margin: 0.6em 0 0.9em;
+  padding-left: 1.3em;
+}
+
+body.crump-43 .message-content li {
+  margin: 0.38em 0;
+}
+
+body.crump-43 .message-content a {
+  color: var(--crump-43-gold-strong);
+  text-decoration-color: rgba(215, 197, 154, 0.35);
+  text-underline-offset: 3px;
+}
+
+body.crump-43 .inline-code {
+  padding: 0.12em 0.38em;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #e8d9b7;
+}
+
+body.crump-43 .code-block {
+  margin: 12px 0;
+  padding: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 14px;
+  background: #080c10;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+/* Delivery state is intentionally tiny: useful, never louder than the message. */
+body.crump-43 .message-status {
+  min-height: 18px;
+  padding: 4px 3px 0;
+  color: rgba(219, 225, 232, 0.34);
+  font-size: 0.64rem;
+  font-weight: 540;
+  line-height: 1.2;
+}
+
+body.crump-43 .message-status.seen {
+  color: rgba(215, 197, 154, 0.58);
+}
+
+body.crump-43 .message-status.failed,
+body.crump-43 button.message-status {
+  color: #f0a6a2;
+}
+
+body.crump-43 .message-actions {
+  display: flex;
+  min-height: 28px;
+  margin: 5px 0 0;
+  gap: 3px;
+  opacity: 0.78;
+}
+
+body.crump-43 .message-action-btn {
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(218, 224, 231, 0.48);
+  font-size: 0.68rem;
+  font-weight: 570;
+}
+
+body.crump-43 .message-action-btn:hover,
+body.crump-43 .message-action-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(241, 243, 245, 0.82);
+}
+
+/* Presence / thinking */
+body.crump-43 .presence-message {
+  margin-top: -6px;
+}
+
+body.crump-43 .presence-message .crump-message-meta {
+  display: none;
+}
+
+body.crump-43 .presence-bubble {
+  min-width: 54px;
+  min-height: 34px;
+  padding: 7px 5px !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+body.crump-43 .typing-dots i {
+  width: 5px;
+  height: 5px;
+  background: rgba(215, 197, 154, 0.72);
+}
+
+body.crump-43 .presence-label {
+  color: rgba(218, 224, 231, 0.42);
+  font-size: 0.69rem;
+}
+
+/* ---------- EMPTY STATE ---------- */
+body.crump-43 .crump-empty-state {
+  width: min(100%, 700px);
+  min-height: min(62dvh, 560px);
+  display: flex;
+  margin: 0 auto;
+  padding: 62px 10px 34px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+body.crump-43 .crump-empty-mark {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 20px;
+  border: 1px solid rgba(215, 197, 154, 0.14);
+  border-radius: 20px;
+  background: rgba(215, 197, 154, 0.045);
+}
+
+body.crump-43 .crump-empty-mark img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+
+body.crump-43 .crump-empty-eyebrow {
+  margin-bottom: 10px;
+  color: rgba(215, 197, 154, 0.64);
+  font-size: 0.63rem;
+  font-weight: 760;
+  letter-spacing: 0.18em;
+}
+
+body.crump-43 .crump-empty-state h1 {
+  margin: 0;
+  color: rgba(247, 248, 249, 0.96);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(2rem, 6vw, 3rem);
+  font-weight: 500;
+  line-height: 1.04;
+  letter-spacing: -0.045em;
+}
+
+body.crump-43 .crump-empty-state > p {
+  max-width: 50ch;
+  margin: 14px auto 0;
+  color: rgba(220, 226, 233, 0.52);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+body.crump-43 .crump-empty-prompts {
+  width: min(100%, 620px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 30px;
+}
+
+body.crump-43 .crump-empty-prompt {
+  min-height: 54px;
+  padding: 11px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.022);
+  color: rgba(231, 234, 238, 0.66);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 560;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+  transition: background 130ms ease, border-color 130ms ease, color 130ms ease;
+}
+
+body.crump-43 .crump-empty-prompt:hover,
+body.crump-43 .crump-empty-prompt:focus-visible {
+  border-color: rgba(215, 197, 154, 0.16);
+  background: rgba(215, 197, 154, 0.045);
+  color: rgba(245, 246, 248, 0.9);
+}
+
+/* ---------- COMPOSER ---------- */
+body.crump-43 .input-area {
+  bottom: 0;
+  padding: 0 max(14px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));
+  border-top: 0;
+  background: linear-gradient(180deg, rgba(11, 16, 21, 0), rgba(11, 16, 21, 0.88) 28%, #0b1015 70%);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+body.crump-43 .quick-actions {
+  width: min(100%, var(--crump-43-conversation));
+  display: flex;
+  margin: 0 auto 9px;
+  gap: 7px;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+body.crump-43 .quick-action-btn {
+  min-height: 36px;
+  padding: 7px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+  background: rgba(17, 24, 32, 0.92);
+  color: rgba(220, 225, 232, 0.56);
+  font-size: 0.71rem;
+  font-weight: 610;
+  box-shadow: none;
+}
+
+body.crump-43 .quick-action-btn:hover,
+body.crump-43 .quick-action-btn:focus-visible {
+  border-color: rgba(215, 197, 154, 0.16);
+  background: rgba(215, 197, 154, 0.055);
+  color: rgba(246, 247, 249, 0.86);
+  transform: none;
+}
+
+body.crump-43.crump-composer-active .quick-actions,
+body.crump-43.crump-keyboard-visible .quick-actions,
+body.crump-43.crump-input-focused .quick-actions {
+  display: none;
+}
+
+body.crump-43 .input-container {
+  width: min(100%, var(--crump-43-conversation));
+  min-height: 58px;
+  display: flex;
+  margin-inline: auto;
+  padding: 7px 8px 7px 9px;
+  align-items: flex-end;
+  gap: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.095);
+  border-radius: 24px;
+  background: rgba(20, 28, 36, 0.97);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.29), inset 0 1px 0 rgba(255, 255, 255, 0.022);
+  transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+body.crump-43 .input-container:focus-within,
+body.crump-43 .input-container.has-content {
+  border-color: rgba(215, 197, 154, 0.2);
+  background: rgba(22, 30, 39, 0.985);
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.34), 0 0 0 1px rgba(215, 197, 154, 0.025);
+}
+
+body.crump-43 .message-input {
+  min-height: 42px;
+  max-height: min(180px, 28dvh);
+  padding: 10px 7px 8px;
+  color: rgba(246, 247, 249, 0.94);
+  font-size: 1rem;
+  line-height: 1.45;
+  caret-color: var(--crump-43-gold);
+}
+
+body.crump-43 .message-input::placeholder {
+  color: rgba(215, 222, 230, 0.34);
+}
+
+body.crump-43 .input-container > .btn-icon {
+  width: 43px;
+  height: 43px;
+  min-width: 43px;
+  min-height: 43px;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  color: rgba(219, 225, 232, 0.5);
+}
+
+body.crump-43 #attachBtn:hover,
+body.crump-43 #attachBtn:focus-visible {
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(244, 246, 248, 0.82);
+}
+
+body.crump-43 #sendButton {
+  background: rgba(255, 255, 255, 0.065);
+  color: rgba(216, 222, 229, 0.34);
+  transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+}
+
+body.crump-43 #sendButton.is-ready {
+  background: var(--crump-43-gold);
+  color: #11161b;
+}
+
+body.crump-43 #sendButton.is-ready:hover,
+body.crump-43 #sendButton.is-ready:focus-visible {
+  background: var(--crump-43-gold-strong);
+}
+
+body.crump-43 #sendButton.is-ready:active {
+  transform: scale(0.96);
+}
+
+body.crump-43 .file-preview {
+  width: min(100%, var(--crump-43-conversation));
+  margin: 0 auto 8px;
+}
+
+body.crump-43 .attachment-preview {
+  border-color: rgba(255, 255, 255, 0.07);
+  border-radius: 15px;
+  background: rgba(17, 24, 32, 0.96);
+}
+
+/* ---------- SIDEBAR ---------- */
+body.crump-43 .sidebar {
+  width: min(320px, 88vw);
+  border-right: 1px solid rgba(255, 255, 255, 0.065);
+  background: rgba(13, 19, 25, 0.985);
+  box-shadow: none;
+}
+
+body.crump-43 .sidebar.active {
+  box-shadow: 28px 0 72px rgba(0, 0, 0, 0.34);
+}
+
+body.crump-43 .sidebar-header {
+  min-height: 74px;
+  padding: max(18px, env(safe-area-inset-top, 0px)) 18px 14px;
+  border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+body.crump-43 .sidebar-logo-icon {
+  width: 30px;
+  height: 30px;
+}
+
+body.crump-43 .sidebar-logo {
+  color: rgba(245, 246, 248, 0.92);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 680;
+  letter-spacing: -0.025em;
+}
+
+body.crump-43 .sidebar-actions {
+  padding: 12px;
+  border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+body.crump-43 #newChatBtn {
+  min-height: 44px;
+  border: 1px solid rgba(215, 197, 154, 0.14);
+  border-radius: 13px;
+  background: rgba(215, 197, 154, 0.06);
+  color: rgba(242, 244, 246, 0.84);
+}
+
+body.crump-43 #clearChatsBtn {
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  color: rgba(231, 157, 153, 0.56);
+  font-size: 0.75rem;
+}
+
+body.crump-43 .sidebar-section {
+  padding: 14px 10px;
+}
+
+body.crump-43 .section-title {
+  margin: 4px 7px 8px;
+  color: rgba(217, 223, 230, 0.34);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+}
+
+body.crump-43 .chats-list {
+  gap: 2px;
+}
+
+body.crump-43 .chat-item {
+  min-height: 58px;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: 13px;
+}
+
+body.crump-43 .chat-item:hover {
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+body.crump-43 .chat-item.active {
+  padding-left: 10px;
+  border: 1px solid rgba(215, 197, 154, 0.1);
+  border-left: 1px solid rgba(215, 197, 154, 0.1);
+  background: rgba(215, 197, 154, 0.055);
+}
+
+body.crump-43 .chat-title {
+  color: rgba(239, 242, 245, 0.82);
+  font-size: 0.79rem;
+  font-weight: 620;
+}
+
+body.crump-43 .chat-preview {
+  overflow: hidden;
+  margin-top: 3px;
+  color: rgba(213, 220, 228, 0.36);
+  font-size: 0.67rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.crump-43 .delete-chat-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 10px;
+  color: rgba(233, 139, 134, 0.55);
+}
+
+body.crump-43 .sidebar-footer {
+  padding: 10px;
+  border-top-color: rgba(255, 255, 255, 0.05);
+}
+
+body.crump-43 .sidebar-footer-btn {
+  min-height: 43px;
+  padding: 9px 10px;
+  color: rgba(227, 231, 236, 0.68);
+  font-size: 0.76rem;
+}
+
+body.crump-43 .sidebar-footer-btn:hover {
+  background: rgba(255, 255, 255, 0.035);
+  color: rgba(246, 247, 249, 0.9);
+}
+
+body.crump-43 .sidebar-branding-footer {
+  padding: 10px;
+  opacity: 0.62;
+}
+
+body.crump-43 .sidebar-overlay {
+  background: rgba(1, 4, 7, 0.6);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+/* ---------- SETTINGS / ACCOUNT / AUTH ---------- */
+body.crump-43 .modal {
+  background: rgba(3, 6, 9, 0.7);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+body.crump-43 .modal-content,
+body.crump-43 .account-modal-card,
+body.crump-43 .settings-sheet {
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 24px;
+  background: #111820;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.44);
+}
+
+body.crump-43 .modal-content::before {
+  display: none;
+}
+
+body.crump-43 .settings-sheet-header {
+  border-bottom-color: rgba(255, 255, 255, 0.055);
+  background: rgba(17, 24, 32, 0.94);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+body.crump-43 .settings-title {
+  color: rgba(247, 248, 249, 0.94);
+  letter-spacing: -0.025em;
+}
+
+body.crump-43 .settings-subtitle,
+body.crump-43 .settings-help {
+  color: rgba(216, 223, 231, 0.42);
+}
+
+body.crump-43 .settings-group-title {
+  color: rgba(215, 197, 154, 0.62);
+  letter-spacing: 0.11em;
+}
+
+body.crump-43 .settings-list {
+  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+body.crump-43 .settings-row {
+  border-color: rgba(255, 255, 255, 0.045);
+}
+
+body.crump-43 .settings-field,
+body.crump-43 .settings-select,
+body.crump-43 .account-field input {
+  border-color: rgba(255, 255, 255, 0.075);
+  background: rgba(7, 11, 15, 0.48);
+  color: rgba(242, 244, 246, 0.9);
+}
+
+body.crump-43 .settings-primary-btn,
+body.crump-43 .btn-primary {
+  border-color: rgba(215, 197, 154, 0.6);
+  background: var(--crump-43-gold);
+  color: #11161b;
+  box-shadow: none;
+}
+
+body.crump-43 .auth-container {
+  background:
+    radial-gradient(700px 380px at 50% -80px, rgba(215, 197, 154, 0.07), transparent 70%),
+    #0b1015;
+}
+
+body.crump-43 .auth-form {
+  border-color: rgba(255, 255, 255, 0.07);
+  border-radius: 26px;
+  background: #111820;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.36);
+}
+
+body.crump-43 .auth-logo {
+  max-width: 230px;
+  filter: none;
+}
+
+body.crump-43 .form-input {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(6, 10, 14, 0.5);
+  color: rgba(245, 246, 248, 0.94);
+}
+
+body.crump-43 .form-input:focus {
+  border-color: rgba(215, 197, 154, 0.34);
+  box-shadow: 0 0 0 3px rgba(215, 197, 154, 0.07);
+}
+
+/* ---------- SCROLL / TOAST / MISC ---------- */
+body.crump-43 .scroll-to-end-btn {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(17, 24, 32, 0.92);
+  color: rgba(231, 235, 239, 0.64);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.26);
+}
+
+body.crump-43 .toast {
+  border-color: rgba(255, 255, 255, 0.075);
+  border-radius: 14px;
+  background: rgba(17, 24, 32, 0.97);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34);
+}
+
+body.crump-43 button:focus-visible,
+body.crump-43 input:focus-visible,
+body.crump-43 select:focus-visible,
+body.crump-43 textarea:focus-visible,
+body.crump-43 a:focus-visible {
+  outline: 2px solid rgba(215, 197, 154, 0.42);
+  outline-offset: 2px;
+}
+
+/* ---------- MOBILE ---------- */
+@media (max-width: 768px) {
+  :root {
+    --crump-43-header: 54px;
+  }
+
+  body.crump-43 .header {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  body.crump-43 .header #menuBtn {
+    left: max(8px, env(safe-area-inset-left, 0px));
+    width: 40px;
+    height: 40px;
+  }
+
+  body.crump-43 .header-branding {
+    gap: 8px;
+  }
+
+  body.crump-43 .crump-43-header-icon {
+    width: 25px;
+    height: 25px;
+  }
+
+  body.crump-43 .crump-43-header-text strong {
+    font-size: 0.84rem;
+  }
+
+  body.crump-43 .crump-43-header-text > span {
+    font-size: 0.59rem;
+  }
+
+  body.crump-43 .chat-container {
+    padding: 20px 14px 166px;
+    scroll-padding-bottom: 166px;
+  }
+
+  body.crump-43 .message {
+    margin-bottom: 20px;
+  }
+
+  body.crump-43 .message-wrapper {
+    max-width: 92%;
+  }
+
+  body.crump-43 .user-message .message-wrapper {
+    max-width: 84%;
+  }
+
+  body.crump-43 .message-content {
+    font-size: 0.99rem;
+  }
+
+  body.crump-43 .assistant-message .message-content {
+    padding-right: 1px;
+    padding-left: 1px;
+  }
+
+  body.crump-43 .user-message .message-content {
+    padding: 12px 14px;
+    border-radius: 18px;
+    border-bottom-right-radius: 6px;
+  }
+
+  body.crump-43 .crump-message-meta {
+    margin-bottom: 6px;
+  }
+
+  body.crump-43 .message-actions {
+    margin-top: 4px;
+  }
+
+  body.crump-43 .crump-empty-state {
+    min-height: min(58dvh, 480px);
+    padding: 40px 4px 24px;
+  }
+
+  body.crump-43 .crump-empty-prompts {
+    grid-template-columns: 1fr;
+    gap: 7px;
+    margin-top: 24px;
+  }
+
+  body.crump-43 .crump-empty-prompt {
+    min-height: 48px;
+  }
+
+  body.crump-43 .input-area {
+    padding-right: 10px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    padding-left: 10px;
+  }
+
+  body.crump-43 .quick-actions {
+    margin-bottom: 7px;
+    padding-left: 2px;
+  }
+
+  body.crump-43 .quick-action-btn {
+    min-height: 34px;
+    padding: 6px 12px;
+    font-size: 0.69rem;
+  }
+
+  body.crump-43 .input-container {
+    min-height: 56px;
+    padding: 6px 7px;
+    border-radius: 22px;
+  }
+
+  body.crump-43 .message-input {
+    min-height: 42px;
+    padding: 9px 6px 8px;
+    font-size: 16px; /* prevents Safari input zoom */
+  }
+
+  body.crump-43 .input-container > .btn-icon {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    border-radius: 14px;
+  }
+
+  body.crump-43.crump-keyboard-visible .input-area {
+    padding-bottom: 6px;
+    background: #0b1015;
+  }
+
+  body.crump-43.crump-keyboard-visible .chat-container {
+    padding-bottom: 92px;
+    scroll-padding-bottom: 92px;
+  }
+
+  body.crump-43 .modal-content,
+  body.crump-43 .settings-sheet,
+  body.crump-43 .account-modal-card {
+    border-radius: 22px;
+  }
+
+  body.crump-43 .auth-form {
+    border-radius: 22px;
+  }
+}
+
+@media (max-width: 420px) {
+  body.crump-43 .crump-43-header-text > span {
+    display: none;
+  }
+
+  body.crump-43 .message-wrapper {
+    max-width: 94%;
+  }
+
+  body.crump-43 .user-message .message-wrapper {
+    max-width: 86%;
+  }
+
+  body.crump-43 .crump-empty-state h1 {
+    font-size: 2rem;
+  }
+}
+
+@media (hover: none) {
+  body.crump-43 .delete-chat-btn {
+    opacity: 0.55;
+  }
+
+  body.crump-43 .message-actions {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.crump-43 *,
+  body.crump-43 *::before,
+  body.crump-43 *::after {
+    scroll-behavior: auto !important;
+  }
+
+  body.crump-43 .message,
+  body.crump-43 .input-container,
+  body.crump-43 .quick-actions,
+  body.crump-43 .crump-empty-prompt {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}

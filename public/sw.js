@@ -1,10 +1,10 @@
-const CACHE_NAME = 'ask-crump-shell-v4.2.1';
+const CACHE_NAME = 'ask-crump-shell-v4.3.0';
 const APP_SHELL = [
   '/app', '/app.html', '/legal.html', '/delete-account.html', '/manifest.json',
   '/styles.css', '/auth-styles.css', '/onboarding.css',
-  '/install-prompt.css', '/billing.css', '/conversation.css',
+  '/install-prompt.css', '/billing.css', '/conversation.css', '/crump-4.3.css',
   '/runtime-config.js', '/native-runtime.js', '/mobile-bridge.js', '/safe-storage.js',
-  '/install-prompt.js', '/onboarding.js', '/scroll-manager.js',
+  '/install-prompt.js', '/onboarding.js', '/crump-4.3.js', '/scroll-manager.js',
   '/profile-manager.js', '/billing-manager.js', '/subscription-ui.js', '/ui-functions.js', '/presence-manager.js',
   '/device-auth.js', '/sync-manager.js', '/chat-sync.js', '/account-manager.js',
   '/app.js', '/auth-controller.js', '/landing.js',
@@ -12,12 +12,17 @@ const APP_SHELL = [
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(APP_SHELL))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
@@ -27,7 +32,7 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
 
-  // Authentication, chat, billing, and synchronization must never be served from cache.
+  // Authentication, chat, billing, and synchronization are network-only.
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(fetch(request));
     return;
@@ -35,26 +40,31 @@ self.addEventListener('fetch', event => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).then(response => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
-        return response;
-      }).catch(async () => (await caches.match(request)) || (await caches.match('/app.html')))
+      fetch(request)
+        .then(response => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+          return response;
+        })
+        .catch(async () => (await caches.match(request)) || (await caches.match('/app.html')))
     );
     return;
   }
 
   event.respondWith(
     caches.match(request).then(cached => {
-      const network = fetch(request).then(response => {
-        if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME)
-            .then(cache => cache.put(request, copy))
-            .catch(() => undefined);
-        }
-        return response;
-      }).catch(() => cached);
+      // Existing shell remains instant, while a fresh response updates it for the next read.
+      const network = fetch(request)
+        .then(response => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME)
+              .then(cache => cache.put(request, copy))
+              .catch(() => undefined);
+          }
+          return response;
+        })
+        .catch(() => cached);
       return cached || network;
     })
   );
