@@ -30,8 +30,41 @@ router = APIRouter(prefix='/api/billing/credits', tags=['billing'])
 logger = logging.getLogger('askcrump.credits')
 
 
+class StripeRequestError(RuntimeError):
+    """Structured Stripe API error that can be safely handled by routes."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int,
+        code: str | None = None,
+        param: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.status_code = int(status_code)
+        self.code = code
+        self.param = param
+
+
 def _is_native(request: Request) -> bool:
     return request.headers.get('x-crump-client', '').lower() == 'native'
+
+
+def _stripe_error(response: httpx.Response, fallback: str) -> StripeRequestError:
+    try:
+        payload = response.json()
+    except Exception:
+        payload = {}
+    error = payload.get('error') if isinstance(payload, dict) else {}
+    if not isinstance(error, dict):
+        error = {}
+    return StripeRequestError(
+        fallback,
+        status_code=response.status_code,
+        code=str(error.get('code') or '') or None,
+        param=str(error.get('param') or '') or None,
+    )
 
 
 async def _stripe_post(path: str, data: dict[str, str]) -> dict[str, Any]:
@@ -45,7 +78,7 @@ async def _stripe_post(path: str, data: dict[str, str]) -> dict[str, Any]:
         )
     if response.status_code >= 400:
         logger.error('Stripe credits error %s: %s', response.status_code, response.text[:500])
-        raise RuntimeError('Stripe rejected the credit purchase request.')
+        raise _stripe_error(response, 'Stripe rejected the credit purchase request.')
     return response.json()
 
 
@@ -59,7 +92,7 @@ async def _stripe_get(path: str) -> dict[str, Any]:
         )
     if response.status_code >= 400:
         logger.error('Stripe credits lookup error %s: %s', response.status_code, response.text[:500])
-        raise RuntimeError('Stripe could not verify the purchase.')
+        raise _stripe_error(response, 'Stripe could not verify the purchase.')
     return response.json()
 
 
@@ -92,10 +125,7 @@ async def _grant(
     }
 
 
-async def _ensure_stripe_customer(user: dict[str, Any]) -> str:
-    customer_id = user.get('stripe_customer_id')
-    if customer_id:
-        return str(customer_id)
+async def _create_stripe_customer(user: dict[str, Any]) -> str:
     customer = await _stripe_post(
         'customers',
         {
@@ -110,6 +140,13 @@ async def _ensure_stripe_customer(user: dict[str, Any]) -> str:
         filters={'id': eq(user['id'])},
     )
     return customer_id
+
+
+async def _ensure_stripe_customer(user: dict[str, Any]) -> str:
+    customer_id = user.get('stripe_customer_id')
+    if customer_id:
+        return str(customer_id)
+    return await _create_stripe_customer(user)
 
 
 def _verify_stripe_signature(body: bytes, header: str) -> bool:
@@ -201,6 +238,26 @@ async def status(request: Request):
     }
 
 
+def _checkout_payload(*, user_id: str, customer_id: str, pack) -> dict[str, str]:
+    return {
+        'mode': 'payment',
+        'customer': customer_id,
+        'line_items[0][price]': pack.stripe_price_id,
+        'line_items[0][quantity]': '1',
+        'success_url': (
+            f'{settings.app_url}/app?billing=credits-success'
+            '&session_id={CHECKOUT_SESSION_ID}'
+        ),
+        'cancel_url': f'{settings.app_url}/app?billing=credits-cancelled',
+        'client_reference_id': user_id,
+        'metadata[user_id]': user_id,
+        'metadata[purchase_type]': 'credits',
+        'metadata[pack]': pack.code,
+        'metadata[credits]': str(pack.credits),
+        'allow_promotion_codes': 'true',
+    }
+
+
 @router.post('/checkout')
 async def checkout(request: Request):
     if _is_native(request):
@@ -212,14 +269,17 @@ async def checkout(request: Request):
                 'code': 'NATIVE_BILLING_REQUIRED',
             },
         )
+
     auth = await authenticate_request(request, db, settings)
     payload = await request.json()
     pack = by_code(str((payload or {}).get('pack') or '')) if isinstance(payload, dict) else None
+
     if not pack:
         return JSONResponse(
             status_code=400,
             content={'success': False, 'error': 'Unknown credit pack.', 'code': 'UNKNOWN_CREDIT_PACK'},
         )
+
     if not pack.stripe_price_id:
         return JSONResponse(
             status_code=503,
@@ -229,27 +289,48 @@ async def checkout(request: Request):
                 'code': 'CREDIT_PACK_NOT_CONFIGURED',
             },
         )
-    customer_id = await _ensure_stripe_customer(auth.user)
-    session = await _stripe_post(
-        'checkout/sessions',
-        {
-            'mode': 'payment',
-            'customer': customer_id,
-            'line_items[0][price]': pack.stripe_price_id,
-            'line_items[0][quantity]': '1',
-            'success_url': (
-                f'{settings.app_url}/app?billing=credits-success'
-                '&session_id={CHECKOUT_SESSION_ID}'
-            ),
-            'cancel_url': f'{settings.app_url}/app?billing=credits-cancelled',
-            'client_reference_id': auth.user['id'],
-            'metadata[user_id]': auth.user['id'],
-            'metadata[purchase_type]': 'credits',
-            'metadata[pack]': pack.code,
-            'metadata[credits]': str(pack.credits),
-            'allow_promotion_codes': 'true',
-        },
-    )
+
+    try:
+        customer_id = await _ensure_stripe_customer(auth.user)
+        checkout_data = _checkout_payload(
+            user_id=str(auth.user['id']),
+            customer_id=customer_id,
+            pack=pack,
+        )
+
+        try:
+            session = await _stripe_post('checkout/sessions', checkout_data)
+        except StripeRequestError as exc:
+            # Customer IDs are scoped to a Stripe account. If Ask Crump switches
+            # Stripe accounts, a previously stored customer reference becomes
+            # invalid in the new account. Heal that condition automatically.
+            if exc.code == 'resource_missing' and exc.param == 'customer':
+                logger.warning('Replacing a stale Stripe customer reference.')
+                customer_id = await _create_stripe_customer(auth.user)
+                checkout_data['customer'] = customer_id
+                session = await _stripe_post('checkout/sessions', checkout_data)
+            else:
+                raise
+
+    except StripeRequestError as exc:
+        return JSONResponse(
+            status_code=502,
+            content={
+                'success': False,
+                'error': 'Secure checkout could not be started. Please try again in a moment.',
+                'code': exc.code or 'STRIPE_CHECKOUT_FAILED',
+            },
+        )
+    except RuntimeError:
+        return JSONResponse(
+            status_code=503,
+            content={
+                'success': False,
+                'error': 'Secure checkout is temporarily unavailable.',
+                'code': 'STRIPE_UNAVAILABLE',
+            },
+        )
+
     return {
         'success': True,
         'url': session.get('url'),

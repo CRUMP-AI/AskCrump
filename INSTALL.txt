@@ -1,12 +1,16 @@
-ASK CRUMP 5.2.2
+ASK CRUMP 5.2.3
 
 Copy the contents of this folder into the ROOT of the CRUMP-AI repository.
 Choose Merge/Replace when prompted.
 
 Suggested commit summary:
-Ask Crump 5.2.2 checkout and scroll stability
+Ask Crump 5.2.3 Stripe customer recovery
 
 No Supabase migration is required.
-No Stripe/Vercel environment-variable changes are required.
+No Stripe or Vercel environment-variable changes are required.
 
-After Vercel reaches READY, refresh Ask Crump once so the v5.2.2 service worker/cache activates.
+After Vercel reaches READY:
+1. Open Plan & credits.
+2. Tap the 50-credit / $4.99 card.
+3. Expected: Ask Crump automatically replaces the stale Stripe customer reference and opens Stripe Checkout.
+4. Stop at Checkout; do not complete a real payment during this smoke test.
