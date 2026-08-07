@@ -1,16 +1,17 @@
-ASK CRUMP 5.2.3
+ASK CRUMP 5.2.4
 
-Copy the contents of this folder into the ROOT of the CRUMP-AI repository.
+Copy this package into the ROOT of the CRUMP-AI repository.
 Choose Merge/Replace when prompted.
 
 Suggested commit summary:
-Ask Crump 5.2.3 Stripe customer recovery
+Ask Crump 5.2.4 identity and session stability
 
-No Supabase migration is required.
-No Stripe or Vercel environment-variable changes are required.
+No Supabase migration.
+No Vercel/Stripe environment changes.
 
 After Vercel reaches READY:
-1. Open Plan & credits.
-2. Tap the 50-credit / $4.99 card.
-3. Expected: Ask Crump automatically replaces the stale Stripe customer reference and opens Stripe Checkout.
-4. Stop at Checkout; do not complete a real payment during this smoke test.
+1. Sign out.
+2. Sign back in on the same device.
+3. Expected: login succeeds without a database-unavailable error.
+4. Confirm the full Ask Crump wordmark appears in the main chat header.
+5. Confirm the authentication screen uses the horizontal wordmark.

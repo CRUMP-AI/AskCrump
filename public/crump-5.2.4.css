@@ -1,0 +1,42 @@
+/* Ask Crump 5.2.4 — brand identity restoration. */
+
+body.crump-43 .header-branding {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 3px 8px;
+}
+
+.crump524-header-wordmark {
+  display: block;
+  width: clamp(118px, 16vw, 150px);
+  height: auto;
+  max-height: 36px;
+  object-fit: contain;
+  background: transparent;
+}
+
+.auth-header .crump524-auth-wordmark {
+  display: block;
+  width: clamp(150px, 42vw, 205px);
+  height: auto;
+  max-height: 64px;
+  margin: 0 auto 26px;
+  object-fit: contain;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+@media (max-width: 520px) {
+  .crump524-header-wordmark {
+    width: 126px;
+    max-height: 32px;
+  }
+
+  .auth-header .crump524-auth-wordmark {
+    width: min(190px, 58vw);
+    margin-bottom: 22px;
+  }
+}

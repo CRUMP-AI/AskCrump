@@ -49,6 +49,8 @@ const loaders = `
     ['script','/crump-5.2.js','crump52'],
     ['style','/crump-5.2.2.css','crump522'],
     ['script','/crump-5.2.2.js','crump522'],
+    ['style','/crump-5.2.4.css','crump524'],
+    ['script','/crump-5.2.4.js','crump524'],
   ];
   for (const [kind,url,key] of assets) {
     const selector = kind === 'style' ? 'link[data-' + key + ']' : 'script[data-' + key + ']';

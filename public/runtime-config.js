@@ -28,21 +28,21 @@ window.CRUMP_CONFIG = Object.freeze({
     ['script', '/crump-5.2.js', 'crump52'],
     ['style', '/crump-5.2.2.css', 'crump522'],
     ['script', '/crump-5.2.2.js', 'crump522'],
+    ['style', '/crump-5.2.4.css', 'crump524'],
+    ['script', '/crump-5.2.4.js', 'crump524'],
   ];
   for (const [kind, url, key] of assets) {
-    if (kind === 'style' && !document.querySelector(`link[data-${key}]`)) {
-      const node = document.createElement('link');
+    const selector = kind === 'style' ? `link[data-${key}]` : `script[data-${key}]`;
+    if (document.querySelector(selector)) continue;
+    const node = document.createElement(kind === 'style' ? 'link' : 'script');
+    if (kind === 'style') {
       node.rel = 'stylesheet';
       node.href = url;
-      node.dataset[key] = 'true';
-      document.head.appendChild(node);
-    }
-    if (kind === 'script' && !document.querySelector(`script[data-${key}]`)) {
-      const node = document.createElement('script');
+    } else {
       node.src = url;
       node.async = false;
-      node.dataset[key] = 'true';
-      document.head.appendChild(node);
     }
+    node.dataset[key] = 'true';
+    document.head.appendChild(node);
   }
 })();

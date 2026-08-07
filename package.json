@@ -1,6 +1,6 @@
 {
   "name": "ask-crump",
-  "version": "5.2.2",
+  "version": "5.2.4",
   "private": true,
   "description": "Cross-platform multimodal AI assistant with synchronized chat, private files, generated artifacts, memory, intelligence orchestration, subscriptions, and durable credits.",
   "type": "module",
@@ -19,23 +19,5 @@
     "native:configure": "node scripts/configure-native.mjs",
     "native:assets": "capacitor-assets generate --iconBackgroundColor '#0f1419' --iconBackgroundColorDark '#0f1419' --splashBackgroundColor '#0f1419' --splashBackgroundColorDark '#0f1419'",
     "native:verify": "node scripts/verify-native-release.mjs"
-  },
-  "dependencies": {
-    "@aparajita/capacitor-secure-storage": "8.0.0",
-    "@capacitor/app": "8.0.0",
-    "@capacitor/core": "8.4.2",
-    "@capacitor/haptics": "8.0.0",
-    "@capacitor/keyboard": "8.0.0",
-    "@capacitor/network": "8.0.0",
-    "@capacitor/status-bar": "8.0.0",
-    "@revenuecat/purchases-capacitor": "13.2.3",
-    "@capacitor/push-notifications": "8.0.0"
-  },
-  "devDependencies": {
-    "@capacitor/android": "8.4.2",
-    "@capacitor/cli": "8.4.2",
-    "@capacitor/ios": "8.4.2",
-    "esbuild": "0.25.0",
-    "@capacitor/assets": "3.0.5"
   }
 }
