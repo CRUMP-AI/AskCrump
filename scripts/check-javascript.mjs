@@ -7,6 +7,7 @@ const expectedFiles = new Set([
   'auth-controller.js',
   'billing-manager.js',
   'chat-sync.js',
+  'crump-4.3.js',
   'device-auth.js',
   'install-prompt.js',
   'landing.js',

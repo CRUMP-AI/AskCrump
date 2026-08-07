@@ -34,6 +34,8 @@
   });
 
   const messageKey = (message, index = 0) => {
+    const inReplyTo = message?.inReplyTo || message?.in_reply_to;
+    if (message?.role === 'assistant' && inReplyTo) return `reply:${inReplyTo}`;
     if (message?.id) return `id:${message.id}`;
     return `legacy:${message?.role || ''}:${message?.timestamp || ''}:${String(message?.content || '').slice(0, 160)}:${index}`;
   };
@@ -264,10 +266,11 @@
 
   window.syncChatsFromServer = () => synchronize(window.__crumpSyncData || null);
 
-  // Every explicit save now performs pull -> message merge -> push -> verify.
-  // This is slightly more work than a blind push, but it prevents a complete
-  // chat snapshot from one device from erasing a turn created on another.
-  window.syncChatsToServer = () => synchronize();
+  // Explicit saves are push-only. Pulling here can replace app.js's live chat
+  // object while an AI reply is in flight, leaving the reply attached to a
+  // stale object. The database merge function is authoritative and lossless,
+  // while the periodic synchronizer still performs pull -> merge -> push.
+  window.syncChatsToServer = () => pushLocal();
 
   window.startAutoSync = () => {
     clearInterval(intervalId);
