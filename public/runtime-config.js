@@ -24,6 +24,8 @@ window.CRUMP_CONFIG = Object.freeze({
     ['script', '/crump-5.0.js', 'crump50'],
     ['style', '/crump-billing-5.1.css', 'billing51'],
     ['script', '/crump-billing-5.1.js', 'billing51'],
+    ['style', '/crump-5.2.css', 'crump52'],
+    ['script', '/crump-5.2.js', 'crump52'],
   ];
   for (const [kind, url, key] of assets) {
     if (kind === 'style' && !document.querySelector(`link[data-${key}]`)) {

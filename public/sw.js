@@ -1,12 +1,12 @@
-const CACHE_NAME = 'ask-crump-shell-v5.1.0';
+const CACHE_NAME = 'ask-crump-shell-v5.2.0';
 const APP_SHELL = [
   '/app', '/app.html', '/legal.html', '/delete-account.html', '/manifest.json',
   '/styles.css', '/auth-styles.css', '/onboarding.css',
   '/install-prompt.css', '/billing.css', '/conversation.css',
-  '/crump-4.3.css', '/crump-4.4.css', '/crump-5.0.css', '/crump-billing-5.1.css',
+  '/crump-4.3.css', '/crump-4.4.css', '/crump-5.0.css', '/crump-billing-5.1.css', '/crump-5.2.css',
   '/runtime-config.js', '/native-runtime.js', '/mobile-bridge.js', '/safe-storage.js',
   '/install-prompt.js', '/onboarding.js', '/crump-4.3.js', '/crump-4.4.js',
-  '/crump-5.0.js', '/crump-billing-5.1.js', '/scroll-manager.js',
+  '/crump-5.0.js', '/crump-billing-5.1.js', '/crump-5.2.js', '/scroll-manager.js',
   '/profile-manager.js', '/billing-manager.js', '/subscription-ui.js', '/ui-functions.js',
   '/presence-manager.js', '/device-auth.js', '/sync-manager.js', '/chat-sync.js',
   '/account-manager.js', '/app.js', '/auth-controller.js', '/landing.js',

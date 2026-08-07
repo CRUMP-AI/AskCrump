@@ -1,0 +1,228 @@
+/* Ask Crump 5.2 — durable multimodal conversation surfaces. */
+
+.crump52-rich-attachments {
+  display: grid;
+  gap: 8px;
+  width: min(460px, 100%);
+  margin-top: 8px;
+}
+
+.crump52-image-gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  overflow: hidden;
+  border-radius: 16px;
+}
+.crump52-image-gallery.count-1 { grid-template-columns: 1fr; }
+
+.crump52-image-attachment {
+  position: relative;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 15px;
+  background: #11171d;
+}
+.crump52-image-attachment img {
+  display: block;
+  width: 100%;
+  max-height: 430px;
+  object-fit: cover;
+  background: rgba(255,255,255,.025);
+  cursor: zoom-in;
+}
+.crump52-image-gallery:not(.count-1) .crump52-image-attachment img {
+  aspect-ratio: 1 / 1;
+  max-height: 260px;
+}
+.crump52-image-attachment figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  color: #d8d4cc;
+  background: rgba(8,12,16,.92);
+  font-size: 10px;
+}
+.crump52-image-attachment figcaption span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.crump52-image-attachment figcaption small {
+  flex: 0 0 auto;
+  color: #827d74;
+  font-size: 9px;
+}
+.crump52-image-attachment.is-unavailable img {
+  min-height: 120px;
+  opacity: .25;
+  cursor: default;
+}
+
+.crump52-file-attachment {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  min-height: 62px;
+  padding: 9px 12px 9px 9px;
+  border: 1px solid rgba(255,255,255,.075);
+  border-radius: 14px;
+  background: rgba(255,255,255,.025);
+  color: #e7e4dd;
+  text-align: left;
+  cursor: pointer;
+}
+.crump52-file-attachment:hover { background: rgba(255,255,255,.05); }
+.crump52-file-attachment:disabled { cursor: default; opacity: .62; }
+.crump52-file-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(216,192,141,.18);
+  border-radius: 11px;
+  background: rgba(216,192,141,.075);
+  color: #d8c08d;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+.crump52-file-copy { display: grid; gap: 3px; min-width: 0; }
+.crump52-file-copy strong {
+  overflow: hidden;
+  color: #e8e4dc;
+  font-size: 11px;
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.crump52-file-copy small { color: #817c74; font-size: 9px; }
+.crump52-file-arrow { color: #9f9789; font-size: 16px; }
+
+.crump52-attach-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 14050;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .16s ease;
+}
+.crump52-attach-overlay.is-visible { opacity: 1; pointer-events: auto; }
+.crump52-attach-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(3,7,11,.72);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.crump52-attach-sheet {
+  position: absolute;
+  left: 50%;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  width: min(520px, calc(100% - 24px));
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 24px;
+  background: #11171d;
+  box-shadow: 0 28px 70px rgba(0,0,0,.55);
+  transform: translate(-50%, 12px);
+  transition: transform .2s cubic-bezier(.2,.8,.2,1);
+}
+.crump52-attach-overlay.is-visible .crump52-attach-sheet { transform: translate(-50%, 0); }
+.crump52-attach-handle {
+  width: 34px;
+  height: 4px;
+  margin: 8px auto 0;
+  border-radius: 99px;
+  background: rgba(255,255,255,.14);
+}
+.crump52-attach-sheet header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid rgba(255,255,255,.055);
+}
+.crump52-attach-sheet header > div { display: grid; gap: 4px; }
+.crump52-attach-sheet header span {
+  color: #958e81;
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: .16em;
+}
+.crump52-attach-sheet header h2 {
+  margin: 0;
+  color: #f1eee8;
+  font-size: 18px;
+  font-weight: 640;
+  letter-spacing: -.025em;
+}
+.crump52-attach-sheet header button {
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 12px;
+  background: rgba(255,255,255,.025);
+  color: #aaa59c;
+  font: inherit;
+  font-size: 22px;
+}
+.crump52-attach-list { display: grid; padding: 7px; }
+.crump52-attach-choice {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  min-height: 62px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: #dedad2;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.crump52-attach-choice:hover,
+.crump52-attach-choice:active { background: rgba(255,255,255,.045); }
+.crump52-choice-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid rgba(216,192,141,.16);
+  border-radius: 12px;
+  background: rgba(216,192,141,.055);
+  color: #d8c08d;
+  font-size: 17px;
+}
+.crump52-attach-choice > span:nth-child(2) { display: grid; gap: 3px; min-width: 0; }
+.crump52-attach-choice strong { font-size: 12px; font-weight: 620; }
+.crump52-attach-choice small { color: #858078; font-size: 10px; }
+.crump52-attach-choice b { color: #77736c; font-size: 20px; font-weight: 400; }
+
+.crump52-billing-error { grid-column: 1 / -1; }
+
+@media (max-width: 720px) {
+  .crump52-rich-attachments { width: min(100%, 390px); }
+  .crump52-image-gallery { grid-template-columns: 1fr; }
+  .crump52-image-gallery:not(.count-1) .crump52-image-attachment img { aspect-ratio: 4 / 3; }
+  .crump52-image-attachment img { max-height: 360px; }
+  .crump52-attach-sheet {
+    bottom: 0;
+    width: 100%;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 24px 24px 0 0;
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+  }
+}
