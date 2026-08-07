@@ -4,7 +4,7 @@ version = "5.1.0"
 description = "Cross-platform multimodal AI assistant with synchronized chat, private files, generated artifacts, memory, intelligence orchestration, subscriptions, and durable credits."
 requires-python = ">=3.12,<3.15"
 dependencies = [
-  "fastapi==0.116.1",
+  "fastapi==0.141.1",
   "pydantic[email]==2.13.4",
   "httpx[http2]==0.28.1",
   "bcrypt==4.3.0",
