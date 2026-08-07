@@ -3,10 +3,11 @@ import { spawnSync } from 'node:child_process';
 
 const expectedFiles = new Set([
   'account-manager.js', 'app.js', 'auth-controller.js', 'billing-manager.js', 'chat-sync.js',
-  'crump-4.3.js', 'crump-4.4.js', 'crump-5.0.js', 'device-auth.js', 'install-prompt.js',
-  'landing.js', 'mobile-bridge.js', 'native-entry.js', 'native-runtime.js', 'onboarding.js',
-  'presence-manager.js', 'profile-manager.js', 'runtime-config.js', 'safe-storage.js', 'scroll-manager.js',
-  'subscription-ui.js', 'sw.js', 'sync-manager.js', 'ui-functions.js',
+  'crump-4.3.js', 'crump-4.4.js', 'crump-5.0.js', 'crump-billing-5.1.js',
+  'device-auth.js', 'install-prompt.js', 'landing.js', 'mobile-bridge.js', 'native-entry.js',
+  'native-runtime.js', 'onboarding.js', 'presence-manager.js', 'profile-manager.js',
+  'runtime-config.js', 'safe-storage.js', 'scroll-manager.js', 'subscription-ui.js',
+  'sw.js', 'sync-manager.js', 'ui-functions.js',
 ]);
 const publicDirectory = new URL('../public/', import.meta.url);
 const files = (await readdir(publicDirectory)).filter(name => name.endsWith('.js')).sort();

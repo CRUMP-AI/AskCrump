@@ -26,8 +26,14 @@ const config = {
   revenueCatEntitlement: process.env.REVENUECAT_ENTITLEMENT || 'professional',
   revenueCatProfessionalProductId: process.env.REVENUECAT_PROFESSIONAL_PRODUCT_ID || 'askcrump_professional_monthly',
   revenueCatEnterpriseProductId: process.env.REVENUECAT_ENTERPRISE_PRODUCT_ID || 'askcrump_enterprise_monthly',
+  revenueCatCredits50ProductId: process.env.REVENUECAT_CREDITS_50_PRODUCT_ID || 'askcrump_credits_50',
+  revenueCatCredits150ProductId: process.env.REVENUECAT_CREDITS_150_PRODUCT_ID || 'askcrump_credits_150',
+  revenueCatCredits400ProductId: process.env.REVENUECAT_CREDITS_400_PRODUCT_ID || 'askcrump_credits_400',
   webProfessionalPriceLabel: process.env.WEB_PROFESSIONAL_PRICE_LABEL || '$20/month',
   webEnterprisePriceLabel: process.env.WEB_ENTERPRISE_PRICE_LABEL || '$50/month',
+  webCredits50PriceLabel: process.env.WEB_CREDITS_50_PRICE_LABEL || '$4.99',
+  webCredits150PriceLabel: process.env.WEB_CREDITS_150_PRICE_LABEL || '$9.99',
+  webCredits400PriceLabel: process.env.WEB_CREDITS_400_PRICE_LABEL || '$19.99',
 };
 const loaders = `
 (() => {
@@ -37,6 +43,8 @@ const loaders = `
     ['script','/crump-4.4.js','crump44'],
     ['style','/crump-5.0.css','crump50'],
     ['script','/crump-5.0.js','crump50'],
+    ['style','/crump-billing-5.1.css','billing51'],
+    ['script','/crump-billing-5.1.js','billing51'],
   ];
   for (const [kind,url,key] of assets) {
     const selector = kind === 'style' ? 'link[data-' + key + ']' : 'script[data-' + key + ']';
@@ -48,6 +56,9 @@ const loaders = `
   }
 })();
 `;
-await writeFile(new URL('../dist/runtime-config.js', import.meta.url), `window.CRUMP_CONFIG = Object.freeze(${JSON.stringify(config, null, 2)});\n${loaders}`);
+await writeFile(
+  new URL('../dist/runtime-config.js', import.meta.url),
+  `window.CRUMP_CONFIG = Object.freeze(${JSON.stringify(config, null, 2)});\n${loaders}`,
+);
 await rm(new URL('../dist/native-entry.js', import.meta.url), { force: true });
 console.log('Native web bundle created in dist/.');

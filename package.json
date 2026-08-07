@@ -1,10 +1,12 @@
 {
   "name": "ask-crump",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "private": true,
-  "description": "Cross-platform multimodal AI assistant with synchronized chat, private files, generated artifacts, memory, and intelligence orchestration.",
+  "description": "Cross-platform multimodal AI assistant with synchronized chat, private files, generated artifacts, memory, intelligence orchestration, subscriptions, and durable credits.",
   "type": "module",
-  "engines": { "node": "22.x" },
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "build": "node scripts/build-native.mjs",
     "cap:add:ios": "npx cap add ios",

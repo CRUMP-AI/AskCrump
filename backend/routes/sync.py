@@ -12,6 +12,7 @@ from ..usage_service import current_usage
 
 router = APIRouter(prefix="/api", tags=["synchronization"])
 
+
 @router.get('/sync/pull')
 async def sync_pull(request: Request, since: str | None = None):
     auth = await authenticate_request(request, db, settings)
@@ -31,10 +32,33 @@ async def sync_push(request: Request):
 async def usage_check(request: Request):
     auth = await authenticate_request(request, db, settings)
     status = await current_usage(db, auth.user, settings)
+    credits = status.get('credits') or {'balance': 0}
+    balance = max(0, int(credits.get('balance') or 0))
+    daily_limit = int(status['limit'])
+    # Older clients compare usage.messages >= limits.messages before sending.
+    # Extend the effective ceiling by the durable credit balance so 5.0 and
+    # earlier shells continue seamlessly until both included usage and credits
+    # are exhausted.
+    effective_limit = -1 if daily_limit < 0 else daily_limit + balance
+    included_remaining = int(status['remaining'])
     return {
         'success': True,
         'tier': status['tier'],
         'usage': {'messages': status['used']},
-        'limits': {'messages': status['limit']},
-        'daily': status,
+        'limits': {'messages': effective_limit},
+        'daily': {
+            'tier': status['tier'],
+            'used': status['used'],
+            'limit': daily_limit,
+            'remaining': included_remaining,
+        },
+        'credits': credits,
+        'requiresPurchase': daily_limit >= 0 and included_remaining <= 0 and balance <= 0,
+        'nextRequestSource': (
+            'included'
+            if daily_limit < 0 or included_remaining > 0
+            else 'credits'
+            if balance > 0
+            else 'purchase'
+        ),
     }
