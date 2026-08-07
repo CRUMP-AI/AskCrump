@@ -5,6 +5,7 @@
   const deletedKey = () => `${DELETED_KEY}:${window.currentUser?.id || 'anonymous'}`;
   let intervalId = null;
   let syncing = false;
+  let syncRequested = false;
 
   const toTime = value => {
     if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
@@ -32,14 +33,85 @@
     revision: Number(chat.revision || 1),
   });
 
-  // Match the database's compare-and-apply rule exactly:
-  // 1) newer updatedAt wins;
-  // 2) revision only breaks an exact timestamp tie.
-  //
-  // The previous client used:
-  //   server.updatedAt > local.updatedAt || server.revision > local.revision
-  // which allowed an OLDER server snapshot with a higher server-side revision
-  // to erase a newer local assistant reply during the next pull.
+  const messageKey = (message, index = 0) => {
+    if (message?.id) return `id:${message.id}`;
+    return `legacy:${message?.role || ''}:${message?.timestamp || ''}:${String(message?.content || '').slice(0, 160)}:${index}`;
+  };
+
+  const deliveryRank = status => ({ sending: 1, queued: 2, failed: 2, delivered: 3, seen: 4 }[status] || 0);
+  const replyRank = status => ({ pending: 1, failed: 2, processing: 3, replied: 4 }[status] || 0);
+
+  function mergeMessage(local, server) {
+    if (!local) return { ...server };
+    if (!server) return { ...local };
+
+    const localDelivery = local.deliveryStatus || local.delivery_status;
+    const serverDelivery = server.deliveryStatus || server.delivery_status;
+    const localReply = local.replyStatus || local.reply_status;
+    const serverReply = server.replyStatus || server.reply_status;
+
+    const merged = { ...local, ...server };
+    if (deliveryRank(localDelivery) > deliveryRank(serverDelivery)) merged.deliveryStatus = localDelivery;
+    if (replyRank(localReply) > replyRank(serverReply)) merged.replyStatus = localReply;
+
+    const localDeliveryTime = toTime(local.deliveryUpdatedAt || local.delivery_updated_at);
+    const serverDeliveryTime = toTime(server.deliveryUpdatedAt || server.delivery_updated_at);
+    if (localDeliveryTime > serverDeliveryTime) {
+      for (const field of ['deliveryUpdatedAt', 'deliveredAt', 'seenAt', 'replyError']) {
+        if (local[field] !== undefined) merged[field] = local[field];
+      }
+    }
+    return merged;
+  }
+
+  function mergeMessages(localMessages = [], serverMessages = []) {
+    const byKey = new Map();
+    const order = [];
+
+    serverMessages.forEach((message, index) => {
+      const key = messageKey(message, index);
+      if (!byKey.has(key)) order.push(key);
+      byKey.set(key, { server: message, local: null, first: index });
+    });
+
+    localMessages.forEach((message, index) => {
+      const key = messageKey(message, index);
+      if (!byKey.has(key)) {
+        order.push(key);
+        byKey.set(key, { server: null, local: message, first: serverMessages.length + index });
+      } else {
+        byKey.get(key).local = message;
+      }
+    });
+
+    return order
+      .map(key => {
+        const entry = byKey.get(key);
+        return { message: mergeMessage(entry.local, entry.server), first: entry.first };
+      })
+      .sort((a, b) => {
+        const at = toTime(a.message?.timestamp);
+        const bt = toTime(b.message?.timestamp);
+        if (at && bt && at !== bt) return at - bt;
+        return a.first - b.first;
+      })
+      .map(entry => entry.message);
+  }
+
+  function stableMessageSignature(messages = []) {
+    return JSON.stringify(messages.map(message => ({
+      id: message?.id || null,
+      role: message?.role || null,
+      content: message?.content || '',
+      timestamp: message?.timestamp || null,
+      imageUrl: message?.imageUrl || message?.image_url || null,
+      deliveryStatus: message?.deliveryStatus || message?.delivery_status || null,
+      replyStatus: message?.replyStatus || message?.reply_status || null,
+      inReplyTo: message?.inReplyTo || message?.in_reply_to || null,
+      origin: message?.origin || null,
+    })));
+  }
+
   function serverWins(server, local) {
     if (!local) return true;
     const serverTime = toTime(server.updatedAt);
@@ -47,20 +119,6 @@
     if (serverTime > localTime) return true;
     if (serverTime < localTime) return false;
     return Number(server.revision || 1) > Number(local.revision || 1);
-  }
-
-  // Extra guard for an in-flight local turn. If the local browser has a newer
-  // message that has not yet appeared in the server copy, never discard it.
-  function hasNewerLocalTurn(local, server) {
-    const localMessages = Array.isArray(local?.messages) ? local.messages : [];
-    const serverMessages = Array.isArray(server?.messages) ? server.messages : [];
-    if (!localMessages.length || localMessages.length <= serverMessages.length) return false;
-
-    const serverIds = new Set(serverMessages.map(message => message?.id).filter(Boolean));
-    return localMessages.some(message => {
-      if (!message?.id || serverIds.has(message.id)) return false;
-      return toTime(message.timestamp) >= toTime(server.updatedAt);
-    });
   }
 
   window.recordChatDeletion = chatId => {
@@ -98,8 +156,33 @@
       if (tombstone && toTime(tombstone.deletedAt) >= toTime(server.updatedAt)) continue;
 
       const local = map.get(id);
-      if (hasNewerLocalTurn(local, server)) continue;
-      if (serverWins(server, local)) map.set(id, server);
+      if (!local) {
+        map.set(id, server);
+        continue;
+      }
+
+      const mergedMessages = mergeMessages(local.messages, server.messages);
+      const mergedDiffersFromServer = stableMessageSignature(mergedMessages) !== stableMessageSignature(server.messages);
+      const winner = serverWins(server, local) ? server : local;
+      const merged = {
+        ...winner,
+        id,
+        chat_id: id,
+        createdAt: toTime(local.createdAt) && toTime(local.createdAt) < toTime(server.createdAt) ? local.createdAt : server.createdAt,
+        messages: mergedMessages,
+        revision: Math.max(Number(local.revision || 1), Number(server.revision || 1)),
+      };
+
+      // If one device owns a message the server does not yet have (most notably
+      // an assistant reply), make the merged chat a fresh revision so the next
+      // push cannot be rejected as stale merely because metadata came from an
+      // older in-memory chat object.
+      if (mergedDiffersFromServer) {
+        merged.updatedAt = new Date().toISOString();
+        merged.revision += 1;
+      }
+
+      map.set(id, merged);
     }
 
     const merged = [...map.values()].sort((a, b) => toTime(b.updatedAt) - toTime(a.updatedAt));
@@ -108,12 +191,12 @@
   }
 
   async function pullAndMerge(prefetched = null) {
-    if (!window.currentUser || !navigator.onLine) return;
+    if (!window.currentUser || !navigator.onLine) return null;
     const result = prefetched
       ? { success: true, data: prefetched }
       : await window.SyncManager.pull(null, { full: true });
 
-    if (!result?.success || !Array.isArray(result.data?.chats)) return;
+    if (!result?.success || !Array.isArray(result.data?.chats)) return result;
 
     let local = [];
     try { local = JSON.parse(SafeStorage.getItem(STORAGE_KEYS.CHATS) || '[]'); } catch (_) {}
@@ -125,10 +208,11 @@
     else SafeStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(merged));
 
     if (typeof window.renderChatsList === 'function') window.renderChatsList();
+    return result;
   }
 
   async function pushLocal() {
-    if (!window.currentUser) return;
+    if (!window.currentUser || !navigator.onLine) return { success: false, offline: true };
 
     let local = [];
     try { local = JSON.parse(SafeStorage.getItem(STORAGE_KEYS.CHATS) || '[]'); } catch (_) {}
@@ -151,26 +235,43 @@
   }
 
   async function synchronize(prefetched = null) {
-    if (syncing || !window.currentUser || !navigator.onLine) return;
+    if (!window.currentUser || !navigator.onLine) return { success: false, offline: true };
+    if (syncing) {
+      syncRequested = true;
+      return { success: true, deferred: true };
+    }
+
     syncing = true;
+    let lastPush = { success: true };
+    let firstPrefetch = prefetched;
 
     try {
-      // Pull first so stale local state never overwrites a genuinely newer device.
-      await pullAndMerge(prefetched);
-      await pushLocal();
-      await pullAndMerge();
+      do {
+        syncRequested = false;
+        await pullAndMerge(firstPrefetch);
+        firstPrefetch = null;
+        lastPush = await pushLocal() || { success: true };
+        await pullAndMerge();
+      } while (syncRequested);
+      return lastPush;
     } catch (error) {
       console.warn('[Sync] Synchronization failed:', error);
+      return { success: false, error: error?.message || 'Synchronization failed.' };
     } finally {
       syncing = false;
     }
   }
 
   window.syncChatsFromServer = () => synchronize(window.__crumpSyncData || null);
-  window.syncChatsToServer = pushLocal;
+
+  // Every explicit save now performs pull -> message merge -> push -> verify.
+  // This is slightly more work than a blind push, but it prevents a complete
+  // chat snapshot from one device from erasing a turn created on another.
+  window.syncChatsToServer = () => synchronize();
+
   window.startAutoSync = () => {
     clearInterval(intervalId);
-    intervalId = setInterval(() => synchronize(), 60_000);
+    intervalId = setInterval(() => synchronize(), 20_000);
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) synchronize();
     });

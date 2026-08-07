@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-shell-v4.3.0';
+const CACHE_NAME = 'ask-crump-shell-v4.3.1';
 const APP_SHELL = [
   '/app', '/app.html', '/legal.html', '/delete-account.html', '/manifest.json',
   '/styles.css', '/auth-styles.css', '/onboarding.css',
@@ -53,7 +53,6 @@ self.addEventListener('fetch', event => {
 
   event.respondWith(
     caches.match(request).then(cached => {
-      // Existing shell remains instant, while a fresh response updates it for the next read.
       const network = fetch(request)
         .then(response => {
           if (response.ok) {
