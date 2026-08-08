@@ -5,55 +5,44 @@
   window.__crump524IdentityLoaded = true;
 
   const BRAND = Object.freeze({
-    mark: '/assets/ask-crump-mark.png',
-    wordmarkDark: '/assets/ask-crump-wordmark-dark.png',
-    wordmarkLight: '/assets/ask-crump-wordmark-light.png',
+    horizontalLight: '/assets/ask-crump-horizontal-light.png',
+    horizontalDark: '/assets/ask-crump-horizontal-dark.png',
+    mark: '/assets/ask-crump-mark-display.png',
   });
 
-  function buildMark(className, alt = 'Ask Crump') {
-    const logo = document.createElement('img');
-    logo.src = BRAND.mark;
-    logo.alt = alt;
-    logo.className = className;
-    logo.decoding = 'async';
-    return logo;
+  function setImage(img, src, className, alt = 'Ask Crump') {
+    if (!(img instanceof HTMLImageElement)) return;
+    img.src = src;
+    img.alt = alt;
+    if (className) img.classList.add(className);
+    img.removeAttribute('width');
+    img.removeAttribute('height');
   }
 
   function restoreHeaderBranding() {
     const branding = document.querySelector('.header-branding');
     if (!branding) return;
 
-    const existingMark = branding.querySelector('.crump524-header-mark');
-    const existingLabel = branding.querySelector('.crump524-header-label');
-    if (existingMark && existingLabel) return;
+    const existing = branding.querySelector('.crump524-header-wordmark');
+    if (existing && existing.getAttribute('src') === BRAND.horizontalLight) return;
 
     branding.replaceChildren();
     branding.classList.add('crump524-header-brand');
 
-    const logo = buildMark('crump524-header-mark');
-    const label = document.createElement('span');
-    label.className = 'crump524-header-label';
-    label.textContent = 'Ask Crump';
-
-    branding.append(logo, label);
+    const logo = document.createElement('img');
+    setImage(logo, BRAND.horizontalLight, 'crump524-header-wordmark');
+    logo.decoding = 'async';
+    branding.appendChild(logo);
     branding.dataset.crump524 = 'true';
   }
 
   function restoreAuthBranding() {
     document.querySelectorAll('.auth-logo').forEach(logo => {
-      logo.src = BRAND.wordmarkLight;
-      logo.alt = 'Ask Crump';
-      logo.classList.add('crump524-auth-wordmark');
-      logo.removeAttribute('width');
-      logo.removeAttribute('height');
+      setImage(logo, BRAND.horizontalLight, 'crump524-auth-wordmark');
     });
 
     document.querySelectorAll('.onboarding-logo').forEach(logo => {
-      logo.src = BRAND.wordmarkLight;
-      logo.alt = 'Ask Crump';
-      logo.classList.add('crump524-onboarding-wordmark');
-      logo.removeAttribute('width');
-      logo.removeAttribute('height');
+      setImage(logo, BRAND.horizontalLight, 'crump524-onboarding-wordmark');
     });
   }
 
@@ -61,66 +50,37 @@
     const branding = document.querySelector('.sidebar-branding');
     if (!branding) return;
 
-    const oldIcon = branding.querySelector('.sidebar-logo-icon');
-    if (oldIcon) {
-      oldIcon.src = BRAND.mark;
-      oldIcon.alt = 'Ask Crump';
-      oldIcon.classList.add('crump524-sidebar-mark');
-    }
+    branding.replaceChildren();
+    const logo = document.createElement('img');
+    setImage(logo, BRAND.horizontalLight, 'crump524-sidebar-wordmark');
+    branding.appendChild(logo);
+  }
 
-    const label = branding.querySelector('.sidebar-logo');
-    if (label) {
-      label.textContent = 'Ask Crump';
-      label.classList.add('crump524-sidebar-label');
-    }
+  function restoreEmptyStateBranding() {
+    document.querySelectorAll('.crump-empty-mark img').forEach(img => {
+      setImage(img, BRAND.mark, 'crump524-empty-mark', '');
+    });
+
+    document.querySelectorAll('.crump-empty-eyebrow').forEach(eyebrow => {
+      eyebrow.hidden = true;
+      eyebrow.setAttribute('aria-hidden', 'true');
+    });
   }
 
   function restoreBranding() {
     restoreHeaderBranding();
     restoreAuthBranding();
     restoreSidebarBranding();
-  }
-
-  function observeBranding() {
-    const header = document.querySelector('.header-branding');
-    if (header) {
-      new MutationObserver(() => {
-        if (!header.querySelector('.crump524-header-mark')) {
-          restoreHeaderBranding();
-        }
-      }).observe(header, {childList: true, subtree: true});
-    }
-
-    const bodyObserver = new MutationObserver(mutations => {
-      let shouldRestore = false;
-      for (const mutation of mutations) {
-        if (mutation.type !== 'attributes') continue;
-        const target = mutation.target;
-        if (
-          target instanceof HTMLImageElement &&
-          (
-            target.classList.contains('auth-logo') ||
-            target.classList.contains('onboarding-logo') ||
-            target.classList.contains('sidebar-logo-icon')
-          )
-        ) {
-          shouldRestore = true;
-          break;
-        }
-      }
-      if (shouldRestore) restoreBranding();
-    });
-
-    bodyObserver.observe(document.body, {
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['src'],
-    });
+    restoreEmptyStateBranding();
   }
 
   function boot() {
     restoreBranding();
-    observeBranding();
+
+    const observer = new MutationObserver(() => {
+      restoreBranding();
+    });
+    observer.observe(document.body, {childList: true, subtree: true});
   }
 
   if (document.readyState === 'complete') boot();

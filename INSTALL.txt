@@ -1,28 +1,35 @@
-ASK CRUMP — CANON BRAND ASSET INTEGRATION
+ASK CRUMP — FINAL HEADER / AUTH BRANDING INTEGRATION
 
-WHAT THIS DOES
-- Adds the exact three transparent PNG masters supplied by Gregory.
-- Uses the standalone mark in the main chat header.
-- Uses the standalone mark in the sidebar.
-- Uses the white + gold wordmark on dark login/register/reset screens.
-- Uses the white + gold wordmark on onboarding.
-- Preserves the black + gold wordmark for future light surfaces.
-- Bumps the service-worker cache key so the new branding is not hidden behind an old cached UI.
+This package uses the exact user-supplied transparent PNG masters.
 
-NO IMAGE FILE WAS RESIZED, CROPPED, RECOMPRESSED, REGENERATED, OR RE-ENCODED.
+MASTER ASSETS — UNTOUCHED
+- ask-crump-horizontal-light-master.png
+- ask-crump-horizontal-dark-master.png
+- ask-crump-mark-master.png
 
-HOW TO INSTALL
-1. Extract this ZIP.
-2. Copy the CONTENTS into the ROOT of the CRUMP-AI repository.
-3. Choose Merge/Replace when prompted.
-4. Open GitHub Desktop and review the changes.
-5. Commit and push.
-6. After Vercel reaches READY, refresh Ask Crump once. If Safari still shows an old cached logo, close the tab/app and reopen once.
+DISPLAY DERIVATIVES
+These only trim transparent empty canvas so the artwork can render at useful UI sizes.
+No artwork was redesigned or generated.
+
+PLACEMENT
+- Main chat header: horizontal white/gold Ask Crump wordmark ONLY — no generic HTML logo text.
+- Login / Register / Password Reset: horizontal white/gold wordmark.
+- Onboarding: horizontal white/gold wordmark.
+- Sidebar: horizontal white/gold wordmark.
+- Empty home state: standalone canon C mark; redundant generic-font ASK CRUMP eyebrow removed.
+- Black/gold horizontal master is preserved for future light surfaces.
+
+INSTALL
+1. Extract ZIP.
+2. Copy CONTENTS into CRUMP-AI repository root.
+3. Merge/Replace.
+4. Commit and push.
+5. After Vercel reaches READY, refresh/reopen Ask Crump once so the new service-worker cache activates.
 
 Suggested commit summary:
-Integrate canonical Ask Crump brand assets
+Refine canonical Ask Crump branding placement
 
-No Supabase migration.
+No database migration.
 No environment-variable changes.
 No Stripe changes.
-No App Store / PWA icon replacement in this patch.
+No PWA/App Store icon changes.

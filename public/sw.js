@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-shell-v5.2.4-canon-brand-1';
+const CACHE_NAME = 'ask-crump-shell-v5.2.4-brand-2';
 const APP_SHELL = [
   '/app', '/app.html', '/legal.html', '/delete-account.html', '/manifest.json',
   '/styles.css', '/auth-styles.css', '/onboarding.css',
@@ -12,10 +12,12 @@ const APP_SHELL = [
   '/profile-manager.js', '/billing-manager.js', '/subscription-ui.js', '/ui-functions.js',
   '/presence-manager.js', '/device-auth.js', '/sync-manager.js', '/chat-sync.js',
   '/account-manager.js', '/app.js', '/auth-controller.js', '/landing.js',
-  '/assets/logo-c.png', '/assets/ask-crump-logo.png', '/assets/ask-crump-header.png',
-  '/assets/ask-crump-mark.png',
-  '/assets/ask-crump-wordmark-dark.png',
-  '/assets/ask-crump-wordmark-light.png',
+  '/assets/ask-crump-horizontal-light.png',
+  '/assets/ask-crump-horizontal-dark.png',
+  '/assets/ask-crump-mark-display.png',
+  '/assets/ask-crump-horizontal-light-master.png',
+  '/assets/ask-crump-horizontal-dark-master.png',
+  '/assets/ask-crump-mark-master.png',
   '/assets/icon-192.png', '/assets/icon-512.png', '/assets/icon-1024.png'
 ];
 

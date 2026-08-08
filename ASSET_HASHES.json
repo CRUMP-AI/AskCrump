@@ -1,0 +1,69 @@
+{
+  "masters": {
+    "ask-crump-horizontal-light-master.png": "622085761c8f4ccf56cd93665d3e2908713e42bfa53b2091eaee9e34fb2f4219",
+    "ask-crump-horizontal-dark-master.png": "f2cfa6e00186ca1f3b35f25d6e1dc6746c621ec97f039fae9d615c56c38de110",
+    "ask-crump-mark-master.png": "5ba1f8de8b98e0ea693eddc6899beb761aec5bc51cb4467cdba5bcefc943cc6c"
+  },
+  "display_derivatives": {
+    "ask-crump-horizontal-light.png": {
+      "source_size": [
+        3464,
+        3464
+      ],
+      "content_bbox": [
+        300,
+        1491,
+        3239,
+        2141
+      ],
+      "display_size": [
+        3051,
+        762
+      ],
+      "alpha": [
+        0,
+        255
+      ]
+    },
+    "ask-crump-horizontal-dark.png": {
+      "source_size": [
+        3464,
+        3464
+      ],
+      "content_bbox": [
+        300,
+        1491,
+        3239,
+        2141
+      ],
+      "display_size": [
+        3051,
+        762
+      ],
+      "alpha": [
+        0,
+        255
+      ]
+    },
+    "ask-crump-mark-display.png": {
+      "source_size": [
+        3809,
+        3150
+      ],
+      "content_bbox": [
+        779,
+        573,
+        2795,
+        2833
+      ],
+      "display_size": [
+        2104,
+        2348
+      ],
+      "alpha": [
+        0,
+        255
+      ]
+    }
+  }
+}
