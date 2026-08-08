@@ -1,29 +1,40 @@
-ASK CRUMP — BRANDING FREEZE HOTFIX
+ASK CRUMP V1 — INTERFACE REVAMP
 
-ROOT CAUSE
-The previous branding integration watched the entire DOM and unconditionally
-replaced the sidebar branding inside that observer. Replacing the sidebar
-created another DOM mutation, which triggered another replacement indefinitely.
+THIS IS A SHELL REVAMP, NOT A BACKEND REBUILD.
 
-THIS HOTFIX
-- Makes header/sidebar branding updates idempotent.
-- Removes the self-triggering MutationObserver loop.
-- Watches only newly-added auth/empty-state nodes that genuinely need branding.
-- Preserves the canonical logo placement and assets.
-- Bumps the service-worker cache so Safari can replace the bad cached JS.
+WHAT IT CHANGES
+- Replaces the patch-stacked branding presentation with one canonical V1 shell.
+- Preserves the exact supplied brand masters and uses optimized, aspect-preserving transparent PNG display derivatives.
+- Rebuilds auth, header, sidebar, home/empty state, chat, composer, settings,
+  intelligence panel, billing, attachment sheets, artifacts, toasts, and responsive layout.
+- Introduces a brand-new runtime URL: /runtime-config-v1.js.
+- Stops loading the old 5.2.4 branding layer.
+- Hardens service-worker boot behavior and clears previous Ask Crump caches.
+- Preserves the proven functional layers underneath.
+- Updates native build output to load the same V1 shell.
+- Keeps App Store / Google Play sensitive payment architecture unchanged.
 
 INSTALL
 1. Extract this ZIP.
-2. Copy the CONTENTS into the CRUMP-AI repository root.
-3. Merge/Replace.
-4. Commit and push.
-5. Wait for Vercel READY.
-6. On iPhone, fully close the Ask Crump tab/PWA and reopen it.
-   If the first reopen still catches the old cached JS, close/reopen one more time.
+2. Copy the CONTENTS directly into the ROOT of CRUMP-AI.
+3. Choose Merge/Replace.
+4. Double-click APPLY_V1_REVAMP.bat.
+5. It must say: V1 shell patch applied successfully.
+6. Open GitHub Desktop.
+7. Review the changed files.
+8. Commit:
+   Ask Crump V1 interface revamp
+9. Push.
+10. Wait for GitHub checks and Vercel to reach READY.
+11. Open askcrump.com/app in a NEW tab for the first test.
 
-Suggested commit summary:
-Fix branding observer freeze
+IMPORTANT
+Do not delete the old 4.x/5.x feature files yet. V1 deliberately keeps their
+behavior while taking presentation ownership. Once V1 is proven across devices,
+the next cleanup can retire redundant legacy CSS safely instead of doing that
+during the same release as a visual rebuild.
 
-No database migration.
-No environment-variable changes.
-No Stripe changes.
+NO SUPABASE MIGRATION.
+NO STRIPE CHANGES.
+NO ENVIRONMENT-VARIABLE CHANGES.
+NO APP-STORE ICON REPLACEMENT IN THIS PATCH.

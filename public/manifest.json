@@ -4,9 +4,9 @@
   "description": "A synchronized AI assistant for web, iPhone, iPad, and Android",
   "start_url": "/app?source=pwa",
   "display": "standalone",
-  "background_color": "#0f1419",
-  "theme_color": "#c9b892",
-  "orientation": "portrait-primary",
+  "background_color": "#080b0f",
+  "theme_color": "#080b0f",
+  "orientation": "any",
   "scope": "/",
   "icons": [
     {

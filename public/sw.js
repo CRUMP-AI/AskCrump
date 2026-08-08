@@ -1,41 +1,126 @@
-const CACHE_NAME = 'ask-crump-shell-v5.2.4-brand-3';
-const APP_SHELL = [
-  '/app', '/app.html', '/legal.html', '/delete-account.html', '/manifest.json',
-  '/styles.css', '/auth-styles.css', '/onboarding.css',
-  '/install-prompt.css', '/billing.css', '/conversation.css',
-  '/crump-4.3.css', '/crump-4.4.css', '/crump-5.0.css', '/crump-billing-5.1.css',
-  '/crump-5.2.css', '/crump-5.2.2.css', '/crump-5.2.4.css',
-  '/runtime-config.js', '/native-runtime.js', '/mobile-bridge.js', '/safe-storage.js',
-  '/install-prompt.js', '/onboarding.js', '/crump-4.3.js', '/crump-4.4.js',
-  '/crump-5.0.js', '/crump-billing-5.1.js', '/crump-5.2.js', '/crump-5.2.2.js',
-  '/crump-5.2.4.js', '/scroll-manager.js',
-  '/profile-manager.js', '/billing-manager.js', '/subscription-ui.js', '/ui-functions.js',
-  '/presence-manager.js', '/device-auth.js', '/sync-manager.js', '/chat-sync.js',
-  '/account-manager.js', '/app.js', '/auth-controller.js', '/landing.js',
-  '/assets/ask-crump-horizontal-light.png',
-  '/assets/ask-crump-horizontal-dark.png',
-  '/assets/ask-crump-mark-display.png',
-  '/assets/ask-crump-horizontal-light-master.png',
-  '/assets/ask-crump-horizontal-dark-master.png',
-  '/assets/ask-crump-mark-master.png',
-  '/assets/icon-192.png', '/assets/icon-512.png', '/assets/icon-1024.png'
+const CACHE_NAME = 'ask-crump-v1-shell-r1';
+
+const CORE = [
+  '/app',
+  '/app.html',
+  '/legal.html',
+  '/delete-account.html',
+  '/manifest.json',
+  '/styles.css',
+  '/auth-styles.css',
+  '/onboarding.css',
+  '/install-prompt.css',
+  '/billing.css',
+  '/conversation.css',
+  '/runtime-config-v1.js',
+  '/native-runtime.js',
+  '/mobile-bridge.js',
+  '/safe-storage.js',
+  '/install-prompt.js',
+  '/onboarding.js',
+  '/scroll-manager.js',
+  '/profile-manager.js',
+  '/billing-manager.js',
+  '/subscription-ui.js',
+  '/ui-functions.js',
+  '/presence-manager.js',
+  '/device-auth.js',
+  '/sync-manager.js',
+  '/chat-sync.js',
+  '/account-manager.js',
+  '/app.js',
+  '/auth-controller.js',
+  '/landing.js',
+  '/crump-4.3.css',
+  '/crump-4.3.js',
+  '/crump-4.4.css',
+  '/crump-4.4.js',
+  '/crump-5.0.css',
+  '/crump-5.0.js',
+  '/crump-billing-5.1.css',
+  '/crump-billing-5.1.js',
+  '/crump-5.2.css',
+  '/crump-5.2.js',
+  '/crump-5.2.2.css',
+  '/crump-5.2.2.js',
+  '/crump-v1.css',
+  '/crump-v1.js',
+  '/assets/brand/crump-mark.png',
+  '/assets/brand/crump-horizontal-light.png',
+  '/assets/brand/crump-horizontal-dark.png',
+  '/assets/icon-192.png',
+  '/assets/icon-512.png',
+  '/assets/icon-1024.png',
 ];
 
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
+async function preCache() {
+  const cache = await caches.open(CACHE_NAME);
+  await Promise.allSettled(
+    CORE.map(async url => {
+      const request = new Request(url, {cache: 'reload'});
+      const response = await fetch(request);
+      if (response.ok) await cache.put(request, response);
+    })
   );
+}
+
+self.addEventListener('install', event => {
+  event.waitUntil(preCache().then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
+      .then(keys => Promise.all(
+        keys
+          .filter(key => key !== CACHE_NAME && key.startsWith('ask-crump'))
+          .map(key => caches.delete(key))
+      ))
       .then(() => self.clients.claim())
   );
 });
+
+function isBootCritical(request, url) {
+  return request.mode === 'navigate' ||
+    url.pathname === '/app.html' ||
+    url.pathname === '/runtime-config-v1.js' ||
+    url.pathname === '/crump-v1.js' ||
+    url.pathname === '/crump-v1.css';
+}
+
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  try {
+    const response = await fetch(request);
+    if (response.ok) await cache.put(request, response.clone());
+    return response;
+  } catch (_) {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    if (request.mode === 'navigate') {
+      return (await cache.match('/app.html')) || Response.error();
+    }
+    return Response.error();
+  }
+}
+
+async function staleWhileRevalidate(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request);
+  const network = fetch(request)
+    .then(async response => {
+      if (response.ok) await cache.put(request, response.clone());
+      return response;
+    })
+    .catch(() => null);
+
+  if (cached) {
+    void network;
+    return cached;
+  }
+
+  return (await network) || Response.error();
+}
 
 self.addEventListener('fetch', event => {
   const request = event.request;
@@ -48,31 +133,10 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
-          return response;
-        })
-        .catch(async () => (await caches.match(request)) || (await caches.match('/app.html')))
-    );
+  if (isBootCritical(request, url)) {
+    event.respondWith(networkFirst(request));
     return;
   }
 
-  event.respondWith(
-    caches.match(request).then(cached => {
-      const network = fetch(request)
-        .then(response => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(request, copy)).catch(() => undefined);
-          }
-          return response;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
-  );
+  event.respondWith(staleWhileRevalidate(request));
 });

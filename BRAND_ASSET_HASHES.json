@@ -1,65 +1,196 @@
 {
-  "ask-crump-wordmark-dark.png": {
-    "source": "3078445D-635B-480A-9824-5F2607011379.PNG",
-    "sha256": "b7cd0a5d4a8a4ce40a4fa6ce14c23ef476406bed89240a8f3de466bdae3fc90a",
-    "dimensions": [
-      3464,
-      3464
-    ],
-    "format": "PNG",
-    "mode": "RGBA",
-    "alpha_extrema": [
-      0,
-      255
-    ],
-    "transparent": true,
-    "content_bbox": [
-      279,
-      648,
-      3205,
-      2613
-    ]
+  "masters": {
+    "crump-mark-master.png": {
+      "sha256": "5ba1f8de8b98e0ea693eddc6899beb761aec5bc51cb4467cdba5bcefc943cc6c",
+      "size": [
+        3809,
+        3150
+      ],
+      "mode": "RGBA",
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "transparent": true
+    },
+    "crump-wordmark-light-master.png": {
+      "sha256": "b6497ca4b0120b69892c6d296f3093a14746469338c70da5990f9b15f4038982",
+      "size": [
+        3464,
+        3464
+      ],
+      "mode": "RGBA",
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "transparent": true
+    },
+    "crump-wordmark-dark-master.png": {
+      "sha256": "b7cd0a5d4a8a4ce40a4fa6ce14c23ef476406bed89240a8f3de466bdae3fc90a",
+      "size": [
+        3464,
+        3464
+      ],
+      "mode": "RGBA",
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "transparent": true
+    },
+    "crump-horizontal-light-master.png": {
+      "sha256": "622085761c8f4ccf56cd93665d3e2908713e42bfa53b2091eaee9e34fb2f4219",
+      "size": [
+        3464,
+        3464
+      ],
+      "mode": "RGBA",
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "transparent": true
+    },
+    "crump-horizontal-dark-master.png": {
+      "sha256": "f2cfa6e00186ca1f3b35f25d6e1dc6746c621ec97f039fae9d615c56c38de110",
+      "size": [
+        3464,
+        3464
+      ],
+      "mode": "RGBA",
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "transparent": true
+    }
   },
-  "ask-crump-mark.png": {
-    "source": "PNG image.png",
-    "sha256": "5ba1f8de8b98e0ea693eddc6899beb761aec5bc51cb4467cdba5bcefc943cc6c",
-    "dimensions": [
-      3809,
-      3150
-    ],
-    "format": "PNG",
-    "mode": "RGBA",
-    "alpha_extrema": [
-      0,
-      255
-    ],
-    "transparent": true,
-    "content_bbox": [
-      779,
-      573,
-      2795,
-      2833
-    ]
-  },
-  "ask-crump-wordmark-light.png": {
-    "source": "8D35D9D7-9407-429D-B562-6BCCF08BF799.PNG",
-    "sha256": "b6497ca4b0120b69892c6d296f3093a14746469338c70da5990f9b15f4038982",
-    "dimensions": [
-      3464,
-      3464
-    ],
-    "format": "PNG",
-    "mode": "RGBA",
-    "alpha_extrema": [
-      0,
-      255
-    ],
-    "transparent": true,
-    "content_bbox": [
-      286,
-      648,
-      3205,
-      2623
-    ]
+  "display_derivatives": {
+    "crump-mark.png": {
+      "source_size": [
+        3809,
+        3150
+      ],
+      "content_bbox": [
+        779,
+        573,
+        2795,
+        2833
+      ],
+      "display_size": [
+        768,
+        856
+      ],
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "optimized_from": [
+        2124,
+        2368
+      ],
+      "optimized_for_ui": true
+    },
+    "crump-horizontal-light.png": {
+      "source_size": [
+        3464,
+        3464
+      ],
+      "content_bbox": [
+        300,
+        1491,
+        3239,
+        2141
+      ],
+      "display_size": [
+        1200,
+        295
+      ],
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "optimized_from": [
+        3035,
+        746
+      ],
+      "optimized_for_ui": true
+    },
+    "crump-horizontal-dark.png": {
+      "source_size": [
+        3464,
+        3464
+      ],
+      "content_bbox": [
+        300,
+        1491,
+        3239,
+        2141
+      ],
+      "display_size": [
+        1200,
+        295
+      ],
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "optimized_from": [
+        3035,
+        746
+      ],
+      "optimized_for_ui": true
+    },
+    "crump-wordmark-light.png": {
+      "source_size": [
+        3464,
+        3464
+      ],
+      "content_bbox": [
+        286,
+        648,
+        3205,
+        2623
+      ],
+      "display_size": [
+        1200,
+        826
+      ],
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "optimized_from": [
+        3027,
+        2083
+      ],
+      "optimized_for_ui": true
+    },
+    "crump-wordmark-dark.png": {
+      "source_size": [
+        3464,
+        3464
+      ],
+      "content_bbox": [
+        279,
+        648,
+        3205,
+        2613
+      ],
+      "display_size": [
+        1200,
+        820
+      ],
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "optimized_from": [
+        3034,
+        2073
+      ],
+      "optimized_for_ui": true
+    }
   }
 }
