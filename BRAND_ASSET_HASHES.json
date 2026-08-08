@@ -1,0 +1,65 @@
+{
+  "ask-crump-wordmark-dark.png": {
+    "source": "3078445D-635B-480A-9824-5F2607011379.PNG",
+    "sha256": "b7cd0a5d4a8a4ce40a4fa6ce14c23ef476406bed89240a8f3de466bdae3fc90a",
+    "dimensions": [
+      3464,
+      3464
+    ],
+    "format": "PNG",
+    "mode": "RGBA",
+    "alpha_extrema": [
+      0,
+      255
+    ],
+    "transparent": true,
+    "content_bbox": [
+      279,
+      648,
+      3205,
+      2613
+    ]
+  },
+  "ask-crump-mark.png": {
+    "source": "PNG image.png",
+    "sha256": "5ba1f8de8b98e0ea693eddc6899beb761aec5bc51cb4467cdba5bcefc943cc6c",
+    "dimensions": [
+      3809,
+      3150
+    ],
+    "format": "PNG",
+    "mode": "RGBA",
+    "alpha_extrema": [
+      0,
+      255
+    ],
+    "transparent": true,
+    "content_bbox": [
+      779,
+      573,
+      2795,
+      2833
+    ]
+  },
+  "ask-crump-wordmark-light.png": {
+    "source": "8D35D9D7-9407-429D-B562-6BCCF08BF799.PNG",
+    "sha256": "b6497ca4b0120b69892c6d296f3093a14746469338c70da5990f9b15f4038982",
+    "dimensions": [
+      3464,
+      3464
+    ],
+    "format": "PNG",
+    "mode": "RGBA",
+    "alpha_extrema": [
+      0,
+      255
+    ],
+    "transparent": true,
+    "content_bbox": [
+      286,
+      648,
+      3205,
+      2623
+    ]
+  }
+}

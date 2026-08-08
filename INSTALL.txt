@@ -1,25 +1,28 @@
-ASK CRUMP 5.2.4 — CI CLEANUP
+ASK CRUMP — CANON BRAND ASSET INTEGRATION
 
-WHY THIS EXISTS
-The 5.2.4 feature deployment is valid, but GitHub CI found:
-1. Two unused Python imports.
-2. crump-5.2.4.js was missing from the JavaScript allowlist.
-3. The 5.2.4 package accidentally removed Capacitor/RevenueCat dependency declarations from package.json.
+WHAT THIS DOES
+- Adds the exact three transparent PNG masters supplied by Gregory.
+- Uses the standalone mark in the main chat header.
+- Uses the standalone mark in the sidebar.
+- Uses the white + gold wordmark on dark login/register/reset screens.
+- Uses the white + gold wordmark on onboarding.
+- Preserves the black + gold wordmark for future light surfaces.
+- Bumps the service-worker cache key so the new branding is not hidden behind an old cached UI.
 
-HOW TO APPLY
-1. Copy the CONTENTS of this folder into the ROOT of CRUMP-AI.
-2. Choose Merge/Replace.
-3. In the CRUMP-AI root folder, double-click:
-   APPLY_5.2.4_CI_FIX.bat
-4. Wait for "Python lint cleanup applied successfully."
-5. The .bat file deletes itself after completion.
-6. Open GitHub Desktop. You should see the cleanup changes.
-7. Commit and push.
+NO IMAGE FILE WAS RESIZED, CROPPED, RECOMPRESSED, REGENERATED, OR RE-ENCODED.
+
+HOW TO INSTALL
+1. Extract this ZIP.
+2. Copy the CONTENTS into the ROOT of the CRUMP-AI repository.
+3. Choose Merge/Replace when prompted.
+4. Open GitHub Desktop and review the changes.
+5. Commit and push.
+6. After Vercel reaches READY, refresh Ask Crump once. If Safari still shows an old cached logo, close the tab/app and reopen once.
 
 Suggested commit summary:
-Fix 5.2.4 CI checks and restore native dependencies
+Integrate canonical Ask Crump brand assets
 
 No Supabase migration.
-No Vercel environment changes.
+No environment-variable changes.
 No Stripe changes.
-No application feature changes.
+No App Store / PWA icon replacement in this patch.

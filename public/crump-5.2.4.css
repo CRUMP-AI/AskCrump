@@ -1,42 +1,106 @@
-/* Ask Crump 5.2.4 — brand identity restoration. */
+/* Ask Crump 5.2.4 — canonical brand asset integration. */
 
-body.crump-43 .header-branding {
+body.crump-43 .header-branding,
+.header-branding.crump524-header-brand {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 7px;
   min-width: 0;
-  padding: 3px 8px;
+  padding: 2px 8px;
 }
 
-.crump524-header-wordmark {
+.crump524-header-mark {
   display: block;
-  width: clamp(118px, 16vw, 150px);
-  height: auto;
-  max-height: 36px;
+  width: 62px;
+  height: 44px;
+  margin-inline: -14px -11px;
   object-fit: contain;
-  background: transparent;
+  object-position: center;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.crump524-header-label {
+  color: var(--text-primary, #f4f2ed);
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.015em;
+  white-space: nowrap;
 }
 
 .auth-header .crump524-auth-wordmark {
   display: block;
-  width: clamp(150px, 42vw, 205px);
+  width: clamp(240px, 65vw, 330px);
   height: auto;
-  max-height: 64px;
-  margin: 0 auto 26px;
+  margin: -42px auto -36px;
   object-fit: contain;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.onboarding-modal .crump524-onboarding-wordmark {
+  display: block;
+  width: clamp(230px, 55vw, 310px);
+  height: auto;
+  margin: -38px auto -30px;
+  object-fit: contain;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.sidebar-branding .crump524-sidebar-mark {
+  display: block;
+  width: 64px;
+  height: 48px;
+  margin-inline: -14px -9px;
+  object-fit: contain;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.sidebar-branding .crump524-sidebar-label {
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* Preserve both canonical wordmark variants for future light/dark surfaces.
+   Current Ask Crump UI is dark, so auth/onboarding use the white+gold master. */
+.crump-brand-wordmark-light {
+  content: url('/assets/ask-crump-wordmark-light.png');
+}
+
+.crump-brand-wordmark-dark {
+  content: url('/assets/ask-crump-wordmark-dark.png');
 }
 
 @media (max-width: 520px) {
-  .crump524-header-wordmark {
-    width: 126px;
-    max-height: 32px;
+  .crump524-header-mark {
+    width: 58px;
+    height: 42px;
+    margin-inline: -13px -10px;
+  }
+
+  .crump524-header-label {
+    font-size: 16px;
   }
 
   .auth-header .crump524-auth-wordmark {
-    width: min(190px, 58vw);
-    margin-bottom: 22px;
+    width: min(285px, 76vw);
+    margin-top: -36px;
+    margin-bottom: -32px;
+  }
+
+  .onboarding-modal .crump524-onboarding-wordmark {
+    width: min(270px, 72vw);
+    margin-top: -34px;
+    margin-bottom: -28px;
   }
 }
