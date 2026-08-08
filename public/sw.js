@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-shell-v5.2.4-brand-2';
+const CACHE_NAME = 'ask-crump-shell-v5.2.4-brand-3';
 const APP_SHELL = [
   '/app', '/app.html', '/legal.html', '/delete-account.html', '/manifest.json',
   '/styles.css', '/auth-styles.css', '/onboarding.css',
@@ -40,11 +40,14 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const request = event.request;
   const url = new URL(request.url);
+
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
+
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(fetch(request));
     return;
   }
+
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
@@ -57,6 +60,7 @@ self.addEventListener('fetch', event => {
     );
     return;
   }
+
   event.respondWith(
     caches.match(request).then(cached => {
       const network = fetch(request)

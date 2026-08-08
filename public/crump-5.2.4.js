@@ -11,28 +11,51 @@
   });
 
   function setImage(img, src, className, alt = 'Ask Crump') {
-    if (!(img instanceof HTMLImageElement)) return;
-    img.src = src;
-    img.alt = alt;
-    if (className) img.classList.add(className);
-    img.removeAttribute('width');
-    img.removeAttribute('height');
+    if (!(img instanceof HTMLImageElement)) return false;
+
+    let changed = false;
+    if (img.getAttribute('src') !== src) {
+      img.src = src;
+      changed = true;
+    }
+    if (img.alt !== alt) {
+      img.alt = alt;
+      changed = true;
+    }
+    if (className && !img.classList.contains(className)) {
+      img.classList.add(className);
+      changed = true;
+    }
+    if (img.hasAttribute('width')) {
+      img.removeAttribute('width');
+      changed = true;
+    }
+    if (img.hasAttribute('height')) {
+      img.removeAttribute('height');
+      changed = true;
+    }
+    return changed;
   }
 
   function restoreHeaderBranding() {
     const branding = document.querySelector('.header-branding');
     if (!branding) return;
 
-    const existing = branding.querySelector('.crump524-header-wordmark');
-    if (existing && existing.getAttribute('src') === BRAND.horizontalLight) return;
-
-    branding.replaceChildren();
-    branding.classList.add('crump524-header-brand');
+    const existing = branding.querySelector(':scope > .crump524-header-wordmark');
+    if (
+      existing instanceof HTMLImageElement &&
+      existing.getAttribute('src') === BRAND.horizontalLight &&
+      branding.children.length === 1
+    ) {
+      return;
+    }
 
     const logo = document.createElement('img');
     setImage(logo, BRAND.horizontalLight, 'crump524-header-wordmark');
     logo.decoding = 'async';
-    branding.appendChild(logo);
+
+    branding.replaceChildren(logo);
+    branding.classList.add('crump524-header-brand');
     branding.dataset.crump524 = 'true';
   }
 
@@ -50,20 +73,30 @@
     const branding = document.querySelector('.sidebar-branding');
     if (!branding) return;
 
-    branding.replaceChildren();
+    const existing = branding.querySelector(':scope > .crump524-sidebar-wordmark');
+    if (
+      existing instanceof HTMLImageElement &&
+      existing.getAttribute('src') === BRAND.horizontalLight &&
+      branding.children.length === 1
+    ) {
+      return;
+    }
+
     const logo = document.createElement('img');
     setImage(logo, BRAND.horizontalLight, 'crump524-sidebar-wordmark');
-    branding.appendChild(logo);
+    branding.replaceChildren(logo);
   }
 
-  function restoreEmptyStateBranding() {
-    document.querySelectorAll('.crump-empty-mark img').forEach(img => {
+  function restoreEmptyStateBranding(root = document) {
+    root.querySelectorAll?.('.crump-empty-mark img').forEach(img => {
       setImage(img, BRAND.mark, 'crump524-empty-mark', '');
     });
 
-    document.querySelectorAll('.crump-empty-eyebrow').forEach(eyebrow => {
-      eyebrow.hidden = true;
-      eyebrow.setAttribute('aria-hidden', 'true');
+    root.querySelectorAll?.('.crump-empty-eyebrow').forEach(eyebrow => {
+      if (!eyebrow.hidden) eyebrow.hidden = true;
+      if (eyebrow.getAttribute('aria-hidden') !== 'true') {
+        eyebrow.setAttribute('aria-hidden', 'true');
+      }
     });
   }
 
@@ -77,9 +110,36 @@
   function boot() {
     restoreBranding();
 
-    const observer = new MutationObserver(() => {
-      restoreBranding();
+    // Only watch for newly-rendered UI nodes that actually need branding.
+    // Never rewrite the whole sidebar/header on every DOM mutation.
+    const observer = new MutationObserver(mutations => {
+      let needsEmptyStateRefresh = false;
+      let needsAuthRefresh = false;
+
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (!(node instanceof Element)) continue;
+
+          if (
+            node.matches?.('.crump-empty-state, .crump-empty-mark, .crump-empty-eyebrow') ||
+            node.querySelector?.('.crump-empty-mark, .crump-empty-eyebrow')
+          ) {
+            needsEmptyStateRefresh = true;
+          }
+
+          if (
+            node.matches?.('.auth-logo, .onboarding-logo') ||
+            node.querySelector?.('.auth-logo, .onboarding-logo')
+          ) {
+            needsAuthRefresh = true;
+          }
+        }
+      }
+
+      if (needsEmptyStateRefresh) restoreEmptyStateBranding();
+      if (needsAuthRefresh) restoreAuthBranding();
     });
+
     observer.observe(document.body, {childList: true, subtree: true});
   }
 

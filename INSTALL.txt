@@ -1,35 +1,29 @@
-ASK CRUMP — FINAL HEADER / AUTH BRANDING INTEGRATION
+ASK CRUMP — BRANDING FREEZE HOTFIX
 
-This package uses the exact user-supplied transparent PNG masters.
+ROOT CAUSE
+The previous branding integration watched the entire DOM and unconditionally
+replaced the sidebar branding inside that observer. Replacing the sidebar
+created another DOM mutation, which triggered another replacement indefinitely.
 
-MASTER ASSETS — UNTOUCHED
-- ask-crump-horizontal-light-master.png
-- ask-crump-horizontal-dark-master.png
-- ask-crump-mark-master.png
-
-DISPLAY DERIVATIVES
-These only trim transparent empty canvas so the artwork can render at useful UI sizes.
-No artwork was redesigned or generated.
-
-PLACEMENT
-- Main chat header: horizontal white/gold Ask Crump wordmark ONLY — no generic HTML logo text.
-- Login / Register / Password Reset: horizontal white/gold wordmark.
-- Onboarding: horizontal white/gold wordmark.
-- Sidebar: horizontal white/gold wordmark.
-- Empty home state: standalone canon C mark; redundant generic-font ASK CRUMP eyebrow removed.
-- Black/gold horizontal master is preserved for future light surfaces.
+THIS HOTFIX
+- Makes header/sidebar branding updates idempotent.
+- Removes the self-triggering MutationObserver loop.
+- Watches only newly-added auth/empty-state nodes that genuinely need branding.
+- Preserves the canonical logo placement and assets.
+- Bumps the service-worker cache so Safari can replace the bad cached JS.
 
 INSTALL
-1. Extract ZIP.
-2. Copy CONTENTS into CRUMP-AI repository root.
+1. Extract this ZIP.
+2. Copy the CONTENTS into the CRUMP-AI repository root.
 3. Merge/Replace.
 4. Commit and push.
-5. After Vercel reaches READY, refresh/reopen Ask Crump once so the new service-worker cache activates.
+5. Wait for Vercel READY.
+6. On iPhone, fully close the Ask Crump tab/PWA and reopen it.
+   If the first reopen still catches the old cached JS, close/reopen one more time.
 
 Suggested commit summary:
-Refine canonical Ask Crump branding placement
+Fix branding observer freeze
 
 No database migration.
 No environment-variable changes.
 No Stripe changes.
-No PWA/App Store icon changes.
