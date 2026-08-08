@@ -1,626 +1,537 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Ask Crump</title>
-<link rel="icon" type="image/png" href="/assets/icon-192.png">
-<link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/assets/icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Pro:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css">
-<link rel="stylesheet" href="/billing.css">
-<link rel="stylesheet" href="/install-prompt.css">
-<link rel="stylesheet" href="/onboarding.css">
-<link rel="stylesheet" href="/conversation.css">
-<link rel="stylesheet" href="/auth-styles.css">
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#080a0d">
+  <title>Ask Crump</title>
+  <link rel="icon" type="image/png" href="/assets/icon-192.png">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/assets/icon-192.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/billing.css">
+  <link rel="stylesheet" href="/install-prompt.css">
+  <link rel="stylesheet" href="/onboarding.css">
+  <link rel="stylesheet" href="/conversation.css">
+  <link rel="stylesheet" href="/auth-styles.css">
+  <link rel="stylesheet" href="/crump-v1-body.css" data-crump-body-v1="true">
 </head>
-<body>
-<div id="authContainer" class="auth-container" style="display: none;">
-<div id="loginForm" class="auth-form">
-        <div class="auth-header">
-            <img src="/assets/ask-crump-logo.png" alt="Ask Crump" class="auth-logo">
-            <h1>Welcome Back</h1>
-            <p>Sign in to continue to Ask Crump</p>
-        </div>
+<body class="crump-v1-body">
 
-        <form id="loginFormElement" class="auth-form-content">
-            <div class="form-group">
-                <label for="loginEmail">Email</label>
-                <input
-                    type="email"
-                    id="loginEmail"
-                    class="form-input"
-                    placeholder="your@email.com"
-                    required
-                    autocomplete="email"
-                >
-            </div>
-
-            <div class="form-group">
-                <label for="loginPassword">Password</label>
-                <input
-                    type="password"
-                    id="loginPassword"
-                    class="form-input"
-                    placeholder="Enter your password"
-                    required
-                    autocomplete="current-password"
-                >
-            </div>
-
-            <button type="submit" class="btn btn-primary btn-large btn-block">
-                Sign In
-            </button>
-
-            <p class="auth-footer-text">
-                Don't have an account?
-                <a href="#" id="showRegisterLink" class="auth-link">Create one</a>
-            </p>
-
-            <p class="auth-footer-text">
-                <a href="#" id="showForgotPasswordLink" class="auth-link">Forgot password?</a>
-            </p>
-        </form>
-
-        <div id="loginError" class="auth-error" style="display: none;"></div>
-        <div id="verificationNeeded" class="verification-notice" style="display: none;">
-            <p class="verification-notice-title">Email verification required</p>
-            <p>Open the verification link sent to your email address.</p>
-            <button id="resendVerificationBtn" class="btn btn-secondary btn-block" type="button">
-                Resend verification email
-            </button>
-        </div>
-        <div id="loginSuccess" class="auth-success" style="display: none;"></div>
+<!-- AUTH: new split-screen body; IDs remain compatible with the proven auth controller. -->
+<div id="authContainer" class="auth-container v1-auth-shell" style="display:none;">
+  <aside class="v1-auth-brand" aria-hidden="true">
+    <div class="v1-auth-brand-top">
+      <img src="/assets/brand/crump-horizontal-light.png" alt="" class="v1-auth-brand-wordmark">
     </div>
-<div id="registerForm" class="auth-form" style="display: none;">
-        <div class="auth-header">
-            <img src="/assets/ask-crump-logo.png" alt="Ask Crump" class="auth-logo">
-            <h1>Create Account</h1>
-            <p>Join Ask Crump today</p>
-        </div>
-
-        <form id="registerFormElement" class="auth-form-content">
-            <div class="form-group">
-                <label for="registerName">Full Name (Optional)</label>
-                <input
-                    type="text"
-                    id="registerName"
-                    class="form-input"
-                    placeholder="John Doe"
-                    autocomplete="name"
-                >
-            </div>
-
-            <div class="form-group">
-                <label for="registerEmail">Email</label>
-                <input
-                    type="email"
-                    id="registerEmail"
-                    class="form-input"
-                    placeholder="your@email.com"
-                    required
-                    autocomplete="email"
-                >
-            </div>
-
-            <div class="form-group">
-                <label for="registerPassword">Password</label>
-                <input
-                    type="password"
-                    id="registerPassword"
-                    class="form-input"
-                    placeholder="At least 8 characters"
-                    required
-                    autocomplete="new-password"
-                >
-                <small class="form-hint">Minimum 8 characters</small>
-            </div>
-
-            <div class="form-group">
-                <label for="registerPasswordConfirm">Confirm Password</label>
-                <input
-                    type="password"
-                    id="registerPasswordConfirm"
-                    class="form-input"
-                    placeholder="Re-enter password"
-                    required
-                    autocomplete="new-password"
-                >
-            </div>
-
-            <button type="submit" class="btn btn-primary btn-large btn-block">
-                Create Account
-            </button>
-
-            <p class="auth-footer-text">
-                Already have an account?
-                <a href="#" id="showLoginLink" class="auth-link">Sign in</a>
-            </p>
-        </form>
-
-        <div id="registerError" class="auth-error" style="display: none;"></div>
-        <div id="registerSuccess" class="auth-success" style="display: none;"></div>
+    <div class="v1-auth-manifesto">
+      <div class="v1-kicker">YOUR AI WORKSPACE</div>
+      <h2>Think it through.<br>Build it properly.</h2>
+      <p>Conversation, research, files, images, documents, and decisions — one workspace with continuity.</p>
     </div>
-<div id="forgotPasswordForm" class="auth-form" style="display: none;">
-    <div class="auth-header">
-        <img src="/assets/ask-crump-logo.png" alt="Ask Crump" class="auth-logo">
-        <h1>Reset Password</h1>
-        <p>Enter your email to receive a reset link</p>
+    <div class="v1-auth-capabilities">
+      <span>Research</span><span>Documents</span><span>Images</span><span>Memory</span>
+    </div>
+  </aside>
+
+  <main class="v1-auth-stage">
+    <div class="v1-auth-mobile-brand" aria-hidden="true">
+      <img src="/assets/brand/crump-horizontal-light.png" alt="">
     </div>
 
-    <form id="forgotPasswordFormElement" class="auth-form-content">
+    <div id="loginForm" class="auth-form v1-auth-card">
+      <div class="auth-header">
+        <div class="v1-auth-eyebrow">ASK CRUMP</div>
+        <h1>Welcome back.</h1>
+        <p>Pick up exactly where you left off.</p>
+      </div>
+      <form id="loginFormElement" class="auth-form-content">
         <div class="form-group">
-            <label for="forgotPasswordEmail">Email</label>
-            <input
-                type="email"
-                id="forgotPasswordEmail"
-                class="form-input"
-                placeholder="your@email.com"
-                required
-                autocomplete="email"
-            >
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" class="form-input" placeholder="you@email.com" required autocomplete="email">
         </div>
-
-        <button type="submit" class="btn btn-primary btn-large btn-block">
-            Send Reset Link
-        </button>
-
-        <p class="auth-footer-text">
-            Remember your password?
-            <a href="#" id="showLoginFromForgot" class="auth-link">Sign in</a>
-        </p>
-    </form>
-
-    <div id="forgotPasswordError" class="auth-error" style="display: none;"></div>
-    <div id="forgotPasswordSuccess" class="auth-success" style="display: none;"></div>
-</div>
-<div id="resetPasswordForm" class="auth-form" style="display: none;">
-    <div class="auth-header">
-        <img src="/assets/ask-crump-logo.png" alt="Ask Crump" class="auth-logo">
-        <h1>Set New Password</h1>
-        <p>Enter your new password below</p>
-    </div>
-
-    <form id="resetPasswordFormElement" class="auth-form-content">
         <div class="form-group">
-            <label for="newPassword">New Password</label>
-            <input
-                type="password"
-                id="newPassword"
-                class="form-input"
-                placeholder="At least 8 characters"
-                required
-                autocomplete="new-password"
-            >
-            <small class="form-hint">Minimum 8 characters</small>
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" class="form-input" placeholder="Enter your password" required autocomplete="current-password">
         </div>
+        <button type="submit" class="btn btn-primary btn-large btn-block">Sign In</button>
+        <div class="v1-auth-links">
+          <p>New to Ask Crump? <a href="#" id="showRegisterLink" class="auth-link">Create account</a></p>
+          <p><a href="#" id="showForgotPasswordLink" class="auth-link">Forgot password?</a></p>
+        </div>
+      </form>
+      <div id="loginError" class="auth-error" style="display:none;"></div>
+      <div id="verificationNeeded" class="verification-notice" style="display:none;">
+        <p class="verification-notice-title">Email verification required</p>
+        <p>Open the verification link sent to your email address.</p>
+        <button id="resendVerificationBtn" class="btn btn-secondary btn-block" type="button">Resend verification email</button>
+      </div>
+      <div id="loginSuccess" class="auth-success" style="display:none;"></div>
+    </div>
 
+    <div id="registerForm" class="auth-form v1-auth-card" style="display:none;">
+      <div class="auth-header">
+        <div class="v1-auth-eyebrow">ASK CRUMP</div>
+        <h1>Create your workspace.</h1>
+        <p>One account across web, iPhone, iPad, and Android.</p>
+      </div>
+      <form id="registerFormElement" class="auth-form-content">
         <div class="form-group">
-            <label for="confirmNewPassword">Confirm Password</label>
-            <input
-                type="password"
-                id="confirmNewPassword"
-                class="form-input"
-                placeholder="Re-enter password"
-                required
-                autocomplete="new-password"
-            >
+          <label for="registerName">Full Name <span class="v1-optional">Optional</span></label>
+          <input type="text" id="registerName" class="form-input" placeholder="Your name" autocomplete="name">
         </div>
-
-        <button type="submit" class="btn btn-primary btn-large btn-block">
-            Reset Password
-        </button>
-
-        <p class="auth-footer-text">
-            <a href="#" id="showLoginFromReset" class="auth-link">Back to Sign in</a>
-        </p>
-    </form>
-
-    <div id="resetPasswordError" class="auth-error" style="display: none;"></div>
-    <div id="resetPasswordSuccess" class="auth-success" style="display: none;"></div>
-</div>
-</div>
-<div id="tosModal" class="modal" style="display: none;">
-    <div class="modal-content terms-modal-content">
-        <div class="modal-header">
-            <div>
-                <h2>Before you continue</h2>
-                <p class="modal-subtitle">Review the service terms and privacy notice.</p>
-            </div>
-        </div>
-
-        <div class="modal-body">
-            <section class="terms-summary" aria-labelledby="termsSummaryTitle">
-                <h3 id="termsSummaryTitle">Key points</h3>
-                <ul class="terms-summary-list">
-                    <li>Conversations are encrypted in transit and synchronized to your account.</li>
-                    <li>Anthropic provides text responses; OpenAI provides optional image generation.</li>
-                    <li>You must be at least 17 years old to use the service.</li>
-                    <li>AI responses can be incomplete or incorrect and should be verified when accuracy matters.</li>
-                    <li>The service is not a substitute for professional medical, legal, or financial advice.</li>
-                </ul>
-            </section>
-
-            <section class="terms-detail" aria-labelledby="termsDetailTitle">
-                <h4 id="termsDetailTitle">Terms of Service</h4>
-                <p><strong>Age:</strong> You must be 17 or older.</p>
-                <p><strong>AI limitations:</strong> Responses may contain errors.</p>
-                <p><strong>Acceptable use:</strong> Illegal, abusive, or harassing use is prohibited.</p>
-                <p><strong>Privacy:</strong> Conversations synchronize across your signed-in devices.</p>
-                <p><strong>Availability:</strong> The service is provided as available and may change.</p>
-            </section>
-
-            <label class="terms-consent">
-                <input type="checkbox" id="tosAccept">
-                <span>
-                    I am at least 17 years old and agree to the
-                    <a href="/legal.html" target="_blank" rel="noopener">Terms</a> and
-                    <a href="/legal.html#privacy" target="_blank" rel="noopener">Privacy Policy</a>.
-                </span>
-            </label>
-
-            <button id="tosAcceptBtn" class="btn btn-primary btn-large btn-block" type="button" disabled>
-                Continue to Ask Crump
-            </button>
-        </div>
-    </div>
-</div>
-<div id="onboardingModal" class="modal" style="display: none;">
-    <div class="modal-content onboarding-modal onboarding-modal-centered">
-        <img src="/assets/ask-crump-logo.png" alt="Ask Crump" class="onboarding-logo">
-        <h2>Welcome to Ask Crump</h2>
-        <p class="modal-subtitle">Let's personalize your experience</p>
         <div class="form-group">
-            <label for="onboardingName">Your Name</label>
-            <input type="text" id="onboardingName" class="form-input" placeholder="Enter your name" maxlength="50">
+          <label for="registerEmail">Email</label>
+          <input type="email" id="registerEmail" class="form-input" placeholder="you@email.com" required autocomplete="email">
         </div>
-        <button id="onboardingContinueBtn" class="btn btn-primary btn-large" type="button">Continue</button>
+        <div class="form-group">
+          <label for="registerPassword">Password</label>
+          <input type="password" id="registerPassword" class="form-input" placeholder="At least 8 characters" required autocomplete="new-password">
+          <small class="form-hint">Minimum 8 characters</small>
+        </div>
+        <div class="form-group">
+          <label for="registerPasswordConfirm">Confirm Password</label>
+          <input type="password" id="registerPasswordConfirm" class="form-input" placeholder="Re-enter password" required autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn btn-primary btn-large btn-block">Create Account</button>
+        <p class="auth-footer-text">Already have an account? <a href="#" id="showLoginLink" class="auth-link">Sign in</a></p>
+      </form>
+      <div id="registerError" class="auth-error" style="display:none;"></div>
+      <div id="registerSuccess" class="auth-success" style="display:none;"></div>
     </div>
-</div>
-<div id="appContainer" class="app-container" style="display: none;">
-<aside id="sidebar" class="sidebar">
-        <div class="sidebar-header">
-            <div class="sidebar-branding">
-                <img src="/assets/logo-c.png" alt="C" class="sidebar-logo-icon">
-                <h1 class="sidebar-logo">Ask Crump</h1>
-            </div>
-            <button id="closeSidebarBtn" type="button" class="btn-icon" aria-label="Close sidebar">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-            </button>
+
+    <div id="forgotPasswordForm" class="auth-form v1-auth-card" style="display:none;">
+      <div class="auth-header">
+        <div class="v1-auth-eyebrow">ACCOUNT RECOVERY</div>
+        <h1>Reset password.</h1>
+        <p>We’ll send a secure reset link to your email.</p>
+      </div>
+      <form id="forgotPasswordFormElement" class="auth-form-content">
+        <div class="form-group">
+          <label for="forgotPasswordEmail">Email</label>
+          <input type="email" id="forgotPasswordEmail" class="form-input" placeholder="you@email.com" required autocomplete="email">
         </div>
-
-        <div class="sidebar-actions">
-            <button id="newChatBtn" type="button" class="btn btn-secondary btn-block">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M8 3.5V12.5M3.5 8H12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                </svg>
-                New Conversation
-            </button>
-
-            <button id="clearChatsBtn" class="btn btn-danger-outline btn-block" type="button" style="margin-top: 0.5rem;">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M3 4H13M5 4V3C5 2.44772 5.44772 2 6 2H10C10.5523 2 11 2.44772 11 3V4M6.5 7V11M9.5 7V11M4 4H12V13C12 13.5523 11.5523 14 11 14H5C4.44772 14 4 13.5523 4 13V4Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                Clear All Chats
-            </button>
-        </div>
-
-        <div class="sidebar-section">
-            <span class="section-title">Conversations</span>
-            <div id="chatsList" class="chats-list"></div>
-        </div>
-
-        <div class="sidebar-footer">
-    <button id="settingsBtn" class="sidebar-footer-btn" type="button">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
-            <circle cx="12" cy="12" r="3"></circle>
-        </svg>
-        <span>Settings</span>
-    </button>
-
-    <button
-        id="upgradeBtnSidebar"
-        class="sidebar-footer-btn"
-        type="button"
-    >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2L7 7h3v7h4V7h3l-5-5z"></path>
-            <path d="M5 20h14"></path>
-        </svg>
-        <span>Upgrade Subscription</span>
-    </button>
-
-    <div class="sidebar-divider"></div>
-
-    <a href="/legal.html" class="sidebar-footer-btn sidebar-footer-link">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-        </svg>
-        <span>Legal & Privacy</span>
-    </a>
-
-    <div class="sidebar-divider"></div>
-
-    <div class="sidebar-branding-footer">
-        <div class="branding-line">
-            <span class="branding-powered">Ask Crump</span>
-            <span class="branding-engine">Account Sync</span>
-        </div>
-        <div class="branding-status">
-            <span class="status-indicator status-online"></span>
-            <span class="status-text">Operational</span>
-        </div>
+        <button type="submit" class="btn btn-primary btn-large btn-block">Send Reset Link</button>
+        <p class="auth-footer-text">Remembered it? <a href="#" id="showLoginFromForgot" class="auth-link">Sign in</a></p>
+      </form>
+      <div id="forgotPasswordError" class="auth-error" style="display:none;"></div>
+      <div id="forgotPasswordSuccess" class="auth-success" style="display:none;"></div>
     </div>
+
+    <div id="resetPasswordForm" class="auth-form v1-auth-card" style="display:none;">
+      <div class="auth-header">
+        <div class="v1-auth-eyebrow">ACCOUNT RECOVERY</div>
+        <h1>Set new password.</h1>
+        <p>Choose a new password for your account.</p>
+      </div>
+      <form id="resetPasswordFormElement" class="auth-form-content">
+        <div class="form-group">
+          <label for="newPassword">New Password</label>
+          <input type="password" id="newPassword" class="form-input" placeholder="At least 8 characters" required autocomplete="new-password">
+          <small class="form-hint">Minimum 8 characters</small>
+        </div>
+        <div class="form-group">
+          <label for="confirmNewPassword">Confirm Password</label>
+          <input type="password" id="confirmNewPassword" class="form-input" placeholder="Re-enter password" required autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn btn-primary btn-large btn-block">Reset Password</button>
+        <p class="auth-footer-text"><a href="#" id="showLoginFromReset" class="auth-link">Back to sign in</a></p>
+      </form>
+      <div id="resetPasswordError" class="auth-error" style="display:none;"></div>
+      <div id="resetPasswordSuccess" class="auth-success" style="display:none;"></div>
+    </div>
+  </main>
 </div>
 
-    </aside>
-
-    <div id="sidebarOverlay" class="sidebar-overlay"></div>
-<main class="main-content">
-<header class="header">
-    <button id="menuBtn" type="button" class="btn-icon" aria-label="Open navigation">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
-    </button>
-
-    <div class="header-branding">
-        <img src="/assets/ask-crump-header.png" alt="Ask Crump" class="header-full-logo">
+<!-- TERMS -->
+<div id="tosModal" class="modal v1-modal" style="display:none;">
+  <div class="modal-content terms-modal-content v1-terms-card">
+    <div class="v1-modal-brand"><img src="/assets/brand/crump-mark.png" alt="" aria-hidden="true"></div>
+    <div class="modal-header">
+      <div>
+        <div class="v1-kicker">BEFORE YOU CONTINUE</div>
+        <h2>Terms & privacy</h2>
+        <p class="modal-subtitle">A few important things about using Ask Crump.</p>
+      </div>
     </div>
-
-    <div id="connectionStatus" class="connection-status" role="status" aria-live="polite" hidden></div>
-</header>
-<button id="scrollToEndBtn" type="button" class="scroll-to-end-btn" aria-label="Scroll to newest message">
-            <svg viewBox="0 0 24 24" fill="none">
-                <path d="M12 5V19M12 19L19 12M12 19L5 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-        </button>
-<div id="chatContainer" class="chat-container" aria-label="Conversation"></div>
-        <div id="conversationStatus" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
-<div id="filePreview" class="file-preview" style="display: none;"></div>
-<div class="input-area">
-            <div class="quick-actions">
-                <button id="imageQuickAction" class="quick-action-btn" type="button">Image</button>
-                <button id="searchQuickAction" class="quick-action-btn" type="button">Search</button>
-                <button id="codeQuickAction" class="quick-action-btn" type="button">Code</button>
-            </div>
-
-            <div class="input-container">
-                <button id="attachBtn" type="button" aria-label="Attach a file" class="btn-icon" title="Attach">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <path d="M16.5 10.5L10 17L3.5 10.5C2.11929 9.11929 2.11929 6.88071 3.5 5.5C4.88071 4.11929 7.11929 4.11929 8.5 5.5L10 7L11.5 5.5C12.8807 4.11929 15.1193 4.11929 16.5 5.5C17.8807 6.88071 17.8807 9.11929 16.5 10.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    </svg>
-                </button>
-
-                <textarea id="userInput" class="message-input" placeholder="Send a message..." rows="1" maxlength="4000" aria-label="Message Ask Crump"></textarea>
-
-
-                <button id="sendButton" type="button" aria-label="Send message" class="btn-icon btn-send" title="Send">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <path d="M17.5 10L3.5 3.5L6 10L3.5 16.5L17.5 10Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-                    </svg>
-                </button>
-            </div>
-        </div>
-    </main>
-</div>
-<div id="settingsModal" class="modal">
-  <div class="modal-content settings-sheet" role="dialog" aria-modal="true" aria-label="Settings">
-<div class="settings-sheet-header">
-      <button id="closeSettingsBtn" class="settings-icon-btn" type="button" aria-label="Close settings">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M18 6L6 18M6 6l12 12"/>
-        </svg>
-      </button>
-
-      <div class="settings-titleblock">
-        <div class="settings-title">Settings</div>
-        <div class="settings-subtitle">Customize your Ask Crump experience</div>
-      </div>
-
-      <button id="saveSettingsBtn" class="settings-primary-btn" type="button">
-        Save
-      </button>
-    </div>
-<div class="settings-sheet-body">
-<div class="settings-group">
-        <div class="settings-group-title">General</div>
-        <div class="settings-list">
-
-          <div class="settings-row">
-            <div class="settings-row-text">
-              <div class="settings-label">Your Name</div>
-              <div class="settings-help">What Crump calls you</div>
-            </div>
-            <input type="text" id="settingsName" class="settings-field" placeholder="Enter your name" autocomplete="name" aria-label="Your name">
-          </div>
-
-          <div class="settings-row">
-            <div class="settings-row-text">
-              <div class="settings-label">Email</div>
-              <div class="settings-help">Used for account and recovery</div>
-            </div>
-            <input type="email" id="settingsEmail" class="settings-field" placeholder="you@email.com" autocomplete="email" aria-label="Account email">
-          </div>
-
-          <div class="settings-row">
-            <div class="settings-row-text">
-              <div class="settings-label">Assistant Name</div>
-              <div class="settings-help">What you want to call it</div>
-            </div>
-            <input type="text" id="assistantName" class="settings-field" placeholder="Crump" aria-label="Assistant name">
-          </div>
-
-        </div>
-      </div>
-<div class="settings-group">
-        <div class="settings-group-title">Features</div>
-        <div class="settings-list">
-
-          <div class="settings-row settings-row-toggle">
-            <div class="settings-row-text">
-              <div class="settings-label">Work Mode</div>
-              <div class="settings-help">Focus hours and productivity behavior</div>
-            </div>
-
-            <label class="ios-switch">
-              <input type="checkbox" id="workMode" aria-label="Enable Work Mode">
-              <span class="ios-switch-ui" aria-hidden="true"></span>
-            </label>
-          </div>
-
-          <div id="workHoursGroup">
-            <div class="settings-row">
-              <div class="settings-row-text">
-                <div class="settings-label">Work Hours</div>
-                <div class="settings-help">Start → End</div>
-              </div>
-
-              <div class="settings-inline">
-                <select id="workStart" class="settings-select" aria-label="Work start time"></select>
-                <span class="settings-inline-sep">→</span>
-                <select id="workEnd" class="settings-select" aria-label="Work end time"></select>
-              </div>
-            </div>
-          </div>
-
-          <div class="settings-row settings-row-toggle settings-row-divider">
-            <div class="settings-row-text">
-              <div class="settings-label">Crump Check-ins</div>
-              <div class="settings-help">Meaningful follow-ups on unfinished conversations</div>
-            </div>
-            <label class="ios-switch">
-              <input type="checkbox" id="crumpCheckIns" aria-label="Enable Crump Check-ins">
-              <span class="ios-switch-ui" aria-hidden="true"></span>
-            </label>
-          </div>
-
-          <div id="checkInDetails" class="settings-nested" hidden>
-            <div class="settings-row">
-              <div class="settings-row-text">
-                <div class="settings-label">Frequency</div>
-                <div class="settings-help">Crump backs off automatically when messages go unanswered</div>
-              </div>
-              <select id="checkInFrequency" class="settings-select" aria-label="Check-in frequency">
-                <option value="occasional">Occasional</option>
-                <option value="balanced">Balanced</option>
-                <option value="active">Active</option>
-              </select>
-            </div>
-
-            <div class="settings-row">
-              <div class="settings-row-text">
-                <div class="settings-label">Quiet Hours</div>
-                <div class="settings-help">No proactive messages during this window</div>
-              </div>
-              <div class="settings-inline">
-                <select id="quietStart" class="settings-select" aria-label="Quiet hours start"></select>
-                <span class="settings-inline-sep">→</span>
-                <select id="quietEnd" class="settings-select" aria-label="Quiet hours end"></select>
-              </div>
-            </div>
-
-            <div class="settings-row settings-row-toggle">
-              <div class="settings-row-text">
-                <div class="settings-label">Push Notifications</div>
-                <div class="settings-help">Available in the iPhone and Android apps</div>
-              </div>
-              <label class="ios-switch">
-                <input type="checkbox" id="crumpNotifications" aria-label="Enable push notifications">
-                <span class="ios-switch-ui" aria-hidden="true"></span>
-              </label>
-            </div>
-
-            <div class="settings-row settings-row-toggle">
-              <div class="settings-row-text">
-                <div class="settings-label">Haptic Feedback</div>
-                <div class="settings-help">Subtle feedback for delivery, replies, and failures</div>
-              </div>
-              <label class="ios-switch">
-                <input type="checkbox" id="crumpHaptics" checked aria-label="Enable haptic feedback">
-                <span class="ios-switch-ui" aria-hidden="true"></span>
-              </label>
-            </div>
-
-            <fieldset class="check-in-categories">
-              <legend>Crump may follow up about</legend>
-              <label><input type="checkbox" id="checkInFollowups" checked> Unfinished conversations</label>
-              <label><input type="checkbox" id="checkInReminders" checked> Reminders and obligations</label>
-              <label><input type="checkbox" id="checkInGoals" checked> Goals and projects</label>
-              <label><input type="checkbox" id="checkInEncouragement"> Encouragement</label>
-            </fieldset>
-          </div>
-
-        </div>
-      </div>
-<div class="settings-group">
-        <div class="settings-group-title">Account</div>
-        <div class="settings-list">
-
-          <button id="signOutBtn" class="settings-row settings-danger" type="button">
-            <div class="settings-row-text">
-              <div class="settings-label">Sign out</div>
-              <div class="settings-help">Log out of this device</div>
-            </div>
-            <div class="settings-chevron" aria-hidden="true">›</div>
-          </button>
-
-          <button id="devicesBtn" class="settings-row settings-row-action" type="button">
-            <div class="settings-row-text">
-              <div class="settings-label">Signed-in devices</div>
-              <div class="settings-help">Review and revoke other sessions</div>
-            </div>
-            <div class="settings-chevron" aria-hidden="true">›</div>
-          </button>
-
-          <button id="deleteAccountBtn" class="settings-row settings-danger" type="button">
-            <div class="settings-row-text">
-              <div class="settings-label">Delete account</div>
-              <div class="settings-help">Permanently delete your account and data</div>
-            </div>
-            <div class="settings-chevron" aria-hidden="true">›</div>
-          </button>
-
-        </div>
-      </div>
-<div class="settings-group">
-        <div class="settings-group-title">About</div>
-        <div class="settings-list">
-
-          <a href="https://clevercrump.com" target="_blank" rel="noopener" class="settings-row settings-row-action settings-link">
-            <div class="settings-row-text">
-              <div class="settings-label settings-link-label">About Clever Crump</div>
-              <div class="settings-help">Visit our website</div>
-            </div>
-            <div class="settings-chevron" aria-hidden="true">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/>
-              </svg>
-            </div>
-          </a>
-
-        </div>
-      </div>
-<div class="settings-bottom-spacer" aria-hidden="true"></div>
+    <div class="modal-body">
+      <section class="terms-summary" aria-labelledby="termsSummaryTitle">
+        <h3 id="termsSummaryTitle">Key points</h3>
+        <ul class="terms-summary-list">
+          <li>Conversations synchronize to your account across signed-in devices.</li>
+          <li>Anthropic provides text responses; OpenAI provides optional image generation.</li>
+          <li>You must be at least 17 years old to use the service.</li>
+          <li>AI responses can be incomplete or incorrect and should be verified when accuracy matters.</li>
+          <li>The service is not a substitute for professional medical, legal, or financial advice.</li>
+        </ul>
+      </section>
+      <section class="terms-detail" aria-labelledby="termsDetailTitle">
+        <h4 id="termsDetailTitle">Terms of Service</h4>
+        <p><strong>Age:</strong> You must be 17 or older.</p>
+        <p><strong>AI limitations:</strong> Responses may contain errors.</p>
+        <p><strong>Acceptable use:</strong> Illegal, abusive, or harassing use is prohibited.</p>
+        <p><strong>Privacy:</strong> Conversations synchronize across your signed-in devices.</p>
+        <p><strong>Availability:</strong> The service is provided as available and may change.</p>
+      </section>
+      <label class="terms-consent">
+        <input type="checkbox" id="tosAccept">
+        <span>I am at least 17 years old and agree to the <a href="/legal.html" target="_blank" rel="noopener">Terms</a> and <a href="/legal.html#privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span>
+      </label>
+      <button id="tosAcceptBtn" class="btn btn-primary btn-large btn-block" type="button" disabled>Continue to Ask Crump</button>
     </div>
   </div>
 </div>
 
+<!-- ONBOARDING -->
+<div id="onboardingModal" class="modal v1-modal" style="display:none;">
+  <div class="modal-content onboarding-modal v1-onboarding-card">
+    <img src="/assets/brand/crump-horizontal-light.png" alt="Ask Crump" class="onboarding-logo">
+    <div class="v1-kicker">MAKE IT YOURS</div>
+    <h2>What should Crump call you?</h2>
+    <p class="modal-subtitle">This follows you across your signed-in devices.</p>
+    <div class="form-group">
+      <label for="onboardingName">Your Name</label>
+      <input type="text" id="onboardingName" class="form-input" placeholder="Enter your name" maxlength="50" autocomplete="name">
+    </div>
+    <button id="onboardingContinueBtn" class="btn btn-primary btn-large" type="button">Enter Workspace</button>
+  </div>
+</div>
+
+<!-- APP: completely new body -->
+<div id="appContainer" class="app-container" style="display:none;">
+  <div class="v1-shell">
+    <nav class="v1-rail" aria-label="Ask Crump navigation">
+      <div class="v1-rail-brand" aria-hidden="true">
+        <img src="/assets/brand/crump-mark.png" alt="">
+      </div>
+
+      <div class="v1-rail-stack">
+        <button type="button" class="v1-rail-button v1-rail-primary" data-v1-command="new" aria-label="New conversation" title="New conversation">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <button type="button" class="v1-rail-button" data-v1-command="library" aria-label="Conversation library" title="Conversation library">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg>
+        </button>
+      </div>
+
+      <div class="v1-rail-spacer"></div>
+
+      <div class="v1-rail-stack">
+        <button type="button" class="v1-rail-button" data-v1-command="settings" aria-label="Settings" title="Settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.8 1.8 0 0 0 .36 2l.05.05-2.76 2.76-.05-.05a1.8 1.8 0 0 0-2-.36 1.8 1.8 0 0 0-1.1 1.65V21h-3.8v-.07A1.8 1.8 0 0 0 9 19.3a1.8 1.8 0 0 0-2 .36l-.05.05-2.76-2.76.05-.05a1.8 1.8 0 0 0 .36-2A1.8 1.8 0 0 0 2.95 13H3v-3.8h-.05A1.8 1.8 0 0 0 4.6 8.1a1.8 1.8 0 0 0-.36-2l-.05-.05L6.95 3.3l.05.05a1.8 1.8 0 0 0 2 .36A1.8 1.8 0 0 0 10.1 2.05V2h3.8v.05A1.8 1.8 0 0 0 15 3.7a1.8 1.8 0 0 0 2-.36l.05-.05 2.76 2.76-.05.05a1.8 1.8 0 0 0-.36 2 1.8 1.8 0 0 0 1.65 1.1H21V13h-.05A1.8 1.8 0 0 0 19.4 15Z"/></svg>
+        </button>
+        <button type="button" class="v1-rail-button" data-v1-command="billing" aria-label="Plan and credits" title="Plan & credits">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7.5h14v9H5z"/><path d="M8 4.5v3M16 4.5v3M8 16.5v3M16 16.5v3"/></svg>
+        </button>
+      </div>
+    </nav>
+
+    <aside id="sidebar" class="sidebar v1-library" aria-label="Conversation library">
+      <div class="sidebar-header v1-library-header">
+        <div class="sidebar-branding">
+          <img src="/assets/brand/crump-horizontal-light.png" alt="Ask Crump" class="v1-library-logo">
+        </div>
+        <button id="closeSidebarBtn" type="button" class="btn-icon v1-library-close" aria-label="Close conversation library">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="sidebar-actions v1-library-actions">
+        <button id="newChatBtn" type="button" class="v1-new-conversation">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          <span>New conversation</span>
+          <kbd>⇧⌘N</kbd>
+        </button>
+        <button id="clearChatsBtn" class="v1-clear-conversations" type="button">Clear all</button>
+      </div>
+
+      <div class="sidebar-section v1-library-list">
+        <div class="v1-library-section-head">
+          <span class="section-title">Conversations</span>
+          <span class="v1-library-hint">Synced</span>
+        </div>
+        <div id="chatsList" class="chats-list"></div>
+      </div>
+
+      <div class="sidebar-footer v1-library-footer">
+        <button id="settingsBtn" class="sidebar-footer-btn" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.8 1.8 0 0 0 .36 2l.05.05-2.76 2.76-.05-.05a1.8 1.8 0 0 0-2-.36"/></svg>
+          <span>Settings</span>
+        </button>
+        <button id="upgradeBtnSidebar" class="sidebar-footer-btn" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7.5h14v9H5z"/><path d="M8 4.5v3M16 4.5v3"/></svg>
+          <span>Plan & credits</span>
+        </button>
+        <a href="/legal.html" class="sidebar-footer-btn sidebar-footer-link">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6z"/><path d="M14 3v4h4"/></svg>
+          <span>Legal & Privacy</span>
+        </a>
+        <div class="v1-library-status">
+          <span class="v1-status-dot"></span>
+          <span>Account sync</span>
+        </div>
+      </div>
+    </aside>
+
+    <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+    <main class="main-content v1-workspace">
+      <header class="header v1-workspace-header">
+        <button id="menuBtn" type="button" class="btn-icon v1-mobile-menu" aria-label="Open conversation library">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+        </button>
+
+        <div class="header-branding v1-header-branding">
+          <img src="/assets/brand/crump-horizontal-light.png" alt="Ask Crump" class="v1-header-logo">
+        </div>
+
+        <div class="v1-workspace-context">
+          <span id="v1WorkspaceEyebrow">WORKSPACE</span>
+          <strong id="v1WorkspaceTitle">New conversation</strong>
+        </div>
+
+        <div id="connectionStatus" class="connection-status" role="status" aria-live="polite" hidden></div>
+      </header>
+
+      <section class="v1-workspace-body">
+        <section id="v1Launchpad" class="v1-launchpad" aria-label="Start something">
+          <div class="v1-launchpad-mark"><img src="/assets/brand/crump-mark.png" alt="" aria-hidden="true"></div>
+          <div id="v1Greeting" class="v1-launchpad-greeting">Good evening.</div>
+          <h1>What are we moving forward?</h1>
+          <p>Start with a thought, hand Crump a file, research something current, or build an actual deliverable.</p>
+
+          <div class="v1-launchpad-grid">
+            <button type="button" class="v1-launch-card v1-launch-card-primary" data-v1-command="focus">
+              <span class="v1-launch-icon">✦</span>
+              <span><strong>Think with Crump</strong><small>Talk through an idea, decision, or problem.</small></span>
+              <b>↗</b>
+            </button>
+            <button type="button" class="v1-launch-card" data-v1-command="research">
+              <span class="v1-launch-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg>
+              </span>
+              <span><strong>Research something</strong><small>Work with current information and sources.</small></span>
+              <b>↗</b>
+            </button>
+            <button type="button" class="v1-launch-card" data-v1-command="file">
+              <span class="v1-launch-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v5h5"/></svg>
+              </span>
+              <span><strong>Analyze a file</strong><small>PDFs, documents, images, spreadsheets, and more.</small></span>
+              <b>↗</b>
+            </button>
+            <button type="button" class="v1-launch-card" data-v1-command="image">
+              <span class="v1-launch-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m7 16 4-4 3 3 2-2 2 3"/><circle cx="9" cy="9" r="1.5"/></svg>
+              </span>
+              <span><strong>Create an image</strong><small>Generate, edit, or build a visual concept.</small></span>
+              <b>↗</b>
+            </button>
+          </div>
+
+          <div class="v1-launchpad-foot">
+            <span>Conversation</span><i></i><span>Research</span><i></i><span>Files</span><i></i><span>Images</span><i></i><span>Artifacts</span>
+          </div>
+        </section>
+
+        <div id="chatContainer" class="chat-container" aria-label="Conversation"></div>
+        <div id="conversationStatus" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+      </section>
+
+      <button id="scrollToEndBtn" type="button" class="scroll-to-end-btn" aria-label="Scroll to newest message">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M12 19l7-7M12 19l-7-7"/></svg>
+      </button>
+
+      <div id="filePreview" class="file-preview" style="display:none;"></div>
+
+      <section class="v1-command-dock" aria-label="Ask Crump composer">
+        <div class="v1-mode-strip" role="toolbar" aria-label="Workspace tools">
+          <button type="button" class="v1-mode-pill is-active" data-v1-command="focus"><span>Ask</span></button>
+          <button type="button" class="v1-mode-pill" data-v1-command="research"><span>Research</span></button>
+          <button type="button" class="v1-mode-pill" data-v1-command="image"><span>Image</span></button>
+          <button type="button" class="v1-mode-pill" data-v1-command="file"><span>Files</span></button>
+        </div>
+
+        <div class="input-area">
+          <div class="quick-actions" aria-hidden="true">
+            <button id="imageQuickAction" class="quick-action-btn" type="button" tabindex="-1">Image</button>
+            <button id="searchQuickAction" class="quick-action-btn" type="button" tabindex="-1">Search</button>
+            <button id="codeQuickAction" class="quick-action-btn" type="button" tabindex="-1">Code</button>
+          </div>
+          <div class="input-container">
+            <button id="attachBtn" type="button" aria-label="Add to conversation" class="btn-icon" title="Add">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+            <textarea id="userInput" class="message-input" placeholder="Message Crump" rows="1" maxlength="20000" aria-label="Message Crump"></textarea>
+            <button id="sendButton" type="button" aria-label="Send message" class="btn-icon btn-send" title="Send">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6.5 10.5 12 5l5.5 5.5"/></svg>
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- SETTINGS: redesigned as a two-pane workspace while preserving every controller ID. -->
+<div id="settingsModal" class="modal v1-modal">
+  <div class="modal-content settings-sheet v1-settings-sheet" role="dialog" aria-modal="true" aria-label="Settings">
+    <div class="settings-sheet-header v1-settings-header">
+      <button id="closeSettingsBtn" class="settings-icon-btn" type="button" aria-label="Close settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+      <div class="settings-titleblock">
+        <div class="v1-kicker">ASK CRUMP</div>
+        <div class="settings-title">Settings</div>
+        <div class="settings-subtitle">Your workspace, your defaults.</div>
+      </div>
+      <button id="saveSettingsBtn" class="settings-primary-btn" type="button">Save changes</button>
+    </div>
+
+    <div class="v1-settings-layout">
+      <nav class="v1-settings-nav" aria-label="Settings sections">
+        <button type="button" class="is-active" data-v1-settings-tab="profile">Profile</button>
+        <button type="button" data-v1-settings-tab="behavior">Behavior</button>
+        <button type="button" data-v1-settings-tab="account">Account</button>
+        <button type="button" data-v1-settings-tab="about">About</button>
+      </nav>
+
+      <div class="settings-sheet-body">
+        <section class="settings-group v1-settings-panel is-active" data-v1-settings-panel="profile">
+          <div class="v1-settings-panel-head">
+            <div><div class="settings-group-title">Profile</div><h3>How Crump knows you</h3></div>
+            <p>These details follow your account across signed-in devices.</p>
+          </div>
+          <div class="settings-list">
+            <div class="settings-row">
+              <div class="settings-row-text"><div class="settings-label">Your Name</div><div class="settings-help">What Crump calls you</div></div>
+              <input type="text" id="settingsName" class="settings-field" placeholder="Enter your name" autocomplete="name" aria-label="Your name">
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-text"><div class="settings-label">Email</div><div class="settings-help">Used for account and recovery</div></div>
+              <input type="email" id="settingsEmail" class="settings-field" placeholder="you@email.com" autocomplete="email" aria-label="Account email">
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-text"><div class="settings-label">Assistant Name</div><div class="settings-help">What you want to call it</div></div>
+              <input type="text" id="assistantName" class="settings-field" placeholder="Crump" aria-label="Assistant name">
+            </div>
+          </div>
+        </section>
+
+        <section class="settings-group v1-settings-panel" data-v1-settings-panel="behavior">
+          <div class="v1-settings-panel-head">
+            <div><div class="settings-group-title">Behavior</div><h3>How Crump works with you</h3></div>
+            <p>Control focus hours, check-ins, notifications, and follow-up behavior.</p>
+          </div>
+          <div class="settings-list">
+            <div class="settings-row settings-row-toggle">
+              <div class="settings-row-text"><div class="settings-label">Work Mode</div><div class="settings-help">Focus hours and productivity behavior</div></div>
+              <label class="ios-switch"><input type="checkbox" id="workMode" aria-label="Enable Work Mode"><span class="ios-switch-ui" aria-hidden="true"></span></label>
+            </div>
+            <div id="workHoursGroup">
+              <div class="settings-row">
+                <div class="settings-row-text"><div class="settings-label">Work Hours</div><div class="settings-help">Start → End</div></div>
+                <div class="settings-inline">
+                  <select id="workStart" class="settings-select" aria-label="Work start time"></select>
+                  <span class="settings-inline-sep">→</span>
+                  <select id="workEnd" class="settings-select" aria-label="Work end time"></select>
+                </div>
+              </div>
+            </div>
+            <div class="settings-row settings-row-toggle settings-row-divider">
+              <div class="settings-row-text"><div class="settings-label">Crump Check-ins</div><div class="settings-help">Meaningful follow-ups on unfinished conversations</div></div>
+              <label class="ios-switch"><input type="checkbox" id="crumpCheckIns" aria-label="Enable Crump Check-ins"><span class="ios-switch-ui" aria-hidden="true"></span></label>
+            </div>
+            <div id="checkInDetails" class="settings-nested" hidden>
+              <div class="settings-row">
+                <div class="settings-row-text"><div class="settings-label">Frequency</div><div class="settings-help">Crump backs off automatically when messages go unanswered</div></div>
+                <select id="checkInFrequency" class="settings-select" aria-label="Check-in frequency">
+                  <option value="occasional">Occasional</option>
+                  <option value="balanced">Balanced</option>
+                  <option value="active">Active</option>
+                </select>
+              </div>
+              <div class="settings-row">
+                <div class="settings-row-text"><div class="settings-label">Quiet Hours</div><div class="settings-help">No proactive messages during this window</div></div>
+                <div class="settings-inline">
+                  <select id="quietStart" class="settings-select" aria-label="Quiet hours start"></select>
+                  <span class="settings-inline-sep">→</span>
+                  <select id="quietEnd" class="settings-select" aria-label="Quiet hours end"></select>
+                </div>
+              </div>
+              <div class="settings-row settings-row-toggle">
+                <div class="settings-row-text"><div class="settings-label">Push Notifications</div><div class="settings-help">Available in the iPhone and Android apps</div></div>
+                <label class="ios-switch"><input type="checkbox" id="crumpNotifications" aria-label="Enable push notifications"><span class="ios-switch-ui" aria-hidden="true"></span></label>
+              </div>
+              <div class="settings-row settings-row-toggle">
+                <div class="settings-row-text"><div class="settings-label">Haptic Feedback</div><div class="settings-help">Subtle feedback for delivery, replies, and failures</div></div>
+                <label class="ios-switch"><input type="checkbox" id="crumpHaptics" checked aria-label="Enable haptic feedback"><span class="ios-switch-ui" aria-hidden="true"></span></label>
+              </div>
+              <fieldset class="check-in-categories">
+                <legend>Crump may follow up about</legend>
+                <label><input type="checkbox" id="checkInFollowups" checked> Unfinished conversations</label>
+                <label><input type="checkbox" id="checkInReminders" checked> Reminders and obligations</label>
+                <label><input type="checkbox" id="checkInGoals" checked> Goals and projects</label>
+                <label><input type="checkbox" id="checkInEncouragement"> Encouragement</label>
+              </fieldset>
+            </div>
+          </div>
+        </section>
+
+        <section class="settings-group v1-settings-panel" data-v1-settings-panel="account">
+          <div class="v1-settings-panel-head">
+            <div><div class="settings-group-title">Account</div><h3>Security & data</h3></div>
+            <p>Review sessions, sign out, or permanently delete your account.</p>
+          </div>
+          <div class="settings-list">
+            <button id="devicesBtn" class="settings-row settings-row-action" type="button">
+              <div class="settings-row-text"><div class="settings-label">Signed-in devices</div><div class="settings-help">Review and revoke other sessions</div></div>
+              <div class="settings-chevron" aria-hidden="true">›</div>
+            </button>
+            <button id="signOutBtn" class="settings-row settings-danger" type="button">
+              <div class="settings-row-text"><div class="settings-label">Sign out</div><div class="settings-help">Log out of this device</div></div>
+              <div class="settings-chevron" aria-hidden="true">›</div>
+            </button>
+            <button id="deleteAccountBtn" class="settings-row settings-danger v1-delete-row" type="button">
+              <div class="settings-row-text"><div class="settings-label">Delete account</div><div class="settings-help">Permanently delete your account and associated data</div></div>
+              <div class="settings-chevron" aria-hidden="true">›</div>
+            </button>
+          </div>
+          <a class="v1-delete-web" href="/delete-account.html">Account deletion help on the web ↗</a>
+        </section>
+
+        <section class="settings-group v1-settings-panel" data-v1-settings-panel="about">
+          <div class="v1-settings-panel-head">
+            <div><div class="settings-group-title">About</div><h3>Ask Crump</h3></div>
+            <p>Product, legal, and privacy information.</p>
+          </div>
+          <div class="settings-list">
+            <a href="/legal.html" class="settings-row settings-row-action settings-link">
+              <div class="settings-row-text"><div class="settings-label settings-link-label">Legal & Privacy</div><div class="settings-help">Terms, privacy, and data practices</div></div>
+              <div class="settings-chevron" aria-hidden="true">↗</div>
+            </a>
+            <a href="https://clevercrump.com" target="_blank" rel="noopener" class="settings-row settings-row-action settings-link">
+              <div class="settings-row-text"><div class="settings-label settings-link-label">Clever Crump</div><div class="settings-help">Visit the company website</div></div>
+              <div class="settings-chevron" aria-hidden="true">↗</div>
+            </a>
+          </div>
+          <div class="v1-about-signature">
+            <img src="/assets/brand/crump-horizontal-light.png" alt="Ask Crump">
+            <span>Built to think, make, and continue.</span>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div id="toastContainer" class="toast-container"></div>
-<input type="file" id="fileInput" accept="image/*,.pdf" aria-label="Choose an attachment" hidden>
-<script defer src="/runtime-config.js"></script>
+<input type="file" id="fileInput" accept="image/*,.pdf,.docx,.xlsx,.pptx,.txt,.md,.csv,.tsv,.json,.html,.rtf" aria-label="Choose an attachment" hidden>
+
+<script defer src="/runtime-body-v1.js"></script>
 <script defer src="/native-runtime.js"></script>
 <script defer src="/mobile-bridge.js"></script>
 <script defer src="/safe-storage.js"></script>
@@ -638,7 +549,5 @@
 <script defer src="/account-manager.js"></script>
 <script defer src="/app.js"></script>
 <script defer src="/auth-controller.js"></script>
-
-
 </body>
 </html>

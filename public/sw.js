@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-v1-shell-r1';
+const CACHE_NAME = 'ask-crump-new-body-v1-r1';
 
 const CORE = [
   '/app',
@@ -7,12 +7,14 @@ const CORE = [
   '/delete-account.html',
   '/manifest.json',
   '/styles.css',
-  '/auth-styles.css',
-  '/onboarding.css',
-  '/install-prompt.css',
   '/billing.css',
+  '/install-prompt.css',
+  '/onboarding.css',
   '/conversation.css',
-  '/runtime-config-v1.js',
+  '/auth-styles.css',
+  '/crump-v1-body.css',
+  '/crump-v1-body.js',
+  '/runtime-body-v1.js',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
@@ -30,9 +32,6 @@ const CORE = [
   '/account-manager.js',
   '/app.js',
   '/auth-controller.js',
-  '/landing.js',
-  '/crump-4.3.css',
-  '/crump-4.3.js',
   '/crump-4.4.css',
   '/crump-4.4.js',
   '/crump-5.0.css',
@@ -43,8 +42,6 @@ const CORE = [
   '/crump-5.2.js',
   '/crump-5.2.2.css',
   '/crump-5.2.2.js',
-  '/crump-v1.css',
-  '/crump-v1.js',
   '/assets/brand/crump-mark.png',
   '/assets/brand/crump-horizontal-light.png',
   '/assets/brand/crump-horizontal-dark.png',
@@ -80,12 +77,12 @@ self.addEventListener('activate', event => {
   );
 });
 
-function isBootCritical(request, url) {
+function bootCritical(request, url) {
   return request.mode === 'navigate' ||
     url.pathname === '/app.html' ||
-    url.pathname === '/runtime-config-v1.js' ||
-    url.pathname === '/crump-v1.js' ||
-    url.pathname === '/crump-v1.css';
+    url.pathname === '/runtime-body-v1.js' ||
+    url.pathname === '/crump-v1-body.js' ||
+    url.pathname === '/crump-v1-body.css';
 }
 
 async function networkFirst(request) {
@@ -118,7 +115,6 @@ async function staleWhileRevalidate(request) {
     void network;
     return cached;
   }
-
   return (await network) || Response.error();
 }
 
@@ -133,10 +129,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  if (isBootCritical(request, url)) {
-    event.respondWith(networkFirst(request));
-    return;
-  }
-
-  event.respondWith(staleWhileRevalidate(request));
+  event.respondWith(bootCritical(request, url)
+    ? networkFirst(request)
+    : staleWhileRevalidate(request));
 });

@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Ask Crump',
   webDir: 'dist',
   bundledWebRuntime: false,
-  backgroundColor: '#080b0f',
+  backgroundColor: '#080a0d',
   server: {
     androidScheme: 'https',
     cleartext: false,
@@ -16,7 +16,7 @@ const config: CapacitorConfig = {
   },
   android: {
     allowMixedContent: false,
-    backgroundColor: '#080b0f',
+    backgroundColor: '#080a0d',
   },
   plugins: {
     Keyboard: {
@@ -26,7 +26,7 @@ const config: CapacitorConfig = {
     },
     StatusBar: {
       style: 'LIGHT',
-      backgroundColor: '#080b0f',
+      backgroundColor: '#080a0d',
       overlaysWebView: false,
     },
     PushNotifications: {

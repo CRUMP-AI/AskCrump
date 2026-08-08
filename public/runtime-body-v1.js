@@ -1,0 +1,86 @@
+window.CRUMP_CONFIG = Object.freeze({
+  apiBase: 'https://askcrump.com',
+  revenueCatAppleApiKey: '',
+  revenueCatGoogleApiKey: '',
+  revenueCatEntitlement: 'professional',
+  revenueCatProfessionalProductId: 'askcrump_professional_monthly',
+  revenueCatEnterpriseProductId: 'askcrump_enterprise_monthly',
+  revenueCatCredits50ProductId: 'askcrump_credits_50',
+  revenueCatCredits150ProductId: 'askcrump_credits_150',
+  revenueCatCredits400ProductId: 'askcrump_credits_400',
+  webProfessionalPriceLabel: '$20/month',
+  webEnterprisePriceLabel: '$50/month',
+  webCredits50PriceLabel: '$4.99',
+  webCredits150PriceLabel: '$9.99',
+  webCredits400PriceLabel: '$19.99',
+});
+
+(() => {
+  'use strict';
+
+  const styles = Object.freeze([
+    ['/crump-4.4.css', 'crump44'],
+    ['/crump-5.0.css', 'crump50'],
+    ['/crump-billing-5.1.css', 'billing51'],
+    ['/crump-5.2.css', 'crump52'],
+    ['/crump-5.2.2.css', 'crump522'],
+    ['/crump-v1-body.css', 'crumpbodyv1'],
+  ]);
+
+  const scripts = Object.freeze([
+    ['/crump-4.4.js', 'crump44'],
+    ['/crump-5.0.js', 'crump50'],
+    ['/crump-billing-5.1.js', 'billing51'],
+    ['/crump-5.2.js', 'crump52'],
+    ['/crump-5.2.2.js', 'crump522'],
+    ['/crump-v1-body.js', 'crumpbodyv1'],
+  ]);
+
+  function loadStyle(url, key) {
+    const keyed = document.querySelector(`link[data-${key}]`);
+    if (keyed) return Promise.resolve();
+
+    const existing = document.querySelector(`link[href="${url}"]`);
+    if (existing) {
+      existing.dataset[key] = 'true';
+      // Moving the new-body stylesheet to the end gives it final visual authority.
+      document.head.appendChild(existing);
+      return Promise.resolve();
+    }
+
+    return new Promise(resolve => {
+      const node = document.createElement('link');
+      node.rel = 'stylesheet';
+      node.href = url;
+      node.dataset[key] = 'true';
+      node.addEventListener('load', resolve, {once: true});
+      node.addEventListener('error', resolve, {once: true});
+      document.head.appendChild(node);
+    });
+  }
+
+  function loadScript(url, key) {
+    if (document.querySelector(`script[data-${key}]`)) return Promise.resolve();
+
+    return new Promise(resolve => {
+      const node = document.createElement('script');
+      node.src = url;
+      node.async = false;
+      node.dataset[key] = 'true';
+      node.addEventListener('load', resolve, {once: true});
+      node.addEventListener('error', resolve, {once: true});
+      document.head.appendChild(node);
+    });
+  }
+
+  async function boot() {
+    await Promise.all(styles.map(([url, key]) => loadStyle(url, key)));
+    for (const [url, key] of scripts) {
+      await loadScript(url, key);
+    }
+    document.documentElement.dataset.crumpBodyRuntime = 'ready';
+  }
+
+  if (document.readyState === 'complete') void boot();
+  else window.addEventListener('load', () => { void boot(); }, {once: true});
+})();

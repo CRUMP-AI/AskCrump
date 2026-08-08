@@ -37,25 +37,26 @@ const config = {
   webCredits400PriceLabel: process.env.WEB_CREDITS_400_PRICE_LABEL || '$19.99',
 };
 
-const loaders = String.raw`
+const loader = String.raw`
 (() => {
   'use strict';
 
-  const assets = Object.freeze([
-    ['style', '/crump-4.3.css', 'crump43'],
-    ['script', '/crump-4.3.js', 'crump43'],
-    ['style', '/crump-4.4.css', 'crump44'],
-    ['script', '/crump-4.4.js', 'crump44'],
-    ['style', '/crump-5.0.css', 'crump50'],
-    ['script', '/crump-5.0.js', 'crump50'],
-    ['style', '/crump-billing-5.1.css', 'billing51'],
-    ['script', '/crump-billing-5.1.js', 'billing51'],
-    ['style', '/crump-5.2.css', 'crump52'],
-    ['script', '/crump-5.2.js', 'crump52'],
-    ['style', '/crump-5.2.2.css', 'crump522'],
-    ['script', '/crump-5.2.2.js', 'crump522'],
-    ['style', '/crump-v1.css', 'crumpv1'],
-    ['script', '/crump-v1.js', 'crumpv1'],
+  const styles = Object.freeze([
+    ['/crump-4.4.css', 'crump44'],
+    ['/crump-5.0.css', 'crump50'],
+    ['/crump-billing-5.1.css', 'billing51'],
+    ['/crump-5.2.css', 'crump52'],
+    ['/crump-5.2.2.css', 'crump522'],
+    ['/crump-v1-body.css', 'crumpbodyv1'],
+  ]);
+
+  const scripts = Object.freeze([
+    ['/crump-4.4.js', 'crump44'],
+    ['/crump-5.0.js', 'crump50'],
+    ['/crump-billing-5.1.js', 'billing51'],
+    ['/crump-5.2.js', 'crump52'],
+    ['/crump-5.2.2.js', 'crump522'],
+    ['/crump-v1-body.js', 'crumpbodyv1'],
   ]);
 
   function loadStyle(url, key) {
@@ -93,28 +94,20 @@ const loaders = String.raw`
     });
   }
 
-  async function bootLayers() {
-    const styles = assets.filter(([kind]) => kind === 'style');
-    const scripts = assets.filter(([kind]) => kind === 'script');
-
-    await Promise.all(styles.map(([, url, key]) => loadStyle(url, key)));
-
-    for (const [, url, key] of scripts) {
-      await loadScript(url, key);
-    }
-
-    document.documentElement.dataset.crumpV1Runtime = 'ready';
+  async function boot() {
+    await Promise.all(styles.map(([url,key]) => loadStyle(url,key)));
+    for (const [url,key] of scripts) await loadScript(url,key);
+    document.documentElement.dataset.crumpBodyRuntime = 'ready';
   }
 
-  if (document.readyState === 'complete') void bootLayers();
-  else window.addEventListener('load', () => { void bootLayers(); }, {once:true});
+  if (document.readyState === 'complete') void boot();
+  else window.addEventListener('load', () => { void boot(); }, {once:true});
 })();
 `;
 
-const runtime = `window.CRUMP_CONFIG = Object.freeze(${JSON.stringify(config, null, 2)});\n${loaders}\n`;
+const runtime = `window.CRUMP_CONFIG = Object.freeze(${JSON.stringify(config, null, 2)});\n${loader}\n`;
 
-await writeFile(new URL('../dist/runtime-config-v1.js', import.meta.url), runtime);
-await writeFile(new URL('../dist/runtime-config.js', import.meta.url), runtime);
+await writeFile(new URL('../dist/runtime-body-v1.js', import.meta.url), runtime);
 await rm(new URL('../dist/native-entry.js', import.meta.url), { force: true });
 
-console.log('Ask Crump V1 native web bundle created in dist/.');
+console.log('Ask Crump V1 new-body native web bundle created in dist/.');

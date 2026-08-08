@@ -1,0 +1,9 @@
+{
+  "release": "Ask Crump V1 \u2014 True Body Rebuild",
+  "commit_summary": "Rebuild Ask Crump V1 application body",
+  "database_migration": false,
+  "environment_variable_changes": false,
+  "stripe_configuration_changes": false,
+  "canon_master_assets_preserved": true,
+  "verification_checks": 42
+}

@@ -1,40 +1,51 @@
-ASK CRUMP V1 — INTERFACE REVAMP
+ASK CRUMP V1 — TRUE NEW BODY REBUILD
 
-THIS IS A SHELL REVAMP, NOT A BACKEND REBUILD.
+THIS PACKAGE REPLACES THE FRONTEND BODY. IT IS NOT A CSS RESKIN.
 
-WHAT IT CHANGES
-- Replaces the patch-stacked branding presentation with one canonical V1 shell.
-- Preserves the exact supplied brand masters and uses optimized, aspect-preserving transparent PNG display derivatives.
-- Rebuilds auth, header, sidebar, home/empty state, chat, composer, settings,
-  intelligence panel, billing, attachment sheets, artifacts, toasts, and responsive layout.
-- Introduces a brand-new runtime URL: /runtime-config-v1.js.
-- Stops loading the old 5.2.4 branding layer.
-- Hardens service-worker boot behavior and clears previous Ask Crump caches.
-- Preserves the proven functional layers underneath.
-- Updates native build output to load the same V1 shell.
-- Keeps App Store / Google Play sensitive payment architecture unchanged.
+WHAT IT REPLACES
+- public/app.html — completely new DOM architecture
+- public/crump-v1-body.css — canonical new-body design system
+- public/crump-v1-body.js — new shell behavior / compatibility layer
+- public/runtime-body-v1.js — active feature-layer runtime
+- public/sw.js — fresh new-body service-worker boot contract
+- public/manifest.json — V1 PWA presentation metadata
+- scripts/build-native.mjs — native parity
+- scripts/check-javascript.mjs — V1 integration/CI contract
+- capacitor.config.ts — native shell presentation/security settings
+- public/assets/brand/* — exact canon masters + optimized UI derivatives
+
+WHAT IT DOES NOT CHANGE
+- Python backend
+- Supabase schema or migrations
+- authentication/session APIs
+- server-authoritative conversation persistence
+- Stripe secrets or checkout backend
+- RevenueCat account configuration
+- credit ledger semantics
+- AI provider keys
+- environment variables
 
 INSTALL
 1. Extract this ZIP.
-2. Copy the CONTENTS directly into the ROOT of CRUMP-AI.
-3. Choose Merge/Replace.
-4. Double-click APPLY_V1_REVAMP.bat.
-5. It must say: V1 shell patch applied successfully.
-6. Open GitHub Desktop.
-7. Review the changed files.
-8. Commit:
-   Ask Crump V1 interface revamp
-9. Push.
-10. Wait for GitHub checks and Vercel to reach READY.
-11. Open askcrump.com/app in a NEW tab for the first test.
+2. Copy EVERYTHING INSIDE the extracted folder into the ROOT of CRUMP-AI.
+3. Choose Merge/Replace when prompted.
+4. Open GitHub Desktop and review the changes.
+5. Commit with exactly:
+   Rebuild Ask Crump V1 application body
+6. Push.
+7. Wait for GitHub checks and Vercel to reach READY.
+8. Open https://askcrump.com/app in a NEW browser tab for the first web test.
+9. Fully close/reopen the installed PWA once so the new service-worker namespace activates.
 
-IMPORTANT
-Do not delete the old 4.x/5.x feature files yet. V1 deliberately keeps their
-behavior while taking presentation ownership. Once V1 is proven across devices,
-the next cleanup can retire redundant legacy CSS safely instead of doing that
-during the same release as a visual rebuild.
+FIRST SMOKE TEST
+- Sign in.
+- Create a new conversation.
+- Send one normal message.
+- Upload one image and one DOCX/PDF.
+- Generate/open one artifact.
+- Open Plan & credits.
+- Open Settings → Account and confirm Delete account is visible.
+- Confirm the conversation library opens/closes on mobile.
+- Confirm the composer never overlays the last response/artifact.
 
-NO SUPABASE MIGRATION.
-NO STRIPE CHANGES.
-NO ENVIRONMENT-VARIABLE CHANGES.
-NO APP-STORE ICON REPLACEMENT IN THIS PATCH.
+If GitHub checks fail or the app does not boot, STOP before making another patch and send Echo the failing check / screenshot.

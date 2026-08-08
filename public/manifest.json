@@ -1,11 +1,11 @@
 {
   "name": "Ask Crump",
   "short_name": "Ask Crump",
-  "description": "A synchronized AI assistant for web, iPhone, iPad, and Android",
+  "description": "A synchronized AI workspace for conversation, research, files, images, and creation.",
   "start_url": "/app?source=pwa",
   "display": "standalone",
-  "background_color": "#080b0f",
-  "theme_color": "#080b0f",
+  "background_color": "#080a0d",
+  "theme_color": "#080a0d",
   "orientation": "any",
   "scope": "/",
   "icons": [

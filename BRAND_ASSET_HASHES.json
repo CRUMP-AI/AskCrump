@@ -6,38 +6,10 @@
         3809,
         3150
       ],
-      "mode": "RGBA",
-      "alpha_extrema": [
+      "alpha": [
         0,
         255
-      ],
-      "transparent": true
-    },
-    "crump-wordmark-light-master.png": {
-      "sha256": "b6497ca4b0120b69892c6d296f3093a14746469338c70da5990f9b15f4038982",
-      "size": [
-        3464,
-        3464
-      ],
-      "mode": "RGBA",
-      "alpha_extrema": [
-        0,
-        255
-      ],
-      "transparent": true
-    },
-    "crump-wordmark-dark-master.png": {
-      "sha256": "b7cd0a5d4a8a4ce40a4fa6ce14c23ef476406bed89240a8f3de466bdae3fc90a",
-      "size": [
-        3464,
-        3464
-      ],
-      "mode": "RGBA",
-      "alpha_extrema": [
-        0,
-        255
-      ],
-      "transparent": true
+      ]
     },
     "crump-horizontal-light-master.png": {
       "sha256": "622085761c8f4ccf56cd93665d3e2908713e42bfa53b2091eaee9e34fb2f4219",
@@ -45,12 +17,10 @@
         3464,
         3464
       ],
-      "mode": "RGBA",
-      "alpha_extrema": [
+      "alpha": [
         0,
         255
-      ],
-      "transparent": true
+      ]
     },
     "crump-horizontal-dark-master.png": {
       "sha256": "f2cfa6e00186ca1f3b35f25d6e1dc6746c621ec97f039fae9d615c56c38de110",
@@ -58,139 +28,74 @@
         3464,
         3464
       ],
-      "mode": "RGBA",
-      "alpha_extrema": [
+      "alpha": [
         0,
         255
+      ]
+    },
+    "crump-wordmark-light-master.png": {
+      "sha256": "b6497ca4b0120b69892c6d296f3093a14746469338c70da5990f9b15f4038982",
+      "size": [
+        3464,
+        3464
       ],
-      "transparent": true
+      "alpha": [
+        0,
+        255
+      ]
+    },
+    "crump-wordmark-dark-master.png": {
+      "sha256": "b7cd0a5d4a8a4ce40a4fa6ce14c23ef476406bed89240a8f3de466bdae3fc90a",
+      "size": [
+        3464,
+        3464
+      ],
+      "alpha": [
+        0,
+        255
+      ]
     }
   },
-  "display_derivatives": {
+  "display": {
     "crump-mark.png": {
-      "source_size": [
-        3809,
-        3150
+      "from": "crump-mark-master.png",
+      "size": [
+        640,
+        714
       ],
-      "content_bbox": [
-        779,
-        573,
-        2795,
-        2833
-      ],
-      "display_size": [
-        768,
-        856
-      ],
-      "alpha_extrema": [
-        0,
-        255
-      ],
-      "optimized_from": [
-        2124,
-        2368
-      ],
-      "optimized_for_ui": true
+      "sha256": "4e71d1fe0f9d50ed3405b3fb1c248cb83377ec28ebce072c42c9ad4637cc4705"
     },
     "crump-horizontal-light.png": {
-      "source_size": [
-        3464,
-        3464
-      ],
-      "content_bbox": [
-        300,
-        1491,
-        3239,
-        2141
-      ],
-      "display_size": [
+      "from": "crump-horizontal-light-master.png",
+      "size": [
         1200,
-        295
+        296
       ],
-      "alpha_extrema": [
-        0,
-        255
-      ],
-      "optimized_from": [
-        3035,
-        746
-      ],
-      "optimized_for_ui": true
+      "sha256": "8b586f63d0e9ffb28476239c3c9504644a733ee0e386e888f842dce9a84c1211"
     },
     "crump-horizontal-dark.png": {
-      "source_size": [
-        3464,
-        3464
-      ],
-      "content_bbox": [
-        300,
-        1491,
-        3239,
-        2141
-      ],
-      "display_size": [
+      "from": "crump-horizontal-dark-master.png",
+      "size": [
         1200,
-        295
+        296
       ],
-      "alpha_extrema": [
-        0,
-        255
-      ],
-      "optimized_from": [
-        3035,
-        746
-      ],
-      "optimized_for_ui": true
+      "sha256": "cbe5e67dbc3dd1d08870329ce21df6acbc30da7961a051703acf823553c9d2f6"
     },
     "crump-wordmark-light.png": {
-      "source_size": [
-        3464,
-        3464
+      "from": "crump-wordmark-light-master.png",
+      "size": [
+        1100,
+        756
       ],
-      "content_bbox": [
-        286,
-        648,
-        3205,
-        2623
-      ],
-      "display_size": [
-        1200,
-        826
-      ],
-      "alpha_extrema": [
-        0,
-        255
-      ],
-      "optimized_from": [
-        3027,
-        2083
-      ],
-      "optimized_for_ui": true
+      "sha256": "cf4fc78edc21584bd1e2848a6fcc2f0a0cae9611364d5d375a1219131b4937ba"
     },
     "crump-wordmark-dark.png": {
-      "source_size": [
-        3464,
-        3464
+      "from": "crump-wordmark-dark-master.png",
+      "size": [
+        1100,
+        751
       ],
-      "content_bbox": [
-        279,
-        648,
-        3205,
-        2613
-      ],
-      "display_size": [
-        1200,
-        820
-      ],
-      "alpha_extrema": [
-        0,
-        255
-      ],
-      "optimized_from": [
-        3034,
-        2073
-      ],
-      "optimized_for_ui": true
+      "sha256": "7ccb2c64af3457b01d9872d5a365758b7dba1bb0cded51cb0aba3611e27a09e1"
     }
   }
 }
