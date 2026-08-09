@@ -274,7 +274,7 @@ body.crump-50 .crump50-upload-visual svg { width: 22px; height: 22px; fill: none
 body.crump-50 .crump50-upload-copy { min-width: 0; display: grid; gap: 4px; }
 body.crump-50 .crump50-upload-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 600; }
 body.crump-50 .crump50-upload-copy span { color: var(--c50-text-3); font-size: 9.5px; }
-body.crump-50 .crump50-upload-progress { width: 100%; height: 2px; border-radius: 2px; background: linear-gradient(90deg, var(--c50-gold) var(--progress), rgba(255,255,255,.06) var(--progress)); transition: background .15s linear; }
+body.crump-50 .crump50-upload-progress { --progress: 0%; width: 100%; height: 2px; border-radius: 2px; background: linear-gradient(90deg, var(--c50-gold) var(--progress), rgba(255,255,255,.06) var(--progress)); transition: background .15s linear; }
 body.crump-50 .is-ready .crump50-upload-progress { opacity: 0; }
 body.crump-50 .is-failed .crump50-upload-progress { background: var(--c50-danger); }
 body.crump-50 .crump50-upload-remove { width: 28px; height: 28px; border: 0; border-radius: 9px; background: transparent; color: var(--c50-text-3); font-size: 18px; cursor: pointer; }

@@ -119,6 +119,13 @@
     ];
   }
 
+  function v1OwnsEmptyState() {
+    return (
+      document.body?.classList.contains('crump-v1-body') ||
+      document.getElementById('v1Launchpad') !== null
+    );
+  }
+
   function makeEmptyState() {
     const section = document.createElement('section');
     section.className = 'crump-empty-state';
@@ -167,8 +174,14 @@
     if (!container) return;
 
     const safeMessages = Array.isArray(messages) ? messages : [];
-    if (!safeMessages.length && !container.querySelector('.crump-empty-state')) {
-      container.appendChild(makeEmptyState());
+    if (!safeMessages.length) {
+      if (v1OwnsEmptyState()) {
+        // Ask Crump V1 has its own launchpad. Never let the 4.3 visual layer
+        // create a second authenticated home screen on top of it.
+        $$('.crump-empty-state', container).forEach(node => node.remove());
+      } else if (!container.querySelector('.crump-empty-state')) {
+        container.appendChild(makeEmptyState());
+      }
     }
 
     $$('.assistant-message', container).forEach(row => {

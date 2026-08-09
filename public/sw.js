@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r1';
+const CACHE_NAME = 'ask-crump-new-body-v1-r2';
 
 const CORE = [
   '/app',
@@ -82,7 +82,9 @@ function bootCritical(request, url) {
     url.pathname === '/app.html' ||
     url.pathname === '/runtime-body-v1.js' ||
     url.pathname === '/crump-v1-body.js' ||
-    url.pathname === '/crump-v1-body.css';
+    url.pathname === '/crump-v1-body.css' ||
+    url.pathname === '/onboarding.js' ||
+    url.pathname === '/crump-4.3.js';
 }
 
 async function networkFirst(request) {

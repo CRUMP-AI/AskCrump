@@ -167,10 +167,19 @@
     return looksLegacy ? row : null;
   }
 
+  function removeLegacyEmptyState(container) {
+    if (!container) return;
+    $$('.crump-empty-state', container).forEach(node => node.remove());
+  }
+
   function syncLaunchpad() {
     const launchpad = byId('v1Launchpad');
     const container = byId('chatContainer');
     if (!launchpad || !container) return;
+
+    // The V1 launchpad is the sole owner of the authenticated empty/home state.
+    // This also protects against one stale 4.3 asset arriving from an older PWA cache.
+    removeLegacyEmptyState(container);
 
     const legacy = legacyWelcomeRow();
     if (legacy) {

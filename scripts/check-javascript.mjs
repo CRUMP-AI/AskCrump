@@ -96,8 +96,19 @@ if (runtime.includes('/crump-5.2.4.js') || runtime.includes('/crump-5.2.4.css'))
   process.exit(1);
 }
 
+const crump43 = await readFile(new URL('public/crump-4.3.js', repoRoot), 'utf8');
+const v1Body = await readFile(new URL('public/crump-v1-body.js', repoRoot), 'utf8');
+if (!crump43.includes('v1OwnsEmptyState') || !crump43.includes("classList.contains('crump-v1-body')")) {
+  console.error('Legacy 4.3 empty-state guard for the V1 body is missing.');
+  process.exit(1);
+}
+if (!v1Body.includes('removeLegacyEmptyState(container)')) {
+  console.error('V1 must remove stale legacy empty-state nodes.');
+  process.exit(1);
+}
+
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r2') ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes('/crump-v1-body.js')) {
   console.error('New-body service-worker contract is incomplete.');
