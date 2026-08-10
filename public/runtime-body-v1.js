@@ -25,6 +25,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-5.2.css', 'crump52'],
     ['/crump-5.2.2.css', 'crump522'],
     ['/crump-v1-body.css', 'crumpbodyv1'],
+    ['/crump-v1-stability.css', 'crumpv1stability'],
   ]);
 
   const scripts = Object.freeze([
@@ -34,6 +35,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-5.2.js', 'crump52'],
     ['/crump-5.2.2.js', 'crump522'],
     ['/crump-v1-body.js', 'crumpbodyv1'],
+    ['/crump-v1-stability.js', 'crumpv1stability'],
   ]);
 
   function loadStyle(url, key) {

@@ -1,0 +1,123 @@
+/* ASK CRUMP — V1 responsive stability layer
+   Final presentation fixes for compact desktop viewports and the mobile
+   attachment sheet. */
+
+@media (max-width: 820px) {
+  body.crump-v1-body .crump52-attach-sheet {
+    right: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    transform: translateY(12px) !important;
+  }
+
+  body.crump-v1-body .crump52-attach-overlay.is-visible .crump52-attach-sheet {
+    transform: translateY(0) !important;
+  }
+}
+
+/* Short laptop/desktop windows: never vertically center an oversized
+   launchpad because that can put the top of the Crump mark above the
+   scroll origin. Tighten vertical rhythm so the full home surface fits. */
+@media (min-width: 821px) and (max-height: 900px) {
+  body.crump-v1-body .v1-launchpad {
+    align-content: start !important;
+    padding-top: clamp(14px, 2.2vh, 24px) !important;
+    padding-bottom: calc(108px + env(safe-area-inset-bottom)) !important;
+  }
+
+  body.crump-v1-body .v1-launchpad-mark {
+    width: 62px !important;
+    height: 62px !important;
+    margin-bottom: 8px !important;
+  }
+
+  body.crump-v1-body .v1-launchpad-mark img {
+    width: 60px !important;
+    height: 60px !important;
+  }
+
+  body.crump-v1-body .v1-launchpad-greeting {
+    margin-bottom: 5px !important;
+  }
+
+  body.crump-v1-body .v1-launchpad h1 {
+    max-width: 720px !important;
+    font-size: clamp(42px, 4.8vw, 58px) !important;
+    line-height: .94 !important;
+  }
+
+  body.crump-v1-body .v1-launchpad > p {
+    margin-top: 10px !important;
+    font-size: 11px !important;
+    line-height: 1.45 !important;
+  }
+
+  body.crump-v1-body .v1-launchpad-grid {
+    gap: 7px !important;
+    margin-top: 16px !important;
+  }
+
+  body.crump-v1-body .v1-launch-card {
+    min-height: 68px !important;
+    padding-top: 9px !important;
+    padding-bottom: 9px !important;
+  }
+
+  body.crump-v1-body .v1-launchpad-foot {
+    margin-top: 12px !important;
+  }
+}
+
+@media (min-width: 821px) and (max-height: 760px) {
+  body.crump-v1-body .v1-launchpad {
+    padding-top: 10px !important;
+    padding-bottom: calc(100px + env(safe-area-inset-bottom)) !important;
+  }
+
+  body.crump-v1-body .v1-launchpad-mark {
+    width: 50px !important;
+    height: 50px !important;
+    margin-bottom: 5px !important;
+  }
+
+  body.crump-v1-body .v1-launchpad-mark img {
+    width: 48px !important;
+    height: 48px !important;
+  }
+
+  body.crump-v1-body .v1-launchpad-greeting {
+    margin-bottom: 4px !important;
+  }
+
+  body.crump-v1-body .v1-launchpad h1 {
+    max-width: 680px !important;
+    font-size: clamp(38px, 4.35vw, 50px) !important;
+  }
+
+  body.crump-v1-body .v1-launchpad > p {
+    max-width: 560px !important;
+    margin-top: 8px !important;
+    line-height: 1.35 !important;
+  }
+
+  body.crump-v1-body .v1-launchpad-grid {
+    margin-top: 12px !important;
+  }
+
+  body.crump-v1-body .v1-launch-card {
+    min-height: 60px !important;
+    padding-top: 7px !important;
+    padding-bottom: 7px !important;
+  }
+
+  body.crump-v1-body .v1-launchpad-foot {
+    display: none !important;
+  }
+}
+
+body.crump-v1-body :is([data-v1-command="settings"], #settingsBtn) svg {
+  width: 21px !important;
+  height: 21px !important;
+  overflow: visible;
+}

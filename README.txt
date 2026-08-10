@@ -1,24 +1,25 @@
-Ask Crump 4.3.1 Sync Hotfix
+ASK CRUMP — UI Stability Fix
 
-Replace exactly these two files in the CRUMP-AI repository:
-- public/chat-sync.js
-- public/sw.js
+This patch is built against the current GitHub main branch inspected on August 10, 2026.
 
-Why:
-- Preserves assistant replies across devices with message-level merging.
-- Prevents one whole-device snapshot from erasing unique turns from another device.
-- Forces explicit chat saves through pull -> merge -> push -> verify.
-- Queues a second sync if another sync is already running.
-- Reduces auto-sync interval from 60 seconds to 20 seconds.
-- Bumps the PWA cache to ask-crump-shell-v4.3.1.
+Replace/add these files in the repository:
+- public/runtime-body-v1.js  (replace)
+- public/sw.js               (replace)
+- public/crump-v1-stability.css (new)
+- public/crump-v1-stability.js  (new)
 
-No backend, authentication, Supabase schema, billing, or Vercel routing files are changed.
+Fixes:
+1. iPhone + attachment sheet no longer shifts half off-screen.
+2. Short desktop/laptop viewports compact the home launchpad so the Crump mark,
+   greeting, headline, four launch cards, mode strip, and composer can fit
+   without the top of the mark being clipped.
+3. Replaces the visually overcomplicated Settings gear with a clean,
+   consistent 21px settings glyph.
+4. Crump Controls stays open while changing response mode, memory,
+   automatic tools, answer checking, and Web/Image/Code controls. It closes
+   only from its close button, Escape, an intentional product-tour action,
+   or a true outside click.
+5. Service-worker cache bumped to r3 so mobile/PWA clients pick up the fix.
 
-Install:
-1. Copy the contents of this folder into the root of the CRUMP-AI repository.
-2. Choose Replace when prompted.
-3. In GitHub Desktop, confirm only public/chat-sync.js and public/sw.js changed.
-4. Commit: Fix cross-device assistant reply sync
-5. Push origin.
-6. Wait for Vercel to become READY.
-7. Close Ask Crump on BOTH phone and laptop once, then reopen both.
+Suggested GitHub Desktop commit summary:
+Fix responsive UI and Crump Controls behavior
