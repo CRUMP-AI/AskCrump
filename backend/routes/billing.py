@@ -22,92 +22,213 @@ from ..security import iso_now
 router = APIRouter(tags=["billing"])
 logger = logging.getLogger("askcrump.billing")
 
+STRIPE_ENTITLED_STATUSES = {'active', 'trialing'}
+
+
+class StripeAPIError(RuntimeError):
+    def __init__(
+        self,
+        message: str = 'Stripe rejected the billing request.',
+        *,
+        status_code: int | None = None,
+        code: str | None = None,
+        param: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.code = code
+        self.param = param
+
+    @property
+    def missing_customer(self) -> bool:
+        return self.code == 'resource_missing' and self.param == 'customer'
+
 
 async def stripe_post(path: str, data: dict[str, str]) -> dict[str, Any]:
     if not settings.stripe_secret_key:
-        raise RuntimeError('Stripe is not configured.')
+        raise StripeAPIError('Stripe is not configured.')
     import httpx
-    async with httpx.AsyncClient(timeout=25) as client:
-        response = await client.post(
-            f'https://api.stripe.com/v1/{path}',
-            auth=(settings.stripe_secret_key, ''),
-            data=data,
-        )
+
+    try:
+        async with httpx.AsyncClient(timeout=25) as client:
+            response = await client.post(
+                f'https://api.stripe.com/v1/{path}',
+                auth=(settings.stripe_secret_key, ''),
+                data=data,
+            )
+    except httpx.HTTPError as exc:
+        logger.exception('Stripe network request failed path=%s', path)
+        raise StripeAPIError('Billing provider is temporarily unavailable.') from exc
+
     if response.status_code >= 400:
-        logger.error('Stripe error %s: %s', response.status_code, response.text[:500])
-        raise RuntimeError('Stripe rejected the billing request.')
+        try:
+            error = (response.json().get('error') or {})
+        except (ValueError, AttributeError):
+            error = {}
+        code = str(error.get('code') or '') or None
+        param = str(error.get('param') or '') or None
+        logger.error(
+            'Stripe request rejected path=%s status=%s code=%s param=%s',
+            path,
+            response.status_code,
+            code,
+            param,
+        )
+        raise StripeAPIError(
+            status_code=response.status_code,
+            code=code,
+            param=param,
+        )
     return response.json()
 
 
-@router.post('/api/stripe/create-checkout-session')
-async def create_checkout(payload: CheckoutRequest, request: Request):
-    if request.headers.get('x-crump-client', '').lower() == 'native':
-        return JSONResponse(status_code=409, content={
-            'success': False,
-            'error': 'Use the App Store or Google Play purchase screen in the mobile app.',
-            'code': 'NATIVE_BILLING_REQUIRED',
-        })
-    auth = await authenticate_request(request, db, settings)
-    tier = payload.tier.lower()
-    price_id = (
-        settings.stripe_professional_price_id if tier == 'professional'
-        else settings.stripe_enterprise_price_id if tier == 'enterprise'
-        else None
+async def create_stripe_customer(user: dict[str, Any]) -> str:
+    customer = await stripe_post(
+        'customers',
+        {
+            'email': user['email'],
+            'metadata[user_id]': user['id'],
+        },
     )
-    if not price_id:
-        return JSONResponse(status_code=400, content={
-            'success': False,
-            'error': 'That subscription tier is not configured.',
-        })
+    customer_id = str(customer['id'])
+    await db.update(
+        'users',
+        {'stripe_customer_id': customer_id, 'updated_at': iso_now()},
+        filters={'id': eq(user['id'])},
+    )
+    user['stripe_customer_id'] = customer_id
+    return customer_id
 
-    customer_id = auth.user.get('stripe_customer_id')
-    if not customer_id:
-        customer = await stripe_post('customers', {
-            'email': auth.user['email'],
-            'metadata[user_id]': auth.user['id'],
-        })
-        customer_id = customer['id']
-        await db.update(
-            'users',
-            {'stripe_customer_id': customer_id, 'updated_at': iso_now()},
-            filters={'id': eq(auth.user['id'])},
-        )
 
-    checkout = await stripe_post('checkout/sessions', {
+def checkout_payload(customer_id: str, user_id: str, tier: str, price_id: str) -> dict[str, str]:
+    return {
         'mode': 'subscription',
         'customer': customer_id,
         'line_items[0][price]': price_id,
         'line_items[0][quantity]': '1',
         'success_url': f'{settings.app_url}/app?billing=success',
         'cancel_url': f'{settings.app_url}/app?billing=cancelled',
-        'client_reference_id': auth.user['id'],
-        'metadata[user_id]': auth.user['id'],
+        'client_reference_id': user_id,
+        'metadata[user_id]': user_id,
         'metadata[purchase_type]': 'subscription',
         'metadata[tier]': tier,
         'allow_promotion_codes': 'true',
-    })
-    return {'success': True, 'url': checkout.get('url'), 'sessionId': checkout.get('id')}
+    }
+
+
+def billing_provider_failure() -> JSONResponse:
+    return JSONResponse(
+        status_code=502,
+        content={
+            'success': False,
+            'error': 'Billing is temporarily unavailable. Please try again shortly.',
+            'code': 'BILLING_PROVIDER_UNAVAILABLE',
+        },
+    )
+
+
+@router.post('/api/stripe/create-checkout-session')
+async def create_checkout(payload: CheckoutRequest, request: Request):
+    if request.headers.get('x-crump-client', '').lower() == 'native':
+        return JSONResponse(
+            status_code=409,
+            content={
+                'success': False,
+                'error': 'Use the App Store or Google Play purchase screen in the mobile app.',
+                'code': 'NATIVE_BILLING_REQUIRED',
+            },
+        )
+    auth = await authenticate_request(request, db, settings)
+    tier = payload.tier.lower()
+    price_id = (
+        settings.stripe_professional_price_id
+        if tier == 'professional'
+        else settings.stripe_enterprise_price_id
+        if tier == 'enterprise'
+        else None
+    )
+    if not price_id:
+        return JSONResponse(
+            status_code=400,
+            content={
+                'success': False,
+                'error': 'That subscription tier is not configured.',
+            },
+        )
+
+    customer_id = auth.user.get('stripe_customer_id')
+    try:
+        if not customer_id:
+            customer_id = await create_stripe_customer(auth.user)
+
+        try:
+            checkout = await stripe_post(
+                'checkout/sessions',
+                checkout_payload(customer_id, auth.user['id'], tier, price_id),
+            )
+        except StripeAPIError as exc:
+            if not exc.missing_customer:
+                raise
+            # A customer ID can become stale if Stripe test/live state changes or
+            # an old customer was removed. Recreate it once and retry checkout.
+            customer_id = await create_stripe_customer(auth.user)
+            checkout = await stripe_post(
+                'checkout/sessions',
+                checkout_payload(customer_id, auth.user['id'], tier, price_id),
+            )
+    except StripeAPIError:
+        return billing_provider_failure()
+
+    return {
+        'success': True,
+        'url': checkout.get('url'),
+        'sessionId': checkout.get('id'),
+    }
 
 
 @router.post('/api/stripe/customer-portal')
 async def customer_portal(request: Request):
     if request.headers.get('x-crump-client', '').lower() == 'native':
-        return JSONResponse(status_code=409, content={
-            'success': False,
-            'error': 'Manage mobile subscriptions through your device subscription settings.',
-            'code': 'NATIVE_BILLING_REQUIRED',
-        })
+        return JSONResponse(
+            status_code=409,
+            content={
+                'success': False,
+                'error': 'Manage mobile subscriptions through your device subscription settings.',
+                'code': 'NATIVE_BILLING_REQUIRED',
+            },
+        )
     auth = await authenticate_request(request, db, settings)
     customer_id = auth.user.get('stripe_customer_id')
     if not customer_id:
-        return JSONResponse(status_code=404, content={
-            'success': False,
-            'error': 'No web subscription was found.',
-        })
-    portal = await stripe_post(
-        'billing_portal/sessions',
-        {'customer': customer_id, 'return_url': f'{settings.app_url}/app'},
-    )
+        return JSONResponse(
+            status_code=404,
+            content={
+                'success': False,
+                'error': 'No web subscription was found.',
+            },
+        )
+    try:
+        portal = await stripe_post(
+            'billing_portal/sessions',
+            {'customer': customer_id, 'return_url': f'{settings.app_url}/app'},
+        )
+    except StripeAPIError as exc:
+        if exc.missing_customer:
+            # Do not mutate entitlement state merely because portal lookup failed;
+            # a wrong Stripe environment/credential can also make a valid customer
+            # appear missing. Surface a controlled recovery state instead.
+            return JSONResponse(
+                status_code=409,
+                content={
+                    'success': False,
+                    'error': (
+                        'Your web billing profile could not be opened. '
+                        'Start checkout again or contact support if you already have a subscription.'
+                    ),
+                    'code': 'STRIPE_CUSTOMER_STALE',
+                },
+            )
+        return billing_provider_failure()
     return {'success': True, 'url': portal.get('url')}
 
 
@@ -137,6 +258,17 @@ def verify_stripe_signature(body: bytes, header: str) -> bool:
     return any(hmac.compare_digest(expected, signature) for signature in signatures)
 
 
+def stripe_entitlement_tier(status: str, price_id: str | None) -> str:
+    """Return the paid tier only when Stripe says the subscription is entitled."""
+    if status not in STRIPE_ENTITLED_STATUSES:
+        return 'free'
+    if price_id == settings.stripe_enterprise_price_id:
+        return 'enterprise'
+    if price_id == settings.stripe_professional_price_id:
+        return 'professional'
+    return 'free'
+
+
 @router.post('/api/stripe/webhook')
 async def stripe_webhook(request: Request):
     body = await request.body()
@@ -163,33 +295,47 @@ async def stripe_webhook(request: Request):
             return {'received': True}
         user_id = metadata.get('user_id') or obj.get('client_reference_id')
         if user_id:
-            await db.update('users', {
-                'stripe_customer_id': customer_id,
-                'stripe_subscription_id': obj.get('subscription'),
-                'subscription_tier': tier,
-                'subscription_status': 'active',
-                'subscription_provider': 'stripe',
-                'updated_at': iso_now(),
-            }, filters={'id': eq(user_id)})
+            await db.update(
+                'users',
+                {
+                    'stripe_customer_id': customer_id,
+                    'stripe_subscription_id': obj.get('subscription'),
+                    'subscription_tier': tier,
+                    'subscription_status': 'active',
+                    'subscription_provider': 'stripe',
+                    'updated_at': iso_now(),
+                },
+                filters={'id': eq(user_id)},
+            )
     elif event_type in {'customer.subscription.updated', 'customer.subscription.deleted'} and customer_id:
-        status = obj.get('status') or ('canceled' if event_type.endswith('deleted') else 'inactive')
-        active = status in {'active', 'trialing'}
-        price_id = (((obj.get('items') or {}).get('data') or [{}])[0].get('price') or {}).get('id')
-        tier = (
-            'enterprise' if price_id == settings.stripe_enterprise_price_id
-            else 'professional' if active else 'free'
+        status = (
+            'canceled'
+            if event_type == 'customer.subscription.deleted'
+            else str(obj.get('status') or 'inactive').lower()
         )
-        await db.update('users', {
-            'stripe_subscription_id': obj.get('id'),
-            'subscription_tier': tier,
-            'subscription_status': status,
-            'subscription_provider': 'stripe',
-            'subscription_current_period_end': (
-                datetime.fromtimestamp(obj.get('current_period_end'), timezone.utc).isoformat()
-                if obj.get('current_period_end') else None
-            ),
-            'updated_at': iso_now(),
-        }, filters={'stripe_customer_id': eq(customer_id)})
+        price_id = (
+            (((obj.get('items') or {}).get('data') or [{}])[0].get('price') or {}).get('id')
+        )
+        tier = stripe_entitlement_tier(status, price_id)
+        await db.update(
+            'users',
+            {
+                'stripe_subscription_id': obj.get('id'),
+                'subscription_tier': tier,
+                'subscription_status': status,
+                'subscription_provider': 'stripe',
+                'subscription_current_period_end': (
+                    datetime.fromtimestamp(
+                        obj.get('current_period_end'),
+                        timezone.utc,
+                    ).isoformat()
+                    if obj.get('current_period_end')
+                    else None
+                ),
+                'updated_at': iso_now(),
+            },
+            filters={'stripe_customer_id': eq(customer_id)},
+        )
     return {'received': True}
 
 
@@ -197,6 +343,7 @@ async def sync_revenuecat_customer(user_id: str) -> dict[str, Any] | None:
     if not settings.revenuecat_secret_api_key:
         return None
     import httpx
+
     try:
         async with httpx.AsyncClient(timeout=20) as client:
             response = await client.get(
@@ -211,9 +358,8 @@ async def sync_revenuecat_customer(user_id: str) -> dict[str, Any] | None:
         return None
     if response.status_code >= 400:
         logger.error(
-            'RevenueCat customer lookup rejected: %s %s',
+            'RevenueCat customer lookup rejected: status=%s',
             response.status_code,
-            response.text[:300],
         )
         return None
 
@@ -266,11 +412,14 @@ async def revenuecat_sync(request: Request):
     auth = await authenticate_request(request, db, settings)
     values = await sync_revenuecat_customer(auth.user['id'])
     if values is None:
-        return JSONResponse(status_code=503, content={
-            'success': False,
-            'error': 'Mobile subscription verification is not configured.',
-            'code': 'REVENUECAT_NOT_CONFIGURED',
-        })
+        return JSONResponse(
+            status_code=503,
+            content={
+                'success': False,
+                'error': 'Mobile subscription verification is not configured.',
+                'code': 'REVENUECAT_NOT_CONFIGURED',
+            },
+        )
     auth.user.update(values)
     return {'success': True, 'user': public_user(auth.user)}
 
@@ -282,7 +431,8 @@ async def billing_status(request: Request):
         'success': True,
         'tier': auth.user.get('subscription_tier') or 'free',
         'status': auth.user.get('subscription_status') or 'inactive',
-        'provider': auth.user.get('subscription_provider') or ('stripe' if auth.user.get('stripe_customer_id') else None),
+        'provider': auth.user.get('subscription_provider')
+        or ('stripe' if auth.user.get('stripe_customer_id') else None),
         'user': public_user(auth.user),
     }
 
@@ -318,11 +468,18 @@ async def revenuecat_webhook(request: Request):
     entitlement_ids = event.get('entitlement_ids') or []
     product_id = str(event.get('new_product_id') or event.get('product_id') or '').lower()
     active_types = {
-        'INITIAL_PURCHASE', 'RENEWAL', 'UNCANCELLATION', 'PRODUCT_CHANGE',
-        'NON_RENEWING_PURCHASE', 'TEMPORARY_ENTITLEMENT_GRANT',
+        'INITIAL_PURCHASE',
+        'RENEWAL',
+        'UNCANCELLATION',
+        'PRODUCT_CHANGE',
+        'NON_RENEWING_PURCHASE',
+        'TEMPORARY_ENTITLEMENT_GRANT',
     }
     if event_type not in active_types | {
-        'EXPIRATION', 'CANCELLATION', 'BILLING_ISSUE', 'SUBSCRIPTION_PAUSED'
+        'EXPIRATION',
+        'CANCELLATION',
+        'BILLING_ISSUE',
+        'SUBSCRIPTION_PAUSED',
     }:
         return {'success': True}
     entitlement_text = ' '.join(str(item).lower() for item in entitlement_ids)
@@ -342,15 +499,23 @@ async def revenuecat_webhook(request: Request):
     else:
         tier, status, provider = purchased_tier, 'active', 'revenuecat'
     expiration_ms = event.get('expiration_at_ms')
-    await db.update('users', {
-        'subscription_tier': tier,
-        'subscription_status': status,
-        'subscription_provider': provider,
-        'store_product_id': event.get('new_product_id') or event.get('product_id'),
-        'subscription_current_period_end': (
-            datetime.fromtimestamp(int(expiration_ms) / 1000, timezone.utc).isoformat()
-            if expiration_ms else None
-        ),
-        'updated_at': iso_now(),
-    }, filters={'id': eq(user_id)})
+    await db.update(
+        'users',
+        {
+            'subscription_tier': tier,
+            'subscription_status': status,
+            'subscription_provider': provider,
+            'store_product_id': event.get('new_product_id') or event.get('product_id'),
+            'subscription_current_period_end': (
+                datetime.fromtimestamp(
+                    int(expiration_ms) / 1000,
+                    timezone.utc,
+                ).isoformat()
+                if expiration_ms
+                else None
+            ),
+            'updated_at': iso_now(),
+        },
+        filters={'id': eq(user_id)},
+    )
     return {'success': True}

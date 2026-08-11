@@ -62,29 +62,35 @@ async def create_session(
     device_name: str | None = None,
     platform: str | None = None,
 ) -> tuple[str, dict[str, Any]]:
-    """Create or rotate the authenticated session for this installation.
+    """Create or atomically rotate the authenticated session for an installation.
 
-    `sessions.device_id` is intentionally unique. Re-authenticating on the same
-    browser/app installation therefore rotates the existing row instead of
-    inserting a competing session. This keeps durable login stable while still
-    issuing a fresh bearer/cookie token after every successful password login.
+    ``sessions.device_id`` is unique. A stable installation ID therefore uses one
+    PostgREST upsert keyed by ``device_id`` instead of a read-then-write sequence.
+    Concurrent successful logins on the same installation converge on one row and
+    the last completed login owns the freshly issued token.
     """
     raw_token = random_token(48)
     now = iso_now()
     device_id = (request.headers.get('x-installation-id') or '')[:200] or None
 
     payload = {
-        'id': new_uuid(),
         'user_id': user['id'],
         'token_hash': token_hash(raw_token),
         'expires_at': expiry_iso(days=settings.session_days),
         'created_at': now,
         'last_activity': now,
-        'ip_address': client_ip(dict(request.headers), request.client.host if request.client else None),
+        'ip_address': client_ip(
+            dict(request.headers),
+            request.client.host if request.client else None,
+        ),
         'user_agent': request.headers.get('user-agent', 'Unknown')[:1000],
         'device_id': device_id,
-        'device_name': (device_name or request.headers.get('x-device-name') or 'Unknown device')[:160],
-        'platform': (platform or request.headers.get('x-crump-platform') or 'web')[:80],
+        'device_name': (
+            device_name or request.headers.get('x-device-name') or 'Unknown device'
+        )[:160],
+        'platform': (
+            platform or request.headers.get('x-crump-platform') or 'web'
+        )[:80],
         'device_info': {
             'client': request.headers.get('x-crump-client', 'web'),
             'platform': platform or request.headers.get('x-crump-platform') or 'web',
@@ -92,34 +98,21 @@ async def create_session(
         'revoked_at': None,
     }
 
-    session: dict[str, Any]
-    existing: dict[str, Any] | None = None
     if device_id:
-        existing = await db.select_one(
-            'sessions',
-            columns='*',
-            filters={'device_id': eq(device_id)},
-        )
-
-    if existing:
-        # A successful password login is authorization to rotate this
-        # installation to the newly authenticated account, even if another
-        # account previously used the same browser/app installation.
-        update_payload = dict(payload)
-        update_payload.pop('id', None)
-        updated = await db.update(
-            'sessions',
-            update_payload,
-            filters={'id': eq(existing['id'])},
-        )
-        session = (
-            updated[0]
-            if isinstance(updated, list) and updated
-            else {**existing, **update_payload}
-        )
+        rows = await db.upsert('sessions', payload, on_conflict='device_id')
+        session = rows[0] if isinstance(rows, list) and rows else None
+        if not session:
+            session = await db.select_one(
+                'sessions',
+                columns='*',
+                filters={'device_id': eq(device_id)},
+            )
+        if not session:
+            raise RuntimeError('Session rotation did not return a persisted session.')
     else:
-        inserted = await db.insert('sessions', payload)
-        session = inserted[0] if isinstance(inserted, list) and inserted else payload
+        insert_payload = {'id': new_uuid(), **payload}
+        rows = await db.insert('sessions', insert_payload)
+        session = rows[0] if isinstance(rows, list) and rows else insert_payload
 
     # Keep the most recent sessions while avoiding an unbounded table.
     sessions = await db.select(

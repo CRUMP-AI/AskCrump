@@ -1,35 +1,118 @@
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import html
+from collections.abc import Awaitable, Callable
+
 import httpx
 
 from .config import Settings
 
 
-class EmailService:
-    def __init__(self, settings: Settings) -> None:
-        self.settings = settings
+class EmailDeliveryError(RuntimeError):
+    """Controlled transactional-email failure suitable for API-layer handling."""
 
-    async def _send(self, to: str, subject: str, body_html: str) -> bool:
+    def __init__(
+        self,
+        message: str = 'Transactional email delivery failed.',
+        *,
+        status_code: int | None = None,
+        retryable: bool = False,
+    ) -> None:
+        super().__init__(message)
+        self.message = message
+        self.status_code = status_code
+        self.retryable = retryable
+
+
+class EmailService:
+    def __init__(
+        self,
+        settings: Settings,
+        client: httpx.AsyncClient | None = None,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    ) -> None:
+        self.settings = settings
+        self._client = client
+        self._sleep = sleep
+
+    @staticmethod
+    def _idempotency_key(kind: str, email: str, token: str) -> str:
+        digest = hashlib.sha256(f'{kind}:{email.lower()}:{token}'.encode('utf-8')).hexdigest()
+        return f'ask-crump-{kind}-{digest}'
+
+    @staticmethod
+    def _retryable_status(status_code: int) -> bool:
+        return status_code == 429 or status_code >= 500
+
+    @staticmethod
+    def _retry_delay(response: httpx.Response | None, attempt: int) -> float:
+        if response is not None:
+            retry_after = response.headers.get('retry-after')
+            if retry_after:
+                try:
+                    return max(0.25, min(4.0, float(retry_after)))
+                except ValueError:
+                    pass
+        return min(1.0 * (2 ** attempt), 4.0)
+
+    async def _send(
+        self,
+        to: str,
+        subject: str,
+        body_html: str,
+        *,
+        idempotency_key: str,
+    ) -> bool:
         if not self.settings.resend_api_key:
             # Account creation still succeeds in local/test environments.
             return False
-        async with httpx.AsyncClient(timeout=20) as client:
-            response = await client.post(
-                'https://api.resend.com/emails',
-                headers={
-                    'Authorization': f'Bearer {self.settings.resend_api_key}',
-                    'Content-Type': 'application/json',
-                },
-                json={
-                    'from': self.settings.from_email,
-                    'to': [to],
-                    'subject': subject,
-                    'html': body_html,
-                },
-            )
-        response.raise_for_status()
-        return True
+
+        owns_client = self._client is None
+        client = self._client or httpx.AsyncClient(timeout=20)
+        try:
+            for attempt in range(3):
+                response: httpx.Response | None = None
+                try:
+                    response = await client.post(
+                        'https://api.resend.com/emails',
+                        headers={
+                            'Authorization': f'Bearer {self.settings.resend_api_key}',
+                            'Content-Type': 'application/json',
+                            'Idempotency-Key': idempotency_key,
+                        },
+                        json={
+                            'from': self.settings.from_email,
+                            'to': [to],
+                            'subject': subject,
+                            'html': body_html,
+                        },
+                    )
+                except httpx.HTTPError as exc:
+                    if attempt < 2:
+                        await self._sleep(self._retry_delay(None, attempt))
+                        continue
+                    raise EmailDeliveryError(
+                        status_code=None,
+                        retryable=True,
+                    ) from exc
+
+                if response.is_success:
+                    return True
+
+                retryable = self._retryable_status(response.status_code)
+                if retryable and attempt < 2:
+                    await self._sleep(self._retry_delay(response, attempt))
+                    continue
+
+                raise EmailDeliveryError(
+                    status_code=response.status_code,
+                    retryable=retryable,
+                )
+        finally:
+            if owns_client:
+                await client.aclose()
 
     def _layout(self, heading: str, content: str) -> str:
         app = html.escape(self.settings.app_name)
@@ -48,7 +131,12 @@ class EmailService:
         content = f"""<p>Hi {safe_name},</p><p>Confirm your email to finish creating your account.</p>
 <p><a href="{html.escape(url)}" style="display:inline-block;background:#c9b892;color:#101419;text-decoration:none;padding:13px 20px;border-radius:10px;font-weight:700">Verify email</a></p>
 <p style="color:#9aa4ad">This link expires in 24 hours. If you did not create this account, ignore this message.</p>"""
-        return await self._send(email, f'Verify your {self.settings.app_name} account', self._layout('Verify your email', content))
+        return await self._send(
+            email,
+            f'Verify your {self.settings.app_name} account',
+            self._layout('Verify your email', content),
+            idempotency_key=self._idempotency_key('verify', email, token),
+        )
 
     async def send_password_reset(self, email: str, name: str | None, token: str) -> bool:
         url = f"{self.settings.app_url}/app?token={token}"
@@ -56,4 +144,9 @@ class EmailService:
         content = f"""<p>Hi {safe_name},</p><p>Use the button below to choose a new password.</p>
 <p><a href="{html.escape(url)}" style="display:inline-block;background:#c9b892;color:#101419;text-decoration:none;padding:13px 20px;border-radius:10px;font-weight:700">Reset password</a></p>
 <p style="color:#9aa4ad">This link expires in one hour. If you did not request it, your password has not changed.</p>"""
-        return await self._send(email, f'Reset your {self.settings.app_name} password', self._layout('Reset your password', content))
+        return await self._send(
+            email,
+            f'Reset your {self.settings.app_name} password',
+            self._layout('Reset your password', content),
+            idempotency_key=self._idempotency_key('password-reset', email, token),
+        )

@@ -16,9 +16,38 @@ class UsageLimitError(RuntimeError):
         self.credit_balance = max(0, int(credit_balance or 0))
 
 
+def _future_timestamp(value: Any) -> bool:
+    if not value:
+        return False
+    try:
+        parsed = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed > datetime.now(timezone.utc)
+    except (TypeError, ValueError):
+        return False
+
+
 def tier_name(user: dict[str, Any]) -> str:
+    """Return the effective usage tier, not merely the last stored paid label.
+
+    Stripe and RevenueCat webhooks persist both tier and lifecycle state. Paid
+    allowances are granted only for currently entitled states. A cancellation
+    that remains valid until period end is honored only while that period is in
+    the future; terminal/inactive states always fall back to free.
+    """
     tier = str(user.get('subscription_tier') or user.get('tier') or 'free').lower()
-    return tier if tier in {'free', 'professional', 'enterprise'} else 'free'
+    if tier not in {'professional', 'enterprise'}:
+        return 'free'
+
+    status = str(user.get('subscription_status') or 'inactive').lower()
+    if status in {'active', 'trialing'}:
+        return tier
+    if status in {'canceling', 'billing_issue'} and _future_timestamp(
+        user.get('subscription_current_period_end')
+    ):
+        return tier
+    return 'free'
 
 
 def limit_for(settings: Settings, tier: str, usage_type: str) -> int:

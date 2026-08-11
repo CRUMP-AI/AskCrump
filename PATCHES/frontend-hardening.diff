@@ -1,0 +1,62 @@
+--- a/public/app.html
++++ b/public/app.html
+@@
+-          <input type="password" id="registerPassword" class="form-input" placeholder="At least 8 characters" required autocomplete="new-password">
+-          <small class="form-hint">Minimum 8 characters</small>
++          <input type="password" id="registerPassword" class="form-input" placeholder="10+ characters with a letter and number" required minlength="10" maxlength="256" autocomplete="new-password">
++          <small class="form-hint">At least 10 characters with a letter and a number</small>
+@@
+-          <input type="password" id="registerPasswordConfirm" class="form-input" placeholder="Re-enter password" required autocomplete="new-password">
++          <input type="password" id="registerPasswordConfirm" class="form-input" placeholder="Re-enter password" required minlength="10" maxlength="256" autocomplete="new-password">
+@@
+-          <input type="password" id="newPassword" class="form-input" placeholder="At least 8 characters" required autocomplete="new-password">
+-          <small class="form-hint">Minimum 8 characters</small>
++          <input type="password" id="newPassword" class="form-input" placeholder="10+ characters with a letter and number" required minlength="10" maxlength="256" autocomplete="new-password">
++          <small class="form-hint">At least 10 characters with a letter and a number</small>
+@@
+-          <input type="password" id="confirmNewPassword" class="form-input" placeholder="Re-enter password" required autocomplete="new-password">
++          <input type="password" id="confirmNewPassword" class="form-input" placeholder="Re-enter password" required minlength="10" maxlength="256" autocomplete="new-password">
+
+--- a/public/auth-controller.js
++++ b/public/auth-controller.js
+@@
+   function setBusy(form, busy, label) {
+@@
+   }
++
++  function validatePasswordInput(password) {
++    if (password.length < 10) return 'Password must be at least 10 characters long.';
++    if (password.length > 256) return 'Password is too long.';
++    if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) {
++      return 'Password must contain at least one letter and one number.';
++    }
++    return null;
++  }
+@@
+       const password = byId('registerPassword').value;
++      const passwordError = validatePasswordInput(password);
++      if (passwordError) return setText('registerError', passwordError);
+       if (password !== byId('registerPasswordConfirm').value) return setText('registerError', 'Passwords do not match.');
+@@
+         const data = await response.json().catch(() => ({}));
+-        if (!response.ok || !data.success) throw new Error(data.error || 'Registration failed.');
++        if (!response.ok || !data.success) {
++          if (data.accountCreated && data.needsVerification) {
++            const email = byId('registerEmail').value.trim();
++            setText('registerSuccess', data.error || 'Account created, but verification email delivery is temporarily unavailable.');
++            if (byId('loginEmail')) byId('loginEmail').value = email;
++            setTimeout(() => {
++              hide('registerForm');
++              show('loginForm');
++              show('verificationNeeded');
++              setText('loginError', 'Your account exists but still needs email verification. Use Resend verification to try delivery again.');
++            }, 2200);
++            return;
++          }
++          throw new Error(data.error || 'Registration failed.');
++        }
+@@
+       const password = byId('newPassword').value;
++      const passwordError = validatePasswordInput(password);
++      if (passwordError) return setText('resetPasswordError', passwordError);
+       if (password !== byId('confirmNewPassword').value) return setText('resetPasswordError', 'Passwords do not match.');
