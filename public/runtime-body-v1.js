@@ -45,7 +45,6 @@ window.CRUMP_CONFIG = Object.freeze({
     const existing = document.querySelector(`link[href="${url}"]`);
     if (existing) {
       existing.dataset[key] = 'true';
-      // Moving the new-body stylesheet to the end gives it final visual authority.
       document.head.appendChild(existing);
       return Promise.resolve();
     }
@@ -77,9 +76,18 @@ window.CRUMP_CONFIG = Object.freeze({
 
   async function boot() {
     await Promise.all(styles.map(([url, key]) => loadStyle(url, key)));
+
+    // Navigation cleanup is intentionally loaded after the existing visual stack so
+    // its narrow sidebar rules have final authority without disturbing legacy layers.
+    await loadStyle('/crump-navigation-5.2.5.css', 'crumpnav525');
+
     for (const [url, key] of scripts) {
       await loadScript(url, key);
     }
+
+    // Load last so the cleanup runs after legacy/V1 handlers have initialized.
+    await loadScript('/crump-navigation-5.2.5.js', 'crumpnav525');
+
     document.documentElement.dataset.crumpBodyRuntime = 'ready';
   }
 

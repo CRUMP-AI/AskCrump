@@ -1,0 +1,61 @@
+/* Ask Crump 5.2.5 — navigation de-duplication and mobile sidebar polish. */
+
+/* Defense-in-depth: duplicate rail destinations never flash before JS cleanup. */
+body.crump-v1-body .v1-rail [data-v1-command="settings"],
+body.crump-v1-body .v1-rail [data-v1-command="billing"],
+body.crump-v1-body .v1-rail .v1-rail-spacer {
+  display: none !important;
+}
+
+body.crump-v1-body .v1-library-footer {
+  gap: 4px;
+  padding: 12px 10px max(14px, env(safe-area-inset-bottom)) !important;
+}
+
+/* Footer destinations are intentionally single, label-led rows. */
+body.crump-v1-body .sidebar-footer-btn {
+  display: flex !important;
+  width: 100%;
+  min-height: 48px !important;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 0 12px !important;
+}
+
+body.crump-v1-body .sidebar-footer-btn > span {
+  min-width: 0;
+  text-align: left;
+}
+
+body.crump-v1-body #settingsBtn,
+body.crump-v1-body #upgradeBtnSidebar {
+  grid-template-columns: none !important;
+}
+
+/* The live balance is useful state, not another navigation destination. */
+body.crump-v1-body #upgradeBtnSidebar .billing51-sidebar-balance {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-width: 42px;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+/* Legal keeps its unique document icon. */
+body.crump-v1-body .sidebar-footer-link svg {
+  flex: 0 0 17px;
+}
+
+@media (max-width: 1100px) {
+  body.crump-v1-body .v1-library-footer {
+    padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
+  }
+
+  body.crump-v1-body .sidebar-footer-btn {
+    min-height: 50px !important;
+  }
+}
