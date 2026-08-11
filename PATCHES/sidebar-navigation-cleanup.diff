@@ -1,0 +1,38 @@
+# Ask Crump sidebar/navigation cleanup — 2026-08-11
+# This is a human-readable change map. APPLY_NAV_CLEANUP.py performs guarded
+# exact edits against the audited Git blobs and creates backups before writing.
+
+public/app.html
+- remove the desktop icon-only Settings rail button
+- remove the desktop icon-only Plan & credits rail button
+- remove the now-unused rail spacer
+- remove the decorative SVG from the labeled Settings footer row
+- remove the decorative SVG from the labeled Plan & credits footer row
++ keep #settingsBtn as the single explicit Settings destination
++ keep #upgradeBtnSidebar as the single Plan & credits destination
++ retain the live credit badge inserted inside #upgradeBtnSidebar
+
+public/crump-v1-body.js
+- remove stale data-v1-command switch cases for settings and billing
++ keep new/library/research/image/file/code/focus command routing unchanged
+
+public/crump-v1-body.css
+- remove the unused .v1-rail-spacer rule
++ make footer actions a single flex row with balanced mobile spacing
++ left-align labels and keep legal icon visually attached to its label
+
+public/crump-billing-5.1.css
++ pin .billing51-sidebar-balance to the right side of #upgradeBtnSidebar
++ prevent the live balance from wrapping onto its own visual row
+
+public/app.js
++ close the mobile sidebar/overlay before opening Settings
+
+public/crump-billing-5.1.js
++ close the mobile sidebar/overlay before opening Plan & credits
+
+tests/test_sidebar_navigation.py
++ assert one Settings destination and one Plan & credits destination
++ assert duplicate rail commands are gone
++ assert live credit state remains attached to the Plan & credits row
++ assert Settings/Billing mobile navigation closes the drawer first
