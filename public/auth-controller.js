@@ -69,7 +69,6 @@
     }
     if (!user.fullName) {
       hide('authContainer');
-      const name = byId('onboardingName');
       show('onboardingModal', 'flex');
       return;
     }
@@ -112,6 +111,15 @@
     }
 
     const session = await window.deviceAuth.checkSession();
+    if (session.unavailable) {
+      showAuth();
+      setText(
+        'loginError',
+        'Ask Crump could not verify your existing session right now. Your saved sign-in was preserved; try again in a moment.',
+      );
+      if (verification) showVerificationResult(verification);
+      return;
+    }
     if (!session.authenticated || !session.data?.user) {
       showAuth();
       if (verification) showVerificationResult(verification);
@@ -177,6 +185,35 @@
     return () => { button.disabled = false; button.textContent = original; };
   }
 
+  function validatePasswordInput(password) {
+    if (password.length < 10) return 'Password must be at least 10 characters long.';
+    if (password.length > 256) return 'Password is too long.';
+    if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+      return 'Password must contain at least one letter and one number.';
+    }
+    return null;
+  }
+
+  function applyPasswordPolicyMarkup() {
+    const ids = ['registerPassword', 'registerPasswordConfirm', 'newPassword', 'confirmNewPassword'];
+    for (const id of ids) {
+      const input = byId(id);
+      if (!input) continue;
+      input.setAttribute('minlength', '10');
+      input.setAttribute('maxlength', '256');
+    }
+
+    const registerPassword = byId('registerPassword');
+    const resetPassword = byId('newPassword');
+    if (registerPassword) registerPassword.placeholder = '10+ characters with a letter and number';
+    if (resetPassword) resetPassword.placeholder = '10+ characters with a letter and number';
+
+    for (const input of [registerPassword, resetPassword]) {
+      const hint = input?.parentElement?.querySelector('.form-hint');
+      if (hint) hint.textContent = 'At least 10 characters with a letter and a number';
+    }
+  }
+
   function wireLogin() {
     byId('loginFormElement')?.addEventListener('submit', async event => {
       event.preventDefault();
@@ -206,16 +243,39 @@
     byId('registerFormElement')?.addEventListener('submit', async event => {
       event.preventDefault();
       setText('registerError', '', false);
+      setText('registerSuccess', '', false);
       const password = byId('registerPassword').value;
+      const passwordError = validatePasswordInput(password);
+      if (passwordError) return setText('registerError', passwordError);
       if (password !== byId('registerPasswordConfirm').value) return setText('registerError', 'Passwords do not match.');
       const restore = setBusy(event.currentTarget, true, 'Creating account…');
       try {
+        const email = byId('registerEmail').value.trim();
         const response = await fetch('/api/auth/register', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: byId('registerEmail').value.trim(), password, fullName: byId('registerName').value.trim() }),
+          body: JSON.stringify({ email, password, fullName: byId('registerName').value.trim() }),
         });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok || !data.success) throw new Error(data.error || 'Registration failed.');
+        if (!response.ok || !data.success) {
+          if (data.accountCreated && data.needsVerification) {
+            setText(
+              'registerSuccess',
+              data.error || 'Account created, but verification email delivery is temporarily unavailable.',
+            );
+            if (byId('loginEmail')) byId('loginEmail').value = email;
+            setTimeout(() => {
+              hide('registerForm');
+              show('loginForm');
+              show('verificationNeeded');
+              setText(
+                'loginError',
+                'Your account exists but still needs email verification. Use Resend verification to try delivery again.',
+              );
+            }, 2200);
+            return;
+          }
+          throw new Error(data.error || 'Registration failed.');
+        }
         setText('registerSuccess', data.message || 'Account created. Check your email.');
         setTimeout(() => { hide('registerForm'); show('loginForm'); }, 1800);
       } catch (error) {
@@ -242,6 +302,8 @@
       event.preventDefault();
       setText('resetPasswordError', '', false);
       const password = byId('newPassword').value;
+      const passwordError = validatePasswordInput(password);
+      if (passwordError) return setText('resetPasswordError', passwordError);
       if (password !== byId('confirmNewPassword').value) return setText('resetPasswordError', 'Passwords do not match.');
       const restore = setBusy(event.currentTarget, true, 'Updating…');
       try {
@@ -309,6 +371,7 @@
   };
 
   document.addEventListener('DOMContentLoaded', () => {
+    applyPasswordPolicyMarkup();
     byId('onboardingContinueBtn')?.addEventListener('click', () => window.completeOnboarding());
     byId('onboardingName')?.addEventListener('keydown', event => {
       if (event.key === 'Enter') {

@@ -1,70 +1,58 @@
-# Ask Crump — Direct Sidebar Replacement
+# Ask Crump — Phase 1 Auth + Session Persistence Hardening
 
-This package is intentionally different from the previous handoff.
+## Scope
+Only Phase 1 foundation work. No feature additions and no UI redesign.
 
-## IMPORTANT
+## Copy/replace
+Copy the contents of this ZIP into the root of the CRUMP-AI repository.
 
-There is NO apply script and NO patch command.
+Replace these existing files:
+- `public/auth-controller.js`
+- `public/device-auth.js`
+- `tests/test_frontend_auth_policy.py`
 
-Copy the `public` folder from this ZIP into the root of your CRUMP-AI repository
-and choose **Replace** when Windows asks about `public/runtime-body-v1.js`.
+Add this new regression test:
+- `tests/test_auth_session_persistence.py`
 
-Two files are new:
-- `public/crump-navigation-5.2.5.js`
-- `public/crump-navigation-5.2.5.css`
+No apply script is required.
 
-One file is replaced:
-- `public/runtime-body-v1.js`
+## Fixes included
+- Frontend password policy is made consistent with the backend 10–256 character + letter + number rule at runtime before auth interaction.
+- Signup email-delivery failure is treated as a recoverable pending account instead of a generic failed signup.
+- Same-page duplicate login submissions are serialized.
+- A successful login is immediately confirmed against `/api/auth/check-session`; a stale same-installation result is retried once.
+- Transient session-check failures no longer clear persisted local identity state or imply an actual logout.
+- Bootstrap tells the user the saved sign-in was preserved when verification is temporarily unavailable.
+- Explicit logout still clears native secure token and local account cache.
 
-Optional regression test:
-- `tests/test_sidebar_navigation_runtime.py`
+## Intentionally unchanged
+- Visual layout, colors, spacing, navigation, composer, settings layout.
+- Backend session storage, token hashing, cookie policy, rate limits, verification/reset routes.
+- Billing, cron/check-ins, product features.
 
-## Result
+## Verification after copy
+From repository root:
 
-Runtime navigation becomes:
+```powershell
+node --check public\auth-controller.js
+node --check public\device-auth.js
+.\.venv\Scripts\python.exe -m pytest -q tests\test_release_hardening.py tests\test_frontend_auth_policy.py tests\test_auth_session_persistence.py
+npm test
+```
 
-Desktop rail:
-- New conversation
-- Conversation library
-
-Sidebar footer:
-- Settings
-- Plan & credits + live credit balance
-- Legal & Privacy
-- Account sync
-
-The duplicate icon-only Settings and Billing rail destinations are removed from
-the rendered DOM. The decorative Settings and Plan icons are removed from the
-footer rows. The live credit badge remains attached to Plan & credits.
-
-Tapping Settings or Plan & credits closes the mobile drawer before the existing
-destination handler opens its screen.
-
-## Why this package is direct-replacement safe
-
-The existing Ask Crump frontend already uses versioned runtime layers loaded by
-`public/runtime-body-v1.js`. This package adds one narrowly scoped final layer
-instead of requiring a patch tool or overwriting several large application files.
+Then commit/push. After Vercel finishes, ask Echo to verify GitHub `main`, the production deployment SHA, static files, Vercel auth runtime logs, and Supabase session state.
 
 ## Commit title
-
-Clean up redundant sidebar navigation on mobile
+Harden auth and session persistence
 
 ## Commit summary
-
-Simplify Ask Crump navigation by removing duplicate Settings and billing
-destinations, keeping the live credit balance attached to the primary Plan &
-credits row, and closing the mobile drawer cleanly before opening Settings or
-billing. Adds a final versioned navigation layer and regression coverage without
-changing core product behavior.
+Harden Ask Crump authentication and session persistence without changing the established UI/UX. Align the frontend password contract with the backend, recover cleanly when signup email delivery fails, serialize and confirm same-device logins, preserve valid credentials across transient session-check failures, and add targeted regression coverage for auth/session stability.
 
 ## Commit body
-
-- Remove duplicate icon-only Settings and billing rail destinations
-- Keep Settings as the single explicit settings destination
-- Keep Plan & credits as the single explicit billing destination
-- Preserve the live credit balance within the Plan & credits row
-- Remove decorative footer icons that visually read as duplicate controls
-- Close the mobile drawer before Settings or billing opens
-- Tighten footer spacing and alignment
-- Add regression coverage for navigation de-duplication
+- align frontend password validation with the backend auth contract
+- recover pending signup accounts when verification email delivery fails
+- serialize duplicate same-page login attempts
+- confirm newly issued sessions and retry stale same-installation races once
+- preserve saved credentials during transient session verification failures
+- keep explicit logout behavior destructive and deterministic
+- add auth/session persistence regression tests

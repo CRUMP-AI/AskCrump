@@ -2,6 +2,7 @@ class DeviceAuth {
   constructor() {
     this.session = null;
     this.userCacheKey = 'crump_user_cache_v4';
+    this.loginPromise = null;
   }
 
   // Retained for compatibility only. This ID is telemetry, never authentication.
@@ -9,26 +10,116 @@ class DeviceAuth {
     return window.CrumpAPI?.installationId?.() || 'web';
   }
 
-  async login(email, password) {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email,
-        password,
-        platform: window.CrumpNative?.Capacitor?.getPlatform?.() || window.Capacitor?.getPlatform?.() || 'web',
-        deviceName: navigator.userAgent.slice(0, 150),
-      }),
-    });
-    const data = await response.json().catch(() => ({ success: false, error: 'Invalid server response.' }));
-    if (response.ok && data.success && data.data?.user) {
+  acceptSession(data) {
+    if (!data?.user) return;
+    this.session = { user: data.user, expiresAt: data.expiresAt };
+    try { localStorage.setItem(this.userCacheKey, JSON.stringify(data.user)); } catch (_) {}
+  }
+
+  async confirmIssuedSession() {
+    try {
+      const response = await fetch('/api/auth/check-session', { method: 'GET' });
+      const data = await response.json().catch(() => ({ success: false, authenticated: false }));
+      if (!response.ok) {
+        return { status: 'unavailable', data };
+      }
+      if (data.authenticated && data.data?.user) {
+        return { status: 'valid', data: data.data };
+      }
+      return { status: 'invalid', data };
+    } catch (error) {
+      return { status: 'unavailable', error };
+    }
+  }
+
+  async performLogin(email, password) {
+    let lastResult = null;
+
+    // A successful login rotates the installation session. Confirm it immediately.
+    // If another same-installation login won the database race and made this response
+    // stale, retry once with the same credentials instead of leaving a dead session.
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password,
+          platform: window.CrumpNative?.Capacitor?.getPlatform?.() || window.Capacitor?.getPlatform?.() || 'web',
+          deviceName: navigator.userAgent.slice(0, 150),
+        }),
+      });
+      const data = await response.json().catch(() => ({ success: false, error: 'Invalid server response.' }));
+      lastResult = data;
+
+      if (!(response.ok && data.success && data.data?.user)) {
+        return data;
+      }
+
       if (data.data.sessionToken && window.CrumpAPI?.isNative) {
         await window.CrumpAPI.setSessionToken(data.data.sessionToken);
       }
-      this.session = { user: data.data.user, expiresAt: data.data.expiresAt };
-      try { localStorage.setItem(this.userCacheKey, JSON.stringify(data.data.user)); } catch (_) {}
+
+      const confirmation = await this.confirmIssuedSession();
+      if (confirmation.status === 'valid') {
+        const confirmedData = {
+          ...data.data,
+          ...confirmation.data,
+          sessionToken: data.data.sessionToken,
+        };
+        this.acceptSession(confirmedData);
+        return { ...data, data: confirmedData };
+      }
+
+      if (confirmation.status === 'unavailable') {
+        // Do not turn a successful login into a logout because the confirmation probe
+        // hit a transient network/server failure. The issued credential remains stored.
+        this.acceptSession(data.data);
+        return data;
+      }
+
+      if (window.CrumpAPI?.isNative) {
+        await window.CrumpAPI.clearSessionToken?.();
+      }
     }
-    return data;
+
+    return {
+      success: false,
+      error: lastResult?.error || 'Your session could not be established. Please try again.',
+      code: 'SESSION_ESTABLISHMENT_FAILED',
+    };
+  }
+
+  async login(email, password) {
+    if (this.loginPromise) return this.loginPromise;
+    this.loginPromise = this.performLogin(email, password)
+      .finally(() => { this.loginPromise = null; });
+    return this.loginPromise;
+  }
+
+  cachedUser() {
+    try {
+      return JSON.parse(localStorage.getItem(this.userCacheKey) || 'null');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  sessionUnavailable(error = null) {
+    const cached = this.cachedUser();
+    if (cached && !navigator.onLine) {
+      this.session = { user: cached, offline: true };
+      return { success: true, authenticated: true, offline: true, data: { user: cached } };
+    }
+
+    // Preserve the browser cookie/native token and local cache. A temporary 5xx,
+    // rate-limit, or network interruption must not destroy a valid persisted session.
+    return {
+      success: false,
+      authenticated: false,
+      unavailable: true,
+      error: error?.message || 'Session verification is temporarily unavailable.',
+    };
   }
 
   async checkSession() {
@@ -36,23 +127,24 @@ class DeviceAuth {
       await window.CrumpAPI?.ready;
       const response = await fetch('/api/auth/check-session', { method: 'GET' });
       const data = await response.json().catch(() => ({ success: false, authenticated: false }));
-      if (response.ok && data.authenticated && data.data?.user) {
-        this.session = { user: data.data.user, expiresAt: data.data.expiresAt };
-        try { localStorage.setItem(this.userCacheKey, JSON.stringify(data.data.user)); } catch (_) {}
+
+      if (!response.ok) {
+        return this.sessionUnavailable(new Error(data.error || `Session check failed (${response.status}).`));
+      }
+
+      if (data.authenticated && data.data?.user) {
+        this.acceptSession(data.data);
         return data;
       }
+
+      // A definitive successful response saying "not authenticated" is the only
+      // bootstrap outcome that clears local identity state.
+      this.clearLocalState();
+      return { ...data, success: true, authenticated: false };
     } catch (error) {
       console.warn('[Auth] Session check unavailable:', error);
-      try {
-        const cached = JSON.parse(localStorage.getItem(this.userCacheKey) || 'null');
-        if (cached && !navigator.onLine) {
-          this.session = { user: cached, offline: true };
-          return { success: true, authenticated: true, offline: true, data: { user: cached } };
-        }
-      } catch (_) {}
+      return this.sessionUnavailable(error);
     }
-    this.clearLocalState();
-    return { success: true, authenticated: false };
   }
 
   async logout(allDevices = false) {
