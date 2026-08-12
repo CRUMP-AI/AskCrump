@@ -1,58 +1,47 @@
-# Ask Crump — Phase 1 Auth + Session Persistence Hardening
+# Ask Crump — Phase 4 CI / Production Health Fix
 
 ## Scope
-Only Phase 1 foundation work. No feature additions and no UI redesign.
+This package fixes only the exact CI blockers found on current `main`. It does not change UI/UX or product behavior.
 
-## Copy/replace
-Copy the contents of this ZIP into the root of the CRUMP-AI repository.
+## Why there is an apply utility
+Two affected Python runtime files are large and actively maintained. To avoid replacing whole files merely to delete one unused import, this package uses a guarded exact edit. It aborts if the audited snippets are not present.
 
-Replace these existing files:
-- `public/auth-controller.js`
-- `public/device-auth.js`
-- `tests/test_frontend_auth_policy.py`
-
-Add this new regression test:
-- `tests/test_auth_session_persistence.py`
-
-No apply script is required.
-
-## Fixes included
-- Frontend password policy is made consistent with the backend 10–256 character + letter + number rule at runtime before auth interaction.
-- Signup email-delivery failure is treated as a recoverable pending account instead of a generic failed signup.
-- Same-page duplicate login submissions are serialized.
-- A successful login is immediately confirmed against `/api/auth/check-session`; a stale same-installation result is retried once.
-- Transient session-check failures no longer clear persisted local identity state or imply an actual logout.
-- Bootstrap tells the user the saved sign-in was preserved when verification is temporarily unavailable.
-- Explicit logout still clears native secure token and local account cache.
-
-## Intentionally unchanged
-- Visual layout, colors, spacing, navigation, composer, settings layout.
-- Backend session storage, token hashing, cookie policy, rate limits, verification/reset routes.
-- Billing, cron/check-ins, product features.
-
-## Verification after copy
-From repository root:
+## Apply
+Extract this ZIP outside the repository. From PowerShell:
 
 ```powershell
-node --check public\auth-controller.js
-node --check public\device-auth.js
-.\.venv\Scripts\python.exe -m pytest -q tests\test_release_hardening.py tests\test_frontend_auth_policy.py tests\test_auth_session_persistence.py
+py APPLY_PHASE4_CI_FIX.py "C:\path\to\CRUMP-AI" --check
+py APPLY_PHASE4_CI_FIX.py "C:\path\to\CRUMP-AI"
+```
+
+Then review the three-file diff in GitHub Desktop.
+
+## Expected changed files
+- `backend/crump52_patches.py` — removes unused `json` import only.
+- `backend/intelligence_service.py` — removes unused `json` import only.
+- `scripts/check-javascript.mjs` — recognizes the already-deployed `crump-navigation-5.2.5.js` and `crump-v1-stability.js` runtime files.
+
+## Verification
+From repo root, if your local environment is available:
+
+```powershell
+.\.venv\Scripts\python.exe -m ruff check app.py backend tests
+.\.venv\Scripts\python.exe -m compileall -q app.py backend
+.\.venv\Scripts\python.exe -m pytest -q
 npm test
 ```
 
-Then commit/push. After Vercel finishes, ask Echo to verify GitHub `main`, the production deployment SHA, static files, Vercel auth runtime logs, and Supabase session state.
+GitHub Actions is the authoritative verification after push.
 
 ## Commit title
-Harden auth and session persistence
+`Restore CI alignment for production runtime`
 
 ## Commit summary
-Harden Ask Crump authentication and session persistence without changing the established UI/UX. Align the frontend password contract with the backend, recover cleanly when signup email delivery fails, serialize and confirm same-device logins, preserve valid credentials across transient session-check failures, and add targeted regression coverage for auth/session stability.
+Remove two stale Python imports that block Ruff and update the JavaScript runtime contract to recognize the navigation and stability layers already deployed in production. No UI/UX or application behavior changes.
 
 ## Commit body
-- align frontend password validation with the backend auth contract
-- recover pending signup accounts when verification email delivery fails
-- serialize duplicate same-page login attempts
-- confirm newly issued sessions and retry stale same-installation races once
-- preserve saved credentials during transient session verification failures
-- keep explicit logout behavior destructive and deterministic
-- add auth/session persistence regression tests
+- remove two unused Python imports reported by Ruff
+- register crump-navigation-5.2.5.js in the JS runtime contract
+- register crump-v1-stability.js in the JS runtime contract
+- preserve current production UI/UX and runtime behavior
+- restore CI coverage so pytest and full JS validation can execute
