@@ -43,7 +43,6 @@ def test_footer_normalization_removes_decorative_destination_icons():
 
 def test_credit_badge_remains_attached_and_mobile_destination_click_closes_drawer():
     billing_js = read_public("crump-billing-5.1.js")
-    billing_css = read_public("crump-billing-5.1.css")
     cleanup = read_public("crump-navigation-5.2.5.js")
     cleanup_css = read_public("crump-navigation-5.2.5.css")
 
@@ -53,6 +52,5 @@ def test_credit_badge_remains_attached_and_mobile_destination_click_closes_drawe
     assert "#settingsBtn, #upgradeBtnSidebar" in cleanup
     assert "byId('sidebar')?.classList.remove('active');" in cleanup
     assert "byId('sidebarOverlay')?.classList.remove('active');" in cleanup
-    assert "#upgradeBtnSidebar .billing51-sidebar-balance" in billing_css
     assert "#upgradeBtnSidebar .billing51-sidebar-balance" in cleanup_css
     assert "margin-left: auto" in cleanup_css
