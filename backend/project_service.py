@@ -232,7 +232,8 @@ class ProjectService:
             },
             order="updated_at.desc",
             limit=12,
-        )        reference_files = await self.reference_files(
+        )
+        reference_files = await self.reference_files(
             user_id=user_id,
             project_id=project_id,
             limit=20,
