@@ -375,6 +375,7 @@ function renderChatsList() {
     chats.forEach(chat => {
         const item = document.createElement('div');
         item.className = `chat-item ${chat.id === currentChatId ? 'active' : ''}`;
+        item.dataset.chatId = chat.id;
         item.tabIndex = 0;
         item.setAttribute('role', 'button');
         item.addEventListener('click', () => loadChat(chat.id));

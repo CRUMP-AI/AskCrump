@@ -1,802 +1,211 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script defer src="/landing.js"></script>
-
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Clever Crump presents Ask Crump, a cross-platform AI assistant with synchronized conversations.">
-
-    <meta name="theme-color" content="#0a1628">
-    <title>Ask Crump | Clever Crump</title>
-
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="/assets/icon-192.png">
-    <link rel="apple-touch-icon" href="/assets/icon-512.png">
-
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --navy: #0a1628;
-            --navy-light: #162032;
-            --gold: #c9b892;
-            --gold-light: #d4c5a3;
-            --gold-dark: #b8a67e;
-            --white: #ffffff;
-            --off-white: #f8f6f3;
-            --gray: #8a8a8a;
-        }
-
-        html {
-            scroll-behavior: smooth;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: var(--navy);
-            color: var(--off-white);
-            line-height: 1.6;
-            overflow-x: hidden;
-        }
-
-        /* Navigation */
-        .navbar {
-            position: fixed;
-            top: 0;
-            width: 100%;
-            padding: 2rem 6%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: rgba(10, 22, 40, 0.95);
-            backdrop-filter: blur(20px);
-            z-index: 1000;
-            border-bottom: 1px solid rgba(201, 184, 146, 0.1);
-            transition: padding 0.3s ease;
-        }
-
-        .navbar.scrolled {
-            padding: 1.2rem 6%;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            font-family: 'Playfair Display', serif;
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: var(--gold);
-            letter-spacing: 0.5px;
-        }
-
-        .logo img {
-            width: 48px;
-            height: 48px;
-            filter: brightness(1.1);
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 3rem;
-            align-items: center;
-        }
-
-        .nav-links a {
-            color: var(--off-white);
-            text-decoration: none;
-            font-weight: 500;
-            font-size: 0.95rem;
-            letter-spacing: 0.3px;
-            transition: color 0.3s;
-            position: relative;
-        }
-
-        .nav-links a:hover {
-            color: var(--gold);
-        }
-
-        .nav-links a::after {
-            content: '';
-            position: absolute;
-            bottom: -4px;
-            left: 0;
-            width: 0;
-            height: 1px;
-            background: var(--gold);
-            transition: width 0.3s ease;
-        }
-
-        .nav-links a:hover::after {
-            width: 100%;
-        }
-
-        .cta-button {
-            padding: 14px 32px;
-            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
-            color: var(--navy);
-            text-decoration: none;
-            border-radius: 4px;
-            font-weight: 600;
-            font-size: 0.95rem;
-            letter-spacing: 0.5px;
-            transition: all 0.3s ease;
-            border: 2px solid var(--gold);
-        }
-
-        .cta-button:hover {
-            background: transparent;
-            color: var(--gold);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(201, 184, 146, 0.2);
-        }
-
-        /* Hero Section */
-        .hero {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 140px 6% 80px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .hero::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -20%;
-            width: 80%;
-            height: 150%;
-            background: radial-gradient(ellipse at center, rgba(201, 184, 146, 0.08) 0%, transparent 70%);
-            pointer-events: none;
-            animation: pulse 8s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 0.3; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(1.1); }
-        }
-
-        .hero-content {
-            max-width: 1000px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .hero-subtitle {
-            font-size: 0.95rem;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            color: var(--gold);
-            margin-bottom: 1.5rem;
-            font-weight: 600;
-        }
-
-        .hero h1 {
-            font-family: 'Playfair Display', serif;
-            font-size: clamp(3rem, 7vw, 5.5rem);
-            font-weight: 700;
-            margin-bottom: 2rem;
-            color: var(--white);
-            line-height: 1.1;
-            letter-spacing: -1px;
-        }
-
-        .hero-highlight {
-            color: var(--gold);
-            font-style: italic;
-        }
-
-        .hero p {
-            font-size: clamp(1.1rem, 2vw, 1.35rem);
-            max-width: 700px;
-            margin: 0 auto 3rem;
-            color: var(--gray);
-            line-height: 1.8;
-        }
-
-        .hero-buttons {
-            display: flex;
-            gap: 1.5rem;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .primary-btn {
-            padding: 18px 48px;
-            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
-            color: var(--navy);
-            text-decoration: none;
-            border-radius: 4px;
-            font-weight: 700;
-            font-size: 1.05rem;
-            letter-spacing: 0.5px;
-            transition: all 0.3s ease;
-            border: 2px solid var(--gold);
-            text-transform: uppercase;
-        }
-
-        .primary-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 40px rgba(201, 184, 146, 0.3);
-        }
-
-        .secondary-btn {
-            padding: 18px 48px;
-            background: transparent;
-            color: var(--gold);
-            text-decoration: none;
-            border-radius: 4px;
-            font-weight: 600;
-            font-size: 1.05rem;
-            letter-spacing: 0.5px;
-            transition: all 0.3s ease;
-            border: 2px solid var(--gold);
-        }
-
-        .secondary-btn:hover {
-            background: var(--gold);
-            color: var(--navy);
-            transform: translateY(-3px);
-        }
-
-        /* Product Section */
-        .product-showcase {
-            padding: 120px 6%;
-            background: var(--navy-light);
-            position: relative;
-        }
-
-        .section-label {
-            text-align: center;
-            font-size: 0.85rem;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            color: var(--gold);
-            margin-bottom: 1rem;
-            font-weight: 600;
-        }
-
-        .section-title {
-            font-family: 'Playfair Display', serif;
-            font-size: clamp(2.5rem, 5vw, 4rem);
-            text-align: center;
-            margin-bottom: 1rem;
-            color: var(--white);
-            font-weight: 700;
-        }
-
-        .section-subtitle {
-            text-align: center;
-            font-size: 1.2rem;
-            color: var(--gray);
-            margin-bottom: 4rem;
-            font-style: italic;
-        }
-
-        .product-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 3rem;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        .product-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(201, 184, 146, 0.15);
-            border-radius: 8px;
-            padding: 3rem 2.5rem;
-            transition: all 0.4s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .product-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 4px;
-            background: linear-gradient(90deg, var(--gold) 0%, var(--gold-dark) 100%);
-            transform: scaleX(0);
-            transition: transform 0.4s ease;
-        }
-
-        .product-card:hover {
-            background: rgba(255, 255, 255, 0.05);
-            border-color: var(--gold);
-            transform: translateY(-3px);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-        }
-
-        .product-card:hover::before {
-            transform: scaleX(1);
-        }
-
-        .product-icon {
-            width: 48px;
-            height: 48px;
-            margin-bottom: 1.5rem;
-            display: grid;
-            place-items: center;
-            color: var(--gold);
-            background: rgba(201, 184, 146, 0.08);
-            border: 1px solid rgba(201, 184, 146, 0.22);
-            border-radius: 14px;
-        }
-
-        .product-icon svg {
-            width: 24px;
-            height: 24px;
-            fill: none;
-            stroke: currentColor;
-            stroke-width: 1.7;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }
-
-        .product-card h3 {
-            font-family: 'Playfair Display', serif;
-            font-size: 1.8rem;
-            margin-bottom: 1rem;
-            color: var(--gold);
-            font-weight: 600;
-        }
-
-        .product-card p {
-            color: var(--gray);
-            font-size: 1.05rem;
-            line-height: 1.7;
-            margin-bottom: 1.5rem;
-        }
-
-        .product-features {
-            list-style: none;
-            margin-top: 1.5rem;
-        }
-
-        .product-features li {
-            padding: 0.6rem 0;
-            color: var(--off-white);
-            font-size: 0.95rem;
-            border-bottom: 1px solid rgba(201, 184, 146, 0.1);
-        }
-
-        .product-features li:last-child {
-            border-bottom: none;
-        }
-
-        .product-features li::before {
-            content: '';
-            display: inline-block;
-            width: 0.4rem;
-            height: 0.4rem;
-            margin-right: 0.75rem;
-            border-radius: 999px;
-            background: var(--gold);
-            vertical-align: middle;
-            margin-right: 12px;
-        }
-
-        /* Technology Section */
-        .technology {
-            padding: 120px 6%;
-            background: var(--navy);
-        }
-
-        .tech-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 5rem;
-            align-items: center;
-        }
-
-        .tech-content h2 {
-            font-family: 'Playfair Display', serif;
-            font-size: clamp(2.5rem, 4vw, 3.5rem);
-            margin-bottom: 2rem;
-            color: var(--gold);
-            font-weight: 700;
-        }
-
-        .tech-content p {
-            font-size: 1.15rem;
-            color: var(--gray);
-            line-height: 1.9;
-            margin-bottom: 1.5rem;
-        }
-
-        .tech-stats {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 2rem;
-            margin-top: 3rem;
-        }
-
-        .stat {
-            text-align: center;
-            padding: 2rem;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(201, 184, 146, 0.15);
-            border-radius: 8px;
-        }
-
-        .stat-number {
-            font-family: 'Playfair Display', serif;
-            font-size: 3rem;
-            color: var(--gold);
-            font-weight: 700;
-            display: block;
-            margin-bottom: 0.5rem;
-        }
-
-        .stat-label {
-            color: var(--gray);
-            font-size: 0.95rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .tech-visual {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-        }
-
-        .tech-circle {
-            width: 400px;
-            height: 400px;
-            border: 2px solid rgba(201, 184, 146, 0.2);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            animation: rotate 20s linear infinite;
-        }
-
-        @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        .tech-logo {
-            font-family: 'Playfair Display', serif;
-            font-size: 4rem;
-            color: var(--gold);
-            font-weight: 700;
-            position: absolute;
-        }
-
-        /* CTA Section */
-        .cta-section {
-            padding: 120px 6%;
-            background: linear-gradient(135deg, var(--navy-light) 0%, var(--navy) 100%);
-            text-align: center;
-        }
-
-        .cta-section h2 {
-            font-family: 'Playfair Display', serif;
-            font-size: clamp(2.5rem, 5vw, 4rem);
-            margin-bottom: 2rem;
-            color: var(--white);
-            font-weight: 700;
-        }
-
-        .cta-section p {
-            font-size: 1.25rem;
-            color: var(--gray);
-            max-width: 700px;
-            margin: 0 auto 3rem;
-            line-height: 1.8;
-        }
-
-        /* Footer */
-        .footer {
-            padding: 4rem 6% 2rem;
-            background: var(--navy-light);
-            border-top: 1px solid rgba(201, 184, 146, 0.1);
-        }
-
-        .footer-content {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 3rem;
-            margin-bottom: 3rem;
-        }
-
-        .footer-section h3 {
-            font-family: 'Playfair Display', serif;
-            color: var(--gold);
-            margin-bottom: 1.5rem;
-            font-size: 1.3rem;
-        }
-
-        .footer-section p,
-        .footer-section a {
-            color: var(--gray);
-            text-decoration: none;
-            display: block;
-            margin-bottom: 0.8rem;
-            transition: color 0.3s;
-        }
-
-        .footer-section a:hover {
-            color: var(--gold);
-        }
-
-        .footer-bottom {
-            text-align: center;
-            padding-top: 2rem;
-            border-top: 1px solid rgba(201, 184, 146, 0.1);
-            color: var(--gray);
-            font-size: 0.9rem;
-        }
-
-        /* Responsive */
-        @media (max-width: 968px) {
-            .nav-links {
-                gap: 2rem;
-            }
-
-            .tech-container {
-                grid-template-columns: 1fr;
-                gap: 3rem;
-            }
-
-            .tech-circle {
-                width: 300px;
-                height: 300px;
-            }
-
-            .tech-logo {
-                font-size: 3rem;
-            }
-        }
-
-        @media (max-width: 640px) {
-            .navbar {
-                padding: 1.5rem 5%;
-            }
-
-            .logo {
-                font-size: 1.5rem;
-            }
-
-            .logo img {
-                width: 40px;
-                height: 40px;
-            }
-
-            .nav-links {
-                display: none;
-            }
-
-            .hero {
-                padding: 120px 5% 60px;
-            }
-
-            .hero-buttons {
-                flex-direction: column;
-                gap: 1rem;
-            }
-
-            .primary-btn,
-            .secondary-btn {
-                width: 100%;
-            }
-
-            .product-showcase,
-            .technology,
-            .cta-section {
-                padding: 80px 5%;
-            }
-
-            .tech-stats {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+  <script defer src="/landing.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Clever Crump builds useful AI products. Ask Crump is our first: a workspace for conversations, projects, files, research, manuscripts, images, and video.">
+  <meta name="theme-color" content="#080b0f">
+  <title>Clever Crump | Meet Ask Crump</title>
+  <link rel="icon" type="image/png" href="/assets/icon-192.png">
+  <link rel="apple-touch-icon" href="/assets/icon-512.png">
+  <style>
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:#080b0f;color:#f0f0ed;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.55}
+    a{color:inherit}
+    button,a{-webkit-tap-highlight-color:transparent}
+    :root{--ink:#080b0f;--panel:#10151b;--panel2:#151b22;--line:rgba(231,232,230,.12);--muted:#858b91;--gold:#d2b468;--gold2:#ae9352;--serif:Georgia,"Times New Roman",serif}
+    .navbar{position:fixed;inset:0 0 auto;z-index:20;height:78px;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(22px,5vw,76px);background:rgba(8,11,15,.78);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid transparent;transition:.2s}
+    .navbar.scrolled{border-bottom-color:var(--line);background:rgba(8,11,15,.94)}
+    .company{display:flex;align-items:center;gap:11px;text-decoration:none}
+    .company-mark{width:30px;height:30px;border:1px solid rgba(210,180,104,.5);border-radius:50%;display:grid;place-items:center;color:var(--gold);font-family:var(--serif);font-weight:700}
+    .company span:last-child{font-size:12px;letter-spacing:.17em;font-weight:750;color:#ddd9cf}
+    .navlinks{display:flex;align-items:center;gap:28px}
+    .navlinks a{text-decoration:none;color:#a3a8ad;font-size:13px}
+    .navlinks a:hover{color:#eee}
+    .nav-cta{border:1px solid rgba(210,180,104,.42);border-radius:999px;padding:10px 16px;color:#e4d19c!important}
+    main{overflow:hidden}
+    .hero{min-height:94vh;display:grid;place-items:center;padding:150px 24px 90px;position:relative}
+    .hero:before{content:"";position:absolute;width:760px;height:760px;left:50%;top:15%;transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(210,180,104,.09),transparent 64%);pointer-events:none}
+    .hero-inner{width:min(1120px,100%);text-align:center;position:relative}
+    .eyebrow{font-size:11px;letter-spacing:.21em;font-weight:800;color:#bba466;margin-bottom:22px}
+    h1,h2,h3,p{margin-top:0}
+    .hero h1{font-family:var(--serif);font-weight:400;letter-spacing:-.045em;font-size:clamp(52px,8vw,104px);line-height:.96;margin-bottom:28px}
+    .hero h1 em{font-style:normal;color:var(--gold)}
+    .hero-copy{width:min(690px,100%);margin:0 auto 34px;color:#969ba1;font-size:clamp(17px,2vw,21px)}
+    .hero-actions{display:flex;justify-content:center;gap:11px;flex-wrap:wrap}
+    .button{display:inline-flex;align-items:center;justify-content:center;min-height:49px;padding:0 20px;border-radius:14px;text-decoration:none;font-size:14px;font-weight:700;border:1px solid var(--line)}
+    .button.primary{background:linear-gradient(135deg,#dec57b,#b99d56);color:#111315;border-color:transparent}
+    .button.secondary{background:#10151a;color:#d4d7da}
+    .quiet-note{margin-top:17px;color:#626970;font-size:12px}
+    .product-stage{width:min(1180px,calc(100% - 32px));margin:0 auto 130px;border:1px solid var(--line);border-radius:36px;background:#080c10;box-shadow:0 40px 120px rgba(0,0,0,.42);overflow:hidden}
+    .stage-top{height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;border-bottom:1px solid var(--line);color:#747b82;font-size:11px}
+    .dots{display:flex;gap:7px}.dots i{width:7px;height:7px;border-radius:50%;background:#343b42}
+    .stage-app{min-height:690px;display:grid;grid-template-columns:70px 1fr}
+    .stage-rail{border-right:1px solid var(--line);padding-top:22px;display:flex;justify-content:center}
+    .rail-pill{width:39px;height:39px;border:1px solid var(--line);border-radius:13px;display:grid;place-items:center;color:#7d848b}
+    .stage-main{padding:52px clamp(22px,5vw,68px) 40px;text-align:center;position:relative}
+    .stage-logo{height:48px;max-width:min(350px,70%);object-fit:contain;margin-bottom:32px}
+    .stage-mark{width:92px;height:92px;object-fit:contain;display:block;margin:0 auto 18px}
+    .hello{color:#c7ae69;font-size:12px;font-weight:750;letter-spacing:.12em;margin-bottom:14px}
+    .stage-main h2{font-family:var(--serif);font-size:clamp(44px,5vw,70px);font-weight:400;line-height:1.02;letter-spacing:-.035em;margin-bottom:16px}
+    .stage-main>p{color:#737a82;margin:0 auto 30px;max-width:630px}
+    .launch-grid{display:grid;gap:10px;width:min(700px,100%);margin:0 auto}
+    .launch{display:grid;grid-template-columns:44px 1fr auto;gap:14px;align-items:center;text-align:left;padding:14px 16px;border:1px solid var(--line);border-radius:18px;background:#0e1318}
+    .launch:first-child{border-color:rgba(210,180,104,.25);background:linear-gradient(90deg,rgba(210,180,104,.05),#0e1318)}
+    .launch-icon{width:42px;height:42px;border:1px solid rgba(210,180,104,.18);border-radius:13px;display:grid;place-items:center;color:#c5aa63}
+    .launch strong{display:block;font-size:14px}.launch small{color:#6f767e;font-size:11px}.launch b{color:#596069;font-size:18px}
+    .composer{width:min(700px,100%);margin:20px auto 0;border:1px solid #303741;border-radius:20px;height:64px;background:#171d24;display:grid;grid-template-columns:48px 1fr 48px;align-items:center;text-align:left;color:#69717b;padding:0 9px}
+    .composer-plus{font-size:28px;text-align:center}.composer-send{height:42px;border-radius:50%;background:#d4b66a;color:#111;display:grid;place-items:center;font-size:21px}
+    .section{padding:120px 24px}
+    .section-inner{width:min(1100px,100%);margin:0 auto}
+    .section-head{max-width:760px;margin-bottom:56px}
+    .section h2{font-family:var(--serif);font-weight:400;font-size:clamp(42px,6vw,72px);line-height:1.02;letter-spacing:-.035em;margin-bottom:20px}
+    .section-head p{color:#8d9399;font-size:18px}
+    .plain{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#0b0f13}
+    .plain-quote{font-family:var(--serif);font-size:clamp(30px,4vw,50px);line-height:1.2;max-width:900px;color:#e8e6df}
+    .plain-quote span{color:#b8a263}
+    .plain-sub{max-width:720px;color:#848b92;margin-top:22px;font-size:16px}
+    .feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .feature{border:1px solid var(--line);border-radius:24px;background:#10151a;padding:28px}
+    .feature .number{font-size:10px;color:#b59d5f;letter-spacing:.16em;font-weight:800;margin-bottom:30px}
+    .feature h3{font-size:20px;margin-bottom:10px}.feature p{color:#838a91;font-size:14px;margin-bottom:0}
+    .workflow{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:start}
+    .workflow-copy{position:sticky;top:120px}
+    .workflow-copy p{color:#8a9096;font-size:17px}
+    .steps{display:grid;gap:10px}
+    .step{border:1px solid var(--line);border-radius:20px;background:#0e1318;padding:20px 22px;display:grid;grid-template-columns:36px 1fr;gap:14px}
+    .step-num{width:30px;height:30px;border:1px solid rgba(210,180,104,.3);border-radius:50%;display:grid;place-items:center;color:#c7ae69;font-size:11px}
+    .step strong{display:block;margin-bottom:5px}.step span{color:#7d848b;font-size:13px}
+    .compare{background:#0b0f13;border-top:1px solid var(--line)}
+    .compare-box{border:1px solid var(--line);border-radius:28px;overflow:hidden}
+    .compare-row{display:grid;grid-template-columns:210px 1fr 1fr;border-bottom:1px solid var(--line)}
+    .compare-row:last-child{border-bottom:0}.compare-row>*{padding:18px 20px}.compare-row>*+*{border-left:1px solid var(--line)}
+    .compare-row.head{background:#11171d;font-size:11px;letter-spacing:.12em;color:#9da2a7;font-weight:800}
+    .compare-label{color:#8a9096;font-size:13px}.compare-value{color:#d7d8d7;font-size:14px}
+    .compare-note{color:#737a81;font-size:12px;margin-top:15px}
+    .closing{text-align:center;padding:140px 24px}.closing h2{max-width:900px;margin:0 auto 22px}.closing p{color:#8c9298;max-width:650px;margin:0 auto 30px;font-size:17px}
+    footer{border-top:1px solid var(--line);padding:34px clamp(22px,5vw,76px);display:flex;justify-content:space-between;gap:20px;color:#6f767d;font-size:12px}
+    footer a{text-decoration:none;color:#9b9fa4}
+    @media(max-width:800px){.navlinks a:not(.nav-cta){display:none}.stage-app{grid-template-columns:1fr}.stage-rail{display:none}.stage-main{padding-top:38px}.feature-grid,.workflow{grid-template-columns:1fr}.workflow-copy{position:static}.compare-row{grid-template-columns:1fr}.compare-row>*+*{border-left:0;border-top:1px solid var(--line)}.compare-row.head{display:none}.compare-label{font-weight:700;color:#b7bbc0}.product-stage{border-radius:24px}.stage-main h2{font-size:44px}}
+    @media(max-width:520px){.navbar{height:68px}.hero{padding-top:120px}.hero h1{font-size:54px}.product-stage{width:calc(100% - 18px)}.stage-main{padding-inline:15px}.stage-logo{max-width:82%}.launch{grid-template-columns:40px 1fr}.launch b{display:none}.section{padding:88px 20px}.feature{padding:22px}.closing{padding:100px 20px}footer{flex-direction:column}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  </style>
 </head>
 <body>
-    <!-- Navigation -->
-    <nav class="navbar">
-        <div class="logo">
-            <img src="/assets/logo-c.png" alt="Clever Crump">
-            Clever Crump
-        </div>
-        <div class="nav-links">
-            <a href="#product">Product</a>
-            <a href="#technology">Technology</a>
-            <a href="/legal.html">Legal</a>
-            <a href="https://askcrump.com/app" class="cta-button">Launch App</a>
-        </div>
-    </nav>
+  <nav class="navbar">
+    <a class="company" href="#top" aria-label="Clever Crump home"><span class="company-mark">C</span><span>CLEVER CRUMP</span></a>
+    <div class="navlinks">
+      <a href="#ask-crump">Ask Crump</a>
+      <a href="#different">Why it feels different</a>
+      <a class="nav-cta" href="https://askcrump.com/app">Open Ask Crump</a>
+    </div>
+  </nav>
 
-    <!-- Hero Section -->
+  <main id="top">
     <section class="hero">
-        <div class="hero-content">
-            <div class="hero-subtitle">A focused AI workspace</div>
-            <h1>Conversation that keeps its <span class="hero-highlight">context.</span></h1>
-            <p>Ask Crump combines thoughtful assistance, current-information tools, image generation, and account-based conversation history in one calm interface.</p>
-            <div class="hero-buttons">
-                <a href="/app" class="primary-btn">Open Ask Crump</a>
-                <a href="#product" class="secondary-btn">Explore the product</a>
-            </div>
+      <div class="hero-inner">
+        <div class="eyebrow">CLEVER CRUMP</div>
+        <h1>We build useful<br><em>AI products.</em></h1>
+        <p class="hero-copy">Ask Crump is our first. Bring it a question, a file, a half-finished idea, or a Project you keep coming back to. Keep the work together and keep moving it forward.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="https://askcrump.com/app">Try Ask Crump</a>
+          <a class="button secondary" href="#ask-crump">See what it does</a>
         </div>
+        <div class="quiet-note">No grand promises. Just a product we're building to be genuinely useful.</div>
+      </div>
     </section>
 
-    <!-- Product Showcase -->
-    <section class="product-showcase" id="product">
-        <div class="section-label">Product</div>
-        <h2 class="section-title">Ask Crump</h2>
-        <p class="section-subtitle">A conversational assistant designed for continuity.</p>
-
-        <div class="product-grid">
-            <article class="product-card">
-                <span class="product-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.5 9.5 9.5 0 0 1-4-.9L3 21l1.5-4.3A8.4 8.4 0 1 1 21 11.5Z"/></svg></span>
-                <h3>Message-first conversation</h3>
-                <p>Complete answers arrive as clear message bubbles, supported by honest delivery and activity states.</p>
-                <ul class="product-features">
-                    <li>Delivered and seen status</li>
-                    <li>Inline activity indicators</li>
-                    <li>Retry-safe message handling</li>
-                </ul>
-            </article>
-
-            <article class="product-card">
-                <span class="product-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
-                <h3>Visual creation</h3>
-                <p>Create images from natural-language requests without leaving the conversation.</p>
-                <ul class="product-features">
-                    <li>Prompt-based generation</li>
-                    <li>Conversation-linked results</li>
-                    <li>Clear provider error states</li>
-                </ul>
-            </article>
-
-            <article class="product-card">
-                <span class="product-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></span>
-                <h3>Current information</h3>
-                <p>Search and weather context can be added when a request depends on information beyond the model's training data.</p>
-                <ul class="product-features">
-                    <li>Web search integration</li>
-                    <li>Weather context</li>
-                    <li>Source-aware responses</li>
-                </ul>
-            </article>
-
-            <article class="product-card">
-                <span class="product-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 7h-9a4 4 0 0 0-4 4v9"/><path d="m16 3 4 4-4 4"/><path d="M4 17h9a4 4 0 0 0 4-4V4"/><path d="m8 21-4-4 4-4"/></svg></span>
-                <h3>Cross-device continuity</h3>
-                <p>Conversation history and account settings follow the signed-in user across supported devices.</p>
-                <ul class="product-features">
-                    <li>Server-authoritative history</li>
-                    <li>Conflict-aware synchronization</li>
-                    <li>Account-isolated offline cache</li>
-                </ul>
-            </article>
-
-            <article class="product-card">
-                <span class="product-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg></span>
-                <h3>Optional check-ins</h3>
-                <p>Crump can follow up on unfinished work when the user enables proactive messaging.</p>
-                <ul class="product-features">
-                    <li>Quiet hours and frequency controls</li>
-                    <li>Conversation-specific follow-ups</li>
-                    <li>Optional native notifications</li>
-                </ul>
-            </article>
-
-            <article class="product-card">
-                <span class="product-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg></span>
-                <h3>Account control</h3>
-                <p>Users can review devices, revoke sessions, manage subscriptions, export history, and delete the account.</p>
-                <ul class="product-features">
-                    <li>Persistent revocable sessions</li>
-                    <li>In-app data controls</li>
-                    <li>Web and native billing separation</li>
-                </ul>
-            </article>
+    <section id="ask-crump" class="product-stage" aria-label="Ask Crump product preview">
+      <div class="stage-top"><div class="dots"><i></i><i></i><i></i></div><span>ASK CRUMP</span><span>askcrump.com</span></div>
+      <div class="stage-app">
+        <aside class="stage-rail"><div class="rail-pill">☰</div></aside>
+        <div class="stage-main">
+          <img class="stage-logo" src="/assets/brand/crump-horizontal-light.png" alt="Ask Crump">
+          <img class="stage-mark" src="/assets/brand/crump-mark.png" alt="">
+          <div class="hello">GOOD EVENING.</div>
+          <h2>What are we moving forward?</h2>
+          <p>Think something through, research what changed, work from your files, or build something you can actually keep.</p>
+          <div class="launch-grid">
+            <div class="launch"><span class="launch-icon">✦</span><span><strong>Think with Crump</strong><small>Talk through an idea, decision, or problem.</small></span><b>↗</b></div>
+            <div class="launch"><span class="launch-icon">⌕</span><span><strong>Research something</strong><small>Work with current information and sources.</small></span><b>↗</b></div>
+            <div class="launch"><span class="launch-icon">▱</span><span><strong>Work from your files</strong><small>Images, PDFs, documents, spreadsheets, and more.</small></span><b>↗</b></div>
+          </div>
+          <div class="composer"><span class="composer-plus">＋</span><span>Message Crump</span><span class="composer-send">↑</span></div>
         </div>
+      </div>
     </section>
 
-    <!-- Technology Section -->
-    <section class="technology" id="technology">
-        <div class="tech-container">
-            <div class="tech-content">
-                <h2>Built for Continuity</h2>
-                <p>Ask Crump uses a Python service layer, durable cloud conversation storage, and an account-based synchronization model so your work follows you from phone to computer.</p>
-                <p>The interface is designed for quick, focused interactions across the web, iPhone, iPad, and Android.</p>
-
-                <div class="tech-stats">
-                    <div class="stat">
-                        <span class="stat-number">1</span>
-                        <span class="stat-label">Account Across Devices</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-number">365d</span>
-                        <span class="stat-label">Sliding Sign-In</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-number">Web</span>
-                        <span class="stat-label">Installable PWA</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-number">iOS + Android</span>
-                        <span class="stat-label">Native Targets</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="tech-visual">
-                <div class="tech-circle">
-                    <span class="tech-logo">AC</span>
-                </div>
-            </div>
-        </div>
+    <section id="different" class="section plain">
+      <div class="section-inner">
+        <div class="eyebrow">A LITTLE DIFFERENT ON PURPOSE</div>
+        <div class="plain-quote">ChatGPT set the standard. <span>We're not pretending otherwise.</span> Ask Crump takes a different route.</div>
+        <p class="plain-sub">We're not going to call a projects button or an image generator revolutionary. The difference we're chasing is how the pieces work together: context that stays with the work, a recognizable assistant, and a clear path from a conversation to something finished.</p>
+      </div>
     </section>
 
-    <!-- CTA Section -->
-    <section class="cta-section">
-        <h2>Continue where you left off.</h2>
-        <p>Open Ask Crump on the web, or prepare the same codebase for iOS and Android.</p>
-        <a href="/app" class="primary-btn">Open Ask Crump</a>
+    <section class="section">
+      <div class="section-inner">
+        <div class="section-head">
+          <div class="eyebrow">WHAT ASK CRUMP IS BUILT AROUND</div>
+          <h2>Less tab-hopping.<br>More finishing.</h2>
+          <p>Ask Crump is designed around work that lasts longer than one prompt.</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature"><div class="number">01 · PROJECTS</div><h3>Give the work a home.</h3><p>Keep a Project's chats, instructions, reference files, canon, notes, manuscripts, images, and generated files together instead of rebuilding context every time.</p></article>
+          <article class="feature"><div class="number">02 · CRUMP</div><h3>An assistant with some backbone.</h3><p>Crump doesn't need to agree with every idea. It can help, challenge the plan, point out a contradiction, and still talk like a person instead of a policy document.</p></article>
+          <article class="feature"><div class="number">03 · DELIVERABLES</div><h3>Make something you can keep.</h3><p>Work toward documents, long-form manuscripts, KDP-aware book exports, images, and video—not just another answer that disappears up the chat.</p></article>
+          <article class="feature"><div class="number">04 · COST CONTROL</div><h3>Expensive tools aren't secretly unlimited.</h3><p>Premium generation is gated by plan and Crump Credits so heavy image and video use doesn't turn into a surprise provider bill for us or a mystery for you.</p></article>
+        </div>
+      </div>
     </section>
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="footer-content">
-            <div class="footer-section">
-                <h3>Clever Crump</h3>
-                <p>Focused AI assistance with account-based conversations and cross-device synchronization.</p>
-            </div>
-
-            <div class="footer-section">
-                <h3>Product</h3>
-                <a href="https://askcrump.com/app">Ask Crump</a>
-                <a href="#technology">Technology</a>
-                <a href="#product">Features</a>
-            </div>
-
-            <div class="footer-section">
-                <h3>Company</h3>
-                <a href="/legal.html">Privacy Policy</a>
-                <a href="/legal.html">Terms of Service</a>
-                <a href="/delete-account.html">Delete Account</a>
-                <a href="mailto:support@askcrump.com">Support</a>
-            </div>
-
-            <div class="footer-section">
-                <h3>Contact</h3>
-                <a href="mailto:support@askcrump.com">support@askcrump.com</a>
-                <a href="mailto:legal@askcrump.com">legal@askcrump.com</a>
-            </div>
+    <section class="section plain">
+      <div class="section-inner workflow">
+        <div class="workflow-copy">
+          <div class="eyebrow">ONE WORKSPACE</div>
+          <h2>Start messy.<br>Get organized later.</h2>
+          <p>A good idea doesn't always arrive inside the right folder. Start a normal conversation, turn the serious work into a Project, add the files that matter, and keep building from there.</p>
         </div>
-
-        <div class="footer-bottom">
-            <p>&copy; 2026 Clever Crump. All rights reserved.</p>
+        <div class="steps">
+          <div class="step"><span class="step-num">1</span><span><strong>Talk it through.</strong><span>Ask, brainstorm, challenge an idea, or hand Crump a file.</span></span></div>
+          <div class="step"><span class="step-num">2</span><span><strong>Give it context.</strong><span>Projects keep instructions, reference material, canon, decisions, and conversations isolated from unrelated work.</span></span></div>
+          <div class="step"><span class="step-num">3</span><span><strong>Build the thing.</strong><span>Draft chapters, create supporting visuals, research current information, or make a finished document.</span></span></div>
+          <div class="step"><span class="step-num">4</span><span><strong>Come back tomorrow.</strong><span>The work is still there. So is the Project context.</span></span></div>
         </div>
-    </footer>
+      </div>
+    </section>
+
+    <section class="section compare">
+      <div class="section-inner">
+        <div class="section-head">
+          <div class="eyebrow">THE POSITIONING</div>
+          <h2>We're not trying to out-ChatGPT ChatGPT.</h2>
+          <p>Ask Crump should earn its place by feeling coherent and useful on its own terms.</p>
+        </div>
+        <div class="compare-box" role="table" aria-label="Ask Crump positioning">
+          <div class="compare-row head" role="row"><div></div><div>General AI platforms</div><div>Ask Crump's focus</div></div>
+          <div class="compare-row" role="row"><div class="compare-label">Projects</div><div class="compare-value">Organize ongoing work.</div><div class="compare-value">Organize it, keep canon and reference material with it, and collect what gets created there.</div></div>
+          <div class="compare-row" role="row"><div class="compare-label">Long-form writing</div><div class="compare-value">Draft and edit text.</div><div class="compare-value">Maintain manuscript structure and export book interiors with KDP-aware settings.</div></div>
+          <div class="compare-row" role="row"><div class="compare-label">Assistant style</div><div class="compare-value">Adaptable general assistant.</div><div class="compare-value">A more opinionated Crump personality that can challenge the idea without turning every conversation into a lecture.</div></div>
+          <div class="compare-row" role="row"><div class="compare-label">Creation</div><div class="compare-value">Text, research, images, files, and more.</div><div class="compare-value">Those tools live beside Projects, manuscripts, deliverables, and explicit usage controls.</div></div>
+        </div>
+        <div class="compare-note">This isn't a claim that other AI products can't do similar things. It's the product direction we're choosing for Ask Crump.</div>
+      </div>
+    </section>
+
+    <section class="closing">
+      <div class="eyebrow">ASK CRUMP</div>
+      <h2>Bring something you're actually working on.</h2>
+      <p>A question is fine. A 70,000-word manuscript is fine too. Start where you are.</p>
+      <a class="button primary" href="https://askcrump.com/app">Open Ask Crump</a>
+    </section>
+  </main>
+
+  <footer>
+    <span>© 2026 Clever Crump. Built with care.</span>
+    <span><a href="https://askcrump.com/legal.html">Legal & Privacy</a> · <a href="https://askcrump.com/app">Ask Crump</a></span>
+  </footer>
 </body>
 </html>

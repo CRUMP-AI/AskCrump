@@ -154,6 +154,40 @@ class ProjectService:
             on_conflict="project_id,file_id",
         )
 
+    async def reference_files(
+        self,
+        *,
+        user_id: str,
+        project_id: str,
+        limit: int = 40,
+    ) -> list[dict[str, Any]]:
+        project = await self.get(user_id, project_id)
+        mappings = await self.db.select(
+            "project_files",
+            filters={"project_id": eq(project["id"]), "user_id": eq(user_id)},
+            order="created_at.desc",
+            limit=max(1, min(100, int(limit))),
+        )
+        output: list[dict[str, Any]] = []
+        for mapping in mappings:
+            file_id = mapping.get("file_id")
+            if not file_id:
+                continue
+            row = await self.db.select_one(
+                "user_files",
+                filters={
+                    "id": eq(file_id),
+                    "user_id": eq(user_id),
+                    "status": eq("ready"),
+                    "deleted_at": "is.null",
+                },
+            )
+            if not row:
+                continue
+            item = dict(row)
+            item["project_role"] = mapping.get("role") or "asset"
+            output.append(item)
+        return output
     async def add_context(
         self,
         *,
@@ -198,6 +232,10 @@ class ProjectService:
             },
             order="updated_at.desc",
             limit=12,
+        )        reference_files = await self.reference_files(
+            user_id=user_id,
+            project_id=project_id,
+            limit=20,
         )
         return {
             "project": {
@@ -208,4 +246,14 @@ class ProjectService:
             },
             "canon": context_rows,
             "manuscripts": manuscripts,
+            "reference_files": [
+                {
+                    "id": row.get("id"),
+                    "name": row.get("file_name"),
+                    "type": row.get("mime_type"),
+                    "size": row.get("size_bytes"),
+                    "role": row.get("project_role"),
+                }
+                for row in reference_files
+            ],
         }

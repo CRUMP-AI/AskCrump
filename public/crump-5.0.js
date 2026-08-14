@@ -897,6 +897,18 @@
     renderToolChip();
   }
 
+
+  window.CrumpFileTools = Object.freeze({
+    addReference: file => addRemoteReference(file),
+    open: (file, download = false) => openFile(file, download),
+    upload: async file => {
+      const normalized = await normalizeInputFile(file);
+      const issue = validateFile(normalized);
+      if (issue) throw new Error(issue);
+      const item = makeLocalAttachment(normalized);
+      return await uploadItem(item);
+    },
+  });
   function boot() {
     if (document.documentElement.dataset.crump50Booted === 'true') return;
     document.documentElement.dataset.crump50Booted = 'true';

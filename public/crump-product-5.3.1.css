@@ -1,0 +1,333 @@
+:root {
+  --crump531-gold: #d5b866;
+  --crump531-gold-soft: rgba(213, 184, 102, 0.16);
+  --crump531-line: rgba(224, 228, 233, 0.13);
+  --crump531-panel: #11161c;
+  --crump531-panel-raised: #171d24;
+}
+
+.crump531-reference-box {
+  border: 1px solid var(--crump531-line);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255,255,255,0.018);
+  display: grid;
+  gap: 12px;
+}
+
+.crump531-reference-head {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.crump531-reference-head > div {
+  min-width: 0;
+}
+
+.crump531-reference-head strong,
+.crump531-reference-head h3 {
+  display: block;
+  margin: 0 0 4px;
+  color: #f1f2f3;
+  font-size: 15px;
+}
+
+.crump531-reference-head span,
+.crump531-reference-head p {
+  display: block;
+  margin: 0;
+  color: #858b93;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.crump531-reference-list,
+#crump531ProjectFilesList {
+  display: grid;
+  gap: 8px;
+}
+
+.crump531-empty {
+  color: #727983;
+  font-size: 12px;
+  padding: 8px 2px;
+}
+
+.crump531-empty.is-error {
+  color: #cf8f89;
+}
+
+.crump531-file-row {
+  border: 1px solid rgba(224,228,233,0.11);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.025);
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px 9px 12px;
+}
+
+.crump531-file-copy,
+.crump531-file-open {
+  min-width: 0;
+  flex: 1;
+}
+
+.crump531-file-copy strong,
+.crump531-file-open strong {
+  color: #e4e6e9;
+  font-size: 13px;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crump531-file-copy small,
+.crump531-file-open small {
+  color: #747b84;
+  display: block;
+  font-size: 10px;
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crump531-icon-button,
+.crump531-file-open,
+.crump531-use-file,
+.crump531-chat-menu-button,
+.crump531-chat-menu-popover button,
+.crump531-rename-actions button {
+  font: inherit;
+}
+
+.crump531-icon-button,
+.crump531-file-open,
+.crump531-use-file {
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.crump531-icon-button {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: #888f98;
+  font-size: 21px;
+  cursor: pointer;
+}
+
+.crump531-file-open {
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+
+.crump531-use-file {
+  border: 1px solid rgba(213,184,102,0.22);
+  background: rgba(213,184,102,0.07);
+  color: #cbb67b;
+  border-radius: 10px;
+  padding: 8px 10px;
+  white-space: nowrap;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.crump531-project-files-card {
+  margin-top: 16px;
+}
+
+.crump531-project-file-group + .crump531-project-file-group {
+  margin-top: 16px;
+}
+
+.crump531-project-file-heading {
+  color: #8f959d;
+  font-size: 10px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  margin: 4px 2px 8px;
+  font-weight: 700;
+}
+
+.chat-item.crump531-chat-actions-ready .delete-chat-btn {
+  display: none !important;
+}
+
+.crump531-chat-menu-button {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: #777e87;
+  min-width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  font-size: 14px;
+}
+
+.crump531-chat-menu-button:hover,
+.crump531-chat-menu-button:focus-visible {
+  color: #d3bd7c;
+  background: rgba(213,184,102,0.08);
+  outline: none;
+}
+
+.crump531-chat-menu-popover {
+  position: fixed;
+  z-index: 2600;
+  width: 160px;
+  border: 1px solid rgba(224,228,233,0.14);
+  border-radius: 14px;
+  background: #151a20;
+  box-shadow: 0 18px 50px rgba(0,0,0,.42);
+  padding: 6px;
+  display: grid;
+  gap: 2px;
+}
+
+.crump531-chat-menu-popover button {
+  border: 0;
+  background: transparent;
+  color: #d9dce0;
+  border-radius: 10px;
+  padding: 10px 11px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.crump531-chat-menu-popover button:hover,
+.crump531-chat-menu-popover button:focus-visible {
+  background: rgba(255,255,255,0.055);
+  outline: none;
+}
+
+.crump531-chat-menu-popover button.is-danger {
+  color: #ce8a84;
+}
+
+.crump531-rename-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2800;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(3,5,7,.74);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.crump531-rename-sheet {
+  width: min(440px, 100%);
+  border: 1px solid rgba(224,228,233,0.14);
+  border-radius: 24px;
+  background: #11161c;
+  box-shadow: 0 28px 80px rgba(0,0,0,.5);
+  padding: 24px;
+}
+
+.crump531-rename-kicker {
+  color: #c6ad68;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .18em;
+  margin-bottom: 8px;
+}
+
+.crump531-rename-sheet h3 {
+  color: #f0f1f2;
+  font-size: 23px;
+  margin: 0 0 18px;
+}
+
+.crump531-rename-input {
+  width: 100%;
+  border: 1px solid rgba(224,228,233,0.16);
+  border-radius: 14px;
+  background: #181e25;
+  color: #f1f2f3;
+  padding: 13px 14px;
+  outline: none;
+  font-size: 15px;
+}
+
+.crump531-rename-input:focus {
+  border-color: rgba(213,184,102,.7);
+  box-shadow: 0 0 0 3px rgba(213,184,102,.09);
+}
+
+.crump531-rename-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 16px;
+}
+
+.crump531-rename-actions button {
+  border-radius: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  border: 1px solid rgba(224,228,233,.13);
+}
+
+.crump531-secondary {
+  background: transparent;
+  color: #b5bac0;
+}
+
+.crump531-primary {
+  background: #d5b866;
+  border-color: #d5b866 !important;
+  color: #111315;
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .crump531-reference-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .crump531-reference-head .crump53-button {
+    width: 100%;
+  }
+
+  .crump531-chat-menu-popover {
+    left: 16px !important;
+    right: 16px !important;
+    top: auto !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+    width: auto;
+    border-radius: 18px;
+    padding: 8px;
+  }
+
+  .crump531-chat-menu-popover button {
+    padding: 13px 14px;
+    font-size: 14px;
+  }
+
+  .crump531-rename-overlay {
+    align-items: end;
+    padding: 0;
+  }
+
+  .crump531-rename-sheet {
+    border-radius: 28px 28px 0 0;
+    padding: 24px 20px calc(env(safe-area-inset-bottom, 0px) + 24px);
+  }
+
+  .crump531-use-file {
+    padding-inline: 9px;
+  }
+}

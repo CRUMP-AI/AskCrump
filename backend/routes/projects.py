@@ -135,3 +135,36 @@ async def project_files(project_id: str, request: Request):
         except Exception:
             continue
     return {"success": True, "files": output}
+@router.post("/{project_id}/files")
+async def attach_project_file(project_id: str, request: Request):
+    auth = await authenticate_request(request, db, settings)
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        return _error("Invalid file request.", "INVALID_PROJECT_FILE", 400)
+    file_id = str(payload.get("fileId") or "").strip()
+    role = str(payload.get("role") or "reference").strip().lower()
+    allowed_roles = {
+        "reference", "source", "canon", "inspiration", "asset",
+        "conversation_asset", "generated_image", "generated_document",
+        "generated_video", "manuscript_export",
+    }
+    if role not in allowed_roles:
+        role = "reference"
+    if not file_id:
+        return _error("Choose a file first.", "INVALID_PROJECT_FILE", 400)
+    try:
+        await projects.get(auth.user["id"], project_id)
+        row = await files.get_owned(user_id=auth.user["id"], file_id=file_id)
+        await projects.attach_file(
+            user_id=auth.user["id"],
+            project_id=project_id,
+            file_id=str(row["id"]),
+            role=role,
+        )
+        public = files.public_file(row)
+        public["projectRole"] = role
+        return {"success": True, "file": public}
+    except ProjectNotFoundError as exc:
+        return _error(str(exc), "PROJECT_NOT_FOUND", 404)
+    except Exception:
+        return _error("Could not attach that file to the Project.", "PROJECT_FILE_FAILED", 400)

@@ -81,6 +81,7 @@ window.CRUMP_CONFIG = Object.freeze({
     // its narrow sidebar rules have final authority without disturbing legacy layers.
     await loadStyle('/crump-navigation-5.2.5.css', 'crumpnav525');
     await loadStyle('/crump-product-5.3.css', 'crumpproduct53');
+    await loadStyle('/crump-product-5.3.1.css', 'crumpproduct531');
 
     for (const [url, key] of scripts) {
       await loadScript(url, key);
@@ -89,6 +90,7 @@ window.CRUMP_CONFIG = Object.freeze({
     // Load last so the cleanup runs after legacy/V1 handlers have initialized.
     await loadScript('/crump-navigation-5.2.5.js', 'crumpnav525');
     await loadScript('/crump-product-5.3.js', 'crumpproduct53');
+    await loadScript('/crump-product-5.3.1.js', 'crumpproduct531');
 
     document.documentElement.dataset.crumpBodyRuntime = 'ready';
   }

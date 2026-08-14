@@ -239,12 +239,12 @@ class MediaService:
             return None
         return {'response': answer, 'model': data.get('model') or self.settings.openai_vision_model, 'usage': data.get('usage') or {}}
 
-    async def extract_nonvisual(self, rows: list[dict[str, Any]], max_chars: int = 100_000) -> str | None:
+    async def extract_nonvisual(self, rows: list[dict[str, Any]], max_chars: int = 100_000, include_pdf: bool = False) -> str | None:
         sections: list[str] = []
         total = 0
         for row in rows[:10]:
             mime = row.get('mime_type')
-            if mime in IMAGE_TYPES or mime == PDF_TYPE:
+            if mime in IMAGE_TYPES or (mime == PDF_TYPE and not include_pdf):
                 continue
             try:
                 data = await self.files.download_bytes(row=row, max_bytes=30 * 1024 * 1024)

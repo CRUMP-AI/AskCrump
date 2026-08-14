@@ -1,0 +1,67 @@
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def read(relative: str) -> str:
+    return (ROOT / relative).read_text(encoding="utf-8")
+
+
+def test_531_personality_is_conversational_without_dropping_truthfulness():
+    ai = read("backend/ai_service.py")
+    assert "follow the spirit of casual questions" in ai
+    assert "ontology lecture" in ai
+    assert "Use contractions" in ai
+    assert "Do not fake emotions, memories, consciousness, or experiences" in ai
+
+
+def test_project_reference_files_use_existing_private_file_system():
+    routes = read("backend/routes/projects.py")
+    service = read("backend/project_service.py")
+    chat = read("backend/routes/chat.py")
+    media = read("backend/media_service.py")
+    assert '@router.post("/{project_id}/files")' in routes
+    assert "async def reference_files" in service
+    assert '"reference_files"' in service
+    assert "project_reference_files" in chat
+    assert "include_pdf=True" in chat
+    assert "include_pdf: bool = False" in media
+    assert "mime == PDF_TYPE and not include_pdf" in media
+
+
+def test_project_reference_ui_and_chat_rename_are_final_runtime_layers():
+    runtime = read("public/runtime-body-v1.js")
+    worker = read("public/sw.js")
+    js = read("public/crump-product-5.3.1.js")
+    css = read("public/crump-product-5.3.1.css")
+    app = read("public/app.js")
+    files = read("public/crump-5.0.js")
+    assert "/crump-product-5.3.1.css" in runtime
+    assert "/crump-product-5.3.1.js" in runtime
+    assert runtime.index("/crump-product-5.3.js") < runtime.index("/crump-product-5.3.1.js")
+    assert "ask-crump-new-body-v1-r5" in worker
+    assert "Reference files" in js
+    assert "Project files" in js
+    assert "Rename chat" in js
+    assert "data.chatId" not in js
+    assert "item.dataset.chatId = chat.id" in app
+    assert "window.CrumpFileTools" in files
+    assert "upload: async file =>" in files
+    assert "CrumpFileTools?.upload" in js
+    assert ".crump531-chat-menu-button" in css
+
+
+def test_project_canon_flags_conflicts_instead_of_silently_rewriting():
+    hooks = read("backend/product53_hooks.py")
+    assert "conflicts with established Project canon" in hooks
+    assert "point out the conflict" in hooks
+
+
+def test_clever_crump_page_uses_plain_language_positioning():
+    page = read("public/index.html")
+    assert "We build useful AI products." in page
+    assert "ChatGPT set the standard." in page
+    assert "We're not trying to out-ChatGPT ChatGPT." in page
+    assert "revolutionary" in page.lower()
+    assert "not going to call" in page.lower()
+    assert "transformative intelligence ecosystem" not in page.lower()
