@@ -23,7 +23,8 @@ from .security import normalize_chat_id
 
 ALLOWED_MIME_TYPES = {
     'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif',
-    'application/pdf',
+    'video/mp4', 'video/webm',
+    'application/pdf', 'application/epub+zip',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'application/vnd.openxmlformats-officedocument.presentationml.presentation',
@@ -33,6 +34,7 @@ ALLOWED_MIME_TYPES = {
 EXTENSION_MIME = {
     '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp',
     '.gif': 'image/gif', '.heic': 'image/heic', '.heif': 'image/heif', '.pdf': 'application/pdf',
+    '.mp4': 'video/mp4', '.webm': 'video/webm', '.epub': 'application/epub+zip',
     '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
@@ -104,6 +106,8 @@ class FileService:
         type_limit = self.settings.max_upload_bytes
         if mime.startswith('image/'):
             type_limit = min(type_limit, 25 * 1024 * 1024)
+        elif mime.startswith('video/'):
+            type_limit = min(type_limit, 90 * 1024 * 1024)
         elif mime == 'application/pdf':
             type_limit = min(type_limit, 50 * 1024 * 1024)
         elif mime in {
@@ -271,7 +275,12 @@ class FileService:
     ) -> dict[str, Any]:
         name = self.clean_filename(filename)
         mime = self.normalized_mime(name, mime_type)
-        if len(data) > self.settings.max_upload_bytes:
+        generated_limit = (
+            self.settings.max_generated_video_bytes
+            if kind == 'generated_video'
+            else self.settings.max_upload_bytes
+        )
+        if len(data) > generated_limit:
             raise FileServiceError('Generated file exceeds the storage limit.', 413, 'GENERATED_FILE_TOO_LARGE')
         file_id = str(uuid4())
         storage_path = self._path(user_id, file_id, name)

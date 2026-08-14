@@ -125,7 +125,7 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
         return cleaned
 
     async def search_web(self, query: str) -> str | None:
-        if not self.settings.brave_api_key:
+        if not self.settings.brave_api_key or not self.settings.web_search_enabled:
             return None
         try:
             async with httpx.AsyncClient(timeout=18) as client:
@@ -168,7 +168,7 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
         return None
 
     async def weather(self, query: str) -> str | None:
-        if not self.settings.openweather_api_key:
+        if not self.settings.openweather_api_key or not self.settings.web_search_enabled:
             return None
         location = self._extract_location(query)
         if not location:
@@ -217,8 +217,20 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
             re.I,
         ))
 
+    def needs_web_search(self, message: str) -> bool:
+        return bool(
+            self.settings.brave_api_key
+            and self.settings.web_search_enabled
+            and self._needs_search(message)
+        )
+
+    def needs_external_lookup(self, message: str) -> bool:
+        return self.needs_web_search(message) or (
+            bool(self.settings.openweather_api_key) and self.settings.web_search_enabled and self._needs_weather(message)
+        )
+
     async def generate_image(self, prompt: str) -> dict[str, Any] | None:
-        if not self.settings.openai_api_key:
+        if not self.settings.openai_api_key or not self.settings.image_generation_enabled:
             return None
         body: dict[str, Any] = {
             'model': self.settings.openai_image_model,

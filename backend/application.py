@@ -10,7 +10,10 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .http import register_exception_handlers, request_guards
-from .routes import account, auth, billing, chat, credits, files, health, intelligence, presence, sync
+from .routes import (
+    account, auth, billing, chat, credits, features, files, health, intelligence,
+    manuscripts, media, presence, projects, sync,
+)
 from .runtime import settings
 from .version import __version__
 
@@ -33,7 +36,7 @@ def create_app() -> FastAPI:
         allow_methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
         allow_headers=[
             'Content-Type', 'Authorization', 'X-Crump-Client', 'X-Crump-Platform',
-            'X-Device-Name', 'X-Installation-ID', 'X-Request-ID',
+            'X-Device-Name', 'X-Installation-ID', 'X-Request-ID', 'X-Idempotency-Key',
         ],
     )
     application.middleware('http')(request_guards)
@@ -43,6 +46,10 @@ def create_app() -> FastAPI:
     application.include_router(account.router)
     application.include_router(sync.router)
     application.include_router(files.router)
+    application.include_router(projects.router)
+    application.include_router(features.router)
+    application.include_router(media.router)
+    application.include_router(manuscripts.router)
     application.include_router(chat.router)
     application.include_router(intelligence.router)
     application.include_router(presence.router)

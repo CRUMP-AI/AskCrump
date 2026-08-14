@@ -11,8 +11,15 @@ from ..ai_service import AIServiceError
 from ..auth_service import authenticate_request
 from ..checkin_service import mark_check_in_responded
 from ..db import eq
+from ..feature_service import FeatureAccessError
 from ..file_service import FileServiceError
-from ..runtime import ai, artifacts, db, files, intelligence, media, settings
+from ..product53_hooks import (
+    apply_project_context,
+    attach_generated_outputs,
+    consume_feature_for_request,
+)
+from ..project_service import ProjectNotFoundError
+from ..runtime import ai, artifacts, db, features, files, intelligence, media, projects, settings
 from ..schemas import ChatAckRequest
 from ..security import iso_now, normalize_chat_id
 from ..usage_service import UsageLimitError, consume_usage, refund_usage
@@ -177,6 +184,33 @@ async def chat(request: Request):
             {'type': row.get('mime_type'), 'name': row.get('file_name')} for row in file_rows
         ]
 
+    project_id = None
+    try:
+        project_id = await apply_project_context(
+            user_id=auth.user['id'],
+            payload=request_payload,
+            chat_id=chat_id,
+            file_rows=current_file_rows,
+            projects=projects,
+        )
+    except ProjectNotFoundError:
+        await refund_usage(db, auth.user['id'], usage.get('eventId'))
+        if message_id:
+            await db.update(
+                'chat_jobs',
+                {'status': 'failed', 'error_code': 'PROJECT_NOT_FOUND', 'updated_at': iso_now()},
+                filters={'user_id': eq(auth.user['id']), 'message_id': eq(message_id)},
+            )
+        return JSONResponse(
+            status_code=404,
+            content={
+                'success': False,
+                'error': 'Project not found.',
+                'message': 'Project not found.',
+                'code': 'PROJECT_NOT_FOUND',
+            },
+        )
+
     requested_artifact = artifacts.detect_request(str(request_payload.get('message') or ''), request_payload.get('artifactFormat'))
     prepared = await intelligence.prepare(auth.user['id'], request_payload)
     request_payload = prepared.payload
@@ -216,6 +250,38 @@ async def chat(request: Request):
         str(request_payload.get('replyToCheckInId') or '') or None,
     )
 
+    feature_usage = None
+    try:
+        feature_usage = await consume_feature_for_request(
+            user=auth.user,
+            payload=request_payload,
+            file_rows=file_rows,
+            media=media,
+            ai=ai,
+            features=features,
+        )
+    except FeatureAccessError as exc:
+        await refund_usage(db, auth.user['id'], usage.get('eventId'))
+        if message_id:
+            await db.update(
+                'chat_jobs',
+                {'status': 'failed', 'error_code': exc.code, 'updated_at': iso_now()},
+                filters={'user_id': eq(auth.user['id']), 'message_id': eq(message_id)},
+            )
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                'success': False,
+                'error': exc.message,
+                'message': exc.message,
+                'code': exc.code,
+                'upgradeRequired': exc.code == 'SUBSCRIPTION_REQUIRED',
+                'requiredTier': exc.required_tier,
+                'creditsRequired': exc.credit_cost,
+                'creditBalance': exc.credit_balance,
+            },
+        )
+
     try:
         result = None
         if (
@@ -239,6 +305,7 @@ async def chat(request: Request):
             result = await ai.chat(request_payload)
     except AIServiceError as exc:
         await refund_usage(db, auth.user['id'], usage.get('eventId'))
+        await features.refund(auth.user['id'], feature_usage)
         if message_id:
             await db.update(
                 'chat_jobs',
@@ -279,6 +346,18 @@ async def chat(request: Request):
             )
         except Exception:
             result['artifactError'] = 'Crump wrote the content, but the downloadable file could not be packaged yet.'
+
+    if project_id:
+        try:
+            await attach_generated_outputs(
+                user_id=auth.user['id'],
+                project_id=project_id,
+                result=result,
+                projects=projects,
+            )
+        except Exception:
+            # Output ownership remains intact if optional Project association fails.
+            pass
 
     # The API, not an individual browser tab, owns persistence of the AI reply.
     if chat_id and message_id:
@@ -336,6 +415,7 @@ async def chat(request: Request):
                 result['conversationUpdatedAt'] = persisted[0].get('resulting_updated_at')
         except Exception:
             await refund_usage(db, auth.user['id'], usage.get('eventId'))
+            await features.refund(auth.user['id'], feature_usage)
             await db.update(
                 'chat_jobs',
                 {'status': 'failed', 'error_code': 'CHAT_PERSISTENCE', 'updated_at': iso_now()},
@@ -371,6 +451,9 @@ async def chat(request: Request):
         'memoriesSaved': memories_saved,
         'privateChat': prepared.private_chat,
     }
+
+    if feature_usage:
+        result['featureUsage'] = feature_usage
 
     if message_id:
         await db.update(

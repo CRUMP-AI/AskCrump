@@ -29,10 +29,18 @@ class Settings:
     openai_api_key: str | None
     openai_image_model: str
     openai_vision_model: str
+    gemini_api_key: str | None
+    gemini_video_model: str
     storage_bucket: str
     max_upload_bytes: int
     brave_api_key: str | None
     openweather_api_key: str | None
+    web_search_enabled: bool
+    image_generation_enabled: bool
+    video_generation_enabled: bool
+    manuscript_generation_enabled: bool
+    max_active_video_jobs_per_user: int
+    max_generated_video_bytes: int
     resend_api_key: str | None
     from_email: str
     support_email: str
@@ -99,6 +107,10 @@ class Settings:
             raise RuntimeError('APNS_ENVIRONMENT must be production or sandbox.')
         if not 1 <= self.check_in_batch_size <= 100:
             raise RuntimeError('CHECK_IN_BATCH_SIZE must be between 1 and 100.')
+        if not 1 <= self.max_active_video_jobs_per_user <= 3:
+            raise RuntimeError('MAX_ACTIVE_VIDEO_JOBS_PER_USER must be between 1 and 3.')
+        if not 5 * 1024 * 1024 <= self.max_generated_video_bytes <= 100 * 1024 * 1024:
+            raise RuntimeError('MAX_GENERATED_VIDEO_BYTES must be between 5 MB and 100 MB.')
 
 
 @lru_cache(maxsize=1)
@@ -126,10 +138,18 @@ def get_settings() -> Settings:
         openai_api_key=os.getenv('OPENAI_API_KEY'),
         openai_image_model=os.getenv('OPENAI_IMAGE_MODEL', 'gpt-image-2'),
         openai_vision_model=os.getenv('OPENAI_VISION_MODEL', 'gpt-5.6-sol'),
+        gemini_api_key=os.getenv('GEMINI_API_KEY'),
+        gemini_video_model=os.getenv('GEMINI_VIDEO_MODEL', 'veo-3.1-lite-generate-preview'),
         storage_bucket=os.getenv('CRUMP_STORAGE_BUCKET', 'crump-files'),
         max_upload_bytes=int(os.getenv('MAX_UPLOAD_BYTES', str(50 * 1024 * 1024))),
         brave_api_key=os.getenv('BRAVE_API_KEY'),
         openweather_api_key=os.getenv('OPENWEATHER_API_KEY'),
+        web_search_enabled=_bool(os.getenv('CRUMP_ENABLE_WEB_SEARCH'), True),
+        image_generation_enabled=_bool(os.getenv('CRUMP_ENABLE_IMAGE_GENERATION'), True),
+        video_generation_enabled=_bool(os.getenv('CRUMP_ENABLE_VIDEO_GENERATION'), False),
+        manuscript_generation_enabled=_bool(os.getenv('CRUMP_ENABLE_MANUSCRIPTS'), True),
+        max_active_video_jobs_per_user=int(os.getenv('MAX_ACTIVE_VIDEO_JOBS_PER_USER', '1')),
+        max_generated_video_bytes=int(os.getenv('MAX_GENERATED_VIDEO_BYTES', str(90 * 1024 * 1024))),
         resend_api_key=os.getenv('RESEND_API_KEY'),
         from_email=os.getenv('FROM_EMAIL', 'Ask Crump <noreply@askcrump.com>'),
         support_email=os.getenv('SUPPORT_EMAIL', 'support@askcrump.com'),

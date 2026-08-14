@@ -1,0 +1,374 @@
+/* Ask Crump 5.3 — product expansion layer.
+   Loaded after the canonical V1 stack. Keep overrides intentionally narrow. */
+
+/* User-approved mobile polish: one safe-area owner, lower composer, centered visible jump button. */
+@media (max-width: 820px) {
+  html.native-app body.crump-v1-body,
+  .native-app body.crump-v1-body {
+    padding-bottom: 0 !important;
+  }
+
+  body.crump-v1-body .v1-command-dock {
+    padding-bottom: max(8px, calc(env(safe-area-inset-bottom) - 24px)) !important;
+  }
+
+  body.crump-v1-body #scrollToEndBtn {
+    right: auto !important;
+    left: 50% !important;
+    bottom: calc(max(8px, calc(env(safe-area-inset-bottom) - 24px)) + 118px) !important;
+    transform: translateX(-50%) !important;
+    border-color: rgba(217,191,132,.34) !important;
+    background: #202832 !important;
+    color: #ead59f !important;
+    box-shadow:
+      0 15px 42px rgba(0,0,0,.48),
+      0 0 0 1px rgba(255,255,255,.035),
+      inset 0 1px rgba(255,255,255,.075) !important;
+  }
+  body.crump-v1-body #scrollToEndBtn:hover,
+  body.crump-v1-body #scrollToEndBtn:focus-visible {
+    border-color: rgba(217,191,132,.52) !important;
+    background: #27313c !important;
+    color: #f5dfaa !important;
+  }
+  body.crump-v1-body #scrollToEndBtn:active {
+    transform: translateX(-50%) scale(.94) !important;
+  }
+
+  body.crump-v1-body .v1-mode-strip {
+    max-width: calc(100vw - 24px);
+  }
+  body.crump-v1-body .v1-mode-pill {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+}
+
+/* Projects rail destination injected by the 5.3 runtime. */
+body.crump-v1-body .crump53-projects-button svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+body.crump-v1-body .crump53-projects-button.is-active {
+  border-color: rgba(217,191,132,.25) !important;
+  background: rgba(217,191,132,.07) !important;
+  color: #dfc98f !important;
+}
+
+body.crump-v1-body .crump53-active-project {
+  display: inline-flex;
+  max-width: min(38vw, 320px);
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  padding: 5px 9px;
+  overflow: hidden;
+  border: 1px solid rgba(217,191,132,.15);
+  border-radius: 999px;
+  background: rgba(217,191,132,.045);
+  color: #bda978;
+  font-size: 9px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.crump-v1-body .crump53-active-project button {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #777d80;
+  cursor: pointer;
+}
+
+/* Shared product sheet. */
+body.crump-v1-body .crump53-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right))
+    max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  background: rgba(0,0,0,.58);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+body.crump-v1-body .crump53-overlay[hidden] { display: none !important; }
+body.crump-v1-body .crump53-sheet {
+  display: grid;
+  width: min(1040px, 100%);
+  max-height: min(820px, 92vh);
+  grid-template-rows: auto minmax(0,1fr);
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 28px;
+  background:
+    radial-gradient(650px 360px at 0 0, rgba(217,191,132,.055), transparent 68%),
+    #0f141a;
+  color: #e9e7e2;
+  box-shadow: 0 38px 100px rgba(0,0,0,.62);
+}
+body.crump-v1-body .crump53-sheet-head {
+  display: flex;
+  min-height: 82px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 22px;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+body.crump-v1-body .crump53-sheet-head strong {
+  display: block;
+  color: #f2eee5;
+  font-family: var(--ac-display, Georgia, serif);
+  font-size: 27px;
+  font-weight: 450;
+  letter-spacing: -.025em;
+}
+body.crump-v1-body .crump53-kicker {
+  margin-bottom: 4px;
+  color: #c9ad71;
+  font-size: 8px;
+  font-weight: 780;
+  letter-spacing: .22em;
+}
+body.crump-v1-body .crump53-close {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px;
+  background: rgba(255,255,255,.025);
+  color: #989da0;
+  font-size: 22px;
+  cursor: pointer;
+}
+body.crump-v1-body .crump53-sheet-body {
+  min-height: 0;
+  overflow: auto;
+  padding: 22px;
+}
+body.crump-v1-body .crump53-tabs {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 18px;
+  padding: 4px;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 999px;
+  background: rgba(0,0,0,.18);
+}
+body.crump-v1-body .crump53-tab {
+  flex: 1;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #747a7e;
+  font-size: 10px;
+  font-weight: 680;
+  cursor: pointer;
+}
+body.crump-v1-body .crump53-tab.is-active {
+  background: rgba(217,191,132,.09);
+  color: #e1d1ac;
+}
+body.crump-v1-body .crump53-panel[hidden] { display: none !important; }
+body.crump-v1-body .crump53-grid {
+  display: grid;
+  grid-template-columns: minmax(220px,.72fr) minmax(0,1.5fr);
+  gap: 16px;
+}
+body.crump-v1-body .crump53-card {
+  padding: 17px;
+  border: 1px solid rgba(255,255,255,.075);
+  border-radius: 19px;
+  background: rgba(255,255,255,.018);
+}
+body.crump-v1-body .crump53-card h3,
+body.crump-v1-body .crump53-card h4 {
+  margin: 0 0 8px;
+  color: #e9e7e1;
+  font-size: 14px;
+}
+body.crump-v1-body .crump53-card p {
+  margin: 0 0 12px;
+  color: #7e8488;
+  font-size: 11px;
+  line-height: 1.55;
+}
+body.crump-v1-body .crump53-list {
+  display: grid;
+  gap: 7px;
+}
+body.crump-v1-body .crump53-list-button {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0,1fr) auto;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid rgba(255,255,255,.065);
+  border-radius: 13px;
+  background: rgba(255,255,255,.015);
+  color: #bec1c0;
+  text-align: left;
+  cursor: pointer;
+}
+body.crump-v1-body .crump53-list-button.is-active {
+  border-color: rgba(217,191,132,.24);
+  background: rgba(217,191,132,.05);
+  color: #e4d5b3;
+}
+body.crump-v1-body .crump53-list-button small {
+  color: #62696d;
+  font-size: 8px;
+}
+body.crump-v1-body .crump53-form {
+  display: grid;
+  gap: 10px;
+}
+body.crump-v1-body .crump53-label {
+  display: grid;
+  gap: 5px;
+  color: #9ca0a0;
+  font-size: 9px;
+  font-weight: 650;
+}
+body.crump-v1-body :is(.crump53-input,.crump53-select,.crump53-textarea) {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 12px;
+  outline: 0;
+  background: #0b1015;
+  color: #ece9e3;
+  font: inherit;
+}
+body.crump-v1-body .crump53-textarea {
+  min-height: 120px;
+  line-height: 1.55;
+  resize: vertical;
+}
+body.crump-v1-body .crump53-textarea.crump53-editor { min-height: 330px; }
+body.crump-v1-body :is(.crump53-input,.crump53-select,.crump53-textarea):focus {
+  border-color: rgba(217,191,132,.34);
+  box-shadow: 0 0 0 2px rgba(217,191,132,.04);
+}
+body.crump-v1-body .crump53-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+body.crump-v1-body .crump53-button {
+  min-height: 42px;
+  padding: 0 15px;
+  border: 1px solid rgba(255,255,255,.085);
+  border-radius: 12px;
+  background: rgba(255,255,255,.025);
+  color: #bbbebb;
+  font-size: 10px;
+  font-weight: 680;
+  cursor: pointer;
+}
+body.crump-v1-body .crump53-button.is-primary {
+  border-color: rgba(217,191,132,.26);
+  background: linear-gradient(180deg, #dbc58f, #b89a59);
+  color: #090c0f;
+}
+body.crump-v1-body .crump53-button.is-danger { color: #c98d88; }
+body.crump-v1-body .crump53-button:disabled { opacity: .44; cursor: not-allowed; }
+body.crump-v1-body .crump53-note {
+  padding: 10px 12px;
+  border: 1px solid rgba(217,191,132,.12);
+  border-radius: 12px;
+  background: rgba(217,191,132,.035);
+  color: #9f947c;
+  font-size: 9px;
+  line-height: 1.5;
+}
+body.crump-v1-body .crump53-status {
+  min-height: 18px;
+  color: #93999b;
+  font-size: 9px;
+}
+body.crump-v1-body .crump53-status.is-error { color: #c88d88; }
+body.crump-v1-body .crump53-video-preview {
+  width: 100%;
+  max-height: 460px;
+  margin-top: 12px;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 17px;
+  background: #07090c;
+}
+body.crump-v1-body .crump53-lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px;
+  border: 1px solid rgba(217,191,132,.14);
+  border-radius: 999px;
+  color: #b9a36f;
+  font-size: 8px;
+}
+
+@media (max-width: 820px) {
+  body.crump-v1-body .crump53-overlay {
+    align-items: end;
+    padding: 0;
+  }
+  body.crump-v1-body .crump53-sheet {
+    width: 100%;
+    max-height: calc(100dvh - max(54px, env(safe-area-inset-top)));
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 28px 28px 0 0;
+  }
+  body.crump-v1-body .crump53-sheet-body {
+    padding: 16px max(16px, env(safe-area-inset-right))
+      max(20px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  }
+  body.crump-v1-body .crump53-grid { grid-template-columns: 1fr; }
+  body.crump-v1-body .crump53-active-project { display: none; }
+  body.crump-v1-body .crump53-textarea.crump53-editor { min-height: 260px; }
+}
+
+body.crump-v1-body .crump53-context-item {
+  padding: 11px 12px;
+  border: 1px solid rgba(255,255,255,.065);
+  border-radius: 13px;
+  background: rgba(255,255,255,.015);
+}
+body.crump-v1-body .crump53-context-item small {
+  display: block;
+  margin-bottom: 4px;
+  color: #b99d64;
+  font-size: 7px;
+  font-weight: 760;
+  letter-spacing: .13em;
+}
+body.crump-v1-body .crump53-context-item strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #d9d7d1;
+  font-size: 10px;
+}
+body.crump-v1-body .crump53-context-item p {
+  margin: 0;
+  color: #747b7f;
+  font-size: 9px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}

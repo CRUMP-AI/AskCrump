@@ -5,7 +5,7 @@ const expectedFiles = new Set([
   'account-manager.js', 'app.js', 'auth-controller.js', 'billing-manager.js', 'chat-sync.js',
   'crump-4.3.js', 'crump-4.4.js', 'crump-5.0.js', 'crump-billing-5.1.js',
   'crump-5.2.js', 'crump-5.2.2.js', 'crump-5.2.4.js', 'crump-navigation-5.2.5.js',
-  'crump-v1.js', 'crump-v1-body.js', 'crump-v1-stability.js',
+  'crump-v1.js', 'crump-v1-body.js', 'crump-v1-stability.js', 'crump-product-5.3.js',
   'device-auth.js', 'install-prompt.js', 'landing.js', 'mobile-bridge.js', 'native-entry.js',
   'native-runtime.js', 'onboarding.js', 'presence-manager.js', 'profile-manager.js',
   'runtime-config.js', 'runtime-config-v1.js', 'runtime-body-v1.js', 'safe-storage.js',
@@ -41,6 +41,8 @@ const repoRoot = new URL('../', import.meta.url);
 const requiredBodyFiles = [
   'public/crump-v1-body.css',
   'public/crump-v1-body.js',
+  'public/crump-product-5.3.css',
+  'public/crump-product-5.3.js',
   'public/runtime-body-v1.js',
   'public/assets/brand/crump-mark.png',
   'public/assets/brand/crump-horizontal-light.png',
@@ -88,7 +90,8 @@ if (appHtml.includes('fonts.googleapis.com') || appHtml.includes('fonts.gstatic.
 }
 
 const runtime = await readFile(new URL('public/runtime-body-v1.js', repoRoot), 'utf8');
-if (!runtime.includes('/crump-v1-body.js') || !runtime.includes('/crump-v1-body.css')) {
+if (!runtime.includes('/crump-v1-body.js') || !runtime.includes('/crump-v1-body.css') ||
+    !runtime.includes('/crump-product-5.3.js') || !runtime.includes('/crump-product-5.3.css')) {
   console.error('New-body runtime is missing the canonical shell.');
   process.exit(1);
 }
@@ -109,7 +112,7 @@ if (!v1Body.includes('removeLegacyEmptyState(container)')) {
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r3') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r4') ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes('/crump-v1-body.js')) {
   console.error('New-body service-worker contract is incomplete.');

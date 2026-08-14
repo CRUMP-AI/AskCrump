@@ -1,0 +1,97 @@
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def read(relative: str) -> str:
+    return (ROOT / relative).read_text(encoding="utf-8")
+
+
+def test_product53_runtime_is_registered_last_and_cached():
+    runtime = read("public/runtime-body-v1.js")
+    worker = read("public/sw.js")
+    checker = read("scripts/check-javascript.mjs")
+    assert "/crump-product-5.3.css" in runtime
+    assert "/crump-product-5.3.js" in runtime
+    assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
+    assert "ask-crump-new-body-v1-r4" in worker
+    assert "/crump-product-5.3.js" in worker
+    assert "crump-product-5.3.js" in checker
+
+
+def test_mobile_polish_matches_approved_scope():
+    css = read("public/crump-product-5.3.css")
+    assert "#scrollToEndBtn" in css
+    assert "left: 50% !important" in css
+    assert "right: auto !important" in css
+    assert "translateX(-50%)" in css
+    assert "padding-bottom: 0 !important" in css
+    assert "env(safe-area-inset-bottom) - 24px" in css
+
+
+def test_projects_media_manuscripts_and_cost_controls_are_registered():
+    application = read("backend/application.py")
+    runtime = read("backend/runtime.py")
+    chat = read("backend/routes/chat.py")
+    config = read("backend/config.py")
+    for route in ("projects", "features", "media", "manuscripts"):
+        assert f"application.include_router({route}.router)" in application
+    assert "FeatureService" in runtime
+    assert "ProjectService" in runtime
+    assert "VideoService" in runtime
+    assert "ManuscriptService" in runtime
+    assert "consume_feature_for_request" in chat
+    assert "apply_project_context" in chat
+    assert "GEMINI_API_KEY" in read(".env.example")
+    assert "video_generation_enabled" in config
+
+
+def test_product_expansion_schema_is_private_and_complete():
+    migration = read("migrations/009_product_expansion.sql")
+    for table in (
+        "projects",
+        "project_chats",
+        "project_files",
+        "project_context",
+        "manuscripts",
+        "manuscript_sections",
+        "media_jobs",
+    ):
+        assert f"public.{table}" in migration
+        assert f"alter table public.{table} enable row level security" in migration
+        assert f"revoke all on table public.{table} from anon, authenticated" in migration
+    assert "generated_video" in migration
+    assert "manuscript_export" in migration
+    assert "application/epub+zip" in migration
+
+
+def test_video_retry_does_not_bill_twice():
+    route = read("backend/routes/media.py")
+    existing_lookup = route.index('existing = await db.select_one(')
+    consume = route.index("receipt = await features.consume(")
+    assert existing_lookup < consume
+    assert "idempotentReplay" in route
+    video = read("backend/video_service.py")
+    assert '"durationSeconds": 8' in video
+    assert '"numberOfVideos": 1' in video
+    assert "async def _mark_failed" in video
+    assert "could not save the file" in video
+
+
+def test_feature_policy_has_explicit_expensive_tool_gates():
+    policy = read("backend/feature_service.py")
+    assert '"image"' in policy and '"professional"' in policy
+    assert '"video"' in policy and '60' in policy
+    assert '"video_hd"' in policy and '90' in policy
+    assert '"manuscript_draft"' in policy and '8' in policy
+    assert 'PROJECT_LIMITS = {"free": 2, "professional": 25, "enterprise": 200}' in policy
+
+
+def test_projects_ui_exposes_isolated_canon_and_video_copy_matches_cost_policy():
+    js = read("public/crump-product-5.3.js")
+    assert "Canon & project notes" in js
+    assert "/context`" in js
+    assert "720p · 60 credits" in js
+    assert "every generation spends Crump Credits" in js
+    assert "Additional AI drafts use 8 credits" in js
+    assert "Enterprise includes one" not in js

@@ -86,7 +86,7 @@ class MediaService:
         chat_id: str | None,
         message_id: str | None,
     ) -> dict[str, Any]:
-        if not self.settings.openai_api_key:
+        if not self.settings.openai_api_key or not self.settings.image_generation_enabled:
             raise AIServiceError('Image generation is not configured.', 503, 'IMAGE_NOT_CONFIGURED', False, 0)
         prompt = str(payload.get('message') or '').strip()
         editing = self.is_edit_request(prompt, file_rows) or bool(payload.get('imageUseReference') and any(row.get('mime_type') in IMAGE_TYPES for row in file_rows))
