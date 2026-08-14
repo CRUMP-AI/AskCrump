@@ -18,11 +18,9 @@
     :root{--ink:#080b0f;--panel:#10151b;--panel2:#151b22;--line:rgba(231,232,230,.12);--muted:#858b91;--gold:#d2b468;--gold2:#ae9352;--serif:Georgia,"Times New Roman",serif}
     .navbar{position:fixed;inset:0 0 auto;z-index:20;height:78px;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(22px,5vw,76px);background:rgba(8,11,15,.78);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid transparent;transition:.2s}
     .navbar.scrolled{border-bottom-color:var(--line);background:rgba(8,11,15,.94)}
-    .brand-lockup{display:flex;align-items:center;gap:11px;text-decoration:none;min-width:0}
-    .nav-logo{width:clamp(142px,16vw,188px);height:45px;object-fit:contain;object-position:left center;display:block}
-    .brand-parent{display:flex;flex-direction:column;gap:1px;padding-left:11px;border-left:1px solid rgba(231,232,230,.12);white-space:nowrap}
-    .brand-parent small{font-size:8px;letter-spacing:.18em;color:#656c73;font-weight:800}
-    .brand-parent strong{font-size:10px;letter-spacing:.13em;color:#aaa79d;font-weight:750}
+    .brand-lockup{display:flex;align-items:center;gap:13px;text-decoration:none;min-width:0}
+    .nav-logo{width:clamp(188px,20vw,238px);height:48px;object-fit:contain;object-position:left center;display:block}
+    .brand-origin{padding-left:12px;border-left:1px solid rgba(231,232,230,.12);font-size:9px;letter-spacing:.17em;color:#8e8a80;font-weight:800;white-space:nowrap}
     .navlinks{display:flex;align-items:center;gap:28px}
     .navlinks a{text-decoration:none;color:#a3a8ad;font-size:13px}
     .navlinks a:hover{color:#eee}
@@ -87,17 +85,17 @@
     .closing{text-align:center;padding:140px 24px}.closing h2{max-width:900px;margin:0 auto 22px}.closing p{color:#8c9298;max-width:650px;margin:0 auto 30px;font-size:17px}
     footer{border-top:1px solid var(--line);padding:34px clamp(22px,5vw,76px);display:flex;justify-content:space-between;gap:20px;color:#6f767d;font-size:12px}
     footer a{text-decoration:none;color:#9b9fa4}
-    @media(max-width:900px){.brand-parent{display:none}.nav-logo{width:160px}.choice-grid{grid-template-columns:1fr}}
+    @media(max-width:900px){.brand-origin{display:none}.nav-logo{width:205px}.choice-grid{grid-template-columns:1fr}}
     @media(max-width:800px){.navlinks a:not(.nav-cta){display:none}.stage-app{grid-template-columns:1fr}.stage-rail{display:none}.stage-main{padding-top:38px}.feature-grid,.workflow{grid-template-columns:1fr}.workflow-copy{position:static}.product-stage{border-radius:24px}.stage-main h2{font-size:44px}}
-    @media(max-width:520px){.navbar{height:68px;padding-inline:16px}.nav-logo{width:142px;height:40px}.nav-cta{padding:9px 13px}.hero{padding-top:120px}.hero h1{font-size:52px}.product-stage{width:calc(100% - 18px)}.stage-main{padding-inline:15px}.stage-logo{max-width:82%}.launch{grid-template-columns:40px 1fr}.launch b{display:none}.section{padding:88px 20px}.feature{padding:22px}.closing{padding:100px 20px}footer{flex-direction:column}}
+    @media(max-width:520px){.navbar{height:68px;padding-inline:16px}.nav-logo{width:176px;height:40px}.nav-cta{padding:9px 13px}.hero{padding-top:120px}.hero h1{font-size:52px}.product-stage{width:calc(100% - 18px)}.stage-main{padding-inline:15px}.stage-logo{max-width:82%}.launch{grid-template-columns:40px 1fr}.launch b{display:none}.section{padding:88px 20px}.feature{padding:22px}.closing{padding:100px 20px}footer{flex-direction:column}}
     @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
   </style>
 </head>
 <body>
   <nav class="navbar">
-    <a class="brand-lockup" href="#top" aria-label="Ask Crump by Clever Crump">
-      <img class="nav-logo" src="/assets/brand/crump-horizontal-light.png" alt="Ask Crump">
-      <span class="brand-parent"><small>A CLEVER CRUMP PRODUCT</small><strong>BUILT IN SAVANNAH</strong></span>
+    <a class="brand-lockup" href="#top" aria-label="Clever Crump home">
+      <img class="nav-logo" src="/assets/brand/clever-crump-horizontal.webp" alt="Clever Crump">
+      <span class="brand-origin">BUILT IN SAVANNAH</span>
     </a>
     <div class="navlinks">
       <a href="#ask-crump">Ask Crump</a>
