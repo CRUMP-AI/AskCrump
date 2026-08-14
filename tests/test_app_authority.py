@@ -29,6 +29,9 @@ class FakeAI:
     def __init__(self):
         self.payload = None
 
+    def needs_external_lookup(self, _message):
+        return False
+
     async def chat(self, payload):
         self.payload = payload
         return {'response': 'ok', 'model': 'test-model', 'usage': {}}
