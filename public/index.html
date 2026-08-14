@@ -4,9 +4,9 @@
   <script defer src="/landing.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Clever Crump builds useful AI products. Ask Crump is our first: a workspace for conversations, projects, files, research, manuscripts, images, and video.">
+  <meta name="description" content="Ask Crump is an AI workspace for ongoing work: conversations, Projects, files, research, manuscripts, images, video, and finished deliverables.">
   <meta name="theme-color" content="#080b0f">
-  <title>Clever Crump | Meet Ask Crump</title>
+  <title>Clever Crump | Ask Crump</title>
   <link rel="icon" type="image/png" href="/assets/icon-192.png">
   <link rel="apple-touch-icon" href="/assets/icon-512.png">
   <style>
@@ -18,9 +18,11 @@
     :root{--ink:#080b0f;--panel:#10151b;--panel2:#151b22;--line:rgba(231,232,230,.12);--muted:#858b91;--gold:#d2b468;--gold2:#ae9352;--serif:Georgia,"Times New Roman",serif}
     .navbar{position:fixed;inset:0 0 auto;z-index:20;height:78px;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(22px,5vw,76px);background:rgba(8,11,15,.78);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid transparent;transition:.2s}
     .navbar.scrolled{border-bottom-color:var(--line);background:rgba(8,11,15,.94)}
-    .company{display:flex;align-items:center;gap:11px;text-decoration:none}
-    .company-mark{width:30px;height:30px;border:1px solid rgba(210,180,104,.5);border-radius:50%;display:grid;place-items:center;color:var(--gold);font-family:var(--serif);font-weight:700}
-    .company span:last-child{font-size:12px;letter-spacing:.17em;font-weight:750;color:#ddd9cf}
+    .brand-lockup{display:flex;align-items:center;gap:11px;text-decoration:none;min-width:0}
+    .nav-logo{width:clamp(142px,16vw,188px);height:45px;object-fit:contain;object-position:left center;display:block}
+    .brand-parent{display:flex;flex-direction:column;gap:1px;padding-left:11px;border-left:1px solid rgba(231,232,230,.12);white-space:nowrap}
+    .brand-parent small{font-size:8px;letter-spacing:.18em;color:#656c73;font-weight:800}
+    .brand-parent strong{font-size:10px;letter-spacing:.13em;color:#aaa79d;font-weight:750}
     .navlinks{display:flex;align-items:center;gap:28px}
     .navlinks a{text-decoration:none;color:#a3a8ad;font-size:13px}
     .navlinks a:hover{color:#eee}
@@ -31,9 +33,9 @@
     .hero-inner{width:min(1120px,100%);text-align:center;position:relative}
     .eyebrow{font-size:11px;letter-spacing:.21em;font-weight:800;color:#bba466;margin-bottom:22px}
     h1,h2,h3,p{margin-top:0}
-    .hero h1{font-family:var(--serif);font-weight:400;letter-spacing:-.045em;font-size:clamp(52px,8vw,104px);line-height:.96;margin-bottom:28px}
+    .hero h1{font-family:var(--serif);font-weight:400;letter-spacing:-.045em;font-size:clamp(52px,8vw,100px);line-height:.98;margin:0 auto 28px;max-width:1020px}
     .hero h1 em{font-style:normal;color:var(--gold)}
-    .hero-copy{width:min(690px,100%);margin:0 auto 34px;color:#969ba1;font-size:clamp(17px,2vw,21px)}
+    .hero-copy{width:min(720px,100%);margin:0 auto 34px;color:#969ba1;font-size:clamp(17px,2vw,21px)}
     .hero-actions{display:flex;justify-content:center;gap:11px;flex-wrap:wrap}
     .button{display:inline-flex;align-items:center;justify-content:center;min-height:49px;padding:0 20px;border-radius:14px;text-decoration:none;font-size:14px;font-weight:700;border:1px solid var(--line)}
     .button.primary{background:linear-gradient(135deg,#dec57b,#b99d56);color:#111315;border-color:transparent}
@@ -60,13 +62,13 @@
     .composer-plus{font-size:28px;text-align:center}.composer-send{height:42px;border-radius:50%;background:#d4b66a;color:#111;display:grid;place-items:center;font-size:21px}
     .section{padding:120px 24px}
     .section-inner{width:min(1100px,100%);margin:0 auto}
-    .section-head{max-width:760px;margin-bottom:56px}
+    .section-head{max-width:780px;margin-bottom:56px}
     .section h2{font-family:var(--serif);font-weight:400;font-size:clamp(42px,6vw,72px);line-height:1.02;letter-spacing:-.035em;margin-bottom:20px}
     .section-head p{color:#8d9399;font-size:18px}
     .plain{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#0b0f13}
-    .plain-quote{font-family:var(--serif);font-size:clamp(30px,4vw,50px);line-height:1.2;max-width:900px;color:#e8e6df}
+    .plain-quote{font-family:var(--serif);font-size:clamp(30px,4vw,50px);line-height:1.2;max-width:920px;color:#e8e6df}
     .plain-quote span{color:#b8a263}
-    .plain-sub{max-width:720px;color:#848b92;margin-top:22px;font-size:16px}
+    .plain-sub{max-width:760px;color:#848b92;margin-top:22px;font-size:16px}
     .feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
     .feature{border:1px solid var(--line);border-radius:24px;background:#10151a;padding:28px}
     .feature .number{font-size:10px;color:#b59d5f;letter-spacing:.16em;font-weight:800;margin-bottom:30px}
@@ -78,27 +80,28 @@
     .step{border:1px solid var(--line);border-radius:20px;background:#0e1318;padding:20px 22px;display:grid;grid-template-columns:36px 1fr;gap:14px}
     .step-num{width:30px;height:30px;border:1px solid rgba(210,180,104,.3);border-radius:50%;display:grid;place-items:center;color:#c7ae69;font-size:11px}
     .step strong{display:block;margin-bottom:5px}.step span{color:#7d848b;font-size:13px}
-    .compare{background:#0b0f13;border-top:1px solid var(--line)}
-    .compare-box{border:1px solid var(--line);border-radius:28px;overflow:hidden}
-    .compare-row{display:grid;grid-template-columns:210px 1fr 1fr;border-bottom:1px solid var(--line)}
-    .compare-row:last-child{border-bottom:0}.compare-row>*{padding:18px 20px}.compare-row>*+*{border-left:1px solid var(--line)}
-    .compare-row.head{background:#11171d;font-size:11px;letter-spacing:.12em;color:#9da2a7;font-weight:800}
-    .compare-label{color:#8a9096;font-size:13px}.compare-value{color:#d7d8d7;font-size:14px}
-    .compare-note{color:#737a81;font-size:12px;margin-top:15px}
+    .choice-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .choice{border:1px solid var(--line);border-radius:22px;padding:25px;background:#0f1419}
+    .choice b{display:block;color:#c4ab67;font-size:10px;letter-spacing:.15em;margin-bottom:18px}
+    .choice h3{font-size:18px;margin-bottom:9px}.choice p{color:#7f868e;font-size:13px;margin:0}
     .closing{text-align:center;padding:140px 24px}.closing h2{max-width:900px;margin:0 auto 22px}.closing p{color:#8c9298;max-width:650px;margin:0 auto 30px;font-size:17px}
     footer{border-top:1px solid var(--line);padding:34px clamp(22px,5vw,76px);display:flex;justify-content:space-between;gap:20px;color:#6f767d;font-size:12px}
     footer a{text-decoration:none;color:#9b9fa4}
-    @media(max-width:800px){.navlinks a:not(.nav-cta){display:none}.stage-app{grid-template-columns:1fr}.stage-rail{display:none}.stage-main{padding-top:38px}.feature-grid,.workflow{grid-template-columns:1fr}.workflow-copy{position:static}.compare-row{grid-template-columns:1fr}.compare-row>*+*{border-left:0;border-top:1px solid var(--line)}.compare-row.head{display:none}.compare-label{font-weight:700;color:#b7bbc0}.product-stage{border-radius:24px}.stage-main h2{font-size:44px}}
-    @media(max-width:520px){.navbar{height:68px}.hero{padding-top:120px}.hero h1{font-size:54px}.product-stage{width:calc(100% - 18px)}.stage-main{padding-inline:15px}.stage-logo{max-width:82%}.launch{grid-template-columns:40px 1fr}.launch b{display:none}.section{padding:88px 20px}.feature{padding:22px}.closing{padding:100px 20px}footer{flex-direction:column}}
+    @media(max-width:900px){.brand-parent{display:none}.nav-logo{width:160px}.choice-grid{grid-template-columns:1fr}}
+    @media(max-width:800px){.navlinks a:not(.nav-cta){display:none}.stage-app{grid-template-columns:1fr}.stage-rail{display:none}.stage-main{padding-top:38px}.feature-grid,.workflow{grid-template-columns:1fr}.workflow-copy{position:static}.product-stage{border-radius:24px}.stage-main h2{font-size:44px}}
+    @media(max-width:520px){.navbar{height:68px;padding-inline:16px}.nav-logo{width:142px;height:40px}.nav-cta{padding:9px 13px}.hero{padding-top:120px}.hero h1{font-size:52px}.product-stage{width:calc(100% - 18px)}.stage-main{padding-inline:15px}.stage-logo{max-width:82%}.launch{grid-template-columns:40px 1fr}.launch b{display:none}.section{padding:88px 20px}.feature{padding:22px}.closing{padding:100px 20px}footer{flex-direction:column}}
     @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
   </style>
 </head>
 <body>
   <nav class="navbar">
-    <a class="company" href="#top" aria-label="Clever Crump home"><span class="company-mark">C</span><span>CLEVER CRUMP</span></a>
+    <a class="brand-lockup" href="#top" aria-label="Ask Crump by Clever Crump">
+      <img class="nav-logo" src="/assets/brand/crump-horizontal-light.png" alt="Ask Crump">
+      <span class="brand-parent"><small>A CLEVER CRUMP PRODUCT</small><strong>BUILT IN SAVANNAH</strong></span>
+    </a>
     <div class="navlinks">
       <a href="#ask-crump">Ask Crump</a>
-      <a href="#different">Why it feels different</a>
+      <a href="#why">Why Ask Crump</a>
       <a class="nav-cta" href="https://askcrump.com/app">Open Ask Crump</a>
     </div>
   </nav>
@@ -106,14 +109,14 @@
   <main id="top">
     <section class="hero">
       <div class="hero-inner">
-        <div class="eyebrow">CLEVER CRUMP</div>
-        <h1>We build useful<br><em>AI products.</em></h1>
-        <p class="hero-copy">Ask Crump is our first. Bring it a question, a file, a half-finished idea, or a Project you keep coming back to. Keep the work together and keep moving it forward.</p>
+        <div class="eyebrow">CLEVER CRUMP PRESENTS</div>
+        <h1>Bring Crump something you're <em>actually working on.</em></h1>
+        <p class="hero-copy">Ask Crump is built for work that doesn't end after one answer. Keep the conversation, the files, the decisions, the research, and what you create together in one place.</p>
         <div class="hero-actions">
           <a class="button primary" href="https://askcrump.com/app">Try Ask Crump</a>
-          <a class="button secondary" href="#ask-crump">See what it does</a>
+          <a class="button secondary" href="#why">Why choose it?</a>
         </div>
-        <div class="quiet-note">No grand promises. Just a product we're building to be genuinely useful.</div>
+        <div class="quiet-note">Start with a question. Stay for the work that comes after it.</div>
       </div>
     </section>
 
@@ -137,26 +140,26 @@
       </div>
     </section>
 
-    <section id="different" class="section plain">
+    <section id="why" class="section plain">
       <div class="section-inner">
-        <div class="eyebrow">A LITTLE DIFFERENT ON PURPOSE</div>
-        <div class="plain-quote">ChatGPT set the standard. <span>We're not pretending otherwise.</span> Ask Crump takes a different route.</div>
-        <p class="plain-sub">We're not going to call a projects button or an image generator revolutionary. The difference we're chasing is how the pieces work together: context that stays with the work, a recognizable assistant, and a clear path from a conversation to something finished.</p>
+        <div class="eyebrow">WHY ASK CRUMP?</div>
+        <div class="plain-quote">A quick answer is useful. <span>Some work needs somewhere to live.</span></div>
+        <p class="plain-sub">Ask Crump earns its place when you're coming back tomorrow: a novel with canon, a business you're building, research that keeps changing, a document that needs another revision, or a Project with files and decisions you don't want to explain all over again.</p>
       </div>
     </section>
 
     <section class="section">
       <div class="section-inner">
         <div class="section-head">
-          <div class="eyebrow">WHAT ASK CRUMP IS BUILT AROUND</div>
-          <h2>Less tab-hopping.<br>More finishing.</h2>
-          <p>Ask Crump is designed around work that lasts longer than one prompt.</p>
+          <div class="eyebrow">BUILT FOR WORK YOU COME BACK TO</div>
+          <h2>Keep the context.<br>Keep moving.</h2>
+          <p>The goal isn't to add more buttons. It's to make the things you already do with AI feel connected instead of scattered.</p>
         </div>
         <div class="feature-grid">
-          <article class="feature"><div class="number">01 · PROJECTS</div><h3>Give the work a home.</h3><p>Keep a Project's chats, instructions, reference files, canon, notes, manuscripts, images, and generated files together instead of rebuilding context every time.</p></article>
-          <article class="feature"><div class="number">02 · CRUMP</div><h3>An assistant with some backbone.</h3><p>Crump doesn't need to agree with every idea. It can help, challenge the plan, point out a contradiction, and still talk like a person instead of a policy document.</p></article>
-          <article class="feature"><div class="number">03 · DELIVERABLES</div><h3>Make something you can keep.</h3><p>Work toward documents, long-form manuscripts, KDP-aware book exports, images, and video—not just another answer that disappears up the chat.</p></article>
-          <article class="feature"><div class="number">04 · COST CONTROL</div><h3>Expensive tools aren't secretly unlimited.</h3><p>Premium generation is gated by plan and Crump Credits so heavy image and video use doesn't turn into a surprise provider bill for us or a mystery for you.</p></article>
+          <article class="feature"><div class="number">01 · PROJECTS</div><h3>The work gets its own world.</h3><p>Keep chats, instructions, reference files, canon, notes, manuscripts, and created assets together. A novel stays separate from a business plan. A client Project stays separate from everything else.</p></article>
+          <article class="feature"><div class="number">02 · CRUMP</div><h3>Helpful doesn't have to mean agreeable.</h3><p>Crump can help build the idea, tell you when something doesn't add up, catch continuity problems, and still talk like a person instead of turning every conversation into a disclaimer.</p></article>
+          <article class="feature"><div class="number">03 · LONG-FORM</div><h3>Write past the chat box.</h3><p>Build manuscripts by section, preserve Project context, revise without losing the larger work, and export real documents—including book interiors with KDP-aware settings.</p></article>
+          <article class="feature"><div class="number">04 · CREATION</div><h3>Research, files, images, video, documents.</h3><p>The tools live beside the Project instead of in separate worlds. What you research and create can stay attached to the work it belongs to.</p></article>
         </div>
       </div>
     </section>
@@ -164,41 +167,41 @@
     <section class="section plain">
       <div class="section-inner workflow">
         <div class="workflow-copy">
-          <div class="eyebrow">ONE WORKSPACE</div>
-          <h2>Start messy.<br>Get organized later.</h2>
-          <p>A good idea doesn't always arrive inside the right folder. Start a normal conversation, turn the serious work into a Project, add the files that matter, and keep building from there.</p>
+          <div class="eyebrow">ONE PLACE TO KEEP GOING</div>
+          <h2>Start messy.<br>Organize when it matters.</h2>
+          <p>You shouldn't need a perfect setup before you can think. Start a normal conversation. When the idea becomes real work, give it a Project, add the reference material, and keep going from there.</p>
         </div>
         <div class="steps">
           <div class="step"><span class="step-num">1</span><span><strong>Talk it through.</strong><span>Ask, brainstorm, challenge an idea, or hand Crump a file.</span></span></div>
-          <div class="step"><span class="step-num">2</span><span><strong>Give it context.</strong><span>Projects keep instructions, reference material, canon, decisions, and conversations isolated from unrelated work.</span></span></div>
-          <div class="step"><span class="step-num">3</span><span><strong>Build the thing.</strong><span>Draft chapters, create supporting visuals, research current information, or make a finished document.</span></span></div>
-          <div class="step"><span class="step-num">4</span><span><strong>Come back tomorrow.</strong><span>The work is still there. So is the Project context.</span></span></div>
+          <div class="step"><span class="step-num">2</span><span><strong>Give the work a home.</strong><span>Projects keep the conversations, files, rules, canon, and decisions that matter.</span></span></div>
+          <div class="step"><span class="step-num">3</span><span><strong>Make something.</strong><span>Draft the chapter, research the issue, create the image, export the document, or build the next deliverable.</span></span></div>
+          <div class="step"><span class="step-num">4</span><span><strong>Come back later.</strong><span>The Project still knows what belongs to it, so you spend less time rebuilding context.</span></span></div>
         </div>
       </div>
     </section>
 
-    <section class="section compare">
+    <section class="section">
       <div class="section-inner">
         <div class="section-head">
-          <div class="eyebrow">THE POSITIONING</div>
-          <h2>We're not trying to out-ChatGPT ChatGPT.</h2>
-          <p>Ask Crump should earn its place by feeling coherent and useful on its own terms.</p>
+          <div class="eyebrow">CHOOSE ASK CRUMP WHEN…</div>
+          <h2>The answer isn't the finish line.</h2>
+          <p>There are excellent general-purpose assistants for quick questions. Ask Crump is being shaped around the moments when the conversation turns into ongoing work.</p>
         </div>
-        <div class="compare-box" role="table" aria-label="Ask Crump positioning">
-          <div class="compare-row head" role="row"><div></div><div>General AI platforms</div><div>Ask Crump's focus</div></div>
-          <div class="compare-row" role="row"><div class="compare-label">Projects</div><div class="compare-value">Organize ongoing work.</div><div class="compare-value">Organize it, keep canon and reference material with it, and collect what gets created there.</div></div>
-          <div class="compare-row" role="row"><div class="compare-label">Long-form writing</div><div class="compare-value">Draft and edit text.</div><div class="compare-value">Maintain manuscript structure and export book interiors with KDP-aware settings.</div></div>
-          <div class="compare-row" role="row"><div class="compare-label">Assistant style</div><div class="compare-value">Adaptable general assistant.</div><div class="compare-value">A more opinionated Crump personality that can challenge the idea without turning every conversation into a lecture.</div></div>
-          <div class="compare-row" role="row"><div class="compare-label">Creation</div><div class="compare-value">Text, research, images, files, and more.</div><div class="compare-value">Those tools live beside Projects, manuscripts, deliverables, and explicit usage controls.</div></div>
+        <div class="choice-grid">
+          <article class="choice"><b>CONTINUITY</b><h3>You don't want to explain it again.</h3><p>Keep Project instructions, source material, canon, and prior work attached to the thing you're actually building.</p></article>
+          <article class="choice"><b>DELIVERABLES</b><h3>You need more than an answer.</h3><p>Move toward manuscripts, documents, images, videos, exports, and other things you can actually use outside the conversation.</p></article>
+          <article class="choice"><b>POINT OF VIEW</b><h3>You want an assistant with some backbone.</h3><p>Crump can disagree, question the plan, notice a contradiction, and help you improve it without becoming stiff or combative.</p></article>
+          <article class="choice"><b>LONG-FORM</b><h3>The work is bigger than one prompt.</h3><p>Organize books, chapters, sections, revisions, canon, and supporting references without treating every session like a blank page.</p></article>
+          <article class="choice"><b>OWNERSHIP</b><h3>Your files should belong with the Project.</h3><p>Reference material and things created inside the Project stay visible together instead of disappearing into disconnected chats.</p></article>
+          <article class="choice"><b>COST CLARITY</b><h3>Premium tools should have boundaries.</h3><p>Image and video generation are designed around explicit plan and credit limits rather than pretending expensive provider calls are free forever.</p></article>
         </div>
-        <div class="compare-note">This isn't a claim that other AI products can't do similar things. It's the product direction we're choosing for Ask Crump.</div>
       </div>
     </section>
 
-    <section class="closing">
+    <section class="closing plain">
       <div class="eyebrow">ASK CRUMP</div>
-      <h2>Bring something you're actually working on.</h2>
-      <p>A question is fine. A 70,000-word manuscript is fine too. Start where you are.</p>
+      <h2>Bring something unfinished.</h2>
+      <p>A question is fine. So is a 70,000-word manuscript, a folder of reference material, or the business idea you keep reopening at midnight.</p>
       <a class="button primary" href="https://askcrump.com/app">Open Ask Crump</a>
     </section>
   </main>

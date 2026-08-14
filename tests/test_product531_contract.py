@@ -59,9 +59,13 @@ def test_project_canon_flags_conflicts_instead_of_silently_rewriting():
 
 def test_clever_crump_page_uses_plain_language_positioning():
     page = read("public/index.html")
-    assert "We build useful AI products." in page
-    assert "ChatGPT set the standard." in page
-    assert "We're not trying to out-ChatGPT ChatGPT." in page
-    assert "revolutionary" in page.lower()
-    assert "not going to call" in page.lower()
+    assert 'src="/assets/brand/crump-horizontal-light.png"' in page
+    assert "Bring Crump something you're" in page
+    assert "actually working on." in page
+    assert "WHY ASK CRUMP?" in page
+    assert "BUILT FOR WORK YOU COME BACK TO" in page
+    assert "CHOOSE ASK CRUMP WHEN" in page
+    assert "The answer isn't the finish line." in page
+    assert "Some work needs somewhere to live." in page
     assert "transformative intelligence ecosystem" not in page.lower()
+    assert "chatgpt" not in page.lower()
