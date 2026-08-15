@@ -140,7 +140,8 @@ async def stripe_get(path: str, params: dict[str, str] | None = None) -> dict[st
     return response.json()
 
 
-async def create_stripe_customer(user: dict[str, Any]) -> str:    customer = await stripe_post(
+async def create_stripe_customer(user: dict[str, Any]) -> str:
+    customer = await stripe_post(
         'customers',
         {
             'email': user['email'],

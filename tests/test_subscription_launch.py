@@ -15,6 +15,7 @@ def test_subscription_launch_assets_are_wired():
     assert 'billing_portal/configurations' in billing
     assert 'LIVE_PROFESSIONAL_PRICE_ID' in billing
     assert 'LIVE_ENTERPRISE_PRICE_ID' in billing
+    assert 'async def create_stripe_customer(user: dict[str, Any]) -> str:    customer' not in billing
     assert '/api/stripe/create-checkout-session' in launch
     assert '/api/stripe/customer-portal' in launch
 
