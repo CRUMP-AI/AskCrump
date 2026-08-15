@@ -8,7 +8,7 @@
     "node": "22.x"
   },
   "scripts": {
-    "build": "node scripts/build-native.mjs",
+    "build": "node scripts/production-build-preflight.mjs && node scripts/build-native.mjs",
     "cap:add:ios": "npx cap add ios",
     "cap:add:android": "npx cap add android",
     "cap:sync": "npm run build && npx cap sync",
