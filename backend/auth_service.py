@@ -9,6 +9,7 @@ from fastapi import Request
 from .config import Settings
 from .db import SupabaseDB, eq, gt
 from .security import client_ip, expiry_iso, iso_now, new_uuid, random_token, token_hash
+from .usage_service import tier_name
 
 
 @dataclass(slots=True)
@@ -26,7 +27,8 @@ class AuthenticationError(RuntimeError):
 
 
 def public_user(user: dict[str, Any]) -> dict[str, Any]:
-    tier = user.get('subscription_tier') or user.get('tier') or 'free'
+    tier = tier_name(user)
+    internal_access = bool(user.get('internal_tier'))
     return {
         'id': user.get('id'),
         'email': user.get('email'),
@@ -37,7 +39,7 @@ def public_user(user: dict[str, Any]) -> dict[str, Any]:
         'preferences': user.get('preferences') or {},
         'tier': tier,
         'subscriptionTier': tier,
-        'subscriptionStatus': user.get('subscription_status') or 'inactive',
+        'subscriptionStatus': 'internal' if internal_access else user.get('subscription_status') or 'inactive',
         'trialEnd': user.get('trial_end'),
         'termsAcceptedAt': user.get('terms_accepted_at'),
         'termsVersion': user.get('terms_version'),

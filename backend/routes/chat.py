@@ -1,6 +1,7 @@
 """Message acknowledgement and AI response endpoints."""
 from __future__ import annotations
 
+import logging
 import time
 from uuid import uuid4
 
@@ -13,18 +14,20 @@ from ..checkin_service import mark_check_in_responded
 from ..db import eq
 from ..feature_service import FeatureAccessError
 from ..file_service import FileServiceError
+from ..manuscript_service import ManuscriptError
 from ..product53_hooks import (
     apply_project_context,
     attach_generated_outputs,
     consume_feature_for_request,
 )
 from ..project_service import ProjectNotFoundError
-from ..runtime import ai, artifacts, db, features, files, intelligence, media, projects, settings
+from ..runtime import ai, artifacts, db, features, files, intelligence, manuscripts, media, projects, settings
 from ..schemas import ChatAckRequest
 from ..security import iso_now, normalize_chat_id
 from ..usage_service import UsageLimitError, consume_usage, refund_usage
 
 router = APIRouter(prefix='/api/chat', tags=['chat'])
+logger = logging.getLogger('askcrump.chat')
 
 
 @router.post('/ack')
@@ -246,10 +249,31 @@ async def chat(request: Request):
                 else:
                     request_payload['relevantContext'] = [project_reference_context]
 
-    requested_artifact = artifacts.detect_request(str(request_payload.get('message') or ''), request_payload.get('artifactFormat'))
+    requested_artifact = artifacts.detect_request(
+        str(request_payload.get('message') or ''),
+        request_payload.get('artifactFormat'),
+    )
+    long_form_request = artifacts.is_long_form_request(str(request_payload.get('message') or ''))
+    if long_form_request:
+        request_payload['longForm'] = True
     prepared = await intelligence.prepare(auth.user['id'], request_payload)
     request_payload = prepared.payload
-    if requested_artifact:
+    if long_form_request:
+        artifact_note = {
+            'source': 'long_form_handoff',
+            'content': (
+                'The user requested a book-scale deliverable. Ask Crump will create a persistent '
+                'Manuscript workspace and chapter blueprint instead of truncating it into one chat response.'
+            ),
+        }
+        current_context = request_payload.get('relevantContext')
+        if isinstance(current_context, list):
+            request_payload['relevantContext'] = [*current_context, artifact_note]
+        elif current_context:
+            request_payload['relevantContext'] = [current_context, artifact_note]
+        else:
+            request_payload['relevantContext'] = [artifact_note]
+    elif requested_artifact:
         artifact_note = {
             'source': 'artifact_request',
             'content': (
@@ -287,14 +311,21 @@ async def chat(request: Request):
 
     feature_usage = None
     try:
-        feature_usage = await consume_feature_for_request(
-            user=auth.user,
-            payload=request_payload,
-            file_rows=file_rows,
-            media=media,
-            ai=ai,
-            features=features,
-        )
+        if long_form_request:
+            feature_usage = await features.consume(
+                auth.user,
+                'manuscript_blueprint',
+                {'route': 'chat', 'messageId': message_id, 'projectId': project_id},
+            )
+        else:
+            feature_usage = await consume_feature_for_request(
+                user=auth.user,
+                payload=request_payload,
+                file_rows=file_rows,
+                media=media,
+                ai=ai,
+                features=features,
+            )
     except FeatureAccessError as exc:
         await refund_usage(db, auth.user['id'], usage.get('eventId'))
         if message_id:
@@ -319,7 +350,17 @@ async def chat(request: Request):
 
     try:
         result = None
-        if (
+        if long_form_request:
+            result = await manuscripts.begin_long_form(
+                user=auth.user,
+                brief=original_message,
+                project_id=project_id,
+                chat_id=chat_id,
+                preferred_format=requested_artifact or 'docx',
+                project_limit=features.project_limit(auth.user),
+            )
+            project_id = str(result.get('projectId') or project_id or '') or None
+        elif (
             media.is_image_request(str(request_payload.get('message') or ''), str(request_payload.get('creativeTool') or '') or None)
             or media.is_edit_request(str(request_payload.get('message') or ''), file_rows)
         ):
@@ -338,6 +379,24 @@ async def chat(request: Request):
             # the richer visual route is temporarily unavailable.
             request_payload['fileData'] = await media.legacy_inline_files(file_rows) if file_rows else request_payload.get('fileData')
             result = await ai.chat(request_payload)
+    except ManuscriptError as exc:
+        await refund_usage(db, auth.user['id'], usage.get('eventId'))
+        await features.refund(auth.user['id'], feature_usage)
+        if message_id:
+            await db.update(
+                'chat_jobs',
+                {'status': 'failed', 'error_code': exc.code, 'updated_at': iso_now()},
+                filters={'user_id': eq(auth.user['id']), 'message_id': eq(message_id)},
+            )
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                'success': False,
+                'error': exc.message,
+                'message': exc.message,
+                'code': exc.code,
+            },
+        )
     except AIServiceError as exc:
         await refund_usage(db, auth.user['id'], usage.get('eventId'))
         await features.refund(auth.user['id'], feature_usage)
@@ -360,6 +419,29 @@ async def chat(request: Request):
                 'shouldRetry': exc.retryable, 'retryAfter': exc.retry_after,
             },
         )
+    except Exception:
+        if not long_form_request:
+            raise
+        logger.exception('Long-form workspace creation failed')
+        await refund_usage(db, auth.user['id'], usage.get('eventId'))
+        await features.refund(auth.user['id'], feature_usage)
+        if message_id:
+            await db.update(
+                'chat_jobs',
+                {'status': 'failed', 'error_code': 'MANUSCRIPT_WORKSPACE_FAILED', 'updated_at': iso_now()},
+                filters={'user_id': eq(auth.user['id']), 'message_id': eq(message_id)},
+            )
+        return JSONResponse(
+            status_code=502,
+            content={
+                'success': False,
+                'error': 'Crump could not create the manuscript workspace yet.',
+                'message': 'Crump could not create the manuscript workspace yet. Please retry.',
+                'code': 'MANUSCRIPT_WORKSPACE_FAILED',
+                'shouldRetry': True,
+                'retryAfter': 2,
+            },
+        )
 
     result = dict(result or {})
     result, verifier_used = await intelligence.verify_answer(
@@ -368,7 +450,7 @@ async def chat(request: Request):
         result=result,
     )
 
-    artifact_format = requested_artifact
+    artifact_format = requested_artifact if not long_form_request else None
     if artifact_format:
         try:
             result['artifact'] = await artifacts.create(
@@ -412,7 +494,10 @@ async def chat(request: Request):
             user_message['files'] = public_files
         request_meta = {
             key: request_payload.get(key)
-            for key in ('creativeTool', 'imageAspect', 'imageQuality', 'imageUseReference', 'artifactFormat', 'needsSearch', 'taskType')
+            for key in (
+                'creativeTool', 'imageAspect', 'imageQuality', 'imageUseReference',
+                'artifactFormat', 'needsSearch', 'taskType', 'longForm',
+            )
             if request_payload.get(key) is not None
         }
         if request_meta:
@@ -432,6 +517,8 @@ async def chat(request: Request):
             assistant_message['imageFile'] = result['imageFile']
         if result.get('artifact'):
             assistant_message['artifact'] = result['artifact']
+        if result.get('manuscriptWorkspace'):
+            assistant_message['manuscriptWorkspace'] = result['manuscriptWorkspace']
 
         try:
             persisted = await db.rpc(

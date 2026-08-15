@@ -9,6 +9,7 @@
     manuscripts: [],
     activeManuscript: null,
     activeSection: null,
+    manuscriptProgress: null,
     videoPollTimer: null,
   };
 
@@ -121,20 +122,27 @@
     }
 
     const strip = document.querySelector('.v1-mode-strip');
-    if (strip && !byId('crump53VideoMode')) {
-      const imagePill = strip.querySelector('[data-v1-command="image"]');
-      const button = document.createElement('button');
-      button.id = 'crump53VideoMode';
-      button.type = 'button';
-      button.className = 'v1-mode-pill';
-      button.innerHTML = '<span>Video</span>';
-      button.addEventListener('click', event => {
-        event.preventDefault();
-        event.stopPropagation();
-        openStudio('video');
-      });
-      if (imagePill?.nextSibling) strip.insertBefore(button, imagePill.nextSibling);
-      else strip.appendChild(button);
+    if (strip && !byId('crump53DocumentMode')) {
+      const createMode = (id, label, handler) => {
+        const button = document.createElement('button');
+        button.id = id;
+        button.type = 'button';
+        button.className = 'v1-mode-pill';
+        button.innerHTML = `<span>${label}</span>`;
+        button.addEventListener('click', event => {
+          event.preventDefault();
+          event.stopPropagation();
+          handler();
+        });
+        return button;
+      };
+      const filesPill = strip.querySelector('[data-v1-command="file"]');
+      const documentButton = createMode('crump53DocumentMode', 'Document', () => window.CrumpDocumentStudio?.open?.());
+      const manuscriptButton = createMode('crump53ManuscriptMode', 'Manuscript', () => openStudio('manuscripts'));
+      const videoButton = createMode('crump53VideoMode', 'Video', () => openStudio('video'));
+      strip.insertBefore(documentButton, filesPill || null);
+      strip.insertBefore(manuscriptButton, filesPill || null);
+      strip.insertBefore(videoButton, filesPill || null);
     }
   }
 
@@ -201,8 +209,8 @@
               <div class="crump53-grid">
                 <div class="crump53-card">
                   <h3>Manuscripts</h3>
-                  <p>Build chapter by chapter, then export KDP-aware DOCX/PDF or Kindle EPUB.</p>
-                  <div class="crump53-note">Professional+: 2 AI drafts/day on Professional, 4/day on Enterprise. Additional AI drafts use 8 credits. KDP-aware exports are included.</div>
+                  <p>Plan the whole work, draft chapter by chapter, and return tomorrow without rebuilding context.</p>
+                  <div class="crump53-note">Everyone can create and export manuscripts. Planning costs 4 credits and drafting costs 8 on Free; Professional and Enterprise include daily planning and drafting allowances.</div>
                   <div id="crump53ManuscriptList" class="crump53-list"></div>
                   <div class="crump53-actions" style="margin-top:10px">
                     <button type="button" class="crump53-button is-primary" id="crump53NewManuscript">New manuscript</button>
@@ -213,13 +221,28 @@
                     <h3>Create manuscript</h3>
                     <label class="crump53-label">Title<input id="crump53ManuscriptTitle" class="crump53-input" maxlength="180"></label>
                     <label class="crump53-label">Author<input id="crump53ManuscriptAuthor" class="crump53-input" maxlength="160"></label>
+                    <label class="crump53-label">What should this manuscript become?<textarea id="crump53ManuscriptPremise" class="crump53-textarea" maxlength="12000" placeholder="Premise, genre, audience, tone, ending direction, constraints, or simply: surprise me..."></textarea></label>
+                    <div class="crump53-grid crump53-compact-grid">
+                      <label class="crump53-label">Target words<input id="crump53TargetWords" class="crump53-input" type="number" min="20000" max="150000" step="5000" value="80000"></label>
+                      <label class="crump53-label">Planned chapters<input id="crump53ChapterCount" class="crump53-input" type="number" min="8" max="80" value="28"></label>
+                    </div>
                     <label class="crump53-label">Trim size<select id="crump53Trim" class="crump53-select"><option value="6x9">6 × 9 in</option><option value="5x8">5 × 8 in</option><option value="5.25x8">5.25 × 8 in</option><option value="5.5x8.5">5.5 × 8.5 in</option><option value="6.14x9.21">6.14 × 9.21 in</option><option value="7x10">7 × 10 in</option><option value="8x10">8 × 10 in</option><option value="8.5x11">8.5 × 11 in</option></select></label>
-                    <button type="button" class="crump53-button is-primary" id="crump53CreateManuscript">Create</button>
+                    <button type="button" class="crump53-button is-primary" id="crump53CreateManuscript">Create & plan</button>
                   </div>
                   <div id="crump53ManuscriptEditor" hidden>
                     <h3 id="crump53EditorTitle">Manuscript</h3>
+                    <div id="crump53ManuscriptProgress" class="crump53-progress" aria-live="polite"></div>
+                    <div id="crump53BlueprintPanel" class="crump53-blueprint-panel">
+                      <label class="crump53-label">Manuscript brief<textarea id="crump53BlueprintBrief" class="crump53-textarea" maxlength="12000" placeholder="Describe the complete work Crump should plan..."></textarea></label>
+                      <div class="crump53-actions">
+                        <input id="crump53BlueprintTarget" class="crump53-input crump53-number-input" type="number" min="20000" max="150000" step="5000" value="80000" aria-label="Target words">
+                        <input id="crump53BlueprintChapters" class="crump53-input crump53-number-input" type="number" min="8" max="80" value="28" aria-label="Chapter count">
+                        <button type="button" class="crump53-button" id="crump53PlanManuscript">Plan chapters with Crump</button>
+                      </div>
+                    </div>
                     <div class="crump53-actions" style="margin-bottom:10px">
                       <button type="button" class="crump53-button" id="crump53AddChapter">Add chapter</button>
+                      <button type="button" class="crump53-button is-primary" id="crump53DraftNext">Draft next chapter</button>
                       <button type="button" class="crump53-button" data-crump53-export="docx">KDP DOCX</button>
                       <button type="button" class="crump53-button" data-crump53-export="pdf">KDP PDF</button>
                       <button type="button" class="crump53-button" data-crump53-export="epub">Kindle EPUB</button>
@@ -274,7 +297,9 @@
     byId('crump53AddContext')?.addEventListener('click', addProjectContext);
     byId('crump53NewManuscript')?.addEventListener('click', showManuscriptCreate);
     byId('crump53CreateManuscript')?.addEventListener('click', createManuscript);
+    byId('crump53PlanManuscript')?.addEventListener('click', planManuscript);
     byId('crump53AddChapter')?.addEventListener('click', addChapter);
+    byId('crump53DraftNext')?.addEventListener('click', draftNextSection);
     byId('crump53SaveSection')?.addEventListener('click', saveSection);
     byId('crump53DraftSection')?.addEventListener('click', draftSection);
     overlay.querySelectorAll('[data-crump53-export]').forEach(button => {
@@ -545,6 +570,12 @@
 
   async function createManuscript() {
     if (!state.activeProject?.id) return;
+    const brief = byId('crump53ManuscriptPremise')?.value?.trim() || '';
+    if (!brief) {
+      setStatus('crump53ManuscriptStatus', 'Describe what the manuscript should become—or tell Crump to surprise you.', true);
+      return;
+    }
+    let manuscriptId = '';
     try {
       setStatus('crump53ManuscriptStatus', 'Creating…');
       const data = await api(`/api/projects/${state.activeProject.id}/manuscripts`, {
@@ -553,12 +584,32 @@
           title: byId('crump53ManuscriptTitle')?.value || '',
           authorName: byId('crump53ManuscriptAuthor')?.value || '',
           trimCode: byId('crump53Trim')?.value || '6x9',
+          premise: brief,
+          targetWords: Number(byId('crump53TargetWords')?.value || 80000),
+        },
+      });
+      manuscriptId = data.manuscript.id;
+      setStatus('crump53ManuscriptStatus', 'Crump is planning the complete manuscript…');
+      await api(`/api/manuscripts/${manuscriptId}/blueprint`, {
+        method: 'POST',
+        body: {
+          brief,
+          targetWords: Number(byId('crump53TargetWords')?.value || 80000),
+          chapterCount: Number(byId('crump53ChapterCount')?.value || 28),
         },
       });
       await refreshManuscripts();
-      await loadManuscript(data.manuscript.id);
+      await loadManuscript(manuscriptId);
+      setStatus('crump53ManuscriptStatus', 'Blueprint ready. Review the chapters or draft the next one.');
     } catch (error) {
-      setStatus('crump53ManuscriptStatus', error.message, true);
+      if (manuscriptId) {
+        await refreshManuscripts();
+        await loadManuscript(manuscriptId);
+      }
+      const message = error.data?.creditsRequired
+        ? `${error.message} Current balance: ${error.data.creditBalance ?? 0}. The empty manuscript was saved.`
+        : error.message;
+      setStatus('crump53ManuscriptStatus', message, true);
     }
   }
 
@@ -567,13 +618,19 @@
       const data = await api(`/api/manuscripts/${manuscriptId}`);
       state.activeManuscript = data.manuscript;
       state.activeManuscript.sections = Array.isArray(data.sections) ? data.sections : [];
+      state.manuscriptProgress = data.progress || null;
       state.activeSection = null;
       byId('crump53ManuscriptCreate').hidden = true;
       byId('crump53ManuscriptEditor').hidden = false;
       byId('crump53SectionEditor').hidden = true;
       byId('crump53EditorTitle').textContent = data.manuscript.title || 'Manuscript';
+      const metadata = data.manuscript.metadata && typeof data.manuscript.metadata === 'object' ? data.manuscript.metadata : {};
+      if (byId('crump53BlueprintBrief')) byId('crump53BlueprintBrief').value = metadata.premise || '';
+      if (byId('crump53BlueprintTarget')) byId('crump53BlueprintTarget').value = String(metadata.targetWords || 80000);
+      if (byId('crump53BlueprintChapters')) byId('crump53BlueprintChapters').value = String(metadata.plannedChapterCount || data.sections?.length || 28);
       renderManuscriptList();
       renderSections();
+      renderManuscriptProgress();
     } catch (error) {
       setStatus('crump53ManuscriptStatus', error.message, true);
     }
@@ -590,6 +647,72 @@
     list.querySelectorAll('[data-section-id]').forEach(button => {
       button.addEventListener('click', () => selectSection(button.dataset.sectionId));
     });
+    const drafted = sections.some(item => String(item.content || '').trim());
+    const blueprint = byId('crump53BlueprintPanel');
+    if (blueprint) blueprint.hidden = drafted;
+  }
+
+  function localProgress() {
+    const sections = state.activeManuscript?.sections || [];
+    const metadata = state.activeManuscript?.metadata && typeof state.activeManuscript.metadata === 'object'
+      ? state.activeManuscript.metadata : {};
+    const wordCount = sections.reduce((total, item) => total + Number(item.word_count || 0), 0);
+    const targetWords = Number(metadata.targetWords || state.manuscriptProgress?.targetWords || 80000);
+    const draftedSections = sections.filter(item => String(item.content || '').trim()).length;
+    return {
+      wordCount,
+      targetWords,
+      wordProgress: Math.min(100, Math.round((wordCount / Math.max(1, targetWords)) * 1000) / 10),
+      draftedSections,
+      plannedSections: sections.length,
+      complete: Boolean(sections.length) && draftedSections === sections.length,
+    };
+  }
+
+  function renderManuscriptProgress() {
+    const node = byId('crump53ManuscriptProgress');
+    if (!node) return;
+    const progress = {...localProgress(), ...(state.manuscriptProgress || {})};
+    const percent = Number(progress.wordProgress || 0);
+    node.innerHTML = `
+      <div class="crump53-progress-head"><strong>${Number(progress.wordCount || 0).toLocaleString()} / ${Number(progress.targetWords || 0).toLocaleString()} words</strong><span>${percent}%</span></div>
+      <div class="crump53-progress-track"><i style="width:${Math.max(0, Math.min(100, percent))}%"></i></div>
+      <small>${Number(progress.draftedSections || 0)} of ${Number(progress.plannedSections || 0)} sections drafted${progress.complete ? ' · full draft complete' : ''}</small>`;
+  }
+
+  async function planManuscript() {
+    if (!state.activeManuscript?.id) return;
+    const brief = byId('crump53BlueprintBrief')?.value?.trim() || '';
+    if (!brief) {
+      setStatus('crump53ManuscriptStatus', 'Add the premise, audience, genre, or direction Crump should plan.', true);
+      return;
+    }
+    try {
+      setStatus('crump53ManuscriptStatus', 'Crump is building the complete chapter blueprint…');
+      const hasOutlines = Boolean(state.activeManuscript.sections?.length);
+      const data = await api(`/api/manuscripts/${state.activeManuscript.id}/blueprint`, {
+        method: 'POST',
+        body: {
+          brief,
+          targetWords: Number(byId('crump53BlueprintTarget')?.value || 80000),
+          chapterCount: Number(byId('crump53BlueprintChapters')?.value || 28),
+          replaceOutlines: hasOutlines,
+        },
+      });
+      state.activeManuscript = data.manuscript || state.activeManuscript;
+      state.activeManuscript.sections = Array.isArray(data.sections) ? data.sections : [];
+      state.manuscriptProgress = data.progress || null;
+      state.activeSection = null;
+      byId('crump53SectionEditor').hidden = true;
+      renderSections();
+      renderManuscriptProgress();
+      setStatus('crump53ManuscriptStatus', 'Blueprint ready. Every chapter now has a purpose and continuity burden.');
+    } catch (error) {
+      const message = error.data?.creditsRequired
+        ? `${error.message} Current balance: ${error.data.creditBalance ?? 0}.`
+        : error.message;
+      setStatus('crump53ManuscriptStatus', message, true);
+    }
   }
 
   function selectSection(sectionId) {
@@ -610,7 +733,9 @@
         method: 'POST', body: {title: `Chapter ${number}`, sectionType: 'chapter'},
       });
       state.activeManuscript.sections = [...(state.activeManuscript.sections || []), data.section];
+      state.manuscriptProgress = null;
       selectSection(data.section.id);
+      renderManuscriptProgress();
     } catch (error) {
       setStatus('crump53ManuscriptStatus', error.message, true);
     }
@@ -628,6 +753,8 @@
         },
       });
       replaceSection(data.section);
+      state.manuscriptProgress = null;
+      renderManuscriptProgress();
       setStatus('crump53ManuscriptStatus', 'Saved.');
     } catch (error) {
       setStatus('crump53ManuscriptStatus', error.message, true);
@@ -643,9 +770,33 @@
         method: 'POST', body: {instruction},
       });
       replaceSection(data.section);
+      state.manuscriptProgress = data.progress || null;
       byId('crump53SectionContent').value = data.section.content || '';
       if (byId('crump53DraftInstruction')) byId('crump53DraftInstruction').value = '';
       setStatus('crump53ManuscriptStatus', 'Draft ready. Review and revise before publishing.');
+      renderManuscriptProgress();
+    } catch (error) {
+      const message = error.data?.creditsRequired
+        ? `${error.message} Current balance: ${error.data.creditBalance ?? 0}.`
+        : error.message;
+      setStatus('crump53ManuscriptStatus', message, true);
+    }
+  }
+
+  async function draftNextSection() {
+    if (!state.activeManuscript?.id) return;
+    try {
+      setStatus('crump53ManuscriptStatus', 'Crump is drafting the next unfinished chapter…');
+      const data = await api(`/api/manuscripts/${state.activeManuscript.id}/draft-next`, {
+        method: 'POST',
+        body: {instruction: ''},
+      });
+      replaceSection(data.section);
+      state.manuscriptProgress = data.progress || null;
+      selectSection(data.section.id);
+      byId('crump53SectionContent').value = data.section.content || '';
+      renderManuscriptProgress();
+      setStatus('crump53ManuscriptStatus', `${data.section.title || 'Next chapter'} drafted. Review it before continuing.`);
     } catch (error) {
       const message = error.data?.creditsRequired
         ? `${error.message} Current balance: ${error.data.creditBalance ?? 0}.`
@@ -659,6 +810,7 @@
     state.activeManuscript.sections = (state.activeManuscript.sections || []).map(item => item.id === section.id ? section : item);
     state.activeSection = section;
     renderSections();
+    renderManuscriptProgress();
   }
 
   async function exportManuscript(format) {
@@ -728,10 +880,64 @@
     void check();
   }
 
+  async function openManuscriptWorkspace(workspace) {
+    const projectId = String(workspace?.projectId || '');
+    const manuscriptId = String(workspace?.manuscriptId || '');
+    if (!projectId || !manuscriptId) return;
+    openStudio('manuscripts');
+    await refreshProjects();
+    const project = state.projects.find(item => String(item.id) === projectId);
+    if (!project) {
+      setStatus('crump53ManuscriptStatus', 'That Project is no longer available.', true);
+      return;
+    }
+    selectProject(projectId);
+    await refreshManuscripts();
+    await loadManuscript(manuscriptId);
+  }
+
+  function enhanceManuscriptHandoffs(messages) {
+    (Array.isArray(messages) ? messages : []).forEach(message => {
+      const workspace = message?.manuscriptWorkspace;
+      if (!workspace || !message.id) return;
+      const row = document.querySelector(`[data-message-id="${CSS.escape(message.id)}"]`);
+      const wrapper = row?.querySelector('.message-wrapper');
+      if (!wrapper || wrapper.querySelector('.crump53-manuscript-handoff')) return;
+      const card = document.createElement('div');
+      card.className = 'crump53-manuscript-handoff';
+      card.innerHTML = `
+        <div class="crump53-handoff-mark">M</div>
+        <div><small>MANUSCRIPT WORKSPACE</small><strong>${escapeHtml(workspace.title || 'Untitled manuscript')}</strong><span>${Number(workspace.chapterCount || 0)} planned chapters · ${Number(workspace.targetWords || 0).toLocaleString()}-word target</span></div>
+        <button type="button">Open workspace</button>`;
+      card.querySelector('button')?.addEventListener('click', () => void openManuscriptWorkspace(workspace));
+      wrapper.appendChild(card);
+    });
+  }
+
+  let rendererWrapped = false;
+  function wrapManuscriptRenderer() {
+    if (rendererWrapped || typeof window.renderMessages !== 'function') return;
+    const original = window.renderMessages;
+    window.renderMessages = function(messages) {
+      const result = original(messages);
+      enhanceManuscriptHandoffs(messages);
+      return result;
+    };
+    rendererWrapped = true;
+    const chat = (Array.isArray(window.chats) ? window.chats : []).find(item => item.id === window.currentChatId);
+    if (chat) enhanceManuscriptHandoffs(chat.messages);
+  }
+
+  window.CrumpProduct53 = Object.freeze({
+    open: openStudio,
+    openManuscript: workspace => openManuscriptWorkspace(workspace),
+  });
+
   function init() {
     injectNavigation();
     injectStudio();
     injectProjectIntoChatRequests();
+    wrapManuscriptRenderer();
     const scrollButton = byId('scrollToEndBtn');
     if (scrollButton) scrollButton.title = 'Jump to newest message';
     document.addEventListener('keydown', event => {
@@ -739,6 +945,10 @@
     });
     void refreshProjects();
     void refreshFeatures();
+    setTimeout(() => {
+      const chat = (Array.isArray(window.chats) ? window.chats : []).find(item => item.id === window.currentChatId);
+      if (chat) enhanceManuscriptHandoffs(chat.messages);
+    }, 900);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, {once: true});

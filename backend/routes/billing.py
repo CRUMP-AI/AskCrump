@@ -18,6 +18,7 @@ from ..db import eq
 from ..runtime import db, settings
 from ..schemas import CheckoutRequest
 from ..security import iso_now
+from ..usage_service import tier_name
 
 router = APIRouter(tags=["billing"])
 logger = logging.getLogger("askcrump.billing")
@@ -567,11 +568,12 @@ async def revenuecat_sync(request: Request):
 @router.get('/api/billing/status')
 async def billing_status(request: Request):
     auth = await authenticate_request(request, db, settings)
+    internal_access = bool(auth.user.get('internal_tier'))
     return {
         'success': True,
-        'tier': auth.user.get('subscription_tier') or 'free',
-        'status': auth.user.get('subscription_status') or 'inactive',
-        'provider': auth.user.get('subscription_provider')
+        'tier': tier_name(auth.user),
+        'status': 'internal' if internal_access else auth.user.get('subscription_status') or 'inactive',
+        'provider': 'internal' if internal_access else auth.user.get('subscription_provider')
         or ('stripe' if auth.user.get('stripe_customer_id') else None),
         'user': public_user(auth.user),
     }

@@ -48,6 +48,7 @@ const loader = String.raw`
     ['/crump-5.2.css', 'crump52'],
     ['/crump-5.2.2.css', 'crump522'],
     ['/crump-v1-body.css', 'crumpbodyv1'],
+    ['/crump-v1-stability.css', 'crumpv1stability'],
   ]);
 
   const scripts = Object.freeze([
@@ -57,6 +58,7 @@ const loader = String.raw`
     ['/crump-5.2.js', 'crump52'],
     ['/crump-5.2.2.js', 'crump522'],
     ['/crump-v1-body.js', 'crumpbodyv1'],
+    ['/crump-v1-stability.js', 'crumpv1stability'],
   ]);
 
   function loadStyle(url, key) {
@@ -96,7 +98,18 @@ const loader = String.raw`
 
   async function boot() {
     await Promise.all(styles.map(([url,key]) => loadStyle(url,key)));
+
+    await loadStyle('/crump-navigation-5.2.5.css', 'crumpnav525');
+    await loadStyle('/crump-product-5.3.css', 'crumpproduct53');
+    await loadStyle('/crump-product-5.3.1.css', 'crumpproduct531');
+
     for (const [url,key] of scripts) await loadScript(url,key);
+
+    await loadScript('/crump-navigation-5.2.5.js', 'crumpnav525');
+    await loadScript('/crump-product-5.3.js', 'crumpproduct53');
+    await loadScript('/crump-product-5.3.1.js', 'crumpproduct531');
+    await loadScript('/crump-subscriptions-5.3.2.js', 'crumpsubscriptions532');
+
     document.documentElement.dataset.crumpBodyRuntime = 'ready';
   }
 

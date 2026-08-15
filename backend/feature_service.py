@@ -1,4 +1,4 @@
-"""Cost-aware feature entitlements for Ask Crump 5.3.
+"""Cost-aware feature entitlements for Ask Crump 5.4.
 
 This layer sits beside the existing message allowance. Expensive provider calls use
 feature-specific included quotas and Crump Credit overflow so a single user cannot
@@ -70,17 +70,25 @@ POLICIES: dict[str, FeaturePolicy] = {
     "manuscript_draft": FeaturePolicy(
         "manuscript_draft",
         "Long-form manuscript drafting",
-        "professional",
+        "free",
         8,
         {"free": 0, "professional": 2, "enterprise": 4},
+        "ANTHROPIC_API_KEY",
+    ),
+    "manuscript_blueprint": FeaturePolicy(
+        "manuscript_blueprint",
+        "Manuscript planning",
+        "free",
+        4,
+        {"free": 0, "professional": 1, "enterprise": 2},
         "ANTHROPIC_API_KEY",
     ),
     "kdp_export": FeaturePolicy(
         "kdp_export",
         "KDP manuscript export",
-        "professional",
+        "free",
         0,
-        {"free": 0, "professional": -1, "enterprise": -1},
+        {"free": -1, "professional": -1, "enterprise": -1},
         None,
     ),
 }

@@ -37,6 +37,20 @@ MIME = {
 class ArtifactService:
     files: FileService
 
+    ACTION_PATTERN = re.compile(
+        r"\b(create|make|generate|export|deliver|build|produce|turn|convert|save|"
+        r"write|draft|compose|prepare|format|package|send|provide|give|download)\b",
+        re.I,
+    )
+    LONG_FORM_PATTERN = re.compile(
+        r"\b(novel|book|memoir|manuscript|screenplay|dissertation|thesis)\b",
+        re.I,
+    )
+    SHORT_FORM_PATTERN = re.compile(
+        r"\b(summary|synopsis|outline|review|blurb|proposal|query letter|book report)\b",
+        re.I,
+    )
+
     @staticmethod
     def normalize_format(value: Any) -> str | None:
         raw = str(value or '').strip().lower().lstrip('.')
@@ -45,17 +59,50 @@ class ArtifactService:
         return raw if raw in VALID_FORMATS else None
 
     @classmethod
+    def is_long_form_request(cls, message: str) -> bool:
+        """Return whether the user is asking Ask Crump to build a book-scale work.
+
+        Long-form requests must be moved into a persistent manuscript workspace.
+        Treating them as an ordinary chat artifact silently truncates the work while
+        making the resulting file look complete.
+        """
+        text = str(message or '').strip()
+        if not text or not cls.ACTION_PATTERN.search(text) or not cls.LONG_FORM_PATTERN.search(text):
+            return False
+        if cls.SHORT_FORM_PATTERN.search(text):
+            return False
+        explicit_length = bool(
+            re.search(
+                r"\b(full[ -]?length|complete|entire|book[ -]?length|from start to finish)\b|"
+                r"\b\d{2,3}(?:,\d{3})+\s*words?\b",
+                text,
+                re.I,
+            )
+        )
+        writing_verb = bool(re.search(r"\b(write|draft|compose|author|create|produce|build)\b", text, re.I))
+        substantial_kind = bool(
+            re.search(r"\b(novel|memoir|manuscript|screenplay|dissertation|thesis)\b", text, re.I)
+        )
+        return explicit_length or (writing_verb and substantial_kind) or bool(
+            writing_verb and re.search(r"\bbook\b", text, re.I)
+        )
+
+    @classmethod
     def detect_request(cls, message: str, explicit: Any = None) -> str | None:
         selected = cls.normalize_format(explicit)
         if selected:
             return selected
         text = str(message or '').lower().strip()
-        if not re.search(r'\b(create|make|generate|export|deliver|build|produce|turn|convert|save)\b', text):
+        if not cls.ACTION_PATTERN.search(text):
             return None
         formats = [
             (r'\b(powerpoint|pptx|slide deck|presentation)\b', 'pptx'),
             (r'\b(excel|xlsx|spreadsheet)\b', 'xlsx'),
-            (r'\b(word document|docx|word file)\b', 'docx'),
+            (
+                r'\bdocx\b|\bmicrosoft\s+word\b|'
+                r'\bword\s+(?:document(?:ed)?|doc|file|manuscript)\b',
+                'docx',
+            ),
             (r'\bpdf\b', 'pdf'),
             (r'\bmarkdown|\.md\b', 'md'),
             (r'\btext file|\.txt\b', 'txt'),
@@ -63,6 +110,15 @@ class ArtifactService:
         for pattern, fmt in formats:
             if re.search(pattern, text):
                 return fmt
+
+        # A user asking for a downloadable document without naming a file format
+        # gets the most broadly editable default. This deliberately requires both
+        # a document noun and delivery/file language so "write a report here" stays
+        # an ordinary chat request.
+        if re.search(r'\b(document|manuscript|report|letter|resume|r[ée]sum[ée])\b', text) and re.search(
+            r'\b(file|download|attachment|send|deliver|export|document)\b', text
+        ):
+            return 'docx'
         return None
 
     @staticmethod

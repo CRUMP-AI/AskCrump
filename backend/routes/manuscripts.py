@@ -63,6 +63,10 @@ async def create_manuscript(project_id: str, request: Request):
             author_name=str(payload.get("authorName") or auth.user.get("full_name") or ""),
             trim_code=str(payload.get("trimCode") or "6x9"),
             bleed=bool(payload.get("bleed")),
+            metadata={
+                "premise": str(payload.get("premise") or "").strip()[:1200],
+                "targetWords": payload.get("targetWords") or 80000,
+            },
         )
         return {"success": True, "manuscript": item}
     except ManuscriptError as exc:
@@ -80,9 +84,68 @@ async def get_manuscript(manuscript_id: str, request: Request):
     try:
         item = await manuscripts.get(user_id=auth.user["id"], manuscript_id=manuscript_id)
         sections = await manuscripts.list_sections(user_id=auth.user["id"], manuscript_id=manuscript_id)
-        return {"success": True, "manuscript": item, "sections": sections}
+        return {
+            "success": True,
+            "manuscript": item,
+            "sections": sections,
+            "progress": manuscripts.progress(item, sections),
+        }
     except ManuscriptError as exc:
         return _manuscript_error(exc)
+
+
+@router.post("/api/manuscripts/{manuscript_id}/blueprint")
+async def blueprint_manuscript(manuscript_id: str, request: Request):
+    auth = await authenticate_request(request, db, settings)
+    if not settings.manuscript_generation_enabled or not settings.anthropic_api_key:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "success": False,
+                "error": "Manuscript planning is not configured yet.",
+                "code": "MANUSCRIPT_NOT_CONFIGURED",
+            },
+        )
+    payload = await request.json()
+    payload = payload if isinstance(payload, dict) else {}
+    try:
+        receipt = await features.consume(
+            auth.user,
+            "manuscript_blueprint",
+            {"manuscriptId": manuscript_id},
+        )
+    except FeatureAccessError as exc:
+        return _feature_error(exc)
+    try:
+        result = await manuscripts.apply_blueprint(
+            user=auth.user,
+            manuscript_id=manuscript_id,
+            brief=str(payload.get("brief") or payload.get("premise") or ""),
+            target_words=payload.get("targetWords"),
+            chapter_count=payload.get("chapterCount"),
+            replace_outlines=bool(payload.get("replaceOutlines")),
+        )
+        item = await manuscripts.get(user_id=auth.user["id"], manuscript_id=manuscript_id)
+        return {
+            "success": True,
+            **result,
+            "manuscript": item,
+            "progress": manuscripts.progress(item, result["sections"]),
+            "featureUsage": receipt,
+        }
+    except ManuscriptError as exc:
+        await features.refund(auth.user["id"], receipt)
+        return _manuscript_error(exc)
+    except Exception:
+        await features.refund(auth.user["id"], receipt)
+        return JSONResponse(
+            status_code=502,
+            content={
+                "success": False,
+                "error": "Crump could not build that manuscript plan.",
+                "code": "BLUEPRINT_FAILED",
+            },
+        )
 
 
 @router.post("/api/manuscripts/{manuscript_id}/sections")
@@ -148,7 +211,14 @@ async def draft_section(manuscript_id: str, section_id: str, request: Request):
             section_id=section_id,
             instruction=str(payload.get("instruction") or "") if isinstance(payload, dict) else "",
         )
-        return {"success": True, "section": item, "featureUsage": receipt}
+        manuscript = await manuscripts.get(user_id=auth.user["id"], manuscript_id=manuscript_id)
+        sections = await manuscripts.list_sections(user_id=auth.user["id"], manuscript_id=manuscript_id)
+        return {
+            "success": True,
+            "section": item,
+            "progress": manuscripts.progress(manuscript, sections),
+            "featureUsage": receipt,
+        }
     except ManuscriptError as exc:
         await features.refund(auth.user["id"], receipt)
         return _manuscript_error(exc)
@@ -157,6 +227,57 @@ async def draft_section(manuscript_id: str, section_id: str, request: Request):
         return JSONResponse(
             status_code=502,
             content={"success": False, "error": "Crump could not draft that section.", "code": "DRAFT_FAILED"},
+        )
+
+
+@router.post("/api/manuscripts/{manuscript_id}/draft-next")
+async def draft_next_section(manuscript_id: str, request: Request):
+    auth = await authenticate_request(request, db, settings)
+    if not settings.manuscript_generation_enabled or not settings.anthropic_api_key:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "success": False,
+                "error": "Manuscript drafting is not configured yet.",
+                "code": "MANUSCRIPT_NOT_CONFIGURED",
+            },
+        )
+    payload = await request.json()
+    payload = payload if isinstance(payload, dict) else {}
+    try:
+        receipt = await features.consume(
+            auth.user,
+            "manuscript_draft",
+            {"manuscriptId": manuscript_id, "mode": "next"},
+        )
+    except FeatureAccessError as exc:
+        return _feature_error(exc)
+    try:
+        item = await manuscripts.draft_next(
+            user=auth.user,
+            manuscript_id=manuscript_id,
+            instruction=str(payload.get("instruction") or ""),
+        )
+        manuscript = await manuscripts.get(user_id=auth.user["id"], manuscript_id=manuscript_id)
+        sections = await manuscripts.list_sections(user_id=auth.user["id"], manuscript_id=manuscript_id)
+        return {
+            "success": True,
+            "section": item,
+            "progress": manuscripts.progress(manuscript, sections),
+            "featureUsage": receipt,
+        }
+    except ManuscriptError as exc:
+        await features.refund(auth.user["id"], receipt)
+        return _manuscript_error(exc)
+    except Exception:
+        await features.refund(auth.user["id"], receipt)
+        return JSONResponse(
+            status_code=502,
+            content={
+                "success": False,
+                "error": "Crump could not draft the next section.",
+                "code": "DRAFT_FAILED",
+            },
         )
 
 

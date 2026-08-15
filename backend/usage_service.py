@@ -34,8 +34,13 @@ def tier_name(user: dict[str, Any]) -> str:
     Stripe and RevenueCat webhooks persist both tier and lifecycle state. Paid
     allowances are granted only for currently entitled states. A cancellation
     that remains valid until period end is honored only while that period is in
-    the future; terminal/inactive states always fall back to free.
+    the future; terminal/inactive states always fall back to free. Founder and
+    staff QA access is stored separately so it cannot be confused with revenue.
     """
+    internal_tier = str(user.get('internal_tier') or '').lower()
+    if internal_tier in {'professional', 'enterprise'}:
+        return internal_tier
+
     tier = str(user.get('subscription_tier') or user.get('tier') or 'free').lower()
     if tier not in {'professional', 'enterprise'}:
         return 'free'
