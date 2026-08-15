@@ -46,6 +46,10 @@
     {
       "path": "/api/cron/check-ins",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/manuscripts",
+      "schedule": "* * * * *"
     }
   ],
   "functions": {

@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 import html
 import json
+import logging
 import math
 import re
 from typing import Any
@@ -23,8 +24,10 @@ from reportlab.lib.units import inch
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer
 
-from .ai_service import AIService
-from .db import SupabaseDB, eq
+from .ai_service import AIService, AIServiceError
+from .db import SupabaseDB, eq, in_
+from .feature_service import FeatureAccessError, FeatureService
+from .file_service import FileService
 from .project_service import ProjectService
 from .security import normalize_chat_id
 
@@ -58,6 +61,7 @@ DEFAULT_TARGET_WORDS = 80_000
 DEFAULT_CHAPTER_COUNT = 28
 MIN_TARGET_WORDS = 20_000
 MAX_TARGET_WORDS = 150_000
+logger = logging.getLogger("askcrump.manuscripts")
 
 
 def _now() -> str:
@@ -173,10 +177,19 @@ class ManuscriptService:
         db: SupabaseDB,
         ai: AIService,
         projects: ProjectService,
+        features: FeatureService | None = None,
+        files: FileService | None = None,
     ) -> None:
         self.db = db
         self.ai = ai
         self.projects = projects
+        self.features = features
+        self.files = files
+
+    @staticmethod
+    def _provisional_title(value: Any) -> bool:
+        title = _clean(value, 180).lower()
+        return not title or title.startswith("untitled") or title in {"new manuscript", "manuscript"}
 
     async def list(self, *, user_id: str, project_id: str) -> list[dict[str, Any]]:
         project = await self.projects.get(user_id, project_id)
@@ -370,7 +383,9 @@ class ManuscriptService:
         target_words: int,
         chapter_count: int,
     ) -> dict[str, Any]:
-        title = _clean(preferred_title, 180) or _clean(value.get("title"), 180)
+        preferred = _clean(preferred_title, 180)
+        title = "" if cls._provisional_title(preferred) else preferred
+        title = title or _clean(value.get("title"), 180)
         title = title or title_from_prompt(brief)
         subtitle = _clean(value.get("subtitle"), 240)
         genre = _clean(value.get("genre"), 120)
@@ -466,7 +481,9 @@ User brief:
                 "user": {"name": user.get("full_name") or user.get("name") or ""},
                 "relevantContext": project_context,
                 "workMode": "work",
-            }
+            },
+            max_tokens=12_000,
+            timeout_seconds=240.0,
         )
         decoded = self._decode_blueprint(str(result.get("response") or ""))
         blueprint = self._normalize_blueprint(
@@ -534,6 +551,8 @@ User brief:
             }
         )
         updates: dict[str, Any] = {"metadata": metadata, "updated_at": now}
+        if self._provisional_title(manuscript.get("title")) and blueprint.get("title"):
+            updates["title"] = _clean(blueprint["title"], 180)
         if blueprint.get("subtitle") and not manuscript.get("subtitle"):
             updates["subtitle"] = blueprint["subtitle"]
         await self.db.update(
@@ -570,6 +589,208 @@ User brief:
         )
         return {"blueprint": blueprint, "sections": sections, "model": result.get("model")}
 
+    @staticmethod
+    def public_run(row: dict[str, Any] | None) -> dict[str, Any] | None:
+        if not row:
+            return None
+        return {
+            "id": row.get("id"),
+            "projectId": row.get("project_id"),
+            "manuscriptId": row.get("manuscript_id"),
+            "status": row.get("status"),
+            "stage": row.get("stage"),
+            "mode": row.get("mode"),
+            "targetWords": int(row.get("target_words") or DEFAULT_TARGET_WORDS),
+            "chapterCount": int(row.get("chapter_count") or DEFAULT_CHAPTER_COUNT),
+            "completedSections": int(row.get("completed_sections") or 0),
+            "totalSections": int(row.get("total_sections") or 0),
+            "preferredExportFormat": row.get("preferred_export_format") or "docx",
+            "outputFileId": row.get("output_file_id"),
+            "errorCode": row.get("last_error_code"),
+            "error": row.get("last_error_message"),
+            "providerUsage": row.get("provider_usage") or {},
+            "createdAt": row.get("created_at"),
+            "updatedAt": row.get("updated_at"),
+            "startedAt": row.get("started_at"),
+            "completedAt": row.get("completed_at"),
+        }
+
+    async def latest_run(self, *, user_id: str, manuscript_id: str) -> dict[str, Any] | None:
+        manuscript = await self.get(user_id=user_id, manuscript_id=manuscript_id)
+        rows = await self.db.select(
+            "manuscript_runs",
+            filters={"user_id": eq(user_id), "manuscript_id": eq(manuscript["id"])},
+            order="created_at.desc",
+            limit=1,
+        )
+        return rows[0] if rows else None
+
+    async def get_run(self, *, user_id: str, run_id: str) -> dict[str, Any]:
+        try:
+            normalized = normalize_chat_id(run_id)
+        except Exception as exc:
+            raise ManuscriptError("Manuscript run not found.", "MANUSCRIPT_RUN_NOT_FOUND", 404) from exc
+        row = await self.db.select_one(
+            "manuscript_runs",
+            filters={"id": eq(normalized), "user_id": eq(user_id)},
+        )
+        if not row:
+            raise ManuscriptError("Manuscript run not found.", "MANUSCRIPT_RUN_NOT_FOUND", 404)
+        return row
+
+    async def _create_run(
+        self,
+        *,
+        user_id: str,
+        project_id: str,
+        manuscript_id: str,
+        brief: str,
+        target_words: int,
+        chapter_count: int,
+        preferred_format: str,
+        chat_id: str | None,
+        mode: str,
+        blueprint_receipt: dict[str, Any] | None,
+        stage: str = "blueprint",
+        total_sections: int = 0,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        row = {
+            "id": str(uuid4()),
+            "user_id": user_id,
+            "project_id": normalize_chat_id(project_id),
+            "manuscript_id": normalize_chat_id(manuscript_id),
+            "chat_id": normalize_chat_id(chat_id) if chat_id else None,
+            "status": "queued",
+            "stage": stage,
+            "mode": mode,
+            "brief": str(brief or "").strip()[:12000],
+            "target_words": max(MIN_TARGET_WORDS, min(MAX_TARGET_WORDS, int(target_words))),
+            "chapter_count": max(8, min(80, int(chapter_count))),
+            "preferred_export_format": preferred_format,
+            "completed_sections": 0,
+            "total_sections": max(0, int(total_sections)),
+            "not_before": _now(),
+            "blueprint_receipt": blueprint_receipt or {},
+            "metadata": metadata or {},
+            "updated_at": _now(),
+        }
+        inserted = await self.db.insert("manuscript_runs", row)
+        return (inserted or [row])[0]
+
+    async def queue_run(
+        self,
+        *,
+        user: dict[str, Any],
+        manuscript_id: str,
+        brief: str = "",
+        target_words: int | None = None,
+        chapter_count: int | None = None,
+        preferred_format: str = "docx",
+        mode: str = "autopilot",
+        blueprint_receipt: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        manuscript = await self.get(user_id=user["id"], manuscript_id=manuscript_id)
+        active = await self.db.select_one(
+            "manuscript_runs",
+            filters={
+                "user_id": eq(user["id"]),
+                "manuscript_id": eq(manuscript["id"]),
+                "status": in_(["queued", "running", "paused", "awaiting_credits"]),
+            },
+        )
+        if active:
+            return active
+        mode = str(mode or "autopilot").lower()
+        if mode not in {"outline", "autopilot"}:
+            raise ManuscriptError("Run mode must be outline or autopilot.", "INVALID_RUN_MODE")
+        preferred_format = str(preferred_format or "docx").lower().strip(".")
+        if preferred_format not in {"docx", "pdf", "epub"}:
+            raise ManuscriptError("Export format must be DOCX, PDF, or EPUB.", "INVALID_EXPORT_FORMAT")
+        metadata = manuscript.get("metadata") if isinstance(manuscript.get("metadata"), dict) else {}
+        clean_brief = str(brief or metadata.get("premise") or "").strip()[:12000]
+        if not clean_brief:
+            raise ManuscriptError("Add a manuscript brief before starting the full draft.", "MANUSCRIPT_BRIEF_REQUIRED")
+        sections = await self.list_sections(user_id=user["id"], manuscript_id=manuscript["id"])
+        stage = "drafting" if sections else "blueprint"
+        return await self._create_run(
+            user_id=user["id"],
+            project_id=str(manuscript["project_id"]),
+            manuscript_id=str(manuscript["id"]),
+            brief=clean_brief,
+            target_words=target_words_from_prompt(clean_brief, target_words or metadata.get("targetWords") or DEFAULT_TARGET_WORDS),
+            chapter_count=chapter_count_from_prompt(clean_brief, chapter_count or metadata.get("plannedChapterCount") or DEFAULT_CHAPTER_COUNT),
+            preferred_format=preferred_format,
+            chat_id=None,
+            mode=mode,
+            blueprint_receipt=blueprint_receipt if stage == "blueprint" else {},
+            stage=stage,
+            total_sections=len(sections),
+            metadata={"source": "manuscript_workspace"},
+        )
+
+    async def pause_run(self, *, user_id: str, run_id: str) -> dict[str, Any]:
+        row = await self.get_run(user_id=user_id, run_id=run_id)
+        if row.get("status") not in {"queued", "running"}:
+            return row
+        updated = await self.db.update(
+            "manuscript_runs",
+            {"status": "paused", "lease_token": None, "lease_expires_at": None, "updated_at": _now()},
+            filters={"id": eq(row["id"]), "user_id": eq(user_id)},
+        )
+        return (updated or [{**row, "status": "paused"}])[0]
+
+    async def resume_run(self, *, user_id: str, run_id: str) -> dict[str, Any]:
+        row = await self.get_run(user_id=user_id, run_id=run_id)
+        if row.get("status") not in {"paused", "awaiting_credits"}:
+            return row
+        updated = await self.db.update(
+            "manuscript_runs",
+            {
+                "status": "queued",
+                "not_before": _now(),
+                "lease_token": None,
+                "lease_expires_at": None,
+                "last_error_code": None,
+                "last_error_message": None,
+                "updated_at": _now(),
+            },
+            filters={"id": eq(row["id"]), "user_id": eq(user_id)},
+        )
+        return (updated or [{**row, "status": "queued"}])[0]
+
+    async def cancel_run(self, *, user_id: str, run_id: str) -> dict[str, Any]:
+        row = await self.get_run(user_id=user_id, run_id=run_id)
+        if row.get("status") in {"completed", "failed", "cancelled"}:
+            return row
+        if self.features:
+            if row.get("stage") == "blueprint":
+                await self.features.refund(user_id, row.get("blueprint_receipt") or {})
+            current = row.get("current_receipt") or {}
+            current_id = row.get("current_section_id")
+            current_section = None
+            if current_id:
+                current_section = await self.db.select_one(
+                    "manuscript_sections",
+                    filters={"id": eq(current_id), "user_id": eq(user_id)},
+                )
+            if current and not str((current_section or {}).get("content") or "").strip():
+                await self.features.refund(user_id, current)
+        updated = await self.db.update(
+            "manuscript_runs",
+            {
+                "status": "cancelled",
+                "lease_token": None,
+                "lease_expires_at": None,
+                "current_receipt": {},
+                "blueprint_receipt": {},
+                "updated_at": _now(),
+                "completed_at": _now(),
+            },
+            filters={"id": eq(row["id"]), "user_id": eq(user_id)},
+        )
+        return (updated or [{**row, "status": "cancelled"}])[0]
+
     async def begin_long_form(
         self,
         *,
@@ -579,48 +800,57 @@ User brief:
         chat_id: str | None = None,
         preferred_format: str = "docx",
         project_limit: int = 2,
+        blueprint_receipt: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        # Reject a full workspace before paying for its blueprint when the user
-        # has no Project slot available. Existing Projects are validated by the
-        # context hydration inside plan_blueprint.
-        if not project_id and await self.projects.count(user["id"]) >= project_limit:
+        clean_brief = str(brief or "").strip()[:12000]
+        if not clean_brief:
+            raise ManuscriptError(
+                "Describe the book or long-form project Crump should create.",
+                "MANUSCRIPT_BRIEF_REQUIRED",
+            )
+        preferred_format = str(preferred_format or "docx").lower().strip(".")
+        if preferred_format not in {"docx", "pdf", "epub"}:
+            preferred_format = "docx"
+        target_words = target_words_from_prompt(clean_brief)
+        chapter_count = chapter_count_from_prompt(clean_brief)
+        provisional_title = title_from_prompt(clean_brief, "Untitled Manuscript")
+
+        # Persist the workspace before any long provider call. The browser can
+        # close immediately; a leased worker resumes planning and drafting.
+        if (
+            not project_id
+            and project_limit >= 0
+            and await self.projects.count(user["id"]) >= project_limit
+        ):
             raise ManuscriptError(
                 "Choose an existing Project before starting another long-form workspace.",
                 "PROJECT_LIMIT_REACHED",
                 403,
             )
-        blueprint, model_result = await self.plan_blueprint(
-            user=user,
-            brief=brief,
-            project_id=project_id,
-        )
         created_project = False
         if project_id:
             project = await self.projects.get(user["id"], project_id)
         else:
             project = await self.projects.create(
                 user_id=user["id"],
-                name=blueprint["title"],
-                description=blueprint.get("premise") or "Long-form manuscript workspace",
-                instructions=f"Original long-form brief:\n{str(brief or '').strip()[:10000]}",
+                name=provisional_title,
+                description=_clean(clean_brief, 1200) or "Long-form manuscript workspace",
+                instructions=f"Original long-form brief:\n{clean_brief[:10000]}",
             )
             created_project = True
 
         manuscript = await self.create(
             user_id=user["id"],
             project_id=project["id"],
-            title=blueprint["title"],
-            subtitle=blueprint.get("subtitle") or "",
+            title=provisional_title,
             author_name=user.get("full_name") or user.get("name") or "",
             metadata={
                 "preferredExportFormat": preferred_format,
                 "source": "chat_long_form_handoff",
+                "premise": _clean(clean_brief, 1200),
+                "targetWords": target_words,
+                "plannedChapterCount": chapter_count,
             },
-        )
-        sections = await self._apply_blueprint_rows(
-            user_id=user["id"],
-            manuscript=manuscript,
-            blueprint=blueprint,
         )
         if chat_id:
             await self.projects.attach_chat(
@@ -628,29 +858,415 @@ User brief:
                 project_id=project["id"],
                 chat_id=chat_id,
             )
+
+        run = await self._create_run(
+            user_id=user["id"],
+            project_id=str(project["id"]),
+            manuscript_id=str(manuscript["id"]),
+            brief=clean_brief,
+            target_words=target_words,
+            chapter_count=chapter_count,
+            preferred_format=preferred_format,
+            chat_id=chat_id,
+            mode="autopilot",
+            blueprint_receipt=blueprint_receipt,
+            metadata={"source": "chat_long_form_handoff"},
+        )
+        public_run = self.public_run(run)
         return {
             "response": (
-                f"I created a persistent Manuscript workspace for **{blueprint['title']}** with "
-                f"{len(sections)} planned chapters and a {int(blueprint['targetWords']):,}-word target. "
-                "I moved it out of the chat box so the outline, chapter drafts, Project canon, revisions, "
-                "and exports can survive across sessions. Open the workspace below to review the plan or "
-                "draft the next chapter with Crump."
+                f"I created a persistent Manuscript workspace for **{provisional_title}** and queued the "
+                f"complete {target_words:,}-word draft. Crump will plan about {chapter_count} chapters, "
+                f"write them in resumable steps, and package a {preferred_format.upper()} export. You can "
+                "close this chat, pause the run, or return later without losing the work."
             ),
-            "model": model_result.get("model"),
-            "usage": model_result.get("usage") or {},
-            "stopReason": model_result.get("stopReason"),
+            "model": self.ai.settings.anthropic_model,
+            "usage": {},
+            "stopReason": "queued",
             "projectId": project["id"],
+            "manuscriptRun": public_run,
             "manuscriptWorkspace": {
                 "projectId": project["id"],
                 "projectName": project.get("name"),
                 "projectCreated": created_project,
                 "manuscriptId": manuscript["id"],
-                "title": blueprint["title"],
-                "chapterCount": len(sections),
-                "targetWords": int(blueprint["targetWords"]),
+                "title": provisional_title,
+                "chapterCount": chapter_count,
+                "targetWords": target_words,
                 "preferredExportFormat": preferred_format,
+                "runId": run["id"],
+                "runStatus": run["status"],
             },
         }
+
+    @staticmethod
+    def _merge_provider_usage(current: Any, addition: Any) -> dict[str, int]:
+        existing = current if isinstance(current, dict) else {}
+        incoming = addition if isinstance(addition, dict) else {}
+        return {
+            "inputTokens": int(existing.get("inputTokens") or 0)
+            + int(incoming.get("input_tokens") or incoming.get("inputTokens") or 0),
+            "outputTokens": int(existing.get("outputTokens") or 0)
+            + int(incoming.get("output_tokens") or incoming.get("outputTokens") or 0),
+            "providerCalls": int(existing.get("providerCalls") or 0) + 1,
+        }
+
+    @staticmethod
+    def _lease_filters(run: dict[str, Any]) -> dict[str, str]:
+        return {
+            "id": eq(run["id"]),
+            "lease_token": eq(run.get("lease_token")),
+            "status": eq("running"),
+        }
+
+    async def _lease_update(
+        self,
+        run: dict[str, Any],
+        changes: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        updated = await self.db.update(
+            "manuscript_runs",
+            {**changes, "updated_at": _now()},
+            filters=self._lease_filters(run),
+        )
+        return updated[0] if updated else None
+
+    async def _queue_next(
+        self,
+        run: dict[str, Any],
+        changes: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
+        return await self._lease_update(
+            run,
+            {
+                **(changes or {}),
+                "status": "queued",
+                "not_before": _now(),
+                "lease_token": None,
+                "lease_expires_at": None,
+                "consecutive_failures": 0,
+                "last_error_code": None,
+                "last_error_message": None,
+            },
+        )
+
+    async def process_next_run(self) -> dict[str, Any]:
+        """Claim and advance one durable step.
+
+        Each invocation performs at most one provider call. The database lease
+        makes retries safe after a Vercel timeout, cold start, or deployment.
+        """
+        if not self.features or not self.files:
+            raise RuntimeError("Durable manuscript dependencies are not configured.")
+        claimed = await self.db.rpc("claim_manuscript_run", {"p_lease_seconds": 420})
+        run = claimed[0] if isinstance(claimed, list) and claimed else (claimed or None)
+        if not isinstance(run, dict) or not run.get("id"):
+            return {"claimed": False}
+        user = await self.db.select_one("users", filters={"id": eq(run["user_id"])})
+        if not user:
+            await self._lease_update(
+                run,
+                {
+                    "status": "failed",
+                    "last_error_code": "RUN_USER_NOT_FOUND",
+                    "last_error_message": "The manuscript owner no longer exists.",
+                    "lease_token": None,
+                    "lease_expires_at": None,
+                    "completed_at": _now(),
+                },
+            )
+            return {"claimed": True, "runId": run["id"], "status": "failed"}
+
+        try:
+            stage = str(run.get("stage") or "blueprint")
+            if stage == "blueprint":
+                manuscript = await self.get(
+                    user_id=str(user["id"]),
+                    manuscript_id=str(run["manuscript_id"]),
+                )
+                existing = await self.list_sections(
+                    user_id=str(user["id"]),
+                    manuscript_id=str(manuscript["id"]),
+                )
+                if existing:
+                    next_stage = "complete" if run.get("mode") == "outline" else "drafting"
+                    status = "completed" if next_stage == "complete" else "queued"
+                    updated = await self._lease_update(
+                        run,
+                        {
+                            "stage": next_stage,
+                            "status": status,
+                            "total_sections": len(existing),
+                            "completed_sections": sum(
+                                1 for item in existing if str(item.get("content") or "").strip()
+                            ),
+                            "blueprint_receipt": {},
+                            "lease_token": None,
+                            "lease_expires_at": None,
+                            "completed_at": _now() if status == "completed" else None,
+                        },
+                    )
+                    return {
+                        "claimed": True,
+                        "runId": run["id"],
+                        "status": (updated or {}).get("status") or status,
+                        "stage": next_stage,
+                    }
+
+                blueprint, generation = await self.plan_blueprint(
+                    user=user,
+                    brief=str(run.get("brief") or ""),
+                    target_words=int(run.get("target_words") or DEFAULT_TARGET_WORDS),
+                    chapter_count=int(run.get("chapter_count") or DEFAULT_CHAPTER_COUNT),
+                    preferred_title=str(manuscript.get("title") or ""),
+                    project_id=str(run["project_id"]),
+                )
+                sections = await self._apply_blueprint_rows(
+                    user_id=str(user["id"]),
+                    manuscript=manuscript,
+                    blueprint=blueprint,
+                )
+                project = await self.projects.get(str(user["id"]), str(run["project_id"]))
+                if self._provisional_title(project.get("name")):
+                    await self.projects.update(
+                        user_id=str(user["id"]),
+                        project_id=str(project["id"]),
+                        changes={
+                            "name": blueprint["title"],
+                            "description": blueprint.get("premise") or project.get("description") or "",
+                        },
+                    )
+                outline_only = run.get("mode") == "outline"
+                usage = self._merge_provider_usage(run.get("provider_usage"), generation.get("usage"))
+                changes = {
+                    "stage": "complete" if outline_only else "drafting",
+                    "status": "completed" if outline_only else "queued",
+                    "total_sections": len(sections),
+                    "completed_sections": 0,
+                    "provider_usage": usage,
+                    "blueprint_receipt": {},
+                    "lease_token": None,
+                    "lease_expires_at": None,
+                    "completed_at": _now() if outline_only else None,
+                }
+                updated = await self._lease_update(run, changes)
+                return {
+                    "claimed": True,
+                    "runId": run["id"],
+                    "status": (updated or {}).get("status") or changes["status"],
+                    "stage": changes["stage"],
+                    "sections": len(sections),
+                }
+
+            if stage == "drafting":
+                sections = await self.list_sections(
+                    user_id=str(user["id"]),
+                    manuscript_id=str(run["manuscript_id"]),
+                )
+                current_id = str(run.get("current_section_id") or "")
+                current = next((item for item in sections if str(item.get("id")) == current_id), None)
+                if current and str(current.get("content") or "").strip():
+                    completed = sum(1 for item in sections if str(item.get("content") or "").strip())
+                    await self._queue_next(
+                        run,
+                        {
+                            "completed_sections": completed,
+                            "total_sections": len(sections),
+                            "current_section_id": None,
+                            "current_receipt": {},
+                        },
+                    )
+                    return {
+                        "claimed": True,
+                        "runId": run["id"],
+                        "status": "queued",
+                        "stage": "drafting",
+                        "reconciled": True,
+                    }
+
+                target = next(
+                    (item for item in sections if not str(item.get("content") or "").strip()),
+                    None,
+                )
+                if not target:
+                    await self._queue_next(
+                        run,
+                        {
+                            "stage": "export",
+                            "completed_sections": len(sections),
+                            "total_sections": len(sections),
+                            "current_section_id": None,
+                            "current_receipt": {},
+                        },
+                    )
+                    return {
+                        "claimed": True,
+                        "runId": run["id"],
+                        "status": "queued",
+                        "stage": "export",
+                    }
+
+                receipt = run.get("current_receipt") if isinstance(run.get("current_receipt"), dict) else {}
+                if not receipt or current_id != str(target["id"]):
+                    receipt = await self.features.consume(
+                        user,
+                        "manuscript_draft",
+                        {
+                            "manuscriptId": run["manuscript_id"],
+                            "sectionId": target["id"],
+                            "runId": run["id"],
+                        },
+                    )
+                    persisted = await self._lease_update(
+                        run,
+                        {"current_section_id": target["id"], "current_receipt": receipt},
+                    )
+                    if not persisted:
+                        await self.features.refund(str(user["id"]), receipt)
+                        return {"claimed": True, "runId": run["id"], "status": "superseded"}
+                    run = persisted
+
+                drafted, generation = await self.draft_section_with_generation(
+                    user=user,
+                    manuscript_id=str(run["manuscript_id"]),
+                    section_id=str(target["id"]),
+                )
+                completed = sum(1 for item in sections if str(item.get("content") or "").strip()) + 1
+                usage = self._merge_provider_usage(run.get("provider_usage"), generation.get("usage"))
+                await self._queue_next(
+                    run,
+                    {
+                        "completed_sections": completed,
+                        "total_sections": len(sections),
+                        "provider_usage": usage,
+                        "current_section_id": None,
+                        "current_receipt": {},
+                    },
+                )
+                return {
+                    "claimed": True,
+                    "runId": run["id"],
+                    "status": "queued",
+                    "stage": "drafting",
+                    "sectionId": drafted["id"],
+                    "completedSections": completed,
+                }
+
+            if stage == "export":
+                await self.features.consume(
+                    user,
+                    "kdp_export",
+                    {"manuscriptId": run["manuscript_id"], "runId": run["id"]},
+                )
+                data, filename, mime, metadata = await self.export(
+                    user_id=str(user["id"]),
+                    manuscript_id=str(run["manuscript_id"]),
+                    export_format=str(run.get("preferred_export_format") or "docx"),
+                )
+                file_row = await self.files.store_bytes(
+                    user_id=str(user["id"]),
+                    data=data,
+                    filename=filename,
+                    mime_type=mime,
+                    kind="manuscript_export",
+                    metadata={**metadata, "manuscriptRunId": run["id"]},
+                )
+                await self.projects.attach_file(
+                    user_id=str(user["id"]),
+                    project_id=str(run["project_id"]),
+                    file_id=str(file_row["id"]),
+                    role="manuscript_export",
+                )
+                updated = await self._lease_update(
+                    run,
+                    {
+                        "stage": "complete",
+                        "status": "completed",
+                        "output_file_id": file_row["id"],
+                        "lease_token": None,
+                        "lease_expires_at": None,
+                        "completed_at": _now(),
+                    },
+                )
+                return {
+                    "claimed": True,
+                    "runId": run["id"],
+                    "status": (updated or {}).get("status") or "completed",
+                    "stage": "complete",
+                    "outputFileId": file_row["id"],
+                }
+
+            await self._lease_update(
+                run,
+                {
+                    "status": "completed",
+                    "stage": "complete",
+                    "lease_token": None,
+                    "lease_expires_at": None,
+                    "completed_at": _now(),
+                },
+            )
+            return {"claimed": True, "runId": run["id"], "status": "completed"}
+
+        except FeatureAccessError as exc:
+            await self._lease_update(
+                run,
+                {
+                    "status": "awaiting_credits",
+                    "lease_token": None,
+                    "lease_expires_at": None,
+                    "last_error_code": exc.code,
+                    "last_error_message": exc.message,
+                    "metadata": {
+                        **(run.get("metadata") or {}),
+                        "creditsRequired": exc.credit_cost,
+                        "creditBalance": exc.credit_balance,
+                    },
+                },
+            )
+            return {
+                "claimed": True,
+                "runId": run["id"],
+                "status": "awaiting_credits",
+                "errorCode": exc.code,
+            }
+        except Exception as exc:
+            logger.exception("Durable manuscript step failed run=%s stage=%s", run.get("id"), run.get("stage"))
+            current_receipt = run.get("current_receipt") or {}
+            if current_receipt:
+                await self.features.refund(str(run["user_id"]), current_receipt)
+            failures = int(run.get("consecutive_failures") or 0) + 1
+            retryable = not isinstance(exc, ManuscriptError)
+            error_code = getattr(exc, "code", "MANUSCRIPT_RUN_STEP_FAILED")
+            error_message = str(getattr(exc, "message", str(exc)) or "Manuscript generation failed.")[:500]
+            if isinstance(exc, AIServiceError):
+                retryable = exc.retryable
+            should_retry = retryable and failures < 5
+            if not should_retry and run.get("stage") == "blueprint":
+                await self.features.refund(str(run["user_id"]), run.get("blueprint_receipt") or {})
+            changes: dict[str, Any] = {
+                "status": "queued" if should_retry else "failed",
+                "consecutive_failures": failures,
+                "current_section_id": None,
+                "current_receipt": {},
+                "lease_token": None,
+                "lease_expires_at": None,
+                "last_error_code": str(error_code)[:120],
+                "last_error_message": error_message,
+                "completed_at": None if should_retry else _now(),
+            }
+            if should_retry:
+                delay = min(300, 15 * (2 ** (failures - 1)))
+                changes["not_before"] = (datetime.now(timezone.utc) + timedelta(seconds=delay)).isoformat()
+            else:
+                changes["blueprint_receipt"] = {}
+            await self._lease_update(run, changes)
+            return {
+                "claimed": True,
+                "runId": run["id"],
+                "status": changes["status"],
+                "errorCode": error_code,
+            }
 
     @staticmethod
     def progress(manuscript: dict[str, Any], sections: list[dict[str, Any]]) -> dict[str, Any]:
@@ -703,6 +1319,22 @@ User brief:
         section_id: str,
         instruction: str = "",
     ) -> dict[str, Any]:
+        section, _generation = await self.draft_section_with_generation(
+            user=user,
+            manuscript_id=manuscript_id,
+            section_id=section_id,
+            instruction=instruction,
+        )
+        return section
+
+    async def draft_section_with_generation(
+        self,
+        *,
+        user: dict[str, Any],
+        manuscript_id: str,
+        section_id: str,
+        instruction: str = "",
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         manuscript = await self.get(user_id=user["id"], manuscript_id=manuscript_id)
         sections = await self.list_sections(user_id=user["id"], manuscript_id=manuscript["id"])
         target_id = normalize_chat_id(section_id)
@@ -783,17 +1415,20 @@ User brief:
                 "user": {"name": user.get("full_name") or user.get("name") or ""},
                 "relevantContext": context,
                 "workMode": "work",
-            }
+            },
+            max_tokens=16_000,
+            timeout_seconds=240.0,
         )
         text = str(result.get("response") or "").strip()
         if not text:
             raise ManuscriptError("Crump returned an empty manuscript draft.", "EMPTY_DRAFT", 502)
-        return await self.update_section(
+        section = await self.update_section(
             user_id=user["id"],
             manuscript_id=manuscript["id"],
             section_id=target_id,
             changes={"content": text},
         )
+        return section, result
 
     async def export(
         self,

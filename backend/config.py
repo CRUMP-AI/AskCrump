@@ -146,7 +146,9 @@ def get_settings() -> Settings:
         openweather_api_key=os.getenv('OPENWEATHER_API_KEY'),
         web_search_enabled=_bool(os.getenv('CRUMP_ENABLE_WEB_SEARCH'), True),
         image_generation_enabled=_bool(os.getenv('CRUMP_ENABLE_IMAGE_GENERATION'), True),
-        video_generation_enabled=_bool(os.getenv('CRUMP_ENABLE_VIDEO_GENERATION'), False),
+        # A configured Gemini key is sufficient by default. Operators can still
+        # explicitly set this false as an emergency cost/safety switch.
+        video_generation_enabled=_bool(os.getenv('CRUMP_ENABLE_VIDEO_GENERATION'), True),
         manuscript_generation_enabled=_bool(os.getenv('CRUMP_ENABLE_MANUSCRIPTS'), True),
         max_active_video_jobs_per_user=int(os.getenv('MAX_ACTIVE_VIDEO_JOBS_PER_USER', '1')),
         max_generated_video_bytes=int(os.getenv('MAX_GENERATED_VIDEO_BYTES', str(90 * 1024 * 1024))),

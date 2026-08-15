@@ -358,6 +358,7 @@ async def chat(request: Request):
                 chat_id=chat_id,
                 preferred_format=requested_artifact or 'docx',
                 project_limit=features.project_limit(auth.user),
+                blueprint_receipt=feature_usage,
             )
             project_id = str(result.get('projectId') or project_id or '') or None
         elif (
@@ -444,11 +445,12 @@ async def chat(request: Request):
         )
 
     result = dict(result or {})
-    result, verifier_used = await intelligence.verify_answer(
-        prepared=prepared,
-        question=str(request_payload.get('message') or ''),
-        result=result,
-    )
+    if not long_form_request:
+        result, verifier_used = await intelligence.verify_answer(
+            prepared=prepared,
+            question=str(request_payload.get('message') or ''),
+            result=result,
+        )
 
     artifact_format = requested_artifact if not long_form_request else None
     if artifact_format:

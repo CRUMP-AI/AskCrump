@@ -322,7 +322,13 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
                 })
         return blocks
 
-    async def chat(self, payload: dict[str, Any]) -> dict[str, Any]:
+    async def chat(
+        self,
+        payload: dict[str, Any],
+        *,
+        max_tokens: int = 8192,
+        timeout_seconds: float = 90.0,
+    ) -> dict[str, Any]:
         if not self.settings.anthropic_api_key:
             raise AIServiceError('The Anthropic API key is not configured.', 503, 'NOT_CONFIGURED', False, 0)
 
@@ -359,15 +365,17 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
             current_content = message
         messages: list[dict[str, Any]] = [*history, {'role': 'user', 'content': current_content}]
 
+        output_limit = max(256, min(32_000, int(max_tokens or 8192)))
+        request_timeout = max(10.0, min(290.0, float(timeout_seconds or 90.0)))
         request_body: dict[str, Any] = {
             'model': self.settings.anthropic_model,
-            'max_tokens': 8192,
+            'max_tokens': output_limit,
             'system': system,
             'messages': messages,
         }
 
         try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(90.0, connect=15.0)) as client:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(request_timeout, connect=15.0)) as client:
                 response = await client.post(
                     'https://api.anthropic.com/v1/messages',
                     headers={

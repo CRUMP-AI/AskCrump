@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import logging
 from typing import Any
 from urllib.parse import urlparse
 from uuid import uuid4
@@ -17,6 +18,7 @@ from .security import normalize_chat_id
 
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 ALLOWED_VIDEO_HOST_SUFFIXES = (".googleapis.com", ".googleusercontent.com")
+logger = logging.getLogger("askcrump.video")
 
 
 def _now() -> str:
@@ -43,6 +45,67 @@ class VideoService:
     @property
     def enabled(self) -> bool:
         return bool(self.settings.gemini_api_key and self.settings.video_generation_enabled)
+
+    @staticmethod
+    def _provider_error(response: httpx.Response) -> tuple[str, str]:
+        code = ""
+        message = ""
+        try:
+            body = response.json()
+            error = body.get("error") if isinstance(body, dict) else None
+            if isinstance(error, dict):
+                code = str(error.get("status") or error.get("code") or "")[:120]
+                message = " ".join(str(error.get("message") or "").split())[:500]
+        except (TypeError, ValueError):
+            message = " ".join(response.text.split())[:500]
+        return code, message
+
+    @classmethod
+    def _provider_exception(cls, response: httpx.Response, *, checking: bool = False) -> VideoServiceError:
+        provider_code, provider_message = cls._provider_error(response)
+        request_id = str(
+            response.headers.get("x-request-id")
+            or response.headers.get("x-goog-request-id")
+            or ""
+        )[:160]
+        logger.error(
+            "Gemini video request rejected phase=%s status=%s code=%s request_id=%s message=%s",
+            "poll" if checking else "start",
+            response.status_code,
+            provider_code or "-",
+            request_id or "-",
+            provider_message or "-",
+        )
+        diagnostic = f"{provider_code} {provider_message}".lower()
+        if response.status_code in {401, 403} or "permission_denied" in diagnostic:
+            return VideoServiceError(
+                "Gemini video access is not enabled for this API key or project.",
+                "VIDEO_PROVIDER_PERMISSION_REQUIRED",
+                503,
+                False,
+            )
+        if "quota" in diagnostic or "billing" in diagnostic or "resource_exhausted" in diagnostic:
+            return VideoServiceError(
+                "The Gemini video provider project has no available quota or billing budget.",
+                "VIDEO_PROVIDER_QUOTA_REQUIRED",
+                503,
+                False,
+            )
+        if response.status_code == 429:
+            return VideoServiceError(
+                "The video provider is rate limited. Try again shortly.",
+                "VIDEO_RATE_LIMIT",
+                429,
+                True,
+            )
+        return VideoServiceError(
+            "The video provider could not return job status."
+            if checking
+            else "The video provider rejected the generation request.",
+            "VIDEO_STATUS_UNAVAILABLE" if checking else "VIDEO_PROVIDER_REJECTED",
+            502,
+            response.status_code >= 500,
+        )
 
     @staticmethod
     def validate_prompt(value: Any) -> str:
@@ -171,12 +234,7 @@ class VideoService:
                 True,
             ) from exc
         if response.status_code >= 400:
-            raise VideoServiceError(
-                "The video provider rejected the generation request.",
-                "VIDEO_PROVIDER_REJECTED",
-                502,
-                response.status_code in {429, 500, 503},
-            )
+            raise self._provider_exception(response)
         try:
             body = response.json()
         except ValueError as exc:
@@ -265,12 +323,7 @@ class VideoService:
                 True,
             ) from exc
         if response.status_code >= 400:
-            raise VideoServiceError(
-                "The video provider could not return job status.",
-                "VIDEO_STATUS_UNAVAILABLE",
-                502,
-                True,
-            )
+            raise self._provider_exception(response, checking=True)
         try:
             body = response.json()
         except ValueError as exc:
@@ -284,10 +337,23 @@ class VideoService:
         if not body.get("done"):
             return row
         if body.get("error"):
-            error_text = str((body.get("error") or {}).get("message") or "Video generation failed.")[:500]
+            provider_error = body.get("error") or {}
+            error_text = str(provider_error.get("message") or "Video generation failed.")[:500]
+            provider_code = str(provider_error.get("status") or provider_error.get("code") or "")[:120]
+            logger.error(
+                "Gemini video job failed job=%s code=%s message=%s",
+                str(row.get("id") or "")[:80],
+                provider_code or "-",
+                " ".join(error_text.split()),
+            )
             updated = await self.db.update(
                 "media_jobs",
-                {"status": "failed", "error_message": error_text, "updated_at": _now()},
+                {
+                    "status": "failed",
+                    "error_message": error_text,
+                    "metadata": {**(row.get("metadata") or {}), "providerErrorCode": provider_code},
+                    "updated_at": _now(),
+                },
                 filters={"id": eq(row["id"]), "user_id": eq(user_id)},
             )
             return (updated or [row])[0]

@@ -10,6 +10,8 @@
     activeManuscript: null,
     activeSection: null,
     manuscriptProgress: null,
+    manuscriptRun: null,
+    manuscriptPollTimer: null,
     videoPollTimer: null,
   };
 
@@ -232,6 +234,14 @@
                   <div id="crump53ManuscriptEditor" hidden>
                     <h3 id="crump53EditorTitle">Manuscript</h3>
                     <div id="crump53ManuscriptProgress" class="crump53-progress" aria-live="polite"></div>
+                    <div id="crump53ManuscriptRun" class="crump53-note" hidden aria-live="polite"></div>
+                    <div class="crump53-actions" style="margin-bottom:10px">
+                      <select id="crump53FullDraftFormat" class="crump53-select" aria-label="Automatic export format"><option value="docx">Full draft + DOCX</option><option value="pdf">Full draft + PDF</option><option value="epub">Full draft + EPUB</option></select>
+                      <button type="button" class="crump53-button is-primary" id="crump53StartFullDraft">Write full manuscript</button>
+                      <button type="button" class="crump53-button" id="crump53PauseFullDraft" hidden>Pause</button>
+                      <button type="button" class="crump53-button" id="crump53ResumeFullDraft" hidden>Resume</button>
+                      <button type="button" class="crump53-button" id="crump53CancelFullDraft" hidden>Cancel</button>
+                    </div>
                     <div id="crump53BlueprintPanel" class="crump53-blueprint-panel">
                       <label class="crump53-label">Manuscript brief<textarea id="crump53BlueprintBrief" class="crump53-textarea" maxlength="12000" placeholder="Describe the complete work Crump should plan..."></textarea></label>
                       <div class="crump53-actions">
@@ -275,7 +285,7 @@
                   <label class="crump53-label">Aspect ratio<select id="crump53VideoAspect" class="crump53-select"><option value="16:9">Landscape 16:9</option><option value="9:16">Portrait 9:16</option></select></label>
                   <label class="crump53-label">Resolution<select id="crump53VideoResolution" class="crump53-select"><option value="720p">720p · 60 credits</option><option value="1080p">1080p · 90 credits</option></select></label>
                 </div>
-                <div class="crump53-note">Video is Professional+ only and every generation spends Crump Credits. There are no unlimited or included video generations, which protects the account from runaway provider cost. Ask Crump never exposes the provider key to the browser.</div>
+                <div class="crump53-note" id="crump53VideoCostNote">Video is Professional+ only and every generation spends Crump Credits. There are no unlimited or included video generations, which protects the account from runaway provider cost. Ask Crump never exposes the provider key to the browser.</div>
                 <div class="crump53-actions"><button class="crump53-button is-primary" type="submit">Generate video</button><span id="crump53VideoEntitlement" class="crump53-lock">Checking access…</span></div>
                 <div id="crump53VideoStatus" class="crump53-status" aria-live="polite"></div>
               </form>
@@ -300,6 +310,10 @@
     byId('crump53PlanManuscript')?.addEventListener('click', planManuscript);
     byId('crump53AddChapter')?.addEventListener('click', addChapter);
     byId('crump53DraftNext')?.addEventListener('click', draftNextSection);
+    byId('crump53StartFullDraft')?.addEventListener('click', startFullManuscript);
+    byId('crump53PauseFullDraft')?.addEventListener('click', () => controlManuscriptRun('pause'));
+    byId('crump53ResumeFullDraft')?.addEventListener('click', () => controlManuscriptRun('resume'));
+    byId('crump53CancelFullDraft')?.addEventListener('click', () => controlManuscriptRun('cancel'));
     byId('crump53SaveSection')?.addEventListener('click', saveSection);
     byId('crump53DraftSection')?.addEventListener('click', draftSection);
     overlay.querySelectorAll('[data-crump53-export]').forEach(button => {
@@ -322,6 +336,8 @@
     const studio = byId('crump53Studio');
     if (studio) studio.hidden = true;
     document.body.style.overflow = '';
+    if (state.manuscriptPollTimer) window.clearTimeout(state.manuscriptPollTimer);
+    state.manuscriptPollTimer = null;
   }
 
   function selectTab(tab) {
@@ -331,7 +347,10 @@
     document.querySelectorAll('[data-crump53-panel]').forEach(node => {
       node.hidden = node.dataset.crump53Panel !== tab;
     });
-    if (tab === 'manuscripts') void refreshManuscripts();
+    if (tab === 'manuscripts') {
+      void refreshManuscripts();
+      scheduleManuscriptPoll();
+    }
     if (tab === 'video') {
       const pendingJob = readStoredVideoJob();
       if (pendingJob) pollVideo(pendingJob);
@@ -344,10 +363,15 @@
       state.features = data;
       const video = data.features?.video;
       const label = byId('crump53VideoEntitlement');
+      const costNote = byId('crump53VideoCostNote');
       if (label) {
         if (!video?.configured) label.textContent = 'Provider key not configured';
+        else if (data.internalAccess) label.textContent = 'Founder Lab · unmetered app access';
         else if (!video?.entitled) label.textContent = 'Professional plan required';
         else label.textContent = `Ready · ${data.creditBalance ?? 0} credits`;
+      }
+      if (costNote && data.internalAccess) {
+        costNote.textContent = 'Founder Lab is active: Ask Crump will not spend your app credits or daily allowances. Provider API usage is still recorded and funded by the owner account.';
       }
     } catch (_) {
       state.features = null;
@@ -379,7 +403,9 @@
     list.innerHTML = state.projects.map(item => `
       <button type="button" class="crump53-list-button ${state.activeProject?.id === item.id ? 'is-active' : ''}" data-project-id="${escapeHtml(item.id)}">
         <span>${escapeHtml(item.name)}</span><small>${escapeHtml(item.updated_at ? 'Saved' : '')}</small>
-      </button>`).join('') + (limit ? `<div class="crump53-status">${state.projects.length} / ${limit} active projects</div>` : '');
+      </button>`).join('') + (Number(limit) > 0
+        ? `<div class="crump53-status">${state.projects.length} / ${limit} active projects</div>`
+        : (Number(limit) < 0 ? '<div class="crump53-status">Founder Lab · unlimited project workspaces</div>' : ''));
     list.querySelectorAll('[data-project-id]').forEach(button => {
       button.addEventListener('click', () => selectProject(button.dataset.projectId));
     });
@@ -565,6 +591,9 @@
     byId('crump53ManuscriptEditor').hidden = true;
     state.activeManuscript = null;
     state.activeSection = null;
+    state.manuscriptRun = null;
+    if (state.manuscriptPollTimer) window.clearTimeout(state.manuscriptPollTimer);
+    state.manuscriptPollTimer = null;
     renderManuscriptList();
   }
 
@@ -589,18 +618,20 @@
         },
       });
       manuscriptId = data.manuscript.id;
-      setStatus('crump53ManuscriptStatus', 'Crump is planning the complete manuscript…');
-      await api(`/api/manuscripts/${manuscriptId}/blueprint`, {
+      setStatus('crump53ManuscriptStatus', 'Queueing the complete manuscript plan…');
+      await api(`/api/manuscripts/${manuscriptId}/runs`, {
         method: 'POST',
         body: {
           brief,
           targetWords: Number(byId('crump53TargetWords')?.value || 80000),
           chapterCount: Number(byId('crump53ChapterCount')?.value || 28),
+          mode: 'outline',
+          format: 'docx',
         },
       });
       await refreshManuscripts();
       await loadManuscript(manuscriptId);
-      setStatus('crump53ManuscriptStatus', 'Blueprint ready. Review the chapters or draft the next one.');
+      setStatus('crump53ManuscriptStatus', 'Blueprint queued. You can leave this screen and return when it is ready.');
     } catch (error) {
       if (manuscriptId) {
         await refreshManuscripts();
@@ -614,11 +645,14 @@
   }
 
   async function loadManuscript(manuscriptId) {
+    if (state.manuscriptPollTimer) window.clearTimeout(state.manuscriptPollTimer);
+    state.manuscriptPollTimer = null;
     try {
       const data = await api(`/api/manuscripts/${manuscriptId}`);
       state.activeManuscript = data.manuscript;
       state.activeManuscript.sections = Array.isArray(data.sections) ? data.sections : [];
       state.manuscriptProgress = data.progress || null;
+      state.manuscriptRun = data.run || null;
       state.activeSection = null;
       byId('crump53ManuscriptCreate').hidden = true;
       byId('crump53ManuscriptEditor').hidden = false;
@@ -631,6 +665,103 @@
       renderManuscriptList();
       renderSections();
       renderManuscriptProgress();
+      renderManuscriptRun();
+      scheduleManuscriptPoll();
+    } catch (error) {
+      setStatus('crump53ManuscriptStatus', error.message, true);
+    }
+  }
+
+  function renderManuscriptRun() {
+    const node = byId('crump53ManuscriptRun');
+    const run = state.manuscriptRun;
+    const start = byId('crump53StartFullDraft');
+    const pause = byId('crump53PauseFullDraft');
+    const resume = byId('crump53ResumeFullDraft');
+    const cancel = byId('crump53CancelFullDraft');
+    const active = Boolean(run && ['queued', 'running', 'paused', 'awaiting_credits'].includes(run.status));
+    if (start) start.hidden = active;
+    if (pause) pause.hidden = !run || !['queued', 'running'].includes(run.status);
+    if (resume) resume.hidden = !run || !['paused', 'awaiting_credits'].includes(run.status);
+    if (cancel) cancel.hidden = !active;
+    if (!node) return;
+    if (!run) {
+      node.hidden = true;
+      node.innerHTML = '';
+      return;
+    }
+    const stageLabels = {blueprint: 'Planning chapters', drafting: 'Writing full draft', export: 'Packaging export', complete: 'Complete'};
+    const total = Number(run.totalSections || run.chapterCount || 0);
+    const completed = Number(run.completedSections || 0);
+    const output = run.outputFile?.url
+      ? `<a class="crump53-button" href="${escapeHtml(run.outputFile.url)}?download=1">Download ${escapeHtml(String(run.preferredExportFormat || 'file').toUpperCase())}</a>`
+      : '';
+    const error = run.error ? `<div class="crump53-status is-error">${escapeHtml(run.error)}</div>` : '';
+    node.hidden = false;
+    node.innerHTML = `<strong>${escapeHtml(stageLabels[run.stage] || 'Manuscript run')} · ${escapeHtml(run.status || '')}</strong><br><span>${completed} of ${total} chapters drafted. This job is saved and can resume after a timeout or browser close.</span>${error}${output ? `<div class="crump53-actions" style="margin-top:8px">${output}</div>` : ''}`;
+  }
+
+  function scheduleManuscriptPoll() {
+    if (state.manuscriptPollTimer) window.clearTimeout(state.manuscriptPollTimer);
+    state.manuscriptPollTimer = null;
+    if (!state.activeManuscript?.id || !state.manuscriptRun || !['queued', 'running'].includes(state.manuscriptRun.status)) return;
+    state.manuscriptPollTimer = window.setTimeout(pollManuscriptRun, 10000);
+  }
+
+  async function pollManuscriptRun() {
+    const manuscriptId = state.activeManuscript?.id;
+    if (!manuscriptId) return;
+    try {
+      const data = await api(`/api/manuscripts/${manuscriptId}/run`);
+      state.manuscriptRun = data.run || null;
+      renderManuscriptRun();
+      if (state.manuscriptRun && ['completed', 'failed', 'awaiting_credits'].includes(state.manuscriptRun.status)) {
+        await loadManuscript(manuscriptId);
+        return;
+      }
+    } catch (error) {
+      setStatus('crump53ManuscriptStatus', error.message, true);
+    }
+    scheduleManuscriptPoll();
+  }
+
+  async function startFullManuscript() {
+    if (!state.activeManuscript?.id) return;
+    const metadata = state.activeManuscript.metadata && typeof state.activeManuscript.metadata === 'object' ? state.activeManuscript.metadata : {};
+    const brief = byId('crump53BlueprintBrief')?.value?.trim() || metadata.premise || '';
+    try {
+      setStatus('crump53ManuscriptStatus', 'Queueing the complete manuscript…');
+      const data = await api(`/api/manuscripts/${state.activeManuscript.id}/runs`, {
+        method: 'POST',
+        body: {
+          brief,
+          targetWords: Number(byId('crump53BlueprintTarget')?.value || metadata.targetWords || 80000),
+          chapterCount: Number(byId('crump53BlueprintChapters')?.value || metadata.plannedChapterCount || 28),
+          format: byId('crump53FullDraftFormat')?.value || 'docx',
+          mode: 'autopilot',
+        },
+      });
+      state.manuscriptRun = data.run;
+      renderManuscriptRun();
+      scheduleManuscriptPoll();
+      setStatus('crump53ManuscriptStatus', 'Full manuscript queued. It is safe to close this screen.');
+    } catch (error) {
+      const message = error.data?.creditsRequired
+        ? `${error.message} Current balance: ${error.data.creditBalance ?? 0}.`
+        : error.message;
+      setStatus('crump53ManuscriptStatus', message, true);
+    }
+  }
+
+  async function controlManuscriptRun(action) {
+    const runId = state.manuscriptRun?.id;
+    if (!runId || !['pause', 'resume', 'cancel'].includes(action)) return;
+    try {
+      const data = await api(`/api/manuscript-runs/${runId}/${action}`, {method: 'POST'});
+      state.manuscriptRun = data.run;
+      renderManuscriptRun();
+      scheduleManuscriptPoll();
+      setStatus('crump53ManuscriptStatus', `Manuscript run ${action === 'cancel' ? 'cancelled' : `${action}d`}.`);
     } catch (error) {
       setStatus('crump53ManuscriptStatus', error.message, true);
     }
@@ -907,7 +1038,7 @@
       card.className = 'crump53-manuscript-handoff';
       card.innerHTML = `
         <div class="crump53-handoff-mark">M</div>
-        <div><small>MANUSCRIPT WORKSPACE</small><strong>${escapeHtml(workspace.title || 'Untitled manuscript')}</strong><span>${Number(workspace.chapterCount || 0)} planned chapters · ${Number(workspace.targetWords || 0).toLocaleString()}-word target</span></div>
+        <div><small>MANUSCRIPT WORKSPACE · ${escapeHtml(workspace.runStatus || 'saved')}</small><strong>${escapeHtml(workspace.title || 'Untitled manuscript')}</strong><span>${Number(workspace.chapterCount || 0)} planned chapters · ${Number(workspace.targetWords || 0).toLocaleString()}-word target · resumable full draft</span></div>
         <button type="button">Open workspace</button>`;
       card.querySelector('button')?.addEventListener('click', () => void openManuscriptWorkspace(workspace));
       wrapper.appendChild(card);

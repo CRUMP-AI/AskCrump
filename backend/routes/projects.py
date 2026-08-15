@@ -35,7 +35,7 @@ async def create_project(request: Request):
         return _error("Invalid project request.", "INVALID_PROJECT_REQUEST", 400)
     count = await projects.count(auth.user["id"])
     limit = features.project_limit(auth.user)
-    if count >= limit:
+    if limit >= 0 and count >= limit:
         return _error(
             f"Your current plan supports up to {limit} active projects.",
             "PROJECT_LIMIT_REACHED",

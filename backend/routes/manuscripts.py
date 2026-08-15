@@ -1,6 +1,8 @@
 """Project manuscript editing, AI drafting, and KDP export endpoints."""
 from __future__ import annotations
 
+import hmac
+
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
@@ -33,6 +35,18 @@ def _manuscript_error(exc: ManuscriptError) -> JSONResponse:
         status_code=exc.status_code,
         content={"success": False, "error": exc.message, "code": exc.code},
     )
+
+
+async def _public_run(user_id: str, row: dict | None) -> dict | None:
+    payload = manuscripts.public_run(row)
+    if not payload or not row or not row.get("output_file_id"):
+        return payload
+    try:
+        file_row = await files.get_owned(user_id=user_id, file_id=str(row["output_file_id"]))
+        payload["outputFile"] = files.public_file(file_row)
+    except Exception:
+        pass
+    return payload
 
 
 @router.get("/api/projects/{project_id}/manuscripts")
@@ -84,14 +98,126 @@ async def get_manuscript(manuscript_id: str, request: Request):
     try:
         item = await manuscripts.get(user_id=auth.user["id"], manuscript_id=manuscript_id)
         sections = await manuscripts.list_sections(user_id=auth.user["id"], manuscript_id=manuscript_id)
+        run = await manuscripts.latest_run(user_id=auth.user["id"], manuscript_id=manuscript_id)
         return {
             "success": True,
             "manuscript": item,
             "sections": sections,
             "progress": manuscripts.progress(item, sections),
+            "run": await _public_run(auth.user["id"], run),
         }
     except ManuscriptError as exc:
         return _manuscript_error(exc)
+
+
+@router.post("/api/manuscripts/{manuscript_id}/runs")
+async def start_manuscript_run(manuscript_id: str, request: Request):
+    auth = await authenticate_request(request, db, settings)
+    if not settings.manuscript_generation_enabled or not settings.anthropic_api_key:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "success": False,
+                "error": "Full-manuscript generation is not configured yet.",
+                "code": "MANUSCRIPT_NOT_CONFIGURED",
+            },
+        )
+    payload = await request.json()
+    payload = payload if isinstance(payload, dict) else {}
+    try:
+        existing = await manuscripts.latest_run(user_id=auth.user["id"], manuscript_id=manuscript_id)
+        if existing and existing.get("status") in {"queued", "running", "paused", "awaiting_credits"}:
+            return {
+                "success": True,
+                "run": await _public_run(auth.user["id"], existing),
+                "idempotentReplay": True,
+            }
+        sections = await manuscripts.list_sections(user_id=auth.user["id"], manuscript_id=manuscript_id)
+        receipt = None
+        if not sections:
+            receipt = await features.consume(
+                auth.user,
+                "manuscript_blueprint",
+                {"manuscriptId": manuscript_id, "mode": "durable_run"},
+            )
+        run = await manuscripts.queue_run(
+            user=auth.user,
+            manuscript_id=manuscript_id,
+            brief=str(payload.get("brief") or ""),
+            target_words=payload.get("targetWords"),
+            chapter_count=payload.get("chapterCount"),
+            preferred_format=str(payload.get("format") or "docx"),
+            mode=str(payload.get("mode") or "autopilot"),
+            blueprint_receipt=receipt,
+        )
+        return {"success": True, "run": await _public_run(auth.user["id"], run)}
+    except FeatureAccessError as exc:
+        return _feature_error(exc)
+    except ManuscriptError as exc:
+        if "receipt" in locals() and receipt:
+            await features.refund(auth.user["id"], receipt)
+        return _manuscript_error(exc)
+    except Exception:
+        if "receipt" in locals() and receipt:
+            await features.refund(auth.user["id"], receipt)
+        return JSONResponse(
+            status_code=503,
+            content={
+                "success": False,
+                "error": "Crump could not queue the full manuscript yet.",
+                "code": "MANUSCRIPT_RUN_QUEUE_FAILED",
+            },
+        )
+
+
+@router.get("/api/manuscripts/{manuscript_id}/run")
+async def manuscript_run_status(manuscript_id: str, request: Request):
+    auth = await authenticate_request(request, db, settings)
+    try:
+        row = await manuscripts.latest_run(user_id=auth.user["id"], manuscript_id=manuscript_id)
+        return {"success": True, "run": await _public_run(auth.user["id"], row)}
+    except ManuscriptError as exc:
+        return _manuscript_error(exc)
+
+
+@router.post("/api/manuscript-runs/{run_id}/pause")
+async def pause_manuscript_run(run_id: str, request: Request):
+    auth = await authenticate_request(request, db, settings)
+    try:
+        row = await manuscripts.pause_run(user_id=auth.user["id"], run_id=run_id)
+        return {"success": True, "run": await _public_run(auth.user["id"], row)}
+    except ManuscriptError as exc:
+        return _manuscript_error(exc)
+
+
+@router.post("/api/manuscript-runs/{run_id}/resume")
+async def resume_manuscript_run(run_id: str, request: Request):
+    auth = await authenticate_request(request, db, settings)
+    try:
+        row = await manuscripts.resume_run(user_id=auth.user["id"], run_id=run_id)
+        return {"success": True, "run": await _public_run(auth.user["id"], row)}
+    except ManuscriptError as exc:
+        return _manuscript_error(exc)
+
+
+@router.post("/api/manuscript-runs/{run_id}/cancel")
+async def cancel_manuscript_run(run_id: str, request: Request):
+    auth = await authenticate_request(request, db, settings)
+    try:
+        row = await manuscripts.cancel_run(user_id=auth.user["id"], run_id=run_id)
+        return {"success": True, "run": await _public_run(auth.user["id"], row)}
+    except ManuscriptError as exc:
+        return _manuscript_error(exc)
+
+
+@router.get("/api/cron/manuscripts")
+async def manuscript_cron(request: Request):
+    expected = settings.cron_secret
+    authorization = request.headers.get("authorization", "")
+    if not expected or not hmac.compare_digest(authorization, f"Bearer {expected}"):
+        return JSONResponse(status_code=401, content={"success": False, "error": "Unauthorized."})
+    summary = await manuscripts.process_next_run()
+    return {"success": True, **summary}
 
 
 @router.post("/api/manuscripts/{manuscript_id}/blueprint")

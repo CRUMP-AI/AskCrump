@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .db import SupabaseDB
-from .usage_service import credit_status, refund_usage, tier_name
+from .usage_service import credit_status, has_internal_access, refund_usage, tier_name
 
 
 TIER_RANK = {"free": 0, "professional": 1, "enterprise": 2}
@@ -123,6 +123,8 @@ class FeatureService:
 
     @staticmethod
     def project_limit(user: dict[str, Any]) -> int:
+        if has_internal_access(user):
+            return -1
         return PROJECT_LIMITS[tier_name(user)]
 
     @staticmethod
@@ -131,18 +133,23 @@ class FeatureService:
 
     async def status(self, user: dict[str, Any]) -> dict[str, Any]:
         tier = tier_name(user)
+        internal_access = has_internal_access(user)
         credits = await credit_status(self.db, user["id"])
         return {
             "tier": tier,
+            "internalAccess": internal_access,
+            "accessSource": "internal" if internal_access else "billing",
             "creditBalance": credits["balance"],
-            "projectLimit": PROJECT_LIMITS[tier],
+            "projectLimit": -1 if internal_access else PROJECT_LIMITS[tier],
             "features": {
                 code: {
                     "label": policy.label,
                     "minimumTier": policy.minimum_tier,
-                    "entitled": self._tier_allowed(tier, policy.minimum_tier),
-                    "includedDaily": policy.included_daily[tier],
-                    "overflowCredits": policy.credit_cost,
+                    "entitled": internal_access or self._tier_allowed(tier, policy.minimum_tier),
+                    "includedDaily": -1 if internal_access else policy.included_daily[tier],
+                    "overflowCredits": 0 if internal_access else policy.credit_cost,
+                    "standardOverflowCredits": policy.credit_cost,
+                    "accessSource": "internal" if internal_access else "billing",
                 }
                 for code, policy in POLICIES.items()
             },
@@ -150,6 +157,8 @@ class FeatureService:
 
     async def require_tier(self, user: dict[str, Any], code: str) -> FeaturePolicy:
         policy = self.policy(code)
+        if has_internal_access(user):
+            return policy
         tier = tier_name(user)
         if not self._tier_allowed(tier, policy.minimum_tier):
             credits = await credit_status(self.db, user["id"])
@@ -170,6 +179,16 @@ class FeatureService:
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         policy = await self.require_tier(user, code)
+        if has_internal_access(user):
+            credits = await credit_status(self.db, user["id"])
+            return {
+                "feature": code,
+                "paymentSource": "internal",
+                "eventId": None,
+                "creditBalance": credits["balance"],
+                "creditsSpent": 0,
+                "internalAccess": True,
+            }
         tier = tier_name(user)
         included = policy.included_daily[tier]
         details = {"feature": code, **(metadata or {})}

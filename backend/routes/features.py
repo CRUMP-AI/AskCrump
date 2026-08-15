@@ -25,4 +25,21 @@ async def feature_status(request: Request):
     }
     for code, item in status["features"].items():
         item["configured"] = configured.get(code, True)
+    status["providers"] = {
+        "image": {
+            "configured": configured["image"],
+            "provider": "openai",
+            "model": settings.openai_image_model,
+        },
+        "video": {
+            "configured": configured["video"],
+            "provider": "gemini",
+            "model": settings.gemini_video_model,
+        },
+        "manuscript": {
+            "configured": configured["manuscript_draft"],
+            "provider": "anthropic",
+            "model": settings.anthropic_model,
+        },
+    }
     return {"success": True, **status}

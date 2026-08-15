@@ -1,5 +1,19 @@
 # Changelog
 
+## 5.4.1 — 2026-08-15
+
+### Added
+
+- Added leased, resumable full-manuscript jobs with pause, resume, cancellation, progress, automatic export, and a protected minute worker.
+- Added founder/staff lab access that bypasses Ask Crump message, feature, credit, and Project limits without changing customer billing records.
+- Added actionable, sanitized OpenAI image and Gemini video provider diagnostics and exposed the configured non-secret model names.
+
+### Changed
+
+- Made book-scale chat requests persist their workspace before any model call, eliminating the 90-second request-timeout failure mode.
+- Enabled video generation by default when a Gemini key is configured while preserving the explicit emergency-disable flag.
+- Advanced the service-worker cache to revision 8.
+
 ## 5.4.0 — 2026-08-15
 
 ### Added

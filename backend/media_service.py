@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import base64
+import binascii
 from io import BytesIO
+import logging
 from typing import Any
 
 import httpx
@@ -24,6 +26,7 @@ OFFICE_TYPES = {
     'application/vnd.openxmlformats-officedocument.presentationml.presentation',
 }
 TEXT_TYPES = {'text/plain', 'text/markdown', 'text/csv', 'text/tab-separated-values', 'application/json', 'text/html', 'application/rtf'}
+logger = logging.getLogger('askcrump.media')
 
 
 class MediaService:
@@ -77,6 +80,92 @@ class MediaService:
             output_format = 'png'
         return size, quality, output_format
 
+    @staticmethod
+    def _provider_error(response: httpx.Response) -> tuple[str, str, str]:
+        """Extract bounded diagnostics without ever logging credentials or prompts."""
+        provider_code = ''
+        provider_type = ''
+        provider_message = ''
+        try:
+            body = response.json()
+            error = body.get('error') if isinstance(body, dict) else None
+            if isinstance(error, dict):
+                provider_code = str(error.get('code') or '')[:120]
+                provider_type = str(error.get('type') or '')[:120]
+                provider_message = ' '.join(str(error.get('message') or '').split())[:500]
+        except (TypeError, ValueError):
+            provider_message = ' '.join(response.text.split())[:500]
+        return provider_code, provider_type, provider_message
+
+    @classmethod
+    def _image_provider_exception(cls, response: httpx.Response) -> AIServiceError:
+        provider_code, provider_type, provider_message = cls._provider_error(response)
+        request_id = str(response.headers.get('x-request-id') or '')[:160]
+        logger.error(
+            'OpenAI image request rejected status=%s code=%s type=%s request_id=%s message=%s',
+            response.status_code,
+            provider_code or '-',
+            provider_type or '-',
+            request_id or '-',
+            provider_message or '-',
+        )
+        diagnostic = f'{provider_code} {provider_type} {provider_message}'.lower()
+        if 'verification' in diagnostic or 'organization_verification' in diagnostic:
+            return AIServiceError(
+                'OpenAI requires organization verification before this image model can run.',
+                503,
+                'IMAGE_ORGANIZATION_VERIFICATION_REQUIRED',
+                False,
+                0,
+            )
+        if response.status_code == 401 or 'invalid_api_key' in diagnostic:
+            return AIServiceError(
+                'The image provider key is invalid or expired.',
+                503,
+                'IMAGE_PROVIDER_AUTH_ERROR',
+                False,
+                0,
+            )
+        if 'insufficient_quota' in diagnostic or 'billing' in diagnostic or 'credit' in diagnostic:
+            return AIServiceError(
+                'The image provider account has no available API budget.',
+                503,
+                'IMAGE_PROVIDER_BILLING_REQUIRED',
+                False,
+                0,
+            )
+        if 'content_policy' in diagnostic or 'safety' in diagnostic:
+            return AIServiceError(
+                'The image provider could not generate that prompt under its safety rules.',
+                400,
+                'IMAGE_SAFETY_REJECTED',
+                False,
+                0,
+            )
+        if response.status_code == 429:
+            return AIServiceError(
+                'The image provider is rate limited. Try again shortly.',
+                429,
+                'IMAGE_RATE_LIMIT',
+                True,
+                30,
+            )
+        if response.status_code in {400, 403} or 'image_generation_user_error' in diagnostic:
+            return AIServiceError(
+                'The image provider rejected this request or model access is not enabled.',
+                502,
+                'IMAGE_PROVIDER_REJECTED',
+                False,
+                0,
+            )
+        return AIServiceError(
+            'The image provider could not complete that request.',
+            502,
+            'IMAGE_UPSTREAM_ERROR',
+            response.status_code >= 500,
+            10,
+        )
+
     async def generate_or_edit_image(
         self,
         *,
@@ -102,7 +191,7 @@ class MediaService:
                     image_bytes = await self.files.download_bytes(row=source, max_bytes=25 * 1024 * 1024)
                     endpoint = 'https://api.openai.com/v1/images/edits'
                     multipart = {
-                        'image': (source.get('file_name') or 'image.png', image_bytes, source.get('mime_type') or 'image/png'),
+                        'image[]': (source.get('file_name') or 'image.png', image_bytes, source.get('mime_type') or 'image/png'),
                     }
                     form = {
                         'model': self.settings.openai_image_model,
@@ -131,12 +220,18 @@ class MediaService:
         except httpx.HTTPError as exc:
             raise AIServiceError('Could not connect to the image service.', 503, 'IMAGE_NETWORK_ERROR', True, 10) from exc
         if response.status_code >= 400:
-            raise AIServiceError('The image service could not complete that request.', 502, 'IMAGE_UPSTREAM_ERROR', response.status_code >= 500, 10)
-        data = response.json()
+            raise self._image_provider_exception(response)
+        try:
+            data = response.json()
+        except ValueError as exc:
+            raise AIServiceError('The image provider returned an invalid response.', 502, 'IMAGE_INVALID_RESPONSE', True, 5) from exc
         item = ((data.get('data') or [{}])[0]) if isinstance(data, dict) else {}
         image_bytes: bytes | None = None
         if item.get('b64_json'):
-            image_bytes = base64.b64decode(item['b64_json'])
+            try:
+                image_bytes = base64.b64decode(item['b64_json'], validate=True)
+            except (binascii.Error, ValueError, TypeError) as exc:
+                raise AIServiceError('The image provider returned invalid image data.', 502, 'IMAGE_INVALID_RESPONSE', True, 5) from exc
         elif item.get('url'):
             async with httpx.AsyncClient(timeout=60, follow_redirects=True) as client:
                 download = await client.get(item['url'])

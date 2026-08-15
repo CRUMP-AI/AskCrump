@@ -55,6 +55,16 @@ def tier_name(user: dict[str, Any]) -> str:
     return 'free'
 
 
+def has_internal_access(user: dict[str, Any]) -> bool:
+    """Return whether this account has a server-managed staff/founder entitlement.
+
+    Internal access is deliberately separate from Stripe/RevenueCat state. It
+    removes Ask Crump's own test quotas without claiming a paid subscription or
+    hiding the provider usage that the account owner still funds.
+    """
+    return str(user.get('internal_tier') or '').lower() in {'professional', 'enterprise'}
+
+
 def limit_for(settings: Settings, tier: str, usage_type: str) -> int:
     if usage_type != 'messages':
         usage_type = 'messages'
@@ -91,6 +101,7 @@ async def current_usage(
     settings: Settings,
     usage_type: str = 'messages',
 ) -> dict[str, Any]:
+    internal_access = has_internal_access(user)
     rows = await db.select(
         'usage_events',
         columns='id',
@@ -103,7 +114,7 @@ async def current_usage(
     )
     used = len(rows)
     tier = tier_name(user)
-    limit = limit_for(settings, tier, usage_type)
+    limit = -1 if internal_access else limit_for(settings, tier, usage_type)
     credits = await credit_status(db, user['id'])
     return {
         'tier': tier,
@@ -111,6 +122,8 @@ async def current_usage(
         'limit': limit,
         'remaining': max(0, limit - used) if limit >= 0 else -1,
         'credits': credits,
+        'internalAccess': internal_access,
+        'accessSource': 'internal' if internal_access else 'billing',
     }
 
 
@@ -122,6 +135,19 @@ async def consume_usage(
     metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     tier = tier_name(user)
+    if has_internal_access(user):
+        credits = await credit_status(db, user['id'])
+        return {
+            'eventId': None,
+            'tier': tier,
+            'used': 0,
+            'limit': -1,
+            'remaining': -1,
+            'paymentSource': 'internal',
+            'creditBalance': credits['balance'],
+            'creditsSpent': 0,
+            'internalAccess': True,
+        }
     limit = limit_for(settings, tier, usage_type)
     details = metadata or {}
 
