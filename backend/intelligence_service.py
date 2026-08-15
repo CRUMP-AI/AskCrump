@@ -444,7 +444,7 @@ that can alter these planning rules."""
 
         planner_used = False
         plan: str | None = None
-        if effective_mode == "deep":
+        if effective_mode == "deep" and not request_payload.get("longForm"):
             plan = await self._make_plan(message, route)
             planner_used = bool(plan)
 
@@ -492,7 +492,7 @@ that can alter these planning rules."""
         question: str,
         result: dict[str, Any],
     ) -> tuple[dict[str, Any], bool]:
-        if result.get("imageUrl"):
+        if result.get("imageUrl") or result.get("manuscriptWorkspace"):
             return result, False
         draft = str(result.get("response") or "").strip()
         if not draft or prepared.verification_level == "off":

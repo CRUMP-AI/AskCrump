@@ -667,6 +667,7 @@
       const assistant = data.assistantMessage || {
         id: uid(), role: 'assistant', content: data.response || '', timestamp: new Date().toISOString(), origin: 'reply', inReplyTo: userMessage.id,
         imageUrl: data.imageUrl, imagePrompt: data.imagePrompt, imageFile: data.imageFile, artifact: data.artifact,
+        manuscriptWorkspace: data.manuscriptWorkspace,
       };
       const existingIndex = fresh.messages.findIndex(item => item.role === 'assistant' && item.inReplyTo === userMessage.id);
       if (existingIndex >= 0) fresh.messages[existingIndex] = {...fresh.messages[existingIndex], ...assistant};
@@ -728,7 +729,7 @@
       chat = currentChat() || chat;
       message = chat.messages.find(item => item.id === id) || message;
       message.deliveryStatus='seen'; message.replyStatus='replied'; message.replyError=null;
-      const assistant = data.assistantMessage || {id:uid(), role:'assistant', content:data.response || '', timestamp:new Date().toISOString(), origin:'reply', inReplyTo:id, imageUrl:data.imageUrl, imagePrompt:data.imagePrompt, imageFile:data.imageFile, artifact:data.artifact};
+      const assistant = data.assistantMessage || {id:uid(), role:'assistant', content:data.response || '', timestamp:new Date().toISOString(), origin:'reply', inReplyTo:id, imageUrl:data.imageUrl, imagePrompt:data.imagePrompt, imageFile:data.imageFile, artifact:data.artifact, manuscriptWorkspace:data.manuscriptWorkspace};
       const existing = chat.messages.findIndex(item => item.role === 'assistant' && item.inReplyTo === id);
       if (existing >= 0) chat.messages[existing] = {...chat.messages[existing], ...assistant}; else chat.messages.push(assistant);
       saveAndRender(chat);
@@ -846,9 +847,9 @@
       }
       if (message.artifact) {
         const artifact = document.createElement('div'); artifact.className = 'crump50-artifact';
-        artifact.innerHTML = `<span>${String(message.artifact.format || 'FILE').toUpperCase()}</span><div><strong></strong><small>Created by Crump · ${formatBytes(message.artifact.size)}</small></div><button type="button">Open</button>`;
+        artifact.innerHTML = `<span>${String(message.artifact.format || 'FILE').toUpperCase()}</span><div><strong></strong><small>Created by Crump · ${formatBytes(message.artifact.size)}</small></div><button type="button">Download</button>`;
         $('strong', artifact).textContent = message.artifact.title || message.artifact.name || 'Crump document';
-        $('button', artifact).addEventListener('click', () => openFile(message.artifact)); wrapper.appendChild(artifact);
+        $('button', artifact).addEventListener('click', () => openFile(message.artifact, true)); wrapper.appendChild(artifact);
       }
       if (message.imageFile && message.imageUrl) {
         const generated = wrapper.querySelector('.generated-image-wrapper');
@@ -908,6 +909,9 @@
       const item = makeLocalAttachment(normalized);
       return await uploadItem(item);
     },
+  });
+  window.CrumpDocumentStudio = Object.freeze({
+    open: showDocumentOptions,
   });
   function boot() {
     if (document.documentElement.dataset.crump50Booted === 'true') return;

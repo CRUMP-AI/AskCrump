@@ -20,6 +20,7 @@ async def feature_status(request: Request):
         "video": video.enabled,
         "video_hd": video.enabled,
         "manuscript_draft": bool(settings.anthropic_api_key and settings.manuscript_generation_enabled),
+        "manuscript_blueprint": bool(settings.anthropic_api_key and settings.manuscript_generation_enabled),
         "kdp_export": settings.manuscript_generation_enabled,
     }
     for code, item in status["features"].items():

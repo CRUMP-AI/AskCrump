@@ -1,5 +1,21 @@
 # Changelog
 
+## 5.4.0 — 2026-08-15
+
+### Added
+
+- Introduced a durable long-form workflow that turns book-scale chat requests into persistent Project and Manuscript workspaces instead of truncating them into a single response.
+- Added AI manuscript blueprints, chapter-purpose continuity, target-word progress, one-click next-chapter drafting, and chat-to-workspace handoff cards.
+- Added visible Document and Manuscript composer modes and natural-language detection for Word, PDF, presentation, spreadsheet, Markdown, and text deliverables.
+- Added a server-managed internal entitlement for founder, staff, and QA access that remains separate from customer billing records.
+
+### Changed
+
+- Opened manuscript creation and KDP-aware DOCX, PDF, and EPUB export to every tier; Free accounts can use Crump Credits for AI planning and drafting.
+- Made the system capability contract explicit so the assistant no longer falsely claims that Ask Crump cannot create or export files.
+- Restored Projects, Manuscripts, navigation, stability, and subscription layers to native builds for web/mobile feature parity.
+- Advanced the application and service-worker release to 5.4.0 / cache revision 7.
+
 ## 4.2.0 — 2026-08-01
 
 ### Changed

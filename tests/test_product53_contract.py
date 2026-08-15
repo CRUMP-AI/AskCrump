@@ -14,7 +14,7 @@ def test_product53_runtime_is_registered_last_and_cached():
     assert "/crump-product-5.3.css" in runtime
     assert "/crump-product-5.3.js" in runtime
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r6" in worker
+    assert "ask-crump-new-body-v1-r7" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 
@@ -65,6 +65,13 @@ def test_product_expansion_schema_is_private_and_complete():
     assert "application/epub+zip" in migration
 
 
+def test_internal_entitlement_schema_is_billing_independent_and_generic():
+    migration = read("migrations/012_internal_entitlements.sql")
+    assert "internal_tier" in migration
+    assert "professional" in migration and "enterprise" in migration
+    assert "@" not in migration
+
+
 def test_video_retry_does_not_bill_twice():
     route = read("backend/routes/media.py")
     existing_lookup = route.index('existing = await db.select_one(')
@@ -84,6 +91,8 @@ def test_feature_policy_has_explicit_expensive_tool_gates():
     assert '"video"' in policy and '60' in policy
     assert '"video_hd"' in policy and '90' in policy
     assert '"manuscript_draft"' in policy and '8' in policy
+    assert '"manuscript_blueprint"' in policy and '4' in policy
+    assert '"kdp_export"' in policy and '{"free": -1' in policy
     assert 'PROJECT_LIMITS = {"free": 2, "professional": 25, "enterprise": 200}' in policy
 
 
@@ -93,5 +102,31 @@ def test_projects_ui_exposes_isolated_canon_and_video_copy_matches_cost_policy()
     assert "/context`" in js
     assert "720p · 60 credits" in js
     assert "every generation spends Crump Credits" in js
-    assert "Additional AI drafts use 8 credits" in js
+    assert "Planning costs 4 credits and drafting costs 8 on Free" in js
     assert "Enterprise includes one" not in js
+
+
+def test_native_bundle_loads_the_same_product_layers_as_the_web_runtime():
+    native = read("scripts/build-native.mjs")
+    for asset in (
+        "/crump-v1-stability.css",
+        "/crump-v1-stability.js",
+        "/crump-navigation-5.2.5.css",
+        "/crump-navigation-5.2.5.js",
+        "/crump-product-5.3.css",
+        "/crump-product-5.3.js",
+        "/crump-product-5.3.1.css",
+        "/crump-product-5.3.1.js",
+        "/crump-subscriptions-5.3.2.js",
+    ):
+        assert asset in native
+    assert native.index("/crump-navigation-5.2.5.js") < native.index("/crump-product-5.3.js")
+
+
+def test_manuscript_ui_exposes_planning_progress_and_chat_handoff():
+    js = read("public/crump-product-5.3.js")
+    assert "Create & plan" in js
+    assert "Draft next chapter" in js
+    assert "MANUSCRIPT WORKSPACE" in js
+    assert "manuscriptWorkspace" in js
+    assert "crump53DocumentMode" in js

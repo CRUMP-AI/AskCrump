@@ -31,7 +31,7 @@ _FILE_KINDS = {"upload", "generated_image", "generated_document"}
 _FILE_STATUS = {"pending", "ready", "failed"}
 _REQUEST_META_KEYS = {
     "creativeTool", "imageAspect", "imageQuality", "imageUseReference",
-    "artifactFormat", "needsSearch", "taskType",
+    "artifactFormat", "needsSearch", "taskType", "longForm",
 }
 _METADATA_STRING_LIMITS = {
     "prompt": 4000,
@@ -131,11 +131,47 @@ def _safe_artifact(value: Any) -> dict[str, Any] | None:
     return result
 
 
+def _safe_manuscript_workspace(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    try:
+        project_id = str(uuid.UUID(str(value.get("projectId") or "")))
+        manuscript_id = str(uuid.UUID(str(value.get("manuscriptId") or "")))
+    except (ValueError, TypeError, AttributeError):
+        return None
+    result: dict[str, Any] = {
+        "projectId": project_id,
+        "manuscriptId": manuscript_id,
+        "title": sync_module.clean_text(value.get("title"), 255) or "Untitled manuscript",
+        "chapterCount": sync_module.safe_int(
+            value.get("chapterCount"), default=1, minimum=1, maximum=80
+        ),
+        "targetWords": sync_module.safe_int(
+            value.get("targetWords"), default=80_000, minimum=20_000, maximum=150_000
+        ),
+    }
+    project_name = sync_module.clean_text(value.get("projectName"), 120)
+    if project_name:
+        result["projectName"] = project_name
+    preferred = sync_module.clean_text(value.get("preferredExportFormat"), 20).lower().lstrip(".")
+    if preferred in {"docx", "pdf", "epub"}:
+        result["preferredExportFormat"] = preferred
+    if "projectCreated" in value:
+        result["projectCreated"] = bool(value.get("projectCreated"))
+    return result
+
+
 def _sanitize_message_v52(item: Any) -> dict[str, Any] | None:
     if not isinstance(item, dict):
         return None
 
-    has_structured_content = bool(item.get("files") or item.get("artifact") or item.get("imageFile") or item.get("image_file"))
+    has_structured_content = bool(
+        item.get("files")
+        or item.get("artifact")
+        or item.get("imageFile")
+        or item.get("image_file")
+        or item.get("manuscriptWorkspace")
+    )
     actual_content = sync_module.clean_text(item.get("content"), sync_module.MAX_MESSAGE_CHARS)
     actual_image = _safe_image_url_v52(item.get("imageUrl") or item.get("image_url"))
 
@@ -172,6 +208,10 @@ def _sanitize_message_v52(item: Any) -> dict[str, Any] | None:
     artifact = _safe_artifact(item.get("artifact"))
     if artifact:
         message["artifact"] = artifact
+
+    manuscript_workspace = _safe_manuscript_workspace(item.get("manuscriptWorkspace"))
+    if manuscript_workspace:
+        message["manuscriptWorkspace"] = manuscript_workspace
 
     request_meta = item.get("requestMeta") or item.get("request_meta")
     if isinstance(request_meta, dict):

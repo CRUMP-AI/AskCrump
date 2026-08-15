@@ -132,3 +132,25 @@ def test_presence_and_check_in_metadata_survive_sanitization():
     })
     assert assistant_message['origin'] == 'check_in'
     assert assistant_message['checkInId'] == '1c6f0e61-847a-44e8-a72a-e3dbf9668edc'
+
+
+def test_manuscript_workspace_handoff_survives_cross_device_sanitization():
+    message = sanitize_message({
+        'id': 'c8b2b91e-d284-4512-92dd-4ca199252a59',
+        'role': 'assistant',
+        'content': 'Your manuscript workspace is ready.',
+        'manuscriptWorkspace': {
+            'projectId': '1c6f0e61-847a-44e8-a72a-e3dbf9668edc',
+            'manuscriptId': '8f611900-68b0-41c1-b6db-62460fa6ea12',
+            'title': 'Northbound',
+            'chapterCount': 28,
+            'targetWords': 80000,
+            'preferredExportFormat': 'docx',
+            'untrusted': 'discard',
+        },
+    })
+    workspace = message['manuscriptWorkspace']
+    assert workspace['title'] == 'Northbound'
+    assert workspace['chapterCount'] == 28
+    assert workspace['targetWords'] == 80000
+    assert 'untrusted' not in workspace

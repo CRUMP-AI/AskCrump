@@ -1,10 +1,11 @@
-"""Long-form manuscript workspaces and KDP-aware exports for Ask Crump 5.3."""
+"""Durable long-form manuscript workspaces and KDP-aware exports for Ask Crump 5.4."""
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from io import BytesIO
 import html
+import json
 import math
 import re
 from typing import Any
@@ -53,6 +54,11 @@ KDP_BW_WHITE_MAX_PAGES: dict[str, int] = {
     "8.5x11": 590,
 }
 
+DEFAULT_TARGET_WORDS = 80_000
+DEFAULT_CHAPTER_COUNT = 28
+MIN_TARGET_WORDS = 20_000
+MAX_TARGET_WORDS = 150_000
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -64,6 +70,37 @@ def _clean(value: Any, limit: int) -> str:
 
 def word_count(text: str) -> int:
     return len(re.findall(r"\b[\w’'-]+\b", str(text or "")))
+
+
+def target_words_from_prompt(prompt: str, default: int = DEFAULT_TARGET_WORDS) -> int:
+    text = str(prompt or "")
+    match = re.search(r"\b(\d{1,3}(?:,\d{3})+)\s*words?\b", text, re.I)
+    if match:
+        value = int(match.group(1).replace(",", ""))
+        return max(MIN_TARGET_WORDS, min(MAX_TARGET_WORDS, value))
+    match = re.search(r"\b(\d{2,3})\s*k\s*(?:words?)?\b", text, re.I)
+    if match:
+        value = int(match.group(1)) * 1000
+        return max(MIN_TARGET_WORDS, min(MAX_TARGET_WORDS, value))
+    return max(MIN_TARGET_WORDS, min(MAX_TARGET_WORDS, int(default or DEFAULT_TARGET_WORDS)))
+
+
+def chapter_count_from_prompt(prompt: str, default: int = DEFAULT_CHAPTER_COUNT) -> int:
+    match = re.search(r"\b(\d{1,2})\s+(?:chapters?|sections?)\b", str(prompt or ""), re.I)
+    value = int(match.group(1)) if match else int(default or DEFAULT_CHAPTER_COUNT)
+    return max(8, min(80, value))
+
+
+def title_from_prompt(prompt: str, fallback: str = "Untitled Manuscript") -> str:
+    text = " ".join(str(prompt or "").split())
+    match = re.search(
+        r"\b(?:called|titled)\s+[\"“']?([^\"”'.,!?]{2,120})",
+        text,
+        re.I,
+    )
+    if match:
+        return _clean(match.group(1), 180)
+    return fallback
 
 
 def estimate_pages(total_words: int, front_matter_pages: int = 4) -> int:
@@ -181,6 +218,7 @@ class ManuscriptService:
         author_name: str = "",
         trim_code: str = "6x9",
         bleed: bool = False,
+        metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         project = await self.projects.get(user_id, project_id)
         title = _clean(title, 180)
@@ -189,6 +227,17 @@ class ManuscriptService:
         if trim_code not in KDP_TRIM_SIZES:
             raise ManuscriptError("Choose a supported KDP trim size.", "INVALID_TRIM_SIZE")
         width, height = KDP_TRIM_SIZES[trim_code]
+        safe_metadata = dict(metadata or {})
+        if "targetWords" in safe_metadata:
+            try:
+                safe_metadata["targetWords"] = max(
+                    MIN_TARGET_WORDS,
+                    min(MAX_TARGET_WORDS, int(safe_metadata["targetWords"])),
+                )
+            except (TypeError, ValueError):
+                safe_metadata["targetWords"] = DEFAULT_TARGET_WORDS
+        if "premise" in safe_metadata:
+            safe_metadata["premise"] = _clean(safe_metadata["premise"], 1200)
         row = {
             "id": str(uuid4()),
             "user_id": user_id,
@@ -201,7 +250,7 @@ class ManuscriptService:
             "trim_height": height,
             "bleed": bool(bleed),
             "status": "draft",
-            "metadata": {},
+            "metadata": safe_metadata,
             "updated_at": _now(),
         }
         result = await self.db.insert("manuscripts", row)
@@ -296,6 +345,356 @@ class ManuscriptService:
         await self._touch(manuscript["id"], user_id)
         return (result or [{**row, **updates}])[0]
 
+    @staticmethod
+    def _decode_blueprint(text: str) -> dict[str, Any]:
+        clean = str(text or "").strip()
+        clean = re.sub(r"^```(?:json)?\s*", "", clean, flags=re.I)
+        clean = re.sub(r"\s*```$", "", clean)
+        start = clean.find("{")
+        end = clean.rfind("}")
+        if start < 0 or end <= start:
+            return {}
+        try:
+            value = json.loads(clean[start:end + 1])
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return {}
+        return value if isinstance(value, dict) else {}
+
+    @classmethod
+    def _normalize_blueprint(
+        cls,
+        value: dict[str, Any],
+        *,
+        brief: str,
+        preferred_title: str,
+        target_words: int,
+        chapter_count: int,
+    ) -> dict[str, Any]:
+        title = _clean(preferred_title, 180) or _clean(value.get("title"), 180)
+        title = title or title_from_prompt(brief)
+        subtitle = _clean(value.get("subtitle"), 240)
+        genre = _clean(value.get("genre"), 120)
+        premise = _clean(value.get("premise"), 1200) or _clean(brief, 1200)
+        try:
+            proposed_target = int(str(value.get("targetWords") or target_words).replace(",", ""))
+        except (TypeError, ValueError):
+            proposed_target = target_words
+        normalized_target = max(MIN_TARGET_WORDS, min(MAX_TARGET_WORDS, proposed_target))
+
+        raw_sections = value.get("chapters") or value.get("sections") or []
+        sections: list[dict[str, str]] = []
+        if isinstance(raw_sections, list):
+            for index, item in enumerate(raw_sections[:80], start=1):
+                if not isinstance(item, dict):
+                    continue
+                chapter_title = _clean(item.get("title"), 180) or f"Chapter {index}"
+                purpose = _clean(
+                    item.get("purpose") or item.get("brief") or item.get("summary"),
+                    1800,
+                )
+                sections.append(
+                    {
+                        "title": chapter_title,
+                        "purpose": purpose
+                        or f"Advance the central conflict and continuity established for {title}.",
+                    }
+                )
+
+        if len(sections) < 8:
+            sections = [
+                {
+                    "title": f"Chapter {index}",
+                    "purpose": (
+                        f"Develop the next necessary movement of {title}, preserving the user's brief, "
+                        "causal continuity, and forward momentum."
+                    ),
+                }
+                for index in range(1, chapter_count + 1)
+            ]
+
+        return {
+            "title": title,
+            "subtitle": subtitle,
+            "genre": genre,
+            "premise": premise,
+            "targetWords": normalized_target,
+            "chapters": sections,
+        }
+
+    async def plan_blueprint(
+        self,
+        *,
+        user: dict[str, Any],
+        brief: str,
+        target_words: int | None = None,
+        chapter_count: int | None = None,
+        preferred_title: str = "",
+        project_id: str | None = None,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        clean_brief = str(brief or "").strip()[:12000]
+        if not clean_brief:
+            raise ManuscriptError("Describe the manuscript Crump should plan.", "MANUSCRIPT_BRIEF_REQUIRED")
+        target = target_words_from_prompt(clean_brief, target_words or DEFAULT_TARGET_WORDS)
+        chapters = chapter_count_from_prompt(clean_brief, chapter_count or DEFAULT_CHAPTER_COUNT)
+        project_context: dict[str, Any] = {}
+        if project_id:
+            project_context = await self.projects.hydrate_context(user["id"], project_id)
+
+        prompt = f"""Design a complete, original, book-length manuscript blueprint from the user's brief.
+Return JSON only—no Markdown fence and no commentary—with exactly this shape:
+{{
+  "title": "...",
+  "subtitle": "...",
+  "genre": "...",
+  "premise": "...",
+  "targetWords": {target},
+  "chapters": [{{"title": "...", "purpose": "1-3 specific sentences"}}]
+}}
+
+Create approximately {chapters} chapters. Every chapter must cause the next one: identify its
+dramatic or argumentative purpose, important development, and continuity burden. Avoid repetitive
+beats, filler chapters, generic titles, and premature resolution. Preserve supplied Project canon.
+The plan must be substantial enough to support roughly {target:,} finished words.
+
+User brief:
+{clean_brief}"""
+        result = await self.ai.chat(
+            {
+                "message": prompt,
+                "history": [],
+                "assistantName": "Crump",
+                "user": {"name": user.get("full_name") or user.get("name") or ""},
+                "relevantContext": project_context,
+                "workMode": "work",
+            }
+        )
+        decoded = self._decode_blueprint(str(result.get("response") or ""))
+        blueprint = self._normalize_blueprint(
+            decoded,
+            brief=clean_brief,
+            preferred_title=preferred_title,
+            target_words=target,
+            chapter_count=chapters,
+        )
+        return blueprint, result
+
+    async def _apply_blueprint_rows(
+        self,
+        *,
+        user_id: str,
+        manuscript: dict[str, Any],
+        blueprint: dict[str, Any],
+        replace_outlines: bool = False,
+    ) -> list[dict[str, Any]]:
+        existing = await self.list_sections(user_id=user_id, manuscript_id=manuscript["id"])
+        if any(str(item.get("content") or "").strip() for item in existing):
+            raise ManuscriptError(
+                "This manuscript already has drafted text. Crump will not erase it to replace the plan.",
+                "MANUSCRIPT_HAS_DRAFTS",
+                409,
+            )
+        if existing and not replace_outlines:
+            raise ManuscriptError(
+                "This manuscript already has a chapter plan.",
+                "MANUSCRIPT_ALREADY_PLANNED",
+                409,
+            )
+        if existing:
+            await self.db.delete(
+                "manuscript_sections",
+                filters={"user_id": eq(user_id), "manuscript_id": eq(manuscript["id"])},
+            )
+
+        now = _now()
+        rows = [
+            {
+                "id": str(uuid4()),
+                "user_id": user_id,
+                "manuscript_id": manuscript["id"],
+                "section_type": "chapter",
+                "title": item["title"],
+                "position": index,
+                "content": "",
+                "summary": item["purpose"],
+                "word_count": 0,
+                "status": "outline",
+                "updated_at": now,
+            }
+            for index, item in enumerate(blueprint["chapters"], start=1)
+        ]
+        inserted = await self.db.insert("manuscript_sections", rows)
+        metadata = dict(manuscript.get("metadata") or {})
+        metadata.update(
+            {
+                "genre": blueprint.get("genre") or "",
+                "premise": blueprint.get("premise") or "",
+                "targetWords": int(blueprint.get("targetWords") or DEFAULT_TARGET_WORDS),
+                "plannedChapterCount": len(rows),
+                "blueprintCreatedAt": now,
+            }
+        )
+        updates: dict[str, Any] = {"metadata": metadata, "updated_at": now}
+        if blueprint.get("subtitle") and not manuscript.get("subtitle"):
+            updates["subtitle"] = blueprint["subtitle"]
+        await self.db.update(
+            "manuscripts",
+            updates,
+            filters={"id": eq(manuscript["id"]), "user_id": eq(user_id)},
+        )
+        return inserted or rows
+
+    async def apply_blueprint(
+        self,
+        *,
+        user: dict[str, Any],
+        manuscript_id: str,
+        brief: str,
+        target_words: int | None = None,
+        chapter_count: int | None = None,
+        replace_outlines: bool = False,
+    ) -> dict[str, Any]:
+        manuscript = await self.get(user_id=user["id"], manuscript_id=manuscript_id)
+        blueprint, result = await self.plan_blueprint(
+            user=user,
+            brief=brief,
+            target_words=target_words,
+            chapter_count=chapter_count,
+            preferred_title=str(manuscript.get("title") or ""),
+            project_id=str(manuscript["project_id"]),
+        )
+        sections = await self._apply_blueprint_rows(
+            user_id=user["id"],
+            manuscript=manuscript,
+            blueprint=blueprint,
+            replace_outlines=replace_outlines,
+        )
+        return {"blueprint": blueprint, "sections": sections, "model": result.get("model")}
+
+    async def begin_long_form(
+        self,
+        *,
+        user: dict[str, Any],
+        brief: str,
+        project_id: str | None = None,
+        chat_id: str | None = None,
+        preferred_format: str = "docx",
+        project_limit: int = 2,
+    ) -> dict[str, Any]:
+        # Reject a full workspace before paying for its blueprint when the user
+        # has no Project slot available. Existing Projects are validated by the
+        # context hydration inside plan_blueprint.
+        if not project_id and await self.projects.count(user["id"]) >= project_limit:
+            raise ManuscriptError(
+                "Choose an existing Project before starting another long-form workspace.",
+                "PROJECT_LIMIT_REACHED",
+                403,
+            )
+        blueprint, model_result = await self.plan_blueprint(
+            user=user,
+            brief=brief,
+            project_id=project_id,
+        )
+        created_project = False
+        if project_id:
+            project = await self.projects.get(user["id"], project_id)
+        else:
+            project = await self.projects.create(
+                user_id=user["id"],
+                name=blueprint["title"],
+                description=blueprint.get("premise") or "Long-form manuscript workspace",
+                instructions=f"Original long-form brief:\n{str(brief or '').strip()[:10000]}",
+            )
+            created_project = True
+
+        manuscript = await self.create(
+            user_id=user["id"],
+            project_id=project["id"],
+            title=blueprint["title"],
+            subtitle=blueprint.get("subtitle") or "",
+            author_name=user.get("full_name") or user.get("name") or "",
+            metadata={
+                "preferredExportFormat": preferred_format,
+                "source": "chat_long_form_handoff",
+            },
+        )
+        sections = await self._apply_blueprint_rows(
+            user_id=user["id"],
+            manuscript=manuscript,
+            blueprint=blueprint,
+        )
+        if chat_id:
+            await self.projects.attach_chat(
+                user_id=user["id"],
+                project_id=project["id"],
+                chat_id=chat_id,
+            )
+        return {
+            "response": (
+                f"I created a persistent Manuscript workspace for **{blueprint['title']}** with "
+                f"{len(sections)} planned chapters and a {int(blueprint['targetWords']):,}-word target. "
+                "I moved it out of the chat box so the outline, chapter drafts, Project canon, revisions, "
+                "and exports can survive across sessions. Open the workspace below to review the plan or "
+                "draft the next chapter with Crump."
+            ),
+            "model": model_result.get("model"),
+            "usage": model_result.get("usage") or {},
+            "stopReason": model_result.get("stopReason"),
+            "projectId": project["id"],
+            "manuscriptWorkspace": {
+                "projectId": project["id"],
+                "projectName": project.get("name"),
+                "projectCreated": created_project,
+                "manuscriptId": manuscript["id"],
+                "title": blueprint["title"],
+                "chapterCount": len(sections),
+                "targetWords": int(blueprint["targetWords"]),
+                "preferredExportFormat": preferred_format,
+            },
+        }
+
+    @staticmethod
+    def progress(manuscript: dict[str, Any], sections: list[dict[str, Any]]) -> dict[str, Any]:
+        metadata = manuscript.get("metadata") if isinstance(manuscript.get("metadata"), dict) else {}
+        total_words = sum(int(item.get("word_count") or word_count(item.get("content") or "")) for item in sections)
+        try:
+            target_words = max(1, int(metadata.get("targetWords") or DEFAULT_TARGET_WORDS))
+        except (TypeError, ValueError):
+            target_words = DEFAULT_TARGET_WORDS
+        drafted = sum(1 for item in sections if str(item.get("content") or "").strip())
+        next_section = next((item for item in sections if not str(item.get("content") or "").strip()), None)
+        return {
+            "wordCount": total_words,
+            "targetWords": target_words,
+            "wordProgress": min(100, round(total_words * 100 / target_words, 1)),
+            "draftedSections": drafted,
+            "plannedSections": len(sections),
+            "nextSectionId": next_section.get("id") if next_section else None,
+            "nextSectionTitle": next_section.get("title") if next_section else None,
+            "complete": bool(sections) and drafted == len(sections),
+        }
+
+    async def draft_next(
+        self,
+        *,
+        user: dict[str, Any],
+        manuscript_id: str,
+        instruction: str = "",
+    ) -> dict[str, Any]:
+        sections = await self.list_sections(user_id=user["id"], manuscript_id=manuscript_id)
+        target = next((item for item in sections if not str(item.get("content") or "").strip()), None)
+        if not target:
+            raise ManuscriptError(
+                "Every planned section already has a draft.",
+                "MANUSCRIPT_DRAFT_COMPLETE",
+                409,
+            )
+        return await self.draft_section(
+            user=user,
+            manuscript_id=manuscript_id,
+            section_id=str(target["id"]),
+            instruction=instruction,
+        )
+
     async def draft_section(
         self,
         *,
@@ -314,6 +713,7 @@ class ManuscriptService:
         project_context = await self.projects.hydrate_context(user["id"], manuscript["project_id"])
         previous = sections[max(0, index - 3):index]
         upcoming = sections[index + 1:index + 4]
+        immediate_previous = previous[-1] if previous else {}
         canon_rows = (project_context.get("canon") or [])[:12]
         compact_canon = [
             {
@@ -324,19 +724,37 @@ class ManuscriptService:
             for item in canon_rows
         ]
         project = project_context.get("project") or {}
+        metadata = manuscript.get("metadata") if isinstance(manuscript.get("metadata"), dict) else {}
+        try:
+            manuscript_target = int(metadata.get("targetWords") or DEFAULT_TARGET_WORDS)
+        except (TypeError, ValueError):
+            manuscript_target = DEFAULT_TARGET_WORDS
+        chapter_target = max(
+            1_800,
+            min(
+                4_500,
+                round(manuscript_target / max(1, len(sections))),
+            ),
+        )
         context = {
-            # Keep the current draft and nearby continuity first because the base AI
-            # service deliberately bounds relevant context before sending it upstream.
+            "sectionBrief": str(target.get("summary") or "")[:1800],
             "currentDraft": str(target.get("content") or "")[-4500:],
+            "previousEnding": str(immediate_previous.get("content") or "")[-3200:],
             "previousSections": [
-                {"title": item.get("title"), "summary": str(item.get("summary") or "")[:900]}
+                {"title": item.get("title"), "continuity": str(item.get("summary") or "")[:900]}
                 for item in previous
             ],
-            "upcomingSections": [item.get("title") for item in upcoming],
+            "upcomingSections": [
+                {"title": item.get("title"), "brief": str(item.get("summary") or "")[:500]}
+                for item in upcoming
+            ],
             "manuscript": {
                 "title": manuscript.get("title"),
                 "subtitle": manuscript.get("subtitle"),
                 "author": manuscript.get("author_name"),
+                "genre": metadata.get("genre"),
+                "premise": metadata.get("premise"),
+                "targetWords": metadata.get("targetWords"),
             },
             "project": {
                 "name": project.get("name"),
@@ -346,12 +764,14 @@ class ManuscriptService:
             },
         }
         direction = str(instruction or "").strip()[:5000]
+        action = "Revise and expand" if str(target.get("content") or "").strip() else "Draft"
         prompt = (
-            f"Draft the manuscript section titled {target.get('title')!r}. "
-            "Write polished long-form prose, not an outline or summary. Maintain continuity with the supplied "
-            "project canon and nearby sections. Prefer concrete scenes, sensory detail, deliberate pacing, and "
-            "consistent characterization. Do not add commentary before or after the manuscript text. "
-            "Target roughly 1,800 to 3,500 words unless the user's instruction clearly asks for another length."
+            f"{action} the manuscript section titled {target.get('title')!r}. "
+            "Write polished long-form prose, not an outline or summary. Fulfill the supplied section brief. "
+            "Continue causally from the previous ending and maintain Project canon, chronology, voice, POV, "
+            "character knowledge, and unresolved threads. Prefer concrete scenes, sensory detail, deliberate "
+            "pacing, and earned transitions. Do not add commentary before or after the manuscript text. "
+            f"Target roughly {chapter_target:,} words unless the author clearly requests another length."
         )
         if direction:
             prompt += f"\n\nSpecific direction from the author:\n{direction}"
@@ -360,7 +780,7 @@ class ManuscriptService:
                 "message": prompt,
                 "history": [],
                 "assistantName": "Crump",
-                "user": {"name": user.get("name") or ""},
+                "user": {"name": user.get("full_name") or user.get("name") or ""},
                 "relevantContext": context,
                 "workMode": "work",
             }
@@ -436,7 +856,11 @@ class ManuscriptService:
     @staticmethod
     def _summary(text: str) -> str:
         compact = " ".join(str(text or "").split())
-        return compact[:1800]
+        if len(compact) <= 1800:
+            return compact
+        # Preserve both setup and ending. The final state of a chapter is usually
+        # more important to continuity than another slice from its opening pages.
+        return f"{compact[:850]} … [chapter ending] … {compact[-850:]}"
 
     @staticmethod
     def _add_page_number(paragraph: Any) -> None:

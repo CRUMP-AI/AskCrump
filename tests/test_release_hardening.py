@@ -215,6 +215,19 @@ def test_usage_tier_defense_in_depth_rejects_terminal_paid_labels():
         'subscription_tier': 'enterprise',
         'subscription_status': 'canceled',
     }) == 'free'
+
+
+def test_internal_qa_entitlement_is_separate_from_billing_state():
+    assert tier_name({
+        'internal_tier': 'enterprise',
+        'subscription_tier': 'free',
+        'subscription_status': 'inactive',
+    }) == 'enterprise'
+    assert tier_name({
+        'internal_tier': 'invalid',
+        'subscription_tier': 'enterprise',
+        'subscription_status': 'canceled',
+    }) == 'free'
     assert tier_name({
         'subscription_tier': 'professional',
         'subscription_status': 'paused',

@@ -3,9 +3,11 @@ import zipfile
 
 from backend.manuscript_service import (
     ManuscriptService,
+    chapter_count_from_prompt,
     estimate_pages,
     kdp_inside_margin,
     kdp_profile,
+    target_words_from_prompt,
 )
 
 
@@ -30,6 +32,48 @@ def test_kdp_gutter_tiers_and_bleed_page_math():
 def test_page_estimate_never_drops_below_kdp_minimum_print_length():
     assert estimate_pages(100) >= 24
     assert estimate_pages(100_000) > 300
+
+
+def test_long_form_targets_are_read_from_natural_language_and_bounded():
+    assert target_words_from_prompt('Write a 70,000 word novel.') == 70_000
+    assert target_words_from_prompt('Build a 65k-word memoir.') == 65_000
+    assert target_words_from_prompt('Write a 999,999 word book.') == 150_000
+    assert chapter_count_from_prompt('Plan this as 34 chapters.') == 34
+    assert chapter_count_from_prompt('Use 99 chapters.') == 80
+
+
+def test_blueprint_json_and_continuity_summary_are_resilient():
+    decoded = ManuscriptService._decode_blueprint(
+        '```json\n{"title":"Northbound","chapters":[{"title":"Departure","purpose":"Leave home."}]}\n```'
+    )
+    assert decoded['title'] == 'Northbound'
+    normalized = ManuscriptService._normalize_blueprint(
+        decoded,
+        brief='Write an original road novel.',
+        preferred_title='',
+        target_words=70_000,
+        chapter_count=12,
+    )
+    assert normalized['title'] == 'Northbound'
+    assert normalized['targetWords'] == 70_000
+    assert len(normalized['chapters']) == 12
+
+    summary = ManuscriptService._summary('opening ' + ('middle ' * 400) + 'final state')
+    assert summary.startswith('opening')
+    assert '[chapter ending]' in summary
+    assert summary.endswith('final state')
+
+
+def test_long_form_routes_and_platform_capabilities_are_explicit():
+    root = __import__('pathlib').Path(__file__).resolve().parents[1]
+    routes = (root / 'backend' / 'routes' / 'manuscripts.py').read_text(encoding='utf-8')
+    chat = (root / 'backend' / 'routes' / 'chat.py').read_text(encoding='utf-8')
+    prompt = (root / 'backend' / 'ai_service.py').read_text(encoding='utf-8')
+    assert '/blueprint' in routes
+    assert '/draft-next' in routes
+    assert 'begin_long_form' in chat
+    assert 'manuscriptWorkspace' in chat
+    assert 'downloadable DOCX, PDF, PPTX, XLSX' in prompt
 
 
 def test_docx_pdf_and_epub_exports_have_valid_container_signatures():
