@@ -24,6 +24,26 @@ logger = logging.getLogger("askcrump.billing")
 
 STRIPE_ENTITLED_STATUSES = {'active', 'trialing'}
 
+# Stripe Price IDs are public identifiers, not credentials. Environment variables
+# remain authoritative; these production fallbacks prevent a missing deployment
+# variable from silently disabling an otherwise configured paid tier.
+LIVE_PROFESSIONAL_PRICE_ID = 'price_1U3Q4DRvssW2wqC4j1BkbvCk'
+LIVE_ENTERPRISE_PRICE_ID = 'price_1U3Q4LRvssW2wqC452s98nkz'
+_portal_configuration_id: str | None = None
+
+
+def subscription_price_id(tier: str) -> str | None:
+    normalized = str(tier or '').lower()
+    if normalized == 'professional':
+        return settings.stripe_professional_price_id or (
+            LIVE_PROFESSIONAL_PRICE_ID if settings.is_production else None
+        )
+    if normalized == 'enterprise':
+        return settings.stripe_enterprise_price_id or (
+            LIVE_ENTERPRISE_PRICE_ID if settings.is_production else None
+        )
+    return None
+
 
 class StripeAPIError(RuntimeError):
     def __init__(
@@ -82,8 +102,45 @@ async def stripe_post(path: str, data: dict[str, str]) -> dict[str, Any]:
     return response.json()
 
 
-async def create_stripe_customer(user: dict[str, Any]) -> str:
-    customer = await stripe_post(
+async def stripe_get(path: str, params: dict[str, str] | None = None) -> dict[str, Any]:
+    if not settings.stripe_secret_key:
+        raise StripeAPIError('Stripe is not configured.')
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=25) as client:
+            response = await client.get(
+                f'https://api.stripe.com/v1/{path}',
+                auth=(settings.stripe_secret_key, ''),
+                params=params or {},
+            )
+    except httpx.HTTPError as exc:
+        logger.exception('Stripe network request failed path=%s', path)
+        raise StripeAPIError('Billing provider is temporarily unavailable.') from exc
+
+    if response.status_code >= 400:
+        try:
+            error = (response.json().get('error') or {})
+        except (ValueError, AttributeError):
+            error = {}
+        code = str(error.get('code') or '') or None
+        param = str(error.get('param') or '') or None
+        logger.error(
+            'Stripe request rejected path=%s status=%s code=%s param=%s',
+            path,
+            response.status_code,
+            code,
+            param,
+        )
+        raise StripeAPIError(
+            status_code=response.status_code,
+            code=code,
+            param=param,
+        )
+    return response.json()
+
+
+async def create_stripe_customer(user: dict[str, Any]) -> str:    customer = await stripe_post(
         'customers',
         {
             'email': user['email'],
@@ -115,6 +172,71 @@ def checkout_payload(customer_id: str, user_id: str, tier: str, price_id: str) -
         'allow_promotion_codes': 'true',
     }
 
+async def ensure_customer_portal_configuration() -> str:
+    global _portal_configuration_id
+    if _portal_configuration_id:
+        return _portal_configuration_id
+
+    configurations = await stripe_get(
+        'billing_portal/configurations',
+        {'active': 'true', 'limit': '100'},
+    )
+    for configuration in configurations.get('data') or []:
+        metadata = configuration.get('metadata') or {}
+        if (
+            metadata.get('app') == 'ask_crump'
+            and metadata.get('purpose') == 'subscriptions_v1'
+            and configuration.get('active')
+        ):
+            _portal_configuration_id = str(configuration['id'])
+            return _portal_configuration_id
+
+    professional_price_id = subscription_price_id('professional')
+    enterprise_price_id = subscription_price_id('enterprise')
+    if not professional_price_id or not enterprise_price_id:
+        raise StripeAPIError('Subscription catalog is not configured.')
+
+    professional_price = await stripe_get(f'prices/{professional_price_id}')
+    enterprise_price = await stripe_get(f'prices/{enterprise_price_id}')
+    professional_product_id = str(professional_price.get('product') or '')
+    enterprise_product_id = str(enterprise_price.get('product') or '')
+    if not professional_product_id or not enterprise_product_id:
+        raise StripeAPIError('Subscription catalog products could not be resolved.')
+
+    data = {
+        'default_return_url': f'{settings.app_url}/app',
+        'business_profile[headline]': 'Manage your Ask Crump subscription',
+        'business_profile[privacy_policy_url]': f'{settings.app_url}/legal.html#privacy',
+        'business_profile[terms_of_service_url]': f'{settings.app_url}/legal.html#terms',
+        'features[customer_update][enabled]': 'false',
+        'features[invoice_history][enabled]': 'true',
+        'features[payment_method_update][enabled]': 'true',
+        'features[subscription_cancel][enabled]': 'true',
+        'features[subscription_cancel][mode]': 'at_period_end',
+        'features[subscription_cancel][proration_behavior]': 'none',
+        'features[subscription_cancel][cancellation_reason][enabled]': 'true',
+        'features[subscription_cancel][cancellation_reason][options][0]': 'too_expensive',
+        'features[subscription_cancel][cancellation_reason][options][1]': 'missing_features',
+        'features[subscription_cancel][cancellation_reason][options][2]': 'switched_service',
+        'features[subscription_cancel][cancellation_reason][options][3]': 'unused',
+        'features[subscription_cancel][cancellation_reason][options][4]': 'other',
+        'features[subscription_update][enabled]': 'true',
+        'features[subscription_update][default_allowed_updates][0]': 'price',
+        'features[subscription_update][proration_behavior]': 'create_prorations',
+        'features[subscription_update][products][0][product]': professional_product_id,
+        'features[subscription_update][products][0][prices][0]': professional_price_id,
+        'features[subscription_update][products][1][product]': enterprise_product_id,
+        'features[subscription_update][products][1][prices][0]': enterprise_price_id,
+        'metadata[app]': 'ask_crump',
+        'metadata[purpose]': 'subscriptions_v1',
+    }
+    configuration = await stripe_post('billing_portal/configurations', data)
+    configuration_id = str(configuration.get('id') or '')
+    if not configuration_id:
+        raise StripeAPIError('Stripe did not return a customer portal configuration.')
+    _portal_configuration_id = configuration_id
+    return configuration_id
+
 
 def billing_provider_failure() -> JSONResponse:
     return JSONResponse(
@@ -140,19 +262,31 @@ async def create_checkout(payload: CheckoutRequest, request: Request):
         )
     auth = await authenticate_request(request, db, settings)
     tier = payload.tier.lower()
-    price_id = (
-        settings.stripe_professional_price_id
-        if tier == 'professional'
-        else settings.stripe_enterprise_price_id
-        if tier == 'enterprise'
-        else None
-    )
+    price_id = subscription_price_id(tier)
+
     if not price_id:
         return JSONResponse(
             status_code=400,
             content={
                 'success': False,
                 'error': 'That subscription tier is not configured.',
+            },
+        )
+
+    existing_tier = str(auth.user.get('subscription_tier') or 'free').lower()
+    existing_status = str(auth.user.get('subscription_status') or 'inactive').lower()
+    existing_provider = str(auth.user.get('subscription_provider') or '').lower() or None
+    if (
+        existing_tier in {'professional', 'enterprise'}
+        and existing_status not in {'inactive', 'canceled', 'expired'}
+    ):
+        return JSONResponse(
+            status_code=409,
+            content={
+                'success': False,
+                'error': 'You already have a paid Ask Crump subscription. Manage the existing plan instead.',
+                'code': 'SUBSCRIPTION_ALREADY_ACTIVE',
+                'provider': existing_provider,
             },
         )
 
@@ -208,9 +342,14 @@ async def customer_portal(request: Request):
             },
         )
     try:
+        configuration_id = await ensure_customer_portal_configuration()
         portal = await stripe_post(
             'billing_portal/sessions',
-            {'customer': customer_id, 'return_url': f'{settings.app_url}/app'},
+            {
+                'customer': customer_id,
+                'return_url': f'{settings.app_url}/app',
+                'configuration': configuration_id,
+            },
         )
     except StripeAPIError as exc:
         if exc.missing_customer:
@@ -262,9 +401,9 @@ def stripe_entitlement_tier(status: str, price_id: str | None) -> str:
     """Return the paid tier only when Stripe says the subscription is entitled."""
     if status not in STRIPE_ENTITLED_STATUSES:
         return 'free'
-    if price_id == settings.stripe_enterprise_price_id:
+    if price_id == subscription_price_id('enterprise'):
         return 'enterprise'
-    if price_id == settings.stripe_professional_price_id:
+    if price_id == subscription_price_id('professional'):
         return 'professional'
     return 'free'
 

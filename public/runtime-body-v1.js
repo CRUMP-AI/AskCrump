@@ -91,6 +91,7 @@ window.CRUMP_CONFIG = Object.freeze({
     await loadScript('/crump-navigation-5.2.5.js', 'crumpnav525');
     await loadScript('/crump-product-5.3.js', 'crumpproduct53');
     await loadScript('/crump-product-5.3.1.js', 'crumpproduct531');
+    await loadScript('/crump-subscriptions-5.3.2.js', 'crumpsubscriptions532');
 
     document.documentElement.dataset.crumpBodyRuntime = 'ready';
   }

@@ -1,0 +1,221 @@
+(() => {
+  'use strict';
+
+  if (window.__crumpSubscriptions532Loaded) return;
+  window.__crumpSubscriptions532Loaded = true;
+
+  const config = window.CRUMP_CONFIG || {};
+  const paidStatuses = new Set([
+    'active',
+    'trialing',
+    'canceling',
+    'billing_issue',
+    'past_due',
+    'paused',
+  ]);
+
+  function native() {
+    return Boolean(window.BillingManager?.isNative?.());
+  }
+
+  async function jsonFetch(url, options = {}) {
+    const response = await fetch(url, {
+      credentials: 'same-origin',
+      ...options,
+      headers: {
+        ...(options.body ? {'Content-Type': 'application/json'} : {}),
+        ...(options.headers || {}),
+      },
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) {
+      const error = new Error(data.error || 'Billing could not complete that request.');
+      error.code = data.code;
+      error.provider = data.provider;
+      throw error;
+    }
+    return data;
+  }
+
+  function setBusy(button, busy, label = 'Working…') {
+    if (!button) return;
+    if (busy) {
+      if (!button.dataset.previousLabel) button.dataset.previousLabel = button.textContent;
+      button.disabled = true;
+      button.textContent = label;
+      return;
+    }
+    button.disabled = false;
+    button.textContent = button.dataset.previousLabel || button.textContent;
+    delete button.dataset.previousLabel;
+  }
+
+  async function openPortal(button, provider = null) {
+    if (provider === 'revenuecat' && !native()) {
+      window.showToast?.(
+        'This subscription is managed through the App Store or Google Play.',
+        'info'
+      );
+      return;
+    }
+
+    setBusy(button, true, 'Opening…');
+    try {
+      if (native()) {
+        await window.BillingManager?.manageSubscription?.();
+        return;
+      }
+      const result = await jsonFetch('/api/stripe/customer-portal', {method: 'POST'});
+      if (!result.url) throw new Error('Subscription management did not return a destination.');
+      window.location.assign(result.url);
+    } catch (error) {
+      window.showToast?.(
+        error.message || 'Subscription management could not be opened.',
+        'error'
+      );
+      setBusy(button, false);
+    }
+  }
+
+  async function openCheckout(tier, button) {
+    setBusy(button, true, native() ? 'Opening store…' : 'Opening checkout…');
+    try {
+      if (native()) {
+        if (!window.BillingManager?.purchase) {
+          throw new Error('Mobile subscriptions are not available in this build yet.');
+        }
+        await window.BillingManager.purchase(tier);
+        window.showToast?.('Subscription activated', 'success');
+        await activatePlans(document.querySelector('.crump52-billing-modal'), true);
+        return;
+      }
+
+      const result = await jsonFetch('/api/stripe/create-checkout-session', {
+        method: 'POST',
+        body: JSON.stringify({tier}),
+      });
+      if (!result.url) throw new Error('Secure checkout did not return a destination.');
+      window.location.assign(result.url);
+    } catch (error) {
+      if (error.code === 'SUBSCRIPTION_ALREADY_ACTIVE') {
+        setBusy(button, false);
+        await openPortal(button, error.provider || null);
+        return;
+      }
+      window.showToast?.(
+        error.message || 'Subscription checkout could not be opened.',
+        'error'
+      );
+      setBusy(button, false);
+    }
+  }
+
+  function planDefinition(id) {
+    if (id === 'enterprise') {
+      return {
+        id,
+        name: 'Enterprise',
+        price: config.webEnterprisePriceLabel || '$50/month',
+        detail: 'Maximum included capacity for demanding workflows and organizations.',
+      };
+    }
+    return {
+      id: 'professional',
+      name: 'Professional',
+      price: config.webProfessionalPriceLabel || '$20/month',
+      detail: 'Higher included usage, files, memory, image creation, and priority access.',
+    };
+  }
+
+  function planCard(plan, billingStatus) {
+    const article = document.createElement('article');
+    article.className = `billing51-plan ${plan.id === 'professional' ? 'is-featured' : ''}`;
+
+    const tier = String(billingStatus?.tier || 'free').toLowerCase();
+    const status = String(billingStatus?.status || 'inactive').toLowerCase();
+    const provider = String(billingStatus?.provider || '').toLowerCase() || null;
+    const hasPaidPlan = tier !== 'free' && paidStatuses.has(status);
+    const current = hasPaidPlan && tier === plan.id;
+
+    const top = document.createElement('div');
+    top.className = 'billing51-plan-top';
+
+    const name = document.createElement('strong');
+    name.textContent = plan.name;
+
+    const price = document.createElement('span');
+    price.textContent = current ? `${plan.price} · Current` : plan.price;
+    top.append(name, price);
+
+    const detail = document.createElement('p');
+    detail.textContent = plan.detail;
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'billing51-plan-button';
+
+    if (hasPaidPlan) {
+      if (provider === 'revenuecat' && !native()) {
+        button.textContent = current ? 'Managed in mobile store' : 'Manage in mobile store';
+        button.addEventListener('click', () => openPortal(button, provider));
+      } else {
+        button.textContent = current ? 'Manage plan' : `Switch to ${plan.name}`;
+        button.addEventListener('click', () => openPortal(button, provider));
+      }
+    } else {
+      button.textContent = `Choose ${plan.name}`;
+      button.addEventListener('click', () => openCheckout(plan.id, button));
+    }
+
+    article.append(top, detail, button);
+    return article;
+  }
+
+  async function activatePlans(modal, force = false) {
+    if (!modal || !modal.isConnected) return;
+    if (!force && ['loading', 'ready'].includes(modal.dataset.crumpSubscriptions532)) return;
+
+    const host = modal.querySelector('.billing51-plans');
+    if (!host) return;
+
+    modal.dataset.crumpSubscriptions532 = 'loading';
+
+    const section = host.closest('.billing51-section');
+    const explainer = section?.querySelector('.billing51-section-head p');
+    if (explainer) {
+      explainer.textContent =
+        'Choose monthly access for more included usage. You can manage or cancel a web subscription at any time.';
+    }
+
+    let billingStatus = {tier: 'free', status: 'inactive', provider: null};
+    try {
+      billingStatus = await jsonFetch('/api/billing/status');
+    } catch (error) {
+      if (!modal.isConnected) return;
+      host.replaceChildren();
+      const message = document.createElement('p');
+      message.className = 'billing51-empty crump52-billing-error';
+      message.textContent = 'Subscription status could not be loaded. Close this panel and try again.';
+      host.appendChild(message);
+      delete modal.dataset.crumpSubscriptions532;
+      return;
+    }
+
+    if (!modal.isConnected) return;
+    host.replaceChildren(
+      planCard(planDefinition('professional'), billingStatus),
+      planCard(planDefinition('enterprise'), billingStatus)
+    );
+    modal.dataset.crumpSubscriptions532 = 'ready';
+  }
+
+  function scan() {
+    document.querySelectorAll('.crump52-billing-modal').forEach(modal => {
+      void activatePlans(modal);
+    });
+  }
+
+  const observer = new MutationObserver(scan);
+  observer.observe(document.documentElement, {childList: true, subtree: true});
+  scan();
+})();
