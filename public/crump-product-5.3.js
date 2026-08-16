@@ -15,6 +15,7 @@
     videoPollTimer: null,
     libraryFiles: [],
     libraryFilter: 'all',
+    libraryVideoObserver: null,
   };
 
   const nativeFetch = window.fetch.bind(window);
@@ -97,6 +98,147 @@
     };
   }
 
+  const TOOL_MENU_META = Object.freeze({
+    focus: {label: 'Ask', description: 'Chat, reason & create'},
+    research: {label: 'Research', description: 'Search with sources'},
+    image: {label: 'Image', description: 'Generate or edit visuals'},
+    document: {label: 'Document', description: 'Build polished files'},
+    manuscript: {label: 'Manuscript', description: 'Draft long-form books'},
+    video: {label: 'Video', description: 'Create cinematic clips'},
+    file: {label: 'Saved', description: 'Your private library'},
+  });
+
+  function toolKey(button) {
+    if (button?.dataset?.v1Command) return button.dataset.v1Command;
+    if (button?.id === 'crump53DocumentMode') return 'document';
+    if (button?.id === 'crump53ManuscriptMode') return 'manuscript';
+    if (button?.id === 'crump53VideoMode') return 'video';
+    return 'focus';
+  }
+
+  function toolIcon(key) {
+    const paths = {
+      focus: '<path d="M5 7.5h14v9H9l-4 3v-12Z"/><path d="M9 11h6M9 14h4"/>',
+      research: '<circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 4 4M10.5 8v5M8 10.5h5"/>',
+      image: '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="m6.5 16 4-4 3 3 2-2 2 3M15.5 9h.01"/>',
+      document: '<path d="M7 3.5h7l3 3V20H7z"/><path d="M14 3.5V7h3M9.5 11h5M9.5 14h5M9.5 17h3"/>',
+      manuscript: '<path d="M5 5.5A3.5 3.5 0 0 1 8.5 2H19v16H8.5A3.5 3.5 0 0 0 5 21.5z"/><path d="M5 5.5v16M9 6h6M9 9h6"/>',
+      video: '<rect x="3.5" y="5" width="13" height="14" rx="2"/><path d="m16.5 10 4-2v8l-4-2zM8 9l5 3-5 3z"/>',
+      file: '<path d="M4 7h6l2 2h8v10H4z"/><path d="M4 7V5h7l2 2"/>',
+    };
+    return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[key] || paths.focus}</svg>`;
+  }
+
+  function enhanceToolMenu(strip) {
+    if (!strip || strip.dataset.crump53Menu === 'true') return;
+    strip.dataset.crump53Menu = 'true';
+
+    const shell = document.createElement('div');
+    shell.className = 'crump53-tool-shell';
+    const trigger = document.createElement('button');
+    trigger.id = 'crump53ToolTrigger';
+    trigger.type = 'button';
+    trigger.className = 'crump53-tool-trigger';
+    trigger.setAttribute('aria-haspopup', 'menu');
+    trigger.setAttribute('aria-controls', 'crump53ToolMenu');
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.innerHTML = `
+      <span class="crump53-tool-trigger-mark">${toolIcon('focus')}</span>
+      <span class="crump53-tool-trigger-copy"><small>CREATE WITH CRUMP</small><strong data-crump53-tool-label>Ask</strong></span>
+      <span class="crump53-tool-count">7 tools</span>
+      <svg class="crump53-tool-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>`;
+
+    const menu = document.createElement('div');
+    menu.id = 'crump53ToolMenu';
+    menu.className = 'crump53-tool-menu';
+    menu.hidden = true;
+    menu.innerHTML = `
+      <div class="crump53-tool-menu-head">
+        <span><small>CRUMP CREATION SUITE</small><strong>What are we making?</strong></span>
+        <i aria-hidden="true">✦</i>
+      </div>`;
+
+    const parent = strip.parentNode;
+    parent.insertBefore(shell, strip);
+    shell.append(trigger, menu);
+    menu.appendChild(strip);
+    strip.classList.add('crump53-tool-grid');
+    strip.setAttribute('role', 'menu');
+    strip.setAttribute('aria-label', 'Create with Crump tools');
+
+    const options = Array.from(strip.querySelectorAll('.v1-mode-pill'));
+    options.forEach(button => {
+      const key = toolKey(button);
+      const meta = TOOL_MENU_META[key] || TOOL_MENU_META.focus;
+      button.dataset.crump53Tool = key;
+      button.classList.add('crump53-tool-option');
+      button.setAttribute('role', 'menuitemradio');
+      button.setAttribute('aria-label', `${meta.label}: ${meta.description}`);
+      button.innerHTML = `
+        <span class="crump53-tool-icon">${toolIcon(key)}</span>
+        <span class="crump53-tool-option-copy"><strong>${meta.label}</strong><small>${meta.description}</small></span>`;
+    });
+
+    const choose = button => {
+      if (!button) return;
+      const key = toolKey(button);
+      const meta = TOOL_MENU_META[key] || TOOL_MENU_META.focus;
+      options.forEach(option => {
+        const selected = option === button;
+        option.classList.toggle('is-active', selected);
+        option.setAttribute('aria-checked', selected ? 'true' : 'false');
+      });
+      const label = trigger.querySelector('[data-crump53-tool-label]');
+      const mark = trigger.querySelector('.crump53-tool-trigger-mark');
+      if (label) label.textContent = meta.label;
+      if (mark) mark.innerHTML = toolIcon(key);
+    };
+
+    const setOpen = open => {
+      const next = Boolean(open);
+      menu.hidden = !next;
+      shell.classList.toggle('is-open', next);
+      trigger.setAttribute('aria-expanded', next ? 'true' : 'false');
+    };
+
+    choose(options.find(button => button.classList.contains('is-active')) || options[0]);
+    trigger.addEventListener('click', () => setOpen(menu.hidden));
+    menu.addEventListener('click', event => {
+      const button = event.target.closest('.v1-mode-pill');
+      if (!button || !strip.contains(button)) return;
+      choose(button);
+      setOpen(false);
+    }, true);
+    shell.addEventListener('keydown', event => {
+      const current = event.target.closest('.v1-mode-pill');
+      if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && event.target === trigger) {
+        event.preventDefault();
+        setOpen(true);
+        (options.find(button => button.classList.contains('is-active')) || options[0])?.focus();
+        return;
+      }
+      if (current && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
+        event.preventDefault();
+        const index = options.indexOf(current);
+        const offset = event.key === 'ArrowDown' ? 1 : -1;
+        options[(index + offset + options.length) % options.length]?.focus();
+      }
+      if (event.key === 'Escape' && !menu.hidden) {
+        event.preventDefault();
+        setOpen(false);
+        trigger.focus();
+      }
+    });
+    document.addEventListener('click', event => {
+      if (!shell.contains(event.target)) setOpen(false);
+    });
+
+    new MutationObserver(() => {
+      const active = options.find(button => button.classList.contains('is-active'));
+      if (active) choose(active);
+    }).observe(strip, {subtree: true, attributes: true, attributeFilter: ['class']});
+  }
+
   function injectNavigation() {
     const primaryStack = document.querySelector('.v1-rail .v1-rail-stack');
     if (primaryStack && !document.querySelector('.crump53-projects-button')) {
@@ -157,6 +299,7 @@
       strip.insertBefore(manuscriptButton, filesPill || null);
       strip.insertBefore(videoButton, filesPill || null);
     }
+    enhanceToolMenu(strip);
   }
 
   function injectStudio() {
@@ -378,12 +521,16 @@
   function closeStudio() {
     const studio = byId('crump53Studio');
     if (studio) studio.hidden = true;
+    document.querySelectorAll('#crump53LibraryGrid video').forEach(video => video.pause());
     document.body.style.overflow = '';
     if (state.manuscriptPollTimer) window.clearTimeout(state.manuscriptPollTimer);
     state.manuscriptPollTimer = null;
   }
 
   function selectTab(tab) {
+    if (tab !== 'library') {
+      document.querySelectorAll('#crump53LibraryGrid video').forEach(video => video.pause());
+    }
     document.querySelectorAll('[data-crump53-tab]').forEach(node => {
       node.classList.toggle('is-active', node.dataset.crump53Tab === tab);
     });
@@ -1032,12 +1179,107 @@
     return String(file?.name || 'Saved file');
   }
 
+  function showPlaybackError(preview, message) {
+    if (!preview?.isConnected) return;
+    preview.dataset.playbackState = 'error';
+    preview.classList.remove('is-ready', 'is-loading');
+    preview.classList.add('is-error');
+    const status = preview.querySelector('[data-playback-status]');
+    const detail = preview.querySelector('[data-playback-detail]');
+    const retry = preview.querySelector('[data-playback-retry]');
+    if (status) status.textContent = 'Preview unavailable';
+    if (detail) detail.textContent = message || 'Tap to try loading it again.';
+    if (retry) retry.hidden = false;
+  }
+
+  async function loadLibraryVideo(preview, force = false) {
+    if (!preview?.isConnected) return;
+    const current = preview.dataset.playbackState || '';
+    if (!force && (current === 'loading' || current === 'ready')) return;
+    const fileId = String(preview.dataset.playbackFile || '');
+    const video = preview.querySelector('video');
+    if (!fileId || !video) return;
+
+    preview.dataset.playbackState = 'loading';
+    preview.classList.remove('is-ready', 'is-error');
+    preview.classList.add('is-loading');
+    const status = preview.querySelector('[data-playback-status]');
+    const detail = preview.querySelector('[data-playback-detail]');
+    const retry = preview.querySelector('[data-playback-retry]');
+    if (status) status.textContent = 'Preparing preview';
+    if (detail) detail.textContent = 'Securely loading from your private Library…';
+    if (retry) retry.hidden = true;
+
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+
+    try {
+      const data = await api(`/api/files/${encodeURIComponent(fileId)}/playback`);
+      if (!preview.isConnected || preview.dataset.playbackFile !== fileId) return;
+      const directUrl = new URL(String(data.url || ''), window.location.origin);
+      directUrl.hash = 't=0.001';
+
+      let settled = false;
+      const markReady = () => {
+        if (settled || !preview.isConnected) return;
+        settled = true;
+        preview.dataset.playbackState = 'ready';
+        preview.classList.remove('is-loading', 'is-error');
+        preview.classList.add('is-ready');
+        const overlay = preview.querySelector('.crump53-playback-state');
+        if (overlay) overlay.hidden = true;
+      };
+      const markFailed = () => {
+        if (settled) return;
+        settled = true;
+        showPlaybackError(preview, 'The private playback link could not be opened.');
+      };
+
+      video.addEventListener('loadedmetadata', () => {
+        try {
+          const duration = Number(video.duration || 0);
+          video.currentTime = Number.isFinite(duration) && duration > 0.12
+            ? Math.min(0.08, duration / 50)
+            : 0.001;
+        } catch (_) { /* the URL fragment still requests the opening frame */ }
+      }, {once: true});
+      video.addEventListener('loadeddata', markReady, {once: true});
+      video.addEventListener('canplay', markReady, {once: true});
+      video.addEventListener('error', markFailed, {once: true});
+      video.src = directUrl.href;
+      video.load();
+    } catch (error) {
+      showPlaybackError(preview, error.message || 'Could not prepare private playback.');
+    }
+  }
+
+  function hydrateLibraryVideos(grid) {
+    state.libraryVideoObserver?.disconnect?.();
+    state.libraryVideoObserver = null;
+    const previews = Array.from(grid?.querySelectorAll('[data-playback-file]') || []);
+    if (!previews.length) return;
+    if (!('IntersectionObserver' in window)) {
+      previews.forEach(preview => void loadLibraryVideo(preview));
+      return;
+    }
+    state.libraryVideoObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        state.libraryVideoObserver?.unobserve(entry.target);
+        void loadLibraryVideo(entry.target);
+      });
+    }, {rootMargin: '180px 0px'});
+    previews.forEach(preview => state.libraryVideoObserver.observe(preview));
+  }
+
   function renderLibrary() {
     const grid = byId('crump53LibraryGrid');
     if (!grid) return;
     const filter = state.libraryFilter || 'all';
     const visible = state.libraryFiles.filter(file => filter === 'all' || libraryCategory(file) === filter);
     if (!visible.length) {
+      state.libraryVideoObserver?.disconnect?.();
       grid.innerHTML = '<div class="crump53-library-empty">No saved items in this category yet.</div>';
       return;
     }
@@ -1049,7 +1291,13 @@
       const title = libraryTitle(file);
       const prompt = String(metadata.prompt || '').trim();
       const preview = category === 'video'
-        ? `<video controls playsinline preload="metadata" src="${escapeHtml(url)}"></video>`
+        ? `<video controls playsinline preload="metadata" aria-label="Play ${escapeHtml(title)}"></video>
+           <div class="crump53-playback-state" aria-live="polite">
+             <span class="crump53-playback-pulse">${toolIcon('video')}</span>
+             <strong data-playback-status>Preparing preview</strong>
+             <small data-playback-detail>Securely loading from your private Library…</small>
+             <button type="button" class="crump53-button" data-playback-retry="${escapeHtml(file.id)}" hidden>Try again</button>
+           </div>`
         : category === 'image'
           ? `<img loading="lazy" src="${escapeHtml(url)}" alt="${escapeHtml(title)}">`
           : `<div class="crump53-library-document"><span>${escapeHtml(String(file.name || 'FILE').split('.').pop().slice(0, 5).toUpperCase())}</span></div>`;
@@ -1060,7 +1308,7 @@
       ].filter(Boolean).join(' · ');
       return `
         <article class="crump53-library-item" data-library-file="${escapeHtml(file.id)}">
-          <div class="crump53-library-preview">${preview}</div>
+          <div class="crump53-library-preview"${category === 'video' ? ` data-playback-file="${escapeHtml(file.id)}" data-playback-state="idle"` : ''}>${preview}</div>
           <div class="crump53-library-copy">
             <strong>${escapeHtml(title)}</strong>
             ${prompt && prompt !== title ? `<p>${escapeHtml(prompt.slice(0, 180))}</p>` : ''}
@@ -1100,6 +1348,15 @@
         window.showToast?.(`${file.name || 'File'} added to the conversation.`, 'success');
       });
     });
+    grid.querySelectorAll('[data-playback-retry]').forEach(button => {
+      button.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const preview = button.closest('[data-playback-file]');
+        if (preview) void loadLibraryVideo(preview, true);
+      });
+    });
+    hydrateLibraryVideos(grid);
   }
 
   async function refreshLibrary() {

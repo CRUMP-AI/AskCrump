@@ -127,6 +127,39 @@ async def content(file_id: str, request: Request, download: int = 0):
         return failure(exc)
 
 
+@router.get('/{file_id}/playback')
+async def playback(file_id: str, request: Request):
+    """Return a short-lived direct URL for inline playback of an owned video.
+
+    Safari is unreliable when a media element has to follow an authenticated
+    application redirect. The browser requests this JSON endpoint with the
+    user's session first, then streams the video directly from private storage
+    with a time-limited signature.
+    """
+    auth = await authenticate_request(request, db, settings)
+    try:
+        normalized = normalize_chat_id(file_id)
+        row = await files.get_owned(user_id=auth.user['id'], file_id=normalized)
+        mime_type = str(row.get('mime_type') or '').lower()
+        if row.get('kind') != 'generated_video' and not mime_type.startswith('video/'):
+            raise FileServiceError('That file is not a playable video.', 415, 'NOT_PLAYABLE_VIDEO')
+        expires_in = 1200
+        url = await files.signed_url(row=row, expires_in=expires_in, download=False)
+        if not url:
+            raise FileServiceError('Could not prepare video playback.', 503, 'SIGNED_URL_FAILED')
+        return JSONResponse(
+            content={
+                'success': True,
+                'url': url,
+                'expiresIn': expires_in,
+                'mimeType': mime_type or 'video/mp4',
+            },
+            headers={'Cache-Control': 'private, no-store'},
+        )
+    except FileServiceError as exc:
+        return failure(exc)
+
+
 @router.delete('/{file_id}')
 async def delete(file_id: str, request: Request):
     auth = await authenticate_request(request, db, settings)

@@ -14,7 +14,7 @@ def test_product53_runtime_is_registered_last_and_cached():
     assert "/crump-product-5.3.css" in runtime
     assert "/crump-product-5.3.js" in runtime
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r8" in worker
+    assert "ask-crump-new-body-v1-r9" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 
@@ -100,6 +100,26 @@ def test_private_account_library_surfaces_saved_creations():
     assert "Video ready and saved to your Library." in product
     assert "openStudio('library')" in product
     assert ".crump53-library-grid" in styles
+
+
+def test_private_video_library_uses_owner_checked_inline_playback():
+    routes = read("backend/routes/files.py")
+    product = read("public/crump-product-5.3.js")
+    styles = read("public/crump-product-5.3.css")
+    assert "@router.get('/{file_id}/playback')" in routes
+    assert "'Cache-Control': 'private, no-store'" in routes
+    assert "api(`/api/files/${encodeURIComponent(fileId)}/playback`)" in product
+    assert "IntersectionObserver" in product
+    assert ".crump53-playback-state" in styles
+
+
+def test_compact_creation_menu_preserves_every_tool():
+    product = read("public/crump-product-5.3.js")
+    styles = read("public/crump-product-5.3.css")
+    for tool in ("focus", "research", "image", "document", "manuscript", "video", "file"):
+        assert f"{tool}: {{label:" in product
+    assert "enhanceToolMenu(strip)" in product
+    assert ".crump53-tool-menu" in styles
 
 
 def test_feature_policy_has_explicit_expensive_tool_gates():
