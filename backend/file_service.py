@@ -241,12 +241,18 @@ class FileService:
     async def signed_url(self, *, row: dict[str, Any], expires_in: int = 600, download: bool = False) -> str:
         encoded = quote(str(row['storage_path']), safe='/')
         payload: dict[str, Any] = {'expiresIn': max(30, min(3600, int(expires_in)))}
-        if download:
-            payload['download'] = self.clean_filename(row.get('file_name') or 'download')
         data = await self._storage_json('POST', f'object/sign/{self.bucket}/{encoded}', payload=payload)
         url = str(data.get('signedURL') or data.get('signedUrl') or '')
         if url.startswith('/'):
-            return f"{self.settings.supabase_url}/storage/v1{url}"
+            url = f"{self.settings.supabase_url}/storage/v1{url}"
+        if download and url:
+            # Supabase's signing endpoint signs the object URL, while the
+            # browser-download instruction belongs on the returned URL. Sending
+            # ``download`` in the signing JSON is silently ignored and leaves
+            # Safari free to preview playable media instead of saving it.
+            filename = quote(self.clean_filename(row.get('file_name') or 'download'), safe='')
+            separator = '&' if '?' in url else '?'
+            url = f'{url}{separator}download={filename}'
         return url
 
     async def download_bytes(self, *, row: dict[str, Any], max_bytes: int | None = None) -> bytes:
