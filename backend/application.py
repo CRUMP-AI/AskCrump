@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from .http import register_exception_handlers, request_guards
 from .routes import (
     account, auth, billing, chat, credits, features, files, health, intelligence,
-    manuscripts, media, presence, projects, sync,
+    manuscripts, media, presence, projects, safety, sync,
 )
 from .runtime import settings
 from .version import __version__
@@ -55,6 +55,7 @@ def create_app() -> FastAPI:
     application.include_router(presence.router)
     application.include_router(billing.router)
     application.include_router(credits.router)
+    application.include_router(safety.router)
 
     if PUBLIC_DIR.exists():
         @application.get('/', include_in_schema=False)

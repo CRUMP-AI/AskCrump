@@ -68,3 +68,21 @@ async def enforce_auth_rate_limit(
         limit=ip_limit,
         window_seconds=window_seconds,
     )
+
+
+async def enforce_user_rate_limit(
+    db: SupabaseDB,
+    *,
+    user_id: str,
+    action: str,
+    limit: int,
+    window_seconds: int,
+) -> None:
+    """Limit an authenticated action without persisting the raw user identifier."""
+    await _consume(
+        db,
+        scope=f'user:{action}',
+        value=user_id,
+        limit=limit,
+        window_seconds=window_seconds,
+    )

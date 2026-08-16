@@ -2,6 +2,22 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 
 const root = new URL('../', import.meta.url);
 const variablesPath = new URL('android/variables.gradle', root);
+const target = String(process.argv[2] || 'all').toLowerCase();
+if (!['all', 'android', 'ios'].includes(target)) {
+  throw new Error('Native target must be android, ios, or all.');
+}
+
+const packageMetadata = JSON.parse(await readFile(new URL('package.json', root), 'utf8'));
+const versionName = String(process.env.STORE_VERSION_NAME || packageMetadata.version || '').trim();
+if (!/^\d+\.\d+\.\d+$/.test(versionName)) {
+  throw new Error(`Invalid STORE_VERSION_NAME: ${versionName || '(empty)'}`);
+}
+const numericVersion = versionName.split(/[-+]/, 1)[0].split('.').map(Number);
+const defaultBuildNumber = numericVersion[0] * 10_000 + numericVersion[1] * 100 + numericVersion[2];
+const buildNumber = Number(process.env.STORE_BUILD_NUMBER || defaultBuildNumber);
+if (!Number.isSafeInteger(buildNumber) || buildNumber < 1 || buildNumber > 2_100_000_000) {
+  throw new Error('STORE_BUILD_NUMBER must be a positive integer no greater than 2100000000.');
+}
 
 async function patchAndroidSdk() {
   let source;
@@ -18,6 +34,18 @@ async function patchAndroidSdk() {
     source = source.replace(pattern, replacement);
   }
   await writeFile(variablesPath, source);
+}
+
+async function patchAndroidVersion() {
+  const buildPath = new URL('android/app/build.gradle', root);
+  let source = await readFile(buildPath, 'utf8');
+  if (!/versionCode\s+\d+/.test(source) || !/versionName\s+["'][^"']+["']/.test(source)) {
+    throw new Error('Could not locate Android versionCode/versionName in android/app/build.gradle.');
+  }
+  source = source
+    .replace(/versionCode\s+\d+/, `versionCode ${buildNumber}`)
+    .replace(/versionName\s+["'][^"']+["']/, `versionName "${versionName}"`);
+  await writeFile(buildPath, source);
 }
 
 async function patchAndroidNotifications() {
@@ -74,8 +102,59 @@ async function patchIosPushCallbacks() {
   }
 }
 
-await patchAndroidSdk();
-await patchAndroidNotifications();
-await patchIosPushCallbacks();
-console.log('Native configuration updated: Android API 36, notification channel/icon, and iOS push callbacks.');
+async function patchIosVersionAndPrivacy() {
+  const projectPath = new URL('ios/App/App.xcodeproj/project.pbxproj', root);
+  let project = await readFile(projectPath, 'utf8');
+  if (!/CURRENT_PROJECT_VERSION = [^;]+;/.test(project) || !/MARKETING_VERSION = [^;]+;/.test(project)) {
+    throw new Error('Could not locate iOS version settings in project.pbxproj.');
+  }
+  project = project
+    .replace(/CURRENT_PROJECT_VERSION = [^;]+;/g, `CURRENT_PROJECT_VERSION = ${buildNumber};`)
+    .replace(/MARKETING_VERSION = [^;]+;/g, `MARKETING_VERSION = ${versionName};`);
+
+  const privacySource = await readFile(new URL('resources/PrivacyInfo.xcprivacy', root), 'utf8');
+  await writeFile(new URL('ios/App/App/PrivacyInfo.xcprivacy', root), privacySource);
+
+  if (!project.includes('PrivacyInfo.xcprivacy')) {
+    const buildId = 'C0DEC0DE5A41000000000001';
+    const fileId = 'C0DEC0DE5A41000000000002';
+    const buildFile = `\t\t${buildId} /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = ${fileId} /* PrivacyInfo.xcprivacy */; };\n`;
+    const fileReference = `\t\t${fileId} /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };\n`;
+
+    if (!project.includes('/* End PBXBuildFile section */') || !project.includes('/* End PBXFileReference section */')) {
+      throw new Error('Could not locate iOS project file sections for PrivacyInfo.xcprivacy.');
+    }
+    project = project
+      .replace('/* End PBXBuildFile section */', `${buildFile}/* End PBXBuildFile section */`)
+      .replace('/* End PBXFileReference section */', `${fileReference}/* End PBXFileReference section */`);
+
+    const infoEntry = project.match(/^[\t ]+[A-Fa-f0-9]{24} \/\* Info\.plist \*\/,\r?$/m)?.[0];
+    if (!infoEntry) throw new Error('Could not locate the iOS App group for PrivacyInfo.xcprivacy.');
+    const infoIndent = infoEntry.match(/^[\t ]*/)?.[0] || '\t\t\t\t';
+    project = project.replace(
+      infoEntry,
+      `${infoIndent}${fileId} /* PrivacyInfo.xcprivacy */,\n${infoEntry}`,
+    );
+
+    const resourcesSection = /(\/\* Begin PBXResourcesBuildPhase section \*\/[\s\S]*?files = \(\r?\n)/;
+    if (!resourcesSection.test(project)) throw new Error('Could not locate the iOS Resources build phase.');
+    project = project.replace(
+      resourcesSection,
+      `$1\t\t\t\t${buildId} /* PrivacyInfo.xcprivacy in Resources */,\n`,
+    );
+  }
+  await writeFile(projectPath, project);
+}
+
+if (target === 'all' || target === 'android') {
+  await patchAndroidSdk();
+  await patchAndroidVersion();
+  await patchAndroidNotifications();
+  console.log(`Android configured for API 36 and Ask Crump ${versionName} (${buildNumber}).`);
+}
+if (target === 'all' || target === 'ios') {
+  await patchIosPushCallbacks();
+  await patchIosVersionAndPrivacy();
+  console.log(`iOS configured for Ask Crump ${versionName} (${buildNumber}) with a bundled privacy manifest.`);
+}
 console.log('Still required in owner accounts: add google-services.json, enable iOS Push Notifications + Background Modes, and configure APNs/FCM credentials.');

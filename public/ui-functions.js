@@ -225,6 +225,144 @@
     return chat?.messages || [];
   }
 
+  const reportedMessageIds = new Set();
+  const reportCategories = Object.freeze([
+    ['hate_or_harassment', 'Hate or harassment'],
+    ['sexual_content', 'Sexual content'],
+    ['violence_or_danger', 'Violence or dangerous guidance'],
+    ['self_harm', 'Self-harm content'],
+    ['deception_or_fraud', 'Deception or fraud'],
+    ['privacy', 'Privacy concern'],
+    ['copyright', 'Copyright concern'],
+    ['other', 'Something else'],
+  ]);
+
+  async function reportMessage(message, trigger) {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'content-report-dialog';
+    dialog.setAttribute('aria-labelledby', 'content-report-title');
+    dialog.setAttribute('aria-describedby', 'content-report-description');
+
+    const form = document.createElement('form');
+    form.className = 'content-report-dialog__card';
+    form.method = 'dialog';
+
+    const eyebrow = document.createElement('span');
+    eyebrow.className = 'content-report-dialog__eyebrow';
+    eyebrow.textContent = 'SAFETY REVIEW';
+
+    const title = document.createElement('h2');
+    title.id = 'content-report-title';
+    title.textContent = 'Report this response';
+
+    const description = document.createElement('p');
+    description.id = 'content-report-description';
+    description.textContent = 'Tell us why this response may be unsafe or inappropriate. Your report helps improve Ask Crump safeguards.';
+
+    const reasonLabel = document.createElement('label');
+    reasonLabel.htmlFor = 'content-report-reason';
+    reasonLabel.textContent = 'Reason';
+    const reason = document.createElement('select');
+    reason.id = 'content-report-reason';
+    reason.required = true;
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Choose a reason';
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    reason.appendChild(placeholder);
+    for (const [value, label] of reportCategories) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      reason.appendChild(option);
+    }
+
+    const commentLabel = document.createElement('label');
+    commentLabel.htmlFor = 'content-report-comment';
+    commentLabel.textContent = 'Details (optional)';
+    const comment = document.createElement('textarea');
+    comment.id = 'content-report-comment';
+    comment.maxLength = 2000;
+    comment.rows = 4;
+    comment.placeholder = 'What should our safety team know?';
+
+    const actions = document.createElement('div');
+    actions.className = 'content-report-dialog__actions';
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'btn btn-secondary';
+    cancel.textContent = 'Cancel';
+    const submit = document.createElement('button');
+    submit.type = 'submit';
+    submit.className = 'btn btn-primary';
+    submit.textContent = 'Send report';
+    actions.append(cancel, submit);
+
+    form.append(eyebrow, title, description, reasonLabel, reason, commentLabel, comment, actions);
+    dialog.appendChild(form);
+    document.body.appendChild(dialog);
+
+    let submitting = false;
+    const close = () => {
+      if (submitting) return;
+      dialog.close?.();
+      dialog.remove();
+      trigger?.focus?.();
+    };
+    cancel.addEventListener('click', close);
+    dialog.addEventListener('cancel', event => {
+      event.preventDefault();
+      close();
+    });
+    dialog.addEventListener('click', event => {
+      if (event.target === dialog) close();
+    });
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!reason.value || submitting) return;
+      submitting = true;
+      cancel.disabled = true;
+      submit.disabled = true;
+      submit.textContent = 'Sending…';
+      try {
+        const response = await fetch('/api/safety/reports', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            chatId: window.currentChatId,
+            messageId: message?.id || null,
+            category: reason.value,
+            comment: comment.value,
+            response: String(message?.content || '').slice(0, 30000),
+          }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.success) throw new Error(data.error || 'The report could not be sent.');
+        const messageKey = String(message?.id || '');
+        if (messageKey) reportedMessageIds.add(messageKey);
+        if (trigger) {
+          trigger.textContent = 'Reported';
+          trigger.disabled = true;
+          trigger.setAttribute('aria-label', 'Response reported');
+        }
+        submitting = false;
+        window.showToast?.('Thanks — this response was sent for safety review.', 'success');
+        close();
+      } catch (error) {
+        submitting = false;
+        cancel.disabled = false;
+        submit.disabled = false;
+        submit.textContent = 'Send report';
+        window.showToast?.(error.message || 'The report could not be sent.', 'error');
+      }
+    });
+
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    else dialog.setAttribute('open', '');
+    requestAnimationFrame(() => reason.focus());
+  }
+
   async function copyMessage(index) {
     const content = currentMessages()[index]?.content || '';
     try {
@@ -396,7 +534,14 @@
         speak.className = 'message-action-btn';
         speak.textContent = 'Read aloud';
         speak.addEventListener('click', () => window.speakText?.(String(message?.content || '')));
-        actions.append(copy, speak);
+        const report = document.createElement('button');
+        report.type = 'button';
+        report.className = 'message-action-btn message-report-btn';
+        report.textContent = reportedMessageIds.has(String(message?.id || '')) ? 'Reported' : 'Report';
+        report.disabled = reportedMessageIds.has(String(message?.id || ''));
+        report.setAttribute('aria-label', report.disabled ? 'Response reported' : 'Report this response');
+        report.addEventListener('click', () => reportMessage(message, report));
+        actions.append(copy, speak, report);
         wrapper.appendChild(actions);
       }
 

@@ -586,6 +586,105 @@ button.message-status {
   line-height: 1.4;
 }
 
+/* Store-policy safety reporting stays inside the app and remains keyboard accessible. */
+.content-report-dialog {
+  width: min(92vw, 520px);
+  max-width: 520px;
+  padding: 0;
+  border: 0;
+  border-radius: 24px;
+  background: transparent;
+  color: var(--color-text-primary);
+}
+
+.content-report-dialog::backdrop {
+  background: rgba(2, 4, 7, 0.78);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.content-report-dialog__card {
+  display: grid;
+  gap: 12px;
+  padding: 26px;
+  border: 1px solid rgba(224, 204, 158, 0.2);
+  border-radius: 24px;
+  background: linear-gradient(160deg, #1a2028, #11161c);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.58);
+}
+
+.content-report-dialog__eyebrow {
+  color: #d9bf84;
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.18em;
+}
+
+.content-report-dialog__card h2,
+.content-report-dialog__card p {
+  margin: 0;
+}
+
+.content-report-dialog__card h2 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.75rem;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+.content-report-dialog__card p {
+  margin-bottom: 6px;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.content-report-dialog__card label {
+  margin-top: 4px;
+  color: var(--color-text-primary);
+  font-size: 0.78rem;
+  font-weight: 680;
+}
+
+.content-report-dialog__card select,
+.content-report-dialog__card textarea {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 13px;
+  outline: none;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--color-text-primary);
+  font: inherit;
+}
+
+.content-report-dialog__card select {
+  min-height: 46px;
+  padding: 0 13px;
+}
+
+.content-report-dialog__card textarea {
+  min-height: 108px;
+  padding: 12px 13px;
+  resize: vertical;
+}
+
+.content-report-dialog__card :is(select, textarea):focus-visible {
+  border-color: rgba(217, 191, 132, 0.68);
+  box-shadow: 0 0 0 3px rgba(217, 191, 132, 0.11);
+}
+
+.content-report-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.message-report-btn:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
 .settings-row-action {
   cursor: pointer;
 }

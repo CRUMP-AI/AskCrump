@@ -17,8 +17,10 @@
     "test:js": "node scripts/check-javascript.mjs",
     "test": "npm run test:js",
     "native:configure": "node scripts/configure-native.mjs",
-    "native:assets": "npx --yes @capacitor/assets@3.0.5 generate --iconBackgroundColor '#0f1419' --iconBackgroundColorDark '#0f1419' --splashBackgroundColor '#0f1419' --splashBackgroundColorDark '#0f1419'",
-    "native:verify": "node scripts/verify-native-release.mjs"
+    "native:assets": "npx --yes @capacitor/assets@3.0.5 generate --iconBackgroundColor \"#0f1419\" --iconBackgroundColorDark \"#0f1419\" --splashBackgroundColor \"#0f1419\" --splashBackgroundColorDark \"#0f1419\"",
+    "native:verify": "node scripts/verify-native-release.mjs",
+    "store:prepare:android": "node scripts/prepare-store-release.mjs android",
+    "store:prepare:ios": "node scripts/prepare-store-release.mjs ios"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "8.0.0",

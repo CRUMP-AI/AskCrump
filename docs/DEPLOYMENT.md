@@ -93,20 +93,21 @@ Create Apple and Google subscription products, then configure RevenueCat product
 
 ## 8. Generate native projects
 
-On a macOS development machine for iOS, or any supported Android development machine:
+Install locked dependencies, then prepare only the platform being built:
 
 ```bash
-npm install
-npm run build
-npm run cap:add:ios       # first generation only
-npm run cap:add:android   # first generation only
-npm run cap:sync
-npm run native:configure
-npm run native:assets
-npm run native:verify
+npm ci
+npm run store:prepare:android
 ```
 
-After the initial platform generation, use `npm run cap:sync` instead of repeating `cap add`.
+On macOS for iOS:
+
+```bash
+npm ci
+npm run store:prepare:ios
+```
+
+These commands create a missing platform, sync Capacitor, generate branded assets, configure the release version and platform requirements, and run platform-specific validation. The generated `ios/` and `android/` directories are ignored; reviewed source and scripts reconstruct them. Use `STORE_BUILD_NUMBER` for a strictly increasing upload build number. See `docs/STORE_LAUNCH_RUNBOOK.md` for signing and store submission.
 
 ## 9. Configure push notifications
 

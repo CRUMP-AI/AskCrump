@@ -158,6 +158,15 @@ def test_toast_notifications_have_an_implementation():
     assert "role', toastTone === 'error' ? 'alert' : 'status'" in ui
 
 
+def test_ai_responses_have_in_app_safety_reporting():
+    ui = (PUBLIC / 'ui-functions.js').read_text()
+    privacy = (PUBLIC / 'legal.html').read_text()
+    assert "report.textContent" in ui
+    assert "'/api/safety/reports'" in ui
+    assert "Report this response" in ui
+    assert "AI response safety reports" in privacy
+
+
 def test_destructive_actions_use_an_accessible_dialog():
     app_js = (PUBLIC / 'app.js').read_text()
     ui = (PUBLIC / 'ui-functions.js').read_text()

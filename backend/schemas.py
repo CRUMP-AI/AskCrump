@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
@@ -42,6 +44,23 @@ class ProfileUpdateRequest(APIModel):
 
 class TermsAcceptanceRequest(APIModel):
     version: str = Field(default="2026-08-01", min_length=1, max_length=40)
+
+
+class AIContentReportRequest(APIModel):
+    chatId: str = Field(min_length=1, max_length=120)
+    messageId: str | None = Field(default=None, max_length=120)
+    category: Literal[
+        "hate_or_harassment",
+        "sexual_content",
+        "violence_or_danger",
+        "self_harm",
+        "deception_or_fraud",
+        "privacy",
+        "copyright",
+        "other",
+    ]
+    comment: str = Field(default="", max_length=2000)
+    response: str = Field(min_length=1, max_length=30_000)
 
 
 class RevokeDeviceRequest(APIModel):

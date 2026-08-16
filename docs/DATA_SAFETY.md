@@ -14,6 +14,7 @@ Use this engineering inventory to complete Apple App Privacy and Google Play Dat
 | Device/session information | Yes | persistent login, security, revocation | Yes | Supabase |
 | Approximate IP/network information | Yes | security, rate limiting, abuse prevention | Yes | application/database logs and session records |
 | Usage events | Yes | limits, cost control, abuse prevention | Yes | Supabase |
+| AI response safety reports | When a user taps Report | moderation, policy enforcement, safeguard improvement | Yes | Supabase; reviewed by authorized Clever Crump staff |
 | Subscription status | Yes | entitlement | Yes | Stripe or Apple/Google/RevenueCat; status mirrored in Supabase |
 | Full card number | No | — | — | handled by Stripe or the platform store |
 | Precise location | No | — | — | geolocation permission disabled |
@@ -26,6 +27,7 @@ Use this engineering inventory to complete Apple App Privacy and Google Play Dat
 - Notifications require an explicit native permission decision and can be disabled independently.
 - Frequency, quiet hours, categories, and haptics are user-controlled.
 - Users can delete chats, export history, revoke sessions, clear history, and permanently delete the account in-app.
+- Every AI response has an in-app Report control. Reports contain the selected reason, optional comment, reported output, and limited preceding prompt context; they are deleted with the owning account.
 
 ## Security controls
 
