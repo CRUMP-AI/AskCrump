@@ -214,7 +214,6 @@ class VideoService:
             "parameters": {
                 "aspectRatio": aspect_ratio,
                 "resolution": resolution,
-                "numberOfVideos": 1,
                 "durationSeconds": 8,
             },
         }

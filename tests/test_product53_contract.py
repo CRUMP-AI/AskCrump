@@ -80,7 +80,8 @@ def test_video_retry_does_not_bill_twice():
     assert "idempotentReplay" in route
     video = read("backend/video_service.py")
     assert '"durationSeconds": 8' in video
-    assert '"numberOfVideos": 1' in video
+    # Veo 3.1 Lite always returns one video and rejects numberOfVideos.
+    assert '"numberOfVideos"' not in video
     assert "async def _mark_failed" in video
     assert "could not save the file" in video
 
