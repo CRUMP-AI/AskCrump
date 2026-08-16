@@ -366,7 +366,12 @@ Crump personality and conversational identity:
 
 
 
-async def _chat_v521(self: ai_module.AIService, payload: dict[str, Any]) -> dict[str, Any]:
+async def _chat_v521(
+    self: ai_module.AIService,
+    payload: dict[str, Any],
+    *chat_args: Any,
+    **chat_options: Any,
+) -> dict[str, Any]:
     """Keep a concise attachment cue adjacent to the current user turn.
 
     Large documents live in the dedicated system attachment section. This cue
@@ -388,7 +393,11 @@ async def _chat_v521(self: ai_module.AIService, payload: dict[str, Any]) -> dict
         # Keep the user's wording intact while placing the attachment fact next
         # to the current turn, where the model cannot lose it in long context.
         working["message"] = f"{message}\n\n{cue}".strip()
-    return await _ORIGINAL_CHAT(self, working)
+    # This function replaces ``AIService.chat`` at import time, so it must
+    # remain a transparent compatibility wrapper. Durable manuscript calls
+    # use larger output and timeout controls; forward every supported option
+    # to the original implementation instead of narrowing its interface.
+    return await _ORIGINAL_CHAT(self, working, *chat_args, **chat_options)
 
 def _sample_text(text: str, budget: int) -> str:
     text = str(text or "")

@@ -4,6 +4,8 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
+from backend import crump52_patches
+from backend.ai_service import AIService
 from backend.feature_service import FeatureService
 from backend.manuscript_service import ManuscriptService
 from backend.media_service import MediaService
@@ -109,6 +111,38 @@ class NoCallAI:
     async def chat(self, *_args, **_kwargs):
         self.calls += 1
         raise AssertionError("Workspace creation must not wait on a provider call")
+
+
+@pytest.mark.asyncio
+async def test_chat_compatibility_patch_forwards_manuscript_generation_controls(monkeypatch):
+    captured = []
+
+    async def original_chat(_self, payload, *args, **options):
+        captured.append({"payload": payload, "args": args, "options": options})
+        return {"response": "planned", "usage": {}}
+
+    monkeypatch.setattr(crump52_patches, "_ORIGINAL_CHAT", original_chat)
+    service = AIService(SimpleNamespace())
+    for max_tokens in (12_000, 16_000):
+        result = await service.chat(
+            {
+                "message": "Plan or draft a complete novel.",
+                "relevantContext": {"canon": "The river remembers every name."},
+            },
+            max_tokens=max_tokens,
+            timeout_seconds=240.0,
+        )
+        assert result["response"] == "planned"
+
+    assert [call["payload"]["message"] for call in captured] == [
+        "Plan or draft a complete novel.",
+        "Plan or draft a complete novel.",
+    ]
+    assert [call["args"] for call in captured] == [(), ()]
+    assert [call["options"] for call in captured] == [
+        {"max_tokens": 12_000, "timeout_seconds": 240.0},
+        {"max_tokens": 16_000, "timeout_seconds": 240.0},
+    ]
 
 
 @pytest.mark.asyncio
