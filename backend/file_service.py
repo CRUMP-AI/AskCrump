@@ -327,5 +327,7 @@ class FileService:
             'kind': row.get('kind') or 'upload',
             'status': row.get('status') or 'pending',
             'metadata': row.get('metadata') or {},
+            'createdAt': row.get('created_at'),
+            'updatedAt': row.get('updated_at'),
             'url': f'/api/files/{file_id}/content' if file_id else None,
         }

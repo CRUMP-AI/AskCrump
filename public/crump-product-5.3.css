@@ -323,6 +323,118 @@ body.crump-v1-body .crump53-lock {
   font-size: 8px;
 }
 
+body.crump-v1-body .crump53-library-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+body.crump-v1-body .crump53-library-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 12px;
+}
+body.crump-v1-body .crump53-library-filter {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 999px;
+  background: rgba(255,255,255,.018);
+  color: #7e8588;
+  font-size: 9px;
+  font-weight: 680;
+  cursor: pointer;
+}
+body.crump-v1-body .crump53-library-filter.is-active {
+  border-color: rgba(217,191,132,.24);
+  background: rgba(217,191,132,.06);
+  color: #dbc68f;
+}
+body.crump-v1-body .crump53-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 13px;
+  margin-top: 10px;
+}
+body.crump-v1-body .crump53-library-item {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 11px;
+  padding: 11px;
+  border: 1px solid rgba(255,255,255,.075);
+  border-radius: 17px;
+  background: rgba(255,255,255,.018);
+}
+body.crump-v1-body .crump53-library-preview {
+  display: grid;
+  aspect-ratio: 16 / 9;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.055);
+  border-radius: 13px;
+  background: #070a0e;
+}
+body.crump-v1-body .crump53-library-preview :is(video,img) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+body.crump-v1-body .crump53-library-document {
+  display: grid;
+  width: 58px;
+  height: 72px;
+  place-items: center;
+  border: 1px solid rgba(217,191,132,.22);
+  border-radius: 9px;
+  background: linear-gradient(145deg, rgba(217,191,132,.12), rgba(217,191,132,.025));
+  color: #d9c389;
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: .08em;
+}
+body.crump-v1-body .crump53-library-copy {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+body.crump-v1-body .crump53-library-copy strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #e2ded5;
+  font-size: 11px;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+body.crump-v1-body .crump53-library-copy p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: #777e81;
+  font-size: 9px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+body.crump-v1-body .crump53-library-copy small {
+  color: #626a6e;
+  font-size: 8px;
+  text-transform: capitalize;
+}
+body.crump-v1-body .crump53-library-empty {
+  grid-column: 1 / -1;
+  padding: 30px 16px;
+  border: 1px dashed rgba(255,255,255,.075);
+  border-radius: 15px;
+  color: #757c80;
+  font-size: 10px;
+  text-align: center;
+}
+body.crump-v1-body .crump53-library-empty.is-error { color: #c88d88; }
+
 body.crump-v1-body .crump53-grid.crump53-compact-grid {
   grid-template-columns: repeat(2, minmax(0,1fr));
   gap: 10px;
@@ -437,6 +549,8 @@ body.crump-v1-body .crump53-manuscript-handoff button {
   body.crump-v1-body .crump53-textarea.crump53-editor { min-height: 260px; }
   body.crump-v1-body .crump53-manuscript-handoff { grid-template-columns: 38px minmax(0,1fr); }
   body.crump-v1-body .crump53-manuscript-handoff button { grid-column: 1 / -1; width: 100%; }
+  body.crump-v1-body .crump53-library-head { align-items: stretch; flex-direction: column; }
+  body.crump-v1-body .crump53-library-grid { grid-template-columns: 1fr; }
 }
 
 body.crump-v1-body .crump53-context-item {

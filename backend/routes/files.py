@@ -12,12 +12,47 @@ from ..security import normalize_chat_id
 
 router = APIRouter(prefix='/api/files', tags=['files'])
 
+LISTABLE_KINDS = {
+    'upload',
+    'generated_image',
+    'generated_document',
+    'generated_video',
+    'manuscript_export',
+    'project_asset',
+}
+
 
 def failure(exc: FileServiceError) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status_code,
         content={'success': False, 'error': exc.message, 'code': exc.code},
     )
+
+
+@router.get('')
+async def list_files(request: Request, kind: str = '', limit: int = 100):
+    """Return the signed-in account's durable private-file library."""
+    auth = await authenticate_request(request, db, settings)
+    normalized_kind = str(kind or '').strip().lower()
+    if normalized_kind and normalized_kind not in LISTABLE_KINDS:
+        return JSONResponse(
+            status_code=400,
+            content={'success': False, 'error': 'Invalid file kind.', 'code': 'INVALID_FILE_KIND'},
+        )
+    filters = {
+        'user_id': eq(auth.user['id']),
+        'status': eq('ready'),
+        'deleted_at': 'is.null',
+    }
+    if normalized_kind:
+        filters['kind'] = eq(normalized_kind)
+    rows = await db.select(
+        'user_files',
+        filters=filters,
+        order='created_at.desc',
+        limit=max(1, min(int(limit or 100), 200)),
+    )
+    return {'success': True, 'files': [files.public_file(row) for row in rows]}
 
 
 @router.post('/sign-upload')

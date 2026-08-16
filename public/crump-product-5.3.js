@@ -13,6 +13,8 @@
     manuscriptRun: null,
     manuscriptPollTimer: null,
     videoPollTimer: null,
+    libraryFiles: [],
+    libraryFilter: 'all',
   };
 
   const nativeFetch = window.fetch.bind(window);
@@ -139,6 +141,15 @@
         return button;
       };
       const filesPill = strip.querySelector('[data-v1-command="file"]');
+      if (filesPill && filesPill.dataset.crump53Library !== 'true') {
+        filesPill.dataset.crump53Library = 'true';
+        filesPill.setAttribute('aria-label', 'Open saved files and creations');
+        filesPill.addEventListener('click', event => {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          openStudio('library');
+        }, true);
+      }
       const documentButton = createMode('crump53DocumentMode', 'Document', () => window.CrumpDocumentStudio?.open?.());
       const manuscriptButton = createMode('crump53ManuscriptMode', 'Manuscript', () => openStudio('manuscripts'));
       const videoButton = createMode('crump53VideoMode', 'Video', () => openStudio('video'));
@@ -165,6 +176,7 @@
             <button type="button" class="crump53-tab is-active" data-crump53-tab="projects">Projects</button>
             <button type="button" class="crump53-tab" data-crump53-tab="manuscripts">Manuscripts</button>
             <button type="button" class="crump53-tab" data-crump53-tab="video">Video</button>
+            <button type="button" class="crump53-tab" data-crump53-tab="library">Saved</button>
           </div>
 
           <section class="crump53-panel" data-crump53-panel="projects">
@@ -274,6 +286,27 @@
             </div>
           </section>
 
+          <section class="crump53-panel" data-crump53-panel="library" hidden>
+            <div class="crump53-card">
+              <div class="crump53-kicker">PRIVATE ACCOUNT LIBRARY</div>
+              <div class="crump53-library-head">
+                <div>
+                  <h3>Saved creations & files</h3>
+                  <p>Videos, images, documents, manuscript exports, and uploads stay with your account across devices.</p>
+                </div>
+                <button type="button" class="crump53-button" id="crump53RefreshLibrary">Refresh</button>
+              </div>
+              <div class="crump53-library-filters" role="group" aria-label="Filter saved files">
+                <button type="button" class="crump53-library-filter is-active" data-library-filter="all">All</button>
+                <button type="button" class="crump53-library-filter" data-library-filter="video">Videos</button>
+                <button type="button" class="crump53-library-filter" data-library-filter="image">Images</button>
+                <button type="button" class="crump53-library-filter" data-library-filter="document">Documents</button>
+              </div>
+              <div id="crump53LibraryStatus" class="crump53-status" aria-live="polite"></div>
+              <div id="crump53LibraryGrid" class="crump53-library-grid"></div>
+            </div>
+          </section>
+
           <section class="crump53-panel" data-crump53-panel="video" hidden>
             <div class="crump53-card">
               <div class="crump53-kicker">VIDEO STUDIO</div>
@@ -320,6 +353,16 @@
       button.addEventListener('click', () => exportManuscript(button.dataset.crump53Export));
     });
     byId('crump53VideoForm')?.addEventListener('submit', startVideo);
+    byId('crump53RefreshLibrary')?.addEventListener('click', () => void refreshLibrary());
+    overlay.querySelectorAll('[data-library-filter]').forEach(button => {
+      button.addEventListener('click', () => {
+        state.libraryFilter = button.dataset.libraryFilter || 'all';
+        overlay.querySelectorAll('[data-library-filter]').forEach(item => {
+          item.classList.toggle('is-active', item === button);
+        });
+        renderLibrary();
+      });
+    });
   }
 
   function openStudio(tab = 'projects') {
@@ -355,6 +398,7 @@
       const pendingJob = readStoredVideoJob();
       if (pendingJob) pollVideo(pendingJob);
     }
+    if (tab === 'library') void refreshLibrary();
   }
 
   async function refreshFeatures() {
@@ -958,6 +1002,127 @@
     }
   }
 
+  function libraryCategory(file) {
+    const kind = String(file?.kind || '').toLowerCase();
+    const type = String(file?.type || '').toLowerCase();
+    if (kind === 'generated_video' || type.startsWith('video/')) return 'video';
+    if (kind === 'generated_image' || type.startsWith('image/')) return 'image';
+    return 'document';
+  }
+
+  function formatLibraryBytes(value) {
+    const bytes = Number(value || 0);
+    if (!Number.isFinite(bytes) || bytes <= 0) return '';
+    if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
+  }
+
+  function formatLibraryDate(value) {
+    const date = new Date(value || '');
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric'});
+  }
+
+  function libraryTitle(file) {
+    const metadata = file?.metadata && typeof file.metadata === 'object' ? file.metadata : {};
+    const title = String(metadata.title || metadata.documentTitle || '').trim();
+    if (title) return title.slice(0, 120);
+    const prompt = String(metadata.prompt || '').trim();
+    if (prompt) return prompt.slice(0, 96);
+    return String(file?.name || 'Saved file');
+  }
+
+  function renderLibrary() {
+    const grid = byId('crump53LibraryGrid');
+    if (!grid) return;
+    const filter = state.libraryFilter || 'all';
+    const visible = state.libraryFiles.filter(file => filter === 'all' || libraryCategory(file) === filter);
+    if (!visible.length) {
+      grid.innerHTML = '<div class="crump53-library-empty">No saved items in this category yet.</div>';
+      return;
+    }
+
+    grid.innerHTML = visible.map(file => {
+      const category = libraryCategory(file);
+      const url = String(file.url || '');
+      const metadata = file?.metadata && typeof file.metadata === 'object' ? file.metadata : {};
+      const title = libraryTitle(file);
+      const prompt = String(metadata.prompt || '').trim();
+      const preview = category === 'video'
+        ? `<video controls playsinline preload="metadata" src="${escapeHtml(url)}"></video>`
+        : category === 'image'
+          ? `<img loading="lazy" src="${escapeHtml(url)}" alt="${escapeHtml(title)}">`
+          : `<div class="crump53-library-document"><span>${escapeHtml(String(file.name || 'FILE').split('.').pop().slice(0, 5).toUpperCase())}</span></div>`;
+      const detail = [
+        String(file.kind || category).replaceAll('_', ' '),
+        formatLibraryBytes(file.size),
+        formatLibraryDate(file.createdAt),
+      ].filter(Boolean).join(' · ');
+      return `
+        <article class="crump53-library-item" data-library-file="${escapeHtml(file.id)}">
+          <div class="crump53-library-preview">${preview}</div>
+          <div class="crump53-library-copy">
+            <strong>${escapeHtml(title)}</strong>
+            ${prompt && prompt !== title ? `<p>${escapeHtml(prompt.slice(0, 180))}</p>` : ''}
+            <small>${escapeHtml(detail)}</small>
+          </div>
+          <div class="crump53-actions">
+            <button type="button" class="crump53-button" data-library-open="${escapeHtml(file.id)}">Open</button>
+            <button type="button" class="crump53-button" data-library-download="${escapeHtml(file.id)}">Download</button>
+            ${category !== 'video' ? `<button type="button" class="crump53-button" data-library-use="${escapeHtml(file.id)}">Use in chat</button>` : ''}
+          </div>
+        </article>`;
+    }).join('');
+
+    const byFileId = new Map(state.libraryFiles.map(file => [String(file.id), file]));
+    grid.querySelectorAll('[data-library-open]').forEach(button => {
+      button.addEventListener('click', () => {
+        const file = byFileId.get(String(button.dataset.libraryOpen));
+        if (!file) return;
+        if (window.CrumpFileTools?.open) window.CrumpFileTools.open(file);
+        else window.open(file.url, '_blank', 'noopener');
+      });
+    });
+    grid.querySelectorAll('[data-library-download]').forEach(button => {
+      button.addEventListener('click', () => {
+        const file = byFileId.get(String(button.dataset.libraryDownload));
+        if (!file) return;
+        if (window.CrumpFileTools?.open) window.CrumpFileTools.open(file, true);
+        else window.location.assign(`${file.url}?download=1`);
+      });
+    });
+    grid.querySelectorAll('[data-library-use]').forEach(button => {
+      button.addEventListener('click', () => {
+        const file = byFileId.get(String(button.dataset.libraryUse));
+        if (!file || !window.CrumpFileTools?.addReference) return;
+        window.CrumpFileTools.addReference(file);
+        closeStudio();
+        window.showToast?.(`${file.name || 'File'} added to the conversation.`, 'success');
+      });
+    });
+  }
+
+  async function refreshLibrary() {
+    const grid = byId('crump53LibraryGrid');
+    if (!grid) return;
+    setStatus('crump53LibraryStatus', 'Loading your private library…');
+    if (!state.libraryFiles.length) {
+      grid.innerHTML = '<div class="crump53-library-empty">Loading saved creations…</div>';
+    }
+    try {
+      const data = await api('/api/files?limit=200');
+      state.libraryFiles = Array.isArray(data.files) ? data.files : [];
+      renderLibrary();
+      setStatus(
+        'crump53LibraryStatus',
+        `${state.libraryFiles.length} saved item${state.libraryFiles.length === 1 ? '' : 's'} · private to your account.`,
+      );
+    } catch (error) {
+      setStatus('crump53LibraryStatus', error.message || 'Could not load your saved files.', true);
+      grid.innerHTML = '<div class="crump53-library-empty is-error">Your library could not be loaded.</div>';
+    }
+  }
+
   async function startVideo(event) {
     event.preventDefault();
     const prompt = byId('crump53VideoPrompt')?.value || '';
@@ -991,10 +1156,15 @@
         const job = data.job || {};
         if (job.status === 'ready' && job.file?.url) {
           storeVideoJob('');
-          setStatus('crump53VideoStatus', 'Video ready.');
+          setStatus('crump53VideoStatus', 'Video ready and saved to your Library.');
           byId('crump53VideoResult').innerHTML = `
             <video class="crump53-video-preview" controls playsinline src="${escapeHtml(job.file.url)}"></video>
-            <div class="crump53-actions" style="margin-top:10px"><a class="crump53-button" href="${escapeHtml(job.file.url)}?download=1">Download video</a></div>`;
+            <div class="crump53-actions" style="margin-top:10px">
+              <a class="crump53-button" href="${escapeHtml(job.file.url)}?download=1">Download video</a>
+              <button type="button" class="crump53-button" id="crump53OpenLibraryFromVideo">Open saved Library</button>
+            </div>`;
+          byId('crump53OpenLibraryFromVideo')?.addEventListener('click', () => selectTab('library'));
+          void refreshLibrary();
           return;
         }
         if (job.status === 'failed') {

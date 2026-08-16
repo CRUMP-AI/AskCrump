@@ -86,6 +86,22 @@ def test_video_retry_does_not_bill_twice():
     assert "could not save the file" in video
 
 
+def test_private_account_library_surfaces_saved_creations():
+    routes = read("backend/routes/files.py")
+    service = read("backend/file_service.py")
+    product = read("public/crump-product-5.3.js")
+    styles = read("public/crump-product-5.3.css")
+    assert "@router.get('')" in routes
+    assert "'deleted_at': 'is.null'" in routes
+    assert "order='created_at.desc'" in routes
+    assert "'createdAt': row.get('created_at')" in service
+    assert 'data-crump53-tab="library"' in product
+    assert "api('/api/files?limit=200')" in product
+    assert "Video ready and saved to your Library." in product
+    assert "openStudio('library')" in product
+    assert ".crump53-library-grid" in styles
+
+
 def test_feature_policy_has_explicit_expensive_tool_gates():
     policy = read("backend/feature_service.py")
     assert '"image"' in policy and '"professional"' in policy
