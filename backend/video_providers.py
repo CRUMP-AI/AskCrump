@@ -142,7 +142,8 @@ class GeminiVeoProvider:
         }
         if video_reference:
             instance["video"] = {"uri": video_reference}
-            parameters["numberOfVideos"] = 1
+            # Veo 3.1 Fast rejects numberOfVideos on extension requests.
+            # Extension inherently returns a single continued video.
             parameters["resolution"] = "720p"
             parameters["durationSeconds"] = 8
 

@@ -81,10 +81,13 @@ def test_video_retry_does_not_bill_twice():
     video = read("backend/video_service.py")
     providers = read("backend/video_providers.py")
     assert "duration = 8" in video
-    # Quick Veo Lite remains single-output; numberOfVideos is only used by the
-    # native Veo continuation path.
+    # Veo 3.1 Fast continuation is single-output by definition and rejects
+    # numberOfVideos. Keep the provider-specific continuation contract explicit.
     assert 'if video_reference:' in providers
-    assert 'parameters["numberOfVideos"] = 1' in providers
+    assert 'instance["video"] = {"uri": video_reference}' in providers
+    assert 'parameters["numberOfVideos"] = 1' not in providers
+    assert 'parameters["resolution"] = "720p"' in providers
+    assert 'parameters["durationSeconds"] = 8' in providers
     assert "async def _mark_failed" in video
     assert "could not save the file" in video
 
