@@ -19,6 +19,7 @@ window.CRUMP_CONFIG = Object.freeze({
   'use strict';
 
   const styles = Object.freeze([
+    ['/crump-4.3.css', 'crump43'],
     ['/crump-4.4.css', 'crump44'],
     ['/crump-5.0.css', 'crump50'],
     ['/crump-billing-5.1.css', 'billing51'],
@@ -29,6 +30,7 @@ window.CRUMP_CONFIG = Object.freeze({
   ]);
 
   const scripts = Object.freeze([
+    ['/crump-4.3.js', 'crump43'],
     ['/crump-4.4.js', 'crump44'],
     ['/crump-5.0.js', 'crump50'],
     ['/crump-billing-5.1.js', 'billing51'],
@@ -82,6 +84,7 @@ window.CRUMP_CONFIG = Object.freeze({
     await loadStyle('/crump-navigation-5.2.5.css', 'crumpnav525');
     await loadStyle('/crump-product-5.3.css', 'crumpproduct53');
     await loadStyle('/crump-product-5.3.1.css', 'crumpproduct531');
+    await loadStyle('/crump-polish-5.6.css', 'crumppolish56');
 
     for (const [url, key] of scripts) {
       await loadScript(url, key);
@@ -92,6 +95,7 @@ window.CRUMP_CONFIG = Object.freeze({
     await loadScript('/crump-product-5.3.js', 'crumpproduct53');
     await loadScript('/crump-product-5.3.1.js', 'crumpproduct531');
     await loadScript('/crump-subscriptions-5.3.2.js', 'crumpsubscriptions532');
+    await loadScript('/crump-polish-5.6.js', 'crumppolish56');
 
     document.documentElement.dataset.crumpBodyRuntime = 'ready';
   }

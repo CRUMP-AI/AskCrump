@@ -227,7 +227,7 @@ def test_video_ui_surfaces_engines_continue_flow_and_runway_attribution():
     ui = read("public/crump-product-5.3.js")
     css = read("public/crump-product-5.3.css")
     assert "Quick · Veo Lite" in ui
-    assert "Extendable · Continue enabled" in ui
+    assert "Extendable · Veo Fast + Continue" in ui
     assert "Cinematic · Runway Gen-4.5" in ui
     assert "Continue scene" in ui
     assert "/continue`" in ui

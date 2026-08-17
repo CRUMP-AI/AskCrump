@@ -14,7 +14,7 @@ def test_product53_runtime_is_registered_last_and_cached():
     assert "/crump-product-5.3.css" in runtime
     assert "/crump-product-5.3.js" in runtime
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r11" in worker
+    assert "ask-crump-new-body-v1-r12" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 
@@ -100,7 +100,7 @@ def test_private_account_library_surfaces_saved_creations():
     assert "'createdAt': row.get('created_at')" in service
     assert 'data-crump53-tab="library"' in product
     assert "api('/api/files?limit=200')" in product
-    assert "Video ready and saved to your Library." in product
+    assert "Saved to Library" in product
     assert "openStudio('library')" in product
     assert ".crump53-library-grid" in styles
 
@@ -158,6 +158,8 @@ def test_native_bundle_loads_the_same_product_layers_as_the_web_runtime():
         "/crump-product-5.3.1.css",
         "/crump-product-5.3.1.js",
         "/crump-subscriptions-5.3.2.js",
+        "/crump-polish-5.6.css",
+        "/crump-polish-5.6.js",
     ):
         assert asset in native
     assert native.index("/crump-navigation-5.2.5.js") < native.index("/crump-product-5.3.js")

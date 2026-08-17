@@ -100,13 +100,13 @@
   }
 
   const TOOL_MENU_META = Object.freeze({
-    focus: {label: 'Ask', description: 'Chat, reason & create'},
-    research: {label: 'Research', description: 'Search with sources'},
+    focus: {label: 'Ask', description: 'Think something through'},
+    research: {label: 'Research', description: 'Search current sources'},
     image: {label: 'Image', description: 'Generate or edit visuals'},
-    document: {label: 'Document', description: 'Build polished files'},
-    manuscript: {label: 'Manuscript', description: 'Draft long-form books'},
-    video: {label: 'Video', description: 'Create cinematic clips'},
-    file: {label: 'Saved', description: 'Your private library'},
+    document: {label: 'Document', description: 'Build a polished file'},
+    manuscript: {label: 'Manuscript', description: 'Plan and draft long-form work'},
+    video: {label: 'Video', description: 'Create or continue a scene'},
+    file: {label: 'Saved', description: 'Open your private Library'},
   });
 
   function toolKey(button) {
@@ -145,7 +145,7 @@
     trigger.setAttribute('aria-expanded', 'false');
     trigger.innerHTML = `
       <span class="crump53-tool-trigger-mark">${toolIcon('focus')}</span>
-      <span class="crump53-tool-trigger-copy"><small>CREATE WITH CRUMP</small><strong data-crump53-tool-label>Ask</strong></span>
+      <span class="crump53-tool-trigger-copy"><small>TOOLS</small><strong data-crump53-tool-label>Ask</strong></span>
       <span class="crump53-tool-count">7 tools</span>
       <svg class="crump53-tool-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>`;
 
@@ -155,7 +155,7 @@
     menu.hidden = true;
     menu.innerHTML = `
       <div class="crump53-tool-menu-head">
-        <span><small>CRUMP CREATION SUITE</small><strong>What are we making?</strong></span>
+        <span><small>ASK CRUMP TOOLS</small><strong>What do you want to do?</strong></span>
         <i aria-hidden="true">✦</i>
       </div>`;
 
@@ -310,9 +310,9 @@
     overlay.className = 'crump53-overlay';
     overlay.hidden = true;
     overlay.innerHTML = `
-      <section class="crump53-sheet" role="dialog" aria-modal="true" aria-label="Ask Crump Projects and creation studio">
+      <section class="crump53-sheet" role="dialog" aria-modal="true" aria-label="Ask Crump Projects and Create studio">
         <header class="crump53-sheet-head">
-          <div><div class="crump53-kicker">ASK CRUMP</div><strong>Projects & Creation</strong></div>
+          <div><div class="crump53-kicker">WORKSPACE</div><strong>Projects & Create</strong></div>
           <button type="button" class="crump53-close" id="crump53Close" aria-label="Close">×</button>
         </header>
         <div class="crump53-sheet-body">
@@ -432,11 +432,11 @@
 
           <section class="crump53-panel" data-crump53-panel="library" hidden>
             <div class="crump53-card">
-              <div class="crump53-kicker">PRIVATE ACCOUNT LIBRARY</div>
+              <div class="crump53-kicker">YOUR LIBRARY</div>
               <div class="crump53-library-head">
                 <div>
-                  <h3>Saved creations & files</h3>
-                  <p>Videos, images, documents, manuscript exports, and uploads stay with your account across devices.</p>
+                  <h3>Everything you have saved</h3>
+                  <p>Videos, images, documents, manuscript exports, and uploads stay private to your account and available across devices.</p>
                 </div>
                 <button type="button" class="crump53-button" id="crump53RefreshLibrary">Refresh</button>
               </div>
@@ -454,13 +454,18 @@
           <section class="crump53-panel" data-crump53-panel="video" hidden>
             <div class="crump53-card">
               <div class="crump53-kicker">VIDEO STUDIO</div>
-              <h3>Create a scene. Keep directing it.</h3>
-              <p>Choose the engine for the job. Generations run asynchronously and every finished video is saved privately to your Library.</p>
+              <h3>Create a scene. Keep directing.</h3>
+              <p>Pick the experience you need. Crump handles the provider, saves the result privately, and keeps compatible scenes ready to continue.</p>
+              <div class="crump53-video-engine-guide" aria-label="Video engine guide">
+                <div class="crump53-video-engine-card is-active" data-video-engine-card="quick"><strong>Quick</strong><span>Fast short clips. Best when you just need a strong first take.</span></div>
+                <div class="crump53-video-engine-card" data-video-engine-card="extendable"><strong>Extendable</strong><span>Built for scenes that need another shot after the first clip ends.</span></div>
+                <div class="crump53-video-engine-card" data-video-engine-card="cinematic"><strong>Cinematic</strong><span>Runway Gen-4.5 for premium 5- or 10-second generations.</span></div>
+              </div>
               <form id="crump53VideoForm" class="crump53-form">
                 <div class="crump53-grid">
                   <label class="crump53-label">Engine<select id="crump53VideoEngine" class="crump53-select">
                     <option value="quick">Quick · Veo Lite</option>
-                    <option value="extendable">Extendable · Continue enabled</option>
+                    <option value="extendable">Extendable · Veo Fast + Continue</option>
                     <option value="cinematic">Cinematic · Runway Gen-4.5</option>
                   </select></label>
                   <label class="crump53-label" id="crump53VideoDurationWrap" hidden>Duration<select id="crump53VideoDuration" class="crump53-select"><option value="5">5 seconds · 60 credits</option><option value="10">10 seconds · 120 credits · Enterprise</option></select></label>
@@ -472,7 +477,7 @@
                 </div>
                 <div class="crump53-note" id="crump53VideoCostNote">Quick video uses Veo Lite. 720p costs 60 credits and 1080p costs 90 credits. Every generation spends Crump Credits.</div>
                 <a class="crump53-provider-attribution" id="crump53RunwayAttribution" href="https://runwayml.com" target="_blank" rel="noopener" hidden>Powered by Runway</a>
-                <div class="crump53-actions"><button class="crump53-button is-primary" type="submit" id="crump53GenerateVideo">Generate video</button><span id="crump53VideoEntitlement" class="crump53-lock">Checking access…</span></div>
+                <div class="crump53-actions"><button class="crump53-button is-primary" type="submit" id="crump53GenerateVideo">Create video</button><span id="crump53VideoEntitlement" class="crump53-lock">Checking access…</span></div>
                 <div id="crump53VideoStatus" class="crump53-status" aria-live="polite"></div>
               </form>
               <div id="crump53VideoResult"></div>
@@ -580,6 +585,10 @@
     const costNote = byId('crump53VideoCostNote');
     const label = byId('crump53VideoEntitlement');
 
+    document.querySelectorAll('[data-video-engine-card]').forEach(card => {
+      card.classList.toggle('is-active', card.dataset.videoEngineCard === engine);
+    });
+
     if (durationWrap) durationWrap.hidden = engine !== 'cinematic';
     if (attribution) attribution.hidden = engine !== 'cinematic';
     if (prompt) prompt.maxLength = engine === 'cinematic' ? 1000 : 4000;
@@ -607,8 +616,9 @@
     const featureCode = selectedVideoFeature();
     const feature = state.features?.features?.[featureCode];
     if (costNote) {
+      costNote.classList.toggle('crump53-founder-note', Boolean(state.features?.internalAccess));
       if (state.features?.internalAccess) {
-        costNote.textContent = 'Founder Lab is active: Ask Crump will not spend your app credits or daily allowances. Provider API usage is still real and funded by the owner account; server-side budget circuit breakers remain active.';
+        costNote.textContent = 'Founder Lab active · App credits are bypassed. Provider usage is still owner-funded and protected by server budget limits.';
       } else if (engine === 'extendable') {
         costNote.textContent = 'Extendable uses Veo 3.1 Fast at 720p. Starting the scene costs 80 credits; each native continuation costs 80 credits and adds about 7 seconds while the provider reference and private-storage guard remain available.';
       } else if (engine === 'cinematic') {
@@ -621,7 +631,7 @@
     }
     if (label && state.features) {
       if (!feature?.configured) label.textContent = engine === 'cinematic' ? 'Runway is not configured yet' : 'Video provider not configured';
-      else if (state.features.internalAccess) label.textContent = 'Founder Lab · app metering bypassed';
+      else if (state.features.internalAccess) label.textContent = 'Founder Lab · metering bypassed';
       else if (!feature?.entitled) label.textContent = `${feature?.minimumTier === 'enterprise' ? 'Enterprise' : 'Professional'} plan required`;
       else label.textContent = `Ready · ${state.features.creditBalance ?? 0} credits`;
     }
@@ -1521,10 +1531,10 @@
         ${attribution}
       </div>
       <video class="crump53-video-preview" controls playsinline src="${escapeHtml(job.file.url)}"></video>
-      <div class="crump53-actions" style="margin-top:10px">
+      <div class="crump53-video-result-actions">
         ${continuation}
-        <a class="crump53-button" href="${escapeHtml(job.file.url)}?download=1">Download video</a>
-        <button type="button" class="crump53-button" id="crump53OpenLibraryFromVideo">Open saved Library</button>
+        <a class="crump53-button crump53-button-link" href="${escapeHtml(job.file.url)}?download=1" download>Download video</a>
+        <button type="button" class="crump53-button" id="crump53OpenLibraryFromVideo">Open Library</button>
       </div>
       ${job.canContinue ? `
         <div class="crump53-video-continuation" id="crump53VideoContinuation" hidden>
@@ -1583,7 +1593,7 @@
         state.activeVideoJob = job;
         if (job.status === 'ready' && job.file?.url) {
           storeVideoJob('');
-          setStatus('crump53VideoStatus', `Video ready and saved to your Library. ${job.durationSeconds || 8} seconds total.`);
+          setStatus('crump53VideoStatus', `Saved to Library · ${job.durationSeconds || 8}s · ${job.resolution || '720p'}`);
           renderReadyVideo(job);
           void refreshLibrary();
           return;

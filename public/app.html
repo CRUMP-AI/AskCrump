@@ -162,7 +162,7 @@
         <h3 id="termsSummaryTitle">Key points</h3>
         <ul class="terms-summary-list">
           <li>Conversations synchronize to your account across signed-in devices.</li>
-          <li>Anthropic provides text responses; OpenAI provides optional image generation.</li>
+          <li>Configured AI providers power conversation, research, images, documents, and video. Video may use Google Veo or Runway depending on the engine you choose.</li>
           <li>You must be at least 17 years old to use the service.</li>
           <li>AI responses can be incomplete or incorrect and should be verified when accuracy matters.</li>
           <li>The service is not a substitute for professional medical, legal, or financial advice.</li>
@@ -301,7 +301,7 @@
           <div class="v1-launchpad-mark"><img src="/assets/brand/crump-mark.png" alt="" aria-hidden="true"></div>
           <div id="v1Greeting" class="v1-launchpad-greeting">Good evening.</div>
           <h1>What are we moving forward?</h1>
-          <p>Start with a thought, hand Crump a file, research something current, or build an actual deliverable.</p>
+          <p>Ask something, start a Project, research what changed, work from a file, or create something you can keep.</p>
 
           <div class="v1-launchpad-grid">
             <button type="button" class="v1-launch-card v1-launch-card-primary" data-v1-command="focus">
@@ -330,10 +330,24 @@
               <span><strong>Create an image</strong><small>Generate, edit, or build a visual concept.</small></span>
               <b>↗</b>
             </button>
+            <button type="button" class="v1-launch-card" data-v1-command="projects">
+              <span class="v1-launch-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h6l2 2h8v10H4z"/><path d="M4 7V5h7l2 2"/></svg>
+              </span>
+              <span><strong>Start or open a Project</strong><small>Keep instructions, canon, files, and ongoing work together.</small></span>
+              <b>↗</b>
+            </button>
+            <button type="button" class="v1-launch-card" data-v1-command="video">
+              <span class="v1-launch-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="13" height="14" rx="2"/><path d="m16.5 10 4-2v8l-4-2zM8 9l5 3-5 3z"/></svg>
+              </span>
+              <span><strong>Create a video</strong><small>Generate a scene, use cinematic mode, or continue an extendable clip.</small></span>
+              <b>↗</b>
+            </button>
           </div>
 
           <div class="v1-launchpad-foot">
-            <span>Conversation</span><i></i><span>Research</span><i></i><span>Files</span><i></i><span>Images</span><i></i><span>Artifacts</span>
+            <span>Conversation</span><i></i><span>Projects</span><i></i><span>Research</span><i></i><span>Creation</span><i></i><span>Saved</span>
           </div>
         </section>
 
@@ -506,7 +520,7 @@
         <section class="settings-group v1-settings-panel" data-v1-settings-panel="about">
           <div class="v1-settings-panel-head">
             <div><div class="settings-group-title">About</div><h3>Ask Crump</h3></div>
-            <p>Product, legal, and privacy information.</p>
+            <p>Product guidance, legal information, and a quick way to replay the workspace tour.</p>
           </div>
           <div class="settings-list">
             <a href="/legal.html" class="settings-row settings-row-action settings-link">
@@ -520,7 +534,7 @@
           </div>
           <div class="v1-about-signature">
             <img src="/assets/brand/crump-horizontal-light.png" alt="Ask Crump">
-            <span>Built to think, make, and continue.</span>
+            <span>Ask Crump 5.6 · Built to think, make, and continue.</span>
           </div>
         </section>
       </div>

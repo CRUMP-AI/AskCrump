@@ -104,6 +104,15 @@
     return true;
   }
 
+  function openProduct(tab) {
+    if (window.CrumpProduct53?.open) {
+      window.CrumpProduct53.open(tab);
+      return true;
+    }
+    window.setTimeout(() => window.CrumpProduct53?.open?.(tab), 120);
+    return false;
+  }
+
   function command(command) {
     switch (command) {
       case 'new':
@@ -133,6 +142,15 @@
       case 'file':
         setActiveMode('file');
         forwardClick('attachBtn');
+        break;
+      case 'projects':
+        openProduct('projects');
+        break;
+      case 'video':
+        openProduct('video');
+        break;
+      case 'saved':
+        openProduct('library');
         break;
       case 'code':
         setActiveMode('focus');

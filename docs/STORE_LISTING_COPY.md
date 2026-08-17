@@ -14,19 +14,19 @@ This copy is deliberately factual. Reconfirm every feature in the exact signed b
 ## Apple App Store
 
 - **Subtitle:** Create, research, and build
-- **Promotional text:** Turn questions into useful work with research, image and video creation, documents, manuscripts, private files, and a saved creation library.
+- **Promotional text:** Turn questions into ongoing work with Projects, research, images, documents, manuscripts, multi-engine video, scene continuation, and a private Saved Library.
 - **Keywords:** `AI,assistant,research,writer,documents,images,video,manuscript,productivity,files`
 
 ### Description
 
 Ask Crump is a multimodal AI workspace built to help you move from an idea to something useful.
 
-Ask questions, research a topic, create images and videos, draft documents, develop long-form manuscripts, and keep generated work in a private Saved Library. Continue conversations across devices and return to your projects without rebuilding the context every time.
+Ask questions, research a topic, create images and videos, draft documents, develop long-form manuscripts, and keep generated work in a private Saved Library. Projects keep instructions, reference files, canon, conversations, and creations together. Compatible extendable videos can continue from the ending of a previous generated scene.
 
 Create and organize:
 
 - conversational answers and guided research
-- images and short-form video
+- images and multi-engine short-form video, including compatible scene continuation
 - documents and exportable files
 - structured long-form manuscript projects
 - uploaded files and generated creations
@@ -51,12 +51,12 @@ Some features require a paid plan, credits, provider availability, or an interne
 
 Ask Crump is a multimodal AI workspace for turning questions and ideas into useful work.
 
-Research topics, create images and short videos, draft documents, build structured long-form manuscripts, and keep generated work in a private Saved Library. Continue conversations across devices and return to ongoing projects with their context intact.
+Research topics, create images and short videos, draft documents, build structured long-form manuscripts, and keep generated work in a private Saved Library. Projects keep ongoing work and reference context together, and compatible extendable videos can continue from a previous generated scene.
 
 WHAT YOU CAN DO
 
 • Ask questions and explore guided research
-• Generate images and short-form video
+• Generate images and short-form video with Quick, Extendable, and Cinematic modes
 • Create documents and exportable files
 • Develop long-form manuscript projects
 • Upload files and organize generated creations
@@ -83,7 +83,8 @@ Use real output and hide personal data. Keep the same visual language across bot
 3. **Create original visuals** — image result with View, Edit, and Download.
 4. **Build real documents** — document workflow with export options.
 5. **Develop long-form work** — manuscript project/status view.
-6. **Create and keep video** — playable video in the Saved Library.
+6. **Direct a video scene** — Quick, Extendable, and Cinematic options with a polished playable result.
+7. **Continue and keep the work** — scene continuation and the private Saved Library.
 
 Capture at least one modern large iPhone size and current Android phone size. Apple accepts 1–10 screenshots; Google requires at least two and benefits from four or more high-quality phone screenshots.
 
@@ -97,7 +98,7 @@ Suggested review path:
 
 1. Sign in with the review account.
 2. Open each creation mode from the composer mode menu.
-3. Open Projects & Creation to view saved output.
+3. Open Projects & Create to view Projects, manuscripts, Video Studio, and the Saved Library.
 4. Use **Report** beneath an assistant response to see the in-app safety flow.
 5. Open Settings → Account to view session controls, export, legal links, and permanent account deletion.
 6. Open the subscription screen to verify native store billing and Restore Purchases.

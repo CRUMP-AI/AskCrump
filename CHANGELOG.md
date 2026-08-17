@@ -1,5 +1,23 @@
 # Changelog
 
+## 5.6.0 — 2026-08-17
+
+### Added
+
+- Added a final store-debut polish layer that normalizes buttons, links, focus states, touch targets, studio hierarchy, billing surfaces, and responsive behavior without replacing the proven 5.x product architecture.
+- Added Projects and Video as first-class launchpad actions so important creation workflows are easier to discover from the empty workspace.
+- Added a current six-step product tour covering Projects, creation tools, Video Studio, scene continuation, and the Saved Library.
+- Added an updated Clever Crump parent-company page that reflects Ask Crump's current Projects, long-form, Saved Library, and multi-engine video capabilities.
+
+### Changed
+
+- Renamed the creation workspace to “Projects & Create” and simplified video status, Founder Lab, Library, and action copy.
+- Standardized video result actions so links and buttons share one visual system and the Download video action no longer renders as a raw underlined link.
+- Moved the legacy 4.3 runtime dependency into the deterministic runtime loader instead of loading it as an onboarding side effect.
+- Improved Studio tab keyboard semantics, settings access to the product tour, mobile spacing, text sizing, and responsive touch targets.
+- Updated PWA product metadata and store-facing copy to reflect Projects, manuscripts, saved creations, Runway Cinematic video, and native scene continuation.
+- Advanced the service-worker cache to revision 12.
+
 ## 5.5.0 — 2026-08-17
 
 ### Added

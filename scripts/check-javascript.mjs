@@ -7,7 +7,7 @@ const expectedFiles = new Set([
   'crump-4.3.js', 'crump-4.4.js', 'crump-5.0.js', 'crump-billing-5.1.js',
   'crump-5.2.js', 'crump-5.2.2.js', 'crump-5.2.4.js', 'crump-navigation-5.2.5.js',
   'crump-v1.js', 'crump-v1-body.js', 'crump-v1-stability.js', 'crump-product-5.3.js',
-  'crump-product-5.3.1.js', 'crump-subscriptions-5.3.2.js',
+  'crump-product-5.3.1.js', 'crump-subscriptions-5.3.2.js', 'crump-polish-5.6.js',
   'device-auth.js', 'install-prompt.js', 'landing.js', 'mobile-bridge.js', 'native-entry.js',
   'native-runtime.js', 'onboarding.js', 'presence-manager.js', 'profile-manager.js',
   'runtime-config.js', 'runtime-config-v1.js', 'runtime-body-v1.js', 'safe-storage.js',
@@ -48,6 +48,8 @@ const requiredBodyFiles = [
   'public/crump-product-5.3.1.css',
   'public/crump-product-5.3.1.js',
   'public/crump-subscriptions-5.3.2.js',
+  'public/crump-polish-5.6.css',
+  'public/crump-polish-5.6.js',
   'public/runtime-body-v1.js',
   'public/assets/brand/crump-mark.png',
   'public/assets/brand/crump-horizontal-light.png',
@@ -98,7 +100,8 @@ const runtime = await readFile(new URL('public/runtime-body-v1.js', repoRoot), '
 if (!runtime.includes('/crump-v1-body.js') || !runtime.includes('/crump-v1-body.css') ||
     !runtime.includes('/crump-product-5.3.js') || !runtime.includes('/crump-product-5.3.css') ||
     !runtime.includes('/crump-product-5.3.1.js') || !runtime.includes('/crump-product-5.3.1.css') ||
-    !runtime.includes('/crump-subscriptions-5.3.2.js')) {
+    !runtime.includes('/crump-subscriptions-5.3.2.js') ||
+    !runtime.includes('/crump-polish-5.6.js') || !runtime.includes('/crump-polish-5.6.css')) {
   console.error('New-body runtime is missing the canonical shell.');
   process.exit(1);
 }
@@ -119,7 +122,7 @@ if (!v1Body.includes('removeLegacyEmptyState(container)')) {
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r11') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r12') ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes('/crump-v1-body.js') ||
     !serviceWorker.includes('/crump-subscriptions-5.3.2.js')) {

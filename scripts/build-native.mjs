@@ -1,5 +1,6 @@
 import { copyFile, cp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { build } from 'esbuild';
+import { fileURLToPath } from 'node:url';
 
 const outDir = new URL('../dist/', import.meta.url);
 const publicDir = new URL('../public/', import.meta.url);
@@ -10,13 +11,13 @@ await cp(publicDir, outDir, { recursive: true });
 await copyFile(new URL('../public/app.html', import.meta.url), new URL('../dist/index.html', import.meta.url));
 
 await build({
-  entryPoints: [new URL('../public/native-entry.js', import.meta.url).pathname],
+  entryPoints: [fileURLToPath(new URL('../public/native-entry.js', import.meta.url))],
   bundle: true,
   minify: true,
   format: 'iife',
   platform: 'browser',
   target: ['safari16.4', 'chrome120'],
-  outfile: new URL('../dist/native-runtime.js', import.meta.url).pathname,
+  outfile: fileURLToPath(new URL('../dist/native-runtime.js', import.meta.url)),
   legalComments: 'none',
 });
 
@@ -42,6 +43,7 @@ const loader = String.raw`
   'use strict';
 
   const styles = Object.freeze([
+    ['/crump-4.3.css', 'crump43'],
     ['/crump-4.4.css', 'crump44'],
     ['/crump-5.0.css', 'crump50'],
     ['/crump-billing-5.1.css', 'billing51'],
@@ -52,6 +54,7 @@ const loader = String.raw`
   ]);
 
   const scripts = Object.freeze([
+    ['/crump-4.3.js', 'crump43'],
     ['/crump-4.4.js', 'crump44'],
     ['/crump-5.0.js', 'crump50'],
     ['/crump-billing-5.1.js', 'billing51'],
@@ -102,6 +105,7 @@ const loader = String.raw`
     await loadStyle('/crump-navigation-5.2.5.css', 'crumpnav525');
     await loadStyle('/crump-product-5.3.css', 'crumpproduct53');
     await loadStyle('/crump-product-5.3.1.css', 'crumpproduct531');
+    await loadStyle('/crump-polish-5.6.css', 'crumppolish56');
 
     for (const [url,key] of scripts) await loadScript(url,key);
 
@@ -109,6 +113,7 @@ const loader = String.raw`
     await loadScript('/crump-product-5.3.js', 'crumpproduct53');
     await loadScript('/crump-product-5.3.1.js', 'crumpproduct531');
     await loadScript('/crump-subscriptions-5.3.2.js', 'crumpsubscriptions532');
+    await loadScript('/crump-polish-5.6.js', 'crumppolish56');
 
     document.documentElement.dataset.crumpBodyRuntime = 'ready';
   }

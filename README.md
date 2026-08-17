@@ -27,7 +27,7 @@ The tutorial API is unchanged (`autoStart`, `restart`, etc.), so `auth-controlle
 The completion key is bumped to `v4`, so existing users see the new tour once.
 
 ### 3. Full interface polish
-`public/crump-4.3.css` and `public/crump-4.3.js` are a reversible design layer loaded by the new onboarding script.
+`public/crump-4.3.css` and `public/crump-4.3.js` remain compatibility layers, now loaded deterministically by the runtime before later product layers. `public/crump-polish-5.6.css` and `.js` are the final-authority store-debut polish layer.
 
 Highlights:
 - compact mobile header with the C mark and a quiet status line;

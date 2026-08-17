@@ -1,95 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script defer src="/landing.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Ask Crump is an AI workspace for ongoing work: conversations, Projects, files, research, manuscripts, images, video, and finished deliverables.">
-  <meta name="theme-color" content="#080b0f">
+  <meta name="description" content="Clever Crump builds Ask Crump, an AI workspace for conversations, Projects, research, files, manuscripts, images, video, and finished work.">
+  <meta name="theme-color" content="#070a0e">
   <title>Clever Crump | Ask Crump</title>
   <link rel="icon" type="image/png" href="/assets/icon-192.png">
   <link rel="apple-touch-icon" href="/assets/icon-512.png">
-  <style>
-    *{box-sizing:border-box}
-    html{scroll-behavior:smooth}
-    body{margin:0;background:#080b0f;color:#f0f0ed;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.55}
-    a{color:inherit}
-    button,a{-webkit-tap-highlight-color:transparent}
-    :root{--ink:#080b0f;--panel:#10151b;--panel2:#151b22;--line:rgba(231,232,230,.12);--muted:#858b91;--gold:#d2b468;--gold2:#ae9352;--serif:Georgia,"Times New Roman",serif}
-    .navbar{position:fixed;inset:0 0 auto;z-index:20;height:78px;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(22px,5vw,76px);background:rgba(8,11,15,.78);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid transparent;transition:.2s}
-    .navbar.scrolled{border-bottom-color:var(--line);background:rgba(8,11,15,.94)}
-    .brand-lockup{display:flex;align-items:center;gap:13px;text-decoration:none;min-width:0}
-    .nav-logo{width:clamp(188px,20vw,238px);height:48px;object-fit:contain;object-position:left center;display:block}
-    .brand-origin{padding-left:12px;border-left:1px solid rgba(231,232,230,.12);font-size:9px;letter-spacing:.17em;color:#8e8a80;font-weight:800;white-space:nowrap}
-    .navlinks{display:flex;align-items:center;gap:28px}
-    .navlinks a{text-decoration:none;color:#a3a8ad;font-size:13px}
-    .navlinks a:hover{color:#eee}
-    .nav-cta{border:1px solid rgba(210,180,104,.42);border-radius:999px;padding:10px 16px;color:#e4d19c!important}
-    main{overflow:hidden}
-    .hero{min-height:94vh;display:grid;place-items:center;padding:150px 24px 90px;position:relative}
-    .hero:before{content:"";position:absolute;width:760px;height:760px;left:50%;top:15%;transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(210,180,104,.09),transparent 64%);pointer-events:none}
-    .hero-inner{width:min(1120px,100%);text-align:center;position:relative}
-    .eyebrow{font-size:11px;letter-spacing:.21em;font-weight:800;color:#bba466;margin-bottom:22px}
-    h1,h2,h3,p{margin-top:0}
-    .hero h1{font-family:var(--serif);font-weight:400;letter-spacing:-.045em;font-size:clamp(52px,8vw,100px);line-height:.98;margin:0 auto 28px;max-width:1020px}
-    .hero h1 em{font-style:normal;color:var(--gold)}
-    .hero-copy{width:min(720px,100%);margin:0 auto 34px;color:#969ba1;font-size:clamp(17px,2vw,21px)}
-    .hero-actions{display:flex;justify-content:center;gap:11px;flex-wrap:wrap}
-    .button{display:inline-flex;align-items:center;justify-content:center;min-height:49px;padding:0 20px;border-radius:14px;text-decoration:none;font-size:14px;font-weight:700;border:1px solid var(--line)}
-    .button.primary{background:linear-gradient(135deg,#dec57b,#b99d56);color:#111315;border-color:transparent}
-    .button.secondary{background:#10151a;color:#d4d7da}
-    .quiet-note{margin-top:17px;color:#626970;font-size:12px}
-    .product-stage{width:min(1180px,calc(100% - 32px));margin:0 auto 130px;border:1px solid var(--line);border-radius:36px;background:#080c10;box-shadow:0 40px 120px rgba(0,0,0,.42);overflow:hidden}
-    .stage-top{height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;border-bottom:1px solid var(--line);color:#747b82;font-size:11px}
-    .dots{display:flex;gap:7px}.dots i{width:7px;height:7px;border-radius:50%;background:#343b42}
-    .stage-app{min-height:690px;display:grid;grid-template-columns:70px 1fr}
-    .stage-rail{border-right:1px solid var(--line);padding-top:22px;display:flex;justify-content:center}
-    .rail-pill{width:39px;height:39px;border:1px solid var(--line);border-radius:13px;display:grid;place-items:center;color:#7d848b}
-    .stage-main{padding:52px clamp(22px,5vw,68px) 40px;text-align:center;position:relative}
-    .stage-logo{height:48px;max-width:min(350px,70%);object-fit:contain;margin-bottom:32px}
-    .stage-mark{width:92px;height:92px;object-fit:contain;display:block;margin:0 auto 18px}
-    .hello{color:#c7ae69;font-size:12px;font-weight:750;letter-spacing:.12em;margin-bottom:14px}
-    .stage-main h2{font-family:var(--serif);font-size:clamp(44px,5vw,70px);font-weight:400;line-height:1.02;letter-spacing:-.035em;margin-bottom:16px}
-    .stage-main>p{color:#737a82;margin:0 auto 30px;max-width:630px}
-    .launch-grid{display:grid;gap:10px;width:min(700px,100%);margin:0 auto}
-    .launch{display:grid;grid-template-columns:44px 1fr auto;gap:14px;align-items:center;text-align:left;padding:14px 16px;border:1px solid var(--line);border-radius:18px;background:#0e1318}
-    .launch:first-child{border-color:rgba(210,180,104,.25);background:linear-gradient(90deg,rgba(210,180,104,.05),#0e1318)}
-    .launch-icon{width:42px;height:42px;border:1px solid rgba(210,180,104,.18);border-radius:13px;display:grid;place-items:center;color:#c5aa63}
-    .launch strong{display:block;font-size:14px}.launch small{color:#6f767e;font-size:11px}.launch b{color:#596069;font-size:18px}
-    .composer{width:min(700px,100%);margin:20px auto 0;border:1px solid #303741;border-radius:20px;height:64px;background:#171d24;display:grid;grid-template-columns:48px 1fr 48px;align-items:center;text-align:left;color:#69717b;padding:0 9px}
-    .composer-plus{font-size:28px;text-align:center}.composer-send{height:42px;border-radius:50%;background:#d4b66a;color:#111;display:grid;place-items:center;font-size:21px}
-    .section{padding:120px 24px}
-    .section-inner{width:min(1100px,100%);margin:0 auto}
-    .section-head{max-width:780px;margin-bottom:56px}
-    .section h2{font-family:var(--serif);font-weight:400;font-size:clamp(42px,6vw,72px);line-height:1.02;letter-spacing:-.035em;margin-bottom:20px}
-    .section-head p{color:#8d9399;font-size:18px}
-    .plain{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#0b0f13}
-    .plain-quote{font-family:var(--serif);font-size:clamp(30px,4vw,50px);line-height:1.2;max-width:920px;color:#e8e6df}
-    .plain-quote span{color:#b8a263}
-    .plain-sub{max-width:760px;color:#848b92;margin-top:22px;font-size:16px}
-    .feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-    .feature{border:1px solid var(--line);border-radius:24px;background:#10151a;padding:28px}
-    .feature .number{font-size:10px;color:#b59d5f;letter-spacing:.16em;font-weight:800;margin-bottom:30px}
-    .feature h3{font-size:20px;margin-bottom:10px}.feature p{color:#838a91;font-size:14px;margin-bottom:0}
-    .workflow{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:start}
-    .workflow-copy{position:sticky;top:120px}
-    .workflow-copy p{color:#8a9096;font-size:17px}
-    .steps{display:grid;gap:10px}
-    .step{border:1px solid var(--line);border-radius:20px;background:#0e1318;padding:20px 22px;display:grid;grid-template-columns:36px 1fr;gap:14px}
-    .step-num{width:30px;height:30px;border:1px solid rgba(210,180,104,.3);border-radius:50%;display:grid;place-items:center;color:#c7ae69;font-size:11px}
-    .step strong{display:block;margin-bottom:5px}.step span{color:#7d848b;font-size:13px}
-    .choice-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-    .choice{border:1px solid var(--line);border-radius:22px;padding:25px;background:#0f1419}
-    .choice b{display:block;color:#c4ab67;font-size:10px;letter-spacing:.15em;margin-bottom:18px}
-    .choice h3{font-size:18px;margin-bottom:9px}.choice p{color:#7f868e;font-size:13px;margin:0}
-    .closing{text-align:center;padding:140px 24px}.closing h2{max-width:900px;margin:0 auto 22px}.closing p{color:#8c9298;max-width:650px;margin:0 auto 30px;font-size:17px}
-    footer{border-top:1px solid var(--line);padding:34px clamp(22px,5vw,76px);display:flex;justify-content:space-between;gap:20px;color:#6f767d;font-size:12px}
-    footer a{text-decoration:none;color:#9b9fa4}
-    @media(max-width:900px){.brand-origin{display:none}.nav-logo{width:205px}.choice-grid{grid-template-columns:1fr}}
-    @media(max-width:800px){.navlinks a:not(.nav-cta){display:none}.stage-app{grid-template-columns:1fr}.stage-rail{display:none}.stage-main{padding-top:38px}.feature-grid,.workflow{grid-template-columns:1fr}.workflow-copy{position:static}.product-stage{border-radius:24px}.stage-main h2{font-size:44px}}
-    @media(max-width:520px){.navbar{height:68px;padding-inline:16px}.nav-logo{width:176px;height:40px}.nav-cta{padding:9px 13px}.hero{padding-top:120px}.hero h1{font-size:52px}.product-stage{width:calc(100% - 18px)}.stage-main{padding-inline:15px}.stage-logo{max-width:82%}.launch{grid-template-columns:40px 1fr}.launch b{display:none}.section{padding:88px 20px}.feature{padding:22px}.closing{padding:100px 20px}footer{flex-direction:column}}
-    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
-  </style>
+  <link rel="stylesheet" href="/landing-5.6.css">
+  <script defer src="/landing.js"></script>
 </head>
 <body>
   <nav class="navbar">
@@ -98,8 +18,9 @@
       <span class="brand-origin">BUILT IN SAVANNAH</span>
     </a>
     <div class="navlinks">
-      <a href="#ask-crump">Ask Crump</a>
-      <a href="#why">Why Ask Crump</a>
+      <a href="#product">Ask Crump</a>
+      <a href="#video">Video Engine</a>
+      <a href="#principles">How we build</a>
       <a class="nav-cta" href="https://askcrump.com/app">Open Ask Crump</a>
     </div>
   </nav>
@@ -107,105 +28,97 @@
   <main id="top">
     <section class="hero">
       <div class="hero-inner">
+        <div class="release-pill"><i aria-hidden="true"></i> ASK CRUMP 5.6 · IMPROVING IN PUBLIC</div>
         <div class="eyebrow">CLEVER CRUMP PRESENTS</div>
-        <h1>Bring Crump something you're <em>actually working on.</em></h1>
-        <p class="hero-copy">Ask Crump is built for work that doesn't end after one answer. Keep the conversation, the files, the decisions, the research, and what you create together in one place.</p>
+        <h1>AI should help you <em>finish things.</em></h1>
+        <p class="hero-copy">Ask Crump is becoming a workspace for the work that survives one conversation: Projects, research, files, manuscripts, images, video, decisions, and the things you want to keep.</p>
         <div class="hero-actions">
-          <a class="button primary" href="https://askcrump.com/app">Try Ask Crump</a>
-          <a class="button secondary" href="#why">Why choose it?</a>
+          <a class="button primary" href="https://askcrump.com/app">Open Ask Crump</a>
+          <a class="button secondary" href="#product">See what changed</a>
         </div>
-        <div class="quiet-note">Start with a question. Stay for the work that comes after it.</div>
+        <div class="hero-foot">Built by Clever Crump · Savannah, Georgia</div>
       </div>
     </section>
 
-    <section id="ask-crump" class="product-stage" aria-label="Ask Crump product preview">
-      <div class="stage-top"><div class="dots"><i></i><i></i><i></i></div><span>ASK CRUMP</span><span>askcrump.com</span></div>
-      <div class="stage-app">
-        <aside class="stage-rail"><div class="rail-pill">☰</div></aside>
+    <section id="product" class="product-stage" aria-label="Ask Crump product preview">
+      <div class="stage-top"><div class="stage-dots"><i></i><i></i><i></i></div><span>ASK CRUMP</span><span>WORKSPACE</span></div>
+      <div class="stage-shell">
+        <aside class="stage-rail"><div class="stage-rail-mark">C</div></aside>
         <div class="stage-main">
-          <img class="stage-logo" src="/assets/brand/crump-horizontal-light.png" alt="Ask Crump">
-          <img class="stage-mark" src="/assets/brand/crump-mark.png" alt="">
-          <div class="hello">GOOD EVENING.</div>
-          <h2>What are we moving forward?</h2>
-          <p>Think something through, research what changed, work from your files, or build something you can actually keep.</p>
-          <div class="launch-grid">
-            <div class="launch"><span class="launch-icon">✦</span><span><strong>Think with Crump</strong><small>Talk through an idea, decision, or problem.</small></span><b>↗</b></div>
-            <div class="launch"><span class="launch-icon">⌕</span><span><strong>Research something</strong><small>Work with current information and sources.</small></span><b>↗</b></div>
-            <div class="launch"><span class="launch-icon">▱</span><span><strong>Work from your files</strong><small>Images, PDFs, documents, spreadsheets, and more.</small></span><b>↗</b></div>
+          <div class="stage-brand"><img src="/assets/brand/crump-horizontal-light.png" alt="Ask Crump"></div>
+          <div class="stage-copy">
+            <small>YOUR AI WORKSPACE</small>
+            <h2>What are we moving forward?</h2>
+            <p>Start with a thought. Give serious work a Project. Create something. Save it. Come back tomorrow and keep going.</p>
           </div>
-          <div class="composer"><span class="composer-plus">＋</span><span>Message Crump</span><span class="composer-send">↑</span></div>
+          <div class="stage-grid">
+            <div class="stage-card featured"><span class="stage-icon">✦</span><span><strong>Think with Crump</strong><span>Work through an idea, decision, problem, or plan without forcing the conversation into a rigid workflow.</span></span></div>
+            <div class="stage-card"><span class="stage-icon">▣</span><span><strong>Projects</strong><span>Keep canon, instructions, reference files, manuscripts, chats, and decisions inside the work they belong to.</span></span></div>
+            <div class="stage-card"><span class="stage-icon">▶</span><span><strong>Video Studio</strong><span>Generate Quick, Extendable, or Cinematic scenes and continue compatible video from its ending.</span></span></div>
+            <div class="stage-card"><span class="stage-icon">▱</span><span><strong>Saved Library</strong><span>Keep generated video, images, documents, exports, and uploads private to your account across devices.</span></span></div>
+          </div>
+          <div class="stage-composer"><span>＋</span><span>Message Crump</span><span class="stage-send">↑</span></div>
         </div>
       </div>
     </section>
 
-    <section id="why" class="section plain">
-      <div class="section-inner">
-        <div class="eyebrow">WHY ASK CRUMP?</div>
-        <div class="plain-quote">A quick answer is useful. <span>Some work needs somewhere to live.</span></div>
-        <p class="plain-sub">Ask Crump earns its place when you're coming back tomorrow: a novel with canon, a business you're building, research that keeps changing, a document that needs another revision, or a Project with files and decisions you don't want to explain all over again.</p>
-      </div>
-    </section>
-
-    <section class="section">
+    <section class="section alt">
       <div class="section-inner">
         <div class="section-head">
-          <div class="eyebrow">BUILT FOR WORK YOU COME BACK TO</div>
-          <h2>Keep the context.<br>Keep moving.</h2>
-          <p>The goal isn't to add more buttons. It's to make the things you already do with AI feel connected instead of scattered.</p>
+          <div class="eyebrow">WHAT ASK CRUMP HAS BECOME</div>
+          <h2>The answer is only the beginning.</h2>
+          <p>A good assistant can answer a question. Ask Crump is being built around what happens after that answer turns into work.</p>
         </div>
-        <div class="feature-grid">
-          <article class="feature"><div class="number">01 · PROJECTS</div><h3>The work gets its own world.</h3><p>Keep chats, instructions, reference files, canon, notes, manuscripts, and created assets together. A novel stays separate from a business plan. A client Project stays separate from everything else.</p></article>
-          <article class="feature"><div class="number">02 · CRUMP</div><h3>Helpful doesn't have to mean agreeable.</h3><p>Crump can help build the idea, tell you when something doesn't add up, catch continuity problems, and still talk like a person instead of turning every conversation into a disclaimer.</p></article>
-          <article class="feature"><div class="number">03 · LONG-FORM</div><h3>Write past the chat box.</h3><p>Build manuscripts by section, preserve Project context, revise without losing the larger work, and export real documents—including book interiors with KDP-aware settings.</p></article>
-          <article class="feature"><div class="number">04 · CREATION</div><h3>Research, files, images, video, documents.</h3><p>The tools live beside the Project instead of in separate worlds. What you research and create can stay attached to the work it belongs to.</p></article>
-        </div>
-      </div>
-    </section>
-
-    <section class="section plain">
-      <div class="section-inner workflow">
-        <div class="workflow-copy">
-          <div class="eyebrow">ONE PLACE TO KEEP GOING</div>
-          <h2>Start messy.<br>Organize when it matters.</h2>
-          <p>You shouldn't need a perfect setup before you can think. Start a normal conversation. When the idea becomes real work, give it a Project, add the reference material, and keep going from there.</p>
-        </div>
-        <div class="steps">
-          <div class="step"><span class="step-num">1</span><span><strong>Talk it through.</strong><span>Ask, brainstorm, challenge an idea, or hand Crump a file.</span></span></div>
-          <div class="step"><span class="step-num">2</span><span><strong>Give the work a home.</strong><span>Projects keep the conversations, files, rules, canon, and decisions that matter.</span></span></div>
-          <div class="step"><span class="step-num">3</span><span><strong>Make something.</strong><span>Draft the chapter, research the issue, create the image, export the document, or build the next deliverable.</span></span></div>
-          <div class="step"><span class="step-num">4</span><span><strong>Come back later.</strong><span>The Project still knows what belongs to it, so you spend less time rebuilding context.</span></span></div>
+        <div class="cap-grid">
+          <article class="cap-card"><div class="cap-num">01 · CONTINUITY</div><h3>Work keeps its context.</h3><p>Conversations synchronize to your account, Projects isolate durable instructions and reference material, and long-form work can resume instead of restarting.</p></article>
+          <article class="cap-card"><div class="cap-num">02 · CREATION</div><h3>Make something you can keep.</h3><p>Research, images, documents, manuscripts, and video live beside the conversation rather than disappearing into separate tools and tabs.</p></article>
+          <article class="cap-card"><div class="cap-num">03 · OWNERSHIP</div><h3>Your work has a home.</h3><p>Generated and uploaded assets stay in a private Saved Library, while Project context remains attached to the work it belongs to.</p></article>
         </div>
       </div>
     </section>
 
-    <section class="section">
+    <section id="video" class="section">
+      <div class="section-inner video-band">
+        <div class="video-copy">
+          <div class="eyebrow">THE CRUMP VIDEO ENGINE</div>
+          <h2>One video button became a creative system.</h2>
+          <p>Ask Crump now chooses between purpose-built video engines instead of pretending every generation has the same job. The provider stays behind Crump; the user chooses the experience.</p>
+          <a class="button secondary" href="https://askcrump.com/app">Try Video Studio</a>
+        </div>
+        <div class="engine-stack">
+          <div class="engine"><b>QUICK</b><span><strong>Strong first takes</strong>Veo Lite for short, efficient generations.</span><em>60+ credits</em></div>
+          <div class="engine"><b>EXTENDABLE</b><span><strong>Scenes that keep going</strong>Veo Fast can continue compatible scenes from their ending.</span><em>80 credits</em></div>
+          <div class="engine"><b>CINEMATIC</b><span><strong>Premium generations</strong>Runway Gen-4.5 for 5- or 10-second cinematic clips.</span><em>60–120 credits</em></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="principles" class="section alt">
       <div class="section-inner">
         <div class="section-head">
-          <div class="eyebrow">CHOOSE ASK CRUMP WHEN…</div>
-          <h2>The answer isn't the finish line.</h2>
-          <p>There are excellent general-purpose assistants for quick questions. Ask Crump is being shaped around the moments when the conversation turns into ongoing work.</p>
+          <div class="eyebrow">HOW CLEVER CRUMP BUILDS</div>
+          <h2>Useful first. Durable second. Flashy only when it earns its place.</h2>
+          <p>Ask Crump is still improving. The goal is not to add the most buttons. It is to keep turning capable AI into a product people can understand, trust, return to, and eventually choose to pay for.</p>
         </div>
-        <div class="choice-grid">
-          <article class="choice"><b>CONTINUITY</b><h3>You don't want to explain it again.</h3><p>Keep Project instructions, source material, canon, and prior work attached to the thing you're actually building.</p></article>
-          <article class="choice"><b>DELIVERABLES</b><h3>You need more than an answer.</h3><p>Move toward manuscripts, documents, images, videos, exports, and other things you can actually use outside the conversation.</p></article>
-          <article class="choice"><b>POINT OF VIEW</b><h3>You want an assistant with some backbone.</h3><p>Crump can disagree, question the plan, notice a contradiction, and help you improve it without becoming stiff or combative.</p></article>
-          <article class="choice"><b>LONG-FORM</b><h3>The work is bigger than one prompt.</h3><p>Organize books, chapters, sections, revisions, canon, and supporting references without treating every session like a blank page.</p></article>
-          <article class="choice"><b>OWNERSHIP</b><h3>Your files should belong with the Project.</h3><p>Reference material and things created inside the Project stay visible together instead of disappearing into disconnected chats.</p></article>
-          <article class="choice"><b>COST CLARITY</b><h3>Premium tools should have boundaries.</h3><p>Image and video generation are designed around explicit plan and credit limits rather than pretending expensive provider calls are free forever.</p></article>
+        <div class="principles">
+          <article class="principle"><b>01 · KEEP THE USER ORIENTED</b><h3>Advanced should still feel understandable.</h3><p>Tools are grouped by outcomes, expensive features show their boundaries, and the interface should explain what happens next without making users learn provider jargon.</p></article>
+          <article class="principle"><b>02 · PROTECT THE WORK</b><h3>Projects and private storage over disposable output.</h3><p>When something matters, it should have somewhere to live, a way to continue, and a clear path back into the workspace.</p></article>
+          <article class="principle"><b>03 · PROTECT THE BUSINESS</b><h3>Premium compute needs real economics.</h3><p>Subscriptions unlock capability while Crump Credits meter expensive generation. Server-side budget controls remain separate from the customer-facing wallet.</p></article>
+          <article class="principle"><b>04 · KEEP IMPROVING</b><h3>The product is allowed to grow up.</h3><p>We would rather replace awkward seams, fix small details, and strengthen the architecture than pretend an early interface is permanent because it already works.</p></article>
         </div>
       </div>
     </section>
 
-    <section class="closing plain">
-      <div class="eyebrow">ASK CRUMP</div>
+    <section class="closing">
+      <div class="eyebrow">CLEVER CRUMP · ASK CRUMP</div>
       <h2>Bring something unfinished.</h2>
-      <p>A question is fine. So is a 70,000-word manuscript, a folder of reference material, or the business idea you keep reopening at midnight.</p>
+      <p>A question is fine. So is a business idea, a research problem, a folder of reference material, a novel, or the first eight seconds of a scene you want to keep directing.</p>
       <a class="button primary" href="https://askcrump.com/app">Open Ask Crump</a>
     </section>
   </main>
 
   <footer>
-    <span>© 2026 Clever Crump. Built with care.</span>
+    <span>© 2026 Clever Crump. Built in Savannah.</span>
     <span><a href="https://askcrump.com/legal.html">Legal & Privacy</a> · <a href="https://askcrump.com/app">Ask Crump</a></span>
   </footer>
 </body>

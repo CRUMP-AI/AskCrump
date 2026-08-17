@@ -1,7 +1,7 @@
 {
   "name": "Ask Crump",
   "short_name": "Ask Crump",
-  "description": "A synchronized AI workspace for conversation, research, files, images, and creation.",
+  "description": "An AI workspace for conversations, Projects, research, files, manuscripts, images, video, and saved creations.",
   "start_url": "/app?source=pwa",
   "display": "standalone",
   "background_color": "#080a0d",

@@ -1,61 +1,48 @@
 (() => {
   'use strict';
 
-  function loadRevampAssets() {
-    if (!document.querySelector('link[data-crump-43]')) {
-      const stylesheet = document.createElement('link');
-      stylesheet.rel = 'stylesheet';
-      stylesheet.href = '/crump-4.3.css';
-      stylesheet.dataset.crump43 = 'true';
-      document.head.appendChild(stylesheet);
-    }
-
-    if (!document.querySelector('script[data-crump-43]')) {
-      const script = document.createElement('script');
-      script.src = '/crump-4.3.js';
-      script.async = false;
-      script.dataset.crump43 = 'true';
-      document.head.appendChild(script);
-    }
-  }
-
-  loadRevampAssets();
-
   const STEPS = Object.freeze([
     {
-      eyebrow: 'WELCOME',
-      title: 'Meet Crump.',
-      content: 'Ask naturally. Pick up where you left off. Your conversations stay connected to your account across your signed-in devices.',
-      icon: 'C',
-      features: ['Natural conversation', 'Conversation history', 'Account sync'],
+      eyebrow: 'WELCOME TO ASK CRUMP',
+      title: 'One place for work that keeps moving.',
+      content: 'Ask naturally, keep the conversation, and come back later without treating every session like a blank page.',
+      icon: '✦',
+      features: ['Natural conversation', 'Account sync', 'Persistent history'],
     },
     {
-      eyebrow: 'MORE THAN CHAT',
-      title: 'Bring the work with you.',
-      content: 'Crump can work with images and PDFs, search current information, help with code, and generate images from an idea.',
+      eyebrow: 'PROJECTS',
+      title: 'Give important work its own world.',
+      content: 'Projects keep instructions, canon, reference files, manuscripts, conversations, and decisions together so unrelated work stays separate.',
+      icon: '▣',
+      features: ['Project context', 'Canon & notes', 'Reference files'],
+    },
+    {
+      eyebrow: 'CREATE WITH CRUMP',
+      title: 'Move from an answer to a deliverable.',
+      content: 'Research current information, create or edit images, build documents, and develop long-form manuscripts without leaving the workspace.',
       icon: '+',
-      features: ['Files & PDFs', 'Web search', 'Images & code'],
+      features: ['Research', 'Images & documents', 'Long-form manuscripts'],
     },
     {
-      eyebrow: 'CONTINUITY',
-      title: 'A conversation should stay a conversation.',
-      content: 'Start on one device and continue on another without rebuilding the context from scratch. Your latest conversation state wins automatically.',
-      icon: '↗',
-      features: ['Cross-device sync', 'Durable sessions', 'Automatic recovery'],
+      eyebrow: 'VIDEO STUDIO',
+      title: 'Create a scene. Then keep directing it.',
+      content: 'Choose Quick, Extendable, or Cinematic video. Extendable scenes can continue from their ending, while finished work is saved privately to your Library.',
+      icon: '▶',
+      features: ['Quick video', 'Continue scenes', 'Cinematic generation'],
     },
     {
-      eyebrow: 'OPTIONAL',
-      title: 'Crump can stay in the loop.',
-      content: 'If you choose, Crump can follow up on unfinished conversations. Quiet hours, frequency, notifications, and haptics stay under your control.',
-      icon: '•',
-      features: ['Check-ins', 'Quiet hours', 'Notification controls'],
+      eyebrow: 'SAVED LIBRARY',
+      title: 'Keep what you make.',
+      content: 'Generated videos, images, documents, manuscript exports, and uploads stay attached to your account so you can open them again across devices.',
+      icon: '▱',
+      features: ['Private storage', 'Cross-device access', 'Reusable creations'],
     },
     {
-      eyebrow: 'READY',
-      title: 'Just talk to Crump.',
-      content: 'No special commands required. Start with a question, an idea, a file, or whatever is already on your mind. You can replay this tour from Settings anytime.',
+      eyebrow: 'YOU ARE READY',
+      title: 'Start messy. Crump can help organize the rest.',
+      content: 'Ask a question, attach a file, start a Project, or create something. You can replay this tour from Settings whenever you want a refresher.',
       icon: '→',
-      features: ['Type anything', 'Attach when useful', 'Keep going'],
+      features: ['No special commands', 'Your controls stay visible', 'Keep building'],
     },
   ]);
 
@@ -69,7 +56,7 @@
 
     storageKey() {
       const userId = String(window.currentUser?.id || 'guest').replace(/[^a-zA-Z0-9_-]/g, '');
-      return `crump_tutorial_completed_v4:${userId || 'guest'}`;
+      return `crump_tutorial_completed_v5:${userId || 'guest'}`;
     }
 
     isComplete() {
@@ -107,6 +94,23 @@
         event.preventDefault();
         this.back();
       }
+      if (event.key === 'Tab') this.trapFocus(event);
+    }
+
+    trapFocus(event) {
+      const card = document.getElementById('tutorialCard');
+      if (!card) return;
+      const items = [...card.querySelectorAll('button:not(:disabled), [href], input:not(:disabled)')];
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     }
 
     showStep() {
@@ -131,14 +135,14 @@
       const mark = document.createElement('div');
       mark.className = 'tutorial-brand';
       const markIcon = document.createElement('img');
-      markIcon.src = '/assets/logo-c.png';
+      markIcon.src = '/assets/brand/crump-mark.png';
       markIcon.alt = '';
       markIcon.className = 'tutorial-brand-icon';
       const brandText = document.createElement('span');
       brandText.textContent = 'Ask Crump';
       mark.append(markIcon, brandText);
 
-      const skip = this.button('Skip tour', 'tutorial-skip', () => this.skip());
+      const skip = this.button('Skip', 'tutorial-skip', () => this.skip());
       topbar.append(mark, skip);
 
       const body = document.createElement('div');
@@ -148,6 +152,10 @@
       visual.className = 'tutorial-visual';
       visual.textContent = step.icon;
       visual.setAttribute('aria-hidden', 'true');
+
+      const progressLabel = document.createElement('div');
+      progressLabel.className = 'tutorial-progress-label';
+      progressLabel.textContent = `${this.currentStep + 1} / ${STEPS.length}`;
 
       const eyebrow = document.createElement('div');
       eyebrow.className = 'tutorial-eyebrow';
@@ -177,7 +185,7 @@
         featureGrid.appendChild(item);
       }
 
-      body.append(visual, eyebrow, title, description, featureGrid);
+      body.append(visual, progressLabel, eyebrow, title, description, featureGrid);
 
       const footer = document.createElement('div');
       footer.className = 'tutorial-footer';
@@ -197,7 +205,7 @@
         actions.append(this.button('Back', 'tutorial-btn tutorial-btn-secondary', () => this.back()));
       }
       actions.append(this.button(
-        this.currentStep === STEPS.length - 1 ? 'Start chatting' : 'Continue',
+        this.currentStep === STEPS.length - 1 ? 'Enter workspace' : 'Continue',
         'tutorial-btn tutorial-btn-primary',
         () => this.next(),
       ));
@@ -244,7 +252,7 @@
     complete(skipped = false) {
       localStorage.setItem(this.storageKey(), 'true');
       this.stop();
-      if (!skipped) window.showToast?.('You’re ready.', 'success');
+      if (!skipped) window.showToast?.('Workspace ready.', 'success');
       document.getElementById('userInput')?.focus({ preventScroll: true });
     }
 
@@ -266,8 +274,6 @@
     cleanupNodes() {
       document.getElementById('tutorialOverlay')?.remove();
       document.getElementById('tutorialCard')?.remove();
-      document.getElementById('tutorialHighlight')?.remove();
-      document.querySelectorAll('.tutorial-target-active').forEach(node => node.classList.remove('tutorial-target-active'));
     }
   }
 

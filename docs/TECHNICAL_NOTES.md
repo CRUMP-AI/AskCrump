@@ -30,4 +30,4 @@ The `apply_chat_sync` function already has the correct last-write-wins ordering 
 
 The current app contains working authentication, billing, settings, native/PWA behavior, and conversation logic spread across several established stylesheets. A last-loaded 4.3 layer gives the product a broad visual redesign without rewriting stable structural code. It also makes rollback simple.
 
-`onboarding.js` loads the 4.3 CSS/JS because it is already present on both auth and app surfaces. The service worker pre-caches those assets in 4.3.
+`runtime-body-v1.js` now loads the 4.3 compatibility CSS/JS deterministically before the later product layers on both web and native builds. The 5.6 onboarding tour no longer bootstraps runtime dependencies as a side effect. The service worker pre-caches both compatibility and final-authority polish assets.
