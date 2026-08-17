@@ -9,8 +9,13 @@
 *.jks
 *.keystore
 *.mobileprovision
+*.provisionprofile
 google-services.json
 GoogleService-Info.plist
+key.properties
+keystore.properties
+signing/
+credentials/
 
 # Python
 __pycache__/

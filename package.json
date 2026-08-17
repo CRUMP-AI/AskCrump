@@ -20,7 +20,9 @@
     "native:assets": "npx --yes @capacitor/assets@3.0.5 generate --iconBackgroundColor \"#0f1419\" --iconBackgroundColorDark \"#0f1419\" --splashBackgroundColor \"#0f1419\" --splashBackgroundColorDark \"#0f1419\"",
     "native:verify": "node scripts/verify-native-release.mjs",
     "store:prepare:android": "node scripts/prepare-store-release.mjs android",
-    "store:prepare:ios": "node scripts/prepare-store-release.mjs ios"
+    "store:prepare:ios": "node scripts/prepare-store-release.mjs ios",
+    "store:signing:check": "node scripts/verify-mobile-signing.mjs",
+    "store:signing:check:android": "node scripts/verify-mobile-signing.mjs --require-android-signing"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "8.0.0",

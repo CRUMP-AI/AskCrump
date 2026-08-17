@@ -59,6 +59,11 @@ run(npx, [
 ]);
 
 run(process.execPath, ['scripts/configure-native.mjs', platform]);
+
+if (platform === 'android') {
+  run(process.execPath, ['scripts/configure-android-signing.mjs']);
+}
+
 run(process.execPath, ['scripts/verify-native-release.mjs', platform]);
 
 console.log(`\nAsk Crump ${platform} release source is prepared and verified.`);
