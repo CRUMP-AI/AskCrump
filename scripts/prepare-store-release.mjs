@@ -23,12 +23,22 @@ async function exists(url) {
 
 function run(command, args) {
   console.log(`\n> ${command} ${args.join(' ')}`);
-  const result = spawnSync(command, args, {
+
+  const isWindowsCommandScript = process.platform === 'win32' && /\.(cmd|bat)$/i.test(command);
+  const executable = isWindowsCommandScript ? (process.env.ComSpec || 'cmd.exe') : command;
+  const launchArgs = isWindowsCommandScript ? ['/d', '/c', command, ...args] : args;
+
+  const result = spawnSync(executable, launchArgs, {
     cwd: root,
     env: process.env,
     stdio: 'inherit',
     shell: false,
   });
+
+  if (result.error) {
+    console.error(`Failed to launch ${command}: ${result.error.message}`);
+    process.exit(1);
+  }
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
@@ -39,13 +49,15 @@ if (!(await exists(new URL(`${platform}/`, root)))) {
 }
 
 run(npx, ['cap', 'sync', platform]);
+
 run(npx, [
-  '--yes', '@capacitor/assets@3.0.5', 'generate',
+  '--yes', '@capacitor/assets@3.0.5', 'generate', `--${platform}`,
   '--iconBackgroundColor', '#0f1419',
   '--iconBackgroundColorDark', '#0f1419',
   '--splashBackgroundColor', '#0f1419',
   '--splashBackgroundColorDark', '#0f1419',
 ]);
+
 run(process.execPath, ['scripts/configure-native.mjs', platform]);
 run(process.execPath, ['scripts/verify-native-release.mjs', platform]);
 
