@@ -127,6 +127,35 @@ async def content(file_id: str, request: Request, download: int = 0):
         return failure(exc)
 
 
+@router.get('/{file_id}/signed')
+async def signed(file_id: str, request: Request):
+    """Return a short-lived direct URL for an owned private file.
+
+    Native media saving needs the storage URL itself because the operating-system
+    Photos API cannot follow Ask Crump's authenticated application redirect.
+    """
+    auth = await authenticate_request(request, db, settings)
+    try:
+        normalized = normalize_chat_id(file_id)
+        row = await files.get_owned(user_id=auth.user['id'], file_id=normalized)
+        expires_in = 1200
+        url = await files.signed_url(row=row, expires_in=expires_in, download=False)
+        if not url:
+            raise FileServiceError('Could not prepare the file.', 503, 'SIGNED_URL_FAILED')
+        return JSONResponse(
+            content={
+                'success': True,
+                'url': url,
+                'expiresIn': expires_in,
+                'name': row.get('file_name') or 'File',
+                'mimeType': row.get('mime_type') or 'application/octet-stream',
+            },
+            headers={'Cache-Control': 'private, no-store'},
+        )
+    except FileServiceError as exc:
+        return failure(exc)
+
+
 @router.get('/{file_id}/playback')
 async def playback(file_id: str, request: Request):
     """Return a short-lived direct URL for inline playback of an owned video.

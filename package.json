@@ -1,6 +1,6 @@
 {
   "name": "ask-crump",
-  "version": "5.6.1",
+  "version": "5.7.0",
   "private": true,
   "description": "Cross-platform multimodal AI assistant with synchronized chat, private files, generated artifacts, memory, intelligence orchestration, subscriptions, and durable credits.",
   "type": "module",
@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "8.0.0",
+    "@capacitor-community/media": "9.1.0",
     "@capacitor/app": "8.0.0",
     "@capacitor/core": "8.4.2",
     "@capacitor/haptics": "8.0.0",

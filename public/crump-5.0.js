@@ -805,8 +805,17 @@
     document.addEventListener('drop', event => { if (!overlay) return; event.preventDefault(); const files = event.dataTransfer?.files; remove(); addFiles(files); });
   }
 
-  function openFile(file, download = false) {
+  async function openFile(file, download = false) {
     if (!file?.id && !file?.url) return;
+    const type = String(file?.type || '').toLowerCase();
+    if (download && (type.startsWith('image/') || type.startsWith('video/')) && window.CrumpLibrary57?.saveMedia) {
+      try {
+        const handled = await window.CrumpLibrary57.saveMedia(file);
+        if (handled) return;
+      } catch (error) {
+        console.warn('Ask Crump media save failed; using file download fallback.', error);
+      }
+    }
     const url = file.id ? `/api/files/${encodeURIComponent(file.id)}/content${download ? '?download=1' : ''}` : file.url;
     const link = document.createElement('a'); link.href = url; link.target = download ? '_self' : '_blank'; link.rel = 'noopener';
     if (download) link.download = file.name || 'download';

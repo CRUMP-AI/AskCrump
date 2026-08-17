@@ -1,0 +1,263 @@
+/* Ask Crump 5.7 — Library */
+.crump57-library-card {
+  grid-column: 1 / -1;
+  overflow: hidden;
+}
+.crump57-library-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.crump57-library-head h3 { margin: 0 0 5px; font-size: 20px; letter-spacing: -.02em; }
+.crump57-library-head p { margin: 0; color: var(--text-muted, #8f98a3); max-width: 620px; line-height: 1.5; }
+.crump57-library-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.crump57-library-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.crump57-library-toolbar input,
+.crump57-library-toolbar select,
+.crump57-field input,
+.crump57-field select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(255,255,255,.11);
+  border-radius: 12px;
+  background: rgba(255,255,255,.045);
+  color: inherit;
+  padding: 10px 12px;
+  outline: none;
+}
+.crump57-library-toolbar input:focus,
+.crump57-library-toolbar select:focus,
+.crump57-field input:focus,
+.crump57-field select:focus {
+  border-color: rgba(255,255,255,.28);
+  box-shadow: 0 0 0 3px rgba(255,255,255,.055);
+}
+.crump57-bookshelf {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(174px, 1fr));
+  gap: 15px;
+}
+.crump57-book {
+  position: relative;
+  min-width: 0;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 17px;
+  background: rgba(255,255,255,.035);
+  overflow: hidden;
+  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+.crump57-book:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255,255,255,.19);
+  background: rgba(255,255,255,.052);
+}
+.crump57-cover {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  background:
+    radial-gradient(circle at 76% 18%, rgba(255,255,255,.12), transparent 30%),
+    linear-gradient(150deg, #1a2028, #090c10 58%, #151a20);
+  overflow: hidden;
+}
+.crump57-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.crump57-cover-placeholder {
+  position: absolute;
+  inset: 0;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.crump57-cover-placeholder span {
+  width: 28px;
+  height: 2px;
+  background: rgba(255,255,255,.7);
+}
+.crump57-cover-placeholder strong {
+  font-size: 18px;
+  line-height: 1.12;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+}
+.crump57-cover-placeholder small { color: rgba(255,255,255,.58); }
+.crump57-book-body { padding: 12px; }
+.crump57-book-kicker {
+  display: flex;
+  justify-content: space-between;
+  gap: 7px;
+  margin-bottom: 6px;
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-muted, #8f98a3);
+}
+.crump57-book-title {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.25;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.crump57-book-author {
+  display: block;
+  margin-top: 3px;
+  min-height: 17px;
+  color: var(--text-muted, #8f98a3);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.crump57-book-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 8px;
+  margin-top: 9px;
+  color: var(--text-muted, #8f98a3);
+  font-size: 11px;
+}
+.crump57-book-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 7px;
+  margin-top: 11px;
+}
+.crump57-book-actions button {
+  min-height: 36px;
+  border-radius: 10px;
+}
+.crump57-empty {
+  grid-column: 1 / -1;
+  padding: 30px 18px;
+  border: 1px dashed rgba(255,255,255,.12);
+  border-radius: 16px;
+  text-align: center;
+  color: var(--text-muted, #8f98a3);
+}
+.crump57-empty strong { display: block; color: var(--text, #f4f7fb); font-size: 16px; margin-bottom: 5px; }
+
+.crump57-overlay {
+  position: fixed;
+  z-index: 100050;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0,0,0,.68);
+  backdrop-filter: blur(12px);
+}
+.crump57-sheet {
+  width: min(760px, 100%);
+  max-height: min(860px, calc(100dvh - 36px));
+  overflow: auto;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 22px;
+  background: #0e1217;
+  box-shadow: 0 28px 90px rgba(0,0,0,.5);
+}
+.crump57-sheet-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 19px 20px 16px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  background: rgba(14,18,23,.95);
+  backdrop-filter: blur(12px);
+}
+.crump57-sheet-head h3 { margin: 2px 0 4px; font-size: 21px; }
+.crump57-sheet-head p { margin: 0; font-size: 12px; color: var(--text-muted, #8f98a3); }
+.crump57-close {
+  width: 38px; height: 38px; border: 0; border-radius: 50%;
+  background: rgba(255,255,255,.07); color: inherit; font-size: 21px; cursor: pointer;
+}
+.crump57-sheet-body { padding: 20px; }
+.crump57-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+.crump57-field { display: grid; gap: 7px; }
+.crump57-field.is-wide { grid-column: 1 / -1; }
+.crump57-field > span { font-size: 12px; font-weight: 650; color: #dfe5ec; }
+.crump57-field > small { color: var(--text-muted, #8f98a3); line-height: 1.35; }
+.crump57-upload {
+  position: relative;
+  min-height: 112px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 14px;
+  border: 1px dashed rgba(255,255,255,.18);
+  border-radius: 15px;
+  background: rgba(255,255,255,.025);
+  cursor: pointer;
+  overflow: hidden;
+}
+.crump57-upload:hover { border-color: rgba(255,255,255,.32); }
+.crump57-upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.crump57-upload strong { display: block; font-size: 13px; margin-bottom: 3px; }
+.crump57-upload small { color: var(--text-muted, #8f98a3); }
+.crump57-cover-pick { min-height: 190px; }
+.crump57-cover-pick img {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%; object-fit: cover;
+}
+.crump57-cover-pick .crump57-upload-copy { position: relative; z-index: 1; }
+.crump57-cover-pick.has-image .crump57-upload-copy {
+  padding: 8px 10px; border-radius: 10px; background: rgba(0,0,0,.65);
+}
+.crump57-import-status {
+  min-height: 22px;
+  margin-top: 13px;
+  color: var(--text-muted, #8f98a3);
+  font-size: 12px;
+}
+.crump57-import-status.is-error { color: #ff9c9c; }
+.crump57-sheet-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 18px;
+}
+.crump57-source-line {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-muted, #8f98a3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.crump57-original {
+  margin-top: 8px;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: #d7dde5;
+  font-size: 11px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .crump57-library-head { flex-direction: column; }
+  .crump57-library-actions { width: 100%; justify-content: flex-start; }
+  .crump57-library-toolbar { grid-template-columns: 1fr; }
+  .crump57-bookshelf { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .crump57-book-body { padding: 10px; }
+  .crump57-form-grid { grid-template-columns: 1fr; }
+  .crump57-field.is-wide { grid-column: auto; }
+  .crump57-sheet { max-height: calc(100dvh - 12px); border-radius: 20px 20px 0 0; align-self: end; }
+  .crump57-overlay { padding: 12px 0 0; }
+}

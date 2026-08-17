@@ -6,6 +6,7 @@ import { Network } from '@capacitor/network';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { SecureStorage } from '@aparajita/capacitor-secure-storage';
+import { Media } from '@capacitor-community/media';
 import { Purchases, LOG_LEVEL } from '@revenuecat/purchases-capacitor';
 
 window.CrumpNative = {
@@ -20,6 +21,7 @@ window.CrumpNative = {
   StatusBar,
   Style,
   SecureStorage,
+  Media,
   Purchases,
   LOG_LEVEL,
   isNative: Capacitor.isNativePlatform(),

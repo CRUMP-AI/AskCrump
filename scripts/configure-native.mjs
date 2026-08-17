@@ -146,6 +146,36 @@ async function patchIosVersionAndPrivacy() {
   await writeFile(projectPath, project);
 }
 
+async function patchIosPhotoLibraryUsage() {
+  const infoPath = new URL('ios/App/App/Info.plist', root);
+  let source;
+  try {
+    source = await readFile(infoPath, 'utf8');
+  } catch {
+    throw new Error('iOS Info.plist was not found for Photos save configuration.');
+  }
+
+  const additions = [];
+  if (!source.includes('<key>NSPhotoLibraryUsageDescription</key>')) {
+    additions.push(
+      '    <key>NSPhotoLibraryUsageDescription</key>\n' +
+      '    <string>Ask Crump can access Photos when you choose media for your workspace.</string>'
+    );
+  }
+  if (!source.includes('<key>NSPhotoLibraryAddUsageDescription</key>')) {
+    additions.push(
+      '    <key>NSPhotoLibraryAddUsageDescription</key>\n' +
+      '    <string>Ask Crump saves generated images and videos to Photos when you ask it to.</string>'
+    );
+  }
+  if (additions.length) {
+    const closing = source.lastIndexOf('</dict>');
+    if (closing < 0) throw new Error('Could not patch iOS Info.plist for Photos access.');
+    source = `${source.slice(0, closing)}${additions.join('\n')}\n${source.slice(closing)}`;
+    await writeFile(infoPath, source);
+  }
+}
+
 if (target === 'all' || target === 'android') {
   await patchAndroidSdk();
   await patchAndroidVersion();
@@ -154,6 +184,7 @@ if (target === 'all' || target === 'android') {
 }
 if (target === 'all' || target === 'ios') {
   await patchIosPushCallbacks();
+  await patchIosPhotoLibraryUsage();
   await patchIosVersionAndPrivacy();
   console.log(`iOS configured for Ask Crump ${versionName} (${buildNumber}) with a bundled privacy manifest.`);
 }
