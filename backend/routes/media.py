@@ -9,6 +9,7 @@ from ..db import eq
 from ..feature_service import FeatureAccessError
 from ..project_service import ProjectNotFoundError
 from ..runtime import db, features, projects, settings, video
+from ..usage_service import has_internal_access
 from ..video_service import VideoServiceError
 
 router = APIRouter(prefix="/api/media", tags=["media"])
@@ -41,6 +42,21 @@ def _video_error(exc: VideoServiceError) -> JSONResponse:
     )
 
 
+def _idempotency_key(request: Request, payload: dict) -> str | None:
+    return " ".join(
+        str(request.headers.get("X-Idempotency-Key") or payload.get("idempotencyKey") or "").split()
+    ).strip()[:160] or None
+
+
+async def _existing_job(user_id: str, key: str | None):
+    if not key:
+        return None
+    return await db.select_one(
+        "media_jobs",
+        filters={"user_id": eq(user_id), "idempotency_key": eq(key)},
+    )
+
+
 @router.post("/video")
 async def create_video(request: Request):
     auth = await authenticate_request(request, db, settings)
@@ -50,34 +66,51 @@ async def create_video(request: Request):
             status_code=400,
             content={"success": False, "error": "Invalid video request.", "code": "INVALID_VIDEO_REQUEST"},
         )
-    resolution = str(payload.get("resolution") or "720p").lower()
-    feature_code = "video_hd" if resolution == "1080p" else "video"
-    idempotency_key = " ".join(
-        str(request.headers.get("X-Idempotency-Key") or payload.get("idempotencyKey") or "").split()
-    ).strip()[:160] or None
 
-    # Retry safety comes before billing. A browser retry with the same key must
-    # return the original job without consuming another included use or credit.
-    if idempotency_key:
-        existing = await db.select_one(
-            "media_jobs",
-            filters={
-                "user_id": eq(auth.user["id"]),
-                "idempotency_key": eq(idempotency_key),
-            },
+    try:
+        engine, resolution, duration = video.normalize_request(
+            engine=payload.get("engine") or "quick",
+            resolution=payload.get("resolution") or "720p",
+            duration_seconds=payload.get("durationSeconds") or 0,
         )
-        if existing:
-            return {
-                "success": True,
-                "job": await video.public_job(user_id=auth.user["id"], row=existing),
-                "idempotentReplay": True,
-            }
+        feature_code = video.feature_code(engine=engine, resolution=resolution, duration_seconds=duration)
+    except VideoServiceError as exc:
+        return _video_error(exc)
+
+    idempotency_key = _idempotency_key(request, payload)
+    existing = await _existing_job(auth.user["id"], idempotency_key)
+    if existing:
+        return {
+            "success": True,
+            "job": await video.public_job(user_id=auth.user["id"], row=existing),
+            "idempotentReplay": True,
+        }
+
+    estimated_cost = video.provider_cost_cents(
+        engine=engine,
+        resolution=resolution,
+        duration_seconds=duration,
+    )
+    try:
+        await video.guard_provider_budget(
+            user_id=auth.user["id"],
+            provider=video.provider_for_engine(engine),
+            estimated_cost_cents=estimated_cost,
+            bypass_user_limit=has_internal_access(auth.user),
+        )
+    except VideoServiceError as exc:
+        return _video_error(exc)
 
     try:
         receipt = await features.consume(
             auth.user,
             feature_code,
-            {"route": "media_video", "resolution": resolution},
+            {
+                "route": "media_video",
+                "engine": engine,
+                "resolution": resolution,
+                "durationSeconds": duration,
+            },
         )
     except FeatureAccessError as exc:
         return _feature_error(exc)
@@ -97,15 +130,81 @@ async def create_video(request: Request):
         row = await video.start(
             user_id=auth.user["id"],
             prompt=str(payload.get("prompt") or ""),
+            engine=engine,
             aspect_ratio=str(payload.get("aspectRatio") or "16:9"),
             resolution=resolution,
+            duration_seconds=duration,
             project_id=project_id,
             idempotency_key=idempotency_key,
             charge_receipt=receipt,
         )
         return {"success": True, "job": await video.public_job(user_id=auth.user["id"], row=row)}
     except VideoServiceError as exc:
-        await features.refund(auth.user["id"], receipt)
+        if exc.refund_eligible:
+            await features.refund(auth.user["id"], receipt)
+        return _video_error(exc)
+
+
+@router.post("/video/{job_id}/continue")
+async def continue_video(job_id: str, request: Request):
+    auth = await authenticate_request(request, db, settings)
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "error": "Invalid continuation request.", "code": "INVALID_VIDEO_REQUEST"},
+        )
+    idempotency_key = _idempotency_key(request, payload)
+    existing = await _existing_job(auth.user["id"], idempotency_key)
+    if existing:
+        return {
+            "success": True,
+            "job": await video.public_job(user_id=auth.user["id"], row=existing),
+            "idempotentReplay": True,
+        }
+
+    try:
+        await video.validate_continuation_parent(user_id=auth.user["id"], job_id=job_id)
+    except VideoServiceError as exc:
+        return _video_error(exc)
+
+    estimated_cost = video.provider_cost_cents(
+        engine=video.EXTENDABLE,
+        resolution="720p",
+        duration_seconds=8,
+        operation_type="extend",
+    )
+    try:
+        await video.guard_provider_budget(
+            user_id=auth.user["id"],
+            provider="gemini",
+            estimated_cost_cents=estimated_cost,
+            bypass_user_limit=has_internal_access(auth.user),
+        )
+    except VideoServiceError as exc:
+        return _video_error(exc)
+
+    try:
+        receipt = await features.consume(
+            auth.user,
+            "video_continue",
+            {"route": "media_video_continue", "parentJobId": job_id},
+        )
+    except FeatureAccessError as exc:
+        return _feature_error(exc)
+
+    try:
+        row = await video.continue_video(
+            user_id=auth.user["id"],
+            parent_job_id=job_id,
+            prompt=str(payload.get("prompt") or ""),
+            idempotency_key=idempotency_key,
+            charge_receipt=receipt,
+        )
+        return {"success": True, "job": await video.public_job(user_id=auth.user["id"], row=row)}
+    except VideoServiceError as exc:
+        if exc.refund_eligible:
+            await features.refund(auth.user["id"], receipt)
         return _video_error(exc)
 
 
@@ -114,7 +213,11 @@ async def video_status(job_id: str, request: Request):
     auth = await authenticate_request(request, db, settings)
     try:
         row = await video.poll(user_id=auth.user["id"], job_id=job_id)
-        if row.get("status") == "failed" and not row.get("billing_refunded"):
+        if (
+            row.get("status") == "failed"
+            and not row.get("billing_refunded")
+            and video.refund_eligible(row)
+        ):
             await features.refund(auth.user["id"], row.get("billing_receipt") or {})
             updated = await db.update(
                 "media_jobs",

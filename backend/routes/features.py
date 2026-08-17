@@ -13,12 +13,17 @@ router = APIRouter(prefix="/api/features", tags=["features"])
 async def feature_status(request: Request):
     auth = await authenticate_request(request, db, settings)
     status = await features.status(auth.user)
+    engines = video.engine_status
     configured = {
         "research": bool((settings.brave_api_key and settings.web_search_enabled) or settings.openweather_api_key),
         "image": bool(settings.openai_api_key and settings.image_generation_enabled),
         "image_edit": bool(settings.openai_api_key and settings.image_generation_enabled),
-        "video": video.enabled,
-        "video_hd": video.enabled,
+        "video": bool(engines["quick"]["configured"]),
+        "video_hd": bool(engines["quick"]["configured"]),
+        "video_extendable": bool(engines["extendable"]["configured"]),
+        "video_continue": bool(engines["extendable"]["configured"]),
+        "video_cinematic_5": bool(engines["cinematic"]["configured"]),
+        "video_cinematic_10": bool(engines["cinematic"]["configured"]),
         "manuscript_draft": bool(settings.anthropic_api_key and settings.manuscript_generation_enabled),
         "manuscript_blueprint": bool(settings.anthropic_api_key and settings.manuscript_generation_enabled),
         "kdp_export": settings.manuscript_generation_enabled,
@@ -32,9 +37,9 @@ async def feature_status(request: Request):
             "model": settings.openai_image_model,
         },
         "video": {
-            "configured": configured["video"],
-            "provider": "gemini",
-            "model": settings.gemini_video_model,
+            "configured": video.enabled,
+            "provider": "multi-engine",
+            "engines": engines,
         },
         "manuscript": {
             "configured": configured["manuscript_draft"],
@@ -42,4 +47,5 @@ async def feature_status(request: Request):
             "model": settings.anthropic_model,
         },
     }
+    status["videoEngines"] = engines
     return {"success": True, **status}

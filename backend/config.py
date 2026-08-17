@@ -31,6 +31,10 @@ class Settings:
     openai_vision_model: str
     gemini_api_key: str | None
     gemini_video_model: str
+    gemini_video_extend_model: str
+    runway_api_secret: str | None
+    runway_video_model: str
+    runway_api_version: str
     storage_bucket: str
     max_upload_bytes: int
     brave_api_key: str | None
@@ -41,6 +45,9 @@ class Settings:
     manuscript_generation_enabled: bool
     max_active_video_jobs_per_user: int
     max_generated_video_bytes: int
+    video_daily_provider_budget_cents: int
+    video_user_daily_provider_budget_cents: int
+    runway_monthly_provider_budget_cents: int
     resend_api_key: str | None
     from_email: str
     support_email: str
@@ -111,6 +118,12 @@ class Settings:
             raise RuntimeError('MAX_ACTIVE_VIDEO_JOBS_PER_USER must be between 1 and 3.')
         if not 5 * 1024 * 1024 <= self.max_generated_video_bytes <= 100 * 1024 * 1024:
             raise RuntimeError('MAX_GENERATED_VIDEO_BYTES must be between 5 MB and 100 MB.')
+        if min(
+            self.video_daily_provider_budget_cents,
+            self.video_user_daily_provider_budget_cents,
+            self.runway_monthly_provider_budget_cents,
+        ) < 0:
+            raise RuntimeError('Video provider budget limits cannot be negative.')
 
 
 @lru_cache(maxsize=1)
@@ -140,6 +153,10 @@ def get_settings() -> Settings:
         openai_vision_model=os.getenv('OPENAI_VISION_MODEL', 'gpt-5.6-sol'),
         gemini_api_key=os.getenv('GEMINI_API_KEY'),
         gemini_video_model=os.getenv('GEMINI_VIDEO_MODEL', 'veo-3.1-lite-generate-preview'),
+        gemini_video_extend_model=os.getenv('GEMINI_VIDEO_EXTEND_MODEL', 'veo-3.1-fast-generate-preview'),
+        runway_api_secret=os.getenv('RUNWAYML_API_SECRET'),
+        runway_video_model=os.getenv('RUNWAY_VIDEO_MODEL', 'gen4.5'),
+        runway_api_version=os.getenv('RUNWAY_API_VERSION', '2024-11-06'),
         storage_bucket=os.getenv('CRUMP_STORAGE_BUCKET', 'crump-files'),
         max_upload_bytes=int(os.getenv('MAX_UPLOAD_BYTES', str(50 * 1024 * 1024))),
         brave_api_key=os.getenv('BRAVE_API_KEY'),
@@ -151,7 +168,12 @@ def get_settings() -> Settings:
         video_generation_enabled=_bool(os.getenv('CRUMP_ENABLE_VIDEO_GENERATION'), True),
         manuscript_generation_enabled=_bool(os.getenv('CRUMP_ENABLE_MANUSCRIPTS'), True),
         max_active_video_jobs_per_user=int(os.getenv('MAX_ACTIVE_VIDEO_JOBS_PER_USER', '1')),
-        max_generated_video_bytes=int(os.getenv('MAX_GENERATED_VIDEO_BYTES', str(90 * 1024 * 1024))),
+        max_generated_video_bytes=int(os.getenv('MAX_GENERATED_VIDEO_BYTES', str(45 * 1024 * 1024))),
+        # Early-launch circuit breakers. These are provider-cost estimates, not
+        # user-facing credit limits, and can be raised deliberately in Vercel.
+        video_daily_provider_budget_cents=int(os.getenv('VIDEO_DAILY_PROVIDER_BUDGET_CENTS', '10000')),
+        video_user_daily_provider_budget_cents=int(os.getenv('VIDEO_USER_DAILY_PROVIDER_BUDGET_CENTS', '2000')),
+        runway_monthly_provider_budget_cents=int(os.getenv('RUNWAY_MONTHLY_PROVIDER_BUDGET_CENTS', '50000')),
         resend_api_key=os.getenv('RESEND_API_KEY'),
         from_email=os.getenv('FROM_EMAIL', 'Ask Crump <noreply@askcrump.com>'),
         support_email=os.getenv('SUPPORT_EMAIL', 'support@askcrump.com'),

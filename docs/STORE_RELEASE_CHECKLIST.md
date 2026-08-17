@@ -13,6 +13,7 @@
 - restore purchases, account deletion, privacy/terms, and deletion URL
 - reduced-motion and live-region accessibility support
 - accessible in-app AI response reporting with a private, rate-limited moderation queue
+- multi-engine video disclosure: Veo/Google and Runway prompts/media routed only through the Ask Crump backend, with private durable storage and provider attribution
 - deterministic per-platform native preparation and version/build validation
 - Android compile/target SDK 36 enforcement
 - base iOS privacy manifest copied into the app Resources build phase

@@ -1,5 +1,6 @@
 import { access, readdir, readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const expectedFiles = new Set([
   'account-manager.js', 'app.js', 'auth-controller.js', 'billing-manager.js', 'chat-sync.js',
@@ -34,7 +35,7 @@ for (const name of files) {
     process.exit(1);
   }
 
-  const result = spawnSync(process.execPath, ['--check', path.pathname], { stdio: 'inherit' });
+  const result = spawnSync(process.execPath, ['--check', fileURLToPath(path)], { stdio: 'inherit' });
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
@@ -118,7 +119,7 @@ if (!v1Body.includes('removeLegacyEmptyState(container)')) {
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r10') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r11') ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes('/crump-v1-body.js') ||
     !serviceWorker.includes('/crump-subscriptions-5.3.2.js')) {

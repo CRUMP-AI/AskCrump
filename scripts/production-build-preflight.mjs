@@ -1,16 +1,21 @@
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+const repoRoot = fileURLToPath(new URL('../', import.meta.url));
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     stdio: 'inherit',
     shell: false,
+    cwd: repoRoot,
     ...options,
   });
   return result;
 }
 
 function runJavaScriptContract() {
-  const result = run(process.execPath, ['scripts/check-javascript.mjs']);
+  const checker = fileURLToPath(new URL('../scripts/check-javascript.mjs', import.meta.url));
+  const result = run(process.execPath, [checker]);
   if (result.status !== 0) {
     process.exit(result.status ?? 1);
   }

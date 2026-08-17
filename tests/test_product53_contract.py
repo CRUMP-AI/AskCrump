@@ -14,7 +14,7 @@ def test_product53_runtime_is_registered_last_and_cached():
     assert "/crump-product-5.3.css" in runtime
     assert "/crump-product-5.3.js" in runtime
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r9" in worker
+    assert "ask-crump-new-body-v1-r11" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 
@@ -74,14 +74,17 @@ def test_internal_entitlement_schema_is_billing_independent_and_generic():
 
 def test_video_retry_does_not_bill_twice():
     route = read("backend/routes/media.py")
-    existing_lookup = route.index('existing = await db.select_one(')
+    existing_lookup = route.index('existing = await _existing_job(')
     consume = route.index("receipt = await features.consume(")
     assert existing_lookup < consume
     assert "idempotentReplay" in route
     video = read("backend/video_service.py")
-    assert '"durationSeconds": 8' in video
-    # Veo 3.1 Lite always returns one video and rejects numberOfVideos.
-    assert '"numberOfVideos"' not in video
+    providers = read("backend/video_providers.py")
+    assert "duration = 8" in video
+    # Quick Veo Lite remains single-output; numberOfVideos is only used by the
+    # native Veo continuation path.
+    assert 'if video_reference:' in providers
+    assert 'parameters["numberOfVideos"] = 1' in providers
     assert "async def _mark_failed" in video
     assert "could not save the file" in video
 
@@ -138,7 +141,7 @@ def test_projects_ui_exposes_isolated_canon_and_video_copy_matches_cost_policy()
     assert "Canon & project notes" in js
     assert "/context`" in js
     assert "720p · 60 credits" in js
-    assert "every generation spends Crump Credits" in js
+    assert "every generation spends crump credits" in js.lower()
     assert "Planning costs 4 credits and drafting costs 8 on Free" in js
     assert "Enterprise includes one" not in js
 

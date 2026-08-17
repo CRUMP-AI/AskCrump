@@ -1,5 +1,22 @@
 # Changelog
 
+## 5.5.0 — 2026-08-17
+
+### Added
+
+- Added a provider-agnostic Crump Video Engine with Quick, Extendable, and Cinematic generation paths.
+- Added native Veo 3.1 Fast scene continuation with durable job lineage, provider-reference expiry, and private-storage size safeguards.
+- Added an optional server-only Runway Gen-4.5 provider with plan-aware 5/10 second generation, attribution, and provider-cost circuit breakers.
+- Added continuation controls to completed compatible videos and Saved Library items.
+
+### Changed
+
+- Preserved Veo 3.1 Lite as the existing Quick video path and made expensive video compute explicitly credit-metered behind Professional/Enterprise access.
+- Made video failure accounting provider-aware so billable moderation rejections are not automatically treated like infrastructure failures.
+- Reduced the default generated-video safety ceiling to 45 MB for compatibility with the current storage tier; it can be raised deliberately when storage capacity is upgraded.
+- Fixed Windows JavaScript syntax validation by converting file URLs to native filesystem paths before invoking Node.
+- Advanced the application to 5.5.0 and service-worker cache revision 11.
+
 ## 5.4.1 — 2026-08-15
 
 ### Added

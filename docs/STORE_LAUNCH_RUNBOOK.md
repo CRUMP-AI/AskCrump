@@ -31,7 +31,17 @@ Official references:
 9. Complete privacy, content-rating, app-access, and commerce declarations.
 10. Submit for review, then use a staged production rollout.
 
-Do not test a new API route against production before its matching migration is applied. For the in-app AI report flow, `migrations/014_ai_content_reports.sql` must exist in production first.
+Do not test a new API route against production before its matching migration is applied. For the in-app AI report flow, `migrations/014_ai_content_reports.sql` must exist in production first. For multi-engine video and native continuation, `migrations/015_video_engine_continuations.sql` must exist before the new video routes are deployed.
+
+### Video-provider release gates
+
+- Keep the existing Veo Lite route as the Quick engine; use Veo 3.1 Fast for the Extendable engine and native continuation.
+- Keep `RUNWAYML_API_SECRET` server-side only. The Runway engine must remain unavailable until that secret is deliberately configured in the production host.
+- Preserve `X-Runway-Version=2024-11-06` through `RUNWAY_API_VERSION` and review Runway's current API version before future releases.
+- Runway outputs must be copied into private Supabase Storage; never persist an expiring Runway delivery URL as the user's durable asset.
+- Show the required **Powered by Runway** attribution wherever a Runway engine/result is surfaced.
+- Verify `VIDEO_DAILY_PROVIDER_BUDGET_CENTS`, `VIDEO_USER_DAILY_PROVIDER_BUDGET_CENTS`, and `RUNWAY_MONTHLY_PROVIDER_BUDGET_CENTS` before production rollout. Founder/internal access may bypass app-credit metering, but not the global provider-cost circuit breakers.
+- Verify the `crump-files` bucket and `MAX_GENERATED_VIDEO_BYTES` remain compatible. Native Veo continuation is intentionally disabled when the next combined file is projected to exceed the configured storage guard.
 
 ## 3. One-time account setup
 
@@ -74,7 +84,7 @@ The preparation command builds the local web bundle, creates Android if absent, 
 For a later upload build, use a strictly increasing integer:
 
 ```powershell
-$env:STORE_BUILD_NUMBER = "50402"
+$env:STORE_BUILD_NUMBER = "50501"
 npm run store:prepare:android
 ```
 
@@ -108,6 +118,9 @@ Run these on current physical iPhone and Android devices:
 - registration, email verification, sign-in, relaunch persistence, sign-out, and revoked sessions
 - Ask, Research, Image, Document, Manuscript, Video, Files, and Saved Library
 - generated-file preview, playback, download, and reopening after relaunch
+- Quick, Extendable, and Cinematic video engine entitlement/cost behavior; Runway must remain hidden/unavailable when its server key is absent
+- Veo native continuation from a finished Extendable clip, including chained duration, 48-hour provider-reference expiry, storage-size stop, idempotent retry, and credit refund behavior
+- Runway success, throttling, provider failure, billable input-safety rejection, private-storage copy, and Powered by Runway attribution
 - offline/reconnect behavior, queued/failed delivery, and cross-device sync
 - push opt-in, foreground/background/terminated delivery, and deep links
 - subscription/credit purchase, restore, cancellation messaging, and entitlement sync

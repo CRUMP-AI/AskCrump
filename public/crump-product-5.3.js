@@ -13,6 +13,7 @@
     manuscriptRun: null,
     manuscriptPollTimer: null,
     videoPollTimer: null,
+    activeVideoJob: null,
     libraryFiles: [],
     libraryFilter: 'all',
     libraryVideoObserver: null,
@@ -453,16 +454,25 @@
           <section class="crump53-panel" data-crump53-panel="video" hidden>
             <div class="crump53-card">
               <div class="crump53-kicker">VIDEO STUDIO</div>
-              <h3>Generate a short video</h3>
-              <p>Generation runs asynchronously, so you can close this sheet and come back while the provider works.</p>
+              <h3>Create a scene. Keep directing it.</h3>
+              <p>Choose the engine for the job. Generations run asynchronously and every finished video is saved privately to your Library.</p>
               <form id="crump53VideoForm" class="crump53-form">
+                <div class="crump53-grid">
+                  <label class="crump53-label">Engine<select id="crump53VideoEngine" class="crump53-select">
+                    <option value="quick">Quick · Veo Lite</option>
+                    <option value="extendable">Extendable · Continue enabled</option>
+                    <option value="cinematic">Cinematic · Runway Gen-4.5</option>
+                  </select></label>
+                  <label class="crump53-label" id="crump53VideoDurationWrap" hidden>Duration<select id="crump53VideoDuration" class="crump53-select"><option value="5">5 seconds · 60 credits</option><option value="10">10 seconds · 120 credits · Enterprise</option></select></label>
+                </div>
                 <label class="crump53-label">Prompt<textarea id="crump53VideoPrompt" class="crump53-textarea" maxlength="4000" placeholder="Describe the scene, subject, camera movement, atmosphere, and sound..."></textarea></label>
                 <div class="crump53-grid">
                   <label class="crump53-label">Aspect ratio<select id="crump53VideoAspect" class="crump53-select"><option value="16:9">Landscape 16:9</option><option value="9:16">Portrait 9:16</option></select></label>
                   <label class="crump53-label">Resolution<select id="crump53VideoResolution" class="crump53-select"><option value="720p">720p · 60 credits</option><option value="1080p">1080p · 90 credits</option></select></label>
                 </div>
-                <div class="crump53-note" id="crump53VideoCostNote">Video is Professional+ only and every generation spends Crump Credits. There are no unlimited or included video generations, which protects the account from runaway provider cost. Ask Crump never exposes the provider key to the browser.</div>
-                <div class="crump53-actions"><button class="crump53-button is-primary" type="submit">Generate video</button><span id="crump53VideoEntitlement" class="crump53-lock">Checking access…</span></div>
+                <div class="crump53-note" id="crump53VideoCostNote">Quick video uses Veo Lite. 720p costs 60 credits and 1080p costs 90 credits. Every generation spends Crump Credits.</div>
+                <a class="crump53-provider-attribution" id="crump53RunwayAttribution" href="https://runwayml.com" target="_blank" rel="noopener" hidden>Powered by Runway</a>
+                <div class="crump53-actions"><button class="crump53-button is-primary" type="submit" id="crump53GenerateVideo">Generate video</button><span id="crump53VideoEntitlement" class="crump53-lock">Checking access…</span></div>
                 <div id="crump53VideoStatus" class="crump53-status" aria-live="polite"></div>
               </form>
               <div id="crump53VideoResult"></div>
@@ -496,6 +506,9 @@
       button.addEventListener('click', () => exportManuscript(button.dataset.crump53Export));
     });
     byId('crump53VideoForm')?.addEventListener('submit', startVideo);
+    byId('crump53VideoEngine')?.addEventListener('change', updateVideoStudio);
+    byId('crump53VideoDuration')?.addEventListener('change', updateVideoStudio);
+    byId('crump53VideoResolution')?.addEventListener('change', updateVideoStudio);
     byId('crump53RefreshLibrary')?.addEventListener('click', () => void refreshLibrary());
     overlay.querySelectorAll('[data-library-filter]').forEach(button => {
       button.addEventListener('click', () => {
@@ -548,22 +561,77 @@
     if (tab === 'library') void refreshLibrary();
   }
 
+  function selectedVideoFeature() {
+    const engine = byId('crump53VideoEngine')?.value || 'quick';
+    const resolution = byId('crump53VideoResolution')?.value || '720p';
+    const duration = Number(byId('crump53VideoDuration')?.value || 5);
+    if (engine === 'extendable') return 'video_extendable';
+    if (engine === 'cinematic') return duration === 10 ? 'video_cinematic_10' : 'video_cinematic_5';
+    return resolution === '1080p' ? 'video_hd' : 'video';
+  }
+
+  function updateVideoStudio() {
+    const engine = byId('crump53VideoEngine')?.value || 'quick';
+    const resolution = byId('crump53VideoResolution');
+    const durationWrap = byId('crump53VideoDurationWrap');
+    const duration = Number(byId('crump53VideoDuration')?.value || 5);
+    const prompt = byId('crump53VideoPrompt');
+    const attribution = byId('crump53RunwayAttribution');
+    const costNote = byId('crump53VideoCostNote');
+    const label = byId('crump53VideoEntitlement');
+
+    if (durationWrap) durationWrap.hidden = engine !== 'cinematic';
+    if (attribution) attribution.hidden = engine !== 'cinematic';
+    if (prompt) prompt.maxLength = engine === 'cinematic' ? 1000 : 4000;
+
+    if (resolution) {
+      const hd = resolution.querySelector('option[value="1080p"]');
+      if (engine === 'quick') {
+        if (hd) hd.disabled = false;
+        resolution.disabled = false;
+      } else {
+        resolution.value = '720p';
+        if (hd) hd.disabled = true;
+        resolution.disabled = true;
+      }
+      const sd = resolution.querySelector('option[value="720p"]');
+      if (sd) {
+        sd.textContent = engine === 'extendable'
+          ? '720p · 80 credits'
+          : engine === 'cinematic'
+            ? `720p · ${duration === 10 ? 120 : 60} credits`
+            : '720p · 60 credits';
+      }
+    }
+
+    const featureCode = selectedVideoFeature();
+    const feature = state.features?.features?.[featureCode];
+    if (costNote) {
+      if (state.features?.internalAccess) {
+        costNote.textContent = 'Founder Lab is active: Ask Crump will not spend your app credits or daily allowances. Provider API usage is still real and funded by the owner account; server-side budget circuit breakers remain active.';
+      } else if (engine === 'extendable') {
+        costNote.textContent = 'Extendable uses Veo 3.1 Fast at 720p. Starting the scene costs 80 credits; each native continuation costs 80 credits and adds about 7 seconds while the provider reference and private-storage guard remain available.';
+      } else if (engine === 'cinematic') {
+        costNote.textContent = duration === 10
+          ? 'Cinematic uses Runway Gen-4.5. The 10-second mode costs 120 credits and requires Enterprise.'
+          : 'Cinematic uses Runway Gen-4.5. The 5-second mode costs 60 credits and requires Professional or Enterprise.';
+      } else {
+        costNote.textContent = 'Quick uses Veo Lite. 720p costs 60 credits and 1080p costs 90 credits. Use Extendable when you know the scene needs to keep going.';
+      }
+    }
+    if (label && state.features) {
+      if (!feature?.configured) label.textContent = engine === 'cinematic' ? 'Runway is not configured yet' : 'Video provider not configured';
+      else if (state.features.internalAccess) label.textContent = 'Founder Lab · app metering bypassed';
+      else if (!feature?.entitled) label.textContent = `${feature?.minimumTier === 'enterprise' ? 'Enterprise' : 'Professional'} plan required`;
+      else label.textContent = `Ready · ${state.features.creditBalance ?? 0} credits`;
+    }
+  }
+
   async function refreshFeatures() {
     try {
       const data = await api('/api/features');
       state.features = data;
-      const video = data.features?.video;
-      const label = byId('crump53VideoEntitlement');
-      const costNote = byId('crump53VideoCostNote');
-      if (label) {
-        if (!video?.configured) label.textContent = 'Provider key not configured';
-        else if (data.internalAccess) label.textContent = 'Founder Lab · unmetered app access';
-        else if (!video?.entitled) label.textContent = 'Professional plan required';
-        else label.textContent = `Ready · ${data.creditBalance ?? 0} credits`;
-      }
-      if (costNote && data.internalAccess) {
-        costNote.textContent = 'Founder Lab is active: Ask Crump will not spend your app credits or daily allowances. Provider API usage is still recorded and funded by the owner account.';
-      }
+      updateVideoStudio();
     } catch (_) {
       state.features = null;
     }
@@ -1303,6 +1371,8 @@
           : `<div class="crump53-library-document"><span>${escapeHtml(String(file.name || 'FILE').split('.').pop().slice(0, 5).toUpperCase())}</span></div>`;
       const detail = [
         String(file.kind || category).replaceAll('_', ' '),
+        category === 'video' && metadata.durationSeconds ? `${metadata.durationSeconds}s` : '',
+        category === 'video' && metadata.engine ? String(metadata.engine) : '',
         formatLibraryBytes(file.size),
         formatLibraryDate(file.createdAt),
       ].filter(Boolean).join(' · ');
@@ -1317,6 +1387,7 @@
           <div class="crump53-actions">
             <button type="button" class="crump53-button" data-library-open="${escapeHtml(file.id)}">Open</button>
             <button type="button" class="crump53-button" data-library-download="${escapeHtml(file.id)}">Download</button>
+            ${category === 'video' && metadata.engine === 'extendable' && metadata.mediaJobId ? `<button type="button" class="crump53-button" data-library-continue="${escapeHtml(metadata.mediaJobId)}">Continue scene</button>` : ''}
             ${category !== 'video' ? `<button type="button" class="crump53-button" data-library-use="${escapeHtml(file.id)}">Use in chat</button>` : ''}
           </div>
         </article>`;
@@ -1346,6 +1417,24 @@
         window.CrumpFileTools.addReference(file);
         closeStudio();
         window.showToast?.(`${file.name || 'File'} added to the conversation.`, 'success');
+      });
+    });
+    grid.querySelectorAll('[data-library-continue]').forEach(button => {
+      button.addEventListener('click', async () => {
+        const jobId = String(button.dataset.libraryContinue || '');
+        if (!jobId) return;
+        try {
+          const data = await api(`/api/media/video/${jobId}`);
+          const job = data.job || {};
+          if (!job.canContinue) {
+            window.showToast?.('That continuation window has closed or the next combined file would exceed the current storage guard.', 'info');
+            return;
+          }
+          selectTab('video');
+          renderReadyVideo(job, true);
+        } catch (error) {
+          window.showToast?.(error.message || 'Could not reopen that video scene.', 'error');
+        }
       });
     });
     grid.querySelectorAll('[data-playback-retry]').forEach(button => {
@@ -1383,16 +1472,26 @@
   async function startVideo(event) {
     event.preventDefault();
     const prompt = byId('crump53VideoPrompt')?.value || '';
+    const engine = byId('crump53VideoEngine')?.value || 'quick';
     const resolution = byId('crump53VideoResolution')?.value || '720p';
     const aspectRatio = byId('crump53VideoAspect')?.value || '16:9';
+    const durationSeconds = Number(byId('crump53VideoDuration')?.value || 5);
     const idempotencyKey = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
     try {
       setStatus('crump53VideoStatus', 'Starting video generation…');
+      state.activeVideoJob = null;
       byId('crump53VideoResult').innerHTML = '';
       const data = await api('/api/media/video', {
         method: 'POST',
         headers: {'X-Idempotency-Key': idempotencyKey},
-        body: {prompt, resolution, aspectRatio, projectId: state.activeProject?.id || null},
+        body: {
+          prompt,
+          engine,
+          resolution,
+          aspectRatio,
+          durationSeconds,
+          projectId: state.activeProject?.id || null,
+        },
       });
       storeVideoJob(data.job.id);
       setStatus('crump53VideoStatus', 'Generating… this can take a few minutes. You can close this panel and return.');
@@ -1405,34 +1504,107 @@
     }
   }
 
+  function renderReadyVideo(job, openContinuation = false) {
+    if (!job?.file?.url) return;
+    state.activeVideoJob = job;
+    const attribution = job.attribution && job.attributionUrl
+      ? `<a class="crump53-provider-attribution" href="${escapeHtml(job.attributionUrl)}" target="_blank" rel="noopener">${escapeHtml(job.attribution)}</a>`
+      : '';
+    const continuation = job.canContinue
+      ? `<button type="button" class="crump53-button is-primary" id="crump53ContinueScene">Continue scene</button>`
+      : '';
+    const result = byId('crump53VideoResult');
+    if (!result) return;
+    result.innerHTML = `
+      <div class="crump53-video-result-meta">
+        <span>${escapeHtml(String(job.engine || 'quick'))} · ${escapeHtml(String(job.durationSeconds || 8))}s · ${escapeHtml(String(job.resolution || '720p'))}</span>
+        ${attribution}
+      </div>
+      <video class="crump53-video-preview" controls playsinline src="${escapeHtml(job.file.url)}"></video>
+      <div class="crump53-actions" style="margin-top:10px">
+        ${continuation}
+        <a class="crump53-button" href="${escapeHtml(job.file.url)}?download=1">Download video</a>
+        <button type="button" class="crump53-button" id="crump53OpenLibraryFromVideo">Open saved Library</button>
+      </div>
+      ${job.canContinue ? `
+        <div class="crump53-video-continuation" id="crump53VideoContinuation" hidden>
+          <div class="crump53-kicker">NEXT SHOT</div>
+          <label class="crump53-label">What happens next?<textarea id="crump53ContinuePrompt" class="crump53-textarea" maxlength="4000" placeholder="Continue the action from the final moment. Describe the next movement, camera direction, dialogue, or sound..."></textarea></label>
+          <div class="crump53-note">Native continuation uses the previous Veo scene as the reference point, adds about 7 seconds, and returns one combined video. 80 credits per continuation.</div>
+          <div class="crump53-actions"><button type="button" class="crump53-button is-primary" id="crump53SubmitContinuation">Continue · 80 credits</button><button type="button" class="crump53-button" id="crump53CancelContinuation">Cancel</button></div>
+        </div>` : ''}`;
+    byId('crump53OpenLibraryFromVideo')?.addEventListener('click', () => selectTab('library'));
+    byId('crump53ContinueScene')?.addEventListener('click', () => {
+      const composer = byId('crump53VideoContinuation');
+      if (composer) composer.hidden = false;
+      byId('crump53ContinuePrompt')?.focus();
+    });
+    byId('crump53CancelContinuation')?.addEventListener('click', () => {
+      const composer = byId('crump53VideoContinuation');
+      if (composer) composer.hidden = true;
+    });
+    byId('crump53SubmitContinuation')?.addEventListener('click', () => continueVideoScene(job));
+    if (openContinuation && job.canContinue) {
+      byId('crump53ContinueScene')?.click();
+    }
+  }
+
+  async function continueVideoScene(parentJob) {
+    const prompt = byId('crump53ContinuePrompt')?.value || '';
+    const button = byId('crump53SubmitContinuation');
+    const idempotencyKey = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+    if (button) button.disabled = true;
+    try {
+      setStatus('crump53VideoStatus', 'Continuing from the final moment of your scene…');
+      const data = await api(`/api/media/video/${parentJob.id}/continue`, {
+        method: 'POST',
+        headers: {'X-Idempotency-Key': idempotencyKey},
+        body: {prompt},
+      });
+      storeVideoJob(data.job.id);
+      state.activeVideoJob = data.job;
+      setStatus('crump53VideoStatus', 'Extending… Crump is preserving the previous scene and building the next seven seconds.');
+      pollVideo(data.job.id);
+    } catch (error) {
+      const suffix = error.data?.creditsRequired
+        ? ` Needs ${error.data.creditsRequired} credits; balance ${error.data.creditBalance ?? 0}.`
+        : '';
+      setStatus('crump53VideoStatus', `${error.message}${suffix}`, true);
+      if (button) button.disabled = false;
+    }
+  }
+
   function pollVideo(jobId) {
     if (state.videoPollTimer) window.clearTimeout(state.videoPollTimer);
     const check = async () => {
       try {
         const data = await api(`/api/media/video/${jobId}`);
         const job = data.job || {};
+        state.activeVideoJob = job;
         if (job.status === 'ready' && job.file?.url) {
           storeVideoJob('');
-          setStatus('crump53VideoStatus', 'Video ready and saved to your Library.');
-          byId('crump53VideoResult').innerHTML = `
-            <video class="crump53-video-preview" controls playsinline src="${escapeHtml(job.file.url)}"></video>
-            <div class="crump53-actions" style="margin-top:10px">
-              <a class="crump53-button" href="${escapeHtml(job.file.url)}?download=1">Download video</a>
-              <button type="button" class="crump53-button" id="crump53OpenLibraryFromVideo">Open saved Library</button>
-            </div>`;
-          byId('crump53OpenLibraryFromVideo')?.addEventListener('click', () => selectTab('library'));
+          setStatus('crump53VideoStatus', `Video ready and saved to your Library. ${job.durationSeconds || 8} seconds total.`);
+          renderReadyVideo(job);
           void refreshLibrary();
           return;
         }
         if (job.status === 'failed') {
           storeVideoJob('');
-          setStatus('crump53VideoStatus', job.error || 'Video generation failed. Your generation charge was returned.', true);
+          const billingMessage = job.chargeReturned
+            ? ' Your generation charge was returned.'
+            : ' No video was delivered; this provider failure may still have incurred provider cost.';
+          setStatus('crump53VideoStatus', `${job.error || 'Video generation failed.'}${billingMessage}`, true);
           return;
         }
-        setStatus('crump53VideoStatus', 'Generating… Crump is checking the provider status.');
+        setStatus('crump53VideoStatus', job.provider === 'runway' && job.providerStatus === 'THROTTLED'
+          ? 'Runway queued the job because provider concurrency is busy. Crump will keep checking.'
+          : 'Generating… Crump is checking the provider status.');
         state.videoPollTimer = window.setTimeout(check, 8000);
       } catch (error) {
         setStatus('crump53VideoStatus', error.message, true);
+        if (error.data?.shouldRetry) {
+          state.videoPollTimer = window.setTimeout(check, 10000);
+        }
       }
     };
     void check();
