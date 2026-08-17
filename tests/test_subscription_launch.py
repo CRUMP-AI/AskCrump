@@ -23,5 +23,5 @@ def test_subscription_launch_assets_are_wired():
 def test_subscription_launch_bumps_release_version():
     package = (ROOT / 'package.json').read_text(encoding='utf-8')
     version = (ROOT / 'backend' / 'version.py').read_text(encoding='utf-8')
-    assert '"version": "5.6.0"' in package
-    assert "__version__ = '5.6.0'" in version
+    assert '"version": "5.6.1"' in package
+    assert "__version__ = '5.6.1'" in version

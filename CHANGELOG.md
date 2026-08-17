@@ -1,5 +1,12 @@
 # Changelog
 
+## 5.6.1 — 2026-08-17
+
+### Fixed
+
+- Allowed authenticated inline video playback from Ask Crump's private Supabase Storage domains through the web Content Security Policy. Saved Library previews remain private and still use short-lived signed URLs.
+- Added a release regression guard so future CSP changes cannot silently block private video previews again.
+
 ## 5.6.0 — 2026-08-17
 
 ### Added

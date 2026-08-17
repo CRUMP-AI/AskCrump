@@ -24,3 +24,9 @@ def test_subscription_runtime_is_part_of_javascript_contract():
     assert "crump-subscriptions-5.3.2.js" in checker
     assert "ask-crump-new-body-v1-r12" in checker
     assert "crump-polish-5.6.js" in checker
+
+
+def test_web_csp_allows_private_supabase_video_playback():
+    vercel = read("vercel.json")
+    assert "media-src 'self' blob: https://*.supabase.co https://*.storage.supabase.co" in vercel
+    assert "connect-src 'self' https://askcrump.com https://www.askcrump.com https://*.supabase.co https://*.storage.supabase.co" in vercel
