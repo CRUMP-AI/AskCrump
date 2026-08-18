@@ -46,7 +46,13 @@
 .crump531-reference-list,
 #crump531ProjectFilesList {
   display: grid;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  grid-template-columns: minmax(0,1fr);
   gap: 8px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .crump531-empty {
@@ -60,6 +66,9 @@
 }
 
 .crump531-file-row {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid rgba(224,228,233,0.11);
   border-radius: 14px;
   background: rgba(255,255,255,0.025);
@@ -68,12 +77,16 @@
   align-items: center;
   gap: 10px;
   padding: 9px 10px 9px 12px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .crump531-file-copy,
 .crump531-file-open {
   min-width: 0;
-  flex: 1;
+  max-width: 100%;
+  flex: 1 1 0%;
+  overflow: hidden;
 }
 
 .crump531-file-copy strong,
@@ -124,6 +137,11 @@
 }
 
 .crump531-file-open {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   text-align: left;
   cursor: pointer;
   padding: 0;
@@ -141,7 +159,21 @@
 }
 
 .crump531-project-files-card {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   margin-top: 16px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.crump531-project-file-group {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  grid-template-columns: minmax(0,1fr);
+  overflow: hidden;
 }
 
 .crump531-project-file-group + .crump531-project-file-group {
@@ -327,7 +359,34 @@
     padding: 24px 20px calc(env(safe-area-inset-bottom, 0px) + 24px);
   }
 
+  .crump531-file-row {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    grid-template-columns: minmax(0,1fr) auto;
+  }
+
+  .crump531-file-open,
+  .crump531-file-copy {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .crump531-file-open strong,
+  .crump531-file-open small,
+  .crump531-file-copy strong,
+  .crump531-file-copy small {
+    width: 100%;
+    max-width: 100%;
+  }
+
   .crump531-use-file {
+    min-width: 0;
+    max-width: 92px;
     padding-inline: 9px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }

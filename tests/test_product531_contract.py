@@ -39,7 +39,7 @@ def test_project_reference_ui_and_chat_rename_are_final_runtime_layers():
     assert "/crump-product-5.3.1.css" in runtime
     assert "/crump-product-5.3.1.js" in runtime
     assert runtime.index("/crump-product-5.3.js") < runtime.index("/crump-product-5.3.1.js")
-    assert "ask-crump-new-body-v1-r15" in worker
+    assert "ask-crump-new-body-v1-r16" in worker
     assert "Reference files" in js
     assert "Project files" in js
     assert "Rename chat" in js
@@ -49,6 +49,9 @@ def test_project_reference_ui_and_chat_rename_are_final_runtime_layers():
     assert "upload: async file =>" in files
     assert "CrumpFileTools?.upload" in js
     assert ".crump531-chat-menu-button" in css
+    assert ".crump531-project-file-group" in css
+    assert "grid-template-columns: minmax(0,1fr)" in css
+    assert "box-sizing: border-box" in css
 
 
 def test_project_canon_flags_conflicts_instead_of_silently_rewriting():
