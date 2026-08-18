@@ -1932,6 +1932,16 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
     border-radius: 28px 28px 0 0 !important;
   }
 
+  /* Mobile sheets use full-width edge anchoring. Do not keep the desktop
+     translateX(-50%) centering transform after left becomes 0. */
+  body.crump-v1-body .crump50-sheet {
+    transform: translateY(18px) scale(.985) !important;
+    overflow-x: hidden !important;
+  }
+  body.crump-v1-body .crump50-sheet.is-visible {
+    transform: translateY(0) scale(1) !important;
+  }
+
   body.crump-v1-body .v1-settings-sheet {
     position: absolute;
     right: 0;

@@ -604,7 +604,7 @@
     // A compact glasses glyph feels more distinctly Ask Crump than a
     // generic AI brain while keeping the Intelligence control subtle.
     control.innerHTML = `
-      <svg class="crump44-glasses-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+      <svg class="crump44-glasses-icon" width="23" height="23" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
         <rect x="3.35" y="8.55" width="6.15" height="5.5" rx="2.2" stroke="currentColor" stroke-width="1.5"/>
         <rect x="14.5" y="8.55" width="6.15" height="5.5" rx="2.2" stroke="currentColor" stroke-width="1.5"/>
         <path d="M9.5 11.15H14.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
