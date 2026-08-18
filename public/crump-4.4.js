@@ -600,8 +600,17 @@
     control.setAttribute('aria-label', 'Crump intelligence controls');
     control.setAttribute('aria-haspopup', 'dialog');
     control.setAttribute('aria-expanded', 'false');
-    control.title = 'Crump controls';
-    control.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M10 14v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="16" cy="7" r="2" stroke="currentColor" stroke-width="1.8"/><circle cx="8" cy="17" r="2" stroke="currentColor" stroke-width="1.8"/></svg>';
+    control.title = 'Intelligence';
+    // A compact glasses glyph feels more distinctly Ask Crump than a
+    // generic AI brain while keeping the Intelligence control subtle.
+    control.innerHTML = `
+      <svg class="crump44-glasses-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+        <rect x="3.35" y="8.55" width="6.15" height="5.5" rx="2.2" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="14.5" y="8.55" width="6.15" height="5.5" rx="2.2" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M9.5 11.15H14.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M3.35 10.95L2.35 10.55M20.65 10.95L21.65 10.55" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" opacity=".82"/>
+        <path d="M6.45 9.75C6.92 9.43 7.46 9.25 8.05 9.25M15.95 9.25C16.54 9.25 17.08 9.43 17.55 9.75" stroke="currentColor" stroke-width="1.05" stroke-linecap="round" opacity=".58"/>
+      </svg>`;
     control.addEventListener('click', event => {
       event.stopPropagation();
       togglePanel();
