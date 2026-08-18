@@ -303,6 +303,9 @@
     const sourceAction = book.sourceFile?.id
       ? `<button type="button" data-crump57-original="${id}">Open original source</button>`
       : '';
+    const workspaceAction = book.projectId
+      ? `<button type="button" data-crump57-workspace="${id}">Edit manuscript</button>`
+      : '';
 
     return `
       <article class="crump57-book is-${maturity}" data-crump57-book="${id}">
@@ -322,6 +325,7 @@
             <details class="crump57-more">
               <summary aria-label="More actions for ${escapeHtml(book.title || 'book')}">•••</summary>
               <div class="crump57-menu" role="menu">
+                ${workspaceAction}
                 <button type="button" data-crump57-details="${id}">Edit details</button>
                 ${previewAction}
                 ${sourceAction}
@@ -340,31 +344,191 @@
     });
   }
 
+  function readerParagraphs(content) {
+    const value = String(content || '').replace(/\r\n?/g, '\n').trim();
+    if (!value) return '<p class="crump57-reader-empty-copy">This section does not have readable text yet.</p>';
+    return value
+      .split(/\n{2,}/)
+      .map(paragraph => `<p>${escapeHtml(paragraph).replace(/\n/g, '<br>')}</p>`)
+      .join('');
+  }
+
+  async function openBookReader(book) {
+    const overlay = mountModal(`
+      <div class="crump57-overlay crump57-reader-overlay" role="presentation">
+        <section class="crump57-sheet crump57-reader-sheet" role="dialog" aria-modal="true" aria-label="Read ${escapeHtml(book.title || 'manuscript')}">
+          <header class="crump57-sheet-head crump57-reader-head">
+            <div>
+              <div class="crump53-kicker">READING</div>
+              <h3>${escapeHtml(book.title || 'Untitled manuscript')}</h3>
+              <p>${escapeHtml(book.authorName || 'Ask Crump Library')}</p>
+            </div>
+            <button type="button" class="crump57-close" aria-label="Close reader">×</button>
+          </header>
+          <div class="crump57-reader-loading" id="crump57ReaderLoading">
+            <strong>Opening book…</strong>
+            <span>Crump is preparing the manuscript for reading.</span>
+          </div>
+        </section>
+      </div>`);
+
+    try {
+      const data = await api(`/api/manuscripts/${encodeURIComponent(book.id)}`);
+      if (!overlay.isConnected) return;
+      const manuscript = data.manuscript || {};
+      const sections = Array.isArray(data.sections) ? data.sections : [];
+      const sheet = overlay.querySelector('.crump57-reader-sheet');
+      const loading = byId('crump57ReaderLoading');
+      if (!sheet || !loading) return;
+
+      if (!sections.length) {
+        loading.innerHTML = `
+          <strong>No readable sections yet.</strong>
+          <span>This manuscript exists in your Library, but it does not have any sections to read yet.</span>`;
+        return;
+      }
+
+      loading.remove();
+
+      const reader = document.createElement('div');
+      reader.className = 'crump57-reader';
+      reader.innerHTML = `
+        <aside class="crump57-reader-nav" aria-label="Book sections">
+          <div class="crump57-reader-nav-head">
+            <small>CONTENTS</small>
+            <strong>${sections.length} section${sections.length === 1 ? '' : 's'}</strong>
+          </div>
+          <div class="crump57-reader-section-list">
+            ${sections.map((section, index) => `
+              <button type="button" data-crump57-reader-index="${index}">
+                <small>${String(index + 1).padStart(2, '0')}</small>
+                <span>${escapeHtml(section.title || `Section ${index + 1}`)}</span>
+              </button>`).join('')}
+          </div>
+        </aside>
+        <main class="crump57-reader-main">
+          <div class="crump57-reader-mobile-nav">
+            <label>
+              <span>Section</span>
+              <select id="crump57ReaderSelect">
+                ${sections.map((section, index) => `
+                  <option value="${index}">${escapeHtml(section.title || `Section ${index + 1}`)}</option>`).join('')}
+              </select>
+            </label>
+          </div>
+          <article class="crump57-reader-page" id="crump57ReaderPage" tabindex="-1">
+            <div class="crump57-reader-page-meta" id="crump57ReaderMeta"></div>
+            <h2 id="crump57ReaderTitle"></h2>
+            <div class="crump57-reader-copy" id="crump57ReaderCopy"></div>
+          </article>
+          <footer class="crump57-reader-controls">
+            <button type="button" class="crump53-button" id="crump57ReaderPrev">← Previous</button>
+            <span id="crump57ReaderPosition"></span>
+            <button type="button" class="crump53-button" id="crump57ReaderNext">Next →</button>
+          </footer>
+        </main>`;
+      sheet.appendChild(reader);
+
+      const page = byId('crump57ReaderPage');
+      const title = byId('crump57ReaderTitle');
+      const copy = byId('crump57ReaderCopy');
+      const meta = byId('crump57ReaderMeta');
+      const position = byId('crump57ReaderPosition');
+      const previous = byId('crump57ReaderPrev');
+      const next = byId('crump57ReaderNext');
+      const select = byId('crump57ReaderSelect');
+      const navButtons = Array.from(reader.querySelectorAll('[data-crump57-reader-index]'));
+      let activeIndex = 0;
+
+      const showSection = (index, focusPage = false) => {
+        const bounded = Math.max(0, Math.min(sections.length - 1, Number(index) || 0));
+        const section = sections[bounded] || {};
+        activeIndex = bounded;
+        title.textContent = section.title || `Section ${bounded + 1}`;
+        copy.innerHTML = readerParagraphs(section.content);
+        meta.textContent = [String(section.section_type || '').replace(/_/g, ' '), section.word_count ? `${Number(section.word_count).toLocaleString()} words` : '']
+          .filter(Boolean)
+          .join(' · ');
+        position.textContent = `${bounded + 1} of ${sections.length}`;
+        previous.disabled = bounded === 0;
+        next.disabled = bounded === sections.length - 1;
+        if (select) select.value = String(bounded);
+        navButtons.forEach((button, buttonIndex) => {
+          button.classList.toggle('is-active', buttonIndex === bounded);
+          button.setAttribute('aria-current', buttonIndex === bounded ? 'true' : 'false');
+        });
+        if (focusPage) {
+          const reducedMotion = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+          page.scrollIntoView({behavior: reducedMotion ? 'auto' : 'smooth', block: 'start'});
+          page.focus({preventScroll: true});
+        } else {
+          page.scrollTop = 0;
+        }
+      };
+
+      navButtons.forEach(button => {
+        button.addEventListener('click', () => showSection(Number(button.dataset.crump57ReaderIndex), true));
+      });
+      select?.addEventListener('change', () => showSection(Number(select.value), true));
+      previous?.addEventListener('click', () => showSection(activeIndex - 1, true));
+      next?.addEventListener('click', () => showSection(activeIndex + 1, true));
+
+      const subtitle = String(manuscript.subtitle || book.subtitle || '').trim();
+      const head = overlay.querySelector('.crump57-reader-head p');
+      if (head) {
+        head.textContent = [manuscript.author_name || manuscript.authorName || book.authorName, subtitle].filter(Boolean).join(' · ') || 'Ask Crump Library';
+      }
+      showSection(0, false);
+    } catch (error) {
+      const loading = byId('crump57ReaderLoading');
+      if (loading) {
+        loading.innerHTML = `
+          <strong>Book could not open.</strong>
+          <span>${escapeHtml(error?.message || 'Try again in a moment.')}</span>`;
+      } else {
+        show(error?.message || 'Crump could not open that book for reading.', 'error');
+      }
+    }
+  }
+
+  async function openBookWorkspace(book) {
+    const opener = window.CrumpProduct53?.openManuscript;
+    if (typeof opener !== 'function') {
+      show('The manuscript workspace is not ready yet. Refresh Ask Crump and try again.', 'error');
+      return;
+    }
+    closeModal();
+    const opened = await opener({projectId: book.projectId, manuscriptId: book.id, title: book.title});
+    if (opened === false) show('Crump could not open ' + (book.title || 'that manuscript') + ' for editing.', 'error');
+  }
+
   function bindBookActions(grid) {
     const map = new Map(state.books.map(book => [String(book.id), book]));
     grid.querySelectorAll('[data-crump57-open]').forEach(button => {
       button.addEventListener('click', async () => {
         const book = map.get(String(button.dataset.crump57Open));
         if (!book) return;
-        const opener = window.CrumpProduct53?.openManuscript;
-        if (typeof opener !== 'function') {
-          show('The manuscript workspace is not ready yet. Refresh Ask Crump and try again.', 'error');
-          return;
-        }
         const originalLabel = button.textContent;
         button.disabled = true;
         button.textContent = 'Opening…';
         try {
-          const opened = await opener({projectId: book.projectId, manuscriptId: book.id, title: book.title});
-          if (opened === false) {
-            show('Crump could not open ' + (book.title || 'that manuscript') + '.', 'error');
-          }
-        } catch (error) {
-          console.error('Ask Crump Library open failed:', error);
-          show(error?.message || 'Crump could not open that manuscript.', 'error');
+          await openBookReader(book);
         } finally {
           button.disabled = false;
           button.textContent = originalLabel || 'Open';
+        }
+      });
+    });
+    grid.querySelectorAll('[data-crump57-workspace]').forEach(button => {
+      button.addEventListener('click', async () => {
+        const book = map.get(String(button.dataset.crump57Workspace));
+        if (!book) return;
+        closeOtherMenus(null);
+        try {
+          await openBookWorkspace(book);
+        } catch (error) {
+          console.error('Ask Crump manuscript workspace open failed:', error);
+          show(error?.message || 'Crump could not open that manuscript for editing.', 'error');
         }
       });
     });
