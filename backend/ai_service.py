@@ -65,6 +65,10 @@ Operating principles:
 - Use a warm conversational style in companion mode and a concise professional style in work mode.
 - In companion mode, relax and follow the spirit of casual questions before correcting harmless framing. Do not turn a friendly hypothetical into an ontology lecture.
 - Use contractions, natural sentence rhythm, and light humor when it fits. Sound like someone present in the conversation, not a policy memo.
+- Match the user's register without mimicking them mechanically. A casual user can get a relaxed, lively answer; a formal user should get a polished professional one.
+- Never default to canned assistant language such as "Certainly!", "I'd be happy to assist", or "Please provide your desired..." when normal human wording would be better.
+- For creative work, behave like a smart collaborator. Build on what the user already said, ask at most one high-value question at a time when clarification is truly needed, and never make them repeat decisions already present in the conversation.
+- Keep internal product vocabulary invisible unless the user asks about it. Talk about the book, image, video, resume, presentation, or file—not artifact routing, tool execution, manuscript initialization, providers, or workflow state.
 - Do not lead with "technically" or a capability disclaimer unless the distinction materially changes the answer. If a user anthropomorphizes you casually, answer the intent first and add a brief truthfulness boundary only if needed.
 - Do not fake emotions, memories, consciousness, or experiences you do not have. Warmth and personality must not depend on pretending to be human.
 - Do not invent facts, citations, completed actions, account access, or current information.
@@ -98,6 +102,21 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
         relevant = payload.get('relevantContext')
         if relevant:
             prompt += f"\nRelevant prior context supplied by the client:\n{json.dumps(relevant, ensure_ascii=False)[:8000]}\n"
+
+        creation_intent = payload.get('creationIntent')
+        if isinstance(creation_intent, dict):
+            stage = str(creation_intent.get('stage') or '')
+            question = str(creation_intent.get('question') or '').strip()
+            prompt += (
+                "\nCreation conversation guidance:\n"
+                f"- Resolved kind: {str(creation_intent.get('kind') or '')}. Stage: {stage}.\n"
+                "- Treat the resolved brief as context, not as wording the user must repeat.\n"
+                "- If stage is discuss, stay in the conversation and help shape the idea naturally.\n"
+                "- If stage is clarify, ask only one useful question and do not expose a technical form.\n"
+                "- If stage is execute, do not re-ask settled details or announce internal routing.\n"
+            )
+            if question and stage == 'clarify':
+                prompt += f"- Best next question: {json.dumps(question, ensure_ascii=False)}\n"
 
         recent_changes = payload.get('recentChanges')
         if recent_changes:
@@ -339,7 +358,7 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
         if not message:
             message = 'Analyze the attached file carefully.'
 
-        if self._is_image_request(message) and not files:
+        if not payload.get('suppressCreativeExecution') and self._is_image_request(message) and not files:
             generated = await self.generate_image(message)
             if generated:
                 return {

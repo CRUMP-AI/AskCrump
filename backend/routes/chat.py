@@ -249,15 +249,42 @@ async def chat(request: Request):
                 else:
                     request_payload['relevantContext'] = [project_reference_context]
 
-    requested_artifact = artifacts.detect_request(
+    legacy_artifact = artifacts.detect_request(
         str(request_payload.get('message') or ''),
         request_payload.get('artifactFormat'),
     )
-    long_form_request = artifacts.is_long_form_request(str(request_payload.get('message') or ''))
-    if long_form_request:
-        request_payload['longForm'] = True
+    legacy_long_form = artifacts.is_long_form_request(str(request_payload.get('message') or ''))
     prepared = await intelligence.prepare(auth.user['id'], request_payload)
     request_payload = prepared.payload
+    creation_intent = prepared.creation_intent or {}
+    creation_kind = str(creation_intent.get('kind') or '')
+    creation_stage = str(creation_intent.get('stage') or '')
+    semantic_creation = creation_kind in {'manuscript', 'image', 'video', 'document'}
+    execution_brief = str(creation_intent.get('brief') or original_message).strip() or original_message
+    creation_title = str(creation_intent.get('title') or '').strip()
+    if creation_kind == 'manuscript' and creation_title and creation_title.casefold() not in execution_brief.casefold():
+        execution_brief = f'Titled "{creation_title}". {execution_brief}'
+
+    requested_artifact = legacy_artifact
+    long_form_request = legacy_long_form
+    if semantic_creation:
+        long_form_request = creation_kind == 'manuscript' and creation_stage == 'execute'
+        if creation_kind == 'document':
+            requested_artifact = (
+                artifacts.normalize_format(creation_intent.get('format')) or 'docx'
+            ) if creation_stage == 'execute' else None
+        elif creation_kind != 'manuscript':
+            requested_artifact = None
+        if creation_stage == 'execute' and creation_kind in {'image', 'document'}:
+            request_payload['message'] = execution_brief
+        if creation_stage == 'execute' and creation_kind == 'image':
+            request_payload['creativeTool'] = 'image'
+        if creation_stage != 'execute':
+            request_payload['suppressCreativeExecution'] = True
+        if creation_intent.get('title') and not request_payload.get('artifactTitle'):
+            request_payload['artifactTitle'] = creation_intent['title']
+    if long_form_request:
+        request_payload['longForm'] = True
     if long_form_request:
         artifact_note = {
             'source': 'long_form_handoff',
@@ -310,6 +337,7 @@ async def chat(request: Request):
     )
 
     feature_usage = None
+    semantic_chat_only = bool(semantic_creation and (creation_stage != 'execute' or creation_kind == 'video'))
     try:
         if long_form_request:
             feature_usage = await features.consume(
@@ -317,7 +345,7 @@ async def chat(request: Request):
                 'manuscript_blueprint',
                 {'route': 'chat', 'messageId': message_id, 'projectId': project_id},
             )
-        else:
+        elif not semantic_chat_only:
             feature_usage = await consume_feature_for_request(
                 user=auth.user,
                 payload=request_payload,
@@ -351,19 +379,38 @@ async def chat(request: Request):
     try:
         result = None
         if long_form_request:
+            manuscript_format = str(creation_intent.get('format') or requested_artifact or 'docx').lower()
+            if manuscript_format not in {'docx', 'pdf', 'epub'}:
+                manuscript_format = 'docx'
             result = await manuscripts.begin_long_form(
                 user=auth.user,
-                brief=original_message,
+                brief=execution_brief,
                 project_id=project_id,
                 chat_id=chat_id,
-                preferred_format=requested_artifact or 'docx',
+                preferred_format=manuscript_format,
                 project_limit=features.project_limit(auth.user),
                 blueprint_receipt=feature_usage,
             )
             project_id = str(result.get('projectId') or project_id or '') or None
+        elif semantic_creation and creation_kind == 'video' and creation_stage == 'execute':
+            handoff_key = f"chat-video:{chat_id or 'chat'}:{message_id or request_id}"
+            result = {
+                'response': "Yep — I’ve got the scene. I carried what we worked out into Video Studio and I’m starting it from there so you don’t have to repeat the prompt.",
+                'model': ai.settings.anthropic_model,
+                'creationHandoff': {
+                    'kind': 'video',
+                    'brief': execution_brief[:12000],
+                    'autoOpen': True,
+                    'autoStart': True,
+                    'idempotencyKey': handoff_key[:160],
+                },
+            }
         elif (
-            media.is_image_request(str(request_payload.get('message') or ''), str(request_payload.get('creativeTool') or '') or None)
-            or media.is_edit_request(str(request_payload.get('message') or ''), file_rows)
+            not request_payload.get('suppressCreativeExecution')
+            and (
+                media.is_image_request(str(request_payload.get('message') or ''), str(request_payload.get('creativeTool') or '') or None)
+                or media.is_edit_request(str(request_payload.get('message') or ''), file_rows)
+            )
         ):
             result = await media.generate_or_edit_image(
                 user_id=auth.user['id'],
@@ -521,6 +568,8 @@ async def chat(request: Request):
             assistant_message['artifact'] = result['artifact']
         if result.get('manuscriptWorkspace'):
             assistant_message['manuscriptWorkspace'] = result['manuscriptWorkspace']
+        if result.get('creationHandoff'):
+            assistant_message['creationHandoff'] = result['creationHandoff']
 
         try:
             persisted = await db.rpc(

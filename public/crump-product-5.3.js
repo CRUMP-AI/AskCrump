@@ -1481,14 +1481,14 @@
     }
   }
 
-  async function startVideo(event) {
-    event.preventDefault();
-    const prompt = byId('crump53VideoPrompt')?.value || '';
+  async function startVideo(event, overrides = {}) {
+    event?.preventDefault?.();
+    const prompt = String(overrides.prompt ?? byId('crump53VideoPrompt')?.value ?? '');
     const engine = byId('crump53VideoEngine')?.value || 'quick';
     const resolution = byId('crump53VideoResolution')?.value || '720p';
     const aspectRatio = byId('crump53VideoAspect')?.value || '16:9';
     const durationSeconds = Number(byId('crump53VideoDuration')?.value || 5);
-    const idempotencyKey = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+    const idempotencyKey = String(overrides.idempotencyKey || '') || globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
     try {
       setStatus('crump53VideoStatus', 'Starting video generation…');
       state.activeVideoJob = null;
@@ -1657,21 +1657,79 @@
     return true;
   }
 
+  function handoffOnceKey(kind, value) {
+    return 'askcrump.creationHandoff.' + kind + '.' + String(value || 'unknown');
+  }
+
+  function claimLiveHandoff(kind, value) {
+    const key = handoffOnceKey(kind, value);
+    try {
+      if (sessionStorage.getItem(key) === 'done') return false;
+      sessionStorage.setItem(key, 'done');
+    } catch (_) { /* one-time handoff guard is best effort */ }
+    return true;
+  }
+
+  async function openVideoCreationHandoff(handoff, {start = false} = {}) {
+    const brief = String(handoff?.brief || '').trim();
+    openStudio('video');
+    const prompt = byId('crump53VideoPrompt');
+    if (prompt && brief) prompt.value = brief;
+    if (!start) {
+      prompt?.focus({preventScroll: true});
+      return true;
+    }
+    const key = String(handoff?.idempotencyKey || '');
+    if (!claimLiveHandoff('video', key || brief.slice(0, 80))) return true;
+    await startVideo({preventDefault() {}}, {prompt: brief, idempotencyKey: key});
+    return true;
+  }
+
+  async function handleCreationHandoff(handoff) {
+    if (!handoff || typeof handoff !== 'object') return false;
+    if (handoff.kind === 'manuscript') {
+      const workspace = handoff.workspace || handoff;
+      if (!workspace?.autoOpen) return false;
+      const token = workspace.runId || workspace.manuscriptId;
+      if (!claimLiveHandoff('manuscript', token)) return true;
+      return await openManuscriptWorkspace(workspace);
+    }
+    if (handoff.kind === 'video') {
+      return await openVideoCreationHandoff(handoff, {start: Boolean(handoff.autoStart)});
+    }
+    return false;
+  }
+
   function enhanceManuscriptHandoffs(messages) {
     (Array.isArray(messages) ? messages : []).forEach(message => {
-      const workspace = message?.manuscriptWorkspace;
-      if (!workspace || !message.id) return;
+      if (!message?.id) return;
       const row = document.querySelector(`[data-message-id="${CSS.escape(message.id)}"]`);
       const wrapper = row?.querySelector('.message-wrapper');
-      if (!wrapper || wrapper.querySelector('.crump53-manuscript-handoff')) return;
-      const card = document.createElement('div');
-      card.className = 'crump53-manuscript-handoff';
-      card.innerHTML = `
-        <div class="crump53-handoff-mark">M</div>
-        <div><small>MANUSCRIPT WORKSPACE · ${escapeHtml(workspace.runStatus || 'saved')}</small><strong>${escapeHtml(workspace.title || 'Untitled manuscript')}</strong><span>${Number(workspace.chapterCount || 0)} planned chapters · ${Number(workspace.targetWords || 0).toLocaleString()}-word target · resumable full draft</span></div>
-        <button type="button">Open workspace</button>`;
-      card.querySelector('button')?.addEventListener('click', () => void openManuscriptWorkspace(workspace));
-      wrapper.appendChild(card);
+      if (!wrapper) return;
+
+      const workspace = message.manuscriptWorkspace;
+      if (workspace && !wrapper.querySelector('.crump53-manuscript-handoff')) {
+        const card = document.createElement('div');
+        card.className = 'crump53-manuscript-handoff';
+        card.innerHTML = `
+          <div class="crump53-handoff-mark">M</div>
+          <div><small>YOUR MANUSCRIPT · ${escapeHtml(workspace.runStatus || 'saved')}</small><strong>${escapeHtml(workspace.title || 'Untitled manuscript')}</strong><span>${Number(workspace.chapterCount || 0)} planned chapters · ${Number(workspace.targetWords || 0).toLocaleString()}-word target · built from this conversation</span></div>
+          <button type="button">Open Workshop</button>`;
+        card.querySelector('button')?.addEventListener('click', () => void openManuscriptWorkspace(workspace));
+        wrapper.appendChild(card);
+      }
+
+      const creation = message.creationHandoff;
+      if (creation?.kind === 'video' && !wrapper.querySelector('.crump53-video-handoff')) {
+        const card = document.createElement('div');
+        card.className = 'crump53-manuscript-handoff crump53-video-handoff';
+        card.innerHTML = `
+          <div class="crump53-handoff-mark">V</div>
+          <div><small>VIDEO STUDIO</small><strong>Scene ready to create</strong><span>${escapeHtml(String(creation.brief || 'Your video direction').slice(0, 180))}</span></div>
+          <button type="button">Open Video Studio</button>`;
+        card.querySelector('button')?.addEventListener('click', () => void openVideoCreationHandoff(creation));
+        wrapper.appendChild(card);
+      }
     });
   }
 
@@ -1692,6 +1750,7 @@
   window.CrumpProduct53 = Object.freeze({
     open: openStudio,
     openManuscript: workspace => openManuscriptWorkspace(workspace),
+    handleCreationHandoff: handoff => handleCreationHandoff(handoff),
   });
 
   function init() {

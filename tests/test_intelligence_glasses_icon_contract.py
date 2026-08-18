@@ -38,6 +38,6 @@ def test_glasses_icon_release_advances_shell_cache():
     sw = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
 
-    assert "ask-crump-new-body-v1-r23" in sw
+    assert "ask-crump-new-body-v1-r24" in sw
     assert "ask-crump-new-body-v1-r20" not in sw
-    assert "ask-crump-new-body-v1-r23" in checker
+    assert "ask-crump-new-body-v1-r24" in checker

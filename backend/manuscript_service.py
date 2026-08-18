@@ -86,6 +86,13 @@ def target_words_from_prompt(prompt: str, default: int = DEFAULT_TARGET_WORDS) -
     if match:
         value = int(match.group(1)) * 1000
         return max(MIN_TARGET_WORDS, min(MAX_TARGET_WORDS, value))
+    match = re.search(r"\b(?:about\s+|around\s+|roughly\s+|approximately\s+)?(\d{2,4})\s*pages?\b", text, re.I)
+    if match:
+        pages = max(24, int(match.group(1)))
+        # Keep this inverse aligned with estimate_pages(): body pages are about
+        # 275 words, with ~12% room for front matter and print pagination.
+        value = round(max(20.0, (pages / 1.12) - 4) * 275)
+        return max(MIN_TARGET_WORDS, min(MAX_TARGET_WORDS, value))
     return max(MIN_TARGET_WORDS, min(MAX_TARGET_WORDS, int(default or DEFAULT_TARGET_WORDS)))
 
 
@@ -875,10 +882,8 @@ User brief:
         public_run = self.public_run(run)
         return {
             "response": (
-                f"I created a persistent Manuscript workspace for **{provisional_title}** and queued the "
-                f"complete {target_words:,}-word draft. Crump will plan about {chapter_count} chapters, "
-                f"write them in resumable steps, and package a {preferred_format.upper()} export. You can "
-                "close this chat, pause the run, or return later without losing the work."
+                (f"Yep — I’ve got enough to build **{provisional_title}** properly. " if provisional_title != "Untitled Manuscript" else "Yep — I’ve got enough to build the book properly. ")
+                + "I carried what we already worked out into the Workshop and started shaping the chapter plan, so you won’t have to fill everything out again."
             ),
             "model": self.ai.settings.anthropic_model,
             "usage": {},
@@ -896,6 +901,7 @@ User brief:
                 "preferredExportFormat": preferred_format,
                 "runId": run["id"],
                 "runStatus": run["status"],
+                "autoOpen": True,
             },
         }
 

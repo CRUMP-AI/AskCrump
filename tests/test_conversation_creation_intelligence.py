@@ -1,0 +1,75 @@
+from pathlib import Path
+
+from backend.intelligence_service import IntelligenceService
+
+ROOT = Path(__file__).resolve().parents[1]
+
+def read(relative: str) -> str:
+    return (ROOT / relative).read_text(encoding="utf-8")
+
+def test_natural_creation_language_is_a_semantic_candidate():
+    assert IntelligenceService._creation_candidate("I want a book", [])
+    assert IntelligenceService._creation_candidate("make me a picture of a dog playing piano", [])
+    assert IntelligenceService._creation_candidate("I need a resume", [])
+
+def test_short_confirmation_keeps_recent_creation_context():
+    history = [
+        {"role": "user", "content": "I want to write a psychological science fiction novel."},
+        {"role": "assistant", "content": "Do you want it dark or hopeful?"},
+        {"role": "user", "content": "Dark. About 300 pages."},
+    ]
+    assert IntelligenceService._creation_candidate("go", history)
+
+def test_fallback_does_not_instantly_execute_vague_book_desire():
+    intent = IntelligenceService._fallback_creation_intent("I want a book", [])
+    assert intent and intent["kind"] == "manuscript"
+    assert intent["stage"] == "clarify"
+
+def test_fallback_can_execute_a_specific_natural_image_request():
+    intent = IntelligenceService._fallback_creation_intent("Make me a picture of a golden retriever playing a grand piano on stage", [])
+    assert intent and intent["kind"] == "image"
+    assert intent["stage"] == "execute"
+
+def test_chat_route_uses_resolved_brief_and_avoids_reasking_forms():
+    route = read("backend/routes/chat.py")
+    assert "execution_brief = str(creation_intent.get('brief') or original_message)" in route
+    assert "brief=execution_brief" in route
+    assert "creation_title.casefold() not in execution_brief.casefold()" in route
+    assert "request_payload['message'] = execution_brief" in route
+    assert "semantic_chat_only" in route
+    assert "creationHandoff" in route
+
+def test_natural_page_targets_are_carried_into_manuscript_planning():
+    manuscript = read("backend/manuscript_service.py")
+    assert "pages / 1.12" in manuscript
+    assert "* 275" in manuscript
+
+def test_manuscript_handoff_opens_real_workshop_with_prefilled_metadata():
+    manuscript = read("backend/manuscript_service.py")
+    product = read("public/crump-product-5.3.js")
+    assert '"autoOpen": True' in manuscript
+    assert "I carried what we already worked out into the Workshop" in manuscript
+    assert "metadata.premise || ''" in product
+    assert "Open Workshop" in product
+    assert "handleCreationHandoff" in product
+
+def test_video_handoff_reuses_existing_guarded_video_engine():
+    product = read("public/crump-product-5.3.js")
+    composer = read("public/crump-5.0.js")
+    assert "openVideoCreationHandoff" in product
+    assert "startVideo(event, overrides = {})" in product
+    assert "idempotencyKey: key" in product
+    assert "CrumpProduct53?.handleCreationHandoff" in composer
+
+def test_crump_voice_avoids_generic_assistant_form_language():
+    service = read("backend/ai_service.py")
+    assert "Never default to canned assistant language" in service
+    assert "ask at most one high-value question at a time" in service
+    assert "Keep internal product vocabulary invisible" in service
+
+def test_conversation_intelligence_advances_shell_cache():
+    sw = read("public/sw.js")
+    checker = read("scripts/check-javascript.mjs")
+    assert "ask-crump-new-body-v1-r24" in sw
+    assert "ask-crump-new-body-v1-r23" not in sw
+    assert "ask-crump-new-body-v1-r24" in checker
