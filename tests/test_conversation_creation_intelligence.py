@@ -73,3 +73,21 @@ def test_conversation_intelligence_advances_shell_cache():
     assert "ask-crump-new-body-v1-r24" in sw
     assert "ask-crump-new-body-v1-r23" not in sw
     assert "ask-crump-new-body-v1-r24" in checker
+
+def test_runtime_document_extraction_patch_accepts_project_pdf_keyword():
+    compatibility = read("backend/crump52_patches.py")
+    route = read("backend/routes/chat.py")
+
+    assert "include_pdf: bool = False" in compatibility
+    assert "or include_pdf" in compatibility
+    assert "MediaService.extract_nonvisual = _extract_nonvisual_v52" in compatibility
+    assert "include_pdf=True" in route
+
+
+def test_conversation_intelligence_remains_enabled_after_project_chat_compatibility_fix():
+    route = read("backend/routes/chat.py")
+    intelligence = read("backend/intelligence_service.py")
+
+    assert "prepared = await intelligence.prepare" in route
+    assert "async def infer_creation_intent" in intelligence
+    assert "creation_intent = prepared.creation_intent or {}" in route

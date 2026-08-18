@@ -420,10 +420,15 @@ async def _extract_nonvisual_v52(
     self: media_module.MediaService,
     rows: list[dict[str, Any]],
     max_chars: int = 300_000,
+    include_pdf: bool = False,
 ) -> str | None:
     sections: list[str] = []
     remaining = max(20_000, min(400_000, int(max_chars or 300_000)))
-    eligible = [row for row in rows[:10] if row.get("mime_type") not in media_module.IMAGE_TYPES and row.get("mime_type") != media_module.PDF_TYPE]
+    eligible = [
+        row for row in rows[:10]
+        if row.get("mime_type") not in media_module.IMAGE_TYPES
+        and (row.get("mime_type") != media_module.PDF_TYPE or include_pdf)
+    ]
     per_file = max(20_000, remaining // max(1, len(eligible)))
 
     for row in eligible:
