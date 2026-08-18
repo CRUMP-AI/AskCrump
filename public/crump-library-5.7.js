@@ -343,10 +343,29 @@
   function bindBookActions(grid) {
     const map = new Map(state.books.map(book => [String(book.id), book]));
     grid.querySelectorAll('[data-crump57-open]').forEach(button => {
-      button.addEventListener('click', () => {
+      button.addEventListener('click', async () => {
         const book = map.get(String(button.dataset.crump57Open));
         if (!book) return;
-        window.CrumpProduct53?.openManuscript?.({projectId: book.projectId, manuscriptId: book.id, title: book.title});
+        const opener = window.CrumpProduct53?.openManuscript;
+        if (typeof opener !== 'function') {
+          show('The manuscript workspace is not ready yet. Refresh Ask Crump and try again.', 'error');
+          return;
+        }
+        const originalLabel = button.textContent;
+        button.disabled = true;
+        button.textContent = 'Opening…';
+        try {
+          const opened = await opener({projectId: book.projectId, manuscriptId: book.id, title: book.title});
+          if (opened === false) {
+            show('Crump could not open ' + (book.title || 'that manuscript') + '.', 'error');
+          }
+        } catch (error) {
+          console.error('Ask Crump Library open failed:', error);
+          show(error?.message || 'Crump could not open that manuscript.', 'error');
+        } finally {
+          button.disabled = false;
+          button.textContent = originalLabel || 'Open';
+        }
       });
     });
     grid.querySelectorAll('[data-crump57-edit], [data-crump57-details]').forEach(button => {

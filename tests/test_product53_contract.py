@@ -14,7 +14,7 @@ def test_product53_runtime_is_registered_last_and_cached():
     assert "/crump-product-5.3.css" in runtime
     assert "/crump-product-5.3.js" in runtime
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r17" in worker
+    assert "ask-crump-new-body-v1-r18" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 
@@ -106,6 +106,9 @@ def test_private_account_library_surfaces_saved_creations():
     assert "Saved to Library" in product
     assert "openStudio('library')" in product
     assert ".crump53-library-grid" in styles
+    assert "const opened = await loadManuscript(manuscriptId)" in product
+    assert "target.scrollIntoView" in product
+    assert "'Opened ' + (workspace?.title || 'manuscript') + '.'" in product
 
 
 def test_private_video_library_uses_owner_checked_inline_playback():

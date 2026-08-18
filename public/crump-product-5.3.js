@@ -936,8 +936,10 @@
       renderManuscriptProgress();
       renderManuscriptRun();
       scheduleManuscriptPoll();
+      return true;
     } catch (error) {
       setStatus('crump53ManuscriptStatus', error.message, true);
+      return false;
     }
   }
 
@@ -1623,17 +1625,36 @@
   async function openManuscriptWorkspace(workspace) {
     const projectId = String(workspace?.projectId || '');
     const manuscriptId = String(workspace?.manuscriptId || '');
-    if (!projectId || !manuscriptId) return;
     openStudio('manuscripts');
+    if (!projectId || !manuscriptId) {
+      setStatus('crump53ManuscriptStatus', 'This Library book is missing its manuscript workspace link.', true);
+      return false;
+    }
     await refreshProjects();
     const project = state.projects.find(item => String(item.id) === projectId);
     if (!project) {
       setStatus('crump53ManuscriptStatus', 'That Project is no longer available.', true);
-      return;
+      return false;
     }
     selectProject(projectId);
     await refreshManuscripts();
-    await loadManuscript(manuscriptId);
+    const opened = await loadManuscript(manuscriptId);
+    if (!opened) return false;
+
+    const editor = byId('crump53ManuscriptEditor');
+    const target = byId('crump53EditorTitle') || editor;
+    if (editor && !editor.hidden && target) {
+      const reducedMotion = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+      window.requestAnimationFrame(() => {
+        target.scrollIntoView({
+          behavior: reducedMotion ? 'auto' : 'smooth',
+          block: 'center',
+          inline: 'nearest',
+        });
+      });
+    }
+    setStatus('crump53ManuscriptStatus', 'Opened ' + (workspace?.title || 'manuscript') + '.');
+    return true;
   }
 
   function enhanceManuscriptHandoffs(messages) {
