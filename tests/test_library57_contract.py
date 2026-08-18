@@ -43,8 +43,16 @@ def test_library571_mobile_layout_and_book_views_are_intentional():
     assert "data-crump57-workspace" in library_js
     assert ">Edit manuscript</button>" in library_js
     assert "async function openBookWorkspace(book)" in library_js
+    assert "Download manuscript" in library_js
+    assert "async function exportCurrentManuscript(book, format, button = null)" in library_js
+    assert "/api/manuscripts/${encodeURIComponent(book.id)}/export" in library_js
+    assert "window.CrumpFileTools.open(file, true)" in library_js
+    assert "data-crump57-export-format=\"docx\"" in library_js
+    assert "data-crump57-export-format=\"pdf\"" in library_js
+    assert "data-crump57-export-format=\"epub\"" in library_js
     assert "crump57-reader-sheet" in library_css
     assert "crump57-reader-mobile-nav" in library_css
+    assert "crump57-download-options" in library_css
     assert ".crump57-bookshelf.is-layout-book" in library_css
     assert "grid-template-columns: 112px minmax(0, 1fr)" in library_css
     assert ".crump57-bookshelf.is-layout-grid" in library_css
@@ -78,3 +86,15 @@ def test_library571_delete_restore_is_owner_checked_and_recoverable():
     assert "async def hard_delete" in files
     assert "payload={'prefixes': [storage_path]}" in files
     assert "await self.db.delete(" in files
+
+
+def test_library571_download_uses_existing_owner_checked_export_pipeline():
+    routes = read("backend/routes/manuscripts.py")
+    service = read("backend/manuscript_service.py")
+
+    assert '@router.post("/api/manuscripts/{manuscript_id}/export")' in routes
+    assert "authenticate_request(request, db, settings)" in routes
+    assert "manuscripts.export(" in routes
+    assert '"file": files.public_file(row)' in routes
+    assert 'if preferred_format not in {"docx", "pdf", "epub"}' in service
+    assert 'Export format must be DOCX, PDF, or EPUB.' in service

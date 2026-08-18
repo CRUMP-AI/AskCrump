@@ -306,6 +306,7 @@
     const workspaceAction = book.projectId
       ? `<button type="button" data-crump57-workspace="${id}">Edit manuscript</button>`
       : '';
+    const downloadAction = `<button type="button" data-crump57-download="${id}">Download manuscript</button>`;
 
     return `
       <article class="crump57-book is-${maturity}" data-crump57-book="${id}">
@@ -326,6 +327,7 @@
               <summary aria-label="More actions for ${escapeHtml(book.title || 'book')}">•••</summary>
               <div class="crump57-menu" role="menu">
                 ${workspaceAction}
+                ${downloadAction}
                 <button type="button" data-crump57-details="${id}">Edit details</button>
                 ${previewAction}
                 ${sourceAction}
@@ -342,6 +344,99 @@
     document.querySelectorAll('.crump57-more[open]').forEach(details => {
       if (details !== active) details.removeAttribute('open');
     });
+  }
+
+  const MANUSCRIPT_EXPORT_FORMATS = new Set(['docx', 'pdf', 'epub']);
+
+  async function exportCurrentManuscript(book, format, button = null) {
+    const normalized = String(format || '').toLowerCase().trim();
+    if (!MANUSCRIPT_EXPORT_FORMATS.has(normalized)) {
+      show('Choose DOCX, PDF, or EPUB.', 'error');
+      return false;
+    }
+
+    const originalLabel = button?.textContent || '';
+    if (button) {
+      button.disabled = true;
+      button.textContent = `Building ${normalized.toUpperCase()}…`;
+    }
+
+    try {
+      const data = await api(`/api/manuscripts/${encodeURIComponent(book.id)}/export`, {
+        method: 'POST',
+        body: {format: normalized},
+      });
+      const file = data.file;
+      if (!file || (!file.id && !file.url)) {
+        throw new Error('Crump built the manuscript but did not return a downloadable file.');
+      }
+
+      if (window.CrumpFileTools?.open) {
+        await Promise.resolve(window.CrumpFileTools.open(file, true));
+      } else if (file.url) {
+        const separator = String(file.url).includes('?') ? '&' : '?';
+        window.location.assign(`${file.url}${separator}download=1`);
+      } else {
+        throw new Error('The exported manuscript is missing its download link.');
+      }
+
+      show(`${normalized.toUpperCase()} ready · current manuscript exported and saved to Files.`, 'success');
+      return true;
+    } catch (error) {
+      console.error('Ask Crump manuscript export failed:', error);
+      show(error?.message || 'Crump could not export that manuscript.', 'error');
+      return false;
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = originalLabel;
+      }
+    }
+  }
+
+  function bindManuscriptExportButtons(root, book, closeAfter = false) {
+    root?.querySelectorAll?.('[data-crump57-export-format]').forEach(button => {
+      button.addEventListener('click', async () => {
+        const format = button.dataset.crump57ExportFormat || '';
+        const exported = await exportCurrentManuscript(book, format, button);
+        button.closest('details')?.removeAttribute('open');
+        if (exported && closeAfter && state.modal === root) closeModal();
+      });
+    });
+  }
+
+  function openBookDownload(book) {
+    const overlay = mountModal(`
+      <div class="crump57-overlay crump57-download-overlay" role="presentation">
+        <section class="crump57-sheet crump57-download-sheet" role="dialog" aria-modal="true" aria-label="Download ${escapeHtml(book.title || 'manuscript')}">
+          <header class="crump57-sheet-head">
+            <div>
+              <div class="crump53-kicker">CURRENT MANUSCRIPT</div>
+              <h3>Download ${escapeHtml(book.title || 'manuscript')}</h3>
+              <p>Export the version that exists in Crump right now.</p>
+            </div>
+            <button type="button" class="crump57-close" aria-label="Close download options">×</button>
+          </header>
+          <div class="crump57-sheet-body">
+            <div class="crump57-download-note">
+              <strong>Your current version stays yours.</strong>
+              <span>This export includes the manuscript as it exists in Crump now, including saved edits. If you originally uploaded a file, the untouched source remains separately available through “Open original source.”</span>
+            </div>
+            <div class="crump57-download-options">
+              <button type="button" class="crump57-download-option" data-crump57-export-format="docx">
+                <strong>Word</strong><span>DOCX</span><small>Best for continuing to edit.</small>
+              </button>
+              <button type="button" class="crump57-download-option" data-crump57-export-format="pdf">
+                <strong>Print PDF</strong><span>PDF</span><small>KDP-aware formatted manuscript.</small>
+              </button>
+              <button type="button" class="crump57-download-option" data-crump57-export-format="epub">
+                <strong>eBook</strong><span>EPUB</span><small>Portable e-reader format.</small>
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>`);
+    bindManuscriptExportButtons(overlay, book, true);
   }
 
   function readerParagraphs(content) {
@@ -363,7 +458,17 @@
               <h3>${escapeHtml(book.title || 'Untitled manuscript')}</h3>
               <p>${escapeHtml(book.authorName || 'Ask Crump Library')}</p>
             </div>
-            <button type="button" class="crump57-close" aria-label="Close reader">×</button>
+            <div class="crump57-reader-head-actions">
+              <details class="crump57-reader-download">
+                <summary class="crump53-button">Download</summary>
+                <div class="crump57-reader-download-menu">
+                  <button type="button" data-crump57-export-format="docx">Word (.docx)</button>
+                  <button type="button" data-crump57-export-format="pdf">Print PDF</button>
+                  <button type="button" data-crump57-export-format="epub">eBook (.epub)</button>
+                </div>
+              </details>
+              <button type="button" class="crump57-close" aria-label="Close reader">×</button>
+            </div>
           </header>
           <div class="crump57-reader-loading" id="crump57ReaderLoading">
             <strong>Opening book…</strong>
@@ -371,6 +476,7 @@
           </div>
         </section>
       </div>`);
+    bindManuscriptExportButtons(overlay, book, false);
 
     try {
       const data = await api(`/api/manuscripts/${encodeURIComponent(book.id)}`);
@@ -517,6 +623,14 @@
           button.disabled = false;
           button.textContent = originalLabel || 'Open';
         }
+      });
+    });
+    grid.querySelectorAll('[data-crump57-download]').forEach(button => {
+      button.addEventListener('click', () => {
+        const book = map.get(String(button.dataset.crump57Download));
+        if (!book) return;
+        closeOtherMenus(null);
+        openBookDownload(book);
       });
     });
     grid.querySelectorAll('[data-crump57-workspace]').forEach(button => {
