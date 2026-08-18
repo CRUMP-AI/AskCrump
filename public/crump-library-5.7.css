@@ -1,263 +1,821 @@
-/* Ask Crump 5.7 — Library */
+/* Ask Crump 5.7.1 — Library refinement
+   Book-inspired, not book-themed. Management stays primary; covers add restrained depth. */
+
 .crump57-library-card {
   grid-column: 1 / -1;
-  overflow: hidden;
+  overflow: visible;
 }
 .crump57-library-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
+  gap: 18px;
+  margin-bottom: 20px;
 }
-.crump57-library-head h3 { margin: 0 0 5px; font-size: 20px; letter-spacing: -.02em; }
-.crump57-library-head p { margin: 0; color: var(--text-muted, #8f98a3); max-width: 620px; line-height: 1.5; }
-.crump57-library-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.crump57-library-head h3 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  letter-spacing: -.025em;
+}
+.crump57-library-head p {
+  margin: 0;
+  max-width: 650px;
+  color: var(--text-muted, #8f98a3);
+  line-height: 1.55;
+}
+.crump57-library-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
 .crump57-library-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 160px;
-  gap: 10px;
-  margin-bottom: 16px;
+  grid-template-columns: minmax(210px, 1.5fr) repeat(3, minmax(135px, .72fr)) auto;
+  gap: 9px;
+  align-items: center;
+  margin-bottom: 18px;
 }
+.crump57-search { min-width: 0; }
 .crump57-library-toolbar input,
 .crump57-library-toolbar select,
 .crump57-field input,
 .crump57-field select {
   width: 100%;
-  min-height: 42px;
-  border: 1px solid rgba(255,255,255,.11);
-  border-radius: 12px;
-  background: rgba(255,255,255,.045);
+  min-height: 44px;
+  border: 1px solid rgba(255,255,255,.105);
+  border-radius: 13px;
+  outline: none;
+  background: rgba(255,255,255,.038);
   color: inherit;
   padding: 10px 12px;
-  outline: none;
+  font: inherit;
 }
 .crump57-library-toolbar input:focus,
 .crump57-library-toolbar select:focus,
 .crump57-field input:focus,
 .crump57-field select:focus {
-  border-color: rgba(255,255,255,.28);
-  box-shadow: 0 0 0 3px rgba(255,255,255,.055);
+  border-color: rgba(217,191,126,.35);
+  box-shadow: 0 0 0 3px rgba(217,191,126,.055);
 }
+.crump57-layout-controls {
+  display: inline-grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid rgba(255,255,255,.075);
+  border-radius: 999px;
+  background: rgba(0,0,0,.2);
+}
+.crump57-layout-button {
+  min-height: 36px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #7d8489;
+  font-size: 11px;
+  font-weight: 720;
+  cursor: pointer;
+}
+.crump57-layout-button.is-active {
+  background: rgba(217,191,126,.105);
+  color: #e2d1aa;
+  box-shadow: inset 0 0 0 1px rgba(217,191,126,.11);
+}
+.crump57-layout-button:disabled {
+  opacity: .34;
+  cursor: not-allowed;
+}
+
 .crump57-bookshelf {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(174px, 1fr));
-  gap: 15px;
+  gap: 16px;
+}
+.crump57-bookshelf.is-layout-grid {
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
 }
 .crump57-book {
   position: relative;
   min-width: 0;
-  border: 1px solid rgba(255,255,255,.09);
-  border-radius: 17px;
-  background: rgba(255,255,255,.035);
-  overflow: hidden;
-  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+  border: 1px solid rgba(255,255,255,.085);
+  border-radius: 19px;
+  background: linear-gradient(180deg, rgba(255,255,255,.034), rgba(255,255,255,.018));
+  box-shadow: inset 0 1px rgba(255,255,255,.018);
+  transition: transform .16s ease, border-color .16s ease, background .16s ease, box-shadow .16s ease;
 }
 .crump57-book:hover {
   transform: translateY(-2px);
-  border-color: rgba(255,255,255,.19);
-  background: rgba(255,255,255,.052);
+  border-color: rgba(217,191,126,.18);
+  background: linear-gradient(180deg, rgba(255,255,255,.047), rgba(255,255,255,.023));
+  box-shadow: 0 16px 38px rgba(0,0,0,.16), inset 0 1px rgba(255,255,255,.03);
+}
+.crump57-book-visual {
+  position: relative;
+  min-width: 0;
 }
 .crump57-cover {
   position: relative;
   aspect-ratio: 2 / 3;
-  background:
-    radial-gradient(circle at 76% 18%, rgba(255,255,255,.12), transparent 30%),
-    linear-gradient(150deg, #1a2028, #090c10 58%, #151a20);
   overflow: hidden;
+  border-radius: 18px 18px 0 0;
+  background:
+    radial-gradient(circle at 76% 18%, rgba(255,255,255,.105), transparent 30%),
+    linear-gradient(150deg, #1a2028, #090c10 58%, #151a20);
+}
+.crump57-cover::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.025);
 }
 .crump57-cover img {
+  position: relative;
+  z-index: 1;
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: block;
 }
 .crump57-cover-placeholder {
   position: absolute;
   inset: 0;
-  padding: 18px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  gap: 18px;
+  padding: 20px;
 }
-.crump57-cover-placeholder span {
-  width: 28px;
+.crump57-cover-placeholder > span {
+  width: 30px;
   height: 2px;
-  background: rgba(255,255,255,.7);
+  border-radius: 99px;
+  background: rgba(255,255,255,.68);
 }
 .crump57-cover-placeholder strong {
-  font-size: 18px;
-  line-height: 1.12;
+  display: block;
+  max-width: 100%;
+  color: #f0f2f3;
+  font-family: var(--ac-display, Georgia, serif);
+  font-size: clamp(18px, 2vw, 23px);
+  font-weight: 500;
+  line-height: 1.08;
   letter-spacing: -.025em;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
-.crump57-cover-placeholder small { color: rgba(255,255,255,.58); }
-.crump57-book-body { padding: 12px; }
+.crump57-cover-placeholder small {
+  display: block;
+  margin-top: 7px;
+  color: rgba(255,255,255,.56);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: break-word;
+}
+.crump57-cover img + .crump57-cover-placeholder,
+.crump57-cover:has(img) .crump57-cover-placeholder {
+  opacity: 0;
+}
+.crump57-spine { display: none; }
+.crump57-book-body { min-width: 0; padding: 14px; }
 .crump57-book-kicker {
   display: flex;
   justify-content: space-between;
-  gap: 7px;
-  margin-bottom: 6px;
+  gap: 8px;
+  margin-bottom: 7px;
+  color: #838b90;
   font-size: 10px;
-  letter-spacing: .08em;
+  font-weight: 720;
+  letter-spacing: .11em;
   text-transform: uppercase;
-  color: var(--text-muted, #8f98a3);
+}
+.crump57-book-kicker span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .crump57-book-title {
   margin: 0;
-  font-size: 14px;
-  line-height: 1.25;
-  white-space: nowrap;
-  text-overflow: ellipsis;
   overflow: hidden;
+  color: #f0eee8;
+  font-size: 16px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .crump57-book-author {
   display: block;
-  margin-top: 3px;
-  min-height: 17px;
-  color: var(--text-muted, #8f98a3);
-  font-size: 12px;
-  white-space: nowrap;
+  min-height: 18px;
+  margin-top: 4px;
   overflow: hidden;
+  color: #959ca0;
+  font-size: 13px;
+  line-height: 1.35;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .crump57-book-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px 8px;
-  margin-top: 9px;
-  color: var(--text-muted, #8f98a3);
+  gap: 5px 9px;
+  margin-top: 10px;
+  color: #7d858a;
   font-size: 11px;
+  line-height: 1.45;
+}
+.crump57-book-footnote {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 25px;
+  margin-top: 9px;
+  color: #6f777c;
+  font-size: 10.5px;
+}
+.crump57-project-chip {
+  display: inline-block;
+  max-width: 48%;
+  padding: 4px 7px;
+  overflow: hidden;
+  border: 1px solid rgba(217,191,126,.12);
+  border-radius: 999px;
+  color: #9d9071;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .crump57-book-actions {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
   gap: 7px;
-  margin-top: 11px;
+  margin-top: 13px;
 }
-.crump57-book-actions button {
-  min-height: 36px;
-  border-radius: 10px;
+.crump57-book-actions > .crump53-button {
+  min-width: 0;
+  min-height: 40px;
+  padding-inline: 10px;
+  border-radius: 11px;
 }
+.crump57-more {
+  position: relative;
+  min-width: 0;
+}
+.crump57-more > summary {
+  display: grid;
+  width: 44px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.085);
+  border-radius: 11px;
+  background: rgba(255,255,255,.025);
+  color: #b7bcbd;
+  font-size: 16px;
+  font-weight: 800;
+  list-style: none;
+  cursor: pointer;
+}
+.crump57-more > summary::-webkit-details-marker { display: none; }
+.crump57-more[open] > summary {
+  border-color: rgba(217,191,126,.22);
+  background: rgba(217,191,126,.055);
+  color: #dac48b;
+}
+.crump57-menu {
+  position: absolute;
+  z-index: 30;
+  right: 0;
+  bottom: calc(100% + 8px);
+  width: min(225px, calc(100vw - 36px));
+  padding: 7px;
+  border: 1px solid rgba(255,255,255,.11);
+  border-radius: 14px;
+  background: rgba(15,20,26,.985);
+  box-shadow: 0 20px 56px rgba(0,0,0,.5);
+  backdrop-filter: blur(18px);
+}
+.crump57-menu button {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #c9ccca;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.crump57-menu button:hover { background: rgba(255,255,255,.055); color: #fff; }
+.crump57-menu button.is-danger { color: #dfaaa5; }
+.crump57-menu-divider {
+  display: block;
+  height: 1px;
+  margin: 5px 3px;
+  background: rgba(255,255,255,.07);
+}
+
+/* List mode: information-first management. */
+.crump57-bookshelf.is-layout-list { grid-template-columns: 1fr; }
+.crump57-bookshelf.is-layout-list .crump57-book {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: stretch;
+  overflow: visible;
+}
+.crump57-bookshelf.is-layout-list .crump57-cover {
+  height: 100%;
+  min-height: 138px;
+  aspect-ratio: auto;
+  border-radius: 18px 0 0 18px;
+}
+.crump57-bookshelf.is-layout-list .crump57-cover-placeholder { padding: 12px 10px; }
+.crump57-bookshelf.is-layout-list .crump57-cover-placeholder strong { font-size: 13px; }
+.crump57-bookshelf.is-layout-list .crump57-cover-placeholder small { font-size: 9px; }
+.crump57-bookshelf.is-layout-list .crump57-book-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto auto;
+  column-gap: 18px;
+  align-content: center;
+  padding: 15px 16px;
+}
+.crump57-bookshelf.is-layout-list .crump57-book-kicker,
+.crump57-bookshelf.is-layout-list .crump57-book-title,
+.crump57-bookshelf.is-layout-list .crump57-book-author,
+.crump57-bookshelf.is-layout-list .crump57-book-meta,
+.crump57-bookshelf.is-layout-list .crump57-book-footnote { grid-column: 1; }
+.crump57-bookshelf.is-layout-list .crump57-book-actions {
+  grid-column: 2;
+  grid-row: 1 / -1;
+  width: 265px;
+  align-self: center;
+  margin: 0;
+}
+
+/* Book View: subtle depth for cover-complete work, never a novelty shelf. */
+.crump57-bookshelf.is-layout-book {
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 24px 18px;
+  padding: 9px 4px 4px;
+}
+.crump57-bookshelf.is-layout-book .crump57-book {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+.crump57-bookshelf.is-layout-book .crump57-book:hover {
+  transform: translateY(-3px);
+  background: transparent;
+  box-shadow: none;
+}
+.crump57-bookshelf.is-layout-book .crump57-book-visual {
+  width: calc(100% - 10px);
+  margin-left: 10px;
+  filter: drop-shadow(0 18px 24px rgba(0,0,0,.35));
+  transform: perspective(800px) rotateY(-2deg);
+  transform-origin: left center;
+}
+.crump57-bookshelf.is-layout-book .crump57-cover {
+  border-radius: 4px 12px 12px 4px;
+}
+.crump57-bookshelf.is-layout-book .crump57-spine {
+  position: absolute;
+  z-index: 4;
+  top: 2px;
+  bottom: 2px;
+  left: -7px;
+  display: block;
+  width: 8px;
+  border-radius: 4px 0 0 4px;
+  background: linear-gradient(90deg, #07090c, #262b30 58%, #080b0e);
+  box-shadow: inset -1px 0 rgba(255,255,255,.08);
+}
+.crump57-bookshelf.is-layout-book .crump57-book-body {
+  padding: 13px 7px 5px 17px;
+}
+.crump57-bookshelf.is-layout-book .crump57-book-footnote { display: none; }
+
 .crump57-empty {
   grid-column: 1 / -1;
-  padding: 30px 18px;
+  padding: 34px 20px;
   border: 1px dashed rgba(255,255,255,.12);
-  border-radius: 16px;
+  border-radius: 17px;
+  color: #8c9498;
   text-align: center;
-  color: var(--text-muted, #8f98a3);
+  line-height: 1.55;
 }
-.crump57-empty strong { display: block; color: var(--text, #f4f7fb); font-size: 16px; margin-bottom: 5px; }
+.crump57-empty strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #f1eee8;
+  font-size: 16px;
+}
 
+/* Library dialogs. */
 .crump57-overlay {
   position: fixed;
   z-index: 100050;
   inset: 0;
   display: grid;
   place-items: center;
-  padding: 18px;
-  background: rgba(0,0,0,.68);
-  backdrop-filter: blur(12px);
+  padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  background: rgba(0,0,0,.72);
+  backdrop-filter: blur(16px) saturate(110%);
 }
 .crump57-sheet {
-  width: min(760px, 100%);
+  width: min(780px, 100%);
   max-height: min(860px, calc(100dvh - 36px));
   overflow: auto;
-  border: 1px solid rgba(255,255,255,.12);
-  border-radius: 22px;
-  background: #0e1217;
-  box-shadow: 0 28px 90px rgba(0,0,0,.5);
+  border: 1px solid rgba(255,255,255,.115);
+  border-radius: 24px;
+  background:
+    radial-gradient(520px 260px at 0 0, rgba(217,191,126,.055), transparent 68%),
+    #0e1319;
+  box-shadow: 0 30px 95px rgba(0,0,0,.55);
 }
 .crump57-sheet-head {
   position: sticky;
+  z-index: 5;
   top: 0;
-  z-index: 2;
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  align-items: flex-start;
   padding: 19px 20px 16px;
-  border-bottom: 1px solid rgba(255,255,255,.08);
-  background: rgba(14,18,23,.95);
-  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255,255,255,.075);
+  background: rgba(14,19,25,.95);
+  backdrop-filter: blur(15px);
 }
-.crump57-sheet-head h3 { margin: 2px 0 4px; font-size: 21px; }
-.crump57-sheet-head p { margin: 0; font-size: 12px; color: var(--text-muted, #8f98a3); }
+.crump57-sheet-head h3 { margin: 2px 0 4px; color: #f1eee8; font-size: 22px; line-height: 1.18; }
+.crump57-sheet-head p { margin: 0; color: #899196; font-size: 12px; line-height: 1.5; }
 .crump57-close {
-  width: 38px; height: 38px; border: 0; border-radius: 50%;
-  background: rgba(255,255,255,.07); color: inherit; font-size: 21px; cursor: pointer;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(255,255,255,.075);
+  border-radius: 12px;
+  background: rgba(255,255,255,.035);
+  color: #9da3a6;
+  font-size: 21px;
+  cursor: pointer;
 }
 .crump57-sheet-body { padding: 20px; }
 .crump57-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
 .crump57-field { display: grid; gap: 7px; }
 .crump57-field.is-wide { grid-column: 1 / -1; }
-.crump57-field > span { font-size: 12px; font-weight: 650; color: #dfe5ec; }
-.crump57-field > small { color: var(--text-muted, #8f98a3); line-height: 1.35; }
+.crump57-field > span { color: #dfe4e8; font-size: 12px; font-weight: 680; }
+.crump57-field > span small { color: #7e868b; font-weight: 450; }
+.crump57-field > small { color: #899196; line-height: 1.4; }
 .crump57-upload {
   position: relative;
-  min-height: 112px;
   display: grid;
+  min-height: 112px;
   place-items: center;
-  text-align: center;
-  padding: 14px;
-  border: 1px dashed rgba(255,255,255,.18);
-  border-radius: 15px;
-  background: rgba(255,255,255,.025);
-  cursor: pointer;
   overflow: hidden;
-}
-.crump57-upload:hover { border-color: rgba(255,255,255,.32); }
-.crump57-upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-.crump57-upload strong { display: block; font-size: 13px; margin-bottom: 3px; }
-.crump57-upload small { color: var(--text-muted, #8f98a3); }
-.crump57-cover-pick { min-height: 190px; }
-.crump57-cover-pick img {
-  position: absolute;
-  inset: 0;
-  width: 100%; height: 100%; object-fit: cover;
-}
-.crump57-cover-pick .crump57-upload-copy { position: relative; z-index: 1; }
-.crump57-cover-pick.has-image .crump57-upload-copy {
-  padding: 8px 10px; border-radius: 10px; background: rgba(0,0,0,.65);
-}
-.crump57-import-status {
-  min-height: 22px;
-  margin-top: 13px;
-  color: var(--text-muted, #8f98a3);
-  font-size: 12px;
-}
-.crump57-import-status.is-error { color: #ff9c9c; }
-.crump57-sheet-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 9px;
-  margin-top: 18px;
-}
-.crump57-source-line {
-  margin-top: 8px;
-  font-size: 11px;
-  color: var(--text-muted, #8f98a3);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.crump57-original {
-  margin-top: 8px;
-  border: 0;
-  padding: 0;
-  background: none;
-  color: #d7dde5;
-  font-size: 11px;
-  text-decoration: underline;
+  padding: 14px;
+  border: 1px dashed rgba(255,255,255,.17);
+  border-radius: 15px;
+  background: rgba(255,255,255,.023);
+  text-align: center;
   cursor: pointer;
+}
+.crump57-upload:hover { border-color: rgba(217,191,126,.28); }
+.crump57-upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.crump57-upload strong { display: block; margin-bottom: 3px; font-size: 13px; }
+.crump57-upload small { color: #858d92; }
+.crump57-cover-pick { min-height: 205px; }
+.crump57-cover-pick img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.crump57-cover-pick .crump57-upload-copy { position: relative; z-index: 1; }
+.crump57-cover-pick.has-image .crump57-upload-copy { padding: 8px 10px; border-radius: 10px; background: rgba(0,0,0,.7); }
+.crump57-import-status { min-height: 22px; margin-top: 13px; color: #8d9599; font-size: 12px; }
+.crump57-import-status.is-error { color: #f0aaa3; }
+.crump57-sheet-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 19px; }
+.crump57-confirm-sheet { width: min(600px, 100%); }
+.crump57-confirm-note,
+.crump57-danger-note {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 16px;
+  padding: 14px 15px;
+  border: 1px solid rgba(217,191,126,.13);
+  border-radius: 14px;
+  background: rgba(217,191,126,.035);
+  color: #a9a08d;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.crump57-confirm-note strong { color: #dec996; }
+.crump57-danger-note { border-color: rgba(220,120,110,.17); background: rgba(220,120,110,.04); color: #ba9b98; }
+.crump57-danger-note strong { color: #e0aaa5; }
+.crump57-check-row {
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr);
+  gap: 11px;
+  align-items: start;
+  padding: 13px 14px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px;
+  background: rgba(255,255,255,.02);
+  cursor: pointer;
+}
+.crump57-check-row input { width: 18px; height: 18px; margin-top: 1px; accent-color: #cbb172; }
+.crump57-check-row strong { display: block; color: #d8dbd9; font-size: 12px; }
+.crump57-check-row small { display: block; margin-top: 4px; color: #7f878c; line-height: 1.45; }
+.crump57-sheet .crump53-button.is-danger { border-color: rgba(222,134,124,.18); color: #e0aaa5; }
+.crump57-sheet .crump53-button.is-danger:hover:not(:disabled) { border-color: rgba(222,134,124,.33); background: rgba(222,134,124,.065); color: #f0bcb6; }
+
+/* Front/back preview. */
+.crump57-preview-sheet { width: min(860px, 100%); }
+.crump57-preview-stage {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 34px minmax(0,1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 20px;
+  background: radial-gradient(circle at 50% 30%, rgba(217,191,126,.055), transparent 48%), #090d12;
+}
+.crump57-preview-cover { margin: 0; text-align: center; }
+.crump57-preview-image {
+  display: grid;
+  aspect-ratio: 2 / 3;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 6px 13px 13px 6px;
+  background: linear-gradient(145deg, #171d24, #080b0f);
+  color: #687177;
+  box-shadow: 0 22px 38px rgba(0,0,0,.32);
+}
+.crump57-preview-image img { width: 100%; height: 100%; object-fit: cover; }
+.crump57-preview-cover figcaption { margin-top: 8px; color: #747d82; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+.crump57-preview-spine {
+  display: grid;
+  width: 26px;
+  min-height: 220px;
+  place-items: center;
+  justify-self: center;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.06);
+  background: linear-gradient(90deg, #080b0e, #262c32 48%, #090c10);
+  box-shadow: 0 14px 30px rgba(0,0,0,.3);
+}
+.crump57-preview-spine span {
+  max-height: 190px;
+  overflow: hidden;
+  color: #b9ac8c;
+  font-family: var(--ac-display, Georgia, serif);
+  font-size: 11px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+.crump57-preview-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px 12px; margin-top: 13px; color: #7e878c; font-size: 11px; }
+
+/* Recently Deleted. */
+.crump57-deleted-list { display: grid; gap: 11px; }
+.crump57-deleted-book {
+  display: grid;
+  grid-template-columns: 76px minmax(0,1fr);
+  gap: 14px;
+  align-items: stretch;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,.075);
+  border-radius: 17px;
+  background: rgba(255,255,255,.018);
+}
+.crump57-deleted-cover .crump57-cover { height: 114px; aspect-ratio: auto; border-radius: 10px; opacity: .72; filter: saturate(.72); }
+.crump57-deleted-cover .crump57-cover-placeholder { padding: 9px; }
+.crump57-deleted-cover .crump57-cover-placeholder strong { font-size: 10px; }
+.crump57-deleted-cover .crump57-cover-placeholder small { display: none; }
+.crump57-deleted-copy { display: grid; min-width: 0; align-content: center; gap: 5px; }
+.crump57-deleted-copy > strong { overflow: hidden; color: #e4e2dc; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.crump57-deleted-copy > small { color: #7d858a; font-size: 11px; line-height: 1.45; }
+.crump57-deleted-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 5px; }
+.crump57-deleted-actions .crump53-button { min-height: 38px; padding-inline: 12px; font-size: 11px; }
+
+/* Shared Projects & Create sheet polish when Library is installed. */
+body.crump-v1-body .crump53-sheet.crump57-library-shell .crump53-tabs {
+  top: 0 !important;
+  margin-bottom: 24px;
+  box-shadow: 0 8px 22px rgba(5,8,11,.18);
+}
+body.crump-v1-body .crump53-sheet.crump57-library-shell .crump53-sheet-body {
+  padding-bottom: max(28px, env(safe-area-inset-bottom));
 }
 
-@media (max-width: 640px) {
-  .crump57-library-head { flex-direction: column; }
-  .crump57-library-actions { width: 100%; justify-content: flex-start; }
-  .crump57-library-toolbar { grid-template-columns: 1fr; }
-  .crump57-bookshelf { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .crump57-book-body { padding: 10px; }
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0,0,0,0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+@media (max-width: 980px) {
+  .crump57-library-toolbar {
+    grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(130px, .8fr));
+  }
+  .crump57-library-toolbar #crump57Sort { grid-column: 1; }
+  .crump57-layout-controls { justify-self: end; grid-column: 2 / 4; grid-row: 2; }
+  .crump57-bookshelf.is-layout-list .crump57-book-actions { width: 230px; }
+}
+
+@media (max-width: 700px) {
+  body.crump-v1-body .crump53-sheet.crump57-library-shell {
+    max-height: calc(100dvh - max(26px, env(safe-area-inset-top))) !important;
+  }
+  body.crump-v1-body .crump53-sheet.crump57-library-shell .crump53-sheet-head {
+    min-height: 66px;
+    padding: 13px 15px;
+  }
+  body.crump-v1-body .crump53-sheet.crump57-library-shell .crump53-sheet-head strong {
+    font-size: clamp(23px, 6.5vw, 28px);
+  }
+  body.crump-v1-body .crump53-sheet.crump57-library-shell .crump53-close {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+  }
+  body.crump-v1-body .crump53-sheet.crump57-library-shell .crump53-sheet-body {
+    padding-top: 10px;
+    padding-inline: 12px;
+  }
+  body.crump-v1-body .crump53-sheet.crump57-library-shell .crump53-tabs {
+    position: sticky;
+    top: 0 !important;
+    margin: 0 0 20px;
+    padding: 4px;
+    overflow-x: auto;
+    background: rgba(8,12,16,.96);
+    box-shadow: 0 9px 24px rgba(0,0,0,.28);
+  }
+  body.crump-v1-body .crump53-sheet.crump57-library-shell .crump53-tab {
+    min-height: 39px;
+    padding: 0 13px;
+    font-size: 12px;
+  }
+
+  .crump57-library-card { padding: 15px !important; }
+  .crump57-library-head { flex-direction: column; gap: 14px; margin-bottom: 16px; }
+  .crump57-library-head h3 { font-size: 20px; }
+  .crump57-library-head p { font-size: 12px !important; line-height: 1.55 !important; }
+  .crump57-library-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; justify-content: stretch; }
+  .crump57-library-actions #crump57New { grid-column: 1 / -1; grid-row: 1; }
+  .crump57-library-actions .crump53-button { width: 100%; min-width: 0; padding-inline: 10px; font-size: 12px; }
+
+  .crump57-library-toolbar {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 17px;
+  }
+  .crump57-search { grid-column: 1 / -1; }
+  .crump57-library-toolbar #crump57Filter,
+  .crump57-library-toolbar #crump57CoverFilter,
+  .crump57-library-toolbar #crump57Sort { grid-column: auto; }
+  .crump57-library-toolbar #crump57Sort { grid-column: 1 / -1; }
+  .crump57-layout-controls {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    width: 100%;
+    justify-self: stretch;
+  }
+  .crump57-layout-button { width: 100%; min-height: 38px; }
+
+  /* All mobile layouts stay one-column. Cards become calm horizontal book rows. */
+  .crump57-bookshelf.is-layout-grid,
+  .crump57-bookshelf.is-layout-list,
+  .crump57-bookshelf.is-layout-book {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 0;
+  }
+  .crump57-bookshelf .crump57-book,
+  .crump57-bookshelf.is-layout-list .crump57-book,
+  .crump57-bookshelf.is-layout-book .crump57-book {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+    min-height: 172px;
+    align-items: stretch;
+    border: 1px solid rgba(255,255,255,.085);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,.032), rgba(255,255,255,.017));
+    box-shadow: none;
+    transform: none;
+  }
+  .crump57-bookshelf .crump57-book:hover,
+  .crump57-bookshelf.is-layout-book .crump57-book:hover { transform: none; }
+  .crump57-bookshelf .crump57-book-visual,
+  .crump57-bookshelf.is-layout-book .crump57-book-visual {
+    width: 100%;
+    height: 100%;
+    min-height: 172px;
+    margin: 0;
+    filter: none;
+    transform: none;
+  }
+  .crump57-bookshelf .crump57-cover,
+  .crump57-bookshelf.is-layout-list .crump57-cover,
+  .crump57-bookshelf.is-layout-book .crump57-cover {
+    width: 100%;
+    height: 100%;
+    min-height: 172px;
+    aspect-ratio: auto;
+    border-radius: 17px 0 0 17px;
+  }
+  .crump57-bookshelf.is-layout-book .crump57-book.is-front .crump57-book-visual,
+  .crump57-bookshelf.is-layout-book .crump57-book.is-complete .crump57-book-visual {
+    width: calc(100% - 6px);
+    margin-left: 6px;
+    filter: drop-shadow(-6px 8px 10px rgba(0,0,0,.24));
+  }
+  .crump57-bookshelf.is-layout-book .crump57-book.is-front .crump57-spine,
+  .crump57-bookshelf.is-layout-book .crump57-book.is-complete .crump57-spine {
+    top: 5px;
+    bottom: 5px;
+    left: -5px;
+    display: block;
+    width: 6px;
+  }
+  .crump57-cover-placeholder { padding: 13px 11px; }
+  .crump57-cover-placeholder > span { width: 23px; }
+  .crump57-cover-placeholder strong { font-size: 14px; line-height: 1.12; }
+  .crump57-cover-placeholder small { margin-top: 5px; font-size: 9.5px; }
+  .crump57-bookshelf .crump57-book-body,
+  .crump57-bookshelf.is-layout-list .crump57-book-body,
+  .crump57-bookshelf.is-layout-book .crump57-book-body {
+    display: block;
+    min-width: 0;
+    padding: 13px 12px;
+  }
+  .crump57-book-kicker { font-size: 9px; }
+  .crump57-book-title { font-size: 16px; }
+  .crump57-book-author { font-size: 12px; }
+  .crump57-book-meta { gap: 3px 7px; margin-top: 8px; font-size: 10px; }
+  .crump57-book-meta span:last-child { display: none; }
+  .crump57-book-footnote { margin-top: 7px; font-size: 9.5px; }
+  .crump57-project-chip { max-width: 45%; }
+  .crump57-bookshelf.is-layout-book .crump57-book-footnote { display: flex; }
+  .crump57-book-actions,
+  .crump57-bookshelf.is-layout-list .crump57-book-actions {
+    display: grid;
+    width: auto;
+    grid-template-columns: minmax(0,1fr) minmax(0,1fr) 40px;
+    margin-top: 10px;
+  }
+  .crump57-book-actions > .crump53-button { min-height: 38px !important; padding-inline: 7px; font-size: 11px !important; }
+  .crump57-more > summary { width: 40px; height: 38px; }
+  .crump57-menu { position: fixed; right: 18px; bottom: max(18px, env(safe-area-inset-bottom)); width: min(250px, calc(100vw - 36px)); }
+
   .crump57-form-grid { grid-template-columns: 1fr; }
   .crump57-field.is-wide { grid-column: auto; }
-  .crump57-sheet { max-height: calc(100dvh - 12px); border-radius: 20px 20px 0 0; align-self: end; }
-  .crump57-overlay { padding: 12px 0 0; }
+  .crump57-overlay { place-items: end center; padding: max(12px, env(safe-area-inset-top)) 0 0; }
+  .crump57-sheet {
+    width: 100%;
+    max-height: calc(100dvh - max(12px, env(safe-area-inset-top)));
+    border-radius: 22px 22px 0 0;
+  }
+  .crump57-sheet-head { padding: 16px; }
+  .crump57-sheet-head h3 { font-size: 20px; }
+  .crump57-sheet-body { padding: 16px 15px max(20px, env(safe-area-inset-bottom)); }
+  .crump57-sheet-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .crump57-sheet-actions .crump53-button { width: 100%; min-width: 0; }
+
+  .crump57-preview-stage { grid-template-columns: minmax(0,1fr) 20px minmax(0,1fr); gap: 7px; padding: 8px; }
+  .crump57-preview-spine { width: 16px; min-height: 150px; }
+  .crump57-preview-spine span { max-height: 135px; font-size: 9px; }
+  .crump57-deleted-book { grid-template-columns: 64px minmax(0,1fr); gap: 11px; }
+  .crump57-deleted-cover .crump57-cover { height: 96px; min-height: 0; border-radius: 9px; }
+  .crump57-deleted-actions { display: grid; grid-template-columns: 1fr; }
+}
+
+@media (max-width: 390px) {
+  .crump57-bookshelf .crump57-book,
+  .crump57-bookshelf.is-layout-list .crump57-book,
+  .crump57-bookshelf.is-layout-book .crump57-book { grid-template-columns: 102px minmax(0,1fr); }
+  .crump57-bookshelf .crump57-book-visual,
+  .crump57-bookshelf.is-layout-book .crump57-book-visual,
+  .crump57-bookshelf .crump57-cover,
+  .crump57-bookshelf.is-layout-list .crump57-cover,
+  .crump57-bookshelf.is-layout-book .crump57-cover { min-height: 164px; }
+  .crump57-book-body { padding-inline: 10px !important; }
+  .crump57-book-footnote > span:first-child { display: none; }
+  .crump57-project-chip { max-width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crump57-book,
+  .crump57-layout-button { transition: none !important; }
 }

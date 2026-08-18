@@ -80,3 +80,52 @@ async def update_book(manuscript_id: str, request: Request):
         return {"success": True, "book": item}
     except LibraryError as exc:
         return failure(exc)
+
+@router.get("/books/deleted")
+async def list_deleted_books(request: Request):
+    auth = await authenticate_request(request, db, settings)
+    items = await library.list_books(user_id=auth.user["id"], deleted=True)
+    return {"success": True, "books": items}
+
+
+@router.post("/books/{manuscript_id}/trash")
+async def trash_book(manuscript_id: str, request: Request):
+    auth = await authenticate_request(request, db, settings)
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    try:
+        item = await library.trash_book(
+            user_id=auth.user["id"],
+            manuscript_id=manuscript_id,
+            delete_source=payload.get("deleteSource") is True,
+        )
+        return {"success": True, "book": item, "sourceFileKept": bool(item.get("sourceFileKept"))}
+    except LibraryError as exc:
+        return failure(exc)
+
+
+@router.post("/books/{manuscript_id}/restore")
+async def restore_book(manuscript_id: str, request: Request):
+    auth = await authenticate_request(request, db, settings)
+    try:
+        item = await library.restore_book(user_id=auth.user["id"], manuscript_id=manuscript_id)
+        return {"success": True, "book": item}
+    except LibraryError as exc:
+        return failure(exc)
+
+
+@router.delete("/books/{manuscript_id}")
+async def delete_book_permanently(manuscript_id: str, request: Request):
+    auth = await authenticate_request(request, db, settings)
+    try:
+        result = await library.delete_book_permanently(
+            user_id=auth.user["id"],
+            manuscript_id=manuscript_id,
+        )
+        return {"success": True, **result}
+    except LibraryError as exc:
+        return failure(exc)

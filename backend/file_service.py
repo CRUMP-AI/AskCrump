@@ -322,6 +322,44 @@ class FileService:
         await self.get_owned(user_id=user_id, file_id=file_id, include_pending=True)
         await self.db.update('user_files', {'deleted_at': self._now(), 'updated_at': self._now()}, filters={'id': eq(file_id), 'user_id': eq(user_id)})
 
+    async def restore_soft_deleted(self, *, user_id: str, file_id: str) -> dict[str, Any]:
+        """Restore one owner-checked soft-deleted private file."""
+        row = await self.db.select_one(
+            'user_files',
+            filters={'id': eq(file_id), 'user_id': eq(user_id)},
+        )
+        if not row:
+            raise FileServiceError('File not found.', 404, 'FILE_NOT_FOUND')
+        if row.get('deleted_at') is None:
+            return row
+        updated = await self.db.update(
+            'user_files',
+            {'deleted_at': None, 'updated_at': self._now()},
+            filters={'id': eq(file_id), 'user_id': eq(user_id)},
+        )
+        return (updated or [{**row, 'deleted_at': None}])[0]
+
+    async def hard_delete(self, *, user_id: str, file_id: str) -> None:
+        """Permanently remove an owned file through Storage API, then its metadata row."""
+        row = await self.db.select_one(
+            'user_files',
+            filters={'id': eq(file_id), 'user_id': eq(user_id)},
+        )
+        if not row:
+            raise FileServiceError('File not found.', 404, 'FILE_NOT_FOUND')
+        storage_path = str(row.get('storage_path') or '').strip()
+        if storage_path:
+            await self._storage_json(
+                'DELETE',
+                f'object/{self.bucket}',
+                payload={'prefixes': [storage_path]},
+                timeout=60.0,
+            )
+        await self.db.delete(
+            'user_files',
+            filters={'id': eq(file_id), 'user_id': eq(user_id)},
+        )
+
     @staticmethod
     def public_file(row: dict[str, Any]) -> dict[str, Any]:
         file_id = str(row.get('id') or '')

@@ -19,6 +19,7 @@ from .db import SupabaseDB, eq, in_
 from .file_service import FileService, FileServiceError
 from .manuscript_service import ManuscriptService, ManuscriptError, word_count
 from .project_service import ProjectService, ProjectNotFoundError
+from .security import normalize_chat_id
 
 
 MAX_IMPORTED_TEXT_CHARS = 2_500_000
@@ -378,10 +379,10 @@ class LibraryService:
         )
         return {str(row.get("id")): row for row in rows if row.get("id")}
 
-    async def list_books(self, *, user_id: str) -> list[dict[str, Any]]:
+    async def list_books(self, *, user_id: str, deleted: bool = False) -> list[dict[str, Any]]:
         rows = await self.db.select(
             "manuscripts",
-            filters={"user_id": eq(user_id), "archived_at": "is.null"},
+            filters={"user_id": eq(user_id), "archived_at": "not.is.null" if deleted else "is.null"},
             order="updated_at.desc",
             limit=250,
         )
@@ -413,6 +414,7 @@ class LibraryService:
         output: list[dict[str, Any]] = []
         for row in rows:
             metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+            trash = metadata.get("libraryTrash") if isinstance(metadata.get("libraryTrash"), dict) else {}
             project = projects.get(str(row.get("project_id") or ""), {})
             book_progress = progress.get(
                 str(row.get("id") or ""),
@@ -445,6 +447,8 @@ class LibraryService:
                     "finalSections": book_progress["finalSections"],
                     "createdAt": row.get("created_at"),
                     "updatedAt": row.get("updated_at"),
+                    "trashedAt": row.get("archived_at"),
+                    "sourceDeleted": bool(trash.get("sourceDeleted")),
                 }
             )
         return output
@@ -735,3 +739,230 @@ class LibraryService:
         if not item:
             raise LibraryError("The updated book could not be reloaded.", "BOOK_RELOAD_FAILED", 503)
         return item
+
+    async def _get_book_any(self, *, user_id: str, manuscript_id: str) -> dict[str, Any]:
+        try:
+            normalized = normalize_chat_id(manuscript_id)
+        except Exception as exc:
+            raise LibraryError("Book not found.", "BOOK_NOT_FOUND", 404) from exc
+        row = await self.db.select_one(
+            "manuscripts",
+            filters={"id": eq(normalized), "user_id": eq(user_id)},
+        )
+        if not row:
+            raise LibraryError("Book not found.", "BOOK_NOT_FOUND", 404)
+        return row
+
+    async def _active_run_exists(self, *, user_id: str, manuscript_id: str) -> bool:
+        row = await self.db.select_one(
+            "manuscript_runs",
+            columns="id,status",
+            filters={
+                "user_id": eq(user_id),
+                "manuscript_id": eq(manuscript_id),
+                "status": in_(["queued", "running", "paused", "awaiting_credits"]),
+            },
+        )
+        return bool(row)
+
+    async def _source_is_referenced_elsewhere(
+        self,
+        *,
+        user_id: str,
+        manuscript_id: str,
+        source_file_id: str,
+    ) -> bool:
+        if not source_file_id:
+            return False
+        rows = await self.db.select(
+            "manuscripts",
+            columns="id,metadata",
+            filters={"user_id": eq(user_id)},
+            limit=500,
+        )
+        for row in rows:
+            if str(row.get("id") or "") == str(manuscript_id):
+                continue
+            metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+            if str(metadata.get("sourceFileId") or "") == str(source_file_id):
+                return True
+        return False
+
+    async def trash_book(
+        self,
+        *,
+        user_id: str,
+        manuscript_id: str,
+        delete_source: bool = False,
+    ) -> dict[str, Any]:
+        try:
+            manuscript = await self.manuscripts.get(user_id=user_id, manuscript_id=manuscript_id)
+        except ManuscriptError as exc:
+            raise LibraryError(exc.message, exc.code, exc.status_code) from exc
+
+        if await self._active_run_exists(user_id=user_id, manuscript_id=str(manuscript["id"])):
+            raise LibraryError(
+                "Stop or cancel the active manuscript run before moving this book to Recently Deleted.",
+                "MANUSCRIPT_RUN_ACTIVE",
+                409,
+            )
+
+        metadata = manuscript.get("metadata") if isinstance(manuscript.get("metadata"), dict) else {}
+        metadata = dict(metadata)
+        source_id = str(metadata.get("sourceFileId") or "").strip()
+        source_deleted = False
+        source_kept = False
+
+        if delete_source and source_id:
+            source_kept = await self._source_is_referenced_elsewhere(
+                user_id=user_id,
+                manuscript_id=str(manuscript["id"]),
+                source_file_id=source_id,
+            )
+            if not source_kept:
+                try:
+                    await self.files.soft_delete(user_id=user_id, file_id=source_id)
+                    source_deleted = True
+                except FileServiceError as exc:
+                    if exc.code == "FILE_NOT_FOUND":
+                        source_deleted = True
+                    else:
+                        raise LibraryError(
+                            "The manuscript is safe, but its original source file could not be moved out of Files.",
+                            "SOURCE_TRASH_FAILED",
+                            503,
+                        ) from exc
+
+        trashed_at = _now()
+        metadata["libraryTrash"] = {
+            "trashedAt": trashed_at,
+            "sourceFileId": source_id or None,
+            "sourceDeleted": source_deleted,
+        }
+
+        try:
+            updated = await self.db.update(
+                "manuscripts",
+                {"archived_at": trashed_at, "metadata": metadata, "updated_at": trashed_at},
+                filters={"id": eq(manuscript["id"]), "user_id": eq(user_id)},
+            )
+        except Exception as exc:
+            if source_deleted and source_id:
+                try:
+                    await self.files.restore_soft_deleted(user_id=user_id, file_id=source_id)
+                except Exception:
+                    pass
+            raise LibraryError("The book could not be moved to Recently Deleted.", "BOOK_TRASH_FAILED", 503) from exc
+
+        if not updated:
+            if source_deleted and source_id:
+                try:
+                    await self.files.restore_soft_deleted(user_id=user_id, file_id=source_id)
+                except Exception:
+                    pass
+            raise LibraryError("The book could not be moved to Recently Deleted.", "BOOK_TRASH_FAILED", 503)
+
+        books = await self.list_books(user_id=user_id, deleted=True)
+        item = next((book for book in books if str(book.get("id")) == str(manuscript["id"])), None)
+        if not item:
+            item = {"id": manuscript["id"], "title": manuscript.get("title") or "Manuscript", "trashedAt": trashed_at}
+        item["sourceFileKept"] = source_kept
+        return item
+
+    async def restore_book(self, *, user_id: str, manuscript_id: str) -> dict[str, Any]:
+        manuscript = await self._get_book_any(user_id=user_id, manuscript_id=manuscript_id)
+        if manuscript.get("archived_at") is None:
+            books = await self.list_books(user_id=user_id)
+            item = next((book for book in books if str(book.get("id")) == str(manuscript["id"])), None)
+            if item:
+                return item
+            raise LibraryError("The book is already active.", "BOOK_ALREADY_ACTIVE", 409)
+
+        metadata = manuscript.get("metadata") if isinstance(manuscript.get("metadata"), dict) else {}
+        metadata = dict(metadata)
+        trash = metadata.get("libraryTrash") if isinstance(metadata.get("libraryTrash"), dict) else {}
+        source_id = str(trash.get("sourceFileId") or metadata.get("sourceFileId") or "").strip()
+        source_restored = False
+        if bool(trash.get("sourceDeleted")) and source_id:
+            try:
+                await self.files.restore_soft_deleted(user_id=user_id, file_id=source_id)
+                source_restored = True
+            except FileServiceError as exc:
+                if exc.code != "FILE_NOT_FOUND":
+                    raise LibraryError(
+                        "The book is recoverable, but its original source file could not be restored yet.",
+                        "SOURCE_RESTORE_FAILED",
+                        503,
+                    ) from exc
+
+        metadata.pop("libraryTrash", None)
+        now = _now()
+        updated = await self.db.update(
+            "manuscripts",
+            {"archived_at": None, "metadata": metadata, "updated_at": now},
+            filters={"id": eq(manuscript["id"]), "user_id": eq(user_id)},
+        )
+        if not updated:
+            raise LibraryError("The book could not be restored.", "BOOK_RESTORE_FAILED", 503)
+
+        books = await self.list_books(user_id=user_id)
+        item = next((book for book in books if str(book.get("id")) == str(manuscript["id"])), None)
+        if not item:
+            raise LibraryError("The restored book could not be reloaded.", "BOOK_RELOAD_FAILED", 503)
+        item["sourceRestored"] = source_restored
+        return item
+
+    async def delete_book_permanently(self, *, user_id: str, manuscript_id: str) -> dict[str, Any]:
+        manuscript = await self._get_book_any(user_id=user_id, manuscript_id=manuscript_id)
+        if manuscript.get("archived_at") is None:
+            raise LibraryError(
+                "Move the book to Recently Deleted before deleting it permanently.",
+                "BOOK_NOT_TRASHED",
+                409,
+            )
+        if await self._active_run_exists(user_id=user_id, manuscript_id=str(manuscript["id"])):
+            raise LibraryError(
+                "This manuscript still has an active generation run and cannot be deleted permanently yet.",
+                "MANUSCRIPT_RUN_ACTIVE",
+                409,
+            )
+
+        metadata = manuscript.get("metadata") if isinstance(manuscript.get("metadata"), dict) else {}
+        trash = metadata.get("libraryTrash") if isinstance(metadata.get("libraryTrash"), dict) else {}
+        source_id = str(trash.get("sourceFileId") or metadata.get("sourceFileId") or "").strip()
+        remove_source = bool(trash.get("sourceDeleted")) and bool(source_id)
+        if remove_source:
+            remove_source = not await self._source_is_referenced_elsewhere(
+                user_id=user_id,
+                manuscript_id=str(manuscript["id"]),
+                source_file_id=source_id,
+            )
+
+        # Delete the manuscript first. Chapters and durable runs cascade from the
+        # manuscript row. Source-object cleanup happens afterward so a storage
+        # outage can never destroy the original file while leaving the book behind.
+        deleted = await self.db.delete(
+            "manuscripts",
+            filters={"id": eq(manuscript["id"]), "user_id": eq(user_id)},
+        )
+        if not deleted:
+            raise LibraryError("The book could not be permanently deleted.", "BOOK_DELETE_FAILED", 503)
+
+        source_removed = False
+        source_cleanup_pending = False
+        if remove_source and source_id:
+            try:
+                await self.files.hard_delete(user_id=user_id, file_id=source_id)
+                source_removed = True
+            except FileServiceError as exc:
+                if exc.code != "FILE_NOT_FOUND":
+                    # The book deletion already succeeded. Keep the source soft-
+                    # deleted and report cleanup as pending instead of pretending
+                    # the manuscript itself still exists.
+                    source_cleanup_pending = True
+
+        return {
+            "id": manuscript["id"],
+            "sourceFileRemoved": source_removed,
+            "sourceCleanupPending": source_cleanup_pending,
+        }
