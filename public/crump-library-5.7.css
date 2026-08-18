@@ -808,6 +808,100 @@ body.crump-v1-body .crump53-sheet.crump57-library-shell .crump53-sheet-body {
   .crump57-more > summary { width: 40px; height: 38px; }
   .crump57-menu { position: fixed; right: 18px; bottom: max(18px, env(safe-area-inset-bottom)); width: min(250px, calc(100vw - 36px)); }
 
+  /* Mobile Grid stays a true visual grid; List remains the management row view. */
+  .crump57-bookshelf.is-layout-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .crump57-bookshelf.is-layout-grid .crump57-book {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    align-items: stretch;
+    overflow: hidden;
+  }
+  .crump57-bookshelf.is-layout-grid .crump57-book-visual {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    filter: none;
+    transform: none;
+  }
+  .crump57-bookshelf.is-layout-grid .crump57-cover {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 2 / 3;
+    border-radius: 17px 17px 0 0;
+  }
+  .crump57-bookshelf.is-layout-grid .crump57-cover-placeholder {
+    padding: 12px 10px;
+  }
+  .crump57-bookshelf.is-layout-grid .crump57-cover-placeholder strong {
+    font-size: 13px;
+  }
+  .crump57-bookshelf.is-layout-grid .crump57-cover-placeholder small {
+    font-size: 9px;
+  }
+  .crump57-bookshelf.is-layout-grid .crump57-book-body {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    padding: 10px !important;
+  }
+  .crump57-bookshelf.is-layout-grid .crump57-book-kicker {
+    margin-bottom: 5px;
+    font-size: 8px;
+  }
+  .crump57-bookshelf.is-layout-grid .crump57-book-title {
+    display: -webkit-box;
+    min-height: 34px;
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 1.3;
+    text-overflow: clip;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .crump57-bookshelf.is-layout-grid .crump57-book-author {
+    min-height: 15px;
+    margin-top: 3px;
+    font-size: 10.5px;
+  }
+  .crump57-bookshelf.is-layout-grid .crump57-book-meta {
+    margin-top: 7px;
+    font-size: 9px;
+  }
+  .crump57-bookshelf.is-layout-grid .crump57-book-meta span:last-child,
+  .crump57-bookshelf.is-layout-grid .crump57-book-footnote {
+    display: none;
+  }
+  .crump57-bookshelf.is-layout-grid .crump57-book-actions {
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr) 36px;
+    gap: 6px;
+    margin-top: auto;
+    padding-top: 9px;
+  }
+  .crump57-bookshelf.is-layout-grid .crump57-book-actions > .crump53-button:first-child {
+    grid-column: 1 / -1;
+  }
+  .crump57-bookshelf.is-layout-grid .crump57-book-actions > .crump53-button:nth-child(2) {
+    grid-column: 1;
+    min-height: 34px !important;
+    font-size: 10px !important;
+  }
+  .crump57-bookshelf.is-layout-grid .crump57-more {
+    grid-column: 2;
+  }
+  .crump57-bookshelf.is-layout-grid .crump57-more > summary {
+    width: 36px;
+    height: 34px;
+  }
+
   .crump57-form-grid { grid-template-columns: 1fr; }
   .crump57-field.is-wide { grid-column: auto; }
   .crump57-overlay { place-items: end center; padding: max(12px, env(safe-area-inset-top)) 0 0; }
@@ -842,6 +936,14 @@ body.crump-v1-body .crump53-sheet.crump57-library-shell .crump53-sheet-body {
   .crump57-book-body { padding-inline: 10px !important; }
   .crump57-book-footnote > span:first-child { display: none; }
   .crump57-project-chip { max-width: 100%; }
+
+  .crump57-bookshelf.is-layout-grid .crump57-book {
+    grid-template-columns: none;
+  }
+  .crump57-bookshelf.is-layout-grid .crump57-book-visual,
+  .crump57-bookshelf.is-layout-grid .crump57-cover {
+    min-height: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

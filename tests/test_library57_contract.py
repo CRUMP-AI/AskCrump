@@ -39,6 +39,9 @@ def test_library571_mobile_layout_and_book_views_are_intentional():
     assert "crump57-library-shell" in library_js
     assert ".crump57-bookshelf.is-layout-book" in library_css
     assert "grid-template-columns: 112px minmax(0, 1fr)" in library_css
+    assert ".crump57-bookshelf.is-layout-grid" in library_css
+    assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in library_css
+    assert "Mobile Grid stays a true visual grid" in library_css
     assert "top: 0 !important" in library_css
     assert "Book-inspired, not book-themed" in library_css
 
