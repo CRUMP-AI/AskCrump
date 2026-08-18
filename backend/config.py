@@ -17,6 +17,15 @@ def _bool(value: str | None, default: bool = False) -> bool:
     return value.strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
+def _transactional_from_email(environment: str, configured: str | None) -> str:
+    # Keep production transactional mail off Resend's test-only sender.
+    default = 'Ask Crump <noreply@askcrump.com>'
+    value = str(configured or '').strip() or default
+    if environment == 'production' and '@resend.dev' in value.lower():
+        return default
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     app_name: str
@@ -175,7 +184,7 @@ def get_settings() -> Settings:
         video_user_daily_provider_budget_cents=int(os.getenv('VIDEO_USER_DAILY_PROVIDER_BUDGET_CENTS', '2000')),
         runway_monthly_provider_budget_cents=int(os.getenv('RUNWAY_MONTHLY_PROVIDER_BUDGET_CENTS', '50000')),
         resend_api_key=os.getenv('RESEND_API_KEY'),
-        from_email=os.getenv('FROM_EMAIL', 'Ask Crump <noreply@askcrump.com>'),
+        from_email=_transactional_from_email(environment, os.getenv('FROM_EMAIL')),
         support_email=os.getenv('SUPPORT_EMAIL', 'support@askcrump.com'),
         stripe_secret_key=os.getenv('STRIPE_SECRET_KEY'),
         stripe_webhook_secret=os.getenv('STRIPE_WEBHOOK_SECRET'),

@@ -419,6 +419,12 @@ async def reset_password(payload: ResetPasswordRequest, request: Request):
         'users',
         {
             'password_hash': hash_password(payload.newPassword),
+            # Possession of a valid password-reset token proves control of the
+            # account inbox. Complete email verification as part of recovery
+            # so an unverified account does not require a second email loop.
+            'is_verified': True,
+            'verification_token_hash': None,
+            'verification_token_expires': None,
             'password_reset_token_hash': None,
             'password_reset_expires': None,
             'updated_at': iso_now(),
