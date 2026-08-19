@@ -552,7 +552,15 @@
     const presence = window.CrumpPresence?.indicator?.();
     if (presence) fragment.appendChild(createPresenceRow(presence));
     container.replaceChildren(fragment);
-    if (shouldStick || presence) requestAnimationFrame(() => { container.scrollTop = container.scrollHeight; });
+    if (shouldStick || presence) {
+      requestAnimationFrame(() => {
+        if (typeof window.crumpScrollManager?.scrollToBottom === 'function') {
+          window.crumpScrollManager.scrollToBottom('auto');
+          return;
+        }
+        container.scrollTop = container.scrollHeight;
+      });
+    }
   }
 
   window.renderMessages = renderMessages;

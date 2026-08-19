@@ -126,13 +126,30 @@ if (!v1Body.includes('removeLegacyEmptyState(container)')) {
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r24') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r25') ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes('/crump-v1-body.js') ||
     !serviceWorker.includes('/crump-subscriptions-5.3.2.js') ||
     !serviceWorker.includes('/crump-library-5.7.js') ||
     !serviceWorker.includes('/crump-library-5.7.css')) {
   console.error('New-body service-worker contract is incomplete.');
+  process.exit(1);
+}
+
+const uiFunctions = await readFile(new URL('public/ui-functions.js', repoRoot), 'utf8');
+const scroll522 = await readFile(new URL('public/crump-5.2.2.js', repoRoot), 'utf8');
+if (!uiFunctions.includes("typeof window.crumpScrollManager?.scrollToBottom === 'function'") ||
+    !uiFunctions.includes("window.crumpScrollManager.scrollToBottom('auto')")) {
+  console.error('Conversation renderer must delegate automatic bottom movement to the scroll manager.');
+  process.exit(1);
+}
+if (uiFunctions.includes("if (shouldStick || presence) requestAnimationFrame(() => { container.scrollTop = container.scrollHeight; });")) {
+  console.error('Legacy direct bottom-scroll bypass must not return.');
+  process.exit(1);
+}
+if (!scroll522.includes('state.scroll.suppressLegacyBottomUntil = Date.now() + 3200') ||
+    !scroll522.includes('if (!force && Date.now() < state.scroll.suppressLegacyBottomUntil) return;')) {
+  console.error('5.2.2 new-reply reading lock is missing.');
   process.exit(1);
 }
 
