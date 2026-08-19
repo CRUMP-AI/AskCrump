@@ -126,7 +126,7 @@ if (!v1Body.includes('removeLegacyEmptyState(container)')) {
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r25') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r26') ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes('/crump-v1-body.js') ||
     !serviceWorker.includes('/crump-subscriptions-5.3.2.js') ||
@@ -138,6 +138,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r25') ||
 
 const uiFunctions = await readFile(new URL('public/ui-functions.js', repoRoot), 'utf8');
 const scroll522 = await readFile(new URL('public/crump-5.2.2.js', repoRoot), 'utf8');
+const scroll522Css = await readFile(new URL('public/crump-5.2.2.css', repoRoot), 'utf8');
 if (!uiFunctions.includes("typeof window.crumpScrollManager?.scrollToBottom === 'function'") ||
     !uiFunctions.includes("window.crumpScrollManager.scrollToBottom('auto')")) {
   console.error('Conversation renderer must delegate automatic bottom movement to the scroll manager.');
@@ -150,6 +151,21 @@ if (uiFunctions.includes("if (shouldStick || presence) requestAnimationFrame(() 
 if (!scroll522.includes('state.scroll.suppressLegacyBottomUntil = Date.now() + 3200') ||
     !scroll522.includes('if (!force && Date.now() < state.scroll.suppressLegacyBottomUntil) return;')) {
   console.error('5.2.2 new-reply reading lock is missing.');
+  process.exit(1);
+}
+if (!scroll522.includes('activeReplyShouldHold') ||
+    !scroll522.includes('cancelActiveReplyAnchor') ||
+    !scroll522.includes('shouldPreserveAnchor') ||
+    !scroll522.includes('if (row) anchorElementTop(row);')) {
+  console.error('5.2.2 must preserve the anchored new reply across same-message rerenders.');
+  process.exit(1);
+}
+if (scroll522.includes('requestAnimationFrame(() => {\n      requestAnimationFrame(() => {')) {
+  console.error('New assistant replies must anchor synchronously before paint, not after two animation frames.');
+  process.exit(1);
+}
+if (!scroll522Css.includes('overflow-anchor: none !important;')) {
+  console.error('Conversation viewport must disable browser-native scroll anchoring.');
   process.exit(1);
 }
 

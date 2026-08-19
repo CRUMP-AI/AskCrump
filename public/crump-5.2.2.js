@@ -14,6 +14,8 @@
       lastAssistantId: null,
       suppressLegacyBottomUntil: 0,
       lastUserIntentAt: 0,
+      activeReplyId: null,
+      activeReplyUntil: 0,
       renderHooked: false,
       button: null,
       container: null,
@@ -191,23 +193,37 @@
     updateDownButton();
   }
 
+  function cancelActiveReplyAnchor() {
+    state.scroll.activeReplyId = null;
+    state.scroll.activeReplyUntil = 0;
+  }
+
+  function activeReplyShouldHold(messageId) {
+    return Boolean(
+      messageId &&
+      state.scroll.activeReplyId === String(messageId) &&
+      Date.now() < state.scroll.activeReplyUntil
+    );
+  }
+
   function anchorNewReply(messageId) {
     const container = state.scroll.container;
-    if (!container) return;
+    if (!container) return false;
 
     const recentlyInteracting = Date.now() - state.scroll.lastUserIntentAt < 2500;
     if (recentlyInteracting && distanceFromBottom() > 420) {
+      cancelActiveReplyAnchor();
       updateDownButton();
-      return;
+      return false;
     }
 
     state.scroll.suppressLegacyBottomUntil = Date.now() + 3200;
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const row = rowForMessage(messageId);
-        if (row) anchorElementTop(row);
-      });
-    });
+    state.scroll.activeReplyId = String(messageId || '');
+    state.scroll.activeReplyUntil = state.scroll.suppressLegacyBottomUntil;
+
+    const row = rowForMessage(messageId);
+    if (row) anchorElementTop(row);
+    return Boolean(row);
   }
 
   function replaceDownButton() {
@@ -248,7 +264,10 @@
       },
       isNearBottom: () => distanceFromBottom() < 100,
       setUserScrolling: value => {
-        if (value) state.scroll.lastUserIntentAt = Date.now();
+        if (value) {
+          state.scroll.lastUserIntentAt = Date.now();
+          cancelActiveReplyAnchor();
+        }
       },
     };
   }
@@ -275,8 +294,14 @@
         state.scroll.suppressLegacyBottomUntil = Date.now() + 3200;
       }
 
+      const shouldPreserveAnchor = activeReplyShouldHold(nextAssistantId);
       const result = previous.apply(this, arguments);
-      if (shouldAnchor) anchorNewReply(nextAssistantId);
+      if (shouldAnchor) {
+        anchorNewReply(nextAssistantId);
+      } else if (shouldPreserveAnchor) {
+        const row = rowForMessage(nextAssistantId);
+        if (row) anchorElementTop(row);
+      }
       requestAnimationFrame(updateDownButton);
       return result;
     };
@@ -289,7 +314,10 @@
     state.scroll.container = container;
     state.scroll.button = replaceDownButton();
 
-    const noteUserIntent = () => { state.scroll.lastUserIntentAt = Date.now(); };
+    const noteUserIntent = () => {
+      state.scroll.lastUserIntentAt = Date.now();
+      cancelActiveReplyAnchor();
+    };
     container.addEventListener('wheel', noteUserIntent, {passive: true});
     container.addEventListener('touchstart', noteUserIntent, {passive: true});
     container.addEventListener('pointerdown', noteUserIntent, {passive: true});

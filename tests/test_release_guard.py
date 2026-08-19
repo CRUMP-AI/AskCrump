@@ -22,7 +22,7 @@ def test_vercel_build_runs_release_preflight_before_bundle():
 def test_subscription_runtime_is_part_of_javascript_contract():
     checker = read("scripts/check-javascript.mjs")
     assert "crump-subscriptions-5.3.2.js" in checker
-    assert "ask-crump-new-body-v1-r25" in checker
+    assert "ask-crump-new-body-v1-r26" in checker
     assert "crump-polish-5.6.js" in checker
 
 
@@ -40,3 +40,14 @@ def test_conversation_renderer_delegates_automatic_scroll_to_single_owner():
     assert "if (shouldStick || presence) requestAnimationFrame(() => { container.scrollTop = container.scrollHeight; });" not in ui
     assert "state.scroll.suppressLegacyBottomUntil = Date.now() + 3200" in scroll
     assert "if (!force && Date.now() < state.scroll.suppressLegacyBottomUntil) return;" in scroll
+
+def test_new_reply_anchor_is_synchronous_and_survives_sync_rerenders():
+    scroll = read("public/crump-5.2.2.js")
+    css = read("public/crump-5.2.2.css")
+
+    assert "activeReplyShouldHold" in scroll
+    assert "cancelActiveReplyAnchor" in scroll
+    assert "shouldPreserveAnchor" in scroll
+    assert "state.scroll.activeReplyUntil = state.scroll.suppressLegacyBottomUntil" in scroll
+    assert "requestAnimationFrame(() => {\n      requestAnimationFrame(() => {" not in scroll
+    assert "overflow-anchor: none !important;" in css

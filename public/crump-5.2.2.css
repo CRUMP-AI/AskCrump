@@ -6,6 +6,11 @@ body,
   scroll-behavior: auto !important;
 }
 
+#chatContainer,
+.chat-container {
+  overflow-anchor: none !important;
+}
+
 body.crump-43 #scrollToEndBtn,
 #scrollToEndBtn[data-crump522='true'] {
   width: 48px !important;
