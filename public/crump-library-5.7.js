@@ -7,6 +7,8 @@
   const SOURCE_ACCEPT = '.docx,.pdf,.epub,.txt,.md,application/pdf,application/epub+zip,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   const COVER_ACCEPT = 'image/jpeg,image/png,image/webp,image/heic,image/heif,image/*';
   const PREF_KEY = 'askcrump.library57.preferences';
+  const COVER_URL_DEFAULT_TTL_SECONDS = 1200;
+  const COVER_URL_SAFETY_MS = 30 * 1000;
   const LAYOUTS = new Set(['grid', 'list', 'book']);
   const SORTS = new Set(['updated', 'title', 'author', 'status', 'words', 'project']);
   const COVER_FILTERS = new Set(['all', 'imported', 'created', 'front', 'complete', 'needs-cover']);
@@ -170,16 +172,56 @@
     return shareMediaFile(file);
   }
 
-  async function coverUrl(file) {
+  async function coverUrl(file, {force = false} = {}) {
     if (!file?.id) return '';
-    if (state.coverUrls.has(file.id)) return state.coverUrls.get(file.id);
+    const cached = state.coverUrls.get(file.id);
+    if (!force && cached?.url && cached.expiresAt > Date.now()) return cached.url;
+    state.coverUrls.delete(file.id);
     try {
       const signed = await signedFile(file);
-      state.coverUrls.set(file.id, signed.url || '');
-      return signed.url || '';
+      const url = signed.url || '';
+      if (!url) return '';
+      const providedTtl = Number(signed.expiresIn);
+      const ttlSeconds = Number.isFinite(providedTtl)
+        ? Math.max(30, providedTtl)
+        : COVER_URL_DEFAULT_TTL_SECONDS;
+      const safetyMs = Math.min(COVER_URL_SAFETY_MS, ttlSeconds * 500);
+      state.coverUrls.set(file.id, {
+        url,
+        expiresAt: Date.now() + (ttlSeconds * 1000) - safetyMs,
+      });
+      return url;
     } catch (_) {
       return '';
     }
+  }
+
+  async function loadCoverImage(image, file, {force = false} = {}) {
+    if (!image || !file?.id) return false;
+    const url = await coverUrl(file, {force});
+    if (!url || !image.isConnected) return false;
+
+    image.hidden = false;
+    image.dataset.crump57CoverRetry = force ? '1' : '0';
+    image.onerror = async () => {
+      if (!image.isConnected) return;
+      if (image.dataset.crump57CoverRetry === '1') {
+        image.hidden = true;
+        image.removeAttribute('src');
+        return;
+      }
+      image.dataset.crump57CoverRetry = '1';
+      state.coverUrls.delete(file.id);
+      const replacement = await coverUrl(file, {force: true});
+      if (!replacement || !image.isConnected) {
+        image.hidden = true;
+        image.removeAttribute('src');
+        return;
+      }
+      image.src = replacement;
+    };
+    image.src = url;
+    return true;
   }
 
   function formatCount(value) {
@@ -254,13 +296,12 @@
       const selector = `[data-cover-book="${CSS.escape(String(book.id) + suffix)}"]`;
       const node = container.querySelector(selector);
       if (!node || node.querySelector('img')) continue;
-      const url = await coverUrl(book.frontCover);
-      if (!url || !node.isConnected) continue;
       const image = document.createElement('img');
-      image.src = url;
       image.alt = `${book.title || 'Book'} front cover`;
       image.loading = 'lazy';
+      image.hidden = true;
       node.appendChild(image);
+      if (!await loadCoverImage(image, book.frontCover)) image.remove();
     }
   }
 
@@ -957,9 +998,7 @@
     const image = byId(side === 'front' ? 'crump57EditFrontPreview' : 'crump57EditBackPreview');
     const box = byId(side === 'front' ? 'crump57EditFrontBox' : 'crump57EditBackBox');
     if (!file?.id || !image || !box) return;
-    const url = await coverUrl(file);
-    if (url && image.isConnected) {
-      image.src = url;
+    if (await loadCoverImage(image, file)) {
       box.classList.add('has-image');
     }
   }
@@ -1032,12 +1071,18 @@
     const frontNode = byId('crump57PreviewFront');
     const backNode = byId('crump57PreviewBack');
     if (book.frontCover?.id) {
-      const url = await coverUrl(book.frontCover);
-      if (url && overlay.isConnected) frontNode.innerHTML = `<img src="${escapeHtml(url)}" alt="${escapeHtml(book.title)} front cover">`;
+      const image = document.createElement('img');
+      image.alt = `${book.title || 'Book'} front cover`;
+      image.hidden = true;
+      frontNode.replaceChildren(image);
+      if (!await loadCoverImage(image, book.frontCover)) image.remove();
     }
     if (book.backCover?.id) {
-      const url = await coverUrl(book.backCover);
-      if (url && overlay.isConnected) backNode.innerHTML = `<img src="${escapeHtml(url)}" alt="${escapeHtml(book.title)} back cover">`;
+      const image = document.createElement('img');
+      image.alt = `${book.title || 'Book'} back cover`;
+      image.hidden = true;
+      backNode.replaceChildren(image);
+      if (!await loadCoverImage(image, book.backCover)) image.remove();
     }
     byId('crump57PreviewOpen')?.addEventListener('click', () => {
       closeModal();
