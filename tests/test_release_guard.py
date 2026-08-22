@@ -22,8 +22,21 @@ def test_vercel_build_runs_release_preflight_before_bundle():
 def test_subscription_runtime_is_part_of_javascript_contract():
     checker = read("scripts/check-javascript.mjs")
     assert "crump-subscriptions-5.3.2.js" in checker
-    assert "ask-crump-new-body-v1-r26" in checker
+    assert "ask-crump-new-body-v1-r27" in checker
     assert "crump-polish-5.6.js" in checker
+
+
+def test_navigation_repair_is_precached_and_network_first():
+    service_worker = read("public/sw.js")
+    checker = read("scripts/check-javascript.mjs")
+
+    for asset in (
+        "/crump-navigation-5.2.5.js",
+        "/crump-navigation-5.2.5.css",
+    ):
+        assert service_worker.count(asset) >= 2
+        assert f"url.pathname === '{asset}'" in service_worker
+        assert f"url.pathname === '{asset}'" in checker
 
 
 def test_web_csp_allows_private_supabase_video_playback():

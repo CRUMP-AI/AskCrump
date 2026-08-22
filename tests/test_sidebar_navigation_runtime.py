@@ -36,5 +36,17 @@ def test_footer_keeps_primary_destinations_and_live_balance():
 def test_mobile_destination_click_closes_drawer():
     script = read("public/crump-navigation-5.2.5.js")
     assert "closeMobileSidebar" in script
-    assert "#settingsBtn, #upgradeBtnSidebar" in script
+    assert "#settingsBtn, #upgradeBtnSidebar, #crump53ProjectsSidebar" in script
     assert "sidebarOverlay" in script
+
+
+def test_destination_fallback_restores_core_sidebar_routes_without_double_opening():
+    script = read("public/crump-navigation-5.2.5.js")
+
+    assert "function destinationIsOpen(id)" in script
+    assert "function openDestination(id)" in script
+    assert "if (destinationIsOpen(id)) return;" in script
+    assert "window.openSettings?.();" in script
+    assert "window.showBillingCenter || window.showUpgradePrompt" in script
+    assert "window.CrumpProduct53?.open?.('projects');" in script
+    assert "window.setTimeout(() => openDestination(destination.id), 0);" in script
