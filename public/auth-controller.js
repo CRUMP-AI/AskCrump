@@ -4,10 +4,31 @@
   let activeUser = null;
   const TERMS_VERSION = '2026-07-30';
 
+  window.va = window.va || function queueVercelAnalytics() {
+    (window.vaq = window.vaq || []).push(arguments);
+  };
+
   const byId = id => document.getElementById(id);
   const show = (id, display = 'block') => { const node = byId(id); if (node) node.style.display = display; };
   const hide = id => { const node = byId(id); if (node) node.style.display = 'none'; };
   const setText = (id, text, visible = true) => { const node = byId(id); if (!node) return; node.textContent = text || ''; node.style.display = visible ? 'block' : 'none'; };
+
+  function funnelValue(value, fallback) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return /^[a-z0-9_-]{1,32}$/.test(normalized) ? normalized : fallback;
+  }
+
+  function funnelContext() {
+    const params = new URLSearchParams(location.search);
+    return {
+      source: funnelValue(params.get('source'), 'direct'),
+      plan: funnelValue(params.get('plan'), 'unspecified'),
+    };
+  }
+
+  function trackFunnel(name, data = {}) {
+    window.va('event', {name, data: {...funnelContext(), ...data}});
+  }
 
   function applyServerSettings(settings) {
     if (!settings || typeof settings !== 'object') return;
@@ -75,12 +96,13 @@
     startApp();
   }
 
-  function showAuth() {
+  function showAuth(view = 'login') {
     hide('appContainer');
     hide('tosModal');
     hide('onboardingModal');
     show('authContainer', 'flex');
-    show('loginForm');
+    ['loginForm', 'registerForm', 'forgotPasswordForm', 'resetPasswordForm'].forEach(hide);
+    show(view === 'register' ? 'registerForm' : 'loginForm');
   }
 
   function showVerificationResult(value) {
@@ -96,6 +118,7 @@
   async function bootstrap() {
     await window.CrumpAPI?.ready;
     const params = new URLSearchParams(location.search);
+    const signupRequested = params.get('signup') === '1';
     const resetToken = params.get('token');
     if (resetToken) {
       show('authContainer', 'flex');
@@ -112,7 +135,7 @@
 
     const session = await window.deviceAuth.checkSession();
     if (session.unavailable) {
-      showAuth();
+      showAuth(signupRequested ? 'register' : 'login');
       setText(
         'loginError',
         'Ask Crump could not verify your existing session right now. Your saved sign-in was preserved; try again in a moment.',
@@ -121,7 +144,8 @@
       return;
     }
     if (!session.authenticated || !session.data?.user) {
-      showAuth();
+      showAuth(signupRequested ? 'register' : 'login');
+      if (signupRequested) trackFunnel('SignupIntent', {location: 'deep-link'});
       if (verification) showVerificationResult(verification);
       return;
     }
@@ -135,7 +159,12 @@
   }
 
   function wireNavigation() {
-    byId('showRegisterLink')?.addEventListener('click', event => { event.preventDefault(); hide('loginForm'); show('registerForm'); });
+    byId('showRegisterLink')?.addEventListener('click', event => {
+      event.preventDefault();
+      hide('loginForm');
+      show('registerForm');
+      trackFunnel('SignupIntent', {location: 'auth-link'});
+    });
     byId('showLoginLink')?.addEventListener('click', event => { event.preventDefault(); hide('registerForm'); show('loginForm'); });
     byId('showForgotPasswordLink')?.addEventListener('click', event => { event.preventDefault(); hide('loginForm'); show('forgotPasswordForm'); });
     byId('showLoginFromForgot')?.addEventListener('click', event => { event.preventDefault(); hide('forgotPasswordForm'); show('loginForm'); });
@@ -248,6 +277,7 @@
       const passwordError = validatePasswordInput(password);
       if (passwordError) return setText('registerError', passwordError);
       if (password !== byId('registerPasswordConfirm').value) return setText('registerError', 'Passwords do not match.');
+      trackFunnel('SignupSubmitted');
       const restore = setBusy(event.currentTarget, true, 'Creating account…');
       try {
         const email = byId('registerEmail').value.trim();
@@ -276,6 +306,7 @@
           }
           throw new Error(data.error || 'Registration failed.');
         }
+        trackFunnel('AccountCreated');
         setText('registerSuccess', data.message || 'Account created. Check your email.');
         setTimeout(() => { hide('registerForm'); show('loginForm'); }, 1800);
       } catch (error) {

@@ -1,5 +1,19 @@
 # Changelog
 
+## 5.8.0 — 2026-08-22
+
+### Added
+
+- Added a transparent Free, Professional, Enterprise, and Crump Credits pricing section to the Clever Crump acquisition site.
+- Added direct signup links from every primary marketing call to action so new prospects land on account creation instead of a returning-user sign-in screen.
+- Added privacy-conscious Vercel Web Analytics page views and non-PII funnel events for marketing CTA intent, signup intent, signup submission, and successful account creation.
+
+### Changed
+
+- Reframed the public product copy around a currently available paid product instead of an unfinished product customers may eventually pay for.
+- Updated the public release presentation, in-app About signature, package metadata, and backend version to 5.8.0.
+- Advanced the service-worker cache to revision 28 so the signup and analytics runtime reaches installed customers promptly.
+
 ## 5.7.2 — 2026-08-22
 
 ### Fixed
