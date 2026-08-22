@@ -3,7 +3,7 @@ pydantic[email]==2.13.4
 httpx[http2]==0.28.1
 bcrypt==4.3.0
 python-multipart==0.0.20
-uvicorn[standard]==0.35.0
+uvicorn[standard]==0.52.1
 google-auth==2.40.3
 PyJWT[crypto]==2.10.1
 python-docx==1.2.0
