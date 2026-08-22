@@ -1,5 +1,18 @@
 # Changelog
 
+## 5.8.1 — 2026-08-22
+
+### Added
+
+- Preserved a prospect's Professional or Enterprise selection through registration, verification, onboarding, and sign-in, then opened the matching in-app plan for review without starting checkout automatically.
+- Added a privacy-conscious `PlanIntentReached` funnel event containing only the selected plan and sanitized acquisition source.
+
+### Fixed
+
+- Made Saved Library cover URLs expire with their private storage signatures instead of remaining cached indefinitely.
+- Added one automatic signed-URL refresh when a cover image fails, then restored the designed placeholder if the retry cannot load.
+- Advanced the service-worker cache to revision 29 so the reliability and conversion fixes reach installed customers.
+
 ## 5.8.0 — 2026-08-22
 
 ### Added

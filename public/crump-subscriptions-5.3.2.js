@@ -130,6 +130,7 @@
   function planCard(plan, billingStatus) {
     const article = document.createElement('article');
     article.className = `billing51-plan ${plan.id === 'professional' ? 'is-featured' : ''}`;
+    article.dataset.crumpPlan = plan.id;
 
     const tier = String(billingStatus?.tier || 'free').toLowerCase();
     const status = String(billingStatus?.status || 'inactive').toLowerCase();
@@ -171,6 +172,27 @@
     return article;
   }
 
+  function applyPlanIntent(modal, plan) {
+    if (!modal?.isConnected || !['professional', 'enterprise'].includes(plan)) return;
+    const host = modal.querySelector('.billing51-plans');
+    const card = host?.querySelector(`[data-crump-plan="${plan}"]`);
+    const section = host?.closest('.billing51-section');
+    if (!host || !card || !section) return;
+
+    host.querySelectorAll('[data-crump-plan]').forEach(node => node.classList.remove('is-intent'));
+    card.classList.add('is-intent');
+
+    let notice = section.querySelector('.crump52-plan-intent');
+    if (!notice) {
+      notice = document.createElement('p');
+      notice.className = 'crump52-plan-intent';
+      notice.setAttribute('role', 'status');
+      section.insertBefore(notice, host);
+    }
+    const label = plan === 'enterprise' ? 'Enterprise' : 'Professional';
+    notice.textContent = `You chose ${label}. Review the details, then continue when you are ready.`;
+  }
+
   async function activatePlans(modal, force = false) {
     if (!modal || !modal.isConnected) return;
     if (!force && ['loading', 'ready'].includes(modal.dataset.crumpSubscriptions532)) return;
@@ -207,6 +229,7 @@
       planCard(planDefinition('enterprise'), billingStatus)
     );
     modal.dataset.crumpSubscriptions532 = 'ready';
+    applyPlanIntent(modal, modal.dataset.crumpPlanIntent);
   }
 
   function scan() {
@@ -217,5 +240,21 @@
 
   const observer = new MutationObserver(scan);
   observer.observe(document.documentElement, {childList: true, subtree: true});
+  window.addEventListener('crump:plan-intent', event => {
+    const plan = String(event.detail?.plan || '').toLowerCase();
+    if (!['professional', 'enterprise'].includes(plan)) return;
+    const modal = window.showBillingCenter?.({plan});
+    if (!modal) return;
+    modal.dataset.crumpPlanIntent = plan;
+    void activatePlans(modal, true).then(() => {
+      if (modal.dataset.crumpSubscriptions532 !== 'ready') return;
+      applyPlanIntent(modal, plan);
+      window.va?.('event', {
+        name: 'PlanIntentReached',
+        data: {plan, source: String(event.detail?.source || 'direct').slice(0, 32)},
+      });
+      window.dispatchEvent(new CustomEvent('crump:plan-intent-consumed', {detail: {plan}}));
+    });
+  });
   scan();
 })();

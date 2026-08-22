@@ -62,6 +62,19 @@ def test_library571_mobile_layout_and_book_views_are_intentional():
     assert "Book-inspired, not book-themed" in library_css
 
 
+def test_library_cover_urls_expire_and_retry_once():
+    library_js = read("public/crump-library-5.7.js")
+
+    assert "COVER_URL_DEFAULT_TTL_SECONDS" in library_js
+    assert "cached.expiresAt > Date.now()" in library_js
+    assert "const safetyMs = Math.min(COVER_URL_SAFETY_MS, ttlSeconds * 500)" in library_js
+    assert "expiresAt: Date.now() + (ttlSeconds * 1000) - safetyMs" in library_js
+    assert "async function loadCoverImage" in library_js
+    assert "coverUrl(file, {force: true})" in library_js
+    assert "crump57CoverRetry === '1'" in library_js
+    assert "image.removeAttribute('src')" in library_js
+
+
 def test_library571_delete_restore_is_owner_checked_and_recoverable():
     routes = read("backend/routes/library.py")
     service = read("backend/library_service.py")

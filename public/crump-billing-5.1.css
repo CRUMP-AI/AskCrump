@@ -297,6 +297,20 @@
   background: rgba(255,255,255,.018);
 }
 .billing51-plan.is-featured { border-color: rgba(217,195,147,.20); }
+.billing51-plan.is-intent {
+  border-color: rgba(222,196,133,.72);
+  box-shadow: 0 0 0 1px rgba(222,196,133,.18), 0 16px 34px rgba(0,0,0,.22);
+}
+.crump52-plan-intent {
+  margin: 0 0 14px;
+  padding: 11px 13px;
+  border: 1px solid rgba(222,196,133,.24);
+  border-radius: 12px;
+  background: rgba(222,196,133,.08);
+  color: #e7d6b0;
+  font-size: 13px;
+  line-height: 1.45;
+}
 .billing51-plan-top {
   display: flex;
   align-items: baseline;

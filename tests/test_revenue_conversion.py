@@ -46,11 +46,29 @@ def test_signup_deep_link_opens_registration_and_tracks_the_funnel():
     assert "registerEmail" not in controller[controller.index("function trackFunnel"):controller.index("function applyServerSettings")]
 
 
+def test_paid_plan_intent_survives_auth_and_stops_before_checkout():
+    controller = read("public/auth-controller.js")
+    runtime = read("public/runtime-body-v1.js")
+    subscriptions = read("public/crump-subscriptions-5.3.2.js")
+
+    assert "askcrump.pending-plan-intent" in controller
+    assert "PAID_PLAN_INTENTS = new Set(['professional', 'enterprise'])" in controller
+    assert "PLAN_INTENT_TTL_MS" in controller
+    assert "crump:plan-intent" in controller
+    assert "crump:body-runtime-ready" in runtime
+    assert "window.showBillingCenter?.({plan})" in subscriptions
+    assert "data-crump-plan" in subscriptions or "dataset.crumpPlan" in subscriptions
+    assert "PlanIntentReached" in subscriptions
+    listener = subscriptions[subscriptions.index("window.addEventListener('crump:plan-intent'"):]
+    assert "openCheckout(plan" not in listener
+    assert "crump:plan-intent-consumed" in listener
+
+
 def test_release_version_and_cache_advance_together():
     package = read("package.json")
     backend = read("backend/version.py")
     worker = read("public/sw.js")
 
-    assert '"version": "5.8.0"' in package
-    assert "__version__ = '5.8.0'" in backend
-    assert "ask-crump-new-body-v1-r28" in worker
+    assert '"version": "5.8.1"' in package
+    assert "__version__ = '5.8.1'" in backend
+    assert "ask-crump-new-body-v1-r29" in worker

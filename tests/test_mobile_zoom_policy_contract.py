@@ -41,6 +41,6 @@ def test_existing_image_viewer_remains_the_zoom_exception():
 def test_mobile_zoom_policy_advances_shell_cache():
     sw = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
-    assert "ask-crump-new-body-v1-r28" in sw
+    assert "ask-crump-new-body-v1-r29" in sw
     assert "ask-crump-new-body-v1-r22" not in sw
-    assert "ask-crump-new-body-v1-r28" in checker
+    assert "ask-crump-new-body-v1-r29" in checker

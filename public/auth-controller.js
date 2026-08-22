@@ -2,7 +2,11 @@
   'use strict';
   let appStarted = false;
   let activeUser = null;
+  let planIntentDispatched = false;
   const TERMS_VERSION = '2026-07-30';
+  const PLAN_INTENT_KEY = 'askcrump.pending-plan-intent';
+  const PLAN_INTENT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+  const PAID_PLAN_INTENTS = new Set(['professional', 'enterprise']);
 
   window.va = window.va || function queueVercelAnalytics() {
     (window.vaq = window.vaq || []).push(arguments);
@@ -28,6 +32,58 @@
 
   function trackFunnel(name, data = {}) {
     window.va('event', {name, data: {...funnelContext(), ...data}});
+  }
+
+  function capturePlanIntent() {
+    const context = funnelContext();
+    if (!PAID_PLAN_INTENTS.has(context.plan)) return;
+    try {
+      localStorage.setItem(PLAN_INTENT_KEY, JSON.stringify({
+        plan: context.plan,
+        source: context.source,
+        capturedAt: Date.now(),
+      }));
+    } catch (_) {}
+  }
+
+  function pendingPlanIntent() {
+    try {
+      const intent = JSON.parse(localStorage.getItem(PLAN_INTENT_KEY) || 'null');
+      const capturedAt = Number(intent?.capturedAt || 0);
+      if (!PAID_PLAN_INTENTS.has(intent?.plan) || !capturedAt || Date.now() - capturedAt > PLAN_INTENT_TTL_MS) {
+        localStorage.removeItem(PLAN_INTENT_KEY);
+        return null;
+      }
+      return {
+        plan: intent.plan,
+        source: funnelValue(intent.source, 'direct'),
+      };
+    } catch (_) {
+      try { localStorage.removeItem(PLAN_INTENT_KEY); } catch (_) {}
+      return null;
+    }
+  }
+
+  function dispatchPendingPlanIntent() {
+    if (planIntentDispatched) return;
+    const intent = pendingPlanIntent();
+    if (!intent) return;
+
+    const deliver = () => {
+      if (planIntentDispatched) return;
+      planIntentDispatched = true;
+      window.addEventListener('crump:plan-intent-consumed', event => {
+        if (event.detail?.plan !== intent.plan) return;
+        try { localStorage.removeItem(PLAN_INTENT_KEY); } catch (_) {}
+      }, {once: true});
+      window.dispatchEvent(new CustomEvent('crump:plan-intent', {detail: intent}));
+    };
+
+    if (document.documentElement.dataset.crumpBodyRuntime === 'ready') {
+      queueMicrotask(deliver);
+    } else {
+      window.addEventListener('crump:body-runtime-ready', deliver, {once: true});
+    }
   }
 
   function applyServerSettings(settings) {
@@ -72,6 +128,7 @@
     }
     if (activeUser) window.initializeAuthenticatedApp?.(activeUser);
     setTimeout(() => window.tutorial?.autoStart?.(), 450);
+    dispatchPendingPlanIntent();
   }
 
   function routeAuthenticatedUser(user) {
@@ -116,6 +173,7 @@
   }
 
   async function bootstrap() {
+    capturePlanIntent();
     await window.CrumpAPI?.ready;
     const params = new URLSearchParams(location.search);
     const signupRequested = params.get('signup') === '1';

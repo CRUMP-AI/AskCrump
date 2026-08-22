@@ -100,6 +100,7 @@ window.CRUMP_CONFIG = Object.freeze({
     await loadScript('/crump-library-5.7.js', 'crumplibrary57');
 
     document.documentElement.dataset.crumpBodyRuntime = 'ready';
+    window.dispatchEvent(new CustomEvent('crump:body-runtime-ready'));
   }
 
   if (document.readyState === 'complete') void boot();
