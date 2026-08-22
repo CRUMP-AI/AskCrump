@@ -1,5 +1,15 @@
 # Changelog
 
+## 5.7.2 — 2026-08-22
+
+### Fixed
+
+- Restored dependable sidebar access to Settings, Plan & credits, and Projects when late UI hydration replaces destination elements or drops their original listeners.
+- Kept each product module's normal click handler as the primary path, with a guarded fallback that opens a destination only when it is still closed.
+- Made the navigation bundle boot-critical and network-first so customers receive the repair promptly instead of remaining on a stale service-worker copy.
+- Replaced an undefined Library muted-text token with the canonical application theme tokens.
+- Added regression coverage for the revenue, account, and Projects navigation paths and advanced the service-worker cache to revision 27.
+
 ## 5.6.1 — 2026-08-17
 
 ### Fixed

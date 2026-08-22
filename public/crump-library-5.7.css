@@ -1,4 +1,4 @@
-/* Ask Crump 5.7.1 — Library refinement
+/* Ask Crump 5.7.2 — Library refinement
    Book-inspired, not book-themed. Management stays primary; covers add restrained depth. */
 
 .crump57-library-card {
@@ -20,7 +20,7 @@
 .crump57-library-head p {
   margin: 0;
   max-width: 650px;
-  color: var(--text-muted, #8f98a3);
+  color: var(--crump56-muted, var(--ac-text-3, #8f98a3));
   line-height: 1.55;
 }
 .crump57-library-actions {

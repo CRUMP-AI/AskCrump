@@ -49,8 +49,18 @@ def test_credit_badge_remains_attached_and_mobile_destination_click_closes_drawe
     assert "const button = $('#upgradeBtnSidebar');" in billing_js
     assert "button.appendChild(badge);" in billing_js
     assert "function closeMobileSidebar()" in cleanup
-    assert "#settingsBtn, #upgradeBtnSidebar" in cleanup
+    assert "#settingsBtn, #upgradeBtnSidebar, #crump53ProjectsSidebar" in cleanup
     assert "byId('sidebar')?.classList.remove('active');" in cleanup
     assert "byId('sidebarOverlay')?.classList.remove('active');" in cleanup
     assert "#upgradeBtnSidebar .billing51-sidebar-balance" in cleanup_css
     assert "margin-left: auto" in cleanup_css
+
+
+def test_footer_destinations_have_a_late_binding_fallback():
+    cleanup = read_public("crump-navigation-5.2.5.js")
+
+    assert "destinationIsOpen" in cleanup
+    assert "openDestination" in cleanup
+    assert "window.openSettings?.();" in cleanup
+    assert "window.showBillingCenter || window.showUpgradePrompt" in cleanup
+    assert "window.CrumpProduct53?.open?.('projects');" in cleanup

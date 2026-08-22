@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,8 +21,8 @@ def test_subscription_launch_assets_are_wired():
     assert '/api/stripe/customer-portal' in launch
 
 
-def test_subscription_launch_bumps_release_version():
-    package = (ROOT / 'package.json').read_text(encoding='utf-8')
+def test_application_release_versions_match():
+    package = json.loads((ROOT / 'package.json').read_text(encoding='utf-8'))
     version = (ROOT / 'backend' / 'version.py').read_text(encoding='utf-8')
-    assert '"version": "5.6.1"' in package
-    assert "__version__ = '5.6.1'" in version
+    assert package['version'] == '5.7.2'
+    assert f"__version__ = '{package['version']}'" in version

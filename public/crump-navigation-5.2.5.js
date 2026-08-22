@@ -38,16 +38,52 @@
     normalizeFooterDestination('upgradeBtnSidebar', 'Plan & credits');
   }
 
+  function destinationIsOpen(id) {
+    if (id === 'settingsBtn') {
+      const modal = byId('settingsModal');
+      return Boolean(modal && modal.style.display && modal.style.display !== 'none');
+    }
+    if (id === 'upgradeBtnSidebar') {
+      return Boolean(document.querySelector('.billing51-modal'));
+    }
+    if (id === 'crump53ProjectsSidebar') {
+      const studio = byId('crump53Studio');
+      return Boolean(studio && !studio.hidden);
+    }
+    return false;
+  }
+
+  function openDestination(id) {
+    if (destinationIsOpen(id)) return;
+
+    if (id === 'settingsBtn') {
+      window.openSettings?.();
+      return;
+    }
+    if (id === 'upgradeBtnSidebar') {
+      const openBilling = window.showBillingCenter || window.showUpgradePrompt;
+      openBilling?.();
+      return;
+    }
+    if (id === 'crump53ProjectsSidebar') {
+      window.CrumpProduct53?.open?.('projects');
+    }
+  }
+
   function wireDrawerClose() {
     if (document.documentElement.dataset.crumpNavigation525Wired === 'true') return;
     document.documentElement.dataset.crumpNavigation525Wired = 'true';
 
-    // Capture phase makes this resilient to the billing module replacing/cloning
-    // #upgradeBtnSidebar while still allowing its existing destination handler to run.
+    // Capture phase makes this resilient to late modules replacing or inserting
+    // sidebar destinations. Existing handlers get the first chance to open their
+    // surface; the zero-delay fallback repairs a lost listener without double-opening.
     document.addEventListener('click', event => {
-      const destination = event.target.closest?.('#settingsBtn, #upgradeBtnSidebar');
+      const destination = event.target.closest?.(
+        '#settingsBtn, #upgradeBtnSidebar, #crump53ProjectsSidebar'
+      );
       if (!destination) return;
       closeMobileSidebar();
+      window.setTimeout(() => openDestination(destination.id), 0);
     }, true);
   }
 

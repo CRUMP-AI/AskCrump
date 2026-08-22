@@ -14,7 +14,7 @@ def test_product53_runtime_is_registered_last_and_cached():
     assert "/crump-product-5.3.css" in runtime
     assert "/crump-product-5.3.js" in runtime
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r26" in worker
+    assert "ask-crump-new-body-v1-r27" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 
@@ -175,6 +175,6 @@ def test_manuscript_ui_exposes_planning_progress_and_chat_handoff():
     js = read("public/crump-product-5.3.js")
     assert "Create & plan" in js
     assert "Draft next chapter" in js
-    assert "MANUSCRIPT WORKSPACE" in js
+    assert 'id="crump53ManuscriptWorkspace"' in js
     assert "manuscriptWorkspace" in js
     assert "crump53DocumentMode" in js
