@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from ..auth_service import authenticate_request, public_user
 from ..db import eq
 from ..http import clear_session_cookie
+from ..product_analytics import record_product_event
 from ..runtime import db, settings
 from ..schemas import DeleteAccountRequest, ProfileUpdateRequest, TermsAcceptanceRequest
 from ..security import iso_now, verify_password
@@ -21,11 +22,20 @@ logger = logging.getLogger("askcrump.account")
 @router.patch('/profile')
 async def update_profile(payload: ProfileUpdateRequest, request: Request):
     auth = await authenticate_request(request, db, settings)
+    first_completion = not str(auth.user.get('full_name') or '').strip()
     full_name = payload.fullName.strip()
     if not full_name:
         return JSONResponse(status_code=400, content={'success': False, 'error': 'Enter a valid name.'})
     await db.update('users', {'full_name': full_name, 'updated_at': iso_now()}, filters={'id': eq(auth.user['id'])})
     auth.user['full_name'] = full_name
+    if first_completion:
+        await record_product_event(
+            db,
+            user_id=auth.user['id'],
+            event_name='OnboardingCompleted',
+            event_key='initial-profile',
+            request=request,
+        )
     return {'success': True, 'user': public_user(auth.user)}
 
 

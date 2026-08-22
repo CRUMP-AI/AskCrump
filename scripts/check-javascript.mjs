@@ -13,6 +13,7 @@ const expectedFiles = new Set([
   'native-runtime.js', 'onboarding.js', 'presence-manager.js', 'profile-manager.js',
   'runtime-config.js', 'runtime-config-v1.js', 'runtime-body-v1.js', 'safe-storage.js',
   'scroll-manager.js', 'subscription-ui.js', 'sw.js', 'sync-manager.js', 'ui-functions.js',
+  'product-analytics.js',
 ]);
 
 const publicDirectory = new URL('../public/', import.meta.url);
@@ -74,6 +75,7 @@ for (const relative of requiredBodyFiles) {
 const appHtml = await readFile(new URL('public/app.html', repoRoot), 'utf8');
 const requiredHtmlSignals = [
   '/runtime-body-v1.js',
+  '/product-analytics.js',
   '/crump-v1-body.css',
   'class="crump-v1-body"',
   'class="v1-shell"',
@@ -126,7 +128,7 @@ if (!v1Body.includes('removeLegacyEmptyState(container)')) {
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r29') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r30') ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes('/crump-v1-body.js') ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.2.5.js'") ||

@@ -57,6 +57,7 @@
       return {
         plan: intent.plan,
         source: funnelValue(intent.source, 'direct'),
+        capturedAt,
       };
     } catch (_) {
       try { localStorage.removeItem(PLAN_INTENT_KEY); } catch (_) {}
@@ -127,6 +128,10 @@
       appStarted = true;
     }
     if (activeUser) window.initializeAuthenticatedApp?.(activeUser);
+    if (activeUser) {
+      const day = new Date().toISOString().slice(0, 10);
+      void window.CrumpAnalytics?.track('WorkspaceOpened', {eventKey: `workspace-open:${day}`});
+    }
     setTimeout(() => window.tutorial?.autoStart?.(), 450);
     dispatchPendingPlanIntent();
   }

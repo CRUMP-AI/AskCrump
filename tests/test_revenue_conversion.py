@@ -69,6 +69,6 @@ def test_release_version_and_cache_advance_together():
     backend = read("backend/version.py")
     worker = read("public/sw.js")
 
-    assert '"version": "5.8.1"' in package
-    assert "__version__ = '5.8.1'" in backend
-    assert "ask-crump-new-body-v1-r29" in worker
+    assert '"version": "5.8.2"' in package
+    assert "__version__ = '5.8.2'" in backend
+    assert "ask-crump-new-body-v1-r30" in worker

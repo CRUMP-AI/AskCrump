@@ -1,5 +1,22 @@
 # Changelog
 
+## 5.8.2 — 2026-08-22
+
+### Added
+
+- Added a private, account-level milestone ledger for activation, durable-artifact value, retention, paid-plan intent, and the verified Stripe subscription lifecycle.
+- Added server-authoritative activation, durable-artifact, Checkout, billing-portal, and webhook events plus one authenticated workspace-open event per UTC day.
+- Added an operating analytics contract that excludes prompts, responses, filenames, emails, payment details, prices, and arbitrary metadata.
+
+### Security
+
+- Locked the product-event table and idempotent recording function to the server service role, enabled row-level security, and separated preview events from production reporting.
+- Made analytics writes fail open so an instrumentation outage cannot interrupt account, chat, artifact, or billing flows.
+
+### Changed
+
+- Advanced the application release to 5.8.2 and the service-worker cache to revision 30.
+
 ## 5.8.1 — 2026-08-22
 
 ### Added

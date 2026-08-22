@@ -71,6 +71,17 @@ class CheckoutRequest(APIModel):
     tier: str = Field(default="professional", max_length=30)
 
 
+class ProductEventRequest(APIModel):
+    eventName: Literal["WorkspaceOpened", "PlanIntentReached"]
+    eventKey: str = Field(
+        min_length=1,
+        max_length=160,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9:._-]{0,159}$",
+    )
+    source: str | None = Field(default=None, max_length=32)
+    plan: Literal["professional", "enterprise"] | None = None
+
+
 class ChatAckRequest(APIModel):
     chatId: str = Field(min_length=1, max_length=120)
     messageId: str = Field(min_length=1, max_length=120)

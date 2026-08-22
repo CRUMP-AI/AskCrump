@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 
 from ..auth_service import authenticate_request, public_user
 from ..db import eq
+from ..product_analytics import record_product_event
 from ..runtime import db, settings
 from ..schemas import CheckoutRequest
 from ..security import iso_now
@@ -315,6 +316,16 @@ async def create_checkout(payload: CheckoutRequest, request: Request):
     except StripeAPIError:
         return billing_provider_failure()
 
+    checkout_id = str(checkout.get('id') or '')
+    if checkout_id:
+        await record_product_event(
+            db,
+            user_id=auth.user['id'],
+            event_name='SubscriptionCheckoutOpened',
+            event_key=checkout_id,
+            request=request,
+            plan=tier,
+        )
     return {
         'success': True,
         'url': checkout.get('url'),
@@ -370,6 +381,16 @@ async def customer_portal(request: Request):
                 },
             )
         return billing_provider_failure()
+    portal_id = str(portal.get('id') or '')
+    if portal_id:
+        await record_product_event(
+            db,
+            user_id=auth.user['id'],
+            event_name='BillingPortalOpened',
+            event_key=portal_id,
+            request=request,
+            plan=str(auth.user.get('subscription_tier') or ''),
+        )
     return {'success': True, 'url': portal.get('url')}
 
 
@@ -419,6 +440,7 @@ async def stripe_webhook(request: Request):
             content={'success': False, 'error': 'Invalid webhook signature.'},
         )
     event = json.loads(body)
+    event_id = str(event.get('id') or '')
     event_type = event.get('type')
     obj = ((event.get('data') or {}).get('object') or {})
     customer_id = obj.get('customer')
@@ -448,6 +470,15 @@ async def stripe_webhook(request: Request):
                 },
                 filters={'id': eq(user_id)},
             )
+            if event_id:
+                await record_product_event(
+                    db,
+                    user_id=user_id,
+                    event_name='SubscriptionCheckoutCompleted',
+                    event_key=event_id,
+                    request=request,
+                    plan=tier,
+                )
     elif event_type in {'customer.subscription.updated', 'customer.subscription.deleted'} and customer_id:
         status = (
             'canceled'
@@ -458,7 +489,7 @@ async def stripe_webhook(request: Request):
             (((obj.get('items') or {}).get('data') or [{}])[0].get('price') or {}).get('id')
         )
         tier = stripe_entitlement_tier(status, price_id)
-        await db.update(
+        updated = await db.update(
             'users',
             {
                 'stripe_subscription_id': obj.get('id'),
@@ -477,6 +508,16 @@ async def stripe_webhook(request: Request):
             },
             filters={'stripe_customer_id': eq(customer_id)},
         )
+        updated_user = updated[0] if isinstance(updated, list) and updated else None
+        if updated_user and event_id:
+            await record_product_event(
+                db,
+                user_id=updated_user['id'],
+                event_name='SubscriptionStatusChanged',
+                event_key=event_id,
+                request=request,
+                plan=tier,
+            )
     return {'received': True}
 
 

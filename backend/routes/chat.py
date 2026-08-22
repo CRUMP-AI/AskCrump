@@ -21,6 +21,7 @@ from ..product53_hooks import (
     consume_feature_for_request,
 )
 from ..project_service import ProjectNotFoundError
+from ..product_analytics import artifact_type_for_result, record_product_event
 from ..runtime import ai, artifacts, db, features, files, intelligence, manuscripts, media, projects, settings
 from ..schemas import ChatAckRequest
 from ..security import iso_now, normalize_chat_id
@@ -641,4 +642,21 @@ async def chat(request: Request):
         latency_ms=int((time.perf_counter() - started) * 1000), status='success',
         verifier_used=verifier_used,
     )
+    await record_product_event(
+        db,
+        user_id=auth.user['id'],
+        event_name='ActivationReached',
+        event_key='first-successful-response',
+        request=request,
+    )
+    artifact_type = artifact_type_for_result(result)
+    if artifact_type:
+        await record_product_event(
+            db,
+            user_id=auth.user['id'],
+            event_name='AhaReached',
+            event_key='first-durable-artifact',
+            request=request,
+            artifact_type=artifact_type,
+        )
     return {'success': True, **result, 'dailyUsage': usage}

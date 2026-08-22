@@ -253,6 +253,13 @@
         name: 'PlanIntentReached',
         data: {plan, source: String(event.detail?.source || 'direct').slice(0, 32)},
       });
+      const source = String(event.detail?.source || 'direct').slice(0, 32);
+      const capturedAt = Number(event.detail?.capturedAt || Date.now());
+      void window.CrumpAnalytics?.track('PlanIntentReached', {
+        eventKey: `plan-intent:${plan}:${capturedAt}`,
+        plan,
+        source,
+      });
       window.dispatchEvent(new CustomEvent('crump:plan-intent-consumed', {detail: {plan}}));
     });
   });
