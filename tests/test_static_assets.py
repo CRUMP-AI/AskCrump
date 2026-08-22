@@ -31,7 +31,11 @@ class AssetParser(HTMLParser):
 
 
 def local_asset(value):
-    if not value.startswith('/') or value.startswith('/api/'):
+    if (
+        not value.startswith('/')
+        or value.startswith('/api/')
+        or value.startswith('/_vercel/')
+    ):
         return None
     path = value.split('#', 1)[0].split('?', 1)[0]
     if path in {'/', '/app'}:
