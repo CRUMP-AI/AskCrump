@@ -243,7 +243,8 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
     @staticmethod
     def _needs_search(message: str) -> bool:
         return bool(re.search(
-            r'\b(latest|current|today|tonight|tomorrow|this week|news|recent|right now|live|score|price|release date|who is the current)\b',
+            r'\b(latest|current|today|tonight|tomorrow|this week|news|recent|right now|live|score|price|release date|who is the current|'
+            r'cite sources?|citations?|bibliography|works cited|peer[ -]?reviewed|research sources?)\b',
             message,
             re.I,
         ))

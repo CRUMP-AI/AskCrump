@@ -1,5 +1,25 @@
 # Changelog
 
+## 5.9.0 — 2026-08-23
+
+### Added
+
+- Added outcome-first Document Studio paths for essays and reports, résumés and CVs, presentations, spreadsheets, and manuscripts.
+- Added format-aware, editable Word, PDF, PowerPoint, and Excel finishing with academic, résumé, presentation, spreadsheet, and business profiles.
+- Added source-aware research routing and automatic final verification for downloadable artifact requests.
+- Added a checksum-locked app-identity pipeline that derives versioned web-install icons, the native icon source, and the native splash source from the permanent Ask Crump C-and-magnifying-glass mark.
+- Added representative artifact fixtures and structural tests covering page setup, metadata, editability, spreadsheet types and formulas, presentation dimensions, and extractable PDF text.
+
+### Quality and safety
+
+- Prevented the document system from inventing citations, quotations, credentials, employment history, dates, metrics, research results, or financial inputs.
+- Added spreadsheet formula-injection guards, explicit print areas, stable pagination, inferred business number formats, filters, frozen headings, and editable native tables.
+- Replaced a fragile manuscript scene-break glyph with a cross-platform typographic break for consistent Word, PDF, and EPUB output.
+
+### Changed
+
+- Advanced the application release to 5.9.0 and the service-worker cache to revision 34 so installed customers receive the document-quality and identity updates.
+
 ## 5.8.5 — 2026-08-23
 
 ### Added

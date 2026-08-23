@@ -1616,7 +1616,7 @@ User brief:
             if not text:
                 continue
             if text in {"***", "* * *", "⸻", "---"}:
-                divider = document.add_paragraph("⸻")
+                divider = document.add_paragraph("* * *")
                 divider.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 divider.paragraph_format.first_line_indent = Inches(0)
                 divider.paragraph_format.space_before = Pt(10)
@@ -1714,7 +1714,7 @@ User brief:
                 if not text:
                     continue
                 if text in {"***", "* * *", "⸻", "---"}:
-                    story.append(Paragraph("— • —", centered))
+                    story.append(Paragraph("* * *", centered))
                     continue
                 text = re.sub(r"^#{1,6}\s+", "", text)
                 escaped = html.escape(text).replace("\n", "<br/>")
@@ -1751,7 +1751,7 @@ User brief:
                 if not text:
                     continue
                 if text in {"***", "* * *", "⸻", "---"}:
-                    paragraphs.append('<p class="scene">⸻</p>')
+                    paragraphs.append('<p class="scene">* * *</p>')
                 else:
                     text = re.sub(r"^#{1,6}\s+", "", text)
                     paragraphs.append(f"<p>{html.escape(text).replace(chr(10), '<br/>')}</p>")

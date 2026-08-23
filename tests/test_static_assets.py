@@ -59,7 +59,26 @@ def test_manifest_icons_are_real_files_with_declared_sizes():
         assert path.exists()
         width, height = map(int, icon['sizes'].split('x'))
         assert width == height
-        assert path.name == f'icon-{width}.png'
+        assert path.name == f'ask-crump-app-icon-v2-{width}.png'
+
+
+def test_apple_install_icon_is_versioned_and_uses_the_locked_mark():
+    app_html = (PUBLIC / 'app.html').read_text()
+    assert 'apple-touch-icon" sizes="180x180"' in app_html
+    assert 'ask-crump-app-icon-v2-180.png' in app_html
+    assert 'apple-touch-icon-precomposed' in app_html
+    assert (PUBLIC / 'assets' / 'ask-crump-app-icon-v2-180.png').exists()
+
+    generator = (ROOT / 'scripts' / 'generate_locked_brand_icons.py').read_text()
+    assert 'LOCKED_SHA256' in generator
+    assert "resources' / 'icon.png'" in generator
+    assert "resources' / 'splash.png'" in generator
+
+    from PIL import Image
+    with Image.open(ROOT / 'resources' / 'icon.png') as icon:
+        assert icon.size == (1024, 1024)
+    with Image.open(ROOT / 'resources' / 'splash.png') as splash:
+        assert splash.size == (2732, 2732)
 
 
 def test_service_worker_never_cache_firsts_api_requests():

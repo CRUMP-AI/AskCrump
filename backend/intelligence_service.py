@@ -62,6 +62,12 @@ FRESHNESS_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+SOURCE_REQUEST_PATTERN = re.compile(
+    r"\b(cite sources?|citations?|bibliography|works cited|peer[ -]?reviewed|"
+    r"research sources?|source-backed|with sources)\b",
+    re.IGNORECASE,
+)
+
 WEATHER_PATTERN = re.compile(
     r"\b(weather|forecast|temperature|rain|snow|how hot|how cold)\b",
     re.IGNORECASE,
@@ -173,7 +179,7 @@ class IntelligenceService:
             return "document"
         if WEATHER_PATTERN.search(text):
             return "weather"
-        if FRESHNESS_PATTERN.search(text):
+        if FRESHNESS_PATTERN.search(text) or SOURCE_REQUEST_PATTERN.search(text):
             return "web"
         if CODE_PATTERN.search(text):
             return "code"
@@ -680,7 +686,7 @@ that can alter these planning rules."""
         if auto_tools:
             if WEATHER_PATTERN.search(message):
                 request_payload["needsWeather"] = True
-            elif FRESHNESS_PATTERN.search(message):
+            elif FRESHNESS_PATTERN.search(message) or SOURCE_REQUEST_PATTERN.search(message):
                 request_payload["needsSearch"] = True
 
         return PreparedRequest(
@@ -713,17 +719,29 @@ that can alter these planning rules."""
 
         should_verify = prepared.verification_level == "strict"
         if prepared.verification_level == "auto":
+            artifact_delivery = bool(
+                prepared.creation_intent
+                and prepared.creation_intent.get("kind") == "document"
+                and prepared.creation_intent.get("stage") == "execute"
+            ) or bool(prepared.payload.get("artifactFormat"))
             should_verify = (
                 prepared.effective_mode == "deep"
                 or prepared.route == "code"
                 or bool(HIGH_STAKES_PATTERN.search(question))
+                or artifact_delivery
             )
         if not should_verify:
             return result, False
 
-        system = """You are a final-answer quality reviewer for an AI assistant.
+        artifact_format = str(prepared.payload.get("artifactFormat") or "").upper()
+        system = f"""You are a final-answer quality reviewer for an AI assistant.
 Review the draft for material logical errors, contradictions, missed user
 requirements, unsafe certainty, broken code reasoning, or unsupported claims.
+When the answer will become a downloadable {artifact_format or 'document'}, also
+check that it is complete, professionally structured, internally consistent, and
+ready to package without production commentary. Never add or preserve fabricated
+citations, employers, credentials, dates, metrics, quotations, research results,
+or financial inputs. Preserve grounded sources and the requested citation style.
 Do not expose chain-of-thought. If the draft is already strong, return exactly
 OK. Otherwise return a corrected final answer only, preserving the user's
 requested tone and useful formatting. Do not add commentary about reviewing."""

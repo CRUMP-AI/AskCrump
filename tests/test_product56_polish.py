@@ -17,7 +17,7 @@ def test_56_polish_layer_is_last_on_web_and_native():
         assert source.index("/crump-4.3.js") < source.index("/crump-4.4.js")
         assert source.index("/crump-product-5.3.1.js") < source.index("/crump-polish-5.6.js")
         assert "/crump-polish-5.6.css" in source
-    assert "ask-crump-new-body-v1-r33" in worker
+    assert "ask-crump-new-body-v1-r34" in worker
     assert "/crump-polish-5.6.css" in worker and "/crump-polish-5.6.js" in worker
     assert "crump-polish-5.6.js" in checker
 
@@ -70,7 +70,7 @@ def test_creation_studio_copy_and_tabs_are_user_facing_and_accessible():
 def test_parent_company_page_reflects_current_product():
     page = read("public/index.html")
     css = read("public/landing-5.6.css")
-    assert "ASK CRUMP 5.8" in page
+    assert "ASK CRUMP 5.9" in page
     assert "AI should help you" in page and "finish things." in page
     assert "Projects" in page
     assert "THE CRUMP VIDEO ENGINE" in page

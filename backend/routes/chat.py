@@ -304,10 +304,7 @@ async def chat(request: Request):
     elif requested_artifact:
         artifact_note = {
             'source': 'artifact_request',
-            'content': (
-                f'The user explicitly requested a downloadable {requested_artifact.upper()} artifact. '
-                'Write complete, polished source content suitable for direct packaging. Avoid meta commentary about creating the file.'
-            ),
+            'content': artifacts.creation_guidance(requested_artifact, execution_brief),
         }
         current_context = request_payload.get('relevantContext')
         if isinstance(current_context, list):
@@ -510,6 +507,7 @@ async def chat(request: Request):
                 chat_id=chat_id,
                 message_id=message_id,
                 title=str(request_payload.get('artifactTitle') or '').strip() or None,
+                brief=execution_brief,
             )
         except Exception:
             result['artifactError'] = 'Crump wrote the content, but the downloadable file could not be packaged yet.'

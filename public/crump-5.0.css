@@ -307,6 +307,13 @@ body.crump-50 .crump50-menu-row small { color: var(--c50-text-3); font-size: 10p
 body.crump-50 .crump50-menu-row b { color: #5f6670; font-size: 19px; font-weight: 300; }
 body.crump-50 .crump50-options-body { display: grid; gap: 10px; padding: 3px 7px 8px; }
 body.crump-50 .crump50-options-body > label { margin: 7px 2px 1px; color: var(--c50-text-3); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; }
+body.crump-50 .crump50-option-label { padding: 9px 9px 4px; color: var(--c50-text-3); font-size: 9px; font-weight: 650; text-transform: uppercase; letter-spacing: .09em; }
+body.crump-50 .crump50-outcome-grid { display: grid; gap: 7px; padding: 2px 7px 5px; }
+body.crump-50 .crump50-outcome-grid button { min-height: 58px; display: grid; grid-template-columns: 1fr auto; grid-template-areas: "eyebrow arrow" "label arrow"; align-items: center; gap: 3px 12px; padding: 11px 13px; border: 1px solid var(--c50-line); border-radius: 15px; background: linear-gradient(135deg,rgba(209,191,150,.05),rgba(255,255,255,.018)); color: var(--c50-text); text-align: left; }
+body.crump-50 .crump50-outcome-grid button:hover { border-color: rgba(209,191,150,.24); background: rgba(209,191,150,.065); }
+body.crump-50 .crump50-outcome-grid span { grid-area: eyebrow; color: var(--c50-gold); font-size: 8px; font-weight: 650; letter-spacing: .09em; }
+body.crump-50 .crump50-outcome-grid strong { grid-area: label; font-size: 13px; }
+body.crump-50 .crump50-outcome-grid b { grid-area: arrow; color: var(--c50-text-3); font-size: 18px; font-weight: 400; }
 body.crump-50 .crump50-segmented { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 3px; border: 1px solid var(--c50-line); border-radius: 12px; background: #10151b; }
 body.crump-50 .crump50-segmented button { min-height: 38px; border: 0; border-radius: 9px; background: transparent; color: var(--c50-text-3); font-size: 11px; font-weight: 560; }
 body.crump-50 .crump50-segmented button.is-active { background: rgba(255,255,255,.07); color: var(--c50-text); box-shadow: inset 0 1px rgba(255,255,255,.035); }
