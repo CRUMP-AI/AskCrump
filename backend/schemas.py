@@ -72,7 +72,12 @@ class CheckoutRequest(APIModel):
 
 
 class ProductEventRequest(APIModel):
-    eventName: Literal["WorkspaceOpened", "PlanIntentReached", "ResponseShared"]
+    eventName: Literal[
+        "WorkspaceOpened",
+        "ActivationReached",
+        "PlanIntentReached",
+        "ResponseShared",
+    ]
     eventKey: str = Field(
         min_length=1,
         max_length=160,

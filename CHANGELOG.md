@@ -1,5 +1,20 @@
 # Changelog
 
+## 5.8.5 — 2026-08-23
+
+### Added
+
+- Added a privacy-safe `ActivationReached` milestone when an account receives its first successful Ask Crump response.
+- Added an account-scoped local guard so the activation event is attempted once, while the server remains the idempotent source of truth.
+
+### Privacy
+
+- Kept activation measurement limited to a fixed milestone key; prompts, responses, filenames, and arbitrary metadata are never sent to product analytics.
+
+### Changed
+
+- Advanced the service-worker cache to revision 33 so activation measurement reaches installed customers.
+
 ## 5.8.4 — 2026-08-23
 
 ### Added

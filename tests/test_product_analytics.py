@@ -127,9 +127,27 @@ def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
     application = (ROOT / "backend" / "application.py").read_text(encoding="utf-8")
 
     assert app.index('/product-analytics.js') < app.index('/auth-controller.js')
-    assert "new Set(['WorkspaceOpened', 'PlanIntentReached', 'ResponseShared'])" in client
+    assert (
+        "new Set(['WorkspaceOpened', 'ActivationReached', 'PlanIntentReached', "
+        "'ResponseShared'])"
+    ) in client
     assert "prompt" not in client.lower()
     assert "filename" not in client.lower()
     assert "ResponseShared" in client
     assert "/product-analytics.js" in worker
     assert "application.include_router(analytics.router)" in application
+
+
+def test_first_successful_response_records_activation_without_message_content():
+    app_js = (ROOT / "public" / "app.js").read_text(encoding="utf-8")
+
+    tracker = app_js[
+        app_js.index("async function recordFirstSuccessfulResponse"):
+        app_js.index("async function processUserMessage")
+    ]
+    assert "'ActivationReached'" in tracker
+    assert "eventKey: 'first-successful-response'" in tracker
+    assert "ACTIVATION_RECORDED" in tracker
+    assert "message" not in tracker.lower()
+    assert "content" not in tracker.lower()
+    assert "void recordFirstSuccessfulResponse();" in app_js

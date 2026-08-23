@@ -9,7 +9,8 @@ const BASE_STORAGE_KEYS = Object.freeze({
     WORK_MODE: 'crump_work_mode',
     WORK_START: 'crump_work_start',
     WORK_END: 'crump_work_end',
-    HAS_ONBOARDED: 'crump_has_onboarded'
+    HAS_ONBOARDED: 'crump_has_onboarded',
+    ACTIVATION_RECORDED: 'crump_activation_recorded'
 });
 const STORAGE_KEYS = { ...BASE_STORAGE_KEYS };
 
@@ -442,6 +443,14 @@ async function ensureUsageAvailable() {
     }
 }
 
+async function recordFirstSuccessfulResponse() {
+    if (SafeStorage.getItem(STORAGE_KEYS.ACTIVATION_RECORDED) === 'true') return;
+    const recorded = await window.CrumpAnalytics?.track?.('ActivationReached', {
+        eventKey: 'first-successful-response',
+    });
+    if (recorded) SafeStorage.setItem(STORAGE_KEYS.ACTIVATION_RECORDED, 'true');
+}
+
 async function processUserMessage(chat, userMessage, attachment = null) {
     if (!navigator.onLine || window.CrumpPresence?.online === false) {
         updateMessageState(chat, userMessage, { deliveryStatus: 'queued', replyStatus: 'pending' });
@@ -537,6 +546,7 @@ async function processUserMessage(chat, userMessage, attachment = null) {
     renderChatsList();
     window.CrumpPresence?.haptic?.('success');
     window.syncChatsToServer?.();
+    void recordFirstSuccessfulResponse();
     setTimeout(safeScrollToBottom, 80);
 }
 
