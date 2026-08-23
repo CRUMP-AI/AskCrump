@@ -75,29 +75,19 @@
     });
   }
 
-  function isImageZoomSurface(target) {
-    return Boolean(target?.closest?.('.crump50-lightbox'));
-  }
-
   function installViewportGesturePolicy() {
     if (document.documentElement.dataset.crumpViewportGesturePolicy === 'true') return;
     document.documentElement.dataset.crumpViewportGesturePolicy = 'true';
 
     /* Keep the application at its intended 1:1 viewport scale. Safari exposes
-       gesture* events for pinch zoom; touchmove is the cross-engine fallback.
-       The full-screen image lightbox is intentionally exempt so generated
-       images can still be inspected with normal pinch gestures. */
-    const blockViewportPinch = event => {
-      if (isImageZoomSurface(event.target)) return;
-      event.preventDefault();
-    };
+       gesture* events for pinch zoom; touchmove is the cross-engine fallback. */
+    const blockViewportPinch = event => event.preventDefault();
 
     document.addEventListener('gesturestart', blockViewportPinch, { passive: false });
     document.addEventListener('gesturechange', blockViewportPinch, { passive: false });
 
     document.addEventListener('touchmove', event => {
       if ((event.touches?.length || 0) < 2) return;
-      if (isImageZoomSurface(event.target)) return;
       event.preventDefault();
     }, { passive: false });
   }

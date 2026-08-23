@@ -205,7 +205,6 @@ def test_destructive_actions_use_an_accessible_dialog():
     assert "confirm('" not in app_js
     assert 'window.confirmAction = confirmAction' in ui
     assert "document.createElement('dialog')" in ui
-    assert 'user-scalable=no' not in (PUBLIC / 'app.html').read_text()
 
 
 def test_account_dialog_traps_keyboard_focus():

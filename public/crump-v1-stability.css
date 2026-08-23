@@ -2,10 +2,8 @@
    Final presentation fixes for compact desktop viewports and the mobile
    attachment sheet. */
 
-/* Mobile-app interaction policy: the product shell should not browser-zoom
-   or drift horizontally under normal use. "manipulation" also removes
-   double-tap zoom while preserving ordinary one-finger scrolling/taps.
-   Pinch is selectively allowed by JS only inside the image lightbox. */
+/* Mobile-app interaction policy: the product shell stays at its intended 1:1
+   scale and cannot drift horizontally. One-finger scrolling remains native. */
 html {
   overscroll-behavior-x: none;
 }
@@ -14,11 +12,46 @@ body.crump-v1-body {
   max-width: 100%;
   overflow-x: hidden;
   overscroll-behavior-x: none;
-  touch-action: manipulation;
+  touch-action: pan-x pan-y;
 }
 
-body.crump-v1-body .crump50-lightbox {
-  touch-action: pan-x pan-y pinch-zoom;
+/* iOS zooms the visual viewport when a focused editor computes below 16px.
+   Give every genuine editing control the safe size on touch/mobile layouts.
+   This prevents focus zoom at the source across chat, Projects & Create,
+   Library, settings, authentication, and any future tool surface. */
+@media (hover: none) and (pointer: coarse), (max-width: 820px) {
+  body.crump-v1-body input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not([type="file"]):not([type="hidden"]):not([type="image"]):not([type="radio"]):not([type="range"]):not([type="reset"]):not([type="submit"]),
+  body.crump-v1-body textarea,
+  body.crump-v1-body select,
+  body.crump-v1-body [contenteditable="true"],
+  body.crump-v1-body [contenteditable="plaintext-only"] {
+    font-size: 16px !important;
+  }
+}
+
+/* The menu participates in the header grid while Intelligence is absolutely
+   positioned. Pin both controls to one explicit safe-area centerline so their
+   button frames remain level on every iPhone inset. */
+@media (max-width: 1100px) {
+  body.crump-v1-body :is(.v1-mobile-menu,#crumpIntelligenceButton,.crump44-control-button) {
+    top: calc(env(safe-area-inset-top) + 13px) !important;
+  }
+
+  body.crump-v1-body .v1-mobile-menu {
+    position: absolute !important;
+    left: max(13px,env(safe-area-inset-left)) !important;
+    margin: 0 !important;
+  }
+}
+
+@media (max-width: 560px) {
+  body.crump-v1-body :is(.v1-mobile-menu,#crumpIntelligenceButton,.crump44-control-button) {
+    top: calc(env(safe-area-inset-top) + 14px) !important;
+  }
+
+  body.crump-v1-body .v1-mobile-menu {
+    left: max(10px,env(safe-area-inset-left)) !important;
+  }
 }
 
 @media (max-width: 820px) {

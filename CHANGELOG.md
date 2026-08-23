@@ -1,5 +1,16 @@
 # Changelog
 
+## 5.9.5 — 2026-08-23
+
+### Fixed
+- Prevented iPhone focus zoom from leaving Video Studio and other Ask Crump surfaces enlarged after editing by enforcing iOS-safe text sizing across every mobile text field, textarea, select, and editable surface.
+- Locked the installed app to its intended 1:1 viewport scale and removed the remaining pinch-zoom exception, while preserving ordinary one-finger scrolling.
+- Aligned the iPhone Home menu and Intelligence controls to the same safe-area centerline so the two header buttons remain visually level.
+- Moved the responsive stability stylesheet to final authority so dynamically loaded Projects & Create, Library, Settings, authentication, and future tool controls inherit the same mobile behavior.
+
+### Release
+- Advanced the application release to 5.9.5 and the service-worker cache to revision 39 so installed PWAs receive the viewport correction immediately.
+
 ## 5.9.4 — 2026-08-23
 
 ### Conversation startup

@@ -26,7 +26,6 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-5.2.css', 'crump52'],
     ['/crump-5.2.2.css', 'crump522'],
     ['/crump-v1-body.css', 'crumpbodyv1'],
-    ['/crump-v1-stability.css', 'crumpv1stability'],
   ]);
 
   const scripts = Object.freeze([
@@ -86,6 +85,9 @@ window.CRUMP_CONFIG = Object.freeze({
     await loadStyle('/crump-product-5.3.1.css', 'crumpproduct531');
     await loadStyle('/crump-polish-5.6.css', 'crumppolish56');
     await loadStyle('/crump-library-5.7.css', 'crumplibrary57');
+    // Keep the stability layer last. Its mobile viewport and editor rules must
+    // win over every feature stylesheet, including dynamically rendered tools.
+    await loadStyle('/crump-v1-stability.css', 'crumpv1stability');
 
     for (const [url, key] of scripts) {
       await loadScript(url, key);
