@@ -12,7 +12,7 @@ def test_intelligence_control_uses_product_native_glasses_icon():
     intelligence = read("public/crump-4.4.js")
 
     assert "control.id = 'crumpIntelligenceButton'" in intelligence
-    assert "control.setAttribute('aria-label', 'Crump intelligence controls')" in intelligence
+    assert "control.setAttribute('aria-label', `${assistantName()} intelligence controls`)" in intelligence
     assert "control.title = 'Intelligence'" in intelligence
     assert 'class="crump44-glasses-icon"' in intelligence
     assert 'class="crump44-glasses-icon" width="23" height="23"' in intelligence
@@ -38,6 +38,6 @@ def test_glasses_icon_release_advances_shell_cache():
     sw = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
 
-    assert "ask-crump-new-body-v1-r30" in sw
+    assert "ask-crump-new-body-v1-r40" in sw
     assert "ask-crump-new-body-v1-r20" not in sw
-    assert "ask-crump-new-body-v1-r30" in checker
+    assert "ask-crump-new-body-v1-r40" in checker

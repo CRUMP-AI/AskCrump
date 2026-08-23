@@ -140,6 +140,7 @@ async def register(payload: RegisterRequest, request: Request):
             event_name='AccountCreated',
             event_key='account-created',
             request=request,
+            source=payload.source,
         )
         if user.get('full_name'):
             await record_product_event(
@@ -148,6 +149,7 @@ async def register(payload: RegisterRequest, request: Request):
                 event_name='OnboardingCompleted',
                 event_key='initial-profile',
                 request=request,
+                source=payload.source,
             )
 
     try:

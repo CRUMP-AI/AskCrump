@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r30';
+const CACHE_NAME = 'ask-crump-new-body-v1-r40';
 
 const CORE = [
   '/app',
@@ -44,7 +44,7 @@ const CORE = [
   '/sync-manager.js',
   '/chat-sync.js',
   '/account-manager.js',
-  '/app.js',
+  '/app.js?v=5.9.6',
   '/product-analytics.js',
   '/auth-controller.js',
   '/crump-4.3.css',
@@ -62,9 +62,10 @@ const CORE = [
   '/assets/brand/crump-mark.png',
   '/assets/brand/crump-horizontal-light.png',
   '/assets/brand/crump-horizontal-dark.png',
-  '/assets/icon-192.png',
-  '/assets/icon-512.png',
-  '/assets/icon-1024.png',
+  '/assets/ask-crump-app-icon-v2-180.png',
+  '/assets/ask-crump-app-icon-v2-192.png',
+  '/assets/ask-crump-app-icon-v2-512.png',
+  '/assets/ask-crump-app-icon-v2-1024.png',
 ];
 
 async function preCache() {

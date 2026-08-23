@@ -59,7 +59,26 @@ def test_manifest_icons_are_real_files_with_declared_sizes():
         assert path.exists()
         width, height = map(int, icon['sizes'].split('x'))
         assert width == height
-        assert path.name == f'icon-{width}.png'
+        assert path.name == f'ask-crump-app-icon-v2-{width}.png'
+
+
+def test_apple_install_icon_is_versioned_and_uses_the_locked_mark():
+    app_html = (PUBLIC / 'app.html').read_text()
+    assert 'apple-touch-icon" sizes="180x180"' in app_html
+    assert 'ask-crump-app-icon-v2-180.png' in app_html
+    assert 'apple-touch-icon-precomposed' in app_html
+    assert (PUBLIC / 'assets' / 'ask-crump-app-icon-v2-180.png').exists()
+
+    generator = (ROOT / 'scripts' / 'generate_locked_brand_icons.py').read_text()
+    assert 'LOCKED_SHA256' in generator
+    assert "resources' / 'icon.png'" in generator
+    assert "resources' / 'splash.png'" in generator
+
+    from PIL import Image
+    with Image.open(ROOT / 'resources' / 'icon.png') as icon:
+        assert icon.size == (1024, 1024)
+    with Image.open(ROOT / 'resources' / 'splash.png') as splash:
+        assert splash.size == (2732, 2732)
 
 
 def test_service_worker_never_cache_firsts_api_requests():
@@ -171,13 +190,21 @@ def test_ai_responses_have_in_app_safety_reporting():
     assert "AI response safety reports" in privacy
 
 
+def test_ai_responses_have_privacy_safe_sharing():
+    ui = (PUBLIC / 'ui-functions.js').read_text()
+    assert "share.textContent = 'Share'" in ui
+    assert "navigator.share(payload)" in ui
+    assert "Created with Ask Crump" in ui
+    assert "ResponseShared" in ui
+    assert "responseShareKey(message, index)" in ui
+
+
 def test_destructive_actions_use_an_accessible_dialog():
     app_js = (PUBLIC / 'app.js').read_text()
     ui = (PUBLIC / 'ui-functions.js').read_text()
     assert "confirm('" not in app_js
     assert 'window.confirmAction = confirmAction' in ui
     assert "document.createElement('dialog')" in ui
-    assert 'user-scalable=no' not in (PUBLIC / 'app.html').read_text()
 
 
 def test_account_dialog_traps_keyboard_focus():

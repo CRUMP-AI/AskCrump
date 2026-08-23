@@ -6,7 +6,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from ..auth_service import authenticate_request
-from ..runtime import db, intelligence, settings
+from ..feature_service import FeatureAccessError
+from ..runtime import db, features, intelligence, settings
 from ..security import normalize_chat_id
 
 
@@ -17,6 +18,10 @@ router = APIRouter(prefix="/api/intelligence", tags=["intelligence"])
 async def intelligence_status(request: Request):
     auth = await authenticate_request(request, db, settings)
     status = await intelligence.status(auth.user["id"])
+    status["entitlements"] = {
+        "thinkLonger": features.entitled(auth.user, "think_longer"),
+        "minimumTier": "professional",
+    }
     return {"success": True, **status}
 
 
@@ -24,14 +29,22 @@ async def intelligence_status(request: Request):
 async def get_preferences(request: Request):
     auth = await authenticate_request(request, db, settings)
     preferences = await intelligence.get_preferences(auth.user["id"])
+    think_longer_entitled = features.entitled(auth.user, "think_longer")
+    intelligence_mode = preferences["intelligence_mode"]
+    if intelligence_mode == "deep" and not think_longer_entitled:
+        intelligence_mode = "auto"
     return {
         "success": True,
         "preferences": {
-            "intelligenceMode": preferences["intelligence_mode"],
+            "intelligenceMode": intelligence_mode,
             "memoryEnabled": preferences["memory_enabled"],
             "autoLearn": preferences["auto_learn"],
             "autoTools": preferences["auto_tools"],
             "verificationLevel": preferences["verification_level"],
+        },
+        "entitlements": {
+            "thinkLonger": think_longer_entitled,
+            "minimumTier": "professional",
         },
     }
 
@@ -45,6 +58,23 @@ async def update_preferences(request: Request):
             status_code=400,
             content={"success": False, "error": "Invalid preferences payload."},
         )
+    requested_mode = str(
+        payload.get("intelligenceMode", payload.get("intelligence_mode", ""))
+    ).strip().lower()
+    if requested_mode == "deep" and not features.entitled(auth.user, "think_longer"):
+        try:
+            await features.require_tier(auth.user, "think_longer")
+        except FeatureAccessError as exc:
+            return JSONResponse(
+                status_code=exc.status_code,
+                content={
+                    "success": False,
+                    "error": exc.message,
+                    "code": exc.code,
+                    "upgradeRequired": True,
+                    "requiredTier": exc.required_tier,
+                },
+            )
     preferences = await intelligence.update_preferences(auth.user["id"], payload)
     return {"success": True, "preferences": preferences}
 

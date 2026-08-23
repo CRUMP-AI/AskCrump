@@ -97,12 +97,13 @@
 
     const input = document.getElementById('userInput');
     if (input) {
-      input.placeholder = 'Message Crump';
-      input.setAttribute('aria-label', 'Message Crump');
+      const assistantName = window.getAssistantName?.() || 'Crump';
+      input.placeholder = `Message ${assistantName}`;
+      input.setAttribute('aria-label', `Message ${assistantName}`);
     }
 
     document.getElementById('crumpIntelligenceButton')
-      ?.setAttribute('aria-label', 'Crump controls');
+      ?.setAttribute('aria-label', `${window.getAssistantName?.() || 'Crump'} controls`);
   }
 
   function installChatObserver() {

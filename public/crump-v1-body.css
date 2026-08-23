@@ -1077,6 +1077,43 @@ body.crump-v1-body .assistant-message .message-content {
   letter-spacing: -.008em;
 }
 body.crump-v1-body .assistant-message .message-content :is(p,ul,ol,blockquote,pre) { margin-top: 0; margin-bottom: 15px; }
+body.crump-v1-body .assistant-message .message-content blockquote {
+  margin-left: 0;
+  padding: 12px 16px;
+  border-left: 2px solid #d9bf84;
+  border-radius: 0 12px 12px 0;
+  background: rgba(217,191,132,.055);
+  color: #e9e3d7;
+}
+body.crump-v1-body .assistant-message .markdown-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  margin: 0 0 18px;
+  border: 1px solid var(--ac-line);
+  border-radius: 14px;
+  background: rgba(255,255,255,.018);
+}
+body.crump-v1-body .assistant-message .message-content table {
+  width: 100%;
+  min-width: 420px;
+  border-collapse: collapse;
+  font-size: .92em;
+  line-height: 1.48;
+}
+body.crump-v1-body .assistant-message .message-content :is(th,td) {
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--ac-line);
+  text-align: left;
+  vertical-align: top;
+}
+body.crump-v1-body .assistant-message .message-content th {
+  background: rgba(217,191,132,.075);
+  color: #f4ead2;
+  font-size: .83em;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+body.crump-v1-body .assistant-message .message-content tr:last-child td { border-bottom: 0; }
 body.crump-v1-body .assistant-message .message-content :is(h1,h2,h3) {
   margin: 27px 0 11px;
   color: #f8f5ef;
@@ -2233,4 +2270,3 @@ body.crump-v1-body #filePreview.crump50-attachment-tray {
     bottom: calc(var(--ac-dock) + 6px) !important;
   }
 }
-

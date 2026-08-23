@@ -251,7 +251,11 @@
       applyPlanIntent(modal, plan);
       window.va?.('event', {
         name: 'PlanIntentReached',
-        data: {plan, source: String(event.detail?.source || 'direct').slice(0, 32)},
+        data: {
+          plan,
+          source: String(event.detail?.source || 'direct').slice(0, 32),
+          location: String(event.detail?.location || 'unknown').slice(0, 32),
+        },
       });
       const source = String(event.detail?.source || 'direct').slice(0, 32);
       const capturedAt = Number(event.detail?.capturedAt || Date.now());

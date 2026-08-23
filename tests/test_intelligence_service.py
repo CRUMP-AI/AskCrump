@@ -61,3 +61,10 @@ def test_relevant_memories_use_query_overlap_and_importance():
 def test_route_detection_for_current_and_code_requests():
     assert IntelligenceService._route_for("What is the latest OpenAI news?", {}) == "web"
     assert IntelligenceService._route_for("Debug this Python API error", {}) == "code"
+
+
+def test_source_heavy_academic_requests_route_to_grounded_research():
+    assert IntelligenceService._route_for(
+        "Write a research paper with peer-reviewed citations and a bibliography.",
+        {},
+    ) == "web"

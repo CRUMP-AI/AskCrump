@@ -30,7 +30,13 @@ def test_mobile_document_format_grid_remains_two_columns_and_complete():
     document_tool = script[start:end]
 
     assert "DOCUMENT STUDIO" in document_tool
-    assert "Turn Crump’s work into a finished file." in document_tool
+    assert "Start with the outcome. Crump will structure the file." in document_tool
+    assert "What are you making?" in document_tool
+    assert "ESSAY · REPORT" in document_tool
+    assert "RÉSUMÉ · CV" in document_tool
+    assert "PRESENTATION" in document_tool
+    assert "SPREADSHEET" in document_tool
+    assert "MANUSCRIPT" in document_tool
     assert "[['docx','Word','DOCX'],['pdf','PDF','PDF'],['pptx','PowerPoint','PPTX'],['xlsx','Excel','XLSX'],['md','Markdown','MD'],['txt','Text','TXT']]" in document_tool
     assert "state.tool = 'document'" in document_tool
     assert "state.documentFormat = value" in document_tool
@@ -47,6 +53,6 @@ def test_documents_mobile_hotfix_advances_shell_cache():
     sw = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
 
-    assert "ask-crump-new-body-v1-r30" in sw
+    assert "ask-crump-new-body-v1-r40" in sw
     assert "ask-crump-new-body-v1-r21" not in sw
-    assert "ask-crump-new-body-v1-r30" in checker
+    assert "ask-crump-new-body-v1-r40" in checker

@@ -1,6 +1,7 @@
 import { access, readdir, readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { createContext, runInContext } from 'node:vm';
 
 const expectedFiles = new Set([
   'account-manager.js', 'app.js', 'auth-controller.js', 'billing-manager.js', 'chat-sync.js',
@@ -128,7 +129,7 @@ if (!v1Body.includes('removeLegacyEmptyState(container)')) {
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r30') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r40') ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes('/crump-v1-body.js') ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.2.5.js'") ||
@@ -141,6 +142,38 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r30') ||
 }
 
 const uiFunctions = await readFile(new URL('public/ui-functions.js', repoRoot), 'utf8');
+const markdownWindow = {
+  crypto: { randomUUID: () => 'markdown-contract' },
+  location: { origin: 'https://www.askcrump.com' },
+};
+runInContext(uiFunctions, createContext({
+  document: {},
+  URL,
+  window: markdownWindow,
+}));
+const renderedMarkdown = markdownWindow.renderMarkdown([
+  '| Category | Amount |',
+  '| --- | ---: |',
+  '| Venue | $600 |',
+  '',
+  '> Bring something unfinished.',
+  '> Keep the work moving.',
+  '',
+  '1. Choose the goal',
+  '2. Build the plan',
+  '',
+  '<script>alert(1)</script>',
+].join('\n'));
+if (!renderedMarkdown.includes('<table>') ||
+    !renderedMarkdown.includes('<th scope="col">Category</th>') ||
+    !renderedMarkdown.includes('<td>$600</td>') ||
+    !renderedMarkdown.includes('<blockquote>Bring something unfinished.<br>Keep the work moving.</blockquote>') ||
+    !renderedMarkdown.includes('<ol><li>Choose the goal</li><li>Build the plan</li></ol>') ||
+    !renderedMarkdown.includes('&lt;script&gt;alert(1)&lt;/script&gt;') ||
+    renderedMarkdown.includes('<script>')) {
+  console.error('Safe Markdown renderer must support tables, quotations, and ordered lists without allowing HTML injection.');
+  process.exit(1);
+}
 const scroll522 = await readFile(new URL('public/crump-5.2.2.js', repoRoot), 'utf8');
 const scroll522Css = await readFile(new URL('public/crump-5.2.2.css', repoRoot), 'utf8');
 if (!uiFunctions.includes("typeof window.crumpScrollManager?.scrollToBottom === 'function'") ||

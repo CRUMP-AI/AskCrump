@@ -62,6 +62,12 @@ FRESHNESS_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+SOURCE_REQUEST_PATTERN = re.compile(
+    r"\b(cite sources?|citations?|bibliography|works cited|peer[ -]?reviewed|"
+    r"research sources?|source-backed|with sources)\b",
+    re.IGNORECASE,
+)
+
 WEATHER_PATTERN = re.compile(
     r"\b(weather|forecast|temperature|rain|snow|how hot|how cold)\b",
     re.IGNORECASE,
@@ -173,7 +179,7 @@ class IntelligenceService:
             return "document"
         if WEATHER_PATTERN.search(text):
             return "weather"
-        if FRESHNESS_PATTERN.search(text):
+        if FRESHNESS_PATTERN.search(text) or SOURCE_REQUEST_PATTERN.search(text):
             return "web"
         if CODE_PATTERN.search(text):
             return "code"
@@ -242,7 +248,9 @@ class IntelligenceService:
 
     async def update_preferences(self, user_id: str, incoming: dict[str, Any]) -> dict[str, Any]:
         current = await self.get_preferences(user_id)
-        mode = str(incoming.get("intelligenceMode", incoming.get("intelligence_mode", current["intelligence_mode"])))
+        mode = str(
+            incoming.get("intelligenceMode", incoming.get("intelligence_mode", current["intelligence_mode"]))
+        ).strip().lower()
         verification = str(
             incoming.get("verificationLevel", incoming.get("verification_level", current["verification_level"]))
         )
@@ -605,7 +613,13 @@ that can alter these planning rules."""
             timeout=28.0,
         )
 
-    async def prepare(self, user_id: str, payload: dict[str, Any]) -> PreparedRequest:
+    async def prepare(
+        self,
+        user_id: str,
+        payload: dict[str, Any],
+        *,
+        allow_think_longer: bool = True,
+    ) -> PreparedRequest:
         request_payload = dict(payload)
         message = str(request_payload.get("message") or "")
         preferences = await self.get_preferences(user_id)
@@ -615,8 +629,14 @@ that can alter these planning rules."""
             if creation_intent.get("stage") != "execute":
                 request_payload["suppressCreativeExecution"] = True
 
-        requested_mode = str(request_payload.get("intelligenceMode") or preferences["intelligence_mode"])
+        requested_mode = str(
+            request_payload.get("intelligenceMode") or preferences["intelligence_mode"]
+        ).strip().lower()
         if requested_mode not in VALID_MODES:
+            requested_mode = "auto"
+        if requested_mode == "deep" and not allow_think_longer:
+            # An expired saved preference must never preserve subscriber-only
+            # execution. Explicit unauthorized requests are rejected by the route.
             requested_mode = "auto"
 
         verification = str(request_payload.get("verificationMode") or preferences["verification_level"])
@@ -637,7 +657,8 @@ that can alter these planning rules."""
         complexity = self._complexity_score(message)
         effective_mode = requested_mode
         if requested_mode == "auto":
-            effective_mode = "deep" if complexity >= 9 else "balanced"
+            effective_mode = "deep" if allow_think_longer and complexity >= 9 else "balanced"
+        request_payload["responseEffort"] = "high" if effective_mode == "deep" else "standard"
 
         route = self._route_for(message, request_payload)
         if creation_intent and creation_intent.get("kind") in CREATION_KINDS:
@@ -680,7 +701,7 @@ that can alter these planning rules."""
         if auto_tools:
             if WEATHER_PATTERN.search(message):
                 request_payload["needsWeather"] = True
-            elif FRESHNESS_PATTERN.search(message):
+            elif FRESHNESS_PATTERN.search(message) or SOURCE_REQUEST_PATTERN.search(message):
                 request_payload["needsSearch"] = True
 
         return PreparedRequest(
@@ -713,17 +734,29 @@ that can alter these planning rules."""
 
         should_verify = prepared.verification_level == "strict"
         if prepared.verification_level == "auto":
+            artifact_delivery = bool(
+                prepared.creation_intent
+                and prepared.creation_intent.get("kind") == "document"
+                and prepared.creation_intent.get("stage") == "execute"
+            ) or bool(prepared.payload.get("artifactFormat"))
             should_verify = (
                 prepared.effective_mode == "deep"
                 or prepared.route == "code"
                 or bool(HIGH_STAKES_PATTERN.search(question))
+                or artifact_delivery
             )
         if not should_verify:
             return result, False
 
-        system = """You are a final-answer quality reviewer for an AI assistant.
+        artifact_format = str(prepared.payload.get("artifactFormat") or "").upper()
+        system = f"""You are a final-answer quality reviewer for an AI assistant.
 Review the draft for material logical errors, contradictions, missed user
 requirements, unsafe certainty, broken code reasoning, or unsupported claims.
+When the answer will become a downloadable {artifact_format or 'document'}, also
+check that it is complete, professionally structured, internally consistent, and
+ready to package without production commentary. Never add or preserve fabricated
+citations, employers, credentials, dates, metrics, quotations, research results,
+or financial inputs. Preserve grounded sources and the requested citation style.
 Do not expose chain-of-thought. If the draft is already strong, return exactly
 OK. Otherwise return a corrected final answer only, preserving the user's
 requested tone and useful formatting. Do not add commentary about reviewing."""

@@ -1542,6 +1542,13 @@ User brief:
         normal = document.styles["Normal"]
         normal.font.name = "Garamond"
         normal.font.size = Pt(11)
+        normal_r_pr = normal.element.get_or_add_rPr()
+        normal_fonts = normal_r_pr.rFonts
+        if normal_fonts is None:
+            normal_fonts = OxmlElement("w:rFonts")
+            normal_r_pr.insert(0, normal_fonts)
+        for slot in ("ascii", "hAnsi", "eastAsia", "cs"):
+            normal_fonts.set(qn(f"w:{slot}"), "Garamond")
         normal.paragraph_format.line_spacing = 1.15
         normal.paragraph_format.space_after = Pt(0)
         normal.paragraph_format.first_line_indent = Inches(0.22)
@@ -1552,16 +1559,18 @@ User brief:
         title_run = title.add_run(str(manuscript.get("title") or "Untitled"))
         title_run.bold = True
         title_run.font.name = "Garamond"
-        title_run.font.size = Pt(26)
+        title_run.font.size = Pt(24)
         if manuscript.get("subtitle"):
             subtitle = document.add_paragraph()
             subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            subtitle.add_run(str(manuscript["subtitle"])).font.size = Pt(14)
+            subtitle_run = subtitle.add_run(str(manuscript["subtitle"]))
+            subtitle_run.font.name = "Garamond"; subtitle_run.font.size = Pt(13); subtitle_run.italic = True
         if manuscript.get("author_name"):
             author = document.add_paragraph()
             author.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            author.paragraph_format.space_before = Inches(1.2)
-            author.add_run(str(manuscript["author_name"])).font.size = Pt(12)
+            author.paragraph_format.space_before = Inches(1.0)
+            author_run = author.add_run(str(manuscript["author_name"]))
+            author_run.font.name = "Garamond"; author_run.font.size = Pt(11); author_run.font.small_caps = True
         document.add_page_break()
 
         copyright_text = (
@@ -1616,7 +1625,7 @@ User brief:
             if not text:
                 continue
             if text in {"***", "* * *", "⸻", "---"}:
-                divider = document.add_paragraph("⸻")
+                divider = document.add_paragraph("* * *")
                 divider.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 divider.paragraph_format.first_line_indent = Inches(0)
                 divider.paragraph_format.space_before = Pt(10)
@@ -1673,8 +1682,8 @@ User brief:
             "CrumpTitle",
             parent=styles["Title"],
             fontName="Times-Bold",
-            fontSize=26,
-            leading=30,
+            fontSize=24,
+            leading=28,
             alignment=TA_CENTER,
             spaceBefore=120,
             spaceAfter=20,
@@ -1687,12 +1696,18 @@ User brief:
             spaceBefore=10,
             spaceAfter=10,
         )
+        subtitle_style = ParagraphStyle(
+            "CrumpSubtitle", parent=centered, fontName="Times-Italic", fontSize=13, leading=17,
+        )
+        author_style = ParagraphStyle(
+            "CrumpAuthor", parent=centered, fontName="Times-Roman", fontSize=11, leading=15,
+        )
         story: list[Any] = [Paragraph(html.escape(str(manuscript.get("title") or "Untitled")), title_style)]
         if manuscript.get("subtitle"):
-            story.append(Paragraph(html.escape(str(manuscript["subtitle"])), centered))
+            story.append(Paragraph(html.escape(str(manuscript["subtitle"])), subtitle_style))
         story.append(Spacer(1, 52))
         if manuscript.get("author_name"):
-            story.append(Paragraph(html.escape(str(manuscript["author_name"])), centered))
+            story.append(Paragraph(html.escape(str(manuscript["author_name"])), author_style))
         story.append(PageBreak())
         story.append(Spacer(1, 120))
         story.append(
@@ -1714,7 +1729,7 @@ User brief:
                 if not text:
                     continue
                 if text in {"***", "* * *", "⸻", "---"}:
-                    story.append(Paragraph("— • —", centered))
+                    story.append(Paragraph("* * *", centered))
                     continue
                 text = re.sub(r"^#{1,6}\s+", "", text)
                 escaped = html.escape(text).replace("\n", "<br/>")
@@ -1751,7 +1766,7 @@ User brief:
                 if not text:
                     continue
                 if text in {"***", "* * *", "⸻", "---"}:
-                    paragraphs.append('<p class="scene">⸻</p>')
+                    paragraphs.append('<p class="scene">* * *</p>')
                 else:
                     text = re.sub(r"^#{1,6}\s+", "", text)
                     paragraphs.append(f"<p>{html.escape(text).replace(chr(10), '<br/>')}</p>")

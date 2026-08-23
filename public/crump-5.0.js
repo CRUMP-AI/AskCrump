@@ -519,15 +519,30 @@
     closeMenu();
     const sheet = document.createElement('section');
     sheet.className = 'crump50-sheet crump50-options-sheet';
-    sheet.innerHTML = '<div class="crump50-sheet-head"><div><span>DOCUMENT STUDIO</span><strong>Turn Crump’s work into a finished file.</strong></div></div>';
+    sheet.innerHTML = '<div class="crump50-sheet-head"><div><span>DOCUMENT STUDIO</span><strong>Start with the outcome. Crump will structure the file.</strong></div></div>';
     const close = document.createElement('button'); close.type = 'button'; close.className = 'crump50-sheet-close'; close.textContent = '×'; close.addEventListener('click', closeMenu); $('.crump50-sheet-head', sheet).appendChild(close);
+    const outcomeLabel = document.createElement('div'); outcomeLabel.className = 'crump50-option-label'; outcomeLabel.textContent = 'What are you making?';
+    const outcomes = document.createElement('div'); outcomes.className = 'crump50-outcome-grid';
+    [
+      ['docx','ESSAY · REPORT','Academic & professional writing','Describe the topic, audience, length, requirements, and citation style…'],
+      ['docx','RÉSUMÉ · CV','ATS-friendly and fact-grounded','Share your real experience, target role, skills, and achievements…'],
+      ['pptx','PRESENTATION','A clear, decision-ready narrative','Describe the audience, objective, key evidence, and desired next step…'],
+      ['xlsx','SPREADSHEET','Structured inputs, formulas, and outputs','Describe the data, assumptions, calculations, and decisions this workbook should support…'],
+      ['docx','MANUSCRIPT','Persistent, chapter-by-chapter work','Describe the book, audience, voice, target length, and what you already know…'],
+    ].forEach(([format, eyebrow, label, placeholder]) => {
+      const button = document.createElement('button'); button.type = 'button';
+      button.innerHTML = `<span>${eyebrow}</span><strong>${label}</strong><b>›</b>`;
+      button.addEventListener('click', () => { state.tool = 'document'; state.documentFormat = format; closeMenu(); renderToolChip(); focusComposer(placeholder); });
+      outcomes.appendChild(button);
+    });
+    const formatLabel = document.createElement('div'); formatLabel.className = 'crump50-option-label'; formatLabel.textContent = 'Or choose a file format';
     const grid = document.createElement('div'); grid.className = 'crump50-format-grid';
     [['docx','Word','DOCX'],['pdf','PDF','PDF'],['pptx','PowerPoint','PPTX'],['xlsx','Excel','XLSX'],['md','Markdown','MD'],['txt','Text','TXT']].forEach(([value,label,badge]) => {
       const b = document.createElement('button'); b.type = 'button'; b.innerHTML = `<span>${badge}</span><strong>${label}</strong>`;
       b.addEventListener('click', () => { state.tool = 'document'; state.documentFormat = value; closeMenu(); renderToolChip(); focusComposer(`Describe the ${label} document you want…`); });
       grid.appendChild(b);
     });
-    sheet.appendChild(grid); document.body.appendChild(sheet); state.menu = sheet; document.body.classList.add('crump50-sheet-open'); requestAnimationFrame(() => sheet.classList.add('is-visible'));
+    sheet.append(outcomeLabel, outcomes, formatLabel, grid); document.body.appendChild(sheet); state.menu = sheet; document.body.classList.add('crump50-sheet-open'); requestAnimationFrame(() => sheet.classList.add('is-visible'));
   }
 
   function openCamera() {
@@ -780,7 +795,7 @@
     }
     const input = $('#userInput');
     if (input) {
-      input.placeholder = 'Message Crump';
+      input.placeholder = `Message ${window.getAssistantName?.() || 'Crump'}`;
       input.maxLength = 20000;
     }
     window.sendMessage = studioSendMessage;

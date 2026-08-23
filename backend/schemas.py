@@ -22,6 +22,7 @@ class RegisterRequest(APIModel):
     email: EmailStr
     password: str = Field(min_length=1, max_length=256)
     fullName: str | None = Field(default=None, max_length=160)
+    source: str | None = Field(default=None, max_length=32)
 
 
 class EmailRequest(APIModel):
@@ -72,7 +73,12 @@ class CheckoutRequest(APIModel):
 
 
 class ProductEventRequest(APIModel):
-    eventName: Literal["WorkspaceOpened", "PlanIntentReached"]
+    eventName: Literal[
+        "WorkspaceOpened",
+        "ActivationReached",
+        "PlanIntentReached",
+        "ResponseShared",
+    ]
     eventKey: str = Field(
         min_length=1,
         max_length=160,

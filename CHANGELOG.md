@@ -1,5 +1,148 @@
 # Changelog
 
+## 5.9.6 — 2026-08-23
+
+### Assistant identity
+- Made the saved Assistant Name a server-authoritative conversational identity so the model recognizes, answers to, and naturally uses the user-selected name without confusing it with the Ask Crump product name.
+- Reflected the selected name throughout the composer and Intelligence controls, including accessible labels and memory copy.
+
+### Intelligence
+- Reintroduced Deep mode as the clearer **Think longer** experience: an additional planning pass, high-effort response guidance, and a separate final-answer review for difficult work.
+- Reserved Think longer for active Professional and Enterprise subscriptions, with synchronized UI entitlements and server-side enforcement that cannot be bypassed by modifying browser requests.
+- Prevented free Auto mode and expired saved preferences from silently invoking the subscriber-only multi-pass workflow.
+
+### Navigation
+- Made every conversation selection render the chosen conversation and dismiss the mobile conversation drawer, including the correct expanded-state reset.
+- Changed the Legal & Privacy brand return link to reopen the authenticated Ask Crump app instead of the Clever Crump landing page.
+
+### Release
+- Advanced the application release to 5.9.6 and the service-worker cache to revision 40 so installed PWAs receive the identity, intelligence, and navigation changes immediately.
+
+## 5.9.5 — 2026-08-23
+
+### Fixed
+- Prevented iPhone focus zoom from leaving Video Studio and other Ask Crump surfaces enlarged after editing by enforcing iOS-safe text sizing across every mobile text field, textarea, select, and editable surface.
+- Locked the installed app to its intended 1:1 viewport scale and removed the remaining pinch-zoom exception, while preserving ordinary one-finger scrolling.
+- Aligned the iPhone Home menu and Intelligence controls to the same safe-area centerline so the two header buttons remain visually level.
+- Moved the responsive stability stylesheet to final authority so dynamically loaded Projects & Create, Library, Settings, authentication, and future tool controls inherit the same mobile behavior.
+
+### Release
+- Advanced the application release to 5.9.5 and the service-worker cache to revision 39 so installed PWAs receive the viewport correction immediately.
+
+## 5.9.4 — 2026-08-23
+
+### Conversation startup
+
+- Made every cold start or reload open on a clean new-conversation surface instead of restoring the last active conversation.
+- Kept every previous conversation safely available in history and preserved deliberate conversation opens from history, notifications, and other in-app navigation.
+- Reused an existing pristine starter when possible so repeated reloads do not accumulate empty conversation rows.
+
+### Quality
+
+- Added regression coverage that prevents last-conversation restoration from returning and guards against deleting or clearing conversation history during fresh startup.
+- Advanced the application release to 5.9.4 and the service-worker cache to revision 38.
+
+## 5.9.3 — 2026-08-23
+
+### Acquisition measurement
+
+- Preserved a prospect's privacy-safe first-touch acquisition channel from the public homepage through account creation and initial onboarding.
+- Reduced known social referrers to channel names and unknown external referrers to `referral`; full URLs, campaign content, search terms, and user identifiers are never recorded.
+- Kept CTA location separate from acquisition source so the business can distinguish which channel brought a customer from which page action converted them.
+
+### Quality
+
+- Added regression coverage for UTM/referrer handling, CTA propagation, registration intake, and server-authoritative account-event attribution.
+- Advanced the application release to 5.9.3 and the service-worker cache to revision 37.
+
+## 5.9.2 — 2026-08-23
+
+### Acquisition and discovery
+
+- Restored the public Ask Crump marketing homepage instead of redirecting every first-time visitor directly into the application sign-in screen.
+- Preserved source and plan attribution across every first-party signup path and added a distinct returning-user sign-in route.
+- Added canonical, Open Graph, social-card, structured-application, robots, and sitemap metadata so the product has a truthful indexable surface.
+- Kept the authenticated application out of search results while preserving `/app` as the installed PWA and returning-user destination.
+
+### Quality
+
+- Added regression coverage that prevents the public homepage redirect from returning and verifies the marketing/app indexing boundary.
+- Verified the restored funnel visually at desktop and mobile breakpoints with no browser warnings or errors.
+- Advanced the application release to 5.9.2 and the service-worker cache to revision 36.
+
+## 5.9.1 — 2026-08-23
+
+### Professional formatting
+
+- Rebuilt Word and PDF output around format-native academic, résumé, and business conventions instead of a shared branded template.
+- Enforced exact academic typography, spacing, margins, heading hierarchy, list treatment, and reference hanging indents while keeping citations source-grounded.
+- Refined résumés into restrained, single-column ATS-ready documents with stronger hierarchy and no visible product chrome.
+- Reworked presentations into varied editorial layouts with readable typography, content-aware tables, and neutral slide furniture.
+- Simplified spreadsheets into professional working models with compact workbook indexes, restrained formatting, typed data, and selective visual analysis.
+- Polished manuscript title pages and book typography across Word and PDF while preserving editable, publication-oriented structure.
+
+### Quality
+
+- Removed visible Ask Crump branding from default user deliverables while retaining internal provenance metadata.
+- Added regression checks for exact Word font slots, reference indentation, neutral page furniture, and professional-format conventions.
+- Advanced the application release to 5.9.1 and the service-worker cache to revision 35.
+
+## 5.9.0 — 2026-08-23
+
+### Added
+
+- Added outcome-first Document Studio paths for essays and reports, résumés and CVs, presentations, spreadsheets, and manuscripts.
+- Added format-aware, editable Word, PDF, PowerPoint, and Excel finishing with academic, résumé, presentation, spreadsheet, and business profiles.
+- Added source-aware research routing and automatic final verification for downloadable artifact requests.
+- Added a checksum-locked app-identity pipeline that derives versioned web-install icons, the native icon source, and the native splash source from the permanent Ask Crump C-and-magnifying-glass mark.
+- Added representative artifact fixtures and structural tests covering page setup, metadata, editability, spreadsheet types and formulas, presentation dimensions, and extractable PDF text.
+
+### Quality and safety
+
+- Prevented the document system from inventing citations, quotations, credentials, employment history, dates, metrics, research results, or financial inputs.
+- Added spreadsheet formula-injection guards, explicit print areas, stable pagination, inferred business number formats, filters, frozen headings, and editable native tables.
+- Replaced a fragile manuscript scene-break glyph with a cross-platform typographic break for consistent Word, PDF, and EPUB output.
+
+### Changed
+
+- Advanced the application release to 5.9.0 and the service-worker cache to revision 34 so installed customers receive the document-quality and identity updates.
+
+## 5.8.5 — 2026-08-23
+
+### Added
+
+- Added a privacy-safe `ActivationReached` milestone when an account receives its first successful Ask Crump response.
+- Added an account-scoped local guard so the activation event is attempted once, while the server remains the idempotent source of truth.
+
+### Privacy
+
+- Kept activation measurement limited to a fixed milestone key; prompts, responses, filenames, and arbitrary metadata are never sent to product analytics.
+
+### Changed
+
+- Advanced the service-worker cache to revision 33 so activation measurement reaches installed customers.
+
+## 5.8.4 — 2026-08-23
+
+### Added
+
+- Added a deliberate Share action to every Ask Crump response, using the native share sheet on supported devices and a branded clipboard fallback elsewhere.
+- Added a privacy-safe `ResponseShared` milestone so the response-sharing loop can be measured without storing prompts, response text, filenames, or personal data.
+
+### Changed
+
+- Limited shared responses to a practical excerpt and attached the canonical AskCrump.com destination for a clear recipient experience.
+- Advanced the service-worker cache to revision 32 so the sharing feature reaches installed customers.
+
+## 5.8.3 — 2026-08-22
+
+### Fixed
+
+- Rendered Markdown tables as accessible, responsive tables instead of raw pipe-delimited text.
+- Rendered quoted copy and numbered steps with designed blockquote and ordered-list presentation.
+- Preserved the safe renderer's HTML escaping and URL protections while expanding its presentation support.
+- Advanced the service-worker cache to revision 31 so the conversation polish reaches installed customers.
+
 ## 5.8.2 — 2026-08-22
 
 ### Added

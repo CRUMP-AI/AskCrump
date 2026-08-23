@@ -27,6 +27,14 @@ class FeaturePolicy:
 
 
 POLICIES: dict[str, FeaturePolicy] = {
+    "think_longer": FeaturePolicy(
+        "think_longer",
+        "Think longer",
+        "professional",
+        0,
+        {"free": 0, "professional": -1, "enterprise": -1},
+        "ANTHROPIC_API_KEY",
+    ),
     "research": FeaturePolicy(
         "research",
         "Live research & current data",
@@ -163,6 +171,10 @@ class FeatureService:
     def _tier_allowed(tier: str, minimum: str) -> bool:
         return TIER_RANK.get(tier, 0) >= TIER_RANK.get(minimum, 0)
 
+    def entitled(self, user: dict[str, Any], code: str) -> bool:
+        policy = self.policy(code)
+        return has_internal_access(user) or self._tier_allowed(tier_name(user), policy.minimum_tier)
+
     async def status(self, user: dict[str, Any]) -> dict[str, Any]:
         tier = tier_name(user)
         internal_access = has_internal_access(user)
@@ -189,10 +201,7 @@ class FeatureService:
 
     async def require_tier(self, user: dict[str, Any], code: str) -> FeaturePolicy:
         policy = self.policy(code)
-        if has_internal_access(user):
-            return policy
-        tier = tier_name(user)
-        if not self._tier_allowed(tier, policy.minimum_tier):
+        if not self.entitled(user, code):
             credits = await credit_status(self.db, user["id"])
             raise FeatureAccessError(
                 f"{policy.label} requires a {policy.minimum_tier.title()} plan.",

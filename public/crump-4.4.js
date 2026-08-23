@@ -18,8 +18,22 @@
   let panel = null;
   let memoryViewOpen = false;
   let statusData = null;
+  let entitlements = { thinkLonger: false, minimumTier: 'professional' };
 
   const $ = (selector, root = document) => root.querySelector(selector);
+
+  function assistantName() {
+    return String(window.getAssistantName?.() || 'Crump').trim() || 'Crump';
+  }
+
+  function applyEntitlements(value) {
+    if (!value || typeof value !== 'object') return;
+    entitlements = {
+      ...entitlements,
+      thinkLonger: value.thinkLonger === true,
+      minimumTier: String(value.minimumTier || 'professional'),
+    };
+  }
 
   function cleanUserId() {
     return String(window.currentUser?.id || 'guest').replace(/[^a-zA-Z0-9_-]/g, '');
@@ -125,6 +139,8 @@
     if (!response.ok) {
       const error = new Error(data.error || data.message || `Request failed (${response.status})`);
       error.status = response.status;
+      error.code = data.code;
+      error.requiredTier = data.requiredTier;
       throw error;
     }
     return data;
@@ -138,6 +154,7 @@
     loadLocalState();
     try {
       const data = await api('/api/intelligence/preferences');
+      applyEntitlements(data.entitlements);
       if (data.preferences) {
         state = { ...state, ...data.preferences };
         saveLocalState();
@@ -165,7 +182,14 @@
           saveLocalState();
           refreshPanel();
         }
-      } catch (_) {
+      } catch (error) {
+        if (error?.code === 'SUBSCRIPTION_REQUIRED') {
+          state.intelligenceMode = 'auto';
+          saveLocalState();
+          refreshPanel();
+          window.showBillingCenter?.({ plan: 'professional' });
+          return;
+        }
         window.showToast?.('Crump saved this setting locally and will sync it when the server is available.', 'warning');
       }
     }, 250);
@@ -222,7 +246,7 @@
   }
 
   function modeLabel(mode) {
-    return { auto: 'Auto', fast: 'Fast', deep: 'Deep' }[mode] || 'Auto';
+    return { auto: 'Auto', fast: 'Fast', deep: 'Think longer' }[mode] || 'Auto';
   }
 
   function verificationLabel(level) {
@@ -233,12 +257,35 @@
     const wrap = document.createElement('div');
     wrap.className = 'crump44-segmented';
     for (const mode of ['auto', 'fast', 'deep']) {
+      const locked = mode === 'deep' && !entitlements.thinkLonger;
       const option = button(modeLabel(mode), `crump44-segment${state.intelligenceMode === mode ? ' active' : ''}`, () => {
+        if (locked) {
+          closePanel();
+          const modal = window.showBillingCenter?.({ plan: 'professional' });
+          if (!modal) window.showUpgradePrompt?.();
+          window.dispatchEvent(new CustomEvent('crump:plan-intent', {
+            detail: {
+              plan: 'professional',
+              source: 'think-longer',
+              location: 'intelligence',
+              capturedAt: Date.now(),
+            },
+          }));
+          return;
+        }
         state.intelligenceMode = mode;
         persistPreferences();
         refreshPanel();
       });
       option.setAttribute('aria-pressed', String(state.intelligenceMode === mode));
+      if (locked) {
+        option.classList.add('is-locked');
+        option.setAttribute('aria-label', 'Think longer — Professional or Enterprise');
+        option.title = 'Included with Professional and Enterprise';
+        const badge = document.createElement('small');
+        badge.textContent = 'PRO';
+        option.appendChild(badge);
+      }
       wrap.appendChild(option);
     }
     return wrap;
@@ -287,7 +334,7 @@
     shell.id = 'crumpIntelligencePanel';
     shell.className = 'crump44-panel';
     shell.setAttribute('role', 'dialog');
-    shell.setAttribute('aria-label', 'Crump controls');
+    shell.setAttribute('aria-label', `${assistantName()} controls`);
     shell.hidden = true;
 
     const grabber = document.createElement('div');
@@ -299,14 +346,14 @@
     const titleWrap = document.createElement('div');
     const eyebrow = document.createElement('span');
     eyebrow.className = 'crump44-eyebrow';
-    eyebrow.textContent = 'CRUMP';
+    eyebrow.textContent = assistantName().toUpperCase();
     const title = document.createElement('strong');
     title.textContent = 'Intelligence';
     const subtitle = document.createElement('small');
     subtitle.textContent = 'Power underneath the conversation.';
     titleWrap.append(eyebrow, title, subtitle);
     const close = button('×', 'crump44-close', closePanel);
-    close.setAttribute('aria-label', 'Close Crump controls');
+    close.setAttribute('aria-label', `Close ${assistantName()} controls`);
     header.append(titleWrap, close);
 
     const content = document.createElement('div');
@@ -341,9 +388,9 @@
     if (state.intelligenceMode === 'fast') {
       modeCopy.textContent = 'Prioritizes speed and skips extra planning unless a tool is required.';
     } else if (state.intelligenceMode === 'deep') {
-      modeCopy.textContent = 'Adds a planning pass and stronger final-answer review for difficult work.';
+      modeCopy.textContent = 'Think longer adds a planning pass and a separate final-answer review for difficult work.';
     } else {
-      modeCopy.textContent = 'Crump chooses how much orchestration the request actually needs.';
+      modeCopy.textContent = `${assistantName()} chooses the right amount of work for each request.`;
     }
     modeSection.appendChild(modeCopy);
 
@@ -353,7 +400,7 @@
       makeSectionTitle('Memory', 'Durable context stays separate from ordinary chat history.'),
       makeToggle({
         label: 'Use memory',
-        description: 'Let Crump retrieve useful preferences, projects, goals, and explicit memories.',
+        description: `Let ${assistantName()} retrieve useful preferences, projects, goals, and explicit memories.`,
         checked: state.memoryEnabled,
         onChange: enabled => {
           state.memoryEnabled = enabled;
@@ -381,7 +428,7 @@
     );
 
     const memoryButton = button(
-      `What Crump remembers${statusData?.memoryCount ? ` · ${statusData.memoryCount}` : ''}`,
+      `What ${assistantName()} remembers${statusData?.memoryCount ? ` · ${statusData.memoryCount}` : ''}`,
       'crump44-row-button',
       async () => {
         memoryViewOpen = true;
@@ -465,7 +512,7 @@
     back.setAttribute('aria-label', 'Back to intelligence controls');
     const copy = document.createElement('div');
     const title = document.createElement('strong');
-    title.textContent = 'What Crump remembers';
+    title.textContent = `What ${assistantName()} remembers`;
     const subtitle = document.createElement('span');
     subtitle.textContent = 'Only durable memory items. Your full chat history lives separately.';
     copy.append(title, subtitle);
@@ -492,7 +539,7 @@
     if (!memories.length) {
       const empty = document.createElement('div');
       empty.className = 'crump44-memory-empty';
-      empty.textContent = 'Nothing saved yet. Crump can learn durable details when you state them clearly.';
+      empty.textContent = `Nothing saved yet. ${assistantName()} can learn durable details when you state them clearly.`;
       content.appendChild(empty);
       return;
     }
@@ -558,6 +605,7 @@
     if (!window.currentUser?.id) return;
     try {
       statusData = await api('/api/intelligence/status');
+      applyEntitlements(statusData.entitlements);
     } catch (_) {
       statusData = null;
     }
@@ -597,7 +645,7 @@
     control.id = 'crumpIntelligenceButton';
     control.type = 'button';
     control.className = 'crump44-control-button';
-    control.setAttribute('aria-label', 'Crump intelligence controls');
+    control.setAttribute('aria-label', `${assistantName()} intelligence controls`);
     control.setAttribute('aria-haspopup', 'dialog');
     control.setAttribute('aria-expanded', 'false');
     control.title = 'Intelligence';
@@ -653,6 +701,16 @@
     }, 1500);
   }
 
+  function syncAssistantName() {
+    panel?.setAttribute('aria-label', `${assistantName()} controls`);
+    const eyebrow = panel && $('.crump44-eyebrow', panel);
+    if (eyebrow) eyebrow.textContent = assistantName().toUpperCase();
+    const close = panel && $('.crump44-close', panel);
+    close?.setAttribute('aria-label', `Close ${assistantName()} controls`);
+    $('#crumpIntelligenceButton')?.setAttribute('aria-label', `${assistantName()} intelligence controls`);
+    refreshPanel();
+  }
+
   function boot() {
     if (document.documentElement.dataset.crump44Booted === 'true') return;
     document.documentElement.dataset.crump44Booted = 'true';
@@ -663,6 +721,7 @@
     panel = buildPanel();
     installKeyboardBehavior();
     watchAuthenticatedUser();
+    window.addEventListener('crump:assistant-name-changed', syncAssistantName);
 
     document.addEventListener('click', event => {
       if (!panel || panel.hidden) return;

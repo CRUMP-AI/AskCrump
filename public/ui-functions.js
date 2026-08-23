@@ -52,6 +52,8 @@
     const output = [];
     let paragraph = [];
     let list = [];
+    let listTag = 'ul';
+    let quote = [];
     const restore = value => {
       let restored = value;
       for (const block of protectedBlocks) restored = restored.replaceAll(block.id, block.html);
@@ -64,23 +66,72 @@
     };
     const flushList = () => {
       if (!list.length) return;
-      output.push(`<ul>${list.map(item => `<li>${inlineMarkdown(item)}</li>`).join('')}</ul>`);
+      output.push(`<${listTag}>${list.map(item => `<li>${inlineMarkdown(item)}</li>`).join('')}</${listTag}>`);
       list = [];
+      listTag = 'ul';
+    };
+    const flushQuote = () => {
+      if (!quote.length) return;
+      output.push(`<blockquote>${quote.map(line => inlineMarkdown(line)).join('<br>')}</blockquote>`);
+      quote = [];
+    };
+    const tableCells = line => line
+      .replace(/^\|/, '')
+      .replace(/\|$/, '')
+      .split('|')
+      .map(cell => cell.trim());
+    const isTableDivider = line => /^\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?$/.test(line);
+    const renderTable = (header, rows) => {
+      const head = `<thead><tr>${header.map(cell => `<th scope="col">${inlineMarkdown(cell)}</th>`).join('')}</tr></thead>`;
+      const body = rows.length
+        ? `<tbody>${rows.map(row => `<tr>${row.map(cell => `<td>${inlineMarkdown(cell)}</td>`).join('')}</tr>`).join('')}</tbody>`
+        : '';
+      return `<div class="markdown-table-wrap"><table>${head}${body}</table></div>`;
     };
 
-    for (const line of lines) {
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index];
       const trimmed = line.trim();
       if (!trimmed) {
         flushParagraph();
         flushList();
+        flushQuote();
         continue;
       }
       if (protectedBlocks.some(block => block.id === trimmed)) {
         flushParagraph();
         flushList();
+        flushQuote();
         output.push(trimmed);
         continue;
       }
+      if (index + 1 < lines.length && trimmed.includes('|') && isTableDivider(lines[index + 1].trim())) {
+        flushParagraph();
+        flushList();
+        flushQuote();
+        const header = tableCells(trimmed);
+        const rows = [];
+        index += 2;
+        while (index < lines.length) {
+          const row = lines[index].trim();
+          if (!row || !row.includes('|')) break;
+          const cells = tableCells(row);
+          while (cells.length < header.length) cells.push('');
+          rows.push(cells.slice(0, header.length));
+          index += 1;
+        }
+        index -= 1;
+        output.push(renderTable(header, rows));
+        continue;
+      }
+      const quoteLine = trimmed.match(/^&gt;\s?(.*)$/);
+      if (quoteLine) {
+        flushParagraph();
+        flushList();
+        quote.push(quoteLine[1]);
+        continue;
+      }
+      flushQuote();
       const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
       if (heading) {
         flushParagraph();
@@ -91,7 +142,17 @@
       const bullet = trimmed.match(/^[-*]\s+(.+)$/);
       if (bullet) {
         flushParagraph();
+        if (list.length && listTag !== 'ul') flushList();
+        listTag = 'ul';
         list.push(bullet[1]);
+        continue;
+      }
+      const ordered = trimmed.match(/^\d+[.)]\s+(.+)$/);
+      if (ordered) {
+        flushParagraph();
+        if (list.length && listTag !== 'ol') flushList();
+        listTag = 'ol';
+        list.push(ordered[1]);
         continue;
       }
       flushList();
@@ -99,6 +160,7 @@
     }
     flushParagraph();
     flushList();
+    flushQuote();
     return restore(output.join(''));
   }
 
@@ -363,11 +425,11 @@
     requestAnimationFrame(() => reason.focus());
   }
 
-  async function copyMessage(index) {
-    const content = currentMessages()[index]?.content || '';
+  const ASK_CRUMP_SHARE_URL = 'https://www.askcrump.com';
+
+  async function writeClipboard(content) {
     try {
       await navigator.clipboard.writeText(content);
-      window.showToast?.('Copied', 'success');
     } catch (_) {
       const area = document.createElement('textarea');
       area.value = content;
@@ -377,8 +439,56 @@
       area.select();
       document.execCommand('copy');
       area.remove();
-      window.showToast?.('Copied', 'success');
     }
+  }
+
+  async function copyMessage(index) {
+    const content = currentMessages()[index]?.content || '';
+    await writeClipboard(content);
+    window.showToast?.('Copied', 'success');
+  }
+
+  function responseShareKey(message, index) {
+    const raw = String(message?.id || `${window.currentChatId || 'chat'}-${index}-${Date.now()}`);
+    const safe = raw.replace(/[^A-Za-z0-9:._-]/g, '-').slice(0, 120) || String(Date.now());
+    return `response-share:${safe}`;
+  }
+
+  function shareableResponse(content) {
+    const normalized = String(content || '').trim();
+    if (normalized.length <= 3500) return normalized;
+    return `${normalized.slice(0, 3497).trimEnd()}…`;
+  }
+
+  async function recordResponseShare(message, index, source) {
+    await window.CrumpAnalytics?.track?.('ResponseShared', {
+      eventKey: responseShareKey(message, index),
+      source,
+    });
+  }
+
+  async function shareMessage(index) {
+    const message = currentMessages()[index];
+    const excerpt = shareableResponse(message?.content);
+    if (!excerpt) return;
+    const payload = {
+      title: 'Ask Crump',
+      text: `${excerpt}\n\nCreated with Ask Crump`,
+      url: ASK_CRUMP_SHARE_URL,
+    };
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share(payload);
+        await recordResponseShare(message, index, 'native_share');
+        window.showToast?.('Shared', 'success');
+        return;
+      } catch (error) {
+        if (error?.name === 'AbortError') return;
+      }
+    }
+    await writeClipboard(`${payload.text} — ${payload.url}`);
+    await recordResponseShare(message, index, 'clipboard');
+    window.showToast?.('Share text copied', 'success');
   }
 
   function openImage(url) {
@@ -529,6 +639,12 @@
         copy.className = 'message-action-btn';
         copy.textContent = 'Copy';
         copy.addEventListener('click', () => copyMessage(index));
+        const share = document.createElement('button');
+        share.type = 'button';
+        share.className = 'message-action-btn message-share-btn';
+        share.textContent = 'Share';
+        share.setAttribute('aria-label', 'Share this response');
+        share.addEventListener('click', () => shareMessage(index));
         const speak = document.createElement('button');
         speak.type = 'button';
         speak.className = 'message-action-btn';
@@ -541,7 +657,7 @@
         report.disabled = reportedMessageIds.has(String(message?.id || ''));
         report.setAttribute('aria-label', report.disabled ? 'Response reported' : 'Report this response');
         report.addEventListener('click', () => reportMessage(message, report));
-        actions.append(copy, speak, report);
+        actions.append(copy, share, speak, report);
         wrapper.appendChild(actions);
       }
 
@@ -566,6 +682,7 @@
   window.renderMessages = renderMessages;
   window.renderMarkdown = renderSafeMarkdown;
   window.copyMessage = copyMessage;
+  window.shareMessage = shareMessage;
   window.downloadImage = downloadImage;
   window.openImageInNewTab = openImage;
 })();

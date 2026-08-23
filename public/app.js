@@ -9,7 +9,8 @@ const BASE_STORAGE_KEYS = Object.freeze({
     WORK_MODE: 'crump_work_mode',
     WORK_START: 'crump_work_start',
     WORK_END: 'crump_work_end',
-    HAS_ONBOARDED: 'crump_has_onboarded'
+    HAS_ONBOARDED: 'crump_has_onboarded',
+    ACTIVATION_RECORDED: 'crump_activation_recorded'
 });
 const STORAGE_KEYS = { ...BASE_STORAGE_KEYS };
 
@@ -103,6 +104,7 @@ window.initializeAuthenticatedApp = function(user) {
             SafeStorage.setItem(STORAGE_KEYS.WORK_MODE, String(!!user.preferences.workMode));
         }
     }
+    updateAssistantNameDisplay();
 };
 
 
@@ -140,17 +142,9 @@ window.initializeApp = function() {
             window.crumpScrollManager.init();
         }
 
-        const savedChatId = SafeStorage.getItem(STORAGE_KEYS.CURRENT_CHAT);
-        if (savedChatId && getChat(savedChatId)) {
-            loadChat(savedChatId);
-        } else if (chats.length) {
-            loadChat(chats[0].id);
-        } else {
-            createNewChat();
-        }
-        if (localStorage.getItem(STORAGE_KEYS.HAS_ONBOARDED) === 'true' && !savedChatId) {
-            showWelcomeMessage();
-        }
+        // A cold start or reload should feel like a clean desk. Conversation
+        // history remains intact and deliberately opening one still restores it.
+        openFreshConversationAtStartup();
 
     } catch (error) {
         console.error('[App] Initialization failed:', error);
@@ -227,20 +221,29 @@ function setupSidebarToggle() {
         menuBtn.addEventListener('click', () => {
             sidebar.classList.add('active');
             sidebarOverlay.classList.add('active');
+            menuBtn.setAttribute('aria-expanded', 'true');
         });
 
         sidebarOverlay.addEventListener('click', () => {
             sidebar.classList.remove('active');
             sidebarOverlay.classList.remove('active');
+            menuBtn.setAttribute('aria-expanded', 'false');
         });
 
         if (closeSidebarBtn) {
             closeSidebarBtn.addEventListener('click', () => {
                 sidebar.classList.remove('active');
                 sidebarOverlay.classList.remove('active');
+                menuBtn.setAttribute('aria-expanded', 'false');
             });
         }
     }
+}
+
+function closeConversationMenu() {
+    document.getElementById('sidebar')?.classList.remove('active');
+    document.getElementById('sidebarOverlay')?.classList.remove('active');
+    document.getElementById('menuBtn')?.setAttribute('aria-expanded', 'false');
 }
 
 // Chat Management
@@ -312,6 +315,31 @@ function createNewChat() {
     SafeStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, id);
     renderChatsList();
     window.renderMessages?.([]);
+    closeConversationMenu();
+    const input = document.getElementById('userInput');
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
+}
+
+function openFreshConversationAtStartup() {
+    const starter = chats.find(chat =>
+        String(chat?.title || '').trim().toLowerCase() === 'new conversation' &&
+        Array.isArray(chat?.messages) &&
+        chat.messages.length === 0
+    );
+    if (!starter) {
+        createNewChat();
+        return;
+    }
+
+    // Reuse a pristine starter instead of accumulating empty history rows on
+    // every reload, and promote it to the top of the conversation list.
+    touchChat(starter);
+    chats.sort((a, b) => asTimestamp(b.updatedAt) - asTimestamp(a.updatedAt));
+    saveChats();
+    loadChat(starter.id);
     const input = document.getElementById('userInput');
     if (input) {
         input.value = '';
@@ -327,6 +355,7 @@ function loadChat(chatId) {
     SafeStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, chatId);
     renderChatsList();
     window.renderMessages?.(chat.messages);
+    closeConversationMenu();
 }
 
 function getChat(chatId) {
@@ -442,6 +471,14 @@ async function ensureUsageAvailable() {
     }
 }
 
+async function recordFirstSuccessfulResponse() {
+    if (SafeStorage.getItem(STORAGE_KEYS.ACTIVATION_RECORDED) === 'true') return;
+    const recorded = await window.CrumpAnalytics?.track?.('ActivationReached', {
+        eventKey: 'first-successful-response',
+    });
+    if (recorded) SafeStorage.setItem(STORAGE_KEYS.ACTIVATION_RECORDED, 'true');
+}
+
 async function processUserMessage(chat, userMessage, attachment = null) {
     if (!navigator.onLine || window.CrumpPresence?.online === false) {
         updateMessageState(chat, userMessage, { deliveryStatus: 'queued', replyStatus: 'pending' });
@@ -537,6 +574,7 @@ async function processUserMessage(chat, userMessage, attachment = null) {
     renderChatsList();
     window.CrumpPresence?.haptic?.('success');
     window.syncChatsToServer?.();
+    void recordFirstSuccessfulResponse();
     setTimeout(safeScrollToBottom, 80);
 }
 
@@ -917,11 +955,18 @@ window.saveSettings = async function() {
 
 // UI helpers
 function updateAssistantNameDisplay() {
-    const name = localStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
+    const name = SafeStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
     document.querySelectorAll('.assistant-name').forEach(el => {
         el.textContent = name;
     });
+    const input = document.getElementById('userInput');
+    if (input) {
+        input.placeholder = `Message ${name}`;
+        input.setAttribute('aria-label', `Message ${name}`);
+    }
+    window.dispatchEvent(new CustomEvent('crump:assistant-name-changed', { detail: { name } }));
 }
+window.getAssistantName = () => SafeStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
 
 function updateUserAvatar() {
     const initial = currentProfile?.profile?.initial ||

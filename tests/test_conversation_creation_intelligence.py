@@ -70,9 +70,31 @@ def test_crump_voice_avoids_generic_assistant_form_language():
 def test_conversation_intelligence_advances_shell_cache():
     sw = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
-    assert "ask-crump-new-body-v1-r30" in sw
+    assert "ask-crump-new-body-v1-r40" in sw
     assert "ask-crump-new-body-v1-r23" not in sw
-    assert "ask-crump-new-body-v1-r30" in checker
+    assert "ask-crump-new-body-v1-r40" in checker
+
+
+def test_reload_opens_a_clean_conversation_without_discarding_history():
+    app = read("public/app.js")
+    shell = read("public/app.html")
+    worker = read("public/sw.js")
+    startup = app[app.index("window.initializeApp = function"):app.index("// Event Listeners")]
+    fresh_start = app[
+        app.index("function openFreshConversationAtStartup"):
+        app.index("function loadChat(chatId)")
+    ]
+
+    assert "openFreshConversationAtStartup();" in startup
+    assert "savedChatId" not in startup
+    assert "messages.length === 0" in fresh_start
+    assert "chats.find" in fresh_start
+    assert "loadChat(starter.id)" in fresh_start
+    assert "createNewChat()" in fresh_start
+    assert "chats = []" not in fresh_start
+    assert "recordChatDeletion" not in fresh_start
+    assert 'src="/app.js?v=5.9.6"' in shell
+    assert "'/app.js?v=5.9.6'" in worker
 
 def test_runtime_document_extraction_patch_accepts_project_pdf_keyword():
     compatibility = read("backend/crump52_patches.py")

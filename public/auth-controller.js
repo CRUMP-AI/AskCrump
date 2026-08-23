@@ -5,6 +5,7 @@
   let planIntentDispatched = false;
   const TERMS_VERSION = '2026-07-30';
   const PLAN_INTENT_KEY = 'askcrump.pending-plan-intent';
+  const ACQUISITION_KEY = 'askcrump.acquisition-source';
   const PLAN_INTENT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
   const PAID_PLAN_INTENTS = new Set(['professional', 'enterprise']);
 
@@ -24,8 +25,18 @@
 
   function funnelContext() {
     const params = new URLSearchParams(location.search);
+    const explicitAcquisition = funnelValue(
+      params.get('acquisition') || params.get('utm_source'),
+      '',
+    );
+    if (explicitAcquisition) {
+      try { sessionStorage.setItem(ACQUISITION_KEY, explicitAcquisition); } catch (_) {}
+    }
+    let storedAcquisition = '';
+    try { storedAcquisition = funnelValue(sessionStorage.getItem(ACQUISITION_KEY), ''); } catch (_) {}
     return {
       source: funnelValue(params.get('source'), 'direct'),
+      acquisition: explicitAcquisition || storedAcquisition || 'direct',
       plan: funnelValue(params.get('plan'), 'unspecified'),
     };
   }
@@ -40,7 +51,8 @@
     try {
       localStorage.setItem(PLAN_INTENT_KEY, JSON.stringify({
         plan: context.plan,
-        source: context.source,
+        source: context.acquisition,
+        location: context.source,
         capturedAt: Date.now(),
       }));
     } catch (_) {}
@@ -57,6 +69,7 @@
       return {
         plan: intent.plan,
         source: funnelValue(intent.source, 'direct'),
+        location: funnelValue(intent.location, 'unknown'),
         capturedAt,
       };
     } catch (_) {
@@ -346,7 +359,12 @@
         const email = byId('registerEmail').value.trim();
         const response = await fetch('/api/auth/register', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password, fullName: byId('registerName').value.trim() }),
+          body: JSON.stringify({
+            email,
+            password,
+            fullName: byId('registerName').value.trim(),
+            source: funnelContext().acquisition,
+          }),
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok || !data.success) {

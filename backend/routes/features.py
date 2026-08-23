@@ -15,6 +15,7 @@ async def feature_status(request: Request):
     status = await features.status(auth.user)
     engines = video.engine_status
     configured = {
+        "think_longer": bool(settings.anthropic_api_key),
         "research": bool((settings.brave_api_key and settings.web_search_enabled) or settings.openweather_api_key),
         "image": bool(settings.openai_api_key and settings.image_generation_enabled),
         "image_edit": bool(settings.openai_api_key and settings.image_generation_enabled),

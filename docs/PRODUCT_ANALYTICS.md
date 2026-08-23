@@ -12,6 +12,11 @@ plan, artifact category, and timestamp. It must never contain prompts, responses
 email addresses, customer details, card details, prices, or arbitrary metadata. Rows are
 deleted when the owning account is deleted.
 
+The `source` on account creation is privacy-minimized first-touch acquisition attribution.
+It is limited to 32 lowercase letters, numbers, underscores, or hyphens. Ask Crump keeps no
+referrer URL, campaign content, search term, or user identifier. Known social referrers are
+reduced to their channel name and all other external referrers become `referral`.
+
 Preview, production, and local-development events are separated at the server from the
 request host. Replayed events are ignored by the database uniqueness constraint.
 
@@ -25,6 +30,7 @@ request host. Replayed events are ignored by the database uniqueness constraint.
 | `ActivationReached` | Server | The first successful, persisted AI response completed. |
 | `AhaReached` | Server | The first durable artifact, generated image, or manuscript workspace completed. |
 | `PlanIntentReached` | Authenticated client | A paid-plan marketing intent reached the in-app plan review. |
+| `ResponseShared` | Authenticated client | A user completed native sharing or copied branded share text for one response. |
 | `SubscriptionCheckoutOpened` | Server | Stripe created a subscription Checkout Session. |
 | `SubscriptionCheckoutCompleted` | Stripe webhook | Stripe verified a completed subscription Checkout Session. |
 | `BillingPortalOpened` | Server | Stripe created a customer portal session. |
