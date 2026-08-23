@@ -1,5 +1,23 @@
 # Changelog
 
+## 5.9.6 — 2026-08-23
+
+### Assistant identity
+- Made the saved Assistant Name a server-authoritative conversational identity so the model recognizes, answers to, and naturally uses the user-selected name without confusing it with the Ask Crump product name.
+- Reflected the selected name throughout the composer and Intelligence controls, including accessible labels and memory copy.
+
+### Intelligence
+- Reintroduced Deep mode as the clearer **Think longer** experience: an additional planning pass, high-effort response guidance, and a separate final-answer review for difficult work.
+- Reserved Think longer for active Professional and Enterprise subscriptions, with synchronized UI entitlements and server-side enforcement that cannot be bypassed by modifying browser requests.
+- Prevented free Auto mode and expired saved preferences from silently invoking the subscriber-only multi-pass workflow.
+
+### Navigation
+- Made every conversation selection render the chosen conversation and dismiss the mobile conversation drawer, including the correct expanded-state reset.
+- Changed the Legal & Privacy brand return link to reopen the authenticated Ask Crump app instead of the Clever Crump landing page.
+
+### Release
+- Advanced the application release to 5.9.6 and the service-worker cache to revision 40 so installed PWAs receive the identity, intelligence, and navigation changes immediately.
+
 ## 5.9.5 — 2026-08-23
 
 ### Fixed

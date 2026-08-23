@@ -101,6 +101,23 @@ async def chat(request: Request):
     payload = await request.json()
     request_payload = dict(payload) if isinstance(payload, dict) else {}
     original_message = str(request_payload.get('message') or '')
+    think_longer_entitled = features.entitled(auth.user, 'think_longer')
+    explicit_mode = str(request_payload.get('intelligenceMode') or '').strip().lower()
+    if explicit_mode == 'deep' and not think_longer_entitled:
+        try:
+            await features.require_tier(auth.user, 'think_longer')
+        except FeatureAccessError as exc:
+            return JSONResponse(
+                status_code=exc.status_code,
+                content={
+                    'success': False,
+                    'error': exc.message,
+                    'message': exc.message,
+                    'code': exc.code,
+                    'upgradeRequired': True,
+                    'requiredTier': exc.required_tier,
+                },
+            )
 
     raw_chat_id = str(request_payload.get('chatId') or '').strip()
     raw_message_id = str(request_payload.get('messageId') or '').strip()
@@ -255,7 +272,11 @@ async def chat(request: Request):
         request_payload.get('artifactFormat'),
     )
     legacy_long_form = artifacts.is_long_form_request(str(request_payload.get('message') or ''))
-    prepared = await intelligence.prepare(auth.user['id'], request_payload)
+    prepared = await intelligence.prepare(
+        auth.user['id'],
+        request_payload,
+        allow_think_longer=think_longer_entitled,
+    )
     request_payload = prepared.payload
     creation_intent = prepared.creation_intent or {}
     creation_kind = str(creation_intent.get('kind') or '')

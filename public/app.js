@@ -104,6 +104,7 @@ window.initializeAuthenticatedApp = function(user) {
             SafeStorage.setItem(STORAGE_KEYS.WORK_MODE, String(!!user.preferences.workMode));
         }
     }
+    updateAssistantNameDisplay();
 };
 
 
@@ -220,20 +221,29 @@ function setupSidebarToggle() {
         menuBtn.addEventListener('click', () => {
             sidebar.classList.add('active');
             sidebarOverlay.classList.add('active');
+            menuBtn.setAttribute('aria-expanded', 'true');
         });
 
         sidebarOverlay.addEventListener('click', () => {
             sidebar.classList.remove('active');
             sidebarOverlay.classList.remove('active');
+            menuBtn.setAttribute('aria-expanded', 'false');
         });
 
         if (closeSidebarBtn) {
             closeSidebarBtn.addEventListener('click', () => {
                 sidebar.classList.remove('active');
                 sidebarOverlay.classList.remove('active');
+                menuBtn.setAttribute('aria-expanded', 'false');
             });
         }
     }
+}
+
+function closeConversationMenu() {
+    document.getElementById('sidebar')?.classList.remove('active');
+    document.getElementById('sidebarOverlay')?.classList.remove('active');
+    document.getElementById('menuBtn')?.setAttribute('aria-expanded', 'false');
 }
 
 // Chat Management
@@ -305,6 +315,7 @@ function createNewChat() {
     SafeStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, id);
     renderChatsList();
     window.renderMessages?.([]);
+    closeConversationMenu();
     const input = document.getElementById('userInput');
     if (input) {
         input.value = '';
@@ -344,6 +355,7 @@ function loadChat(chatId) {
     SafeStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, chatId);
     renderChatsList();
     window.renderMessages?.(chat.messages);
+    closeConversationMenu();
 }
 
 function getChat(chatId) {
@@ -943,11 +955,18 @@ window.saveSettings = async function() {
 
 // UI helpers
 function updateAssistantNameDisplay() {
-    const name = localStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
+    const name = SafeStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
     document.querySelectorAll('.assistant-name').forEach(el => {
         el.textContent = name;
     });
+    const input = document.getElementById('userInput');
+    if (input) {
+        input.placeholder = `Message ${name}`;
+        input.setAttribute('aria-label', `Message ${name}`);
+    }
+    window.dispatchEvent(new CustomEvent('crump:assistant-name-changed', { detail: { name } }));
 }
+window.getAssistantName = () => SafeStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
 
 function updateUserAvatar() {
     const initial = currentProfile?.profile?.initial ||

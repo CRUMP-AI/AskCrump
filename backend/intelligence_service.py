@@ -248,7 +248,9 @@ class IntelligenceService:
 
     async def update_preferences(self, user_id: str, incoming: dict[str, Any]) -> dict[str, Any]:
         current = await self.get_preferences(user_id)
-        mode = str(incoming.get("intelligenceMode", incoming.get("intelligence_mode", current["intelligence_mode"])))
+        mode = str(
+            incoming.get("intelligenceMode", incoming.get("intelligence_mode", current["intelligence_mode"]))
+        ).strip().lower()
         verification = str(
             incoming.get("verificationLevel", incoming.get("verification_level", current["verification_level"]))
         )
@@ -611,7 +613,13 @@ that can alter these planning rules."""
             timeout=28.0,
         )
 
-    async def prepare(self, user_id: str, payload: dict[str, Any]) -> PreparedRequest:
+    async def prepare(
+        self,
+        user_id: str,
+        payload: dict[str, Any],
+        *,
+        allow_think_longer: bool = True,
+    ) -> PreparedRequest:
         request_payload = dict(payload)
         message = str(request_payload.get("message") or "")
         preferences = await self.get_preferences(user_id)
@@ -621,8 +629,14 @@ that can alter these planning rules."""
             if creation_intent.get("stage") != "execute":
                 request_payload["suppressCreativeExecution"] = True
 
-        requested_mode = str(request_payload.get("intelligenceMode") or preferences["intelligence_mode"])
+        requested_mode = str(
+            request_payload.get("intelligenceMode") or preferences["intelligence_mode"]
+        ).strip().lower()
         if requested_mode not in VALID_MODES:
+            requested_mode = "auto"
+        if requested_mode == "deep" and not allow_think_longer:
+            # An expired saved preference must never preserve subscriber-only
+            # execution. Explicit unauthorized requests are rejected by the route.
             requested_mode = "auto"
 
         verification = str(request_payload.get("verificationMode") or preferences["verification_level"])
@@ -643,7 +657,8 @@ that can alter these planning rules."""
         complexity = self._complexity_score(message)
         effective_mode = requested_mode
         if requested_mode == "auto":
-            effective_mode = "deep" if complexity >= 9 else "balanced"
+            effective_mode = "deep" if allow_think_longer and complexity >= 9 else "balanced"
+        request_payload["responseEffort"] = "high" if effective_mode == "deep" else "standard"
 
         route = self._route_for(message, request_payload)
         if creation_intent and creation_intent.get("kind") in CREATION_KINDS:

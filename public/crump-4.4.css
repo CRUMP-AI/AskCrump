@@ -166,7 +166,7 @@
 
 .crump44-segmented {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.35fr);
   gap: 4px;
   padding: 4px;
   border: 1px solid rgba(255, 255, 255, 0.055);
@@ -185,6 +185,25 @@
   font-weight: 600;
   cursor: pointer;
   transition: background 150ms ease, color 150ms ease, box-shadow 150ms ease;
+}
+
+.crump44-segment.is-locked {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: rgba(230, 234, 240, 0.48);
+}
+
+.crump44-segment.is-locked small {
+  padding: 2px 4px;
+  border: 1px solid rgba(202, 172, 87, 0.25);
+  border-radius: 999px;
+  color: rgba(234, 218, 184, 0.82);
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  line-height: 1;
 }
 
 .crump44-segment.active {
@@ -334,6 +353,10 @@
 .crump44-segmented-small .crump44-segment {
   min-height: 31px;
   font-size: 11px;
+}
+
+.crump44-segmented-small {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .crump44-keyboard-note {

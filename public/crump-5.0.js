@@ -795,7 +795,7 @@
     }
     const input = $('#userInput');
     if (input) {
-      input.placeholder = 'Message Crump';
+      input.placeholder = `Message ${window.getAssistantName?.() || 'Crump'}`;
       input.maxLength = 20000;
     }
     window.sendMessage = studioSendMessage;

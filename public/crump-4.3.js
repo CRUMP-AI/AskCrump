@@ -59,7 +59,7 @@
     }
 
     const input = $('#userInput');
-    if (input) input.placeholder = 'Message Crump';
+    if (input) input.placeholder = `Message ${window.getAssistantName?.() || 'Crump'}`;
   }
 
   function fixPasswordCopy() {
