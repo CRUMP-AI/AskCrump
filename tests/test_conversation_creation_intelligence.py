@@ -77,6 +77,8 @@ def test_conversation_intelligence_advances_shell_cache():
 
 def test_reload_opens_a_clean_conversation_without_discarding_history():
     app = read("public/app.js")
+    shell = read("public/app.html")
+    worker = read("public/sw.js")
     startup = app[app.index("window.initializeApp = function"):app.index("// Event Listeners")]
     fresh_start = app[
         app.index("function openFreshConversationAtStartup"):
@@ -91,6 +93,8 @@ def test_reload_opens_a_clean_conversation_without_discarding_history():
     assert "createNewChat()" in fresh_start
     assert "chats = []" not in fresh_start
     assert "recordChatDeletion" not in fresh_start
+    assert 'src="/app.js?v=5.9.4"' in shell
+    assert "'/app.js?v=5.9.4'" in worker
 
 def test_runtime_document_extraction_patch_accepts_project_pdf_keyword():
     compatibility = read("backend/crump52_patches.py")
