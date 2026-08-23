@@ -141,17 +141,9 @@ window.initializeApp = function() {
             window.crumpScrollManager.init();
         }
 
-        const savedChatId = SafeStorage.getItem(STORAGE_KEYS.CURRENT_CHAT);
-        if (savedChatId && getChat(savedChatId)) {
-            loadChat(savedChatId);
-        } else if (chats.length) {
-            loadChat(chats[0].id);
-        } else {
-            createNewChat();
-        }
-        if (localStorage.getItem(STORAGE_KEYS.HAS_ONBOARDED) === 'true' && !savedChatId) {
-            showWelcomeMessage();
-        }
+        // A cold start or reload should feel like a clean desk. Conversation
+        // history remains intact and deliberately opening one still restores it.
+        openFreshConversationAtStartup();
 
     } catch (error) {
         console.error('[App] Initialization failed:', error);
@@ -313,6 +305,30 @@ function createNewChat() {
     SafeStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, id);
     renderChatsList();
     window.renderMessages?.([]);
+    const input = document.getElementById('userInput');
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
+}
+
+function openFreshConversationAtStartup() {
+    const starter = chats.find(chat =>
+        String(chat?.title || '').trim().toLowerCase() === 'new conversation' &&
+        Array.isArray(chat?.messages) &&
+        chat.messages.length === 0
+    );
+    if (!starter) {
+        createNewChat();
+        return;
+    }
+
+    // Reuse a pristine starter instead of accumulating empty history rows on
+    // every reload, and promote it to the top of the conversation list.
+    touchChat(starter);
+    chats.sort((a, b) => asTimestamp(b.updatedAt) - asTimestamp(a.updatedAt));
+    saveChats();
+    loadChat(starter.id);
     const input = document.getElementById('userInput');
     if (input) {
         input.value = '';

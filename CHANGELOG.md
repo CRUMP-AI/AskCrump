@@ -1,5 +1,18 @@
 # Changelog
 
+## 5.9.4 — 2026-08-23
+
+### Conversation startup
+
+- Made every cold start or reload open on a clean new-conversation surface instead of restoring the last active conversation.
+- Kept every previous conversation safely available in history and preserved deliberate conversation opens from history, notifications, and other in-app navigation.
+- Reused an existing pristine starter when possible so repeated reloads do not accumulate empty conversation rows.
+
+### Quality
+
+- Added regression coverage that prevents last-conversation restoration from returning and guards against deleting or clearing conversation history during fresh startup.
+- Advanced the application release to 5.9.4 and the service-worker cache to revision 38.
+
 ## 5.9.3 — 2026-08-23
 
 ### Acquisition measurement
