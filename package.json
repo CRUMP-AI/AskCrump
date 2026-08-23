@@ -1,6 +1,6 @@
 {
   "name": "ask-crump",
-  "version": "5.8.2",
+  "version": "5.8.3",
   "private": true,
   "description": "Cross-platform multimodal AI assistant with synchronized chat, private files, generated artifacts, memory, intelligence orchestration, subscriptions, and durable credits.",
   "type": "module",

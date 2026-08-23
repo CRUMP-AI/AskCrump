@@ -52,6 +52,8 @@
     const output = [];
     let paragraph = [];
     let list = [];
+    let listTag = 'ul';
+    let quote = [];
     const restore = value => {
       let restored = value;
       for (const block of protectedBlocks) restored = restored.replaceAll(block.id, block.html);
@@ -64,23 +66,72 @@
     };
     const flushList = () => {
       if (!list.length) return;
-      output.push(`<ul>${list.map(item => `<li>${inlineMarkdown(item)}</li>`).join('')}</ul>`);
+      output.push(`<${listTag}>${list.map(item => `<li>${inlineMarkdown(item)}</li>`).join('')}</${listTag}>`);
       list = [];
+      listTag = 'ul';
+    };
+    const flushQuote = () => {
+      if (!quote.length) return;
+      output.push(`<blockquote>${quote.map(line => inlineMarkdown(line)).join('<br>')}</blockquote>`);
+      quote = [];
+    };
+    const tableCells = line => line
+      .replace(/^\|/, '')
+      .replace(/\|$/, '')
+      .split('|')
+      .map(cell => cell.trim());
+    const isTableDivider = line => /^\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?$/.test(line);
+    const renderTable = (header, rows) => {
+      const head = `<thead><tr>${header.map(cell => `<th scope="col">${inlineMarkdown(cell)}</th>`).join('')}</tr></thead>`;
+      const body = rows.length
+        ? `<tbody>${rows.map(row => `<tr>${row.map(cell => `<td>${inlineMarkdown(cell)}</td>`).join('')}</tr>`).join('')}</tbody>`
+        : '';
+      return `<div class="markdown-table-wrap"><table>${head}${body}</table></div>`;
     };
 
-    for (const line of lines) {
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index];
       const trimmed = line.trim();
       if (!trimmed) {
         flushParagraph();
         flushList();
+        flushQuote();
         continue;
       }
       if (protectedBlocks.some(block => block.id === trimmed)) {
         flushParagraph();
         flushList();
+        flushQuote();
         output.push(trimmed);
         continue;
       }
+      if (index + 1 < lines.length && trimmed.includes('|') && isTableDivider(lines[index + 1].trim())) {
+        flushParagraph();
+        flushList();
+        flushQuote();
+        const header = tableCells(trimmed);
+        const rows = [];
+        index += 2;
+        while (index < lines.length) {
+          const row = lines[index].trim();
+          if (!row || !row.includes('|')) break;
+          const cells = tableCells(row);
+          while (cells.length < header.length) cells.push('');
+          rows.push(cells.slice(0, header.length));
+          index += 1;
+        }
+        index -= 1;
+        output.push(renderTable(header, rows));
+        continue;
+      }
+      const quoteLine = trimmed.match(/^&gt;\s?(.*)$/);
+      if (quoteLine) {
+        flushParagraph();
+        flushList();
+        quote.push(quoteLine[1]);
+        continue;
+      }
+      flushQuote();
       const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
       if (heading) {
         flushParagraph();
@@ -91,7 +142,17 @@
       const bullet = trimmed.match(/^[-*]\s+(.+)$/);
       if (bullet) {
         flushParagraph();
+        if (list.length && listTag !== 'ul') flushList();
+        listTag = 'ul';
         list.push(bullet[1]);
+        continue;
+      }
+      const ordered = trimmed.match(/^\d+[.)]\s+(.+)$/);
+      if (ordered) {
+        flushParagraph();
+        if (list.length && listTag !== 'ol') flushList();
+        listTag = 'ol';
+        list.push(ordered[1]);
         continue;
       }
       flushList();
@@ -99,6 +160,7 @@
     }
     flushParagraph();
     flushList();
+    flushQuote();
     return restore(output.join(''));
   }
 

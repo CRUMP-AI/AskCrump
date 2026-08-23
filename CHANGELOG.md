@@ -1,5 +1,14 @@
 # Changelog
 
+## 5.8.3 — 2026-08-22
+
+### Fixed
+
+- Rendered Markdown tables as accessible, responsive tables instead of raw pipe-delimited text.
+- Rendered quoted copy and numbered steps with designed blockquote and ordered-list presentation.
+- Preserved the safe renderer's HTML escaping and URL protections while expanding its presentation support.
+- Advanced the service-worker cache to revision 31 so the conversation polish reaches installed customers.
+
 ## 5.8.2 — 2026-08-22
 
 ### Added
