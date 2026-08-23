@@ -31,6 +31,11 @@ def test_marketing_ctas_are_first_party_analytics_events():
     assert "MarketingCTA" in script
     assert "link.dataset.cta" in script
     assert "link.dataset.plan" in script
+    assert "utm_source" in script
+    assert "destination.searchParams.set('acquisition', acquisition)" in script
+    assert "sessionStorage.setItem(ACQUISITION_KEY" in script
+    assert "document.referrer" in script
+    assert "referrer URL" not in script
     assert "window.location.replace('/app')" not in script
     assert 'rel="canonical" href="https://www.askcrump.com/"' in page
     assert 'property="og:title"' in page
@@ -63,6 +68,8 @@ def test_signup_deep_link_opens_registration_and_tracks_the_funnel():
     assert "SignupIntent" in controller
     assert "SignupSubmitted" in controller
     assert "AccountCreated" in controller
+    assert "source: funnelContext().acquisition" in controller
+    assert "params.get('acquisition')" in controller
     assert "registerEmail" not in controller[controller.index("function trackFunnel"):controller.index("function applyServerSettings")]
 
 
@@ -89,6 +96,6 @@ def test_release_version_and_cache_advance_together():
     backend = read("backend/version.py")
     worker = read("public/sw.js")
 
-    assert '"version": "5.9.2"' in package
-    assert "__version__ = '5.9.2'" in backend
-    assert "ask-crump-new-body-v1-r36" in worker
+    assert '"version": "5.9.3"' in package
+    assert "__version__ = '5.9.3'" in backend
+    assert "ask-crump-new-body-v1-r37" in worker

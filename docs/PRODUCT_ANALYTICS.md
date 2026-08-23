@@ -12,6 +12,11 @@ plan, artifact category, and timestamp. It must never contain prompts, responses
 email addresses, customer details, card details, prices, or arbitrary metadata. Rows are
 deleted when the owning account is deleted.
 
+The `source` on account creation is privacy-minimized first-touch acquisition attribution.
+It is limited to 32 lowercase letters, numbers, underscores, or hyphens. Ask Crump keeps no
+referrer URL, campaign content, search term, or user identifier. Known social referrers are
+reduced to their channel name and all other external referrers become `referral`.
+
 Preview, production, and local-development events are separated at the server from the
 request host. Replayed events are ignored by the database uniqueness constraint.
 

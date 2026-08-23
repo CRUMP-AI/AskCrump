@@ -106,19 +106,26 @@ class FailedVerificationEmail:
 @pytest.mark.asyncio
 async def test_registration_email_failure_returns_recoverable_pending_account(monkeypatch):
     fake_db = RegistrationDB()
+    recorded_events = []
 
     async def allow_rate_limit(*args, **kwargs):
         return None
+
+    async def capture_product_event(*args, **kwargs):
+        recorded_events.append(dict(kwargs))
+        return True
 
     monkeypatch.setattr(auth_routes, 'db', fake_db)
     monkeypatch.setattr(auth_routes, 'email_service', FailedVerificationEmail())
     monkeypatch.setattr(auth_routes, 'enforce_auth_rate_limit', allow_rate_limit)
     monkeypatch.setattr(auth_routes, 'hash_password', lambda password: 'hashed-password')
+    monkeypatch.setattr(auth_routes, 'record_product_event', capture_product_event)
 
     payload = RegisterRequest(
         email='new-user@example.com',
         password='StrongPass1',
         fullName='New User',
+        source='instagram',
     )
     request = SimpleNamespace()
     response = await auth_routes.register(payload, request)
@@ -131,6 +138,11 @@ async def test_registration_email_failure_returns_recoverable_pending_account(mo
     assert body['code'] == 'EMAIL_DELIVERY_UNAVAILABLE'
     assert fake_db.inserted_user['email'] == 'new-user@example.com'
     assert fake_db.settings_created is True
+    assert [event['event_name'] for event in recorded_events] == [
+        'AccountCreated',
+        'OnboardingCompleted',
+    ]
+    assert all(event['source'] == 'instagram' for event in recorded_events)
 
 
 class AtomicSessionDB:

@@ -1,5 +1,18 @@
 # Changelog
 
+## 5.9.3 — 2026-08-23
+
+### Acquisition measurement
+
+- Preserved a prospect's privacy-safe first-touch acquisition channel from the public homepage through account creation and initial onboarding.
+- Reduced known social referrers to channel names and unknown external referrers to `referral`; full URLs, campaign content, search terms, and user identifiers are never recorded.
+- Kept CTA location separate from acquisition source so the business can distinguish which channel brought a customer from which page action converted them.
+
+### Quality
+
+- Added regression coverage for UTM/referrer handling, CTA propagation, registration intake, and server-authoritative account-event attribution.
+- Advanced the application release to 5.9.3 and the service-worker cache to revision 37.
+
 ## 5.9.2 — 2026-08-23
 
 ### Acquisition and discovery
