@@ -71,7 +71,7 @@ def test_book_scale_work_is_handed_to_a_persistent_manuscript():
     assert ArtifactService.is_long_form_request('Recommend a book about Georgia history.') is False
 
 
-def test_word_export_has_real_hierarchy_table_metadata_and_page_number():
+def test_word_export_has_real_hierarchy_table_metadata_and_neutral_page_number():
     data = service().docx(SAMPLE, profile='business')
     document = Document(BytesIO(data))
     assert document.core_properties.author == 'Ask Crump'
@@ -80,9 +80,11 @@ def test_word_export_has_real_hierarchy_table_metadata_and_page_number():
     assert document.styles['Title'].font.size.pt >= 24
     assert document.tables
     assert document.tables[0].cell(0, 0).text == 'Item'
+    assert document.tables[0].autofit is False
     footer_xml = document.sections[0].footer._element.xml
     assert 'PAGE' in footer_xml
-    assert 'ASK CRUMP' in document.sections[0].header.paragraphs[0].text
+    assert document.sections[0].header.paragraphs[0].text == ''
+    assert 'Ask Crump' not in document.sections[0].footer.paragraphs[0].text
 
 
 def test_academic_and_resume_profiles_use_professional_conventions():
@@ -94,12 +96,28 @@ def test_academic_and_resume_profiles_use_professional_conventions():
     assert academic.styles['Normal'].font.name == 'Times New Roman'
     assert academic.styles['Normal'].font.size.pt == 12
     assert academic.styles['Normal'].paragraph_format.line_spacing == 2.0
+    assert academic.styles['Title'].font.size.pt == 12
+    assert academic.styles['Heading 1'].font.size.pt == 12
+    assert 'Times New Roman' in academic.styles['Title'].element.xml
+    assert 'asciiTheme' not in academic.styles['Title'].element.xml
+    assert academic.styles['Heading 2'].font.italic is False
     assert round(academic.sections[0].left_margin.inches, 2) == 1.0
 
     resume = Document(BytesIO(generator.docx('# Jordan Ellis\n\n## Experience\n\n- Led product discovery.', profile='resume')))
     assert resume.styles['Normal'].font.name == 'Aptos'
     assert resume.sections[0].header.paragraphs[0].text == ''
     assert resume.sections[0].left_margin.inches < 0.7
+    assert 'w:pBdr' not in resume.styles['Title'].element.xml
+
+
+def test_academic_references_use_a_standard_hanging_indent():
+    academic = Document(BytesIO(service().docx(
+        '# Evidence and Judgment\n\n## References\n\nCrump, G. (2026). Professional documents in practice.',
+        profile='academic',
+    )))
+    reference = next(paragraph for paragraph in academic.paragraphs if paragraph.text.startswith('Crump, G.'))
+    assert round(reference.paragraph_format.left_indent.inches, 2) == 0.5
+    assert round(reference.paragraph_format.first_line_indent.inches, 2) == -0.5
 
 
 def test_long_academic_title_is_complete_not_repeated_and_has_neutral_footer():
@@ -119,14 +137,17 @@ def test_presentation_export_uses_custom_widescreen_layout_and_readable_type():
     assert len(deck.slides[0].placeholders) == 0
     text_shapes = [shape for shape in deck.slides[0].shapes if getattr(shape, 'has_text_frame', False)]
     title_shape = next(shape for shape in text_shapes if shape.text == 'Product Brief')
-    assert title_shape.text_frame.paragraphs[0].font.size.pt >= 46
-    assert any(shape.text == 'ASK CRUMP' for shape in text_shapes)
-    for slide in list(deck.slides)[1:]:
-        assert any(
-            shape.text == 'ASK CRUMP'
-            for shape in slide.shapes
-            if getattr(shape, 'has_text_frame', False)
-        )
+    assert title_shape.text_frame.paragraphs[0].font.size.pt >= 50
+    visible_text = '\n'.join(
+        shape.text for slide in deck.slides for shape in slide.shapes
+        if getattr(shape, 'has_text_frame', False)
+    )
+    assert 'ASK CRUMP' not in visible_text
+    purpose = next(
+        shape for shape in deck.slides[1].shapes
+        if getattr(shape, 'has_text_frame', False) and shape.text == 'Purpose'
+    )
+    assert purpose.text_frame.paragraphs[0].font.size.pt >= 35
 
 
 def test_spreadsheet_export_is_structured_typed_filterable_and_safe():
@@ -134,11 +155,15 @@ def test_spreadsheet_export_is_structured_typed_filterable_and_safe():
     workbook = load_workbook(BytesIO(generator.xlsx(SAMPLE)), data_only=False)
     assert workbook.sheetnames[0] == 'Overview'
     data_sheet = workbook[workbook.sheetnames[1]]
-    assert workbook['Overview'].print_area == "'Overview'!$A$1:$F$15"
+    assert workbook['Overview'].print_area == "'Overview'!$A$1:$C$10"
+    assert workbook['Overview']['A3'].value == 'WORKBOOK INDEX'
+    assert 'ASK CRUMP' not in ' '.join(str(cell.value or '') for row in workbook['Overview'].iter_rows() for cell in row)
     assert data_sheet.freeze_panes == 'A2'
     assert data_sheet.print_area
     assert data_sheet.sheet_view.showGridLines is False
     assert data_sheet.tables
+    assert 'ASK CRUMP' not in (data_sheet.oddFooter.center.text or '')
+    assert len(data_sheet.conditional_formatting) == 0
     assert data_sheet['B3'].value == 0.95
     assert data_sheet['B3'].number_format == '0.0%'
     assert data_sheet['B4'].value == 12500
@@ -154,7 +179,7 @@ def test_pdf_export_is_extractable_and_paginated():
     assert reader.metadata.author == 'Ask Crump'
     extracted = '\n'.join(page.extract_text() or '' for page in reader.pages)
     assert 'Product Brief' in extracted
-    assert 'ASK CRUMP' in extracted
+    assert 'ASK CRUMP' not in extracted
 
 
 def test_creation_guidance_guards_truth_and_matches_the_format():

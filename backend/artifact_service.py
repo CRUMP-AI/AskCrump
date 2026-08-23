@@ -13,7 +13,7 @@ import re
 from typing import Any
 
 from docx import Document
-from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
+from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT, WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
@@ -54,6 +54,9 @@ GOLD = 'C9A95E'
 CREAM = 'F6F1E7'
 MUTED = '677080'
 LINE = 'D9DDE4'
+PAPER = 'FAF9F6'
+SLATE = '405366'
+SOFT = 'EEF1F4'
 
 
 @dataclass(slots=True)
@@ -341,6 +344,43 @@ class ArtifactService:
         shading = OxmlElement('w:shd'); shading.set(qn('w:fill'), color)
         paragraph._p.get_or_add_pPr().append(shading)
 
+    @staticmethod
+    def _set_docx_font(font: Any, style_element: Any, name: str) -> None:
+        """Set every Word font slot so Office themes cannot silently replace it."""
+        font.name = name
+        r_pr = style_element.get_or_add_rPr()
+        r_fonts = r_pr.rFonts
+        if r_fonts is None:
+            r_fonts = OxmlElement('w:rFonts')
+            r_pr.insert(0, r_fonts)
+        for theme_slot in ('asciiTheme', 'hAnsiTheme', 'eastAsiaTheme', 'cstheme'):
+            r_fonts.attrib.pop(qn(f'w:{theme_slot}'), None)
+        for slot in ('ascii', 'hAnsi', 'eastAsia', 'cs'):
+            r_fonts.set(qn(f'w:{slot}'), name)
+
+    @staticmethod
+    def _set_docx_size(font: Any, style_element: Any, size: float) -> None:
+        font.size = Pt(size)
+        r_pr = style_element.get_or_add_rPr()
+        for element_name in ('sz', 'szCs'):
+            node = r_pr.find(qn(f'w:{element_name}'))
+            if node is None:
+                node = OxmlElement(f'w:{element_name}')
+                r_pr.append(node)
+            node.set(qn('w:val'), str(round(size * 2)))
+
+    @classmethod
+    def _column_ratios(cls, rows: list[list[Any]], width: int) -> list[float]:
+        """Infer practical table widths from the content instead of forcing equal columns."""
+        weights: list[float] = []
+        for column in range(width):
+            lengths = [len(cls._clean_inline(str(row[column] if column < len(row) else ''))) for row in rows[:60]]
+            longest = max(lengths, default=8)
+            average = sum(lengths) / max(1, len(lengths))
+            weights.append(min(42.0, max(8.0, average * 0.65 + longest * 0.35)))
+        total = sum(weights) or 1.0
+        return [weight / total for weight in weights]
+
     def docx(self, markdown: str, *, profile: str | None = None, title: str | None = None) -> bytes:
         resolved_title = (title or self.title_from(markdown)).strip()[:160]
         resolved_profile = profile or self.profile_for(markdown)
@@ -349,71 +389,89 @@ class ArtifactService:
             margins = (1.0, 1.0, 1.0, 1.0); body_font, body_size, spacing = 'Times New Roman', 12, 2.0
             display_font = 'Times New Roman'
         elif resolved_profile == 'resume':
-            margins = (0.58, 0.58, 0.62, 0.62); body_font, body_size, spacing = 'Aptos', 10, 1.05
-            display_font = 'Aptos Display'
+            margins = (0.62, 0.67, 0.62, 0.67); body_font, body_size, spacing = 'Aptos', 10, 1.03
+            display_font = 'Aptos'
         else:
-            margins = (0.78, 0.78, 0.82, 0.82); body_font, body_size, spacing = 'Aptos', 10.5, 1.14
-            display_font = 'Aptos Display'
+            margins = (0.82, 0.82, 0.78, 0.82); body_font, body_size, spacing = 'Aptos', 10.5, 1.14
+            display_font = 'Aptos'
         section.top_margin, section.right_margin = Inches(margins[0]), Inches(margins[1])
         section.bottom_margin, section.left_margin = Inches(margins[2]), Inches(margins[3])
 
-        normal = doc.styles['Normal']; normal.font.name = body_font; normal.font.size = Pt(body_size)
+        normal = doc.styles['Normal']; self._set_docx_font(normal.font, normal.element, body_font); self._set_docx_size(normal.font, normal.element, body_size)
         normal.font.color.rgb = DocxRGBColor.from_string(INK)
         normal.paragraph_format.line_spacing = spacing
         normal.paragraph_format.space_after = Pt(0 if resolved_profile == 'academic' else 6)
         normal.paragraph_format.widow_control = True
         if resolved_profile == 'academic':
             normal.paragraph_format.first_line_indent = Inches(0.5)
-        sizes = {'academic': (16, 14, 12.5, 12), 'resume': (24, 12, 10.5, 10), 'business': (25, 17, 14, 12)}[
+        sizes = {'academic': (12, 12, 12, 12), 'resume': (22, 10.5, 10.5, 10), 'business': (24, 15, 12.5, 10.5)}[
             resolved_profile if resolved_profile in {'academic', 'resume'} else 'business'
         ]
         for name, size in zip(('Title', 'Heading 1', 'Heading 2', 'Heading 3'), sizes):
-            style = doc.styles[name]; style.font.name = display_font; style.font.size = Pt(size)
-            style.font.bold = name != 'Title' or resolved_profile != 'academic'
-            style.font.color.rgb = DocxRGBColor.from_string(INK if resolved_profile == 'academic' else NAVY)
+            style = doc.styles[name]; self._set_docx_font(style.font, style.element, display_font); self._set_docx_size(style.font, style.element, size)
+            style.font.bold = True
+            style.font.italic = resolved_profile == 'academic' and name == 'Heading 3'
+            style.font.color.rgb = DocxRGBColor.from_string(INK if resolved_profile in {'academic', 'resume'} else SLATE)
             style.paragraph_format.keep_with_next = True; style.paragraph_format.keep_together = True
-            style.paragraph_format.space_before = Pt(11 if name != 'Title' else 0)
-            style.paragraph_format.space_after = Pt(5 if name != 'Title' else 10)
-            style.paragraph_format.first_line_indent = Inches(0)
             if resolved_profile == 'academic':
-                style_properties = style.element.get_or_add_pPr()
-                inherited_border = style_properties.find(qn('w:pBdr'))
-                if inherited_border is not None:
-                    style_properties.remove(inherited_border)
+                style.paragraph_format.line_spacing = 2.0
+                style.paragraph_format.space_before = Pt(0)
+                style.paragraph_format.space_after = Pt(0)
+            elif resolved_profile == 'resume':
+                style.paragraph_format.space_before = Pt(8 if name != 'Title' else 0)
+                style.paragraph_format.space_after = Pt(3 if name != 'Title' else 4)
+            else:
+                style.paragraph_format.space_before = Pt(13 if name != 'Title' else 0)
+                style.paragraph_format.space_after = Pt(5 if name != 'Title' else 12)
+            style.paragraph_format.first_line_indent = Inches(0)
+            style_properties = style.element.get_or_add_pPr()
+            inherited_border = style_properties.find(qn('w:pBdr'))
+            if inherited_border is not None:
+                style_properties.remove(inherited_border)
+            if resolved_profile == 'academic':
+                r_pr = style.element.get_or_add_rPr()
+                for inherited_name in ('spacing', 'kern'):
+                    inherited = r_pr.find(qn(f'w:{inherited_name}'))
+                    if inherited is not None:
+                        r_pr.remove(inherited)
+
+        for list_name in ('List Bullet', 'List Number'):
+            list_style = doc.styles[list_name]
+            self._set_docx_font(list_style.font, list_style.element, body_font)
+            list_style.font.size = Pt(body_size)
+            list_style.paragraph_format.left_indent = Inches(0.28 if resolved_profile == 'resume' else 0.32)
+            list_style.paragraph_format.first_line_indent = Inches(-0.18)
+            list_style.paragraph_format.space_after = Pt(2 if resolved_profile == 'resume' else (0 if resolved_profile == 'academic' else 3))
+            if resolved_profile == 'academic':
+                list_style.paragraph_format.line_spacing = 2.0
 
         doc.core_properties.title = resolved_title; doc.core_properties.author = 'Ask Crump'
         doc.core_properties.subject = f'{resolved_profile.title()} document'
-        doc.core_properties.keywords = 'Ask Crump, AI workspace, editable document'
-        if resolved_profile == 'business':
-            header = section.header.paragraphs[0]; header.text = 'ASK CRUMP  /  AI WORKSPACE'
-            header.runs[0].font.size = Pt(7.5); header.runs[0].font.bold = True
-            header.runs[0].font.color.rgb = DocxRGBColor.from_string(GOLD)
+        doc.core_properties.keywords = f'{resolved_profile}, professionally formatted, editable document'
         if resolved_profile != 'resume':
             footer = section.footer.paragraphs[0]
-            if resolved_profile == 'business':
-                footer.add_run('Ask Crump  •  ')
-                footer.runs[0].font.name = body_font; footer.runs[0].font.size = Pt(8)
-                footer.runs[0].font.color.rgb = DocxRGBColor.from_string(MUTED)
             self._add_page_number(footer)
+            for run in footer.runs:
+                run.font.name = body_font; run.font.size = Pt(8)
+                run.font.color.rgb = DocxRGBColor.from_string(MUTED)
 
         title_p = doc.add_paragraph(style='Title')
         title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER if resolved_profile == 'academic' else WD_ALIGN_PARAGRAPH.LEFT
         title_p.paragraph_format.first_line_indent = Inches(0); self._add_docx_inline(title_p, resolved_title)
-        if resolved_profile == 'business':
-            borders = OxmlElement('w:pBdr'); bottom = OxmlElement('w:bottom')
-            for key, value in {'val': 'single', 'sz': '10', 'space': '7', 'color': GOLD}.items():
-                bottom.set(qn(f'w:{key}'), value)
-            borders.append(bottom); title_p._p.get_or_add_pPr().append(borders)
 
-        skipped = False
+        skipped = False; academic_references = False
         for kind, content in self.blocks(markdown):
             if not skipped and kind.startswith('h') and self._same_title(str(content), resolved_title):
                 skipped = True; continue
             if kind.startswith('h'):
-                p = doc.add_heading('', level=min(3, max(1, int(kind[1:])))); self._add_docx_inline(p, str(content))
+                p = doc.add_heading('', level=min(3, max(1, int(kind[1:]))))
+                heading_text = str(content).upper() if resolved_profile == 'resume' and kind == 'h1' else str(content)
+                self._add_docx_inline(p, heading_text)
+                if resolved_profile == 'academic':
+                    academic_references = self._clean_inline(str(content)).casefold() in {'references', 'works cited', 'bibliography'}
             elif kind in {'li', 'ol'}:
                 p = doc.add_paragraph(style='List Bullet' if kind == 'li' else 'List Number')
-                p.paragraph_format.first_line_indent = Inches(0); self._add_docx_inline(p, str(content))
+                self._add_docx_inline(p, str(content))
             elif kind == 'quote':
                 p = doc.add_paragraph(style='Quote'); p.paragraph_format.first_line_indent = Inches(0)
                 self._add_docx_inline(p, str(content))
@@ -432,23 +490,43 @@ class ArtifactService:
                 rows = content
                 if not rows: continue
                 width = max(len(row) for row in rows); table = doc.add_table(rows=len(rows), cols=width)
-                table.autofit = True; table.style = 'Table Grid'
+                table.autofit = False; table.alignment = WD_TABLE_ALIGNMENT.LEFT
+                ratios = self._column_ratios(rows, width)
+                usable_inches = 8.5 - margins[1] - margins[3]
+                for column_index, ratio in enumerate(ratios):
+                    column_width = Inches(usable_inches * ratio)
+                    table.columns[column_index].width = column_width
+                    for cell in table.columns[column_index].cells:
+                        cell.width = column_width
                 table.rows[0]._tr.get_or_add_trPr().append(OxmlElement('w:tblHeader'))
                 for row_index, values in enumerate(rows):
                     for column_index in range(width):
                         cell = table.cell(row_index, column_index); cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
                         self._set_cell_margins(cell)
-                        if row_index == 0: self._set_cell_shading(cell, NAVY)
-                        elif row_index % 2 == 0: self._set_cell_shading(cell, 'F5F6F8')
+                        if row_index == 0: self._set_cell_shading(cell, SOFT)
+                        elif row_index % 2 == 0: self._set_cell_shading(cell, 'F8F9FA')
                         p = cell.paragraphs[0]; p.paragraph_format.first_line_indent = Inches(0); p.paragraph_format.space_after = Pt(0)
                         self._add_docx_inline(p, str(values[column_index] if column_index < len(values) else ''))
                         for run in p.runs:
                             run.font.size = Pt(9.2)
-                            if row_index == 0: run.bold = True; run.font.color.rgb = DocxRGBColor(255, 255, 255)
+                            if row_index == 0: run.bold = True; run.font.color.rgb = DocxRGBColor.from_string(INK)
+                        cell_props = cell._tc.get_or_add_tcPr()
+                        cell_borders = OxmlElement('w:tcBorders')
+                        for edge in ('top', 'bottom'):
+                            border = OxmlElement(f'w:{edge}')
+                            border.set(qn('w:val'), 'single')
+                            border.set(qn('w:sz'), '4' if row_index == 0 else '2')
+                            border.set(qn('w:color'), SLATE if row_index == 0 else LINE)
+                            cell_borders.append(border)
+                        cell_props.append(cell_borders)
                 doc.add_paragraph().paragraph_format.space_after = Pt(0)
             elif content:
                 p = doc.add_paragraph()
-                if resolved_profile != 'academic': p.paragraph_format.first_line_indent = Inches(0)
+                if resolved_profile != 'academic':
+                    p.paragraph_format.first_line_indent = Inches(0)
+                elif academic_references:
+                    p.paragraph_format.left_indent = Inches(0.5)
+                    p.paragraph_format.first_line_indent = Inches(-0.5)
                 self._add_docx_inline(p, str(content))
         out = BytesIO(); doc.save(out); return out.getvalue()
 
@@ -480,61 +558,85 @@ class ArtifactService:
             leading=24 if academic else 15, textColor=colors.HexColor(f'#{INK}'), alignment=TA_LEFT,
             spaceAfter=0 if academic else 7, firstLineIndent=0.5 * inch if academic else 0,
         )
+        list_body = ParagraphStyle('CrumpListBody', parent=body, firstLineIndent=0, spaceAfter=0 if academic else 2)
         title_style = ParagraphStyle(
             'CrumpTitle', parent=sample['Title'], fontName='Times-Bold' if academic else 'Helvetica-Bold',
-            fontSize=16 if academic else 23, leading=20 if academic else 28,
-            textColor=colors.HexColor(f'#{INK if academic else NAVY}'),
-            alignment=TA_CENTER if academic else TA_LEFT, spaceAfter=18,
+            fontSize=12 if academic else 23, leading=24 if academic else 28,
+            textColor=colors.HexColor(f'#{INK if academic else SLATE}'),
+            alignment=TA_CENTER if academic else TA_LEFT, spaceAfter=0 if academic else 16,
         )
         h1 = ParagraphStyle(
             'CrumpH1', parent=sample['Heading1'], fontName='Times-Bold' if academic else 'Helvetica-Bold',
-            fontSize=14 if academic else 16, leading=18 if academic else 20,
-            textColor=colors.HexColor(f'#{INK if academic else NAVY}'), spaceBefore=14, spaceAfter=7, keepWithNext=True,
+            fontSize=12 if academic else 15, leading=24 if academic else 19,
+            textColor=colors.HexColor(f'#{INK if academic else SLATE}'),
+            spaceBefore=0 if academic else 14, spaceAfter=0 if academic else 6, keepWithNext=True,
         )
-        h2 = ParagraphStyle('CrumpH2', parent=h1, fontSize=12.5 if academic else 13.5, leading=16 if academic else 17)
+        h2 = ParagraphStyle(
+            'CrumpH2', parent=h1, fontName='Times-Bold' if academic else 'Helvetica-Bold',
+            fontSize=12 if academic else 12.5, leading=24 if academic else 16,
+        )
+        h3 = ParagraphStyle(
+            'CrumpH3', parent=h2, fontName='Times-BoldItalic' if academic else 'Helvetica-Bold',
+        )
+        reference_style = ParagraphStyle(
+            'CrumpReference', parent=body, alignment=TA_LEFT, leftIndent=0.5 * inch,
+            firstLineIndent=-0.5 * inch,
+        )
         code_style = ParagraphStyle('CrumpCode', parent=body, fontName='Courier', fontSize=8.6, leading=11, backColor=colors.HexColor('#F1F3F6'), borderPadding=7, firstLineIndent=0, spaceAfter=8)
-        quote_style = ParagraphStyle('CrumpQuote', parent=body, fontName='Times-Italic' if academic else 'Helvetica-Oblique', leftIndent=18, rightIndent=10, firstLineIndent=0, textColor=colors.HexColor(f'#{MUTED}'), borderColor=colors.HexColor(f'#{GOLD}'), borderWidth=1.5, borderPadding=7, spaceAfter=10)
+        quote_style = ParagraphStyle('CrumpQuote', parent=body, fontName='Times-Italic' if academic else 'Helvetica-Oblique', leftIndent=22, rightIndent=12, firstLineIndent=0, textColor=colors.HexColor(f'#{MUTED}'), borderColor=colors.HexColor(f'#{LINE}'), borderWidth=0.75, borderPadding=7, spaceAfter=10)
         story: list[Any] = [Paragraph(self._rl_markup(resolved_title), title_style)]
         pending: list[ListItem] = []; pending_type = 'bullet'
         def flush_lists() -> None:
             nonlocal pending
             if pending:
-                story.append(ListFlowable(pending, bulletType=pending_type, leftIndent=20, bulletFontSize=7)); story.append(Spacer(1, 5)); pending = []
-        skipped = False
+                story.append(ListFlowable(
+                    pending, bulletType=pending_type, leftIndent=26 if academic else 20,
+                    bulletFontName='Times-Roman' if academic else 'Helvetica',
+                    bulletFontSize=12 if academic else 7,
+                )); story.append(Spacer(1, 5)); pending = []
+        skipped = False; academic_references = False
         for kind, content in self.blocks(markdown):
             if not skipped and kind.startswith('h') and self._same_title(str(content), resolved_title):
                 skipped = True; continue
             if kind in {'li', 'ol'}:
                 desired = '1' if kind == 'ol' else 'bullet'
                 if pending and pending_type != desired: flush_lists()
-                pending_type = desired; pending.append(ListItem(Paragraph(self._rl_markup(str(content)), body), leftIndent=10)); continue
+                pending_type = desired; pending.append(ListItem(Paragraph(self._rl_markup(str(content)), list_body), leftIndent=10)); continue
             flush_lists()
-            if kind == 'h1': story.append(Paragraph(self._rl_markup(str(content)), h1))
-            elif kind in {'h2', 'h3', 'h4'}: story.append(Paragraph(self._rl_markup(str(content)), h2))
+            if kind == 'h1':
+                story.append(Paragraph(self._rl_markup(str(content)), h1))
+            elif kind == 'h2':
+                story.append(Paragraph(self._rl_markup(str(content)), h2))
+                if academic:
+                    academic_references = self._clean_inline(str(content)).casefold() in {'references', 'works cited', 'bibliography'}
+            elif kind in {'h3', 'h4'}:
+                story.append(Paragraph(self._rl_markup(str(content)), h3))
             elif kind == 'code': story.append(Paragraph(self._xml(str(content)).replace('\n', '<br/>'), code_style))
             elif kind == 'quote': story.append(Paragraph(self._rl_markup(str(content)), quote_style))
             elif kind == 'hr':
-                story.extend([Spacer(1, 5), Table([['']], colWidths=[document.width], rowHeights=[1], style=TableStyle([('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(f'#{GOLD}'))])), Spacer(1, 7)])
+                story.extend([Spacer(1, 5), Table([['']], colWidths=[document.width], rowHeights=[0.5], style=TableStyle([('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(f'#{LINE}'))])), Spacer(1, 7)])
             elif kind == 'table' and content:
                 width = max(len(row) for row in content); table_rows = []
                 for row in content:
                     padded = [*row, *([''] * (width - len(row)))]
-                    table_rows.append([Paragraph(self._rl_markup(str(value)), body) for value in padded])
-                table = Table(table_rows, colWidths=[document.width / width] * width, repeatRows=1, hAlign='LEFT')
+                    table_rows.append([Paragraph(self._rl_markup(str(value)), list_body) for value in padded])
+                ratios = self._column_ratios(content, width)
+                table = Table(table_rows, colWidths=[document.width * ratio for ratio in ratios], repeatRows=1, hAlign='LEFT')
                 table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(f'#{NAVY}')), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'), ('FONTSIZE', (0, 0), (-1, -1), 8.8),
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(f'#{SOFT}')), ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(f'#{INK}')),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Times-Bold' if academic else 'Helvetica-Bold'), ('FONTSIZE', (0, 0), (-1, -1), 8.8),
                     ('LEADING', (0, 0), (-1, -1), 11), ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                    ('GRID', (0, 0), (-1, -1), 0.35, colors.HexColor(f'#{LINE}')),
-                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F5F6F8')]),
+                    ('LINEBELOW', (0, 0), (-1, 0), 0.8, colors.HexColor(f'#{SLATE}')),
+                    ('LINEBELOW', (0, 1), (-1, -1), 0.3, colors.HexColor(f'#{LINE}')),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F9FA')]),
                     ('LEFTPADDING', (0, 0), (-1, -1), 6), ('RIGHTPADDING', (0, 0), (-1, -1), 6),
                     ('TOPPADDING', (0, 0), (-1, -1), 6), ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
                 ])); story.extend([table, Spacer(1, 10)])
-            elif content: story.append(Paragraph(self._rl_markup(str(content)), body))
+            elif content: story.append(Paragraph(self._rl_markup(str(content)), reference_style if academic_references else body))
         flush_lists()
         def footer(canvas: Any, doc_template: Any) -> None:
             canvas.saveState(); canvas.setFont('Helvetica', 7.5); canvas.setFillColor(colors.HexColor(f'#{MUTED}'))
-            label = str(canvas.getPageNumber()) if academic else f'ASK CRUMP  •  {canvas.getPageNumber()}'
+            label = str(canvas.getPageNumber())
             canvas.drawRightString(doc_template.pagesize[0] - doc_template.rightMargin, 0.42 * inch, label); canvas.restoreState()
         document.build(story, onFirstPage=footer, onLaterPages=footer); return out.getvalue()
 
@@ -552,29 +654,40 @@ class ArtifactService:
     def _ppt_background(slide: Any, color: str = INK) -> None:
         fill = slide.background.fill; fill.solid(); fill.fore_color.rgb = RGBColor.from_string(color)
 
-    def _ppt_brand(self, slide: Any, number: int) -> None:
-        rule = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, PptInches(0.64), PptInches(7.13), PptInches(12.02), PptInches(0.015))
-        rule.fill.solid(); rule.fill.fore_color.rgb = RGBColor.from_string('66552F'); rule.line.fill.background()
-        self._ppt_add_text(slide, 'ASK CRUMP', 0.66, 7.18, 2.0, 0.16, size=7.5, color=GOLD, bold=True)
-        self._ppt_add_text(slide, str(number), 12.1, 7.18, 0.55, 0.16, size=7.5, color='8D93A0', align=PP_ALIGN.RIGHT)
+    def _ppt_footer(self, slide: Any, number: int) -> None:
+        rule = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, PptInches(0.72), PptInches(7.04), PptInches(11.9), PptInches(0.012))
+        rule.fill.solid(); rule.fill.fore_color.rgb = RGBColor.from_string(LINE); rule.line.fill.background()
+        self._ppt_add_text(slide, str(number), 12.06, 7.12, 0.55, 0.16, size=8, color=MUTED, align=PP_ALIGN.RIGHT)
+
+    @staticmethod
+    def _ppt_shape(slide: Any, shape_type: Any, left: float, top: float, width: float, height: float, *, fill: str, line: str | None = None) -> Any:
+        shape = slide.shapes.add_shape(shape_type, PptInches(left), PptInches(top), PptInches(width), PptInches(height))
+        shape.fill.solid(); shape.fill.fore_color.rgb = RGBColor.from_string(fill)
+        if line:
+            shape.line.color.rgb = RGBColor.from_string(line)
+        else:
+            shape.line.fill.background()
+        return shape
+
+    def _ppt_slide_title(self, slide: Any, heading: str) -> None:
+        self._ppt_shape(slide, MSO_SHAPE.RECTANGLE, 0.72, 0.48, 0.58, 0.055, fill=SLATE)
+        title_size = 36 if len(heading) <= 58 else (31 if len(heading) <= 92 else 27)
+        self._ppt_add_text(slide, heading, 0.72, 0.78, 11.7, 0.92, size=title_size, color=INK, bold=True, font='Aptos Display')
 
     def pptx(self, markdown: str, *, title: str | None = None) -> bytes:
         prs = Presentation(); prs.slide_width = PptInches(13.333); prs.slide_height = PptInches(7.5)
         resolved_title = (title or self.title_from(markdown)).strip()[:160]
         prs.core_properties.title = resolved_title; prs.core_properties.author = 'Ask Crump'
-        cover = prs.slides.add_slide(prs.slide_layouts[6]); self._ppt_background(cover)
-        accent = cover.shapes.add_shape(MSO_SHAPE.RECTANGLE, PptInches(0.72), PptInches(0.76), PptInches(0.08), PptInches(5.65))
-        accent.fill.solid(); accent.fill.fore_color.rgb = RGBColor.from_string(GOLD); accent.line.fill.background()
-        self._ppt_add_text(cover, 'ASK CRUMP  /  PRESENTATION', 1.06, 0.88, 5.2, 0.25, size=9, color=GOLD, bold=True)
-        title_size = 48 if len(resolved_title) <= 60 else (40 if len(resolved_title) <= 95 else 34)
-        self._ppt_add_text(cover, resolved_title, 1.02, 1.55, 10.9, 2.35, size=title_size, color=CREAM, bold=True, font='Aptos Display')
+        cover = prs.slides.add_slide(prs.slide_layouts[6]); self._ppt_background(cover, PAPER)
+        self._ppt_shape(cover, MSO_SHAPE.RECTANGLE, 0.82, 0.84, 0.72, 0.06, fill=SLATE)
+        title_size = 54 if len(resolved_title) <= 60 else (45 if len(resolved_title) <= 95 else 38)
+        self._ppt_add_text(cover, resolved_title, 0.82, 1.38, 11.35, 2.3, size=title_size, color=INK, bold=True, font='Aptos Display')
         subtitle = 'Clear thinking. Structured for decisions.'
         for kind, content in self.blocks(markdown):
             if kind == 'p' and self._clean_inline(str(content)) != self._clean_inline(resolved_title):
                 subtitle = self._clean_inline(str(content))[:170]; break
-        self._ppt_add_text(cover, subtitle, 1.06, 4.55, 9.4, 0.85, size=18, color='B8BDC7')
-        self._ppt_add_text(cover, datetime.now().strftime('%B %Y').upper(), 1.06, 6.55, 3.2, 0.2, size=8.5, color='8D93A0')
-        self._ppt_brand(cover, 1)
+        self._ppt_add_text(cover, subtitle, 0.86, 4.55, 9.8, 0.85, size=19, color=MUTED)
+        self._ppt_shape(cover, MSO_SHAPE.RECTANGLE, 0.84, 6.54, 11.72, 0.018, fill=LINE)
 
         groups: list[tuple[str, list[Any]]] = []; current_title = 'Executive overview'; current: list[Any] = []; first_heading = False
         for kind, content in self.blocks(markdown):
@@ -596,35 +709,49 @@ class ArtifactService:
             for start in range(0, len(text_items), 5):
                 page_items = [item for item in text_items[start:start + 5] if item]
                 if not page_items: continue
-                slide = prs.slides.add_slide(prs.slide_layouts[6]); self._ppt_background(slide)
-                self._ppt_add_text(slide, f'{len(prs.slides):02d}  /  {heading.upper()[:55]}', 0.72, 0.5, 10.8, 0.25, size=8.5, color=GOLD, bold=True)
+                slide = prs.slides.add_slide(prs.slide_layouts[6]); self._ppt_background(slide, PAPER)
                 display = heading if start == 0 else f'{heading} — continued'
-                self._ppt_add_text(slide, display, 0.72, 0.93, 11.7, 0.9, size=32, color=CREAM, bold=True, font='Aptos Display')
-                y = 2.12
-                for item in page_items:
-                    marker = slide.shapes.add_shape(MSO_SHAPE.OVAL, PptInches(0.76), PptInches(y + 0.12), PptInches(0.11), PptInches(0.11))
-                    marker.fill.solid(); marker.fill.fore_color.rgb = RGBColor.from_string(GOLD); marker.line.fill.background()
-                    self._ppt_add_text(slide, item[:460], 1.08, y, 10.9, 0.72, size=18.5, color='E6E1D8'); y += 0.91
-                self._ppt_brand(slide, len(prs.slides))
+                self._ppt_slide_title(slide, display)
+                if len(page_items) == 1:
+                    self._ppt_shape(slide, MSO_SHAPE.RECTANGLE, 0.82, 2.25, 0.055, 2.45, fill=SLATE)
+                    self._ppt_add_text(slide, page_items[0][:560], 1.22, 2.18, 10.75, 2.7, size=28, color=INK, font='Aptos Display')
+                elif len(page_items) <= 3:
+                    y = 2.0
+                    for item_index, item in enumerate(page_items, start=1):
+                        self._ppt_add_text(slide, f'{item_index:02d}', 0.74, y + 0.04, 0.42, 0.32, size=11, color=SLATE, bold=True)
+                        self._ppt_add_text(slide, item[:430], 1.38, y, 10.65, 0.92, size=20, color=INK)
+                        if item_index < len(page_items):
+                            self._ppt_shape(slide, MSO_SHAPE.RECTANGLE, 1.38, y + 1.08, 10.65, 0.012, fill=LINE)
+                        y += 1.47
+                else:
+                    for item_index, item in enumerate(page_items):
+                        column = item_index % 2; row = item_index // 2
+                        x = 0.76 + column * 6.08; y = 2.0 + row * 1.36
+                        self._ppt_add_text(slide, f'{item_index + 1:02d}', x, y, 0.42, 0.25, size=9, color=SLATE, bold=True)
+                        self._ppt_add_text(slide, item[:310], x + 0.52, y - 0.03, 5.28, 1.0, size=17, color=INK)
+                self._ppt_footer(slide, len(prs.slides))
             for table_rows in table_items:
                 if not table_rows: continue
                 chunks = [table_rows[:8]]
                 if len(table_rows) > 8:
                     chunks.extend([[table_rows[0], *table_rows[index:index + 7]] for index in range(8, len(table_rows), 7)])
                 for chunk_index, rows in enumerate(chunks[:3]):
-                    width = min(6, max(len(row) for row in rows)); slide = prs.slides.add_slide(prs.slide_layouts[6]); self._ppt_background(slide)
+                    width = min(6, max(len(row) for row in rows)); slide = prs.slides.add_slide(prs.slide_layouts[6]); self._ppt_background(slide, PAPER)
                     display = heading if chunk_index == 0 else f'{heading} — continued'
-                    self._ppt_add_text(slide, 'DATA  /  DECISION SUPPORT', 0.72, 0.5, 6.2, 0.25, size=8.5, color=GOLD, bold=True)
-                    self._ppt_add_text(slide, display, 0.72, 0.93, 11.7, 0.7, size=30, color=CREAM, bold=True, font='Aptos Display')
-                    table = slide.shapes.add_table(len(rows), width, PptInches(0.72), PptInches(1.88), PptInches(11.9), PptInches(4.8)).table
+                    self._ppt_slide_title(slide, display)
+                    table_height = max(1.6, min(4.75, 0.58 * len(rows) + 0.3))
+                    table = slide.shapes.add_table(len(rows), width, PptInches(0.72), PptInches(1.92), PptInches(11.9), PptInches(table_height)).table
+                    ratios = self._column_ratios(rows, width)
+                    for col_index, ratio in enumerate(ratios):
+                        table.columns[col_index].width = PptInches(11.9 * ratio)
                     for row_index, row in enumerate(rows):
                         for col_index in range(width):
                             cell = table.cell(row_index, col_index); cell.text = self._clean_inline(str(row[col_index] if col_index < len(row) else ''))[:160]
-                            cell.fill.solid(); cell.fill.fore_color.rgb = RGBColor.from_string(NAVY if row_index == 0 else ('252A35' if row_index % 2 else '1D222C'))
+                            cell.fill.solid(); cell.fill.fore_color.rgb = RGBColor.from_string(SLATE if row_index == 0 else ('F3F5F7' if row_index % 2 == 0 else 'FFFFFF'))
                             cell.margin_left = cell.margin_right = PptInches(0.08); cell.margin_top = cell.margin_bottom = PptInches(0.05)
-                            p = cell.text_frame.paragraphs[0]; p.font.name = 'Aptos'; p.font.size = PptPt(11.5); p.font.bold = row_index == 0
-                            p.font.color.rgb = RGBColor.from_string(GOLD if row_index == 0 else 'E6E1D8')
-                    self._ppt_brand(slide, len(prs.slides))
+                            p = cell.text_frame.paragraphs[0]; p.font.name = 'Aptos'; p.font.size = PptPt(12.5); p.font.bold = row_index == 0
+                            p.font.color.rgb = RGBColor.from_string('FFFFFF' if row_index == 0 else INK)
+                    self._ppt_footer(slide, len(prs.slides))
         out = BytesIO(); prs.save(out); return out.getvalue()
 
     @staticmethod
@@ -681,20 +808,23 @@ class ArtifactService:
         sheet.print_area = sheet.dimensions
         sheet.page_margins.left = sheet.page_margins.right = 0.35
         sheet.page_margins.top = sheet.page_margins.bottom = 0.5
-        sheet.oddFooter.center.text = 'ASK CRUMP  •  &[Page] of &[Pages]'; sheet.oddFooter.center.size = 8; sheet.oddFooter.center.color = MUTED
-        thin = Side(style='thin', color=LINE)
+        sheet.oddFooter.center.text = '&[Tab]  •  &[Page] of &[Pages]'; sheet.oddFooter.center.size = 8; sheet.oddFooter.center.color = MUTED
+        thin = Side(style='hair', color=LINE)
         for cell in sheet[1]:
-            cell.fill = PatternFill('solid', fgColor=NAVY); cell.font = Font(name='Aptos Display', size=10, bold=True, color='FFFFFF')
-            cell.alignment = Alignment(vertical='center', wrap_text=True); cell.border = Border(bottom=Side(style='medium', color=GOLD))
-        sheet.row_dimensions[1].height = 28
+            cell.fill = PatternFill('solid', fgColor=SLATE); cell.font = Font(name='Aptos', size=9.5, bold=True, color='FFFFFF')
+            cell.alignment = Alignment(vertical='center', wrap_text=True); cell.border = Border(bottom=Side(style='medium', color=SLATE))
+        sheet.row_dimensions[1].height = 25
         for row in sheet.iter_rows(min_row=2):
             for cell in row:
-                cell.font = Font(name='Aptos', size=10, color=INK); cell.alignment = Alignment(vertical='top', wrap_text=True)
+                cell.font = Font(name='Aptos', size=9.5, color=INK); cell.alignment = Alignment(vertical='top', wrap_text=True)
                 cell.border = Border(bottom=thin)
+                if str(cell.value or '').startswith('='):
+                    cell.fill = PatternFill('solid', fgColor='F1F5F9')
+                    cell.font = Font(name='Aptos', size=9.5, color='274A67')
         for column in sheet.columns:
             letter = column[0].column_letter; values = [len(str(cell.value or '')) for cell in column[:100]]
-            sheet.column_dimensions[letter].width = min(42, max(11, max(values, default=8) + 2))
-        sheet.sheet_properties.tabColor = GOLD
+            sheet.column_dimensions[letter].width = min(40, max(10, max(values, default=8) + 2))
+        sheet.sheet_properties.tabColor = SLATE
 
     @staticmethod
     def _header_number_format(header: str) -> str | None:
@@ -710,18 +840,26 @@ class ArtifactService:
     def xlsx(self, markdown: str, *, title: str | None = None) -> bytes:
         resolved_title = (title or self.title_from(markdown)).strip()[:160]
         workbook = Workbook(); overview = workbook.active; overview.title = 'Overview'; overview.sheet_view.showGridLines = False
-        overview.sheet_properties.tabColor = GOLD; overview.merge_cells('A1:F2'); overview['A1'] = resolved_title
-        overview['A1'].font = Font(name='Aptos Display', size=22, bold=True, color='FFFFFF'); overview['A1'].fill = PatternFill('solid', fgColor=NAVY)
-        overview['A1'].alignment = Alignment(vertical='center'); overview['A4'] = 'ASK CRUMP / EDITABLE WORKBOOK'
-        overview['A4'].font = Font(name='Aptos', size=8, bold=True, color=GOLD); overview['A6'] = 'Workbook guide'
-        overview['A6'].font = Font(name='Aptos Display', size=14, bold=True, color=INK)
-        overview['A7'] = 'Each structured table is placed on its own filterable sheet. Inputs, formulas, dates, currencies, and percentages remain editable.'
-        overview['A7'].alignment = Alignment(wrap_text=True, vertical='top'); overview['A7'].font = Font(name='Aptos', size=10, color=MUTED)
-        overview.column_dimensions['A'].width = 74; overview.row_dimensions[7].height = 42
+        overview.sheet_properties.tabColor = SLATE; overview.merge_cells('A1:C1'); overview['A1'] = resolved_title
+        overview['A1'].font = Font(name='Aptos', size=20, bold=True, color=INK)
+        overview['A1'].alignment = Alignment(vertical='center'); overview['A1'].border = Border(bottom=Side(style='medium', color=SLATE))
+        overview.row_dimensions[1].height = 36
+        overview['A3'] = 'WORKBOOK INDEX'; overview['A3'].font = Font(name='Aptos', size=8, bold=True, color=SLATE)
+        overview.merge_cells('A5:C5')
+        overview['A5'] = 'Use this index to move between the model’s structured tables. Inputs, formulas, units, and number formats remain editable.'
+        overview['A5'].alignment = Alignment(wrap_text=True, vertical='top'); overview['A5'].font = Font(name='Aptos', size=10, color=MUTED)
+        overview.row_dimensions[5].height = 32
+        for column, label in enumerate(('Sheet', 'Purpose', 'Records'), start=1):
+            cell = overview.cell(7, column, label); cell.fill = PatternFill('solid', fgColor=SOFT)
+            cell.font = Font(name='Aptos', size=9.5, bold=True, color=INK); cell.alignment = Alignment(vertical='center')
+            cell.border = Border(bottom=Side(style='thin', color=SLATE))
+        overview.row_dimensions[7].height = 22
+        overview.column_dimensions['A'].width = 30; overview.column_dimensions['B'].width = 48; overview.column_dimensions['C'].width = 14
         overview.sheet_properties.pageSetUpPr.fitToPage = True; overview.page_setup.orientation = 'portrait'
         overview.page_setup.fitToWidth = 1; overview.page_setup.fitToHeight = 1
-        overview.print_area = 'A1:F15'; overview.page_margins.left = overview.page_margins.right = 0.45
+        overview.page_margins.left = overview.page_margins.right = 0.55
         overview.page_margins.top = overview.page_margins.bottom = 0.55
+        overview.oddFooter.center.text = '&[Page] of &[Pages]'; overview.oddFooter.center.size = 8; overview.oddFooter.center.color = MUTED
 
         tables = self._tables_with_titles(markdown)
         if tables:
@@ -763,27 +901,37 @@ class ArtifactService:
                     sheet.add_table(table)
                     for column in range(1, sheet.max_column + 1):
                         numeric = [sheet.cell(row, column).value for row in range(2, sheet.max_row + 1)]
-                        if sum(isinstance(value, (int, float)) for value in numeric) >= 3:
+                        numeric_values = [value for value in numeric if isinstance(value, (int, float))]
+                        if len(numeric_values) >= 6 and max(numeric_values) != min(numeric_values):
                             letter = sheet.cell(1, column).column_letter
-                            sheet.conditional_formatting.add(f'{letter}2:{letter}{sheet.max_row}', DataBarRule(start_type='min', end_type='max', color=GOLD, showValue=True))
-                overview.cell(9 + index, 1, name); overview.cell(9 + index, 2, f'{max(0, len(rows) - 1)} rows')
-                overview.cell(9 + index, 1).hyperlink = f"#'{name}'!A1"; overview.cell(9 + index, 1).style = 'Hyperlink'
+                            sheet.conditional_formatting.add(f'{letter}2:{letter}{sheet.max_row}', DataBarRule(start_type='min', end_type='max', color='7B91A6', showValue=True))
+                index_row = 7 + index
+                overview.cell(index_row, 1, name); overview.cell(index_row, 2, heading); overview.cell(index_row, 3, max(0, len(rows) - 1))
+                overview.cell(index_row, 1).hyperlink = f"#'{name}'!A1"; overview.cell(index_row, 1).style = 'Hyperlink'
+                for cell in overview[index_row]:
+                    cell.font = Font(name='Aptos', size=9.5, color='245B82' if cell.column == 1 else INK, underline='single' if cell.column == 1 else None)
+                    cell.alignment = Alignment(vertical='top', wrap_text=True); cell.border = Border(bottom=Side(style='hair', color=LINE))
+                overview.row_dimensions[index_row].height = 24
         else:
             sheet = workbook.create_sheet('Brief'); sheet.sheet_view.showGridLines = False
             sheet.column_dimensions['A'].width = 24; sheet.column_dimensions['B'].width = 82; row = 1
             for kind, content in self.blocks(markdown):
                 if kind.startswith('h'):
                     sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2); cell = sheet.cell(row, 1, self._clean_inline(str(content)))
-                    cell.fill = PatternFill('solid', fgColor=NAVY if row == 1 else 'EDEFF3'); cell.font = Font(name='Aptos Display', size=16 if row == 1 else 12, bold=True, color='FFFFFF' if row == 1 else INK)
+                    cell.fill = PatternFill('solid', fgColor=SLATE if row == 1 else 'EDEFF3'); cell.font = Font(name='Aptos', size=16 if row == 1 else 12, bold=True, color='FFFFFF' if row == 1 else INK)
                     cell.alignment = Alignment(vertical='center', wrap_text=True); sheet.row_dimensions[row].height = 30
                 elif kind != 'table':
-                    sheet.cell(row, 1, kind.upper()); sheet.cell(row, 1).font = Font(name='Aptos', size=8, bold=True, color=GOLD)
+                    sheet.cell(row, 1, kind.upper()); sheet.cell(row, 1).font = Font(name='Aptos', size=8, bold=True, color=SLATE)
                     sheet.cell(row, 2, self._clean_inline(str(content))); sheet.cell(row, 2).font = Font(name='Aptos', size=10, color=INK)
                     sheet.cell(row, 2).alignment = Alignment(wrap_text=True, vertical='top'); sheet.row_dimensions[row].height = max(24, min(90, 15 * (1 + len(str(content)) // 90)))
                 row += 1
-            sheet.freeze_panes = 'A2'; sheet.sheet_properties.tabColor = GOLD
+            sheet.freeze_panes = 'A2'; sheet.sheet_properties.tabColor = SLATE
+            overview.cell(8, 1, 'Brief'); overview.cell(8, 2, 'Formatted document content'); overview.cell(8, 3, max(0, row - 1))
+            overview.cell(8, 1).hyperlink = "#'Brief'!A1"; overview.cell(8, 1).style = 'Hyperlink'
+        overview.print_area = f'A1:C{max(10, overview.max_row + 1)}'
+        overview.freeze_panes = 'A8'
         workbook.calculation.calcMode = 'auto'; workbook.calculation.fullCalcOnLoad = True; workbook.calculation.forceFullCalc = True
-        workbook.properties.title = resolved_title; workbook.properties.creator = 'Ask Crump'; workbook.properties.subject = 'Editable Ask Crump workbook'
+        workbook.properties.title = resolved_title; workbook.properties.creator = 'Ask Crump'; workbook.properties.subject = 'Professionally formatted editable workbook'
         out = BytesIO(); workbook.save(out); return out.getvalue()
 
     async def create(self, *, user_id: str, markdown: str, format_name: str, chat_id: str | None, message_id: str | None, title: str | None = None, brief: str | None = None) -> dict[str, Any]:

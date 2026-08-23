@@ -1,5 +1,22 @@
 # Changelog
 
+## 5.9.1 — 2026-08-23
+
+### Professional formatting
+
+- Rebuilt Word and PDF output around format-native academic, résumé, and business conventions instead of a shared branded template.
+- Enforced exact academic typography, spacing, margins, heading hierarchy, list treatment, and reference hanging indents while keeping citations source-grounded.
+- Refined résumés into restrained, single-column ATS-ready documents with stronger hierarchy and no visible product chrome.
+- Reworked presentations into varied editorial layouts with readable typography, content-aware tables, and neutral slide furniture.
+- Simplified spreadsheets into professional working models with compact workbook indexes, restrained formatting, typed data, and selective visual analysis.
+- Polished manuscript title pages and book typography across Word and PDF while preserving editable, publication-oriented structure.
+
+### Quality
+
+- Removed visible Ask Crump branding from default user deliverables while retaining internal provenance metadata.
+- Added regression checks for exact Word font slots, reference indentation, neutral page furniture, and professional-format conventions.
+- Advanced the application release to 5.9.1 and the service-worker cache to revision 35.
+
 ## 5.9.0 — 2026-08-23
 
 ### Added
