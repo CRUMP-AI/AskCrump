@@ -219,7 +219,8 @@ footer a { color: #9ba0a3; text-decoration: none; }
   .price-card h3 { min-height: 0; }
 }
 @media (max-width: 760px) {
-  .navlinks a:not(.nav-cta) { display: none; }
+  .navlinks { gap: 12px; }
+  .navlinks a:not(.nav-cta):not(.nav-signin) { display: none; }
   .stage-shell { grid-template-columns: 1fr; }
   .stage-rail { display: none; }
   .stage-grid { grid-template-columns: 1fr; }
@@ -233,6 +234,7 @@ footer a { color: #9ba0a3; text-decoration: none; }
   .navbar { height: 68px; padding-inline: 15px; }
   .nav-logo { width: 174px; height: 40px; }
   .nav-cta { min-height: 38px; padding-inline: 13px; }
+  .nav-signin { display: none; }
   .hero { min-height: 88vh; padding: 118px 18px 74px; }
   .hero h1 { font-size: clamp(49px,14vw,65px); }
   .hero-copy { font-size: 16px; }

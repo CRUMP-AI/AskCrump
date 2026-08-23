@@ -1,5 +1,20 @@
 # Changelog
 
+## 5.9.2 — 2026-08-23
+
+### Acquisition and discovery
+
+- Restored the public Ask Crump marketing homepage instead of redirecting every first-time visitor directly into the application sign-in screen.
+- Preserved source and plan attribution across every first-party signup path and added a distinct returning-user sign-in route.
+- Added canonical, Open Graph, social-card, structured-application, robots, and sitemap metadata so the product has a truthful indexable surface.
+- Kept the authenticated application out of search results while preserving `/app` as the installed PWA and returning-user destination.
+
+### Quality
+
+- Added regression coverage that prevents the public homepage redirect from returning and verifies the marketing/app indexing boundary.
+- Verified the restored funnel visually at desktop and mobile breakpoints with no browser warnings or errors.
+- Advanced the application release to 5.9.2 and the service-worker cache to revision 36.
+
 ## 5.9.1 — 2026-08-23
 
 ### Professional formatting

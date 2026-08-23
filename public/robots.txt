@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /app
+Disallow: /delete-account.html
+
+Sitemap: https://www.askcrump.com/sitemap.xml
