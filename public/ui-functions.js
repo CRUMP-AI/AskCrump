@@ -425,11 +425,11 @@
     requestAnimationFrame(() => reason.focus());
   }
 
-  async function copyMessage(index) {
-    const content = currentMessages()[index]?.content || '';
+  const ASK_CRUMP_SHARE_URL = 'https://www.askcrump.com';
+
+  async function writeClipboard(content) {
     try {
       await navigator.clipboard.writeText(content);
-      window.showToast?.('Copied', 'success');
     } catch (_) {
       const area = document.createElement('textarea');
       area.value = content;
@@ -439,8 +439,56 @@
       area.select();
       document.execCommand('copy');
       area.remove();
-      window.showToast?.('Copied', 'success');
     }
+  }
+
+  async function copyMessage(index) {
+    const content = currentMessages()[index]?.content || '';
+    await writeClipboard(content);
+    window.showToast?.('Copied', 'success');
+  }
+
+  function responseShareKey(message, index) {
+    const raw = String(message?.id || `${window.currentChatId || 'chat'}-${index}-${Date.now()}`);
+    const safe = raw.replace(/[^A-Za-z0-9:._-]/g, '-').slice(0, 120) || String(Date.now());
+    return `response-share:${safe}`;
+  }
+
+  function shareableResponse(content) {
+    const normalized = String(content || '').trim();
+    if (normalized.length <= 3500) return normalized;
+    return `${normalized.slice(0, 3497).trimEnd()}…`;
+  }
+
+  async function recordResponseShare(message, index, source) {
+    await window.CrumpAnalytics?.track?.('ResponseShared', {
+      eventKey: responseShareKey(message, index),
+      source,
+    });
+  }
+
+  async function shareMessage(index) {
+    const message = currentMessages()[index];
+    const excerpt = shareableResponse(message?.content);
+    if (!excerpt) return;
+    const payload = {
+      title: 'Ask Crump',
+      text: `${excerpt}\n\nCreated with Ask Crump`,
+      url: ASK_CRUMP_SHARE_URL,
+    };
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share(payload);
+        await recordResponseShare(message, index, 'native_share');
+        window.showToast?.('Shared', 'success');
+        return;
+      } catch (error) {
+        if (error?.name === 'AbortError') return;
+      }
+    }
+    await writeClipboard(`${payload.text} — ${payload.url}`);
+    await recordResponseShare(message, index, 'clipboard');
+    window.showToast?.('Share text copied', 'success');
   }
 
   function openImage(url) {
@@ -591,6 +639,12 @@
         copy.className = 'message-action-btn';
         copy.textContent = 'Copy';
         copy.addEventListener('click', () => copyMessage(index));
+        const share = document.createElement('button');
+        share.type = 'button';
+        share.className = 'message-action-btn message-share-btn';
+        share.textContent = 'Share';
+        share.setAttribute('aria-label', 'Share this response');
+        share.addEventListener('click', () => shareMessage(index));
         const speak = document.createElement('button');
         speak.type = 'button';
         speak.className = 'message-action-btn';
@@ -603,7 +657,7 @@
         report.disabled = reportedMessageIds.has(String(message?.id || ''));
         report.setAttribute('aria-label', report.disabled ? 'Response reported' : 'Report this response');
         report.addEventListener('click', () => reportMessage(message, report));
-        actions.append(copy, speak, report);
+        actions.append(copy, share, speak, report);
         wrapper.appendChild(actions);
       }
 
@@ -628,6 +682,7 @@
   window.renderMessages = renderMessages;
   window.renderMarkdown = renderSafeMarkdown;
   window.copyMessage = copyMessage;
+  window.shareMessage = shareMessage;
   window.downloadImage = downloadImage;
   window.openImageInNewTab = openImage;
 })();

@@ -111,6 +111,15 @@ def test_migration_is_private_idempotent_and_has_no_arbitrary_metadata():
     assert "metadata jsonb" not in migration
 
 
+def test_response_share_event_extends_only_the_allowlisted_milestones():
+    migration = (ROOT / "migrations" / "018_response_shared_event.sql").read_text(
+        encoding="utf-8"
+    )
+    assert "'ResponseShared'" in migration
+    assert "product_events_event_name_check" in migration
+    assert "metadata jsonb" not in migration
+
+
 def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
     app = (ROOT / "public" / "app.html").read_text(encoding="utf-8")
     client = (ROOT / "public" / "product-analytics.js").read_text(encoding="utf-8")
@@ -118,8 +127,9 @@ def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
     application = (ROOT / "backend" / "application.py").read_text(encoding="utf-8")
 
     assert app.index('/product-analytics.js') < app.index('/auth-controller.js')
-    assert "new Set(['WorkspaceOpened', 'PlanIntentReached'])" in client
+    assert "new Set(['WorkspaceOpened', 'PlanIntentReached', 'ResponseShared'])" in client
     assert "prompt" not in client.lower()
     assert "filename" not in client.lower()
+    assert "ResponseShared" in client
     assert "/product-analytics.js" in worker
     assert "application.include_router(analytics.router)" in application

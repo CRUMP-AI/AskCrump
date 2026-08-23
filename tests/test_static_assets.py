@@ -171,6 +171,15 @@ def test_ai_responses_have_in_app_safety_reporting():
     assert "AI response safety reports" in privacy
 
 
+def test_ai_responses_have_privacy_safe_sharing():
+    ui = (PUBLIC / 'ui-functions.js').read_text()
+    assert "share.textContent = 'Share'" in ui
+    assert "navigator.share(payload)" in ui
+    assert "Created with Ask Crump" in ui
+    assert "ResponseShared" in ui
+    assert "responseShareKey(message, index)" in ui
+
+
 def test_destructive_actions_use_an_accessible_dialog():
     app_js = (PUBLIC / 'app.js').read_text()
     ui = (PUBLIC / 'ui-functions.js').read_text()

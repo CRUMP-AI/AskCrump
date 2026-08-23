@@ -25,6 +25,7 @@ request host. Replayed events are ignored by the database uniqueness constraint.
 | `ActivationReached` | Server | The first successful, persisted AI response completed. |
 | `AhaReached` | Server | The first durable artifact, generated image, or manuscript workspace completed. |
 | `PlanIntentReached` | Authenticated client | A paid-plan marketing intent reached the in-app plan review. |
+| `ResponseShared` | Authenticated client | A user completed native sharing or copied branded share text for one response. |
 | `SubscriptionCheckoutOpened` | Server | Stripe created a subscription Checkout Session. |
 | `SubscriptionCheckoutCompleted` | Stripe webhook | Stripe verified a completed subscription Checkout Session. |
 | `BillingPortalOpened` | Server | Stripe created a customer portal session. |

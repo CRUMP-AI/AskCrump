@@ -18,12 +18,13 @@ EVENT_NAMES = frozenset({
     "ActivationReached",
     "AhaReached",
     "PlanIntentReached",
+    "ResponseShared",
     "SubscriptionCheckoutOpened",
     "SubscriptionCheckoutCompleted",
     "BillingPortalOpened",
     "SubscriptionStatusChanged",
 })
-CLIENT_EVENT_NAMES = frozenset({"WorkspaceOpened", "PlanIntentReached"})
+CLIENT_EVENT_NAMES = frozenset({"WorkspaceOpened", "PlanIntentReached", "ResponseShared"})
 PAID_PLANS = frozenset({"professional", "enterprise"})
 ARTIFACT_TYPES = frozenset({
     "document", "image", "video", "manuscript", "code",

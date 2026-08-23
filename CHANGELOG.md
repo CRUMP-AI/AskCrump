@@ -1,5 +1,17 @@
 # Changelog
 
+## 5.8.4 — 2026-08-23
+
+### Added
+
+- Added a deliberate Share action to every Ask Crump response, using the native share sheet on supported devices and a branded clipboard fallback elsewhere.
+- Added a privacy-safe `ResponseShared` milestone so the response-sharing loop can be measured without storing prompts, response text, filenames, or personal data.
+
+### Changed
+
+- Limited shared responses to a practical excerpt and attached the canonical AskCrump.com destination for a clear recipient experience.
+- Advanced the service-worker cache to revision 32 so the sharing feature reaches installed customers.
+
 ## 5.8.3 — 2026-08-22
 
 ### Fixed
