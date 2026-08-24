@@ -447,6 +447,9 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
                     # silently failing over to a more expensive provider.
                     'only': [provider],
                     'disallowPromptTraining': True,
+                    # Ask Crump's Vercel Pro plan supports request-level ZDR.
+                    # If no ZDR-capable provider is available, the request fails.
+                    'zeroDataRetention': True,
                 },
             },
         }

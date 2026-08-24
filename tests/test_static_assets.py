@@ -189,7 +189,8 @@ def test_ai_responses_have_in_app_safety_reporting():
     assert "Report this response" in ui
     assert "AI response safety reports" in privacy
     assert "Vercel AI Gateway" in privacy
-    assert "disallow prompt training" in privacy
+    assert "zero-data-retention" in privacy
+    assert "prompt-training restrictions" in privacy
 
 
 def test_ai_responses_have_privacy_safe_sharing():

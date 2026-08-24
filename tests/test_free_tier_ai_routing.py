@@ -87,6 +87,7 @@ async def test_free_chat_uses_hard_allowlisted_gateway_without_anthropic_fallbac
     assert call["json"]["providerOptions"]["gateway"] == {
         "only": ["groq"],
         "disallowPromptTraining": True,
+        "zeroDataRetention": True,
     }
     assert call["json"]["user"] == "free-user"
     assert "tier:free" in call["json"]["tags"]

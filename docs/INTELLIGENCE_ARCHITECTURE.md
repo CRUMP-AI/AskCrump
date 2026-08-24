@@ -75,9 +75,10 @@ It intentionally does **not** store raw prompts or assistant answers.
 The routing boundary now maps free-plan chat, creation-intent routing, answer
 review, and proactive check-ins to a hard-allowlisted open-weight model through
 Vercel AI Gateway. Paid plans and credit-funded manuscript work retain the
-configured Anthropic model. Gateway requests disable prompt training and fail
-closed instead of silently falling back to a premium provider. Image generation
-continues to use the configured OpenAI image model behind paid-plan limits.
+configured Anthropic model. Gateway requests require zero data retention,
+disable prompt training, and fail closed instead of silently falling back to a
+premium provider. Image generation continues to use the configured OpenAI image
+model behind paid-plan limits.
 
 ## Evaluation direction
 
