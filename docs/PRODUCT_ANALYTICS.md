@@ -49,3 +49,35 @@ workspace opened, starter intent reached, activated, durable value reached, paid
 checkout opened, and checkout completed.
 The first comparable cohort begins with release 5.8.2; historical account behavior is not
 silently reconstructed from conversation or file content.
+
+## Service-role growth snapshot
+
+Migration `20260824131311_product_growth_funnel_snapshot.sql` installs
+`product_growth_funnel_snapshot`, a service-role-only aggregate report for a half-open
+account-creation window. It returns ordered counts, eligible populations, and conversion
+rates for:
+
+- accounts created and matching `AccountCreated` event coverage;
+- current verification and onboarding;
+- workspace use, first launchpad intent, activation, and durable value;
+- response sharing, plan intent, Checkout open/completion, and current paid status;
+- D1 and D7 workspace return among accounts whose full UTC observation window has elapsed.
+
+Internal accounts are excluded by default. Retention is anchored on the first activation
+when one exists and otherwise on account creation. `verified_now` and `active_paid_now` are
+explicitly current-state metrics rather than historical claims.
+
+Call this function only from a trusted service-role operating session. It is not available
+to `public`, `anon`, or `authenticated`, and it returns no account identifier, email,
+prompt, response, filename, or arbitrary metadata. The migration also adds narrow cohort
+and event-journey indexes so weekly reporting remains bounded as the account base grows.
+
+```sql
+select *
+from public.product_growth_funnel_snapshot(
+  p_since => timestamptz '2026-08-23 00:00:00+00',
+  p_until => now(),
+  p_environment => 'production',
+  p_include_internal => false
+);
+```

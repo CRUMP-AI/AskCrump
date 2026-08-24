@@ -130,6 +130,48 @@ def test_starter_intent_event_extends_only_the_private_allowlist():
     assert "p_prompt" not in migration.lower()
 
 
+def test_growth_funnel_snapshot_is_aggregate_private_and_retention_aware():
+    migration = (
+        ROOT / "migrations" / "20260824131311_product_growth_funnel_snapshot.sql"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(migration.lower().split())
+    return_contract = normalized[
+        normalized.index("returns table") : normalized.index("language plpgsql")
+    ]
+
+    assert "security invoker" in normalized
+    assert "security definer" not in normalized
+    assert "set search_path = ''" in normalized
+    assert "users_growth_cohort_idx" in normalized
+    assert "product_events_growth_journey_idx" in normalized
+    assert "from public, anon, authenticated" in normalized
+    assert "to service_role" in normalized
+    assert "p_include_internal boolean default false" in normalized
+    assert "coalesce(u.internal_tier, '') = ''" in normalized
+    assert "user_id" not in return_contract
+    assert "email" not in normalized
+    assert "prompt" not in normalized
+    assert "filename" not in normalized
+
+    for metric in (
+        "account_event_recorded",
+        "starter_intent_reached",
+        "activation_reached",
+        "durable_value_reached",
+        "response_shared",
+        "plan_intent_reached",
+        "checkout_completed",
+        "active_paid_now",
+        "d1_returned",
+        "d7_returned",
+    ):
+        assert f"'{metric}'" in normalized
+
+    assert "d1_eligible_accounts" in normalized
+    assert "d7_eligible_accounts" in normalized
+    assert "retention_anchor_at" in normalized
+
+
 def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
     app = (ROOT / "public" / "app.html").read_text(encoding="utf-8")
     client = (ROOT / "public" / "product-analytics.js").read_text(encoding="utf-8")
