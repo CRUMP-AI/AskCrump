@@ -30,6 +30,7 @@ request host. Replayed events are ignored by the database uniqueness constraint.
 | `StarterIntentReached` | Authenticated client | The account selected its first task category from the launchpad. Only one allowlisted category such as `research`, `file`, or `projects` is stored in `source`; no prompt or content is stored. |
 | `ActivationReached` | Server | The first successful, persisted AI response completed. |
 | `AhaReached` | Server | The first durable artifact, generated image, or manuscript workspace completed. |
+| `OutcomeFeedbackSubmitted` | Authenticated client | The user answered whether one result moved the work forward. Only `useful` or `needs_work` is stored in `source`; no prompt, response, filename, comment, or other content is accepted. |
 | `PlanIntentReached` | Authenticated client | A paid-plan marketing intent reached the in-app plan review. |
 | `ResponseShared` | Authenticated client | A user completed native sharing or copied branded share text for one response. |
 | `SubscriptionCheckoutOpened` | Server | Stripe created a subscription Checkout Session. |
@@ -60,6 +61,7 @@ rates for:
 - accounts created and matching `AccountCreated` event coverage;
 - current verification and onboarding;
 - workspace use, first launchpad intent, activation, and durable value;
+- explicit useful-result and needs-work feedback among activated accounts;
 - response sharing, plan intent, Checkout open/completion, and current paid status;
 - D1 and D7 workspace return among accounts whose full UTC observation window has elapsed.
 

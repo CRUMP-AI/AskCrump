@@ -1,14 +1,17 @@
 from pathlib import Path
 
 import pytest
-from fastapi import Request
+from fastapi import HTTPException, Request
 
+from backend.routes import analytics as analytics_routes
 from backend.product_analytics import (
+    OUTCOME_FEEDBACK_SOURCES,
     artifact_type_for_result,
     environment_for_request,
     normalize_event_key,
     record_product_event,
 )
+from backend.schemas import ProductEventRequest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -101,6 +104,62 @@ async def test_analytics_failure_is_fail_open():
     assert recorded is False
 
 
+@pytest.mark.asyncio
+async def test_outcome_feedback_route_accepts_only_binary_content_free_signal(monkeypatch):
+    calls = []
+
+    async def authenticate(_request, _database, _settings):
+        return type("Auth", (), {"user": {"id": "00000000-0000-0000-0000-000000000001"}})()
+
+    async def rate_limit(*_args, **_kwargs):
+        return None
+
+    async def recorder(_database, **kwargs):
+        calls.append(kwargs)
+        return True
+
+    monkeypatch.setattr(analytics_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(analytics_routes, "enforce_user_rate_limit", rate_limit)
+    monkeypatch.setattr(analytics_routes, "record_product_event", recorder)
+
+    result = await analytics_routes.create_product_event(
+        ProductEventRequest(
+            eventName="OutcomeFeedbackSubmitted",
+            eventKey="outcome-feedback:response-123",
+            source="useful",
+        ),
+        request_for("www.askcrump.com"),
+    )
+
+    assert result == {"success": True, "recorded": True}
+    assert calls[0]["event_name"] == "OutcomeFeedbackSubmitted"
+    assert calls[0]["event_key"] == "outcome-feedback:response-123"
+    assert calls[0]["source"] == "useful"
+    assert set(calls[0]) == {"user_id", "event_name", "event_key", "request", "source", "plan"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("event_key", "source"),
+    [
+        ("outcome-feedback:response-123", "maybe"),
+        ("other-event:response-123", "needs_work"),
+    ],
+)
+async def test_outcome_feedback_route_rejects_non_contract_values(event_key, source):
+    with pytest.raises(HTTPException) as error:
+        await analytics_routes.create_product_event(
+            ProductEventRequest(
+                eventName="OutcomeFeedbackSubmitted",
+                eventKey=event_key,
+                source=source,
+            ),
+            request_for("www.askcrump.com"),
+        )
+
+    assert error.value.status_code == 422
+
+
 def test_migration_is_private_idempotent_and_has_no_arbitrary_metadata():
     migration = (ROOT / "migrations" / "017_product_events.sql").read_text(encoding="utf-8")
     assert "enable row level security" in migration
@@ -118,6 +177,25 @@ def test_response_share_event_extends_only_the_allowlisted_milestones():
     assert "'ResponseShared'" in migration
     assert "product_events_event_name_check" in migration
     assert "metadata jsonb" not in migration
+
+
+def test_outcome_feedback_contract_is_binary_and_content_free():
+    migration = (
+        ROOT / "migrations" / "20260824151926_outcome_feedback.sql"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(migration.lower().split())
+
+    assert OUTCOME_FEEDBACK_SOURCES == frozenset({"useful", "needs_work"})
+    assert "'outcomefeedbacksubmitted'" in normalized
+    assert "'useful'" in normalized
+    assert "'needs_work'" in normalized
+    assert "metadata jsonb" not in normalized
+    assert "freeform" not in normalized
+    assert "p_prompt" not in normalized
+    assert "p_response" not in normalized
+    assert "p_filename" not in normalized
+    assert "from public, anon, authenticated" in normalized
+    assert "to service_role" in normalized
 
 
 def test_starter_intent_event_extends_only_the_private_allowlist():
@@ -181,7 +259,7 @@ def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
     assert app.index('/product-analytics.js') < app.index('/auth-controller.js')
     assert (
         "new Set(['WorkspaceOpened', 'StarterIntentReached', 'ActivationReached', "
-        "'PlanIntentReached', 'ResponseShared'])"
+        "'OutcomeFeedbackSubmitted', 'PlanIntentReached', 'ResponseShared'])"
     ) in client
     assert "prompt" not in client.lower()
     assert "filename" not in client.lower()
@@ -218,3 +296,21 @@ def test_launchpad_records_only_an_allowlisted_first_task_category():
     assert "source: command" in tracker
     assert "prompt" not in tracker.lower()
     assert "button.closest('#v1Launchpad')" in body
+
+
+def test_latest_result_offers_binary_outcome_feedback_without_content_capture():
+    ui = (ROOT / "public" / "ui-functions.js").read_text(encoding="utf-8")
+    tracker = ui[
+        ui.index("const OUTCOME_FEEDBACK_STORAGE_PREFIX"):
+        ui.index("function openImage")
+    ]
+
+    assert "Did this move your work forward?" in tracker
+    assert "[['Yes', 'useful'], ['Not yet', 'needs_work']]" in tracker
+    assert "'OutcomeFeedbackSubmitted'" in tracker
+    assert "eventKey" in tracker
+    assert "source: value" in tracker
+    assert "message?.id" in tracker
+    assert "message?.content" not in tracker
+    assert "filename" not in tracker.lower()
+    assert "lastAssistantIndex" in ui

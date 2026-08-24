@@ -491,6 +491,80 @@
     window.showToast?.('Share text copied', 'success');
   }
 
+  const OUTCOME_FEEDBACK_STORAGE_PREFIX = 'askcrump.outcome-feedback.';
+
+  function responseOutcomeKey(message, index) {
+    const raw = String(message?.id || `${window.currentChatId || 'chat'}-${index}`);
+    const safe = raw.replace(/[^A-Za-z0-9:._-]/g, '-').slice(0, 120) || `message-${index}`;
+    return `outcome-feedback:${safe}`;
+  }
+
+  function savedOutcomeFeedback(eventKey) {
+    try {
+      const value = window.sessionStorage.getItem(`${OUTCOME_FEEDBACK_STORAGE_PREFIX}${eventKey}`);
+      return ['useful', 'needs_work'].includes(value) ? value : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function saveOutcomeFeedback(eventKey, value) {
+    try {
+      window.sessionStorage.setItem(`${OUTCOME_FEEDBACK_STORAGE_PREFIX}${eventKey}`, value);
+    } catch (_) {}
+  }
+
+  function createOutcomeFeedback(message, index) {
+    const eventKey = responseOutcomeKey(message, index);
+    const group = document.createElement('div');
+    group.className = 'outcome-feedback';
+    group.setAttribute('role', 'group');
+    group.setAttribute('aria-label', 'Result feedback');
+
+    const renderThanks = () => {
+      const status = document.createElement('span');
+      status.className = 'outcome-feedback-status';
+      status.setAttribute('role', 'status');
+      status.textContent = 'Thanks — feedback saved.';
+      group.replaceChildren(status);
+    };
+
+    if (savedOutcomeFeedback(eventKey)) {
+      renderThanks();
+      return group;
+    }
+
+    const prompt = document.createElement('span');
+    prompt.className = 'outcome-feedback-prompt';
+    prompt.textContent = 'Did this move your work forward?';
+    const buttons = [];
+
+    for (const [label, value] of [['Yes', 'useful'], ['Not yet', 'needs_work']]) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'outcome-feedback-btn';
+      button.textContent = label;
+      button.addEventListener('click', async () => {
+        buttons.forEach(item => { item.disabled = true; });
+        const recorded = await window.CrumpAnalytics?.track?.('OutcomeFeedbackSubmitted', {
+          eventKey,
+          source: value,
+        });
+        if (!recorded) {
+          buttons.forEach(item => { item.disabled = false; });
+          window.showToast?.('Feedback could not be saved. Try again.', 'error');
+          return;
+        }
+        saveOutcomeFeedback(eventKey, value);
+        renderThanks();
+      });
+      buttons.push(button);
+    }
+
+    group.append(prompt, ...buttons);
+    return group;
+  }
+
   function openImage(url) {
     const safe = safeExternalUrl(url);
     if (safe) window.open(safe, '_blank', 'noopener,noreferrer');
@@ -591,7 +665,9 @@
     const fragment = document.createDocumentFragment();
     const safeMessages = Array.isArray(messages) ? messages : [];
     let lastUserIndex = -1;
+    let lastAssistantIndex = -1;
     safeMessages.forEach((message, index) => { if (message?.role === 'user') lastUserIndex = index; });
+    safeMessages.forEach((message, index) => { if (message?.role !== 'user') lastAssistantIndex = index; });
 
     safeMessages.forEach((message, index) => {
       const isUser = message?.role === 'user';
@@ -659,6 +735,12 @@
         report.addEventListener('click', () => reportMessage(message, report));
         actions.append(copy, share, speak, report);
         wrapper.appendChild(actions);
+        if (
+          index === lastAssistantIndex
+          && (String(message?.content || '').trim() || message?.imageUrl)
+        ) {
+          wrapper.appendChild(createOutcomeFeedback(message, index));
+        }
       }
 
       row.appendChild(wrapper);

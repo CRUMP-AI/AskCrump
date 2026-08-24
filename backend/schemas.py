@@ -77,6 +77,7 @@ class ProductEventRequest(APIModel):
         "WorkspaceOpened",
         "StarterIntentReached",
         "ActivationReached",
+        "OutcomeFeedbackSubmitted",
         "PlanIntentReached",
         "ResponseShared",
     ]

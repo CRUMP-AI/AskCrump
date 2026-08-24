@@ -396,6 +396,47 @@ button.message-status {
   font-size: 0.7rem;
 }
 
+.outcome-feedback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  margin-top: 2px;
+  color: var(--color-text-tertiary);
+  font-size: 0.7rem;
+}
+
+.outcome-feedback-prompt {
+  margin-right: 2px;
+}
+
+.outcome-feedback-btn {
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--color-text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.outcome-feedback-btn:hover,
+.outcome-feedback-btn:focus-visible {
+  border-color: rgba(209, 191, 150, 0.38);
+  color: var(--color-text-primary);
+}
+
+.outcome-feedback-btn:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.outcome-feedback-status {
+  color: rgba(209, 191, 150, 0.82);
+}
+
 /* Attachments and generated images */
 .message-attachment {
   width: min(100%, 360px);
