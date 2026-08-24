@@ -183,7 +183,7 @@ def get_settings() -> Settings:
         # Tests and local development stay off unless explicitly enabled.
         ai_gateway_enabled=_bool(
             os.getenv('CRUMP_ENABLE_FREE_TIER_AI'),
-            environment == 'production',
+            bool(os.getenv('AI_GATEWAY_API_KEY') or os.getenv('VERCEL_OIDC_TOKEN')),
         ),
         ai_gateway_api_key=os.getenv('AI_GATEWAY_API_KEY'),
         vercel_oidc_token=os.getenv('VERCEL_OIDC_TOKEN'),
