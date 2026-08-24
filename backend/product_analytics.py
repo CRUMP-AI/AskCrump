@@ -15,6 +15,7 @@ EVENT_NAMES = frozenset({
     "AccountCreated",
     "OnboardingCompleted",
     "WorkspaceOpened",
+    "StarterIntentReached",
     "ActivationReached",
     "AhaReached",
     "PlanIntentReached",
@@ -26,6 +27,7 @@ EVENT_NAMES = frozenset({
 })
 CLIENT_EVENT_NAMES = frozenset({
     "WorkspaceOpened",
+    "StarterIntentReached",
     "ActivationReached",
     "PlanIntentReached",
     "ResponseShared",

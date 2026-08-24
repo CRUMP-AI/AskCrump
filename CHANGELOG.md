@@ -1,5 +1,15 @@
 # Changelog
 
+## 5.9.8 — 2026-08-24
+
+### Activation measurement
+- Added a server-authoritative `StarterIntentReached` milestone for the first task category selected from the authenticated launchpad.
+- Restricted the milestone to six safe categories and a fixed idempotency key; prompts, filenames, form contents, and arbitrary metadata never enter the analytics record.
+- Preserved the server-only product-event table, RLS boundary, revoked browser-role access, and service-role-only recorder path.
+
+### Release
+- Advanced the application release to 5.9.8 and the service-worker cache to revision 42 so the next tester cohort can be measured from signup through starter intent, activation, and durable value.
+
 ## 5.9.7 — 2026-08-24
 
 ### Signup conversion

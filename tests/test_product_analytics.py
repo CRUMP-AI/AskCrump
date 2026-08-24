@@ -120,6 +120,16 @@ def test_response_share_event_extends_only_the_allowlisted_milestones():
     assert "metadata jsonb" not in migration
 
 
+def test_starter_intent_event_extends_only_the_private_allowlist():
+    migration = (ROOT / "migrations" / "019_starter_intent_event.sql").read_text(
+        encoding="utf-8"
+    )
+    assert "'StarterIntentReached'" in migration
+    assert "product_events_event_name_check" in migration
+    assert "metadata jsonb" not in migration
+    assert "p_prompt" not in migration.lower()
+
+
 def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
     app = (ROOT / "public" / "app.html").read_text(encoding="utf-8")
     client = (ROOT / "public" / "product-analytics.js").read_text(encoding="utf-8")
@@ -128,12 +138,13 @@ def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
 
     assert app.index('/product-analytics.js') < app.index('/auth-controller.js')
     assert (
-        "new Set(['WorkspaceOpened', 'ActivationReached', 'PlanIntentReached', "
-        "'ResponseShared'])"
+        "new Set(['WorkspaceOpened', 'StarterIntentReached', 'ActivationReached', "
+        "'PlanIntentReached', 'ResponseShared'])"
     ) in client
     assert "prompt" not in client.lower()
     assert "filename" not in client.lower()
     assert "ResponseShared" in client
+    assert "StarterIntentReached" in client
     assert "/product-analytics.js" in worker
     assert "application.include_router(analytics.router)" in application
 
@@ -151,3 +162,17 @@ def test_first_successful_response_records_activation_without_message_content():
     assert "message" not in tracker.lower()
     assert "content" not in tracker.lower()
     assert "void recordFirstSuccessfulResponse();" in app_js
+
+
+def test_launchpad_records_only_an_allowlisted_first_task_category():
+    body = (ROOT / "public" / "crump-v1-body.js").read_text(encoding="utf-8")
+    tracker = body[
+        body.index("const STARTER_INTENTS"):
+        body.index("function command(command)")
+    ]
+    assert "'focus', 'research', 'file', 'image', 'projects', 'video'" in tracker
+    assert "'StarterIntentReached'" in tracker
+    assert "eventKey: 'first-starter-intent'" in tracker
+    assert "source: command" in tracker
+    assert "prompt" not in tracker.lower()
+    assert "button.closest('#v1Launchpad')" in body

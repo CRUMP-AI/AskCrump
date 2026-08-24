@@ -27,6 +27,7 @@ request host. Replayed events are ignored by the database uniqueness constraint.
 | `AccountCreated` | Server | A new account row was created. |
 | `OnboardingCompleted` | Server | The account supplied its initial display name. |
 | `WorkspaceOpened` | Authenticated client | The workspace opened; at most one row per UTC day. |
+| `StarterIntentReached` | Authenticated client | The account selected its first task category from the launchpad. Only one allowlisted category such as `research`, `file`, or `projects` is stored in `source`; no prompt or content is stored. |
 | `ActivationReached` | Server | The first successful, persisted AI response completed. |
 | `AhaReached` | Server | The first durable artifact, generated image, or manuscript workspace completed. |
 | `PlanIntentReached` | Authenticated client | A paid-plan marketing intent reached the in-app plan review. |
@@ -44,6 +45,7 @@ the first `AccountCreated` or `ActivationReached` event to daily `WorkspaceOpene
 D1, D7, and D30. Preview rows are kept out of business reporting.
 
 No acquisition spend should increase until production data can distinguish: account created,
-activated, durable value reached, paid intent reached, checkout opened, and checkout completed.
+workspace opened, starter intent reached, activated, durable value reached, paid intent reached,
+checkout opened, and checkout completed.
 The first comparable cohort begins with release 5.8.2; historical account behavior is not
 silently reconstructed from conversation or file content.

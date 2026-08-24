@@ -113,6 +113,16 @@
     return false;
   }
 
+  const STARTER_INTENTS = new Set(['focus', 'research', 'file', 'image', 'projects', 'video']);
+
+  async function recordStarterIntent(command) {
+    if (!STARTER_INTENTS.has(command)) return false;
+    return Boolean(await window.CrumpAnalytics?.track?.('StarterIntentReached', {
+      eventKey: 'first-starter-intent',
+      source: command,
+    }));
+  }
+
   function command(command) {
     switch (command) {
       case 'new':
@@ -169,7 +179,11 @@
     $$('[data-v1-command]').forEach(button => {
       if (button.dataset.v1Wired === 'true') return;
       button.dataset.v1Wired = 'true';
-      button.addEventListener('click', () => command(button.dataset.v1Command));
+      button.addEventListener('click', () => {
+        const requested = button.dataset.v1Command;
+        if (button.closest('#v1Launchpad')) void recordStarterIntent(requested);
+        command(requested);
+      });
     });
   }
 
