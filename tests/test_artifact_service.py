@@ -59,6 +59,7 @@ def test_natural_language_document_requests_are_detected():
     ) == 'docx'
     assert ArtifactService.detect_request('Please compose the proposal and deliver a PDF.') == 'pdf'
     assert ArtifactService.detect_request('Create a downloadable resume document.') == 'docx'
+    assert ArtifactService.detect_request('Could you deliver this in a document format?') == 'docx'
     assert ArtifactService.detect_request('Write a report here in the chat.') is None
 
 

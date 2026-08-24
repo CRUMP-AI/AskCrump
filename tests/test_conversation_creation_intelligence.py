@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from backend.intelligence_service import IntelligenceService
+from backend.routes.chat import _promote_explicit_document_delivery
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -29,6 +30,38 @@ def test_fallback_can_execute_a_specific_natural_image_request():
     intent = IntelligenceService._fallback_creation_intent("Make me a picture of a golden retriever playing a grand piano on stage", [])
     assert intent and intent["kind"] == "image"
     assert intent["stage"] == "execute"
+
+
+def test_document_delivery_follow_up_executes_from_recent_context():
+    history = [
+        {"role": "user", "content": "Create a detailed sample resume for a fraud detection technology role."},
+        {"role": "assistant", "content": "Jordan A. Ramirez — Fraud Detection Engineer"},
+    ]
+    intent = IntelligenceService._fallback_creation_intent(
+        "Could you deliver this in a document format?",
+        history,
+    )
+    assert intent and intent["kind"] == "document"
+    assert intent["stage"] == "execute"
+    assert intent["format"] == "docx"
+
+
+def test_explicit_document_delivery_cannot_be_downgraded_to_clarification():
+    intent = _promote_explicit_document_delivery(
+        {
+            "kind": "document",
+            "stage": "clarify",
+            "confidence": 0.9,
+            "brief": "Package the completed resume from this conversation.",
+            "question": "What should the document contain?",
+            "format": "",
+        },
+        "docx",
+    )
+    assert intent["stage"] == "execute"
+    assert intent["question"] == ""
+    assert intent["format"] == "docx"
+
 
 def test_chat_route_uses_resolved_brief_and_avoids_reasking_forms():
     route = read("backend/routes/chat.py")
@@ -112,4 +145,5 @@ def test_conversation_intelligence_remains_enabled_after_project_chat_compatibil
 
     assert "prepared = await intelligence.prepare" in route
     assert "async def infer_creation_intent" in intelligence
-    assert "creation_intent = prepared.creation_intent or {}" in route
+    assert "_promote_explicit_document_delivery(" in route
+    assert "prepared.creation_intent or {}," in route

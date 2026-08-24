@@ -93,6 +93,26 @@ def _history_file_ids(payload: dict, limit: int = 6) -> list[str]:
     return result
 
 
+def _promote_explicit_document_delivery(
+    creation_intent: dict,
+    detected_format: str | None,
+) -> dict:
+    """Do not let semantic clarification suppress an explicit file request."""
+    if (
+        not detected_format
+        or not isinstance(creation_intent, dict)
+        or str(creation_intent.get('kind') or '') != 'document'
+        or str(creation_intent.get('stage') or '') == 'execute'
+    ):
+        return creation_intent
+    return {
+        **creation_intent,
+        'stage': 'execute',
+        'question': '',
+        'format': detected_format,
+    }
+
+
 @router.post('')
 async def chat(request: Request):
     started = time.perf_counter()
@@ -278,7 +298,13 @@ async def chat(request: Request):
         allow_think_longer=think_longer_entitled,
     )
     request_payload = prepared.payload
-    creation_intent = prepared.creation_intent or {}
+    creation_intent = _promote_explicit_document_delivery(
+        prepared.creation_intent or {},
+        legacy_artifact,
+    )
+    if creation_intent:
+        prepared.creation_intent = creation_intent
+        request_payload['creationIntent'] = creation_intent
     creation_kind = str(creation_intent.get('kind') or '')
     creation_stage = str(creation_intent.get('stage') or '')
     semantic_creation = creation_kind in {'manuscript', 'image', 'video', 'document'}
@@ -303,8 +329,12 @@ async def chat(request: Request):
             request_payload['creativeTool'] = 'image'
         if creation_stage != 'execute':
             request_payload['suppressCreativeExecution'] = True
+        else:
+            request_payload.pop('suppressCreativeExecution', None)
         if creation_intent.get('title') and not request_payload.get('artifactTitle'):
             request_payload['artifactTitle'] = creation_intent['title']
+    if requested_artifact and not long_form_request:
+        request_payload['artifactFormat'] = requested_artifact
     if long_form_request:
         request_payload['longForm'] = True
     if long_form_request:

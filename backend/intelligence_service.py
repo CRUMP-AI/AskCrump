@@ -491,7 +491,11 @@ class IntelligenceService:
         if text and not CREATION_CONFIRM_PATTERN.match(text) and (not user_parts or user_parts[-1] != text):
             user_parts.append(text)
         brief = " ".join(user_parts[-6:])[:8000]
-        explicit_now = bool(re.search(r"\b(make|create|write|build|draw|design|generate|produce|author|draft|compose|animate|turn)\b", lowered))
+        explicit_now = bool(re.search(
+            r"\b(make|create|write|build|draw|design|generate|produce|author|draft|compose|animate|"
+            r"turn|deliver|export|convert|package|download|provide)\b",
+            lowered,
+        ))
         confirming = bool(CREATION_CONFIRM_PATTERN.match(text))
         enough = len(brief) >= (30 if kind != "document" else 45)
         stage = "execute" if ((explicit_now or confirming) and enough) else "clarify"
