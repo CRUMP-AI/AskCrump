@@ -325,11 +325,51 @@ body.crump-v1-body .v1-auth-card .form-input:focus {
   box-shadow: 0 0 0 3px rgba(217,191,132,.06) !important;
 }
 
+body.crump-v1-body .v1-password-control {
+  position: relative;
+}
+
+body.crump-v1-body .v1-password-control .form-input {
+  padding-right: 70px !important;
+}
+
+body.crump-v1-body .v1-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  min-width: 48px;
+  min-height: 38px;
+  padding: 0 10px;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 10px;
+  background: rgba(217,191,132,.08);
+  color: #d7c18e;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+body.crump-v1-body .v1-password-toggle:hover,
+body.crump-v1-body .v1-password-toggle:focus-visible {
+  background: rgba(217,191,132,.14);
+  outline: 1px solid rgba(217,191,132,.32);
+}
+
 body.crump-v1-body .v1-auth-card .form-hint {
   display: block;
   margin: 7px 1px 0;
   color: #60656a;
   font-size: 9px;
+}
+
+body.crump-v1-body .v1-signup-assurance {
+  margin: 12px 2px 0;
+  color: #666d71;
+  font-size: 9.5px;
+  line-height: 1.55;
+  text-align: center;
 }
 
 body.crump-v1-body .v1-auth-card .btn-primary {

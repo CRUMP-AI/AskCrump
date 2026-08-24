@@ -1,5 +1,15 @@
 # Changelog
 
+## 5.9.7 — 2026-08-24
+
+### Signup conversion
+- Aligned the visible password requirements with the enforced 10-character, letter-and-number policy so prospective users are no longer told that an invalid 8-character password is acceptable.
+- Reduced registration to one password field with an accessible Show/Hide control, clarified that signup is free and requires no card, and added privacy-safe validation-reason telemetry without collecting form contents.
+- Sent new users directly to the task-oriented workspace launchpad instead of blocking their first useful action with a six-screen passive tour; the full tour remains available on demand.
+
+### Release
+- Advanced the application release to 5.9.7 and the service-worker cache to revision 41 so web and installed-app clients receive the corrected signup experience immediately.
+
 ## 5.9.6 — 2026-08-23
 
 ### Assistant identity

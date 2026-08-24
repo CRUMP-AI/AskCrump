@@ -17,7 +17,7 @@ def test_56_polish_layer_is_last_on_web_and_native():
         assert source.index("/crump-4.3.js") < source.index("/crump-4.4.js")
         assert source.index("/crump-product-5.3.1.js") < source.index("/crump-polish-5.6.js")
         assert "/crump-polish-5.6.css" in source
-    assert "ask-crump-new-body-v1-r40" in worker
+    assert "ask-crump-new-body-v1-r41" in worker
     assert "/crump-polish-5.6.css" in worker and "/crump-polish-5.6.js" in worker
     assert "crump-polish-5.6.js" in checker
 
@@ -32,6 +32,7 @@ def test_tutorial_is_current_and_no_longer_bootstraps_legacy_runtime():
     assert "loadRevampAssets" not in tutorial
     assert "crump-4.3.js" not in tutorial
     assert "event.key === 'Tab'" in tutorial
+    assert "if (document.getElementById('v1Launchpad')) return;" in tutorial
 
 
 def test_home_surface_exposes_projects_and_video_without_hiding_core_chat():

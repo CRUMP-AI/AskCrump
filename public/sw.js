@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r40';
+const CACHE_NAME = 'ask-crump-new-body-v1-r41';
 
 const CORE = [
   '/app',
@@ -44,7 +44,7 @@ const CORE = [
   '/sync-manager.js',
   '/chat-sync.js',
   '/account-manager.js',
-  '/app.js?v=5.9.6',
+  '/app.js?v=5.9.7',
   '/product-analytics.js',
   '/auth-controller.js',
   '/crump-4.3.css',

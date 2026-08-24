@@ -300,7 +300,7 @@
   }
 
   function applyPasswordPolicyMarkup() {
-    const ids = ['registerPassword', 'registerPasswordConfirm', 'newPassword', 'confirmNewPassword'];
+    const ids = ['registerPassword', 'newPassword', 'confirmNewPassword'];
     for (const id of ids) {
       const input = byId(id);
       if (!input) continue;
@@ -317,6 +317,22 @@
       const hint = input?.parentElement?.querySelector('.form-hint');
       if (hint) hint.textContent = 'At least 10 characters with a letter and a number';
     }
+  }
+
+  function wirePasswordVisibility() {
+    document.querySelectorAll('[data-password-target]').forEach(button => {
+      if (button.dataset.passwordVisibilityWired === 'true') return;
+      const input = byId(button.dataset.passwordTarget);
+      if (!input) return;
+      button.dataset.passwordVisibilityWired = 'true';
+      button.addEventListener('click', () => {
+        const showing = input.type === 'text';
+        input.type = showing ? 'password' : 'text';
+        button.textContent = showing ? 'Show' : 'Hide';
+        button.setAttribute('aria-pressed', String(!showing));
+        input.focus({preventScroll: true});
+      });
+    });
   }
 
   function wireLogin() {
@@ -345,14 +361,31 @@
   }
 
   function wireRegistration() {
-    byId('registerFormElement')?.addEventListener('submit', async event => {
+    const form = byId('registerFormElement');
+    if (!form) return;
+    let nativeValidationTracked = false;
+    form.addEventListener('invalid', event => {
+      if (nativeValidationTracked) return;
+      nativeValidationTracked = true;
+      setTimeout(() => { nativeValidationTracked = false; }, 0);
+      const field = event.target;
+      let reason = 'required_field';
+      if (field?.id === 'registerEmail' && field.validity?.typeMismatch) reason = 'email_format';
+      if (field?.id === 'registerPassword') reason = 'password_length';
+      trackFunnel('SignupValidationFailed', {reason});
+    }, true);
+
+    form.addEventListener('submit', async event => {
       event.preventDefault();
       setText('registerError', '', false);
       setText('registerSuccess', '', false);
       const password = byId('registerPassword').value;
       const passwordError = validatePasswordInput(password);
-      if (passwordError) return setText('registerError', passwordError);
-      if (password !== byId('registerPasswordConfirm').value) return setText('registerError', 'Passwords do not match.');
+      if (passwordError) {
+        const reason = password.length < 10 ? 'password_length' : 'password_rules';
+        trackFunnel('SignupValidationFailed', {reason});
+        return setText('registerError', passwordError);
+      }
       trackFunnel('SignupSubmitted');
       const restore = setBusy(event.currentTarget, true, 'Creating account…');
       try {
@@ -484,6 +517,7 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     applyPasswordPolicyMarkup();
+    wirePasswordVisibility();
     byId('onboardingContinueBtn')?.addEventListener('click', () => window.completeOnboarding());
     byId('onboardingName')?.addEventListener('keydown', event => {
       if (event.key === 'Enter') {

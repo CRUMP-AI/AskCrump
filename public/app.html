@@ -78,7 +78,7 @@
       <div class="auth-header">
         <div class="v1-auth-eyebrow">ASK CRUMP</div>
         <h1>Create your workspace.</h1>
-        <p>One account across web, iPhone, iPad, and Android.</p>
+        <p>Free to start. No card required.</p>
       </div>
       <form id="registerFormElement" class="auth-form-content">
         <div class="form-group">
@@ -91,14 +91,14 @@
         </div>
         <div class="form-group">
           <label for="registerPassword">Password</label>
-          <input type="password" id="registerPassword" class="form-input" placeholder="At least 8 characters" required autocomplete="new-password">
-          <small class="form-hint">Minimum 8 characters</small>
+          <div class="v1-password-control">
+            <input type="password" id="registerPassword" class="form-input" placeholder="10+ characters with a letter and number" required minlength="10" maxlength="256" autocomplete="new-password" aria-describedby="registerPasswordHint">
+            <button id="registerPasswordToggle" class="v1-password-toggle" type="button" data-password-target="registerPassword" aria-controls="registerPassword" aria-pressed="false">Show</button>
+          </div>
+          <small id="registerPasswordHint" class="form-hint">At least 10 characters with a letter and a number</small>
         </div>
-        <div class="form-group">
-          <label for="registerPasswordConfirm">Confirm Password</label>
-          <input type="password" id="registerPasswordConfirm" class="form-input" placeholder="Re-enter password" required autocomplete="new-password">
-        </div>
-        <button type="submit" class="btn btn-primary btn-large btn-block">Create Account</button>
+        <button type="submit" class="btn btn-primary btn-large btn-block">Create free account</button>
+        <p class="v1-signup-assurance">We’ll email a secure verification link. Ask Crump never asks for payment to create an account.</p>
         <p class="auth-footer-text">Already have an account? <a href="#" id="showLoginLink" class="auth-link">Sign in</a></p>
       </form>
       <div id="registerError" class="auth-error" style="display:none;"></div>
@@ -132,8 +132,8 @@
       <form id="resetPasswordFormElement" class="auth-form-content">
         <div class="form-group">
           <label for="newPassword">New Password</label>
-          <input type="password" id="newPassword" class="form-input" placeholder="At least 8 characters" required autocomplete="new-password">
-          <small class="form-hint">Minimum 8 characters</small>
+          <input type="password" id="newPassword" class="form-input" placeholder="10+ characters with a letter and number" required minlength="10" maxlength="256" autocomplete="new-password">
+          <small class="form-hint">At least 10 characters with a letter and a number</small>
         </div>
         <div class="form-group">
           <label for="confirmNewPassword">Confirm Password</label>
@@ -536,7 +536,7 @@
           </div>
           <div class="v1-about-signature">
             <img src="/assets/brand/crump-horizontal-light.png" alt="Ask Crump">
-            <span>Ask Crump 5.9.6 · Built to think, make, and continue.</span>
+            <span>Ask Crump 5.9.7 · Built to think, make, and continue.</span>
           </div>
         </section>
       </div>
@@ -563,7 +563,7 @@
 <script defer src="/sync-manager.js"></script>
 <script defer src="/chat-sync.js"></script>
 <script defer src="/account-manager.js"></script>
-<script defer src="/app.js?v=5.9.6"></script>
+<script defer src="/app.js?v=5.9.7"></script>
 <script defer src="/product-analytics.js"></script>
 <script defer src="/auth-controller.js"></script>
 <script defer src="/_vercel/insights/script.js"></script>

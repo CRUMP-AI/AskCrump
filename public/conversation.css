@@ -880,8 +880,7 @@ body {
 #loginPassword,
 #registerName,
 #registerEmail,
-#registerPassword,
-#registerPasswordConfirm {
+#registerPassword {
   -webkit-appearance: none !important;
   -webkit-user-select: text !important;
   user-select: text !important;

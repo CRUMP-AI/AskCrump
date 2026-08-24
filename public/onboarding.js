@@ -67,6 +67,11 @@
       if (this.isActive || this.isComplete() || !window.currentUser?.id) return;
       const app = document.getElementById('appContainer');
       if (!app || getComputedStyle(app).display === 'none') return;
+      // The authenticated launchpad is already a task-oriented first-run
+      // experience. Do not block a new user with six passive tour screens
+      // before they can ask their first question. The full tour remains
+      // available from Settings and through restart().
+      if (document.getElementById('v1Launchpad')) return;
       this.start();
     }
 
