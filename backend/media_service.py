@@ -1,6 +1,7 @@
 """Vision, image generation/editing, and file understanding for Ask Crump 5.0."""
 from __future__ import annotations
 
+import asyncio
 import base64
 import binascii
 from io import BytesIO
@@ -27,6 +28,9 @@ OFFICE_TYPES = {
 }
 TEXT_TYPES = {'text/plain', 'text/markdown', 'text/csv', 'text/tab-separated-values', 'application/json', 'text/html', 'application/rtf'}
 logger = logging.getLogger('askcrump.media')
+IMAGE_REQUEST_TIMEOUT_SECONDS = 240.0
+IMAGE_TRANSIENT_RETRY_DELAY_SECONDS = 0.75
+IMAGE_MAX_ATTEMPTS = 2
 
 
 class MediaService:
@@ -72,9 +76,9 @@ class MediaService:
         aspect = str(payload.get('imageAspect') or 'square').lower()
         sizes = {'square': '1024x1024', 'portrait': '1024x1536', 'landscape': '1536x1024'}
         size = sizes.get(aspect, '1024x1024')
-        quality = str(payload.get('imageQuality') or 'high').lower()
+        quality = str(payload.get('imageQuality') or 'medium').lower()
         if quality not in {'low', 'medium', 'high', 'auto'}:
-            quality = 'high'
+            quality = 'medium'
         output_format = str(payload.get('imageFormat') or 'png').lower()
         if output_format not in {'png', 'webp', 'jpeg'}:
             output_format = 'png'
@@ -166,6 +170,40 @@ class MediaService:
             10,
         )
 
+    @staticmethod
+    async def _post_image_request(
+        client: httpx.AsyncClient,
+        endpoint: str,
+        **request_kwargs: Any,
+    ) -> httpx.Response:
+        """Retry one transient failure without replaying prompts into logs."""
+        for attempt in range(IMAGE_MAX_ATTEMPTS):
+            try:
+                response = await client.post(endpoint, **request_kwargs)
+            except httpx.TimeoutException:
+                # A second full image attempt would exceed the function budget.
+                raise
+            except httpx.TransportError as exc:
+                if attempt + 1 >= IMAGE_MAX_ATTEMPTS:
+                    raise
+                logger.warning(
+                    'OpenAI image transport failed; retrying attempt=%s error_type=%s',
+                    attempt + 1,
+                    type(exc).__name__,
+                )
+                await asyncio.sleep(IMAGE_TRANSIENT_RETRY_DELAY_SECONDS)
+                continue
+            if response.status_code < 500 or attempt + 1 >= IMAGE_MAX_ATTEMPTS:
+                return response
+            logger.warning(
+                'OpenAI image request returned transient status=%s; retrying attempt=%s request_id=%s',
+                response.status_code,
+                attempt + 1,
+                str(response.headers.get('x-request-id') or '')[:160] or '-',
+            )
+            await asyncio.sleep(IMAGE_TRANSIENT_RETRY_DELAY_SECONDS)
+        raise RuntimeError('Image request retry loop exited unexpectedly.')
+
     async def generate_or_edit_image(
         self,
         *,
@@ -185,7 +223,7 @@ class MediaService:
         headers = {'Authorization': f'Bearer {self.settings.openai_api_key}'}
         endpoint = 'https://api.openai.com/v1/images/generations'
         try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(180.0, connect=20.0)) as client:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(IMAGE_REQUEST_TIMEOUT_SECONDS, connect=20.0)) as client:
                 if editing:
                     source = next(row for row in file_rows if row.get('mime_type') in IMAGE_TYPES)
                     image_bytes = await self.files.download_bytes(row=source, max_bytes=25 * 1024 * 1024)
@@ -201,9 +239,16 @@ class MediaService:
                         'output_format': output_format,
                         'n': '1',
                     }
-                    response = await client.post(endpoint, headers=headers, data=form, files=multipart)
+                    response = await self._post_image_request(
+                        client,
+                        endpoint,
+                        headers=headers,
+                        data=form,
+                        files=multipart,
+                    )
                 else:
-                    response = await client.post(
+                    response = await self._post_image_request(
+                        client,
                         endpoint,
                         headers={**headers, 'Content-Type': 'application/json'},
                         json={

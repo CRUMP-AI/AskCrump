@@ -1,5 +1,16 @@
 # Changelog
 
+## 5.9.9 — 2026-08-24
+
+### Image reliability
+- Made Balanced image quality the default for both conversational requests and Image Studio while preserving Highest as an explicit user choice.
+- Added one bounded retry for transient provider and network failures without retrying permanent rejections or long-running timeouts.
+- Extended the image-provider deadline from 180 to 240 seconds inside the existing 300-second function budget so near-complete generations are not cancelled prematurely.
+- Added privacy-safe image quality and aspect telemetry, and retained the attempted image model on failed traces, without recording prompts or file contents.
+
+### Release
+- Advanced the application release to 5.9.9 and the service-worker cache to revision 43 so installed clients receive the reliability defaults immediately.
+
 ## 5.9.8 — 2026-08-24
 
 ### Activation measurement

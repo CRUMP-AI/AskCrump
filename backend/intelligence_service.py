@@ -973,6 +973,17 @@ requested tone and useful formatting. Do not add commentary about reviewing."""
     ) -> None:
         if prepared is None:
             return
+        tool_flags = {
+            "autoTools": prepared.auto_tools,
+            "privateChat": prepared.private_chat,
+        }
+        if prepared.route == "image":
+            quality = str(prepared.payload.get("imageQuality") or "medium").lower()
+            aspect = str(prepared.payload.get("imageAspect") or "square").lower()
+            if quality in {"low", "medium", "high", "auto"}:
+                tool_flags["imageQuality"] = quality
+            if aspect in {"square", "portrait", "landscape"}:
+                tool_flags["imageAspect"] = aspect
         payload = {
             "user_id": user_id,
             "request_id": request_id,
@@ -984,10 +995,7 @@ requested tone and useful formatting. Do not add commentary about reviewing."""
             "planner_used": prepared.planner_used,
             "verifier_used": verifier_used,
             "memory_count": prepared.memory_count,
-            "tool_flags": {
-                "autoTools": prepared.auto_tools,
-                "privateChat": prepared.private_chat,
-            },
+            "tool_flags": tool_flags,
             "model": str(model or "")[:120] or None,
             "latency_ms": max(0, int(latency_ms)),
             "status": str(status or "unknown")[:40],

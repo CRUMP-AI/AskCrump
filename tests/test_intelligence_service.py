@@ -1,4 +1,8 @@
-from backend.intelligence_service import IntelligenceService
+from types import SimpleNamespace
+
+import pytest
+
+from backend.intelligence_service import IntelligenceService, PreparedRequest
 
 
 def test_complex_requests_score_above_simple_chat():
@@ -68,3 +72,43 @@ def test_source_heavy_academic_requests_route_to_grounded_research():
         "Write a research paper with peer-reviewed citations and a bibliography.",
         {},
     ) == "web"
+
+
+@pytest.mark.asyncio
+async def test_image_trace_records_only_allowlisted_generation_controls():
+    class TraceDB:
+        def __init__(self):
+            self.rows = []
+
+        async def insert(self, table, payload):
+            self.rows.append((table, payload))
+
+    db = TraceDB()
+    service = IntelligenceService(db=db, ai=SimpleNamespace(), settings=SimpleNamespace())
+    prepared = PreparedRequest(
+        payload={
+            "imageQuality": "high",
+            "imageAspect": "portrait",
+            "message": "private prompt must not enter trace flags",
+        },
+        requested_mode="auto",
+        effective_mode="auto",
+        verification_level="auto",
+        route="image",
+    )
+
+    await service.record_trace(
+        user_id="00000000-0000-0000-0000-000000000001",
+        request_id="trace-test",
+        chat_id=None,
+        message_id=None,
+        prepared=prepared,
+        model="gpt-image-2",
+        latency_ms=123,
+        status="success",
+    )
+
+    flags = db.rows[0][1]["tool_flags"]
+    assert flags["imageQuality"] == "high"
+    assert flags["imageAspect"] == "portrait"
+    assert "message" not in flags

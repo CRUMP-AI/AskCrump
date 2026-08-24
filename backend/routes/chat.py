@@ -429,6 +429,7 @@ async def chat(request: Request):
 
     try:
         result = None
+        trace_model = None
         if long_form_request:
             manuscript_format = str(creation_intent.get('format') or requested_artifact or 'docx').lower()
             if manuscript_format not in {'docx', 'pdf', 'epub'}:
@@ -463,6 +464,7 @@ async def chat(request: Request):
                 or media.is_edit_request(str(request_payload.get('message') or ''), file_rows)
             )
         ):
+            trace_model = media.settings.openai_image_model
             result = await media.generate_or_edit_image(
                 user_id=auth.user['id'],
                 payload=request_payload,
@@ -507,7 +509,7 @@ async def chat(request: Request):
             )
         await intelligence.record_trace(
             user_id=auth.user['id'], request_id=request_id, chat_id=chat_id,
-            message_id=message_id, prepared=prepared, model=None,
+            message_id=message_id, prepared=prepared, model=trace_model,
             latency_ms=int((time.perf_counter() - started) * 1000), status='error',
             error_code=exc.code, verifier_used=False,
         )

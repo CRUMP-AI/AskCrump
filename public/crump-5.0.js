@@ -13,7 +13,7 @@
     attachments: [],
     tool: null,
     imageAspect: 'square',
-    imageQuality: 'high',
+    imageQuality: 'medium',
     documentFormat: null,
     sending: false,
     menu: null,

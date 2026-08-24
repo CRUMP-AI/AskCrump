@@ -281,11 +281,11 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
             'model': self.settings.openai_image_model,
             'prompt': prompt,
             'size': '1024x1024',
-            'quality': 'high',
+            'quality': 'medium',
             'n': 1,
         }
         try:
-            async with httpx.AsyncClient(timeout=90) as client:
+            async with httpx.AsyncClient(timeout=240) as client:
                 response = await client.post(
                     'https://api.openai.com/v1/images/generations',
                     headers={
