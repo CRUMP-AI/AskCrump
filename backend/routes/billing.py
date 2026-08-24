@@ -7,6 +7,8 @@ import hashlib
 import hmac
 import json
 import logging
+import secrets
+import string
 from typing import Any
 from urllib.parse import quote
 
@@ -25,6 +27,7 @@ router = APIRouter(tags=["billing"])
 logger = logging.getLogger("askcrump.billing")
 
 STRIPE_ENTITLED_STATUSES = {'active', 'trialing'}
+STRIPE_API_VERSION = '2026-07-29.dahlia'
 
 # Stripe Price IDs are public identifiers, not credentials. Environment variables
 # remain authoritative; these production fallbacks prevent a missing deployment
@@ -76,6 +79,7 @@ async def stripe_post(path: str, data: dict[str, str]) -> dict[str, Any]:
             response = await client.post(
                 f'https://api.stripe.com/v1/{path}',
                 auth=(settings.stripe_secret_key, ''),
+                headers={'Stripe-Version': STRIPE_API_VERSION},
                 data=data,
             )
     except httpx.HTTPError as exc:
@@ -114,6 +118,7 @@ async def stripe_get(path: str, params: dict[str, str] | None = None) -> dict[st
             response = await client.get(
                 f'https://api.stripe.com/v1/{path}',
                 auth=(settings.stripe_secret_key, ''),
+                headers={'Stripe-Version': STRIPE_API_VERSION},
                 params=params or {},
             )
     except httpx.HTTPError as exc:
@@ -161,18 +166,23 @@ async def create_stripe_customer(user: dict[str, Any]) -> str:
 
 
 def checkout_payload(customer_id: str, user_id: str, tier: str, price_id: str) -> dict[str, str]:
+    integration_suffix = ''.join(secrets.choice(string.ascii_lowercase) for _ in range(8))
     return {
         'mode': 'subscription',
         'customer': customer_id,
         'line_items[0][price]': price_id,
         'line_items[0][quantity]': '1',
-        'success_url': f'{settings.app_url}/app?billing=success',
+        'success_url': (
+            f'{settings.app_url}/app?billing=success'
+            '&session_id={CHECKOUT_SESSION_ID}'
+        ),
         'cancel_url': f'{settings.app_url}/app?billing=cancelled',
         'client_reference_id': user_id,
         'metadata[user_id]': user_id,
         'metadata[purchase_type]': 'subscription',
         'metadata[tier]': tier,
         'allow_promotion_codes': 'true',
+        'integration_identifier': f'askcrump_subscription_{integration_suffix}',
     }
 
 async def ensure_customer_portal_configuration() -> str:
@@ -431,6 +441,157 @@ def stripe_entitlement_tier(status: str, price_id: str | None) -> str:
     return 'free'
 
 
+def stripe_subscription_period_end(subscription: dict[str, Any]) -> str | None:
+    value = subscription.get('current_period_end')
+    if not value:
+        return None
+    try:
+        return datetime.fromtimestamp(int(value), timezone.utc).isoformat()
+    except (TypeError, ValueError, OSError, OverflowError):
+        return None
+
+
+def stripe_subscription_price_id(subscription: dict[str, Any]) -> str | None:
+    items = ((subscription.get('items') or {}).get('data') or [])
+    if not items:
+        return None
+    price = (items[0].get('price') or {}) if isinstance(items[0], dict) else {}
+    return str(price.get('id') or '') or None
+
+
+async def reconcile_stripe_checkout_session(
+    *,
+    user: dict[str, Any],
+    session: dict[str, Any],
+    request: Request,
+) -> dict[str, Any]:
+    """Reconcile a completed Checkout session against Stripe's subscription state."""
+    user_id = str(user.get('id') or '')
+    metadata = session.get('metadata') or {}
+    if str(metadata.get('purchase_type') or '') != 'subscription':
+        raise ValueError('This checkout session is not a subscription purchase.')
+    if str(session.get('mode') or '') != 'subscription':
+        raise ValueError('This checkout session is not a subscription purchase.')
+    if str(session.get('status') or '').lower() != 'complete':
+        raise RuntimeError('Subscription checkout has not completed yet.')
+    if (
+        str(metadata.get('user_id') or '') != user_id
+        or str(session.get('client_reference_id') or '') != user_id
+    ):
+        raise PermissionError('This subscription checkout belongs to another account.')
+
+    customer_id = str(session.get('customer') or '')
+    stored_customer_id = str(user.get('stripe_customer_id') or '')
+    if not customer_id or not stored_customer_id or customer_id != stored_customer_id:
+        raise PermissionError('This subscription checkout belongs to another billing profile.')
+
+    subscription_id = str(session.get('subscription') or '')
+    if not subscription_id.startswith('sub_'):
+        raise RuntimeError('Stripe has not attached a subscription yet.')
+    subscription = await stripe_get(f'subscriptions/{quote(subscription_id, safe="")}')
+    if str(subscription.get('id') or '') != subscription_id:
+        raise ValueError('Stripe returned an unexpected subscription.')
+    if str(subscription.get('customer') or '') != customer_id:
+        raise PermissionError('The subscription belongs to another billing profile.')
+
+    status = str(subscription.get('status') or 'inactive').lower()
+    price_id = stripe_subscription_price_id(subscription)
+    tier = stripe_entitlement_tier(status, price_id)
+    values = {
+        'stripe_customer_id': customer_id,
+        'stripe_subscription_id': subscription_id,
+        'subscription_tier': tier,
+        'subscription_status': status,
+        'subscription_provider': 'stripe',
+        'subscription_current_period_end': stripe_subscription_period_end(subscription),
+        'updated_at': iso_now(),
+    }
+    await db.update('users', values, filters={'id': eq(user_id)})
+    user.update(values)
+
+    session_id = str(session.get('id') or '')
+    entitled = tier in {'professional', 'enterprise'}
+    if entitled and session_id:
+        # The Checkout Session is the conversion identity. Both the browser
+        # return and webhook use it, so whichever arrives second is a no-op.
+        await record_product_event(
+            db,
+            user_id=user_id,
+            event_name='SubscriptionCheckoutCompleted',
+            event_key=session_id,
+            request=request,
+            plan=tier,
+        )
+    return {
+        'entitled': entitled,
+        'tier': tier,
+        'status': status,
+        'provider': 'stripe',
+        'periodEnd': values['subscription_current_period_end'],
+        'user': public_user(user),
+    }
+
+
+@router.post('/api/stripe/finalize-checkout')
+async def finalize_checkout(request: Request):
+    auth = await authenticate_request(request, db, settings)
+    try:
+        payload = await request.json()
+    except (TypeError, ValueError):
+        payload = {}
+    session_id = (
+        str((payload or {}).get('sessionId') or '').strip()
+        if isinstance(payload, dict)
+        else ''
+    )
+    if not session_id.startswith('cs_') or len(session_id) > 100:
+        return JSONResponse(
+            status_code=400,
+            content={
+                'success': False,
+                'error': 'Invalid checkout session.',
+                'code': 'INVALID_SESSION',
+            },
+        )
+
+    try:
+        session = await stripe_get(f'checkout/sessions/{quote(session_id, safe="")}')
+        reconciled = await reconcile_stripe_checkout_session(
+            user=auth.user,
+            session=session,
+            request=request,
+        )
+    except PermissionError as exc:
+        return JSONResponse(
+            status_code=403,
+            content={'success': False, 'error': str(exc), 'code': 'SESSION_OWNERSHIP_MISMATCH'},
+        )
+    except ValueError as exc:
+        return JSONResponse(
+            status_code=409,
+            content={'success': False, 'error': str(exc), 'code': 'INVALID_SUBSCRIPTION_CHECKOUT'},
+        )
+    except StripeAPIError:
+        return billing_provider_failure()
+    except RuntimeError as exc:
+        return JSONResponse(
+            status_code=409,
+            content={'success': False, 'error': str(exc), 'code': 'SUBSCRIPTION_PENDING'},
+        )
+
+    if not reconciled['entitled']:
+        return JSONResponse(
+            status_code=409,
+            content={
+                'success': False,
+                'error': 'Your payment is complete, but subscription activation is still processing.',
+                'code': 'SUBSCRIPTION_PENDING',
+                'status': reconciled['status'],
+            },
+        )
+    return {'success': True, **reconciled}
+
+
 @router.post('/api/stripe/webhook')
 async def stripe_webhook(request: Request):
     body = await request.body()
@@ -451,34 +612,28 @@ async def stripe_webhook(request: Request):
         # a one-time credit Checkout session mutate subscription entitlements.
         if str(metadata.get('purchase_type') or '') != 'subscription':
             return {'received': True}
-        if str(obj.get('mode') or '') != 'subscription' or not obj.get('subscription'):
+        user_id = str(metadata.get('user_id') or obj.get('client_reference_id') or '')
+        user = (
+            await db.select_one('users', columns='*', filters={'id': eq(user_id)})
+            if user_id
+            else None
+        )
+        if not user:
             return {'received': True}
-        tier = str(metadata.get('tier') or '').lower()
-        if tier not in {'professional', 'enterprise'}:
-            return {'received': True}
-        user_id = metadata.get('user_id') or obj.get('client_reference_id')
-        if user_id:
-            await db.update(
-                'users',
-                {
-                    'stripe_customer_id': customer_id,
-                    'stripe_subscription_id': obj.get('subscription'),
-                    'subscription_tier': tier,
-                    'subscription_status': 'active',
-                    'subscription_provider': 'stripe',
-                    'updated_at': iso_now(),
-                },
-                filters={'id': eq(user_id)},
+        try:
+            await reconcile_stripe_checkout_session(
+                user=user,
+                session=obj,
+                request=request,
             )
-            if event_id:
-                await record_product_event(
-                    db,
-                    user_id=user_id,
-                    event_name='SubscriptionCheckoutCompleted',
-                    event_key=event_id,
-                    request=request,
-                    plan=tier,
-                )
+        except StripeAPIError:
+            logger.exception('Stripe subscription reconciliation failed')
+            # Retry provider/network failures. The reconciliation is idempotent.
+            return JSONResponse(status_code=503, content={'success': False})
+        except (PermissionError, ValueError, RuntimeError) as exc:
+            # Invalid ownership or an incomplete subscription must never grant
+            # access. Later subscription events can reconcile a valid state.
+            logger.warning('Ignoring unentitled Stripe checkout: %s', exc)
     elif event_type in {'customer.subscription.updated', 'customer.subscription.deleted'} and customer_id:
         status = (
             'canceled'

@@ -1,5 +1,17 @@
 # Changelog
 
+## 5.9.10 — 2026-08-24
+
+### Subscription checkout reliability
+- Added an authenticated browser-return reconciliation path so a completed Stripe Checkout can activate the account even when the webhook is delayed.
+- Reconciled entitlement from Stripe's actual subscription status and Price instead of trusting Checkout metadata, with strict user and customer ownership checks.
+- Unified browser-return and webhook completion events on the Checkout Session ID for idempotent conversion measurement.
+- Added one bounded browser retry for provider or activation delay, then refreshed billing state without duplicating checkout.
+- Pinned subscription calls to Stripe API 2026-07-29.dahlia and added per-session integration identifiers while preserving dynamic payment methods.
+
+### Release
+- Advanced the application release to 5.9.10 and the service-worker cache to revision 44 so installed clients receive the checkout recovery path immediately.
+
 ## 5.9.9 — 2026-08-24
 
 ### Image reliability

@@ -392,7 +392,44 @@
     const url = new URL(window.location.href);
     const billing = url.searchParams.get('billing');
     const sessionId = url.searchParams.get('session_id');
-    if (billing === 'credits-success' && sessionId) {
+    if (billing === 'success' && sessionId) {
+      try {
+        let result;
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          try {
+            result = await jsonFetch('/api/stripe/finalize-checkout', {
+              method: 'POST',
+              body: JSON.stringify({sessionId}),
+            });
+            break;
+          } catch (error) {
+            const retryable = ['BILLING_PROVIDER_UNAVAILABLE', 'SUBSCRIPTION_PENDING'].includes(error.code);
+            if (!retryable || attempt > 0) throw error;
+            await new Promise(resolve => setTimeout(resolve, 2500));
+          }
+        }
+        if (result?.user) {
+          window.currentUser = result.user;
+          window.profileManager?.applyServerSubscription?.(result.user);
+        }
+        window.dispatchEvent(new CustomEvent('crump:subscription-updated', {detail: result || {}}));
+        const plan = result?.tier === 'enterprise' ? 'Enterprise' : 'Professional';
+        window.showToast?.(`${plan} is active`, 'success');
+      } catch (error) {
+        window.showToast?.(
+          error.message || 'Payment completed; subscription activation is still processing.',
+          'warning'
+        );
+        setTimeout(() => window.BillingManager?.refreshStatus?.(), 8000);
+      }
+      url.searchParams.delete('billing');
+      url.searchParams.delete('session_id');
+      history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    } else if (billing === 'cancelled') {
+      window.showToast?.('Subscription checkout cancelled', 'info');
+      url.searchParams.delete('billing');
+      history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    } else if (billing === 'credits-success' && sessionId) {
       try {
         const result = await jsonFetch('/api/billing/credits/finalize', {
           method: 'POST',

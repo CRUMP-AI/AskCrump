@@ -30,6 +30,7 @@ EXPECTED_ROUTES = {
     ('DELETE', '/api/notifications/register'),
     ('GET', '/api/cron/check-ins'),
     ('POST', '/api/stripe/create-checkout-session'),
+    ('POST', '/api/stripe/finalize-checkout'),
     ('POST', '/api/stripe/customer-portal'),
     ('POST', '/api/stripe/webhook'),
     ('POST', '/api/billing/revenuecat/sync'),
