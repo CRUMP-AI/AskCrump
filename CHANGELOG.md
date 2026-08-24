@@ -1,5 +1,13 @@
 # Changelog
 
+## 5.9.11 — 2026-08-24
+
+### Acquisition attribution
+
+- Preserved explicit `acquisition` and `utm_source` campaign attribution through signup while recovering older direct social links that encoded a known external channel in `source`.
+- Restricted backward compatibility to an allowlist of known external channels so on-site CTA locations such as hero, pricing, video, closing, and footer are never mislabeled as acquisition sources.
+- Advanced the service-worker cache to revision 45 so installed clients receive the corrected signup attribution path immediately.
+
 ## 5.9.10 — 2026-08-24
 
 ### Subscription checkout reliability

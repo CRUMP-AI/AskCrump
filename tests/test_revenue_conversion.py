@@ -73,6 +73,33 @@ def test_signup_deep_link_opens_registration_and_tracks_the_funnel():
     assert "registerEmail" not in controller[controller.index("function trackFunnel"):controller.index("function applyServerSettings")]
 
 
+def test_legacy_social_deep_links_keep_channel_attribution_without_relabeling_ctas():
+    controller = read("public/auth-controller.js")
+
+    assert "LEGACY_ACQUISITION_SOURCES" in controller
+    for channel in (
+        "instagram",
+        "facebook",
+        "facebook-pinned",
+        "linkedin",
+        "tiktok",
+        "youtube",
+        "x",
+        "referral",
+        "clevercrump",
+    ):
+        assert f"'{channel}'" in controller
+    assert "LEGACY_ACQUISITION_SOURCES.has(locationSource)" in controller
+    assert "const currentAcquisition = explicitAcquisition || legacyAcquisition" in controller
+    assert "acquisition: currentAcquisition || storedAcquisition || 'direct'" in controller
+    allowlist = controller[
+        controller.index("const LEGACY_ACQUISITION_SOURCES"):
+        controller.index("window.va =")
+    ]
+    for onsite_location in ("hero", "pricing", "footer", "closing", "video"):
+        assert f"'{onsite_location}'" not in allowlist
+
+
 def test_paid_plan_intent_survives_auth_and_stops_before_checkout():
     controller = read("public/auth-controller.js")
     runtime = read("public/runtime-body-v1.js")
@@ -96,6 +123,6 @@ def test_release_version_and_cache_advance_together():
     backend = read("backend/version.py")
     worker = read("public/sw.js")
 
-    assert '"version": "5.9.10"' in package
-    assert "__version__ = '5.9.10'" in backend
-    assert "ask-crump-new-body-v1-r44" in worker
+    assert '"version": "5.9.11"' in package
+    assert "__version__ = '5.9.11'" in backend
+    assert "ask-crump-new-body-v1-r45" in worker

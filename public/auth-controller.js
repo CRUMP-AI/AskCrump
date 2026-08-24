@@ -8,6 +8,10 @@
   const ACQUISITION_KEY = 'askcrump.acquisition-source';
   const PLAN_INTENT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
   const PAID_PLAN_INTENTS = new Set(['professional', 'enterprise']);
+  const LEGACY_ACQUISITION_SOURCES = new Set([
+    'instagram', 'facebook', 'facebook-pinned', 'linkedin', 'tiktok',
+    'youtube', 'x', 'referral', 'clevercrump',
+  ]);
 
   window.va = window.va || function queueVercelAnalytics() {
     (window.vaq = window.vaq || []).push(arguments);
@@ -25,18 +29,26 @@
 
   function funnelContext() {
     const params = new URLSearchParams(location.search);
+    const locationSource = funnelValue(params.get('source'), 'direct');
     const explicitAcquisition = funnelValue(
       params.get('acquisition') || params.get('utm_source'),
       '',
     );
-    if (explicitAcquisition) {
-      try { sessionStorage.setItem(ACQUISITION_KEY, explicitAcquisition); } catch (_) {}
+    // Older social links used `source=<channel>` before the dedicated
+    // `acquisition` parameter existed. Recover only known external channels;
+    // on-site CTA locations such as hero, pricing, and footer stay locations.
+    const legacyAcquisition = LEGACY_ACQUISITION_SOURCES.has(locationSource)
+      ? locationSource
+      : '';
+    const currentAcquisition = explicitAcquisition || legacyAcquisition;
+    if (currentAcquisition) {
+      try { sessionStorage.setItem(ACQUISITION_KEY, currentAcquisition); } catch (_) {}
     }
     let storedAcquisition = '';
     try { storedAcquisition = funnelValue(sessionStorage.getItem(ACQUISITION_KEY), ''); } catch (_) {}
     return {
-      source: funnelValue(params.get('source'), 'direct'),
-      acquisition: explicitAcquisition || storedAcquisition || 'direct',
+      source: locationSource,
+      acquisition: currentAcquisition || storedAcquisition || 'direct',
       plan: funnelValue(params.get('plan'), 'unspecified'),
     };
   }
