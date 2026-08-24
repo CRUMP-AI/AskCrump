@@ -71,6 +71,7 @@ def test_chat_identity_and_settings_are_server_authoritative(monkeypatch):
         'email': 'owner@example.com',
         'name': 'Owner',
     }
+    assert fake_ai.payload['_userTier'] == 'free'
 
 
 def test_account_deletion_uses_atomic_database_rpc(monkeypatch):

@@ -28,6 +28,8 @@ class AIServiceError(RuntimeError):
 
 
 class AIService:
+    AI_GATEWAY_URL = 'https://ai-gateway.vercel.sh/v1/chat/completions'
+
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
 
@@ -353,6 +355,240 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
                 })
         return blocks
 
+    def free_tier_uses_gateway(self, user_tier: str) -> bool:
+        return (
+            str(user_tier or '').strip().lower() == 'free'
+            and bool(getattr(self.settings, 'ai_gateway_enabled', False))
+        )
+
+    def _gateway_token(self) -> str:
+        return str(
+            getattr(self.settings, 'ai_gateway_api_key', None)
+            or getattr(self.settings, 'vercel_oidc_token', None)
+            or ''
+        ).strip()
+
+    @staticmethod
+    def _trim_history(history: list[dict[str, str]], max_chars: int) -> list[dict[str, str]]:
+        kept: list[dict[str, str]] = []
+        total = 0
+        for item in reversed(history):
+            size = len(item.get('content') or '')
+            if total + size > max_chars:
+                break
+            kept.append(item)
+            total += size
+        kept.reverse()
+        return kept
+
+    @staticmethod
+    def _gateway_answer(data: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+        choices = data.get('choices') or []
+        choice = choices[0] if choices and isinstance(choices[0], dict) else {}
+        message = choice.get('message') if isinstance(choice.get('message'), dict) else {}
+        content = message.get('content')
+        if isinstance(content, str):
+            answer = content.strip()
+        elif isinstance(content, list):
+            answer = '\n'.join(
+                str(part.get('text') or '')
+                for part in content
+                if isinstance(part, dict) and part.get('type') in {'text', 'output_text'}
+            ).strip()
+        else:
+            answer = ''
+        return answer, choice
+
+    async def _gateway_completion(
+        self,
+        *,
+        messages: list[dict[str, Any]],
+        max_tokens: int,
+        timeout_seconds: float,
+        user_id: str | None,
+        purpose: str,
+    ) -> dict[str, Any]:
+        token = self._gateway_token()
+        if not token:
+            raise AIServiceError(
+                'The free AI route is not configured.',
+                503,
+                'FREE_AI_NOT_CONFIGURED',
+                False,
+                0,
+            )
+
+        model = str(
+            getattr(self.settings, 'ai_gateway_free_model', 'openai/gpt-oss-20b')
+            or 'openai/gpt-oss-20b'
+        ).strip()
+        provider = str(
+            getattr(self.settings, 'ai_gateway_free_provider', 'groq') or 'groq'
+        ).strip()
+        max_input_chars = int(
+            getattr(self.settings, 'ai_gateway_free_max_input_chars', 80_000) or 80_000
+        )
+        if len(json.dumps(messages, ensure_ascii=False)) > max_input_chars:
+            raise AIServiceError(
+                'This free conversation is too large. Start a new chat or shorten the request.',
+                400,
+                'FREE_AI_CONTEXT_LIMIT',
+                False,
+                0,
+            )
+        body: dict[str, Any] = {
+            'model': model,
+            'messages': messages,
+            'max_tokens': max(256, min(32_000, int(max_tokens or 8192))),
+            'stream': False,
+            'providerOptions': {
+                'gateway': {
+                    # A hard allowlist prevents an unavailable free route from
+                    # silently failing over to a more expensive provider.
+                    'only': [provider],
+                    'disallowPromptTraining': True,
+                },
+            },
+        }
+        clean_user_id = self._clean_label(user_id, limit=120)
+        if clean_user_id:
+            body['user'] = clean_user_id
+        clean_purpose = self._clean_label(purpose, limit=80)
+        if clean_purpose:
+            body['tags'] = [f'feature:{clean_purpose}', 'tier:free']
+
+        request_timeout = max(10.0, min(290.0, float(timeout_seconds or 90.0)))
+        try:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(request_timeout, connect=15.0)
+            ) as client:
+                response = await client.post(
+                    self.AI_GATEWAY_URL,
+                    headers={
+                        'Authorization': f'Bearer {token}',
+                        'Content-Type': 'application/json',
+                    },
+                    json=body,
+                )
+        except httpx.TimeoutException as exc:
+            raise AIServiceError('The free AI response timed out.', 504, 'TIMEOUT', True, 5) from exc
+        except httpx.HTTPError as exc:
+            raise AIServiceError(
+                'Could not connect to the free AI service.',
+                503,
+                'NETWORK_ERROR',
+                True,
+                10,
+            ) from exc
+
+        if response.status_code >= 400:
+            try:
+                detail = response.json()
+                error_message = ((detail.get('error') or {}).get('message') or response.text)[:500]
+            except (AttributeError, ValueError):
+                error_message = response.text[:500]
+            if response.status_code == 402:
+                raise AIServiceError(
+                    'Free AI capacity is unavailable right now.',
+                    503,
+                    'FREE_AI_BUDGET',
+                    False,
+                    0,
+                )
+            if response.status_code == 429:
+                raise AIServiceError(
+                    'The free AI service is rate limited.',
+                    429,
+                    'FREE_AI_RATE_LIMIT',
+                    True,
+                    30,
+                )
+            if response.status_code in {401, 403}:
+                raise AIServiceError(
+                    'The free AI route is not configured.',
+                    503,
+                    'FREE_AI_NOT_CONFIGURED',
+                    False,
+                    0,
+                )
+            if response.status_code >= 500:
+                raise AIServiceError(
+                    'The free AI service is temporarily overloaded.',
+                    503,
+                    'FREE_AI_OVERLOADED',
+                    True,
+                    10,
+                )
+            if response.status_code == 400 and (
+                'token' in error_message.lower() or 'length' in error_message.lower()
+            ):
+                raise AIServiceError(
+                    'This conversation is too large. Start a new chat or shorten the attachment.',
+                    400,
+                    'CONTEXT_LENGTH',
+                    False,
+                    0,
+                )
+            raise AIServiceError(
+                'The free AI service rejected the request.',
+                502,
+                'FREE_AI_UPSTREAM_ERROR',
+                False,
+                0,
+            )
+
+        try:
+            data = response.json()
+        except ValueError as exc:
+            raise AIServiceError(
+                'The free AI service returned an invalid response.',
+                502,
+                'INVALID_UPSTREAM_RESPONSE',
+                True,
+                5,
+            ) from exc
+        if not isinstance(data, dict):
+            raise AIServiceError(
+                'The free AI service returned an invalid response.',
+                502,
+                'INVALID_UPSTREAM_RESPONSE',
+                True,
+                5,
+            )
+
+        answer, choice = self._gateway_answer(data)
+        if not answer:
+            raise AIServiceError('The free AI returned an empty response.', 502, 'EMPTY_RESPONSE', True, 5)
+        return {
+            'response': answer,
+            'model': data.get('model') or model,
+            'provider': 'vercel-ai-gateway',
+            'usage': data.get('usage') or {},
+            'stopReason': choice.get('finish_reason'),
+        }
+
+    async def gateway_text(
+        self,
+        *,
+        system: str,
+        prompt: str,
+        max_tokens: int,
+        timeout_seconds: float,
+        user_id: str | None,
+        purpose: str,
+    ) -> str:
+        result = await self._gateway_completion(
+            messages=[
+                {'role': 'system', 'content': system},
+                {'role': 'user', 'content': prompt},
+            ],
+            max_tokens=max_tokens,
+            timeout_seconds=timeout_seconds,
+            user_id=user_id,
+            purpose=purpose,
+        )
+        return str(result.get('response') or '').strip()
+
     async def chat(
         self,
         payload: dict[str, Any],
@@ -360,7 +596,17 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
         max_tokens: int = 8192,
         timeout_seconds: float = 90.0,
     ) -> dict[str, Any]:
-        if not self.settings.anthropic_api_key:
+        user_tier = str(payload.get('_userTier') or 'professional').strip().lower()
+        use_gateway = self.free_tier_uses_gateway(user_tier)
+        if user_tier == 'free' and not use_gateway:
+            raise AIServiceError(
+                'The free AI route is not configured.',
+                503,
+                'FREE_AI_NOT_CONFIGURED',
+                False,
+                0,
+            )
+        if not use_gateway and not self.settings.anthropic_api_key:
             raise AIServiceError('The Anthropic API key is not configured.', 503, 'NOT_CONFIGURED', False, 0)
 
         message = str(payload.get('message') or '').strip()
@@ -370,7 +616,12 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
         if not message:
             message = 'Analyze the attached file carefully.'
 
-        if not payload.get('suppressCreativeExecution') and self._is_image_request(message) and not files:
+        if (
+            not use_gateway
+            and not payload.get('suppressCreativeExecution')
+            and self._is_image_request(message)
+            and not files
+        ):
             generated = await self.generate_image(message)
             if generated:
                 return {
@@ -388,8 +639,21 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
 
         if history and history[-1]['role'] == 'user' and history[-1]['content'].strip() == message:
             history.pop()
+        if use_gateway:
+            free_history_limit = int(
+                getattr(self.settings, 'ai_gateway_free_max_history_chars', 40_000) or 40_000
+            )
+            history = self._trim_history(history, free_history_limit)
 
         attachment_blocks = self._attachment_blocks(files)
+        if use_gateway and attachment_blocks:
+            raise AIServiceError(
+                'Free chat cannot process this attachment type yet.',
+                403,
+                'FREE_AI_ATTACHMENT_UNSUPPORTED',
+                False,
+                0,
+            )
         if attachment_blocks:
             current_content: Any = [*attachment_blocks, {'type': 'text', 'text': message}]
         else:
@@ -398,6 +662,17 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
 
         output_limit = max(256, min(32_000, int(max_tokens or 8192)))
         request_timeout = max(10.0, min(290.0, float(timeout_seconds or 90.0)))
+        if use_gateway:
+            user_data = payload.get('user')
+            user = user_data if isinstance(user_data, dict) else {}
+            return await self._gateway_completion(
+                messages=[{'role': 'system', 'content': system}, *messages],
+                max_tokens=output_limit,
+                timeout_seconds=request_timeout,
+                user_id=str(user.get('id') or '') or None,
+                purpose='chat',
+            )
+
         request_body: dict[str, Any] = {
             'model': self.settings.anthropic_model,
             'max_tokens': output_limit,
@@ -489,13 +764,20 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
         user_name: str,
         conversation: list[dict[str, str]],
         categories: list[str],
+        user_tier: str = 'professional',
+        user_id: str | None = None,
     ) -> str | None:
         """Create one restrained, context-worthy proactive message.
 
         The model may return exactly SKIP when there is no legitimate reason to
         interrupt the user. This keeps check-ins useful instead of needy.
         """
-        if not self.settings.anthropic_api_key or not conversation:
+        if not conversation:
+            return None
+        use_gateway = self.free_tier_uses_gateway(user_tier)
+        if str(user_tier or '').strip().lower() == 'free' and not use_gateway:
+            return None
+        if not use_gateway and not self.settings.anthropic_api_key:
             return None
 
         assistant_label = self._clean_name(assistant_name) or 'Crump'
@@ -535,6 +817,22 @@ Rules:
                 f"{json.dumps(user_label, ensure_ascii=False)}. "
                 "Use it only when it sounds natural; otherwise omit it.\n"
             )
+
+        if use_gateway:
+            try:
+                text = await self.gateway_text(
+                    system=system,
+                    prompt=f'Recent conversation:\n{transcript}',
+                    max_tokens=1024,
+                    timeout_seconds=35.0,
+                    user_id=user_id,
+                    purpose='check-in',
+                )
+            except AIServiceError:
+                return None
+            if not text or text.upper() == 'SKIP':
+                return None
+            return text[:600]
 
         request_body = {
             'model': self.settings.anthropic_model,

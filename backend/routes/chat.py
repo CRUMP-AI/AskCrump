@@ -25,7 +25,7 @@ from ..product_analytics import artifact_type_for_result, record_product_event
 from ..runtime import ai, artifacts, db, features, files, intelligence, manuscripts, media, projects, settings
 from ..schemas import ChatAckRequest
 from ..security import iso_now, normalize_chat_id
-from ..usage_service import UsageLimitError, consume_usage, refund_usage
+from ..usage_service import UsageLimitError, consume_usage, refund_usage, tier_name
 
 router = APIRouter(prefix='/api/chat', tags=['chat'])
 logger = logging.getLogger('askcrump.chat')
@@ -118,6 +118,7 @@ async def chat(request: Request):
     started = time.perf_counter()
     request_id = request.headers.get('X-Request-ID') or str(uuid4())
     auth = await authenticate_request(request, db, settings)
+    effective_user_tier = tier_name(auth.user)
     payload = await request.json()
     request_payload = dict(payload) if isinstance(payload, dict) else {}
     original_message = str(request_payload.get('message') or '')
@@ -296,6 +297,7 @@ async def chat(request: Request):
         auth.user['id'],
         request_payload,
         allow_think_longer=think_longer_entitled,
+        user_tier=effective_user_tier,
     )
     request_payload = prepared.payload
     creation_intent = _promote_explicit_document_delivery(

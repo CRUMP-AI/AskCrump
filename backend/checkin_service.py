@@ -9,6 +9,7 @@ from .ai_service import AIService
 from .db import SupabaseDB, eq, lte, lt
 from .push_service import PushService
 from .security import iso_now, new_uuid
+from .usage_service import tier_name
 
 FREQUENCY_HOURS = {
     'occasional': 72,
@@ -241,13 +242,22 @@ async def run_check_ins(
             summary['skipped'] += 1
             continue
 
-        user = await db.select_one('users', columns='id,email,full_name', filters={'id': eq(user_id)}) or {}
+        user = await db.select_one(
+            'users',
+            columns=(
+                'id,email,full_name,subscription_tier,subscription_status,'
+                'subscription_current_period_end,internal_tier'
+            ),
+            filters={'id': eq(user_id)},
+        ) or {}
         user_settings = await db.select_one('user_settings', columns='assistant_name', filters={'user_id': eq(user_id)}) or {}
         content = await ai.generate_check_in(
             assistant_name=str(user_settings.get('assistant_name') or 'Crump'),
             user_name=str(user.get('full_name') or str(user.get('email') or '').split('@')[0] or 'the user'),
             conversation=chat.get('messages') or [],
             categories=categories,
+            user_tier=tier_name(user),
+            user_id=user_id,
         )
         if not content:
             await db.update(

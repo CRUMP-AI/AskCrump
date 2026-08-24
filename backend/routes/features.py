@@ -19,6 +19,7 @@ async def feature_status(request: Request):
         "research": bool((settings.brave_api_key and settings.web_search_enabled) or settings.openweather_api_key),
         "image": bool(settings.openai_api_key and settings.image_generation_enabled),
         "image_edit": bool(settings.openai_api_key and settings.image_generation_enabled),
+        "visual_analysis": bool(settings.openai_api_key),
         "video": bool(engines["quick"]["configured"]),
         "video_hd": bool(engines["quick"]["configured"]),
         "video_extendable": bool(engines["extendable"]["configured"]),
@@ -32,6 +33,21 @@ async def feature_status(request: Request):
     for code, item in status["features"].items():
         item["configured"] = configured.get(code, True)
     status["providers"] = {
+        "chat": {
+            "free": {
+                "configured": bool(
+                    settings.ai_gateway_enabled
+                    and (settings.ai_gateway_api_key or settings.vercel_oidc_token)
+                ),
+                "provider": "vercel-ai-gateway",
+                "model": settings.ai_gateway_free_model,
+            },
+            "paid": {
+                "configured": bool(settings.anthropic_api_key),
+                "provider": "anthropic",
+                "model": settings.anthropic_model,
+            },
+        },
         "image": {
             "configured": configured["image"],
             "provider": "openai",

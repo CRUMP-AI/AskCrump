@@ -72,11 +72,12 @@ It intentionally does **not** store raw prompts or assistant answers.
 
 ## Model orchestration
 
-4.4 introduces the routing boundary without forcing a provider migration. The
-primary text path continues to use the configured Anthropic model; image
-generation continues to use the configured OpenAI image model. Fast/Auto/Deep
-control orchestration depth today. A future release can map those tiers to
-different text models behind the same service boundary without changing the UI.
+The routing boundary now maps free-plan chat, creation-intent routing, answer
+review, and proactive check-ins to a hard-allowlisted open-weight model through
+Vercel AI Gateway. Paid plans and credit-funded manuscript work retain the
+configured Anthropic model. Gateway requests disable prompt training and fail
+closed instead of silently falling back to a premium provider. Image generation
+continues to use the configured OpenAI image model behind paid-plan limits.
 
 ## Evaluation direction
 

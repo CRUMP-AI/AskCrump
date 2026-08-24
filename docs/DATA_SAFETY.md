@@ -6,12 +6,12 @@ Use this engineering inventory to complete Apple App Privacy and Google Play Dat
 |---|---:|---|---:|---|
 | Name and email | Yes | account, verification, recovery | Yes | Supabase; Resend for email delivery |
 | Password | No plaintext | authentication | Yes | only a password hash in Supabase |
-| Conversations and titles | Yes | AI service, history, cross-device sync | Yes | Supabase; relevant content sent to configured AI/context providers |
+| Conversations and titles | Yes | AI service, history, cross-device sync | Yes | Supabase; free-plan generation may use Vercel AI Gateway and its hard-allowlisted provider; premium or credit-funded generation uses the configured premium AI/context provider |
 | Attachment content | When submitted | requested analysis | Yes during request | configured AI provider; synchronized history retains limited file metadata |
 | Video prompts and generation settings | When video is requested | generate or continue AI video | Yes | Google Gemini/Veo or Runway, depending on the selected engine; job metadata in Supabase |
 | Generated video files | When generation succeeds | private playback, download, continuation, and cross-device library | Yes | copied from the generation provider into private Supabase Storage; provider output URLs are not used as permanent user assets |
 | Message delivery/seen metadata | Yes | reliable messaging experience | Yes | Supabase |
-| Check-in preferences/events | Optional | user-requested proactive follow-up | Yes | Supabase; conversation content may be evaluated by the AI provider |
+| Check-in preferences/events | Optional | user-requested proactive follow-up | Yes | Supabase; free-plan check-ins may use Vercel AI Gateway and its selected provider; premium check-ins may use the configured premium AI provider |
 | Native push token | Optional | deliver enabled check-ins | Yes/device linked | Supabase; APNs or FCM |
 | Device/session information | Yes | persistent login, security, revocation | Yes | Supabase |
 | Approximate IP/network information | Yes | security, rate limiting, abuse prevention | Yes | application/database logs and session records |

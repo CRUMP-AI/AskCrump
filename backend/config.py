@@ -35,6 +35,13 @@ class Settings:
     supabase_service_key: str
     anthropic_api_key: str | None
     anthropic_model: str
+    ai_gateway_enabled: bool
+    ai_gateway_api_key: str | None
+    vercel_oidc_token: str | None
+    ai_gateway_free_model: str
+    ai_gateway_free_provider: str
+    ai_gateway_free_max_history_chars: int
+    ai_gateway_free_max_input_chars: int
     openai_api_key: str | None
     openai_image_model: str
     openai_vision_model: str
@@ -99,6 +106,10 @@ class Settings:
             missing.append('SUPABASE_SERVICE_KEY')
         if self.is_production and not self.anthropic_api_key:
             missing.append('ANTHROPIC_API_KEY')
+        if self.is_production and self.ai_gateway_enabled and not (
+            self.ai_gateway_api_key or self.vercel_oidc_token
+        ):
+            missing.append('AI_GATEWAY_API_KEY or VERCEL_OIDC_TOKEN')
         if self.is_production and not self.resend_api_key:
             missing.append('RESEND_API_KEY')
         if missing:
@@ -119,6 +130,16 @@ class Settings:
             raise RuntimeError('History limits must be positive.')
         if min(self.free_daily_messages, self.professional_daily_messages, self.enterprise_daily_messages) < 0:
             raise RuntimeError('Daily message limits cannot be negative.')
+        if '/' not in self.ai_gateway_free_model:
+            raise RuntimeError('AI_GATEWAY_FREE_MODEL must use the creator/model format.')
+        if not self.ai_gateway_free_provider.strip():
+            raise RuntimeError('AI_GATEWAY_FREE_PROVIDER cannot be empty.')
+        if not 1000 <= self.ai_gateway_free_max_history_chars <= 100_000:
+            raise RuntimeError('AI_GATEWAY_FREE_MAX_HISTORY_CHARS must be between 1000 and 100000.')
+        if not self.ai_gateway_free_max_history_chars <= self.ai_gateway_free_max_input_chars <= 200_000:
+            raise RuntimeError(
+                'AI_GATEWAY_FREE_MAX_INPUT_CHARS must cover free history and be at most 200000.'
+            )
         if self.apns_environment not in {'production', 'sandbox'}:
             raise RuntimeError('APNS_ENVIRONMENT must be production or sandbox.')
         if not 1 <= self.check_in_batch_size <= 100:
@@ -157,6 +178,23 @@ def get_settings() -> Settings:
         supabase_service_key=os.getenv('SUPABASE_SERVICE_KEY', ''),
         anthropic_api_key=os.getenv('ANTHROPIC_API_KEY'),
         anthropic_model=os.getenv('ANTHROPIC_MODEL', 'claude-sonnet-5'),
+        # Vercel injects a short-lived OIDC token into deployments, so the free
+        # tier can use AI Gateway without another long-lived production secret.
+        # Tests and local development stay off unless explicitly enabled.
+        ai_gateway_enabled=_bool(
+            os.getenv('CRUMP_ENABLE_FREE_TIER_AI'),
+            environment == 'production',
+        ),
+        ai_gateway_api_key=os.getenv('AI_GATEWAY_API_KEY'),
+        vercel_oidc_token=os.getenv('VERCEL_OIDC_TOKEN'),
+        ai_gateway_free_model=os.getenv('AI_GATEWAY_FREE_MODEL', 'openai/gpt-oss-20b'),
+        ai_gateway_free_provider=os.getenv('AI_GATEWAY_FREE_PROVIDER', 'groq'),
+        ai_gateway_free_max_history_chars=int(
+            os.getenv('AI_GATEWAY_FREE_MAX_HISTORY_CHARS', '40000')
+        ),
+        ai_gateway_free_max_input_chars=int(
+            os.getenv('AI_GATEWAY_FREE_MAX_INPUT_CHARS', '80000')
+        ),
         openai_api_key=os.getenv('OPENAI_API_KEY'),
         openai_image_model=os.getenv('OPENAI_IMAGE_MODEL', 'gpt-image-2'),
         openai_vision_model=os.getenv('OPENAI_VISION_MODEL', 'gpt-5.6-sol'),

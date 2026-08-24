@@ -84,6 +84,7 @@ async def consume_feature_for_request(
     creative_tool = str(payload.get("creativeTool") or "") or None
     editing = media.is_edit_request(message, file_rows)
     image = media.is_image_request(message, creative_tool) or editing
+    visual_analysis = bool(file_rows and media.has_visual_files(file_rows) and not image)
 
     research_requested = (
         (
@@ -97,6 +98,8 @@ async def consume_feature_for_request(
     code: str | None = None
     if image:
         code = "image_edit" if editing else "image"
+    elif visual_analysis:
+        code = "visual_analysis"
     elif research_requested:
         code = "research"
 

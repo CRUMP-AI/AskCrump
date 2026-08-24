@@ -59,6 +59,14 @@ POLICIES: dict[str, FeaturePolicy] = {
         {"free": 0, "professional": 0, "enterprise": 0},
         "OPENAI_API_KEY",
     ),
+    "visual_analysis": FeaturePolicy(
+        "visual_analysis",
+        "Image and PDF understanding",
+        "professional",
+        2,
+        {"free": 0, "professional": 20, "enterprise": 100},
+        "OPENAI_API_KEY",
+    ),
     "video": FeaturePolicy(
         "video",
         "Video generation",
