@@ -46,6 +46,45 @@ def test_binary_artifacts_are_valid_containers():
     assert pdf.startswith(b'%PDF')
 
 
+def test_horizontal_rules_render_without_becoming_headings():
+    markdown = """# Sample Resume
+
+---
+
+## Experience
+
+- Built a reliable document pipeline.
+
+---
+
+## Education
+
+A finished section.
+"""
+    generator = service()
+    docx = Document(BytesIO(generator.docx(markdown, profile='resume')))
+    deck = Presentation(BytesIO(generator.pptx(markdown)))
+    workbook = load_workbook(BytesIO(generator.xlsx(markdown)), data_only=False)
+    pdf = PdfReader(BytesIO(generator.pdf(markdown)))
+
+    assert any('Experience' in paragraph.text for paragraph in docx.paragraphs)
+    assert all(paragraph.text != 'HR' for paragraph in docx.paragraphs)
+    visible_slide_text = '\n'.join(
+        shape.text for slide in deck.slides for shape in slide.shapes
+        if getattr(shape, 'has_text_frame', False)
+    )
+    assert 'Experience' in visible_slide_text
+    assert '\nHR\n' not in f'\n{visible_slide_text}\n'
+    sheet_values = [
+        str(cell.value or '')
+        for sheet in workbook.worksheets
+        for row in sheet.iter_rows()
+        for cell in row
+    ]
+    assert 'HR' not in sheet_values
+    assert any('Experience' in (page.extract_text() or '') for page in pdf.pages)
+
+
 def test_supported_format_aliases():
     assert ArtifactService.normalize_format('Word') == 'docx'
     assert ArtifactService.normalize_format('.PDF') == 'pdf'

@@ -561,6 +561,11 @@ async def chat(request: Request):
                 brief=execution_brief,
             )
         except Exception:
+            logger.exception(
+                'Artifact packaging failed format=%s request_id=%s',
+                artifact_format,
+                request_id,
+            )
             result['artifactError'] = 'Crump wrote the content, but the downloadable file could not be packaged yet.'
 
     if project_id:

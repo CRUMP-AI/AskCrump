@@ -461,9 +461,9 @@ class ArtifactService:
 
         skipped = False; academic_references = False
         for kind, content in self.blocks(markdown):
-            if not skipped and kind.startswith('h') and self._same_title(str(content), resolved_title):
+            if not skipped and kind in {'h1', 'h2', 'h3', 'h4'} and self._same_title(str(content), resolved_title):
                 skipped = True; continue
-            if kind.startswith('h'):
+            if kind in {'h1', 'h2', 'h3', 'h4'}:
                 p = doc.add_heading('', level=min(3, max(1, int(kind[1:]))))
                 heading_text = str(content).upper() if resolved_profile == 'resume' and kind == 'h1' else str(content)
                 self._add_docx_inline(p, heading_text)
@@ -596,7 +596,7 @@ class ArtifactService:
                 )); story.append(Spacer(1, 5)); pending = []
         skipped = False; academic_references = False
         for kind, content in self.blocks(markdown):
-            if not skipped and kind.startswith('h') and self._same_title(str(content), resolved_title):
+            if not skipped and kind in {'h1', 'h2', 'h3', 'h4'} and self._same_title(str(content), resolved_title):
                 skipped = True; continue
             if kind in {'li', 'ol'}:
                 desired = '1' if kind == 'ol' else 'bullet'
@@ -691,7 +691,7 @@ class ArtifactService:
 
         groups: list[tuple[str, list[Any]]] = []; current_title = 'Executive overview'; current: list[Any] = []; first_heading = False
         for kind, content in self.blocks(markdown):
-            if kind.startswith('h'):
+            if kind in {'h1', 'h2', 'h3', 'h4'}:
                 clean = self._clean_inline(str(content))
                 if not first_heading and self._same_title(clean, resolved_title):
                     first_heading = True; continue
@@ -793,7 +793,7 @@ class ArtifactService:
     def _tables_with_titles(cls, markdown: str) -> list[tuple[str, list[list[str]]]]:
         output: list[tuple[str, list[list[str]]]] = []; heading = 'Data'
         for kind, content in cls.blocks(markdown):
-            if kind.startswith('h'): heading = cls._clean_inline(str(content))
+            if kind in {'h1', 'h2', 'h3', 'h4'}: heading = cls._clean_inline(str(content))
             elif kind == 'table': output.append((heading, content))
         return output
 
@@ -916,10 +916,12 @@ class ArtifactService:
             sheet = workbook.create_sheet('Brief'); sheet.sheet_view.showGridLines = False
             sheet.column_dimensions['A'].width = 24; sheet.column_dimensions['B'].width = 82; row = 1
             for kind, content in self.blocks(markdown):
-                if kind.startswith('h'):
+                if kind in {'h1', 'h2', 'h3', 'h4'}:
                     sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2); cell = sheet.cell(row, 1, self._clean_inline(str(content)))
                     cell.fill = PatternFill('solid', fgColor=SLATE if row == 1 else 'EDEFF3'); cell.font = Font(name='Aptos', size=16 if row == 1 else 12, bold=True, color='FFFFFF' if row == 1 else INK)
                     cell.alignment = Alignment(vertical='center', wrap_text=True); sheet.row_dimensions[row].height = 30
+                elif kind == 'hr':
+                    continue
                 elif kind != 'table':
                     sheet.cell(row, 1, kind.upper()); sheet.cell(row, 1).font = Font(name='Aptos', size=8, bold=True, color=SLATE)
                     sheet.cell(row, 2, self._clean_inline(str(content))); sheet.cell(row, 2).font = Font(name='Aptos', size=10, color=INK)
