@@ -6,6 +6,7 @@ from fastapi import HTTPException, Request
 from backend.routes import analytics as analytics_routes
 from backend.product_analytics import (
     OUTCOME_FEEDBACK_SOURCES,
+    RESPONSE_SHARE_SOURCES,
     artifact_type_for_result,
     environment_for_request,
     normalize_event_key,
@@ -158,6 +159,37 @@ async def test_outcome_feedback_route_rejects_non_contract_values(event_key, sou
         )
 
     assert error.value.status_code == 422
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("event_key", "source"),
+    [
+        ("response-share:response-123", "made_up"),
+        ("other-event:response-123", "native_share"),
+    ],
+)
+async def test_response_share_route_rejects_non_contract_values(event_key, source):
+    with pytest.raises(HTTPException) as error:
+        await analytics_routes.create_product_event(
+            ProductEventRequest(
+                eventName="ResponseShared",
+                eventKey=event_key,
+                source=source,
+            ),
+            request_for("www.askcrump.com"),
+        )
+
+    assert error.value.status_code == 422
+
+
+def test_response_share_sources_are_narrow_and_content_free():
+    assert RESPONSE_SHARE_SOURCES == frozenset({
+        "native_share",
+        "clipboard",
+        "useful_prompt_native",
+        "useful_prompt_clipboard",
+    })
 
 
 def test_migration_is_private_idempotent_and_has_no_arbitrary_metadata():
@@ -314,3 +346,25 @@ def test_latest_result_offers_binary_outcome_feedback_without_content_capture():
     assert "message?.content" not in tracker
     assert "filename" not in tracker.lower()
     assert "lastAssistantIndex" in ui
+
+
+def test_useful_outcome_offers_an_optional_content_free_referral():
+    ui = (ROOT / "public" / "ui-functions.js").read_text(encoding="utf-8")
+    referral = ui[
+        ui.index("async function shareAskCrump"):
+        ui.index("const OUTCOME_FEEDBACK_STORAGE_PREFIX")
+    ]
+    feedback = ui[
+        ui.index("function createOutcomeFeedback"):
+        ui.index("function openImage")
+    ]
+
+    assert "Ask Crump helped me move work forward. Try it free." in referral
+    assert "ASK_CRUMP_SHARE_URL" in referral
+    assert "useful_prompt_native" in referral
+    assert "useful_prompt_clipboard" in referral
+    assert "message?.content" not in referral
+    assert "if (value !== 'useful') return" in feedback
+    assert "Know someone who could use Ask Crump?" in feedback
+    assert "Share Ask Crump" in feedback
+    assert "shareAskCrump(message, index)" in feedback

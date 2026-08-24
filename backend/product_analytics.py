@@ -35,6 +35,12 @@ CLIENT_EVENT_NAMES = frozenset({
     "ResponseShared",
 })
 OUTCOME_FEEDBACK_SOURCES = frozenset({"useful", "needs_work"})
+RESPONSE_SHARE_SOURCES = frozenset({
+    "native_share",
+    "clipboard",
+    "useful_prompt_native",
+    "useful_prompt_clipboard",
+})
 PAID_PLANS = frozenset({"professional", "enterprise"})
 ARTIFACT_TYPES = frozenset({
     "document", "image", "video", "manuscript", "code",

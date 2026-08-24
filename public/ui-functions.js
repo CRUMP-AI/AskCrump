@@ -491,6 +491,27 @@
     window.showToast?.('Share text copied', 'success');
   }
 
+  async function shareAskCrump(message, index) {
+    const payload = {
+      title: 'Ask Crump',
+      text: 'Ask Crump helped me move work forward. Try it free.',
+      url: ASK_CRUMP_SHARE_URL,
+    };
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share(payload);
+        await recordResponseShare(message, index, 'useful_prompt_native');
+        window.showToast?.('Shared', 'success');
+        return;
+      } catch (error) {
+        if (error?.name === 'AbortError') return;
+      }
+    }
+    await writeClipboard(`${payload.text} ${payload.url}`);
+    await recordResponseShare(message, index, 'useful_prompt_clipboard');
+    window.showToast?.('Ask Crump link copied', 'success');
+  }
+
   const OUTCOME_FEEDBACK_STORAGE_PREFIX = 'askcrump.outcome-feedback.';
 
   function responseOutcomeKey(message, index) {
@@ -521,16 +542,36 @@
     group.setAttribute('role', 'group');
     group.setAttribute('aria-label', 'Result feedback');
 
-    const renderThanks = () => {
+    const renderThanks = value => {
       const status = document.createElement('span');
       status.className = 'outcome-feedback-status';
       status.setAttribute('role', 'status');
       status.textContent = 'Thanks — feedback saved.';
       group.replaceChildren(status);
+      if (value !== 'useful') return;
+
+      const referralPrompt = document.createElement('span');
+      referralPrompt.className = 'outcome-referral-prompt';
+      referralPrompt.textContent = 'Know someone who could use Ask Crump?';
+      const referralButton = document.createElement('button');
+      referralButton.type = 'button';
+      referralButton.className = 'outcome-feedback-btn outcome-referral-btn';
+      referralButton.textContent = 'Share Ask Crump';
+      referralButton.setAttribute('aria-label', 'Share Ask Crump without including your conversation');
+      referralButton.addEventListener('click', async () => {
+        referralButton.disabled = true;
+        try {
+          await shareAskCrump(message, index);
+        } finally {
+          referralButton.disabled = false;
+        }
+      });
+      group.append(referralPrompt, referralButton);
     };
 
-    if (savedOutcomeFeedback(eventKey)) {
-      renderThanks();
+    const savedFeedback = savedOutcomeFeedback(eventKey);
+    if (savedFeedback) {
+      renderThanks(savedFeedback);
       return group;
     }
 
@@ -556,7 +597,7 @@
           return;
         }
         saveOutcomeFeedback(eventKey, value);
-        renderThanks();
+        renderThanks(value);
       });
       buttons.push(button);
     }

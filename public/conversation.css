@@ -437,6 +437,15 @@ button.message-status {
   color: rgba(209, 191, 150, 0.82);
 }
 
+.outcome-referral-prompt {
+  margin-left: 3px;
+  color: var(--color-text-tertiary);
+}
+
+.outcome-referral-btn {
+  border-color: rgba(209, 191, 150, 0.28);
+}
+
 /* Attachments and generated images */
 .message-attachment {
   width: min(100%, 360px);
