@@ -123,6 +123,20 @@ def test_release_version_and_cache_advance_together():
     backend = read("backend/version.py")
     worker = read("public/sw.js")
 
-    assert '"version": "5.9.12"' in package
-    assert "__version__ = '5.9.12'" in backend
-    assert "ask-crump-new-body-v1-r46" in worker
+    assert '"version": "5.9.13"' in package
+    assert "__version__ = '5.9.13'" in backend
+    assert "ask-crump-new-body-v1-r47" in worker
+
+
+def test_changed_activation_assets_are_release_versioned():
+    shell = read("public/app.html")
+    worker = read("public/sw.js")
+
+    for asset in (
+        "/conversation.css?v=5.9.13",
+        "/ui-functions.js?v=5.9.13",
+        "/product-analytics.js?v=5.9.13",
+        "/app.js?v=5.9.13",
+    ):
+        assert asset in shell
+        assert asset in worker

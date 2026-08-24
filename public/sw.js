@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r46';
+const CACHE_NAME = 'ask-crump-new-body-v1-r47';
 
 const CORE = [
   '/app',
@@ -11,7 +11,7 @@ const CORE = [
   '/billing.css',
   '/install-prompt.css',
   '/onboarding.css',
-  '/conversation.css',
+  '/conversation.css?v=5.9.13',
   '/auth-styles.css',
   '/crump-v1-body.css',
   '/crump-v1-body.js',
@@ -38,14 +38,14 @@ const CORE = [
   '/profile-manager.js',
   '/billing-manager.js',
   '/subscription-ui.js',
-  '/ui-functions.js',
+  '/ui-functions.js?v=5.9.13',
   '/presence-manager.js',
   '/device-auth.js',
   '/sync-manager.js',
   '/chat-sync.js',
   '/account-manager.js',
-  '/app.js?v=5.9.12',
-  '/product-analytics.js',
+  '/app.js?v=5.9.13',
+  '/product-analytics.js?v=5.9.13',
   '/auth-controller.js',
   '/crump-4.3.css',
   '/crump-4.3.js',
@@ -114,6 +114,8 @@ function bootCritical(request, url) {
     url.pathname === '/crump-polish-5.6.css' ||
     url.pathname === '/crump-library-5.7.js' ||
     url.pathname === '/crump-library-5.7.css' ||
+    url.pathname === '/conversation.css' ||
+    url.pathname === '/ui-functions.js' ||
     url.pathname === '/onboarding.js' ||
     url.pathname === '/product-analytics.js' ||
     url.pathname === '/crump-4.3.js';
