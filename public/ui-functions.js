@@ -425,7 +425,7 @@
     requestAnimationFrame(() => reason.focus());
   }
 
-  const ASK_CRUMP_SHARE_URL = 'https://www.askcrump.com';
+  const ASK_CRUMP_SHARE_URL = 'https://www.askcrump.com/app?signup=1&acquisition=referral&source=response-share';
 
   async function writeClipboard(content) {
     try {

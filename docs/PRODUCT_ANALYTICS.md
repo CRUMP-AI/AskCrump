@@ -32,7 +32,7 @@ request host. Replayed events are ignored by the database uniqueness constraint.
 | `AhaReached` | Server | The first durable artifact, generated image, or manuscript workspace completed. |
 | `OutcomeFeedbackSubmitted` | Authenticated client | The user answered whether one result moved the work forward. Only `useful` or `needs_work` is stored in `source`; no prompt, response, filename, comment, or other content is accepted. |
 | `PlanIntentReached` | Authenticated client | A paid-plan marketing intent reached the in-app plan review. |
-| `ResponseShared` | Authenticated client | A user completed native sharing or copied branded share text for one response. |
+| `ResponseShared` | Authenticated client | A user completed native sharing or copied branded share text for one response. Every shared signup link carries only the aggregate `referral` channel and `response-share` placement—never a user, conversation, message, or content identifier. |
 | `SubscriptionCheckoutOpened` | Server | Stripe created a subscription Checkout Session. |
 | `SubscriptionCheckoutCompleted` | Stripe webhook | Stripe verified a completed subscription Checkout Session. |
 | `BillingPortalOpened` | Server | Stripe created a customer portal session. |
