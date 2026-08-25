@@ -74,6 +74,18 @@
     });
   });
 
+  document.querySelectorAll('[data-explore]').forEach(link => {
+    link.addEventListener('click', () => {
+      window.va('event', {
+        name: 'MarketingExplore',
+        data: {
+          destination: safeSource(link.dataset.explore, 'unknown'),
+          acquisition,
+        },
+      });
+    });
+  });
+
   const navbar = document.querySelector('.navbar');
   if (!navbar) return;
   const updateNavbar = () => navbar.classList.toggle('scrolled', window.scrollY > 24);

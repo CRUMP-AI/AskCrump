@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r51';
+const CACHE_NAME = 'ask-crump-new-body-v1-r52';
 
 const CORE = [
   '/app',
@@ -7,11 +7,12 @@ const CORE = [
   '/delete-account.html',
   '/manifest.json',
   '/landing-5.6.css',
+  '/landing.js?v=5.9.18',
   '/styles.css',
   '/billing.css',
   '/install-prompt.css',
   '/onboarding.css',
-  '/conversation.css?v=5.9.17',
+  '/conversation.css?v=5.9.18',
   '/auth-styles.css',
   '/crump-v1-body.css',
   '/crump-v1-body.js',
@@ -38,14 +39,14 @@ const CORE = [
   '/profile-manager.js',
   '/billing-manager.js',
   '/subscription-ui.js',
-  '/ui-functions.js?v=5.9.17',
+  '/ui-functions.js?v=5.9.18',
   '/presence-manager.js',
   '/device-auth.js',
   '/sync-manager.js',
   '/chat-sync.js',
   '/account-manager.js',
-  '/app.js?v=5.9.17',
-  '/product-analytics.js?v=5.9.17',
+  '/app.js?v=5.9.18',
+  '/product-analytics.js?v=5.9.18',
   '/auth-controller.js',
   '/crump-4.3.css',
   '/crump-4.3.js',

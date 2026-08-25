@@ -27,6 +27,7 @@ def test_marketing_ctas_are_first_party_analytics_events():
     script = read("public/landing.js")
 
     assert '/_vercel/insights/script.js' in page
+    assert '<script defer src="/landing.js?v=5.9.18"></script>' in page
     assert "window.vaq" in script
     assert "MarketingCTA" in script
     assert "link.dataset.cta" in script
@@ -36,6 +37,9 @@ def test_marketing_ctas_are_first_party_analytics_events():
     assert "sessionStorage.setItem(ACQUISITION_KEY" in script
     assert "document.referrer" in script
     assert "referrer URL" not in script
+    assert 'data-explore="product-preview"' in page
+    assert "MarketingExplore" in script
+    assert "link.dataset.explore" in script
     assert "window.location.replace('/app')" not in script
     assert 'rel="canonical" href="https://www.askcrump.com/"' in page
     assert 'property="og:title"' in page
@@ -125,9 +129,10 @@ def test_release_version_and_cache_advance_together():
     backend = read("backend/version.py")
     worker = read("public/sw.js")
 
-    assert '"version": "5.9.17"' in package
-    assert "__version__ = '5.9.17'" in backend
-    assert "ask-crump-new-body-v1-r51" in worker
+    assert '"version": "5.9.18"' in package
+    assert "__version__ = '5.9.18'" in backend
+    assert "ask-crump-new-body-v1-r52" in worker
+    assert "/landing.js?v=5.9.18" in worker
 
 
 def test_changed_activation_assets_are_release_versioned():
@@ -135,10 +140,10 @@ def test_changed_activation_assets_are_release_versioned():
     worker = read("public/sw.js")
 
     for asset in (
-        "/conversation.css?v=5.9.17",
-        "/ui-functions.js?v=5.9.17",
-        "/product-analytics.js?v=5.9.17",
-        "/app.js?v=5.9.17",
+        "/conversation.css?v=5.9.18",
+        "/ui-functions.js?v=5.9.18",
+        "/product-analytics.js?v=5.9.18",
+        "/app.js?v=5.9.18",
     ):
         assert asset in shell
         assert asset in worker
