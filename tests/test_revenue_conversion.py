@@ -66,6 +66,8 @@ def test_signup_deep_link_opens_registration_and_tracks_the_funnel():
     assert "params.get('signup') === '1'" in controller
     assert "showAuth(signupRequested ? 'register' : 'login')" in controller
     assert "SignupIntent" in controller
+    assert "trackFunnel('SignupStarted');" in controller
+    assert "trackFunnel('SignupCredentialsReady');" in controller
     assert "SignupSubmitted" in controller
     assert "AccountCreated" in controller
     assert "source: funnelContext().acquisition" in controller
@@ -123,9 +125,9 @@ def test_release_version_and_cache_advance_together():
     backend = read("backend/version.py")
     worker = read("public/sw.js")
 
-    assert '"version": "5.9.16"' in package
-    assert "__version__ = '5.9.16'" in backend
-    assert "ask-crump-new-body-v1-r50" in worker
+    assert '"version": "5.9.17"' in package
+    assert "__version__ = '5.9.17'" in backend
+    assert "ask-crump-new-body-v1-r51" in worker
 
 
 def test_changed_activation_assets_are_release_versioned():
@@ -133,10 +135,10 @@ def test_changed_activation_assets_are_release_versioned():
     worker = read("public/sw.js")
 
     for asset in (
-        "/conversation.css?v=5.9.16",
-        "/ui-functions.js?v=5.9.16",
-        "/product-analytics.js?v=5.9.16",
-        "/app.js?v=5.9.16",
+        "/conversation.css?v=5.9.17",
+        "/ui-functions.js?v=5.9.17",
+        "/product-analytics.js?v=5.9.17",
+        "/app.js?v=5.9.17",
     ):
         assert asset in shell
         assert asset in worker

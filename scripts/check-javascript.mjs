@@ -76,7 +76,7 @@ for (const relative of requiredBodyFiles) {
 const appHtml = await readFile(new URL('public/app.html', repoRoot), 'utf8');
 const requiredHtmlSignals = [
   '/runtime-body-v1.js',
-  '/product-analytics.js?v=5.9.16',
+  '/product-analytics.js?v=5.9.17',
   '/crump-v1-body.css',
   'class="crump-v1-body"',
   'class="v1-shell"',
@@ -130,11 +130,11 @@ if (!v1Body.includes('removeLegacyEmptyState(container)')) {
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r50') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r51') ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
-    !serviceWorker.includes('/conversation.css?v=5.9.16') ||
-    !serviceWorker.includes('/ui-functions.js?v=5.9.16') ||
-    !serviceWorker.includes('/product-analytics.js?v=5.9.16') ||
+    !serviceWorker.includes('/conversation.css?v=5.9.17') ||
+    !serviceWorker.includes('/ui-functions.js?v=5.9.17') ||
+    !serviceWorker.includes('/product-analytics.js?v=5.9.17') ||
     !serviceWorker.includes("url.pathname === '/conversation.css'") ||
     !serviceWorker.includes("url.pathname === '/ui-functions.js'") ||
     !serviceWorker.includes('/crump-v1-body.js') ||

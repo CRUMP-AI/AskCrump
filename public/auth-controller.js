@@ -375,7 +375,25 @@
   function wireRegistration() {
     const form = byId('registerFormElement');
     if (!form) return;
+    let signupStartedTracked = false;
+    let credentialsReadyTracked = false;
     let nativeValidationTracked = false;
+
+    form.addEventListener('focusin', () => {
+      if (signupStartedTracked) return;
+      signupStartedTracked = true;
+      trackFunnel('SignupStarted');
+    });
+
+    form.addEventListener('input', () => {
+      if (credentialsReadyTracked) return;
+      const email = byId('registerEmail');
+      const password = byId('registerPassword');
+      if (!email?.value.trim() || !email.validity.valid || validatePasswordInput(password?.value || '')) return;
+      credentialsReadyTracked = true;
+      trackFunnel('SignupCredentialsReady');
+    }, {passive: true});
+
     form.addEventListener('invalid', event => {
       if (nativeValidationTracked) return;
       nativeValidationTracked = true;
@@ -407,7 +425,7 @@
           body: JSON.stringify({
             email,
             password,
-            fullName: byId('registerName').value.trim(),
+            fullName: byId('registerName')?.value.trim() || '',
             source: funnelContext().acquisition,
           }),
         });

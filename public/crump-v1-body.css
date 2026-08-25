@@ -2132,7 +2132,9 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
     padding-right: 17px;
     padding-left: 17px;
   }
-  body.crump-v1-body .v1-auth-mobile-brand { width: min(235px,68vw); margin-top: 4vh; margin-bottom: 36px; }
+  body.crump-v1-body .v1-auth-mobile-brand { width: min(210px,62vw); margin-top: 2vh; margin-bottom: 24px; }
+  body.crump-v1-body #registerForm .auth-header { margin-bottom: 24px !important; }
+  body.crump-v1-body #registerForm .form-group { margin-bottom: 14px !important; }
   body.crump-v1-body .v1-auth-card .auth-header h1 { font-size: 34px !important; }
   body.crump-v1-body .v1-auth-links { display: grid; gap: 10px; }
   body.crump-v1-body .v1-auth-card .form-input { min-height: 54px !important; }
@@ -2183,6 +2185,26 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
     left: 10px !important;
     width: auto !important;
   }
+}
+
+@media (max-width: 560px) and (max-height: 700px) {
+  body.crump-v1-body .v1-auth-stage {
+    padding-top: max(16px,env(safe-area-inset-top));
+    padding-bottom: max(18px,env(safe-area-inset-bottom));
+  }
+  body.crump-v1-body .v1-auth-mobile-brand {
+    width: min(180px,54vw);
+    margin-top: 0;
+    margin-bottom: 16px;
+  }
+  body.crump-v1-body #registerForm .auth-header { margin-bottom: 18px !important; }
+  body.crump-v1-body #registerForm .auth-header h1 { font-size: 30px !important; }
+  body.crump-v1-body #registerForm .form-group { margin-bottom: 12px !important; }
+  body.crump-v1-body #registerForm .form-input { min-height: 50px !important; }
+  body.crump-v1-body #registerForm .form-hint { margin-top: 4px; }
+  body.crump-v1-body #registerForm .btn-primary { min-height: 52px !important; }
+  body.crump-v1-body #registerForm .v1-signup-assurance { margin-top: 8px; }
+  body.crump-v1-body #registerForm .auth-footer-text { margin-top: 10px !important; }
 }
 
 /* Touch ergonomics */
