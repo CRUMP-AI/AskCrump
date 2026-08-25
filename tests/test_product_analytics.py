@@ -6,6 +6,7 @@ from fastapi import HTTPException, Request
 from backend.routes import analytics as analytics_routes
 from backend.product_analytics import (
     OUTCOME_FEEDBACK_SOURCES,
+    RECENT_WORK_SOURCES,
     RESPONSE_SHARE_SOURCES,
     artifact_type_for_result,
     environment_for_request,
@@ -192,6 +193,68 @@ def test_response_share_sources_are_narrow_and_content_free():
     })
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("event_key", "source"),
+    [
+        ("recent-work-resumed", "other"),
+        ("other-event:2026-08-24", "launchpad"),
+        ("recent-work-resumed:2026-08-24", "launchpad"),
+    ],
+)
+async def test_recent_work_route_rejects_non_contract_values(event_key, source):
+    with pytest.raises(HTTPException) as error:
+        await analytics_routes.create_product_event(
+            ProductEventRequest(
+                eventName="RecentWorkResumed",
+                eventKey=event_key,
+                source=source,
+            ),
+            request_for("www.askcrump.com"),
+        )
+
+    assert error.value.status_code == 422
+
+
+def test_recent_work_source_is_narrow_and_content_free():
+    assert RECENT_WORK_SOURCES == frozenset({"launchpad"})
+
+
+@pytest.mark.asyncio
+async def test_recent_work_route_derives_one_server_utc_day_key(monkeypatch):
+    calls = []
+
+    async def authenticate(_request, _database, _settings):
+        return type("Auth", (), {"user": {"id": "00000000-0000-0000-0000-000000000001"}})()
+
+    async def rate_limit(*_args, **_kwargs):
+        return None
+
+    async def recorder(_database, **kwargs):
+        calls.append(kwargs)
+        return True
+
+    monkeypatch.setattr(analytics_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(analytics_routes, "enforce_user_rate_limit", rate_limit)
+    monkeypatch.setattr(analytics_routes, "record_product_event", recorder)
+
+    result = await analytics_routes.create_product_event(
+        ProductEventRequest(
+            eventName="RecentWorkResumed",
+            eventKey="recent-work-resumed",
+            source="launchpad",
+        ),
+        request_for("www.askcrump.com"),
+    )
+
+    assert result == {"success": True, "recorded": True}
+    assert calls[0]["event_name"] == "RecentWorkResumed"
+    assert calls[0]["event_key"].startswith("recent-work-resumed:")
+    assert len(calls[0]["event_key"]) == len("recent-work-resumed:2026-08-24")
+    assert calls[0]["source"] == "launchpad"
+    assert set(calls[0]) == {"user_id", "event_name", "event_key", "request", "source", "plan"}
+
+
 def test_migration_is_private_idempotent_and_has_no_arbitrary_metadata():
     migration = (ROOT / "migrations" / "017_product_events.sql").read_text(encoding="utf-8")
     assert "enable row level security" in migration
@@ -282,6 +345,30 @@ def test_growth_funnel_snapshot_is_aggregate_private_and_retention_aware():
     assert "retention_anchor_at" in normalized
 
 
+def test_recent_work_migration_is_private_content_free_and_reported_once():
+    migration = (
+        ROOT / "migrations" / "20260824234612_recent_work_resumed.sql"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(migration.lower().split())
+    return_contract = normalized[
+        normalized.index("returns table") : normalized.index("language plpgsql")
+    ]
+
+    assert "'recentworkresumed'" in normalized
+    assert "'recent_work_resumed'" in normalized
+    assert "(18::smallint, 'd7_returned'" in normalized
+    assert "security invoker" in normalized
+    assert "security definer" not in normalized
+    assert "set search_path = ''" in normalized
+    assert "from public, anon, authenticated" in normalized
+    assert "to service_role" in normalized
+    assert "user_id" not in return_contract
+    assert "metadata jsonb" not in normalized
+    assert "p_prompt" not in normalized
+    assert "p_response" not in normalized
+    assert "p_filename" not in normalized
+
+
 def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
     app = (ROOT / "public" / "app.html").read_text(encoding="utf-8")
     client = (ROOT / "public" / "product-analytics.js").read_text(encoding="utf-8")
@@ -291,11 +378,13 @@ def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
     assert app.index('/product-analytics.js') < app.index('/auth-controller.js')
     assert (
         "new Set(['WorkspaceOpened', 'StarterIntentReached', 'ActivationReached', "
-        "'OutcomeFeedbackSubmitted', 'PlanIntentReached', 'ResponseShared'])"
+        "'OutcomeFeedbackSubmitted', 'RecentWorkResumed', 'PlanIntentReached', "
+        "'ResponseShared'])"
     ) in client
     assert "prompt" not in client.lower()
     assert "filename" not in client.lower()
     assert "ResponseShared" in client
+    assert "RecentWorkResumed" in client
     assert "StarterIntentReached" in client
     assert "/product-analytics.js" in worker
     assert "application.include_router(analytics.router)" in application

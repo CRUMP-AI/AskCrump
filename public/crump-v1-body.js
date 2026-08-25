@@ -123,6 +123,46 @@
     }));
   }
 
+  function recentWorkChat() {
+    const current = String(window.currentChatId || '');
+    return (Array.isArray(window.chats) ? window.chats : [])
+      .filter(chat =>
+        String(chat?.id || chat?.chat_id || '') !== current
+        && Array.isArray(chat?.messages)
+        && chat.messages.length > 0
+      )
+      .sort((left, right) => {
+        const rightTime = Date.parse(right?.updatedAt || right?.updated_at || right?.createdAt || 0) || 0;
+        const leftTime = Date.parse(left?.updatedAt || left?.updated_at || left?.createdAt || 0) || 0;
+        return rightTime - leftTime;
+      })[0] || null;
+  }
+
+  function syncRecentWork() {
+    const region = byId('v1RecentWork');
+    const button = byId('v1RecentWorkButton');
+    if (!region || !button) return;
+    const recent = recentWorkChat();
+    const chatId = String(recent?.id || recent?.chat_id || '');
+    button.dataset.chatId = chatId;
+    region.hidden = !chatId;
+  }
+
+  function wireRecentWork() {
+    const button = byId('v1RecentWorkButton');
+    if (!button || button.dataset.v1Wired === 'true') return;
+    button.dataset.v1Wired = 'true';
+    button.addEventListener('click', () => {
+      const chatId = String(button.dataset.chatId || '');
+      if (!chatId || typeof window.loadChat !== 'function') return;
+      void window.CrumpAnalytics?.track?.('RecentWorkResumed', {
+        eventKey: 'recent-work-resumed',
+        source: 'launchpad',
+      });
+      window.loadChat(chatId);
+    });
+  }
+
   function command(command) {
     switch (command) {
       case 'new':
@@ -226,6 +266,7 @@
     launchpad.classList.toggle('is-hidden', !home);
     launchpad.setAttribute('aria-hidden', home ? 'false' : 'true');
     document.body.classList.toggle('v1-home', home);
+    syncRecentWork();
   }
 
   function syncWorkspaceTitle() {
@@ -344,7 +385,10 @@
     const chats = byId('chatsList');
     if (chats && chats.dataset.v1BodyObserved !== 'true') {
       chats.dataset.v1BodyObserved = 'true';
-      new MutationObserver(() => syncWorkspaceTitle())
+      new MutationObserver(() => {
+        syncWorkspaceTitle();
+        syncRecentWork();
+      })
         .observe(chats, {childList: true, subtree: true, attributes: true, attributeFilter: ['class']});
     }
 
@@ -393,6 +437,7 @@
     restoreBranding();
     syncLaunchpad();
     syncWorkspaceTitle();
+    syncRecentWork();
     wireComposer();
   }
 
@@ -400,6 +445,7 @@
     document.body.classList.add('crump-v1-body');
     restoreDesktopPreference();
     wireCommands();
+    wireRecentWork();
     wireComposer();
     wireSettingsTabs();
     wireKeyboard();
@@ -410,6 +456,7 @@
     syncGreeting();
     syncLaunchpad();
     syncWorkspaceTitle();
+    syncRecentWork();
 
     // 5.0 performs an immediate and one delayed shell pass.
     // These bounded reassertions reclaim only the brand/context surfaces.

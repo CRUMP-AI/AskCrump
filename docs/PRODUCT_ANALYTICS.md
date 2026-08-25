@@ -31,6 +31,7 @@ request host. Replayed events are ignored by the database uniqueness constraint.
 | `ActivationReached` | Server | The first successful, persisted AI response completed. |
 | `AhaReached` | Server | The first durable artifact, generated image, or manuscript workspace completed. |
 | `OutcomeFeedbackSubmitted` | Authenticated client | The user answered whether one result moved the work forward. Only `useful` or `needs_work` is stored in `source`; no prompt, response, filename, comment, or other content is accepted. |
+| `RecentWorkResumed` | Authenticated client | The user opened the most recent non-empty conversation from the clean-start launchpad. The server derives the UTC-day key and records at most one content-free milestone per account per day with source `launchpad`; no chat ID, title, prompt, response, or filename is sent. |
 | `PlanIntentReached` | Authenticated client | A paid-plan marketing intent reached the in-app plan review. |
 | `ResponseShared` | Authenticated client | A user completed native sharing or copied branded share text from a response, including the optional content-free referral offered after a useful outcome. The source is restricted to the four delivery paths (`native_share`, `clipboard`, `useful_prompt_native`, or `useful_prompt_clipboard`). Every shared signup link carries only the aggregate `referral` channel and `response-share` placement—never a user, conversation, message, or content identifier. |
 | `SubscriptionCheckoutOpened` | Server | Stripe created a subscription Checkout Session. |
@@ -53,14 +54,14 @@ silently reconstructed from conversation or file content.
 
 ## Service-role growth snapshot
 
-Migration `20260824131311_product_growth_funnel_snapshot.sql` installs
+Migration `20260824234612_recent_work_resumed.sql` installs the current version of
 `product_growth_funnel_snapshot`, a service-role-only aggregate report for a half-open
 account-creation window. It returns ordered counts, eligible populations, and conversion
 rates for:
 
 - accounts created and matching `AccountCreated` event coverage;
 - current verification and onboarding;
-- workspace use, first launchpad intent, activation, and durable value;
+- workspace use, first launchpad intent, activation, durable value, and recent-work continuation;
 - explicit useful-result and needs-work feedback among activated accounts;
 - response sharing, plan intent, Checkout open/completion, and current paid status;
 - D1 and D7 workspace return among accounts whose full UTC observation window has elapsed.

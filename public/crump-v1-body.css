@@ -1001,6 +1001,68 @@ body.crump-v1-body .v1-launchpad > p {
   font-size: 12px;
   line-height: 1.7;
 }
+body.crump-v1-body .v1-recent-work {
+  display: grid;
+  width: min(760px, 100%);
+  gap: 7px;
+  margin-top: 22px;
+  text-align: left;
+}
+body.crump-v1-body .v1-recent-work[hidden] { display: none; }
+body.crump-v1-body .v1-recent-work-label {
+  color: #85734e;
+  font-size: 8px;
+  font-weight: 720;
+  letter-spacing: .13em;
+}
+body.crump-v1-body .v1-recent-work-button {
+  display: grid;
+  min-height: 62px;
+  grid-template-columns: 40px minmax(0,1fr) 16px;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 13px;
+  border: 1px solid rgba(209,191,150,.2);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(209,191,150,.075), rgba(255,255,255,.018));
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+body.crump-v1-body .v1-recent-work-button:hover,
+body.crump-v1-body .v1-recent-work-button:focus-visible {
+  border-color: rgba(209,191,150,.42);
+  background: linear-gradient(135deg, rgba(209,191,150,.105), rgba(255,255,255,.028));
+}
+body.crump-v1-body .v1-recent-work-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid rgba(209,191,150,.16);
+  border-radius: 12px;
+  color: #cfb97f;
+  font-size: 17px;
+}
+body.crump-v1-body .v1-recent-work-button > span:nth-child(2) {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+body.crump-v1-body .v1-recent-work-button strong {
+  color: #e7e2d8;
+  font-size: 11px;
+  font-weight: 650;
+}
+body.crump-v1-body .v1-recent-work-button small {
+  color: #71777a;
+  font-size: 9px;
+}
+body.crump-v1-body .v1-recent-work-button b {
+  color: #6f6247;
+  font-size: 15px;
+  font-weight: 400;
+}
 body.crump-v1-body .v1-launchpad-grid {
   display: grid;
   width: min(760px, 100%);

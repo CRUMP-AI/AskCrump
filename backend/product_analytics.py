@@ -19,6 +19,7 @@ EVENT_NAMES = frozenset({
     "ActivationReached",
     "AhaReached",
     "OutcomeFeedbackSubmitted",
+    "RecentWorkResumed",
     "PlanIntentReached",
     "ResponseShared",
     "SubscriptionCheckoutOpened",
@@ -31,6 +32,7 @@ CLIENT_EVENT_NAMES = frozenset({
     "StarterIntentReached",
     "ActivationReached",
     "OutcomeFeedbackSubmitted",
+    "RecentWorkResumed",
     "PlanIntentReached",
     "ResponseShared",
 })
@@ -41,6 +43,7 @@ RESPONSE_SHARE_SOURCES = frozenset({
     "useful_prompt_native",
     "useful_prompt_clipboard",
 })
+RECENT_WORK_SOURCES = frozenset({"launchpad"})
 PAID_PLANS = frozenset({"professional", "enterprise"})
 ARTIFACT_TYPES = frozenset({
     "document", "image", "video", "manuscript", "code",
