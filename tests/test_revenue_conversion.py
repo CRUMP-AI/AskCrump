@@ -52,6 +52,7 @@ def test_marketing_ctas_are_first_party_analytics_events():
 def test_public_marketing_surface_is_indexable_while_the_private_app_is_not():
     page = read("public/index.html")
     app = read("public/app.html")
+    legal = read("public/legal.html")
     robots = read("public/robots.txt")
     sitemap = read("public/sitemap.xml")
 
@@ -60,6 +61,12 @@ def test_public_marketing_surface_is_indexable_while_the_private_app_is_not():
     assert "Sitemap: https://www.askcrump.com/sitemap.xml" in robots
     assert "Disallow: /app" in robots and "Disallow: /api/" in robots
     assert "<loc>https://www.askcrump.com/</loc>" in sitemap
+    assert '<meta name="robots" content="index,follow,max-image-preview:large">' in legal
+    assert '<link rel="canonical" href="https://www.askcrump.com/legal">' in legal
+    assert '<a href="/legal">Legal & Privacy</a>' in page
+    assert "<loc>https://www.askcrump.com/legal</loc>" in sitemap
+    assert "<loc>https://www.askcrump.com/legal.html</loc>" not in sitemap
+    assert sitemap.count("<lastmod>2026-08-24</lastmod>") == 2
 
 
 def test_signup_deep_link_opens_registration_and_tracks_the_funnel():

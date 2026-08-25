@@ -1,5 +1,13 @@
 # Changelog
 
+## 5.9.18 — 2026-08-24
+
+### Organic-search hygiene
+
+- Made the public legal page explicitly indexable and gave it the production clean URL as its canonical.
+- Replaced the redirecting legal URL in the sitemap and marketing-page footer with `/legal`.
+- Refreshed the sitemap modification dates after the 5.9.18 acquisition and search-surface changes.
+
 ## 5.9.11 — 2026-08-24
 
 ### Acquisition attribution

@@ -40,7 +40,12 @@ def local_asset(value):
     path = value.split('#', 1)[0].split('?', 1)[0]
     if path in {'/', '/app'}:
         return None
-    return PUBLIC / path.lstrip('/')
+    candidate = PUBLIC / path.lstrip('/')
+    if not candidate.suffix and not candidate.exists():
+        clean_url_source = candidate.with_suffix('.html')
+        if clean_url_source.exists():
+            return clean_url_source
+    return candidate
 
 
 def test_html_local_assets_exist_and_no_inline_handlers():
