@@ -3,6 +3,8 @@ import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from PIL import Image
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -40,7 +42,7 @@ def test_marketing_ctas_are_first_party_analytics_events():
     script = read("public/landing.js")
 
     assert '/_vercel/insights/script.js' in page
-    assert '<script defer src="/landing.js?v=5.9.24"></script>' in page
+    assert '<script defer src="/landing.js?v=5.9.25"></script>' in page
     assert "window.vaq" in script
     assert "MarketingCTA" in script
     assert "link.dataset.cta" in script
@@ -134,7 +136,7 @@ def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
         assert f'<link rel="canonical" href="https://www.askcrump.com/{slug}">' in page
         assert f'<meta property="og:url" content="https://www.askcrump.com/{slug}">' in page
         assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
-        assert '<script defer src="/landing.js?v=5.9.24"></script>' in page
+        assert '<script defer src="/landing.js?v=5.9.25"></script>' in page
         assert '/_vercel/insights/script.js' in page
         assert f'source={source}' in page
         assert page.count('data-cta="') >= 4
@@ -158,6 +160,29 @@ def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
 
     assert len(titles) == 2
     assert len(descriptions) == 2
+
+
+def test_social_share_cards_are_large_brand_safe_and_page_specific():
+    expectations = (
+        ("public/index.html", "ask-crump-workspace.png"),
+        ("public/ai-presentation-maker.html", "ask-crump-presentations.png"),
+        ("public/ai-document-generator.html", "ask-crump-documents.png"),
+    )
+
+    for page_path, filename in expectations:
+        page = read(page_path)
+        card_path = ROOT / "public" / "assets" / "social" / filename
+
+        assert f'https://www.askcrump.com/assets/social/{filename}' in page
+        assert '<meta property="og:image:type" content="image/png">' in page
+        assert '<meta property="og:image:width" content="1200">' in page
+        assert '<meta property="og:image:height" content="630">' in page
+        assert '<meta name="twitter:card" content="summary_large_image">' in page
+        assert '<meta name="twitter:image:alt"' in page
+        with Image.open(card_path) as card:
+            assert card.format == "PNG"
+            assert card.mode == "RGB"
+            assert card.size == (1200, 630)
 
 
 def test_signup_deep_link_opens_registration_and_tracks_the_funnel():
@@ -227,10 +252,10 @@ def test_release_version_and_cache_advance_together():
     backend = read("backend/version.py")
     worker = read("public/sw.js")
 
-    assert '"version": "5.9.24"' in package
-    assert "__version__ = '5.9.24'" in backend
-    assert "ask-crump-new-body-v1-r58" in worker
-    assert "/landing.js?v=5.9.24" in worker
+    assert '"version": "5.9.25"' in package
+    assert "__version__ = '5.9.25'" in backend
+    assert "ask-crump-new-body-v1-r59" in worker
+    assert "/landing.js?v=5.9.25" in worker
 
 
 def test_changed_activation_assets_are_release_versioned():
@@ -238,10 +263,10 @@ def test_changed_activation_assets_are_release_versioned():
     worker = read("public/sw.js")
 
     for asset in (
-        "/conversation.css?v=5.9.24",
-        "/ui-functions.js?v=5.9.24",
-        "/product-analytics.js?v=5.9.24",
-        "/app.js?v=5.9.24",
+        "/conversation.css?v=5.9.25",
+        "/ui-functions.js?v=5.9.25",
+        "/product-analytics.js?v=5.9.25",
+        "/app.js?v=5.9.25",
     ):
         assert asset in shell
         assert asset in worker

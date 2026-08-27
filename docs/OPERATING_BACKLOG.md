@@ -25,6 +25,15 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 | Truthful organic discovery | Commit `150ced2`; deployment `dpl_HUbcyLdLFdh7SVpqF3S99XL3caMo`; production 5.9.23 adds unique, crawlable presentation and document workflow pages, homepage/cross-page links, canonical metadata, valid JSON-LD, and a four-URL sitemap. Known search referrers collapse to `organic` without retaining the referrer URL or query, and internal CTA placements cannot overwrite acquisition. All 290 backend tests, 40 JavaScript validations, production/native bundle checks, CI run `33116981568`, Android run `33116981449`, iOS run `33116981462`, clean-URL HTTP checks, desktop/mobile browser checks, and the deployment-scoped error/fatal scan passed. | Verified |
 | Truthful referral delivery | Commit `a7f3482`; deployment `dpl_2zxpBU85E3uJkygbmmjquhq4fVQJ`; production 5.9.24 keeps the post-useful-result invitation content-free and carries only aggregate `referral` acquisition plus `response-share` placement into registration. The registration server preserves `referral` on `AccountCreated`. Denied clipboard access can no longer display a false success or record `ResponseShared`; an executable browser-script contract proves failed copy records zero events while a verified fallback records exactly one. All 291 backend tests, 40 JavaScript validations, production/native/store checks, CI run `33119777886`, Android run `33119777893`, iOS run `33119777888`, live route/version checks, and the deployment-scoped error/fatal scan passed. A legitimate referred account and activated outcome have not yet been observed. | Verified delivery; outcome pending |
 
+### Current production reliability checkpoint
+
+A project-wide production runtime scan covering the trailing 24 hours on 2026-08-27 found no
+runtime error clusters, no error/fatal/warning log entries, and no 5xx responses. The status
+breakdown contained 1,841 successful 200 responses and five expected 401 responses from explicit
+unauthenticated release probes against the disabled Crump Code, disabled Crump Voice, and private
+Project attachment routes. The evidence does not justify a reliability code change; acquisition
+and comparable user observation remain the next operating constraint.
+
 ## Ranked execution backlog
 
 ### P0 — Convert useful answers into continuing Project work
@@ -125,7 +134,9 @@ visitor produced one client `AccountCreated` event. Those anonymous aggregates s
 pre-instrumentation boundary and may include internal or automated visits, so they are not a
 conversion rate. The last 24 hours showed six production visitors, 20 page views, no signup event,
 and one visitor on each new discovery page. The service-role comparable external funnel still
-returned zero accounts at every stage, and the aggregate artifact journey returned no rows.
+returned zero accounts at every stage, and the aggregate artifact journey returned no rows. A
+project-wide trailing-24-hour production runtime scan found no errors, warnings, fatal logs, or 5xx
+responses, so the absence of a new comparable user is not currently explained by a server failure.
 
 **Outcome:** a weekly operating review of account creation → workspace open → starter intent →
 activation → durable value → useful outcome → return/share → checkout → paid.
@@ -134,6 +145,24 @@ activation → durable value → useful outcome → return/share → checkout �
 excluded, at least one legitimate referral delivery-to-account-to-activation observation, and a
 written decision for the largest observed drop-off. Treat small samples as directional rather
 than statistically conclusive.
+
+### P1 — Measure richer social share previews
+
+**Evidence:** Facebook was the largest observed external referral family in the trailing seven-day
+Web Analytics view (`m.facebook.com` 10 visitors and `facebook.com` eight), while every public page
+still exposed the square app icon as its share image. That traffic is small and may include internal
+visits, so it establishes a channel worth instrumenting—not a reliable conversion benchmark.
+
+**Experiment:** production 5.9.25 gives the home, presentation, and document pages distinct
+1,200-by-630 social cards composed from the canonical Ask Crump mark and restrained product copy.
+The intervention changes only link previews; landing copy, signup behavior, pricing, and attribution
+remain unchanged. Existing acquisition and signup events provide a privacy-safe onsite outcome.
+
+**Decision rule:** observe for at least 14 days and at least 50 combined Facebook/social referral
+visitors before comparing socially attributed `SignupIntent` reach with the pre-release directional
+baseline. Keep the cards if qualified onsite intent improves without a material rise in bounce;
+revise or revert if the preview attracts less-qualified traffic. Do not infer social click-through
+rate without platform impression data.
 
 ### P1 — Prepare native store distribution without premature submission
 
@@ -172,7 +201,8 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
-Submit the live canonical sitemap after owner confirmation, then obtain the first consented
+Submit the live canonical sitemap after owner confirmation, allow the social-preview experiment to
+reach its minimum observation window, then obtain the first consented
 post-instrumentation account, durable-value, return, referral, and artifact-journey observations.
 Do not rewrite the signup flow from anonymous seven-day aggregates that cross the measurement
 boundary; diagnose the next real post-boundary attempt instead. Keep both new provider foundations

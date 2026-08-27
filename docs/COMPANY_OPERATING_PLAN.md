@@ -162,6 +162,15 @@ provider, privacy, cost, or security gate is incomplete.
   reaching signup intent, but the period crosses the measurement boundary; the last 24 hours had
   six visitors and no signup event. These anonymous counts are context, not an account conversion
   rate.
+- **Reliability evidence:** a project-wide trailing-24-hour production scan on 2026-08-27 found no
+  runtime error clusters, no error/fatal/warning logs, and no 5xx responses. Five 401 responses were
+  the expected result of explicit unauthenticated release probes against protected or disabled
+  routes. The current acquisition gap is therefore not explained by an observed server failure.
+- **Social acquisition experiment:** Facebook supplied the largest observed external referral
+  family, but public links still previewed only a square app icon. Release 5.9.25 replaces that with
+  page-specific 1,200-by-630 cards built from the canonical mark. Evaluate socially attributed
+  signup intent only after at least 14 days and 50 combined social-referral visitors; do not claim a
+  click-through improvement without platform impression data.
 - **Risk:** a real sandbox run has not verified production OIDC/runtime behavior.
 - **Permission needed:** a sub-cent Vercel sandbox smoke test and the exact premium-voice disclosure.
 - **External input needed:** an ElevenLabs production API key and voice ID with confirmed rights.
