@@ -1,6 +1,6 @@
 [project]
 name = "ask-crump"
-version = "5.9.21"
+version = "5.9.22"
 description = "Cross-platform multimodal AI assistant with synchronized chat, private files, generated artifacts, memory, intelligence orchestration, subscriptions, and durable credits."
 requires-python = ">=3.12,<3.15"
 dependencies = [

@@ -1,5 +1,22 @@
 # Changelog
 
+## 5.9.22 — 2026-08-27
+
+### One-click continuing work
+
+- Put `Keep in a Project` directly on the latest successful result instead of hiding it behind a
+  separate positive-feedback click, reducing the durable-work path from two commitments to one.
+- Kept outcome feedback optional and preserved the privacy-safe referral prompt after positive
+  feedback without making either action a prerequisite for saving the conversation.
+- Reused the existing synchronized, ownership-checked, idempotent conversation-to-Project route and
+  its content-free durable-value milestone; no prompts, response content, filenames, or titles were
+  added to product analytics.
+
+### Release
+
+- Advanced the application to 5.9.22 and the service-worker cache to revision 56 so installed and
+  web clients receive the lower-friction Project action together.
+
 ## 5.9.21 — 2026-08-27
 
 ### Trustworthy growth measurement

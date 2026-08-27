@@ -148,13 +148,21 @@ async def test_project_route_records_content_free_durable_value_after_attach(mon
     }
 
 
-def test_useful_outcome_prioritizes_private_continuity_before_referral():
+def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_and_referral():
     ui = (ROOT / "public" / "ui-functions.js").read_text(encoding="utf-8")
     product = (ROOT / "public" / "crump-product-5.3.js").read_text(encoding="utf-8")
     route = (ROOT / "backend" / "routes" / "projects.py").read_text(encoding="utf-8")
 
     assert "Keep in a Project" in ui
     assert ui.index("Keep in a Project") < ui.index("Or help someone else:")
+    assert "group.append(continuityPrompt, projectButton, prompt, ...buttons)" in ui
+    assert "group.replaceChildren(continuityPrompt, projectButton, status)" in ui
+    direct_action = ui[
+        ui.index("const continuityPrompt"):
+        ui.index("const renderThanks")
+    ]
+    assert "keepConversation" in direct_action
+    assert "OutcomeFeedbackSubmitted" not in direct_action
     assert "keepConversation: () => keepConversation()" in product
     assert "await window.syncChatsToServer?.()" in product
     assert 'body: {chatId}' in product

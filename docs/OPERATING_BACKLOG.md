@@ -20,7 +20,7 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 | Private artifact journey telemetry | Commit `f497ab0`; entitled request, successful packaging, packaging failure, and first-download events are server-authoritative and content-free; Supabase migration `artifact_journey` is recorded; anonymous and authenticated roles cannot execute the aggregate report while `service_role` can; 265 backend tests, JavaScript validation, production preflight, production health, and post-deploy runtime checks passed. | Verified |
 | Crump Code private foundation | Owner-scoped task, event, and approval tables are live with client roles denied; the server-role privilege repair leaves audit events append-only and approvals non-deletable; the runner uses an ephemeral 2-vCPU/4-GB, deny-all, no-secret sandbox and returns patches without pushing source. Public feature flag remains off pending a real sandbox smoke test, UI, and benchmark. | Staged, disabled |
 | Crump Voice private foundation | Explicit signed-in playback route, Professional entitlement, rate/character/audio limits, provider-failure refund, server-held ElevenLabs key, non-cacheable ephemeral MP3 response, and device-speech fallback are implemented. Public feature flag remains off pending approved disclosure, credentials/voice rights, and smoke tests. | Staged, disabled |
-| Private conversation-to-Project continuity | Commit `edfd7d2`; useful-result UI prioritizes keeping work before referral; the server synchronizes and ownership-checks the chat, attaches idempotently to the selected/new Project, and records only a content-free Project milestone. All 284 tests, backend checks, 40 JavaScript validations, production preflight, and native web-bundle build passed. Production 5.9.20 health returned HTTP 200, both client assets were live, the new route returned 401 without authentication, and the initial runtime-error scan was clean. | Verified |
+| Private conversation-to-Project continuity | Release 5.9.22 puts `Keep in a Project` directly on the latest result, reducing durable-work preservation from two commitments to one. The existing server route synchronizes and ownership-checks the chat, attaches idempotently to the selected/new Project, and records only a content-free Project milestone. | Release verification in progress |
 | Comparable growth-cohort boundary | Supabase migration `product_growth_measurement_boundary`; live first-event evidence fixes the lower bound at `2026-08-23 09:10:55.602863+00`; the 30-day report now returns 18 metrics and zero comparable external accounts instead of misclassifying three historical accounts. The function remains security invoker, `anon`/`authenticated` execution is denied, `service_role` execution succeeds, and post-change advisors reported no errors or warnings. | Verified |
 
 ## Ranked execution backlog
@@ -29,18 +29,18 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 
 **Evidence:** two external accounts completed 14 successful AI jobs with no recorded failures, but
 the external aggregate contains zero Projects and zero files, and no external activity occurred
-after 2026-08-23. The useful-result UI previously promoted referral sharing before preserving the
-user's own work.
+after 2026-08-23. Release 5.9.20 made Project continuity primary after positive feedback, but still
+required a feedback click before the durable-work action appeared.
 
-**Outcome:** after a user confirms that an answer moved work forward, make private Project continuity
-the primary next action. Synchronize and ownership-check the conversation, attach it to the selected
-Project or create one, and record only a content-free durable-value milestone. Keep referral sharing
-secondary.
+**Outcome:** expose private Project continuity directly on the latest result as a one-click next
+action. Synchronize and ownership-check the conversation, attach it to the selected Project or
+create one, and record only a content-free durable-value milestone. Keep feedback optional and
+referral sharing secondary.
 
-**Release gate:** automated ownership, mapping, ordering, analytics, full release verification, and
-production health passed in 5.9.20. The remaining outcome gate is at least one legitimate external
-conversation-to-Project transition and a later return. Do not infer a retention rate from a single
-user.
+**Release gate:** automated ownership, mapping, direct-action ordering, analytics, full release
+verification, and production health for 5.9.22. The remaining outcome gate is at least one
+legitimate external conversation-to-Project transition and a later return. Do not infer a retention
+rate from a single user.
 
 ### P0 — Review the first complete artifact journey cohort
 
