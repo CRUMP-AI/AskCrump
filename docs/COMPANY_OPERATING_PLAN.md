@@ -81,8 +81,8 @@ constraint.
 
 ### Monetization and unit economics
 
-- Repair and signed-test both live Stripe webhook destinations before accepting the first payment;
-  the current apex URLs redirect and Stripe treats redirects as failed deliveries.
+- Keep both verified live Stripe destinations on their direct `www` handlers and reconcile the first
+  real checkout against subscription entitlement or durable credit state.
 - Continue reconciling recognized revenue, refunds, active subscriptions, and net receipts across
   Stripe and future store providers from the verified $0 baseline.
 - Validate Professional and Enterprise packaging against the jobs users actually complete.
@@ -179,20 +179,20 @@ provider, privacy, cost, or security gate is incomplete.
   click-through improvement without platform impression data.
 - **Monetization reconciliation:** the live Stripe account contains five intended active products,
   no transactions, no active subscriptions, no paid customer, and $0 gross volume/balance. The
-  Professional price ID matches the production fallback. Both configured webhook destinations use
-  the apex host, return HTTP 307 to `www`, and therefore fail Stripe's direct-delivery requirement;
-  their zero-delivery dashboards do not prove health.
+  Professional price ID matches the production fallback. Both live webhook destinations now use
+  direct `www` handlers and returned 200 to signed harmless replays. Their original three-event and
+  one-event scopes are restored; no price, product, customer, tax setting, payment, or secret changed.
 - **Product experience direction:** prepare a staged, owner-approved reorganization around Ask,
   Projects, Create, Library, and You before final native-store screenshots. Preserve existing data,
   routes, and working capabilities; validate the task flow before any major architecture change.
 - **Risk:** a real sandbox run has not verified production OIDC/runtime behavior.
 - **Permission needed:** a sub-cent Vercel sandbox smoke test and the exact premium-voice disclosure.
-- **Permission needed:** change both live Stripe webhook destinations to their direct canonical
-  `https://www.askcrump.com/...` URLs and send signed test deliveries before the first checkout.
+- **Completed payment gate:** owner-approved direct-host edits and signed delivery tests passed on
+  production 5.9.27; observe and reconcile the first real checkout rather than broadening scope.
 - **External input needed:** an ElevenLabs production API key and voice ID with confirmed rights.
 - **Next evidence:** submit the sitemap after owner confirmation, then obtain the first legitimate
   post-instrumentation acquisition, durable-value, return, and artifact-journey observations.
-- **Native distribution:** Android 5.9.26/build 50926 source and an unsigned `.aab` pass the hosted
-  API 36/Java 21 release audit; the generated iOS 5.9.26 Release configuration passes its hosted
+- **Native distribution:** Android 5.9.27/build 50927 source and an unsigned `.aab` pass the hosted
+  API 36/Java 21 release audit; the generated iOS 5.9.27 Release configuration passes its hosted
   macOS compile. Owner-controlled developer accounts, signing, push, native billing, reviewer access,
   signed-device tests, screenshots, declarations, and final submission approval remain open.

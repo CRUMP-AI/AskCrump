@@ -25,7 +25,7 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 | Truthful organic discovery | Commit `150ced2`; deployment `dpl_HUbcyLdLFdh7SVpqF3S99XL3caMo`; production 5.9.23 adds unique, crawlable presentation and document workflow pages, homepage/cross-page links, canonical metadata, valid JSON-LD, and a four-URL sitemap. Known search referrers collapse to `organic` without retaining the referrer URL or query, and internal CTA placements cannot overwrite acquisition. All 290 backend tests, 40 JavaScript validations, production/native bundle checks, CI run `33116981568`, Android run `33116981449`, iOS run `33116981462`, clean-URL HTTP checks, desktop/mobile browser checks, and the deployment-scoped error/fatal scan passed. | Verified |
 | Truthful referral delivery | Commit `a7f3482`; deployment `dpl_2zxpBU85E3uJkygbmmjquhq4fVQJ`; production 5.9.24 keeps the post-useful-result invitation content-free and carries only aggregate `referral` acquisition plus `response-share` placement into registration. The registration server preserves `referral` on `AccountCreated`. Denied clipboard access can no longer display a false success or record `ResponseShared`; an executable browser-script contract proves failed copy records zero events while a verified fallback records exactly one. All 291 backend tests, 40 JavaScript validations, production/native/store checks, CI run `33119777886`, Android run `33119777893`, iOS run `33119777888`, live route/version checks, and the deployment-scoped error/fatal scan passed. A legitimate referred account and activated outcome have not yet been observed. | Verified delivery; outcome pending |
 | Measurable social previews | Commit `6d2c24f`; deployment `dpl_CZih5NeHk8JjDp1tukrLZPCXhioD`; production 5.9.25 gives the home, presentation, and document pages distinct 1,200-by-630 social cards composed from the canonical mark, with large-card metadata and truthful page-specific copy. The generator is deterministic on the verified release machine; automated tests validate PNG format, dimensions, color mode, and per-page references. All 292 backend tests, 40 JavaScript validations, production/native/store checks, CI run `33123220073`, Android run `33123220055`, iOS run `33123220046`, six live route/asset checks, and the deployment-scoped warning/error/fatal/5xx scan passed. Socially attributed signup outcome remains unproven. | Verified delivery; outcome pending |
-| Direct canonical native/payment host | Commit `a9b5a1d`; deployment `dpl_7LNkJoyLrHrJ3pA13ufrz4tfZ1b1`; production 5.9.26 removes the redirecting apex host from every native API default and from payment/deployment instructions. A regression contract rejects the old default. All 293 backend tests, 40 JavaScript validations, production/native/store checks, CI run `33124724449`, Android run `33124724445`, and iOS run `33124724453` passed. Live health and five public runtime checks returned 200, the generated runtime contains the direct host, and the deployment had no runtime error cluster or non-200 function response. The owner-controlled Stripe Dashboard URLs still require approval and signed test delivery. | Source correction verified; external configuration pending |
+| Direct canonical native/payment host | Source correction shipped in 5.9.26. With owner approval, both live Stripe destinations were then changed to their direct `https://www.askcrump.com/...` handlers without rotating secrets or widening their permanent event allowlists. A signed subscription replay returned 200. The first signed credits replay exposed a deployed plural environment-key alias; commit `4dfed9b` added a backward-compatible, precedence-tested alias without exposing or rotating the secret. Deployment `dpl_H5Dn15BVY5rzh5G6azq36eKiTXb3` is `READY` on production 5.9.27, a final signed credits replay returned 200, and the temporary harmless test event was removed. All 295 backend tests, 40 JavaScript validations, production/native/store checks, CI run `33126121600`, Android run `33126121646`, and iOS run `33126121595` passed. Production health returned 5.9.27, the payment routes had no runtime error cluster, and the deployment log breakdown contained only 200/302 responses. | Verified end to end |
 
 ### Current production reliability checkpoint
 
@@ -38,37 +38,33 @@ and comparable user observation remain the next operating constraint.
 
 ### Current monetization checkpoint
 
-A read-only live Stripe reconciliation on 2026-08-27 found five active catalog products and no
-transactions, active subscriptions, paid customers, gross volume, or balance. The single customer
-record is the internal owner account with $0 spend. The Professional live price ID matches the
-production fallback. Both registered webhook destinations are active but have received no live
-deliveries, so their displayed zero-percent error rate is not delivery evidence.
-
-Fresh unsigned POST probes show that both registered apex-host destinations return HTTP 307 to the
-equivalent `www` URL. Direct probes of both `www` routes reach Ask Crump and return HTTP 400 for the
-intentionally missing signature. Stripe's official webhook guidance classifies 3xx responses as
-failed deliveries and instructs operators to register the resolved URL. No Stripe Dashboard
-setting, price, product, customer, or payment was changed during the audit.
+A live Stripe reconciliation on 2026-08-27 found five active catalog products and no transactions,
+active subscriptions, paid customers, gross volume, or balance. The single customer record is the
+internal owner account with $0 spend. The Professional live price ID matches the production
+fallback. With owner approval, both webhook destinations now use direct `www` URLs, preserve their
+descriptions, API version, signing secrets, and original narrow event scopes, and have returned 200
+to signed harmless replays. No price, product, customer, tax setting, payment, or secret was changed.
 
 ## Ranked execution backlog
 
-### P0 — Repair live Stripe webhook delivery before the first payment
+### Completed P0 — Repair live Stripe webhook delivery before the first payment
 
-**Evidence:** Stripe is configured to send subscription events to
-`https://askcrump.com/api/stripe/webhook` and credit-purchase completion to
-`https://askcrump.com/api/billing/credits/stripe-webhook`. Both return HTTP 307. Their direct
-`https://www.askcrump.com/...` forms reach signature verification. With zero historical deliveries,
-the Dashboard cannot demonstrate that subscription entitlement or durable credit recovery works.
+**Evidence:** Stripe now sends subscription events directly to
+`https://www.askcrump.com/api/stripe/webhook` and credit-purchase completion directly to
+`https://www.askcrump.com/api/billing/credits/stripe-webhook`. Signed harmless event replays returned
+200 from both destinations. The credits replay also proved the 5.9.27 environment-key compatibility
+fix against production without rotating or displaying the signing secret.
 
-**Outcome:** register both direct canonical `www` destinations, preserve their current narrow event
-allowlists and signing secrets, and prove signed test delivery reaches the correct handler. Verify
-subscription reconciliation and exactly-once credit grants in Stripe test mode before accepting a
-real payment.
+**Outcome:** both direct canonical destinations are active with their original narrow allowlists:
+three subscription events and one credit-completion event. The replayed event was an expired Checkout
+Session, so neither handler performed a subscription or credit mutation. Exactly-once credit-grant
+behavior remains covered by the automated handler suite and should be observed on the first real
+credit purchase.
 
-**Release gate:** owner approval for the live payment-infrastructure edit; before/after destination
-evidence; signed Stripe test deliveries returning 2xx; no new production warning/error/fatal/5xx
-cluster; and a documented rollback to the prior URLs. Do not treat an unsigned HTTP 400 probe as a
-successful webhook test.
+**Release gate:** passed with owner approval, before/after destination evidence, signed 200 responses,
+restored allowlists, production 5.9.27 health, no route error cluster, and successful CI/Android/iOS
+verification. Rollback is to restore the prior apex URLs, although Stripe would again classify their
+307 redirects as failed delivery.
 
 ### P0 — Convert useful answers into continuing Project work
 
@@ -254,9 +250,9 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
-Obtain owner approval to repair and signed-test both live Stripe webhook destinations before the
-first payment. Submit the live canonical sitemap after owner confirmation, allow the social-preview
-experiment to reach its minimum observation window, then obtain the first consented
+Observe the first real checkout and reconcile Stripe with Ask Crump entitlement/credit state.
+Submit the live canonical sitemap after owner confirmation, allow the social-preview experiment to
+reach its minimum observation window, then obtain the first consented
 post-instrumentation account, durable-value, return, referral, and artifact-journey observations.
 Do not rewrite the signup flow from anonymous seven-day aggregates that cross the measurement
 boundary; diagnose the next real post-boundary attempt instead. Keep both new provider foundations
