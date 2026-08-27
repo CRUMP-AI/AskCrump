@@ -21,6 +21,7 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 | Crump Code private foundation | Owner-scoped task, event, and approval tables are live with client roles denied; the server-role privilege repair leaves audit events append-only and approvals non-deletable; the runner uses an ephemeral 2-vCPU/4-GB, deny-all, no-secret sandbox and returns patches without pushing source. Public feature flag remains off pending a real sandbox smoke test, UI, and benchmark. | Staged, disabled |
 | Crump Voice private foundation | Explicit signed-in playback route, Professional entitlement, rate/character/audio limits, provider-failure refund, server-held ElevenLabs key, non-cacheable ephemeral MP3 response, and device-speech fallback are implemented. Public feature flag remains off pending approved disclosure, credentials/voice rights, and smoke tests. | Staged, disabled |
 | Private conversation-to-Project continuity | Commit `edfd7d2`; useful-result UI prioritizes keeping work before referral; the server synchronizes and ownership-checks the chat, attaches idempotently to the selected/new Project, and records only a content-free Project milestone. All 284 tests, backend checks, 40 JavaScript validations, production preflight, and native web-bundle build passed. Production 5.9.20 health returned HTTP 200, both client assets were live, the new route returned 401 without authentication, and the initial runtime-error scan was clean. | Verified |
+| Comparable growth-cohort boundary | Supabase migration `product_growth_measurement_boundary`; live first-event evidence fixes the lower bound at `2026-08-23 09:10:55.602863+00`; the 30-day report now returns 18 metrics and zero comparable external accounts instead of misclassifying three historical accounts. The function remains security invoker, `anon`/`authenticated` execution is denied, `service_role` execution succeeds, and post-change advisors reported no errors or warnings. | Verified |
 
 ## Ranked execution backlog
 
@@ -90,15 +91,16 @@ any acquisition spend scales.
 
 ### P1 — Close the organic acquisition loop
 
-**Evidence:** the Search Console domain property and DNS verification record were created, but
-verification and sitemap submission still depend on DNS propagation.
+**Evidence:** the Search Console domain property is verified through the live DNS TXT record, and
+Google is processing the property's first search and indexing data. The canonical sitemap is entered
+and ready for final owner-confirmed submission.
 
 **Outcome:** verified domain ownership, one canonical sitemap submitted, valid canonical URLs,
 and indexed landing pages tied to privacy-safe account-creation attribution.
 
-**Release gate:** Search Console verification succeeds, `https://www.askcrump.com/sitemap.xml`
-is accepted, canonical inspection is clean, and indexed-page coverage is reviewed after Google
-has had time to crawl.
+**Release gate:** Search Console verification passed. Remaining gates are acceptance of
+`https://www.askcrump.com/sitemap.xml`, clean canonical inspection, and indexed-page coverage review
+after Google has had time to crawl.
 
 ### P1 — Observe the new activation and referral funnel before scaling spend
 
@@ -126,7 +128,7 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
-Ship and verify conversation-to-Project continuity, then obtain the first consented
+Submit the staged canonical sitemap after owner confirmation, then obtain the first consented
 post-instrumentation durable-value, return, and artifact-journey observations. Keep both new provider
 foundations off. Do not enable Crump Code until the real sandbox/OIDC test, review UI, monitoring,
 and benchmark gates pass. Do not enable Crump Voice until its disclosure, key, voice rights, and

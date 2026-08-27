@@ -1,5 +1,28 @@
 # Changelog
 
+## 5.9.21 — 2026-08-27
+
+### Trustworthy growth measurement
+
+- Established the first observed production product-event timestamp as the lower bound for
+  comparable funnel cohorts, so historical accounts are no longer shown as zero-event activation
+  failures merely because they used Ask Crump before the complete instrumentation sequence was
+  observable.
+- Preserved the service-role-only, aggregate-only report contract: the function remains security
+  invoker, browser roles cannot execute it, and it returns no account identifier or customer content.
+- Verified the live report returns all 18 metrics with zero comparable external accounts, while the
+  separate historical aggregate continues to show three earlier accounts and 14 successful AI jobs.
+
+### Organic acquisition
+
+- Completed Google Search Console domain ownership verification for `askcrump.com` using the live
+  DNS TXT record. Google is now processing the property's first search and indexing data.
+
+### Release
+
+- Advanced the application to 5.9.21 and the service-worker cache to revision 55 so release metadata
+  and the corrected operating evidence stay aligned.
+
 ## 5.9.20 — 2026-08-27
 
 ### Continuing-work activation

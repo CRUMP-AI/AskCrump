@@ -53,18 +53,19 @@ D1, D7, and D30. Preview rows are kept out of business reporting.
 No acquisition spend should increase until production data can distinguish: account created,
 workspace opened, starter intent reached, activated, durable value reached, paid intent reached,
 checkout opened, and checkout completed.
-The first comparable cohort begins only after the complete 5.8.2+ event sequence is observable in
-production traffic. Historical account behavior is not silently reconstructed from conversation or
-file content. Account/job/file/Project aggregates may be used to diagnose historical product use,
-but they must be labeled separately from event-based cohort rates and never converted into synthetic
-events.
+The first comparable cohort begins at `2026-08-23 09:10:55.602863+00`, the first observed production
+product-event timestamp. Migration `20260827180833_product_growth_measurement_boundary.sql` enforces
+that lower bound even when an operator requests an earlier reporting window. Historical account
+behavior is not silently reconstructed from conversation or file content. Account/job/file/Project
+aggregates may be used to diagnose historical product use, but they must be labeled separately from
+event-based cohort rates and never converted into synthetic events.
 
 ## Service-role growth snapshot
 
-Migration `20260824234612_recent_work_resumed.sql` installs the current version of
+Migration `20260827180833_product_growth_measurement_boundary.sql` installs the current version of
 `product_growth_funnel_snapshot`, a service-role-only aggregate report for a half-open
-account-creation window. It returns ordered counts, eligible populations, and conversion
-rates for:
+account-creation window bounded by the first observed production event. It returns ordered counts,
+eligible populations, and conversion rates for:
 
 - accounts created and matching `AccountCreated` event coverage;
 - current verification and onboarding;

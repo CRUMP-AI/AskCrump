@@ -507,6 +507,28 @@ def test_recent_work_migration_is_private_content_free_and_reported_once():
     assert "p_filename" not in normalized
 
 
+def test_growth_snapshot_excludes_pre_instrumentation_accounts_from_comparable_cohorts():
+    migration = (
+        ROOT / "migrations" / "20260827180833_product_growth_measurement_boundary.sql"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(migration.lower().split())
+    return_contract = normalized[
+        normalized.index("returns table") : normalized.index("language plpgsql")
+    ]
+
+    assert "greatest( p_since, timestamptz '2026-08-23 09:10:55.602863+00' )" in normalized
+    assert "first observed production event boundary" in normalized
+    assert "security invoker" in normalized
+    assert "security definer" not in normalized
+    assert "set search_path = ''" in normalized
+    assert "from public, anon, authenticated" in normalized
+    assert "to service_role" in normalized
+    assert "user_id" not in return_contract
+    assert "email" not in return_contract
+    assert "prompt" not in return_contract
+    assert "filename" not in return_contract
+
+
 def test_artifact_journey_migration_is_private_aggregate_and_content_free():
     migration = (
         ROOT / "migrations" / "20260827050550_artifact_journey.sql"

@@ -132,6 +132,12 @@ provider, privacy, cost, or security gate is incomplete.
   continuity before referral sharing, with ownership checks and content-free measurement.
 - **Measurement boundary:** do not interpret pre-instrumentation zero-event rows as zero historical
   use, and do not create synthetic events to backfill them.
+- **Measurement repair:** the live service-role report now excludes accounts created before the
+  first observed production event (`2026-08-23 09:10:55.602863+00`) from comparable funnel and
+  retention cohorts while preserving historical aggregates separately.
+- **Organic acquisition:** Google Search Console ownership for `askcrump.com` is verified and the
+  property is processing its first data; the canonical sitemap is staged for owner-confirmed
+  submission.
 - **Shipped foundation:** server-only Crump Code task schema and sandbox runner; disabled publicly.
 - **Shipped foundation:** server-only ElevenLabs voice path with device-speech fallback; disabled
   until disclosure, credentials, and smoke tests are approved.
