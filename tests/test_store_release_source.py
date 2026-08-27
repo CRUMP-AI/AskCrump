@@ -46,6 +46,8 @@ def test_ios_cloud_verification_cannot_sign_or_upload():
     assert 'npm run store:prepare:ios' in workflow
     assert 'CODE_SIGNING_ALLOWED=NO' in workflow
     assert 'CODE_SIGNING_REQUIRED=NO' in workflow
+    assert 'ios/App/App.xcworkspace' in workflow
+    assert 'ios/App/App.xcodeproj' in workflow
     assert 'secrets.' not in workflow
     assert 'upload-app' not in workflow
     assert 'upload-testflight' not in workflow

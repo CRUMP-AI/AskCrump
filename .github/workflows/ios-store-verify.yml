@@ -46,8 +46,16 @@ jobs:
         run: npm run store:signing:check
       - name: Compile without signing or upload
         run: |
+          if [[ -d ios/App/App.xcworkspace ]]; then
+            container=(-workspace ios/App/App.xcworkspace)
+          elif [[ -d ios/App/App.xcodeproj ]]; then
+            container=(-project ios/App/App.xcodeproj)
+          else
+            echo 'Generated iOS project/workspace was not found.' >&2
+            exit 1
+          fi
           xcodebuild \
-            -workspace ios/App/App.xcworkspace \
+            "${container[@]}" \
             -scheme App \
             -configuration Release \
             -destination 'generic/platform=iOS' \
