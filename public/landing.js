@@ -6,6 +6,10 @@
   };
 
   const ACQUISITION_KEY = 'askcrump.acquisition-source';
+  const LEGACY_ACQUISITION_SOURCES = new Set([
+    'instagram', 'facebook', 'facebook-pinned', 'linkedin', 'tiktok',
+    'youtube', 'x', 'referral', 'organic', 'clevercrump',
+  ]);
 
   function safeSource(value, fallback = '') {
     const normalized = String(value || '').trim().toLowerCase();
@@ -17,6 +21,17 @@
     try {
       const host = new URL(document.referrer).hostname.toLowerCase();
       if (host === location.hostname || host.endsWith('.askcrump.com')) return 'direct';
+      const searchHosts = [
+        'bing.com',
+        'duckduckgo.com',
+        'search.yahoo.com',
+        'ecosia.org',
+        'search.brave.com',
+      ];
+      if (
+        /(^|\.)google\.[a-z.]+$/.test(host)
+        || searchHosts.some(domain => host === domain || host.endsWith(`.${domain}`))
+      ) return 'organic';
       const sources = [
         ['instagram.com', 'instagram'],
         ['facebook.com', 'facebook'],
@@ -37,12 +52,12 @@
 
   function acquisitionSource() {
     const params = new URLSearchParams(location.search);
-    const explicit = safeSource(
-      params.get('utm_source') || params.get('acquisition') || params.get('source'),
-    );
-    if (explicit) {
-      try { sessionStorage.setItem(ACQUISITION_KEY, explicit); } catch (_) {}
-      return explicit;
+    const explicit = safeSource(params.get('utm_source') || params.get('acquisition'));
+    const legacySource = safeSource(params.get('source'));
+    const source = explicit || (LEGACY_ACQUISITION_SOURCES.has(legacySource) ? legacySource : '');
+    if (source) {
+      try { sessionStorage.setItem(ACQUISITION_KEY, source); } catch (_) {}
+      return source;
     }
     try {
       const stored = safeSource(sessionStorage.getItem(ACQUISITION_KEY));

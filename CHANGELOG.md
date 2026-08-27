@@ -1,5 +1,28 @@
 # Changelog
 
+## 5.9.23 — 2026-08-27
+
+### Truthful organic discovery
+
+- Added dedicated, crawlable AI presentation-maker and AI document-generator pages for people
+  already searching for editable PowerPoint, Word, and PDF workflows.
+- Gave both pages unique titles, descriptions, canonical URLs, social metadata, valid structured
+  data, useful workflow guidance, and explicit human-review requirements without parity, perfection,
+  or publication-readiness claims.
+- Linked the new pages from the homepage and from each other, and added their clean canonical URLs
+  to the sitemap with accurate change dates.
+- Reduced known search-engine referrers to the privacy-safe acquisition label `organic`; no search
+  query, referrer URL, page content, or user identifier is stored. On-site CTA labels remain
+  placement data and cannot overwrite first-touch acquisition.
+
+### Measurement and release
+
+- Refreshed the protected production growth and artifact-journey reports before choosing the work.
+  Both returned the valid zero-traffic baseline for the comparable external cohort, making
+  acquisition—not a speculative activation redesign—the current evidence-backed bottleneck.
+- Advanced the application to 5.9.23 and the service-worker cache to revision 57 so installed and
+  web clients receive the changed marketing attribution contract together.
+
 ## 5.9.22 — 2026-08-27
 
 ### One-click continuing work

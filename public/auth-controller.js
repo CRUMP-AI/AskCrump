@@ -10,7 +10,7 @@
   const PAID_PLAN_INTENTS = new Set(['professional', 'enterprise']);
   const LEGACY_ACQUISITION_SOURCES = new Set([
     'instagram', 'facebook', 'facebook-pinned', 'linkedin', 'tiktok',
-    'youtube', 'x', 'referral', 'clevercrump',
+    'youtube', 'x', 'referral', 'organic', 'clevercrump',
   ]);
 
   window.va = window.va || function queueVercelAnalytics() {

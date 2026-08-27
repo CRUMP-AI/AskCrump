@@ -1,3 +1,6 @@
+import json
+import re
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
@@ -6,6 +9,16 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
+
+
+def read_json_ld(page: str) -> dict:
+    blocks = re.findall(
+        r'<script type="application/ld\+json">\s*(.*?)\s*</script>',
+        page,
+        flags=re.DOTALL,
+    )
+    assert len(blocks) == 1
+    return json.loads(blocks[0])
 
 
 def test_marketing_page_exposes_a_clear_free_to_paid_path():
@@ -27,7 +40,7 @@ def test_marketing_ctas_are_first_party_analytics_events():
     script = read("public/landing.js")
 
     assert '/_vercel/insights/script.js' in page
-    assert '<script defer src="/landing.js?v=5.9.22"></script>' in page
+    assert '<script defer src="/landing.js?v=5.9.23"></script>' in page
     assert "window.vaq" in script
     assert "MarketingCTA" in script
     assert "link.dataset.cta" in script
@@ -49,6 +62,20 @@ def test_marketing_ctas_are_first_party_analytics_events():
     assert 'href="https://askcrump.com/app' not in page
 
 
+def test_known_search_referrers_are_privacy_minimized_as_organic():
+    script = read("public/landing.js")
+    controller = read("public/auth-controller.js")
+
+    assert "'organic'" in script
+    assert "google\\.[a-z.]+" in script
+    for host in ("bing.com", "duckduckgo.com", "search.yahoo.com", "ecosia.org", "search.brave.com"):
+        assert host in script
+    assert "return 'organic'" in script
+    assert "LEGACY_ACQUISITION_SOURCES.has(legacySource)" in script
+    assert "'organic'" in controller
+    assert "referrer URL" not in script
+
+
 def test_public_marketing_surface_is_indexable_while_the_private_app_is_not():
     page = read("public/index.html")
     app = read("public/app.html")
@@ -66,7 +93,71 @@ def test_public_marketing_surface_is_indexable_while_the_private_app_is_not():
     assert '<a href="/legal">Legal & Privacy</a>' in page
     assert "<loc>https://www.askcrump.com/legal</loc>" in sitemap
     assert "<loc>https://www.askcrump.com/legal.html</loc>" not in sitemap
-    assert sitemap.count("<lastmod>2026-08-24</lastmod>") == 2
+    assert "<loc>https://www.askcrump.com/ai-presentation-maker</loc>" in sitemap
+    assert "<loc>https://www.askcrump.com/ai-document-generator</loc>" in sitemap
+    assert sitemap.count("<lastmod>2026-08-27</lastmod>") == 3
+    assert sitemap.count("<lastmod>2026-08-24</lastmod>") == 1
+
+    namespace = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+    parsed = ET.fromstring(sitemap)
+    urls = {
+        entry.findtext("sm:loc", namespaces=namespace): entry.findtext("sm:lastmod", namespaces=namespace)
+        for entry in parsed.findall("sm:url", namespace)
+    }
+    assert urls == {
+        "https://www.askcrump.com/": "2026-08-27",
+        "https://www.askcrump.com/ai-presentation-maker": "2026-08-27",
+        "https://www.askcrump.com/ai-document-generator": "2026-08-27",
+        "https://www.askcrump.com/legal": "2026-08-24",
+    }
+
+
+def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
+    home = read("public/index.html")
+    presentation = read("public/ai-presentation-maker.html")
+    document = read("public/ai-document-generator.html")
+
+    assert 'id="use-cases"' in home
+    assert 'data-explore="presentation-page"' in home
+    assert 'data-explore="document-page"' in home
+    assert 'href="/ai-presentation-maker"' in home
+    assert 'href="/ai-document-generator"' in home
+
+    expectations = (
+        (presentation, "AI Presentation Maker for Editable PowerPoint", "ai-presentation-maker", "presentation-hero", ".pptx"),
+        (document, "AI Document Generator for Word and PDF", "ai-document-generator", "document-hero", ".docx"),
+    )
+    titles = set()
+    descriptions = set()
+    for page, title, slug, source, file_type in expectations:
+        assert f"<title>{title} | Ask Crump</title>" in page
+        assert f'<link rel="canonical" href="https://www.askcrump.com/{slug}">' in page
+        assert f'<meta property="og:url" content="https://www.askcrump.com/{slug}">' in page
+        assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
+        assert '<script defer src="/landing.js?v=5.9.23"></script>' in page
+        assert '/_vercel/insights/script.js' in page
+        assert f'source={source}' in page
+        assert page.count('data-cta="') >= 4
+        assert file_type in page
+        assert "review" in page.lower()
+        assert "acquisition=organic" not in page
+
+        title_match = re.search(r"<title>(.*?)</title>", page)
+        description_match = re.search(r'<meta name="description" content="([^"]+)">', page)
+        assert title_match and description_match
+        titles.add(title_match.group(1))
+        descriptions.add(description_match.group(1))
+
+        structured_data = read_json_ld(page)
+        assert structured_data["@context"] == "https://schema.org"
+        graph = structured_data["@graph"]
+        assert graph[0]["@type"] == "WebPage"
+        assert graph[0]["url"] == f"https://www.askcrump.com/{slug}"
+        assert graph[1]["@type"] == "SoftwareApplication"
+        assert graph[1]["offers"]["price"] == "0"
+
+    assert len(titles) == 2
+    assert len(descriptions) == 2
 
 
 def test_signup_deep_link_opens_registration_and_tracks_the_funnel():
@@ -136,10 +227,10 @@ def test_release_version_and_cache_advance_together():
     backend = read("backend/version.py")
     worker = read("public/sw.js")
 
-    assert '"version": "5.9.22"' in package
-    assert "__version__ = '5.9.22'" in backend
-    assert "ask-crump-new-body-v1-r56" in worker
-    assert "/landing.js?v=5.9.22" in worker
+    assert '"version": "5.9.23"' in package
+    assert "__version__ = '5.9.23'" in backend
+    assert "ask-crump-new-body-v1-r57" in worker
+    assert "/landing.js?v=5.9.23" in worker
 
 
 def test_changed_activation_assets_are_release_versioned():
@@ -147,10 +238,10 @@ def test_changed_activation_assets_are_release_versioned():
     worker = read("public/sw.js")
 
     for asset in (
-        "/conversation.css?v=5.9.22",
-        "/ui-functions.js?v=5.9.22",
-        "/product-analytics.js?v=5.9.22",
-        "/app.js?v=5.9.22",
+        "/conversation.css?v=5.9.23",
+        "/ui-functions.js?v=5.9.23",
+        "/product-analytics.js?v=5.9.23",
+        "/app.js?v=5.9.23",
     ):
         assert asset in shell
         assert asset in worker
