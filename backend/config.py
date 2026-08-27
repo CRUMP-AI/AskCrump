@@ -59,6 +59,14 @@ class Settings:
     image_generation_enabled: bool
     video_generation_enabled: bool
     manuscript_generation_enabled: bool
+    code_workspace_enabled: bool
+    code_max_duration_seconds: int
+    code_max_agent_steps: int
+    elevenlabs_api_key: str | None
+    elevenlabs_voice_id: str
+    elevenlabs_model_id: str
+    elevenlabs_max_chars: int
+    voice_generation_enabled: bool
     max_active_video_jobs_per_user: int
     max_generated_video_bytes: int
     video_daily_provider_budget_cents: int
@@ -144,6 +152,16 @@ class Settings:
             raise RuntimeError('APNS_ENVIRONMENT must be production or sandbox.')
         if not 1 <= self.check_in_batch_size <= 100:
             raise RuntimeError('CHECK_IN_BATCH_SIZE must be between 1 and 100.')
+        if not 30 <= self.code_max_duration_seconds <= 240:
+            raise RuntimeError('CODE_MAX_DURATION_SECONDS must be between 30 and 240.')
+        if not 1 <= self.code_max_agent_steps <= 12:
+            raise RuntimeError('CODE_MAX_AGENT_STEPS must be between 1 and 12.')
+        if not 200 <= self.elevenlabs_max_chars <= 5000:
+            raise RuntimeError('ELEVENLABS_MAX_CHARS must be between 200 and 5000.')
+        if self.elevenlabs_model_id not in {
+            'eleven_flash_v2_5', 'eleven_multilingual_v2', 'eleven_v3',
+        }:
+            raise RuntimeError('ELEVENLABS_MODEL_ID is not an approved model.')
         if not 1 <= self.max_active_video_jobs_per_user <= 3:
             raise RuntimeError('MAX_ACTIVE_VIDEO_JOBS_PER_USER must be between 1 and 3.')
         if not 5 * 1024 * 1024 <= self.max_generated_video_bytes <= 100 * 1024 * 1024:
@@ -214,6 +232,18 @@ def get_settings() -> Settings:
         # explicitly set this false as an emergency cost/safety switch.
         video_generation_enabled=_bool(os.getenv('CRUMP_ENABLE_VIDEO_GENERATION'), True),
         manuscript_generation_enabled=_bool(os.getenv('CRUMP_ENABLE_MANUSCRIPTS'), True),
+        # Crump Code is an explicit release gate because each run combines a
+        # paid coding model with isolated Vercel Sandbox compute.
+        code_workspace_enabled=_bool(os.getenv('CRUMP_ENABLE_CODE_WORKSPACE'), False),
+        code_max_duration_seconds=int(os.getenv('CODE_MAX_DURATION_SECONDS', '180')),
+        code_max_agent_steps=int(os.getenv('CODE_MAX_AGENT_STEPS', '8')),
+        # ElevenLabs is opt-in and server-side only. A voice ID is required so
+        # releases never silently switch a customer's voice identity.
+        elevenlabs_api_key=os.getenv('ELEVENLABS_API_KEY'),
+        elevenlabs_voice_id=os.getenv('ELEVENLABS_VOICE_ID', '').strip(),
+        elevenlabs_model_id=os.getenv('ELEVENLABS_MODEL_ID', 'eleven_flash_v2_5').strip(),
+        elevenlabs_max_chars=int(os.getenv('ELEVENLABS_MAX_CHARS', '4000')),
+        voice_generation_enabled=_bool(os.getenv('CRUMP_ENABLE_PREMIUM_VOICE'), False),
         max_active_video_jobs_per_user=int(os.getenv('MAX_ACTIVE_VIDEO_JOBS_PER_USER', '1')),
         max_generated_video_bytes=int(os.getenv('MAX_GENERATED_VIDEO_BYTES', str(45 * 1024 * 1024))),
         # Early-launch circuit breakers. These are provider-cost estimates, not

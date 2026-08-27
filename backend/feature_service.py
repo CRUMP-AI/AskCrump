@@ -139,6 +139,22 @@ POLICIES: dict[str, FeaturePolicy] = {
         {"free": -1, "professional": -1, "enterprise": -1},
         None,
     ),
+    "code_workspace": FeaturePolicy(
+        "code_workspace",
+        "Crump Code",
+        "professional",
+        12,
+        {"free": 0, "professional": 3, "enterprise": 10},
+        "ANTHROPIC_API_KEY",
+    ),
+    "premium_voice": FeaturePolicy(
+        "premium_voice",
+        "Crump Voice",
+        "professional",
+        2,
+        {"free": 0, "professional": 10, "enterprise": 30},
+        "ELEVENLABS_API_KEY",
+    ),
 }
 
 PROJECT_LIMITS = {"free": 2, "professional": 25, "enterprise": 200}

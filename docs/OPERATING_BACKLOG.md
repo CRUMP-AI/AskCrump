@@ -18,6 +18,8 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 | Conversational document delivery | Commit `c4ef9ee`; explicit follow-up delivery requests cannot be downgraded to clarification; targeted regressions pass; the fix is present in every current production build; no `/api/chat` runtime error cluster was reported in the seven-day production scan on 2026-08-27. | Verified |
 | Professional presentation exports | Commit `b98d82a`; dark/light editorial rhythm, executive layouts, improved tables, native editable charts, and strict OOXML chart compatibility; full backend suite, JavaScript validation, production preflight, native build, and a ten-slide render review passed; production health returned HTTP 200 after deployment. | Verified |
 | Private artifact journey telemetry | Commit `f497ab0`; entitled request, successful packaging, packaging failure, and first-download events are server-authoritative and content-free; Supabase migration `artifact_journey` is recorded; anonymous and authenticated roles cannot execute the aggregate report while `service_role` can; 265 backend tests, JavaScript validation, production preflight, production health, and post-deploy runtime checks passed. | Verified |
+| Crump Code private foundation | Owner-scoped task, event, and approval tables are live with client roles denied; the server-role privilege repair leaves audit events append-only and approvals non-deletable; the runner uses an ephemeral 2-vCPU/4-GB, deny-all, no-secret sandbox and returns patches without pushing source. Public feature flag remains off pending a real sandbox smoke test, UI, and benchmark. | Staged, disabled |
+| Crump Voice private foundation | Explicit signed-in playback route, Professional entitlement, rate/character/audio limits, provider-failure refund, server-held ElevenLabs key, non-cacheable ephemeral MP3 response, and device-speech fallback are implemented. Public feature flag remains off pending approved disclosure, credentials/voice rights, and smoke tests. | Staged, disabled |
 
 ## Ranked execution backlog
 
@@ -35,21 +37,35 @@ prompts, responses, filenames, URLs, customer data, or arbitrary error text.
 packaged, packaging-failed, and downloaded counts. Treat a small first sample as operational
 evidence, not a statistically reliable conversion benchmark.
 
-### P0 — Build the safe foundation for Crump Code
+### P0 — Complete the Crump Code activation gates
 
-**Evidence:** Projects already retain instructions and files, but the product has no isolated
-code-execution service, repository workspace, terminal tool contract, patch review flow, or
-coding-agent API. A chat shortcut that says “Help me with code” is not an agentic coding product.
+**Evidence:** The server and private schema now provide public-repository task creation, bounded
+tool use, isolated execution, patch generation, verification, state transitions, cancellation,
+and approval records. The code is disabled, has no customer UI, and has not completed a real
+production sandbox run.
 
-**Outcome:** a project-scoped coding workspace with a file tree, read/search tools, patch-based
-edits, test execution, diffs, durable task history, and explicit approval for destructive or
-external actions. Execution must occur in an isolated, resource-limited runtime with no ambient
-production credentials and with auditable tool calls.
+**Outcome:** complete a human-visible workspace, diff and verification experience, prove the live
+runtime boundary, add durable orchestration for longer work, and measure quality against a fixed
+benchmark before any parity positioning.
 
-**Release gate:** threat model, sandbox boundary tests, path traversal and command-injection
-coverage, cancellation/time limits, redacted logs, human-visible diffs, rollback behavior, and
+**Release gate:** approved sub-cent sandbox smoke test, production OIDC verification, cancellation
+and expiry tests, human-visible cost/diff/approval UI, failure monitoring, rollback exercise, and
 an end-to-end benchmark suite. Do not advertise Codex or Claude Code parity until measured tasks
 show comparable completion quality and safety.
+
+### P0 — Prove the first activated user journey
+
+**Evidence:** the 30-day external cohort contains three accounts and two verified accounts, but no
+onboarding, workspace-open, starter-intent, activation, durable-value, return, share, checkout, or
+paid events. D1 is 0/3 and D7 is 0/2; the sample is directional, not statistically reliable.
+
+**Outcome:** observe legitimate users complete account verification, start useful work, receive a
+durable result, and return. Use moderated sessions to identify telemetry gaps separately from real
+usability failures.
+
+**Release gate:** at least three consented end-to-end observations, content-free event
+reconciliation, one shipped fix for the largest verified failure, and a new cohort review before
+any acquisition spend scales.
 
 ### P1 — Close the organic acquisition loop
 
@@ -89,6 +105,7 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
-Observe the first real artifact-journey traffic while defining the Crump Code sandbox boundary.
-Do not expose an execution endpoint until the isolation, credential, filesystem, networking,
-resource, approval, audit, cancellation, and rollback contracts are explicit and testable.
+Deploy the new provider foundations with both public flags off, verify production health, and then
+obtain the first consented activated-user and artifact-journey observations. Do not enable Crump
+Code until the real sandbox/OIDC test, review UI, monitoring, and benchmark gates pass. Do not
+enable Crump Voice until its disclosure, key, voice rights, and playback tests are approved.

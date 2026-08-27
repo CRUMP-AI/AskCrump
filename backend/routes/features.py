@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 
 from ..auth_service import authenticate_request
-from ..runtime import db, features, settings, video
+from ..runtime import db, features, settings, video, voice
 
 router = APIRouter(prefix="/api/features", tags=["features"])
 
@@ -29,6 +29,10 @@ async def feature_status(request: Request):
         "manuscript_draft": bool(settings.anthropic_api_key and settings.manuscript_generation_enabled),
         "manuscript_blueprint": bool(settings.anthropic_api_key and settings.manuscript_generation_enabled),
         "kdp_export": settings.manuscript_generation_enabled,
+        "code_workspace": bool(
+            settings.code_workspace_enabled and settings.anthropic_api_key
+        ),
+        "premium_voice": voice.configured,
     }
     for code, item in status["features"].items():
         item["configured"] = configured.get(code, True)
@@ -62,6 +66,20 @@ async def feature_status(request: Request):
             "configured": configured["manuscript_draft"],
             "provider": "anthropic",
             "model": settings.anthropic_model,
+        },
+        "code": {
+            "configured": configured["code_workspace"],
+            "provider": "anthropic+vercel-sandbox",
+            "model": settings.anthropic_model,
+            "networkPolicy": "deny_all",
+            "maxDurationSeconds": settings.code_max_duration_seconds,
+        },
+        "voice": {
+            "configured": configured["premium_voice"],
+            "provider": "elevenlabs",
+            "model": settings.elevenlabs_model_id,
+            "maxCharacters": settings.elevenlabs_max_chars,
+            "storage": "ephemeral",
         },
     }
     status["videoEngines"] = engines

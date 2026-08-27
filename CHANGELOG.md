@@ -1,5 +1,24 @@
 # Changelog
 
+## 5.9.19 — 2026-08-27
+
+### Safe capability foundations
+
+- Added the disabled-by-default Crump Code server foundation for owner-scoped public-repository
+  tasks, isolated no-secret sandbox execution, bounded tools and verification, reviewable patches,
+  cancellation, audit events, and future approval records.
+- Added the disabled-by-default Crump Voice server path for explicit Professional playback through
+  ElevenLabs, with entitlement, rate and size guards, usage refunds, ephemeral audio, and automatic
+  device-speech fallback.
+- Documented the new provider boundaries, privacy impact, activation gates, company operating plan,
+  and evidence-backed 30/90-day priorities. Neither capability is publicly activated in this
+  release.
+
+### Release
+
+- Advanced the application to 5.9.19 and the service-worker cache to revision 53 so installed
+  clients receive the fallback-safe playback behavior and release metadata together.
+
 ## 5.9.18 — 2026-08-24
 
 ### Organic-search hygiene

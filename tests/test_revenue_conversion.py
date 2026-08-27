@@ -27,7 +27,7 @@ def test_marketing_ctas_are_first_party_analytics_events():
     script = read("public/landing.js")
 
     assert '/_vercel/insights/script.js' in page
-    assert '<script defer src="/landing.js?v=5.9.18"></script>' in page
+    assert '<script defer src="/landing.js?v=5.9.19"></script>' in page
     assert "window.vaq" in script
     assert "MarketingCTA" in script
     assert "link.dataset.cta" in script
@@ -136,10 +136,10 @@ def test_release_version_and_cache_advance_together():
     backend = read("backend/version.py")
     worker = read("public/sw.js")
 
-    assert '"version": "5.9.18"' in package
-    assert "__version__ = '5.9.18'" in backend
-    assert "ask-crump-new-body-v1-r52" in worker
-    assert "/landing.js?v=5.9.18" in worker
+    assert '"version": "5.9.19"' in package
+    assert "__version__ = '5.9.19'" in backend
+    assert "ask-crump-new-body-v1-r53" in worker
+    assert "/landing.js?v=5.9.19" in worker
 
 
 def test_changed_activation_assets_are_release_versioned():
@@ -147,10 +147,10 @@ def test_changed_activation_assets_are_release_versioned():
     worker = read("public/sw.js")
 
     for asset in (
-        "/conversation.css?v=5.9.18",
-        "/ui-functions.js?v=5.9.18",
-        "/product-analytics.js?v=5.9.18",
-        "/app.js?v=5.9.18",
+        "/conversation.css?v=5.9.19",
+        "/ui-functions.js?v=5.9.19",
+        "/product-analytics.js?v=5.9.19",
+        "/app.js?v=5.9.19",
     ):
         assert asset in shell
         assert asset in worker

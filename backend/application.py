@@ -11,8 +11,8 @@ from fastapi.staticfiles import StaticFiles
 
 from .http import register_exception_handlers, request_guards
 from .routes import (
-    account, analytics, auth, billing, chat, credits, features, files, health, intelligence,
-    library, manuscripts, media, presence, projects, safety, sync,
+    account, analytics, auth, billing, chat, code, credits, features, files, health, intelligence,
+    library, manuscripts, media, presence, projects, safety, sync, voice,
 )
 from .runtime import settings
 from .version import __version__
@@ -48,6 +48,8 @@ def create_app() -> FastAPI:
     application.include_router(sync.router)
     application.include_router(files.router)
     application.include_router(projects.router)
+    application.include_router(code.router)
+    application.include_router(voice.router)
     application.include_router(features.router)
     application.include_router(media.router)
     application.include_router(manuscripts.router)

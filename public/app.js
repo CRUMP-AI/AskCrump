@@ -818,11 +818,27 @@ window.removeFile = function removeFile(index) {
     displayFilePreview();
 };
 
-// Read assistant responses aloud.
-window.speakText = function(text) {
+let activeVoiceAudio = null;
+let activeVoiceObjectUrl = '';
+let voiceRequestSequence = 0;
+let premiumVoiceCapability = {available: false, checkedAt: 0};
+
+function clearPremiumVoice() {
+    if (activeVoiceAudio) {
+        activeVoiceAudio.pause();
+        activeVoiceAudio.src = '';
+        activeVoiceAudio = null;
+    }
+    if (activeVoiceObjectUrl) {
+        URL.revokeObjectURL(activeVoiceObjectUrl);
+        activeVoiceObjectUrl = '';
+    }
+}
+
+function speakWithDeviceVoice(text, notice = 'Reading response...') {
     if (!('speechSynthesis' in window)) {
         showToast('Text-to-speech not supported in this browser', 'error');
-        return;
+        return false;
     }
 
     window.speechSynthesis.cancel();
@@ -843,10 +859,81 @@ window.speakText = function(text) {
     }
 
     window.speechSynthesis.speak(utterance);
-    showToast('Reading response...', 'info');
+    showToast(notice, 'info');
+    return true;
+}
+
+async function canUsePremiumVoice() {
+    const now = Date.now();
+    if (now - premiumVoiceCapability.checkedAt < 5 * 60 * 1000) {
+        return premiumVoiceCapability.available;
+    }
+    try {
+        const response = await fetch('/api/features', {credentials: 'same-origin'});
+        const data = response.ok ? await response.json() : {};
+        const feature = data?.features?.premium_voice || {};
+        premiumVoiceCapability = {
+            available: Boolean(feature.configured && feature.entitled),
+            checkedAt: now,
+        };
+    } catch (_) {
+        premiumVoiceCapability = {available: false, checkedAt: now};
+    }
+    return premiumVoiceCapability.available;
+}
+
+// Read assistant responses aloud. Premium voice is requested only after this
+// explicit click; long responses and unavailable accounts stay on-device.
+window.speakText = async function(text) {
+    const readable = String(text || '').trim();
+    if (!readable) return;
+    voiceRequestSequence += 1;
+    const requestId = voiceRequestSequence;
+    clearPremiumVoice();
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    if (readable.length > 4000) {
+        speakWithDeviceVoice(readable, 'Using your device voice for this longer response.');
+        return;
+    }
+    const premiumAvailable = await canUsePremiumVoice();
+    if (requestId !== voiceRequestSequence) return;
+    if (!premiumAvailable) {
+        speakWithDeviceVoice(readable);
+        return;
+    }
+    showToast('Creating Crump Voice...', 'info');
+    try {
+        const response = await fetch('/api/voice/synthesize', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({text: readable}),
+        });
+        if (!response.ok) {
+            if ([401, 403, 503].includes(response.status)) {
+                premiumVoiceCapability = {available: false, checkedAt: Date.now()};
+            }
+            throw new Error(`Premium voice unavailable (${response.status})`);
+        }
+        const audioBlob = await response.blob();
+        if (requestId !== voiceRequestSequence || !audioBlob.size) return;
+        activeVoiceObjectUrl = URL.createObjectURL(audioBlob);
+        activeVoiceAudio = new Audio(activeVoiceObjectUrl);
+        activeVoiceAudio.addEventListener('ended', clearPremiumVoice, {once: true});
+        activeVoiceAudio.addEventListener('error', clearPremiumVoice, {once: true});
+        await activeVoiceAudio.play();
+        showToast('Reading with Crump Voice...', 'info');
+    } catch (_) {
+        if (requestId === voiceRequestSequence) {
+            clearPremiumVoice();
+            speakWithDeviceVoice(readable, 'Using your device voice.');
+        }
+    }
 };
 
 window.stopSpeaking = function() {
+    voiceRequestSequence += 1;
+    clearPremiumVoice();
     if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
     }

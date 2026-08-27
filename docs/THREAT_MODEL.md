@@ -2,7 +2,7 @@
 
 ## Scope
 
-This document covers the public web client, Capacitor mobile clients, FastAPI service, Supabase database, model and search providers, billing providers, email delivery, and push-notification infrastructure.
+This document covers the public web client, Capacitor mobile clients, FastAPI service, Supabase database, model and search providers, billing providers, email delivery, push-notification infrastructure, premium voice provider, and isolated coding runtime.
 
 ## Protected assets
 
@@ -11,6 +11,7 @@ This document covers the public web client, Capacitor mobile clients, FastAPI se
 - service-role and provider credentials;
 - subscription and usage state;
 - push notification tokens;
+- source repositories, generated patches, and coding-task audit records;
 - account deletion and recovery workflows.
 
 ## Trust boundaries
@@ -20,6 +21,8 @@ This document covers the public web client, Capacitor mobile clients, FastAPI se
 3. **API to external providers:** only the minimum required content is transmitted for the requested operation.
 4. **Billing webhooks:** provider signatures or shared authorization are required before subscription state changes.
 5. **Scheduled check-ins:** the cron endpoint requires a server-held bearer secret.
+6. **API to premium voice:** response text is sent only after an explicit playback request; the provider key remains server-side and returned audio is ephemeral and non-cacheable.
+7. **API to coding sandbox:** only a validated public repository and bounded task objective enter a new no-secret, deny-all, non-persistent runtime.
 
 ## Primary threats and controls
 
@@ -38,6 +41,11 @@ This document covers the public web client, Capacitor mobile clients, FastAPI se
 | Forged billing events | Stripe signature verification and RevenueCat webhook authorization |
 | Push notification leakage after account switch | Installation ownership transfer; token disablement on logout and device revocation |
 | Abusive proactive messaging | Explicit opt-in, quiet hours, unanswered-message suppression, category controls, bounded frequency |
+| Premium voice disclosure or cost leakage | Explicit user action; entitlement and rate limits; character cap; server-held key; usage refund on provider failure; device-speech fallback; feature kill switch |
+| Repository credential theft | Public credential-free GitHub sources only; no private repository tokens; empty sandbox environment; deny-all networking |
+| Sandbox escape or production access | Ephemeral Firecracker boundary; fixed CPU/memory/time; no ambient production credentials; restricted paths, file types, tools, and commands; destruction on exit |
+| Prompt or tool injection causing destructive code actions | Plan/implement mode separation; patch output rather than source push; verification allowlist; stateful approvals reserved for network, credentials, publishing, destructive writes, or longer runtime |
+| Coding audit or output leaking secrets | Allowlisted content-free audit fields; bounded summaries/patches; token and key-pattern redaction; internal sandbox identifiers omitted from public responses |
 
 ## Residual risks
 
@@ -45,6 +53,9 @@ This document covers the public web client, Capacitor mobile clients, FastAPI se
 - Model providers can return inaccurate or unsafe output despite system instructions.
 - Search summaries can contain misleading source material.
 - Availability depends on Supabase, hosting, model, billing, email, and notification providers.
+- Premium voice processing depends on ElevenLabs terms, retention, voice rights, and availability once enabled.
+- Generated patches can contain defects or sensitive material already present in a public repository; human review remains required.
+- The coding runtime boundary still requires a live production OIDC/sandbox smoke test before activation.
 - Legal, privacy, and store-policy compliance requires review against the actual production configuration and jurisdictions served.
 
 ## Validation cadence
