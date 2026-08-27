@@ -39,6 +39,19 @@ def test_reproducible_node22_lockfile_is_committed_and_aligned():
     assert root['devDependencies'] == package['devDependencies']
 
 
+def test_ios_cloud_verification_cannot_sign_or_upload():
+    workflow = read('.github/workflows/ios-store-verify.yml')
+
+    assert 'runs-on: macos-15' in workflow
+    assert 'npm run store:prepare:ios' in workflow
+    assert 'CODE_SIGNING_ALLOWED=NO' in workflow
+    assert 'CODE_SIGNING_REQUIRED=NO' in workflow
+    assert 'secrets.' not in workflow
+    assert 'upload-app' not in workflow
+    assert 'upload-testflight' not in workflow
+    assert 'app-store-connect' not in workflow.lower()
+
+
 def test_store_versions_and_android_api_are_guarded():
     configure = read('scripts/configure-native.mjs')
     verify = read('scripts/verify-native-release.mjs')

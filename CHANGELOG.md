@@ -32,6 +32,8 @@
   metadata validation on every main-branch change.
 - Moved the official checkout, Node, and Python setup actions to their Node 24-backed releases so
   the verified pipeline no longer depends on deprecated action runtimes.
+- Added a no-secret, no-signing, no-upload macOS workflow that deterministically generates the iOS
+  source and compiles its Release configuration before Apple credentials enter the process.
 
 ## 5.9.21 — 2026-08-27
 

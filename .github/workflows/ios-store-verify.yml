@@ -1,0 +1,67 @@
+name: iOS Store Source Verification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ios-store-verify.yml
+      - package.json
+      - package-lock.json
+      - capacitor.config.ts
+      - scripts/build-native.mjs
+      - scripts/configure-native.mjs
+      - scripts/prepare-store-release.mjs
+      - scripts/verify-native-release.mjs
+      - scripts/verify-store-metadata.mjs
+      - resources/PrivacyInfo.xcprivacy
+      - resources/icon.png
+      - resources/splash.png
+
+concurrency:
+  group: ios-store-source-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify-ios-source:
+    name: Generate and compile unsigned iOS candidate
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Record Apple toolchain
+        run: xcodebuild -version
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Generate and verify iOS release source
+        run: npm run store:prepare:ios
+      - name: Verify tracked signing controls
+        run: npm run store:signing:check
+      - name: Compile without signing or upload
+        run: |
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/AskCrumpDerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+      - name: Record verification boundary
+        run: |
+          {
+            echo '## Ask Crump iOS source verification'
+            echo
+            echo '- Generated from the reviewed Node 22 lockfile.'
+            echo '- Native source verifier passed.'
+            echo '- Xcode compiled the Release configuration without signing.'
+            echo '- No certificate, provisioning profile, App Store credential, upload, or submission was used.'
+          } >> "$GITHUB_STEP_SUMMARY"

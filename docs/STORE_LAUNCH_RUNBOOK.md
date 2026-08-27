@@ -101,6 +101,11 @@ archive must be produced on a Mac or a trusted macOS CI runner. Ask Crump's pref
 path is a manually dispatched GitHub-hosted macOS runner, followed by an owner-approved App Store
 Connect upload. Do not outsource merely to obtain a Mac unless the controlled CI path fails.
 
+`.github/workflows/ios-store-verify.yml` is the no-credential first stage. It generates the iOS
+project, runs the native verifier, and compiles Release with code signing disabled. It cannot upload
+or submit. Add a separate, owner-reviewed signing/upload stage only after the Apple team, app record,
+certificates/profiles or managed-signing path, and App Store Connect authentication are approved.
+
 ```bash
 npm ci
 npm run store:prepare:ios

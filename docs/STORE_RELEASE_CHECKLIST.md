@@ -34,6 +34,7 @@
 - [ ] Android Firebase, RevenueCat public key, upload keystore, and compatible JDK 21 supplied (the
       installed Android Studio Java 25 runtime cannot run this Gradle toolchain)
 - [ ] iOS source generated, signed, and archived on macOS
+- [ ] No-upload GitHub macOS source/compile verification succeeds before signing credentials are added
 - [ ] Exact signed builds pass the physical-device, billing, privacy, and console gates
 
 See `docs/STORE_READINESS_AUDIT_2026-08-27.md` for evidence, blockers, and official references.

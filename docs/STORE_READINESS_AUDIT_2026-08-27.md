@@ -27,6 +27,7 @@ during this audit.
 | Reproducible dependencies | The tracked npm v3 lockfile was generated with Node 22.22.0/npm 11.6.0 in an isolated worktree. Clean `npm ci`, `npm ls --all`, a zero-vulnerability `npm audit`, production build, and deterministic Android preparation passed. | Verified |
 | Privacy inventory | `docs/DATA_SAFETY.md`, the public privacy notice, and the iOS base privacy manifest enumerate account, content, device, usage, purchase, reporting, push, and provider flows. | Source ready; final SDK/archive reconciliation pending |
 | iOS generation | The deterministic scripts set the bundle ID/version, push callbacks, Photos explanations, and bundled privacy manifest. Windows correctly refuses iOS preparation because Xcode/CocoaPods require macOS. | Prepared source; macOS run pending |
+| iOS cloud boundary | `.github/workflows/ios-store-verify.yml` generates and compiles the Release configuration on a standard GitHub macOS runner with signing disabled and no upload credentials. | Source prepared; first cloud run pending |
 | Signing controls | Mobile signing verification found no tracked keys, certificates, provisioning profiles, service-account files, or passwords. | Verified |
 
 ## Current blockers
@@ -70,6 +71,8 @@ during this audit.
 
 - Generate with `npm run store:prepare:ios` on a trusted Mac or approved GitHub-hosted macOS runner.
   This preserves a Windows-led release process without outsourcing the submission.
+- Prove the generated project first with `.github/workflows/ios-store-verify.yml`; it intentionally
+  contains no signing or upload path. Review a separate credentialed workflow before enabling it.
 - Select the Apple team, enable Push Notifications and Background Modes, and supply APNs credentials.
 - Configure `REVENUECAT_IOS_PUBLIC_SDK_KEY`, create the exact App Store products, and map them in
   RevenueCat.
