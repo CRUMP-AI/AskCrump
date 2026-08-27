@@ -128,6 +128,8 @@ provider, privacy, cost, or security gate is incomplete.
 - **Decision:** prioritize durable continuing work and return behavior over traffic volume.
 - **Verified evidence:** two external accounts completed 14 successful AI jobs before the first
   observed product-event traffic; neither created a Project/file or returned after August 23.
+- **Shipped retention intervention:** production 5.9.20 now puts private conversation-to-Project
+  continuity before referral sharing, with ownership checks and content-free measurement.
 - **Measurement boundary:** do not interpret pre-instrumentation zero-event rows as zero historical
   use, and do not create synthetic events to backfill them.
 - **Shipped foundation:** server-only Crump Code task schema and sandbox runner; disabled publicly.
