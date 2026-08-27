@@ -26,6 +26,7 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 | Truthful referral delivery | Commit `a7f3482`; deployment `dpl_2zxpBU85E3uJkygbmmjquhq4fVQJ`; production 5.9.24 keeps the post-useful-result invitation content-free and carries only aggregate `referral` acquisition plus `response-share` placement into registration. The registration server preserves `referral` on `AccountCreated`. Denied clipboard access can no longer display a false success or record `ResponseShared`; an executable browser-script contract proves failed copy records zero events while a verified fallback records exactly one. All 291 backend tests, 40 JavaScript validations, production/native/store checks, CI run `33119777886`, Android run `33119777893`, iOS run `33119777888`, live route/version checks, and the deployment-scoped error/fatal scan passed. A legitimate referred account and activated outcome have not yet been observed. | Verified delivery; outcome pending |
 | Measurable social previews | Commit `6d2c24f`; deployment `dpl_CZih5NeHk8JjDp1tukrLZPCXhioD`; production 5.9.25 gives the home, presentation, and document pages distinct 1,200-by-630 social cards composed from the canonical mark, with large-card metadata and truthful page-specific copy. The generator is deterministic on the verified release machine; automated tests validate PNG format, dimensions, color mode, and per-page references. All 292 backend tests, 40 JavaScript validations, production/native/store checks, CI run `33123220073`, Android run `33123220055`, iOS run `33123220046`, six live route/asset checks, and the deployment-scoped warning/error/fatal/5xx scan passed. Socially attributed signup outcome remains unproven. | Verified delivery; outcome pending |
 | Direct canonical native/payment host | Source correction shipped in 5.9.26. With owner approval, both live Stripe destinations were then changed to their direct `https://www.askcrump.com/...` handlers without rotating secrets or widening their permanent event allowlists. A signed subscription replay returned 200. The first signed credits replay exposed a deployed plural environment-key alias; commit `4dfed9b` added a backward-compatible, precedence-tested alias without exposing or rotating the secret. Deployment `dpl_H5Dn15BVY5rzh5G6azq36eKiTXb3` is `READY` on production 5.9.27, a final signed credits replay returned 200, and the temporary harmless test event was removed. All 295 backend tests, 40 JavaScript validations, production/native/store checks, CI run `33126121600`, Android run `33126121646`, and iOS run `33126121595` passed. Production health returned 5.9.27, the payment routes had no runtime error cluster, and the deployment log breakdown contained only 200/302 responses. | Verified end to end |
+| Named recent-work continuation | Commit `6161778`; deployment `dpl_EJmVH3eLTbfQdPzLCpyLZ6H22RUj`; production 5.9.28 replaces the generic return card with the actual local conversation name and a clear continuation cue. Names are whitespace-normalized, length-bounded, rendered with `textContent`, visually ellipsized, and used only in the signed-in interface; `RecentWorkResumed` remains free of chat IDs, titles, and content. All 295 backend tests, lint, 40 JavaScript validations, production/native/store checks, CI run `33126950108`, Android run `33126950133`, and iOS run `33126950091` passed. Production health returned 5.9.28, desktop/mobile browser checks passed, the card opened the intended conversation, and the deployment had no runtime error cluster or warning/error/fatal/5xx response. The comparable external cohort remains zero, so no retention lift is claimed. | Verified delivery; outcome pending |
 
 ### Current production reliability checkpoint
 
@@ -70,18 +71,20 @@ verification. Rollback is to restore the prior apex URLs, although Stripe would 
 
 **Evidence:** two external accounts completed 14 successful AI jobs with no recorded failures, but
 the external aggregate contains zero Projects and zero files, and no external activity occurred
-after 2026-08-23. Release 5.9.20 made Project continuity primary after positive feedback, but still
-required a feedback click before the durable-work action appeared.
+after 2026-08-23. Release 5.9.22 exposed the durable-work action directly. Release 5.9.28 now names
+the exact conversation on the most prominent return card instead of asking mobile users to resume
+unknown work.
 
 **Outcome:** expose private Project continuity directly on the latest result as a one-click next
 action. Synchronize and ownership-check the conversation, attach it to the selected Project or
 create one, and record only a content-free durable-value milestone. Keep feedback optional and
 referral sharing secondary.
 
-**Release gate:** automated ownership, mapping, direct-action ordering, analytics, full release
-verification, and production health passed for 5.9.22. The remaining outcome gate is at least one
-legitimate external conversation-to-Project transition and a later return. Do not infer a retention
-rate from a single user.
+**Release gate:** automated ownership, mapping, direct-action ordering, content-free analytics, full
+release verification, production health, desktop/mobile UI checks, and the named resume action passed
+through 5.9.28. The remaining outcome gate is at least one legitimate external
+conversation-to-Project transition and a later return. Do not infer a retention rate from a single
+user.
 
 ### P0 — Review the first complete artifact journey cohort
 

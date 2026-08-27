@@ -160,6 +160,10 @@ provider, privacy, cost, or security gate is incomplete.
 - **Referral acquisition:** Production 5.9.24 carries a content-free referral invitation into
   registration and records only verified share delivery. Failed clipboard writes no longer create
   a success message or `ResponseShared` event. No legitimate referred activation is observed yet.
+- **Return-use intervention:** Production 5.9.28 names the exact private conversation on the home
+  resume card, bounds and safely renders the label, and keeps resume analytics content-free. Live
+  desktop/mobile checks opened the intended conversation. The external cohort remains empty, so this
+  is verified delivery rather than evidence of improved retention.
 - **Shipped foundation:** server-only Crump Code task schema and sandbox runner; disabled publicly.
 - **Shipped foundation:** server-only ElevenLabs voice path with device-speech fallback; disabled
   until disclosure, credentials, and smoke tests are approved.
