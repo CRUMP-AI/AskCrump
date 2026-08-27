@@ -1,5 +1,5 @@
 window.CRUMP_CONFIG = Object.freeze({
-  apiBase: 'https://askcrump.com',
+  apiBase: 'https://www.askcrump.com',
   revenueCatAppleApiKey: '',
   revenueCatGoogleApiKey: '',
   revenueCatEntitlement: 'professional',

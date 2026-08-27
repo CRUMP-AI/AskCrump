@@ -22,7 +22,7 @@ await build({
 });
 
 const config = {
-  apiBase: process.env.CRUMP_API_BASE || 'https://askcrump.com',
+  apiBase: process.env.CRUMP_API_BASE || 'https://www.askcrump.com',
   revenueCatAppleApiKey: process.env.REVENUECAT_IOS_PUBLIC_SDK_KEY || '',
   revenueCatGoogleApiKey: process.env.REVENUECAT_ANDROID_PUBLIC_SDK_KEY || '',
   revenueCatEntitlement: process.env.REVENUECAT_ENTITLEMENT || 'professional',

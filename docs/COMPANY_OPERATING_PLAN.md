@@ -29,16 +29,20 @@ deleted accounts and does not inspect customer content.
 | Completed external AI jobs | 14 of 14 | No failed external AI jobs are present in the aggregate |
 | Active Professional accounts | 0 | No current subscription revenue in the account aggregate |
 | Active Enterprise accounts | 0 | No current subscription revenue in the account aggregate |
+| Stripe live-mode payments / active subscriptions | 0 / 0 | No payment or subscription has reached the live Stripe account |
+| Stripe live-mode customers with spend | 0 | The only customer record is an internal owner account with $0 spend |
+| Active Stripe products | 5 | Professional, Enterprise, and three credit packs match the intended catalog |
 | 30-day accounts created | 3 | Acquisition baseline only |
 | External Projects / files | 0 / 0 | Successful chats did not become durable workspace assets |
 | External product events after comparable instrumentation | 0 | External activity ended before the first observed product-event traffic and did not resume |
 | External activity after 2026-08-23 | 0 | Return behavior is the clearest verified loss |
 | Artifact-journey rows since release | 0 | Instrumentation has not yet observed real post-release traffic |
 
-Cumulative recognized revenue has not yet been reconciled to Stripe and store settlement data;
-it must not be inferred from the active-subscription snapshot. Website, Search Console, social,
-and creative inventory are only called verified where production or account evidence has been
-reviewed. Other channel status remains to be audited.
+The live Stripe account currently has no transactions, active subscriptions, paid customers,
+gross volume, or balance, so reconciled live Stripe revenue is $0. Store settlement data does not
+exist because no native release has been submitted. Website, Search Console, social, and creative
+inventory are only called verified where production or account evidence has been reviewed. Other
+channel status remains to be audited.
 
 The event recorder is working for the internal production tester. The zero-event external report
 cannot be used as proof of zero historical activation because external activity ended before the
@@ -77,8 +81,10 @@ constraint.
 
 ### Monetization and unit economics
 
-- Reconcile cumulative recognized revenue, refunds, active subscriptions, and net receipts across
-  Stripe and any store providers.
+- Repair and signed-test both live Stripe webhook destinations before accepting the first payment;
+  the current apex URLs redirect and Stripe treats redirects as failed deliveries.
+- Continue reconciling recognized revenue, refunds, active subscriptions, and net receipts across
+  Stripe and future store providers from the verified $0 baseline.
 - Validate Professional and Enterprise packaging against the jobs users actually complete.
 - Establish weekly provider cost per activated user, per durable artifact, and per paid account.
 - Do not change pricing or public quotas without owner approval and a written impact hypothesis.
@@ -171,8 +177,18 @@ provider, privacy, cost, or security gate is incomplete.
   page-specific 1,200-by-630 cards built from the canonical mark. Evaluate socially attributed
   signup intent only after at least 14 days and 50 combined social-referral visitors; do not claim a
   click-through improvement without platform impression data.
+- **Monetization reconciliation:** the live Stripe account contains five intended active products,
+  no transactions, no active subscriptions, no paid customer, and $0 gross volume/balance. The
+  Professional price ID matches the production fallback. Both configured webhook destinations use
+  the apex host, return HTTP 307 to `www`, and therefore fail Stripe's direct-delivery requirement;
+  their zero-delivery dashboards do not prove health.
+- **Product experience direction:** prepare a staged, owner-approved reorganization around Ask,
+  Projects, Create, Library, and You before final native-store screenshots. Preserve existing data,
+  routes, and working capabilities; validate the task flow before any major architecture change.
 - **Risk:** a real sandbox run has not verified production OIDC/runtime behavior.
 - **Permission needed:** a sub-cent Vercel sandbox smoke test and the exact premium-voice disclosure.
+- **Permission needed:** change both live Stripe webhook destinations to their direct canonical
+  `https://www.askcrump.com/...` URLs and send signed test deliveries before the first checkout.
 - **External input needed:** an ElevenLabs production API key and voice ID with confirmed rights.
 - **Next evidence:** submit the sitemap after owner confirmation, then obtain the first legitimate
   post-instrumentation acquisition, durable-value, return, and artifact-journey observations.

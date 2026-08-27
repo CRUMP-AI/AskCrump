@@ -5,7 +5,7 @@
   const INSTALLATION_KEY = 'ask_crump_installation_id';
   let native = Boolean(window.Capacitor?.isNativePlatform?.() || window.CrumpNative?.isNative);
   const isNative = () => Boolean(native || window.Capacitor?.isNativePlatform?.() || window.CrumpNative?.isNative);
-  const apiBase = () => isNative() ? (window.CRUMP_CONFIG?.apiBase || 'https://askcrump.com') : '';
+  const apiBase = () => isNative() ? (window.CRUMP_CONFIG?.apiBase || 'https://www.askcrump.com') : '';
   const originalFetch = window.fetch.bind(window);
   let sessionToken = null;
   let readyResolve;

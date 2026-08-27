@@ -38,7 +38,7 @@ Required production variables:
 
 ```text
 APP_ENV=production
-APP_URL=https://askcrump.com
+APP_URL=https://www.askcrump.com
 COOKIE_SECURE=true
 SUPABASE_URL=...
 SUPABASE_SERVICE_KEY=...

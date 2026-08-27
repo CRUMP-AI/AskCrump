@@ -35,7 +35,39 @@ unauthenticated release probes against the disabled Crump Code, disabled Crump V
 Project attachment routes. The evidence does not justify a reliability code change; acquisition
 and comparable user observation remain the next operating constraint.
 
+### Current monetization checkpoint
+
+A read-only live Stripe reconciliation on 2026-08-27 found five active catalog products and no
+transactions, active subscriptions, paid customers, gross volume, or balance. The single customer
+record is the internal owner account with $0 spend. The Professional live price ID matches the
+production fallback. Both registered webhook destinations are active but have received no live
+deliveries, so their displayed zero-percent error rate is not delivery evidence.
+
+Fresh unsigned POST probes show that both registered apex-host destinations return HTTP 307 to the
+equivalent `www` URL. Direct probes of both `www` routes reach Ask Crump and return HTTP 400 for the
+intentionally missing signature. Stripe's official webhook guidance classifies 3xx responses as
+failed deliveries and instructs operators to register the resolved URL. No Stripe Dashboard
+setting, price, product, customer, or payment was changed during the audit.
+
 ## Ranked execution backlog
+
+### P0 — Repair live Stripe webhook delivery before the first payment
+
+**Evidence:** Stripe is configured to send subscription events to
+`https://askcrump.com/api/stripe/webhook` and credit-purchase completion to
+`https://askcrump.com/api/billing/credits/stripe-webhook`. Both return HTTP 307. Their direct
+`https://www.askcrump.com/...` forms reach signature verification. With zero historical deliveries,
+the Dashboard cannot demonstrate that subscription entitlement or durable credit recovery works.
+
+**Outcome:** register both direct canonical `www` destinations, preserve their current narrow event
+allowlists and signing secrets, and prove signed test delivery reaches the correct handler. Verify
+subscription reconciliation and exactly-once credit grants in Stripe test mode before accepting a
+real payment.
+
+**Release gate:** owner approval for the live payment-infrastructure edit; before/after destination
+evidence; signed Stripe test deliveries returning 2xx; no new production warning/error/fatal/5xx
+cluster; and a documented rollback to the prior URLs. Do not treat an unsigned HTTP 400 probe as a
+successful webhook test.
 
 ### P0 — Convert useful answers into continuing Project work
 
@@ -189,6 +221,25 @@ accessibility, and reliable core workflows proven in internal testing.
 obtain explicit per-platform approval before submission. Never claim store availability from source
 readiness alone.
 
+### P1 — Reorganize the product experience before store screenshots
+
+**Evidence:** Ask Crump's current interface accumulated navigation, product, polish, library, and
+legacy compatibility layers as capabilities expanded. The product now needs a calmer hierarchy
+before native screenshots and acquisition campaigns lock in the existing structure. This is a
+product-direction decision, not evidence that the working experience should be discarded.
+
+**Outcome:** organize the workspace around five user destinations: Ask, Projects, Create, Library,
+and You. Keep Research as an intelligent mode within Ask; group documents, presentations, images,
+and video under Create; preserve every account, conversation, Project, file, entitlement, and stable
+deep link. Use restrained black/charcoal/gold styling, clear empty states, accessible motion, and
+consistent mobile and desktop navigation.
+
+**Release gate:** owner-approved information architecture and wireflow; a route/capability migration
+map; staged implementation behind a rollback path; automated regression coverage; keyboard,
+screen-reader, reduced-motion, and responsive checks; real-task usability review; production
+reliability verification; and final store screenshots only from the exact signed candidate. Do not
+begin a ground-up rewrite or major architecture change from visual preference alone.
+
 ### P2 — Prove the advertising creative system
 
 **Evidence:** Deevid has produced promising video candidates, but the two newest candidate files
@@ -202,8 +253,9 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
-Submit the live canonical sitemap after owner confirmation, allow the social-preview experiment to
-reach its minimum observation window, then obtain the first consented
+Obtain owner approval to repair and signed-test both live Stripe webhook destinations before the
+first payment. Submit the live canonical sitemap after owner confirmation, allow the social-preview
+experiment to reach its minimum observation window, then obtain the first consented
 post-instrumentation account, durable-value, return, referral, and artifact-journey observations.
 Do not rewrite the signup flow from anonymous seven-day aggregates that cross the measurement
 boundary; diagnose the next real post-boundary attempt instead. Keep both new provider foundations

@@ -91,6 +91,26 @@ def test_store_versions_and_android_api_are_guarded():
     assert 'android:usesCleartextTraffic="false"' in verify
 
 
+def test_native_api_defaults_use_the_direct_canonical_host():
+    canonical = 'https://www.askcrump.com'
+    redirected = "'https://askcrump.com'"
+
+    for relative in (
+        'scripts/build-native.mjs',
+        'public/mobile-bridge.js',
+        'public/runtime-config.js',
+        'public/runtime-config-v1.js',
+        'public/runtime-body-v1.js',
+    ):
+        source = read(relative)
+        assert canonical in source, f'{relative} must use the canonical API host'
+        assert redirected not in source, f'{relative} must not use the redirecting API host'
+
+    billing = read('docs/BILLING_5_1.md')
+    assert 'POST https://www.askcrump.com/api/billing/credits/stripe-webhook' in billing
+    assert 'POST https://askcrump.com/api/billing/credits/stripe-webhook' not in billing
+
+
 def test_ios_privacy_manifest_is_valid_xml_and_bundled_by_source():
     manifest_path = ROOT / 'resources' / 'PrivacyInfo.xcprivacy'
     root = ET.parse(manifest_path).getroot()

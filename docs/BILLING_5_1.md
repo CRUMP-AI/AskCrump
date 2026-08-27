@@ -26,9 +26,12 @@ Create one-time Stripe Prices for the three packs and set:
 
 The browser return path finalizes a paid Checkout Session immediately. For durable recovery if a user closes the browser before returning, also create a Stripe webhook endpoint pointed at:
 
-`POST https://askcrump.com/api/billing/credits/stripe-webhook`
+`POST https://www.askcrump.com/api/billing/credits/stripe-webhook`
 
 Subscribe that endpoint to `checkout.session.completed` and store that endpoint's signing secret as `STRIPE_CREDITS_WEBHOOK_SECRET`.
+
+Stripe must call the canonical `www` URL directly. Do not register the apex-domain form: it
+redirects to `www`, and Stripe treats redirect responses as failed webhook deliveries.
 
 The ledger's `(user_id, provider, external_id)` unique index makes both the browser finalizer and webhook safe to run for the same purchase.
 
