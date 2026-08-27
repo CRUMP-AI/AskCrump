@@ -37,6 +37,10 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Generate and verify Android release source
+        run: npm run store:prepare:android
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -44,10 +48,6 @@ jobs:
           cache: gradle
       - name: Record Android toolchain
         run: java -version
-      - name: Install locked dependencies
-        run: npm ci --no-audit --no-fund
-      - name: Generate and verify Android release source
-        run: npm run store:prepare:android
       - name: Verify tracked signing controls
         run: npm run store:signing:check
       - name: Compile release bundle without signing or upload
