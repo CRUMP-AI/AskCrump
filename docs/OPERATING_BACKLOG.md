@@ -23,6 +23,7 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 | Private conversation-to-Project continuity | Commit `e99fc1f`; production 5.9.22 puts `Keep in a Project` directly on the latest result, reducing durable-work preservation from two commitments to one. The existing server route synchronizes and ownership-checks the chat, attaches idempotently to the selected/new Project, and records only a content-free Project milestone. All 285 tests, backend lint/compile checks, 40 JavaScript validations, production preflight, and native web-bundle build passed. Live health and version checks returned HTTP 200, the deployed client contained the direct action, and the deployment-scoped error/fatal scan was empty. | Verified |
 | Comparable growth-cohort boundary | Supabase migration `product_growth_measurement_boundary`; live first-event evidence fixes the lower bound at `2026-08-23 09:10:55.602863+00`; the 30-day report now returns 18 metrics and zero comparable external accounts instead of misclassifying three historical accounts. The function remains security invoker, `anon`/`authenticated` execution is denied, `service_role` execution succeeds, and post-change advisors reported no errors or warnings. | Verified |
 | Truthful organic discovery | Commit `150ced2`; deployment `dpl_HUbcyLdLFdh7SVpqF3S99XL3caMo`; production 5.9.23 adds unique, crawlable presentation and document workflow pages, homepage/cross-page links, canonical metadata, valid JSON-LD, and a four-URL sitemap. Known search referrers collapse to `organic` without retaining the referrer URL or query, and internal CTA placements cannot overwrite acquisition. All 290 backend tests, 40 JavaScript validations, production/native bundle checks, CI run `33116981568`, Android run `33116981449`, iOS run `33116981462`, clean-URL HTTP checks, desktop/mobile browser checks, and the deployment-scoped error/fatal scan passed. | Verified |
+| Truthful referral delivery | Commit `a7f3482`; deployment `dpl_2zxpBU85E3uJkygbmmjquhq4fVQJ`; production 5.9.24 keeps the post-useful-result invitation content-free and carries only aggregate `referral` acquisition plus `response-share` placement into registration. The registration server preserves `referral` on `AccountCreated`. Denied clipboard access can no longer display a false success or record `ResponseShared`; an executable browser-script contract proves failed copy records zero events while a verified fallback records exactly one. All 291 backend tests, 40 JavaScript validations, production/native/store checks, CI run `33119777886`, Android run `33119777893`, iOS run `33119777888`, live route/version checks, and the deployment-scoped error/fatal scan passed. A legitimate referred account and activated outcome have not yet been observed. | Verified delivery; outcome pending |
 
 ## Ranked execution backlog
 
@@ -114,25 +115,28 @@ The authoritative action-time checklist is `docs/SEARCH_CONSOLE_RELEASE_GATE_202
 ### P1 — Observe the new activation and referral funnel before scaling spend
 
 **Evidence:** starter intent, activation, durable value, useful-result feedback, recent-work
-continuation, response sharing, checkout, and paid status are now measurable, but the comparable
-production cohort is new.
+continuation, response sharing, checkout, and paid status are now measurable. Production 5.9.24
+also prevents a failed clipboard operation from being counted as a share and preserves the
+content-free `referral` channel through account creation, but the comparable production cohort is
+new and no legitimate referred activation has been observed.
 
 **Outcome:** a weekly operating review of account creation → workspace open → starter intent →
 activation → durable value → useful outcome → return/share → checkout → paid.
 
 **Release gate:** at least one fully elapsed D7 cohort, explicit denominators, internal accounts
-excluded, and a written decision for the largest observed drop-off. Treat small samples as
-directional rather than statistically conclusive.
+excluded, at least one legitimate referral delivery-to-account-to-activation observation, and a
+written decision for the largest observed drop-off. Treat small samples as directional rather
+than statistically conclusive.
 
 ### P1 — Prepare native store distribution without premature submission
 
-**Evidence:** production 5.9.23 is healthy; the Android release source regenerates as build 50923
+**Evidence:** production 5.9.24 is healthy; the Android release source regenerates as build 50924
 with API 36, the permanent package ID, generated assets, cleartext/backup protections, and a passing
 native source verifier. Structured en-US metadata passes current field limits. A reviewed Node 22
 lockfile now supports clean `npm ci`, a zero-vulnerability npm audit, and deterministic Android
-preparation from an isolated worktree. GitHub run `33116981462` generated the 5.9.23 iOS project and
+preparation from an isolated worktree. GitHub run `33119777888` generated the 5.9.24 iOS project and
 compiled its unsigned Release configuration on hosted macOS with no signing or upload credentials.
-GitHub run `33116981449` generated the 5.9.23/build 50923 Android project under Java 21, passed the
+GitHub run `33119777893` generated the 5.9.24/build 50924 Android project under Java 21, passed the
 native and signing-control verifiers, compiled `bundleRelease`, and confirmed a non-empty unsigned
 `.aab`, also with no signing or upload credentials. Firebase, RevenueCat public keys/products,
 signing credentials,

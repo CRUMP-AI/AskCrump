@@ -9,7 +9,7 @@
 - `https://www.askcrump.com/sitemap.xml` returns HTTP 200 as XML and contains the four intended
   canonical URLs: home, AI presentation maker, AI document generator, and legal/privacy.
 - `robots.txt` returns HTTP 200 and points to the canonical sitemap.
-- The canonical pages and production health endpoint return HTTP 200 on release 5.9.23.
+- The canonical pages and production health endpoint return HTTP 200 on release 5.9.24.
 
 ## HTTPS reconciliation
 
