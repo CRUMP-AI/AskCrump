@@ -141,10 +141,24 @@
   function syncRecentWork() {
     const region = byId('v1RecentWork');
     const button = byId('v1RecentWorkButton');
+    const nameNode = byId('v1RecentWorkName');
+    const hintNode = byId('v1RecentWorkHint');
     if (!region || !button) return;
     const recent = recentWorkChat();
     const chatId = String(recent?.id || recent?.chat_id || '');
+    const rawName = String(recent?.title || '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const hasUsefulName = rawName && rawName.toLowerCase() !== 'new conversation';
+    const recentName = hasUsefulName ? rawName.slice(0, 72) : 'Continue recent work';
     button.dataset.chatId = chatId;
+    button.setAttribute('aria-label', hasUsefulName ? `Continue: ${recentName}` : recentName);
+    if (nameNode) nameNode.textContent = recentName;
+    if (hintNode) {
+      hintNode.textContent = hasUsefulName
+        ? 'Continue where you left off.'
+        : 'Open your most recent active conversation.';
+    }
     region.hidden = !chatId;
   }
 

@@ -17,7 +17,7 @@ def test_56_polish_layer_is_last_on_web_and_native():
         assert source.index("/crump-4.3.js") < source.index("/crump-4.4.js")
         assert source.index("/crump-product-5.3.1.js") < source.index("/crump-polish-5.6.js")
         assert "/crump-polish-5.6.css" in source
-    assert "ask-crump-new-body-v1-r61" in worker
+    assert "ask-crump-new-body-v1-r62" in worker
     assert "/crump-polish-5.6.css" in worker and "/crump-polish-5.6.js" in worker
     assert "crump-polish-5.6.js" in checker
 
@@ -55,16 +55,22 @@ def test_clean_start_offers_a_private_recent_work_continuation():
 
     assert 'id="v1RecentWork"' in app
     assert 'id="v1RecentWorkButton"' in app
+    assert 'id="v1RecentWorkName"' in app
+    assert 'id="v1RecentWorkHint"' in app
     assert "Continue recent work" in app
     assert "chat.messages.length > 0" in tracker
+    assert "recent?.title" in tracker
+    assert "rawName.slice(0, 72)" in tracker
+    assert "nameNode.textContent = recentName" in tracker
+    assert "Continue where you left off." in tracker
     assert "window.loadChat(chatId)" in tracker
     assert "'RecentWorkResumed'" in tracker
     assert "eventKey: 'recent-work-resumed'" in tracker
     assert "source: 'launchpad'" in tracker
     analytics_call = tracker[tracker.index("CrumpAnalytics"):tracker.index("window.loadChat")]
     assert "chatId" not in analytics_call
-    assert "title" not in tracker.lower()
-    assert "content" not in tracker.lower()
+    assert "title" not in analytics_call.lower()
+    assert "content" not in analytics_call.lower()
 
 
 def test_video_result_actions_share_one_button_system():

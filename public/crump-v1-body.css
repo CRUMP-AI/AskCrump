@@ -1050,13 +1050,19 @@ body.crump-v1-body .v1-recent-work-button > span:nth-child(2) {
   min-width: 0;
 }
 body.crump-v1-body .v1-recent-work-button strong {
+  overflow: hidden;
   color: #e7e2d8;
   font-size: 11px;
   font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 body.crump-v1-body .v1-recent-work-button small {
+  overflow: hidden;
   color: #71777a;
   font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 body.crump-v1-body .v1-recent-work-button b {
   color: #6f6247;
