@@ -72,6 +72,8 @@ if (target === 'all' || target === 'android') {
       failures.push('android/app/build.gradle is missing.');
     } else {
       const buildSource = await readFile(buildPath, 'utf8');
+      if (!buildSource.includes('namespace = "com.clevercrump.askcrump"')) failures.push('Android namespace does not match the permanent package ID.');
+      if (!buildSource.includes('applicationId "com.clevercrump.askcrump"')) failures.push('Android applicationId does not match the permanent package ID.');
       const versionCode = Number(buildSource.match(/versionCode\s+(\d+)/)?.[1] || 0);
       const versionName = buildSource.match(/versionName\s+["']([^"']+)["']/)?.[1] || '';
       if (versionCode !== expectedBuildNumber) failures.push(`Android versionCode is ${versionCode || 'unreadable'}; expected ${expectedBuildNumber}.`);
@@ -86,6 +88,8 @@ if (target === 'all' || target === 'android') {
       failures.push('AndroidManifest.xml is missing.');
     } else {
       const manifest = await readFile(manifestPath, 'utf8');
+      if (!manifest.includes('android:allowBackup="false"')) failures.push('Android local backup must be disabled for account-linked session data. Run `npm run native:configure`.');
+      if (!manifest.includes('android:usesCleartextTraffic="false"')) failures.push('Android cleartext traffic must be disabled. Run `npm run native:configure`.');
       if (!manifest.includes('android.permission.POST_NOTIFICATIONS')) failures.push('Android POST_NOTIFICATIONS permission is missing. Run `npm run native:configure`.');
       if (!manifest.includes('crump_check_ins')) failures.push('Android notification channel metadata is missing. Run `npm run native:configure`.');
     }
@@ -117,6 +121,9 @@ if (target === 'all' || target === 'ios') {
       failures.push('The iOS Xcode project file is missing.');
     } else {
       const project = await readFile(projectPath, 'utf8');
+      if (!project.includes('PRODUCT_BUNDLE_IDENTIFIER = com.clevercrump.askcrump;')) {
+        failures.push('iOS bundle ID does not match the permanent app identifier.');
+      }
       const marketingVersions = [...project.matchAll(/MARKETING_VERSION = ([^;]+);/g)].map(match => match[1].trim());
       const buildNumbers = [...project.matchAll(/CURRENT_PROJECT_VERSION = ([^;]+);/g)].map(match => Number(match[1].trim()));
       if (!marketingVersions.length || marketingVersions.some(value => value !== expectedVersion)) {

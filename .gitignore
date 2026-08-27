@@ -16,6 +16,7 @@ key.properties
 keystore.properties
 signing/
 credentials/
+store/reviewer-access.json
 
 # Python
 __pycache__/

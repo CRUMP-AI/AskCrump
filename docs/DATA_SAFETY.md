@@ -39,6 +39,9 @@ Use this engineering inventory to complete Apple App Privacy and Google Play Dat
 ## Security controls
 
 HTTPS; HTTP-only web cookies; native secure credential storage; hashed session/reset/verification credentials; password hashing; account ownership filters; request/auth rate limits; account-isolated cache keys; per-device revocation; idempotent reply jobs; protected cron endpoint; and atomic account deletion.
+Android release preparation also disables cleartext traffic and local app backup; durable workspace
+data returns through authenticated server synchronization instead of copying account-linked local
+session state into the platform backup service.
 
 ## Retention and submission review
 

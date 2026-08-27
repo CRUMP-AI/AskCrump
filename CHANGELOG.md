@@ -17,6 +17,15 @@
 - Advanced the application to 5.9.22 and the service-worker cache to revision 56 so installed and
   web clients receive the lower-friction Project action together.
 
+### Store readiness
+
+- Added a structured, machine-validated en-US listing packet, a signed-build screenshot plan, and a
+  reviewer-access template that keeps credentials out of source control.
+- Strengthened native verification around the permanent bundle/package ID and configured generated
+  Android releases to disable cleartext traffic and local backup of account-linked session data.
+- Reconciled the current Apple and Google requirements into an evidence-backed readiness audit
+  without enrolling, signing, uploading, changing pricing, or submitting either app.
+
 ## 5.9.21 — 2026-08-27
 
 ### Trustworthy growth measurement

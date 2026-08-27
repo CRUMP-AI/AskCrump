@@ -1,6 +1,9 @@
 # Ask Crump Store Listing Draft
 
 This copy is deliberately factual. Reconfirm every feature in the exact signed build before submission.
+The machine-validated en-US submission source is `store/listing.en-US.json`; this document must stay
+textually aligned with it. Reviewer credentials belong only in the ignored
+`store/reviewer-access.json` file created from the committed example.
 
 ## Shared positioning
 

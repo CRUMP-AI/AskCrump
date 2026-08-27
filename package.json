@@ -21,6 +21,7 @@
     "native:verify": "node scripts/verify-native-release.mjs",
     "store:prepare:android": "node scripts/prepare-store-release.mjs android",
     "store:prepare:ios": "node scripts/prepare-store-release.mjs ios",
+    "store:verify:metadata": "node scripts/verify-store-metadata.mjs",
     "store:signing:check": "node scripts/verify-mobile-signing.mjs",
     "store:signing:check:android": "node scripts/verify-mobile-signing.mjs --require-android-signing"
   },

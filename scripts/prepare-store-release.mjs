@@ -42,6 +42,11 @@ function run(command, args) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
+run(process.execPath, ['scripts/verify-store-metadata.mjs']);
+if (!(await exists(new URL('package-lock.json', root)))) {
+  console.error('package-lock.json is required for reproducible store preparation. Generate and review it with the approved Node 22/npm toolchain before continuing.');
+  process.exit(1);
+}
 run(npm, ['run', 'build']);
 
 if (!(await exists(new URL(`${platform}/`, root)))) {

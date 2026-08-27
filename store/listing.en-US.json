@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "locale": "en-US",
+  "app": {
+    "name": "Ask Crump",
+    "bundleId": "com.clevercrump.askcrump",
+    "primaryCategory": "Productivity",
+    "secondaryAppleCategory": "Utilities",
+    "supportUrl": "https://askcrump.com/legal.html#contact",
+    "marketingUrl": "https://askcrump.com/",
+    "privacyUrl": "https://askcrump.com/legal.html#privacy",
+    "privacyChoicesUrl": "https://askcrump.com/delete-account.html",
+    "accountDeletionUrl": "https://askcrump.com/delete-account.html"
+  },
+  "apple": {
+    "subtitle": "Create, research, and build",
+    "promotionalText": "Turn questions into ongoing work with Projects, research, images, documents, manuscripts, multi-engine video, scene continuation, and a private Saved Library.",
+    "keywords": "AI,assistant,research,writer,documents,images,video,manuscript,productivity,files",
+    "description": "Ask Crump is a multimodal AI workspace built to help you move from an idea to something useful.\n\nAsk questions, research a topic, create images and videos, draft documents, develop long-form manuscripts, and keep generated work in a private Saved Library. Projects keep instructions, reference files, canon, conversations, and creations together. Compatible extendable videos can continue from the ending of a previous generated scene.\n\nCreate and organize:\n\n- conversational answers and guided research\n- images and multi-engine short-form video, including compatible scene continuation\n- documents and exportable files\n- structured long-form manuscript projects\n- uploaded files and generated creations\n\nStay in control:\n\n- review and report an AI response inside the app\n- manage active device sessions\n- export conversations\n- restore eligible store purchases\n- permanently delete your account from the app\n\nAI can make mistakes. Review important results and use qualified professionals for medical, legal, financial, or other high-impact decisions.\n\nSome features require a paid plan, credits, provider availability, or an internet connection. Subscriptions renew unless canceled in your App Store account settings.",
+    "screenshotPlan": [
+      "Ask Crump — useful structured answer",
+      "Research with direction — sourced result",
+      "Create original visuals — image result controls",
+      "Build real documents — export workflow",
+      "Develop long-form work — manuscript workspace",
+      "Direct a video scene — available creation modes",
+      "Continue and keep the work — Project and Saved Library"
+    ]
+  },
+  "google": {
+    "shortDescription": "Create, research, generate media, and manage ambitious projects with Crump.",
+    "fullDescription": "Ask Crump is a multimodal AI workspace for turning questions and ideas into useful work.\n\nResearch topics, create images and short videos, draft documents, build structured long-form manuscripts, and keep generated work in a private Saved Library. Projects keep ongoing work and reference context together, and compatible extendable videos can continue from a previous generated scene.\n\nWHAT YOU CAN DO\n\n• Ask questions and explore guided research\n• Generate images and short-form video with Quick, Extendable, and Cinematic modes\n• Create documents and exportable files\n• Develop long-form manuscript projects\n• Upload files and organize generated creations\n• Reopen saved work across supported devices\n\nCONTROL AND SAFETY\n\n• Report an AI response without leaving the app\n• Manage active device sessions\n• Export conversations\n• Restore eligible store purchases\n• Permanently delete your account in the app\n\nAI can make mistakes. Review important results and use qualified professionals for medical, legal, financial, or other high-impact decisions.\n\nSome features require a paid plan, credits, provider availability, or an internet connection. Subscriptions renew unless canceled through Google Play.",
+    "screenshotPlan": [
+      "Ask Crump — useful structured answer",
+      "Research with direction — sourced result",
+      "Create original visuals — image result controls",
+      "Build real documents — export workflow",
+      "Develop long-form work — manuscript workspace",
+      "Direct a video scene — available creation modes",
+      "Continue and keep the work — Project and Saved Library"
+    ]
+  },
+  "review": {
+    "requiresSignIn": true,
+    "reviewerAccessFile": "store/reviewer-access.json",
+    "notes": "Use a dedicated, non-expiring reviewer account with enough credits to test Ask, Research, Image, Document, Manuscript, Video, Files, Projects, Saved Library, reporting, purchase restoration, session controls, export, and deletion. Never commit reviewer credentials."
+  }
+}

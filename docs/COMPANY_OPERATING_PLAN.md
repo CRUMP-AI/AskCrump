@@ -82,6 +82,8 @@ ads before that proof would purchase traffic before Ask Crump has demonstrated c
 - Build one restrained, truthful creative batch around work continuity, not capability volume.
 - Use a single measurable call to action and activation-based attribution.
 - Publish no customer testimonial or logo without documented permission.
+- Prepare App Store and Google Play internal-test candidates as a major distribution path, but do
+  not submit until signed-build, privacy, billing, reviewer-access, and owner-approval gates pass.
 
 ### Operating evidence
 
@@ -148,3 +150,7 @@ provider, privacy, cost, or security gate is incomplete.
 - **External input needed:** an ElevenLabs production API key and voice ID with confirmed rights.
 - **Next evidence:** verify the conversation-to-Project path in production, then obtain the first
   consented post-instrumentation durable-value, return, and artifact-journey observations.
+- **Native distribution:** Android 5.9.22/build 50922 source passes the API 36 and release-source
+  audit; iOS remains a macOS generation/archive step. Owner-controlled developer accounts, signing,
+  push, native billing, reviewer access, signed-device tests, screenshots, declarations, and final
+  submission approval remain open.

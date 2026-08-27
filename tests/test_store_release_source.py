@@ -15,11 +15,15 @@ def test_store_prepare_commands_are_platform_specific():
     scripts = package['scripts']
     assert scripts['store:prepare:android'].endswith('prepare-store-release.mjs android')
     assert scripts['store:prepare:ios'].endswith('prepare-store-release.mjs ios')
+    assert scripts['store:verify:metadata'].endswith('verify-store-metadata.mjs')
 
     prepare = read('scripts/prepare-store-release.mjs')
     assert "['android', 'ios'].includes(platform)" in prepare
     assert "['scripts/configure-native.mjs', platform]" in prepare
     assert "['scripts/verify-native-release.mjs', platform]" in prepare
+    assert "['scripts/verify-store-metadata.mjs']" in prepare
+    assert "new URL('package-lock.json', root)" in prepare
+    assert 'required for reproducible store preparation' in prepare
 
 
 def test_store_versions_and_android_api_are_guarded():
@@ -33,6 +37,12 @@ def test_store_versions_and_android_api_are_guarded():
     assert 'expectedBuildNumber' in verify
     assert 'REVENUECAT_ANDROID_PUBLIC_SDK_KEY' in verify
     assert 'REVENUECAT_IOS_PUBLIC_SDK_KEY' in verify
+    assert 'applicationId "com.clevercrump.askcrump"' in verify
+    assert 'PRODUCT_BUNDLE_IDENTIFIER = com.clevercrump.askcrump;' in verify
+    assert 'android:allowBackup="false"' in configure
+    assert 'android:usesCleartextTraffic="false"' in configure
+    assert 'android:allowBackup="false"' in verify
+    assert 'android:usesCleartextTraffic="false"' in verify
 
 
 def test_ios_privacy_manifest_is_valid_xml_and_bundled_by_source():
@@ -43,6 +53,8 @@ def test_ios_privacy_manifest_is_valid_xml_and_bundled_by_source():
     assert '<key>NSPrivacyTracking</key>' in source
     assert '<key>NSPrivacyCollectedDataTypes</key>' in source
     assert '<key>NSPrivacyAccessedAPITypes</key>' in source
+    product_interaction = source[source.index('NSPrivacyCollectedDataTypeProductInteraction'):]
+    assert 'NSPrivacyCollectedDataTypePurposeAnalytics' in product_interaction
 
     configure = read('scripts/configure-native.mjs')
     assert 'PrivacyInfo.xcprivacy in Resources' in configure
@@ -56,15 +68,24 @@ def test_moderation_queue_is_server_only_and_account_scoped():
     assert 'to service_role' in migration
 
 
-def test_listing_field_drafts_fit_store_limits():
-    apple_subtitle = 'Create, research, and build'
-    apple_promotional_text = (
-        'Turn questions into useful work with research, image and video creation, '
-        'documents, manuscripts, private files, and a saved creation library.'
-    )
-    google_short_description = (
-        'Create, research, generate media, and manage ambitious projects with Crump.'
-    )
-    assert len(apple_subtitle) <= 30
-    assert len(apple_promotional_text) <= 170
-    assert len(google_short_description) <= 80
+def test_store_metadata_source_is_structured_private_and_within_static_limits():
+    metadata = json.loads(read('store/listing.en-US.json'))
+    apple = metadata['apple']
+    google = metadata['google']
+
+    assert metadata['app']['bundleId'] == 'com.clevercrump.askcrump'
+    assert len(metadata['app']['name']) <= 30
+    assert len(apple['subtitle']) <= 30
+    assert len(apple['promotionalText']) <= 170
+    assert len(apple['keywords'].encode('utf-8')) <= 100
+    assert len(apple['description']) <= 4000
+    assert len(google['shortDescription']) <= 80
+    assert len(google['fullDescription']) <= 4000
+    assert len(apple['screenshotPlan']) >= 4
+    assert len(google['screenshotPlan']) >= 4
+    assert 'REPLACE_IN_UNTRACKED_FILE' in read('store/reviewer-access.example.json')
+    assert 'store/reviewer-access.json' in read('.gitignore')
+    verifier = read('scripts/verify-store-metadata.mjs')
+    assert 'Apple promotional text' in verifier
+    assert 'Google short description' in verifier
+    assert 'Store listing draft is out of sync' in verifier

@@ -1,0 +1,12 @@
+{
+  "apple": {
+    "username": "REPLACE_IN_UNTRACKED_FILE",
+    "password": "REPLACE_IN_UNTRACKED_FILE",
+    "notes": "Dedicated non-expiring reviewer account; never use a real customer's credentials."
+  },
+  "google": {
+    "username": "REPLACE_IN_UNTRACKED_FILE",
+    "password": "REPLACE_IN_UNTRACKED_FILE",
+    "notes": "Dedicated non-expiring reviewer account; never use a real customer's credentials."
+  }
+}

@@ -74,6 +74,10 @@ Do not test a new API route against production before its matching migration is 
 
 Install Node 22, Android Studio, JDK 21, and the Android 16/API 36 SDK. From the repository root:
 
+Before the first signed build, generate and review a tracked `package-lock.json` in a clean Node 22
+and npm environment. The preparation script intentionally stops if that lockfile is missing; do not
+replace the reproducibility gate with a mixed-package-manager install.
+
 ```powershell
 npm ci
 npm run store:prepare:android

@@ -20,6 +20,11 @@ This frontend rebuild is designed to preserve the existing store-sensitive archi
 - Android native preparation locks compile/target SDK 36 and validates the release version and generated launcher assets.
 - iOS native preparation bundles a base `PrivacyInfo.xcprivacy` and validates its Xcode Resources membership.
 - `npm run store:prepare:android` and `npm run store:prepare:ios` rebuild generated native projects from reviewed source.
+- `npm run store:verify:metadata` enforces current field limits and alignment between the structured
+  en-US submission source and the reviewed listing draft.
+- Store preparation fails closed until a reviewed npm lockfile supports a clean Node 22 `npm ci`.
+- Android native preparation disables cleartext traffic and local app backup, then verifies the
+  permanent package ID before any signing step.
 
 ## Release-time checklist outside this package
 
@@ -34,3 +39,6 @@ This frontend rebuild is designed to preserve the existing store-sensitive archi
 - Apply `migrations/014_ai_content_reports.sql` before testing AI reports in production, then run Supabase security/performance advisors.
 - Follow `docs/STORE_LAUNCH_RUNBOOK.md` for publisher identity, signing, native preparation, testing, and submission order.
 - Review and adapt `docs/STORE_LISTING_COPY.md` against the exact signed release build.
+- Follow `store/screenshots/README.md` and capture real UI from the signed build; do not use mockups
+  as functionality evidence.
+- Review `docs/STORE_READINESS_AUDIT_2026-08-27.md` for the current proved state and blockers.

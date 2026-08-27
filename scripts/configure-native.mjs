@@ -51,6 +51,16 @@ async function patchAndroidVersion() {
 async function patchAndroidNotifications() {
   const manifestPath = new URL('android/app/src/main/AndroidManifest.xml', root);
   let manifest = await readFile(manifestPath, 'utf8');
+  if (/android:allowBackup="[^"]*"/.test(manifest)) {
+    manifest = manifest.replace(/android:allowBackup="[^"]*"/, 'android:allowBackup="false"');
+  } else {
+    manifest = manifest.replace('<application', '<application\n        android:allowBackup="false"');
+  }
+  if (/android:usesCleartextTraffic="[^"]*"/.test(manifest)) {
+    manifest = manifest.replace(/android:usesCleartextTraffic="[^"]*"/, 'android:usesCleartextTraffic="false"');
+  } else {
+    manifest = manifest.replace('<application', '<application\n        android:usesCleartextTraffic="false"');
+  }
   if (!manifest.includes('android.permission.POST_NOTIFICATIONS')) {
     manifest = manifest.replace('<application', '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n\n    <application');
   }

@@ -115,6 +115,24 @@ activation → durable value → useful outcome → return/share → checkout �
 excluded, and a written decision for the largest observed drop-off. Treat small samples as
 directional rather than statistically conclusive.
 
+### P1 — Prepare native store distribution without premature submission
+
+**Evidence:** production 5.9.22 is healthy; the Android release source regenerates as build 50922
+with API 36, the permanent package ID, generated assets, cleartext/backup protections, and a passing
+native source verifier. Structured en-US metadata passes current field limits. iOS generation
+correctly remains a macOS step. Firebase, RevenueCat public keys/products, signing credentials,
+publisher-account state, reviewer access, signed builds, physical-device results, screenshots, and
+console declarations are not yet verified.
+
+**Outcome:** produce exact signed Android and iOS candidates with truthful listings, reviewer access,
+privacy/data-safety reconciliation, native purchase restoration, AI reporting, deletion, push,
+accessibility, and reliable core workflows proven in internal testing.
+
+**Release gate:** resolve every platform blocker in
+`docs/STORE_READINESS_AUDIT_2026-08-27.md`, review the final signed-build packet with the owner, and
+obtain explicit per-platform approval before submission. Never claim store availability from source
+readiness alone.
+
 ### P2 — Prove the advertising creative system
 
 **Evidence:** Deevid has produced promising video candidates, but the two newest candidate files

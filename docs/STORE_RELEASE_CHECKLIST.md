@@ -17,6 +17,25 @@
 - deterministic per-platform native preparation and version/build validation
 - Android compile/target SDK 36 enforcement
 - base iOS privacy manifest copied into the app Resources build phase
+- machine-validated en-US store metadata and signed-build screenshot capture plan
+- permanent package/bundle identifier verification for both native platforms
+- Android cleartext traffic and local backup disabled for account-linked session data
+
+## 2026-08-27 audit snapshot
+
+- [x] Production 5.9.22 and the one-click continuing-work path verified
+- [x] Android source regenerated and verified as 5.9.22/build 50922, API 36
+- [x] Store metadata fits current Apple and Google field limits
+- [x] Current Google API-level, AI-reporting, deletion, Data Safety, and app-access rules reviewed
+- [x] Current Apple privacy, reviewer-access, and screenshot requirements reviewed
+- [ ] Reviewed npm lockfile committed and a clean `npm ci` succeeds under Node 22
+- [ ] Owner publisher identity and developer-account state confirmed
+- [ ] Android Firebase, RevenueCat public key, upload keystore, and compatible JDK 21 supplied (the
+      installed Android Studio Java 25 runtime cannot run this Gradle toolchain)
+- [ ] iOS source generated, signed, and archived on macOS
+- [ ] Exact signed builds pass the physical-device, billing, privacy, and console gates
+
+See `docs/STORE_READINESS_AUDIT_2026-08-27.md` for evidence, blockers, and official references.
 
 ## Apple
 
