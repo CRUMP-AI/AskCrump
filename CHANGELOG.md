@@ -38,7 +38,9 @@
   corrected run generated Ask Crump and compiled its unsigned Release configuration under Xcode
   16.4 without certificates, provisioning profiles, store credentials, upload, or submission.
 - Added the matching no-secret Android workflow to select Java 21, generate the native candidate,
-  and prove Gradle can produce a Release App Bundle before a Play keystore enters the process.
+  and prove Gradle can produce a Release App Bundle before a Play keystore enters the process. Its
+  first run exposed Gradle-cache initialization before generated source; the corrected run passed
+  native and signing-control checks, compiled `bundleRelease`, and verified a non-empty `.aab`.
 
 ## 5.9.21 — 2026-08-27
 

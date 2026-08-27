@@ -31,13 +31,13 @@
 - [x] Reviewed npm lockfile committed; clean Node 22 `npm ci`, dependency tree, npm audit, and
       deterministic Android preparation pass (2026-08-27)
 - [ ] Owner publisher identity and developer-account state confirmed
-- [ ] Android Firebase, RevenueCat public key, upload keystore, and compatible JDK 21 supplied (the
-      installed Android Studio Java 25 runtime cannot run this Gradle toolchain)
+- [ ] Android Firebase, RevenueCat public key, and upload keystore supplied; the hosted Java 21
+      release-build path is verified, while local Android Studio still needs a compatible JDK
 - [ ] iOS source generated, signed, and archived on macOS
 - [x] No-upload GitHub macOS source/Release compile verification passed under Xcode 16.4 before
       signing credentials were added ([run 33111605249](https://github.com/CRUMP-AI/AskCrump/actions/runs/33111605249), 2026-08-27)
-- [ ] No-upload GitHub Java 21 Android App Bundle verification succeeds before signing credentials
-      are added
+- [x] No-upload GitHub Java 21 Android App Bundle verification passed before signing credentials
+      were added ([run 33112959533](https://github.com/CRUMP-AI/AskCrump/actions/runs/33112959533), 2026-08-27)
 - [ ] Exact signed builds pass the physical-device, billing, privacy, and console gates
 
 See `docs/STORE_READINESS_AUDIT_2026-08-27.md` for evidence, blockers, and official references.

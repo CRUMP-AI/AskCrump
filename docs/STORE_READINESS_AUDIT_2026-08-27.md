@@ -3,10 +3,11 @@
 ## Outcome
 
 Ask Crump has a verified store-release source foundation, but it is not yet ready for upload or
-submission. Android source was regenerated and verified locally for 5.9.22/build 50922. The iOS
-project was generated and its unsigned Release configuration compiled on a hosted macOS runner.
-Signing, push, native billing products, reviewer access, physical-device testing, screenshots,
-console declarations, and publisher-account setup remain owner-controlled gates.
+submission. Android source was regenerated for 5.9.22/build 50922 and its unsigned Release App
+Bundle compiled on a hosted Java 21 runner. The iOS project was generated and its unsigned Release
+configuration compiled on a hosted macOS runner. Signing, push, native billing products, reviewer
+access, physical-device testing, screenshots, console declarations, and publisher-account setup
+remain owner-controlled gates.
 
 No store upload, public listing, developer-account enrollment, purchase, or pricing change was made
 during this audit.
@@ -28,7 +29,7 @@ during this audit.
 | Privacy inventory | `docs/DATA_SAFETY.md`, the public privacy notice, and the iOS base privacy manifest enumerate account, content, device, usage, purchase, reporting, push, and provider flows. | Source ready; final SDK/archive reconciliation pending |
 | iOS generation | The deterministic scripts set the bundle ID/version, push callbacks, Photos explanations, and bundled privacy manifest. GitHub run [33111605249](https://github.com/CRUMP-AI/AskCrump/actions/runs/33111605249) generated the project and compiled its Release configuration under Xcode 16.4. | Verified unsigned Release compile |
 | iOS cloud boundary | `.github/workflows/ios-store-verify.yml` uses a standard GitHub macOS runner with signing disabled and no upload credentials. The first run exposed a workspace/project assumption; the corrected workflow accepts the generated Xcode project and the second run passed. | Verified no-secret/no-upload boundary |
-| Android cloud boundary | `.github/workflows/android-store-verify.yml` prepares source with Node 22, selects Temurin Java 21, and compiles a Release App Bundle with no keystore or store credentials. | Source prepared; first cloud run pending |
+| Android cloud boundary | `.github/workflows/android-store-verify.yml` prepares source with Node 22, selects Temurin Java 21, compiles a Release App Bundle, and requires the `.aab` to be non-empty. The initial run exposed cache initialization before generated Gradle source; the corrected [run 33112959533](https://github.com/CRUMP-AI/AskCrump/actions/runs/33112959533) passed every source, signing-control, Gradle, and bundle-output step. | Verified unsigned `.aab` compile |
 | Signing controls | Mobile signing verification found no tracked keys, certificates, provisioning profiles, service-account files, or passwords. | Verified |
 
 ## Current blockers
@@ -62,9 +63,9 @@ during this audit.
 - Create and securely back up the Play upload keystore outside Git, then load all four
   `ASKCRUMP_ANDROID_*` signing variables only in the release shell.
 - Android Studio and the Android SDK are installed, but its bundled Java 25 runtime is incompatible
-  with the current Gradle toolchain (`Unsupported class file major version 69`). The no-secret cloud
-  verifier now selects Java 21 explicitly; its first run must prove an unsigned `.aab` before signing
-  credentials are introduced.
+  with the current Gradle toolchain (`Unsupported class file major version 69`). This is no longer a
+  release-build blocker: the no-secret cloud verifier selects Java 21 explicitly and has produced a
+  verified unsigned `.aab`. Local Android Studio builds still require selecting a compatible JDK.
 - Produce a signed bundle, upload only to Play internal testing, and complete device/pre-launch,
   billing, restoration, push, deletion, accessibility, and offline/reconnect tests.
 

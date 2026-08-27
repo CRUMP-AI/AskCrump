@@ -123,8 +123,9 @@ native source verifier. Structured en-US metadata passes current field limits. A
 lockfile now supports clean `npm ci`, a zero-vulnerability npm audit, and deterministic Android
 preparation from an isolated worktree. GitHub run `33111605249` generated the iOS project and
 compiled its unsigned Release configuration under Xcode 16.4 with no signing or upload credentials.
-The matching Java 21 Android App Bundle cloud verifier is prepared for its first run. Firebase,
-RevenueCat public keys/products, signing credentials,
+GitHub run `33112959533` generated the Android project under Java 21, passed the native and signing-
+control verifiers, compiled `bundleRelease`, and confirmed a non-empty unsigned `.aab`, also with no
+signing or upload credentials. Firebase, RevenueCat public keys/products, signing credentials,
 publisher-account state, reviewer access, signed builds, physical-device results, screenshots, and
 console declarations are not yet verified.
 
