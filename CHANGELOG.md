@@ -34,6 +34,11 @@
   the verified pipeline no longer depends on deprecated action runtimes.
 - Added a no-secret, no-signing, no-upload macOS workflow that deterministically generates the iOS
   source and compiles its Release configuration before Apple credentials enter the process.
+- Used the first hosted-macOS run to detect and correct an Xcode project/workspace assumption; the
+  corrected run generated Ask Crump and compiled its unsigned Release configuration under Xcode
+  16.4 without certificates, provisioning profiles, store credentials, upload, or submission.
+- Added the matching no-secret Android workflow to select Java 21, generate the native candidate,
+  and prove Gradle can produce a Release App Bundle before a Play keystore enters the process.
 
 ## 5.9.21 — 2026-08-27
 

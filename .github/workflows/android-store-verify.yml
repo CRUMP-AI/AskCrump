@@ -1,0 +1,77 @@
+name: Android Store Bundle Verification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/android-store-verify.yml
+      - package.json
+      - package-lock.json
+      - capacitor.config.ts
+      - scripts/build-native.mjs
+      - scripts/configure-android-signing.mjs
+      - scripts/configure-native.mjs
+      - scripts/prepare-store-release.mjs
+      - scripts/verify-mobile-signing.mjs
+      - scripts/verify-native-release.mjs
+      - scripts/verify-store-metadata.mjs
+      - resources/icon.png
+      - resources/splash.png
+
+concurrency:
+  group: android-store-bundle-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify-android-bundle:
+    name: Generate and compile unsigned Android candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - name: Record Android toolchain
+        run: java -version
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Generate and verify Android release source
+        run: npm run store:prepare:android
+      - name: Verify tracked signing controls
+        run: npm run store:signing:check
+      - name: Compile release bundle without signing or upload
+        run: |
+          chmod +x android/gradlew
+          cd android
+          ./gradlew --no-daemon bundleRelease
+      - name: Verify generated bundle
+        shell: bash
+        run: |
+          bundle_path="$(find android/app/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' -print -quit)"
+          if [[ -z "$bundle_path" || ! -s "$bundle_path" ]]; then
+            echo 'A non-empty release Android App Bundle was not generated.' >&2
+            exit 1
+          fi
+          bundle_bytes="$(wc -c < "$bundle_path" | tr -d ' ')"
+          bundle_sha256="$(sha256sum "$bundle_path" | cut -d ' ' -f 1)"
+          {
+            echo '## Ask Crump Android bundle verification'
+            echo
+            echo "- Generated \`$(basename "$bundle_path")\` (${bundle_bytes} bytes)."
+            echo "- SHA-256: \`${bundle_sha256}\`."
+            echo '- Generated from the reviewed Node 22 lockfile with Temurin Java 21.'
+            echo '- Native source and tracked signing-control verifiers passed.'
+            echo '- Gradle compiled the Release Android App Bundle without signing.'
+            echo '- No keystore, service-account credential, artifact upload, Play upload, or submission was used.'
+          } >> "$GITHUB_STEP_SUMMARY"

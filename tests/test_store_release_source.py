@@ -54,6 +54,23 @@ def test_ios_cloud_verification_cannot_sign_or_upload():
     assert 'app-store-connect' not in workflow.lower()
 
 
+def test_android_cloud_verification_builds_a_bundle_without_signing_or_upload():
+    workflow = read('.github/workflows/android-store-verify.yml')
+
+    assert 'runs-on: ubuntu-latest' in workflow
+    assert 'actions/setup-java@v5' in workflow
+    assert 'java-version: "21"' in workflow
+    assert 'npm run store:prepare:android' in workflow
+    assert 'npm run store:signing:check' in workflow
+    assert 'store:signing:check:android' not in workflow
+    assert './gradlew --no-daemon bundleRelease' in workflow
+    assert "-name '*.aab'" in workflow
+    assert 'secrets.' not in workflow
+    assert 'actions/upload-artifact' not in workflow
+    assert 'google-github-actions/auth' not in workflow
+    assert 'playstore' not in workflow.lower()
+
+
 def test_store_versions_and_android_api_are_guarded():
     configure = read('scripts/configure-native.mjs')
     verify = read('scripts/verify-native-release.mjs')

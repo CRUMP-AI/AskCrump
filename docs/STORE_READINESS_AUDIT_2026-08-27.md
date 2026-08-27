@@ -4,9 +4,9 @@
 
 Ask Crump has a verified store-release source foundation, but it is not yet ready for upload or
 submission. Android source was regenerated and verified locally for 5.9.22/build 50922. The iOS
-project must be generated and archived on macOS. Signing, push, native billing products, reviewer
-access, physical-device testing, screenshots, console declarations, and publisher-account setup
-remain owner-controlled gates.
+project was generated and its unsigned Release configuration compiled on a hosted macOS runner.
+Signing, push, native billing products, reviewer access, physical-device testing, screenshots,
+console declarations, and publisher-account setup remain owner-controlled gates.
 
 No store upload, public listing, developer-account enrollment, purchase, or pricing change was made
 during this audit.
@@ -26,8 +26,9 @@ during this audit.
 | Store copy | `store/listing.en-US.json` is machine-checked against Apple/Google field limits and the reviewed Markdown draft. | Verified in source |
 | Reproducible dependencies | The tracked npm v3 lockfile was generated with Node 22.22.0/npm 11.6.0 in an isolated worktree. Clean `npm ci`, `npm ls --all`, a zero-vulnerability `npm audit`, production build, and deterministic Android preparation passed. | Verified |
 | Privacy inventory | `docs/DATA_SAFETY.md`, the public privacy notice, and the iOS base privacy manifest enumerate account, content, device, usage, purchase, reporting, push, and provider flows. | Source ready; final SDK/archive reconciliation pending |
-| iOS generation | The deterministic scripts set the bundle ID/version, push callbacks, Photos explanations, and bundled privacy manifest. Windows correctly refuses iOS preparation because Xcode/CocoaPods require macOS. | Prepared source; macOS run pending |
-| iOS cloud boundary | `.github/workflows/ios-store-verify.yml` generates and compiles the Release configuration on a standard GitHub macOS runner with signing disabled and no upload credentials. | Source prepared; first cloud run pending |
+| iOS generation | The deterministic scripts set the bundle ID/version, push callbacks, Photos explanations, and bundled privacy manifest. GitHub run [33111605249](https://github.com/CRUMP-AI/AskCrump/actions/runs/33111605249) generated the project and compiled its Release configuration under Xcode 16.4. | Verified unsigned Release compile |
+| iOS cloud boundary | `.github/workflows/ios-store-verify.yml` uses a standard GitHub macOS runner with signing disabled and no upload credentials. The first run exposed a workspace/project assumption; the corrected workflow accepts the generated Xcode project and the second run passed. | Verified no-secret/no-upload boundary |
+| Android cloud boundary | `.github/workflows/android-store-verify.yml` prepares source with Node 22, selects Temurin Java 21, and compiles a Release App Bundle with no keystore or store credentials. | Source prepared; first cloud run pending |
 | Signing controls | Mobile signing verification found no tracked keys, certificates, provisioning profiles, service-account files, or passwords. | Verified |
 
 ## Current blockers
@@ -61,18 +62,17 @@ during this audit.
 - Create and securely back up the Play upload keystore outside Git, then load all four
   `ASKCRUMP_ANDROID_*` signing variables only in the release shell.
 - Android Studio and the Android SDK are installed, but its bundled Java 25 runtime is incompatible
-  with the current Gradle toolchain (`Unsupported class file major version 69`). Install or approve a
-  Java 21 runtime and load `JAVA_HOME` for the release shell. The host blocked a temporary executable
-  download, so no workaround was used and an `.aab` was not produced during this audit.
+  with the current Gradle toolchain (`Unsupported class file major version 69`). The no-secret cloud
+  verifier now selects Java 21 explicitly; its first run must prove an unsigned `.aab` before signing
+  credentials are introduced.
 - Produce a signed bundle, upload only to Play internal testing, and complete device/pre-launch,
   billing, restoration, push, deletion, accessibility, and offline/reconnect tests.
 
 ### iOS
 
-- Generate with `npm run store:prepare:ios` on a trusted Mac or approved GitHub-hosted macOS runner.
-  This preserves a Windows-led release process without outsourcing the submission.
-- Prove the generated project first with `.github/workflows/ios-store-verify.yml`; it intentionally
-  contains no signing or upload path. Review a separate credentialed workflow before enabling it.
+- The generated iOS project and unsigned Release compile passed on a GitHub-hosted macOS runner,
+  preserving a Windows-led release process without outsourcing the submission. Keep the verified
+  no-secret workflow separate from any future credentialed archive/upload workflow.
 - Select the Apple team, enable Push Notifications and Background Modes, and supply APNs credentials.
 - Configure `REVENUECAT_IOS_PUBLIC_SDK_KEY`, create the exact App Store products, and map them in
   RevenueCat.

@@ -34,7 +34,10 @@
 - [ ] Android Firebase, RevenueCat public key, upload keystore, and compatible JDK 21 supplied (the
       installed Android Studio Java 25 runtime cannot run this Gradle toolchain)
 - [ ] iOS source generated, signed, and archived on macOS
-- [ ] No-upload GitHub macOS source/compile verification succeeds before signing credentials are added
+- [x] No-upload GitHub macOS source/Release compile verification passed under Xcode 16.4 before
+      signing credentials were added ([run 33111605249](https://github.com/CRUMP-AI/AskCrump/actions/runs/33111605249), 2026-08-27)
+- [ ] No-upload GitHub Java 21 Android App Bundle verification succeeds before signing credentials
+      are added
 - [ ] Exact signed builds pass the physical-device, billing, privacy, and console gates
 
 See `docs/STORE_READINESS_AUDIT_2026-08-27.md` for evidence, blockers, and official references.
