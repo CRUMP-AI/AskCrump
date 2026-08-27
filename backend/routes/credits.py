@@ -150,7 +150,14 @@ async def _ensure_stripe_customer(user: dict[str, Any]) -> str:
 
 
 def _verify_stripe_signature(body: bytes, header: str) -> bool:
-    webhook_secret = os.getenv('STRIPE_CREDITS_WEBHOOK_SECRET') or settings.stripe_webhook_secret
+    # Prefer the documented singular name. Keep the original production alias
+    # for compatibility so an existing credits destination never falls back to
+    # the unrelated subscription signing secret.
+    webhook_secret = (
+        os.getenv('STRIPE_CREDITS_WEBHOOK_SECRET')
+        or os.getenv('STRIPE_CREDITS_WEBHOOK_SECRETS')
+        or settings.stripe_webhook_secret
+    )
     if not webhook_secret or not header:
         return False
     values: dict[str, list[str]] = {}
