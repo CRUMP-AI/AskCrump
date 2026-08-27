@@ -428,24 +428,40 @@
   const ASK_CRUMP_SHARE_URL = 'https://www.askcrump.com/app?signup=1&acquisition=referral&source=response-share';
 
   async function writeClipboard(content) {
+    let clipboardError = null;
     try {
       await navigator.clipboard.writeText(content);
-    } catch (_) {
-      const area = document.createElement('textarea');
-      area.value = content;
-      area.style.position = 'fixed';
-      area.style.opacity = '0';
-      document.body.appendChild(area);
+      return true;
+    } catch (error) {
+      clipboardError = error;
+    }
+
+    const area = document.createElement('textarea');
+    area.value = content;
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    try {
       area.select();
-      document.execCommand('copy');
+      if (document.execCommand?.('copy') !== true) {
+        throw clipboardError || new Error('Clipboard access is unavailable.');
+      }
+      return true;
+    } finally {
       area.remove();
     }
   }
 
   async function copyMessage(index) {
     const content = currentMessages()[index]?.content || '';
-    await writeClipboard(content);
-    window.showToast?.('Copied', 'success');
+    try {
+      await writeClipboard(content);
+      window.showToast?.('Copied', 'success');
+      return true;
+    } catch (_) {
+      window.showToast?.('Copy is unavailable in this browser.', 'error');
+      return false;
+    }
   }
 
   function responseShareKey(message, index) {
@@ -481,14 +497,20 @@
         await navigator.share(payload);
         await recordResponseShare(message, index, 'native_share');
         window.showToast?.('Shared', 'success');
-        return;
+        return true;
       } catch (error) {
-        if (error?.name === 'AbortError') return;
+        if (error?.name === 'AbortError') return false;
       }
     }
-    await writeClipboard(`${payload.text} — ${payload.url}`);
-    await recordResponseShare(message, index, 'clipboard');
-    window.showToast?.('Share text copied', 'success');
+    try {
+      await writeClipboard(`${payload.text} — ${payload.url}`);
+      await recordResponseShare(message, index, 'clipboard');
+      window.showToast?.('Share text copied', 'success');
+      return true;
+    } catch (_) {
+      window.showToast?.('Sharing is unavailable in this browser.', 'error');
+      return false;
+    }
   }
 
   async function shareAskCrump(message, index) {
@@ -502,14 +524,20 @@
         await navigator.share(payload);
         await recordResponseShare(message, index, 'useful_prompt_native');
         window.showToast?.('Shared', 'success');
-        return;
+        return true;
       } catch (error) {
-        if (error?.name === 'AbortError') return;
+        if (error?.name === 'AbortError') return false;
       }
     }
-    await writeClipboard(`${payload.text} ${payload.url}`);
-    await recordResponseShare(message, index, 'useful_prompt_clipboard');
-    window.showToast?.('Ask Crump link copied', 'success');
+    try {
+      await writeClipboard(`${payload.text} ${payload.url}`);
+      await recordResponseShare(message, index, 'useful_prompt_clipboard');
+      window.showToast?.('Ask Crump link copied', 'success');
+      return true;
+    } catch (_) {
+      window.showToast?.('Sharing is unavailable in this browser.', 'error');
+      return false;
+    }
   }
 
   const OUTCOME_FEEDBACK_STORAGE_PREFIX = 'askcrump.outcome-feedback.';

@@ -215,6 +215,20 @@ def test_ai_responses_have_privacy_safe_sharing():
     assert "chat" not in share_url.lower()
 
 
+def test_failed_clipboard_fallback_never_claims_or_records_a_share():
+    ui = (PUBLIC / 'ui-functions.js').read_text()
+    clipboard = ui[ui.index('async function writeClipboard'):ui.index('async function copyMessage')]
+    share = ui[ui.index('async function shareMessage'):ui.index('async function shareAskCrump')]
+    referral = ui[ui.index('async function shareAskCrump'):ui.index('const OUTCOME_FEEDBACK_STORAGE_PREFIX')]
+
+    assert "document.execCommand?.('copy') !== true" in clipboard
+    assert 'throw clipboardError' in clipboard
+    assert share.index('await writeClipboard') < share.index("recordResponseShare(message, index, 'clipboard')")
+    assert referral.index('await writeClipboard') < referral.index("recordResponseShare(message, index, 'useful_prompt_clipboard')")
+    assert "Sharing is unavailable in this browser." in share
+    assert "Sharing is unavailable in this browser." in referral
+
+
 def test_destructive_actions_use_an_accessible_dialog():
     app_js = (PUBLIC / 'app.js').read_text()
     ui = (PUBLIC / 'ui-functions.js').read_text()

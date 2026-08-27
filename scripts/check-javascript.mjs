@@ -137,7 +137,7 @@ if (!v1Body.includes('removeLegacyEmptyState(container)')) {
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r57') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r58') ||
     !serviceWorker.includes(`/landing.js?v=${releaseVersion}`) ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes(`/conversation.css?v=${releaseVersion}`) ||
@@ -186,6 +186,69 @@ if (!renderedMarkdown.includes('<table>') ||
     !renderedMarkdown.includes('&lt;script&gt;alert(1)&lt;/script&gt;') ||
     renderedMarkdown.includes('<script>')) {
   console.error('Safe Markdown renderer must support tables, quotations, and ordered lists without allowing HTML injection.');
+  process.exit(1);
+}
+
+function shareContractEnvironment({ legacyCopyResult }) {
+  const analytics = [];
+  const toasts = [];
+  const area = {
+    style: {},
+    value: '',
+    select() {},
+    remove() {},
+  };
+  const shareWindow = {
+    crypto: { randomUUID: () => 'share-contract' },
+    location: { origin: 'https://www.askcrump.com' },
+    currentChatId: 'chat-1',
+    chats: [{
+      id: 'chat-1',
+      messages: [{id: 'response-1', content: 'A useful answer.'}],
+    }],
+    CrumpAnalytics: {
+      async track(eventName, values) {
+        analytics.push({eventName, ...values});
+        return true;
+      },
+    },
+  };
+  const shareDocument = {
+    body: {appendChild() {}},
+    createElement(name) {
+      if (name !== 'textarea') throw new Error(`Unexpected share contract element: ${name}`);
+      return area;
+    },
+    execCommand(command) {
+      return command === 'copy' && legacyCopyResult;
+    },
+  };
+  const context = createContext({
+    document: shareDocument,
+    navigator: {clipboard: {async writeText() { throw new Error('denied'); }}},
+    URL,
+    window: shareWindow,
+  });
+  runInContext(uiFunctions, context);
+  shareWindow.showToast = (message, tone) => toasts.push({message, tone});
+  return {analytics, shareWindow, toasts};
+}
+
+const failedShare = shareContractEnvironment({legacyCopyResult: false});
+if (await failedShare.shareWindow.shareMessage(0) !== false ||
+    failedShare.analytics.length !== 0 ||
+    !failedShare.toasts.some(toast => toast.tone === 'error')) {
+  console.error('A failed clipboard fallback must not report or record a successful share.');
+  process.exit(1);
+}
+
+const copiedShare = shareContractEnvironment({legacyCopyResult: true});
+if (await copiedShare.shareWindow.shareMessage(0) !== true ||
+    copiedShare.analytics.length !== 1 ||
+    copiedShare.analytics[0].eventName !== 'ResponseShared' ||
+    copiedShare.analytics[0].source !== 'clipboard' ||
+    !copiedShare.toasts.some(toast => toast.tone === 'success')) {
+  console.error('A verified clipboard fallback must record exactly one successful share.');
   process.exit(1);
 }
 const scroll522 = await readFile(new URL('public/crump-5.2.2.js', repoRoot), 'utf8');
