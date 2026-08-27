@@ -23,8 +23,8 @@
 
 ## 2026-08-27 audit snapshot
 
-- [x] Production 5.9.24, the one-click continuing-work path, crawlable workflow pages, and truthful referral-copy handling verified
-- [x] Android source regenerated and verified as 5.9.24/build 50924, API 36
+- [x] Production 5.9.26, the one-click continuing-work path, crawlable workflow pages, truthful referral-copy handling, and canonical native API host verified
+- [x] Android source regenerated and verified as 5.9.26/build 50926, API 36
 - [x] Store metadata fits current Apple and Google field limits
 - [x] Current Google API-level, AI-reporting, deletion, Data Safety, and app-access rules reviewed
 - [x] Current Apple privacy, reviewer-access, and screenshot requirements reviewed
@@ -34,10 +34,10 @@
 - [ ] Android Firebase, RevenueCat public key, and upload keystore supplied; the hosted Java 21
       release-build path is verified, while local Android Studio still needs a compatible JDK
 - [ ] iOS source generated, signed, and archived on macOS
-- [x] No-upload GitHub macOS source/Release compile verification passed for 5.9.24 before signing
-      credentials were added ([run 33119777888](https://github.com/CRUMP-AI/AskCrump/actions/runs/33119777888), 2026-08-27)
+- [x] No-upload GitHub macOS source/Release compile verification passed for 5.9.26 before signing
+      credentials were added ([run 33124724453](https://github.com/CRUMP-AI/AskCrump/actions/runs/33124724453), 2026-08-27)
 - [x] No-upload GitHub Java 21 Android App Bundle verification passed before signing credentials
-      were added ([run 33119777893](https://github.com/CRUMP-AI/AskCrump/actions/runs/33119777893), 2026-08-27)
+      were added ([run 33124724445](https://github.com/CRUMP-AI/AskCrump/actions/runs/33124724445), 2026-08-27)
 - [ ] Exact signed builds pass the physical-device, billing, privacy, and console gates
 
 See `docs/STORE_READINESS_AUDIT_2026-08-27.md` for evidence, blockers, and official references.

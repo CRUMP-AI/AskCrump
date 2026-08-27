@@ -25,6 +25,7 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 | Truthful organic discovery | Commit `150ced2`; deployment `dpl_HUbcyLdLFdh7SVpqF3S99XL3caMo`; production 5.9.23 adds unique, crawlable presentation and document workflow pages, homepage/cross-page links, canonical metadata, valid JSON-LD, and a four-URL sitemap. Known search referrers collapse to `organic` without retaining the referrer URL or query, and internal CTA placements cannot overwrite acquisition. All 290 backend tests, 40 JavaScript validations, production/native bundle checks, CI run `33116981568`, Android run `33116981449`, iOS run `33116981462`, clean-URL HTTP checks, desktop/mobile browser checks, and the deployment-scoped error/fatal scan passed. | Verified |
 | Truthful referral delivery | Commit `a7f3482`; deployment `dpl_2zxpBU85E3uJkygbmmjquhq4fVQJ`; production 5.9.24 keeps the post-useful-result invitation content-free and carries only aggregate `referral` acquisition plus `response-share` placement into registration. The registration server preserves `referral` on `AccountCreated`. Denied clipboard access can no longer display a false success or record `ResponseShared`; an executable browser-script contract proves failed copy records zero events while a verified fallback records exactly one. All 291 backend tests, 40 JavaScript validations, production/native/store checks, CI run `33119777886`, Android run `33119777893`, iOS run `33119777888`, live route/version checks, and the deployment-scoped error/fatal scan passed. A legitimate referred account and activated outcome have not yet been observed. | Verified delivery; outcome pending |
 | Measurable social previews | Commit `6d2c24f`; deployment `dpl_CZih5NeHk8JjDp1tukrLZPCXhioD`; production 5.9.25 gives the home, presentation, and document pages distinct 1,200-by-630 social cards composed from the canonical mark, with large-card metadata and truthful page-specific copy. The generator is deterministic on the verified release machine; automated tests validate PNG format, dimensions, color mode, and per-page references. All 292 backend tests, 40 JavaScript validations, production/native/store checks, CI run `33123220073`, Android run `33123220055`, iOS run `33123220046`, six live route/asset checks, and the deployment-scoped warning/error/fatal/5xx scan passed. Socially attributed signup outcome remains unproven. | Verified delivery; outcome pending |
+| Direct canonical native/payment host | Commit `a9b5a1d`; deployment `dpl_7LNkJoyLrHrJ3pA13ufrz4tfZ1b1`; production 5.9.26 removes the redirecting apex host from every native API default and from payment/deployment instructions. A regression contract rejects the old default. All 293 backend tests, 40 JavaScript validations, production/native/store checks, CI run `33124724449`, Android run `33124724445`, and iOS run `33124724453` passed. Live health and five public runtime checks returned 200, the generated runtime contains the direct host, and the deployment had no runtime error cluster or non-200 function response. The owner-controlled Stripe Dashboard URLs still require approval and signed test delivery. | Source correction verified; external configuration pending |
 
 ### Current production reliability checkpoint
 
@@ -199,13 +200,13 @@ rate without platform impression data.
 
 ### P1 — Prepare native store distribution without premature submission
 
-**Evidence:** production 5.9.24 is healthy; the Android release source regenerates as build 50924
+**Evidence:** production 5.9.26 is healthy; the Android release source regenerates as build 50926
 with API 36, the permanent package ID, generated assets, cleartext/backup protections, and a passing
 native source verifier. Structured en-US metadata passes current field limits. A reviewed Node 22
 lockfile now supports clean `npm ci`, a zero-vulnerability npm audit, and deterministic Android
-preparation from an isolated worktree. GitHub run `33119777888` generated the 5.9.24 iOS project and
+preparation from an isolated worktree. GitHub run `33124724453` generated the 5.9.26 iOS project and
 compiled its unsigned Release configuration on hosted macOS with no signing or upload credentials.
-GitHub run `33119777893` generated the 5.9.24/build 50924 Android project under Java 21, passed the
+GitHub run `33124724445` generated the 5.9.26/build 50926 Android project under Java 21, passed the
 native and signing-control verifiers, compiled `bundleRelease`, and confirmed a non-empty unsigned
 `.aab`, also with no signing or upload credentials. Firebase, RevenueCat public keys/products,
 signing credentials,

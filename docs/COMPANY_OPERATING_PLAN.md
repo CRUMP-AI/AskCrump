@@ -192,7 +192,7 @@ provider, privacy, cost, or security gate is incomplete.
 - **External input needed:** an ElevenLabs production API key and voice ID with confirmed rights.
 - **Next evidence:** submit the sitemap after owner confirmation, then obtain the first legitimate
   post-instrumentation acquisition, durable-value, return, and artifact-journey observations.
-- **Native distribution:** Android 5.9.24/build 50924 source and an unsigned `.aab` pass the hosted
-  API 36/Java 21 release audit; the generated iOS 5.9.24 Release configuration passes its hosted
+- **Native distribution:** Android 5.9.26/build 50926 source and an unsigned `.aab` pass the hosted
+  API 36/Java 21 release audit; the generated iOS 5.9.26 Release configuration passes its hosted
   macOS compile. Owner-controlled developer accounts, signing, push, native billing, reviewer access,
   signed-device tests, screenshots, declarations, and final submission approval remain open.
