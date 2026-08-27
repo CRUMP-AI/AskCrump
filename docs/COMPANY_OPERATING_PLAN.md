@@ -52,6 +52,13 @@ Project or retained a file, and no external activity occurred after August 23. T
 to help users keep useful work, return to it, and measure a new post-instrumentation cohort. Scaling
 ads before that proof would purchase traffic before Ask Crump has demonstrated continued value.
 
+Production-only Web Analytics on August 27 reported 78 visitors and 185 page views over seven days,
+but those anonymous counts cross the first-event measurement boundary and cannot be reconciled to
+external accounts. The comparable service-role funnel still contains zero external accounts and
+the artifact journey contains no rows. In the most recent 24 hours, six visitors produced no signup
+event. Acquisition and comparable observation—not a proven form defect—therefore remain the next
+constraint.
+
 ## 30-day execution plan
 
 ### Product and reliability
@@ -151,6 +158,10 @@ provider, privacy, cost, or security gate is incomplete.
 - **Shipped foundation:** server-only ElevenLabs voice path with device-speech fallback; disabled
   until disclosure, credentials, and smoke tests are approved.
 - **Risk:** no external durable-value, return, or artifact journey has been observed yet.
+- **Traffic evidence:** production Web Analytics recorded 78 seven-day visitors and 18 visitors
+  reaching signup intent, but the period crosses the measurement boundary; the last 24 hours had
+  six visitors and no signup event. These anonymous counts are context, not an account conversion
+  rate.
 - **Risk:** a real sandbox run has not verified production OIDC/runtime behavior.
 - **Permission needed:** a sub-cent Vercel sandbox smoke test and the exact premium-voice disclosure.
 - **External input needed:** an ElevenLabs production API key and voice ID with confirmed rights.

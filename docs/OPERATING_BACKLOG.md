@@ -118,7 +118,14 @@ The authoritative action-time checklist is `docs/SEARCH_CONSOLE_RELEASE_GATE_202
 continuation, response sharing, checkout, and paid status are now measurable. Production 5.9.24
 also prevents a failed clipboard operation from being counted as a share and preserves the
 content-free `referral` channel through account creation, but the comparable production cohort is
-new and no legitimate referred activation has been observed.
+new and no legitimate referred activation has been observed. A production-only Vercel Web
+Analytics read on 2026-08-27 showed 78 visitors, 185 page views, and 62% bounce over the trailing
+seven days; 58 visitors reached `/app`, 18 visitors produced 19 `SignupIntent` events, and one
+visitor produced one client `AccountCreated` event. Those anonymous aggregates span the
+pre-instrumentation boundary and may include internal or automated visits, so they are not a
+conversion rate. The last 24 hours showed six production visitors, 20 page views, no signup event,
+and one visitor on each new discovery page. The service-role comparable external funnel still
+returned zero accounts at every stage, and the aggregate artifact journey returned no rows.
 
 **Outcome:** a weekly operating review of account creation → workspace open → starter intent →
 activation → durable value → useful outcome → return/share → checkout → paid.
@@ -166,7 +173,9 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 ## Next operating decision
 
 Submit the live canonical sitemap after owner confirmation, then obtain the first consented
-post-instrumentation durable-value, return, and artifact-journey observations. Keep both new provider
-foundations off. Do not enable Crump Code until the real sandbox/OIDC test, review UI, monitoring,
-and benchmark gates pass. Do not enable Crump Voice until its disclosure, key, voice rights, and
-playback tests are approved.
+post-instrumentation account, durable-value, return, referral, and artifact-journey observations.
+Do not rewrite the signup flow from anonymous seven-day aggregates that cross the measurement
+boundary; diagnose the next real post-boundary attempt instead. Keep both new provider foundations
+off. Do not enable Crump Code until the real sandbox/OIDC test, review UI, monitoring, and benchmark
+gates pass. Do not enable Crump Voice until its disclosure, key, voice rights, and playback tests
+are approved.
