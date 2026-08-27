@@ -146,6 +146,17 @@ A release standard for documents people can edit, present, submit, and keep.
 - Render tests expose clipping, overflow, weak hierarchy, and broken pagination.
 - Human review checks whether the artifact looks ready for its actual audience.
 
+## Illustrative quality coverage improves by design
+
+The values below are sample audit inputs, not production measurements.
+
+| Release gate | Baseline | Target |
+| --- | --- | --- |
+| Structure | 50% | 100% |
+| Rendering | 25% | 100% |
+| Truthfulness | 40% | 100% |
+| Human review | 20% | 100% |
+
 ## The promise
 
 - Ask Crump helps turn a conversation into professional, editable work.

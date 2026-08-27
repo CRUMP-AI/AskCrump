@@ -11,6 +11,7 @@ from datetime import datetime
 from io import BytesIO
 import re
 from typing import Any
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from docx import Document
 from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT, WD_TABLE_ALIGNMENT
@@ -23,6 +24,8 @@ from openpyxl.formatting.rule import DataBarRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.worksheet.table import Table as XlsxTable, TableStyleInfo
 from pptx import Presentation
+from pptx.chart.data import ChartData
+from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
@@ -57,6 +60,11 @@ LINE = 'D9DDE4'
 PAPER = 'FAF9F6'
 SLATE = '405366'
 SOFT = 'EEF1F4'
+TEAL = '1F6A67'
+COPPER = 'B85C3B'
+SKY = '8FB7C5'
+MIST = 'E8F0EF'
+WHITE = 'FFFFFF'
 
 
 @dataclass(slots=True)
@@ -172,8 +180,10 @@ class ArtifactService:
         if fmt == 'pptx':
             return (
                 f'{shared} Write a presentation outline in Markdown. Use one clear takeaway headline per slide, '
-                'short supporting points, and no more than five points per slide. Prefer a narrative arc: context, '
-                'insight, recommendation, execution, next step. Put grounded sources in a final Sources section.'
+                'short supporting points, and no more than five points per slide. Use compact Markdown tables '
+                'for grounded comparisons or numeric data that should become an editable chart. Prefer a '
+                'narrative arc: context, insight, recommendation, execution, next step. Put grounded sources '
+                'in a final Sources section.'
             )
         if fmt == 'xlsx':
             return (
@@ -641,53 +651,300 @@ class ArtifactService:
         document.build(story, onFirstPage=footer, onLaterPages=footer); return out.getvalue()
 
     @staticmethod
-    def _ppt_add_text(slide: Any, text: str, left: float, top: float, width: float, height: float, *, size: float, color: str, bold: bool = False, font: str = 'Aptos', align: Any = PP_ALIGN.LEFT) -> Any:
-        box = slide.shapes.add_textbox(PptInches(left), PptInches(top), PptInches(width), PptInches(height))
-        frame = box.text_frame; frame.clear(); frame.word_wrap = True
+    def _ppt_add_text(
+        slide: Any,
+        text: str,
+        left: float,
+        top: float,
+        width: float,
+        height: float,
+        *,
+        size: float,
+        color: str,
+        bold: bool = False,
+        font: str = 'Aptos',
+        align: Any = PP_ALIGN.LEFT,
+    ) -> Any:
+        box = slide.shapes.add_textbox(
+            PptInches(left), PptInches(top), PptInches(width), PptInches(height),
+        )
+        frame = box.text_frame
+        frame.clear()
+        frame.word_wrap = True
         frame.margin_left = frame.margin_right = frame.margin_top = frame.margin_bottom = 0
-        frame.vertical_anchor = MSO_ANCHOR.TOP; paragraph = frame.paragraphs[0]
-        paragraph.text = text; paragraph.alignment = align; paragraph.font.name = font
-        paragraph.font.size = PptPt(size); paragraph.font.bold = bold
-        paragraph.font.color.rgb = RGBColor.from_string(color); return box
+        frame.vertical_anchor = MSO_ANCHOR.TOP
+        paragraph = frame.paragraphs[0]
+        paragraph.text = text
+        paragraph.alignment = align
+        paragraph.space_after = PptPt(0)
+        paragraph.font.name = font
+        paragraph.font.size = PptPt(size)
+        paragraph.font.bold = bold
+        paragraph.font.color.rgb = RGBColor.from_string(color)
+        return box
 
     @staticmethod
     def _ppt_background(slide: Any, color: str = INK) -> None:
         fill = slide.background.fill; fill.solid(); fill.fore_color.rgb = RGBColor.from_string(color)
 
-    def _ppt_footer(self, slide: Any, number: int) -> None:
-        rule = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, PptInches(0.72), PptInches(7.04), PptInches(11.9), PptInches(0.012))
-        rule.fill.solid(); rule.fill.fore_color.rgb = RGBColor.from_string(LINE); rule.line.fill.background()
-        self._ppt_add_text(slide, str(number), 12.06, 7.12, 0.55, 0.16, size=8, color=MUTED, align=PP_ALIGN.RIGHT)
+    def _ppt_footer(self, slide: Any, number: int, *, dark: bool = False) -> None:
+        rule_color = '3A404B' if dark else LINE
+        rule = slide.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE,
+            PptInches(0.72),
+            PptInches(7.04),
+            PptInches(11.9),
+            PptInches(0.012),
+        )
+        rule.fill.solid()
+        rule.fill.fore_color.rgb = RGBColor.from_string(rule_color)
+        rule.line.fill.background()
+        self._ppt_add_text(
+            slide,
+            str(number),
+            12.06,
+            7.12,
+            0.55,
+            0.16,
+            size=8,
+            color=SKY if dark else MUTED,
+            align=PP_ALIGN.RIGHT,
+        )
 
     @staticmethod
-    def _ppt_shape(slide: Any, shape_type: Any, left: float, top: float, width: float, height: float, *, fill: str, line: str | None = None) -> Any:
-        shape = slide.shapes.add_shape(shape_type, PptInches(left), PptInches(top), PptInches(width), PptInches(height))
-        shape.fill.solid(); shape.fill.fore_color.rgb = RGBColor.from_string(fill)
+    def _ppt_shape(
+        slide: Any,
+        shape_type: Any,
+        left: float,
+        top: float,
+        width: float,
+        height: float,
+        *,
+        fill: str,
+        line: str | None = None,
+    ) -> Any:
+        shape = slide.shapes.add_shape(
+            shape_type,
+            PptInches(left),
+            PptInches(top),
+            PptInches(width),
+            PptInches(height),
+        )
+        shape.fill.solid()
+        shape.fill.fore_color.rgb = RGBColor.from_string(fill)
         if line:
             shape.line.color.rgb = RGBColor.from_string(line)
         else:
             shape.line.fill.background()
         return shape
 
-    def _ppt_slide_title(self, slide: Any, heading: str) -> None:
-        self._ppt_shape(slide, MSO_SHAPE.RECTANGLE, 0.72, 0.48, 0.58, 0.055, fill=SLATE)
+    def _ppt_slide_title(
+        self,
+        slide: Any,
+        heading: str,
+        *,
+        dark: bool = False,
+        accent: str = GOLD,
+    ) -> None:
+        self._ppt_shape(slide, MSO_SHAPE.RECTANGLE, 0.72, 0.48, 0.72, 0.055, fill=accent)
+        self._ppt_add_text(
+            slide,
+            'EXECUTIVE BRIEFING',
+            0.72,
+            0.58,
+            2.2,
+            0.18,
+            size=8.5,
+            color=accent,
+            bold=True,
+        )
         title_size = 36 if len(heading) <= 58 else (31 if len(heading) <= 92 else 27)
-        self._ppt_add_text(slide, heading, 0.72, 0.78, 11.7, 0.92, size=title_size, color=INK, bold=True, font='Aptos Display')
+        self._ppt_add_text(
+            slide,
+            heading,
+            0.72,
+            0.86,
+            11.7,
+            0.92,
+            size=title_size,
+            color=WHITE if dark else INK,
+            bold=True,
+            font='Aptos Display',
+        )
+
+    @classmethod
+    def _ppt_chart_data(
+        cls,
+        rows: list[list[str]],
+    ) -> tuple[list[str], list[tuple[str, list[float], str]]] | None:
+        """Return conservative chart data only when a Markdown table is truly numeric."""
+        if len(rows) < 4 or len(rows) > 9:
+            return None
+        width = min(5, max((len(row) for row in rows), default=0))
+        if width < 2:
+            return None
+        padded = [[str(value).strip() for value in [*row, *([''] * (width - len(row)))][:width]] for row in rows]
+        categories = [cls._clean_inline(row[0])[:36] for row in padded[1:]]
+        if any(not value for value in categories):
+            return None
+
+        series: list[tuple[str, list[float], str]] = []
+        for column in range(1, width):
+            raw_values = [row[column] for row in padded[1:]]
+            values: list[float] = []
+            formats: list[str] = []
+            for raw in raw_values:
+                text = cls._clean_inline(raw).strip()
+                if not text or text.startswith('='):
+                    values = []
+                    break
+                negative = text.startswith('(') and text.endswith(')')
+                percent = text.endswith('%')
+                currency = bool(re.match(r'^[\s$£€¥]', text))
+                suffix = re.search(r'([kmb])\s*%?$', text, re.I)
+                cleaned = re.sub(r'[^0-9.\-]', '', text)
+                if not re.fullmatch(r'-?\d+(?:\.\d+)?', cleaned):
+                    values = []
+                    break
+                number = float(cleaned)
+                if negative:
+                    number = -abs(number)
+                if suffix:
+                    number *= {'k': 1_000, 'm': 1_000_000, 'b': 1_000_000_000}[suffix.group(1).lower()]
+                if percent:
+                    number /= 100
+                values.append(number)
+                formats.append('0%' if percent else ('$0.0,,' if currency and abs(number) >= 1_000_000 else ('$0' if currency else '0.0')))
+            if values:
+                number_format = formats[0] if len(set(formats)) == 1 else '0.0'
+                series.append((cls._clean_inline(padded[0][column])[:42] or f'Series {column}', values, number_format))
+        return (categories, series) if series else None
+
+    def _ppt_add_chart(
+        self,
+        slide: Any,
+        rows: list[list[str]],
+        *,
+        accent: str,
+    ) -> bool:
+        prepared = self._ppt_chart_data(rows)
+        if not prepared:
+            return False
+        categories, series_values = prepared
+        data = ChartData()
+        data.categories = categories
+        for label, values, _number_format in series_values:
+            data.add_series(label, values)
+        use_bar = len(categories) > 5 or max((len(value) for value in categories), default=0) > 14
+        chart_type = XL_CHART_TYPE.BAR_CLUSTERED if use_bar else XL_CHART_TYPE.COLUMN_CLUSTERED
+        chart = slide.shapes.add_chart(
+            chart_type,
+            PptInches(0.82),
+            PptInches(2.05),
+            PptInches(11.7),
+            PptInches(4.52),
+            data,
+        ).chart
+        chart.has_title = False
+        chart.has_legend = len(series_values) > 1
+        if chart.has_legend:
+            chart.legend.position = XL_LEGEND_POSITION.RIGHT if use_bar else XL_LEGEND_POSITION.BOTTOM
+            chart.legend.include_in_layout = False
+            chart.legend.font.name = 'Aptos'
+            chart.legend.font.size = PptPt(10)
+            chart.legend.font.color.rgb = RGBColor.from_string(MUTED)
+        palette = [accent, TEAL, COPPER, SKY]
+        for index, series in enumerate(chart.series):
+            series.format.fill.solid()
+            series.format.fill.fore_color.rgb = RGBColor.from_string(palette[index % len(palette)])
+            series.format.line.fill.background()
+        chart.category_axis.tick_labels.font.name = 'Aptos'
+        chart.category_axis.tick_labels.font.size = PptPt(10.5)
+        chart.category_axis.tick_labels.font.color.rgb = RGBColor.from_string(INK)
+        chart.value_axis.tick_labels.font.name = 'Aptos'
+        chart.value_axis.tick_labels.font.size = PptPt(9.5)
+        chart.value_axis.tick_labels.font.color.rgb = RGBColor.from_string(MUTED)
+        formats = {number_format for _label, _values, number_format in series_values}
+        if len(formats) == 1:
+            chart.value_axis.tick_labels.number_format = next(iter(formats))
+            chart.value_axis.tick_labels.number_format_is_linked = False
+        chart.value_axis.has_major_gridlines = True
+        return True
+
+    @staticmethod
+    def _ppt_normalize_axis_ids(data: bytes) -> bytes:
+        """Keep native charts readable by strict OOXML consumers as well as PowerPoint."""
+        source = BytesIO(data)
+        output = BytesIO()
+        with ZipFile(source, 'r') as incoming, ZipFile(output, 'w', ZIP_DEFLATED) as outgoing:
+            for info in incoming.infolist():
+                payload = incoming.read(info.filename)
+                if info.filename.startswith('ppt/charts/chart') and info.filename.endswith('.xml'):
+                    xml = payload.decode('utf-8')
+                    xml = re.sub(
+                        r'(<c:(?:axId|crossAx)\s+val=")-(\d+)(")',
+                        lambda match: f'{match.group(1)}{match.group(2)}{match.group(3)}',
+                        xml,
+                    )
+                    payload = xml.encode('utf-8')
+                outgoing.writestr(info, payload)
+        return output.getvalue()
 
     def pptx(self, markdown: str, *, title: str | None = None) -> bytes:
-        prs = Presentation(); prs.slide_width = PptInches(13.333); prs.slide_height = PptInches(7.5)
+        prs = Presentation()
+        prs.slide_width = PptInches(13.333)
+        prs.slide_height = PptInches(7.5)
         resolved_title = (title or self.title_from(markdown)).strip()[:160]
-        prs.core_properties.title = resolved_title; prs.core_properties.author = 'Ask Crump'
-        cover = prs.slides.add_slide(prs.slide_layouts[6]); self._ppt_background(cover, PAPER)
-        self._ppt_shape(cover, MSO_SHAPE.RECTANGLE, 0.82, 0.84, 0.72, 0.06, fill=SLATE)
+        prs.core_properties.title = resolved_title
+        prs.core_properties.author = 'Ask Crump'
+        cover = prs.slides.add_slide(prs.slide_layouts[6])
+        self._ppt_background(cover, INK)
+        self._ppt_shape(cover, MSO_SHAPE.RECTANGLE, 0, 0, 0.16, 7.5, fill=TEAL)
+        self._ppt_shape(cover, MSO_SHAPE.RECTANGLE, 0.82, 0.84, 0.78, 0.06, fill=GOLD)
+        ring = cover.shapes.add_shape(
+            MSO_SHAPE.OVAL,
+            PptInches(10.72),
+            PptInches(-0.62),
+            PptInches(3.35),
+            PptInches(3.35),
+        )
+        ring.fill.background()
+        ring.line.color.rgb = RGBColor.from_string(GOLD)
+        ring.line.width = PptPt(2)
+        self._ppt_shape(cover, MSO_SHAPE.OVAL, 11.7, 0.37, 0.34, 0.34, fill=COPPER)
+        self._ppt_add_text(
+            cover,
+            'EXECUTIVE PRESENTATION',
+            0.82,
+            1.02,
+            3.2,
+            0.22,
+            size=9,
+            color=SKY,
+            bold=True,
+        )
         title_size = 54 if len(resolved_title) <= 60 else (45 if len(resolved_title) <= 95 else 38)
-        self._ppt_add_text(cover, resolved_title, 0.82, 1.38, 11.35, 2.3, size=title_size, color=INK, bold=True, font='Aptos Display')
+        self._ppt_add_text(
+            cover,
+            resolved_title,
+            0.82,
+            1.45,
+            10.6,
+            2.3,
+            size=title_size,
+            color=WHITE,
+            bold=True,
+            font='Aptos Display',
+        )
         subtitle = 'Clear thinking. Structured for decisions.'
         for kind, content in self.blocks(markdown):
             if kind == 'p' and self._clean_inline(str(content)) != self._clean_inline(resolved_title):
-                subtitle = self._clean_inline(str(content))[:170]; break
-        self._ppt_add_text(cover, subtitle, 0.86, 4.55, 9.8, 0.85, size=19, color=MUTED)
-        self._ppt_shape(cover, MSO_SHAPE.RECTANGLE, 0.84, 6.54, 11.72, 0.018, fill=LINE)
+                subtitle = self._clean_inline(str(content))[:170]
+                break
+        self._ppt_add_text(cover, subtitle, 0.86, 4.55, 9.55, 0.85, size=19, color=CREAM)
+        self._ppt_shape(cover, MSO_SHAPE.RECTANGLE, 0.84, 6.52, 3.25, 0.045, fill=TEAL)
+        self._ppt_shape(cover, MSO_SHAPE.RECTANGLE, 4.09, 6.52, 1.15, 0.045, fill=GOLD)
+        self._ppt_shape(cover, MSO_SHAPE.RECTANGLE, 5.24, 6.52, 0.52, 0.045, fill=COPPER)
 
         groups: list[tuple[str, list[Any]]] = []; current_title = 'Executive overview'; current: list[Any] = []; first_heading = False
         for kind, content in self.blocks(markdown):
@@ -701,44 +958,167 @@ class ArtifactService:
         if current: groups.append((current_title, current))
         if not groups: groups = [('Executive overview', [('p', 'A clear, decision-ready summary.')])]
 
+        content_number = 0
+        accents = [TEAL, GOLD, COPPER, SKY]
         for heading, items in groups[:18]:
-            text_items: list[str] = []; table_items: list[list[list[str]]] = []
+            text_items: list[str] = []
+            table_items: list[list[list[str]]] = []
             for kind, content in items:
-                if kind == 'table': table_items.append(content)
-                else: text_items.append(self._clean_inline(str(content).replace('\n', ' ')))
+                if kind == 'table':
+                    table_items.append(content)
+                else:
+                    text_items.append(self._clean_inline(str(content).replace('\n', ' ')))
             for start in range(0, len(text_items), 5):
                 page_items = [item for item in text_items[start:start + 5] if item]
-                if not page_items: continue
-                slide = prs.slides.add_slide(prs.slide_layouts[6]); self._ppt_background(slide, PAPER)
+                if not page_items:
+                    continue
+                content_number += 1
+                accent = accents[(content_number - 1) % len(accents)]
+                dark = content_number % 3 == 0
+                background = NAVY if dark else PAPER
+                body_color = CREAM if dark else INK
+                secondary_color = SKY if dark else MUTED
+                slide = prs.slides.add_slide(prs.slide_layouts[6])
+                self._ppt_background(slide, background)
                 display = heading if start == 0 else f'{heading} — continued'
-                self._ppt_slide_title(slide, display)
+                self._ppt_slide_title(slide, display, dark=dark, accent=accent)
                 if len(page_items) == 1:
-                    self._ppt_shape(slide, MSO_SHAPE.RECTANGLE, 0.82, 2.25, 0.055, 2.45, fill=SLATE)
-                    self._ppt_add_text(slide, page_items[0][:560], 1.22, 2.18, 10.75, 2.7, size=28, color=INK, font='Aptos Display')
+                    self._ppt_shape(slide, MSO_SHAPE.RECTANGLE, 0.82, 2.12, 0.07, 3.05, fill=accent)
+                    self._ppt_add_text(
+                        slide,
+                        f'{content_number:02d}',
+                        1.2,
+                        2.06,
+                        0.82,
+                        0.5,
+                        size=13,
+                        color=accent,
+                        bold=True,
+                    )
+                    size = 28 if len(page_items[0]) <= 300 else 23
+                    self._ppt_add_text(
+                        slide,
+                        page_items[0][:560],
+                        1.2,
+                        2.63,
+                        10.55,
+                        2.8,
+                        size=size,
+                        color=body_color,
+                        font='Aptos Display',
+                    )
                 elif len(page_items) <= 3:
-                    y = 2.0
-                    for item_index, item in enumerate(page_items, start=1):
-                        self._ppt_add_text(slide, f'{item_index:02d}', 0.74, y + 0.04, 0.42, 0.32, size=11, color=SLATE, bold=True)
-                        self._ppt_add_text(slide, item[:430], 1.38, y, 10.65, 0.92, size=20, color=INK)
-                        if item_index < len(page_items):
-                            self._ppt_shape(slide, MSO_SHAPE.RECTANGLE, 1.38, y + 1.08, 10.65, 0.012, fill=LINE)
-                        y += 1.47
+                    count = len(page_items)
+                    gap = 0.34
+                    column_width = (11.9 - gap * (count - 1)) / count
+                    for item_index, item in enumerate(page_items):
+                        x = 0.72 + item_index * (column_width + gap)
+                        if item_index:
+                            self._ppt_shape(
+                                slide,
+                                MSO_SHAPE.RECTANGLE,
+                                x - gap / 2,
+                                2.0,
+                                0.012,
+                                3.95,
+                                fill='3A404B' if dark else LINE,
+                            )
+                        self._ppt_shape(slide, MSO_SHAPE.OVAL, x, 2.08, 0.42, 0.42, fill=accent)
+                        self._ppt_add_text(
+                            slide,
+                            f'{item_index + 1:02d}',
+                            x,
+                            2.17,
+                            0.42,
+                            0.18,
+                            size=8,
+                            color=WHITE,
+                            bold=True,
+                            align=PP_ALIGN.CENTER,
+                        )
+                        size = 19 if len(item) <= 230 else 16.5
+                        self._ppt_add_text(
+                            slide,
+                            item[:390],
+                            x,
+                            2.78,
+                            column_width - 0.12,
+                            2.95,
+                            size=size,
+                            color=body_color,
+                        )
                 else:
                     for item_index, item in enumerate(page_items):
-                        column = item_index % 2; row = item_index // 2
-                        x = 0.76 + column * 6.08; y = 2.0 + row * 1.36
-                        self._ppt_add_text(slide, f'{item_index + 1:02d}', x, y, 0.42, 0.25, size=9, color=SLATE, bold=True)
-                        self._ppt_add_text(slide, item[:310], x + 0.52, y - 0.03, 5.28, 1.0, size=17, color=INK)
-                self._ppt_footer(slide, len(prs.slides))
+                        column = item_index % 2
+                        row = item_index // 2
+                        x = 0.76 + column * 6.08
+                        y = 2.03 + row * 1.38
+                        self._ppt_shape(
+                            slide,
+                            MSO_SHAPE.RECTANGLE,
+                            x,
+                            y + 0.03,
+                            0.07,
+                            0.74,
+                            fill=accent if row % 2 == 0 else secondary_color,
+                        )
+                        self._ppt_add_text(
+                            slide,
+                            f'{item_index + 1:02d}',
+                            x + 0.25,
+                            y + 0.03,
+                            0.42,
+                            0.25,
+                            size=9,
+                            color=accent,
+                            bold=True,
+                        )
+                        size = 16.5 if len(item) <= 230 else 14.5
+                        self._ppt_add_text(
+                            slide,
+                            item[:300],
+                            x + 0.82,
+                            y - 0.02,
+                            4.92,
+                            1.04,
+                            size=size,
+                            color=body_color,
+                        )
+                self._ppt_footer(slide, len(prs.slides), dark=dark)
             for table_rows in table_items:
-                if not table_rows: continue
+                if not table_rows:
+                    continue
                 chunks = [table_rows[:8]]
                 if len(table_rows) > 8:
                     chunks.extend([[table_rows[0], *table_rows[index:index + 7]] for index in range(8, len(table_rows), 7)])
                 for chunk_index, rows in enumerate(chunks[:3]):
-                    width = min(6, max(len(row) for row in rows)); slide = prs.slides.add_slide(prs.slide_layouts[6]); self._ppt_background(slide, PAPER)
+                    content_number += 1
+                    accent = accents[(content_number - 1) % len(accents)]
+                    width = min(6, max(len(row) for row in rows))
+                    slide = prs.slides.add_slide(prs.slide_layouts[6])
+                    self._ppt_background(slide, PAPER)
                     display = heading if chunk_index == 0 else f'{heading} — continued'
-                    self._ppt_slide_title(slide, display)
+                    if chunk_index == 0 and self._ppt_add_chart(slide, rows, accent=accent):
+                        # Charts are native and remain editable. Repaint the title band after the
+                        # chart so strict renderers cannot obscure the slide headline with the
+                        # chart canvas.
+                        self._ppt_shape(slide, MSO_SHAPE.RECTANGLE, 0, 0, 13.333, 1.82, fill=PAPER)
+                        self._ppt_slide_title(slide, display, accent=accent)
+                        self._ppt_add_text(
+                            slide,
+                            'COMPARATIVE VIEW',
+                            10.15,
+                            1.52,
+                            2.35,
+                            0.2,
+                            size=8,
+                            color=accent,
+                            bold=True,
+                            align=PP_ALIGN.RIGHT,
+                        )
+                        self._ppt_footer(slide, len(prs.slides))
+                        continue
+                    self._ppt_slide_title(slide, display, accent=accent)
                     table_height = max(1.6, min(4.75, 0.58 * len(rows) + 0.3))
                     table = slide.shapes.add_table(len(rows), width, PptInches(0.72), PptInches(1.92), PptInches(11.9), PptInches(table_height)).table
                     ratios = self._column_ratios(rows, width)
@@ -746,13 +1126,25 @@ class ArtifactService:
                         table.columns[col_index].width = PptInches(11.9 * ratio)
                     for row_index, row in enumerate(rows):
                         for col_index in range(width):
-                            cell = table.cell(row_index, col_index); cell.text = self._clean_inline(str(row[col_index] if col_index < len(row) else ''))[:160]
-                            cell.fill.solid(); cell.fill.fore_color.rgb = RGBColor.from_string(SLATE if row_index == 0 else ('F3F5F7' if row_index % 2 == 0 else 'FFFFFF'))
-                            cell.margin_left = cell.margin_right = PptInches(0.08); cell.margin_top = cell.margin_bottom = PptInches(0.05)
-                            p = cell.text_frame.paragraphs[0]; p.font.name = 'Aptos'; p.font.size = PptPt(12.5); p.font.bold = row_index == 0
-                            p.font.color.rgb = RGBColor.from_string('FFFFFF' if row_index == 0 else INK)
+                            cell = table.cell(row_index, col_index)
+                            cell.text = self._clean_inline(str(row[col_index] if col_index < len(row) else ''))[:160]
+                            cell.fill.solid()
+                            cell.fill.fore_color.rgb = RGBColor.from_string(
+                                SLATE if row_index == 0 else (MIST if row_index % 2 == 0 else WHITE),
+                            )
+                            cell.margin_left = cell.margin_right = PptInches(0.1)
+                            cell.margin_top = cell.margin_bottom = PptInches(0.06)
+                            p = cell.text_frame.paragraphs[0]
+                            p.font.name = 'Aptos'
+                            p.font.size = PptPt(12.5)
+                            p.font.bold = row_index == 0 or col_index == 0
+                            p.font.color.rgb = RGBColor.from_string(
+                                WHITE if row_index == 0 else (TEAL if col_index == 0 else INK),
+                            )
                     self._ppt_footer(slide, len(prs.slides))
-        out = BytesIO(); prs.save(out); return out.getvalue()
+        out = BytesIO()
+        prs.save(out)
+        return self._ppt_normalize_axis_ids(out.getvalue())
 
     @staticmethod
     def _safe_sheet_name(value: str, fallback: str) -> str:

@@ -33,6 +33,33 @@ A concise, polished artifact.
 | Launch | 2026-09-15 |
 """
 
+NUMERIC_DECK = """# Growth Brief
+
+## Activation is improving across channels
+
+| Channel | Activation | Retention |
+| --- | --- | --- |
+| Organic | 42% | 31% |
+| Referral | 58% | 46% |
+| Paid | 36% | 24% |
+| Partner | 49% | 39% |
+"""
+
+RHYTHM_DECK = """# Operating Brief
+
+## Context
+- The opportunity is specific and measurable.
+- The current path creates avoidable friction.
+
+## Decision
+- Concentrate the experience around one valuable outcome.
+- Make the next action obvious.
+
+## Execution
+- Assign an owner and a release gate.
+- Measure activation and seven-day continuation.
+"""
+
 
 def test_binary_artifacts_are_valid_containers():
     generator = service()
@@ -190,6 +217,43 @@ def test_presentation_export_uses_custom_widescreen_layout_and_readable_type():
     assert purpose.text_frame.paragraphs[0].font.size.pt >= 35
 
 
+def test_presentation_export_has_color_rhythm_and_editable_native_charts():
+    generator = service()
+    rhythm = Presentation(BytesIO(generator.pptx(RHYTHM_DECK)))
+    backgrounds = {
+        str(slide.background.fill.fore_color.rgb)
+        for slide in rhythm.slides
+    }
+    assert '171B24' in backgrounds
+    assert 'FAF9F6' in backgrounds
+    assert '202532' in backgrounds
+
+    accent_fills = set()
+    for slide in rhythm.slides:
+        for shape in slide.shapes:
+            try:
+                value = shape.fill.fore_color.rgb
+            except (AttributeError, TypeError, ValueError):
+                continue
+            if value:
+                accent_fills.add(str(value))
+    assert {'C9A95E', '1F6A67', 'B85C3B'} <= accent_fills
+
+    chart_bytes = generator.pptx(NUMERIC_DECK)
+    chart_deck = Presentation(BytesIO(chart_bytes))
+    charts = [
+        shape.chart for slide in chart_deck.slides for shape in slide.shapes
+        if getattr(shape, 'has_chart', False)
+    ]
+    assert len(charts) == 1
+    assert len(charts[0].series) == 2
+    assert list(charts[0].plots[0].categories)[0].label == 'Organic'
+    with zipfile.ZipFile(BytesIO(chart_bytes)) as package:
+        chart_xml = package.read('ppt/charts/chart1.xml')
+    assert b'<c:axId val="-' not in chart_xml
+    assert b'<c:crossAx val="-' not in chart_xml
+
+
 def test_spreadsheet_export_is_structured_typed_filterable_and_safe():
     generator = service()
     workbook = load_workbook(BytesIO(generator.xlsx(SAMPLE)), data_only=False)
@@ -231,4 +295,5 @@ def test_creation_guidance_guards_truth_and_matches_the_format():
     assert 'ATS-friendly' in resume and 'user supplied the number' in resume
     assert 'Cite only sources' in academic and 'defensible thesis' in academic
     assert 'one clear takeaway headline per slide' in slides
+    assert 'editable chart' in slides
     assert 'Never invent business or financial data' in workbook
