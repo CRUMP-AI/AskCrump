@@ -97,8 +97,9 @@ Google is processing the property's first search and indexing data. Production 5
 unique presentation and document workflow pages at clean canonical URLs, links them from the home
 page and from each other, and includes all four public URLs in the live sitemap. The protected growth
 and artifact reports still show zero comparable external activity, so acquisition is the current
-evidence-backed bottleneck. The canonical sitemap is entered and ready for final owner-confirmed
-submission.
+evidence-backed bottleneck. A read-only Search Console inspection on 2026-08-27 showed that Google is
+still processing performance and indexing data and the Submitted sitemaps table contains zero rows.
+The sitemap is live and ready, but it is not entered or submitted in Search Console.
 
 **Outcome:** verified domain ownership, one canonical sitemap submitted, valid canonical URLs,
 and indexed landing pages tied to privacy-safe account-creation attribution.
@@ -107,6 +108,8 @@ and indexed landing pages tied to privacy-safe account-creation attribution.
 inspection, unique metadata, and crawlability checks passed. Remaining gates are owner-confirmed
 submission and Search Console acceptance of `https://www.askcrump.com/sitemap.xml`, followed by an
 indexed-page coverage review after Google has had time to crawl.
+
+The authoritative action-time checklist is `docs/SEARCH_CONSOLE_RELEASE_GATE_2026-08-27.md`.
 
 ### P1 — Observe the new activation and referral funnel before scaling spend
 
@@ -158,7 +161,7 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
-Submit the staged canonical sitemap after owner confirmation, then obtain the first consented
+Submit the live canonical sitemap after owner confirmation, then obtain the first consented
 post-instrumentation durable-value, return, and artifact-journey observations. Keep both new provider
 foundations off. Do not enable Crump Code until the real sandbox/OIDC test, review UI, monitoring,
 and benchmark gates pass. Do not enable Crump Voice until its disclosure, key, voice rights, and

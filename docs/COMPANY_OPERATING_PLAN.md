@@ -78,7 +78,8 @@ ads before that proof would purchase traffic before Ask Crump has demonstrated c
 
 ### Organic growth and proof
 
-- Finish Search Console domain verification and submit the canonical sitemap after DNS confirms.
+- Keep the verified Search Console domain property reconciled to production, and submit the live
+  canonical sitemap only after owner confirmation.
 - Build one restrained, truthful creative batch around work continuity, not capability volume.
 - Use a single measurable call to action and activation-based attribution.
 - Publish no customer testimonial or logo without documented permission.
@@ -141,7 +142,8 @@ provider, privacy, cost, or security gate is incomplete.
 - **Organic acquisition:** Google Search Console ownership for `askcrump.com` is verified. Production
   5.9.23 serves two high-intent, crawlable workflow pages with clean canonical URLs, internal links,
   valid structured data, and privacy-safe `organic` attribution; the four-URL canonical sitemap is
-  live and staged for owner-confirmed Search Console submission.
+  live. Search Console currently shows zero submitted sitemaps and is still processing its first
+  performance and indexing data; submission remains an owner-confirmed external action.
 - **Shipped foundation:** server-only Crump Code task schema and sandbox runner; disabled publicly.
 - **Shipped foundation:** server-only ElevenLabs voice path with device-speech fallback; disabled
   until disclosure, credentials, and smoke tests are approved.
