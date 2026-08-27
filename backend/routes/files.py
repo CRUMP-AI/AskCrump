@@ -7,8 +7,10 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from ..auth_service import authenticate_request
 from ..db import eq
 from ..file_service import FileServiceError
+from ..product_analytics import artifact_type_for_file, record_product_event
 from ..runtime import db, files, settings
 from ..security import normalize_chat_id
+from ..usage_service import tier_name
 
 router = APIRouter(prefix='/api/files', tags=['files'])
 
@@ -122,6 +124,20 @@ async def content(file_id: str, request: Request, download: int = 0):
         url = await files.signed_url(row=row, expires_in=600, download=bool(download))
         if not url:
             raise FileServiceError('Could not open the file.', 503, 'SIGNED_URL_FAILED')
+        if bool(download) and str(row.get('kind') or '').lower() in {
+            'generated_document',
+            'manuscript_export',
+        }:
+            artifact_event_id = str(row.get('message_id') or normalized)
+            await record_product_event(
+                db,
+                user_id=auth.user['id'],
+                event_name='ArtifactDownloaded',
+                event_key=f'artifact-downloaded:{artifact_event_id}',
+                request=request,
+                plan=tier_name(auth.user),
+                artifact_type=artifact_type_for_file(row),
+            )
         return RedirectResponse(url=url, status_code=302)
     except FileServiceError as exc:
         return failure(exc)

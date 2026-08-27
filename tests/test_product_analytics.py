@@ -1,13 +1,19 @@
+import ast
 from pathlib import Path
 
 import pytest
 from fastapi import HTTPException, Request
 
 from backend.routes import analytics as analytics_routes
+from backend.routes import files as files_routes
 from backend.product_analytics import (
+    CLIENT_EVENT_NAMES,
+    EVENT_NAMES,
     OUTCOME_FEEDBACK_SOURCES,
     RECENT_WORK_SOURCES,
     RESPONSE_SHARE_SOURCES,
+    artifact_type_for_file,
+    artifact_type_for_format,
     artifact_type_for_result,
     environment_for_request,
     normalize_event_key,
@@ -58,11 +64,34 @@ def test_event_keys_are_stable_and_unsafe_values_are_hashed():
 
 
 def test_artifact_classification_never_copies_names_or_content():
+    assert artifact_type_for_format("PPTX") == "presentation"
+    assert artifact_type_for_format(".pdf") == "pdf"
+    assert artifact_type_for_format("unknown-private-extension") == "file"
+    assert artifact_type_for_file({
+        "kind": "generated_document",
+        "metadata": {"format": "xlsx", "title": "Private title"},
+        "file_name": "private-customer-name.xlsx",
+    }) == "spreadsheet"
+    assert artifact_type_for_file({
+        "kind": "manuscript_export",
+        "file_name": "private-book-title.epub",
+    }) == "manuscript"
     assert artifact_type_for_result({"imageFile": {"name": "private.png"}}) == "image"
     assert artifact_type_for_result({"artifact": {"format": "xlsx", "title": "Private"}}) == "spreadsheet"
     assert artifact_type_for_result({"manuscriptWorkspace": {"title": "Private"}}) == "manuscript"
     assert artifact_type_for_result({"creationHandoff": {"kind": "video"}}) is None
     assert artifact_type_for_result({"response": "private response only"}) is None
+
+
+def test_artifact_journey_events_are_server_allowlisted_only():
+    artifact_events = {
+        "ArtifactRequested",
+        "ArtifactPackaged",
+        "ArtifactPackagingFailed",
+        "ArtifactDownloaded",
+    }
+    assert artifact_events.issubset(EVENT_NAMES)
+    assert artifact_events.isdisjoint(CLIENT_EVENT_NAMES)
 
 
 @pytest.mark.asyncio
@@ -104,6 +133,115 @@ async def test_analytics_failure_is_fail_open():
         request=request_for("www.askcrump.com"),
     )
     assert recorded is False
+
+
+@pytest.mark.asyncio
+async def test_generated_document_download_records_only_content_free_artifact_stage(monkeypatch):
+    calls = []
+    user_id = "00000000-0000-0000-0000-000000000001"
+    file_id = "00000000-0000-0000-0000-000000000002"
+    message_id = "00000000-0000-0000-0000-000000000003"
+
+    async def authenticate(_request, _database, _settings):
+        return type("Auth", (), {"user": {
+            "id": user_id,
+            "subscription_tier": "professional",
+            "subscription_status": "active",
+        }})()
+
+    class FakeFiles:
+        async def get_owned(self, *, user_id, file_id):
+            assert user_id == "00000000-0000-0000-0000-000000000001"
+            assert file_id == "00000000-0000-0000-0000-000000000002"
+            return {
+                "id": file_id,
+                "message_id": message_id,
+                "kind": "generated_document",
+                "file_name": "private-client-strategy.pptx",
+                "mime_type": (
+                    "application/vnd.openxmlformats-officedocument."
+                    "presentationml.presentation"
+                ),
+                "metadata": {"format": "pptx", "title": "Private client strategy"},
+            }
+
+        async def signed_url(self, *, row, expires_in, download):
+            assert row["id"] == file_id
+            assert expires_in == 600
+            assert download is True
+            return "https://storage.example.test/signed"
+
+    async def recorder(_database, **kwargs):
+        calls.append(kwargs)
+        return True
+
+    monkeypatch.setattr(files_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(files_routes, "files", FakeFiles())
+    monkeypatch.setattr(files_routes, "record_product_event", recorder)
+
+    response = await files_routes.content(
+        file_id,
+        request_for("www.askcrump.com"),
+        download=1,
+    )
+
+    assert response.status_code == 302
+    assert response.headers["location"] == "https://storage.example.test/signed"
+    assert len(calls) == 1
+    assert calls[0]["event_name"] == "ArtifactDownloaded"
+    assert calls[0]["event_key"] == f"artifact-downloaded:{message_id}"
+    assert calls[0]["artifact_type"] == "presentation"
+    assert calls[0]["plan"] == "professional"
+    assert set(calls[0]) == {
+        "user_id",
+        "event_name",
+        "event_key",
+        "request",
+        "plan",
+        "artifact_type",
+    }
+    assert "private" not in str(calls[0]).lower()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("download", "kind"),
+    [(0, "generated_document"), (1, "upload")],
+)
+async def test_inline_opens_and_ordinary_uploads_do_not_record_artifact_downloads(
+    monkeypatch,
+    download,
+    kind,
+):
+    calls = []
+    file_id = "00000000-0000-0000-0000-000000000002"
+
+    async def authenticate(_request, _database, _settings):
+        return type("Auth", (), {"user": {"id": "user-1"}})()
+
+    class FakeFiles:
+        async def get_owned(self, **_kwargs):
+            return {"id": file_id, "kind": kind, "file_name": "private.docx"}
+
+        async def signed_url(self, **_kwargs):
+            return "https://storage.example.test/signed"
+
+    async def recorder(_database, **kwargs):
+        calls.append(kwargs)
+        return True
+
+    monkeypatch.setattr(files_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(files_routes, "files", FakeFiles())
+    monkeypatch.setattr(files_routes, "record_product_event", recorder)
+
+    response = await files_routes.content(
+        file_id,
+        request_for("www.askcrump.com"),
+        download=download,
+    )
+
+    assert response.status_code == 302
+    assert calls == []
 
 
 @pytest.mark.asyncio
@@ -367,6 +505,75 @@ def test_recent_work_migration_is_private_content_free_and_reported_once():
     assert "p_prompt" not in normalized
     assert "p_response" not in normalized
     assert "p_filename" not in normalized
+
+
+def test_artifact_journey_migration_is_private_aggregate_and_content_free():
+    migration = (
+        ROOT / "migrations" / "20260827050550_artifact_journey.sql"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(migration.lower().split())
+    return_contract = normalized[
+        normalized.index("returns table") : normalized.index("language plpgsql")
+    ]
+
+    for event_name in (
+        "artifactrequested",
+        "artifactpackaged",
+        "artifactpackagingfailed",
+        "artifactdownloaded",
+    ):
+        assert f"'{event_name}'" in normalized
+
+    assert "product_events_artifact_journey_idx" in normalized
+    assert "product_artifact_journey_snapshot" in normalized
+    assert "security invoker" in normalized
+    assert "security definer" not in normalized
+    assert "set search_path = ''" in normalized
+    assert "from public, anon, authenticated" in normalized
+    assert "to service_role" in normalized
+    assert "user_id" not in return_contract
+    assert "email" not in return_contract
+    assert "prompt" not in return_contract
+    assert "filename" not in return_contract
+    assert "p_prompt" not in normalized
+    assert "p_response" not in normalized
+    assert "p_filename" not in normalized
+    assert "p_error" not in normalized
+    assert "metadata jsonb" not in normalized
+
+
+def test_chat_records_artifact_events_after_entitlement_and_around_packaging():
+    source = (ROOT / "backend" / "routes" / "chat.py").read_text(encoding="utf-8")
+    request_index = source.index("event_name='ArtifactRequested'")
+    generation_index = source.index("result = None", request_index)
+    packaging_index = source.index("result['artifact'] = await artifacts.create")
+    packaged_index = source.index("event_name='ArtifactPackaged'", packaging_index)
+    packaging_failed_index = source.index("event_name='ArtifactPackagingFailed'", packaged_index)
+
+    assert source.index("except FeatureAccessError as exc:") < request_index < generation_index
+    assert packaging_index < packaged_index < packaging_failed_index
+    event_calls = {}
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name):
+            continue
+        if node.func.id != "record_product_event":
+            continue
+        keywords = {item.arg: item.value for item in node.keywords if item.arg}
+        event_node = keywords.get("event_name")
+        if isinstance(event_node, ast.Constant) and str(event_node.value).startswith("Artifact"):
+            event_calls[str(event_node.value)] = set(keywords)
+
+    assert event_calls == {
+        "ArtifactRequested": {
+            "user_id", "event_name", "event_key", "request", "plan", "artifact_type",
+        },
+        "ArtifactPackaged": {
+            "user_id", "event_name", "event_key", "request", "plan", "artifact_type",
+        },
+        "ArtifactPackagingFailed": {
+            "user_id", "event_name", "event_key", "request", "plan", "artifact_type",
+        },
+    }
 
 
 def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():

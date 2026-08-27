@@ -22,6 +22,10 @@ EVENT_NAMES = frozenset({
     "RecentWorkResumed",
     "PlanIntentReached",
     "ResponseShared",
+    "ArtifactRequested",
+    "ArtifactPackaged",
+    "ArtifactPackagingFailed",
+    "ArtifactDownloaded",
     "SubscriptionCheckoutOpened",
     "SubscriptionCheckoutCompleted",
     "BillingPortalOpened",
@@ -90,15 +94,9 @@ def normalize_plan(value: str | None) -> str | None:
     return candidate if candidate in PAID_PLANS else None
 
 
-def artifact_type_for_result(result: dict[str, Any]) -> str | None:
-    if result.get("manuscriptWorkspace"):
-        return "manuscript"
-    if result.get("imageFile") or result.get("imageUrl"):
-        return "image"
-    artifact = result.get("artifact")
-    if not isinstance(artifact, dict):
-        return None
-    format_name = str(artifact.get("format") or artifact.get("extension") or "").lower().lstrip(".")
+def artifact_type_for_format(value: Any) -> str:
+    """Reduce a file format to an allowlisted category without retaining its name."""
+    format_name = str(value or "").strip().lower().lstrip(".")
     if format_name == "pdf":
         return "pdf"
     if format_name in {"xlsx", "csv", "tsv"}:
@@ -110,6 +108,45 @@ def artifact_type_for_result(result: dict[str, Any]) -> str | None:
     if format_name in {"docx", "rtf", "txt", "md", "epub"}:
         return "document"
     return "file"
+
+
+def artifact_type_for_file(row: dict[str, Any]) -> str:
+    """Classify a private file row while returning no filename or other content."""
+    if str(row.get("kind") or "").strip().lower() == "manuscript_export":
+        return "manuscript"
+    metadata = row.get("metadata")
+    if isinstance(metadata, dict) and metadata.get("format"):
+        return artifact_type_for_format(metadata["format"])
+    mime_type = str(row.get("mime_type") or "").strip().lower()
+    mime_formats = {
+        "application/pdf": "pdf",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+        "application/vnd.ms-powerpoint": "ppt",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+        "text/csv": "csv",
+        "text/tab-separated-values": "tsv",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+        "application/rtf": "rtf",
+        "application/epub+zip": "epub",
+        "text/markdown": "md",
+        "text/plain": "txt",
+    }
+    if mime_type in mime_formats:
+        return artifact_type_for_format(mime_formats[mime_type])
+    file_name = str(row.get("file_name") or "")
+    extension = file_name.rsplit(".", 1)[-1] if "." in file_name else ""
+    return artifact_type_for_format(extension)
+
+
+def artifact_type_for_result(result: dict[str, Any]) -> str | None:
+    if result.get("manuscriptWorkspace"):
+        return "manuscript"
+    if result.get("imageFile") or result.get("imageUrl"):
+        return "image"
+    artifact = result.get("artifact")
+    if not isinstance(artifact, dict):
+        return None
+    return artifact_type_for_format(artifact.get("format") or artifact.get("extension"))
 
 
 async def record_product_event(

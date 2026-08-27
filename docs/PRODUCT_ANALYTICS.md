@@ -34,6 +34,10 @@ request host. Replayed events are ignored by the database uniqueness constraint.
 | `RecentWorkResumed` | Authenticated client | The user opened the most recent non-empty conversation from the clean-start launchpad. The server derives the UTC-day key and records at most one content-free milestone per account per day with source `launchpad`; no chat ID, title, prompt, response, or filename is sent. |
 | `PlanIntentReached` | Authenticated client | A paid-plan marketing intent reached the in-app plan review. |
 | `ResponseShared` | Authenticated client | A user completed native sharing or copied branded share text from a response, including the optional content-free referral offered after a useful outcome. The source is restricted to the four delivery paths (`native_share`, `clipboard`, `useful_prompt_native`, or `useful_prompt_clipboard`). Every shared signup link carries only the aggregate `referral` channel and `response-share` placement—never a user, conversation, message, or content identifier. |
+| `ArtifactRequested` | Server | An entitled document or presentation request reached generation. Only the artifact category and server-derived environment, platform, and plan are retained. |
+| `ArtifactPackaged` | Server | The requested downloadable file was stored successfully. |
+| `ArtifactPackagingFailed` | Server | File packaging failed after the response was written. No exception or error text is retained. |
+| `ArtifactDownloaded` | Server | The first authenticated download redirect was prepared for a generated document or manuscript export. Inline opens and ordinary uploads are excluded. |
 | `SubscriptionCheckoutOpened` | Server | Stripe created a subscription Checkout Session. |
 | `SubscriptionCheckoutCompleted` | Stripe webhook | Stripe verified a completed subscription Checkout Session. |
 | `BillingPortalOpened` | Server | Stripe created a customer portal session. |
@@ -82,5 +86,22 @@ from public.product_growth_funnel_snapshot(
   p_until => now(),
   p_environment => 'production',
   p_include_internal => false
+);
+```
+
+## Service-role artifact journey snapshot
+
+Migration `20260827050550_artifact_journey.sql` installs
+`product_artifact_journey_snapshot`, a service-role-only aggregate report for a half-open
+event window. It returns requested, packaged, packaging-failed, and first-download counts by
+allowlisted artifact category, plus request-to-package and package-to-download rates. It never
+returns an account, message, file, prompt, response, URL, filename, or exception value.
+
+```sql
+select *
+from public.product_artifact_journey_snapshot(
+  p_since => timestamptz '2026-08-27 00:00:00+00',
+  p_until => now(),
+  p_environment => 'production'
 );
 ```

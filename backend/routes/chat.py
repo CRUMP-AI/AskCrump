@@ -21,7 +21,11 @@ from ..product53_hooks import (
     consume_feature_for_request,
 )
 from ..project_service import ProjectNotFoundError
-from ..product_analytics import artifact_type_for_result, record_product_event
+from ..product_analytics import (
+    artifact_type_for_format,
+    artifact_type_for_result,
+    record_product_event,
+)
 from ..runtime import ai, artifacts, db, features, files, intelligence, manuscripts, media, projects, settings
 from ..schemas import ChatAckRequest
 from ..security import iso_now, normalize_chat_id
@@ -427,6 +431,20 @@ async def chat(request: Request):
             },
         )
 
+    artifact_format = requested_artifact if not long_form_request else None
+    artifact_event_id = (message_id or str(uuid4())) if artifact_format else None
+    artifact_event_type = artifact_type_for_format(artifact_format) if artifact_format else None
+    if artifact_format and artifact_event_id:
+        await record_product_event(
+            db,
+            user_id=auth.user['id'],
+            event_name='ArtifactRequested',
+            event_key=f'artifact-requested:{artifact_event_id}',
+            request=request,
+            plan=effective_user_tier,
+            artifact_type=artifact_event_type,
+        )
+
     try:
         result = None
         trace_model = None
@@ -552,7 +570,6 @@ async def chat(request: Request):
             result=result,
         )
 
-    artifact_format = requested_artifact if not long_form_request else None
     if artifact_format:
         try:
             result['artifact'] = await artifacts.create(
@@ -564,6 +581,15 @@ async def chat(request: Request):
                 title=str(request_payload.get('artifactTitle') or '').strip() or None,
                 brief=execution_brief,
             )
+            await record_product_event(
+                db,
+                user_id=auth.user['id'],
+                event_name='ArtifactPackaged',
+                event_key=f'artifact-packaged:{artifact_event_id}',
+                request=request,
+                plan=effective_user_tier,
+                artifact_type=artifact_event_type,
+            )
         except Exception:
             logger.exception(
                 'Artifact packaging failed format=%s request_id=%s',
@@ -571,6 +597,15 @@ async def chat(request: Request):
                 request_id,
             )
             result['artifactError'] = 'Crump wrote the content, but the downloadable file could not be packaged yet.'
+            await record_product_event(
+                db,
+                user_id=auth.user['id'],
+                event_name='ArtifactPackagingFailed',
+                event_key=f'artifact-packaging-failed:{artifact_event_id}',
+                request=request,
+                plan=effective_user_tier,
+                artifact_type=artifact_event_type,
+            )
 
     if project_id:
         try:
