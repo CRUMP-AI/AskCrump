@@ -25,6 +25,11 @@
   Android releases to disable cleartext traffic and local backup of account-linked session data.
 - Reconciled the current Apple and Google requirements into an evidence-backed readiness audit
   without enrolling, signing, uploading, changing pricing, or submitting either app.
+- Committed the reviewed npm lockfile produced with Node 22.22.0/npm 11.6.0; a clean `npm ci`, full
+  resolved dependency tree, zero-vulnerability npm audit, and deterministic Android preparation all
+  pass from an isolated worktree.
+- Switched JavaScript CI to the reproducible `npm ci` path and added production-bundle plus store
+  metadata validation on every main-branch change.
 
 ## 5.9.21 — 2026-08-27
 

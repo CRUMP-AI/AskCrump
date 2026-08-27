@@ -26,6 +26,19 @@ def test_store_prepare_commands_are_platform_specific():
     assert 'required for reproducible store preparation' in prepare
 
 
+def test_reproducible_node22_lockfile_is_committed_and_aligned():
+    package = json.loads(read('package.json'))
+    lock = json.loads(read('package-lock.json'))
+    root = lock['packages']['']
+
+    assert lock['name'] == package['name']
+    assert lock['version'] == package['version']
+    assert lock['lockfileVersion'] == 3
+    assert root['engines']['node'] == package['engines']['node'] == '22.x'
+    assert root['dependencies'] == package['dependencies']
+    assert root['devDependencies'] == package['devDependencies']
+
+
 def test_store_versions_and_android_api_are_guarded():
     configure = read('scripts/configure-native.mjs')
     verify = read('scripts/verify-native-release.mjs')

@@ -28,7 +28,8 @@
 - [x] Store metadata fits current Apple and Google field limits
 - [x] Current Google API-level, AI-reporting, deletion, Data Safety, and app-access rules reviewed
 - [x] Current Apple privacy, reviewer-access, and screenshot requirements reviewed
-- [ ] Reviewed npm lockfile committed and a clean `npm ci` succeeds under Node 22
+- [x] Reviewed npm lockfile committed; clean Node 22 `npm ci`, dependency tree, npm audit, and
+      deterministic Android preparation pass (2026-08-27)
 - [ ] Owner publisher identity and developer-account state confirmed
 - [ ] Android Firebase, RevenueCat public key, upload keystore, and compatible JDK 21 supplied (the
       installed Android Studio Java 25 runtime cannot run this Gradle toolchain)

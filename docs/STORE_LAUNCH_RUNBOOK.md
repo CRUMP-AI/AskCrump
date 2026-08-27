@@ -74,9 +74,9 @@ Do not test a new API route against production before its matching migration is 
 
 Install Node 22, Android Studio, JDK 21, and the Android 16/API 36 SDK. From the repository root:
 
-Before the first signed build, generate and review a tracked `package-lock.json` in a clean Node 22
-and npm environment. The preparation script intentionally stops if that lockfile is missing; do not
-replace the reproducibility gate with a mixed-package-manager install.
+Use the tracked, reviewed `package-lock.json` with Node 22. Regenerate and review it in a clean Node
+22/npm environment whenever dependencies change. The preparation script intentionally stops if the
+lockfile is missing; do not replace the reproducibility gate with a mixed-package-manager install.
 
 ```powershell
 npm ci
@@ -96,7 +96,10 @@ Create the signed Android App Bundle from Android Studio or with the generated p
 
 ## 5. Prepare iOS on macOS
 
-Xcode and CocoaPods require macOS. A Mac is not required for day-to-day source work, but a signed iOS archive must be produced on a Mac or a trusted macOS CI runner.
+Xcode and CocoaPods require macOS. A Mac is not required for day-to-day source work, but a signed iOS
+archive must be produced on a Mac or a trusted macOS CI runner. Ask Crump's preferred Windows-led
+path is a manually dispatched GitHub-hosted macOS runner, followed by an owner-approved App Store
+Connect upload. Do not outsource merely to obtain a Mac unless the controlled CI path fails.
 
 ```bash
 npm ci

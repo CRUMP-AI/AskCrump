@@ -22,7 +22,8 @@ This frontend rebuild is designed to preserve the existing store-sensitive archi
 - `npm run store:prepare:android` and `npm run store:prepare:ios` rebuild generated native projects from reviewed source.
 - `npm run store:verify:metadata` enforces current field limits and alignment between the structured
   en-US submission source and the reviewed listing draft.
-- Store preparation fails closed until a reviewed npm lockfile supports a clean Node 22 `npm ci`.
+- The reviewed lockfile supports a clean Node 22 `npm ci`; store preparation fails closed if the
+  lockfile is ever removed.
 - Android native preparation disables cleartext traffic and local app backup, then verifies the
   permanent package ID before any signing step.
 

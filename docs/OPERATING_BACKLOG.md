@@ -119,8 +119,10 @@ directional rather than statistically conclusive.
 
 **Evidence:** production 5.9.22 is healthy; the Android release source regenerates as build 50922
 with API 36, the permanent package ID, generated assets, cleartext/backup protections, and a passing
-native source verifier. Structured en-US metadata passes current field limits. iOS generation
-correctly remains a macOS step. Firebase, RevenueCat public keys/products, signing credentials,
+native source verifier. Structured en-US metadata passes current field limits. A reviewed Node 22
+lockfile now supports clean `npm ci`, a zero-vulnerability npm audit, and deterministic Android
+preparation from an isolated worktree. iOS generation correctly remains a trusted macOS CI step.
+Firebase, RevenueCat public keys/products, signing credentials,
 publisher-account state, reviewer access, signed builds, physical-device results, screenshots, and
 console declarations are not yet verified.
 

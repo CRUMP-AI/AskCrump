@@ -24,6 +24,7 @@ during this audit.
 | AI safety reporting | Every rendered assistant response exposes an in-app Report action backed by the private, rate-limited moderation queue, satisfying Google's in-app AI-content reporting requirement in source. | Verified in source and automated tests |
 | Account deletion | In-app permanent deletion and `https://askcrump.com/delete-account.html` exist; the final signed-build deletion journey still needs a physical-device test. | Source ready; device test pending |
 | Store copy | `store/listing.en-US.json` is machine-checked against Apple/Google field limits and the reviewed Markdown draft. | Verified in source |
+| Reproducible dependencies | The tracked npm v3 lockfile was generated with Node 22.22.0/npm 11.6.0 in an isolated worktree. Clean `npm ci`, `npm ls --all`, a zero-vulnerability `npm audit`, production build, and deterministic Android preparation passed. | Verified |
 | Privacy inventory | `docs/DATA_SAFETY.md`, the public privacy notice, and the iOS base privacy manifest enumerate account, content, device, usage, purchase, reporting, push, and provider flows. | Source ready; final SDK/archive reconciliation pending |
 | iOS generation | The deterministic scripts set the bundle ID/version, push callbacks, Photos explanations, and bundled privacy manifest. Windows correctly refuses iOS preparation because Xcode/CocoaPods require macOS. | Prepared source; macOS run pending |
 | Signing controls | Mobile signing verification found no tracked keys, certificates, provisioning profiles, service-account files, or passwords. | Verified |
@@ -40,15 +41,15 @@ during this audit.
 - Confirm whether the Google developer account is a new personal account; if so, plan the required
   closed test and production-access application rather than promising a launch date prematurely.
 
-### Reproducible dependency install
+### Reproducible dependency install — resolved 2026-08-27
 
-- Direct native dependencies are pinned, but the repository has no reviewed `package-lock.json`, so
-  the documented `npm ci` path cannot yet run. A script-free lockfile attempt in the current mixed
-  package-manager workspace produced unresolved legacy peer warnings and was stopped without
-  accepting a file.
-- Generate the npm lockfile in a clean clone with the approved Node 22/npm toolchain, review the
-  resolved tree and licenses, commit it, then run `npm ci`. Store preparation now fails closed while
-  the lockfile is missing.
+- `package-lock.json` is committed at lockfile version 3 with the root Node requirement fixed at
+  `22.x`. It was generated with Node 22.22.0/npm 11.6.0 in an isolated worktree.
+- Clean `npm ci` installed 130 packages; `npm ls --all` resolved without invalid or missing nodes;
+  `npm audit` reported zero vulnerabilities; the production bundle and deterministic Android
+  preparation passed. CI now uses `npm ci` and validates the production bundle plus store metadata.
+- The store preparation script continues to fail closed if the lockfile is removed. Regenerate and
+  review the lockfile in a clean Node 22 environment whenever dependencies change.
 
 ### Android
 
@@ -67,7 +68,8 @@ during this audit.
 
 ### iOS
 
-- Generate with `npm run store:prepare:ios` on a trusted Mac or approved macOS runner.
+- Generate with `npm run store:prepare:ios` on a trusted Mac or approved GitHub-hosted macOS runner.
+  This preserves a Windows-led release process without outsourcing the submission.
 - Select the Apple team, enable Push Notifications and Background Modes, and supply APNs credentials.
 - Configure `REVENUECAT_IOS_PUBLIC_SDK_KEY`, create the exact App Store products, and map them in
   RevenueCat.
@@ -103,6 +105,8 @@ during this audit.
 - Apple privacy manifests: <https://developer.apple.com/documentation/bundleresources/privacy-manifest-files>
 - Apple version metadata and reviewer access: <https://developer.apple.com/help/app-store-connect/reference/app-information/platform-version-information/>
 - Apple screenshots: <https://developer.apple.com/help/app-store-connect/manage-app-information/upload-app-previews-and-screenshots/>
+- Apple build uploads: <https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds>
+- GitHub-hosted macOS runners: <https://docs.github.com/en/actions/how-tos/manage-runners/github-hosted-runners/use-github-hosted-runners>
 
 Recheck these sources on the actual submission day. Store approval is never guaranteed.
 
