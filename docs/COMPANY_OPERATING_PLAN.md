@@ -138,9 +138,10 @@ provider, privacy, cost, or security gate is incomplete.
 - **Measurement repair:** the live service-role report now excludes accounts created before the
   first observed production event (`2026-08-23 09:10:55.602863+00`) from comparable funnel and
   retention cohorts while preserving historical aggregates separately.
-- **Organic acquisition:** Google Search Console ownership for `askcrump.com` is verified and the
-  property is processing its first data; the canonical sitemap is staged for owner-confirmed
-  submission.
+- **Organic acquisition:** Google Search Console ownership for `askcrump.com` is verified. Production
+  5.9.23 serves two high-intent, crawlable workflow pages with clean canonical URLs, internal links,
+  valid structured data, and privacy-safe `organic` attribution; the four-URL canonical sitemap is
+  live and staged for owner-confirmed Search Console submission.
 - **Shipped foundation:** server-only Crump Code task schema and sandbox runner; disabled publicly.
 - **Shipped foundation:** server-only ElevenLabs voice path with device-speech fallback; disabled
   until disclosure, credentials, and smoke tests are approved.
@@ -148,9 +149,9 @@ provider, privacy, cost, or security gate is incomplete.
 - **Risk:** a real sandbox run has not verified production OIDC/runtime behavior.
 - **Permission needed:** a sub-cent Vercel sandbox smoke test and the exact premium-voice disclosure.
 - **External input needed:** an ElevenLabs production API key and voice ID with confirmed rights.
-- **Next evidence:** verify the conversation-to-Project path in production, then obtain the first
-  consented post-instrumentation durable-value, return, and artifact-journey observations.
-- **Native distribution:** Android 5.9.22/build 50922 source passes the API 36 and release-source
-  audit; iOS remains a macOS generation/archive step. Owner-controlled developer accounts, signing,
-  push, native billing, reviewer access, signed-device tests, screenshots, declarations, and final
-  submission approval remain open.
+- **Next evidence:** submit the sitemap after owner confirmation, then obtain the first legitimate
+  post-instrumentation acquisition, durable-value, return, and artifact-journey observations.
+- **Native distribution:** Android 5.9.23/build 50923 source and an unsigned `.aab` pass the hosted
+  API 36/Java 21 release audit; the generated iOS 5.9.23 Release configuration passes its hosted
+  macOS compile. Owner-controlled developer accounts, signing, push, native billing, reviewer access,
+  signed-device tests, screenshots, declarations, and final submission approval remain open.
