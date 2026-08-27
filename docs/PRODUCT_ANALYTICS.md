@@ -29,7 +29,7 @@ request host. Replayed events are ignored by the database uniqueness constraint.
 | `WorkspaceOpened` | Authenticated client | The workspace opened; at most one row per UTC day. |
 | `StarterIntentReached` | Authenticated client | The account selected its first task category from the launchpad. Only one allowlisted category such as `research`, `file`, or `projects` is stored in `source`; no prompt or content is stored. |
 | `ActivationReached` | Server | The first successful, persisted AI response completed. |
-| `AhaReached` | Server | The first durable artifact, generated image, or manuscript workspace completed. |
+| `AhaReached` | Server | The first durable artifact, generated image, manuscript workspace, or ownership-checked conversation-to-Project transition completed. Project analytics retain only the `project` category—not the Project ID, name, chat ID, title, or content. |
 | `OutcomeFeedbackSubmitted` | Authenticated client | The user answered whether one result moved the work forward. Only `useful` or `needs_work` is stored in `source`; no prompt, response, filename, comment, or other content is accepted. |
 | `RecentWorkResumed` | Authenticated client | The user opened the most recent non-empty conversation from the clean-start launchpad. The server derives the UTC-day key and records at most one content-free milestone per account per day with source `launchpad`; no chat ID, title, prompt, response, or filename is sent. |
 | `PlanIntentReached` | Authenticated client | A paid-plan marketing intent reached the in-app plan review. |
@@ -53,8 +53,11 @@ D1, D7, and D30. Preview rows are kept out of business reporting.
 No acquisition spend should increase until production data can distinguish: account created,
 workspace opened, starter intent reached, activated, durable value reached, paid intent reached,
 checkout opened, and checkout completed.
-The first comparable cohort begins with release 5.8.2; historical account behavior is not
-silently reconstructed from conversation or file content.
+The first comparable cohort begins only after the complete 5.8.2+ event sequence is observable in
+production traffic. Historical account behavior is not silently reconstructed from conversation or
+file content. Account/job/file/Project aggregates may be used to diagnose historical product use,
+but they must be labeled separately from event-based cohort rates and never converted into synthetic
+events.
 
 ## Service-role growth snapshot
 

@@ -550,9 +550,36 @@
       group.replaceChildren(status);
       if (value !== 'useful') return;
 
+      const continuityPrompt = document.createElement('span');
+      continuityPrompt.className = 'outcome-continuity-prompt';
+      continuityPrompt.textContent = 'Keep this work moving?';
+      const projectButton = document.createElement('button');
+      projectButton.type = 'button';
+      projectButton.className = 'outcome-feedback-btn outcome-project-btn';
+      projectButton.textContent = 'Keep in a Project';
+      projectButton.setAttribute('aria-label', 'Save this private conversation in a Project');
+      projectButton.addEventListener('click', async () => {
+        if (projectButton.dataset.saved === 'true') {
+          window.CrumpProduct53?.open?.('projects');
+          return;
+        }
+        projectButton.disabled = true;
+        try {
+          const result = await window.CrumpProduct53?.keepConversation?.();
+          if (!result?.success) throw new Error('Projects are still loading. Try again in a moment.');
+          continuityPrompt.textContent = `Saved to "${result.project?.name || 'Project'}".`;
+          projectButton.dataset.saved = 'true';
+          projectButton.textContent = 'Open Project';
+        } catch (_) {
+          projectButton.disabled = false;
+          return;
+        }
+        projectButton.disabled = false;
+      });
+
       const referralPrompt = document.createElement('span');
       referralPrompt.className = 'outcome-referral-prompt';
-      referralPrompt.textContent = 'Know someone who could use Ask Crump?';
+      referralPrompt.textContent = 'Or help someone else:';
       const referralButton = document.createElement('button');
       referralButton.type = 'button';
       referralButton.className = 'outcome-feedback-btn outcome-referral-btn';
@@ -566,7 +593,7 @@
           referralButton.disabled = false;
         }
       });
-      group.append(referralPrompt, referralButton);
+      group.append(continuityPrompt, projectButton, referralPrompt, referralButton);
     };
 
     const savedFeedback = savedOutcomeFeedback(eventKey);

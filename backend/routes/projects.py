@@ -6,8 +6,10 @@ from fastapi.responses import JSONResponse
 
 from ..auth_service import authenticate_request
 from ..db import eq
-from ..project_service import ProjectNotFoundError
+from ..product_analytics import record_product_event
+from ..project_service import ProjectChatNotFoundError, ProjectNotFoundError
 from ..runtime import db, features, files, projects, settings
+from ..usage_service import tier_name
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -42,15 +44,67 @@ async def create_project(request: Request):
             403,
         )
     try:
-        item = await projects.create(
-            user_id=auth.user["id"],
-            name=str(payload.get("name") or ""),
-            description=str(payload.get("description") or ""),
-            instructions=str(payload.get("instructions") or ""),
-        )
-        return {"success": True, "project": item, "limit": limit}
+        chat_id = str(payload.get("chatId") or "").strip()
+        common = {
+            "user_id": auth.user["id"],
+            "name": str(payload.get("name") or ""),
+            "description": str(payload.get("description") or ""),
+            "instructions": str(payload.get("instructions") or ""),
+        }
+        if chat_id:
+            item = await projects.create_from_chat(chat_id=chat_id, **common)
+            await record_product_event(
+                db,
+                user_id=auth.user["id"],
+                event_name="AhaReached",
+                event_key="first-durable-project",
+                request=request,
+                plan=tier_name(auth.user),
+                artifact_type="project",
+            )
+        else:
+            item = await projects.create(**common)
+        return {
+            "success": True,
+            "project": item,
+            "limit": limit,
+            "conversationSaved": bool(chat_id),
+        }
+    except ProjectChatNotFoundError as exc:
+        return _error(str(exc), "PROJECT_CHAT_NOT_READY", 409)
     except ValueError as exc:
         return _error(str(exc), "INVALID_PROJECT", 400)
+
+
+@router.post("/{project_id}/chats")
+async def attach_project_chat(project_id: str, request: Request):
+    auth = await authenticate_request(request, db, settings)
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        return _error("Invalid conversation request.", "INVALID_PROJECT_CHAT", 400)
+    chat_id = str(payload.get("chatId") or "").strip()
+    if not chat_id:
+        return _error("Choose a conversation first.", "INVALID_PROJECT_CHAT", 400)
+    try:
+        item = await projects.attach_owned_chat(
+            user_id=auth.user["id"],
+            project_id=project_id,
+            chat_id=chat_id,
+        )
+        await record_product_event(
+            db,
+            user_id=auth.user["id"],
+            event_name="AhaReached",
+            event_key="first-durable-project",
+            request=request,
+            plan=tier_name(auth.user),
+            artifact_type="project",
+        )
+        return {"success": True, "project": item, "conversationSaved": True}
+    except ProjectNotFoundError as exc:
+        return _error(str(exc), "PROJECT_NOT_FOUND", 404)
+    except ProjectChatNotFoundError as exc:
+        return _error(str(exc), "PROJECT_CHAT_NOT_READY", 409)
 
 
 @router.get("/{project_id}")

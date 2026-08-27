@@ -661,6 +661,8 @@ def test_useful_outcome_offers_an_optional_content_free_referral():
     assert "useful_prompt_clipboard" in referral
     assert "message?.content" not in referral
     assert "if (value !== 'useful') return" in feedback
-    assert "Know someone who could use Ask Crump?" in feedback
+    assert "Keep in a Project" in feedback
+    assert "Or help someone else:" in feedback
+    assert feedback.index("Keep in a Project") < feedback.index("Or help someone else:")
     assert "Share Ask Crump" in feedback
     assert "shareAskCrump(message, index)" in feedback

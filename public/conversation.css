@@ -437,6 +437,17 @@ button.message-status {
   color: rgba(209, 191, 150, 0.82);
 }
 
+.outcome-continuity-prompt {
+  margin-left: 3px;
+  color: var(--color-text-secondary);
+}
+
+.outcome-project-btn {
+  border-color: rgba(209, 191, 150, 0.56);
+  background: linear-gradient(135deg, rgba(209, 191, 150, 0.22), rgba(166, 132, 69, 0.12));
+  color: rgba(248, 239, 216, 0.96);
+}
+
 .outcome-referral-prompt {
   margin-left: 3px;
   color: var(--color-text-tertiary);

@@ -23,6 +23,22 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 
 ## Ranked execution backlog
 
+### P0 — Convert useful answers into continuing Project work
+
+**Evidence:** two external accounts completed 14 successful AI jobs with no recorded failures, but
+the external aggregate contains zero Projects and zero files, and no external activity occurred
+after 2026-08-23. The useful-result UI previously promoted referral sharing before preserving the
+user's own work.
+
+**Outcome:** after a user confirms that an answer moved work forward, make private Project continuity
+the primary next action. Synchronize and ownership-check the conversation, attach it to the selected
+Project or create one, and record only a content-free durable-value milestone. Keep referral sharing
+secondary.
+
+**Release gate:** automated ownership, mapping, ordering, and analytics checks; full release
+verification; production health; then at least one legitimate external conversation-to-Project
+transition and a later return. Do not infer a retention rate from a single user.
+
 ### P0 — Review the first complete artifact journey cohort
 
 **Evidence:** artifact-journey instrumentation reached production on 2026-08-27. Its first
@@ -53,15 +69,18 @@ and expiry tests, human-visible cost/diff/approval UI, failure monitoring, rollb
 an end-to-end benchmark suite. Do not advertise Codex or Claude Code parity until measured tasks
 show comparable completion quality and safety.
 
-### P0 — Prove the first activated user journey
+### P0 — Prove the first comparable continuing-work journey
 
-**Evidence:** the 30-day external cohort contains three accounts and two verified accounts, but no
-onboarding, workspace-open, starter-intent, activation, durable-value, return, share, checkout, or
-paid events. D1 is 0/3 and D7 is 0/2; the sample is directional, not statistically reliable.
+**Evidence:** the 30-day external cohort contains three accounts and two verified accounts. Two
+accounts completed 14 successful AI jobs, proving historical first-use activity, but external
+activity ended before the first observed product-event traffic and did not resume afterward.
+The external aggregate contains no Projects, files, shares, checkout, or paid events. The current
+event recorder works for an internal production tester, so historical zero-event rows are a cohort
+boundary—not proof that the old users never activated.
 
-**Outcome:** observe legitimate users complete account verification, start useful work, receive a
-durable result, and return. Use moderated sessions to identify telemetry gaps separately from real
-usability failures.
+**Outcome:** observe a new, legitimate post-instrumentation cohort complete verification, start
+useful work, keep it in a private Project or file, and return. Use moderated sessions to identify
+telemetry gaps separately from real usability failures. Do not create synthetic backfill events.
 
 **Release gate:** at least three consented end-to-end observations, content-free event
 reconciliation, one shipped fix for the largest verified failure, and a new cohort review before
@@ -105,7 +124,8 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
-Deploy the new provider foundations with both public flags off, verify production health, and then
-obtain the first consented activated-user and artifact-journey observations. Do not enable Crump
-Code until the real sandbox/OIDC test, review UI, monitoring, and benchmark gates pass. Do not
-enable Crump Voice until its disclosure, key, voice rights, and playback tests are approved.
+Ship and verify conversation-to-Project continuity, then obtain the first consented
+post-instrumentation durable-value, return, and artifact-journey observations. Keep both new provider
+foundations off. Do not enable Crump Code until the real sandbox/OIDC test, review UI, monitoring,
+and benchmark gates pass. Do not enable Crump Voice until its disclosure, key, voice rights, and
+playback tests are approved.

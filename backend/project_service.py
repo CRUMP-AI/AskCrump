@@ -21,6 +21,10 @@ class ProjectNotFoundError(RuntimeError):
     pass
 
 
+class ProjectChatNotFoundError(RuntimeError):
+    pass
+
+
 class ProjectService:
     def __init__(self, db: SupabaseDB) -> None:
         self.db = db
@@ -115,7 +119,80 @@ class ProjectService:
             filters={"id": eq(project["id"]), "user_id": eq(user_id)},
         )
 
-    async def attach_chat(self, *, user_id: str, project_id: str, chat_id: str) -> None:
+    async def owned_chat(self, *, user_id: str, chat_id: str) -> dict[str, Any]:
+        try:
+            normalized_chat = normalize_chat_id(chat_id)
+        except Exception as exc:
+            raise ProjectChatNotFoundError("Conversation not found.") from exc
+        row = await self.db.select_one(
+            "user_chats",
+            columns="chat_id,title",
+            filters={
+                "user_id": eq(user_id),
+                "chat_id": eq(normalized_chat),
+                "deleted_at": "is.null",
+            },
+        )
+        if not row:
+            raise ProjectChatNotFoundError(
+                "That conversation is still syncing. Try again in a moment."
+            )
+        return row
+
+    async def create_from_chat(
+        self,
+        *,
+        user_id: str,
+        chat_id: str,
+        name: str = "",
+        description: str = "",
+        instructions: str = "",
+    ) -> dict[str, Any]:
+        chat = await self.owned_chat(user_id=user_id, chat_id=chat_id)
+        item = await self.create(
+            user_id=user_id,
+            name=name or str(chat.get("title") or "Continued work"),
+            description=description,
+            instructions=instructions,
+        )
+        try:
+            await self.attach_chat(
+                user_id=user_id,
+                project_id=str(item["id"]),
+                chat_id=str(chat["chat_id"]),
+            )
+        except Exception:
+            # The Project was created only for this operation. Remove it if the
+            # conversation mapping cannot be completed so the user never sees a
+            # misleading empty workspace or loses one of their plan slots.
+            await self.db.delete(
+                "projects",
+                filters={"id": eq(item["id"]), "user_id": eq(user_id)},
+            )
+            raise
+        return item
+
+    async def attach_owned_chat(
+        self,
+        *,
+        user_id: str,
+        project_id: str,
+        chat_id: str,
+    ) -> dict[str, Any]:
+        chat = await self.owned_chat(user_id=user_id, chat_id=chat_id)
+        return await self.attach_chat(
+            user_id=user_id,
+            project_id=project_id,
+            chat_id=str(chat["chat_id"]),
+        )
+
+    async def attach_chat(
+        self,
+        *,
+        user_id: str,
+        project_id: str,
+        chat_id: str,
+    ) -> dict[str, Any]:
         project = await self.get(user_id, project_id)
         normalized_chat = normalize_chat_id(chat_id)
         await self.db.upsert(
@@ -132,6 +209,7 @@ class ProjectService:
             {"updated_at": _now()},
             filters={"id": eq(project["id"]), "user_id": eq(user_id)},
         )
+        return project
 
     async def attach_file(
         self,

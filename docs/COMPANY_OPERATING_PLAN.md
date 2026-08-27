@@ -23,13 +23,16 @@ deleted accounts and does not inspect customer content.
 | Measure | Verified value | Interpretation |
 | --- | ---: | --- |
 | External registered accounts | 3 | Too small for statistical conclusions |
-| Verified external accounts | 2 | Verification is not yet translating into measured use |
+| Verified external accounts | 2 | Two accounts completed verified first-use activity |
+| External profiles completed | 3 of 3 | Basic profile setup is not the largest observed loss |
+| External accounts with successful AI jobs | 2 of 3 | First-use value occurred before comparable event instrumentation |
+| Completed external AI jobs | 14 of 14 | No failed external AI jobs are present in the aggregate |
 | Active Professional accounts | 0 | No current subscription revenue in the account aggregate |
 | Active Enterprise accounts | 0 | No current subscription revenue in the account aggregate |
 | 30-day accounts created | 3 | Acquisition baseline only |
-| Recorded onboarding/workspace/starter/activation/durable-value events | 0 | No observed end-to-end activation journey |
-| D1 retention | 0 of 3 | Directional only at this sample size |
-| D7 retention | 0 of 2 eligible | Directional only at this sample size |
+| External Projects / files | 0 / 0 | Successful chats did not become durable workspace assets |
+| External product events after comparable instrumentation | 0 | External activity ended before the first observed product-event traffic and did not resume |
+| External activity after 2026-08-23 | 0 | Return behavior is the clearest verified loss |
 | Artifact-journey rows since release | 0 | Instrumentation has not yet observed real post-release traffic |
 
 Cumulative recognized revenue has not yet been reconciled to Stripe and store settlement data;
@@ -37,24 +40,31 @@ it must not be inferred from the active-subscription snapshot. Website, Search C
 and creative inventory are only called verified where production or account evidence has been
 reviewed. Other channel status remains to be audited.
 
+The event recorder is working for the internal production tester. The zero-event external report
+cannot be used as proof of zero historical activation because external activity ended before the
+first observed product-event traffic. No synthetic backfill will be created.
+
 ## Largest current bottleneck
 
-The largest verified bottleneck is the absence of an observed activated user journey. Ask Crump
-cannot yet show that a new verified account opens the workspace, begins useful work, receives a
-durable result, and returns. The immediate job is to make that path reliable and measurable with
-real users. Scaling ads before that proof would purchase traffic without knowing where value is
-lost.
+The largest verified bottleneck is conversion from a successful answer into durable, continuing
+work. Two external accounts completed 14 successful AI jobs, but no external account created a
+Project or retained a file, and no external activity occurred after August 23. The immediate job is
+to help users keep useful work, return to it, and measure a new post-instrumentation cohort. Scaling
+ads before that proof would purchase traffic before Ask Crump has demonstrated continued value.
 
 ## 30-day execution plan
 
 ### Product and reliability
 
 - Keep conversational document delivery and presentation exports under production observation.
+- Make private conversation-to-Project continuity the primary action after a user confirms that a
+  result was useful; keep referral sharing secondary to retention.
 - Obtain the first real artifact journey and reconcile requested, packaged, failed, and downloaded
   counts by aggregate artifact category.
 - Conduct three to five moderated activation sessions using legitimate external accounts; record
   only consented notes and content-free funnel outcomes.
-- Fix the largest observed onboarding-to-durable-value failure before expanding acquisition.
+- Review the first post-instrumentation cohort separately from the three historical accounts.
+- Fix the largest observed durable-value-to-return failure before expanding acquisition.
 - Deploy Crump Code and Crump Voice foundations disabled by default; complete their activation
   gates without public parity claims.
 
@@ -83,8 +93,8 @@ lost.
 
 ## 90-day milestones
 
-1. **Activation proof:** at least 20 legitimate new users complete the defined activation action,
-   with a written qualitative reason for the largest remaining drop-off.
+1. **Activation proof:** at least 20 legitimate new users receive a successful answer in a comparable
+   instrumented cohort, with a written qualitative reason for the largest remaining drop-off.
 2. **Retention proof:** at least one fully elapsed cohort shows measurable continued-work behavior;
    any percentage target will be set only after the first credible baseline.
 3. **Revenue proof:** recognized revenue and refunds reconcile to provider records, and at least one
@@ -115,13 +125,17 @@ provider, privacy, cost, or security gate is incomplete.
 
 ## Current decisions and handoff
 
-- **Decision:** prioritize activation proof over traffic volume.
+- **Decision:** prioritize durable continuing work and return behavior over traffic volume.
+- **Verified evidence:** two external accounts completed 14 successful AI jobs before the first
+  observed product-event traffic; neither created a Project/file or returned after August 23.
+- **Measurement boundary:** do not interpret pre-instrumentation zero-event rows as zero historical
+  use, and do not create synthetic events to backfill them.
 - **Shipped foundation:** server-only Crump Code task schema and sandbox runner; disabled publicly.
 - **Shipped foundation:** server-only ElevenLabs voice path with device-speech fallback; disabled
   until disclosure, credentials, and smoke tests are approved.
-- **Risk:** no observed real production activation or artifact journey yet.
+- **Risk:** no external durable-value, return, or artifact journey has been observed yet.
 - **Risk:** a real sandbox run has not verified production OIDC/runtime behavior.
 - **Permission needed:** a sub-cent Vercel sandbox smoke test and the exact premium-voice disclosure.
 - **External input needed:** an ElevenLabs production API key and voice ID with confirmed rights.
-- **Next evidence:** complete verification, deploy disabled foundations, verify production health,
-  then obtain the first consented activation and artifact-journey observations.
+- **Next evidence:** verify the conversation-to-Project path in production, then obtain the first
+  consented post-instrumentation durable-value, return, and artifact-journey observations.

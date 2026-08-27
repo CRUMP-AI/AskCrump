@@ -662,6 +662,55 @@
     }
   }
 
+  function currentConversation() {
+    return (Array.isArray(window.chats) ? window.chats : []).find(
+      item => item.id === window.currentChatId || item.chat_id === window.currentChatId,
+    ) || null;
+  }
+
+  function projectNameForConversation(chat) {
+    const title = String(chat?.title || '').replace(/\s+/g, ' ').trim();
+    if (title && title.toLowerCase() !== 'new conversation') return title.slice(0, 100);
+    const firstPrompt = (Array.isArray(chat?.messages) ? chat.messages : []).find(
+      message => message?.role === 'user' && String(message?.content || '').trim(),
+    );
+    return String(firstPrompt?.content || 'Continued work').replace(/\s+/g, ' ').trim().slice(0, 100);
+  }
+
+  async function keepConversation() {
+    const chat = currentConversation();
+    const chatId = String(chat?.id || chat?.chat_id || '').trim();
+    if (!chatId) throw new Error('Open a conversation before saving it to a Project.');
+
+    try {
+      const sync = await window.syncChatsToServer?.();
+      if (sync?.success === false) throw new Error('This conversation is still syncing. Try again in a moment.');
+
+      const data = state.activeProject?.id
+        ? await api(`/api/projects/${state.activeProject.id}/chats`, {
+            method: 'POST',
+            body: {chatId},
+          })
+        : await api('/api/projects', {
+            method: 'POST',
+            body: {
+              name: projectNameForConversation(chat),
+              description: 'Continued from an Ask Crump conversation.',
+              chatId,
+            },
+          });
+      state.activeProject = data.project;
+      state.editingProject = data.project;
+      storeProject(data.project.id);
+      await refreshProjects();
+      window.showToast?.(`Saved to ${data.project.name}.`, 'success');
+      return {success: true, project: data.project};
+    } catch (error) {
+      window.showToast?.(error.message || 'The conversation could not be saved.', 'error');
+      throw error;
+    }
+  }
+
   function renderProjectList(limit) {
     const list = byId('crump53ProjectList');
     if (!list) return;
@@ -1749,6 +1798,7 @@
 
   window.CrumpProduct53 = Object.freeze({
     open: openStudio,
+    keepConversation: () => keepConversation(),
     openManuscript: workspace => openManuscriptWorkspace(workspace),
     handleCreationHandoff: handoff => handleCreationHandoff(handoff),
   });

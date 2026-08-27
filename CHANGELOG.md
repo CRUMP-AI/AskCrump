@@ -1,5 +1,25 @@
 # Changelog
 
+## 5.9.20 — 2026-08-27
+
+### Continuing-work activation
+
+- Reordered the useful-result follow-up so keeping the user's own work in a private Project is the
+  primary next action and referral sharing remains available as a secondary action.
+- Added one-click conversation continuity: the current chat is synchronized, ownership-checked,
+  attached to the selected Project or used to create a new Project, and selected for future work.
+- Recorded the first successful conversation-to-Project transition as a content-free durable-value
+  milestone without storing prompts, titles, filenames, or response content in analytics.
+- Corrected the operating baseline after aggregate production review showed 14 successful AI jobs
+  across two external accounts before comparable product-event instrumentation existed. The verified
+  bottleneck is durable-value conversion and return behavior, not whether Ask Crump has ever answered
+  an external user.
+
+### Release
+
+- Advanced the application to 5.9.20 and the service-worker cache to revision 54 so web and installed
+  clients receive the continuing-work path and corrected measurement baseline together.
+
 ## 5.9.19 — 2026-08-27
 
 ### Safe capability foundations
