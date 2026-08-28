@@ -1,5 +1,22 @@
 # Changelog
 
+## 5.9.39 — 2026-08-27
+
+### Reliable first action
+
+- Replaced the launchpad's fixed 120-millisecond Projects/Video readiness guess with the existing
+  runtime-ready contract. A choice made while the product workspace is still loading is now held
+  and opened as soon as that runtime is actually ready, including on slower connections.
+- Added restrained visible and assistive progress to the selected launch card while it waits, plus
+  an explicit retry message if the runtime finishes without the requested workspace.
+- Kept the content-free, idempotent starter-intent event at the user's click. Authentication,
+  verification, terms, pricing, entitlement, and product-workspace behavior are unchanged.
+
+### Verification and release
+
+- Advanced the application to 5.9.39, native build 50939, and service-worker cache revision 73 so
+  web and installed clients receive the readiness correction together.
+
 ## 5.9.38 — 2026-08-27
 
 ### Faster first value

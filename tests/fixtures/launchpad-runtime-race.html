@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Launchpad runtime readiness fixture</title>
+</head>
+<body>
+  <div id="appContainer" style="display:flex">
+    <section id="v1Launchpad">
+      <button id="projectStarter" type="button" data-v1-command="projects">
+        <span><strong>Start or open a Project</strong><small>Keep ongoing work together.</small></span>
+        <b>↗</b>
+      </button>
+      <button id="videoStarter" type="button" data-v1-command="video">
+        <span><strong>Create a video</strong><small>Open the video workspace.</small></span>
+        <b>↗</b>
+      </button>
+    </section>
+    <div id="chatContainer"></div>
+    <div id="chatsList"></div>
+    <textarea id="userInput"></textarea>
+  </div>
+  <script>
+    window.__openedProductTabs = [];
+    window.__starterEvents = [];
+    window.CrumpAnalytics = {
+      track(name, detail) {
+        window.__starterEvents.push({name, detail});
+        return Promise.resolve(true);
+      },
+    };
+    window.showToast = (message, tone) => {
+      window.__lastToast = {message, tone};
+    };
+    window.makeProductRuntimeReady = () => {
+      window.CrumpProduct53 = {
+        open(tab) {
+          window.__openedProductTabs.push(tab);
+        },
+      };
+      document.documentElement.dataset.crumpBodyRuntime = 'ready';
+      window.dispatchEvent(new CustomEvent('crump:body-runtime-ready'));
+    };
+  </script>
+  <script src="/public/crump-v1-body.js"></script>
+</body>
+</html>

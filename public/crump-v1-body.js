@@ -104,14 +104,63 @@
     return true;
   }
 
+  let pendingProductTab = '';
+
+  function productLabel(tab) {
+    if (tab === 'projects') return 'Projects';
+    if (tab === 'video') return 'Video';
+    if (tab === 'library') return 'Library';
+    return 'That workspace';
+  }
+
+  function setProductLaunchBusy(tab, busy) {
+    $$(`[data-v1-command="${tab}"]`).forEach(button => {
+      button.classList.toggle('is-loading', busy);
+      if (busy) button.setAttribute('aria-busy', 'true');
+      else button.removeAttribute('aria-busy');
+
+      const marker = button.querySelector(':scope > b');
+      if (!marker) return;
+      if (!marker.dataset.v1ReadyMarker) marker.dataset.v1ReadyMarker = marker.textContent || '↗';
+      marker.textContent = busy ? '…' : marker.dataset.v1ReadyMarker;
+    });
+  }
+
+  function flushPendingProduct() {
+    const tab = pendingProductTab;
+    if (!tab) return false;
+    pendingProductTab = '';
+    setProductLaunchBusy(tab, false);
+
+    const open = window.CrumpProduct53?.open;
+    if (typeof open !== 'function') {
+      window.showToast?.(`${productLabel(tab)} did not finish loading. Refresh Ask Crump and try again.`, 'error');
+      return false;
+    }
+    open(tab);
+    return true;
+  }
+
   function openProduct(tab) {
-    if (window.CrumpProduct53?.open) {
-      window.CrumpProduct53.open(tab);
+    const open = window.CrumpProduct53?.open;
+    if (typeof open === 'function') {
+      open(tab);
       return true;
     }
-    window.setTimeout(() => window.CrumpProduct53?.open?.(tab), 120);
+
+    if (pendingProductTab && pendingProductTab !== tab) {
+      setProductLaunchBusy(pendingProductTab, false);
+    }
+    pendingProductTab = tab;
+    setProductLaunchBusy(tab, true);
+
+    if (document.documentElement.dataset.crumpBodyRuntime === 'ready') {
+      return flushPendingProduct();
+    }
     return false;
   }
+
+  window.addEventListener('crump:body-runtime-ready', flushPendingProduct);
 
   const STARTER_INTENTS = new Set(['focus', 'research', 'file', 'image', 'projects', 'video']);
 
