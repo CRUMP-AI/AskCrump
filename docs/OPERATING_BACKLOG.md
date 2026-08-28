@@ -199,18 +199,19 @@ continuation, response sharing, checkout, and paid status are now measurable. Pr
 also prevents a failed clipboard operation from being counted as a share and preserves the
 content-free `referral` channel through account creation, but the comparable production cohort is
 new and no legitimate referred activation has been observed. A production-only Vercel Web
-Analytics read on 2026-08-27 showed 79 visitors, 200 page views, and 62% bounce over the trailing
-seven days; 59 visitors reached `/app`, 19 visitors produced 20 `SignupIntent` events, and one
+Analytics read on 2026-08-27 showed 87 visitors, 233 page views, and 62% bounce over the trailing
+seven days; 60 visitors reached `/app`, 20 visitors produced 24 `SignupIntent` events, and one
 visitor produced one client `AccountCreated` event. Those anonymous aggregates span the
 pre-instrumentation boundary and may include internal or automated visits, so they are not a
-conversion rate. The last 24 hours showed six production visitors, 33 page views, two
-`MarketingCTA` visitors, and one visitor each at `SignupIntent` and `SignupStarted`, with no
+conversion rate. The last 24 hours showed 15 production visitors, 68 page views, three
+`MarketingCTA` visitors, and two visitors each at `SignupIntent` and `SignupStarted`, with no
 `SignupCredentialsReady`, `SignupSubmitted`, or `AccountCreated` event. Before 5.9.29,
 `MarketingCTA` mixed account-creation and sign-in clicks; the release now records existing-account
 traffic separately as `MarketingSignin`. The service-role comparable external funnel still
-returned zero accounts at every stage, and the aggregate artifact journey returned no rows. A
-user-reported login handoff defect was repaired in 5.9.29, but no comparable external account has
-yet been observed after the repair.
+returned zero accounts at every stage at 21:40 ET, and the aggregate artifact journey returned no
+rows. A user-reported login handoff defect was repaired in 5.9.29, but no comparable external
+account has yet been observed after the repair. The full content-free evidence boundary and
+decision are recorded in `docs/OPERATING_SNAPSHOT_2026-08-27_2140.md`.
 
 **Outcome:** a weekly operating review of account creation → workspace open → starter intent →
 activation → durable value → useful outcome → return/share → checkout → paid.
@@ -299,12 +300,12 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
-Observe the first real checkout and reconcile Stripe with Ask Crump entitlement/credit state.
-Submit the live canonical sitemap after owner confirmation, allow the social-preview experiment to
-reach its minimum observation window, then obtain the first consented
-post-instrumentation account, durable-value, return, referral, and artifact-journey observations.
-Do not rewrite the signup flow from anonymous seven-day aggregates that cross the measurement
-boundary; diagnose the next real post-boundary attempt instead. Keep both new provider foundations
-off. Do not enable Crump Code until the real sandbox/OIDC test, review UI, monitoring, and benchmark
-gates pass. Do not enable Crump Voice until its disclosure, key, voice rights, and playback tests
-are approved.
+Complete the owner-run sign-out and manual credential-entry proof. Submit the live canonical
+sitemap after owner confirmation, allow the social-preview experiment to reach its minimum
+observation window, then obtain the first consented post-instrumentation account, durable-value,
+return, referral, and artifact-journey observations. Observe the first real checkout and reconcile
+Stripe with Ask Crump entitlement/credit state. Do not rewrite the signup flow from anonymous
+seven-day aggregates that cross the measurement boundary; diagnose the next real post-boundary
+attempt instead. Keep both new provider foundations off. Do not enable Crump Code until the real
+sandbox/OIDC test, review UI, monitoring, and benchmark gates pass. Do not enable Crump Voice
+until its disclosure, key, voice rights, and playback tests are approved.
