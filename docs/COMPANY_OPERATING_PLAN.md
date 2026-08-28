@@ -74,8 +74,9 @@ next constraint.
   the 5.9.60 desktop/mobile navigation repair under production observation.
 - Observe the first legitimate 5.9.58 presentation through request, packaging, download, and a
   consented audience/decision review; do not infer quality lift from the internal render audit.
-- Make private conversation-to-Project continuity the primary action after a user confirms that a
-  result was useful; keep referral sharing secondary to retention.
+- Keep the 5.9.61 exact-destination conversation-to-Project action primary after a useful result;
+  observe legitimate Project creation/reuse and return behavior while referral sharing stays
+  secondary to retention.
 - Observe whether legitimate returning desktop users now find the permanent Chats control without
   instruction, whether mobile drawer actions remain dependable on repeated physical-device use,
   and whether either path leads to resumed useful work; retain content-free measurement and do not
