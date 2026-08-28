@@ -1,5 +1,28 @@
 # Changelog
 
+## 5.9.38 — 2026-08-27
+
+### Faster first value
+
+- Removed the mandatory name modal between terms acceptance and the first workspace visit. The
+  legally required, server-saved terms gate remains unchanged; the task-oriented launchpad now
+  opens immediately afterward even when the account has no display name.
+- Reintroduced name setup as a compact, optional launchpad prompt with Add name and Not now
+  controls. Dismissal is account-scoped on the device, and the existing Profile settings remain
+  available across signed-in devices.
+- Made the optional name dialog dismissible by button or Escape, keyboard-focused when opened, and
+  explicit about save errors. The save action now exposes a busy state and cannot double-submit.
+- Corrected Profile settings so a rejected server name update is no longer reported as saved.
+  Successful profile updates close the optional prompt immediately.
+- Kept registration, verification, terms, authentication, pricing, and entitlement behavior
+  unchanged. `OnboardingCompleted` remains server-authoritative and fires only when the account
+  actually adds its first name.
+
+### Verification and release
+
+- Advanced the application to 5.9.38, native build 50938, and service-worker cache revision 72 so
+  installed clients receive the optional activation path and its styles together.
+
 ## 5.9.37 — 2026-08-27
 
 ### Durable registration handoff

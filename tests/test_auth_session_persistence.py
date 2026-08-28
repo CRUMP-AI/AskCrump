@@ -26,8 +26,8 @@ def test_same_page_login_is_serialized_and_confirmed():
     assert 'for (const delay of [0, 75, 200])' in source
     assert 'for (let attempt = 0; attempt < 2; attempt += 1)' not in source
     assert "code: 'SESSION_ESTABLISHMENT_FAILED'" in source
-    assert 'src="/device-auth.js?v=5.9.37"' in shell
-    assert "'/device-auth.js?v=5.9.37'" in worker
+    assert 'src="/device-auth.js?v=5.9.38"' in shell
+    assert "'/device-auth.js?v=5.9.38'" in worker
     assert "url.pathname === '/device-auth.js'" in worker
 
 

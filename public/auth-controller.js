@@ -161,6 +161,36 @@
     dispatchPendingPlanIntent();
   }
 
+  function profileNudgeKey() {
+    return window.STORAGE_KEYS?.PROFILE_NUDGE_DISMISSED || 'crump_profile_nudge_dismissed';
+  }
+
+  function profileNudgeDismissed() {
+    try { return localStorage.getItem(profileNudgeKey()) === 'true'; } catch (_) { return false; }
+  }
+
+  function maybeOfferProfileSetup() {
+    const nudge = byId('v1ProfileNudge');
+    if (!nudge) return;
+    nudge.hidden = Boolean(window.currentUser?.fullName || activeUser?.fullName) || profileNudgeDismissed();
+  }
+
+  function openProfileSetup() {
+    const nudge = byId('v1ProfileNudge');
+    if (nudge) nudge.hidden = true;
+    setText('onboardingError', '', false);
+    show('onboardingModal', 'flex');
+    requestAnimationFrame(() => byId('onboardingName')?.focus());
+  }
+
+  function dismissProfileSetup() {
+    try { localStorage.setItem(profileNudgeKey(), 'true'); } catch (_) {}
+    hide('onboardingModal');
+    const nudge = byId('v1ProfileNudge');
+    if (nudge) nudge.hidden = true;
+    byId('userInput')?.focus({preventScroll: true});
+  }
+
   function routeAuthenticatedUser(user) {
     activeUser = user;
     window.currentUser = user;
@@ -175,12 +205,8 @@
       localStorage.setItem(window.STORAGE_KEYS?.HAS_ONBOARDED || 'crump_has_onboarded', 'true');
       window.profileManager?.updateProfile?.({ name: user.fullName, email: user.email });
     }
-    if (!user.fullName) {
-      hide('authContainer');
-      show('onboardingModal', 'flex');
-      return;
-    }
     startApp();
+    if (!user.fullName) maybeOfferProfileSetup();
   }
 
   function showAuth(view = 'login') {
@@ -331,8 +357,8 @@
         activeUser = data.user || { ...activeUser, termsAcceptedAt: new Date().toISOString(), termsVersion: TERMS_VERSION };
         window.currentUser = activeUser;
         hide('tosModal');
-        if (activeUser.fullName) startApp();
-        else show('onboardingModal', 'flex');
+        startApp();
+        if (!activeUser.fullName) maybeOfferProfileSetup();
       } catch (error) {
         window.showToast?.(error.message, 'error');
         button.disabled = false;
@@ -611,7 +637,20 @@
 
   window.completeOnboarding = async function completeOnboarding() {
     const name = byId('onboardingName').value.trim();
-    if (!name) return;
+    setText('onboardingError', '', false);
+    if (!name) {
+      setText('onboardingError', 'Enter a name or choose Not now.');
+      byId('onboardingName')?.focus();
+      return;
+    }
+    const button = byId('onboardingContinueBtn');
+    const skip = byId('onboardingSkipBtn');
+    const original = button?.textContent || 'Save name';
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Saving…';
+    }
+    if (skip) skip.disabled = true;
     try {
       const response = await fetch('/api/account/profile', {
         method: 'PATCH',
@@ -624,9 +663,16 @@
       window.currentUser = activeUser;
       window.profileManager?.updateProfile?.({ name, email: activeUser.email, initial: name.charAt(0).toUpperCase() });
       localStorage.setItem(window.STORAGE_KEYS?.HAS_ONBOARDED || 'crump_has_onboarded', 'true');
+      try { localStorage.removeItem(profileNudgeKey()); } catch (_) {}
       startApp();
     } catch (error) {
-      window.showToast?.(error.message, 'error');
+      setText('onboardingError', error.message || 'Could not save your name. Try again or choose Not now.');
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = original;
+      }
+      if (skip) skip.disabled = false;
     }
   };
 
@@ -654,6 +700,13 @@
     applyPasswordPolicyMarkup();
     wirePasswordVisibility();
     byId('onboardingContinueBtn')?.addEventListener('click', () => window.completeOnboarding());
+    byId('onboardingSkipBtn')?.addEventListener('click', dismissProfileSetup);
+    byId('v1ProfileNudgeAdd')?.addEventListener('click', openProfileSetup);
+    byId('v1ProfileNudgeDismiss')?.addEventListener('click', dismissProfileSetup);
+    window.addEventListener('crump:profile-updated', maybeOfferProfileSetup);
+    byId('onboardingModal')?.addEventListener('keydown', event => {
+      if (event.key === 'Escape') dismissProfileSetup();
+    });
     byId('onboardingName')?.addEventListener('keydown', event => {
       if (event.key === 'Enter') {
         event.preventDefault();

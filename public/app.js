@@ -10,7 +10,8 @@ const BASE_STORAGE_KEYS = Object.freeze({
     WORK_START: 'crump_work_start',
     WORK_END: 'crump_work_end',
     HAS_ONBOARDED: 'crump_has_onboarded',
-    ACTIVATION_RECORDED: 'crump_activation_recorded'
+    ACTIVATION_RECORDED: 'crump_activation_recorded',
+    PROFILE_NUDGE_DISMISSED: 'crump_profile_nudge_dismissed'
 });
 const STORAGE_KEYS = { ...BASE_STORAGE_KEYS };
 
@@ -1006,7 +1007,6 @@ window.saveSettings = async function() {
     const workMode = document.getElementById('workMode').checked;
     const workStart = document.getElementById('workStart').value;
     const workEnd = document.getElementById('workEnd').value;
-    if (currentProfile && name) currentProfile.updateProfile({ name, initial: name.charAt(0).toUpperCase() });
     SafeStorage.setItem(STORAGE_KEYS.ASSISTANT_NAME, assistantName);
     SafeStorage.setItem(STORAGE_KEYS.WORK_MODE, String(workMode));
     SafeStorage.setItem(STORAGE_KEYS.WORK_START, workStart);
@@ -1017,8 +1017,19 @@ window.saveSettings = async function() {
                 method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fullName: name }),
             });
             const data = await response.json().catch(() => ({}));
-            if (response.ok && data.user) window.currentUser = data.user;
+            if (!response.ok || !data.success || !data.user) {
+                throw new Error(data.error || 'Your name could not be saved. Try again.');
+            }
+            window.currentUser = data.user;
         }
+        if (currentProfile && name) currentProfile.updateProfile({ name, initial: name.charAt(0).toUpperCase() });
+        if (name) window.dispatchEvent(new CustomEvent('crump:profile-updated'));
+    } catch (error) {
+        console.warn('[Profile settings]', error);
+        showToast(error.message || 'Your name could not be saved. Try again.', 'error');
+        return;
+    }
+    try {
         await window.SyncManager?.push(null, {
             chats: [],
             settings: {

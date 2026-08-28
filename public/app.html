@@ -17,9 +17,9 @@
   <link rel="stylesheet" href="/billing.css">
   <link rel="stylesheet" href="/install-prompt.css">
   <link rel="stylesheet" href="/onboarding.css">
-  <link rel="stylesheet" href="/conversation.css?v=5.9.37">
+  <link rel="stylesheet" href="/conversation.css?v=5.9.38">
   <link rel="stylesheet" href="/auth-styles.css">
-  <link rel="stylesheet" href="/crump-v1-body.css?v=5.9.37" data-crump-body-v1="true">
+  <link rel="stylesheet" href="/crump-v1-body.css?v=5.9.38" data-crump-body-v1="true">
 </head>
 <body class="crump-v1-body">
 
@@ -205,17 +205,21 @@
 </div>
 
 <!-- ONBOARDING -->
-<div id="onboardingModal" class="modal v1-modal" style="display:none;">
+<div id="onboardingModal" class="modal v1-modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle">
   <div class="modal-content onboarding-modal v1-onboarding-card">
     <img src="/assets/brand/crump-horizontal-light.png" alt="Ask Crump" class="onboarding-logo">
-    <div class="v1-kicker">MAKE IT YOURS</div>
-    <h2>What should Crump call you?</h2>
-    <p class="modal-subtitle">This follows you across your signed-in devices.</p>
+    <div class="v1-kicker">OPTIONAL PERSONALIZATION</div>
+    <h2 id="onboardingTitle">What should Crump call you?</h2>
+    <p class="modal-subtitle">Add a name for personalized greetings across your signed-in devices. You can also do this later in Settings.</p>
     <div class="form-group">
       <label for="onboardingName">Your Name</label>
       <input type="text" id="onboardingName" class="form-input" placeholder="Enter your name" maxlength="50" autocomplete="name">
     </div>
-    <button id="onboardingContinueBtn" class="btn btn-primary btn-large" type="button">Enter Workspace</button>
+    <div id="onboardingError" class="auth-error" role="alert" style="display:none;"></div>
+    <div class="v1-onboarding-actions">
+      <button id="onboardingContinueBtn" class="btn btn-primary btn-large" type="button">Save name</button>
+      <button id="onboardingSkipBtn" class="btn btn-secondary btn-large" type="button">Not now</button>
+    </div>
   </div>
 </div>
 
@@ -321,6 +325,18 @@
           <div id="v1Greeting" class="v1-launchpad-greeting">Good evening.</div>
           <h1>What are we moving forward?</h1>
           <p>Ask something, start a Project, research what changed, work from a file, or create something you can keep.</p>
+
+          <div id="v1ProfileNudge" class="v1-profile-nudge" role="region" aria-label="Optional profile setup" hidden>
+            <div class="v1-profile-nudge-copy">
+              <span>OPTIONAL</span>
+              <strong>Make the workspace yours.</strong>
+              <small>Add your name for personalized greetings. You can change it anytime in Settings.</small>
+            </div>
+            <div class="v1-profile-nudge-actions">
+              <button id="v1ProfileNudgeAdd" type="button">Add your name</button>
+              <button id="v1ProfileNudgeDismiss" type="button">Not now</button>
+            </div>
+          </div>
 
           <div id="v1RecentWork" class="v1-recent-work" hidden>
             <span class="v1-recent-work-label">CONTINUE</span>
@@ -450,7 +466,7 @@
           <div class="settings-list">
             <div class="settings-row">
               <div class="settings-row-text"><div class="settings-label">Your Name</div><div class="settings-help">What Crump calls you</div></div>
-              <input type="text" id="settingsName" class="settings-field" placeholder="Enter your name" autocomplete="name" aria-label="Your name">
+              <input type="text" id="settingsName" class="settings-field" placeholder="Enter your name" maxlength="50" autocomplete="name" aria-label="Your name">
             </div>
             <div class="settings-row">
               <div class="settings-row-text"><div class="settings-label">Email</div><div class="settings-help">Used for account and recovery</div></div>
@@ -562,7 +578,7 @@
           </div>
           <div class="v1-about-signature">
             <img src="/assets/brand/crump-horizontal-light.png" alt="Ask Crump">
-            <span>Ask Crump 5.9.37 · Built to think, make, and continue.</span>
+            <span>Ask Crump 5.9.38 · Built to think, make, and continue.</span>
           </div>
         </section>
       </div>
@@ -583,15 +599,15 @@
 <script defer src="/profile-manager.js"></script>
 <script defer src="/billing-manager.js"></script>
 <script defer src="/subscription-ui.js"></script>
-<script defer src="/ui-functions.js?v=5.9.37"></script>
+<script defer src="/ui-functions.js?v=5.9.38"></script>
 <script defer src="/presence-manager.js"></script>
-<script defer src="/device-auth.js?v=5.9.37"></script>
+<script defer src="/device-auth.js?v=5.9.38"></script>
 <script defer src="/sync-manager.js"></script>
 <script defer src="/chat-sync.js"></script>
 <script defer src="/account-manager.js"></script>
-<script defer src="/app.js?v=5.9.37"></script>
-<script defer src="/product-analytics.js?v=5.9.37"></script>
-<script defer src="/auth-controller.js?v=5.9.37"></script>
+<script defer src="/app.js?v=5.9.38"></script>
+<script defer src="/product-analytics.js?v=5.9.38"></script>
+<script defer src="/auth-controller.js?v=5.9.38"></script>
 <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>

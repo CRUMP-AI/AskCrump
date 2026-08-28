@@ -589,6 +589,18 @@ body.crump-v1-body .v1-onboarding-card .form-input {
   color: var(--ac-text);
 }
 
+body.crump-v1-body .v1-onboarding-actions {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+body.crump-v1-body .v1-onboarding-actions .btn {
+  min-height: 52px;
+  margin: 0;
+}
+
 /* =========================================================
    NEW APPLICATION BODY
    ========================================================= */
@@ -1107,6 +1119,68 @@ body.crump-v1-body .v1-launchpad > p {
   color: #7e8386;
   font-size: 12px;
   line-height: 1.7;
+}
+body.crump-v1-body .v1-profile-nudge {
+  display: grid;
+  width: min(760px,100%);
+  min-height: 66px;
+  grid-template-columns: minmax(0,1fr) auto;
+  align-items: center;
+  gap: 18px;
+  margin-top: 20px;
+  padding: 12px 13px 12px 16px;
+  border: 1px solid rgba(217,191,132,.16);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(217,191,132,.055), rgba(255,255,255,.012));
+  text-align: left;
+}
+body.crump-v1-body .v1-profile-nudge[hidden] { display: none; }
+body.crump-v1-body .v1-profile-nudge-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+body.crump-v1-body .v1-profile-nudge-copy span {
+  color: #8d7950;
+  font-size: 7.5px;
+  font-weight: 760;
+  letter-spacing: .14em;
+}
+body.crump-v1-body .v1-profile-nudge-copy strong {
+  color: #e4dfd5;
+  font-size: 11px;
+  font-weight: 650;
+}
+body.crump-v1-body .v1-profile-nudge-copy small {
+  color: #6f7578;
+  font-size: 8.5px;
+  line-height: 1.4;
+}
+body.crump-v1-body .v1-profile-nudge-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+body.crump-v1-body .v1-profile-nudge-actions button {
+  min-height: 38px;
+  padding: 0 11px;
+  border: 1px solid rgba(217,191,132,.18);
+  border-radius: 11px;
+  background: rgba(217,191,132,.07);
+  color: #cfbd91;
+  font-size: 8.5px;
+  font-weight: 650;
+  cursor: pointer;
+}
+body.crump-v1-body .v1-profile-nudge-actions button:last-child {
+  border-color: transparent;
+  background: transparent;
+  color: #707578;
+}
+body.crump-v1-body .v1-profile-nudge-actions button:hover,
+body.crump-v1-body .v1-profile-nudge-actions button:focus-visible {
+  border-color: rgba(217,191,132,.34);
+  color: #eadfc5;
 }
 body.crump-v1-body .v1-recent-work {
   display: grid;
@@ -2272,6 +2346,14 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
   body.crump-v1-body .v1-launchpad-greeting { font-size: 8.5px; }
   body.crump-v1-body .v1-launchpad h1 { font-size: clamp(37px,11vw,48px); }
   body.crump-v1-body .v1-launchpad > p { max-width: 340px; margin-top: 14px; font-size: 10.5px; line-height: 1.6; }
+  body.crump-v1-body .v1-profile-nudge {
+    width: min(560px,100%);
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 16px;
+    padding: 12px;
+  }
+  body.crump-v1-body .v1-profile-nudge-actions { justify-content: flex-start; }
   body.crump-v1-body .v1-launchpad-grid { gap: 7px; margin-top: 21px; }
   body.crump-v1-body .v1-launch-card { min-height: 66px; grid-template-columns: 39px minmax(0,1fr) 14px; gap: 9px; padding: 10px 11px; border-radius: 16px; }
   body.crump-v1-body .v1-launch-icon { width: 39px; height: 39px; border-radius: 12px; }
