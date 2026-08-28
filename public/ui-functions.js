@@ -596,6 +596,7 @@
         continuityPrompt.textContent = `Saved to "${result.project?.name || 'Project'}".`;
         projectButton.dataset.saved = 'true';
         projectButton.textContent = 'Open Project';
+        projectButton.setAttribute('aria-label', 'Open the Project containing this conversation');
       } catch (_) {
         projectButton.disabled = false;
         return;

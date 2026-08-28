@@ -1,5 +1,27 @@
 # Changelog
 
+## 5.9.52 — 2026-08-28
+
+### Recoverable private Project handoff
+
+- The primary `Keep in a Project` action now bounds its Project create or attach request through
+  response-body parsing. A stalled connection releases the disabled action with truthful retry
+  guidance instead of leaving the durable-work path frozen forever.
+- A successful save no longer waits for a secondary Project-list refresh before confirming the
+  result. The list still refreshes in the background while the saved Project becomes immediately
+  available to the conversation.
+- Retrying after an uncertain response reuses the newest active owned Project already containing
+  that conversation, including when the user has since reached the plan's Project limit. The
+  ownership check, private mapping, and content-free durable-value event remain server-authoritative.
+
+### Verification and release
+
+- A credential-free browser fixture reproduced the prior indefinite disabled state with the real
+  result and Project code. The corrected path aborted the stalled response, restored the action,
+  and accepted a second retry; service and route tests prove the retry does not create a duplicate.
+- Advanced the application to 5.9.52, native build 50952, and service-worker cache revision 86 so
+  web, installed PWA, and generated native clients receive the recovery boundary.
+
 ## 5.9.51 — 2026-08-28
 
 ### Single-owner startup and reconnect synchronization

@@ -35,16 +35,26 @@ async def create_project(request: Request):
     payload = await request.json()
     if not isinstance(payload, dict):
         return _error("Invalid project request.", "INVALID_PROJECT_REQUEST", 400)
+    chat_id = str(payload.get("chatId") or "").strip()
+    existing = None
     count = await projects.count(auth.user["id"])
     limit = features.project_limit(auth.user)
     if limit >= 0 and count >= limit:
-        return _error(
-            f"Your current plan supports up to {limit} active projects.",
-            "PROJECT_LIMIT_REACHED",
-            403,
-        )
+        if chat_id:
+            try:
+                existing = await projects.find_for_chat(
+                    user_id=auth.user["id"],
+                    chat_id=chat_id,
+                )
+            except ProjectChatNotFoundError:
+                existing = None
+        if not existing:
+            return _error(
+                f"Your current plan supports up to {limit} active projects.",
+                "PROJECT_LIMIT_REACHED",
+                403,
+            )
     try:
-        chat_id = str(payload.get("chatId") or "").strip()
         common = {
             "user_id": auth.user["id"],
             "name": str(payload.get("name") or ""),
@@ -52,7 +62,7 @@ async def create_project(request: Request):
             "instructions": str(payload.get("instructions") or ""),
         }
         if chat_id:
-            item = await projects.create_from_chat(chat_id=chat_id, **common)
+            item = existing or await projects.create_from_chat(chat_id=chat_id, **common)
             await record_product_event(
                 db,
                 user_id=auth.user["id"],

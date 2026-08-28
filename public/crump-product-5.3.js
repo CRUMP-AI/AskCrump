@@ -21,6 +21,7 @@
   };
 
   const nativeFetch = window.fetch.bind(window);
+  const PROJECT_SAVE_TIMEOUT_MS = 15_000;
   const byId = id => document.getElementById(id);
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -51,21 +52,56 @@
   }
 
   async function api(path, options = {}) {
-    const headers = {...(options.headers || {})};
-    if (options.body && typeof options.body !== 'string') {
+    const {
+      timeoutMs: requestedTimeout = 0,
+      signal: callerSignal,
+      ...requestOptions
+    } = options;
+    const timeoutMs = Math.max(0, Number(requestedTimeout) || 0);
+    const controller = timeoutMs > 0 ? new AbortController() : null;
+    let timeoutId = null;
+    let relayAbort = null;
+    if (controller && callerSignal) {
+      relayAbort = () => controller.abort(callerSignal.reason);
+      if (callerSignal.aborted) relayAbort();
+      else callerSignal.addEventListener('abort', relayAbort, {once: true});
+    }
+    if (controller && !controller.signal.aborted) {
+      timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    }
+    const signal = controller?.signal || callerSignal;
+    const headers = {...(requestOptions.headers || {})};
+    if (requestOptions.body && typeof requestOptions.body !== 'string') {
       headers['Content-Type'] = 'application/json';
-      options.body = JSON.stringify(options.body);
+      requestOptions.body = JSON.stringify(requestOptions.body);
     }
-    const response = await nativeFetch(path, {credentials: 'include', ...options, headers});
-    let data = {};
-    try { data = await response.json(); } catch (_) { data = {}; }
-    if (!response.ok || data.success === false) {
-      const error = new Error(data.error || `Request failed (${response.status})`);
-      error.data = data;
-      error.status = response.status;
+    try {
+      const response = await nativeFetch(path, {
+        credentials: 'include',
+        ...requestOptions,
+        headers,
+        ...(signal ? {signal} : {}),
+      });
+      let data = {};
+      try { data = await response.json(); } catch (_) { data = {}; }
+      if (!response.ok || data.success === false) {
+        const error = new Error(data.error || `Request failed (${response.status})`);
+        error.data = data;
+        error.status = response.status;
+        throw error;
+      }
+      return data;
+    } catch (error) {
+      if (controller?.signal.aborted && !callerSignal?.aborted) {
+        const timeoutError = new Error('This request took too long. Check your connection and try again.');
+        timeoutError.code = 'REQUEST_TIMEOUT';
+        throw timeoutError;
+      }
       throw error;
+    } finally {
+      if (timeoutId !== null) clearTimeout(timeoutId);
+      if (callerSignal && relayAbort) callerSignal.removeEventListener('abort', relayAbort);
     }
-    return data;
   }
 
   function setStatus(id, message, isError = false) {
@@ -705,6 +741,7 @@
         ? await api(`/api/projects/${state.activeProject.id}/chats`, {
             method: 'POST',
             body: {chatId},
+            timeoutMs: PROJECT_SAVE_TIMEOUT_MS,
           })
         : await api('/api/projects', {
             method: 'POST',
@@ -713,12 +750,13 @@
               description: 'Continued from an Ask Crump conversation.',
               chatId,
             },
+            timeoutMs: PROJECT_SAVE_TIMEOUT_MS,
           });
       state.activeProject = data.project;
       state.editingProject = data.project;
       storeProject(data.project.id);
-      await refreshProjects();
       window.showToast?.(`Saved to ${data.project.name}.`, 'success');
+      void refreshProjects();
       return {success: true, project: data.project};
     } catch (error) {
       window.showToast?.(error.message || 'The conversation could not be saved.', 'error');

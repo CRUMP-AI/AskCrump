@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Project continuity save-stall fixture</title>
+</head>
+<body>
+  <main>
+    <div id="chatContainer"></div>
+    <output id="fixtureStatus" aria-live="polite"></output>
+    <output id="fixtureRequests" aria-label="Project save requests">0</output>
+    <output id="fixtureAborts" aria-label="Aborted project saves">0</output>
+    <output id="fixtureErrors" aria-label="Browser errors">0</output>
+  </main>
+  <script>
+    const fixtureChatId = '00000000-0000-4000-8000-000000000051';
+    const fixtureSuccessfulSave = new URLSearchParams(location.search).get('save') === 'success';
+    window.currentUser = {id: 'fixture-user'};
+    window.currentChatId = fixtureChatId;
+    window.chats = [{
+      id: fixtureChatId,
+      chat_id: fixtureChatId,
+      title: 'Launch plan',
+      messages: [{
+        id: 'fixture-response',
+        role: 'assistant',
+        content: 'Here is the completed launch plan.',
+      }],
+    }];
+    window.__fixture = {
+      projectRequests: 0,
+      abortedProjectRequests: 0,
+      unexpectedRequests: 0,
+      toasts: [],
+    };
+    const recordBrowserError = () => {
+      const output = document.getElementById('fixtureErrors');
+      output.textContent = String(Number(output.textContent || 0) + 1);
+    };
+    window.addEventListener('error', recordBrowserError);
+    window.addEventListener('unhandledrejection', recordBrowserError);
+    window.showToast = (message, tone) => {
+      window.__fixture.toasts.push({message, tone});
+      document.getElementById('fixtureStatus').textContent = message;
+    };
+    window.CrumpAnalytics = {track: () => Promise.resolve(true)};
+    window.CrumpPresence = {indicator: () => null};
+    window.syncChatsToServer = () => Promise.resolve({success: true});
+    const nativeSetTimeout = window.setTimeout.bind(window);
+    window.setTimeout = (callback, delay, ...args) => nativeSetTimeout(
+      callback,
+      delay === 15_000 ? 250 : delay,
+      ...args,
+    );
+    window.fetch = async (input, options = {}) => {
+      const url = new URL(String(input), location.href);
+      const method = String(options.method || 'GET').toUpperCase();
+      if (url.pathname === '/api/projects' && method === 'GET') {
+        return new Response(JSON.stringify({success: true, projects: [], limit: 3}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      if (url.pathname === '/api/features') {
+        return new Response(JSON.stringify({success: true}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      if (url.pathname === '/api/projects' && method === 'POST') {
+        window.__fixture.projectRequests += 1;
+        document.getElementById('fixtureRequests').textContent = String(window.__fixture.projectRequests);
+        if (fixtureSuccessfulSave) {
+          document.getElementById('fixtureStatus').textContent = 'Project save request completed.';
+          return new Response(JSON.stringify({success: true, project: {
+            id: '00000000-0000-4000-8000-000000000052',
+            name: 'Launch plan',
+          }}), {
+            status: 200,
+            headers: {'Content-Type': 'application/json'},
+          });
+        }
+        document.getElementById('fixtureStatus').textContent = 'Project save request stalled.';
+        return new Promise((_resolve, reject) => {
+          options.signal?.addEventListener('abort', () => {
+            window.__fixture.abortedProjectRequests += 1;
+            document.getElementById('fixtureAborts').textContent = String(window.__fixture.abortedProjectRequests);
+            document.getElementById('fixtureStatus').textContent = 'Project save request stopped.';
+            reject(new DOMException('The fixture request was aborted.', 'AbortError'));
+          }, {once: true});
+        });
+      }
+      window.__fixture.unexpectedRequests += 1;
+      return new Response(JSON.stringify({success: false, error: 'Unexpected fixture request.'}), {
+        status: 500,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+  </script>
+  <script src="/public/ui-functions.js?v=project-save-fixture-4"></script>
+  <script src="/public/crump-product-5.3.js?v=project-save-fixture-3"></script>
+  <script>
+    window.addEventListener('load', () => window.renderMessages(window.chats[0].messages));
+  </script>
+</body>
+</html>

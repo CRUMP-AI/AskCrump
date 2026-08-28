@@ -149,6 +149,12 @@ class ProjectService:
         instructions: str = "",
     ) -> dict[str, Any]:
         chat = await self.owned_chat(user_id=user_id, chat_id=chat_id)
+        existing = await self.find_for_chat(
+            user_id=user_id,
+            chat_id=str(chat["chat_id"]),
+        )
+        if existing:
+            return existing
         item = await self.create(
             user_id=user_id,
             name=name or str(chat.get("title") or "Continued work"),
@@ -171,6 +177,40 @@ class ProjectService:
             )
             raise
         return item
+
+    async def find_for_chat(
+        self,
+        *,
+        user_id: str,
+        chat_id: str,
+    ) -> dict[str, Any] | None:
+        """Return the newest active owned Project already holding a conversation."""
+        try:
+            normalized_chat = normalize_chat_id(chat_id)
+        except Exception as exc:
+            raise ProjectChatNotFoundError("Conversation not found.") from exc
+        mappings = await self.db.select(
+            "project_chats",
+            columns="project_id",
+            filters={"user_id": eq(user_id), "chat_id": eq(normalized_chat)},
+            order="created_at.desc",
+            limit=50,
+        )
+        project_ids = [str(row.get("project_id") or "").strip() for row in mappings]
+        project_ids = [project_id for project_id in project_ids if project_id]
+        if not project_ids:
+            return None
+        rows = await self.db.select(
+            "projects",
+            filters={
+                "id": in_(project_ids),
+                "user_id": eq(user_id),
+                "archived_at": "is.null",
+            },
+            order="updated_at.desc",
+            limit=min(50, len(project_ids)),
+        )
+        return rows[0] if rows else None
 
     async def attach_owned_chat(
         self,
