@@ -31,6 +31,9 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 | Recoverable authentication requests | Commit `0012a30`; deployment `dpl_3QsniFHTrMSACqNWPf7DzNqMckJ2`; production 5.9.45 applies one bounded transport through response parsing to registration, verification-email resend, password recovery/reset, terms acceptance, profile save, session checks, login, logout, and native push-registration cleanup. A registration-stall fixture proved the old permanently disabled `Creating account…` state; the corrected path restores the action with truthful uncertain-outcome guidance. A login-response-stall fixture proved the web client can reconcile a session issued before the response connection stalls. Auth policy, cookies, schema/RLS, pricing, entitlements, analytics, and payments remain unchanged. All 352 tests, lint, 44 JavaScript validations, production/native/store checks, CI run `33142697258`, Android run `33142697156`, and iOS run `33142697157` passed. Production health returned 5.9.45; live assets/cache returned 200; the one-hour scan had no runtime error cluster or warning/error/fatal log. No production login, account, event, message, Project, or payment was created. | Verified delivery; human proof pending |
 | Complete signup milestone delivery | Commit `6c3e546`; deployment `dpl_9Mn5E1AtiiNL1FKN345Ag6gF5LkL`; production 5.9.46 closes a deterministic measurement gap in which valid password-manager/autofill values could reach `SignupSubmitted` without emitting `SignupCredentialsReady`. Shared one-time helpers now guarantee the ordered `SignupStarted` → `SignupCredentialsReady` → `SignupSubmitted` sequence on valid typed and autofilled submissions. The payload remains content-free and excludes email/password values; registration, verification, auth, schema/RLS, pricing, entitlements, server analytics, and payments are unchanged. A real-controller loopback fixture proved the pre-fix omission and both corrected paths exactly once. All 353 tests, lint, 44 JavaScript validations, production/native/store checks, CI run `33143365291`, Android run `33143365303`, and iOS run `33143365301` passed. Production health returned 5.9.46; live controller/cache assets returned 200; the initial scan had no runtime error cluster or warning/error/fatal log. No production signup, account, event, login, message, Project, or payment was created. | Verified measurement; conversion outcome pending |
 | Recoverable verification-link return | Commit `a3ae2de`; deployment `dpl_EBxtmgbDcy7y7yeEhijKBvNHMbU8`; production 5.9.47 turns an invalid, expired, already-used, or scanner-consumed verification-link result into an actionable recovery state. The signed-out screen focuses the email field, exposes the existing resend control, and truthfully offers sign-in when verification may already have completed; its generic resend result preserves account-state privacy. Token lifetime, single-use semantics, auth policy, schema/RLS, pricing, entitlements, analytics, and payments remain unchanged. A real-controller loopback fixture proved the old dead end and the corrected recovery path without a production account or token. All 354 tests, lint, 44 JavaScript validations, production/native/store checks, CI run `33143924537`, Android run `33143924544`, and iOS run `33143924530` passed. Production health returned 5.9.47; live app/controller/cache assets returned 200; the initial scan had no runtime error cluster or warning/error/fatal log. | Verified delivery; activation outcome pending |
+| Durable password-reset handoff | Commit `7ab3b1b`; deployment `dpl_8srpxeQqjCoFEjF3tPYZRhYvrvnQ`; production 5.9.48 sends a successful password reset directly to sign-in with a persistent confirmation and focused email field instead of flashing a result for 1.8 seconds and leaving a blank form. The reset token is removed from the URL and deleted from form state. A real-controller loopback fixture proved a single request, durable result, clean URL, and keyboard-ready next step. All 355 tests, lint, 44 JavaScript validations, production/native/store checks, CI run `33153793086`, Android run `33153793090`, and iOS run `33153793073` passed. | Verified delivery; recovery outcome pending |
+| Durable mobile sign-in and PWA wake-up | Commits `06c30a1` and `3b20cf4`; production 5.9.49 expands successful mobile web-session confirmation from roughly 275 milliseconds to a bounded 2.65-second window and checks for PWA updates on load, wake, page restore, and connectivity return. Idle signed-out pages adopt a new controller automatically; entered credentials and signed-in work receive a controlled reload prompt. A real-runtime fixture reproduced the three-check failure and proved one workspace start on the fourth check. Identity-free auth outcomes remain observable while upstream request URLs containing opaque session hashes/internal row IDs are suppressed. All 359 tests, lint, 44 JavaScript validations, production/native/store checks, CI run `33155450505`, Android run `33155450518`, and iOS run `33155450469` passed. Production served the corrected assets/cache and the privacy-hotfix log contained no upstream identifier-bearing URL. | Verified repair; owner credential recheck pending |
+| Authenticated workspace startup boundary | Commit `ea74f83`; deployment `dpl_71UWy9RoEESp5WBGKVoT2XMvZAUE`; production 5.9.50 defers Projects/Video, Crump Code, Library, and credits hydration until the server-confirmed account reaches the workspace. A full-shell browser run changed signed-out startup from five expected 401s to one successful session check and zero protected calls, while the matched authenticated run loaded every protected surface without delay or script error. All 362 tests, lint, 44 JavaScript validations, production/native/store checks, CI run `33156887623`, Android run `33156887563`, and iOS run `33156887586` passed. The fresh production browser served `r84`, made one 200 session request, and produced no failed response, script error, or error/fatal deployment log. | Verified delivery; activation outcome pending |
 | Crump Voice private foundation | Explicit signed-in playback route, Professional entitlement, rate/character/audio limits, provider-failure refund, server-held ElevenLabs key, non-cacheable ephemeral MP3 response, and device-speech fallback are implemented. Public feature flag remains off pending approved disclosure, credentials/voice rights, and smoke tests. | Staged, disabled |
 | Private conversation-to-Project continuity | Commit `e99fc1f`; production 5.9.22 puts `Keep in a Project` directly on the latest result, reducing durable-work preservation from two commitments to one. The existing server route synchronizes and ownership-checks the chat, attaches idempotently to the selected/new Project, and records only a content-free Project milestone. All 285 tests, backend lint/compile checks, 40 JavaScript validations, production preflight, and native web-bundle build passed. Live health and version checks returned HTTP 200, the deployed client contained the direct action, and the deployment-scoped error/fatal scan was empty. | Verified |
 | Comparable growth-cohort boundary | Supabase migration `product_growth_measurement_boundary`; live first-event evidence fixes the lower bound at `2026-08-23 09:10:55.602863+00`; the 30-day report now returns 18 metrics and zero comparable external accounts instead of misclassifying three historical accounts. The function remains security invoker, `anon`/`authenticated` execution is denied, `service_role` execution succeeds, and post-change advisors reported no errors or warnings. | Verified |
@@ -192,6 +195,19 @@ Production health and the live app/controller/service-worker assets returned 200
 unsigned native compiles passed; the initial one-hour scan had no runtime error cluster or
 warning/error/fatal log. No production signup, account, verification, event, login, message, Project,
 or payment was created, so activation impact remains unproven.
+
+Production 5.9.48 made the successful password-reset return durable, and 5.9.49 then closed the
+reproduced slow-mobile confirmation plus sleeping-PWA update gap. A real-runtime fixture proved the
+old three-check session failure and the corrected fourth-check workspace entry. The release also
+replaced identifier-bearing upstream request logs with identity-free categorical outcomes. Hosted
+CI and both native verifiers passed; fresh owner credential proof remains pending after the required
+one-time restart of a PWA page that was already asleep before the new listener existed.
+
+Production 5.9.50 then removed five expected protected 401s from every signed-out startup. The full
+shell made only one successful session check while signed out, then hydrated every protected surface
+after a mocked server-confirmed account. The fresh production browser repeated the one-request,
+zero-failure result with `r84`; its deployment had no error/fatal log. This verifies a cleaner,
+cheaper, and more observable activation boundary, not improved conversion.
 
 ### Current monetization checkpoint
 
@@ -374,13 +390,13 @@ rate without platform impression data.
 
 ### P1 — Prepare native store distribution without premature submission
 
-**Evidence:** production 5.9.47 is healthy; the Android release source regenerates as build 50947
+**Evidence:** production 5.9.50 is healthy; the Android release source regenerates as build 50950
 with API 36, the permanent package ID, generated assets, cleartext/backup protections, and a passing
 native source verifier. Structured en-US metadata passes current field limits. A reviewed Node 22
 lockfile now supports clean `npm ci`, a zero-vulnerability npm audit, and deterministic Android
-preparation from an isolated worktree. GitHub run `33143924530` generated the 5.9.47 iOS project and
+preparation from an isolated worktree. GitHub run `33156887586` generated the 5.9.50 iOS project and
 compiled its unsigned Release configuration on hosted macOS with no signing or upload credentials.
-GitHub run `33143924544` generated the 5.9.47/build 50947 Android project under Java 21, passed the
+GitHub run `33156887563` generated the 5.9.50/build 50950 Android project under Java 21, passed the
 native and signing-control verifiers, compiled `bundleRelease`, and confirmed a non-empty unsigned
 `.aab`, also with no signing or upload credentials. Firebase, RevenueCat public keys/products,
 signing credentials,
@@ -433,7 +449,8 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
-Complete the owner-run sign-out and manual credential-entry proof on production 5.9.47. Submit the live canonical
+Complete the owner-run sign-out and manual credential-entry proof on production 5.9.50 after fully
+closing any PWA page that was already asleep before 5.9.49. Submit the live canonical
 sitemap after owner confirmation, allow the social-preview experiment to reach its minimum
 observation window, then obtain the first consented post-instrumentation account, durable-value,
 return, referral, and artifact-journey observations. Observe the first real checkout and reconcile
