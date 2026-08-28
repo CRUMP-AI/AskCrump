@@ -348,3 +348,32 @@ def test_project_save_timeout_fixture_uses_real_product_code_without_credentials
     assert "const PROJECT_SAVE_TIMEOUT_MS = 15_000" in product
     assert "timeoutMs: PROJECT_SAVE_TIMEOUT_MS" in product
     assert "void refreshProjects()" in product
+
+
+def test_project_return_timeout_fixture_uses_real_project_runtime_without_credentials():
+    fixture = (ROOT / "tests" / "fixtures" / "project-return-stall.html").read_text(
+        encoding="utf-8"
+    )
+    product = (ROOT / "public" / "crump-product-5.3.js").read_text(encoding="utf-8")
+
+    assert '<script src="/public/crump-product-5.3.js?v=project-return-fixture-3"></script>' in fixture
+    assert "Loading saved conversations" in product
+    assert "fixtureSuccessfulReturn" in fixture
+    assert "fixtureStall" in fixture
+    assert "stalledResponse" in fixture
+    assert "stalledBodyResponse" in fixture
+    assert "fixture response body was aborted" in fixture
+    assert "options.signal?.addEventListener('abort'" in fixture
+    assert "fixture-user" in fixture
+    assert "password" not in fixture.lower()
+    assert "askcrump.com" not in fixture
+    assert "const PROJECT_READ_TIMEOUT_MS = 15_000" in product
+    assert "Retry loading Projects" in product
+    assert "Retry loading saved conversations" in product
+    assert "Retry loading Project notes" in product
+    assert "if (controller?.signal.aborted || callerSignal?.aborted) throw error" in product
+    context = product[
+        product.index("async function refreshProjectContext"):
+        product.index("async function addProjectContext")
+    ]
+    assert context.count("if (state.activeProject?.id !== projectId) return") == 2

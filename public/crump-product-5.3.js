@@ -22,6 +22,7 @@
 
   const nativeFetch = window.fetch.bind(window);
   const PROJECT_SAVE_TIMEOUT_MS = 15_000;
+  const PROJECT_READ_TIMEOUT_MS = 15_000;
   const byId = id => document.getElementById(id);
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -83,7 +84,12 @@
         ...(signal ? {signal} : {}),
       });
       let data = {};
-      try { data = await response.json(); } catch (_) { data = {}; }
+      try {
+        data = await response.json();
+      } catch (error) {
+        if (controller?.signal.aborted || callerSignal?.aborted) throw error;
+        data = {};
+      }
       if (!response.ok || data.success === false) {
         const error = new Error(data.error || `Request failed (${response.status})`);
         error.data = data;
@@ -109,6 +115,27 @@
     if (!node) return;
     node.textContent = message || '';
     node.classList.toggle('is-error', Boolean(isError));
+  }
+
+  function renderRetryableListError(list, message, label, retry) {
+    if (!list) return;
+    const note = document.createElement('div');
+    note.className = 'crump53-note';
+    note.textContent = message;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'crump53-button';
+    button.textContent = 'Retry';
+    button.setAttribute('aria-label', label);
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      try {
+        await retry();
+      } finally {
+        if (button.isConnected) button.disabled = false;
+      }
+    });
+    list.replaceChildren(note, button);
   }
 
   function injectProjectIntoChatRequests() {
@@ -696,7 +723,7 @@
 
   async function refreshProjects() {
     try {
-      const data = await api('/api/projects');
+      const data = await api('/api/projects', {timeoutMs: PROJECT_READ_TIMEOUT_MS});
       state.projects = Array.isArray(data.projects) ? data.projects : [];
       const stored = state.activeProject?.id || readStoredProject();
       state.activeProject = state.projects.find(item => item.id === stored) || null;
@@ -709,7 +736,14 @@
         renderActiveProjectWorkspace();
       }
     } catch (error) {
-      setStatus('crump53ProjectStatus', error.message, true);
+      const message = error.message || 'Could not load Projects.';
+      setStatus('crump53ProjectStatus', message, true);
+      renderRetryableListError(
+        byId('crump53ProjectList'),
+        message,
+        'Retry loading Projects',
+        () => refreshProjects(),
+      );
     }
   }
 
@@ -834,7 +868,9 @@
     list.innerHTML = '<div class="crump53-note">Loading saved conversations…</div>';
     const projectId = state.activeProject.id;
     try {
-      const data = await api(`/api/projects/${projectId}/chats`);
+      const data = await api(`/api/projects/${projectId}/chats`, {
+        timeoutMs: PROJECT_READ_TIMEOUT_MS,
+      });
       if (state.activeProject?.id !== projectId) return;
       state.projectConversations = Array.isArray(data.conversations) ? data.conversations : [];
       if (count) count.textContent = String(state.projectConversations.length);
@@ -855,7 +891,12 @@
       if (state.activeProject?.id !== projectId) return;
       state.projectConversations = [];
       if (count) count.textContent = '';
-      list.innerHTML = `<div class="crump53-note">${escapeHtml(error.message || 'Could not load saved conversations.')}</div>`;
+      renderRetryableListError(
+        list,
+        error.message || 'Could not load saved conversations.',
+        'Retry loading saved conversations',
+        () => refreshProjectConversations(),
+      );
     }
   }
 
@@ -917,8 +958,12 @@
       return;
     }
     card.hidden = false;
+    const projectId = state.activeProject.id;
     try {
-      const data = await api(`/api/projects/${state.activeProject.id}`);
+      const data = await api(`/api/projects/${projectId}`, {
+        timeoutMs: PROJECT_READ_TIMEOUT_MS,
+      });
+      if (state.activeProject?.id !== projectId) return;
       const rows = Array.isArray(data.context?.canon) ? data.context.canon : [];
       if (!rows.length) {
         list.innerHTML = '<div class="crump53-note">No canon or durable Project notes yet.</div>';
@@ -931,7 +976,13 @@
         return `<div class="crump53-context-item"><small>${kind}</small><strong>${label}</strong><p>${content}</p></div>`;
       }).join('');
     } catch (error) {
-      list.innerHTML = `<div class="crump53-note">${escapeHtml(error.message || 'Could not load Project context.')}</div>`;
+      if (state.activeProject?.id !== projectId) return;
+      renderRetryableListError(
+        list,
+        error.message || 'Could not load Project context.',
+        'Retry loading Project notes',
+        () => refreshProjectContext(),
+      );
     }
   }
 

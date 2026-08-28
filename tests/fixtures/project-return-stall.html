@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Project return-to-work stall fixture</title>
+</head>
+<body>
+  <main>
+    <div id="chatContainer"></div>
+    <output id="fixtureProjectRequests" aria-label="Project list requests">0</output>
+    <output id="fixtureProjectAborts" aria-label="Aborted Project list requests">0</output>
+    <output id="fixtureChatRequests" aria-label="Saved conversation requests">0</output>
+    <output id="fixtureChatAborts" aria-label="Aborted conversation requests">0</output>
+    <output id="fixtureNoteRequests" aria-label="Project note requests">0</output>
+    <output id="fixtureNoteAborts" aria-label="Aborted Project note requests">0</output>
+    <output id="fixtureLoadedChat" aria-label="Loaded conversation">none</output>
+    <output id="fixtureErrors" aria-label="Browser errors">0</output>
+  </main>
+  <script>
+    const fixtureProjectId = '00000000-0000-4000-8000-000000000061';
+    const fixtureChatId = '00000000-0000-4000-8000-000000000062';
+    const fixtureParams = new URLSearchParams(location.search);
+    const fixtureSuccessfulReturn = fixtureParams.get('return') === 'success';
+    const fixtureStall = fixtureParams.get('stall') || 'chats';
+    localStorage.setItem('askcrump.activeProject53', fixtureProjectId);
+    window.currentUser = null;
+    window.currentChatId = '';
+    window.chats = [];
+    window.renderMessages = () => {};
+    window.showToast = () => {};
+    window.CrumpAnalytics = {track: () => Promise.resolve(true)};
+    window.syncChatsFromServer = () => {
+      window.chats = [{
+        id: fixtureChatId,
+        chat_id: fixtureChatId,
+        title: 'Launch plan',
+        messages: [],
+      }];
+      return Promise.resolve({success: true});
+    };
+    window.loadChat = chatId => {
+      document.getElementById('fixtureLoadedChat').textContent = String(chatId || 'none');
+    };
+    const recordBrowserError = () => {
+      const output = document.getElementById('fixtureErrors');
+      output.textContent = String(Number(output.textContent || 0) + 1);
+    };
+    window.addEventListener('error', recordBrowserError);
+    window.addEventListener('unhandledrejection', recordBrowserError);
+    const nativeSetTimeout = window.setTimeout.bind(window);
+    window.setTimeout = (callback, delay, ...args) => nativeSetTimeout(
+      callback,
+      delay === 15_000 ? 250 : delay,
+      ...args,
+    );
+    const stalledResponse = (options, requestOutputId, abortOutputId) => {
+      const requests = document.getElementById(requestOutputId);
+      requests.textContent = String(Number(requests.textContent || 0) + 1);
+      return new Promise((_resolve, reject) => {
+        options.signal?.addEventListener('abort', () => {
+          const aborts = document.getElementById(abortOutputId);
+          aborts.textContent = String(Number(aborts.textContent || 0) + 1);
+          reject(new DOMException('The fixture request was aborted.', 'AbortError'));
+        }, {once: true});
+      });
+    };
+    const stalledBodyResponse = (options, requestOutputId, abortOutputId) => {
+      const requests = document.getElementById(requestOutputId);
+      requests.textContent = String(Number(requests.textContent || 0) + 1);
+      const body = new ReadableStream({
+        start(controller) {
+          options.signal?.addEventListener('abort', () => {
+            const aborts = document.getElementById(abortOutputId);
+            aborts.textContent = String(Number(aborts.textContent || 0) + 1);
+            controller.error(new DOMException('The fixture response body was aborted.', 'AbortError'));
+          }, {once: true});
+        },
+      });
+      return new Response(body, {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+    window.fetch = async (input, options = {}) => {
+      const url = new URL(String(input), location.href);
+      const method = String(options.method || 'GET').toUpperCase();
+      if (url.pathname === '/api/features') {
+        return new Response(JSON.stringify({success: true, projectLimit: 3, features: {}}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      if (url.pathname === '/api/projects' && method === 'GET') {
+        if (!fixtureSuccessfulReturn && fixtureStall === 'projects') {
+          return stalledResponse(options, 'fixtureProjectRequests', 'fixtureProjectAborts');
+        }
+        const requests = document.getElementById('fixtureProjectRequests');
+        requests.textContent = String(Number(requests.textContent || 0) + 1);
+        return new Response(JSON.stringify({success: true, limit: 3, projects: [{
+          id: fixtureProjectId,
+          name: 'Launch plan',
+          description: 'A saved strategy Project.',
+          instructions: '',
+          updated_at: '2026-08-28T10:00:00Z',
+        }]}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      if (url.pathname === `/api/projects/${fixtureProjectId}` && method === 'GET') {
+        if (!fixtureSuccessfulReturn && fixtureStall === 'context') {
+          return stalledResponse(options, 'fixtureNoteRequests', 'fixtureNoteAborts');
+        }
+        const requests = document.getElementById('fixtureNoteRequests');
+        requests.textContent = String(Number(requests.textContent || 0) + 1);
+        return new Response(JSON.stringify({success: true, project: {
+          id: fixtureProjectId,
+          name: 'Launch plan',
+        }, context: {canon: []}}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      if (url.pathname === `/api/projects/${fixtureProjectId}/chats` && method === 'GET') {
+        if (!fixtureSuccessfulReturn && fixtureStall === 'body') {
+          return stalledBodyResponse(options, 'fixtureChatRequests', 'fixtureChatAborts');
+        }
+        const requests = document.getElementById('fixtureChatRequests');
+        requests.textContent = String(Number(requests.textContent || 0) + 1);
+        if (fixtureSuccessfulReturn || fixtureStall !== 'chats') {
+          return new Response(JSON.stringify({success: true, conversations: [{
+            chatId: fixtureChatId,
+            title: 'Launch plan',
+            createdAt: '2026-08-28T09:00:00Z',
+            updatedAt: '2026-08-28T10:00:00Z',
+          }]}), {
+            status: 200,
+            headers: {'Content-Type': 'application/json'},
+          });
+        }
+        return new Promise((_resolve, reject) => {
+          options.signal?.addEventListener('abort', () => {
+            const aborts = document.getElementById('fixtureChatAborts');
+            aborts.textContent = String(Number(aborts.textContent || 0) + 1);
+            reject(new DOMException('The fixture request was aborted.', 'AbortError'));
+          }, {once: true});
+        });
+      }
+      return new Response(JSON.stringify({success: false, error: 'Unexpected fixture request.'}), {
+        status: 500,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+  </script>
+  <script src="/public/crump-product-5.3.js?v=project-return-fixture-3"></script>
+  <script>
+    window.addEventListener('load', () => {
+      window.currentUser = {id: 'fixture-user'};
+      window.CrumpProduct53.open('projects');
+    });
+  </script>
+</body>
+</html>

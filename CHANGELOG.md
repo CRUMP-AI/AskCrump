@@ -1,5 +1,27 @@
 # Changelog
 
+## 5.9.53 — 2026-08-28
+
+### Recoverable Project return-to-work reads
+
+- The Projects list, saved-conversation list, and private Project-note reads now have a bounded
+  15-second response window, including response-body parsing. None of the three surfaces can remain
+  on an indefinite loading state after a dropped or stalled connection.
+- Each failed Project read now renders a focused retry action in its own surface. A Project-note
+  failure does not block a successfully loaded saved conversation, and a saved-conversation failure
+  does not discard the active Project.
+- The shared optional request boundary now propagates an abort raised while parsing a response body
+  instead of treating the aborted body as an empty successful response.
+
+### Verification and release
+
+- A credential-free real-runtime browser fixture reproduced the prior saved-conversation loading
+  deadlock. The corrected Project-list, saved-conversation, and Project-note reads each aborted at
+  the bounded test interval, rendered their own retry action, and remained reusable with zero
+  browser errors. The successful fixture restored the intended conversation and closed the studio.
+- Advanced the application to 5.9.53, native build 50953, and service-worker cache revision 87 so
+  web, installed PWA, and generated native clients receive the complete Project read boundary.
+
 ## 5.9.52 — 2026-08-28
 
 ### Recoverable private Project handoff
