@@ -34,6 +34,7 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 | Durable password-reset handoff | Commit `7ab3b1b`; deployment `dpl_8srpxeQqjCoFEjF3tPYZRhYvrvnQ`; production 5.9.48 sends a successful password reset directly to sign-in with a persistent confirmation and focused email field instead of flashing a result for 1.8 seconds and leaving a blank form. The reset token is removed from the URL and deleted from form state. A real-controller loopback fixture proved a single request, durable result, clean URL, and keyboard-ready next step. All 355 tests, lint, 44 JavaScript validations, production/native/store checks, CI run `33153793086`, Android run `33153793090`, and iOS run `33153793073` passed. | Verified delivery; recovery outcome pending |
 | Durable mobile sign-in and PWA wake-up | Commits `06c30a1` and `3b20cf4`; production 5.9.49 expands successful mobile web-session confirmation from roughly 275 milliseconds to a bounded 2.65-second window and checks for PWA updates on load, wake, page restore, and connectivity return. Idle signed-out pages adopt a new controller automatically; entered credentials and signed-in work receive a controlled reload prompt. A real-runtime fixture reproduced the three-check failure and proved one workspace start on the fourth check. Identity-free auth outcomes remain observable while upstream request URLs containing opaque session hashes/internal row IDs are suppressed. All 359 tests, lint, 44 JavaScript validations, production/native/store checks, CI run `33155450505`, Android run `33155450518`, and iOS run `33155450469` passed. Production served the corrected assets/cache and the privacy-hotfix log contained no upstream identifier-bearing URL. | Verified repair; owner credential recheck pending |
 | Authenticated workspace startup boundary | Commit `ea74f83`; deployment `dpl_71UWy9RoEESp5WBGKVoT2XMvZAUE`; production 5.9.50 defers Projects/Video, Crump Code, Library, and credits hydration until the server-confirmed account reaches the workspace. A full-shell browser run changed signed-out startup from five expected 401s to one successful session check and zero protected calls, while the matched authenticated run loaded every protected surface without delay or script error. All 362 tests, lint, 44 JavaScript validations, production/native/store checks, CI run `33156887623`, Android run `33156887563`, and iOS run `33156887586` passed. The fresh production browser served `r84`, made one 200 session request, and produced no failed response, script error, or error/fatal deployment log. | Verified delivery; activation outcome pending |
+| Single-owner startup and reconnect sync | Commit `f17b3f6`; deployment `dpl_EoWF3UipaBDMcCaqyct8dJssdMk5`; production 5.9.51 removes the starter conversation's delayed blind push and makes the synchronization layer the sole data-sync owner for browser reconnection while presence retains its status and announcement role. Restored-session and fresh-login browsers each produced one ordered pull/push/confirmation-pull sequence; a stalled pull produced no competing push; offline startup produced no sync traffic before exactly one reconnect sequence. All 364 tests, lint/compile, 44 JavaScript validations, production/native/store checks, CI run `33159045825`, Android run `33159045783`, and iOS run `33159045809` passed. Production served `r85` with one 200 signed-out session check, zero protected startup calls, no console error, no runtime error cluster, and no error/fatal deployment log. | Verified delivery; owner credential recheck pending |
 | Crump Voice private foundation | Explicit signed-in playback route, Professional entitlement, rate/character/audio limits, provider-failure refund, server-held ElevenLabs key, non-cacheable ephemeral MP3 response, and device-speech fallback are implemented. Public feature flag remains off pending approved disclosure, credentials/voice rights, and smoke tests. | Staged, disabled |
 | Private conversation-to-Project continuity | Commit `e99fc1f`; production 5.9.22 puts `Keep in a Project` directly on the latest result, reducing durable-work preservation from two commitments to one. The existing server route synchronizes and ownership-checks the chat, attaches idempotently to the selected/new Project, and records only a content-free Project milestone. All 285 tests, backend lint/compile checks, 40 JavaScript validations, production preflight, and native web-bundle build passed. Live health and version checks returned HTTP 200, the deployed client contained the direct action, and the deployment-scoped error/fatal scan was empty. | Verified |
 | Comparable growth-cohort boundary | Supabase migration `product_growth_measurement_boundary`; live first-event evidence fixes the lower bound at `2026-08-23 09:10:55.602863+00`; the 30-day report now returns 18 metrics and zero comparable external accounts instead of misclassifying three historical accounts. The function remains security invoker, `anon`/`authenticated` execution is denied, `service_role` execution succeeds, and post-change advisors reported no errors or warnings. | Verified |
@@ -208,6 +209,13 @@ shell made only one successful session check while signed out, then hydrated eve
 after a mocked server-confirmed account. The fresh production browser repeated the one-request,
 zero-failure result with `r84`; its deployment had no error/fatal log. This verifies a cleaner,
 cheaper, and more observable activation boundary, not improved conversion.
+
+Production 5.9.51 then removed two redundant synchronization owners found in the authenticated and
+offline browser traces. Restored-session and fresh-login entry now run one ordered convergence
+sequence; a stalled initial pull cannot be bypassed by a delayed starter push; offline startup makes
+no sync request until one reconnect sequence. The production release served `r85` with one successful
+signed-out session request, no protected call or browser error, and no runtime error cluster or
+error/fatal deployment log. Owner credential-entry proof remains the final real-device auth gate.
 
 ### Current monetization checkpoint
 
@@ -390,13 +398,13 @@ rate without platform impression data.
 
 ### P1 — Prepare native store distribution without premature submission
 
-**Evidence:** production 5.9.50 is healthy; the Android release source regenerates as build 50950
+**Evidence:** production 5.9.51 is healthy; the Android release source regenerates as build 50951
 with API 36, the permanent package ID, generated assets, cleartext/backup protections, and a passing
 native source verifier. Structured en-US metadata passes current field limits. A reviewed Node 22
 lockfile now supports clean `npm ci`, a zero-vulnerability npm audit, and deterministic Android
-preparation from an isolated worktree. GitHub run `33156887586` generated the 5.9.50 iOS project and
+preparation from an isolated worktree. GitHub run `33159045809` generated the 5.9.51 iOS project and
 compiled its unsigned Release configuration on hosted macOS with no signing or upload credentials.
-GitHub run `33156887563` generated the 5.9.50/build 50950 Android project under Java 21, passed the
+GitHub run `33159045783` generated the 5.9.51/build 50951 Android project under Java 21, passed the
 native and signing-control verifiers, compiled `bundleRelease`, and confirmed a non-empty unsigned
 `.aab`, also with no signing or upload credentials. Firebase, RevenueCat public keys/products,
 signing credentials,
@@ -449,7 +457,7 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
-Complete the owner-run sign-out and manual credential-entry proof on production 5.9.50 after fully
+Complete the owner-run sign-out and manual credential-entry proof on production 5.9.51 after fully
 closing any PWA page that was already asleep before 5.9.49. Submit the live canonical
 sitemap after owner confirmation, allow the social-preview experiment to reach its minimum
 observation window, then obtain the first consented post-instrumentation account, durable-value,
