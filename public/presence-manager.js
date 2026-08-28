@@ -107,7 +107,6 @@
     renderConnectionState();
     if (!wasOnline && online) {
       announce('Back online. Syncing conversations.');
-      window.syncChatsFromServer?.();
     }
   }
 

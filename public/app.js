@@ -303,7 +303,7 @@ window.replaceChats = function replaceChats(nextChats) {
     }
 };
 
-function createNewChat() {
+function createNewChat({ sync = true } = {}) {
     const now = new Date().toISOString();
     const id = crypto.randomUUID();
     const chat = {
@@ -318,7 +318,7 @@ function createNewChat() {
     chats.unshift(chat);
     currentChatId = id;
     window.currentChatId = id;
-    saveChats();
+    saveChats({ sync });
     SafeStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, id);
     renderChatsList();
     window.renderMessages?.([]);
@@ -337,7 +337,10 @@ function openFreshConversationAtStartup() {
         chat.messages.length === 0
     );
     if (!starter) {
-        createNewChat();
+        // Authentication immediately runs the authoritative pull/merge/push
+        // sequence. Persist the starter locally, but do not schedule a second
+        // blind push while that first synchronization may still be pulling.
+        createNewChat({ sync: false });
         return;
     }
 
@@ -345,7 +348,7 @@ function openFreshConversationAtStartup() {
     // every reload, and promote it to the top of the conversation list.
     touchChat(starter);
     chats.sort((a, b) => asTimestamp(b.updatedAt) - asTimestamp(a.updatedAt));
-    saveChats();
+    saveChats({ sync: false });
     loadChat(starter.id);
     const input = document.getElementById('userInput');
     if (input) {

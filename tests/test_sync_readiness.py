@@ -24,9 +24,13 @@ def test_changed_sync_manager_is_release_versioned_and_network_first():
     shell = (PUBLIC / "app.html").read_text(encoding="utf-8")
     worker = (PUBLIC / "sw.js").read_text(encoding="utf-8")
 
-    assert '"version": "5.9.50"' in package
-    assert '<script defer src="/sync-manager.js?v=5.9.50"></script>' in shell
-    assert "'/sync-manager.js?v=5.9.50'" in worker
+    assert '"version": "5.9.51"' in package
+    assert '<script defer src="/sync-manager.js?v=5.9.51"></script>' in shell
+    assert "'/sync-manager.js?v=5.9.51'" in worker
+    assert '<script defer src="/presence-manager.js?v=5.9.51"></script>' in shell
+    assert "'/presence-manager.js?v=5.9.51'" in worker
+    assert '<script defer src="/chat-sync.js?v=5.9.51"></script>' in shell
+    assert "'/chat-sync.js?v=5.9.51'" in worker
     assert "url.pathname === '/sync-manager.js'" in worker
 
 
@@ -38,6 +42,35 @@ def test_failed_push_keeps_the_queue_and_returns_a_retryable_result():
     assert "retryable: true" in flush
     assert "Your work is still queued." in flush
     assert flush.index("write(key, [])") > flush.index("if (response.ok && data.success)")
+
+
+def test_startup_starter_does_not_schedule_a_second_blind_push():
+    app = (PUBLIC / "app.js").read_text(encoding="utf-8")
+
+    create_chat = app[
+        app.index("function createNewChat") : app.index("function openFreshConversationAtStartup")
+    ]
+    startup_start = app.index("function openFreshConversationAtStartup()")
+    startup = app[startup_start : app.index("function loadChat", startup_start)]
+
+    assert "function createNewChat({ sync = true } = {})" in create_chat
+    assert "saveChats({ sync });" in create_chat
+    assert "createNewChat({ sync: false });" in startup
+    assert "saveChats({ sync: false });" in startup
+    assert "createNewChat();" not in startup
+    assert "saveChats();" not in startup
+
+
+def test_reconnect_sync_has_one_owner():
+    sync = (PUBLIC / "chat-sync.js").read_text(encoding="utf-8")
+    presence = (PUBLIC / "presence-manager.js").read_text(encoding="utf-8")
+
+    assert "window.addEventListener('online', () => synchronize());" in sync
+    reconnect = presence[
+        presence.index("function setOnline") : presence.index("async function loadPreferences")
+    ]
+    assert "announce('Back online. Syncing conversations.');" in reconnect
+    assert "syncChatsFromServer" not in reconnect
 
 
 def test_browser_fixture_uses_the_real_sync_manager_without_credentials_or_network_writes():

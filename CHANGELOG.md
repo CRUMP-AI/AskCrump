@@ -1,5 +1,24 @@
 # Changelog
 
+## 5.9.51 — 2026-08-28
+
+### Single-owner startup and reconnect synchronization
+
+- Opening a clean starter conversation no longer schedules an independent blind push while the
+  authenticated pull/merge/push sequence is still establishing server-authoritative state.
+- Reconnection synchronization now has one owner. The presence layer continues to announce and
+  render connection recovery, while the synchronization layer alone performs the data transfer.
+- Normal conversation creation remains immediately durable, and offline work still synchronizes
+  through the existing account-scoped queue when connectivity returns.
+
+### Verification and release
+
+- Real-browser restored-session and fresh-login checks each produced one ordered synchronization
+  sequence: pull, push, confirmation pull. A stalled initial pull produced no competing push, and
+  offline startup produced no sync traffic until reconnection, followed by exactly one sequence.
+- Advanced the application to 5.9.51, native build 50951, and service-worker cache revision 85 so
+  web, installed PWA, and generated native clients receive the corrected synchronization ownership.
+
 ## 5.9.50 — 2026-08-28
 
 ### Authenticated workspace startup boundary
