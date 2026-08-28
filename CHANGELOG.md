@@ -13,6 +13,8 @@
   a restrained “Reload now” notice rather than a destructive refresh.
 - Authentication logs now record only categorical outcomes and an allowlisted web/native client
   class. They never record an email address, password, token, user ID, or device name.
+- Routine upstream HTTP request logs are suppressed so Supabase filter URLs cannot place opaque
+  session hashes or internal row IDs into the production log stream.
 
 ### Verification and release
 

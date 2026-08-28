@@ -20,8 +20,20 @@ from .version import __version__
 PUBLIC_DIR = Path(__file__).resolve().parents[1] / 'public'
 
 
+def configure_logging() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(name)s %(message)s',
+    )
+    # httpx includes complete request URLs in its INFO messages. Supabase filters can
+    # contain opaque session hashes and internal row IDs, so retain only warnings and
+    # errors from the transport while Ask Crump emits its own categorical diagnostics.
+    logging.getLogger('httpx').setLevel(logging.WARNING)
+    logging.getLogger('httpcore').setLevel(logging.WARNING)
+
+
 def create_app() -> FastAPI:
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s %(message)s')
+    configure_logging()
     application = FastAPI(
         title='Ask Crump API',
         version=__version__,
