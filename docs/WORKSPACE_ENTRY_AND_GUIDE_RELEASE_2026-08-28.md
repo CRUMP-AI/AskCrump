@@ -3,7 +3,7 @@
 Date: 2026-08-28
 Production version: 5.9.69
 Feature commit: `ee5428c09a62913eddaa4d6b349ab6dea9ab76e7`
-Production deployment: `dpl_8kuUjepL31DL8s3ecVQdx8e2HNeR`
+Production deployment: `dpl_8kuUjepL31DL8s3ecVQdxB2HY7jK`
 
 ## Outcome
 
@@ -58,7 +58,7 @@ Production 5.9.69 makes the entry and guide agree with the released product:
 
 ### Production
 
-- Deployment `dpl_8kuUjepL31DL8s3ecVQdx8e2HNeR` reached READY and serves commit `ee5428c`.
+- Deployment `dpl_8kuUjepL31DL8s3ecVQdxB2HY7jK` reached READY and serves commit `ee5428c`.
 - `https://www.askcrump.com/api/health` returned success with version 5.9.69.
 - The live service worker serves cache revision 103.
 - At the exact first frame where the authenticated app became visible, the branded workspace gate
