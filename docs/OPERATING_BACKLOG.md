@@ -38,6 +38,7 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 | Recoverable private Project handoff | Commit `bde31da`; deployment `dpl_8mYEDxe4uVoEEUCy5qKt8UjMDBrx`; production 5.9.52 bounds the Project create/attach response behind `Keep in a Project`, restores the disabled action with truthful retry guidance, and confirms a completed save without waiting for the secondary list refresh. An uncertain create retry reuses the newest active owned Project already holding that conversation, including at the plan limit, and the successful button now exposes an accurate accessible action name. A credential-free browser proved the old indefinite disabled state, two corrected timeout/retry cycles, and the complete success response with zero browser errors. All 367 tests, lint/compile, 44 JavaScript validations, production/native/store checks, CI run `33162073713`, Android run `33162073773`, and iOS run `33162073775` passed. Production serves 5.9.52/r86 with the changed assets, no runtime error cluster, and no warning/error/fatal deployment log. | Verified delivery; retention outcome pending |
 | Recoverable Project return reads | Commit `23e6f9e`; deployment `dpl_3VVnB261rupDFtaDQeENRrh3dc3K`; production 5.9.53 bounds the Project list, saved-conversation list, Project-note read, and their response-body parsing. Each failed surface exposes an accurately named Retry action without discarding the active Project or hiding another successful surface, and stale Project-note results cannot overwrite a newly selected Project. A credential-free real-runtime fixture proved all four stall modes, a reusable retry, and the successful return to the exact saved conversation with zero browser errors. All 368 tests, lint/compile, 44 JavaScript validations, production/native/store checks, CI run `33168768095`, Android run `33168768090`, and iOS run `33168768141` passed. Production serves 5.9.53/r87 with the changed runtime, no runtime error cluster, and no error/fatal deployment log. | Verified delivery; retention outcome pending |
 | Private upstream observability boundary | Commit `44b0efa`; deployment `dpl_GSm6EFkPN6EpKCqrVV77WKTbQ8tt`; production 5.9.54 blocks every `httpx`/`httpcore` record at configured handlers and reapplies that boundary before each request, closing a serverless host-reset gap that left full Supabase filter URLs with session hashes and internal row IDs in runtime logs. Database failures retain categorical status/detail type without raw upstream detail. Tests proved host reconfiguration, direct transport handlers, retained Ask Crump auth outcomes, and excluded database sentinels. A non-writing fake-cookie production probe forced a real Supabase lookup: the sentinel hash and `HTTP Request:` were absent while the identity-free auth outcome remained. All 371 tests, lint/compile, 44 JavaScript validations, production/native/store checks, CI run `33172015491`, Android run `33172015490`, and iOS run `33172015531` passed. Production serves 5.9.54/r88 with no runtime error cluster or warning/error/fatal deployment log. | Verified privacy containment |
+| Clear authentication entry handoffs | Commit `ed88c44`; deployment `dpl_B1jKEcq7mgoU2gacvvUicBBuUXfQ`; production 5.9.55 centralizes sign-in, registration, recovery, and reset transitions and moves focus to each view's first field instead of leaving it on a hidden link or the page body. Native validation blocked before the network now leaves a persistent announced message, and content-free events distinguish validation, submission, completion, and request failure. A real-controller fixture proved every transition, both direct-link entries, and empty-login validation with zero browser errors. The owner completed a real phone/PWA sign-out and sign-in and confirmed the update prompt. All 373 tests, lint/compile, 44 JavaScript validations, production/native/store checks, CI run `33179824223`, Android run `33179824154`, and iOS run `33179824243` passed. Production serves 5.9.55/r89; five database-backed session probes returned 200 and the exact deployment has no warning/error/fatal log. | Verified delivery and owner sign-in proof; conversion outcome pending |
 | Crump Voice private foundation | Explicit signed-in playback route, Professional entitlement, rate/character/audio limits, provider-failure refund, server-held ElevenLabs key, non-cacheable ephemeral MP3 response, and device-speech fallback are implemented. Public feature flag remains off pending approved disclosure, credentials/voice rights, and smoke tests. | Staged, disabled |
 | Private conversation-to-Project continuity | Commit `e99fc1f`; production 5.9.22 puts `Keep in a Project` directly on the latest result, reducing durable-work preservation from two commitments to one. The existing server route synchronizes and ownership-checks the chat, attaches idempotently to the selected/new Project, and records only a content-free Project milestone. All 285 tests, backend lint/compile checks, 40 JavaScript validations, production preflight, and native web-bundle build passed. Live health and version checks returned HTTP 200, the deployed client contained the direct action, and the deployment-scoped error/fatal scan was empty. | Verified |
 | Comparable growth-cohort boundary | Supabase migration `product_growth_measurement_boundary`; live first-event evidence fixes the lower bound at `2026-08-23 09:10:55.602863+00`; the 30-day report now returns 18 metrics and zero comparable external accounts instead of misclassifying three historical accounts. The function remains security invoker, `anon`/`authenticated` execution is denied, `service_role` execution succeeds, and post-change advisors reported no errors or warnings. | Verified |
@@ -246,6 +247,16 @@ Supabase lookup: neither the fake hash nor `HTTP Request:` appeared, while the i
 outcome did. Production serves `r88`; hosted CI and both unsigned native builds passed, and the
 exact deployment has no warning/error/fatal log or runtime error cluster.
 
+Production 5.9.55 then separated an overnight transient database 503 from the current PWA login
+path. One older-deployment login and nearby background jobs recorded the same upstream connection
+failure; the current release returned successful database-backed session checks, and the owner
+completed a real phone/PWA sign-out and sign-in. A separate real-controller audit found every auth
+view transition left focus on a hidden link or the page body. Centralized transitions now focus the
+first actionable field, and pre-network browser validation leaves a persistent announced message
+plus content-free outcome telemetry. Production serves `r89`; hosted CI and both unsigned native
+builds passed, five post-release database-backed probes returned 200, and the exact deployment has
+no warning/error/fatal log.
+
 ### Current monetization checkpoint
 
 A live Stripe reconciliation on 2026-08-27 found five active catalog products and no transactions,
@@ -433,14 +444,14 @@ rate without platform impression data.
 
 ### P1 — Prepare native store distribution without premature submission
 
-**Evidence:** production 5.9.54 is healthy; the Android release source regenerates as build 50954
+**Evidence:** production 5.9.55 is healthy; the Android release source regenerates as build 50955
 with API 36, the permanent package ID, generated assets, cleartext/backup protections, and a passing
 native source verifier. Structured en-US metadata passes current field limits. A reviewed Node 22
 lockfile now supports clean `npm ci`, a zero-vulnerability npm audit, and deterministic Android
-preparation from an isolated worktree. GitHub run `33172015531` generated the 5.9.54 iOS project and
-compiled its unsigned Release configuration on hosted macOS with no signing or upload credentials.
-GitHub run `33172015490` generated the 5.9.54/build 50954 Android project under Java 21, passed the
-native and signing-control verifiers, compiled `bundleRelease`, and confirmed a non-empty unsigned
+preparation from an isolated worktree. GitHub run `33179824243` generated the 5.9.55 iOS project and compiled its unsigned Release
+configuration on hosted macOS with no signing or upload credentials. GitHub run `33179824154`
+generated the 5.9.55/build 50955 Android project under Java 21, passed the native and signing-control
+verifiers, compiled `bundleRelease`, and confirmed a non-empty unsigned
 `.aab`, also with no signing or upload credentials. Firebase, RevenueCat public keys/products,
 signing credentials,
 publisher-account state, reviewer access, signed builds, physical-device results, screenshots, and
@@ -492,9 +503,9 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
-Complete the owner-run sign-out and manual credential-entry proof on production 5.9.54 after fully
-closing any PWA page that was already asleep before 5.9.49. Submit the live canonical
-sitemap after owner confirmation, allow the social-preview experiment to reach its minimum
+Observe legitimate `LoginSubmitted` to `LoginCompleted` outcomes after the verified phone/PWA
+sign-out and sign-in proof. Submit the live canonical sitemap after owner confirmation, allow the
+social-preview experiment to reach its minimum
 observation window, then obtain the first consented post-instrumentation account, durable-value,
 return, referral, and artifact-journey observations. Observe the first real checkout and reconcile
 Stripe with Ask Crump entitlement/credit state. Do not rewrite the signup flow from anonymous
