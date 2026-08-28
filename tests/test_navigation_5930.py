@@ -20,7 +20,7 @@ def test_five_destination_navigation_is_final_runtime_layer_and_boot_critical():
         assert asset.lstrip("/") in checker
 
     assert runtime.index("/crump-library-5.7.js") < runtime.index("/crump-navigation-5.9.30.js")
-    assert "ask-crump-new-body-v1-r93" in worker
+    assert "ask-crump-new-body-v1-r94" in worker
 
 
 def test_navigation_exposes_exact_product_destinations_on_desktop_and_mobile():
@@ -47,7 +47,9 @@ def test_navigation_reuses_existing_product_surfaces_without_data_migration():
     assert "window.CrumpDocumentStudio?.open?.()" in script
     assert "window.CrumpDocumentStudio?.select?.('pptx'" in script
     assert "window.CrumpImageStudio.open()" in script
-    assert "window.CrumpBodyV1 = Object.freeze({command})" in body
+    assert "window.CrumpBodyV1 = Object.freeze({" in body
+    assert "syncConversationLibrary: syncLibraryControl" in body
+    assert "toggleConversationLibrary: openLibrary" in body
     assert "window.CrumpImageStudio = Object.freeze" in documents
     assert "select: (format = 'docx'" in documents
 

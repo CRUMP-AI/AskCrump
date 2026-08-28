@@ -1,5 +1,23 @@
 # Changelog
 
+## 5.9.60 — 2026-08-28
+
+### Reliable navigation across desktop and mobile
+
+- Added a permanent desktop `Chats` control to the final navigation layer so conversation history
+  remains available after the brief pre-hydration rail is replaced.
+- Cleared the stranded desktop collapse preference once for existing users, then preserved every
+  deliberate collapse or reopen made through the new control.
+- Changed mobile Projects, Settings, and Plan & credits routing to open the requested destination
+  before closing the drawer, preventing touch activation from being lost during the transition.
+- Made conversation three-dot actions use one durable delegated handler that survives chat-list
+  hydration and prevents the parent conversation row from taking the same tap.
+- Synchronized the mobile menu, desktop Chats control, conversation panel, accessibility state, and
+  deferred interaction guard across every open and close path.
+- Added a production-layer browser harness covering iPhone-style drawer actions, exact conversation
+  options, stale desktop preferences, and repeated desktop collapse/reopen behavior.
+- Advanced the application to 5.9.60, native build 50960, and service-worker cache revision 94.
+
 ## 5.9.59 — 2026-08-28
 
 ### Discoverable desktop conversations

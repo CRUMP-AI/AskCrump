@@ -78,17 +78,37 @@
   }
 
   function syncLibraryControl() {
-    const control = $('[data-v1-command="library"]', $('.v1-rail') || document);
-    if (!control) return;
     const sidebar = byId('sidebar');
+    if (!sidebar) return;
+    const controls = [
+      $('[data-v1-command="library"]', $('.v1-rail') || document),
+      $('[data-crump5930-library-toggle]'),
+      byId('menuBtn'),
+    ].filter(Boolean);
     const compact = matchMedia('(max-width: 1100px)').matches;
     const expanded = compact
-      ? Boolean(sidebar?.classList.contains('active'))
+      ? sidebar.classList.contains('active')
       : !document.body.classList.contains('v1-library-collapsed');
-    control.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-    control.classList.toggle('is-active', expanded);
-    sidebar?.setAttribute('aria-hidden', expanded ? 'false' : 'true');
-    sidebar?.toggleAttribute('inert', !expanded);
+    controls.forEach(control => {
+      control.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      control.classList.toggle('is-active', expanded);
+    });
+    sidebar.setAttribute('aria-hidden', expanded ? 'false' : 'true');
+
+    // Remove the interaction guard immediately when opening. When closing,
+    // defer it until the triggering click has finished so iOS cannot redirect
+    // that same tap to the overlay before the requested action runs.
+    const revision = Number(sidebar.dataset.v1InertRevision || 0) + 1;
+    sidebar.dataset.v1InertRevision = String(revision);
+    if (expanded) {
+      sidebar.removeAttribute('inert');
+      return;
+    }
+    window.setTimeout(() => {
+      if (Number(sidebar.dataset.v1InertRevision || 0) !== revision) return;
+      if (matchMedia('(max-width: 1100px)').matches && sidebar.classList.contains('active')) return;
+      sidebar.setAttribute('inert', '');
+    }, 0);
   }
 
   function openLibrary() {
@@ -496,6 +516,14 @@
   function restoreDesktopPreference() {
     if (!matchMedia('(max-width: 1100px)').matches) {
       try {
+        // The reorganized rail originally removed the only visible Chats
+        // control. Clear that stranded preference once so existing desktop
+        // users see their conversation history and can make a fresh choice
+        // with the permanent Chats toggle.
+        if (localStorage.getItem('crump_v1_library_control_v2') !== 'ready') {
+          localStorage.removeItem('crump_v1_library_collapsed');
+          localStorage.setItem('crump_v1_library_control_v2', 'ready');
+        }
         if (localStorage.getItem('crump_v1_library_collapsed') === '1') {
           document.body.classList.add('v1-library-collapsed');
         }
@@ -557,7 +585,11 @@
     document.documentElement.dataset.crumpBodyV1 = 'ready';
   }
 
-  window.CrumpBodyV1 = Object.freeze({command});
+  window.CrumpBodyV1 = Object.freeze({
+    command,
+    syncConversationLibrary: syncLibraryControl,
+    toggleConversationLibrary: openLibrary,
+  });
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot, {once: true});

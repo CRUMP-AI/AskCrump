@@ -394,6 +394,23 @@
     }, 0);
   }
 
+  function wireChatMenuDelegation() {
+    if (document.documentElement.dataset.crump531ChatMenuDelegated === 'true') return;
+    document.documentElement.dataset.crump531ChatMenuDelegated = 'true';
+
+    // Capture the exact action before the clickable conversation row can handle
+    // it. A single delegated listener also survives chat-list hydration and the
+    // touch hit-testing differences between Safari, installed PWAs, and Chromium.
+    document.addEventListener('click', event => {
+      const button = event.target.closest?.('.crump531-chat-menu-button');
+      const item = button?.closest?.('.chat-item[data-chat-id]');
+      if (!button || !item) return;
+      event.preventDefault();
+      event.stopPropagation();
+      openChatMenu(button, item.dataset.chatId);
+    }, true);
+  }
+
   function enhanceChatList() {
     document.querySelectorAll('#chatsList .chat-item[data-chat-id]').forEach(item => {
       if (item.dataset.crump531Actions === 'true') return;
@@ -404,16 +421,12 @@
       button.className = 'crump531-chat-menu-button';
       button.setAttribute('aria-label', 'Conversation options');
       button.textContent = '•••';
-      button.addEventListener('click', event => {
-        event.preventDefault();
-        event.stopPropagation();
-        openChatMenu(button, item.dataset.chatId);
-      });
       item.appendChild(button);
     });
   }
 
   function installObservers() {
+    wireChatMenuDelegation();
     const observer = new MutationObserver(() => {
       installProjectReferences();
       enhanceChatList();

@@ -66,13 +66,21 @@
     return `<button type="button" class="crump5930-destination" data-crump5930-destination="${destination.id}" aria-label="${destination.label}">${destination.icon}<span>${destination.label}</span></button>`;
   }
 
+  function conversationLibraryMarkup() {
+    return `<button type="button" class="crump5930-destination crump5930-chats-toggle" data-crump5930-library-toggle aria-label="Chats" aria-controls="sidebar" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg><span>Chats</span></button>`;
+  }
+
   function injectDesktopNavigation() {
     const rail = document.querySelector('.v1-rail');
     if (!rail) return;
     rail.classList.add('crump5930-rail');
     rail.innerHTML = `
       <div class="crump5930-rail-brand" aria-hidden="true"><img src="/assets/brand/crump-mark.png" alt=""></div>
-      <div class="crump5930-rail-destinations">${destinations.map(buttonMarkup).join('')}</div>`;
+      <div class="crump5930-rail-destinations">
+        ${buttonMarkup(destinations[0])}
+        ${conversationLibraryMarkup()}
+        ${destinations.slice(1).map(buttonMarkup).join('')}
+      </div>`;
   }
 
   function injectMobileNavigation() {
@@ -279,6 +287,12 @@
       button.dataset.crump5930Wired = 'true';
       button.addEventListener('click', () => openDestination(button.dataset.crump5930Destination));
     });
+
+    const chats = document.querySelector('[data-crump5930-library-toggle]');
+    if (chats && chats.dataset.crump5930Wired !== 'true') {
+      chats.dataset.crump5930Wired = 'true';
+      chats.addEventListener('click', () => window.CrumpBodyV1?.toggleConversationLibrary?.());
+    }
   }
 
   function selectedStudioDestination() {
@@ -335,6 +349,7 @@
     injectMobileNavigation();
     injectCreateHub();
     wireDestinations();
+    window.CrumpBodyV1?.syncConversationLibrary?.();
     wireSurfaceSync();
     document.documentElement.dataset.crumpNavigation5930 = 'ready';
     syncFromSurfaces();

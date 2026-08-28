@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Mobile sidebar action fixture</title>
+  <style>
+    body { margin: 0; font: 16px system-ui; }
+    .v1-shell { display: grid; grid-template-columns: 72px 300px 1fr; min-height: 100vh; }
+    .v1-rail { display: flex; flex-direction: column; }
+    .sidebar { background: #111; color: #fff; padding: 16px; }
+    .sidebar button { display: block; width: 100%; min-height: 44px; margin: 4px 0; }
+    .chat-item { display: flex; align-items: center; min-height: 52px; }
+    .chat-item-content { flex: 1; }
+    .crump531-chat-menu-popover { position: fixed; z-index: 10; background: #fff; color: #111; padding: 8px; }
+    #settingsModal, #billingModal, #projectModal { position: fixed; inset: 40px; z-index: 20; background: #fff; color: #111; padding: 20px; }
+    [hidden] { display: none !important; }
+    @media (max-width: 1100px) {
+      .v1-shell { display: block; }
+      .v1-rail { display: none; }
+      .sidebar { position: fixed; inset: 0 auto 0 0; width: 280px; z-index: 3; transform: translateX(-110%); }
+      .sidebar.active { transform: translateX(0); }
+      .sidebar-overlay { position: fixed; inset: 0; display: none; z-index: 2; }
+      .sidebar-overlay.active { display: block; }
+    }
+  </style>
+</head>
+<body class="crump-v1-body">
+  <div id="appContainer">
+    <div class="v1-shell">
+      <nav class="v1-rail">
+        <button type="button" data-v1-command="new">New</button>
+        <button type="button" data-v1-command="library">Chats</button>
+        <button type="button" data-v1-command="settings">Settings</button>
+        <button type="button" data-v1-command="billing">Billing</button>
+        <span class="v1-rail-spacer"></span>
+      </nav>
+      <aside id="sidebar" class="sidebar v1-library" aria-label="Conversation library">
+        <button id="closeSidebarBtn" type="button">Close conversation library</button>
+        <div id="chatsList">
+          <div class="chat-item" data-chat-id="chat-1" role="button" tabindex="0">
+            <div class="chat-item-content"><span class="chat-title">Launch plan</span></div>
+          </div>
+        </div>
+        <footer class="sidebar-footer">
+          <button id="crump53ProjectsSidebar" type="button"><span>Projects</span></button>
+          <button id="settingsBtn" type="button"><span>Settings</span></button>
+          <button id="upgradeBtnSidebar" type="button"><span>Plan &amp; credits</span></button>
+        </footer>
+      </aside>
+      <div id="sidebarOverlay" class="sidebar-overlay"></div>
+      <main>
+        <button id="menuBtn" type="button" aria-label="Open conversation library" aria-expanded="false">Menu</button>
+        <output id="result">ready</output>
+      </main>
+    </div>
+  </div>
+  <section id="settingsModal" role="dialog" aria-label="Settings" style="display:none">Settings opened</section>
+  <section id="billingModal" class="billing51-modal" role="dialog" aria-label="Plan and credits" hidden>Plan opened</section>
+  <section id="crump53Studio" role="dialog" aria-label="Projects" hidden>Projects opened</section>
+
+  <script>
+    const fixtureMode = new URLSearchParams(location.search).get('mode');
+    if (fixtureMode === 'mobile') {
+      window.matchMedia = query => ({
+        matches: /max-width:\s*1100px/.test(String(query)),
+        media: String(query),
+        addEventListener() {},
+        removeEventListener() {},
+      });
+    }
+    if (fixtureMode === 'desktop-stale') {
+      window.matchMedia = query => ({
+        matches: false,
+        media: String(query),
+        addEventListener() {},
+        removeEventListener() {},
+      });
+      localStorage.setItem('crump_v1_library_collapsed', '1');
+      localStorage.removeItem('crump_v1_library_control_v2');
+    }
+    window.fixtureEvents = {chat: 0, settings: 0, billing: 0, projects: 0};
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const result = document.getElementById('result');
+    const closeDrawer = () => {
+      sidebar.classList.remove('active');
+      overlay.classList.remove('active');
+      document.getElementById('menuBtn').setAttribute('aria-expanded', 'false');
+    };
+    const report = () => {
+      const menu = document.querySelector('.crump531-chat-menu-popover') ? 1 : 0;
+      result.textContent = `chat=${window.fixtureEvents.chat};settings=${window.fixtureEvents.settings};billing=${window.fixtureEvents.billing};projects=${window.fixtureEvents.projects};menu=${menu}`;
+    };
+    document.getElementById('menuBtn').addEventListener('click', () => {
+      sidebar.classList.add('active');
+      overlay.classList.add('active');
+      document.getElementById('menuBtn').setAttribute('aria-expanded', 'true');
+    });
+    document.getElementById('closeSidebarBtn').addEventListener('click', closeDrawer);
+    overlay.addEventListener('click', closeDrawer);
+    document.querySelector('.chat-item').addEventListener('click', () => {
+      window.fixtureEvents.chat += 1;
+      closeDrawer();
+      report();
+    });
+    window.openSettings = () => {
+      window.fixtureEvents.settings += 1;
+      document.getElementById('settingsModal').style.display = 'block';
+      report();
+    };
+    window.showBillingCenter = () => {
+      window.fixtureEvents.billing += 1;
+      document.getElementById('billingModal').hidden = false;
+      report();
+    };
+    window.CrumpProduct53 = {
+      open(destination) {
+        if (destination !== 'projects') return;
+        window.fixtureEvents.projects += 1;
+        document.getElementById('crump53Studio').hidden = false;
+        report();
+      }
+    };
+    document.getElementById('settingsBtn').addEventListener('click', () => window.openSettings());
+    document.getElementById('upgradeBtnSidebar').addEventListener('click', () => window.showBillingCenter());
+    document.getElementById('crump53ProjectsSidebar').addEventListener('click', () => window.CrumpProduct53.open('projects'));
+  </script>
+  <script src="/public/crump-v1-body.js"></script>
+  <script src="/public/crump-navigation-5.2.5.js"></script>
+  <script src="/public/crump-product-5.3.1.js"></script>
+  <script src="/public/crump-navigation-5.9.30.js"></script>
+  <script>
+    window.addEventListener('load', () => setTimeout(report, 100));
+  </script>
+</body>
+</html>

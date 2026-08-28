@@ -52,6 +52,8 @@ def test_credit_badge_remains_attached_and_mobile_destination_click_closes_drawe
     assert "#settingsBtn, #upgradeBtnSidebar, #crump53ProjectsSidebar" in cleanup
     assert "byId('sidebar')?.classList.remove('active');" in cleanup
     assert "byId('sidebarOverlay')?.classList.remove('active');" in cleanup
+    assert "byId('menuBtn')?.setAttribute('aria-expanded', 'false');" in cleanup
+    assert cleanup.index("openDestination(destinationId);") < cleanup.index("closeMobileSidebar();", cleanup.index("openDestination(destinationId);"))
     assert "#upgradeBtnSidebar .billing51-sidebar-balance" in cleanup_css
     assert "margin-left: auto" in cleanup_css
 
@@ -64,3 +66,48 @@ def test_footer_destinations_have_a_late_binding_fallback():
     assert "window.openSettings?.();" in cleanup
     assert "window.showBillingCenter || window.showUpgradePrompt" in cleanup
     assert "window.CrumpProduct53?.open?.('projects');" in cleanup
+
+
+def test_conversation_options_use_a_stable_delegated_mobile_handler():
+    product = read_public("crump-product-5.3.1.js")
+
+    assert "function wireChatMenuDelegation()" in product
+    assert "event.target.closest?.('.crump531-chat-menu-button')" in product
+    assert "button?.closest?.('.chat-item[data-chat-id]')" in product
+    assert "event.stopPropagation();" in product
+    assert "openChatMenu(button, item.dataset.chatId);" in product
+    assert "}, true);" in product[product.index("function wireChatMenuDelegation()") : product.index("function enhanceChatList()")]
+
+
+def test_mobile_library_state_sync_survives_the_reorganized_navigation():
+    body = read_public("crump-v1-body.js")
+
+    assert "byId('menuBtn')" in body
+    assert "sidebar.dataset.v1InertRevision" in body
+    assert "sidebar.removeAttribute('inert');" in body
+    assert "sidebar.setAttribute('inert', '');" in body
+
+
+def test_final_desktop_navigation_keeps_a_permanent_chats_toggle():
+    navigation = read_public("crump-navigation-5.9.30.js")
+    body = read_public("crump-v1-body.js")
+
+    assert "function conversationLibraryMarkup()" in navigation
+    assert "data-crump5930-library-toggle" in navigation
+    assert 'aria-label="Chats"' in navigation
+    assert "window.CrumpBodyV1?.toggleConversationLibrary?.()" in navigation
+    assert "window.CrumpBodyV1?.syncConversationLibrary?.()" in navigation
+    assert "syncConversationLibrary: syncLibraryControl" in body
+    assert "toggleConversationLibrary: openLibrary" in body
+    assert "crump_v1_library_control_v2" in body
+    assert "localStorage.removeItem('crump_v1_library_collapsed');" in body
+
+
+def test_mobile_sidebar_browser_fixture_uses_the_production_navigation_layers():
+    fixture = (ROOT / "tests" / "fixtures" / "mobile-sidebar-actions.html").read_text(encoding="utf-8")
+
+    assert '/public/crump-v1-body.js' in fixture
+    assert '/public/crump-navigation-5.2.5.js' in fixture
+    assert '/public/crump-product-5.3.1.js' in fixture
+    assert '/public/crump-navigation-5.9.30.js' in fixture
+    assert 'aria-label="Conversation options"' not in fixture

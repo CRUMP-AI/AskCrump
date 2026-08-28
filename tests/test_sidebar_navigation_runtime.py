@@ -38,6 +38,9 @@ def test_mobile_destination_click_closes_drawer():
     assert "closeMobileSidebar" in script
     assert "#settingsBtn, #upgradeBtnSidebar, #crump53ProjectsSidebar" in script
     assert "sidebarOverlay" in script
+    assert "openDestination(destinationId);" in script
+    assert script.index("openDestination(destinationId);") < script.index("closeMobileSidebar();", script.index("openDestination(destinationId);"))
+    assert "}, true);" not in script[script.index("function wireDrawerClose()") : script.index("function observeSidebar()")]
 
 
 def test_destination_fallback_restores_core_sidebar_routes_without_double_opening():
@@ -48,5 +51,8 @@ def test_destination_fallback_restores_core_sidebar_routes_without_double_openin
     assert "if (destinationIsOpen(id)) return;" in script
     assert "window.openSettings?.();" in script
     assert "window.showBillingCenter || window.showUpgradePrompt" in script
+    assert ".billing51-modal, .upgrade-modal.active" in script
     assert "window.CrumpProduct53?.open?.('projects');" in script
-    assert "window.setTimeout(() => openDestination(destination.id), 0);" in script
+    assert "const destinationId = destination.id;" in script
+    assert "openDestination(destinationId);" in script
+    assert "byId('menuBtn')?.setAttribute('aria-expanded', 'false');" in script

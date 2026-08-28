@@ -9,6 +9,7 @@
   function closeMobileSidebar() {
     byId('sidebar')?.classList.remove('active');
     byId('sidebarOverlay')?.classList.remove('active');
+    byId('menuBtn')?.setAttribute('aria-expanded', 'false');
   }
 
   function removeDuplicateRailDestinations() {
@@ -44,7 +45,7 @@
       return Boolean(modal && modal.style.display && modal.style.display !== 'none');
     }
     if (id === 'upgradeBtnSidebar') {
-      return Boolean(document.querySelector('.billing51-modal'));
+      return Boolean(document.querySelector('.billing51-modal, .upgrade-modal.active'));
     }
     if (id === 'crump53ProjectsSidebar') {
       const studio = byId('crump53Studio');
@@ -74,17 +75,21 @@
     if (document.documentElement.dataset.crumpNavigation525Wired === 'true') return;
     document.documentElement.dataset.crumpNavigation525Wired = 'true';
 
-    // Capture phase makes this resilient to late modules replacing or inserting
-    // sidebar destinations. Existing handlers get the first chance to open their
-    // surface; the zero-delay fallback repairs a lost listener without double-opening.
+    // Let the destination's own handler finish before the drawer closes. Closing
+    // during capture makes touch browsers retarget the same activation to the
+    // conversation behind the drawer, so the requested surface never appears.
+    // The zero-delay fallback still repairs a lost late-bound listener.
     document.addEventListener('click', event => {
       const destination = event.target.closest?.(
         '#settingsBtn, #upgradeBtnSidebar, #crump53ProjectsSidebar'
       );
       if (!destination) return;
-      closeMobileSidebar();
-      window.setTimeout(() => openDestination(destination.id), 0);
-    }, true);
+      const destinationId = destination.id;
+      window.setTimeout(() => {
+        openDestination(destinationId);
+        closeMobileSidebar();
+      }, 0);
+    });
   }
 
   function observeSidebar() {

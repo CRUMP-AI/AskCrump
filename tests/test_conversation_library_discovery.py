@@ -24,8 +24,10 @@ def test_conversation_library_control_exposes_and_tracks_its_state():
 
     assert "function syncLibraryControl()" in body
     assert "control.setAttribute('aria-expanded', expanded ? 'true' : 'false')" in body
-    assert "sidebar?.setAttribute('aria-hidden', expanded ? 'false' : 'true')" in body
-    assert "sidebar?.toggleAttribute('inert', !expanded)" in body
+    assert "sidebar.setAttribute('aria-hidden', expanded ? 'false' : 'true')" in body
+    assert "sidebar.removeAttribute('inert')" in body
+    assert "sidebar.setAttribute('inert', '')" in body
+    assert "sidebar.dataset.v1InertRevision" in body
     assert "new MutationObserver(syncLibraryControl)" in body
     assert 'body.crump-v1-body .v1-rail-label {' in styles
     assert 'body.crump-v1-body .v1-rail-button[aria-expanded="true"]' in styles
