@@ -17,14 +17,14 @@ textually aligned with it. Reviewer credentials belong only in the ignored
 ## Apple App Store
 
 - **Subtitle:** Create, research, and build
-- **Promotional text:** Turn questions into ongoing work with Projects, research, images, documents, manuscripts, multi-engine video, scene continuation, and a private Saved Library.
+- **Promotional text:** Turn questions into ongoing work with Projects, research, images, documents, manuscripts, multi-engine video, scene continuation, and a private Library.
 - **Keywords:** `AI,assistant,research,writer,documents,images,video,manuscript,productivity,files`
 
 ### Description
 
 Ask Crump is a multimodal AI workspace built to help you move from an idea to something useful.
 
-Ask questions, research a topic, create images and videos, draft documents, develop long-form manuscripts, and keep generated work in a private Saved Library. Projects keep instructions, reference files, canon, conversations, and creations together. Compatible extendable videos can continue from the ending of a previous generated scene.
+Ask questions, research a topic, create images and videos, draft documents, develop long-form manuscripts, and keep generated work in a private Library. Projects keep instructions, reference files, canon, conversations, and creations together. Compatible extendable videos can continue from the ending of a previous generated scene.
 
 Create and organize:
 
@@ -54,7 +54,7 @@ Some features require a paid plan, credits, provider availability, or an interne
 
 Ask Crump is a multimodal AI workspace for turning questions and ideas into useful work.
 
-Research topics, create images and short videos, draft documents, build structured long-form manuscripts, and keep generated work in a private Saved Library. Projects keep ongoing work and reference context together, and compatible extendable videos can continue from a previous generated scene.
+Research topics, create images and short videos, draft documents, build structured long-form manuscripts, and keep generated work in a private Library. Projects keep ongoing work and reference context together, and compatible extendable videos can continue from a previous generated scene.
 
 WHAT YOU CAN DO
 
@@ -87,7 +87,7 @@ Use real output and hide personal data. Keep the same visual language across bot
 4. **Build real documents** — document workflow with export options.
 5. **Develop long-form work** — manuscript project/status view.
 6. **Direct a video scene** — Quick, Extendable, and Cinematic options with a polished playable result.
-7. **Continue and keep the work** — scene continuation and the private Saved Library.
+7. **Continue and keep the work** — scene continuation and the private Library.
 
 Capture at least one modern large iPhone size and current Android phone size. Apple accepts 1–10 screenshots; Google requires at least two and benefits from four or more high-quality phone screenshots.
 
@@ -95,13 +95,13 @@ Capture at least one modern large iPhone size and current Android phone size. Ap
 
 Ask Crump is a locally bundled Capacitor application with native secure-session storage, haptics, network/keyboard handling, push-notification hooks, native in-app billing, account/session management, and synchronized user content. It is not a website-only wrapper.
 
-Provide the reviewer with a dedicated demo account that has enough credits to test Ask, Research, Image, Document, Manuscript, Video, Files, and the Saved Library. Include exact sign-in credentials in the private review fields, never in public listing copy.
+Provide the reviewer with a dedicated demo account that has enough credits to test Ask, Research, Image, Document, Manuscript, Video, Files, and the Library. Include exact sign-in credentials in the private review fields, never in public listing copy.
 
 Suggested review path:
 
 1. Sign in with the review account.
 2. Open each creation mode from the composer mode menu.
-3. Open Projects & Create to view Projects, manuscripts, Video Studio, and the Saved Library.
+3. Open Projects, Create, and Library from their separate primary destinations.
 4. Use **Report** beneath an assistant response to see the in-app safety flow.
 5. Open Settings → Account to view session controls, export, legal links, and permanent account deletion.
 6. Open the subscription screen to verify native store billing and Restore Purchases.

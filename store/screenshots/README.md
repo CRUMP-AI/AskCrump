@@ -13,7 +13,7 @@ Required sequence:
 4. Build real documents — Document Studio and an exportable result.
 5. Develop long-form work — a real manuscript workspace/status view.
 6. Direct a video scene — only engines available in the signed build and a playable result.
-7. Continue and keep the work — Projects plus the private Saved Library.
+7. Continue and keep the work — Projects plus the private Library.
 
 Capture targets:
 

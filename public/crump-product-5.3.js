@@ -378,18 +378,12 @@
     overlay.className = 'crump53-overlay';
     overlay.hidden = true;
     overlay.innerHTML = `
-      <section class="crump53-sheet" id="crump53Sheet" role="dialog" aria-modal="true" aria-label="Ask Crump workspace" data-crump53-section="workspace">
+      <section class="crump53-sheet" id="crump53Sheet" role="dialog" aria-modal="true" aria-label="Ask Crump Projects" data-crump53-section="projects">
         <header class="crump53-sheet-head">
-          <div><div class="crump53-kicker" id="crump53WorkspaceKicker">WORKSPACE</div><strong id="crump53WorkspaceTitle">Projects & Create</strong></div>
+          <div><div class="crump53-kicker" id="crump53WorkspaceKicker">WORKSPACE</div><strong id="crump53WorkspaceTitle">Projects</strong></div>
           <button type="button" class="crump53-close" id="crump53Close" aria-label="Close">×</button>
         </header>
         <div class="crump53-sheet-body">
-          <div class="crump53-tabs" id="crump53WorkspaceTabs" role="tablist">
-            <button type="button" class="crump53-tab is-active" data-crump53-tab="projects">Projects</button>
-            <button type="button" class="crump53-tab" data-crump53-tab="manuscripts">Manuscripts</button>
-            <button type="button" class="crump53-tab" data-crump53-tab="video">Video</button>
-          </div>
-
           <section class="crump53-panel" data-crump53-panel="projects">
             <div class="crump53-grid">
               <div class="crump53-card">
@@ -439,7 +433,7 @@
           </section>
 
           <section class="crump53-panel" data-crump53-panel="manuscripts" hidden>
-            <div id="crump53ManuscriptNoProject" class="crump53-note">Choose an active Project first. Manuscripts stay isolated inside their Project.</div>
+            <div id="crump53ManuscriptNoProject" class="crump53-note">Choose an active Project first. Manuscripts stay isolated inside their Project. <button type="button" class="crump53-button" id="crump53OpenProjectsFromManuscript">Open Projects</button></div>
             <div id="crump53ManuscriptWorkspace" hidden>
               <div class="crump53-grid">
                 <div class="crump53-card">
@@ -566,14 +560,12 @@
 
     byId('crump53Close')?.addEventListener('click', closeStudio);
     overlay.addEventListener('click', event => { if (event.target === overlay) closeStudio(); });
-    overlay.querySelectorAll('[data-crump53-tab]').forEach(button => {
-      button.addEventListener('click', () => selectTab(button.dataset.crump53Tab));
-    });
     byId('crump53ProjectForm')?.addEventListener('submit', saveProject);
     byId('crump53UseProject')?.addEventListener('click', activateSelectedProject);
     byId('crump53NewProject')?.addEventListener('click', resetProjectForm);
     byId('crump53AddContext')?.addEventListener('click', addProjectContext);
     byId('crump53NewManuscript')?.addEventListener('click', showManuscriptCreate);
+    byId('crump53OpenProjectsFromManuscript')?.addEventListener('click', () => openStudio('projects'));
     byId('crump53CreateManuscript')?.addEventListener('click', createManuscript);
     byId('crump53PlanManuscript')?.addEventListener('click', planManuscript);
     byId('crump53AddChapter')?.addEventListener('click', addChapter);
@@ -603,28 +595,35 @@
     });
   }
 
+  const STUDIO_SECTION_META = Object.freeze({
+    projects: {kicker: 'WORKSPACE', title: 'Projects', label: 'Ask Crump Projects'},
+    manuscripts: {kicker: 'LONG-FORM', title: 'Manuscripts', label: 'Ask Crump Manuscripts'},
+    video: {kicker: 'MOTION', title: 'Video Studio', label: 'Ask Crump Video Studio'},
+    library: {kicker: 'PRIVATE LIBRARY', title: 'Library', label: 'Ask Crump Library'},
+  });
+
   function configureStudioSection(tab) {
-    const librarySection = tab === 'library';
+    const section = Object.hasOwn(STUDIO_SECTION_META, tab) ? tab : 'projects';
+    const meta = STUDIO_SECTION_META[section];
     const sheet = byId('crump53Sheet');
-    const tabs = byId('crump53WorkspaceTabs');
     const kicker = byId('crump53WorkspaceKicker');
     const title = byId('crump53WorkspaceTitle');
     if (sheet) {
-      sheet.dataset.crump53Section = librarySection ? 'library' : 'workspace';
-      sheet.setAttribute('aria-label', librarySection ? 'Ask Crump Library' : 'Ask Crump workspace');
+      sheet.dataset.crump53Section = section;
+      sheet.setAttribute('aria-label', meta.label);
     }
-    if (tabs) tabs.hidden = librarySection;
-    if (kicker) kicker.textContent = librarySection ? 'PRIVATE LIBRARY' : 'WORKSPACE';
-    if (title) title.textContent = librarySection ? 'Library' : 'Projects & Create';
+    if (kicker) kicker.textContent = meta.kicker;
+    if (title) title.textContent = meta.title;
+    return section;
   }
 
   function openStudio(tab = 'projects') {
     const studio = byId('crump53Studio');
     if (!studio) return;
-    configureStudioSection(tab);
+    const section = configureStudioSection(tab);
     studio.hidden = false;
     document.body.style.overflow = 'hidden';
-    selectTab(tab);
+    selectStudioPanel(section);
     void refreshFeatures();
     void refreshProjects();
   }
@@ -638,13 +637,10 @@
     state.manuscriptPollTimer = null;
   }
 
-  function selectTab(tab) {
+  function selectStudioPanel(tab) {
     if (tab !== 'library') {
       document.querySelectorAll('#crump53LibraryGrid video').forEach(video => video.pause());
     }
-    document.querySelectorAll('[data-crump53-tab]').forEach(node => {
-      node.classList.toggle('is-active', node.dataset.crump53Tab === tab);
-    });
     document.querySelectorAll('[data-crump53-panel]').forEach(node => {
       node.hidden = node.dataset.crump53Panel !== tab;
     });
@@ -1697,7 +1693,7 @@
             window.showToast?.('That continuation window has closed or the next combined file would exceed the current storage guard.', 'info');
             return;
           }
-          selectTab('video');
+          openStudio('video');
           renderReadyVideo(job, true);
         } catch (error) {
           window.showToast?.(error.message || 'Could not reopen that video scene.', 'error');

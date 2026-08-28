@@ -817,12 +817,7 @@
 .crump57-deleted-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 5px; }
 .crump57-deleted-actions .crump53-button { min-height: 38px; padding-inline: 12px; font-size: 11px; }
 
-/* Shared Projects & Create sheet polish when Library is installed. */
-body.crump-v1-body .crump53-sheet.crump57-library-shell .crump53-tabs {
-  top: 0 !important;
-  margin-bottom: 24px;
-  box-shadow: 0 8px 22px rgba(5,8,11,.18);
-}
+/* Dedicated Library sheet polish. */
 body.crump-v1-body .crump53-sheet.crump57-library-shell .crump53-sheet-body {
   padding-bottom: max(28px, env(safe-area-inset-bottom));
 }
@@ -887,29 +882,6 @@ body.crump-v1-body .crump53-sheet.crump57-library-shell .crump53-sheet-body {
   ) {
     min-width: 0;
     max-width: 100%;
-  }
-  body.crump-v1-body .crump53-sheet.crump57-library-shell .crump53-tabs {
-    position: sticky;
-    top: 0 !important;
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-    margin: 0 0 20px;
-    padding: 4px;
-    overflow-x: hidden;
-    overscroll-behavior-x: none;
-    background: rgba(8,12,16,.96);
-    box-shadow: 0 9px 24px rgba(0,0,0,.28);
-  }
-  body.crump-v1-body .crump53-sheet.crump57-library-shell .crump53-tab {
-    flex: 1 1 0;
-    min-width: 0;
-    min-height: 39px;
-    padding: 0 6px;
-    overflow: hidden;
-    font-size: 12px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .crump57-library-card { padding: 15px !important; }

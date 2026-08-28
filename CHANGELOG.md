@@ -1,5 +1,21 @@
 # Changelog
 
+## 5.9.64 — 2026-08-28
+
+### One destination, one workspace
+
+- Removed the remaining Projects, Manuscripts, and Video tabs from the shared product sheet so
+  primary navigation no longer leads into a second navigation system.
+- Gave Projects, Manuscripts, Video Studio, and Library distinct titles, accessible labels, active
+  destinations, and exactly one visible workspace at a time.
+- Added an explicit `Open Projects` recovery path when Manuscripts needs an active Project, while
+  keeping Manuscripts and Video under the top-level Create destination.
+- Removed obsolete desktop and mobile tab styling and aligned public and store copy around the
+  single dedicated Library destination.
+- Preserved Files as the reference-attachment action and verified the reorganized flow at desktop
+  and iPhone-sized viewports.
+- Advanced the application to 5.9.64, native build 50964, and service-worker cache revision 98.
+
 ## 5.9.63 — 2026-08-28
 
 ### One Library, one destination

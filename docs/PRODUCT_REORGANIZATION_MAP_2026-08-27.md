@@ -78,3 +78,16 @@ The preferred release rollback is the previous verified deployment. For a device
 set local storage key `askcrump.navigation.mode` to `legacy` and reload; the new runtime records
 legacy mode and leaves the prior rail/drawer behavior intact. Removing the key restores the five-
 destination layer. Neither path changes server data.
+
+## Destination isolation completed in 5.9.64
+
+The staged navigation is now reflected inside the product surfaces as well as the primary rail:
+
+- Library opens one dedicated Library containing the manuscript bookshelf and saved files.
+- Projects opens one dedicated Projects workspace.
+- Manuscripts and Video Studio open as focused Create destinations without an internal tab bar.
+- Manuscripts provides an explicit `Open Projects` recovery when no active Project exists.
+- Files remains the reference-file attachment action.
+
+This removes the former second navigation system inside the shared sheet while preserving the same
+owner-scoped data, generation, entitlement, and storage behavior.

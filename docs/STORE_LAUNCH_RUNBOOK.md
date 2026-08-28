@@ -128,7 +128,7 @@ The generated `ios/` and `android/` folders are intentionally not the source of 
 Run these on current physical iPhone and Android devices:
 
 - registration, email verification, sign-in, relaunch persistence, sign-out, and revoked sessions
-- Ask, Research, Image, Document, Manuscript, Video, Files, and Saved Library
+- Ask, Research, Image, Document, Manuscript, Video, Files, Projects, Create, and Library
 - generated-file preview, playback, download, and reopening after relaunch
 - Quick, Extendable, and Cinematic video engine entitlement/cost behavior; Runway must remain hidden/unavailable when its server key is absent
 - Veo native continuation from a finished Extendable clip, including chained duration, 48-hour provider-reference expiry, storage-size stop, idempotent retry, and credit refund behavior

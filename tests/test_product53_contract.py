@@ -14,7 +14,7 @@ def test_product53_runtime_is_registered_last_and_cached():
     assert "/crump-product-5.3.css" in runtime
     assert "/crump-product-5.3.js" in runtime
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r97" in worker
+    assert "ask-crump-new-body-v1-r98" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 
@@ -118,12 +118,11 @@ def test_library_is_one_dedicated_destination_instead_of_a_workspace_tab():
     styles = read("public/crump-product-5.3.css")
 
     assert 'id="crump53Sheet"' in product
-    assert 'id="crump53WorkspaceTabs"' in product
-    assert 'data-crump53-tab="library"' not in product
-    assert "const librarySection = tab === 'library'" in product
-    assert "tabs.hidden = librarySection" in product
-    assert "librarySection ? 'Library' : 'Projects & Create'" in product
-    assert "librarySection ? 'Ask Crump Library' : 'Ask Crump workspace'" in product
+    assert 'id="crump53WorkspaceTabs"' not in product
+    assert 'data-crump53-tab=' not in product
+    assert "const STUDIO_SECTION_META = Object.freeze" in product
+    assert "projects: {kicker: 'WORKSPACE', title: 'Projects', label: 'Ask Crump Projects'}" in product
+    assert "library: {kicker: 'PRIVATE LIBRARY', title: 'Library', label: 'Ask Crump Library'}" in product
     assert "filesPill.addEventListener" not in product
     assert "file: {label: 'Files', description: 'Attach a reference file'}" in product
     assert "Open your private Library" not in product
@@ -131,14 +130,32 @@ def test_library_is_one_dedicated_destination_instead_of_a_workspace_tab():
     assert "const libraryPanel = document.querySelector('[data-crump53-panel=\"library\"]')" in library
     assert "libraryPanel.insertBefore(card, libraryPanel.firstElementChild)" in library
     assert "manuscriptTab.textContent = 'Library'" not in library
-    assert "dataset.crump53Section === 'library'" in navigation
-    assert '.crump53-tabs[hidden]' in styles
+    assert "section === 'library'" in navigation
+    assert '.crump53-tabs' not in styles
 
     fixture = read("tests/fixtures/dedicated-library-destination.html")
     assert "/public/crump-product-5.3.js?fixture=dedicated-library" in fixture
     assert "/public/crump-library-5.7.js?fixture=dedicated-library" in fixture
     assert "/public/crump-navigation-5.9.30.js?fixture=dedicated-library" in fixture
     assert 'data-v1-command="file"' in fixture
+
+
+def test_projects_manuscripts_and_video_are_isolated_destinations():
+    product = read("public/crump-product-5.3.js")
+    navigation = read("public/crump-navigation-5.9.30.js")
+    polish = read("public/crump-polish-5.6.js")
+
+    assert "manuscripts: {kicker: 'LONG-FORM', title: 'Manuscripts', label: 'Ask Crump Manuscripts'}" in product
+    assert "video: {kicker: 'MOTION', title: 'Video Studio', label: 'Ask Crump Video Studio'}" in product
+    assert "selectStudioPanel(section)" in product
+    assert 'id="crump53OpenProjectsFromManuscript"' in product
+    assert "openStudio('projects')" in product
+    assert "openStudio('video')" in product
+    assert "section === 'projects'" in navigation
+    assert "section === 'manuscripts' || section === 'video'" in navigation
+    assert "panel.setAttribute('role', 'region')" in polish
+    assert "panel.setAttribute('aria-hidden', panel.hidden ? 'true' : 'false')" in polish
+    assert "role', 'tab'" not in polish
 
 
 def test_private_video_library_uses_owner_checked_inline_playback():

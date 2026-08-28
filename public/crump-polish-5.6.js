@@ -10,38 +10,13 @@
   function syncStudioA11y() {
     const studio = byId('crump53Studio');
     if (!studio) return;
-    const tabs = [...studio.querySelectorAll('[data-crump53-tab]')];
     const panels = [...studio.querySelectorAll('[data-crump53-panel]')];
-    tabs.forEach((tab, index) => {
-      const name = tab.dataset.crump53Tab;
-      const panel = panels.find(item => item.dataset.crump53Panel === name);
-      const tabId = `crump53Tab-${name}`;
-      const panelId = `crump53Panel-${name}`;
-      tab.id ||= tabId;
-      tab.setAttribute('role', 'tab');
-      tab.setAttribute('aria-controls', panelId);
-      tab.setAttribute('aria-selected', tab.classList.contains('is-active') ? 'true' : 'false');
-      tab.tabIndex = tab.classList.contains('is-active') ? 0 : -1;
-      if (panel) {
-        panel.id ||= panelId;
-        panel.setAttribute('role', 'tabpanel');
-        panel.setAttribute('aria-labelledby', tabId);
-      }
-      if (tab.dataset.crump56Wired !== 'true') {
-        tab.dataset.crump56Wired = 'true';
-        tab.addEventListener('click', () => requestAnimationFrame(syncStudioA11y));
-        tab.addEventListener('keydown', event => {
-          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-          event.preventDefault();
-          let next = index;
-          if (event.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
-          if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
-          if (event.key === 'Home') next = 0;
-          if (event.key === 'End') next = tabs.length - 1;
-          tabs[next]?.click();
-          tabs[next]?.focus();
-        });
-      }
+    const labels = {projects: 'Projects', manuscripts: 'Manuscripts', video: 'Video Studio', library: 'Library'};
+    panels.forEach(panel => {
+      const name = panel.dataset.crump53Panel || '';
+      panel.setAttribute('role', 'region');
+      panel.setAttribute('aria-label', labels[name] || 'Ask Crump workspace');
+      panel.setAttribute('aria-hidden', panel.hidden ? 'true' : 'false');
     });
   }
 
@@ -55,7 +30,7 @@
     button.innerHTML = `
       <div class="settings-row-text">
         <div class="settings-label">Replay product tour</div>
-        <div class="settings-help">See Projects, creation tools, video continuation, and your Saved Library.</div>
+        <div class="settings-help">See Projects, creation tools, video continuation, and your Library.</div>
       </div>
       <div class="settings-chevron" aria-hidden="true">›</div>`;
     button.addEventListener('click', () => {

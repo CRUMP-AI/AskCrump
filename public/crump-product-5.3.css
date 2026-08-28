@@ -158,34 +158,8 @@ body.crump-v1-body .crump53-sheet-body {
   overflow: auto;
   padding: 22px;
 }
-body.crump-v1-body .crump53-tabs {
-  display: flex;
-  gap: 5px;
-  margin-bottom: 18px;
-  padding: 4px;
-  border: 1px solid rgba(255,255,255,.07);
-  border-radius: 999px;
-  background: rgba(0,0,0,.18);
-}
-body.crump-v1-body .crump53-tabs[hidden] { display: none !important; }
 body.crump-v1-body .crump53-sheet[data-crump53-section="library"] {
   width: min(1120px, 100%);
-}
-body.crump-v1-body .crump53-tab {
-  flex: 1;
-  min-height: 36px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: #747a7e;
-  font-size: 10px;
-  font-weight: 680;
-  cursor: pointer;
-}
-body.crump-v1-body .crump53-tab.is-active {
-  background: rgba(217,191,132,.09);
-  color: #e1d1ac;
 }
 body.crump-v1-body .crump53-panel[hidden] { display: none !important; }
 body.crump-v1-body .crump53-grid {

@@ -17,7 +17,7 @@ def test_56_polish_layer_is_last_on_web_and_native():
         assert source.index("/crump-4.3.js") < source.index("/crump-4.4.js")
         assert source.index("/crump-product-5.3.1.js") < source.index("/crump-polish-5.6.js")
         assert "/crump-polish-5.6.css" in source
-    assert "ask-crump-new-body-v1-r97" in worker
+    assert "ask-crump-new-body-v1-r98" in worker
     assert "/crump-polish-5.6.css" in worker and "/crump-polish-5.6.js" in worker
     assert "crump-polish-5.6.js" in checker
 
@@ -85,15 +85,18 @@ def test_video_result_actions_share_one_button_system():
     assert "a.crump53-button" in polish
 
 
-def test_creation_studio_copy_and_tabs_are_user_facing_and_accessible():
+def test_creation_surfaces_are_separate_and_accessible():
     product = read("public/crump-product-5.3.js")
     polish_js = read("public/crump-polish-5.6.js")
-    assert "Projects & Create" in product
+    for label in ("Ask Crump Projects", "Ask Crump Manuscripts", "Ask Crump Video Studio", "Ask Crump Library"):
+        assert label in product
     assert "Video engine guide" in product
     assert "Founder Lab active · App credits are bypassed" in product
-    assert "role', 'tab'" in polish_js
-    assert "aria-selected" in polish_js
-    assert "ArrowLeft" in polish_js and "ArrowRight" in polish_js
+    assert "role', 'region'" in polish_js
+    assert "aria-hidden" in polish_js
+    assert "role', 'tab'" not in polish_js
+    assert "aria-selected" not in polish_js
+    assert "ArrowLeft" not in polish_js and "ArrowRight" not in polish_js
 
 
 def test_parent_company_page_reflects_current_product():
@@ -113,7 +116,8 @@ def test_store_and_pwa_copy_match_current_creation_surface():
     listing = read("docs/STORE_LISTING_COPY.md")
     manifest = read("public/manifest.json")
     assert "scene continuation" in listing
-    assert "Projects & Create" in listing
+    assert "Open Projects, Create, and Library from their separate primary destinations." in listing
+    assert "Saved Library" not in listing
     assert "Quick, Extendable, and Cinematic" in listing
     assert "manuscripts" in manifest and "video" in manifest and "Projects" in manifest
 

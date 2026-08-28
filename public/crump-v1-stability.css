@@ -17,7 +17,7 @@ body.crump-v1-body {
 
 /* iOS zooms the visual viewport when a focused editor computes below 16px.
    Give every genuine editing control the safe size on touch/mobile layouts.
-   This prevents focus zoom at the source across chat, Projects & Create,
+   This prevents focus zoom at the source across chat, Projects, Create,
    Library, settings, authentication, and any future tool surface. */
 @media (hover: none) and (pointer: coarse), (max-width: 820px) {
   body.crump-v1-body input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not([type="file"]):not([type="hidden"]):not([type="image"]):not([type="radio"]):not([type="range"]):not([type="reset"]):not([type="submit"]),
