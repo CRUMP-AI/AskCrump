@@ -128,21 +128,6 @@
     }
   }
 
-  async function pullServerState() {
-    if (!navigator.onLine || !window.SyncManager) return null;
-    try {
-      const result = await window.SyncManager.pull(null, { full: true });
-      if (result?.success) {
-        window.__crumpSyncData = result.data;
-        applyServerSettings(result.data?.settings);
-        return result.data;
-      }
-    } catch (error) {
-      console.warn('[Bootstrap] Initial sync failed:', error);
-    }
-    return null;
-  }
-
   function startApp() {
     hide('authContainer');
     hide('tosModal');
@@ -315,7 +300,6 @@
     window.currentUser = activeUser;
     window.configureUserStorage?.(activeUser.id);
     applyServerSettings(session.data.settings);
-    if (!session.offline) await pullServerState();
     routeAuthenticatedUser(activeUser);
     if (verification) showVerificationResult(verification);
   }
@@ -482,7 +466,6 @@
         window.currentUser = activeUser;
         window.configureUserStorage?.(activeUser.id);
         applyServerSettings(result.data.settings);
-        await pullServerState();
         setText('loginSuccess', 'Signed in.');
         routeAuthenticatedUser(activeUser);
       } catch (error) {

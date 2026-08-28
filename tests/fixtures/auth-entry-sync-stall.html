@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Authentication entry sync-stall fixture</title>
+</head>
+<body>
+  <div id="authContainer" style="display:none">
+    <div id="loginForm">
+      <form id="loginFormElement">
+        <label for="loginEmail">Email</label>
+        <input id="loginEmail" type="email" required>
+        <label for="loginPassword">Password</label>
+        <input id="loginPassword" type="password" required>
+        <button type="submit">Sign In</button>
+      </form>
+      <div id="loginError" style="display:none"></div>
+      <div id="loginSuccess" style="display:none"></div>
+      <div id="verificationNeeded" style="display:none"></div>
+    </div>
+    <div id="registerForm" style="display:none"></div>
+    <div id="forgotPasswordForm" style="display:none"></div>
+    <div id="resetPasswordForm" style="display:none"></div>
+  </div>
+  <div id="tosModal" style="display:none"></div>
+  <div id="onboardingModal" style="display:none"></div>
+  <div id="appContainer" style="display:none">
+    <textarea id="userInput"></textarea>
+  </div>
+  <script>
+    const fixtureUser = {
+      id: 'fixture-user',
+      email: 'fixture@example.test',
+      fullName: 'Fixture User',
+      termsAcceptedAt: '2026-08-27T00:00:00Z',
+      preferences: {},
+    };
+    window.__fixture = {
+      appStarts: 0,
+      authenticatedStarts: 0,
+      loginCalls: 0,
+      syncPulls: 0,
+    };
+    window.va = () => {};
+    window.CrumpAPI = { ready: Promise.resolve() };
+    window.CrumpAnalytics = { track: () => Promise.resolve(true) };
+    window.configureUserStorage = () => {};
+    window.profileManager = {
+      applyServerSubscription() {},
+      updateProfile() {},
+    };
+    window.initializeApp = () => { window.__fixture.appStarts += 1; };
+    window.initializeAuthenticatedApp = () => { window.__fixture.authenticatedStarts += 1; };
+    window.deviceAuth = {
+      async checkSession() {
+        if (new URLSearchParams(location.search).get('session') === '1') {
+          return { success: true, authenticated: true, data: { user: fixtureUser, settings: {} } };
+        }
+        return { success: true, authenticated: false };
+      },
+      async login() {
+        window.__fixture.loginCalls += 1;
+        return { success: true, data: { user: fixtureUser, settings: {} } };
+      },
+      async logout() {},
+    };
+    window.SyncManager = {
+      pull() {
+        window.__fixture.syncPulls += 1;
+        return new Promise(() => {});
+      },
+    };
+  </script>
+  <script src="/public/auth-controller.js?v=fixture-2"></script>
+</body>
+</html>

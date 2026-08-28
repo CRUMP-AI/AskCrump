@@ -1,5 +1,22 @@
 # Changelog
 
+## 5.9.41 — 2026-08-27
+
+### Reliable authenticated entry
+
+- Removed the full cross-device sync from the authentication critical path. A successful login or
+  restored session now opens the account-scoped workspace immediately instead of waiting forever
+  when a secondary sync request stalls.
+- Kept server-authoritative synchronization in the existing authenticated background lifecycle,
+  which renders the account-scoped cache first and then merges current server state.
+- Kept credentials, password verification, email verification, opaque session rotation, cookies,
+  account ownership, pricing, entitlement, and analytics semantics unchanged.
+
+### Verification and release
+
+- Advanced the application to 5.9.41, native build 50941, and service-worker cache revision 75 so
+  web and installed clients receive the authenticated-entry correction together.
+
 ## 5.9.40 — 2026-08-27
 
 ### Truthful first prompt
