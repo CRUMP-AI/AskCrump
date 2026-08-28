@@ -3,9 +3,10 @@
 ## Verified external state
 
 - The `sc-domain:askcrump.com` property is verified and accessible in Google Search Console.
-- The Overview page says performance and indexing data are still processing.
-- The Submitted sitemaps table contains no rows (`0-0 of 0`). The sitemap is not entered,
-  submitted, accepted, or read by Google yet.
+- A read-only refresh on 2026-08-28 shows the Page indexing report still processing data and
+  asking to check again later.
+- The same refresh shows the Submitted sitemaps table still contains no rows (`0-0 of 0`). The
+  sitemap is not entered, submitted, accepted, or read by Google yet.
 - URL Inspection reports that `https://www.askcrump.com/` is on Google and indexed.
 - URL Inspection reports that the AI presentation maker, AI document generator, AI résumé builder,
   and AI video generator are not on Google because each URL is currently unknown to Google. None
@@ -18,7 +19,11 @@
   canonical URLs: home, AI presentation maker, AI document generator, AI résumé builder, AI video
   generator, and legal/privacy.
 - `robots.txt` returns HTTP 200 and points to the canonical sitemap.
-- The canonical pages and production health endpoint return HTTP 200 on release 5.9.32.
+- Direct production checks on 2026-08-28 confirm that `robots.txt`, `sitemap.xml`, the homepage,
+  and all four use-case pages return HTTP 200 with their expected content types. No `X-Robots-Tag`
+  response blocks indexing. The public HTML declares `index,follow`, unique canonical URLs, unique
+  titles/descriptions, social metadata, structured data, and crawlable internal links. The app
+  workspace remains intentionally excluded from indexing.
 
 ## HTTPS reconciliation
 

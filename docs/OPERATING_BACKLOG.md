@@ -329,7 +329,12 @@ homepage is indexed, while the presentation, document, résumé, and video pages
 Google with no referring sitemap or page detected. The Submitted sitemaps table contains zero rows.
 A live URL test reports that the video page is available to Google and can be indexed, proving that
 technical crawlability is not the current block. The sitemap is live and ready, but it is not
-entered or submitted in Search Console.
+entered or submitted in Search Console. A second read-only review on 2026-08-28 found the Page
+indexing report still processing and the Submitted sitemaps table still at zero rows. Direct live
+checks confirmed HTTP 200 delivery for `robots.txt`, `sitemap.xml`, the homepage, and every use-case
+page, with no response-level robots block. The public pages still expose unique canonicals,
+metadata, structured data, and crawlable internal links. No additional code defect was found; the
+remaining acquisition gate is the owner-confirmed Search Console submission.
 
 **Outcome:** verified domain ownership, one canonical sitemap submitted, valid canonical URLs,
 and indexed landing pages tied to privacy-safe account-creation attribution.
@@ -349,12 +354,13 @@ continuation, response sharing, checkout, and paid status are now measurable. Pr
 also prevents a failed clipboard operation from being counted as a share and preserves the
 content-free `referral` channel through account creation, but the comparable production cohort is
 new and no legitimate referred activation has been observed. A production-only Vercel Web
-Analytics read on 2026-08-28 showed 88 visitors, 241 page views, and 61% bounce over the trailing
-seven days; 60 visitors reached `/app`, 20 visitors produced 24 `SignupIntent` events, and one
+Analytics read on 2026-08-28 showed 88 visitors, 262 page views, and 61% bounce over the trailing
+seven days; 60 visitors reached `/app`, 20 visitors produced 33 `SignupIntent` events, and one
 visitor produced one client `AccountCreated` event. Those anonymous aggregates span the
 pre-instrumentation boundary and may include internal or automated visits, so they are not a
-conversion rate. The last 24 hours showed 15 production visitors, 73 page views, three
-`MarketingCTA` visitors, and two visitors each at `SignupIntent` and `SignupStarted`, with no
+conversion rate. The last 24 hours showed 14 production visitors, 93 page views, three
+`MarketingCTA` visitors with eight events, two `SignupIntent` visitors with 14 events, and two
+`SignupStarted` visitors, with no
 `SignupCredentialsReady`, `SignupSubmitted`, or `AccountCreated` event. Before 5.9.29,
 `MarketingCTA` mixed account-creation and sign-in clicks; the release now records existing-account
 traffic separately as `MarketingSignin`. The service-role comparable external funnel still
