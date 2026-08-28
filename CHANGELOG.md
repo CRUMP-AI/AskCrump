@@ -1,5 +1,19 @@
 # Changelog
 
+## 5.9.62 — 2026-08-28
+
+### Presentation output users can judge
+
+- Added a representative three-slide gallery to the AI presentation maker page using synthetic
+  output rendered through Ask Crump's current PowerPoint exporter.
+- Shows the actual dark-and-light slide rhythm, editorial hierarchy, native chart treatment, and
+  editable-output promise before a visitor starts creating.
+- Labels the gallery as synthetic and explicitly states that it contains no customer content or
+  testimonial, keeping the proof useful without manufacturing social evidence.
+- Added desktop and mobile layout contracts plus image-format and resolution checks for every
+  published example.
+- Advanced the application to 5.9.62, native build 50962, and service-worker cache revision 96.
+
 ## 5.9.61 — 2026-08-28
 
 ### Truthful Project continuity

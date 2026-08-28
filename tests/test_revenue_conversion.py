@@ -63,8 +63,8 @@ def test_marketing_ctas_are_first_party_analytics_events():
     script = read("public/landing.js")
 
     assert '/_vercel/insights/script.js' in page
-    assert '<script defer src="/landing.js?v=5.9.61"></script>' in page
-    assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.61">' in page
+    assert '<script defer src="/landing.js?v=5.9.62"></script>' in page
+    assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.62">' in page
     assert "window.vaq" in script
     assert "MarketingCTA" in script
     assert "MarketingSignin" in script
@@ -172,9 +172,9 @@ def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
         assert f'<link rel="canonical" href="https://www.askcrump.com/{slug}">' in page
         assert f'<meta property="og:url" content="https://www.askcrump.com/{slug}">' in page
         assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
-        assert '<script defer src="/landing.js?v=5.9.61"></script>' in page
-        assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.61">' in page
-        assert '<link rel="stylesheet" href="/use-case.css?v=5.9.61">' in page
+        assert '<script defer src="/landing.js?v=5.9.62"></script>' in page
+        assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.62">' in page
+        assert '<link rel="stylesheet" href="/use-case.css?v=5.9.62">' in page
         assert '/_vercel/insights/script.js' in page
         assert f'source={source}' in page
         assert page.count('data-cta="') >= 4
@@ -198,6 +198,34 @@ def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
 
     assert len(titles) == 4
     assert len(descriptions) == 4
+
+
+def test_presentation_page_proves_output_with_synthetic_rendered_examples():
+    page = read("public/ai-presentation-maker.html")
+    styles = read("public/use-case.css")
+    example_names = (
+        "presentation-title.png",
+        "presentation-story.png",
+        "presentation-chart.png",
+    )
+
+    assert 'id="representative-output"' in page
+    assert "Judge the slide, not the promise." in page
+    assert "current PowerPoint exporter" in page
+    assert "actual visual system—not a hand-designed concept" in page
+    assert "Representative synthetic output." in page
+    assert "no customer content or testimonial is shown" in page
+    assert 'class="presentation-proof-grid"' in page
+    assert ".presentation-proof-layout" in styles
+    assert ".presentation-proof-grid" in styles
+    assert "grid-template-columns: 1.28fr .72fr" in styles
+
+    for filename in example_names:
+        assert f'/assets/examples/{filename}' in page
+        with Image.open(ROOT / "public" / "assets" / "examples" / filename) as example:
+            assert example.format == "PNG"
+            assert example.mode in {"RGB", "RGBA"}
+            assert example.size == (1600, 900)
 
 
 def test_social_share_cards_are_large_brand_safe_and_page_specific():
@@ -312,12 +340,12 @@ def test_release_version_and_cache_advance_together():
     backend = read("backend/version.py")
     worker = read("public/sw.js")
 
-    assert '"version": "5.9.61"' in package
-    assert "__version__ = '5.9.61'" in backend
-    assert "ask-crump-new-body-v1-r95" in worker
-    assert "/landing-5.6.css?v=5.9.61" in worker
-    assert "/use-case.css?v=5.9.61" in worker
-    assert "/landing.js?v=5.9.61" in worker
+    assert '"version": "5.9.62"' in package
+    assert "__version__ = '5.9.62'" in backend
+    assert "ask-crump-new-body-v1-r96" in worker
+    assert "/landing-5.6.css?v=5.9.62" in worker
+    assert "/use-case.css?v=5.9.62" in worker
+    assert "/landing.js?v=5.9.62" in worker
 
 
 def test_changed_activation_assets_are_release_versioned():
@@ -325,17 +353,17 @@ def test_changed_activation_assets_are_release_versioned():
     worker = read("public/sw.js")
 
     for asset in (
-        "/conversation.css?v=5.9.61",
-        "/crump-v1-body.css?v=5.9.61",
-        "/ui-functions.js?v=5.9.61",
-        "/device-auth.js?v=5.9.61",
-        "/product-analytics.js?v=5.9.61",
-        "/auth-controller.js?v=5.9.61",
-        "/app.js?v=5.9.61",
+        "/conversation.css?v=5.9.62",
+        "/crump-v1-body.css?v=5.9.62",
+        "/ui-functions.js?v=5.9.62",
+        "/device-auth.js?v=5.9.62",
+        "/product-analytics.js?v=5.9.62",
+        "/auth-controller.js?v=5.9.62",
+        "/app.js?v=5.9.62",
     ):
         assert asset in shell
         assert asset in worker
 
     runtime = read("public/runtime-body-v1.js")
-    assert "/crump-4.3.js?v=5.9.61" in runtime
-    assert "/crump-4.3.js?v=5.9.61" in worker
+    assert "/crump-4.3.js?v=5.9.62" in runtime
+    assert "/crump-4.3.js?v=5.9.62" in worker
