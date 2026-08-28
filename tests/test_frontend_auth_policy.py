@@ -118,3 +118,25 @@ def test_signup_email_failure_preserves_created_account_and_explicit_recovery_ui
     assert '{deliveryFailed: true}' in controller
     assert "successId: 'registrationPendingSuccess'" in controller
     assert "errorId: 'registrationPendingError'" in controller
+
+
+def test_failed_or_reused_verification_link_exposes_an_actionable_recovery_surface():
+    app = (PUBLIC / 'app.html').read_text(encoding='utf-8')
+    controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
+    fixture = (
+        ROOT / 'tests' / 'fixtures' / 'verification-link-recovery.html'
+    ).read_text(encoding='utf-8')
+
+    assert 'Email verification needs attention' in app
+    assert 'Enter your email above to request a fresh link' in app
+    assert 'role="region" aria-labelledby="verificationNeededTitle"' in app
+    assert 'invalid, expired, or already used' in controller
+    failed_branch = controller[
+        controller.index('function showVerificationResult'):
+        controller.index('async function bootstrap')
+    ]
+    assert "show('verificationNeeded')" in failed_branch
+    assert "byId('loginEmail')?.focus({preventScroll: true})" in failed_branch
+    assert '/public/auth-controller.js?v=fixture-verification-recovery-2' in fixture
+    assert 'https://' not in fixture
+    assert 'askcrump.com' not in fixture

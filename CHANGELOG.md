@@ -1,5 +1,25 @@
 # Changelog
 
+## 5.9.47 — 2026-08-28
+
+### Recoverable verification-link return
+
+- A failed or already-used verification link no longer leaves a new user with only an
+  “invalid or expired” dead end. The sign-in screen now explains every truthful possibility,
+  focuses the email field, and exposes the existing resend-verification action immediately.
+- The resend result remains generic to prevent account enumeration, and a user whose account was
+  already verified can sign in normally.
+- Verification-token lifetime, single-use behavior, server authentication, account state, password
+  policy, rate limits, cookies, schema/RLS, pricing, entitlements, and payments remain unchanged.
+
+### Verification and release
+
+- Added a loopback fixture using the real authentication controller. It proves the released dead-end
+  state, the corrected recovery instructions, keyboard-ready email focus, and successful local resend
+  feedback without creating an account or contacting production.
+- Advanced the application to 5.9.47, native build 50947, and service-worker cache revision 81 so
+  web, PWA, and generated native clients receive the verified-return recovery surface.
+
 ## 5.9.46 — 2026-08-28
 
 ### Complete signup milestone delivery

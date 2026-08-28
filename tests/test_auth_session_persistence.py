@@ -28,8 +28,8 @@ def test_same_page_login_is_serialized_and_confirmed():
     assert "code !== 'AUTH_REQUEST_TIMEOUT'" in source
     assert 'for (let attempt = 0; attempt < 2; attempt += 1)' not in source
     assert "code: 'SESSION_ESTABLISHMENT_FAILED'" in source
-    assert 'src="/device-auth.js?v=5.9.46"' in shell
-    assert "'/device-auth.js?v=5.9.46'" in worker
+    assert 'src="/device-auth.js?v=5.9.47"' in shell
+    assert "'/device-auth.js?v=5.9.47'" in worker
     assert "url.pathname === '/device-auth.js'" in worker
 
 

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Verification link recovery fixture</title>
+  <style>
+    body { background:#0b0b0b; color:#f5f2ec; font:16px/1.5 system-ui,sans-serif; padding:32px; }
+    form { display:grid; gap:12px; width:min(440px,100%); }
+    input,button { box-sizing:border-box; min-height:44px; padding:10px 12px; }
+    .auth-error { color:#ffb4ab; margin-top:12px; }
+    .verification-notice { border:1px solid #8d7440; margin-top:16px; padding:16px; }
+  </style>
+</head>
+<body>
+  <div id="authContainer" style="display:none">
+    <div id="loginForm" style="display:none">
+      <h1>Welcome back.</h1>
+      <form id="loginFormElement">
+        <label for="loginEmail">Email</label>
+        <input id="loginEmail" type="email" autocomplete="email" required>
+        <label for="loginPassword">Password</label>
+        <input id="loginPassword" type="password" autocomplete="current-password" required>
+        <button type="submit">Sign in</button>
+      </form>
+      <div id="loginError" class="auth-error" role="alert" style="display:none"></div>
+      <div id="loginSuccess" role="status" style="display:none"></div>
+      <div id="verificationNeeded" class="verification-notice" style="display:none">
+        <p class="verification-notice-title">Email verification needs attention</p>
+        <p>Enter your email above to request a fresh link, or sign in if verification already completed.</p>
+        <button id="resendVerificationBtn" type="button">Resend verification email</button>
+      </div>
+    </div>
+    <div id="registerForm" style="display:none"></div>
+    <div id="forgotPasswordForm" style="display:none"></div>
+    <div id="resetPasswordForm" style="display:none"></div>
+  </div>
+  <div id="tosModal" style="display:none"></div>
+  <div id="onboardingModal" style="display:none"></div>
+  <div id="appContainer" style="display:none"><textarea id="userInput"></textarea></div>
+  <script>
+    window.va = () => {};
+    window.CrumpAPI = {ready: Promise.resolve()};
+    window.deviceAuth = {
+      async checkSession() { return {success:true, authenticated:false}; },
+      async login() { return {success:false}; },
+      async logout() {},
+    };
+    window.configureUserStorage = () => {};
+    window.profileManager = {applyServerSubscription() {}, updateProfile() {}};
+    window.SyncManager = {pull: () => Promise.resolve()};
+    window.fetch = () => Promise.resolve(new Response(JSON.stringify({
+      success:true,
+      message:'If verification is needed, a new email has been sent.',
+    }), {status:200, headers:{'Content-Type':'application/json'}}));
+  </script>
+  <script src="/public/auth-resilience.js?v=fixture-verification-recovery"></script>
+  <script src="/public/auth-controller.js?v=fixture-verification-recovery-2"></script>
+</body>
+</html>

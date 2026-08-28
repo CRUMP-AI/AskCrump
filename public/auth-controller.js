@@ -258,10 +258,14 @@
     const messages = {
       success: 'Email verified. You can sign in now.',
       already_verified: 'This email is already verified.',
-      failed: 'That verification link is invalid or expired.',
+      failed: 'That verification link is invalid, expired, or already used. Enter your email below to resend verification, or sign in if verification already completed.',
     };
     if (!messages[value]) return;
     setText(value === 'failed' ? 'loginError' : 'loginSuccess', messages[value]);
+    if (value === 'failed') {
+      show('verificationNeeded');
+      byId('loginEmail')?.focus({preventScroll: true});
+    }
   }
 
   async function bootstrap() {
