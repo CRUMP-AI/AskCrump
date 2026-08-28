@@ -1,5 +1,15 @@
 # Changelog
 
+## 5.9.56 — 2026-08-28
+
+### Acquisition-to-creation continuity
+
+- Preserved a content-free, allowlisted document, presentation, résumé, or video intent across sign-in, registration, email verification, and an existing authenticated session.
+- Opened the exact non-generating creation workspace promised by each capability page instead of dropping qualified visitors into the generic launchpad.
+- Added privacy-safe `intent` labels to existing marketing/auth events and a one-time `CreationIntentContinued` outcome without retaining prompts, filenames, messages, or account identifiers.
+- Added a real-controller browser fixture covering all four handoffs, invalid-intent rejection, one-time local cleanup, and zero browser errors.
+- Advanced the application to 5.9.56, native build 50956, and service-worker cache revision 90.
+
 ## 5.9.55 — 2026-08-28
 
 ### Clear, accessible authentication handoffs

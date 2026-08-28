@@ -71,12 +71,14 @@
   const acquisition = acquisitionSource();
   document.querySelectorAll('[data-cta]').forEach(link => {
     let analyticsEvent = 'MarketingCTA';
+    let creationIntent = 'unspecified';
     try {
       const destination = new URL(link.getAttribute('href'), location.href);
       if (destination.origin === location.origin && destination.pathname === '/app') {
         analyticsEvent = destination.searchParams.get('signup') === '1'
           ? 'MarketingCTA'
           : 'MarketingSignin';
+        creationIntent = safeSource(destination.searchParams.get('intent'), 'unspecified');
         destination.searchParams.set('acquisition', acquisition);
         link.setAttribute('href', `${destination.pathname}${destination.search}${destination.hash}`);
       }
@@ -88,6 +90,7 @@
           location: link.dataset.cta || 'unknown',
           plan: link.dataset.plan || 'unspecified',
           acquisition,
+          intent: creationIntent,
         },
       });
     });

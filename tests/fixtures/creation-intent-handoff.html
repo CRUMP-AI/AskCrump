@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en" data-crump-body-runtime="ready">
+<head>
+  <meta charset="utf-8">
+  <title>Creation intent handoff fixture</title>
+  <style>
+    body { background:#0b0b0b; color:#f5f2ec; font:16px/1.5 system-ui,sans-serif; padding:24px; }
+    output { display:block; margin-top:10px; white-space:pre-wrap; }
+  </style>
+</head>
+<body>
+  <div id="authContainer" style="display:none"></div>
+  <div id="tosModal" style="display:none"></div>
+  <div id="onboardingModal" style="display:none"></div>
+  <main id="appContainer" style="display:none">
+    <aside class="v1-rail"></aside>
+    <textarea id="userInput" aria-label="Message Crump"></textarea>
+  </main>
+
+  <output id="fixtureCalls" aria-label="Creation calls">[]</output>
+  <output id="fixtureEvents" aria-label="Analytics events">[]</output>
+  <output id="fixturePending" aria-label="Pending creation intent">waiting</output>
+  <output id="fixtureErrors" aria-label="Browser errors">0</output>
+
+  <script>
+    window.__fixture = {calls:[], events:[]};
+    const render = () => {
+      document.getElementById('fixtureCalls').textContent = JSON.stringify(window.__fixture.calls);
+      document.getElementById('fixtureEvents').textContent = JSON.stringify(window.__fixture.events);
+      document.getElementById('fixturePending').textContent = localStorage.getItem('askcrump.pending-creation-intent') || 'cleared';
+    };
+    const recordError = () => {
+      const output = document.getElementById('fixtureErrors');
+      output.textContent = String(Number(output.textContent || 0) + 1);
+    };
+    window.addEventListener('error', recordError);
+    window.addEventListener('unhandledrejection', recordError);
+    window.addEventListener('crump:creation-intent-consumed', () => setTimeout(render, 0));
+    window.addEventListener('load', () => setTimeout(render, 80));
+
+    window.va = (command, payload) => window.__fixture.events.push({command, ...payload});
+    window.CrumpAPI = {ready: Promise.resolve()};
+    window.deviceAuth = {
+      async checkSession() {
+        if (new URLSearchParams(location.search).get('auth') === '0') {
+          return {success:true, authenticated:false};
+        }
+        return {
+          success:true,
+          authenticated:true,
+          data:{
+            user:{id:'fixture-user', email:'fixture@example.test', fullName:'Fixture User', termsAcceptedAt:'2026-08-28T00:00:00Z'},
+            settings:{},
+          },
+        };
+      },
+      async logout() {},
+    };
+    window.configureUserStorage = () => {};
+    window.initializeApp = () => {};
+    window.initializeAuthenticatedApp = () => {};
+    window.profileManager = {applyServerSubscription() {}, updateProfile() {}};
+    window.CrumpAnalytics = {track: async () => true};
+    window.CrumpDocumentStudio = {
+      open() { window.__fixture.calls.push({tool:'document', action:'open'}); },
+      select(format, placeholder) { window.__fixture.calls.push({tool:'document', action:'select', format, placeholder}); },
+    };
+    window.CrumpProduct53 = {
+      open(tab) { window.__fixture.calls.push({tool:'product', action:'open', tab}); },
+    };
+  </script>
+  <script src="/public/crump-navigation-5.9.30.js?v=fixture-creation-intent-1"></script>
+  <script src="/public/auth-controller.js?v=fixture-creation-intent-1"></script>
+</body>
+</html>

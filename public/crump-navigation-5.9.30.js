@@ -7,6 +7,7 @@
   const byId = id => document.getElementById(id);
   const all = selector => [...document.querySelectorAll(selector)];
   const MODE_KEY = 'askcrump.navigation.mode';
+  const CREATION_HANDOFF_INTENTS = new Set(['document', 'presentation', 'resume', 'video']);
   let lastFocus = null;
   let syncFrame = 0;
 
@@ -185,24 +186,45 @@
     setActive('create');
     if (action === 'document') {
       window.CrumpDocumentStudio?.open?.();
-      return;
+      return true;
     }
     if (action === 'presentation') {
       window.CrumpDocumentStudio?.select?.('pptx', 'Describe the presentation, audience, objective, key evidence, and desired next step…');
-      return;
+      return true;
+    }
+    if (action === 'resume') {
+      window.CrumpDocumentStudio?.select?.('docx', 'Describe your real experience, target role, education, skills, and the job requirements you want to match…');
+      return true;
     }
     if (action === 'image') {
       if (window.CrumpImageStudio?.open) window.CrumpImageStudio.open();
       else window.CrumpBodyV1?.command?.('image');
-      return;
+      return true;
     }
     if (action === 'code') {
       window.CrumpCodeWorkspace?.open?.();
-      return;
+      return true;
     }
     if (action === 'manuscript' || action === 'video') {
       window.CrumpProduct53?.open?.(action === 'manuscript' ? 'manuscripts' : 'video');
+      return true;
     }
+    return false;
+  }
+
+  function continueCreationIntent(detail = {}) {
+    const kind = String(detail.kind || '').trim().toLowerCase();
+    if (!CREATION_HANDOFF_INTENTS.has(kind) || !openCreateTool(kind)) return false;
+    window.va?.('event', {
+      name: 'CreationIntentContinued',
+      data: {
+        intent: kind,
+        acquisition: String(detail.acquisition || 'direct').slice(0, 32),
+        source: String(detail.source || 'unknown').slice(0, 32),
+      },
+    });
+    window.dispatchEvent(new CustomEvent('crump:creation-intent-consumed', {detail: {kind}}));
+    return true;
   }
 
   function openAsk() {
@@ -320,7 +342,12 @@
 
   window.CrumpNavigation5930 = Object.freeze({
     open: openDestination,
+    continueCreation: continueCreationIntent,
     modeKey: MODE_KEY,
+  });
+
+  window.addEventListener('crump:creation-intent', event => {
+    continueCreationIntent(event.detail);
   });
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, {once: true});

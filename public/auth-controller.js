@@ -5,9 +5,12 @@
   let planIntentDispatched = false;
   const TERMS_VERSION = '2026-07-30';
   const PLAN_INTENT_KEY = 'askcrump.pending-plan-intent';
+  const CREATION_INTENT_KEY = 'askcrump.pending-creation-intent';
   const ACQUISITION_KEY = 'askcrump.acquisition-source';
   const PLAN_INTENT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+  const CREATION_INTENT_TTL_MS = 24 * 60 * 60 * 1000;
   const PAID_PLAN_INTENTS = new Set(['professional', 'enterprise']);
+  const CREATION_INTENTS = new Set(['document', 'presentation', 'resume', 'video']);
   const LEGACY_ACQUISITION_SOURCES = new Set([
     'instagram', 'facebook', 'facebook-pinned', 'linkedin', 'tiktok',
     'youtube', 'x', 'referral', 'organic', 'clevercrump',
@@ -60,6 +63,7 @@
       source: locationSource,
       acquisition: currentAcquisition || storedAcquisition || 'direct',
       plan: funnelValue(params.get('plan'), 'unspecified'),
+      intent: creationIntentValue(params.get('intent')) || pendingCreationIntent()?.kind || 'unspecified',
     };
   }
 
@@ -78,6 +82,66 @@
         capturedAt: Date.now(),
       }));
     } catch (_) {}
+  }
+
+  function creationIntentValue(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return CREATION_INTENTS.has(normalized) ? normalized : '';
+  }
+
+  function captureCreationIntent() {
+    const params = new URLSearchParams(location.search);
+    const kind = creationIntentValue(params.get('intent'));
+    if (!kind) return;
+    const context = funnelContext();
+    try {
+      localStorage.setItem(CREATION_INTENT_KEY, JSON.stringify({
+        kind,
+        source: context.source,
+        acquisition: context.acquisition,
+        capturedAt: Date.now(),
+      }));
+    } catch (_) {}
+  }
+
+  function pendingCreationIntent() {
+    try {
+      const intent = JSON.parse(localStorage.getItem(CREATION_INTENT_KEY) || 'null');
+      const capturedAt = Number(intent?.capturedAt || 0);
+      const kind = creationIntentValue(intent?.kind);
+      if (!kind || !capturedAt || Date.now() - capturedAt > CREATION_INTENT_TTL_MS) {
+        localStorage.removeItem(CREATION_INTENT_KEY);
+        return null;
+      }
+      return {
+        kind,
+        source: funnelValue(intent.source, 'unknown'),
+        acquisition: funnelValue(intent.acquisition, 'direct'),
+        capturedAt,
+      };
+    } catch (_) {
+      try { localStorage.removeItem(CREATION_INTENT_KEY); } catch (_) {}
+      return null;
+    }
+  }
+
+  function dispatchPendingCreationIntent() {
+    const intent = pendingCreationIntent();
+    if (!intent) return;
+
+    const deliver = () => {
+      window.addEventListener('crump:creation-intent-consumed', event => {
+        if (event.detail?.kind !== intent.kind) return;
+        try { localStorage.removeItem(CREATION_INTENT_KEY); } catch (_) {}
+      }, {once: true});
+      window.dispatchEvent(new CustomEvent('crump:creation-intent', {detail: intent}));
+    };
+
+    if (document.documentElement.dataset.crumpBodyRuntime === 'ready') {
+      queueMicrotask(deliver);
+    } else {
+      window.addEventListener('crump:body-runtime-ready', deliver, {once: true});
+    }
   }
 
   function pendingPlanIntent() {
@@ -156,6 +220,7 @@
       void window.CrumpAnalytics?.track('WorkspaceOpened', {eventKey: `workspace-open:${day}`});
     }
     setTimeout(() => window.tutorial?.autoStart?.(), 450);
+    dispatchPendingCreationIntent();
     dispatchPendingPlanIntent();
   }
 
@@ -286,6 +351,7 @@
   }
 
   async function bootstrap() {
+    captureCreationIntent();
     capturePlanIntent();
     await window.CrumpAPI?.ready;
     const params = new URLSearchParams(location.search);
