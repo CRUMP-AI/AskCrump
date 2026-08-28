@@ -32,6 +32,7 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 | Resumable Project conversations | Commit `e67ff3b`; deployment `dpl_3FzSEnwGFXSTxh73AcdcXUD28U3t`; production 5.9.31 closes the gap between keeping work and finding it again. Owned Projects now show content-free conversation metadata and a Continue action that syncs a missing cross-device conversation before opening it. The authenticated endpoint requires both Project and conversation ownership, excludes deleted chats, and never returns messages or files. All 306 tests, lint, 41 JavaScript validations, production/native/store checks, CI run `33130217575`, Android run `33130217571`, and iOS run `33130217560` passed. Production health and release assets returned 200; the unauthenticated route returned the expected 401; an authenticated desktop/mobile audit rendered two real linked conversations without generating a synthetic resume event; the inspected deployment had no runtime error cluster or non-informational log level. | Verified delivery; retention outcome pending |
 | Expanded high-intent organic discovery | Commit `afd5473`; deployment `dpl_3VQGjdTVUeDNNzRHqRa1UprHHZ2e`; production 5.9.32 adds focused, crawlable AI résumé-builder and AI video-generator pages around capabilities already verified in production. Résumé claims are fact-grounded and reject invented experience; video copy exposes credit use, compatibility, and variable output. The homepage and existing use-case pages now form a four-capability internal-link graph, the sitemap contains six canonical URLs, and both new pages have unique JSON-LD and deterministic 1,200-by-630 social cards. All 306 tests, lint, 41 JavaScript validations, production/native/store checks, CI run `33131314907`, Android run `33131314974`, and iOS run `33131314943` passed. Production health returned 5.9.32; both clean URLs, both cards, and the sitemap returned 200; desktop/phone layout checks found no horizontal overflow; the inspected deployment reported no runtime error cluster and only 200 responses. | Verified delivery; acquisition outcome pending |
 | Accessible public first visit | Commit `8d03ce7`; deployment `dpl_9sMBVqXWhqSS3QgRkXYKr1G3b62o`; production 5.9.33 raises muted marketing text to WCAG AA contrast while preserving the black/charcoal/gold system. Mobile Lighthouse moved the homepage and résumé page from accessibility 95 with 13 and four contrast failures respectively to accessibility 100 with zero failures; both production runs also scored 100 for performance, best practices, and SEO. A deterministic relative-luminance test covers ten selector/background pairs. All 307 tests, lint, 41 JavaScript validations, production/native/store checks, CI run `33132384656`, Android run `33132384622`, and iOS run `33132384717` passed. Production health returned 5.9.33; mobile browser checks found no overflow or console warning/error; the inspected deployment reported no runtime error cluster and only 200 responses. | Verified delivery; acquisition outcome pending |
+| Accessible workspace zoom | Commit `7f6013b`; deployment `dpl_4SgvrggyDSKbr5jJuEzipjhdo4yF`; production 5.9.34 removes the app-wide maximum-scale, user-scaling, Safari gesture, and two-finger touch blockers. The shell retains no-drift constraints and 16-pixel mobile editor safeguards while explicitly allowing vertical pan and pinch zoom. Registration moved from a local Lighthouse accessibility score of 93 with a failed meta-viewport audit to 100; local signed-out and production registration states also scored 100 with zero contrast failures. All 307 tests, lint, 41 JavaScript validations, production/native/store checks, CI run `33133179838`, Android run `33133179924`, and iOS run `33133179768` passed. Production health returned 5.9.34; the short-phone primary action stayed visible with no overflow or console issue; the inspected deployment reported no runtime error cluster, warning/error/fatal log, or 5xx response. | Verified web/PWA delivery; signed-device zoom check pending |
 
 ### Current production reliability checkpoint
 
@@ -62,6 +63,13 @@ homepage and résumé page. Both production pages now score 100 for accessibilit
 failures while retaining 100 performance, best-practices, and SEO scores in the verification runs.
 Phone-size browser checks found no overflow or console issue, production health returned 5.9.33,
 and the inspected deployment window reported no runtime error cluster and only 200 responses.
+
+The 5.9.34 workspace accessibility release then removed the app-wide user-zoom lock and gesture
+blockers while preserving horizontal-drift and mobile-input safeguards. The local registration
+state moved from accessibility 93 to 100, and the local signed-out and production registration
+states also scored 100 with zero contrast failures. Production health returned 5.9.34; the inspected
+deployment reported no runtime error cluster, warning/error/fatal log, or 5xx response. Exact signed
+device zoom and zoomed-layout usability remain store gates.
 
 ### Current monetization checkpoint
 
@@ -162,7 +170,7 @@ any acquisition spend scales.
 ### P1 — Close the organic acquisition loop
 
 **Evidence:** the Search Console domain property is verified through the live DNS TXT record, and
-Google is processing the property's first performance and indexing reports. Production 5.9.33 now
+Google is processing the property's first performance and indexing reports. Production 5.9.34 now
 serves four high-intent capability pages at clean canonical URLs, links them from the homepage and
 from each other, and includes all six public URLs in the live sitemap. The protected growth and
 artifact reports still show zero comparable external activity, so acquisition is the current
