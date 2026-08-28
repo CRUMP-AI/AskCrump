@@ -179,6 +179,11 @@ provider, privacy, cost, or security gate is incomplete.
   old disabled-button and blank-screen states; both corrected paths open the account shell while
   server-authoritative synchronization continues in the existing background lifecycle. Auth and
   data policy remain unchanged; fresh owner credential-entry proof remains pending.
+- **Authentication request readiness:** Production 5.9.45 bounds account-entry and recovery requests
+  through response parsing. Credential-free browser fixtures prove that registration restores its
+  action with truthful uncertain-outcome guidance and that web login reconciles an already-issued
+  session when its response connection stalls. Auth policy, cookies, schema/RLS, and analytics
+  semantics remain unchanged; fresh owner credential-entry proof remains pending.
 - **Continuing-work sync readiness:** Production 5.9.42 bounds cross-device sync through response
   parsing, preserves the account-scoped pending queue on timeout/network failure, and returns an
   explicit retryable result. The credential-free result-to-Project fixture recovered with exactly
@@ -242,7 +247,7 @@ provider, privacy, cost, or security gate is incomplete.
   Professional price ID matches the production fallback. Both live webhook destinations now use
   direct `www` handlers and returned 200 to signed harmless replays. Their original three-event and
   one-event scopes are restored; no price, product, customer, tax setting, payment, or secret changed.
-- **Product experience direction:** production 5.9.44 builds on the first staged, owner-approved
+- **Product experience direction:** production 5.9.45 builds on the first staged, owner-approved
   reorganization around Ask, Projects, Create, Library, and You on desktop and mobile. It preserves
   existing data, routes, entitlements, and working capabilities behind a local rollback switch.
   Projects now surface their saved conversations through an owner-scoped, content-free resume path.
@@ -256,10 +261,11 @@ provider, privacy, cost, or security gate is incomplete.
 - **Completed payment gate:** owner-approved direct-host edits and signed delivery tests passed on
   production 5.9.27; observe and reconcile the first real checkout rather than broadening scope.
 - **External input needed:** an ElevenLabs production API key and voice ID with confirmed rights.
-- **Next evidence:** submit the sitemap after owner confirmation, then obtain the first legitimate
+- **Next evidence:** complete fresh owner credential entry after explicit sign-out on production
+  5.9.45, submit the sitemap after owner confirmation, then obtain the first legitimate
   post-instrumentation acquisition, durable-value, return, and artifact-journey observations.
-- **Native distribution:** Android 5.9.44/build 50944 source and an unsigned `.aab` pass the hosted
-  API 36/Java 21 release audit in run `33141840370`; the generated iOS 5.9.44 Release configuration
-  passes its hosted macOS compile in run `33141840430`. Owner-controlled developer accounts,
+- **Native distribution:** Android 5.9.45/build 50945 source and an unsigned `.aab` pass the hosted
+  API 36/Java 21 release audit in run `33142697156`; the generated iOS 5.9.45 Release configuration
+  passes its hosted macOS compile in run `33142697157`. Owner-controlled developer accounts,
   signing, push, native billing, reviewer access,
   signed-device tests, screenshots, declarations, and final submission approval remain open.
