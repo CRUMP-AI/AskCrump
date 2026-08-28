@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from .ai_service import AIServiceError
 from .auth_service import AuthenticationError
 from .db import DatabaseError
+from .logging_privacy import enforce_transport_log_privacy
 from .rate_limit import RateLimitError
 from .runtime import settings
 
@@ -22,6 +23,9 @@ logger = logging.getLogger("askcrump.http")
 
 
 async def request_guards(request: Request, call_next):
+    # Some ASGI/serverless hosts apply their logging configuration after importing
+    # the app. Reassert the dependency boundary before any request can reach Supabase.
+    enforce_transport_log_privacy()
     request_id = request.headers.get("x-request-id") or secrets.token_hex(12)
     content_length = request.headers.get("content-length")
 
@@ -175,7 +179,11 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(DatabaseError)
     async def database_error_handler(_: Request, exc: DatabaseError):
-        logger.error("Database request failed: %s details=%r", exc.message, exc.details)
+        logger.error(
+            "Database request failed status=%s detail_type=%s",
+            exc.status_code,
+            type(exc.details).__name__,
+        )
         status = 503 if exc.status_code >= 500 else 500
         return JSONResponse(
             status_code=status,

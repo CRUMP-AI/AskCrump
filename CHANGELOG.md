@@ -1,5 +1,19 @@
 # Changelog
 
+## 5.9.54 — 2026-08-28
+
+### Private upstream observability boundary
+
+- Full dependency-level HTTP request records are now dropped before configured handlers can emit
+  them. Supabase filter URLs containing opaque session hashes and internal account, Project, chat,
+  or file IDs no longer belong in application runtime logs.
+- The boundary is reasserted at the start of every request because serverless/ASGI hosts can apply
+  their logging configuration after importing the app. It covers root handlers, transport-specific
+  handlers, and current `httpx`/`httpcore` child loggers.
+- Database failures now retain categorical status and detail type while excluding raw upstream
+  response details from application logs.
+- Advanced the application to 5.9.54, native build 50954, and service-worker cache revision 88.
+
 ## 5.9.53 — 2026-08-28
 
 ### Recoverable Project return-to-work reads

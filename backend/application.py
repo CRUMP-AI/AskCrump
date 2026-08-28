@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .http import register_exception_handlers, request_guards
+from .logging_privacy import enforce_transport_log_privacy
 from .routes import (
     account, analytics, auth, billing, chat, code, credits, features, files, health, intelligence,
     library, manuscripts, media, presence, projects, safety, sync, voice,
@@ -26,10 +27,9 @@ def configure_logging() -> None:
         format='%(asctime)s %(levelname)s %(name)s %(message)s',
     )
     # httpx includes complete request URLs in its INFO messages. Supabase filters can
-    # contain opaque session hashes and internal row IDs, so retain only warnings and
-    # errors from the transport while Ask Crump emits its own categorical diagnostics.
-    logging.getLogger('httpx').setLevel(logging.WARNING)
-    logging.getLogger('httpcore').setLevel(logging.WARNING)
+    # contain opaque session hashes and internal row IDs, so dependency transport
+    # records are dropped while Ask Crump emits its own categorical diagnostics.
+    enforce_transport_log_privacy()
 
 
 def create_app() -> FastAPI:

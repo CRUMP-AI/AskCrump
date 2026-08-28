@@ -126,10 +126,10 @@ def test_changed_primary_runtime_and_transport_are_release_versioned_and_network
     runtime = (PUBLIC / "runtime-body-v1.js").read_text(encoding="utf-8")
     worker = (PUBLIC / "sw.js").read_text(encoding="utf-8")
 
-    assert '<script defer src="/chat-resilience.js?v=5.9.53"></script>' in shell
-    assert "['/crump-5.0.js?v=5.9.53', 'crump50']" in runtime
-    assert "'/chat-resilience.js?v=5.9.53'" in worker
-    assert "'/crump-5.0.js?v=5.9.53'" in worker
+    assert '<script defer src="/chat-resilience.js?v=5.9.54"></script>' in shell
+    assert "['/crump-5.0.js?v=5.9.54', 'crump50']" in runtime
+    assert "'/chat-resilience.js?v=5.9.54'" in worker
+    assert "'/crump-5.0.js?v=5.9.54'" in worker
     assert "url.pathname === '/chat-resilience.js'" in worker
     assert "url.pathname === '/crump-5.0.js'" in worker
 
