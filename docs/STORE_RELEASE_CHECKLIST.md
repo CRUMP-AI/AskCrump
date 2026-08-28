@@ -23,8 +23,8 @@
 
 ## 2026-08-27 audit snapshot
 
-- [x] Production 5.9.30, reliable web-session handoff, five-destination desktop/mobile workspace, named recent-work continuation, one-click Project continuity, crawlable workflow pages, truthful referral-copy handling, canonical native API host, and direct signed Stripe delivery verified
-- [x] Android source regenerated and verified as 5.9.30/build 50930, API 36
+- [x] Production 5.9.31, reliable web-session handoff, five-destination desktop/mobile workspace, resumable Project conversations, named recent-work continuation, one-click Project continuity, crawlable workflow pages, truthful referral-copy handling, canonical native API host, and direct signed Stripe delivery verified
+- [x] Android source regenerated and verified as 5.9.31/build 50931, API 36
 - [x] Store metadata fits current Apple and Google field limits
 - [x] Current Google API-level, AI-reporting, deletion, Data Safety, and app-access rules reviewed
 - [x] Current Apple privacy, reviewer-access, and screenshot requirements reviewed
@@ -34,10 +34,10 @@
 - [ ] Android Firebase, RevenueCat public key, and upload keystore supplied; the hosted Java 21
       release-build path is verified, while local Android Studio still needs a compatible JDK
 - [ ] iOS source generated, signed, and archived on macOS
-- [x] No-upload GitHub macOS source/Release compile verification passed for 5.9.30 before signing
-      credentials were added ([run 33129397539](https://github.com/CRUMP-AI/AskCrump/actions/runs/33129397539), 2026-08-27)
+- [x] No-upload GitHub macOS source/Release compile verification passed for 5.9.31 before signing
+      credentials were added ([run 33130217560](https://github.com/CRUMP-AI/AskCrump/actions/runs/33130217560), 2026-08-27)
 - [x] No-upload GitHub Java 21 Android App Bundle verification passed before signing credentials
-      were added ([run 33129397531](https://github.com/CRUMP-AI/AskCrump/actions/runs/33129397531), 2026-08-27)
+      were added ([run 33130217571](https://github.com/CRUMP-AI/AskCrump/actions/runs/33130217571), 2026-08-27)
 - [ ] Exact signed builds pass the physical-device, billing, privacy, and console gates
 
 See `docs/STORE_READINESS_AUDIT_2026-08-27.md` for evidence, blockers, and official references.
