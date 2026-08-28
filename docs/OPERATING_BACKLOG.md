@@ -30,6 +30,7 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 | Recoverable first reply | Commit `4804fc4`; deployment `dpl_HgAo8qwFh1gzroqUE47SrDFqxTnf`; production 5.9.44 applies one bounded transport to both fallback and primary runtimes, covering usage, acknowledgement, reply, and response parsing. A real-primary-runtime fixture proved the old reply stalled forever and ignored a second Send; the corrected path aborted locally, reconciled the existing owner-scoped idempotent job, rendered its persisted answer, and accepted a second message. A separate acknowledgement stall exposed visible retry and completed safely. The authenticated no-store status route filters user plus message ID; schema/RLS, usage, credits, providers, pricing, entitlements, analytics, and payments remain unchanged. All 347 tests, lint, 43 JavaScript validations, production/native/store checks, CI run `33141840340`, Android run `33141840370`, and iOS run `33141840430` passed. Production health returned 5.9.44; live changed assets/cache returned 200; the one-hour scan had no runtime error cluster or warning/error/fatal log. No production login, message, generation, Project, account, payment, or synthetic event was created. | Verified delivery; activation outcome pending |
 | Recoverable authentication requests | Commit `0012a30`; deployment `dpl_3QsniFHTrMSACqNWPf7DzNqMckJ2`; production 5.9.45 applies one bounded transport through response parsing to registration, verification-email resend, password recovery/reset, terms acceptance, profile save, session checks, login, logout, and native push-registration cleanup. A registration-stall fixture proved the old permanently disabled `Creating account…` state; the corrected path restores the action with truthful uncertain-outcome guidance. A login-response-stall fixture proved the web client can reconcile a session issued before the response connection stalls. Auth policy, cookies, schema/RLS, pricing, entitlements, analytics, and payments remain unchanged. All 352 tests, lint, 44 JavaScript validations, production/native/store checks, CI run `33142697258`, Android run `33142697156`, and iOS run `33142697157` passed. Production health returned 5.9.45; live assets/cache returned 200; the one-hour scan had no runtime error cluster or warning/error/fatal log. No production login, account, event, message, Project, or payment was created. | Verified delivery; human proof pending |
 | Complete signup milestone delivery | Commit `6c3e546`; deployment `dpl_9Mn5E1AtiiNL1FKN345Ag6gF5LkL`; production 5.9.46 closes a deterministic measurement gap in which valid password-manager/autofill values could reach `SignupSubmitted` without emitting `SignupCredentialsReady`. Shared one-time helpers now guarantee the ordered `SignupStarted` → `SignupCredentialsReady` → `SignupSubmitted` sequence on valid typed and autofilled submissions. The payload remains content-free and excludes email/password values; registration, verification, auth, schema/RLS, pricing, entitlements, server analytics, and payments are unchanged. A real-controller loopback fixture proved the pre-fix omission and both corrected paths exactly once. All 353 tests, lint, 44 JavaScript validations, production/native/store checks, CI run `33143365291`, Android run `33143365303`, and iOS run `33143365301` passed. Production health returned 5.9.46; live controller/cache assets returned 200; the initial scan had no runtime error cluster or warning/error/fatal log. No production signup, account, event, login, message, Project, or payment was created. | Verified measurement; conversion outcome pending |
+| Recoverable verification-link return | Commit `a3ae2de`; deployment `dpl_EBxtmgbDcy7y7yeEhijKBvNHMbU8`; production 5.9.47 turns an invalid, expired, already-used, or scanner-consumed verification-link result into an actionable recovery state. The signed-out screen focuses the email field, exposes the existing resend control, and truthfully offers sign-in when verification may already have completed; its generic resend result preserves account-state privacy. Token lifetime, single-use semantics, auth policy, schema/RLS, pricing, entitlements, analytics, and payments remain unchanged. A real-controller loopback fixture proved the old dead end and the corrected recovery path without a production account or token. All 354 tests, lint, 44 JavaScript validations, production/native/store checks, CI run `33143924537`, Android run `33143924544`, and iOS run `33143924530` passed. Production health returned 5.9.47; live app/controller/cache assets returned 200; the initial scan had no runtime error cluster or warning/error/fatal log. | Verified delivery; activation outcome pending |
 | Crump Voice private foundation | Explicit signed-in playback route, Professional entitlement, rate/character/audio limits, provider-failure refund, server-held ElevenLabs key, non-cacheable ephemeral MP3 response, and device-speech fallback are implemented. Public feature flag remains off pending approved disclosure, credentials/voice rights, and smoke tests. | Staged, disabled |
 | Private conversation-to-Project continuity | Commit `e99fc1f`; production 5.9.22 puts `Keep in a Project` directly on the latest result, reducing durable-work preservation from two commitments to one. The existing server route synchronizes and ownership-checks the chat, attaches idempotently to the selected/new Project, and records only a content-free Project milestone. All 285 tests, backend lint/compile checks, 40 JavaScript validations, production preflight, and native web-bundle build passed. Live health and version checks returned HTTP 200, the deployed client contained the direct action, and the deployment-scoped error/fatal scan was empty. | Verified |
 | Comparable growth-cohort boundary | Supabase migration `product_growth_measurement_boundary`; live first-event evidence fixes the lower bound at `2026-08-23 09:10:55.602863+00`; the 30-day report now returns 18 metrics and zero comparable external accounts instead of misclassifying three historical accounts. The function remains security invoker, `anon`/`authenticated` execution is denied, `service_role` execution succeeds, and post-change advisors reported no errors or warnings. | Verified |
@@ -183,6 +184,15 @@ compiles passed; the initial production scan had no runtime error cluster or war
 No production signup, account, event, login, message, Project, or payment was created, so conversion
 impact remains unproven.
 
+The 5.9.47 verification-link recovery release then corrected a second-click/security-scanner dead
+end without weakening the single-use server token policy. The failed return now focuses the email
+field, exposes the existing resend control, and offers sign-in when verification may already have
+completed. A real-controller loopback fixture proved the pre-fix dead end and generic recovery result.
+Production health and the live app/controller/service-worker assets returned 200; CI and both hosted
+unsigned native compiles passed; the initial one-hour scan had no runtime error cluster or
+warning/error/fatal log. No production signup, account, verification, event, login, message, Project,
+or payment was created, so activation impact remains unproven.
+
 ### Current monetization checkpoint
 
 A live Stripe reconciliation on 2026-08-27 found five active catalog products and no transactions,
@@ -331,7 +341,10 @@ issued before a login response stalls. No comparable external account has yet be
 the repair. A follow-on autofill fixture then proved that a valid submit could omit
 `SignupCredentialsReady`; production 5.9.46 now guarantees the complete one-time ordered milestone
 sequence without changing signup behavior. The release evidence is recorded in
-`docs/SIGNUP_MILESTONE_DELIVERY_RELEASE_2026-08-28.md`.
+`docs/SIGNUP_MILESTONE_DELIVERY_RELEASE_2026-08-28.md`. A failed or reused verification return could
+still strand a legitimate user after an email scanner or second click; production 5.9.47 now exposes
+the existing privacy-preserving resend path and sign-in guidance without changing token or auth
+policy. Its evidence is recorded in `docs/VERIFICATION_LINK_RECOVERY_RELEASE_2026-08-28.md`.
 
 **Outcome:** a weekly operating review of account creation → workspace open → starter intent →
 activation → durable value → useful outcome → return/share → checkout → paid.
@@ -361,13 +374,13 @@ rate without platform impression data.
 
 ### P1 — Prepare native store distribution without premature submission
 
-**Evidence:** production 5.9.46 is healthy; the Android release source regenerates as build 50946
+**Evidence:** production 5.9.47 is healthy; the Android release source regenerates as build 50947
 with API 36, the permanent package ID, generated assets, cleartext/backup protections, and a passing
 native source verifier. Structured en-US metadata passes current field limits. A reviewed Node 22
 lockfile now supports clean `npm ci`, a zero-vulnerability npm audit, and deterministic Android
-preparation from an isolated worktree. GitHub run `33143365301` generated the 5.9.46 iOS project and
+preparation from an isolated worktree. GitHub run `33143924530` generated the 5.9.47 iOS project and
 compiled its unsigned Release configuration on hosted macOS with no signing or upload credentials.
-GitHub run `33143365303` generated the 5.9.46/build 50946 Android project under Java 21, passed the
+GitHub run `33143924544` generated the 5.9.47/build 50947 Android project under Java 21, passed the
 native and signing-control verifiers, compiled `bundleRelease`, and confirmed a non-empty unsigned
 `.aab`, also with no signing or upload credentials. Firebase, RevenueCat public keys/products,
 signing credentials,
@@ -420,7 +433,7 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
-Complete the owner-run sign-out and manual credential-entry proof on production 5.9.46. Submit the live canonical
+Complete the owner-run sign-out and manual credential-entry proof on production 5.9.47. Submit the live canonical
 sitemap after owner confirmation, allow the social-preview experiment to reach its minimum
 observation window, then obtain the first consented post-instrumentation account, durable-value,
 return, referral, and artifact-journey observations. Observe the first real checkout and reconcile

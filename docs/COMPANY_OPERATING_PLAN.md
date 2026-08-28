@@ -203,6 +203,12 @@ provider, privacy, cost, or security gate is incomplete.
   email, resend recovery, delivery/network feedback, and verified-to-sign-in action persist. The
   same state recovers an account created before initial email delivery failed. No auth policy,
   backend verification mechanic, production account, or synthetic event was introduced.
+- **Verification-link recovery:** Production 5.9.47 turns a failed, expired, already-used, or
+  scanner-consumed verification return into an actionable signed-out state. It focuses the email
+  field, exposes the existing generic resend action, and offers sign-in when verification may already
+  have completed. A real-controller loopback fixture proved the prior dead end and correction; token
+  lifetime, single-use semantics, backend verification, auth policy, and account-state privacy remain
+  unchanged.
 - **First-workspace entry:** Production 5.9.38 starts the task-oriented workspace immediately after
   the unchanged server-saved terms gate, even when a new account has no display name. Name setup is
   now optional and dismissible, while completion measurement remains server-authoritative. The
@@ -252,7 +258,7 @@ provider, privacy, cost, or security gate is incomplete.
   Professional price ID matches the production fallback. Both live webhook destinations now use
   direct `www` handlers and returned 200 to signed harmless replays. Their original three-event and
   one-event scopes are restored; no price, product, customer, tax setting, payment, or secret changed.
-- **Product experience direction:** production 5.9.46 builds on the first staged, owner-approved
+- **Product experience direction:** production 5.9.47 builds on the first staged, owner-approved
   reorganization around Ask, Projects, Create, Library, and You on desktop and mobile. It preserves
   existing data, routes, entitlements, and working capabilities behind a local rollback switch.
   Projects now surface their saved conversations through an owner-scoped, content-free resume path.
@@ -267,10 +273,10 @@ provider, privacy, cost, or security gate is incomplete.
   production 5.9.27; observe and reconcile the first real checkout rather than broadening scope.
 - **External input needed:** an ElevenLabs production API key and voice ID with confirmed rights.
 - **Next evidence:** complete fresh owner credential entry after explicit sign-out on production
-  5.9.46, submit the sitemap after owner confirmation, then obtain the first legitimate
+  5.9.47, submit the sitemap after owner confirmation, then obtain the first legitimate
   post-instrumentation acquisition, durable-value, return, and artifact-journey observations.
-- **Native distribution:** Android 5.9.46/build 50946 source and an unsigned `.aab` pass the hosted
-  API 36/Java 21 release audit in run `33143365303`; the generated iOS 5.9.46 Release configuration
-  passes its hosted macOS compile in run `33143365301`. Owner-controlled developer accounts,
+- **Native distribution:** Android 5.9.47/build 50947 source and an unsigned `.aab` pass the hosted
+  API 36/Java 21 release audit in run `33143924544`; the generated iOS 5.9.47 Release configuration
+  passes its hosted macOS compile in run `33143924530`. Owner-controlled developer accounts,
   signing, push, native billing, reviewer access,
   signed-device tests, screenshots, declarations, and final submission approval remain open.
