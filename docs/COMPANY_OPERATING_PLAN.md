@@ -1,6 +1,6 @@
 # Ask Crump company operating plan
 
-Last updated: 2026-08-27
+Last updated: 2026-08-28
 Owner and final authority: Greg Crump
 
 ## Mission and operating thesis
@@ -70,7 +70,10 @@ next constraint.
 
 ### Product and reliability
 
-- Keep conversational document delivery and presentation exports under production observation.
+- Keep conversational document delivery and the 5.9.58 presentation visual-rhythm correction under
+  production observation.
+- Observe the first legitimate 5.9.58 presentation through request, packaging, download, and a
+  consented audience/decision review; do not infer quality lift from the internal render audit.
 - Make private conversation-to-Project continuity the primary action after a user confirms that a
   result was useful; keep referral sharing secondary to retention.
 - Obtain the first real artifact journey and reconcile requested, packaged, failed, and downloaded
