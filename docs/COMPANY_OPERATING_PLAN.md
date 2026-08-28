@@ -70,12 +70,14 @@ next constraint.
 
 ### Product and reliability
 
-- Keep conversational document delivery and the 5.9.58 presentation visual-rhythm correction under
-  production observation.
+- Keep conversational document delivery, the 5.9.58 presentation visual-rhythm correction, and
+  the 5.9.59 labeled Chats navigation under production observation.
 - Observe the first legitimate 5.9.58 presentation through request, packaging, download, and a
   consented audience/decision review; do not infer quality lift from the internal render audit.
 - Make private conversation-to-Project continuity the primary action after a user confirms that a
   result was useful; keep referral sharing secondary to retention.
+- Observe whether legitimate returning desktop users now find Chats without instruction and resume
+  useful work; retain content-free measurement and do not infer lift from the owner report alone.
 - Obtain the first real artifact journey and reconcile requested, packaged, failed, and downloaded
   counts by aggregate artifact category.
 - Conduct three to five moderated activation sessions using legitimate external accounts; record
