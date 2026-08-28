@@ -141,7 +141,10 @@
       window.initializeApp?.();
       appStarted = true;
     }
-    if (activeUser) window.initializeAuthenticatedApp?.(activeUser);
+    if (activeUser) {
+      window.initializeAuthenticatedApp?.(activeUser);
+      window.dispatchEvent(new Event('crump:authenticated-ready'));
+    }
     if (activeUser) {
       const day = new Date().toISOString().slice(0, 10);
       void window.CrumpAnalytics?.track('WorkspaceOpened', {eventKey: `workspace-open:${day}`});

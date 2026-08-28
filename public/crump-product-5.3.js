@@ -1876,6 +1876,7 @@
   }
 
   let rendererWrapped = false;
+  let authenticatedHydrationStarted = false;
   function wrapManuscriptRenderer() {
     if (rendererWrapped || typeof window.renderMessages !== 'function') return;
     const original = window.renderMessages;
@@ -1887,6 +1888,13 @@
     rendererWrapped = true;
     const chat = (Array.isArray(window.chats) ? window.chats : []).find(item => item.id === window.currentChatId);
     if (chat) enhanceManuscriptHandoffs(chat.messages);
+  }
+
+  function hydrateAuthenticatedState() {
+    if (authenticatedHydrationStarted || !window.currentUser) return;
+    authenticatedHydrationStarted = true;
+    void refreshProjects();
+    void refreshFeatures();
   }
 
   window.CrumpProduct53 = Object.freeze({
@@ -1906,14 +1914,14 @@
     document.addEventListener('keydown', event => {
       if (event.key === 'Escape' && !byId('crump53Studio')?.hidden) closeStudio();
     });
-    void refreshProjects();
-    void refreshFeatures();
+    hydrateAuthenticatedState();
     setTimeout(() => {
       const chat = (Array.isArray(window.chats) ? window.chats : []).find(item => item.id === window.currentChatId);
       if (chat) enhanceManuscriptHandoffs(chat.messages);
     }, 900);
   }
 
+  window.addEventListener('crump:authenticated-ready', hydrateAuthenticatedState);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, {once: true});
   else init();
 })();

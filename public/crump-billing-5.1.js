@@ -466,7 +466,8 @@
     window.showUpgradePrompt = showBillingCenter;
     ownSidebarButton();
     finalizeReturn();
-    refreshBalance();
+    if (window.currentUser) refreshBalance();
+    window.addEventListener('crump:authenticated-ready', refreshBalance);
     window.addEventListener('crump:credits-updated', event => {
       const balance = Number(event.detail?.balance ?? event.detail?.credits?.balance ?? state.credits);
       if (Number.isFinite(balance)) {

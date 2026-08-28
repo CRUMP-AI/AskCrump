@@ -1,5 +1,27 @@
 # Changelog
 
+## 5.9.50 — 2026-08-28
+
+### Authenticated workspace startup boundary
+
+- Projects/Video, Crump Code, Library, and the credits badge now construct their interface without
+  requesting protected account data until the server-confirmed user reaches the workspace.
+- The auth controller announces one explicit `crump:authenticated-ready` boundary after account
+  storage and authenticated application initialization. Each protected surface hydrates from that
+  boundary and also handles a user who was already confirmed before its script finished loading.
+- A signed-out visit now makes only the intended session check instead of five additional requests
+  that must fail with 401. Successful sign-in still hydrates every protected surface immediately.
+
+### Verification and release
+
+- A full local application-shell browser run proved the signed-out state made one session request,
+  zero protected requests, and produced zero script errors. The matched authenticated run opened the
+  workspace and loaded sync, presence, analytics, Projects, feature status, Library, Code
+  availability, and credits after confirmation.
+- Added source contracts for the authentication event ordering and all four protected startup gates.
+- Advanced the application to 5.9.50, native build 50950, and service-worker cache revision 84 so
+  web, installed PWA, and generated native clients receive the authenticated startup boundary.
+
 ## 5.9.49 — 2026-08-28
 
 ### Durable mobile sign-in and PWA wake-up

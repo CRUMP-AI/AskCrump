@@ -1311,7 +1311,7 @@
     }
 
     state.installed = true;
-    void refreshBooks();
+    if (window.currentUser) void refreshBooks();
     return true;
   }
 
@@ -1381,6 +1381,10 @@
     saveMedia,
   });
 
+  window.addEventListener('crump:authenticated-ready', () => {
+    if (state.installed) void refreshBooks();
+    else installWhenReady();
+  });
   installMediaInterception();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installWhenReady, {once: true});
   else installWhenReady();
