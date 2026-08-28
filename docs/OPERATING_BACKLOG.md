@@ -19,6 +19,7 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 | Professional presentation exports | Commit `b98d82a`; dark/light editorial rhythm, executive layouts, improved tables, native editable charts, and strict OOXML chart compatibility; full backend suite, JavaScript validation, production preflight, native build, and a ten-slide render review passed; production health returned HTTP 200 after deployment. | Verified |
 | Private artifact journey telemetry | Commit `f497ab0`; entitled request, successful packaging, packaging failure, and first-download events are server-authoritative and content-free; Supabase migration `artifact_journey` is recorded; anonymous and authenticated roles cannot execute the aggregate report while `service_role` can; 265 backend tests, JavaScript validation, production preflight, production health, and post-deploy runtime checks passed. | Verified |
 | Crump Code private foundation | Commit `018b46c`; deployment `dpl_GjeFNqmhK32QeyQyXKLrDoePxViu`; production 5.9.35 adds a Project-attached review workspace for repository/revision/mode/objective/cost confirmation, task status, explicit approvals, verification, history, cancellation, and patch download. Preparation does not run or charge; the client and server both require explicit run confirmation, and cancellation is checked before each next model/tool step. The Create entry remains hidden unless the server reports configured plus entitled. All 313 tests, lint, 42 JavaScript validations, production/native/store checks, CI run `33134659887`, Android run `33134659984`, and iOS run `33134659934` passed. Production health returned 5.9.35; assets returned 200; the inspected deployment had no runtime error cluster, 5xx, severe log, or `/api/code` request. The feature flag remains off pending the live sandbox/OIDC test, expiry exercise, and benchmark. | Staged, disabled |
+| Clear signup password readiness | Commit `40bbc28`; deployment `dpl_5kDcdWj7KpWHbq9kXrjDJacQjESV`; production 5.9.36 replaces a late static password hint with three live, visible rule states plus a polite screen-reader status and post-review invalid state. The unchanged policy remains ten to 256 characters with a letter and number; auth, verification, pricing, and analytics semantics did not change. All 314 tests, lint, 42 JavaScript validations, production/native/store checks, CI run `33135663864`, Android run `33135663895`, and iOS run `33135663885` passed. Production health returned 5.9.36; the app and changed assets returned 200; the inspected release had no runtime error cluster, severe log, or 5xx. Local desktop/short-phone states had no overflow and no production event or account creation. Signup lift remains unproven. | Verified delivery; outcome pending |
 | Crump Voice private foundation | Explicit signed-in playback route, Professional entitlement, rate/character/audio limits, provider-failure refund, server-held ElevenLabs key, non-cacheable ephemeral MP3 response, and device-speech fallback are implemented. Public feature flag remains off pending approved disclosure, credentials/voice rights, and smoke tests. | Staged, disabled |
 | Private conversation-to-Project continuity | Commit `e99fc1f`; production 5.9.22 puts `Keep in a Project` directly on the latest result, reducing durable-work preservation from two commitments to one. The existing server route synchronizes and ownership-checks the chat, attaches idempotently to the selected/new Project, and records only a content-free Project milestone. All 285 tests, backend lint/compile checks, 40 JavaScript validations, production preflight, and native web-bundle build passed. Live health and version checks returned HTTP 200, the deployed client contained the direct action, and the deployment-scoped error/fatal scan was empty. | Verified |
 | Comparable growth-cohort boundary | Supabase migration `product_growth_measurement_boundary`; live first-event evidence fixes the lower bound at `2026-08-23 09:10:55.602863+00`; the 30-day report now returns 18 metrics and zero comparable external accounts instead of misclassifying three historical accounts. The function remains security invoker, `anon`/`authenticated` execution is denied, `service_role` execution succeeds, and post-change advisors reported no errors or warnings. | Verified |
@@ -77,6 +78,13 @@ hidden behind configured-plus-entitled server state, and the inspected deploymen
 error cluster, 5xx response, warning/error/fatal log, or `/api/code` request. Local browser evidence
 proved the disabled state and the review-confirmation gate without creating a production task or
 charge.
+
+The 5.9.36 signup-guidance release then corrected a reproducible pre-submit clarity defect without
+changing authentication. A short-phone browser check proved independent length/letter/number states,
+polite status text, post-review invalid state, no horizontal or vertical overflow, and an above-fold
+primary action. Production health and the app/release assets returned 200; the inspected deployment
+had no runtime error cluster, warning/error/fatal log, or 5xx response. No production signup event
+was generated, so delivery is verified while conversion impact remains unproven.
 
 ### Current monetization checkpoint
 
@@ -252,13 +260,13 @@ rate without platform impression data.
 
 ### P1 — Prepare native store distribution without premature submission
 
-**Evidence:** production 5.9.35 is healthy; the Android release source regenerates as build 50935
+**Evidence:** production 5.9.36 is healthy; the Android release source regenerates as build 50936
 with API 36, the permanent package ID, generated assets, cleartext/backup protections, and a passing
 native source verifier. Structured en-US metadata passes current field limits. A reviewed Node 22
 lockfile now supports clean `npm ci`, a zero-vulnerability npm audit, and deterministic Android
-preparation from an isolated worktree. GitHub run `33134659934` generated the 5.9.35 iOS project and
+preparation from an isolated worktree. GitHub run `33135663885` generated the 5.9.36 iOS project and
 compiled its unsigned Release configuration on hosted macOS with no signing or upload credentials.
-GitHub run `33134659984` generated the 5.9.35/build 50935 Android project under Java 21, passed the
+GitHub run `33135663895` generated the 5.9.36/build 50936 Android project under Java 21, passed the
 native and signing-control verifiers, compiled `bundleRelease`, and confirmed a non-empty unsigned
 `.aab`, also with no signing or upload credentials. Firebase, RevenueCat public keys/products,
 signing credentials,
