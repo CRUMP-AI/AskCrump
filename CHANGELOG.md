@@ -1,5 +1,23 @@
 # Changelog
 
+## 5.9.40 — 2026-08-27
+
+### Truthful first prompt
+
+- Preserved an existing composer draft when the user chooses Research, Image, or Code. The selected
+  mode now prefixes the draft once instead of replacing the user's work.
+- Dispatched the real composer input event after programmatic mode changes so send-state styling,
+  body state, and textarea sizing agree with the visible prompt.
+- Stopped bare mode scaffolds before usage checks or chat mutation and returned focused, specific
+  guidance instead of allowing an incomplete request to consume product resources.
+- Kept file selection, starter-intent measurement, authentication, pricing, entitlement, and
+  backend routing unchanged.
+
+### Verification and release
+
+- Advanced the application to 5.9.40, native build 50940, and service-worker cache revision 74 so
+  web and installed clients receive the composer handoff correction together.
+
 ## 5.9.39 — 2026-08-27
 
 ### Reliable first action

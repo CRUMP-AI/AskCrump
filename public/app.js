@@ -45,6 +45,11 @@ window.chats = chats;
 window.currentChatId = currentChatId;
 window.STORAGE_KEYS = STORAGE_KEYS;
 const previewObjectUrls = new Set();
+const COMPOSER_SCAFFOLDS = Object.freeze({
+    image: 'Generate an image of ',
+    research: 'Search the web for ',
+    code: 'Help me with code: ',
+});
 
 function asTimestamp(value) {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -584,6 +589,18 @@ async function sendMessage() {
     const userInput = document.getElementById('userInput');
     const message = userInput?.value.trim() || '';
     if (!message && selectedFiles.length === 0) return;
+    const incompleteScaffold = Object.entries(COMPOSER_SCAFFOLDS)
+        .find(([, scaffold]) => message.toLowerCase() === scaffold.trim().toLowerCase());
+    if (incompleteScaffold) {
+        const guidance = {
+            image: 'Add what you want Crump to create.',
+            research: 'Add what you want Crump to research.',
+            code: 'Add what you want Crump to help build or debug.',
+        }[incompleteScaffold[0]];
+        showToast(guidance, 'info');
+        userInput?.focus({ preventScroll: true });
+        return;
+    }
     const chat = chats.find(item => item.id === currentChatId);
     if (!chat) return;
     isProcessing = true;
@@ -941,19 +958,32 @@ window.stopSpeaking = function() {
 };
 
 // Quick Actions
+function primeComposer(scaffold) {
+    const input = document.getElementById('userInput');
+    if (!input) return false;
+    const draft = input.value.trim();
+    const normalizedScaffold = scaffold.trim().toLowerCase();
+    const normalizedDraft = draft.toLowerCase();
+    const alreadyPrimed = normalizedDraft === normalizedScaffold
+        || normalizedDraft.startsWith(`${normalizedScaffold} `);
+    if (!draft) input.value = scaffold;
+    else if (!alreadyPrimed) input.value = `${scaffold}${draft}`;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus({ preventScroll: true });
+    input.setSelectionRange?.(input.value.length, input.value.length);
+    return true;
+}
+
 window.triggerImageGeneration = function() {
-    document.getElementById('userInput').value = 'Generate an image of ';
-    document.getElementById('userInput').focus();
+    return primeComposer(COMPOSER_SCAFFOLDS.image);
 };
 
 window.triggerWebSearch = function() {
-    document.getElementById('userInput').value = 'Search the web for ';
-    document.getElementById('userInput').focus();
+    return primeComposer(COMPOSER_SCAFFOLDS.research);
 };
 
 window.triggerCodeHelp = function() {
-    document.getElementById('userInput').value = 'Help me with code: ';
-    document.getElementById('userInput').focus();
+    return primeComposer(COMPOSER_SCAFFOLDS.code);
 };
 
 // Settings

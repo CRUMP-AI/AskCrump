@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Composer mode handoff fixture</title>
+</head>
+<body>
+  <div id="appContainer" style="display:flex">
+    <section id="v1Launchpad">
+      <button id="focusStarter" type="button" data-v1-command="focus">Think with Crump</button>
+      <button id="researchStarter" type="button" data-v1-command="research">Research something</button>
+      <button id="imageStarter" type="button" data-v1-command="image">Create an image</button>
+      <button id="fileStarter" type="button" data-v1-command="file">Analyze a file</button>
+    </section>
+    <div id="chatContainer"></div>
+    <div id="chatsList"></div>
+    <div class="input-container">
+      <textarea id="userInput" placeholder="Message Crump"></textarea>
+      <button id="sendButton" type="button">Send</button>
+    </div>
+    <button id="attachBtn" type="button">Attach</button>
+    <input id="fileInput" type="file" hidden>
+    <button id="searchQuickAction" type="button">Search</button>
+    <button id="imageQuickAction" type="button">Image</button>
+    <button id="codeQuickAction" type="button">Code</button>
+  </div>
+  <script>
+    window.SafeStorage = {
+      getItem(key) { return localStorage.getItem(key); },
+      setItem(key, value) { localStorage.setItem(key, value); },
+    };
+    window.__filePickerClicks = 0;
+    window.__lastToast = null;
+    window.CrumpAnalytics = { track() { return Promise.resolve(true); } };
+    window.showToast = (message, tone) => { window.__lastToast = { message, tone }; };
+  </script>
+  <script src="/public/app.js"></script>
+  <script>
+    document.getElementById('searchQuickAction').addEventListener('click', () => window.triggerWebSearch());
+    document.getElementById('imageQuickAction').addEventListener('click', () => window.triggerImageGeneration());
+    document.getElementById('codeQuickAction').addEventListener('click', () => window.triggerCodeHelp());
+    document.getElementById('attachBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+    document.getElementById('fileInput').addEventListener('click', () => { window.__filePickerClicks += 1; });
+  </script>
+  <script src="/public/crump-v1-body.js"></script>
+</body>
+</html>
