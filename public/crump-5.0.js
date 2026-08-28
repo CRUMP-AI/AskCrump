@@ -946,6 +946,16 @@
   });
   window.CrumpDocumentStudio = Object.freeze({
     open: showDocumentOptions,
+    select: (format = 'docx', placeholder = '') => {
+      state.tool = 'document';
+      state.documentFormat = String(format || 'docx').toLowerCase();
+      closeMenu();
+      renderToolChip();
+      focusComposer(placeholder || `Describe the ${state.documentFormat.toUpperCase()} document you want…`);
+    },
+  });
+  window.CrumpImageStudio = Object.freeze({
+    open: showImageOptions,
   });
   function boot() {
     if (document.documentElement.dataset.crump50Booted === 'true') return;

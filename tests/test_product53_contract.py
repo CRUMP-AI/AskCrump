@@ -14,7 +14,7 @@ def test_product53_runtime_is_registered_last_and_cached():
     assert "/crump-product-5.3.css" in runtime
     assert "/crump-product-5.3.js" in runtime
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r63" in worker
+    assert "ask-crump-new-body-v1-r64" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 
@@ -166,9 +166,12 @@ def test_native_bundle_loads_the_same_product_layers_as_the_web_runtime():
         "/crump-subscriptions-5.3.2.js",
         "/crump-polish-5.6.css",
         "/crump-polish-5.6.js",
+        "/crump-navigation-5.9.30.css",
+        "/crump-navigation-5.9.30.js",
     ):
         assert asset in native
     assert native.index("/crump-navigation-5.2.5.js") < native.index("/crump-product-5.3.js")
+    assert native.index("/crump-library-5.7.js") < native.index("/crump-navigation-5.9.30.js")
 
 
 def test_manuscript_ui_exposes_planning_progress_and_chat_handoff():

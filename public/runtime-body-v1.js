@@ -85,9 +85,12 @@ window.CRUMP_CONFIG = Object.freeze({
     await loadStyle('/crump-product-5.3.1.css', 'crumpproduct531');
     await loadStyle('/crump-polish-5.6.css', 'crumppolish56');
     await loadStyle('/crump-library-5.7.css', 'crumplibrary57');
-    // Keep the stability layer last. Its mobile viewport and editor rules must
-    // win over every feature stylesheet, including dynamically rendered tools.
+    // Keep the stability layer after every tool stylesheet so its mobile viewport
+    // and editor rules win over dynamically rendered feature controls.
     await loadStyle('/crump-v1-stability.css', 'crumpv1stability');
+    // The five-destination information architecture is the final visual layer.
+    // It reorganizes navigation without changing the underlying product surfaces.
+    await loadStyle('/crump-navigation-5.9.30.css', 'crumpnav5930');
 
     for (const [url, key] of scripts) {
       await loadScript(url, key);
@@ -100,6 +103,7 @@ window.CRUMP_CONFIG = Object.freeze({
     await loadScript('/crump-subscriptions-5.3.2.js', 'crumpsubscriptions532');
     await loadScript('/crump-polish-5.6.js', 'crumppolish56');
     await loadScript('/crump-library-5.7.js', 'crumplibrary57');
+    await loadScript('/crump-navigation-5.9.30.js', 'crumpnav5930');
 
     document.documentElement.dataset.crumpBodyRuntime = 'ready';
     window.dispatchEvent(new CustomEvent('crump:body-runtime-ready'));

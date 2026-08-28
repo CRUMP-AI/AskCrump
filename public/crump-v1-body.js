@@ -480,6 +480,8 @@
     document.documentElement.dataset.crumpBodyV1 = 'ready';
   }
 
+  window.CrumpBodyV1 = Object.freeze({command});
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot, {once: true});
   } else {
