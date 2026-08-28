@@ -41,6 +41,7 @@ let currentChatId = null;
 let currentProfile = null;
 let selectedFiles = [];
 let isProcessing = false;
+let freshConversationRequested = false;
 window.chats = chats;
 window.currentChatId = currentChatId;
 window.STORAGE_KEYS = STORAGE_KEYS;
@@ -76,6 +77,12 @@ function normalizeLocalChat(chat) {
         updatedAt: chat?.updated_at || chat?.updatedAt || chat?.created_at || chat?.createdAt || new Date().toISOString(),
         revision: Math.max(1, Number(chat?.revision || 1)),
     };
+}
+
+function isPristineChat(chat) {
+    const title = String(chat?.title || 'New conversation').trim().toLowerCase();
+    return (!Array.isArray(chat?.messages) || chat.messages.length === 0) &&
+        (!title || title === 'new conversation');
 }
 
 // Authenticated lifecycle
@@ -265,7 +272,10 @@ function loadChats() {
         ? window.__crumpSyncData.chats
         : [];
     const source = prefetched.length ? prefetched : local;
-    chats = source.filter(chat => !(chat?.deleted_at || chat?.deletedAt)).map(normalizeLocalChat).sort((a, b) => asTimestamp(b.updatedAt) - asTimestamp(a.updatedAt));
+    chats = source
+        .filter(chat => !(chat?.deleted_at || chat?.deletedAt) && !isPristineChat(chat))
+        .map(normalizeLocalChat)
+        .sort((a, b) => asTimestamp(b.updatedAt) - asTimestamp(a.updatedAt));
     window.chats = chats;
     SafeStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
     renderChatsList();
@@ -289,6 +299,13 @@ window.replaceChats = function replaceChats(nextChats) {
     window.chats = chats;
     SafeStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(chats));
     renderChatsList();
+    if (freshConversationRequested) {
+        currentChatId = null;
+        window.currentChatId = null;
+        SafeStorage.removeItem(STORAGE_KEYS.CURRENT_CHAT);
+        window.renderMessages?.([]);
+        return;
+    }
     const preferred = chats.find(chat => chat.id === activeId) || chats[0];
     if (preferred) {
         currentChatId = preferred.id;
@@ -303,10 +320,10 @@ window.replaceChats = function replaceChats(nextChats) {
     }
 };
 
-function createNewChat({ sync = true } = {}) {
+function newChatRecord() {
     const now = new Date().toISOString();
     const id = crypto.randomUUID();
-    const chat = {
+    return {
         id,
         chat_id: id,
         title: 'New Conversation',
@@ -315,11 +332,13 @@ function createNewChat({ sync = true } = {}) {
         updatedAt: now,
         revision: 1,
     };
-    chats.unshift(chat);
-    currentChatId = id;
-    window.currentChatId = id;
-    saveChats({ sync });
-    SafeStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, id);
+}
+
+function beginFreshConversation() {
+    freshConversationRequested = true;
+    currentChatId = null;
+    window.currentChatId = null;
+    SafeStorage.removeItem(STORAGE_KEYS.CURRENT_CHAT);
     renderChatsList();
     window.renderMessages?.([]);
     closeConversationMenu();
@@ -330,36 +349,34 @@ function createNewChat({ sync = true } = {}) {
     }
 }
 
-function openFreshConversationAtStartup() {
-    const starter = chats.find(chat =>
-        String(chat?.title || '').trim().toLowerCase() === 'new conversation' &&
-        Array.isArray(chat?.messages) &&
-        chat.messages.length === 0
-    );
-    if (!starter) {
-        // Authentication immediately runs the authoritative pull/merge/push
-        // sequence. Persist the starter locally, but do not schedule a second
-        // blind push while that first synchronization may still be pulling.
-        createNewChat({ sync: false });
-        return;
-    }
+function ensureCurrentChat() {
+    const active = chats.find(item => item.id === currentChatId);
+    if (active) return active;
 
-    // Reuse a pristine starter instead of accumulating empty history rows on
-    // every reload, and promote it to the top of the conversation list.
-    touchChat(starter);
-    chats.sort((a, b) => asTimestamp(b.updatedAt) - asTimestamp(a.updatedAt));
-    saveChats({ sync: false });
-    loadChat(starter.id);
-    const input = document.getElementById('userInput');
-    if (input) {
-        input.value = '';
-        input.focus();
-    }
+    const chat = newChatRecord();
+    chats.unshift(chat);
+    window.chats = chats;
+    currentChatId = chat.id;
+    window.currentChatId = chat.id;
+    freshConversationRequested = false;
+    return chat;
+}
+
+function createNewChat() {
+    beginFreshConversation();
+}
+
+function openFreshConversationAtStartup() {
+    // A fresh desk is presentation state, not durable conversation data. The
+    // first real message materializes the draft through ensureCurrentChat().
+    // This prevents each newly signed-in device from syncing its own blank row.
+    beginFreshConversation();
 }
 
 function loadChat(chatId) {
     const chat = chats.find(item => item.id === chatId);
     if (!chat) return;
+    freshConversationRequested = false;
     currentChatId = chatId;
     window.currentChatId = chatId;
     SafeStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, chatId);
@@ -446,6 +463,7 @@ function renderChatsList() {
 window.renderChatsList = renderChatsList;
 window.loadChat = loadChat;
 window.createNewChat = createNewChat;
+window.ensureCurrentChat = ensureCurrentChat;
 
 // Message delivery and response lifecycle.
 function messageId() {
@@ -617,8 +635,7 @@ async function sendMessage() {
         userInput?.focus({ preventScroll: true });
         return;
     }
-    const chat = chats.find(item => item.id === currentChatId);
-    if (!chat) return;
+    let chat = chats.find(item => item.id === currentChatId) || null;
     isProcessing = true;
     let userMessage = null;
 
@@ -629,6 +646,7 @@ async function sendMessage() {
             const file = selectedFiles[0];
             attachment = { type: file.type, name: file.name, data: await readFileAsBase64(file) };
         }
+        chat = chats.find(item => item.id === currentChatId) || ensureCurrentChat();
 
         userMessage = {
             id: messageId(),

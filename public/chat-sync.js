@@ -33,6 +33,12 @@
     revision: Number(chat.revision || 1),
   });
 
+  const isPristineChat = chat => {
+    const title = String(chat?.title || 'New conversation').trim().toLowerCase();
+    return (!Array.isArray(chat?.messages) || chat.messages.length === 0) &&
+      (!title || title === 'new conversation');
+  };
+
   const messageKey = (message, index = 0) => {
     const inReplyTo = message?.inReplyTo || message?.in_reply_to;
     if (message?.role === 'assistant' && inReplyTo) return `reply:${inReplyTo}`;
@@ -134,6 +140,7 @@
     const map = new Map();
 
     for (const local of localRows || []) {
+      if (isPristineChat(local)) continue;
       const chat = normalizedChat(local);
       if (chat.id) map.set(chat.id, chat);
     }
@@ -142,6 +149,7 @@
     const localTombstones = new Map(deleted.map(item => [item.id || item.chat_id, item]));
 
     for (const row of serverRows || []) {
+      if (isPristineChat(row)) continue;
       const id = row.chat_id || row.id;
       if (!id) continue;
 
@@ -220,7 +228,7 @@
     try { local = JSON.parse(SafeStorage.getItem(STORAGE_KEYS.CHATS) || '[]'); } catch (_) {}
 
     const payload = {
-      chats: local.map(chat => ({
+      chats: local.filter(chat => !isPristineChat(chat)).map(chat => ({
         chat_id: chat.chat_id || chat.id,
         title: chat.title || 'New conversation',
         messages: Array.isArray(chat.messages) ? chat.messages : [],

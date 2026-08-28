@@ -24,13 +24,13 @@ def test_changed_sync_manager_is_release_versioned_and_network_first():
     shell = (PUBLIC / "app.html").read_text(encoding="utf-8")
     worker = (PUBLIC / "sw.js").read_text(encoding="utf-8")
 
-    assert '"version": "5.9.64"' in package
-    assert '<script defer src="/sync-manager.js?v=5.9.64"></script>' in shell
-    assert "'/sync-manager.js?v=5.9.64'" in worker
-    assert '<script defer src="/presence-manager.js?v=5.9.64"></script>' in shell
-    assert "'/presence-manager.js?v=5.9.64'" in worker
-    assert '<script defer src="/chat-sync.js?v=5.9.64"></script>' in shell
-    assert "'/chat-sync.js?v=5.9.64'" in worker
+    assert '"version": "5.9.65"' in package
+    assert '<script defer src="/sync-manager.js?v=5.9.65"></script>' in shell
+    assert "'/sync-manager.js?v=5.9.65'" in worker
+    assert '<script defer src="/presence-manager.js?v=5.9.65"></script>' in shell
+    assert "'/presence-manager.js?v=5.9.65'" in worker
+    assert '<script defer src="/chat-sync.js?v=5.9.65"></script>' in shell
+    assert "'/chat-sync.js?v=5.9.65'" in worker
     assert "url.pathname === '/sync-manager.js'" in worker
 
 
@@ -44,7 +44,7 @@ def test_failed_push_keeps_the_queue_and_returns_a_retryable_result():
     assert flush.index("write(key, [])") > flush.index("if (response.ok && data.success)")
 
 
-def test_startup_starter_does_not_schedule_a_second_blind_push():
+def test_startup_draft_does_not_persist_or_schedule_a_blind_push():
     app = (PUBLIC / "app.js").read_text(encoding="utf-8")
 
     create_chat = app[
@@ -53,12 +53,12 @@ def test_startup_starter_does_not_schedule_a_second_blind_push():
     startup_start = app.index("function openFreshConversationAtStartup()")
     startup = app[startup_start : app.index("function loadChat", startup_start)]
 
-    assert "function createNewChat({ sync = true } = {})" in create_chat
-    assert "saveChats({ sync });" in create_chat
-    assert "createNewChat({ sync: false });" in startup
-    assert "saveChats({ sync: false });" in startup
-    assert "createNewChat();" not in startup
-    assert "saveChats();" not in startup
+    assert "function createNewChat()" in create_chat
+    assert "beginFreshConversation();" in create_chat
+    assert "createNewChat" not in startup
+    assert "saveChats" not in startup
+    assert "syncChatsToServer" not in startup
+    assert "beginFreshConversation();" in startup
 
 
 def test_reconnect_sync_has_one_owner():

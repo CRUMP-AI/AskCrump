@@ -74,6 +74,7 @@ def test_mobile_signup_keeps_the_primary_action_above_a_short_phone_fold():
     assert "validatePasswordInput(password?.value || '')" in controller
     assert "const trackCredentialsReady = () =>" in controller
     assert "form.addEventListener('input', trackCredentialsReady" in controller
+    assert "form.addEventListener('focusin', trackSignupStarted)" not in controller
     assert (
         controller.index("trackCredentialsReady();\n      trackFunnel('SignupSubmitted')")
         < controller.index("const restore = setBusy", controller.index("function wireRegistration"))
@@ -114,7 +115,9 @@ def test_auth_view_transitions_move_focus_to_the_first_actionable_field():
     assert "showAuth('forgot')" in controller
     assert "showAuth('reset')" in controller
     assert 'role="alert" aria-live="assertive"' in app
-    assert '/public/auth-controller.js?v=fixture-auth-focus-2' in fixture
+    assert '/public/auth-controller.js?v=fixture-auth-focus-3' in fixture
+    assert 'id="fixtureEvents"' in fixture
+    assert 'window.__fixture = {events: []}' in fixture
     assert 'credential-free-auth-probe' not in fixture
     assert 'https://' not in fixture
     assert 'askcrump.com' not in fixture

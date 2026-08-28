@@ -624,7 +624,10 @@
       trackFunnel('SignupCredentialsReady');
     };
 
-    form.addEventListener('focusin', trackSignupStarted);
+    // showAuth() deliberately moves focus to the first field for keyboard and
+    // screen-reader users. Focus alone therefore is not evidence that a person
+    // began registration. The first input (or a direct autofill submit below)
+    // records the milestone without collecting field values.
     form.addEventListener('input', trackCredentialsReady, {passive: true});
 
     passwordInput?.addEventListener('blur', () => updateRegistrationPasswordGuidance({touched: true}));

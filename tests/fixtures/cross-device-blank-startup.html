@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Cross-device blank conversation startup fixture</title>
+</head>
+<body>
+  <main>
+    <div id="chatContainer"></div>
+    <div id="chatsList"></div>
+    <label for="userInput">Message</label>
+    <textarea id="userInput"></textarea>
+    <button id="sendButton" type="button">Send</button>
+    <button id="newChatBtn" type="button">New chat</button>
+    <input id="fileInput" type="file">
+    <div id="filePreview"></div>
+    <div id="toastContainer"></div>
+    <output id="fixtureChatCount" aria-label="Local conversation count">pending</output>
+    <output id="fixtureBlankCount" aria-label="Local blank conversation count">pending</output>
+    <output id="fixturePushedBlankCount" aria-label="Pushed blank conversation count">pending</output>
+    <output id="fixtureCurrentChat" aria-label="Current conversation">pending</output>
+    <output id="fixtureErrors" aria-label="Browser errors">0</output>
+  </main>
+  <script>
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('crump_')) localStorage.removeItem(key);
+    }
+    window.SafeStorage = {
+      getItem: key => localStorage.getItem(key),
+      setItem: (key, value) => localStorage.setItem(key, value),
+      removeItem: key => localStorage.removeItem(key),
+    };
+    window.__fixture = {pushes: []};
+    const serverChat = {
+      chat_id: 'server-conversation-1',
+      title: 'Existing work',
+      messages: [
+        {id: 'server-message-1', role: 'user', content: 'Keep this work.', timestamp: '2026-08-28T12:00:00.000Z'},
+      ],
+      created_at: '2026-08-28T12:00:00.000Z',
+      updated_at: '2026-08-28T12:00:00.000Z',
+      revision: 1,
+    };
+    const legacyBlankChats = ['old-device-blank-1', 'old-device-blank-2'].map((chatId, index) => ({
+      chat_id: chatId,
+      title: 'New Conversation',
+      messages: [],
+      created_at: `2026-08-28T11:0${index}:00.000Z`,
+      updated_at: `2026-08-28T11:0${index}:00.000Z`,
+      revision: 1,
+    }));
+    window.SyncManager = {
+      async pull() { return {success: true, data: {chats: [serverChat, ...legacyBlankChats]}}; },
+      async push(_scope, payload) {
+        window.__fixture.pushes.push(payload);
+        return {success: true};
+      },
+    };
+    window.CrumpPresence = {loadPreferences() {}, registerToken() {}, stop() {}, haptic() {}};
+    window.CrumpAnalytics = {async track() { return true; }};
+    window.CrumpChatTransport = {
+      async acknowledge() {
+        return {deliveredAt: new Date().toISOString(), seenAt: new Date().toISOString(), activity: 'thinking'};
+      },
+      async send(payload) {
+        return {
+          response: 'Fixture reply.',
+          conversationRevision: 2,
+          assistantMessage: {
+            id: 'fixture-assistant-message',
+            role: 'assistant',
+            content: 'Fixture reply.',
+            timestamp: new Date().toISOString(),
+            inReplyTo: payload.messageId,
+          },
+        };
+      },
+    };
+    window.fetch = async input => {
+      const url = new URL(String(input), location.href);
+      if (url.pathname === '/api/usage/check') {
+        return new Response(JSON.stringify({success: true, usage: {messages: 0}, limits: {messages: 20}}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      return new Response(JSON.stringify({success: false, error: 'Unexpected fixture request.'}), {
+        status: 500,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+    const recordError = () => {
+      const output = document.getElementById('fixtureErrors');
+      output.textContent = String(Number(output.textContent || 0) + 1);
+    };
+    window.addEventListener('error', recordError);
+    window.addEventListener('unhandledrejection', recordError);
+    window.__reportFixture = () => {
+      const chats = Array.isArray(window.chats) ? window.chats : [];
+      const lastPush = window.__fixture.pushes.at(-1);
+      document.getElementById('fixtureChatCount').textContent = String(chats.length);
+      document.getElementById('fixtureBlankCount').textContent = String(
+        chats.filter(chat => !Array.isArray(chat.messages) || chat.messages.length === 0).length,
+      );
+      document.getElementById('fixturePushedBlankCount').textContent = String(
+        (lastPush?.chats || []).filter(chat => !Array.isArray(chat.messages) || chat.messages.length === 0).length,
+      );
+      document.getElementById('fixtureCurrentChat').textContent = String(window.currentChatId || 'none');
+    };
+  </script>
+  <script src="/public/app.js?v=cross-device-blank-startup-3"></script>
+  <script src="/public/chat-sync.js?v=cross-device-blank-startup-3"></script>
+  <script>
+    window.addEventListener('load', async () => {
+      window.initializeApp();
+      window.initializeAuthenticatedApp({id: 'fixture-user', preferences: {}});
+      await new Promise(resolve => setTimeout(resolve, 250));
+      window.stopAutoSync?.();
+      window.__reportFixture();
+      window.setInterval(window.__reportFixture, 50);
+    });
+  </script>
+</body>
+</html>

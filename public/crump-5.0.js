@@ -650,14 +650,14 @@
     const input = $('#userInput');
     const text = String(input?.value || '').trim();
     if (!text && !state.attachments.length) return;
-    const chat = currentChat();
-    if (!chat) return;
     state.sending = true;
     document.body.classList.add('crump50-sending');
     let userMessage = null;
     try {
       await ensureUsage();
       const ready = await waitForUploads();
+      let fresh = currentChat() || window.ensureCurrentChat?.();
+      if (!fresh) throw new Error('Crump could not start a new conversation. Try again.');
       const now = new Date().toISOString();
       userMessage = {
         id: uid(), role: 'user', content: text, timestamp: now,
@@ -671,7 +671,6 @@
           ...(state.tool === 'document' && state.documentPurpose ? {artifactPurpose:state.documentPurpose} : {}),
         },
       };
-      let fresh = currentChat();
       fresh.messages.push(userMessage);
       if (fresh.messages.length === 1 && text) fresh.title = text.slice(0, 50) + (text.length > 50 ? '…' : '');
       saveAndRender(fresh);

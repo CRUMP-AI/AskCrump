@@ -85,10 +85,16 @@
   <div id="appContainer" style="display:none"><textarea id="userInput"></textarea></div>
 
   <output id="fixtureActiveElement" aria-label="Active element">none</output>
+  <output id="fixtureEvents" aria-label="Recorded auth events">none</output>
   <output id="fixtureErrors" aria-label="Browser errors">0</output>
 
   <script>
-    window.va = () => {};
+    window.__fixture = {events: []};
+    window.va = (command, payload) => {
+      if (command !== 'event') return;
+      window.__fixture.events.push(payload.name);
+      document.getElementById('fixtureEvents').textContent = window.__fixture.events.join(',');
+    };
     window.CrumpAPI = {ready: Promise.resolve()};
     window.deviceAuth = {
       async checkSession() { return {success:true, authenticated:false}; },
@@ -115,7 +121,7 @@
     document.addEventListener('click', () => setTimeout(reportFocus, 0));
     window.addEventListener('load', () => setTimeout(reportFocus, 20));
   </script>
-  <script src="/public/auth-resilience.js?v=fixture-auth-focus-2"></script>
-  <script src="/public/auth-controller.js?v=fixture-auth-focus-2"></script>
+  <script src="/public/auth-resilience.js?v=fixture-auth-focus-3"></script>
+  <script src="/public/auth-controller.js?v=fixture-auth-focus-3"></script>
 </body>
 </html>
