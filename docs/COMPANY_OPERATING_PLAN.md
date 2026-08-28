@@ -174,7 +174,10 @@ provider, privacy, cost, or security gate is incomplete.
   accepts the valid candidate when legacy and host-only cookies coexist, retires the legacy scope,
   rotates the session once, and serves the auth asset network-first. The repaired deployment and
   hosted CI/Android/iOS gates passed; owner credential-entry recheck remains the final human proof.
-- **Shipped foundation:** server-only Crump Code task schema and sandbox runner; disabled publicly.
+- **Shipped foundation:** production 5.9.35 adds a Project-attached Crump Code review workspace,
+  explicit client/server run confirmation, visible cost/patch/verification/approval state, and
+  cancellation checks before each next model/tool step. It remains disabled publicly pending the
+  approved live sandbox/OIDC, expiry, monitoring, rollback, and benchmark gates.
 - **Shipped foundation:** server-only ElevenLabs voice path with device-speech fallback; disabled
   until disclosure, credentials, and smoke tests are approved.
 - **Risk:** no external durable-value, return, or artifact journey has been observed yet.
@@ -199,7 +202,7 @@ provider, privacy, cost, or security gate is incomplete.
   Professional price ID matches the production fallback. Both live webhook destinations now use
   direct `www` handlers and returned 200 to signed harmless replays. Their original three-event and
   one-event scopes are restored; no price, product, customer, tax setting, payment, or secret changed.
-- **Product experience direction:** production 5.9.34 builds on the first staged, owner-approved
+- **Product experience direction:** production 5.9.35 builds on the first staged, owner-approved
   reorganization around Ask, Projects, Create, Library, and You on desktop and mobile. It preserves
   existing data, routes, entitlements, and working capabilities behind a local rollback switch.
   Projects now surface their saved conversations through an owner-scoped, content-free resume path.
@@ -215,7 +218,7 @@ provider, privacy, cost, or security gate is incomplete.
 - **External input needed:** an ElevenLabs production API key and voice ID with confirmed rights.
 - **Next evidence:** submit the sitemap after owner confirmation, then obtain the first legitimate
   post-instrumentation acquisition, durable-value, return, and artifact-journey observations.
-- **Native distribution:** Android 5.9.34/build 50934 source and an unsigned `.aab` pass the hosted
-  API 36/Java 21 release audit; the generated iOS 5.9.34 Release configuration passes its hosted
+- **Native distribution:** Android 5.9.35/build 50935 source and an unsigned `.aab` pass the hosted
+  API 36/Java 21 release audit; the generated iOS 5.9.35 Release configuration passes its hosted
   macOS compile. Owner-controlled developer accounts, signing, push, native billing, reviewer access,
   signed-device tests, screenshots, declarations, and final submission approval remain open.
