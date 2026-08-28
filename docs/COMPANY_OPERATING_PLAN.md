@@ -283,6 +283,11 @@ provider, privacy, cost, or security gate is incomplete.
   now also survives send, sync, retry, model guidance, and DOCX/PDF packaging rather than collapsing
   to a generic business document. Validate signed-device zoom, legitimate acquisition-to-artifact
   continuation, and return behavior before claiming lift or taking final native screenshots.
+- **Library information architecture:** Production 5.9.63 makes Library one top-level private
+  destination containing the manuscript bookshelf and saved documents, images, videos, exports, and
+  uploads. It removes the redundant Saved/Library workspace tab, leaves Chats as conversation
+  history, and restores Files to attachment. Projects, Create, and existing owner-scoped workflows
+  remain intact; saved-artifact reuse and return outcomes remain unobserved.
 - **Risk:** a real sandbox run has not verified production OIDC/runtime behavior.
 - **Permission needed:** a sub-cent Vercel sandbox smoke test and the exact premium-voice disclosure.
 - **Completed payment gate:** owner-approved direct-host edits and signed delivery tests passed on
