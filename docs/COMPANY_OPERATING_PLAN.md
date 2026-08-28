@@ -239,8 +239,9 @@ provider, privacy, cost, or security gate is incomplete.
 - **Risk:** no external durable-value, return, or artifact journey has been observed yet.
 - **Traffic evidence:** production Web Analytics recorded 93 seven-day visitors and 20 visitors
   reaching signup intent, but the period crosses the measurement boundary. The latest 24 hours had
-  19 visitors, 102 page views, three marketing CTA visitors, and two visitors each at signup intent
-  and form start, with no valid-credentials, submission, or account-created event. Release 5.9.29
+  19 visitors, 109 page views, 42% bounce, three marketing CTA visitors, and two visitors each at
+  signup intent and form start, with no valid-credentials, submission, account-created, or
+  creation-continuation event. Release 5.9.29
   separates ordinary sign-in links from account-creation CTAs. These anonymous counts are context,
   not an account conversion rate. The protected aggregate's latest refresh still contained
   zero comparable external accounts or artifact journeys.
@@ -249,7 +250,9 @@ provider, privacy, cost, or security gate is incomplete.
   intermittent background-sync database transport 503s already present before the release. The
   account-scoped queue remained intact, the next observed sync returned 200, and Supabase stayed
   `ACTIVE_HEALTHY` with matching database calls returning 200. Keep the transport pattern in the
-  operating review without attributing the acquisition gap or the new creation handoff to it.
+  operating review without attributing the acquisition gap or the new creation handoff to it. The
+  exact 5.9.57 deployment's observed requests returned 200 and its release-window scan found no
+  runtime error group; that short clean window does not erase the wider transport signal.
 - **Social acquisition experiment:** Facebook supplied the largest observed external referral
   family, but public links still previewed only a square app icon. Release 5.9.25 replaces that with
   page-specific 1,200-by-630 cards built from the canonical mark. Evaluate socially attributed
@@ -260,7 +263,7 @@ provider, privacy, cost, or security gate is incomplete.
   Professional price ID matches the production fallback. Both live webhook destinations now use
   direct `www` handlers and returned 200 to signed harmless replays. Their original three-event and
   one-event scopes are restored; no price, product, customer, tax setting, payment, or secret changed.
-- **Product experience direction:** production 5.9.56 builds on the first staged, owner-approved
+- **Product experience direction:** production 5.9.57 builds on the first staged, owner-approved
   reorganization around Ask, Projects, Create, Library, and You on desktop and mobile. It preserves
   existing data, routes, entitlements, and working capabilities behind a local rollback switch.
   Projects now surface their saved conversations through an owner-scoped, content-free resume path.
@@ -268,19 +271,21 @@ provider, privacy, cost, or security gate is incomplete.
   restrained accuracy/cost disclosures. Their mobile public first visit now passes Lighthouse
   accessibility at 100 with zero observed contrast failures, and the workspace no longer blocks
   user-controlled browser/PWA pinch zoom. Document, presentation, résumé, and video page intent now
-  survives authentication and opens the exact non-generating creation surface. Validate signed-
-  device zoom, legitimate acquisition-to-artifact continuation, and return behavior before
-  claiming lift or taking final native screenshots.
+  survives authentication and opens the exact non-generating creation surface. The résumé purpose
+  now also survives send, sync, retry, model guidance, and DOCX/PDF packaging rather than collapsing
+  to a generic business document. Validate signed-device zoom, legitimate acquisition-to-artifact
+  continuation, and return behavior before claiming lift or taking final native screenshots.
 - **Risk:** a real sandbox run has not verified production OIDC/runtime behavior.
 - **Permission needed:** a sub-cent Vercel sandbox smoke test and the exact premium-voice disclosure.
 - **Completed payment gate:** owner-approved direct-host edits and signed delivery tests passed on
   production 5.9.27; observe and reconcile the first real checkout rather than broadening scope.
 - **External input needed:** an ElevenLabs production API key and voice ID with confirmed rights.
 - **Next evidence:** observe a legitimate capability CTA → authentication →
-  `CreationIntentContinued` → artifact journey, submit the sitemap after owner confirmation, and
-  obtain the first post-instrumentation durable-value, return, and referral observations.
-- **Native distribution:** Android 5.9.56/build 50956 source and an unsigned `.aab` pass the hosted
-  API 36/Java 21 release audit in run `33185622086`; the generated iOS 5.9.56 Release configuration
-  passes its hosted macOS compile in run `33185622138`. Owner-controlled developer accounts,
+  `CreationIntentContinued` → artifact journey, including selected résumé purpose through first
+  download; submit the sitemap after owner confirmation; and obtain the first post-instrumentation
+  durable-value, return, and referral observations.
+- **Native distribution:** Android 5.9.57/build 50957 source and an unsigned `.aab` pass the hosted
+  API 36/Java 21 release audit in run `33189736730`; the generated iOS 5.9.57 Release configuration
+  passes its hosted macOS compile in run `33189736888`. Owner-controlled developer accounts,
   signing, push, native billing, reviewer access,
   signed-device tests, screenshots, declarations, and final submission approval remain open.

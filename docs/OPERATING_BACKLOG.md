@@ -40,6 +40,7 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 | Private upstream observability boundary | Commit `44b0efa`; deployment `dpl_GSm6EFkPN6EpKCqrVV77WKTbQ8tt`; production 5.9.54 blocks every `httpx`/`httpcore` record at configured handlers and reapplies that boundary before each request, closing a serverless host-reset gap that left full Supabase filter URLs with session hashes and internal row IDs in runtime logs. Database failures retain categorical status/detail type without raw upstream detail. Tests proved host reconfiguration, direct transport handlers, retained Ask Crump auth outcomes, and excluded database sentinels. A non-writing fake-cookie production probe forced a real Supabase lookup: the sentinel hash and `HTTP Request:` were absent while the identity-free auth outcome remained. All 371 tests, lint/compile, 44 JavaScript validations, production/native/store checks, CI run `33172015491`, Android run `33172015490`, and iOS run `33172015531` passed. Production serves 5.9.54/r88 with no runtime error cluster or warning/error/fatal deployment log. | Verified privacy containment |
 | Clear authentication entry handoffs | Commit `ed88c44`; deployment `dpl_B1jKEcq7mgoU2gacvvUicBBuUXfQ`; production 5.9.55 centralizes sign-in, registration, recovery, and reset transitions and moves focus to each view's first field instead of leaving it on a hidden link or the page body. Native validation blocked before the network now leaves a persistent announced message, and content-free events distinguish validation, submission, completion, and request failure. A real-controller fixture proved every transition, both direct-link entries, and empty-login validation with zero browser errors. The owner completed a real phone/PWA sign-out and sign-in and confirmed the update prompt. All 373 tests, lint/compile, 44 JavaScript validations, production/native/store checks, CI run `33179824223`, Android run `33179824154`, and iOS run `33179824243` passed. Production serves 5.9.55/r89; five database-backed session probes returned 200 and the exact deployment has no warning/error/fatal log. | Verified delivery and owner sign-in proof; conversion outcome pending |
 | Qualified creation-intent continuation | Commit `5ceb57a`; deployment `dpl_ENikqcrY6BYhZHvzoDU5VGtgHnFc`; production 5.9.56 preserves only the allowlisted document, presentation, résumé, or video category through sign-in, registration/verification return, and an existing session, then opens the exact non-generating workspace promised by the public capability page. A real-controller browser exercised all four destinations, invalid-intent rejection, and a signed-out-to-authenticated résumé return; every path cleared once with zero browser errors. All 378 tests, lint/compile, 44 JavaScript validations, production/native/store checks, CI run `33185622078`, Android run `33185622086`, and iOS run `33185622138` passed. Production serves 5.9.56/r90; all four live phone-size pages carried intent plus acquisition with no overflow or console issue. Intermittent pre-existing background sync transport 503s preserved the local queue and were followed by 200; Supabase remained `ACTIVE_HEALTHY`. | Verified delivery; activation outcome pending |
+| Résumé purpose through artifact delivery | Commit `de0440f`; deployment `dpl_6FnNfyGKHFKW4osPxEvLVwDajDDs`; production 5.9.57 preserves the exact allowlisted résumé purpose from the public handoff or in-app `RÉSUMÉ · CV` choice through send, sync, retry, server guidance, and DOCX/PDF packaging. The pre-correction fact-only brief resolved to a generic business document; corrected guidance and a real packaging test proved the ATS/fact-grounded résumé profile without requiring the user to repeat “résumé.” Arbitrary purpose values are discarded. All 382 tests, lint/compile, 44 JavaScript validations, production/native/store checks, CI run `33189736839`, Android run `33189736730`, and iOS run `33189736888` passed. Production serves 5.9.57/r91; the exact deployment returned only 200 in observed requests and had no release-window runtime error group. | Verified delivery; artifact outcome pending |
 | Crump Voice private foundation | Explicit signed-in playback route, Professional entitlement, rate/character/audio limits, provider-failure refund, server-held ElevenLabs key, non-cacheable ephemeral MP3 response, and device-speech fallback are implemented. Public feature flag remains off pending approved disclosure, credentials/voice rights, and smoke tests. | Staged, disabled |
 | Private conversation-to-Project continuity | Commit `e99fc1f`; production 5.9.22 puts `Keep in a Project` directly on the latest result, reducing durable-work preservation from two commitments to one. The existing server route synchronizes and ownership-checks the chat, attaches idempotently to the selected/new Project, and records only a content-free Project milestone. All 285 tests, backend lint/compile checks, 40 JavaScript validations, production preflight, and native web-bundle build passed. Live health and version checks returned HTTP 200, the deployed client contained the direct action, and the deployment-scoped error/fatal scan was empty. | Verified |
 | Comparable growth-cohort boundary | Supabase migration `product_growth_measurement_boundary`; live first-event evidence fixes the lower bound at `2026-08-23 09:10:55.602863+00`; the 30-day report now returns 18 metrics and zero comparable external accounts instead of misclassifying three historical accounts. The function remains security invoker, `anon`/`authenticated` execution is denied, `service_role` execution succeeds, and post-change advisors reported no errors or warnings. | Verified |
@@ -271,6 +272,16 @@ account-scoped client queue remained intact, the next observed sync returned 200
 reported `ACTIVE_HEALTHY` with matching database requests returning 200. The transport pattern
 remains a reliability signal; no creation-intent conversion lift is claimed yet.
 
+Production 5.9.57 then closed the next deterministic résumé-delivery gap. The public résumé
+handoff and in-app `RÉSUMÉ · CV` outcome selected DOCX but discarded the résumé purpose before the
+request. A fact-only experience/skills brief therefore resolved to a generic business document
+unless the user repeated “résumé.” The exact allowlisted purpose now survives send, sync, retry,
+model guidance, and DOCX/PDF packaging; arbitrary values are dropped. A real package verified the
+résumé profile and layout, and the controller fixture verified `{format: docx, purpose: resume}`
+with zero browser errors. Production serves `r91`; hosted CI and both unsigned native builds
+passed, the exact deployment's observed requests returned 200, and no release-window runtime error
+group appeared. No artifact conversion or résumé quality lift is claimed yet.
+
 ### Current monetization checkpoint
 
 A live Stripe reconciliation on 2026-08-27 found five active catalog products and no transactions,
@@ -429,13 +440,17 @@ sequence without changing signup behavior. The release evidence is recorded in
 still strand a legitimate user after an email scanner or second click; production 5.9.47 now exposes
 the existing privacy-preserving resend path and sign-in guidance without changing token or auth
 policy. Its evidence is recorded in `docs/VERIFICATION_LINK_RECOVERY_RELEASE_2026-08-28.md`.
-The next 24-hour read showed 19 visitors, 102 page views, 47% bounce, and two direct desktop-Mac
+The next 24-hour read showed 19 visitors, 109 page views, 42% bounce, and two direct desktop-Mac
 `SignupStarted` visitors with no credential-ready or submitted event. That sample remains too small
 and automation-prone for a signup decision. The deterministic capability-page audit instead found
 that qualified creation intent disappeared at `/app`; production 5.9.56 now carries only the
 allowlisted document/presentation/résumé/video category through auth, opens the exact existing
 non-generating surface, and emits `CreationIntentContinued`. The release evidence is recorded in
 `docs/CREATION_INTENT_HANDOFF_RELEASE_2026-08-28.md`.
+The subsequent creation audit found that a selected résumé lost its purpose after choosing DOCX;
+production 5.9.57 now preserves only the allowlisted résumé purpose through sync/retry, guidance,
+and final packaging. The release evidence is recorded in
+`docs/RESUME_PURPOSE_DELIVERY_RELEASE_2026-08-28.md`.
 
 **Outcome:** a weekly operating review of account creation → workspace open → starter intent →
 activation → durable value → useful outcome → return/share → checkout → paid.
@@ -525,9 +540,10 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 ## Next operating decision
 
 Observe legitimate capability CTA → auth → `CreationIntentContinued` → starter intent → artifact
-delivery after the verified phone/PWA sign-out and sign-in proof. Reconcile the intermittent
-database-transport 503 pattern against queued recovery without changing the shared database
-boundary from a small sample. Submit the live canonical sitemap after owner confirmation, allow the
+delivery, with the résumé journey retaining the selected purpose through first download. Reconcile
+the intermittent database-transport 503 pattern against queued recovery without changing the
+shared database boundary from a small sample. Submit the live canonical sitemap after owner
+confirmation, allow the
 social-preview experiment to reach its minimum
 observation window, then obtain the first consented post-instrumentation account, durable-value,
 return, referral, and artifact-journey observations. Observe the first real checkout and reconcile
