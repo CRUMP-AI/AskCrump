@@ -195,11 +195,13 @@ provider, privacy, cost, or security gate is incomplete.
   Professional price ID matches the production fallback. Both live webhook destinations now use
   direct `www` handlers and returned 200 to signed harmless replays. Their original three-event and
   one-event scopes are restored; no price, product, customer, tax setting, payment, or secret changed.
-- **Product experience direction:** production 5.9.31 builds on the first staged, owner-approved
+- **Product experience direction:** production 5.9.32 builds on the first staged, owner-approved
   reorganization around Ask, Projects, Create, Library, and You on desktop and mobile. It preserves
   existing data, routes, entitlements, and working capabilities behind a local rollback switch.
   Projects now surface their saved conversations through an owner-scoped, content-free resume path.
-  Validate legitimate return behavior before claiming retention improvement or taking final native screenshots.
+  Two additional crawlable entry pages now explain the verified résumé and video paths with
+  restrained accuracy/cost disclosures. Validate legitimate acquisition and return behavior before
+  claiming lift or taking final native screenshots.
 - **Risk:** a real sandbox run has not verified production OIDC/runtime behavior.
 - **Permission needed:** a sub-cent Vercel sandbox smoke test and the exact premium-voice disclosure.
 - **Completed payment gate:** owner-approved direct-host edits and signed delivery tests passed on
@@ -207,7 +209,7 @@ provider, privacy, cost, or security gate is incomplete.
 - **External input needed:** an ElevenLabs production API key and voice ID with confirmed rights.
 - **Next evidence:** submit the sitemap after owner confirmation, then obtain the first legitimate
   post-instrumentation acquisition, durable-value, return, and artifact-journey observations.
-- **Native distribution:** Android 5.9.31/build 50931 source and an unsigned `.aab` pass the hosted
-  API 36/Java 21 release audit; the generated iOS 5.9.31 Release configuration passes its hosted
+- **Native distribution:** Android 5.9.32/build 50932 source and an unsigned `.aab` pass the hosted
+  API 36/Java 21 release audit; the generated iOS 5.9.32 Release configuration passes its hosted
   macOS compile. Owner-controlled developer accounts, signing, push, native billing, reviewer access,
   signed-device tests, screenshots, declarations, and final submission approval remain open.
