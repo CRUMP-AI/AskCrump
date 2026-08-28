@@ -23,6 +23,27 @@ def read_json_ld(page: str) -> dict:
     return json.loads(blocks[0])
 
 
+def contrast_ratio(foreground: str, background: str) -> float:
+    def luminance(color: str) -> float:
+        channels = [int(color[index:index + 2], 16) / 255 for index in (1, 3, 5)]
+        linear = [
+            channel / 12.92 if channel <= 0.04045 else ((channel + 0.055) / 1.055) ** 2.4
+            for channel in channels
+        ]
+        return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+    lighter, darker = sorted((luminance(foreground), luminance(background)), reverse=True)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def rule_color(css: str, selector: str) -> str:
+    rule = re.search(rf"{re.escape(selector)}\s*\{{([^}}]+)\}}", css)
+    assert rule, f"Missing CSS rule for {selector}"
+    color = re.search(r"(?:^|;)\s*color:\s*(#[0-9a-fA-F]{6})", rule.group(1))
+    assert color, f"Missing text color for {selector}"
+    return color.group(1)
+
+
 def test_marketing_page_exposes_a_clear_free_to_paid_path():
     page = read("public/index.html")
 
@@ -42,7 +63,8 @@ def test_marketing_ctas_are_first_party_analytics_events():
     script = read("public/landing.js")
 
     assert '/_vercel/insights/script.js' in page
-    assert '<script defer src="/landing.js?v=5.9.32"></script>' in page
+    assert '<script defer src="/landing.js?v=5.9.33"></script>' in page
+    assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.33">' in page
     assert "window.vaq" in script
     assert "MarketingCTA" in script
     assert "MarketingSignin" in script
@@ -150,7 +172,9 @@ def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
         assert f'<link rel="canonical" href="https://www.askcrump.com/{slug}">' in page
         assert f'<meta property="og:url" content="https://www.askcrump.com/{slug}">' in page
         assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
-        assert '<script defer src="/landing.js?v=5.9.32"></script>' in page
+        assert '<script defer src="/landing.js?v=5.9.33"></script>' in page
+        assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.33">' in page
+        assert '<link rel="stylesheet" href="/use-case.css?v=5.9.33">' in page
         assert '/_vercel/insights/script.js' in page
         assert f'source={source}' in page
         assert page.count('data-cta="') >= 4
@@ -199,6 +223,26 @@ def test_social_share_cards_are_large_brand_safe_and_page_specific():
             assert card.format == "PNG"
             assert card.mode == "RGB"
             assert card.size == (1200, 630)
+
+
+def test_public_marketing_text_colors_meet_wcag_aa_contrast():
+    landing = read("public/landing-5.6.css")
+    use_case = read("public/use-case.css")
+    landing_pairs = (
+        (".hero-foot", "#070a0e"),
+        (".stage-top", "#090d12"),
+        (".stage-card span:last-child", "#111820"),
+        (".stage-composer", "#151c23"),
+        (".engine span", "#0d1319"),
+        (".engine em", "#0d1319"),
+        (".price span", "#0e141a"),
+        (".credit-note div > span", "#0e1318"),
+        (".pricing-fineprint", "#0a0f14"),
+    )
+    for selector, background in landing_pairs:
+        assert contrast_ratio(rule_color(landing, selector), background) >= 4.5, selector
+
+    assert contrast_ratio(rule_color(use_case, ".use-case-proof span"), "#0d1319") >= 4.5
 
 
 def test_signup_deep_link_opens_registration_and_tracks_the_funnel():
@@ -268,10 +312,12 @@ def test_release_version_and_cache_advance_together():
     backend = read("backend/version.py")
     worker = read("public/sw.js")
 
-    assert '"version": "5.9.32"' in package
-    assert "__version__ = '5.9.32'" in backend
-    assert "ask-crump-new-body-v1-r66" in worker
-    assert "/landing.js?v=5.9.32" in worker
+    assert '"version": "5.9.33"' in package
+    assert "__version__ = '5.9.33'" in backend
+    assert "ask-crump-new-body-v1-r67" in worker
+    assert "/landing-5.6.css?v=5.9.33" in worker
+    assert "/use-case.css?v=5.9.33" in worker
+    assert "/landing.js?v=5.9.33" in worker
 
 
 def test_changed_activation_assets_are_release_versioned():
@@ -279,11 +325,11 @@ def test_changed_activation_assets_are_release_versioned():
     worker = read("public/sw.js")
 
     for asset in (
-        "/conversation.css?v=5.9.32",
-        "/ui-functions.js?v=5.9.32",
-        "/device-auth.js?v=5.9.32",
-        "/product-analytics.js?v=5.9.32",
-        "/app.js?v=5.9.32",
+        "/conversation.css?v=5.9.33",
+        "/ui-functions.js?v=5.9.33",
+        "/device-auth.js?v=5.9.33",
+        "/product-analytics.js?v=5.9.33",
+        "/app.js?v=5.9.33",
     ):
         assert asset in shell
         assert asset in worker

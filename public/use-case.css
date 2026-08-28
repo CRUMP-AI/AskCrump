@@ -40,7 +40,7 @@
 .use-case-proof div { padding: 22px; border-right: 1px solid var(--line); }
 .use-case-proof div:last-child { border-right: 0; }
 .use-case-proof b { display: block; margin-bottom: 5px; color: #d5bd82; font-size: 12px; }
-.use-case-proof span { color: #737b80; font-size: 11px; }
+.use-case-proof span { color: #798186; font-size: 11px; }
 .use-case-section { padding: 104px 24px; }
 .use-case-section.alt {
   border-top: 1px solid var(--line);
