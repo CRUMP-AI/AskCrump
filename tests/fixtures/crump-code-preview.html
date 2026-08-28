@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Crump Code local preview</title>
+  <link rel="stylesheet" href="../../public/crump-code-5.9.35.css?preview=2">
+</head>
+<body style="margin:0;background:#080a0d;color:#fff">
+  <span id="crumpCodeCreateSlot" class="crump-code-create-slot" hidden>
+    <button id="openCrumpCode" type="button">Crump Code</button>
+  </span>
+  <script>
+    const previewParams = new URLSearchParams(location.search);
+    window.__mockEnabled = previewParams.get('enabled') === '1';
+    window.__mockTask = {
+      id: 'task-preview',
+      project_id: 'project-preview',
+      objective: 'Add a guarded retry to the document export path and verify the failure case.',
+      mode: 'implement',
+      source_repo_url: 'https://github.com/example/project.git',
+      source_ref: 'main',
+      status: previewParams.get('status') === 'queued' ? 'queued' : 'completed',
+      network_policy: 'deny_all',
+      max_duration_seconds: 180,
+      payment_source: 'included',
+      credits_spent: 0,
+      result_summary: 'Added one bounded retry around the transient export operation and kept permanent failures unchanged.',
+      result_patch: 'diff --git a/export.py b/export.py\n--- a/export.py\n+++ b/export.py\n@@ -1 +1,2 @@\n+retry_once()\n export()',
+      verification: [{command: 'python3', args: ['-m', 'pytest', '-q'], returnCode: 0}],
+      events: [
+        {id: 1, event_type: 'task.created', created_at: '2026-08-28T01:00:00Z'},
+        {id: 2, event_type: 'verification.completed', created_at: '2026-08-28T01:02:00Z'},
+        {id: 3, event_type: 'task.completed', created_at: '2026-08-28T01:02:10Z'},
+      ],
+      approvals: [],
+      created_at: '2026-08-28T01:00:00Z',
+      updated_at: '2026-08-28T01:02:10Z',
+    };
+    if (window.__mockTask.status === 'queued') {
+      window.__mockTask.result_summary = '';
+      window.__mockTask.result_patch = '';
+      window.__mockTask.verification = [];
+      window.__mockTask.events = [{id: 1, event_type: 'task.created', created_at: '2026-08-28T01:00:00Z'}];
+      window.__mockTask.payment_source = null;
+    }
+    window.fetch = async input => {
+      const path = String(input);
+      let data = {success: true};
+      if (path.includes('/api/features')) {
+        data = {
+          success: true,
+          internalAccess: false,
+          features: {code_workspace: {
+            configured: window.__mockEnabled,
+            entitled: true,
+            includedDaily: 3,
+            overflowCredits: 12,
+            standardOverflowCredits: 12,
+          }},
+          providers: {code: {
+            configured: window.__mockEnabled,
+            maxDurationSeconds: 180,
+          }},
+        };
+      } else if (path.endsWith('/api/projects')) {
+        data = {success: true, projects: [{id: 'project-preview', name: 'Website reliability'}]};
+      } else if (path.includes('/api/projects/project-preview/code/tasks')) {
+        data = {success: true, configured: true, tasks: [window.__mockTask]};
+      } else if (path.includes('/api/code/tasks/task-preview')) {
+        data = {success: true, task: window.__mockTask};
+      }
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+  </script>
+  <script src="../../public/crump-code-5.9.35.js?preview=2"></script>
+  <script>
+    document.getElementById('openCrumpCode').addEventListener('click', () => window.CrumpCodeWorkspace.open());
+    window.addEventListener('load', () => {
+      if (window.__mockEnabled) window.CrumpCodeWorkspace.open();
+    }, {once: true});
+  </script>
+</body>
+</html>

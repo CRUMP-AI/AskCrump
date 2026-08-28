@@ -85,6 +85,7 @@ window.CRUMP_CONFIG = Object.freeze({
     await loadStyle('/crump-product-5.3.1.css', 'crumpproduct531');
     await loadStyle('/crump-polish-5.6.css', 'crumppolish56');
     await loadStyle('/crump-library-5.7.css', 'crumplibrary57');
+    await loadStyle('/crump-code-5.9.35.css', 'crumpcode5935');
     // Keep the stability layer after every tool stylesheet so its mobile viewport
     // and editor rules win over dynamically rendered feature controls.
     await loadStyle('/crump-v1-stability.css', 'crumpv1stability');
@@ -104,6 +105,7 @@ window.CRUMP_CONFIG = Object.freeze({
     await loadScript('/crump-polish-5.6.js', 'crumppolish56');
     await loadScript('/crump-library-5.7.js', 'crumplibrary57');
     await loadScript('/crump-navigation-5.9.30.js', 'crumpnav5930');
+    await loadScript('/crump-code-5.9.35.js', 'crumpcode5935');
 
     document.documentElement.dataset.crumpBodyRuntime = 'ready';
     window.dispatchEvent(new CustomEvent('crump:body-runtime-ready'));

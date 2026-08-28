@@ -563,6 +563,15 @@ class CrumpCodeRunner:
             raise CodeRunnerError("The coding model returned invalid data.", "CODE_MODEL_INVALID")
         return payload
 
+    async def _ensure_not_cancelled(self, task: dict[str, Any]) -> None:
+        """Stop the next expensive step after a concurrent owner cancellation."""
+        current = await self.service.get(
+            user_id=str(task["user_id"]),
+            task_id=str(task["id"]),
+        )
+        if current.get("status") == "cancelled":
+            raise CodeRunnerError("Crump Code was cancelled.", "CODE_TASK_CANCELLED")
+
     async def _execute_tool(
         self,
         workspace: SandboxWorkspace,
@@ -607,6 +616,7 @@ class CrumpCodeRunner:
         tools = _tool_definitions(mode)
         max_steps = int(self.settings.code_max_agent_steps)
         for _step in range(max_steps):
+            await self._ensure_not_cancelled(task)
             response = await self._anthropic_turn(messages=messages, tools=tools)
             blocks = response.get("content") or []
             text_blocks = [
@@ -636,6 +646,7 @@ class CrumpCodeRunner:
                     is_error = True
                     output = "Tool error: this turn exceeded the six-tool safety limit."
                 else:
+                    await self._ensure_not_cancelled(task)
                     await self.service.append_event(task, "tool.requested", audit)
                     try:
                         output = await self._execute_tool(

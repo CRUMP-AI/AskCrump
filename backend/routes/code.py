@@ -117,6 +117,16 @@ async def run_code_task(task_id: str, request: Request):
     auth = await authenticate_request(request, db, settings)
     if not _configured():
         return _error("Crump Code is not enabled yet.", "CODE_WORKSPACE_NOT_CONFIGURED", 503)
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict) or payload.get("confirmed") is not True:
+        return _error(
+            "Review the task and confirm the isolated run before it starts.",
+            "RUN_CONFIRMATION_REQUIRED",
+            400,
+        )
     token = _sandbox_token(request)
     if not token:
         return _error("Sandbox authentication is unavailable.", "SANDBOX_NOT_CONFIGURED", 503)
@@ -185,7 +195,10 @@ async def run_code_task(task_id: str, request: Request):
         return _error(
             str(exc),
             getattr(exc, "code", "CODE_RUN_FAILED"),
-            409 if isinstance(exc, CodeTaskConflictError) else 502,
+            409
+            if isinstance(exc, CodeTaskConflictError)
+            or getattr(exc, "code", "") == "CODE_TASK_CANCELLED"
+            else 502,
         )
 
 

@@ -107,6 +107,7 @@ const loader = String.raw`
     await loadStyle('/crump-product-5.3.1.css', 'crumpproduct531');
     await loadStyle('/crump-polish-5.6.css', 'crumppolish56');
     await loadStyle('/crump-library-5.7.css', 'crumplibrary57');
+    await loadStyle('/crump-code-5.9.35.css', 'crumpcode5935');
     await loadStyle('/crump-navigation-5.9.30.css', 'crumpnav5930');
 
     for (const [url,key] of scripts) await loadScript(url,key);
@@ -118,6 +119,7 @@ const loader = String.raw`
     await loadScript('/crump-polish-5.6.js', 'crumppolish56');
     await loadScript('/crump-library-5.7.js', 'crumplibrary57');
     await loadScript('/crump-navigation-5.9.30.js', 'crumpnav5930');
+    await loadScript('/crump-code-5.9.35.js', 'crumpcode5935');
 
     document.documentElement.dataset.crumpBodyRuntime = 'ready';
   }

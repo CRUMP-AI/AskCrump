@@ -149,6 +149,7 @@
           ${createCard('image', 'VISUALS', 'Images', 'Generate, edit, or build from a reference.', '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m7 16 4-4 3 3 2-2 2 3"/><circle cx="9" cy="9" r="1.5"/></svg>')}
           ${createCard('manuscript', 'LONG-FORM', 'Manuscripts', 'Plan, draft, pause, and continue chapter by chapter.', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h6a3 3 0 0 1 3 3v13a3 3 0 0 0-3-3H5z"/><path d="M19 4h-3a2 2 0 0 0-2 2v14a3 3 0 0 1 3-3h2z"/></svg>')}
           ${createCard('video', 'MOTION', 'Video', 'Create a scene or continue a compatible clip.', '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="13" height="14" rx="2"/><path d="m16.5 10 4-2v8l-4-2zM8 9l5 3-5 3z"/></svg>')}
+          <span id="crumpCodeCreateSlot" class="crump-code-create-slot" hidden>${createCard('code', 'DEVELOPMENT', 'Crump Code', 'Plan or implement a reviewed change in an isolated repository copy.', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7-5 5 5 5M15 7l5 5-5 5M13 4l-2 16"/></svg>')}</span>
         </div>
         <footer><span>Nothing generates until you review the setup and send your request.</span></footer>
       </section>`;
@@ -175,6 +176,7 @@
     hub.hidden = false;
     document.body.classList.add('crump5930-create-open');
     setActive('create');
+    void window.CrumpCodeWorkspace?.refreshAvailability?.();
     requestAnimationFrame(() => byId('crump5930CreateClose')?.focus({preventScroll: true}));
   }
 
@@ -192,6 +194,10 @@
     if (action === 'image') {
       if (window.CrumpImageStudio?.open) window.CrumpImageStudio.open();
       else window.CrumpBodyV1?.command?.('image');
+      return;
+    }
+    if (action === 'code') {
+      window.CrumpCodeWorkspace?.open?.();
       return;
     }
     if (action === 'manuscript' || action === 'video') {

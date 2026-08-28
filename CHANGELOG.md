@@ -1,5 +1,34 @@
 # Changelog
 
+## 5.9.35 — 2026-08-27
+
+### Crump Code review workspace
+
+- Added a restrained, Project-attached private workspace for preparing public-repository tasks,
+  reviewing the selected repository, revision, mode, objective, time boundary, and cost boundary,
+  and following the task through result, verification, activity history, and patch download.
+- Kept the Create entry invisible unless the existing server-controlled Crump Code feature is both
+  configured and entitled. The public production feature flag remains off; this release does not
+  advertise coding-agent availability or make a parity claim.
+- Separated task preparation from execution. Preparing a task performs no model run or credit
+  charge; execution stays disabled until the user checks an explicit review confirmation, and the
+  server independently rejects an unconfirmed run.
+- Added human-visible pending-approval decisions and cancellation. A concurrent cancellation is
+  now checked before every next model or tool step so the bounded sandbox shuts down without
+  publishing or pushing changes.
+- Preserved the existing isolation contract: public GitHub roots only, ephemeral microVM, no
+  environment variables, deny-all network after checkout, bounded tools and duration, patch-only
+  output, and no source-repository writeback.
+
+### Verification and release
+
+- Exercised both disabled and mocked-enabled states in a local browser without a production
+  account, event, sandbox, provider call, or credit charge. The disabled entry stayed hidden; the
+  enabled review surface rendered its safety boundaries, result, verification, history, and patch;
+  the run control stayed disabled until review confirmation.
+- Advanced the application to 5.9.35, native build 50935, and service-worker cache revision 69 so
+  web, PWA, and generated native clients receive the guarded workspace layer together.
+
 ## 5.9.23 — 2026-08-27
 
 ### Truthful organic discovery

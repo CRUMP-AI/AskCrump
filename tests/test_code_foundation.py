@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from app import app
 from backend.code_runner import (
+    CodeRunnerError,
+    CrumpCodeRunner,
     normalize_workspace_path,
     redact_sensitive_text,
     validate_verification_command,
@@ -98,6 +101,8 @@ def test_code_routes_are_authenticated_server_surfaces():
     assert "authenticate_request(request, db, settings)" in source
     assert "features.consume(" in source
     assert 'request.headers.get("x-vercel-oidc-token")' in source
+    assert 'payload.get("confirmed") is not True' in source
+    assert '"RUN_CONFIRMATION_REQUIRED"' in source
 
 
 def test_code_schema_is_private_audited_and_deny_all_by_contract():
@@ -124,6 +129,19 @@ def test_sandbox_execution_is_ephemeral_bounded_and_has_no_environment():
     assert "destroy=True" in source
     assert "vcpus=2, memory=4096" in source
     assert "MAX_PATCH = 200_000" in source
+    assert "await self._ensure_not_cancelled(task)" in source
+
+
+@pytest.mark.asyncio
+async def test_cancelled_code_task_stops_before_the_next_expensive_step():
+    class CancelledTaskService:
+        async def get(self, **_kwargs):
+            return {"status": "cancelled"}
+
+    runner = CrumpCodeRunner(SimpleNamespace(), CancelledTaskService())
+    with pytest.raises(CodeRunnerError) as exc:
+        await runner._ensure_not_cancelled({"id": "task-id", "user_id": "user-id"})
+    assert exc.value.code == "CODE_TASK_CANCELLED"
 
 
 def test_crump_code_is_professional_and_cost_guarded():

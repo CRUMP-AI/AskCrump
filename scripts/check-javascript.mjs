@@ -8,6 +8,7 @@ const expectedFiles = new Set([
   'crump-4.3.js', 'crump-4.4.js', 'crump-5.0.js', 'crump-billing-5.1.js',
   'crump-5.2.js', 'crump-5.2.2.js', 'crump-5.2.4.js', 'crump-navigation-5.2.5.js',
   'crump-navigation-5.9.30.js',
+  'crump-code-5.9.35.js',
   'crump-v1.js', 'crump-v1-body.js', 'crump-v1-stability.js', 'crump-product-5.3.js',
   'crump-product-5.3.1.js', 'crump-subscriptions-5.3.2.js', 'crump-polish-5.6.js',
   'crump-library-5.7.js',
@@ -60,6 +61,8 @@ const requiredBodyFiles = [
   'public/crump-library-5.7.js',
   'public/crump-navigation-5.9.30.css',
   'public/crump-navigation-5.9.30.js',
+  'public/crump-code-5.9.35.css',
+  'public/crump-code-5.9.35.js',
   'public/runtime-body-v1.js',
   'public/assets/brand/crump-mark.png',
   'public/assets/brand/crump-horizontal-light.png',
@@ -120,7 +123,8 @@ if (!runtime.includes('/crump-v1-body.js') || !runtime.includes('/crump-v1-body.
     !runtime.includes('/crump-subscriptions-5.3.2.js') ||
     !runtime.includes('/crump-polish-5.6.js') || !runtime.includes('/crump-polish-5.6.css') ||
     !runtime.includes('/crump-library-5.7.js') || !runtime.includes('/crump-library-5.7.css') ||
-    !runtime.includes('/crump-navigation-5.9.30.js') || !runtime.includes('/crump-navigation-5.9.30.css')) {
+    !runtime.includes('/crump-navigation-5.9.30.js') || !runtime.includes('/crump-navigation-5.9.30.css') ||
+    !runtime.includes('/crump-code-5.9.35.js') || !runtime.includes('/crump-code-5.9.35.css')) {
   console.error('New-body runtime is missing the canonical shell.');
   process.exit(1);
 }
@@ -141,7 +145,7 @@ if (!v1Body.includes('removeLegacyEmptyState(container)')) {
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r68') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r69') ||
     !serviceWorker.includes(`/landing.js?v=${releaseVersion}`) ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes(`/conversation.css?v=${releaseVersion}`) ||
@@ -155,6 +159,8 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r68') ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.2.5.css'") ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.9.30.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.9.30.css'") ||
+    !serviceWorker.includes("url.pathname === '/crump-code-5.9.35.js'") ||
+    !serviceWorker.includes("url.pathname === '/crump-code-5.9.35.css'") ||
     !serviceWorker.includes('/crump-subscriptions-5.3.2.js') ||
     !serviceWorker.includes('/crump-library-5.7.js') ||
     !serviceWorker.includes('/crump-library-5.7.css')) {
