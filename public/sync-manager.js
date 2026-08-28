@@ -2,6 +2,7 @@
   'use strict';
   const PENDING_KEY = 'crump_sync_queue_v4';
   const SYNC_KEY = 'crump_last_sync_v4';
+  const SYNC_REQUEST_TIMEOUT_MS = 12_000;
 
   const read = (key, fallback) => {
     try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch (_) { return fallback; }
@@ -11,12 +12,35 @@
   };
   const userKey = key => `${key}:${window.currentUser?.id || 'anonymous'}`;
 
+  async function requestJson(url, options, invalidResponseError) {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), SYNC_REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, {...options, signal: controller.signal});
+      const data = await response.json().catch(() => ({
+        success: false,
+        error: invalidResponseError,
+      }));
+      return {response, data};
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        throw new Error('Synchronization timed out. Your work is still queued.');
+      }
+      throw error;
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  }
+
   async function pull(_legacyDeviceId, options = {}) {
     const full = options.full !== false;
     const since = full ? null : read(userKey(SYNC_KEY), null);
     const url = since ? `/api/sync/pull?since=${encodeURIComponent(since)}` : '/api/sync/pull';
-    const response = await fetch(url, { method: 'GET' });
-    const data = await response.json().catch(() => ({ success: false, error: 'Invalid sync response.' }));
+    const {response, data} = await requestJson(
+      url,
+      {method: 'GET'},
+      'Invalid sync response.',
+    );
     if (response.ok && data.success) write(userKey(SYNC_KEY), data.serverTime || new Date().toISOString());
     return data;
   }
@@ -49,12 +73,26 @@
     const key = userKey(PENDING_KEY);
     const queue = read(key, []);
     if (!queue.length) return { success: true };
-    const response = await fetch('/api/sync/push', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(mergeQueue(queue)),
-    });
-    const data = await response.json().catch(() => ({ success: false, error: 'Invalid sync response.' }));
+    let response;
+    let data;
+    try {
+      ({response, data} = await requestJson(
+        '/api/sync/push',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(mergeQueue(queue)),
+        },
+        'Invalid sync response.',
+      ));
+    } catch (error) {
+      return {
+        success: false,
+        queued: true,
+        retryable: true,
+        error: error?.message || 'Synchronization is temporarily unavailable. Your work is still queued.',
+      };
+    }
     if (response.ok && data.success) {
       write(key, []);
       write(userKey(SYNC_KEY), data.serverTime || new Date().toISOString());

@@ -145,18 +145,20 @@ if (!v1Body.includes('removeLegacyEmptyState(container)')) {
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r75') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r76') ||
     !serviceWorker.includes(`/landing.js?v=${releaseVersion}`) ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes(`/conversation.css?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/ui-functions.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/device-auth.js?v=${releaseVersion}`) ||
+    !serviceWorker.includes(`/sync-manager.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/product-analytics.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/auth-controller.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/crump-v1-body.css?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/crump-4.3.js?v=${releaseVersion}`) ||
     !serviceWorker.includes("url.pathname === '/conversation.css'") ||
     !serviceWorker.includes("url.pathname === '/ui-functions.js'") ||
+    !serviceWorker.includes("url.pathname === '/sync-manager.js'") ||
     !serviceWorker.includes("url.pathname === '/auth-controller.js'") ||
     !serviceWorker.includes('/crump-v1-body.js') ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.2.5.js'") ||

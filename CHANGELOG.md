@@ -1,5 +1,22 @@
 # Changelog
 
+## 5.9.42 — 2026-08-27
+
+### Recoverable continuing-work sync
+
+- Bounded cross-device sync requests through response-body parsing so a stalled network request can
+  no longer leave message delivery or `Keep in a Project` waiting forever.
+- Preserved the account-scoped pending queue on timeout or network failure and returned an explicit
+  retryable result; a later automatic or user-initiated sync can safely replay the same work.
+- Kept Project ownership, chat merge/revision rules, authentication, pricing, entitlements, and
+  analytics semantics unchanged.
+
+### Verification and release
+
+- Advanced the application to 5.9.42, native build 50942, and service-worker cache revision 76.
+  The changed sync manager is now release-versioned and network-first so web and installed clients
+  receive the recovery boundary together.
+
 ## 5.9.41 — 2026-08-27
 
 ### Reliable authenticated entry

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Project continuity sync-stall fixture</title>
+</head>
+<body>
+  <main>
+    <div id="chatContainer"></div>
+    <output id="fixtureStatus" aria-live="polite"></output>
+  </main>
+  <script>
+    const fixtureChatId = '00000000-0000-4000-8000-000000000041';
+    localStorage.removeItem('crump_sync_queue_v4:fixture-user');
+    window.currentUser = {id: 'fixture-user'};
+    window.currentChatId = fixtureChatId;
+    window.chats = [{
+      id: fixtureChatId,
+      chat_id: fixtureChatId,
+      title: 'Quarterly strategy',
+      messages: [{
+        id: 'fixture-response',
+        role: 'assistant',
+        content: 'Here is the completed strategy.',
+      }],
+    }];
+    window.__fixture = {
+      projectRequests: 0,
+      syncAttempts: 0,
+      toasts: [],
+    };
+    window.showToast = (message, tone) => {
+      window.__fixture.toasts.push({message, tone});
+      document.getElementById('fixtureStatus').textContent = message;
+      try {
+        const queue = JSON.parse(localStorage.getItem('crump_sync_queue_v4:fixture-user') || '[]');
+        document.getElementById('fixtureStatus').textContent += ` Queued saves: ${queue.length}.`;
+      } catch (_) {}
+    };
+    window.CrumpAnalytics = {track: () => Promise.resolve(true)};
+    window.CrumpPresence = {indicator: () => null};
+    const nativeSetTimeout = window.setTimeout.bind(window);
+    window.setTimeout = (callback, delay, ...args) => nativeSetTimeout(
+      callback,
+      delay === 12_000 ? 250 : delay,
+      ...args,
+    );
+    window.fetch = async (input, options = {}) => {
+      const url = new URL(String(input), location.href);
+      const method = String(options.method || 'GET').toUpperCase();
+      if (url.pathname === '/api/sync/push') {
+        window.__fixture.syncAttempts += 1;
+        document.getElementById('fixtureStatus').textContent = 'Sync request started.';
+        return new Promise((_resolve, reject) => {
+          options.signal?.addEventListener('abort', () => {
+            const queue = JSON.parse(localStorage.getItem('crump_sync_queue_v4:fixture-user') || '[]');
+            document.getElementById('fixtureStatus').textContent = `Sync request stopped. Queued saves: ${queue.length}.`;
+            reject(new DOMException('The fixture request was aborted.', 'AbortError'));
+          }, {once: true});
+        });
+      }
+      if (url.pathname === '/api/projects' && method === 'GET') {
+        return new Response(JSON.stringify({success: true, projects: [], limit: 3}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      if (url.pathname === '/api/features') {
+        return new Response(JSON.stringify({success: true}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      window.__fixture.projectRequests += 1;
+      return new Response(JSON.stringify({success: true, project: {
+        id: '00000000-0000-4000-8000-000000000042',
+        name: 'Quarterly strategy',
+      }}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+  </script>
+  <script src="/public/sync-manager.js?v=project-sync-fixture-1"></script>
+  <script>
+    window.syncChatsToServer = () => window.SyncManager.push(null, {
+      chats: window.chats,
+      deletedChats: [],
+    });
+  </script>
+  <script src="/public/ui-functions.js?v=project-sync-fixture-1"></script>
+  <script src="/public/crump-product-5.3.js?v=project-sync-fixture-1"></script>
+  <script>
+    window.addEventListener('load', () => window.renderMessages(window.chats[0].messages));
+  </script>
+</body>
+</html>

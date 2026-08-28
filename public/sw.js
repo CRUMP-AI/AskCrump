@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r75';
+const CACHE_NAME = 'ask-crump-new-body-v1-r76';
 
 const CORE = [
   '/app',
@@ -6,16 +6,16 @@ const CORE = [
   '/legal.html',
   '/delete-account.html',
   '/manifest.json',
-  '/landing-5.6.css?v=5.9.41',
-  '/use-case.css?v=5.9.41',
-  '/landing.js?v=5.9.41',
+  '/landing-5.6.css?v=5.9.42',
+  '/use-case.css?v=5.9.42',
+  '/landing.js?v=5.9.42',
   '/styles.css',
   '/billing.css',
   '/install-prompt.css',
   '/onboarding.css',
-  '/conversation.css?v=5.9.41',
+  '/conversation.css?v=5.9.42',
   '/auth-styles.css',
-  '/crump-v1-body.css?v=5.9.41',
+  '/crump-v1-body.css?v=5.9.42',
   '/crump-v1-body.js',
   '/crump-v1-stability.css',
   '/crump-v1-stability.js',
@@ -44,17 +44,17 @@ const CORE = [
   '/profile-manager.js',
   '/billing-manager.js',
   '/subscription-ui.js',
-  '/ui-functions.js?v=5.9.41',
+  '/ui-functions.js?v=5.9.42',
   '/presence-manager.js',
-  '/device-auth.js?v=5.9.41',
-  '/sync-manager.js',
+  '/device-auth.js?v=5.9.42',
+  '/sync-manager.js?v=5.9.42',
   '/chat-sync.js',
   '/account-manager.js',
-  '/app.js?v=5.9.41',
-  '/product-analytics.js?v=5.9.41',
-  '/auth-controller.js?v=5.9.41',
+  '/app.js?v=5.9.42',
+  '/product-analytics.js?v=5.9.42',
+  '/auth-controller.js?v=5.9.42',
   '/crump-4.3.css',
-  '/crump-4.3.js?v=5.9.41',
+  '/crump-4.3.js?v=5.9.42',
   '/crump-4.4.css',
   '/crump-4.4.js',
   '/crump-5.0.css',
@@ -127,6 +127,7 @@ function bootCritical(request, url) {
     url.pathname === '/conversation.css' ||
     url.pathname === '/ui-functions.js' ||
     url.pathname === '/device-auth.js' ||
+    url.pathname === '/sync-manager.js' ||
     url.pathname === '/onboarding.js' ||
     url.pathname === '/product-analytics.js' ||
     url.pathname === '/auth-controller.js' ||
