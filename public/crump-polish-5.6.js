@@ -29,8 +29,8 @@
     button.className = 'settings-row settings-row-action crump56-tour-row';
     button.innerHTML = `
       <div class="settings-row-text">
-        <div class="settings-label">Replay product tour</div>
-        <div class="settings-help">See Projects, creation tools, video continuation, and your Library.</div>
+        <div class="settings-label">Replay workspace guide</div>
+        <div class="settings-help">Review Ask, Projects, Create, Library, and You.</div>
       </div>
       <div class="settings-chevron" aria-hidden="true">›</div>`;
     button.addEventListener('click', () => {

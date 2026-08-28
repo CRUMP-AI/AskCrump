@@ -17,22 +17,53 @@ def test_56_polish_layer_is_last_on_web_and_native():
         assert source.index("/crump-4.3.js") < source.index("/crump-4.4.js")
         assert source.index("/crump-product-5.3.1.js") < source.index("/crump-polish-5.6.js")
         assert "/crump-polish-5.6.css" in source
-    assert "ask-crump-new-body-v1-r102" in worker
+    assert "ask-crump-new-body-v1-r103" in worker
     assert "/crump-polish-5.6.css" in worker and "/crump-polish-5.6.js" in worker
     assert "crump-polish-5.6.js" in checker
 
 
 def test_tutorial_is_current_and_no_longer_bootstraps_legacy_runtime():
     tutorial = read("public/onboarding.js")
-    assert "crump_tutorial_completed_v5" in tutorial
-    assert "Projects" in tutorial
-    assert "VIDEO" in tutorial
-    assert "Continue scenes" in tutorial
-    assert "YOUR LIBRARY" in tutorial
+    styles = read("public/onboarding.css")
+    polish = read("public/crump-polish-5.6.js")
+    assert "crump_tutorial_completed_v6" in tutorial
+    for destination in ("Ask", "Projects", "Create", "Library", "You"):
+        assert f"destination: '{destination}'" in tutorial
+    assert "Conversation history remains in Chats." in tutorial
+    assert "Nothing generates until you review the setup and send the request." in tutorial
+    assert "tutorial-destination-map" in tutorial and ".tutorial-destination-map" in styles
+    assert "aria-current', 'step'" in tutorial
+    assert "Replay workspace guide" in polish
+    assert "Review Ask, Projects, Create, Library, and You." in polish
     assert "loadRevampAssets" not in tutorial
     assert "crump-4.3.js" not in tutorial
     assert "event.key === 'Tab'" in tutorial
     assert "if (document.getElementById('v1Launchpad')) return;" in tutorial
+
+
+def test_authenticated_workspace_stays_behind_a_bounded_runtime_gate():
+    page = read("public/app.html")
+    styles = read("public/crump-v1-body.css")
+    controller = read("public/auth-controller.js")
+    runtime = read("public/runtime-body-v1.js")
+
+    assert 'id="v1RuntimeGate"' in page
+    assert "Opening your workspace" in page
+    assert ".v1-runtime-gate" in styles
+    assert "holdWorkspaceForRuntime();" in controller
+    assert "shell?.setAttribute('inert', '');" in controller
+    assert "window.addEventListener('crump:body-runtime-ready', releaseWorkspaceRuntimeGate" in controller
+    assert "window.setTimeout(releaseWorkspaceRuntimeGate, 5000)" in controller
+    assert "document.addEventListener('DOMContentLoaded'" in runtime
+    assert "window.addEventListener('load'" not in runtime
+
+
+def test_five_destination_tutorial_fixture_uses_production_assets():
+    fixture = read("tests/fixtures/five-destination-tutorial.html")
+
+    assert "/public/onboarding.css" in fixture
+    assert "/public/onboarding.js?fixture=five-destinations" in fixture
+    assert "window.tutorial.start({force: true})" in fixture
 
 
 def test_home_surface_exposes_projects_and_video_without_hiding_core_chat():

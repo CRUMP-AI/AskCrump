@@ -3,6 +3,8 @@
   let appStarted = false;
   let activeUser = null;
   let planIntentDispatched = false;
+  let workspaceRuntimeGateTimer = 0;
+  let workspaceRuntimeGateWaiting = false;
   const TERMS_VERSION = '2026-07-30';
   const PLAN_INTENT_KEY = 'askcrump.pending-plan-intent';
   const CREATION_INTENT_KEY = 'askcrump.pending-creation-intent';
@@ -202,10 +204,49 @@
     }
   }
 
+  function releaseWorkspaceRuntimeGate() {
+    if (workspaceRuntimeGateTimer) window.clearTimeout(workspaceRuntimeGateTimer);
+    workspaceRuntimeGateTimer = 0;
+    workspaceRuntimeGateWaiting = false;
+    window.removeEventListener('crump:body-runtime-ready', releaseWorkspaceRuntimeGate);
+    byId('appContainer')?.removeAttribute('aria-busy');
+    document.querySelector('.v1-shell')?.removeAttribute('inert');
+    const gate = byId('v1RuntimeGate');
+    if (!gate || gate.hidden) return;
+    gate.classList.add('is-ready');
+    gate.setAttribute('aria-hidden', 'true');
+    window.setTimeout(() => {
+      if (gate.classList.contains('is-ready')) gate.hidden = true;
+    }, 220);
+  }
+
+  function holdWorkspaceForRuntime() {
+    if (document.documentElement.dataset.crumpBodyRuntime === 'ready') {
+      releaseWorkspaceRuntimeGate();
+      return;
+    }
+    const gate = byId('v1RuntimeGate');
+    const shell = document.querySelector('.v1-shell');
+    if (gate) {
+      gate.hidden = false;
+      gate.classList.remove('is-ready');
+      gate.removeAttribute('aria-hidden');
+    }
+    byId('appContainer')?.setAttribute('aria-busy', 'true');
+    shell?.setAttribute('inert', '');
+    if (!workspaceRuntimeGateWaiting) {
+      workspaceRuntimeGateWaiting = true;
+      window.addEventListener('crump:body-runtime-ready', releaseWorkspaceRuntimeGate, {once: true});
+    }
+    if (workspaceRuntimeGateTimer) window.clearTimeout(workspaceRuntimeGateTimer);
+    workspaceRuntimeGateTimer = window.setTimeout(releaseWorkspaceRuntimeGate, 5000);
+  }
+
   function startApp() {
     hide('authContainer');
     hide('tosModal');
     hide('onboardingModal');
+    holdWorkspaceForRuntime();
     show('appContainer', 'flex');
     if (!appStarted) {
       window.initializeApp?.();

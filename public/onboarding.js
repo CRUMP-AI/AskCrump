@@ -3,48 +3,48 @@
 
   const STEPS = Object.freeze([
     {
-      eyebrow: 'WELCOME TO ASK CRUMP',
-      title: 'Just ask. Crump can help from there.',
-      content: 'Use Ask Crump the same way you would talk to someone helpful: ask a quick question, get advice, clean up your words, plan something, or start something bigger.',
+      destination: 'Ask',
+      eyebrow: 'ASK · CHATS',
+      title: 'Start with the conversation.',
+      content: 'Ask is where you think, research, and work with Crump. Chats opens your synchronized conversation history without turning it into a second application menu.',
       icon: '✦',
-      features: ['Everyday questions', 'Work & school', 'Ideas & advice'],
+      features: ['Ask naturally', 'Research what changed', 'Return through Chats'],
     },
     {
-      eyebrow: 'KEEP IT TOGETHER',
-      title: 'When something matters, give it a home.',
-      content: 'If something grows beyond one chat, Projects can keep the conversations, notes, files, and instructions together so you can pick up where you left off.',
+      destination: 'Projects',
+      eyebrow: 'PROJECTS',
+      title: 'Give continuing work a home.',
+      content: 'Projects keep the conversations, instructions, notes, and reference files for one body of work together so you can return without rebuilding the context.',
       icon: '▣',
-      features: ['Projects', 'Notes & files', 'Long-term context'],
+      features: ['Durable context', 'Notes & reference files', 'Saved conversations'],
     },
     {
-      eyebrow: 'CREATE WITH CRUMP',
-      title: 'Need more than an answer? Just ask.',
-      content: 'Upload a photo, ask for an image edit, research something current, build a document, or turn an idea into longer writing without learning special commands.',
+      destination: 'Create',
+      eyebrow: 'CREATE',
+      title: 'Choose the outcome you need.',
+      content: 'Create opens the right workspace for documents, presentations, images, manuscripts, and video. Nothing generates until you review the setup and send the request.',
       icon: '+',
-      features: ['Research', 'Images & documents', 'Long-form writing'],
+      features: ['Editable files', 'Images & manuscripts', 'Video Studio'],
     },
     {
-      eyebrow: 'VIDEO',
-      title: 'Turn an idea into a video.',
-      content: 'Describe what you want to see and Crump can help create it. Make a quick clip, continue a scene, or build something more cinematic.',
-      icon: '▶',
-      features: ['Quick clips', 'Continue scenes', 'Cinematic video'],
-    },
-    {
-      eyebrow: 'YOUR LIBRARY',
-      title: 'What you create stays with you.',
-      content: 'Images, videos, documents, longer writing, and files you upload stay connected to your account so you can come back to them later.',
+      destination: 'Library',
+      eyebrow: 'LIBRARY',
+      title: 'Keep the things you create.',
+      content: 'Library is the dedicated home for your private books, documents, images, videos, exports, and uploads. Conversation history remains in Chats.',
       icon: '▱',
-      features: ['Private storage', 'Across your devices', 'Open again anytime'],
+      features: ['Private to your account', 'Across your devices', 'Open and reuse'],
     },
     {
-      eyebrow: 'YOU ARE READY',
-      title: 'Talk to Crump like you normally would.',
-      content: 'There are no special commands to learn. Ask a question, attach something when it helps, or simply say what you want to do. Crump will help you from there.',
-      icon: '→',
-      features: ['Ask naturally', 'Attach when useful', 'Explore as you go'],
+      destination: 'You',
+      eyebrow: 'YOU',
+      title: 'Your account has one clear home.',
+      content: 'You contains your profile, behavior preferences, plan and credits, account controls, product guidance, and legal information.',
+      icon: '○',
+      features: ['Profile & behavior', 'Plan & credits', 'Account & about'],
     },
   ]);
+
+  const DESTINATIONS = Object.freeze(['Ask', 'Projects', 'Create', 'Library', 'You']);
 
   class Tutorial {
     constructor() {
@@ -56,7 +56,7 @@
 
     storageKey() {
       const userId = String(window.currentUser?.id || 'guest').replace(/[^a-zA-Z0-9_-]/g, '');
-      return `crump_tutorial_completed_v5:${userId || 'guest'}`;
+      return `crump_tutorial_completed_v6:${userId || 'guest'}`;
     }
 
     isComplete() {
@@ -176,6 +176,19 @@
       description.className = 'tutorial-description';
       description.textContent = step.content;
 
+      const destinationMap = document.createElement('div');
+      destinationMap.className = 'tutorial-destination-map';
+      destinationMap.setAttribute('aria-label', 'Ask Crump destinations');
+      for (const destination of DESTINATIONS) {
+        const item = document.createElement('span');
+        item.textContent = destination;
+        if (destination === step.destination) {
+          item.classList.add('is-current');
+          item.setAttribute('aria-current', 'step');
+        }
+        destinationMap.appendChild(item);
+      }
+
       const featureGrid = document.createElement('div');
       featureGrid.className = 'tutorial-feature-grid';
       for (const feature of step.features) {
@@ -190,7 +203,7 @@
         featureGrid.appendChild(item);
       }
 
-      body.append(visual, progressLabel, eyebrow, title, description, featureGrid);
+      body.append(visual, progressLabel, eyebrow, title, description, destinationMap, featureGrid);
 
       const footer = document.createElement('div');
       footer.className = 'tutorial-footer';

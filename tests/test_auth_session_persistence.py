@@ -28,8 +28,8 @@ def test_same_page_login_is_serialized_and_confirmed():
     assert "code !== 'AUTH_REQUEST_TIMEOUT'" in source
     assert 'for (let attempt = 0; attempt < 2; attempt += 1)' not in source
     assert "code: 'SESSION_ESTABLISHMENT_FAILED'" in source
-    assert 'src="/device-auth.js?v=5.9.68"' in shell
-    assert "'/device-auth.js?v=5.9.68'" in worker
+    assert 'src="/device-auth.js?v=5.9.69"' in shell
+    assert "'/device-auth.js?v=5.9.69'" in worker
     assert "url.pathname === '/device-auth.js'" in worker
 
 
@@ -47,8 +47,8 @@ def test_sleeping_pwa_checks_for_updates_and_adopts_safe_signed_out_runtime():
     assert "window.sessionStorage.setItem(reloadGuardKey" in installer
     assert 'Reload to use the latest sign-in and reliability fixes.' in installer
     assert '.runtime-update-notice' in styles
-    assert 'src="/install-prompt.js?v=5.9.68"' in shell
-    assert "'/install-prompt.js?v=5.9.68'" in worker
+    assert 'src="/install-prompt.js?v=5.9.69"' in shell
+    assert "'/install-prompt.js?v=5.9.69'" in worker
     assert "url.pathname === '/install-prompt.js'" in worker
 
 

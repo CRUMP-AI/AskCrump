@@ -493,7 +493,7 @@
     }
     advanced.appendChild(statusGrid);
 
-    const tutorialButton = button('Replay product tour', 'crump44-row-button crump44-subtle', () => {
+    const tutorialButton = button('Replay workspace guide', 'crump44-row-button crump44-subtle', () => {
       closePanel();
       window.tutorial?.restart?.();
     });

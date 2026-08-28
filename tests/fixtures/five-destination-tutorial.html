@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Five-destination tutorial fixture</title>
+  <link rel="stylesheet" href="/public/onboarding.css">
+  <style>
+    body { margin: 0; min-height: 100vh; background: #080b0f; color: #eee; font-family: system-ui, sans-serif; }
+    .fixture-shell { display: grid; min-height: 100vh; place-items: center; }
+    .fixture-shell nav { display: flex; gap: 8px; }
+    .fixture-shell span { padding: 10px 12px; border: 1px solid #242b31; border-radius: 10px; color: #777f83; }
+  </style>
+</head>
+<body>
+  <main class="fixture-shell">
+    <nav aria-label="Fixture destinations"><span>Ask</span><span>Projects</span><span>Create</span><span>Library</span><span>You</span></nav>
+    <input id="userInput" aria-label="Message Crump">
+  </main>
+  <script>
+    window.currentUser = {id: 'tutorial-fixture-user'};
+    window.showToast = () => {};
+  </script>
+  <script src="/public/onboarding.js?fixture=five-destinations"></script>
+  <script>
+    window.addEventListener('load', () => window.tutorial.start({force: true}), {once: true});
+  </script>
+</body>
+</html>
