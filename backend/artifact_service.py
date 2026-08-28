@@ -771,14 +771,17 @@ class ArtifactService:
             color=accent,
             bold=True,
         )
-        title_size = 36 if len(heading) <= 58 else (31 if len(heading) <= 92 else 27)
+        # Keep the hierarchy presentation-scale even when the model returns a
+        # long takeaway. Two lines at 35pt are preferable to a document-like
+        # title that shrinks into body-copy territory.
+        title_size = 38 if len(heading) <= 54 else 35
         self._ppt_add_text(
             slide,
             heading,
             0.72,
             0.86,
             11.7,
-            0.92,
+            1.08,
             size=title_size,
             color=WHITE if dark else INK,
             bold=True,
@@ -839,6 +842,8 @@ class ArtifactService:
         rows: list[list[str]],
         *,
         accent: str,
+        top: float = 2.05,
+        height: float = 4.52,
     ) -> bool:
         prepared = self._ppt_chart_data(rows)
         if not prepared:
@@ -853,9 +858,9 @@ class ArtifactService:
         chart = slide.shapes.add_chart(
             chart_type,
             PptInches(0.82),
-            PptInches(2.05),
+            PptInches(top),
             PptInches(11.7),
-            PptInches(4.52),
+            PptInches(height),
             data,
         ).chart
         chart.has_title = False
@@ -973,7 +978,8 @@ class ArtifactService:
 
         content_number = 0
         accents = [TEAL, GOLD, COPPER, SKY]
-        for heading, items in groups[:18]:
+        limited_groups = groups[:18]
+        for group_index, (heading, items) in enumerate(limited_groups):
             text_items: list[str] = []
             table_items: list[list[list[str]]] = []
             for kind, content in items:
@@ -981,13 +987,18 @@ class ArtifactService:
                     table_items.append(content)
                 else:
                     text_items.append(self._clean_inline(str(content).replace('\n', ' ')))
-            for start in range(0, len(text_items), 5):
-                page_items = [item for item in text_items[start:start + 5] if item]
+            # A single sentence immediately before a table is its explanatory
+            # lead, not a reason to create a sparse duplicate-topic slide.
+            table_lead = text_items[0] if table_items and len(text_items) == 1 and text_items[0] else None
+            paged_text_items = [] if table_lead else text_items
+            for start in range(0, len(paged_text_items), 5):
+                page_items = [item for item in paged_text_items[start:start + 5] if item]
                 if not page_items:
                     continue
                 content_number += 1
                 accent = accents[(content_number - 1) % len(accents)]
-                dark = content_number % 3 == 0
+                is_closing = group_index == len(limited_groups) - 1 and not table_items
+                dark = is_closing or content_number % 4 == 0
                 background = NAVY if dark else PAPER
                 body_color = CREAM if dark else INK
                 secondary_color = SKY if dark else MUTED
@@ -996,6 +1007,20 @@ class ArtifactService:
                 display = heading if start == 0 else f'{heading} — continued'
                 self._ppt_slide_title(slide, display, dark=dark, accent=accent)
                 if len(page_items) == 1:
+                    watermark = '303746' if dark else SOFT
+                    self._ppt_add_text(
+                        slide,
+                        f'{content_number:02d}',
+                        9.1,
+                        2.0,
+                        2.45,
+                        1.35,
+                        size=82,
+                        color=watermark,
+                        bold=True,
+                        font='Aptos Display',
+                        align=PP_ALIGN.RIGHT,
+                    )
                     self._ppt_shape(slide, MSO_SHAPE.RECTANGLE, 0.82, 2.12, 0.07, 3.05, fill=accent)
                     self._ppt_add_text(
                         slide,
@@ -1008,18 +1033,108 @@ class ArtifactService:
                         color=accent,
                         bold=True,
                     )
-                    size = 28 if len(page_items[0]) <= 300 else 23
+                    size = 31 if len(page_items[0]) <= 240 else 25
                     self._ppt_add_text(
                         slide,
                         page_items[0][:560],
                         1.2,
                         2.63,
-                        10.55,
+                        7.55,
                         2.8,
                         size=size,
                         color=body_color,
                         font='Aptos Display',
                     )
+                elif len(page_items) == 2 and not dark:
+                    dark_on_right = content_number % 2 == 1
+                    panel_x = 7.08 if dark_on_right else 0
+                    self._ppt_shape(slide, MSO_SHAPE.RECTANGLE, panel_x, 1.92, 6.253, 5.08, fill=NAVY)
+                    for item_index, item in enumerate(page_items):
+                        x = 0.82 if item_index == 0 else (7.7 if dark_on_right else 7.02)
+                        on_dark_panel = item_index == (1 if dark_on_right else 0)
+                        number_color = GOLD if on_dark_panel else accent
+                        text_color = CREAM if on_dark_panel else INK
+                        self._ppt_add_text(
+                            slide,
+                            f'{item_index + 1:02d}',
+                            x,
+                            2.26,
+                            0.7,
+                            0.34,
+                            size=13,
+                            color=number_color,
+                            bold=True,
+                        )
+                        self._ppt_shape(
+                            slide,
+                            MSO_SHAPE.RECTANGLE,
+                            x,
+                            2.72,
+                            0.72,
+                            0.055,
+                            fill=number_color,
+                        )
+                        self._ppt_add_text(
+                            slide,
+                            item[:430],
+                            x,
+                            3.12,
+                            5.1 if item_index == 0 else 4.82,
+                            2.55,
+                            size=23 if len(item) <= 230 else 18,
+                            color=text_color,
+                            font='Aptos Display',
+                        )
+                elif len(page_items) == 3 and not dark:
+                    self._ppt_add_text(
+                        slide,
+                        '01',
+                        0.82,
+                        2.14,
+                        0.72,
+                        0.35,
+                        size=13,
+                        color=accent,
+                        bold=True,
+                    )
+                    self._ppt_shape(slide, MSO_SHAPE.RECTANGLE, 0.82, 2.67, 0.72, 0.055, fill=accent)
+                    self._ppt_add_text(
+                        slide,
+                        page_items[0][:430],
+                        0.82,
+                        3.04,
+                        4.75,
+                        2.65,
+                        size=25 if len(page_items[0]) <= 230 else 20,
+                        color=body_color,
+                        font='Aptos Display',
+                    )
+                    self._ppt_shape(slide, MSO_SHAPE.RECTANGLE, 5.86, 2.02, 0.012, 3.98, fill=LINE)
+                    for item_index, item in enumerate(page_items[1:], start=2):
+                        y = 2.16 + (item_index - 2) * 1.84
+                        self._ppt_add_text(
+                            slide,
+                            f'{item_index:02d}',
+                            6.28,
+                            y,
+                            0.62,
+                            0.28,
+                            size=11,
+                            color=accent,
+                            bold=True,
+                        )
+                        self._ppt_add_text(
+                            slide,
+                            item[:360],
+                            7.15,
+                            y - 0.02,
+                            5.08,
+                            1.3,
+                            size=19 if len(item) <= 230 else 17,
+                            color=body_color,
+                        )
+                        if item_index == 2:
+                            self._ppt_shape(slide, MSO_SHAPE.RECTANGLE, 6.28, 3.65, 5.85, 0.012, fill=LINE)
                 elif len(page_items) <= 3:
                     count = len(page_items)
                     gap = 0.34
@@ -1049,7 +1164,7 @@ class ArtifactService:
                             bold=True,
                             align=PP_ALIGN.CENTER,
                         )
-                        size = 19 if len(item) <= 230 else 16.5
+                        size = 20 if len(item) <= 230 else 17
                         self._ppt_add_text(
                             slide,
                             item[:390],
@@ -1086,7 +1201,7 @@ class ArtifactService:
                             color=accent,
                             bold=True,
                         )
-                        size = 16.5 if len(item) <= 230 else 14.5
+                        size = 17 if len(item) <= 230 else 16
                         self._ppt_add_text(
                             slide,
                             item[:300],
@@ -1098,7 +1213,7 @@ class ArtifactService:
                             color=body_color,
                         )
                 self._ppt_footer(slide, len(prs.slides), dark=dark)
-            for table_rows in table_items:
+            for table_index, table_rows in enumerate(table_items):
                 if not table_rows:
                     continue
                 chunks = [table_rows[:8]]
@@ -1111,17 +1226,38 @@ class ArtifactService:
                     slide = prs.slides.add_slide(prs.slide_layouts[6])
                     self._ppt_background(slide, PAPER)
                     display = heading if chunk_index == 0 else f'{heading} — continued'
-                    if chunk_index == 0 and self._ppt_add_chart(slide, rows, accent=accent):
+                    lead = table_lead if table_index == 0 and chunk_index == 0 else None
+                    chart_top = 2.48 if lead else 2.05
+                    chart_height = 4.08 if lead else 4.52
+                    if chunk_index == 0 and self._ppt_add_chart(
+                        slide,
+                        rows,
+                        accent=accent,
+                        top=chart_top,
+                        height=chart_height,
+                    ):
                         # Charts are native and remain editable. Repaint the title band after the
                         # chart so strict renderers cannot obscure the slide headline with the
                         # chart canvas.
-                        self._ppt_shape(slide, MSO_SHAPE.RECTANGLE, 0, 0, 13.333, 1.82, fill=PAPER)
+                        title_band_height = 2.38 if lead else 1.82
+                        self._ppt_shape(slide, MSO_SHAPE.RECTANGLE, 0, 0, 13.333, title_band_height, fill=PAPER)
                         self._ppt_slide_title(slide, display, accent=accent)
+                        if lead:
+                            self._ppt_add_text(
+                                slide,
+                                lead[:260],
+                                0.82,
+                                1.78,
+                                9.35,
+                                0.42,
+                                size=16,
+                                color=MUTED,
+                            )
                         self._ppt_add_text(
                             slide,
-                            'COMPARATIVE VIEW',
+                            'DATA VIEW',
                             10.15,
-                            1.52,
+                            1.84 if lead else 1.52,
                             2.35,
                             0.2,
                             size=8,
@@ -1132,8 +1268,27 @@ class ArtifactService:
                         self._ppt_footer(slide, len(prs.slides))
                         continue
                     self._ppt_slide_title(slide, display, accent=accent)
-                    table_height = max(1.6, min(4.75, 0.58 * len(rows) + 0.3))
-                    table = slide.shapes.add_table(len(rows), width, PptInches(0.72), PptInches(1.92), PptInches(11.9), PptInches(table_height)).table
+                    table_top = 2.48 if lead else 1.92
+                    if lead:
+                        self._ppt_add_text(
+                            slide,
+                            lead[:260],
+                            0.82,
+                            1.78,
+                            11.1,
+                            0.42,
+                            size=16,
+                            color=MUTED,
+                        )
+                    table_height = max(1.6, min(4.2 if lead else 4.75, 0.58 * len(rows) + 0.3))
+                    table = slide.shapes.add_table(
+                        len(rows),
+                        width,
+                        PptInches(0.72),
+                        PptInches(table_top),
+                        PptInches(11.9),
+                        PptInches(table_height),
+                    ).table
                     ratios = self._column_ratios(rows, width)
                     for col_index, ratio in enumerate(ratios):
                         table.columns[col_index].width = PptInches(11.9 * ratio)
@@ -1149,7 +1304,7 @@ class ArtifactService:
                             cell.margin_top = cell.margin_bottom = PptInches(0.06)
                             p = cell.text_frame.paragraphs[0]
                             p.font.name = 'Aptos'
-                            p.font.size = PptPt(12.5)
+                            p.font.size = PptPt(13.5)
                             p.font.bold = row_index == 0 or col_index == 0
                             p.font.color.rgb = RGBColor.from_string(
                                 WHITE if row_index == 0 else (TEAL if col_index == 0 else INK),

@@ -295,6 +295,46 @@ def test_presentation_export_has_color_rhythm_and_editable_native_charts():
     assert b'<c:crossAx val="-' not in chart_xml
 
 
+def test_presentation_uses_an_asymmetric_split_for_two_point_slides():
+    deck = Presentation(BytesIO(service().pptx(RHYTHM_DECK)))
+    first_content = deck.slides[1]
+    dark_panels = [
+        shape for shape in first_content.shapes
+        if getattr(shape, 'shape_type', None) == 1
+        and getattr(getattr(shape, 'fill', None), 'fore_color', None) is not None
+        and str(shape.fill.fore_color.rgb) == '202532'
+        and shape.width.inches > 5
+    ]
+    assert dark_panels
+    assert dark_panels[0].left.inches > 6.5
+
+
+def test_presentation_keeps_a_single_table_lead_with_its_chart():
+    markdown = """# Activation Brief
+
+## Activation is improving across channels
+
+Referral is the strongest current acquisition path.
+
+| Channel | Activation | Retention |
+| --- | --- | --- |
+| Organic | 42% | 31% |
+| Referral | 58% | 46% |
+| Paid | 36% | 24% |
+| Partner | 49% | 39% |
+"""
+    deck = Presentation(BytesIO(service().pptx(markdown)))
+    assert len(deck.slides) == 2
+    data_slide = deck.slides[1]
+    visible_text = '\n'.join(
+        shape.text for shape in data_slide.shapes
+        if getattr(shape, 'has_text_frame', False)
+    )
+    assert 'Activation is improving across channels' in visible_text
+    assert 'Referral is the strongest current acquisition path.' in visible_text
+    assert sum(1 for shape in data_slide.shapes if getattr(shape, 'has_chart', False)) == 1
+
+
 def test_spreadsheet_export_is_structured_typed_filterable_and_safe():
     generator = service()
     workbook = load_workbook(BytesIO(generator.xlsx(SAMPLE)), data_only=False)

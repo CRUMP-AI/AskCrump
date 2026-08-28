@@ -1,5 +1,18 @@
 # Changelog
 
+## 5.9.58 — 2026-08-28
+
+### Presentation quality and visual rhythm
+
+- Replaced the repetitive equal-column PowerPoint rhythm with editable editorial statements,
+  alternating split compositions, asymmetric three-point stories, evidence layouts, and purposeful
+  dark section or closing slides.
+- Kept a single explanatory lead on the same slide as its table or native chart, removing sparse
+  duplicate-topic slides while preserving the context needed to interpret the visual.
+- Raised long slide headlines to presentation-scale type, increased dense-body and table legibility,
+  and retained the 16:9, native, fully editable PowerPoint output contract.
+- Advanced the application to 5.9.58, native build 50958, and service-worker cache revision 92.
+
 ## 5.9.57 — 2026-08-28
 
 ### Résumé intent through delivery
