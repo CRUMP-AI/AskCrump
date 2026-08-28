@@ -5,6 +5,14 @@ Production version: 5.9.43
 Code commit: `61115407f56fdf0f065384f1219ed61bd1e88dd7`  
 Production deployment: `dpl_52eNo3CQUC3JFcooDeBsbpgx7Z4q`
 
+## Subsequent scope correction
+
+A later steady-state runtime audit on 2026-08-28 found that this release fixture loaded the early
+`app.js` fallback, while the post-load `crump-5.0.js` primary workspace still replaced Send with its
+own unbounded usage check. The 5.9.43 evidence therefore proves fallback recovery, not complete
+steady-state delivery. Release 5.9.44 supersedes this boundary with one shared, versioned transport
+used by both runtimes. See `FIRST_REPLY_RECOVERY_RELEASE_2026-08-28.md`.
+
 ## Outcome
 
 A first message can no longer leave the composer silently locked if the usage-availability check
