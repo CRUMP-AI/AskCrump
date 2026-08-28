@@ -189,7 +189,55 @@
     hide('onboardingModal');
     show('authContainer', 'flex');
     ['loginForm', 'registerForm', 'forgotPasswordForm', 'resetPasswordForm'].forEach(hide);
+    if (view === 'register') resetRegistrationView();
     show(view === 'register' ? 'registerForm' : 'loginForm');
+  }
+
+  function resetRegistrationView() {
+    hide('registrationPending');
+    show('registerEntry');
+    setText('registrationPendingSuccess', '', false);
+    setText('registrationPendingError', '', false);
+  }
+
+  function showRegistrationPending(email, message, {deliveryFailed = false} = {}) {
+    const loginEmail = byId('loginEmail');
+    if (loginEmail) loginEmail.value = email;
+    const forgotEmail = byId('forgotPasswordEmail');
+    if (forgotEmail) forgotEmail.value = email;
+    const pendingEmail = byId('registrationPendingEmail');
+    if (pendingEmail) pendingEmail.textContent = email;
+    setText('registerError', '', false);
+    setText('registerSuccess', '', false);
+    setText('registrationPendingSuccess', deliveryFailed ? '' : message, !deliveryFailed);
+    setText('registrationPendingError', deliveryFailed ? message : '', deliveryFailed);
+    hide('registerEntry');
+    show('registrationPending');
+    byId('registrationPending')?.focus();
+  }
+
+  async function resendVerificationEmail(email, {button, successId, errorId}) {
+    setText(successId, '', false);
+    setText(errorId, '', false);
+    if (!email) {
+      setText(errorId, 'Enter your email first.');
+      return;
+    }
+    button.disabled = true;
+    try {
+      const response = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({email}),
+      });
+      const data = await response.json().catch(() => ({}));
+      const message = data.message || data.error || 'Request completed.';
+      setText(response.ok ? successId : errorId, message);
+    } catch (_) {
+      setText(errorId, 'Verification email could not be sent. Check your connection and try again.');
+    } finally {
+      button.disabled = false;
+    }
   }
 
   function showVerificationResult(value) {
@@ -250,6 +298,7 @@
     byId('showRegisterLink')?.addEventListener('click', event => {
       event.preventDefault();
       hide('loginForm');
+      resetRegistrationView();
       show('registerForm');
       trackFunnel('SignupIntent', {location: 'auth-link'});
     });
@@ -484,27 +533,18 @@
         const data = await response.json().catch(() => ({}));
         if (!response.ok || !data.success) {
           if (data.accountCreated && data.needsVerification) {
-            setText(
-              'registerSuccess',
-              data.error || 'Account created, but verification email delivery is temporarily unavailable.',
+            trackFunnel('AccountCreated', {verification_delivery: 'failed'});
+            showRegistrationPending(
+              email,
+              data.error || 'Your account exists, but the verification email could not be delivered. Use Resend verification email to try again.',
+              {deliveryFailed: true},
             );
-            if (byId('loginEmail')) byId('loginEmail').value = email;
-            setTimeout(() => {
-              hide('registerForm');
-              show('loginForm');
-              show('verificationNeeded');
-              setText(
-                'loginError',
-                'Your account exists but still needs email verification. Use Resend verification to try delivery again.',
-              );
-            }, 2200);
             return;
           }
           throw new Error(data.error || 'Registration failed.');
         }
-        trackFunnel('AccountCreated');
-        setText('registerSuccess', data.message || 'Account created. Check your email.');
-        setTimeout(() => { hide('registerForm'); show('loginForm'); }, 1800);
+        trackFunnel('AccountCreated', {verification_delivery: 'sent'});
+        showRegistrationPending(email, data.message || 'Verification email sent.');
       } catch (error) {
         setText('registerError', error.message);
       } finally { restore(); }
@@ -543,16 +583,29 @@
       finally { restore(); }
     });
 
-    byId('resendVerificationBtn')?.addEventListener('click', async event => {
-      const button = event.currentTarget;
-      const email = byId('loginEmail').value.trim();
-      if (!email) return setText('loginError', 'Enter your email first.');
-      button.disabled = true;
-      try {
-        const response = await fetch('/api/auth/resend-verification', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
-        const data = await response.json().catch(() => ({}));
-        setText(response.ok ? 'loginSuccess' : 'loginError', data.message || data.error || 'Request completed.');
-      } finally { button.disabled = false; }
+    byId('resendVerificationBtn')?.addEventListener('click', event => {
+      void resendVerificationEmail(byId('loginEmail').value.trim(), {
+        button: event.currentTarget,
+        successId: 'loginSuccess',
+        errorId: 'loginError',
+      });
+    });
+
+    byId('registrationPendingResendBtn')?.addEventListener('click', event => {
+      void resendVerificationEmail(byId('registrationPendingEmail').textContent.trim(), {
+        button: event.currentTarget,
+        successId: 'registrationPendingSuccess',
+        errorId: 'registrationPendingError',
+      });
+    });
+
+    byId('registrationPendingSigninBtn')?.addEventListener('click', () => {
+      hide('registerForm');
+      show('loginForm');
+      hide('verificationNeeded');
+      setText('loginError', '', false);
+      setText('loginSuccess', 'Email ready. Sign in after completing verification.');
+      byId('loginEmail')?.focus();
     });
   }
 

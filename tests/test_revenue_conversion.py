@@ -63,8 +63,8 @@ def test_marketing_ctas_are_first_party_analytics_events():
     script = read("public/landing.js")
 
     assert '/_vercel/insights/script.js' in page
-    assert '<script defer src="/landing.js?v=5.9.36"></script>' in page
-    assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.36">' in page
+    assert '<script defer src="/landing.js?v=5.9.37"></script>' in page
+    assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.37">' in page
     assert "window.vaq" in script
     assert "MarketingCTA" in script
     assert "MarketingSignin" in script
@@ -172,9 +172,9 @@ def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
         assert f'<link rel="canonical" href="https://www.askcrump.com/{slug}">' in page
         assert f'<meta property="og:url" content="https://www.askcrump.com/{slug}">' in page
         assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
-        assert '<script defer src="/landing.js?v=5.9.36"></script>' in page
-        assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.36">' in page
-        assert '<link rel="stylesheet" href="/use-case.css?v=5.9.36">' in page
+        assert '<script defer src="/landing.js?v=5.9.37"></script>' in page
+        assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.37">' in page
+        assert '<link rel="stylesheet" href="/use-case.css?v=5.9.37">' in page
         assert '/_vercel/insights/script.js' in page
         assert f'source={source}' in page
         assert page.count('data-cta="') >= 4
@@ -312,12 +312,12 @@ def test_release_version_and_cache_advance_together():
     backend = read("backend/version.py")
     worker = read("public/sw.js")
 
-    assert '"version": "5.9.36"' in package
-    assert "__version__ = '5.9.36'" in backend
-    assert "ask-crump-new-body-v1-r70" in worker
-    assert "/landing-5.6.css?v=5.9.36" in worker
-    assert "/use-case.css?v=5.9.36" in worker
-    assert "/landing.js?v=5.9.36" in worker
+    assert '"version": "5.9.37"' in package
+    assert "__version__ = '5.9.37'" in backend
+    assert "ask-crump-new-body-v1-r71" in worker
+    assert "/landing-5.6.css?v=5.9.37" in worker
+    assert "/use-case.css?v=5.9.37" in worker
+    assert "/landing.js?v=5.9.37" in worker
 
 
 def test_changed_activation_assets_are_release_versioned():
@@ -325,17 +325,17 @@ def test_changed_activation_assets_are_release_versioned():
     worker = read("public/sw.js")
 
     for asset in (
-        "/conversation.css?v=5.9.36",
-        "/crump-v1-body.css?v=5.9.36",
-        "/ui-functions.js?v=5.9.36",
-        "/device-auth.js?v=5.9.36",
-        "/product-analytics.js?v=5.9.36",
-        "/auth-controller.js?v=5.9.36",
-        "/app.js?v=5.9.36",
+        "/conversation.css?v=5.9.37",
+        "/crump-v1-body.css?v=5.9.37",
+        "/ui-functions.js?v=5.9.37",
+        "/device-auth.js?v=5.9.37",
+        "/product-analytics.js?v=5.9.37",
+        "/auth-controller.js?v=5.9.37",
+        "/app.js?v=5.9.37",
     ):
         assert asset in shell
         assert asset in worker
 
     runtime = read("public/runtime-body-v1.js")
-    assert "/crump-4.3.js?v=5.9.36" in runtime
-    assert "/crump-4.3.js?v=5.9.36" in worker
+    assert "/crump-4.3.js?v=5.9.37" in runtime
+    assert "/crump-4.3.js?v=5.9.37" in worker

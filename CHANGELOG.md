@@ -1,5 +1,24 @@
 # Changelog
 
+## 5.9.37 — 2026-08-27
+
+### Durable registration handoff
+
+- Replaced the 1.8-second post-registration message with a persistent, keyboard-focused “Check
+  your inbox” state that confirms the destination email and explains the exact next step.
+- Added explicit “I’ve verified — sign in” and “Resend verification email” actions. The sign-in
+  email is prefilled, and resend success, delivery failure, and network failure remain visible.
+- Reused the same recovery state when an account is created but initial verification delivery
+  fails, instead of dropping the user onto a generic sign-in form.
+- Kept password, registration, verification, authentication, pricing, and entitlement policy
+  unchanged. The existing content-free `AccountCreated` event now records a privacy-safe
+  verification-delivery status on both account-created branches.
+
+### Verification and release
+
+- Advanced the application to 5.9.37, native build 50937, and service-worker cache revision 71 so
+  installed clients receive the revised authentication shell and controller together.
+
 ## 5.9.36 — 2026-08-27
 
 ### Clearer account creation

@@ -74,8 +74,27 @@ def test_mobile_signup_keeps_the_primary_action_above_a_short_phone_fold():
     assert "validatePasswordInput(password?.value || '')" in controller
 
 
-def test_signup_email_failure_has_explicit_recovery_ui():
+def test_signup_success_has_durable_verification_handoff_and_recovery_ui():
+    app = (PUBLIC / 'app.html').read_text(encoding='utf-8')
     controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
+
+    assert 'id="registrationPending"' in app
+    assert 'Check your inbox.' in app
+    assert 'id="registrationPendingSigninBtn"' in app
+    assert 'id="registrationPendingResendBtn"' in app
+    assert 'function showRegistrationPending(email, message' in controller
+    assert "showRegistrationPending(email, data.message || 'Verification email sent.')" in controller
+    assert "if (loginEmail) loginEmail.value = email" in controller
+    assert "byId('registrationPending')?.focus()" in controller
+    assert "setTimeout(() => { hide('registerForm'); show('loginForm'); }, 1800)" not in controller
+
+
+def test_signup_email_failure_preserves_created_account_and_explicit_recovery_ui():
+    controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
+
     assert 'data.accountCreated && data.needsVerification' in controller
-    assert "show('verificationNeeded')" in controller
-    assert 'Use Resend verification' in controller
+    assert "trackFunnel('AccountCreated', {verification_delivery: 'failed'})" in controller
+    assert 'Your account exists, but the verification email could not be delivered.' in controller
+    assert '{deliveryFailed: true}' in controller
+    assert "successId: 'registrationPendingSuccess'" in controller
+    assert "errorId: 'registrationPendingError'" in controller

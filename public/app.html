@@ -17,9 +17,9 @@
   <link rel="stylesheet" href="/billing.css">
   <link rel="stylesheet" href="/install-prompt.css">
   <link rel="stylesheet" href="/onboarding.css">
-  <link rel="stylesheet" href="/conversation.css?v=5.9.36">
+  <link rel="stylesheet" href="/conversation.css?v=5.9.37">
   <link rel="stylesheet" href="/auth-styles.css">
-  <link rel="stylesheet" href="/crump-v1-body.css?v=5.9.36" data-crump-body-v1="true">
+  <link rel="stylesheet" href="/crump-v1-body.css?v=5.9.37" data-crump-body-v1="true">
 </head>
 <body class="crump-v1-body">
 
@@ -75,35 +75,51 @@
     </div>
 
     <div id="registerForm" class="auth-form v1-auth-card" style="display:none;">
-      <div class="auth-header">
-        <div class="v1-auth-eyebrow">ASK CRUMP</div>
-        <h1>Create your workspace.</h1>
-        <p>Free to start. No card required.</p>
+      <div id="registerEntry">
+        <div class="auth-header">
+          <div class="v1-auth-eyebrow">ASK CRUMP</div>
+          <h1>Create your workspace.</h1>
+          <p>Free to start. No card required.</p>
+        </div>
+        <form id="registerFormElement" class="auth-form-content">
+          <div class="form-group">
+            <label for="registerEmail">Email</label>
+            <input type="email" id="registerEmail" class="form-input" placeholder="you@email.com" required autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label for="registerPassword">Password</label>
+            <div class="v1-password-control">
+              <input type="password" id="registerPassword" class="form-input" placeholder="Create a password" required minlength="10" maxlength="256" autocomplete="new-password" aria-describedby="registerPasswordHint">
+              <button id="registerPasswordToggle" class="v1-password-toggle" type="button" data-password-target="registerPassword" aria-controls="registerPassword" aria-pressed="false">Show</button>
+            </div>
+            <div id="registerPasswordHint" class="v1-password-requirements" aria-label="Password requirements">
+              <span data-password-rule="length"><i aria-hidden="true">○</i>10+ characters</span>
+              <span data-password-rule="letter"><i aria-hidden="true">○</i>One letter</span>
+              <span data-password-rule="number"><i aria-hidden="true">○</i>One number</span>
+            </div>
+            <span id="registerPasswordStatus" class="v1-visually-hidden" aria-live="polite">Password requires 10 or more characters, one letter, and one number.</span>
+          </div>
+          <button type="submit" class="btn btn-primary btn-large btn-block">Create free account</button>
+          <p class="v1-signup-assurance">We’ll email a secure verification link. Ask Crump never asks for payment to create an account.</p>
+          <p class="auth-footer-text">Already have an account? <a href="#" id="showLoginLink" class="auth-link">Sign in</a></p>
+        </form>
+        <div id="registerError" class="auth-error" style="display:none;"></div>
+        <div id="registerSuccess" class="auth-success" style="display:none;"></div>
       </div>
-      <form id="registerFormElement" class="auth-form-content">
-        <div class="form-group">
-          <label for="registerEmail">Email</label>
-          <input type="email" id="registerEmail" class="form-input" placeholder="you@email.com" required autocomplete="email">
+
+      <section id="registrationPending" class="v1-registration-pending" style="display:none;" tabindex="-1" aria-labelledby="registrationPendingTitle">
+        <div class="v1-registration-confirmation" aria-hidden="true">✓</div>
+        <div class="v1-auth-eyebrow">ACCOUNT CREATED</div>
+        <h2 id="registrationPendingTitle">Check your inbox.</h2>
+        <p>We sent a secure verification link to <strong id="registrationPendingEmail"></strong>. Open it to activate your workspace, then return here to sign in.</p>
+        <div id="registrationPendingSuccess" class="auth-success" role="status" aria-live="polite" style="display:none;"></div>
+        <div id="registrationPendingError" class="auth-error" role="alert" style="display:none;"></div>
+        <div class="v1-registration-actions">
+          <button id="registrationPendingSigninBtn" class="btn btn-primary btn-large btn-block" type="button">I’ve verified — sign in</button>
+          <button id="registrationPendingResendBtn" class="btn btn-secondary btn-block" type="button">Resend verification email</button>
         </div>
-        <div class="form-group">
-          <label for="registerPassword">Password</label>
-          <div class="v1-password-control">
-            <input type="password" id="registerPassword" class="form-input" placeholder="Create a password" required minlength="10" maxlength="256" autocomplete="new-password" aria-describedby="registerPasswordHint">
-            <button id="registerPasswordToggle" class="v1-password-toggle" type="button" data-password-target="registerPassword" aria-controls="registerPassword" aria-pressed="false">Show</button>
-          </div>
-          <div id="registerPasswordHint" class="v1-password-requirements" aria-label="Password requirements">
-            <span data-password-rule="length"><i aria-hidden="true">○</i>10+ characters</span>
-            <span data-password-rule="letter"><i aria-hidden="true">○</i>One letter</span>
-            <span data-password-rule="number"><i aria-hidden="true">○</i>One number</span>
-          </div>
-          <span id="registerPasswordStatus" class="v1-visually-hidden" aria-live="polite">Password requires 10 or more characters, one letter, and one number.</span>
-        </div>
-        <button type="submit" class="btn btn-primary btn-large btn-block">Create free account</button>
-        <p class="v1-signup-assurance">We’ll email a secure verification link. Ask Crump never asks for payment to create an account.</p>
-        <p class="auth-footer-text">Already have an account? <a href="#" id="showLoginLink" class="auth-link">Sign in</a></p>
-      </form>
-      <div id="registerError" class="auth-error" style="display:none;"></div>
-      <div id="registerSuccess" class="auth-success" style="display:none;"></div>
+        <p class="v1-registration-help">The link may take a minute. Check spam or promotions if it does not appear.</p>
+      </section>
     </div>
 
     <div id="forgotPasswordForm" class="auth-form v1-auth-card" style="display:none;">
@@ -546,7 +562,7 @@
           </div>
           <div class="v1-about-signature">
             <img src="/assets/brand/crump-horizontal-light.png" alt="Ask Crump">
-            <span>Ask Crump 5.9.36 · Built to think, make, and continue.</span>
+            <span>Ask Crump 5.9.37 · Built to think, make, and continue.</span>
           </div>
         </section>
       </div>
@@ -567,15 +583,15 @@
 <script defer src="/profile-manager.js"></script>
 <script defer src="/billing-manager.js"></script>
 <script defer src="/subscription-ui.js"></script>
-<script defer src="/ui-functions.js?v=5.9.36"></script>
+<script defer src="/ui-functions.js?v=5.9.37"></script>
 <script defer src="/presence-manager.js"></script>
-<script defer src="/device-auth.js?v=5.9.36"></script>
+<script defer src="/device-auth.js?v=5.9.37"></script>
 <script defer src="/sync-manager.js"></script>
 <script defer src="/chat-sync.js"></script>
 <script defer src="/account-manager.js"></script>
-<script defer src="/app.js?v=5.9.36"></script>
-<script defer src="/product-analytics.js?v=5.9.36"></script>
-<script defer src="/auth-controller.js?v=5.9.36"></script>
+<script defer src="/app.js?v=5.9.37"></script>
+<script defer src="/product-analytics.js?v=5.9.37"></script>
+<script defer src="/auth-controller.js?v=5.9.37"></script>
 <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
