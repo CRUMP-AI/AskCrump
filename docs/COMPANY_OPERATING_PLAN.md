@@ -245,9 +245,9 @@ provider, privacy, cost, or security gate is incomplete.
 - **Shipped foundation:** server-only ElevenLabs voice path with device-speech fallback; disabled
   until disclosure, credentials, and smoke tests are approved.
 - **Risk:** no external durable-value, return, or artifact journey has been observed yet.
-- **Traffic evidence:** production Web Analytics recorded 93 seven-day visitors and 20 visitors
+- **Traffic evidence:** production Web Analytics recorded 94 seven-day visitors and 20 visitors
   reaching signup intent, but the period crosses the measurement boundary. The latest 24 hours had
-  19 visitors, 109 page views, 42% bounce, three marketing CTA visitors, and two visitors each at
+  18 visitors, 127 page views, 33% bounce, three marketing CTA visitors, and two visitors each at
   signup intent and form start, with no valid-credentials, submission, account-created, or
   creation-continuation event. Release 5.9.29
   separates ordinary sign-in links from account-creation CTAs. These anonymous counts are context,
