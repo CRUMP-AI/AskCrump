@@ -94,6 +94,41 @@
     app.appendChild(nav);
   }
 
+  function syncPlanSummary() {
+    const summary = byId('v1PlanCreditSummary');
+    if (!summary) return;
+    const balance = byId('upgradeBtnSidebar')?.querySelector('.billing51-sidebar-balance')?.textContent?.trim();
+    summary.textContent = balance
+      ? `${balance} available · Review plans and purchase history`
+      : 'Review plans, credits, and purchase history';
+  }
+
+  function consolidateAccountNavigation() {
+    const footer = document.querySelector('.v1-library-footer');
+    const planButton = byId('v1OpenPlanBtn');
+    if (!footer || !planButton) return;
+
+    // Chats owns conversation history only. Projects already has a first-class
+    // destination, while settings, legal, and billing now live under You.
+    footer.hidden = true;
+    footer.setAttribute('aria-hidden', 'true');
+
+    if (planButton.dataset.crump5930Wired !== 'true') {
+      planButton.dataset.crump5930Wired = 'true';
+      planButton.addEventListener('click', () => byId('upgradeBtnSidebar')?.click());
+    }
+
+    if (footer.dataset.crump5930PlanObserved !== 'true') {
+      footer.dataset.crump5930PlanObserved = 'true';
+      new MutationObserver(syncPlanSummary).observe(footer, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
+    }
+    syncPlanSummary();
+  }
+
   function closeSidebar() {
     byId('sidebar')?.classList.remove('active');
     byId('sidebarOverlay')?.classList.remove('active');
@@ -349,6 +384,7 @@
     injectDesktopNavigation();
     injectMobileNavigation();
     injectCreateHub();
+    consolidateAccountNavigation();
     wireDestinations();
     window.CrumpBodyV1?.syncConversationLibrary?.();
     wireSurfaceSync();

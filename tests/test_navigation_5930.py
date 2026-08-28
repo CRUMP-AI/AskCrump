@@ -20,7 +20,7 @@ def test_five_destination_navigation_is_final_runtime_layer_and_boot_critical():
         assert asset.lstrip("/") in checker
 
     assert runtime.index("/crump-library-5.7.js") < runtime.index("/crump-navigation-5.9.30.js")
-    assert "ask-crump-new-body-v1-r100" in worker
+    assert "ask-crump-new-body-v1-r101" in worker
 
 
 def test_navigation_exposes_exact_product_destinations_on_desktop_and_mobile():
@@ -70,3 +70,37 @@ def test_navigation_has_a_bounded_local_rollback_switch():
     assert "askcrump.navigation.mode" in script
     assert "=== 'legacy'" in script
     assert "dataset.crumpNavigation5930 = 'legacy'" in script
+
+
+def test_chats_contains_history_while_account_actions_live_under_you():
+    page = read("public/app.html")
+    script = read("public/crump-navigation-5.9.30.js")
+    styles = read("public/crump-navigation-5.9.30.css")
+
+    assert 'data-v1-settings-tab="plan"' in page
+    assert 'data-v1-settings-panel="plan"' in page
+    assert 'id="v1OpenPlanBtn"' in page
+    assert 'id="v1PlanCreditSummary"' in page
+    assert "function consolidateAccountNavigation()" in script
+    assert "footer.hidden = true;" in script
+    assert "footer.setAttribute('aria-hidden', 'true');" in script
+    assert "byId('upgradeBtnSidebar')?.click()" in script
+    assert "new MutationObserver(syncPlanSummary)" in script
+    assert '.v1-library-footer[hidden]' in styles
+    assert "display: none !important" in styles
+
+
+def test_settings_save_action_only_appears_on_editable_sections():
+    body = read("public/crump-v1-body.js")
+
+    assert "saveButton.hidden = !['profile', 'behavior'].includes(name);" in body
+
+
+def test_navigation_consolidation_fixture_uses_the_production_layers():
+    fixture = read("tests/fixtures/navigation-consolidation.html")
+
+    assert '/public/crump-v1-body.js' in fixture
+    assert '/public/crump-navigation-5.9.30.js' in fixture
+    assert 'id="v1OpenPlanBtn"' in fixture
+    assert 'id="billingProof"' in fixture
+    assert 'billing51-sidebar-balance">649 C' in fixture

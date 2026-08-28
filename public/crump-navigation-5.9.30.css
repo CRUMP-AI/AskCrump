@@ -110,6 +110,30 @@ body.crump-v1-body .crump5930-destination.is-active {
 
 body.crump-v1-body .crump5930-mobile-nav { display: none; }
 
+html[data-crump-navigation5930="ready"] body.crump-v1-body .v1-library-footer[hidden] {
+  display: none !important;
+}
+
+body.crump-v1-body .v1-plan-entry { cursor: pointer; }
+body.crump-v1-body .v1-plan-entry:hover { background: rgba(217,191,132,.035) !important; }
+body.crump-v1-body .v1-plan-entry-meta {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  color: #a99261;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+body.crump-v1-body .v1-plan-footnote {
+  margin: 13px 4px 0;
+  color: #686f72;
+  font-size: 9px;
+  line-height: 1.55;
+}
+
 body.crump-v1-body .crump5930-create-overlay {
   position: fixed;
   inset: 0;

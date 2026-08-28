@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Navigation consolidation fixture</title>
+  <link rel="stylesheet" href="/public/crump-v1-body.css?v=5.9.67">
+  <link rel="stylesheet" href="/public/crump-navigation-5.9.30.css">
+  <style>
+    body { margin: 0; background: #080b0f; color: #eee; font-family: system-ui, sans-serif; }
+    .v1-shell { display: grid; min-height: 100vh; grid-template-columns: 94px 292px minmax(0,1fr); }
+    .v1-rail { display: flex; flex-direction: column; background: #0b0f14; }
+    .sidebar { display: flex; flex-direction: column; background: #0d1116; }
+    .v1-library-list { flex: 1; padding: 24px; }
+    .v1-library-footer { padding: 16px; }
+    .v1-workspace { display: grid; place-items: center; }
+    .fixture-card { width: min(620px,80%); padding: 40px; border: 1px solid #252a30; border-radius: 24px; }
+    #settingsModal { position: fixed; inset: 40px; z-index: 20; display: none; background: #0b0f14; }
+    #billingProof { position: fixed; inset: 90px; z-index: 30; display: none; place-items: center; background: #111820; }
+    .settings-sheet { height: 100%; }
+    .settings-sheet-header { display: flex; justify-content: space-between; padding: 20px; }
+    .settings-sheet-header button { min-height: 44px; }
+    .sidebar-footer-btn { display: block; width: 100%; min-height: 44px; }
+    [hidden] { display: none !important; }
+    @media (max-width: 1100px) {
+      .v1-shell { display: block; }
+      .v1-rail { display: none; }
+      .sidebar { position: fixed; inset: 0 auto 68px 0; z-index: 8; width: min(330px,86vw); transform: translateX(-110%); transition: transform .15s ease; }
+      .sidebar.active { transform: translateX(0); }
+      .v1-workspace { min-height: calc(100vh - 68px); padding: 18px; }
+      .fixture-card { width: auto; }
+      #settingsModal { inset: 0; }
+    }
+  </style>
+</head>
+<body class="crump-v1-body">
+  <div id="appContainer">
+    <div class="v1-shell">
+      <nav class="v1-rail" aria-label="Ask Crump navigation"></nav>
+      <aside id="sidebar" class="sidebar v1-library" aria-label="Conversation library" aria-hidden="false">
+        <div class="v1-library-list"><strong>Conversations</strong><p>Launch plan</p></div>
+        <div class="sidebar-footer v1-library-footer">
+          <button id="crump53ProjectsSidebar" class="sidebar-footer-btn" type="button"><span>Projects</span></button>
+          <button id="settingsBtn" class="sidebar-footer-btn" type="button"><span>Settings</span></button>
+          <button id="upgradeBtnSidebar" class="sidebar-footer-btn" type="button"><span>Plan &amp; credits</span><b class="billing51-sidebar-balance">649 C</b></button>
+          <a href="/legal.html">Legal &amp; Privacy</a>
+          <span>Account sync</span>
+        </div>
+      </aside>
+      <div id="sidebarOverlay"></div>
+      <main class="main-content v1-workspace">
+        <div class="fixture-card"><button id="menuBtn" type="button">Chats</button><span>WORKSPACE</span><h1>What are we moving forward?</h1><p id="result">ready</p></div>
+      </main>
+    </div>
+    <button id="userInput" type="button" hidden>Composer</button>
+  </div>
+
+  <div id="settingsModal" class="modal v1-modal">
+    <div class="modal-content settings-sheet v1-settings-sheet" role="dialog" aria-modal="true" aria-label="Settings">
+      <div class="settings-sheet-header v1-settings-header">
+        <button id="closeSettingsBtn" type="button">Close</button>
+        <div><div>ASK CRUMP</div><strong>Settings</strong></div>
+        <button id="saveSettingsBtn" type="button">Save changes</button>
+      </div>
+      <div class="v1-settings-layout">
+        <nav class="v1-settings-nav" aria-label="Settings sections">
+          <button type="button" class="is-active" data-v1-settings-tab="profile">Profile</button>
+          <button type="button" data-v1-settings-tab="behavior">Behavior</button>
+          <button type="button" data-v1-settings-tab="plan">Plan &amp; credits</button>
+          <button type="button" data-v1-settings-tab="account">Account</button>
+          <button type="button" data-v1-settings-tab="about">About</button>
+        </nav>
+        <div class="settings-sheet-body">
+          <section class="v1-settings-panel is-active" data-v1-settings-panel="profile"><h2>Profile</h2></section>
+          <section class="v1-settings-panel" data-v1-settings-panel="behavior"><h2>Behavior</h2></section>
+          <section class="v1-settings-panel" data-v1-settings-panel="plan">
+            <div class="v1-settings-panel-head"><div><div class="settings-group-title">Plan &amp; credits</div><h3>Your access and usage</h3></div><p>Review billing in one place.</p></div>
+            <div class="settings-list">
+              <button id="v1OpenPlanBtn" class="settings-row settings-row-action v1-plan-entry" type="button">
+                <div class="settings-row-text"><div class="settings-label">Open plan &amp; credits</div><div id="v1PlanCreditSummary" class="settings-help">Review plans, credits, and purchase history</div></div>
+                <div class="v1-plan-entry-meta"><span>Manage</span><div>›</div></div>
+              </button>
+            </div>
+          </section>
+          <section class="v1-settings-panel" data-v1-settings-panel="account"><h2>Account</h2></section>
+          <section class="v1-settings-panel" data-v1-settings-panel="about"><h2>About</h2></section>
+        </div>
+      </div>
+    </div>
+  </div>
+  <section id="billingProof" role="dialog" aria-label="Plan and credits">Plan and credits opened</section>
+
+  <script>
+    window.fixtureEvents = {billing: 0};
+    window.openSettings = () => { document.getElementById('settingsModal').style.display = 'block'; };
+    window.showBillingCenter = () => {
+      window.fixtureEvents.billing += 1;
+      document.getElementById('billingProof').style.display = 'grid';
+      document.getElementById('result').textContent = `billing=${window.fixtureEvents.billing}`;
+    };
+    document.getElementById('upgradeBtnSidebar').addEventListener('click', window.showBillingCenter);
+    document.getElementById('closeSettingsBtn').addEventListener('click', () => { document.getElementById('settingsModal').style.display = 'none'; });
+    document.getElementById('menuBtn').addEventListener('click', () => { document.getElementById('sidebar').classList.add('active'); });
+    window.CrumpBodyV1 = {syncConversationLibrary() {}, toggleConversationLibrary() {}};
+    window.CrumpProduct53 = {open() {}};
+  </script>
+  <script src="/public/crump-v1-body.js?v=5.9.67"></script>
+  <script src="/public/crump-navigation-5.9.30.js?v=5.9.67"></script>
+  <script>
+    const mobileProof = new URLSearchParams(location.search).get('mobile');
+    if (mobileProof === 'drawer') {
+      window.addEventListener('load', () => setTimeout(() => document.getElementById('sidebar').classList.add('active'), 100));
+    }
+    if (mobileProof === 'plan') {
+      window.addEventListener('load', () => setTimeout(() => {
+        document.querySelector('[data-crump5930-destination="you"]')?.click();
+        document.querySelector('[data-v1-settings-tab="plan"]')?.click();
+      }, 100));
+    }
+  </script>
+</body>
+</html>

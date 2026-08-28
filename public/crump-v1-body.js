@@ -424,6 +424,8 @@
     $$('[data-v1-settings-panel]').forEach(panel => {
       panel.classList.toggle('is-active', panel.dataset.v1SettingsPanel === name);
     });
+    const saveButton = byId('saveSettingsBtn');
+    if (saveButton) saveButton.hidden = !['profile', 'behavior'].includes(name);
   }
 
   function wireSettingsTabs() {
