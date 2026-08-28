@@ -193,6 +193,11 @@ provider, privacy, cost, or security gate is incomplete.
   rules independently before submission, with polite screen-reader state and post-review invalid
   state. The release came from a reproducible local defect, not a conversion claim from two
   anonymous starts; no production signup event was created during verification.
+- **Signup measurement completeness:** Production 5.9.46 guarantees that a valid typed or
+  password-manager/autofilled submission records `SignupCredentialsReady` before
+  `SignupSubmitted`, once each. A real-controller loopback fixture proved the prior omission and the
+  corrected order. The event stays content-free; signup behavior, auth policy, schema/RLS, and
+  server-side analytics remain unchanged, so conversion impact is not claimed.
 - **Verification handoff:** Production 5.9.37 keeps the successful account-creation next step
   visible instead of replacing it after 1.8 seconds with a generic sign-in form. The destination
   email, resend recovery, delivery/network feedback, and verified-to-sign-in action persist. The
@@ -247,7 +252,7 @@ provider, privacy, cost, or security gate is incomplete.
   Professional price ID matches the production fallback. Both live webhook destinations now use
   direct `www` handlers and returned 200 to signed harmless replays. Their original three-event and
   one-event scopes are restored; no price, product, customer, tax setting, payment, or secret changed.
-- **Product experience direction:** production 5.9.45 builds on the first staged, owner-approved
+- **Product experience direction:** production 5.9.46 builds on the first staged, owner-approved
   reorganization around Ask, Projects, Create, Library, and You on desktop and mobile. It preserves
   existing data, routes, entitlements, and working capabilities behind a local rollback switch.
   Projects now surface their saved conversations through an owner-scoped, content-free resume path.
@@ -262,10 +267,10 @@ provider, privacy, cost, or security gate is incomplete.
   production 5.9.27; observe and reconcile the first real checkout rather than broadening scope.
 - **External input needed:** an ElevenLabs production API key and voice ID with confirmed rights.
 - **Next evidence:** complete fresh owner credential entry after explicit sign-out on production
-  5.9.45, submit the sitemap after owner confirmation, then obtain the first legitimate
+  5.9.46, submit the sitemap after owner confirmation, then obtain the first legitimate
   post-instrumentation acquisition, durable-value, return, and artifact-journey observations.
-- **Native distribution:** Android 5.9.45/build 50945 source and an unsigned `.aab` pass the hosted
-  API 36/Java 21 release audit in run `33142697156`; the generated iOS 5.9.45 Release configuration
-  passes its hosted macOS compile in run `33142697157`. Owner-controlled developer accounts,
+- **Native distribution:** Android 5.9.46/build 50946 source and an unsigned `.aab` pass the hosted
+  API 36/Java 21 release audit in run `33143365303`; the generated iOS 5.9.46 Release configuration
+  passes its hosted macOS compile in run `33143365301`. Owner-controlled developer accounts,
   signing, push, native billing, reviewer access,
   signed-device tests, screenshots, declarations, and final submission approval remain open.
