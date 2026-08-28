@@ -42,7 +42,7 @@ def test_marketing_ctas_are_first_party_analytics_events():
     script = read("public/landing.js")
 
     assert '/_vercel/insights/script.js' in page
-    assert '<script defer src="/landing.js?v=5.9.31"></script>' in page
+    assert '<script defer src="/landing.js?v=5.9.32"></script>' in page
     assert "window.vaq" in script
     assert "MarketingCTA" in script
     assert "MarketingSignin" in script
@@ -99,7 +99,9 @@ def test_public_marketing_surface_is_indexable_while_the_private_app_is_not():
     assert "<loc>https://www.askcrump.com/legal.html</loc>" not in sitemap
     assert "<loc>https://www.askcrump.com/ai-presentation-maker</loc>" in sitemap
     assert "<loc>https://www.askcrump.com/ai-document-generator</loc>" in sitemap
-    assert sitemap.count("<lastmod>2026-08-27</lastmod>") == 3
+    assert "<loc>https://www.askcrump.com/ai-resume-builder</loc>" in sitemap
+    assert "<loc>https://www.askcrump.com/ai-video-generator</loc>" in sitemap
+    assert sitemap.count("<lastmod>2026-08-27</lastmod>") == 5
     assert sitemap.count("<lastmod>2026-08-24</lastmod>") == 1
 
     namespace = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
@@ -112,6 +114,8 @@ def test_public_marketing_surface_is_indexable_while_the_private_app_is_not():
         "https://www.askcrump.com/": "2026-08-27",
         "https://www.askcrump.com/ai-presentation-maker": "2026-08-27",
         "https://www.askcrump.com/ai-document-generator": "2026-08-27",
+        "https://www.askcrump.com/ai-resume-builder": "2026-08-27",
+        "https://www.askcrump.com/ai-video-generator": "2026-08-27",
         "https://www.askcrump.com/legal": "2026-08-24",
     }
 
@@ -120,16 +124,24 @@ def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
     home = read("public/index.html")
     presentation = read("public/ai-presentation-maker.html")
     document = read("public/ai-document-generator.html")
+    resume = read("public/ai-resume-builder.html")
+    video = read("public/ai-video-generator.html")
 
     assert 'id="use-cases"' in home
     assert 'data-explore="presentation-page"' in home
     assert 'data-explore="document-page"' in home
+    assert 'data-explore="resume-page"' in home
+    assert 'data-explore="video-page"' in home
     assert 'href="/ai-presentation-maker"' in home
     assert 'href="/ai-document-generator"' in home
+    assert 'href="/ai-resume-builder"' in home
+    assert 'href="/ai-video-generator"' in home
 
     expectations = (
         (presentation, "AI Presentation Maker for Editable PowerPoint", "ai-presentation-maker", "presentation-hero", ".pptx"),
         (document, "AI Document Generator for Word and PDF", "ai-document-generator", "document-hero", ".docx"),
+        (resume, "AI Resume Builder for Editable Word Resumes", "ai-resume-builder", "resume-hero", ".docx"),
+        (video, "AI Video Generator for Short Creative Scenes", "ai-video-generator", "video-page-hero", "Crump Credits"),
     )
     titles = set()
     descriptions = set()
@@ -138,7 +150,7 @@ def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
         assert f'<link rel="canonical" href="https://www.askcrump.com/{slug}">' in page
         assert f'<meta property="og:url" content="https://www.askcrump.com/{slug}">' in page
         assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
-        assert '<script defer src="/landing.js?v=5.9.31"></script>' in page
+        assert '<script defer src="/landing.js?v=5.9.32"></script>' in page
         assert '/_vercel/insights/script.js' in page
         assert f'source={source}' in page
         assert page.count('data-cta="') >= 4
@@ -160,8 +172,8 @@ def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
         assert graph[1]["@type"] == "SoftwareApplication"
         assert graph[1]["offers"]["price"] == "0"
 
-    assert len(titles) == 2
-    assert len(descriptions) == 2
+    assert len(titles) == 4
+    assert len(descriptions) == 4
 
 
 def test_social_share_cards_are_large_brand_safe_and_page_specific():
@@ -169,6 +181,8 @@ def test_social_share_cards_are_large_brand_safe_and_page_specific():
         ("public/index.html", "ask-crump-workspace.png"),
         ("public/ai-presentation-maker.html", "ask-crump-presentations.png"),
         ("public/ai-document-generator.html", "ask-crump-documents.png"),
+        ("public/ai-resume-builder.html", "ask-crump-resumes.png"),
+        ("public/ai-video-generator.html", "ask-crump-video.png"),
     )
 
     for page_path, filename in expectations:
@@ -254,10 +268,10 @@ def test_release_version_and_cache_advance_together():
     backend = read("backend/version.py")
     worker = read("public/sw.js")
 
-    assert '"version": "5.9.31"' in package
-    assert "__version__ = '5.9.31'" in backend
-    assert "ask-crump-new-body-v1-r65" in worker
-    assert "/landing.js?v=5.9.31" in worker
+    assert '"version": "5.9.32"' in package
+    assert "__version__ = '5.9.32'" in backend
+    assert "ask-crump-new-body-v1-r66" in worker
+    assert "/landing.js?v=5.9.32" in worker
 
 
 def test_changed_activation_assets_are_release_versioned():
@@ -265,11 +279,11 @@ def test_changed_activation_assets_are_release_versioned():
     worker = read("public/sw.js")
 
     for asset in (
-        "/conversation.css?v=5.9.31",
-        "/ui-functions.js?v=5.9.31",
-        "/device-auth.js?v=5.9.31",
-        "/product-analytics.js?v=5.9.31",
-        "/app.js?v=5.9.31",
+        "/conversation.css?v=5.9.32",
+        "/ui-functions.js?v=5.9.32",
+        "/device-auth.js?v=5.9.32",
+        "/product-analytics.js?v=5.9.32",
+        "/app.js?v=5.9.32",
     ):
         assert asset in shell
         assert asset in worker

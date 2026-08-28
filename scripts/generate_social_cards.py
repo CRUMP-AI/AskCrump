@@ -134,6 +134,18 @@ def main() -> None:
             "Turn source material into a real document.",
             "Create editable Word and PDF drafts with structure, evidence, and a clear path to the next revision.",
         ),
+        (
+            "ask-crump-resumes.png",
+            "AI resume builder",
+            "Turn real experience into an editable resume.",
+            "Shape accurate experience for a target role, download the Word draft, revise it, and keep the work moving.",
+        ),
+        (
+            "ask-crump-video.png",
+            "AI video generator",
+            "Direct one clear scene at a time.",
+            "Choose a purpose-built video mode, see the credit cost, generate the shot, and keep the result in your workspace.",
+        ),
     )
     for card in cards:
         render_card(*card)
