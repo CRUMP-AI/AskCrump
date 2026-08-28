@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Registration autofill milestone fixture</title>
+  <style>
+    body { background:#0b0b0b; color:#f5f2ec; font:16px/1.5 system-ui,sans-serif; padding:32px; }
+    form { display:grid; gap:12px; width:min(440px,100%); }
+    input,button { box-sizing:border-box; min-height:44px; padding:10px 12px; }
+    .auth-error { color:#ffb4ab; margin-top:12px; }
+  </style>
+</head>
+<body>
+  <div id="authContainer" style="display:none">
+    <div id="loginForm" style="display:none">
+      <input id="loginEmail" type="email">
+      <div id="loginError" style="display:none"></div>
+      <div id="loginSuccess" style="display:none"></div>
+      <div id="verificationNeeded" style="display:none"></div>
+    </div>
+    <div id="registerForm" style="display:none">
+      <div id="registerEntry">
+        <h1>Create your workspace.</h1>
+        <form id="registerFormElement">
+          <label for="registerEmail">Email</label>
+          <input id="registerEmail" type="email" required autocomplete="email">
+          <label for="registerPassword">Password</label>
+          <input id="registerPassword" type="password" required minlength="10" maxlength="256" autocomplete="new-password" aria-describedby="registerPasswordHint">
+          <div id="registerPasswordHint">
+            <span data-password-rule="length"><i>○</i>10+ characters</span>
+            <span data-password-rule="letter"><i>○</i>One letter</span>
+            <span data-password-rule="number"><i>○</i>One number</span>
+          </div>
+          <span id="registerPasswordStatus" aria-live="polite"></span>
+          <button type="submit">Create free account</button>
+        </form>
+        <div id="registerError" class="auth-error" role="alert" style="display:none"></div>
+        <div id="registerSuccess" style="display:none"></div>
+      </div>
+      <section id="registrationPending" style="display:none" tabindex="-1">
+        <strong id="registrationPendingEmail"></strong>
+        <div id="registrationPendingSuccess" style="display:none"></div>
+        <div id="registrationPendingError" style="display:none"></div>
+        <button id="registrationPendingSigninBtn" type="button">I’ve verified — sign in</button>
+        <button id="registrationPendingResendBtn" type="button">Resend verification email</button>
+      </section>
+    </div>
+    <div id="forgotPasswordForm" style="display:none"></div>
+    <div id="resetPasswordForm" style="display:none"></div>
+  </div>
+  <div id="tosModal" style="display:none"></div>
+  <div id="onboardingModal" style="display:none"></div>
+  <div id="appContainer" style="display:none"><textarea id="userInput"></textarea></div>
+  <output id="fixtureEvents" aria-label="Recorded signup milestones">none</output>
+  <output id="fixtureRegisterCalls" aria-label="Registration request count">0</output>
+  <script>
+    window.__fixture = {events: [], registerCalls: 0};
+    window.va = (command, payload) => {
+      if (command !== 'event') return;
+      window.__fixture.events.push(payload.name);
+      document.getElementById('fixtureEvents').textContent = window.__fixture.events.join(',');
+    };
+    window.CrumpAPI = {ready: Promise.resolve()};
+    window.deviceAuth = {
+      async checkSession() { return {success:true, authenticated:false}; },
+      async login() { return {success:false}; },
+      async logout() {},
+    };
+    window.configureUserStorage = () => {};
+    window.profileManager = {applyServerSubscription() {}, updateProfile() {}};
+    window.SyncManager = {pull: () => Promise.resolve()};
+    window.fetch = (url) => {
+      if (url === '/api/auth/register') {
+        window.__fixture.registerCalls += 1;
+        document.getElementById('fixtureRegisterCalls').textContent = String(window.__fixture.registerCalls);
+      }
+      return Promise.resolve(new Response(JSON.stringify({success:false, error:'Fixture stopped before account creation.'}), {
+        status:400,
+        headers:{'Content-Type':'application/json'},
+      }));
+    };
+    // Simulate a password manager restoring valid values without focus or input events.
+    document.getElementById('registerEmail').value = 'autofill@example.test';
+    document.getElementById('registerPassword').value = 'Autofill1234';
+  </script>
+  <script src="/public/auth-resilience.js?v=fixture-registration-autofill"></script>
+  <script src="/public/auth-controller.js?v=fixture-registration-autofill-2"></script>
+</body>
+</html>

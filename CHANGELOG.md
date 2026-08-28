@@ -1,5 +1,25 @@
 # Changelog
 
+## 5.9.46 — 2026-08-28
+
+### Complete signup milestone delivery
+
+- A valid registration submission now records `SignupCredentialsReady` before
+  `SignupSubmitted` even when a password manager restored both fields without normal focus or
+  input events.
+- The shared milestone helpers preserve one-time, ordered delivery for typed and autofilled paths;
+  they do not collect an email address, password, or any other credential value.
+- Registration behavior, validation, account creation, verification, auth policy, pricing,
+  entitlements, server-side analytics, Supabase schema/RLS, and payments remain unchanged.
+
+### Verification and release
+
+- Added a credential-free loopback fixture using the real auth controller. Before the correction,
+  its valid autofill submission skipped `SignupCredentialsReady`; after the correction, both
+  autofilled and typed paths recorded the ordered four-milestone sequence exactly once.
+- Advanced the application to 5.9.46, native build 50946, and service-worker cache revision 80 so
+  web, PWA, and generated native clients receive the corrected measurement contract.
+
 ## 5.9.45 — 2026-08-28
 
 ### Recoverable authentication requests

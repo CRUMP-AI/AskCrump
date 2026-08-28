@@ -72,6 +72,26 @@ def test_mobile_signup_keeps_the_primary_action_above_a_short_phone_fold():
     assert "trackFunnel('SignupCredentialsReady')" in controller
     assert "email?.value.trim()" in controller
     assert "validatePasswordInput(password?.value || '')" in controller
+    assert "const trackCredentialsReady = () =>" in controller
+    assert "form.addEventListener('input', trackCredentialsReady" in controller
+    assert (
+        controller.index("trackCredentialsReady();\n      trackFunnel('SignupSubmitted')")
+        < controller.index("const restore = setBusy", controller.index("function wireRegistration"))
+    )
+
+
+def test_registration_autofill_fixture_uses_real_local_runtime_without_production_writes():
+    fixture = (
+        ROOT / 'tests' / 'fixtures' / 'registration-autofill-submit.html'
+    ).read_text(encoding='utf-8')
+
+    assert '/public/auth-resilience.js?v=fixture-registration-autofill' in fixture
+    assert '/public/auth-controller.js?v=fixture-registration-autofill-2' in fixture
+    assert "document.getElementById('registerEmail').value = 'autofill@example.test'" in fixture
+    assert "document.getElementById('registerPassword').value = 'Autofill1234'" in fixture
+    assert "Fixture stopped before account creation." in fixture
+    assert 'https://' not in fixture
+    assert 'askcrump.com' not in fixture
 
 
 def test_signup_success_has_durable_verification_handoff_and_recovery_ui():

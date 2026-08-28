@@ -487,13 +487,14 @@
     let credentialsReadyTracked = false;
     let nativeValidationTracked = false;
 
-    form.addEventListener('focusin', () => {
+    const trackSignupStarted = () => {
       if (signupStartedTracked) return;
       signupStartedTracked = true;
       trackFunnel('SignupStarted');
-    });
+    };
 
-    form.addEventListener('input', () => {
+    const trackCredentialsReady = () => {
+      trackSignupStarted();
       updateRegistrationPasswordGuidance();
       if (credentialsReadyTracked) return;
       const email = byId('registerEmail');
@@ -501,7 +502,10 @@
       if (!email?.value.trim() || !email.validity.valid || validatePasswordInput(password?.value || '')) return;
       credentialsReadyTracked = true;
       trackFunnel('SignupCredentialsReady');
-    }, {passive: true});
+    };
+
+    form.addEventListener('focusin', trackSignupStarted);
+    form.addEventListener('input', trackCredentialsReady, {passive: true});
 
     passwordInput?.addEventListener('blur', () => updateRegistrationPasswordGuidance({touched: true}));
 
@@ -528,6 +532,7 @@
         trackFunnel('SignupValidationFailed', {reason});
         return setText('registerError', passwordError);
       }
+      trackCredentialsReady();
       trackFunnel('SignupSubmitted');
       const restore = setBusy(event.currentTarget, true, 'Creating account…');
       try {
