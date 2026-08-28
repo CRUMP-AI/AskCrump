@@ -21,6 +21,7 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 | Crump Code private foundation | Commit `018b46c`; deployment `dpl_GjeFNqmhK32QeyQyXKLrDoePxViu`; production 5.9.35 adds a Project-attached review workspace for repository/revision/mode/objective/cost confirmation, task status, explicit approvals, verification, history, cancellation, and patch download. Preparation does not run or charge; the client and server both require explicit run confirmation, and cancellation is checked before each next model/tool step. The Create entry remains hidden unless the server reports configured plus entitled. All 313 tests, lint, 42 JavaScript validations, production/native/store checks, CI run `33134659887`, Android run `33134659984`, and iOS run `33134659934` passed. Production health returned 5.9.35; assets returned 200; the inspected deployment had no runtime error cluster, 5xx, severe log, or `/api/code` request. The feature flag remains off pending the live sandbox/OIDC test, expiry exercise, and benchmark. | Staged, disabled |
 | Clear signup password readiness | Commit `40bbc28`; deployment `dpl_5kDcdWj7KpWHbq9kXrjDJacQjESV`; production 5.9.36 replaces a late static password hint with three live, visible rule states plus a polite screen-reader status and post-review invalid state. The unchanged policy remains ten to 256 characters with a letter and number; auth, verification, pricing, and analytics semantics did not change. All 314 tests, lint, 42 JavaScript validations, production/native/store checks, CI run `33135663864`, Android run `33135663895`, and iOS run `33135663885` passed. Production health returned 5.9.36; the app and changed assets returned 200; the inspected release had no runtime error cluster, severe log, or 5xx. Local desktop/short-phone states had no overflow and no production event or account creation. Signup lift remains unproven. | Verified delivery; outcome pending |
 | Durable registration verification handoff | Commit `ebd1454`; deployment `dpl_EVrjwoQRXALKP1UvqvSnpZYsFsnj`; production 5.9.37 replaces a 1.8-second success message and generic-login redirect with a persistent, focused inbox-confirmation state, prefilled email, explicit verified/sign-in action, resend action, and durable success/failure feedback. The account-created/email-delivery-failure branch uses the same recovery surface, and content-free account creation now records only sent/failed verification delivery. Password, registration, verification, authentication, pricing, and entitlement policy remain unchanged. All 315 tests, lint, 42 JavaScript validations, production/native/store checks, CI run `33136496183`, Android run `33136496185`, and iOS run `33136496204` passed. Production health returned 5.9.37; the app and changed assets returned 200; the inspected release had no runtime error cluster, severe log, 5xx, or registration request. No account or synthetic funnel event was created. | Verified delivery; outcome pending |
+| Optional profile activation entry | Commit `81b39be`; deployment `dpl_G7oecbc71CPp6913TWvDoacTxsSv`; production 5.9.38 removes the mandatory display-name commitment between verified, terms-accepted users and the first workspace. Terms remain required and server-saved; name setup is a dismissible, account-scoped launchpad prompt, and `OnboardingCompleted` remains server-authoritative. Settings no longer reports a rejected profile update as saved. All 320 tests, lint, 42 JavaScript validations, production/native/store checks, CI run `33137238298`, Android run `33137238297`, and iOS run `33137238319` passed. Production health returned 5.9.38; the app and changed assets returned 200; the inspected deployment had no runtime error cluster, severe log, 5xx, signup, profile, terms, account, or activation request. No synthetic account or event was created. | Verified delivery; outcome pending |
 | Crump Voice private foundation | Explicit signed-in playback route, Professional entitlement, rate/character/audio limits, provider-failure refund, server-held ElevenLabs key, non-cacheable ephemeral MP3 response, and device-speech fallback are implemented. Public feature flag remains off pending approved disclosure, credentials/voice rights, and smoke tests. | Staged, disabled |
 | Private conversation-to-Project continuity | Commit `e99fc1f`; production 5.9.22 puts `Keep in a Project` directly on the latest result, reducing durable-work preservation from two commitments to one. The existing server route synchronizes and ownership-checks the chat, attaches idempotently to the selected/new Project, and records only a content-free Project milestone. All 285 tests, backend lint/compile checks, 40 JavaScript validations, production preflight, and native web-bundle build passed. Live health and version checks returned HTTP 200, the deployed client contained the direct action, and the deployment-scoped error/fatal scan was empty. | Verified |
 | Comparable growth-cohort boundary | Supabase migration `product_growth_measurement_boundary`; live first-event evidence fixes the lower bound at `2026-08-23 09:10:55.602863+00`; the 30-day report now returns 18 metrics and zero comparable external accounts instead of misclassifying three historical accounts. The function remains security invoker, `anon`/`authenticated` execution is denied, `service_role` execution succeeds, and post-change advisors reported no errors or warnings. | Verified |
@@ -95,6 +96,15 @@ shell/controller/stylesheet/service worker returned 200; the inspected deploymen
 error cluster, warning/error/fatal log, 5xx response, or registration request. CI plus both hosted
 unsigned native compiles passed. No synthetic account or event was created, so outcome remains
 unproven.
+
+The 5.9.38 first-workspace release then removed the nonessential display-name commitment after
+verification and terms acceptance. Terms enforcement and server persistence remain unchanged; the
+workspace now starts first and offers an optional, dismissible personalization prompt. Production
+health and the changed release assets returned 200; the exact deployment had no runtime error
+cluster, warning/error/fatal log, 5xx response, or signup/profile/terms/account/activation request.
+CI plus both hosted unsigned native compiles passed. The owner's remembered-device path worked;
+fresh credential-entry proof after sign-out remains pending. No synthetic account or event was
+created, so activation impact remains unproven.
 
 ### Current monetization checkpoint
 
@@ -270,13 +280,13 @@ rate without platform impression data.
 
 ### P1 — Prepare native store distribution without premature submission
 
-**Evidence:** production 5.9.37 is healthy; the Android release source regenerates as build 50937
+**Evidence:** production 5.9.38 is healthy; the Android release source regenerates as build 50938
 with API 36, the permanent package ID, generated assets, cleartext/backup protections, and a passing
 native source verifier. Structured en-US metadata passes current field limits. A reviewed Node 22
 lockfile now supports clean `npm ci`, a zero-vulnerability npm audit, and deterministic Android
-preparation from an isolated worktree. GitHub run `33136496204` generated the 5.9.37 iOS project and
+preparation from an isolated worktree. GitHub run `33137238319` generated the 5.9.38 iOS project and
 compiled its unsigned Release configuration on hosted macOS with no signing or upload credentials.
-GitHub run `33136496185` generated the 5.9.37/build 50937 Android project under Java 21, passed the
+GitHub run `33137238297` generated the 5.9.38/build 50938 Android project under Java 21, passed the
 native and signing-control verifiers, compiled `bundleRelease`, and confirmed a non-empty unsigned
 `.aab`, also with no signing or upload credentials. Firebase, RevenueCat public keys/products,
 signing credentials,
