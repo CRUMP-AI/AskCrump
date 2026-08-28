@@ -84,7 +84,7 @@ for (const relative of requiredBodyFiles) {
 }
 
 const appHtml = await readFile(new URL('public/app.html', repoRoot), 'utf8');
-const landingHtml = await readFile(new URL('public/index.html', repoRoot), 'utf8');
+const landingHtml = await readFile(new URL('public/ask-crump.html', repoRoot), 'utf8');
 if (!releaseVersion || !landingHtml.includes(`/landing.js?v=${releaseVersion}`)) {
   console.error('Ask Crump marketing page is missing its release-versioned script.');
   process.exit(1);

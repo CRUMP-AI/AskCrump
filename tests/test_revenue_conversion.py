@@ -45,7 +45,7 @@ def rule_color(css: str, selector: str) -> str:
 
 
 def test_marketing_page_exposes_a_clear_free_to_paid_path():
-    page = read("public/index.html")
+    page = read("public/ask-crump.html")
 
     assert 'id="pricing"' in page
     assert "Clear pricing. Real runway." in page
@@ -59,7 +59,7 @@ def test_marketing_page_exposes_a_clear_free_to_paid_path():
 
 
 def test_marketing_ctas_are_first_party_analytics_events():
-    page = read("public/index.html")
+    page = read("public/ask-crump.html")
     script = read("public/landing.js")
 
     assert '/_vercel/insights/script.js' in page
@@ -103,7 +103,7 @@ def test_known_search_referrers_are_privacy_minimized_as_organic():
 
 
 def test_public_marketing_surface_is_indexable_while_the_private_app_is_not():
-    page = read("public/index.html")
+    page = read("public/ask-crump.html")
     app = read("public/app.html")
     legal = read("public/legal.html")
     robots = read("public/robots.txt")
@@ -143,7 +143,7 @@ def test_public_marketing_surface_is_indexable_while_the_private_app_is_not():
 
 
 def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
-    home = read("public/index.html")
+    home = read("public/ask-crump.html")
     presentation = read("public/ai-presentation-maker.html")
     document = read("public/ai-document-generator.html")
     resume = read("public/ai-resume-builder.html")
@@ -230,7 +230,7 @@ def test_presentation_page_proves_output_with_synthetic_rendered_examples():
 
 def test_social_share_cards_are_large_brand_safe_and_page_specific():
     expectations = (
-        ("public/index.html", "ask-crump-workspace.png"),
+        ("public/ask-crump.html", "ask-crump-workspace.png"),
         ("public/ai-presentation-maker.html", "ask-crump-presentations.png"),
         ("public/ai-document-generator.html", "ask-crump-documents.png"),
         ("public/ai-resume-builder.html", "ask-crump-resumes.png"),

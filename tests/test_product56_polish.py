@@ -100,7 +100,7 @@ def test_creation_surfaces_are_separate_and_accessible():
 
 
 def test_parent_company_page_reflects_current_product():
-    page = read("public/index.html")
+    page = read("public/ask-crump.html")
     css = read("public/landing-5.6.css")
     assert "ASK CRUMP 5.9" in page
     assert "AI should help you" in page and "finish things." in page

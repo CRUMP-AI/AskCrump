@@ -76,7 +76,7 @@ def create_app() -> FastAPI:
     if PUBLIC_DIR.exists():
         @application.get('/', include_in_schema=False)
         async def local_index():
-            return FileResponse(PUBLIC_DIR / 'index.html')
+            return FileResponse(PUBLIC_DIR / 'ask-crump.html')
 
         @application.get('/app', include_in_schema=False)
         async def local_app():

@@ -61,7 +61,7 @@ def test_project_canon_flags_conflicts_instead_of_silently_rewriting():
 
 
 def test_clever_crump_page_uses_plain_language_positioning():
-    page = read("public/index.html")
+    page = read("public/ask-crump.html")
     assert 'src="/assets/brand/crump-horizontal-light.png"' in page
     assert 'aria-label="Ask Crump home"' in page
     assert '<div class="eyebrow">YOUR AI WORKSPACE</div>' in page

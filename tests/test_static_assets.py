@@ -49,7 +49,7 @@ def local_asset(value):
 
 
 def test_html_local_assets_exist_and_no_inline_handlers():
-    for filename in ('index.html', 'app.html', 'legal.html', 'delete-account.html'):
+    for filename in ('ask-crump.html', 'app.html', 'legal.html', 'delete-account.html'):
         parser = AssetParser()
         parser.feed((PUBLIC / filename).read_text())
         assert not parser.inline_handlers, f'{filename}: {parser.inline_handlers}'
@@ -125,7 +125,7 @@ def test_native_push_and_network_bridges_are_wired():
 
 
 def test_html_ids_are_unique():
-    for filename in ('index.html', 'app.html', 'legal.html', 'delete-account.html'):
+    for filename in ('ask-crump.html', 'app.html', 'legal.html', 'delete-account.html'):
         parser = AssetParser()
         parser.feed((PUBLIC / filename).read_text())
         duplicates = [name for name, count in Counter(parser.ids).items() if count > 1]
@@ -172,7 +172,7 @@ def test_authentication_forms_share_the_authentication_container():
 
 
 def test_buttons_declare_their_type():
-    for filename in ('index.html', 'app.html', 'legal.html', 'delete-account.html'):
+    for filename in ('ask-crump.html', 'app.html', 'legal.html', 'delete-account.html'):
         parser = StructureParser()
         parser.feed((PUBLIC / filename).read_text())
         assert not parser.buttons_without_type, f'{filename}: {parser.buttons_without_type}'

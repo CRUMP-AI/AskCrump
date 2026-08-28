@@ -16,6 +16,10 @@
       "destination": "/clever-crump"
     },
     {
+      "source": "/",
+      "destination": "/ask-crump"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api"
     }

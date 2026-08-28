@@ -39,6 +39,15 @@ def test_clever_crump_hosts_rewrite_only_the_root_to_the_company_page():
     }
     assert all(rule["source"] == "/" for rule in company_rules)
 
+    ask_root = [
+        rule
+        for rule in config["rewrites"]
+        if rule.get("source") == "/" and rule.get("destination") == "/ask-crump"
+    ]
+    assert ask_root == [{"source": "/", "destination": "/ask-crump"}]
+    assert not (ROOT / "public" / "index.html").exists()
+    assert (ROOT / "public" / "ask-crump.html").exists()
+
 
 def test_new_grid_cancels_the_legacy_desktop_sidebar_offset():
     styles = read("public/crump-navigation-5.9.30.css")
