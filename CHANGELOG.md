@@ -1,5 +1,27 @@
 # Changelog
 
+## 5.9.45 — 2026-08-28
+
+### Recoverable authentication requests
+
+- Added one shared, bounded authentication transport for registration, verification email,
+  password recovery, terms/profile saves, sign-in, session confirmation, and sign-out. Each
+  boundary covers response-body parsing as well as the initial connection.
+- A stalled registration submission now restores the primary action and explains that the account
+  may already exist, so the user can check their inbox before retrying instead of remaining on
+  `Creating account…` forever.
+- A web sign-in whose HttpOnly session cookie was issued before its response stalled now reconciles
+  the bounded session endpoint before reporting failure or rotating another session.
+- Authentication policy, credentials, cookies, session lifetime, rate limits, registration data,
+  verification rules, Supabase schema/RLS, pricing, entitlements, and analytics semantics remain
+  unchanged.
+
+### Verification and release
+
+- Advanced the application to 5.9.45, native build 50945, and service-worker cache revision 79.
+  The shared auth transport and both auth consumers are release-versioned and network-first so web
+  and installed clients receive the same recovery contract.
+
 ## 5.9.44 — 2026-08-28
 
 ### Recoverable first reply

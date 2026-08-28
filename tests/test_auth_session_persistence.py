@@ -22,12 +22,14 @@ def test_same_page_login_is_serialized_and_confirmed():
     assert 'this.loginPromise = null' in source
     assert 'if (this.loginPromise) return this.loginPromise' in source
     assert 'confirmIssuedSession()' in source
-    assert "fetch('/api/auth/check-session'" in source
+    assert "CrumpAuthTransport.request('/api/auth/check-session'" in source
     assert 'for (const delay of [0, 75, 200])' in source
+    assert 'for (const delay of [0, 150, 500])' in source
+    assert "code !== 'AUTH_REQUEST_TIMEOUT'" in source
     assert 'for (let attempt = 0; attempt < 2; attempt += 1)' not in source
     assert "code: 'SESSION_ESTABLISHMENT_FAILED'" in source
-    assert 'src="/device-auth.js?v=5.9.44"' in shell
-    assert "'/device-auth.js?v=5.9.44'" in worker
+    assert 'src="/device-auth.js?v=5.9.45"' in shell
+    assert "'/device-auth.js?v=5.9.45'" in worker
     assert "url.pathname === '/device-auth.js'" in worker
 
 

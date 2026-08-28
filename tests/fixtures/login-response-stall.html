@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Login response stall fixture</title>
+  <style>
+    body { background:#0b0b0b; color:#f5f2ec; font:16px/1.5 system-ui,sans-serif; padding:32px; }
+    form { display:grid; gap:12px; width:min(440px,100%); }
+    input,button { box-sizing:border-box; min-height:44px; padding:10px 12px; }
+  </style>
+</head>
+<body>
+  <div id="authContainer" style="display:none">
+    <div id="loginForm">
+      <h1>Sign in.</h1>
+      <form id="loginFormElement">
+        <label for="loginEmail">Email</label>
+        <input id="loginEmail" type="email" required>
+        <label for="loginPassword">Password</label>
+        <input id="loginPassword" type="password" required>
+        <button type="submit">Sign In</button>
+      </form>
+      <div id="loginError" role="alert" style="display:none"></div>
+      <div id="loginSuccess" style="display:none"></div>
+      <div id="verificationNeeded" style="display:none"></div>
+    </div>
+    <div id="registerForm" style="display:none"></div>
+    <div id="forgotPasswordForm" style="display:none"></div>
+    <div id="resetPasswordForm" style="display:none"></div>
+  </div>
+  <div id="tosModal" style="display:none"></div>
+  <div id="onboardingModal" style="display:none"></div>
+  <div id="appContainer" style="display:none">
+    <h1>Workspace ready.</h1>
+    <textarea id="userInput"></textarea>
+  </div>
+  <script>
+    const nativeSetTimeout = window.setTimeout.bind(window);
+    window.setTimeout = (callback, delay, ...args) => nativeSetTimeout(callback, delay >= 1000 ? 75 : delay, ...args);
+    const fixtureUser = {
+      id:'fixture-user',
+      email:'fixture@example.test',
+      fullName:'Fixture User',
+      termsAcceptedAt:'2026-08-28T00:00:00Z',
+    };
+    let issued = false;
+    window.va = () => {};
+    window.CrumpAPI = {ready:Promise.resolve(), isNative:false, installationId:() => 'fixture'};
+    window.configureUserStorage = () => {};
+    window.profileManager = {applyServerSubscription() {}, updateProfile() {}};
+    window.CrumpAnalytics = {track:() => Promise.resolve(true)};
+    window.SyncManager = {pull:() => Promise.resolve()};
+    window.initializeApp = () => {};
+    window.initializeAuthenticatedApp = () => {};
+    window.fetch = (url, options = {}) => {
+      if (url === '/api/auth/login') {
+        issued = true;
+        return Promise.resolve({
+          ok:true,
+          status:200,
+          json:() => new Promise((resolve, reject) => {
+            options.signal?.addEventListener('abort', () => reject(new DOMException('The operation was aborted.', 'AbortError')), {once:true});
+          }),
+        });
+      }
+      if (url === '/api/auth/check-session') {
+        const data = issued
+          ? {success:true, authenticated:true, data:{user:fixtureUser, settings:{}}}
+          : {success:true, authenticated:false};
+        return Promise.resolve({ok:true, status:200, json:() => Promise.resolve(data)});
+      }
+      return Promise.resolve({ok:true, status:200, json:() => Promise.resolve({success:true})});
+    };
+  </script>
+  <script src="/public/auth-resilience.js?v=fixture-login-stall"></script>
+  <script src="/public/device-auth.js?v=fixture-login-stall"></script>
+  <script src="/public/auth-controller.js?v=fixture-login-stall"></script>
+</body>
+</html>

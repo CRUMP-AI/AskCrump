@@ -22,6 +22,10 @@
   const hide = id => { const node = byId(id); if (node) node.style.display = 'none'; };
   const setText = (id, text, visible = true) => { const node = byId(id); if (!node) return; node.textContent = text || ''; node.style.display = visible ? 'block' : 'none'; };
 
+  function authRequest(url, options, timeoutMessage) {
+    return window.CrumpAuthTransport.request(url, options, {timeoutMessage});
+  }
+
   function funnelValue(value, fallback) {
     const normalized = String(value || '').trim().toLowerCase();
     return /^[a-z0-9_-]{1,32}$/.test(normalized) ? normalized : fallback;
@@ -236,16 +240,15 @@
     }
     button.disabled = true;
     try {
-      const response = await fetch('/api/auth/resend-verification', {
+      const {response, data} = await authRequest('/api/auth/resend-verification', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({email}),
-      });
-      const data = await response.json().catch(() => ({}));
+      }, 'Sending the verification email took too long. Check your inbox before retrying.');
       const message = data.message || data.error || 'Request completed.';
       setText(response.ok ? successId : errorId, message);
-    } catch (_) {
-      setText(errorId, 'Verification email could not be sent. Check your connection and try again.');
+    } catch (error) {
+      setText(errorId, error.message || 'Verification email could not be sent. Check your connection and try again.');
     } finally {
       button.disabled = false;
     }
@@ -331,12 +334,11 @@
       const original = button.textContent;
       button.textContent = 'Saving…';
       try {
-        const response = await fetch('/api/account/accept-terms', {
+        const {response, data} = await authRequest('/api/account/accept-terms', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ version: TERMS_VERSION }),
-        });
-        const data = await response.json().catch(() => ({}));
+        }, 'Saving your acceptance took too long. Try Continue again.');
         if (!response.ok || !data.success) throw new Error(data.error || 'Could not save your acceptance.');
         activeUser = data.user || { ...activeUser, termsAcceptedAt: new Date().toISOString(), termsVersion: TERMS_VERSION };
         window.currentUser = activeUser;
@@ -530,7 +532,7 @@
       const restore = setBusy(event.currentTarget, true, 'Creating account…');
       try {
         const email = byId('registerEmail').value.trim();
-        const response = await fetch('/api/auth/register', {
+        const {response, data} = await authRequest('/api/auth/register', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email,
@@ -538,8 +540,7 @@
             fullName: byId('registerName')?.value.trim() || '',
             source: funnelContext().acquisition,
           }),
-        });
-        const data = await response.json().catch(() => ({}));
+        }, 'Creating your account took too long to confirm. Check your inbox before retrying; the account may already exist.');
         if (!response.ok || !data.success) {
           if (data.accountCreated && data.needsVerification) {
             trackFunnel('AccountCreated', {verification_delivery: 'failed'});
@@ -566,8 +567,7 @@
       setText('forgotPasswordError', '', false);
       const restore = setBusy(event.currentTarget, true, 'Sending…');
       try {
-        const response = await fetch('/api/auth/forgot-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: byId('forgotPasswordEmail').value.trim() }) });
-        const data = await response.json().catch(() => ({}));
+        const {response, data} = await authRequest('/api/auth/forgot-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: byId('forgotPasswordEmail').value.trim() }) }, 'Sending the reset email took too long. Check your inbox before retrying.');
         if (!response.ok) throw new Error(data.error || 'Could not send the reset email.');
         setText('forgotPasswordSuccess', data.message);
       } catch (error) { setText('forgotPasswordError', error.message); }
@@ -583,8 +583,7 @@
       if (password !== byId('confirmNewPassword').value) return setText('resetPasswordError', 'Passwords do not match.');
       const restore = setBusy(event.currentTarget, true, 'Updating…');
       try {
-        const response = await fetch('/api/auth/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: byId('resetPasswordForm').dataset.token, newPassword: password }) });
-        const data = await response.json().catch(() => ({}));
+        const {response, data} = await authRequest('/api/auth/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: byId('resetPasswordForm').dataset.token, newPassword: password }) }, 'Updating your password took too long to confirm. Try signing in before submitting it again.');
         if (!response.ok) throw new Error(data.error || 'Password reset failed.');
         setText('resetPasswordSuccess', data.message);
         setTimeout(() => { history.replaceState({}, document.title, location.pathname); hide('resetPasswordForm'); show('loginForm'); }, 1800);
@@ -635,12 +634,11 @@
     }
     if (skip) skip.disabled = true;
     try {
-      const response = await fetch('/api/account/profile', {
+      const {response, data} = await authRequest('/api/account/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fullName: name }),
-      });
-      const data = await response.json().catch(() => ({}));
+      }, 'Saving your profile took too long. Try again or choose Not now.');
       if (!response.ok || !data.success) throw new Error(data.error || 'Could not save your profile.');
       activeUser = data.user || { ...activeUser, fullName: name };
       window.currentUser = activeUser;
@@ -670,8 +668,13 @@
   };
 
   window.logoutUser = async function logoutUser() {
-    await window.deviceAuth.logout();
-    location.replace('/app');
+    try {
+      await window.deviceAuth.logout();
+    } catch (error) {
+      console.warn('[Auth] Sign-out confirmation unavailable:', error);
+    } finally {
+      location.replace('/app');
+    }
   };
 
   window.restartTutorial = function restartTutorial() {

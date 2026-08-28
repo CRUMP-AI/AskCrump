@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { createContext, runInContext } from 'node:vm';
 
 const expectedFiles = new Set([
-  'account-manager.js', 'app.js', 'auth-controller.js', 'billing-manager.js', 'chat-resilience.js', 'chat-sync.js',
+  'account-manager.js', 'app.js', 'auth-controller.js', 'auth-resilience.js', 'billing-manager.js', 'chat-resilience.js', 'chat-sync.js',
   'crump-4.3.js', 'crump-4.4.js', 'crump-5.0.js', 'crump-billing-5.1.js',
   'crump-5.2.js', 'crump-5.2.2.js', 'crump-5.2.4.js', 'crump-navigation-5.2.5.js',
   'crump-navigation-5.9.30.js',
@@ -64,6 +64,7 @@ const requiredBodyFiles = [
   'public/crump-code-5.9.35.css',
   'public/crump-code-5.9.35.js',
   'public/runtime-body-v1.js',
+  'public/auth-resilience.js',
   'public/chat-resilience.js',
   'public/assets/brand/crump-mark.png',
   'public/assets/brand/crump-horizontal-light.png',
@@ -90,6 +91,7 @@ if (!releaseVersion || !landingHtml.includes(`/landing.js?v=${releaseVersion}`))
 }
 const requiredHtmlSignals = [
   '/runtime-body-v1.js',
+  `/auth-resilience.js?v=${releaseVersion}`,
   `/chat-resilience.js?v=${releaseVersion}`,
   `/product-analytics.js?v=${releaseVersion}`,
   '/crump-v1-body.css',
@@ -148,13 +150,14 @@ if (!v1Body.includes('removeLegacyEmptyState(container)')) {
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r78') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r79') ||
     !serviceWorker.includes(`/landing.js?v=${releaseVersion}`) ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes(`/conversation.css?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/ui-functions.js?v=${releaseVersion}`) ||
+    !serviceWorker.includes(`/auth-resilience.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/device-auth.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/sync-manager.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/product-analytics.js?v=${releaseVersion}`) ||
@@ -165,6 +168,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r78') ||
     !serviceWorker.includes("url.pathname === '/chat-resilience.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-5.0.js'") ||
     !serviceWorker.includes("url.pathname === '/ui-functions.js'") ||
+    !serviceWorker.includes("url.pathname === '/auth-resilience.js'") ||
     !serviceWorker.includes("url.pathname === '/sync-manager.js'") ||
     !serviceWorker.includes("url.pathname === '/auth-controller.js'") ||
     !serviceWorker.includes('/crump-v1-body.js') ||

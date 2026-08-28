@@ -55,7 +55,7 @@ def test_terms_remain_a_required_server_saved_gate_before_workspace_entry():
     terms_gate = controller[controller.index("if (!user.termsAcceptedAt)"):controller.index("if (user.fullName)")]
     assert "show('tosModal', 'flex')" in terms_gate
     assert "return;" in terms_gate
-    assert "fetch('/api/account/accept-terms'" in controller
+    assert "authRequest('/api/account/accept-terms'" in controller
     assert "body: JSON.stringify({ version: TERMS_VERSION })" in controller
 
 

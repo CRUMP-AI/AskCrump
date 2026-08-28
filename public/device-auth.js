@@ -18,12 +18,13 @@ class DeviceAuth {
 
   async confirmIssuedSession() {
     try {
-      const response = await fetch('/api/auth/check-session', {
+      const {response, data} = await window.CrumpAuthTransport.request('/api/auth/check-session', {
         method: 'GET',
-        credentials: 'same-origin',
         cache: 'no-store',
+      }, {
+        timeoutMs: window.CrumpAuthTransport.SESSION_TIMEOUT_MS,
+        timeoutMessage: 'Session verification took too long.',
       });
-      const data = await response.json().catch(() => ({ success: false, authenticated: false }));
       if (!response.ok) {
         return { status: 'unavailable', data };
       }
@@ -37,18 +38,36 @@ class DeviceAuth {
   }
 
   async performLogin(email, password) {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({
-        email,
-        password,
-        platform: window.CrumpNative?.Capacitor?.getPlatform?.() || window.Capacitor?.getPlatform?.() || 'web',
-        deviceName: navigator.userAgent.slice(0, 150),
-      }),
-    });
-    const data = await response.json().catch(() => ({ success: false, error: 'Invalid server response.' }));
+    let response;
+    let data;
+    try {
+      ({response, data} = await window.CrumpAuthTransport.request('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password,
+          platform: window.CrumpNative?.Capacitor?.getPlatform?.() || window.Capacitor?.getPlatform?.() || 'web',
+          deviceName: navigator.userAgent.slice(0, 150),
+        }),
+      }, {
+        timeoutMs: window.CrumpAuthTransport.LOGIN_TIMEOUT_MS,
+        timeoutMessage: 'Signing in took too long to confirm. Check your connection and try again.',
+      }));
+    } catch (error) {
+      if (error?.code !== 'AUTH_REQUEST_TIMEOUT' || window.CrumpAPI?.isNative) throw error;
+
+      // A web login can set its HttpOnly cookie before a stalled body finishes.
+      // Reconcile that issued session before reporting failure or rotating it again.
+      for (const delay of [0, 150, 500]) {
+        if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+        const confirmation = await this.confirmIssuedSession();
+        if (confirmation.status !== 'valid') continue;
+        this.acceptSession(confirmation.data);
+        return {success: true, data: confirmation.data, recovered: true};
+      }
+      throw error;
+    }
 
     if (!(response.ok && data.success && data.data?.user)) {
       return data;
@@ -129,8 +148,13 @@ class DeviceAuth {
   async checkSession() {
     try {
       await window.CrumpAPI?.ready;
-      const response = await fetch('/api/auth/check-session', { method: 'GET' });
-      const data = await response.json().catch(() => ({ success: false, authenticated: false }));
+      const {response, data} = await window.CrumpAuthTransport.request('/api/auth/check-session', {
+        method: 'GET',
+        cache: 'no-store',
+      }, {
+        timeoutMs: window.CrumpAuthTransport.SESSION_TIMEOUT_MS,
+        timeoutMessage: 'Session verification took too long.',
+      });
 
       if (!response.ok) {
         return this.sessionUnavailable(new Error(data.error || `Session check failed (${response.status}).`));
@@ -154,11 +178,18 @@ class DeviceAuth {
   async logout(allDevices = false) {
     try {
       if (!allDevices && window.CrumpAPI?.isNative) {
-        try { await fetch('/api/notifications/register', { method: 'DELETE' }); } catch (_) {}
+        try {
+          await window.CrumpAuthTransport.request('/api/notifications/register', {method: 'DELETE'}, {
+            timeoutMs: window.CrumpAuthTransport.SESSION_TIMEOUT_MS,
+            timeoutMessage: 'Push-registration cleanup took too long.',
+          });
+        } catch (_) {}
       }
-      await fetch(allDevices ? '/api/auth/logout-all' : '/api/auth/logout', {
+      await window.CrumpAuthTransport.request(allDevices ? '/api/auth/logout-all' : '/api/auth/logout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+      }, {
+        timeoutMessage: 'Signing out took too long to confirm.',
       });
     } finally {
       await window.CrumpAPI?.clearSessionToken?.();
