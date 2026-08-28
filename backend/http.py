@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 import logging
 import secrets
 from typing import Any
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
@@ -79,10 +80,33 @@ def _request_too_large(request_id: str) -> JSONResponse:
     return response
 
 
+def _legacy_parent_cookie_domain() -> str | None:
+    if settings.cookie_domain:
+        return None
+    hostname = (urlparse(getattr(settings, "app_url", "")).hostname or "").lower()
+    if hostname.startswith("www."):
+        return hostname[4:]
+    return None
+
+
+def _delete_session_cookie(response: Response, *, domain: str | None) -> None:
+    response.delete_cookie(
+        settings.session_cookie_name,
+        path="/",
+        domain=domain,
+        secure=settings.cookie_secure,
+        httponly=True,
+        samesite="lax",
+    )
+
+
 def set_session_cookie(response: Response, raw_token: str, request: Request) -> None:
     if request.headers.get("x-crump-client", "").lower() == "native":
         return
     expires = datetime.now(timezone.utc) + timedelta(days=settings.session_days)
+    legacy_domain = _legacy_parent_cookie_domain()
+    if legacy_domain:
+        _delete_session_cookie(response, domain=legacy_domain)
     response.set_cookie(
         key=settings.session_cookie_name,
         value=raw_token,
@@ -97,14 +121,10 @@ def set_session_cookie(response: Response, raw_token: str, request: Request) -> 
 
 
 def clear_session_cookie(response: Response) -> None:
-    response.delete_cookie(
-        settings.session_cookie_name,
-        path="/",
-        domain=settings.cookie_domain,
-        secure=settings.cookie_secure,
-        httponly=True,
-        samesite="lax",
-    )
+    _delete_session_cookie(response, domain=settings.cookie_domain)
+    legacy_domain = _legacy_parent_cookie_domain()
+    if legacy_domain:
+        _delete_session_cookie(response, domain=legacy_domain)
 
 
 def native_token_payload(request: Request, raw_token: str) -> dict[str, Any]:

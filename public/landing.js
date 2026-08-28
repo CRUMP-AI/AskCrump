@@ -70,16 +70,20 @@
 
   const acquisition = acquisitionSource();
   document.querySelectorAll('[data-cta]').forEach(link => {
+    let analyticsEvent = 'MarketingCTA';
     try {
       const destination = new URL(link.getAttribute('href'), location.href);
       if (destination.origin === location.origin && destination.pathname === '/app') {
+        analyticsEvent = destination.searchParams.get('signup') === '1'
+          ? 'MarketingCTA'
+          : 'MarketingSignin';
         destination.searchParams.set('acquisition', acquisition);
         link.setAttribute('href', `${destination.pathname}${destination.search}${destination.hash}`);
       }
     } catch (_) {}
     link.addEventListener('click', () => {
       window.va('event', {
-        name: 'MarketingCTA',
+        name: analyticsEvent,
         data: {
           location: link.dataset.cta || 'unknown',
           plan: link.dataset.plan || 'unspecified',

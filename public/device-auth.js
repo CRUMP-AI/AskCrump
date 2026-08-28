@@ -18,7 +18,11 @@ class DeviceAuth {
 
   async confirmIssuedSession() {
     try {
-      const response = await fetch('/api/auth/check-session', { method: 'GET' });
+      const response = await fetch('/api/auth/check-session', {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
       const data = await response.json().catch(() => ({ success: false, authenticated: false }));
       if (!response.ok) {
         return { status: 'unavailable', data };
@@ -33,33 +37,32 @@ class DeviceAuth {
   }
 
   async performLogin(email, password) {
-    let lastResult = null;
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        email,
+        password,
+        platform: window.CrumpNative?.Capacitor?.getPlatform?.() || window.Capacitor?.getPlatform?.() || 'web',
+        deviceName: navigator.userAgent.slice(0, 150),
+      }),
+    });
+    const data = await response.json().catch(() => ({ success: false, error: 'Invalid server response.' }));
 
-    // A successful login rotates the installation session. Confirm it immediately.
-    // If another same-installation login won the database race and made this response
-    // stale, retry once with the same credentials instead of leaving a dead session.
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          password,
-          platform: window.CrumpNative?.Capacitor?.getPlatform?.() || window.Capacitor?.getPlatform?.() || 'web',
-          deviceName: navigator.userAgent.slice(0, 150),
-        }),
-      });
-      const data = await response.json().catch(() => ({ success: false, error: 'Invalid server response.' }));
-      lastResult = data;
+    if (!(response.ok && data.success && data.data?.user)) {
+      return data;
+    }
 
-      if (!(response.ok && data.success && data.data?.user)) {
-        return data;
-      }
+    if (data.data.sessionToken && window.CrumpAPI?.isNative) {
+      await window.CrumpAPI.setSessionToken(data.data.sessionToken);
+    }
 
-      if (data.data.sessionToken && window.CrumpAPI?.isNative) {
-        await window.CrumpAPI.setSessionToken(data.data.sessionToken);
-      }
-
+    // A successful login rotates the installation session exactly once. Give the
+    // browser a short bounded window to expose its new HttpOnly cookie instead of
+    // rotating the token again while the first response is still being committed.
+    for (const delay of [0, 75, 200]) {
+      if (delay) await new Promise(resolve => setTimeout(resolve, delay));
       const confirmation = await this.confirmIssuedSession();
       if (confirmation.status === 'valid') {
         const confirmedData = {
@@ -78,14 +81,15 @@ class DeviceAuth {
         return data;
       }
 
-      if (window.CrumpAPI?.isNative) {
-        await window.CrumpAPI.clearSessionToken?.();
-      }
+    }
+
+    if (window.CrumpAPI?.isNative) {
+      await window.CrumpAPI.clearSessionToken?.();
     }
 
     return {
       success: false,
-      error: lastResult?.error || 'Your session could not be established. Please try again.',
+      error: data.error || 'Your session could not be established. Please try again.',
       code: 'SESSION_ESTABLISHMENT_FAILED',
     };
   }

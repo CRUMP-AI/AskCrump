@@ -46,13 +46,52 @@ def public_user(user: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def session_token_from_request(request: Request, settings: Settings) -> str | None:
+def session_tokens_from_request(request: Request, settings: Settings) -> tuple[str, ...]:
     authorization = request.headers.get('authorization', '')
     if authorization.lower().startswith('bearer '):
         candidate = authorization[7:].strip()
         if candidate:
-            return candidate
-    return request.cookies.get(settings.session_cookie_name)
+            return (candidate,)
+
+    # Browsers can retain both a legacy parent-domain cookie and a newer
+    # host-only cookie with the same name. Starlette's cookie mapping exposes
+    # only one of those values, which can make a successful login look invalid
+    # when the stale value is selected. Inspect the bounded raw cookie list and
+    # allow authentication to use the first still-valid candidate.
+    candidates: list[str] = []
+    cookie_name = settings.session_cookie_name
+    for raw_name, raw_value in request.scope.get('headers', []):
+        if raw_name.lower() != b'cookie':
+            continue
+        try:
+            cookie_header = raw_value.decode('latin-1')
+        except (AttributeError, UnicodeDecodeError):
+            continue
+        for item in cookie_header.split(';'):
+            name, separator, value = item.partition('=')
+            candidate = value.strip().strip('"')
+            if (
+                not separator
+                or name.strip() != cookie_name
+                or not candidate
+                or len(candidate) > 512
+                or candidate in candidates
+            ):
+                continue
+            candidates.append(candidate)
+            if len(candidates) >= 4:
+                return tuple(candidates)
+
+    if not candidates:
+        fallback = request.cookies.get(cookie_name)
+        if fallback:
+            candidates.append(fallback)
+    return tuple(candidates)
+
+
+def session_token_from_request(request: Request, settings: Settings) -> str | None:
+    candidates = session_tokens_from_request(request, settings)
+    return candidates[0] if candidates else None
 
 
 async def create_session(
@@ -136,20 +175,26 @@ async def authenticate_request(
     *,
     touch: bool = True,
 ) -> AuthenticatedUser:
-    raw_token = session_token_from_request(request, settings)
-    if not raw_token:
+    raw_tokens = session_tokens_from_request(request, settings)
+    if not raw_tokens:
         raise AuthenticationError()
 
     now = iso_now()
-    session = await db.select_one(
-        'sessions',
-        columns='*',
-        filters={
-            'token_hash': eq(token_hash(raw_token)),
-            'revoked_at': 'is.null',
-            'expires_at': gt(now),
-        },
-    )
+    raw_token = raw_tokens[0]
+    session = None
+    for candidate in raw_tokens:
+        session = await db.select_one(
+            'sessions',
+            columns='*',
+            filters={
+                'token_hash': eq(token_hash(candidate)),
+                'revoked_at': 'is.null',
+                'expires_at': gt(now),
+            },
+        )
+        if session:
+            raw_token = candidate
+            break
     if not session:
         raise AuthenticationError('Your session has expired. Please sign in again.')
 
@@ -180,8 +225,7 @@ async def authenticate_request(
 
 
 async def revoke_current_session(request: Request, db: SupabaseDB, settings: Settings) -> None:
-    raw_token = session_token_from_request(request, settings)
-    if raw_token:
+    for raw_token in session_tokens_from_request(request, settings):
         await db.update(
             'sessions',
             {'revoked_at': iso_now()},
