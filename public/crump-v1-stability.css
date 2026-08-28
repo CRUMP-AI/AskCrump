@@ -2,8 +2,8 @@
    Final presentation fixes for compact desktop viewports and the mobile
    attachment sheet. */
 
-/* Mobile-app interaction policy: the product shell stays at its intended 1:1
-   scale and cannot drift horizontally. One-finger scrolling remains native. */
+/* Mobile-app interaction policy: prevent horizontal drift while preserving
+   native vertical scrolling and accessibility pinch zoom. */
 html {
   overscroll-behavior-x: none;
 }
@@ -12,7 +12,7 @@ body.crump-v1-body {
   max-width: 100%;
   overflow-x: hidden;
   overscroll-behavior-x: none;
-  touch-action: pan-x pan-y;
+  touch-action: pan-y pinch-zoom;
 }
 
 /* iOS zooms the visual viewport when a focused editor computes below 16px.

@@ -4,30 +4,27 @@ ROOT = Path(__file__).resolve().parents[1]
 def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
 
-def test_app_shell_blocks_page_level_pinch_everywhere():
+def test_app_shell_does_not_block_page_level_pinch_zoom():
     script = read("public/crump-v1-stability.js")
-    assert "function installViewportGesturePolicy()" in script
-    assert "document.addEventListener('gesturestart', blockViewportPinch, { passive: false });" in script
-    assert "document.addEventListener('gesturechange', blockViewportPinch, { passive: false });" in script
-    assert "document.addEventListener('touchmove', event => {" in script
-    assert "(event.touches?.length || 0) < 2" in script
-    assert "event.preventDefault();" in script
-    assert "installViewportGesturePolicy();" in script
-    assert "isImageZoomSurface" not in script
+    assert "installViewportGesturePolicy" not in script
+    assert "gesturestart" not in script
+    assert "gesturechange" not in script
+    assert "blockViewportPinch" not in script
+    assert "event.touches" not in script
 
-def test_shell_prevents_horizontal_drift_and_double_tap_zoom():
+def test_shell_prevents_horizontal_drift_while_allowing_pinch_zoom():
     css = read("public/crump-v1-stability.css")
     assert "overscroll-behavior-x: none;" in css
     assert "overflow-x: hidden;" in css
-    assert "touch-action: pan-x pan-y;" in css
-    assert "pinch-zoom" not in css
+    assert "touch-action: pan-y pinch-zoom;" in css
+    assert "touch-action: pan-x pan-y;" not in css
 
-def test_viewport_is_hard_locked_to_the_installed_app_scale():
+def test_viewport_allows_accessibility_zoom_at_the_installed_app_scale():
     app = read("public/app.html")
     assert 'name="viewport"' in app
     assert "width=device-width, initial-scale=1.0" in app
-    assert "maximum-scale=1.0" in app
-    assert "user-scalable=no" in app
+    assert "maximum-scale" not in app
+    assert "user-scalable=no" not in app
     assert "viewport-fit=cover" in app
 
 def test_every_mobile_editor_meets_the_ios_no_focus_zoom_threshold():
@@ -58,6 +55,6 @@ def test_mobile_header_controls_share_the_same_safe_area_centerline():
 def test_mobile_zoom_policy_advances_shell_cache():
     sw = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
-    assert "ask-crump-new-body-v1-r67" in sw
+    assert "ask-crump-new-body-v1-r68" in sw
     assert "ask-crump-new-body-v1-r22" not in sw
-    assert "ask-crump-new-body-v1-r67" in checker
+    assert "ask-crump-new-body-v1-r68" in checker
