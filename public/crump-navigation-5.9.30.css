@@ -13,6 +13,20 @@ html[data-crump-navigation5930="ready"] body.crump-v1-body.v1-library-collapsed 
   grid-template-columns: var(--ac-rail) 0 minmax(0,1fr);
 }
 
+/* The legacy 5.0 desktop layer still adds the old 292px sidebar offset at
+   widths above 980px. The 5.9 grid already owns that column, so counting it a
+   second time clips the workspace whenever Chats is open. */
+html[data-crump-navigation5930="ready"] body.crump-v1-body .main-content.v1-workspace {
+  grid-column: 3;
+  width: 100% !important;
+  margin-left: 0 !important;
+}
+
+html[data-crump-navigation5930="ready"] body.crump-v1-body .v1-launchpad {
+  max-width: 100%;
+  margin-inline: auto;
+}
+
 body.crump-v1-body .crump5930-rail {
   align-items: stretch;
   padding: max(16px, env(safe-area-inset-top)) 8px max(14px, env(safe-area-inset-bottom));

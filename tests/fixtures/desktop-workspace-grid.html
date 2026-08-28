@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en" data-crump-navigation5930="ready">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Desktop workspace grid fixture</title>
+  <link rel="stylesheet" href="/public/styles.css">
+  <link rel="stylesheet" href="/public/crump-5.0.css">
+  <link rel="stylesheet" href="/public/crump-v1-body.css">
+  <link rel="stylesheet" href="/public/crump-polish-5.6.css">
+  <link rel="stylesheet" href="/public/crump-navigation-5.9.30.css">
+</head>
+<body class="crump-v1-body crump-50">
+  <div class="app-container" style="display:block">
+    <div class="v1-shell">
+      <nav class="v1-rail" aria-label="Ask Crump navigation"></nav>
+      <aside class="sidebar v1-library" aria-label="Conversation library"></aside>
+      <div class="sidebar-overlay"></div>
+      <main class="main-content v1-workspace">
+        <header class="v1-workspace-header"></header>
+        <section class="v1-workspace-body">
+          <section class="v1-launchpad" aria-label="Start something">
+            <h1>What are we moving forward?</h1>
+            <div class="v1-launchpad-grid"><div></div><div></div></div>
+          </section>
+        </section>
+      </main>
+    </div>
+  </div>
+  <output id="fixtureResult"></output>
+  <script>
+    const shell = document.querySelector('.v1-shell').getBoundingClientRect();
+    const rail = document.querySelector('.v1-rail').getBoundingClientRect();
+    const library = document.querySelector('.v1-library').getBoundingClientRect();
+    const workspace = document.querySelector('.v1-workspace').getBoundingClientRect();
+    const launchpad = document.querySelector('.v1-launchpad').getBoundingClientRect();
+    const result = {
+      shellWidth: Math.round(shell.width),
+      expectedWorkspaceX: Math.round(rail.width + library.width),
+      workspaceX: Math.round(workspace.x),
+      workspaceWidth: Math.round(workspace.width),
+      workspaceRight: Math.round(workspace.right),
+      launchpadWithinWorkspace: launchpad.left >= workspace.left && launchpad.right <= workspace.right,
+      documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+    document.getElementById('fixtureResult').textContent = JSON.stringify(result);
+    document.documentElement.dataset.fixtureReady = 'true';
+  </script>
+</body>
+</html>

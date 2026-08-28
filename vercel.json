@@ -2,6 +2,20 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
+      "source": "/",
+      "has": [
+        { "type": "host", "value": "clevercrump.com" }
+      ],
+      "destination": "/clever-crump"
+    },
+    {
+      "source": "/",
+      "has": [
+        { "type": "host", "value": "www.clevercrump.com" }
+      ],
+      "destination": "/clever-crump"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api"
     }
