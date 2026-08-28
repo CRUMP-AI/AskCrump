@@ -1,5 +1,19 @@
 # Changelog
 
+## 5.9.57 — 2026-08-28
+
+### Résumé intent through delivery
+
+- Preserved the explicit, allowlisted résumé purpose from the public capability handoff or the
+  in-app “Résumé · CV” choice through local sync, retry, server guidance, and final DOCX/PDF
+  packaging.
+- A fact-only brief containing experience, skills, and a target role now receives the promised
+  ATS-friendly, fact-grounded résumé contract even when the user does not repeat the word
+  “résumé” in the message.
+- Rejected arbitrary purpose values and retained no résumé content, employer, role, skill,
+  filename, message, or account identifier in the purpose field.
+- Advanced the application to 5.9.57, native build 50957, and service-worker cache revision 91.
+
 ## 5.9.56 — 2026-08-28
 
 ### Acquisition-to-creation continuity

@@ -141,7 +141,20 @@ class ArtifactService:
         return None
 
     @classmethod
-    def profile_for(cls, markdown: str = '', brief: str = '', format_name: str = '') -> str:
+    def normalize_purpose(cls, value: Any = None) -> str | None:
+        purpose = str(value or '').strip().lower()
+        return purpose if purpose in {'resume'} else None
+
+    @classmethod
+    def profile_for(
+        cls,
+        markdown: str = '',
+        brief: str = '',
+        format_name: str = '',
+        purpose: Any = None,
+    ) -> str:
+        if cls.normalize_purpose(purpose) == 'resume':
+            return 'resume'
         evidence = f'{brief}\n{markdown[:8000]}'.strip()
         if cls.RESUME_PATTERN.search(evidence):
             return 'resume'
@@ -154,10 +167,10 @@ class ArtifactService:
         return 'business'
 
     @classmethod
-    def creation_guidance(cls, format_name: str, brief: str = '') -> str:
+    def creation_guidance(cls, format_name: str, brief: str = '', purpose: Any = None) -> str:
         """Return a model-facing contract for the requested deliverable."""
         fmt = cls.normalize_format(format_name) or 'docx'
-        profile = cls.profile_for('', brief, fmt)
+        profile = cls.profile_for('', brief, fmt, purpose)
         shared = (
             'Return only the finished source content—no production notes, promises, or commentary about '
             'creating a file. Follow every supplied fact and requirement. Never invent citations, employers, '
@@ -1328,10 +1341,10 @@ class ArtifactService:
         workbook.properties.title = resolved_title; workbook.properties.creator = 'Ask Crump'; workbook.properties.subject = 'Professionally formatted editable workbook'
         out = BytesIO(); workbook.save(out); return out.getvalue()
 
-    async def create(self, *, user_id: str, markdown: str, format_name: str, chat_id: str | None, message_id: str | None, title: str | None = None, brief: str | None = None) -> dict[str, Any]:
+    async def create(self, *, user_id: str, markdown: str, format_name: str, chat_id: str | None, message_id: str | None, title: str | None = None, brief: str | None = None, purpose: Any = None) -> dict[str, Any]:
         fmt = self.normalize_format(format_name)
         if not fmt: raise ValueError('Unsupported document format.')
-        resolved_title = (title or self.title_from(markdown)).strip()[:160]; profile = self.profile_for(markdown, brief or '', fmt)
+        resolved_title = (title or self.title_from(markdown)).strip()[:160]; profile = self.profile_for(markdown, brief or '', fmt, purpose)
         stem = self.safe_stem(resolved_title)
         if fmt == 'docx': data = self.docx(markdown, profile=profile, title=resolved_title)
         elif fmt == 'pdf': data = self.pdf(markdown, profile=profile, title=resolved_title)

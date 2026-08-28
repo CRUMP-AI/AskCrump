@@ -400,6 +400,13 @@ async def chat(request: Request):
             request_payload.pop('suppressCreativeExecution', None)
         if creation_intent.get('title') and not request_payload.get('artifactTitle'):
             request_payload['artifactTitle'] = creation_intent['title']
+    artifact_purpose = artifacts.normalize_purpose(request_payload.get('artifactPurpose'))
+    if requested_artifact not in {'docx', 'pdf'}:
+        artifact_purpose = None
+    if artifact_purpose:
+        request_payload['artifactPurpose'] = artifact_purpose
+    else:
+        request_payload.pop('artifactPurpose', None)
     if requested_artifact and not long_form_request:
         request_payload['artifactFormat'] = requested_artifact
     if long_form_request:
@@ -422,7 +429,11 @@ async def chat(request: Request):
     elif requested_artifact:
         artifact_note = {
             'source': 'artifact_request',
-            'content': artifacts.creation_guidance(requested_artifact, execution_brief),
+            'content': artifacts.creation_guidance(
+                requested_artifact,
+                execution_brief,
+                artifact_purpose,
+            ),
         }
         current_context = request_payload.get('relevantContext')
         if isinstance(current_context, list):
@@ -641,6 +652,7 @@ async def chat(request: Request):
                 message_id=message_id,
                 title=str(request_payload.get('artifactTitle') or '').strip() or None,
                 brief=execution_brief,
+                purpose=artifact_purpose,
             )
             await record_product_event(
                 db,
@@ -700,7 +712,7 @@ async def chat(request: Request):
             key: request_payload.get(key)
             for key in (
                 'creativeTool', 'imageAspect', 'imageQuality', 'imageUseReference',
-                'artifactFormat', 'needsSearch', 'taskType', 'longForm',
+                'artifactFormat', 'artifactPurpose', 'needsSearch', 'taskType', 'longForm',
             )
             if request_payload.get(key) is not None
         }

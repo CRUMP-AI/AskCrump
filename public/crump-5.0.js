@@ -15,6 +15,7 @@
     imageAspect: 'square',
     imageQuality: 'medium',
     documentFormat: null,
+    documentPurpose: null,
     sending: false,
     menu: null,
     lightbox: null,
@@ -401,6 +402,7 @@
 
   function activeToolLabel() {
     if (state.tool === 'image') return `Create image · ${state.imageAspect}`;
+    if (state.tool === 'document' && state.documentPurpose === 'resume') return 'Create résumé · DOCX';
     if (state.tool === 'document') return `Create ${String(state.documentFormat || 'docx').toUpperCase()}`;
     if (state.tool === 'web') return 'Web search';
     if (state.tool === 'code') return 'Code';
@@ -427,6 +429,7 @@
     chip.addEventListener('click', () => {
       state.tool = null;
       state.documentFormat = null;
+      state.documentPurpose = null;
       renderToolChip();
     });
     host.appendChild(chip);
@@ -524,22 +527,22 @@
     const outcomeLabel = document.createElement('div'); outcomeLabel.className = 'crump50-option-label'; outcomeLabel.textContent = 'What are you making?';
     const outcomes = document.createElement('div'); outcomes.className = 'crump50-outcome-grid';
     [
-      ['docx','ESSAY · REPORT','Academic & professional writing','Describe the topic, audience, length, requirements, and citation style…'],
-      ['docx','RÉSUMÉ · CV','ATS-friendly and fact-grounded','Share your real experience, target role, skills, and achievements…'],
-      ['pptx','PRESENTATION','A clear, decision-ready narrative','Describe the audience, objective, key evidence, and desired next step…'],
-      ['xlsx','SPREADSHEET','Structured inputs, formulas, and outputs','Describe the data, assumptions, calculations, and decisions this workbook should support…'],
-      ['docx','MANUSCRIPT','Persistent, chapter-by-chapter work','Describe the book, audience, voice, target length, and what you already know…'],
-    ].forEach(([format, eyebrow, label, placeholder]) => {
+      ['docx','ESSAY · REPORT','Academic & professional writing','Describe the topic, audience, length, requirements, and citation style…',''],
+      ['docx','RÉSUMÉ · CV','ATS-friendly and fact-grounded','Share your real experience, target role, skills, and achievements…','resume'],
+      ['pptx','PRESENTATION','A clear, decision-ready narrative','Describe the audience, objective, key evidence, and desired next step…',''],
+      ['xlsx','SPREADSHEET','Structured inputs, formulas, and outputs','Describe the data, assumptions, calculations, and decisions this workbook should support…',''],
+      ['docx','MANUSCRIPT','Persistent, chapter-by-chapter work','Describe the book, audience, voice, target length, and what you already know…',''],
+    ].forEach(([format, eyebrow, label, placeholder, purpose]) => {
       const button = document.createElement('button'); button.type = 'button';
       button.innerHTML = `<span>${eyebrow}</span><strong>${label}</strong><b>›</b>`;
-      button.addEventListener('click', () => { state.tool = 'document'; state.documentFormat = format; closeMenu(); renderToolChip(); focusComposer(placeholder); });
+      button.addEventListener('click', () => { state.tool = 'document'; state.documentFormat = format; state.documentPurpose = purpose || null; closeMenu(); renderToolChip(); focusComposer(placeholder); });
       outcomes.appendChild(button);
     });
     const formatLabel = document.createElement('div'); formatLabel.className = 'crump50-option-label'; formatLabel.textContent = 'Or choose a file format';
     const grid = document.createElement('div'); grid.className = 'crump50-format-grid';
     [['docx','Word','DOCX'],['pdf','PDF','PDF'],['pptx','PowerPoint','PPTX'],['xlsx','Excel','XLSX'],['md','Markdown','MD'],['txt','Text','TXT']].forEach(([value,label,badge]) => {
       const b = document.createElement('button'); b.type = 'button'; b.innerHTML = `<span>${badge}</span><strong>${label}</strong>`;
-      b.addEventListener('click', () => { state.tool = 'document'; state.documentFormat = value; closeMenu(); renderToolChip(); focusComposer(`Describe the ${label} document you want…`); });
+      b.addEventListener('click', () => { state.tool = 'document'; state.documentFormat = value; state.documentPurpose = null; closeMenu(); renderToolChip(); focusComposer(`Describe the ${label} document you want…`); });
       grid.appendChild(b);
     });
     sheet.append(outcomeLabel, outcomes, formatLabel, grid); document.body.appendChild(sheet); state.menu = sheet; document.body.classList.add('crump50-sheet-open'); requestAnimationFrame(() => sheet.classList.add('is-visible'));
@@ -596,6 +599,7 @@
       body.imageUseReference = readyFiles.some(item => String(item.server?.type || '').startsWith('image/'));
     }
     if (state.tool === 'document' && state.documentFormat) body.artifactFormat = state.documentFormat;
+    if (state.tool === 'document' && state.documentPurpose) body.artifactPurpose = state.documentPurpose;
     if (userMessage.requestMeta && typeof userMessage.requestMeta === 'object') Object.assign(body, userMessage.requestMeta);
     return body;
   }
@@ -664,6 +668,7 @@
           ...(state.tool === 'code' ? {taskType:'code'} : {}),
           ...(state.tool === 'image' ? {creativeTool:'image', imageAspect:state.imageAspect, imageQuality:state.imageQuality, imageUseReference:ready.some(item => String(item.server?.type || '').startsWith('image/'))} : {}),
           ...(state.tool === 'document' && state.documentFormat ? {artifactFormat:state.documentFormat} : {}),
+          ...(state.tool === 'document' && state.documentPurpose ? {artifactPurpose:state.documentPurpose} : {}),
         },
       };
       let fresh = currentChat();
@@ -675,7 +680,7 @@
       state.attachments = [];
       renderAttachmentTray();
       const sentTool = state.tool;
-      state.tool = null; state.documentFormat = null; renderToolChip();
+      state.tool = null; state.documentFormat = null; state.documentPurpose = null; renderToolChip();
 
       const sync = await window.syncChatsToServer?.();
       if (sync && sync.success === false) throw Object.assign(new Error('This message is waiting to sync.'), {quiet: true});
@@ -932,9 +937,10 @@
   });
   window.CrumpDocumentStudio = Object.freeze({
     open: showDocumentOptions,
-    select: (format = 'docx', placeholder = '') => {
+    select: (format = 'docx', placeholder = '', purpose = '') => {
       state.tool = 'document';
       state.documentFormat = String(format || 'docx').toLowerCase();
+      state.documentPurpose = String(purpose || '').toLowerCase() === 'resume' ? 'resume' : null;
       closeMenu();
       renderToolChip();
       focusComposer(placeholder || `Describe the ${state.documentFormat.toUpperCase()} document you want…`);

@@ -1,3 +1,4 @@
+import asyncio
 from io import BytesIO
 import zipfile
 
@@ -10,7 +11,16 @@ from backend.artifact_service import ArtifactService
 
 
 class DummyFiles:
-    pass
+    def __init__(self):
+        self.stored: dict | None = None
+
+    async def store_bytes(self, **kwargs):
+        self.stored = kwargs
+        return {'id': 'fixture-file', **kwargs}
+
+    @staticmethod
+    def public_file(row):
+        return {'id': row['id'], 'name': row['filename'], 'size': len(row['data'])}
 
 
 def service():
@@ -175,6 +185,37 @@ def test_academic_and_resume_profiles_use_professional_conventions():
     assert resume.sections[0].header.paragraphs[0].text == ''
     assert resume.sections[0].left_margin.inches < 0.7
     assert 'w:pBdr' not in resume.styles['Title'].element.xml
+
+
+def test_explicit_resume_purpose_survives_a_fact_only_brief():
+    brief = 'Led fraud operations for five years. Target role: product manager. Skills: SQL and analytics.'
+    assert ArtifactService.profile_for('', brief, 'docx') == 'business'
+    assert ArtifactService.profile_for('', brief, 'docx', 'resume') == 'resume'
+    assert ArtifactService.normalize_purpose('RESUME') == 'resume'
+    assert ArtifactService.normalize_purpose('arbitrary-client-value') is None
+    guidance = ArtifactService.creation_guidance('docx', brief, 'resume')
+    assert 'ATS-friendly' in guidance
+    assert 'Quantify impact only when the user supplied the number' in guidance
+
+
+def test_explicit_resume_purpose_controls_the_packaged_word_profile():
+    files = DummyFiles()
+    generator = ArtifactService(files)
+    result = asyncio.run(generator.create(
+        user_id='fixture-user',
+        markdown='# Jordan Ellis\n\n## Experience\n\n- Led fraud operations.',
+        format_name='docx',
+        chat_id='fixture-chat',
+        message_id='fixture-message',
+        brief='Five years in operations. Target role: product manager. Skills: SQL.',
+        purpose='resume',
+    ))
+    assert result['profile'] == 'resume'
+    assert files.stored is not None
+    assert files.stored['metadata']['profile'] == 'resume'
+    document = Document(BytesIO(files.stored['data']))
+    assert document.styles['Normal'].font.name == 'Aptos'
+    assert document.sections[0].left_margin.inches < 0.7
 
 
 def test_academic_references_use_a_standard_hanging_indent():

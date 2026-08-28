@@ -58,13 +58,13 @@ def test_auth_transport_is_release_versioned_and_network_first():
     shell = read_public("app.html")
     worker = read_public("sw.js")
 
-    assert '<script defer src="/auth-resilience.js?v=5.9.56"></script>' in shell
-    assert shell.index("/auth-resilience.js?v=5.9.56") < shell.index(
-        "/device-auth.js?v=5.9.56"
+    assert '<script defer src="/auth-resilience.js?v=5.9.57"></script>' in shell
+    assert shell.index("/auth-resilience.js?v=5.9.57") < shell.index(
+        "/device-auth.js?v=5.9.57"
     )
-    assert "'/auth-resilience.js?v=5.9.56'" in worker
+    assert "'/auth-resilience.js?v=5.9.57'" in worker
     assert "url.pathname === '/auth-resilience.js'" in worker
-    assert "ask-crump-new-body-v1-r90" in worker
+    assert "ask-crump-new-body-v1-r91" in worker
 
 
 def test_auth_stall_fixtures_are_loopback_only_and_load_real_runtime_assets():

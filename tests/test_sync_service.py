@@ -134,6 +134,23 @@ def test_presence_and_check_in_metadata_survive_sanitization():
     assert assistant_message['checkInId'] == '1c6f0e61-847a-44e8-a72a-e3dbf9668edc'
 
 
+def test_resume_purpose_survives_sync_without_accepting_arbitrary_values():
+    resume = sanitize_message({
+        'id': '8f611900-68b0-41c1-b6db-62460fa6ea12',
+        'role': 'user',
+        'content': 'Led fraud operations for five years.',
+        'requestMeta': {'artifactFormat': 'docx', 'artifactPurpose': 'RESUME'},
+    })
+    invalid = sanitize_message({
+        'id': 'c8b2b91e-d284-4512-92dd-4ca199252a59',
+        'role': 'user',
+        'content': 'Create a document.',
+        'requestMeta': {'artifactFormat': 'docx', 'artifactPurpose': 'private-freeform-purpose'},
+    })
+    assert resume['requestMeta']['artifactPurpose'] == 'resume'
+    assert 'artifactPurpose' not in invalid['requestMeta']
+
+
 def test_manuscript_workspace_handoff_survives_cross_device_sanitization():
     message = sanitize_message({
         'id': 'c8b2b91e-d284-4512-92dd-4ca199252a59',

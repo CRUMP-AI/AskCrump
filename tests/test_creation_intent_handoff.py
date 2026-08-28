@@ -77,6 +77,7 @@ def test_creation_intent_opens_the_exact_non_generating_workspace():
     assert "window.CrumpDocumentStudio?.open?.()" in handler
     assert "window.CrumpDocumentStudio?.select?.('pptx'" in handler
     assert "window.CrumpDocumentStudio?.select?.('docx'" in handler
+    assert "job requirements you want to match…', 'resume')" in handler
     assert "window.CrumpProduct53?.open?.(action === 'manuscript' ? 'manuscripts' : 'video')" in handler
     assert "CreationIntentContinued" in handler
     assert "crump:creation-intent-consumed" in handler
@@ -93,3 +94,21 @@ def test_real_controller_fixture_covers_the_authenticated_handoff():
     assert "askcrump.pending-creation-intent" in fixture
     assert "fixtureCalls" in fixture
     assert "fixtureErrors" in fixture
+    assert "format, placeholder, purpose" in fixture
+
+
+def test_resume_purpose_survives_send_retry_and_server_packaging():
+    studio = read("public/crump-5.0.js")
+    route = read("backend/routes/chat.py")
+    sync_patch = read("backend/crump52_patches.py")
+
+    assert "documentPurpose: null" in studio
+    assert "state.documentPurpose = purpose || null" in studio
+    assert "body.artifactPurpose = state.documentPurpose" in studio
+    assert "{artifactPurpose:state.documentPurpose}" in studio
+    assert "state.documentPurpose = String(purpose || '').toLowerCase() === 'resume' ? 'resume' : null" in studio
+    assert "artifacts.normalize_purpose(request_payload.get('artifactPurpose'))" in route
+    assert "artifactPurpose', 'needsSearch'" in route
+    assert "purpose=artifact_purpose" in route
+    assert '"artifactFormat", "artifactPurpose"' in sync_patch
+    assert 'clean_meta[key] = "resume"' in sync_patch

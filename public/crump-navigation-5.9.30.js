@@ -193,7 +193,7 @@
       return true;
     }
     if (action === 'resume') {
-      window.CrumpDocumentStudio?.select?.('docx', 'Describe your real experience, target role, education, skills, and the job requirements you want to match…');
+      window.CrumpDocumentStudio?.select?.('docx', 'Describe your real experience, target role, education, skills, and the job requirements you want to match…', 'resume');
       return true;
     }
     if (action === 'image') {

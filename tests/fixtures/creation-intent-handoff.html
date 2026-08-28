@@ -63,13 +63,13 @@
     window.CrumpAnalytics = {track: async () => true};
     window.CrumpDocumentStudio = {
       open() { window.__fixture.calls.push({tool:'document', action:'open'}); },
-      select(format, placeholder) { window.__fixture.calls.push({tool:'document', action:'select', format, placeholder}); },
+      select(format, placeholder, purpose) { window.__fixture.calls.push({tool:'document', action:'select', format, placeholder, purpose}); },
     };
     window.CrumpProduct53 = {
       open(tab) { window.__fixture.calls.push({tool:'product', action:'open', tab}); },
     };
   </script>
-  <script src="/public/crump-navigation-5.9.30.js?v=fixture-creation-intent-1"></script>
-  <script src="/public/auth-controller.js?v=fixture-creation-intent-1"></script>
+  <script src="/public/crump-navigation-5.9.30.js?v=fixture-creation-intent-2"></script>
+  <script src="/public/auth-controller.js?v=fixture-creation-intent-2"></script>
 </body>
 </html>

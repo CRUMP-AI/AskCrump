@@ -31,7 +31,7 @@ _FILE_KINDS = {"upload", "generated_image", "generated_document"}
 _FILE_STATUS = {"pending", "ready", "failed"}
 _REQUEST_META_KEYS = {
     "creativeTool", "imageAspect", "imageQuality", "imageUseReference",
-    "artifactFormat", "needsSearch", "taskType", "longForm",
+    "artifactFormat", "artifactPurpose", "needsSearch", "taskType", "longForm",
 }
 _METADATA_STRING_LIMITS = {
     "prompt": 4000,
@@ -220,6 +220,10 @@ def _sanitize_message_v52(item: Any) -> dict[str, Any] | None:
             if key not in request_meta:
                 continue
             value = request_meta.get(key)
+            if key == "artifactPurpose":
+                if str(value or "").strip().lower() == "resume":
+                    clean_meta[key] = "resume"
+                continue
             if isinstance(value, bool):
                 clean_meta[key] = value
             elif value is not None:
