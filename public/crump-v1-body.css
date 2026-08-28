@@ -670,24 +670,42 @@ body.crump-v1-body .v1-rail-spacer { flex: 1; }
 
 body.crump-v1-body .v1-rail-button {
   display: grid;
-  width: 48px;
-  height: 48px;
-  min-width: 48px;
-  min-height: 48px;
+  width: 52px;
+  height: 58px;
+  min-width: 52px;
+  min-height: 58px;
+  grid-template-rows: 22px auto;
   place-items: center;
-  padding: 0;
+  gap: 3px;
+  padding: 6px 2px 5px;
   border: 1px solid transparent;
   border-radius: 15px;
   background: transparent;
   color: #72787d;
+  font: 650 9px/1 var(--ac-font);
+  letter-spacing: .025em;
   cursor: pointer;
   transition: border-color .15s ease, background .15s ease, color .15s ease, transform .15s ease;
 }
-body.crump-v1-body .v1-rail-button svg { width: 21px; height: 21px; }
+body.crump-v1-body .v1-rail-button svg { width: 20px; height: 20px; }
+body.crump-v1-body .v1-rail-label {
+  display: block;
+  max-width: 48px;
+  overflow: hidden;
+  color: currentColor;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 body.crump-v1-body .v1-rail-button:hover {
   border-color: var(--ac-line);
   background: rgba(255,255,255,.032);
   color: #d8d5ce;
+}
+body.crump-v1-body .v1-rail-button.is-active,
+body.crump-v1-body .v1-rail-button[aria-expanded="true"] {
+  border-color: rgba(217,191,132,.2);
+  background: rgba(217,191,132,.07);
+  color: #ddc78f;
 }
 body.crump-v1-body .v1-rail-button:active { transform: scale(.95); }
 body.crump-v1-body .v1-rail-primary {

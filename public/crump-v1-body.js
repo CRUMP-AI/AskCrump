@@ -77,6 +77,20 @@
     input.focus({preventScroll: true});
   }
 
+  function syncLibraryControl() {
+    const control = $('[data-v1-command="library"]', $('.v1-rail') || document);
+    if (!control) return;
+    const sidebar = byId('sidebar');
+    const compact = matchMedia('(max-width: 1100px)').matches;
+    const expanded = compact
+      ? Boolean(sidebar?.classList.contains('active'))
+      : !document.body.classList.contains('v1-library-collapsed');
+    control.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    control.classList.toggle('is-active', expanded);
+    sidebar?.setAttribute('aria-hidden', expanded ? 'false' : 'true');
+    sidebar?.toggleAttribute('inert', !expanded);
+  }
+
   function openLibrary() {
     const sidebar = byId('sidebar');
     const overlay = byId('sidebarOverlay');
@@ -85,10 +99,12 @@
     if (matchMedia('(max-width: 1100px)').matches) {
       sidebar.classList.add('active');
       overlay?.classList.add('active');
+      syncLibraryControl();
       return;
     }
 
     document.body.classList.toggle('v1-library-collapsed');
+    syncLibraryControl();
     try {
       localStorage.setItem(
         'crump_v1_library_collapsed',
@@ -432,6 +448,7 @@
         if (sidebar?.classList.contains('active')) {
           sidebar.classList.remove('active');
           overlay?.classList.remove('active');
+          syncLibraryControl();
         }
       }
     });
@@ -467,15 +484,24 @@
         }
       }).observe(app, {attributes: true, attributeFilter: ['style']});
     }
+
+    const sidebar = byId('sidebar');
+    if (sidebar && sidebar.dataset.v1LibraryObserved !== 'true') {
+      sidebar.dataset.v1LibraryObserved = 'true';
+      new MutationObserver(syncLibraryControl)
+        .observe(sidebar, {attributes: true, attributeFilter: ['class']});
+    }
   }
 
   function restoreDesktopPreference() {
-    if (matchMedia('(max-width: 1100px)').matches) return;
-    try {
-      if (localStorage.getItem('crump_v1_library_collapsed') === '1') {
-        document.body.classList.add('v1-library-collapsed');
-      }
-    } catch (_) {}
+    if (!matchMedia('(max-width: 1100px)').matches) {
+      try {
+        if (localStorage.getItem('crump_v1_library_collapsed') === '1') {
+          document.body.classList.add('v1-library-collapsed');
+        }
+      } catch (_) {}
+    }
+    syncLibraryControl();
   }
 
   function wireViewport() {
@@ -493,6 +519,7 @@
       } else {
         document.body.classList.remove('v1-library-collapsed');
       }
+      syncLibraryControl();
     });
   }
 
@@ -501,6 +528,7 @@
     syncLaunchpad();
     syncWorkspaceTitle();
     syncRecentWork();
+    syncLibraryControl();
     wireComposer();
   }
 

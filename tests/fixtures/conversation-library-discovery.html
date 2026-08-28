@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Conversation library discovery fixture</title>
+  <link rel="stylesheet" href="/public/crump-v1-body.css">
+  <style>
+    .fixture-workspace { min-width: 0; background: #080a0d; color: #f4f1eb; }
+    .fixture-workspace-inner { max-width: 720px; margin: 0 auto; padding: 92px 36px; }
+    .fixture-workspace h1 { margin: 0; font: 52px/1.05 Georgia, serif; }
+    .fixture-workspace p { max-width: 560px; color: #8d9295; font: 15px/1.6 system-ui, sans-serif; }
+    .fixture-chat { margin: 8px 10px; padding: 14px; border: 1px solid rgba(255,255,255,.06); border-radius: 14px; color: #bbb; font: 13px/1.35 system-ui, sans-serif; }
+  </style>
+</head>
+<body>
+  <div class="v1-shell">
+    <nav class="v1-rail" aria-label="Ask Crump navigation">
+      <div class="v1-rail-brand" aria-hidden="true">
+        <img src="/public/assets/brand/crump-mark.png" alt="">
+      </div>
+      <div class="v1-rail-stack">
+        <button type="button" class="v1-rail-button v1-rail-primary" data-v1-command="new" aria-label="New conversation">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          <span class="v1-rail-label">New</span>
+        </button>
+        <button type="button" class="v1-rail-button" data-v1-command="library" aria-label="Conversation library" aria-controls="sidebar" aria-expanded="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg>
+          <span class="v1-rail-label">Chats</span>
+        </button>
+        <button type="button" class="v1-rail-button" aria-label="Projects">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h6l2 2h8v10H4z"/><path d="M4 7V5h7l2 2"/></svg>
+          <span class="v1-rail-label">Projects</span>
+        </button>
+      </div>
+    </nav>
+
+    <aside id="sidebar" class="sidebar v1-library" aria-label="Conversation library" aria-hidden="false">
+      <div class="sidebar-header v1-library-header">
+        <div class="sidebar-branding">
+          <img src="/public/assets/brand/crump-horizontal-light.png" alt="Ask Crump" class="v1-library-logo">
+        </div>
+      </div>
+      <div class="sidebar-actions v1-library-actions">
+        <button id="newChatBtn" type="button" class="v1-new-conversation"><span>New conversation</span></button>
+      </div>
+      <div class="v1-library-section-head"><span class="section-title">Conversations</span></div>
+      <div id="chatsList" class="chats-list">
+        <div class="fixture-chat">Launch plan</div>
+        <div class="fixture-chat">Presentation outline</div>
+      </div>
+    </aside>
+
+    <main class="fixture-workspace">
+      <div class="fixture-workspace-inner">
+        <h1>Work that continues.</h1>
+        <p>The desktop navigation now names the conversation list directly and shows whether it is open.</p>
+      </div>
+    </main>
+  </div>
+  <div id="sidebarOverlay"></div>
+  <script src="/public/crump-v1-body.js?fixture=conversation-library-discovery-2"></script>
+</body>
+</html>

@@ -15,11 +15,11 @@
   <link rel="apple-touch-icon-precomposed" sizes="180x180" href="/assets/ask-crump-app-icon-v2-180.png">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/billing.css">
-  <link rel="stylesheet" href="/install-prompt.css?v=5.9.58">
+  <link rel="stylesheet" href="/install-prompt.css?v=5.9.59">
   <link rel="stylesheet" href="/onboarding.css">
-  <link rel="stylesheet" href="/conversation.css?v=5.9.58">
+  <link rel="stylesheet" href="/conversation.css?v=5.9.59">
   <link rel="stylesheet" href="/auth-styles.css">
-  <link rel="stylesheet" href="/crump-v1-body.css?v=5.9.58" data-crump-body-v1="true">
+  <link rel="stylesheet" href="/crump-v1-body.css?v=5.9.59" data-crump-body-v1="true">
 </head>
 <body class="crump-v1-body">
 
@@ -234,9 +234,11 @@
       <div class="v1-rail-stack">
         <button type="button" class="v1-rail-button v1-rail-primary" data-v1-command="new" aria-label="New conversation" title="New conversation">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          <span class="v1-rail-label">New</span>
         </button>
-        <button type="button" class="v1-rail-button" data-v1-command="library" aria-label="Conversation library" title="Conversation library">
+        <button type="button" class="v1-rail-button" data-v1-command="library" aria-label="Conversation library" aria-controls="sidebar" aria-expanded="true" title="Conversation library">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg>
+          <span class="v1-rail-label">Chats</span>
         </button>
       </div>
 
@@ -245,14 +247,16 @@
       <div class="v1-rail-stack">
         <button type="button" class="v1-rail-button" data-v1-command="settings" aria-label="Settings" title="Settings">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.8 1.8 0 0 0 .36 2l.05.05-2.76 2.76-.05-.05a1.8 1.8 0 0 0-2-.36 1.8 1.8 0 0 0-1.1 1.65V21h-3.8v-.07A1.8 1.8 0 0 0 9 19.3a1.8 1.8 0 0 0-2 .36l-.05.05-2.76-2.76.05-.05a1.8 1.8 0 0 0 .36-2A1.8 1.8 0 0 0 2.95 13H3v-3.8h-.05A1.8 1.8 0 0 0 4.6 8.1a1.8 1.8 0 0 0-.36-2l-.05-.05L6.95 3.3l.05.05a1.8 1.8 0 0 0 2 .36A1.8 1.8 0 0 0 10.1 2.05V2h3.8v.05A1.8 1.8 0 0 0 15 3.7a1.8 1.8 0 0 0 2-.36l.05-.05 2.76 2.76-.05.05a1.8 1.8 0 0 0-.36 2 1.8 1.8 0 0 0 1.65 1.1H21V13h-.05A1.8 1.8 0 0 0 19.4 15Z"/></svg>
+          <span class="v1-rail-label">Settings</span>
         </button>
         <button type="button" class="v1-rail-button" data-v1-command="billing" aria-label="Plan and credits" title="Plan & credits">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7.5h14v9H5z"/><path d="M8 4.5v3M16 4.5v3M8 16.5v3M16 16.5v3"/></svg>
+          <span class="v1-rail-label">Plan</span>
         </button>
       </div>
     </nav>
 
-    <aside id="sidebar" class="sidebar v1-library" aria-label="Conversation library">
+    <aside id="sidebar" class="sidebar v1-library" aria-label="Conversation library" aria-hidden="false">
       <div class="sidebar-header v1-library-header">
         <div class="sidebar-branding">
           <img src="/assets/brand/crump-horizontal-light.png" alt="Ask Crump" class="v1-library-logo">
@@ -578,7 +582,7 @@
           </div>
           <div class="v1-about-signature">
             <img src="/assets/brand/crump-horizontal-light.png" alt="Ask Crump">
-            <span>Ask Crump 5.9.58 · Built to think, make, and continue.</span>
+            <span>Ask Crump 5.9.59 · Built to think, make, and continue.</span>
           </div>
         </section>
       </div>
@@ -593,23 +597,23 @@
 <script defer src="/native-runtime.js"></script>
 <script defer src="/mobile-bridge.js"></script>
 <script defer src="/safe-storage.js"></script>
-<script defer src="/install-prompt.js?v=5.9.58"></script>
+<script defer src="/install-prompt.js?v=5.9.59"></script>
 <script defer src="/onboarding.js"></script>
 <script defer src="/scroll-manager.js"></script>
 <script defer src="/profile-manager.js"></script>
 <script defer src="/billing-manager.js"></script>
 <script defer src="/subscription-ui.js"></script>
-<script defer src="/chat-resilience.js?v=5.9.58"></script>
-<script defer src="/ui-functions.js?v=5.9.58"></script>
-<script defer src="/presence-manager.js?v=5.9.58"></script>
-<script defer src="/auth-resilience.js?v=5.9.58"></script>
-<script defer src="/device-auth.js?v=5.9.58"></script>
-<script defer src="/sync-manager.js?v=5.9.58"></script>
-<script defer src="/chat-sync.js?v=5.9.58"></script>
+<script defer src="/chat-resilience.js?v=5.9.59"></script>
+<script defer src="/ui-functions.js?v=5.9.59"></script>
+<script defer src="/presence-manager.js?v=5.9.59"></script>
+<script defer src="/auth-resilience.js?v=5.9.59"></script>
+<script defer src="/device-auth.js?v=5.9.59"></script>
+<script defer src="/sync-manager.js?v=5.9.59"></script>
+<script defer src="/chat-sync.js?v=5.9.59"></script>
 <script defer src="/account-manager.js"></script>
-<script defer src="/app.js?v=5.9.58"></script>
-<script defer src="/product-analytics.js?v=5.9.58"></script>
-<script defer src="/auth-controller.js?v=5.9.58"></script>
+<script defer src="/app.js?v=5.9.59"></script>
+<script defer src="/product-analytics.js?v=5.9.59"></script>
+<script defer src="/auth-controller.js?v=5.9.59"></script>
 <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>

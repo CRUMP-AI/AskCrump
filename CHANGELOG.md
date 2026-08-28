@@ -1,5 +1,19 @@
 # Changelog
 
+## 5.9.59 — 2026-08-28
+
+### Discoverable desktop conversations
+
+- Named the compact desktop destinations `New`, `Chats`, and `Projects` directly in the rail so
+  returning users can find conversation history without decoding icon-only controls.
+- Made the Chats control expose and visibly track whether the conversation library is open while
+  preserving the remembered desktop preference.
+- Removed a collapsed conversation library from keyboard and assistive-technology navigation, then
+  restored it when reopened.
+- Added a credential-free browser fixture and regression contract for the labeled rail and both
+  library states.
+- Advanced the application to 5.9.59, native build 50959, and service-worker cache revision 93.
+
 ## 5.9.58 — 2026-08-28
 
 ### Presentation quality and visual rhythm

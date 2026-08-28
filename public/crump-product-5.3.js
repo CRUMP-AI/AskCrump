@@ -312,7 +312,7 @@
       button.className = 'v1-rail-button crump53-projects-button';
       button.setAttribute('aria-label', 'Projects');
       button.title = 'Projects';
-      button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h6l2 2h8v10H4z"/><path d="M4 7V5h7l2 2"/></svg>';
+      button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h6l2 2h8v10H4z"/><path d="M4 7V5h7l2 2"/></svg><span class="v1-rail-label">Projects</span>';
       button.addEventListener('click', () => openStudio('projects'));
       primaryStack.appendChild(button);
     }
