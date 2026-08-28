@@ -20,7 +20,7 @@ def test_five_destination_navigation_is_final_runtime_layer_and_boot_critical():
         assert asset.lstrip("/") in checker
 
     assert runtime.index("/crump-library-5.7.js") < runtime.index("/crump-navigation-5.9.30.js")
-    assert "ask-crump-new-body-v1-r101" in worker
+    assert "ask-crump-new-body-v1-r102" in worker
 
 
 def test_navigation_exposes_exact_product_destinations_on_desktop_and_mobile():
@@ -34,6 +34,17 @@ def test_navigation_exposes_exact_product_destinations_on_desktop_and_mobile():
     assert 'id = \'crump5930MobileNav\'' in script
     assert "grid-template-columns: repeat(5,minmax(0,1fr))" in styles
     assert "aria-current" in script
+
+
+def test_destination_surfaces_leave_persistent_navigation_clickable():
+    styles = read("public/crump-navigation-5.9.30.css")
+
+    assert ".crump53-overlay," in styles
+    assert ".crump5930-create-overlay," in styles
+    assert "#settingsModal" in styles
+    assert "left: var(--ac-rail);" in styles
+    assert "bottom: calc(var(--crump5930-mobile-nav) + env(safe-area-inset-bottom));" in styles
+    assert "100dvh - var(--crump5930-mobile-nav)" in styles
 
 
 def test_navigation_reuses_existing_product_surfaces_without_data_migration():

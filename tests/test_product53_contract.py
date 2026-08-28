@@ -14,7 +14,7 @@ def test_product53_runtime_is_registered_last_and_cached():
     assert "/crump-product-5.3.css" in runtime
     assert "/crump-product-5.3.js" in runtime
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r101" in worker
+    assert "ask-crump-new-body-v1-r102" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 
@@ -138,6 +138,7 @@ def test_library_is_one_dedicated_destination_instead_of_a_workspace_tab():
     assert "/public/crump-library-5.7.js?fixture=dedicated-library" in fixture
     assert "/public/crump-navigation-5.9.30.js?fixture=dedicated-library" in fixture
     assert 'data-v1-command="file"' in fixture
+    assert ".v1-rail { position: relative;" in fixture
 
 
 def test_projects_manuscripts_and_video_are_isolated_destinations():
