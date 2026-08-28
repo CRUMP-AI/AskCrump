@@ -56,12 +56,14 @@ Project or retained a file, and no external activity occurred after August 23. T
 to help users keep useful work, return to it, and measure a new post-instrumentation cohort. Scaling
 ads before that proof would purchase traffic before Ask Crump has demonstrated continued value.
 
-Production-only Web Analytics on August 27 reported 78 visitors and 185 page views over seven days,
+Production-only Web Analytics on August 27 reported 79 visitors and 200 page views over seven days,
 but those anonymous counts cross the first-event measurement boundary and cannot be reconciled to
 external accounts. The comparable service-role funnel still contains zero external accounts and
-the artifact journey contains no rows. In the most recent 24 hours, six visitors produced no signup
-event. Acquisition and comparable observation—not a proven form defect—therefore remain the next
-constraint.
+the artifact journey contains no rows. In the most recent 24 hours, six visitors produced 33 page
+views, two marketing CTA visitors, and one signup-form start without valid credentials or a
+submission. A separate user-observed existing-account sign-in handoff defect was verified and
+repaired in 5.9.29. That incident does not establish a registration-form conversion rate;
+acquisition and comparable observation remain the next constraint.
 
 ## 30-day execution plan
 
@@ -164,14 +166,21 @@ provider, privacy, cost, or security gate is incomplete.
   resume card, bounds and safely renders the label, and keeps resume analytics content-free. Live
   desktop/mobile checks opened the intended conversation. The external cohort remains empty, so this
   is verified delivery rather than evidence of improved retention.
+- **Session reliability:** Production 5.9.29 repairs a user-observed web-login handoff in which valid
+  credentials created a server session but immediate browser confirmation failed. The release
+  accepts the valid candidate when legacy and host-only cookies coexist, retires the legacy scope,
+  rotates the session once, and serves the auth asset network-first. The repaired deployment and
+  hosted CI/Android/iOS gates passed; owner credential-entry recheck remains the final human proof.
 - **Shipped foundation:** server-only Crump Code task schema and sandbox runner; disabled publicly.
 - **Shipped foundation:** server-only ElevenLabs voice path with device-speech fallback; disabled
   until disclosure, credentials, and smoke tests are approved.
 - **Risk:** no external durable-value, return, or artifact journey has been observed yet.
-- **Traffic evidence:** production Web Analytics recorded 78 seven-day visitors and 18 visitors
-  reaching signup intent, but the period crosses the measurement boundary; the last 24 hours had
-  six visitors and no signup event. These anonymous counts are context, not an account conversion
-  rate.
+- **Traffic evidence:** production Web Analytics recorded 79 seven-day visitors and 19 visitors
+  reaching signup intent, but the period crosses the measurement boundary. The last 24 hours had
+  six visitors, 33 page views, two marketing CTA visitors, and one visitor each at signup intent
+  and form start, with no valid-credentials or submission event. Release 5.9.29 separates ordinary
+  sign-in links from account-creation CTAs. These anonymous counts are context, not an account
+  conversion rate.
 - **Reliability evidence:** a project-wide trailing-24-hour production scan on 2026-08-27 found no
   runtime error clusters, no error/fatal/warning logs, and no 5xx responses. Five 401 responses were
   the expected result of explicit unauthenticated release probes against protected or disabled

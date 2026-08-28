@@ -21,6 +21,25 @@ referrers become `referral`.
 Preview, production, and local-development events are separated at the server from the
 request host. Replayed events are ignored by the database uniqueness constraint.
 
+## Anonymous acquisition context
+
+Vercel Web Analytics provides aggregate, anonymous context before account creation. These browser
+events are not written to `product_events` and must not be treated as server-authoritative account
+milestones:
+
+- `MarketingCTA` means a visitor selected a create-account CTA beginning with release 5.9.29.
+- `MarketingSignin` means a visitor selected an existing-account sign-in link beginning with
+  release 5.9.29. Before that boundary, these clicks were mixed into `MarketingCTA`.
+- `SignupIntent` means the signup form was shown from a signup deep link or explicit auth link.
+- `SignupStarted`, `SignupCredentialsReady`, and `SignupSubmitted` mark first form interaction,
+  locally valid credentials, and form submission respectively.
+- The browser-side `AccountCreated` event is directional only; the server-side `AccountCreated`
+  milestone and comparable cohort boundary remain authoritative.
+
+These counts may include internal or automated traffic. Never present them as a conversion rate
+without explicit time boundaries, denominators, and reconciliation to the service-role account
+snapshot.
+
 ## Milestones
 
 | Event | Authority | Meaning |

@@ -27,6 +27,7 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 | Measurable social previews | Commit `6d2c24f`; deployment `dpl_CZih5NeHk8JjDp1tukrLZPCXhioD`; production 5.9.25 gives the home, presentation, and document pages distinct 1,200-by-630 social cards composed from the canonical mark, with large-card metadata and truthful page-specific copy. The generator is deterministic on the verified release machine; automated tests validate PNG format, dimensions, color mode, and per-page references. All 292 backend tests, 40 JavaScript validations, production/native/store checks, CI run `33123220073`, Android run `33123220055`, iOS run `33123220046`, six live route/asset checks, and the deployment-scoped warning/error/fatal/5xx scan passed. Socially attributed signup outcome remains unproven. | Verified delivery; outcome pending |
 | Direct canonical native/payment host | Source correction shipped in 5.9.26. With owner approval, both live Stripe destinations were then changed to their direct `https://www.askcrump.com/...` handlers without rotating secrets or widening their permanent event allowlists. A signed subscription replay returned 200. The first signed credits replay exposed a deployed plural environment-key alias; commit `4dfed9b` added a backward-compatible, precedence-tested alias without exposing or rotating the secret. Deployment `dpl_H5Dn15BVY5rzh5G6azq36eKiTXb3` is `READY` on production 5.9.27, a final signed credits replay returned 200, and the temporary harmless test event was removed. All 295 backend tests, 40 JavaScript validations, production/native/store checks, CI run `33126121600`, Android run `33126121646`, and iOS run `33126121595` passed. Production health returned 5.9.27, the payment routes had no runtime error cluster, and the deployment log breakdown contained only 200/302 responses. | Verified end to end |
 | Named recent-work continuation | Commit `6161778`; deployment `dpl_EJmVH3eLTbfQdPzLCpyLZ6H22RUj`; production 5.9.28 replaces the generic return card with the actual local conversation name and a clear continuation cue. Names are whitespace-normalized, length-bounded, rendered with `textContent`, visually ellipsized, and used only in the signed-in interface; `RecentWorkResumed` remains free of chat IDs, titles, and content. All 295 backend tests, lint, 40 JavaScript validations, production/native/store checks, CI run `33126950108`, Android run `33126950133`, and iOS run `33126950091` passed. Production health returned 5.9.28, desktop/mobile browser checks passed, the card opened the intended conversation, and the deployment had no runtime error cluster or warning/error/fatal/5xx response. The comparable external cohort remains zero, so no retention lift is claimed. | Verified delivery; outcome pending |
+| Reliable web-session handoff | Commit `38f7d11`; deployment `dpl_4H1xjuSyrC9dBxg5WWZ95jkfrox8`; production 5.9.29 repairs a user-observed false login failure. Runtime evidence showed successful login/session writes followed by immediate unauthenticated confirmation probes. The server now checks a bounded set of same-name cookie candidates while preserving bearer precedence, canonical login retires the legacy parent-domain cookie, logout clears both scopes, and the client rotates once before bounded confirmation probes. The auth asset is release-versioned and network-first. All 298 tests, lint, 40 JavaScript validations, production/native/store checks, CI run `33128276341`, Android run `33128276312`, and iOS run `33128276343` passed. Production health returned 5.9.29, an authenticated browser opened the workspace, and the deployment had only 200 responses with no runtime error cluster or warning/error/fatal logs in the inspected window. | Verified repair; owner credential-entry recheck pending |
 
 ### Current production reliability checkpoint
 
@@ -34,8 +35,11 @@ A project-wide production runtime scan covering the trailing 24 hours on 2026-08
 runtime error clusters, no error/fatal/warning log entries, and no 5xx responses. The status
 breakdown contained 1,841 successful 200 responses and five expected 401 responses from explicit
 unauthenticated release probes against the disabled Crump Code, disabled Crump Voice, and private
-Project attachment routes. The evidence does not justify a reliability code change; acquisition
-and comparable user observation remain the next operating constraint.
+Project attachment routes. A later user report exposed a client-visible login failure despite four
+successful login responses and persisted sessions. Immediate confirmation probes were
+unauthenticated before reaching the session table, which justified the 5.9.29 cookie/handoff
+repair. The repaired deployment returned only 200 responses and no runtime error cluster or
+warning/error/fatal logs in its inspected release window.
 
 ### Current monetization checkpoint
 
@@ -161,15 +165,18 @@ continuation, response sharing, checkout, and paid status are now measurable. Pr
 also prevents a failed clipboard operation from being counted as a share and preserves the
 content-free `referral` channel through account creation, but the comparable production cohort is
 new and no legitimate referred activation has been observed. A production-only Vercel Web
-Analytics read on 2026-08-27 showed 78 visitors, 185 page views, and 62% bounce over the trailing
-seven days; 58 visitors reached `/app`, 18 visitors produced 19 `SignupIntent` events, and one
+Analytics read on 2026-08-27 showed 79 visitors, 200 page views, and 62% bounce over the trailing
+seven days; 59 visitors reached `/app`, 19 visitors produced 20 `SignupIntent` events, and one
 visitor produced one client `AccountCreated` event. Those anonymous aggregates span the
 pre-instrumentation boundary and may include internal or automated visits, so they are not a
-conversion rate. The last 24 hours showed six production visitors, 20 page views, no signup event,
-and one visitor on each new discovery page. The service-role comparable external funnel still
+conversion rate. The last 24 hours showed six production visitors, 33 page views, two
+`MarketingCTA` visitors, and one visitor each at `SignupIntent` and `SignupStarted`, with no
+`SignupCredentialsReady`, `SignupSubmitted`, or `AccountCreated` event. Before 5.9.29,
+`MarketingCTA` mixed account-creation and sign-in clicks; the release now records existing-account
+traffic separately as `MarketingSignin`. The service-role comparable external funnel still
 returned zero accounts at every stage, and the aggregate artifact journey returned no rows. A
-project-wide trailing-24-hour production runtime scan found no errors, warnings, fatal logs, or 5xx
-responses, so the absence of a new comparable user is not currently explained by a server failure.
+user-reported login handoff defect was repaired in 5.9.29, but no comparable external account has
+yet been observed after the repair.
 
 **Outcome:** a weekly operating review of account creation → workspace open → starter intent →
 activation → durable value → useful outcome → return/share → checkout → paid.
@@ -199,13 +206,13 @@ rate without platform impression data.
 
 ### P1 — Prepare native store distribution without premature submission
 
-**Evidence:** production 5.9.26 is healthy; the Android release source regenerates as build 50926
+**Evidence:** production 5.9.29 is healthy; the Android release source regenerates as build 50929
 with API 36, the permanent package ID, generated assets, cleartext/backup protections, and a passing
 native source verifier. Structured en-US metadata passes current field limits. A reviewed Node 22
 lockfile now supports clean `npm ci`, a zero-vulnerability npm audit, and deterministic Android
-preparation from an isolated worktree. GitHub run `33124724453` generated the 5.9.26 iOS project and
+preparation from an isolated worktree. GitHub run `33128276343` generated the 5.9.29 iOS project and
 compiled its unsigned Release configuration on hosted macOS with no signing or upload credentials.
-GitHub run `33124724445` generated the 5.9.26/build 50926 Android project under Java 21, passed the
+GitHub run `33128276312` generated the 5.9.29/build 50929 Android project under Java 21, passed the
 native and signing-control verifiers, compiled `bundleRelease`, and confirmed a non-empty unsigned
 `.aab`, also with no signing or upload credentials. Firebase, RevenueCat public keys/products,
 signing credentials,
