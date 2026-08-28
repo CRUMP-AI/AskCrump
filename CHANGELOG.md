@@ -1,5 +1,25 @@
 # Changelog
 
+## 5.9.44 — 2026-08-28
+
+### Recoverable first reply
+
+- Bounded message acknowledgement and the first AI reply request so a lost or never-settling
+  connection can no longer leave the primary workspace permanently ignoring Send.
+- Added an authenticated, owner-scoped, non-cacheable reply-status route. The client reconciles the
+  existing idempotent server job and reuses its persisted answer instead of blindly generating or
+  charging again.
+- Preserved the server assistant-message identity, artifact and creation handoffs, visible retry
+  state, and safe stale-job takeover contract across the primary and fallback runtimes.
+- Kept usage limits, credit prices, provider routing, authentication, Supabase schema/RLS, pricing,
+  entitlements, analytics semantics, and payment behavior unchanged.
+
+### Verification and release
+
+- Advanced the application to 5.9.44, native build 50944, and service-worker cache revision 78.
+  The shared chat transport and primary workspace runtime are release-versioned and network-first
+  so web and installed clients receive the recovery contract together.
+
 ## 5.9.43 — 2026-08-28
 
 ### Recoverable first-message preflight

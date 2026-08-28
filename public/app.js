@@ -469,6 +469,9 @@ function checkInBeingAnswered(chat, userMessage) {
 }
 
 async function ensureUsageAvailable() {
+    if (window.CrumpChatTransport?.ensureUsage) {
+        return window.CrumpChatTransport.ensureUsage();
+    }
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), USAGE_PREFLIGHT_TIMEOUT_MS);
     try {
@@ -490,6 +493,49 @@ async function ensureUsageAvailable() {
     } finally {
         window.clearTimeout(timeoutId);
     }
+}
+
+function completeUserMessage(chat, userMessage, data) {
+    const serverAssistant = data.assistantMessage && typeof data.assistantMessage === 'object'
+        ? data.assistantMessage
+        : {};
+    const assistantMessage = {
+        ...serverAssistant,
+        id: serverAssistant.id || messageId(),
+        role: 'assistant',
+        content: serverAssistant.content ?? data.response ?? '',
+        timestamp: serverAssistant.timestamp || new Date().toISOString(),
+        origin: 'reply',
+        inReplyTo: userMessage.id,
+    };
+    for (const key of ['imageUrl', 'imagePrompt', 'imageFile', 'artifact', 'manuscriptWorkspace', 'creationHandoff']) {
+        if (assistantMessage[key] == null && data[key] != null) assistantMessage[key] = data[key];
+    }
+    const existingIndex = chat.messages.findIndex(item =>
+        item.role === 'assistant' && item.inReplyTo === userMessage.id
+    );
+    if (existingIndex >= 0) chat.messages[existingIndex] = {...chat.messages[existingIndex], ...assistantMessage};
+    else chat.messages.push(assistantMessage);
+    userMessage.deliveryStatus = 'seen';
+    userMessage.replyStatus = 'replied';
+    userMessage.replyError = null;
+    if (data.conversationRevision) {
+        chat.revision = Math.max(Number(chat.revision || 1), Number(data.conversationRevision || 1));
+    }
+    touchChat(chat);
+    saveChats();
+    window.CrumpPresence?.stop?.();
+    window.renderMessages?.(chat.messages);
+    renderChatsList();
+    window.CrumpPresence?.haptic?.('success');
+    if (data.manuscriptWorkspace?.autoOpen) {
+        void window.CrumpProduct53?.handleCreationHandoff?.({kind: 'manuscript', workspace: data.manuscriptWorkspace});
+    } else if (data.creationHandoff) {
+        void window.CrumpProduct53?.handleCreationHandoff?.(data.creationHandoff);
+    }
+    window.syncChatsToServer?.();
+    void recordFirstSuccessfulResponse();
+    setTimeout(safeScrollToBottom, 80);
 }
 
 async function recordFirstSuccessfulResponse() {
@@ -514,18 +560,14 @@ async function processUserMessage(chat, userMessage, attachment = null) {
     updateMessageState(chat, userMessage, { deliveryStatus: 'delivered', replyStatus: 'pending' });
     window.CrumpPresence?.haptic?.('light');
 
-    const ackResponse = await fetch('/api/chat/ack', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            chatId: chat.id,
-            messageId: userMessage.id,
-            message: userMessage.content || '',
-            fileTypes: (userMessage.files || []).map(file => file.type),
-        }),
+    const transport = window.CrumpChatTransport;
+    if (!transport) throw new Error('Message delivery is still loading. Try again.');
+    const ackData = await transport.acknowledge({
+        chatId: chat.id,
+        messageId: userMessage.id,
+        message: userMessage.content || '',
+        fileTypes: (userMessage.files || []).map(file => file.type),
     });
-    const ackData = await ackResponse.json().catch(() => ({}));
-    if (!ackResponse.ok) throw new Error(ackData.error || 'Crump could not receive the message.');
     updateMessageState(chat, userMessage, {
         deliveryStatus: 'seen',
         deliveredAt: ackData.deliveredAt,
@@ -551,52 +593,8 @@ async function processUserMessage(chat, userMessage, attachment = null) {
     };
     if (attachment) requestBody.fileData = [attachment];
 
-    let response;
-    let data = {};
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-        response = await fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody),
-        });
-        data = await response.json().catch(() => ({}));
-        if (response.ok) break;
-        if (!(data.shouldRetry && attempt === 0)) break;
-        const retryAfter = Math.min(30, Math.max(1, Number(data.retryAfter || 5)));
-        window.CrumpPresence?.update?.('thinking');
-        await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-    }
-
-    if (!response?.ok) {
-        if (response?.status === 401) window.deviceAuth?.clearLocalState?.();
-        if (data.upgradeRequired) window.showUpgradePrompt?.();
-        throw new Error(data.message || data.error || `Request failed (${response?.status || 'network'})`);
-    }
-
-    const assistantMessage = {
-        id: messageId(),
-        role: 'assistant',
-        content: data.response || '',
-        timestamp: new Date().toISOString(),
-        origin: 'reply',
-        inReplyTo: userMessage.id,
-    };
-    if (data.imageUrl) {
-        assistantMessage.imageUrl = data.imageUrl;
-        assistantMessage.imagePrompt = data.imagePrompt;
-    }
-    chat.messages.push(assistantMessage);
-    userMessage.replyStatus = 'replied';
-    userMessage.replyError = null;
-    touchChat(chat);
-    saveChats();
-    window.CrumpPresence?.stop?.();
-    window.renderMessages?.(chat.messages);
-    renderChatsList();
-    window.CrumpPresence?.haptic?.('success');
-    window.syncChatsToServer?.();
-    void recordFirstSuccessfulResponse();
-    setTimeout(safeScrollToBottom, 80);
+    const data = await transport.send(requestBody);
+    completeUserMessage(chat, userMessage, data);
 }
 
 async function sendMessage() {
@@ -694,6 +692,11 @@ window.retryMessage = async function retryMessage(id) {
     }
     isProcessing = true;
     try {
+        const recovered = await window.CrumpChatTransport?.recover?.(id);
+        if (recovered) {
+            completeUserMessage(chat, message, recovered);
+            return;
+        }
         await ensureUsageAvailable();
         updateMessageState(chat, message, { deliveryStatus: 'sending', replyStatus: 'pending', replyError: null });
         await processUserMessage(chat, message, null);

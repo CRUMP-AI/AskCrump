@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Chat response stall fixture</title>
+</head>
+<body>
+  <main>
+    <div id="chatContainer"></div>
+    <div id="chatsList"></div>
+    <label for="userInput">Message</label>
+    <textarea id="userInput"></textarea>
+    <button id="sendButton" type="button">Send</button>
+    <button id="newChatBtn" type="button">New chat</button>
+    <input id="fileInput" type="file">
+    <div id="filePreview"></div>
+    <output id="fixtureStatus" aria-live="polite"></output>
+    <div id="toastContainer"></div>
+  </main>
+  <script>
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('crump_')) localStorage.removeItem(key);
+    }
+    window.SafeStorage = {
+      getItem: key => localStorage.getItem(key),
+      setItem: (key, value) => localStorage.setItem(key, value),
+      removeItem: key => localStorage.removeItem(key),
+    };
+    window.CrumpPresence = {
+      indicator: () => null,
+      start() {},
+      update() {},
+      stop() {},
+      haptic() {},
+    };
+    window.CrumpAnalytics = {track: async () => false};
+    window.__fixture = {
+      usageRequests: 0,
+      ackRequests: 0,
+      chatRequests: 0,
+      statusRequests: 0,
+      abortedChatRequests: 0,
+      unexpectedRequests: 0,
+    };
+    const nativeSetTimeout = window.setTimeout.bind(window);
+    const stallAcknowledgement = new URLSearchParams(location.search).get('stall') === 'ack';
+    window.setTimeout = (callback, delay, ...args) => nativeSetTimeout(
+      callback,
+      [12_000, 105_000].includes(delay) ? 250 : delay === 3_000 ? 50 : delay,
+      ...args,
+    );
+    const json = (body, status = 200) => new Response(JSON.stringify(body), {
+      status,
+      headers: {'Content-Type': 'application/json'},
+    });
+    const completedReply = {
+      success: true,
+      status: 'completed',
+      response: 'Here is a focused launch plan for the neighborhood bakery.',
+      assistantMessage: {
+        id: '27fb1631-8f3d-4c90-97db-48db824882a3',
+        role: 'assistant',
+        content: 'Here is a focused launch plan for the neighborhood bakery.',
+        timestamp: '2026-08-28T04:30:00.000Z',
+        origin: 'reply',
+      },
+      conversationRevision: 3,
+      conversationUpdatedAt: '2026-08-28T04:30:00.000Z',
+      cached: true,
+    };
+    window.fetch = async (input, options = {}) => {
+      const url = new URL(String(input), location.href);
+      if (url.pathname === '/api/usage/check') {
+        window.__fixture.usageRequests += 1;
+        return json({success: true, usage: {messages: 0}, limits: {messages: 20}});
+      }
+      if (url.pathname === '/api/chat/ack') {
+        window.__fixture.ackRequests += 1;
+        if (stallAcknowledgement && window.__fixture.ackRequests === 1) {
+          document.getElementById('fixtureStatus').textContent = 'Message acknowledgement is stalled.';
+          return new Promise((_resolve, reject) => {
+            options.signal?.addEventListener('abort', () => {
+              document.getElementById('fixtureStatus').textContent = 'Stalled acknowledgement stopped.';
+              reject(new DOMException('The fixture acknowledgement was aborted.', 'AbortError'));
+            }, {once: true});
+          });
+        }
+        return json({
+          success: true,
+          deliveredAt: '2026-08-28T04:29:59.000Z',
+          seenAt: '2026-08-28T04:29:59.000Z',
+          activity: 'thinking',
+        });
+      }
+      if (url.pathname === '/api/chat' && options.method === 'POST') {
+        window.__fixture.chatRequests += 1;
+        if (window.__fixture.chatRequests > 1) {
+          return json({
+            success: true,
+            response: 'The second message was accepted.',
+            assistantMessage: {
+              id: 'e4610720-5ca1-46b4-86bf-b971c55bbc8f',
+              role: 'assistant',
+              content: 'The second message was accepted.',
+              timestamp: '2026-08-28T04:31:00.000Z',
+              origin: 'reply',
+            },
+          });
+        }
+        document.getElementById('fixtureStatus').textContent =
+          `Reply request is stalled. Chat requests: ${window.__fixture.chatRequests}.`;
+        return new Promise((_resolve, reject) => {
+          options.signal?.addEventListener('abort', () => {
+            window.__fixture.abortedChatRequests += 1;
+            document.getElementById('fixtureStatus').textContent =
+              `Stalled reply request stopped. Chat requests: ${window.__fixture.chatRequests}.`;
+            reject(new DOMException('The fixture reply request was aborted.', 'AbortError'));
+          }, {once: true});
+        });
+      }
+      if (url.pathname.startsWith('/api/chat/status/')) {
+        window.__fixture.statusRequests += 1;
+        document.getElementById('fixtureStatus').textContent =
+          `Reply status checks: ${window.__fixture.statusRequests}.`;
+        if (stallAcknowledgement && window.__fixture.chatRequests === 0) {
+          return json({success: false, status: 'missing', error: 'Reply job not found.'}, 404);
+        }
+        if (window.__fixture.statusRequests === 1) {
+          return json({success: true, status: 'processing', retryAfter: 3}, 202);
+        }
+        return json(completedReply);
+      }
+      window.__fixture.unexpectedRequests += 1;
+      return json({success: false, error: 'Unexpected fixture request.'}, 500);
+    };
+  </script>
+  <script src="/public/chat-resilience.js?v=chat-response-fixture-2"></script>
+  <script src="/public/ui-functions.js?v=chat-response-fixture-2"></script>
+  <script src="/public/app.js?v=chat-response-fixture-2"></script>
+  <script src="/public/crump-5.0.js?v=chat-response-fixture-2"></script>
+  <script>
+    window.addEventListener('load', () => {
+      window.initializeApp();
+      const input = document.getElementById('userInput');
+      input.value = 'Draft a launch plan for a neighborhood bakery.';
+      input.dispatchEvent(new Event('input', {bubbles: true}));
+    });
+  </script>
+</body>
+</html>

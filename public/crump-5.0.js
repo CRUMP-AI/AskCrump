@@ -601,13 +601,44 @@
   }
 
   async function ensureUsage() {
-    const response = await fetch('/api/usage/check');
-    const data = await response.json().catch(() => ({}));
-    if (response.status === 401) throw new Error('Your session expired. Please sign in again.');
-    if (response.ok && data.limits?.messages !== -1 && data.usage?.messages >= data.limits?.messages) {
-      window.showUpgradePrompt?.();
-      throw new Error('Your daily message limit has been reached.');
+    if (!window.CrumpChatTransport) throw new Error('Message delivery is still loading. Try again.');
+    return window.CrumpChatTransport.ensureUsage();
+  }
+
+  async function completeReply(chat, userMessage, data) {
+    chat = currentChat() || chat;
+    const finalUser = chat.messages.find(item => item.id === userMessage.id) || userMessage;
+    finalUser.deliveryStatus = 'seen'; finalUser.replyStatus = 'replied'; finalUser.replyError = null;
+    const serverAssistant = data.assistantMessage && typeof data.assistantMessage === 'object'
+      ? data.assistantMessage
+      : {};
+    const assistant = {
+      ...serverAssistant,
+      id: serverAssistant.id || uid(),
+      role: 'assistant',
+      content: serverAssistant.content ?? data.response ?? '',
+      timestamp: serverAssistant.timestamp || new Date().toISOString(),
+      origin: 'reply',
+      inReplyTo: userMessage.id,
+    };
+    for (const key of ['imageUrl', 'imagePrompt', 'imageFile', 'artifact', 'manuscriptWorkspace', 'creationHandoff']) {
+      if (assistant[key] == null && data[key] != null) assistant[key] = data[key];
     }
+    const existingIndex = chat.messages.findIndex(item => item.role === 'assistant' && item.inReplyTo === userMessage.id);
+    if (existingIndex >= 0) chat.messages[existingIndex] = {...chat.messages[existingIndex], ...assistant};
+    else chat.messages.push(assistant);
+    if (data.conversationRevision) {
+      chat.revision = Math.max(Number(chat.revision || 1), Number(data.conversationRevision || 1));
+    }
+    saveAndRender(chat);
+    window.CrumpPresence?.stop?.(); window.CrumpPresence?.haptic?.('success');
+    if (data.manuscriptWorkspace?.autoOpen) {
+      void window.CrumpProduct53?.handleCreationHandoff?.({kind:'manuscript', workspace:data.manuscriptWorkspace});
+    } else if (data.creationHandoff) {
+      void window.CrumpProduct53?.handleCreationHandoff?.(data.creationHandoff);
+    }
+    await window.syncChatsFromServer?.();
+    setTimeout(() => window.crumpScrollManager?.scrollToBottom?.({behavior: 'smooth'}), 80);
   }
 
   async function studioSendMessage() {
@@ -653,12 +684,9 @@
       liveUser.deliveryStatus = 'delivered';
       saveAndRender(fresh);
 
-      const ack = await api('/api/chat/ack', {
-        method: 'POST',
-        body: JSON.stringify({
-          chatId: fresh.id || fresh.chat_id, messageId: userMessage.id, message: text,
-          fileTypes: ready.map(item => item.server.type),
-        }),
+      const ack = await window.CrumpChatTransport.acknowledge({
+        chatId: fresh.id || fresh.chat_id, messageId: userMessage.id, message: text,
+        fileTypes: ready.map(item => item.server.type),
       });
       fresh = currentChat() || fresh;
       const acknowledged = fresh.messages.find(item => item.id === userMessage.id) || liveUser;
@@ -666,36 +694,8 @@
       saveAndRender(fresh);
       window.CrumpPresence?.start?.(sentTool === 'image' ? 'creating' : ready.length ? 'reading' : ack.activity || 'thinking');
 
-      let data;
-      for (let attempt = 0; attempt < 2; attempt += 1) {
-        try {
-          data = await api('/api/chat', {method: 'POST', body: JSON.stringify(body)});
-          break;
-        } catch (error) {
-          if (!(error.shouldRetry && attempt === 0)) throw error;
-          await new Promise(resolve => setTimeout(resolve, Math.min(30, Math.max(1, Number(error.retryAfter || 3))) * 1000));
-        }
-      }
-      fresh = currentChat() || fresh;
-      const finalUser = fresh.messages.find(item => item.id === userMessage.id) || acknowledged;
-      finalUser.deliveryStatus = 'seen'; finalUser.replyStatus = 'replied'; finalUser.replyError = null;
-      const assistant = data.assistantMessage || {
-        id: uid(), role: 'assistant', content: data.response || '', timestamp: new Date().toISOString(), origin: 'reply', inReplyTo: userMessage.id,
-        imageUrl: data.imageUrl, imagePrompt: data.imagePrompt, imageFile: data.imageFile, artifact: data.artifact,
-        manuscriptWorkspace: data.manuscriptWorkspace, creationHandoff: data.creationHandoff,
-      };
-      const existingIndex = fresh.messages.findIndex(item => item.role === 'assistant' && item.inReplyTo === userMessage.id);
-      if (existingIndex >= 0) fresh.messages[existingIndex] = {...fresh.messages[existingIndex], ...assistant};
-      else fresh.messages.push(assistant);
-      saveAndRender(fresh);
-      window.CrumpPresence?.stop?.(); window.CrumpPresence?.haptic?.('success');
-      if (data.manuscriptWorkspace?.autoOpen) {
-        void window.CrumpProduct53?.handleCreationHandoff?.({kind:'manuscript', workspace:data.manuscriptWorkspace});
-      } else if (data.creationHandoff) {
-        void window.CrumpProduct53?.handleCreationHandoff?.(data.creationHandoff);
-      }
-      await window.syncChatsFromServer?.();
-      setTimeout(() => window.crumpScrollManager?.scrollToBottom?.({behavior: 'smooth'}), 80);
+      const data = await window.CrumpChatTransport.send(body);
+      await completeReply(fresh, userMessage, data);
     } catch (error) {
       window.CrumpPresence?.stop?.();
       const fresh = currentChat();
@@ -723,6 +723,13 @@
     state.sending = true;
     document.body.classList.add('crump50-sending');
     try {
+      window.CrumpPresence?.start?.('thinking');
+      const recovered = await window.CrumpChatTransport?.recover?.(id);
+      if (recovered) {
+        await completeReply(chat, message, recovered);
+        return;
+      }
+      window.CrumpPresence?.stop?.();
       await ensureUsage();
       const ready = (message.files || []).filter(file => file?.id).map(file => ({status:'ready', server:file, name:file.name, type:file.type, size:file.size}));
       message.deliveryStatus = 'sending'; message.replyStatus = 'pending'; message.replyError = null;
@@ -730,36 +737,15 @@
       await window.syncChatsToServer?.();
       chat = currentChat() || chat;
       message = chat.messages.find(item => item.id === id) || message;
-      const ack = await api('/api/chat/ack', {
-        method:'POST',
-        body:JSON.stringify({chatId:chat.id || chat.chat_id, messageId:id, message:message.content || '', fileTypes:ready.map(item => item.server.type)}),
+      const ack = await window.CrumpChatTransport.acknowledge({
+        chatId:chat.id || chat.chat_id, messageId:id, message:message.content || '', fileTypes:ready.map(item => item.server.type),
       });
       Object.assign(message, {deliveryStatus:'seen', deliveredAt:ack.deliveredAt, seenAt:ack.seenAt, replyStatus:'processing'});
       saveAndRender(chat);
       window.CrumpPresence?.start?.(ready.length ? 'reading' : ack.activity || 'thinking');
       const body = buildRequestBody(chat, message, ready);
-      let data;
-      for (let attempt=0; attempt<2; attempt+=1) {
-        try { data = await api('/api/chat', {method:'POST', body:JSON.stringify(body)}); break; }
-        catch (error) {
-          if (!(error.shouldRetry && attempt === 0)) throw error;
-          await new Promise(resolve => setTimeout(resolve, Math.min(30, Math.max(1, Number(error.retryAfter || 3))) * 1000));
-        }
-      }
-      chat = currentChat() || chat;
-      message = chat.messages.find(item => item.id === id) || message;
-      message.deliveryStatus='seen'; message.replyStatus='replied'; message.replyError=null;
-      const assistant = data.assistantMessage || {id:uid(), role:'assistant', content:data.response || '', timestamp:new Date().toISOString(), origin:'reply', inReplyTo:id, imageUrl:data.imageUrl, imagePrompt:data.imagePrompt, imageFile:data.imageFile, artifact:data.artifact, manuscriptWorkspace:data.manuscriptWorkspace, creationHandoff:data.creationHandoff};
-      const existing = chat.messages.findIndex(item => item.role === 'assistant' && item.inReplyTo === id);
-      if (existing >= 0) chat.messages[existing] = {...chat.messages[existing], ...assistant}; else chat.messages.push(assistant);
-      saveAndRender(chat);
-      window.CrumpPresence?.stop?.(); window.CrumpPresence?.haptic?.('success');
-      if (data.manuscriptWorkspace?.autoOpen) {
-        void window.CrumpProduct53?.handleCreationHandoff?.({kind:'manuscript', workspace:data.manuscriptWorkspace});
-      } else if (data.creationHandoff) {
-        void window.CrumpProduct53?.handleCreationHandoff?.(data.creationHandoff);
-      }
-      await window.syncChatsFromServer?.();
+      const data = await window.CrumpChatTransport.send(body);
+      await completeReply(chat, message, data);
     } catch (error) {
       window.CrumpPresence?.stop?.();
       chat=currentChat() || chat; message=chat?.messages?.find(item => item.id===id) || message;

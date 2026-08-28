@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import time
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from fastapi import APIRouter, Request
@@ -35,6 +36,19 @@ router = APIRouter(prefix='/api/chat', tags=['chat'])
 logger = logging.getLogger('askcrump.chat')
 
 
+def _chat_job_is_stale(updated_at) -> bool:
+    if isinstance(updated_at, datetime):
+        value = updated_at
+    else:
+        try:
+            value = datetime.fromisoformat(str(updated_at or '').replace('Z', '+00:00'))
+        except ValueError:
+            return True
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value <= datetime.now(timezone.utc) - timedelta(minutes=2)
+
+
 @router.post('/ack')
 async def chat_ack(payload: ChatAckRequest, request: Request):
     auth = await authenticate_request(request, db, settings)
@@ -63,6 +77,53 @@ async def chat_ack(payload: ChatAckRequest, request: Request):
         'seenAt': now,
         'activity': activity,
     }
+
+
+@router.get('/status/{message_id}')
+async def chat_status(message_id: str, request: Request):
+    auth = await authenticate_request(request, db, settings)
+    normalized_message_id = normalize_chat_id(message_id)
+    job = await db.select_one(
+        'chat_jobs',
+        columns='message_id,status,response_data,error_code,updated_at',
+        filters={
+            'user_id': eq(auth.user['id']),
+            'message_id': eq(normalized_message_id),
+        },
+    )
+    headers = {'Cache-Control': 'no-store'}
+    if not job:
+        return JSONResponse(
+            status_code=404,
+            headers=headers,
+            content={'success': False, 'status': 'missing', 'error': 'Reply job not found.'},
+        )
+
+    status = str(job.get('status') or '').lower()
+    response_data = job.get('response_data')
+    if status == 'completed' and isinstance(response_data, dict):
+        return JSONResponse(
+            headers=headers,
+            content={**response_data, 'success': True, 'status': 'completed', 'cached': True},
+        )
+    if status == 'processing' and not _chat_job_is_stale(job.get('updated_at')):
+        return JSONResponse(
+            status_code=202,
+            headers=headers,
+            content={'success': True, 'status': 'processing', 'retryAfter': 3},
+        )
+
+    return JSONResponse(
+        status_code=409,
+        headers=headers,
+        content={
+            'success': False,
+            'status': 'retryable',
+            'error': 'This reply can be retried safely.',
+            'code': str(job.get('error_code') or 'REPLY_RETRYABLE'),
+            'shouldRetry': True,
+        },
+    )
 
 
 def _file_ids(payload: dict) -> list[str]:

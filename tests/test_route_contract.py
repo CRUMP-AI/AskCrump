@@ -23,6 +23,7 @@ EXPECTED_ROUTES = {
     ('POST', '/api/sync/push'),
     ('GET', '/api/usage/check'),
     ('POST', '/api/chat/ack'),
+    ('GET', '/api/chat/status/{message_id}'),
     ('POST', '/api/chat'),
     ('GET', '/api/presence/preferences'),
     ('PATCH', '/api/presence/preferences'),
