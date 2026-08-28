@@ -25,13 +25,13 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-billing-5.1.css', 'billing51'],
     ['/crump-5.2.css', 'crump52'],
     ['/crump-5.2.2.css', 'crump522'],
-    ['/crump-v1-body.css?v=5.9.47', 'crumpbodyv1'],
+    ['/crump-v1-body.css?v=5.9.48', 'crumpbodyv1'],
   ]);
 
   const scripts = Object.freeze([
-    ['/crump-4.3.js?v=5.9.47', 'crump43'],
+    ['/crump-4.3.js?v=5.9.48', 'crump43'],
     ['/crump-4.4.js', 'crump44'],
-    ['/crump-5.0.js?v=5.9.47', 'crump50'],
+    ['/crump-5.0.js?v=5.9.48', 'crump50'],
     ['/crump-billing-5.1.js', 'billing51'],
     ['/crump-5.2.js', 'crump52'],
     ['/crump-5.2.2.js', 'crump522'],

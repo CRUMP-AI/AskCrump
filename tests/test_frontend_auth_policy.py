@@ -140,3 +140,32 @@ def test_failed_or_reused_verification_link_exposes_an_actionable_recovery_surfa
     assert '/public/auth-controller.js?v=fixture-verification-recovery-2' in fixture
     assert 'https://' not in fixture
     assert 'askcrump.com' not in fixture
+
+
+def test_password_reset_success_has_a_durable_private_signin_handoff():
+    app = (PUBLIC / 'app.html').read_text(encoding='utf-8')
+    controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
+    fixture = (
+        ROOT / 'tests' / 'fixtures' / 'password-reset-handoff.html'
+    ).read_text(encoding='utf-8')
+
+    reset_bootstrap = controller[
+        controller.index("const resetToken = params.get('token')"):
+        controller.index("const verification = params.get('verification')")
+    ]
+    reset_submit = controller[
+        controller.index("byId('resetPasswordFormElement')"):
+        controller.index("byId('resendVerificationBtn')")
+    ]
+
+    assert "history.replaceState({}, document.title, location.pathname)" in reset_bootstrap
+    assert "if (resetForm) delete resetForm.dataset.token" in reset_submit
+    assert "setText('loginSuccess', data.message || 'Password updated." in reset_submit
+    assert "byId('loginEmail')?.focus({preventScroll: true})" in reset_submit
+    assert "setTimeout(() => { history.replaceState" not in reset_submit
+    assert 'id="loginSuccess" class="auth-success" role="status" aria-live="polite"' in app
+    assert '/public/auth-resilience.js?v=fixture-password-reset-handoff' in fixture
+    assert '/public/auth-controller.js?v=fixture-password-reset-handoff-2' in fixture
+    assert 'fixture-token' not in fixture
+    assert 'https://' not in fixture
+    assert 'askcrump.com' not in fixture

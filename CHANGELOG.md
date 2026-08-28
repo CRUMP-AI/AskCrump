@@ -1,5 +1,25 @@
 # Changelog
 
+## 5.9.48 — 2026-08-28
+
+### Durable password-reset handoff
+
+- A successful password reset no longer flashes its confirmation inside a form that disappears
+  after 1.8 seconds. The user now reaches sign-in immediately with a persistent “Password updated”
+  status and keyboard focus on the email field.
+- The reset token is removed from the address bar as soon as the client captures it and is deleted
+  from the form state after success or an explicit return to sign-in.
+- Password rules, token validation and lifetime, session revocation, authentication policy, rate
+  limits, schema/RLS, pricing, entitlements, analytics, and payments remain unchanged.
+
+### Verification and release
+
+- Added a loopback fixture using the real authentication resilience and controller assets. It proves
+  the prior blank sign-in handoff and the corrected persistent status, focused next step, single
+  local reset request, and cleaned URL without a production token, account, or credential.
+- Advanced the application to 5.9.48, native build 50948, and service-worker cache revision 82 so
+  web, PWA, and generated native clients receive the corrected recovery handoff.
+
 ## 5.9.47 — 2026-08-28
 
 ### Recoverable verification-link return

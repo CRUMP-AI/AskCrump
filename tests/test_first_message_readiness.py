@@ -27,9 +27,9 @@ def test_changed_first_message_asset_is_release_versioned():
     shell = (PUBLIC / "app.html").read_text(encoding="utf-8")
     worker = (PUBLIC / "sw.js").read_text(encoding="utf-8")
 
-    assert '"version": "5.9.47"' in package
-    assert '<script defer src="/app.js?v=5.9.47"></script>' in shell
-    assert "'/app.js?v=5.9.47'" in worker
+    assert '"version": "5.9.48"' in package
+    assert '<script defer src="/app.js?v=5.9.48"></script>' in shell
+    assert "'/app.js?v=5.9.48'" in worker
 
 
 def test_pre_message_failure_preserves_the_draft_and_explains_recovery():

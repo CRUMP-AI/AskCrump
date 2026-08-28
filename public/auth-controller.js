@@ -279,6 +279,7 @@
       hide('loginForm');
       show('resetPasswordForm');
       byId('resetPasswordForm').dataset.token = resetToken;
+      history.replaceState({}, document.title, location.pathname);
       return;
     }
 
@@ -322,7 +323,15 @@
     byId('showLoginLink')?.addEventListener('click', event => { event.preventDefault(); hide('registerForm'); show('loginForm'); });
     byId('showForgotPasswordLink')?.addEventListener('click', event => { event.preventDefault(); hide('loginForm'); show('forgotPasswordForm'); });
     byId('showLoginFromForgot')?.addEventListener('click', event => { event.preventDefault(); hide('forgotPasswordForm'); show('loginForm'); });
-    byId('showLoginFromReset')?.addEventListener('click', event => { event.preventDefault(); history.replaceState({}, document.title, location.pathname); hide('resetPasswordForm'); show('loginForm'); });
+    byId('showLoginFromReset')?.addEventListener('click', event => {
+      event.preventDefault();
+      const resetForm = byId('resetPasswordForm');
+      if (resetForm) delete resetForm.dataset.token;
+      history.replaceState({}, document.title, location.pathname);
+      hide('resetPasswordForm');
+      show('loginForm');
+      byId('loginEmail')?.focus({preventScroll: true});
+    });
   }
 
   function wireTerms() {
@@ -594,8 +603,13 @@
       try {
         const {response, data} = await authRequest('/api/auth/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: byId('resetPasswordForm').dataset.token, newPassword: password }) }, 'Updating your password took too long to confirm. Try signing in before submitting it again.');
         if (!response.ok) throw new Error(data.error || 'Password reset failed.');
-        setText('resetPasswordSuccess', data.message);
-        setTimeout(() => { history.replaceState({}, document.title, location.pathname); hide('resetPasswordForm'); show('loginForm'); }, 1800);
+        const resetForm = byId('resetPasswordForm');
+        if (resetForm) delete resetForm.dataset.token;
+        history.replaceState({}, document.title, location.pathname);
+        hide('resetPasswordForm');
+        show('loginForm');
+        setText('loginSuccess', data.message || 'Password updated. Sign in with your new password.');
+        byId('loginEmail')?.focus({preventScroll: true});
       } catch (error) { setText('resetPasswordError', error.message); }
       finally { restore(); }
     });

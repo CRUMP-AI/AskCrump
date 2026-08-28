@@ -17,9 +17,9 @@
   <link rel="stylesheet" href="/billing.css">
   <link rel="stylesheet" href="/install-prompt.css">
   <link rel="stylesheet" href="/onboarding.css">
-  <link rel="stylesheet" href="/conversation.css?v=5.9.47">
+  <link rel="stylesheet" href="/conversation.css?v=5.9.48">
   <link rel="stylesheet" href="/auth-styles.css">
-  <link rel="stylesheet" href="/crump-v1-body.css?v=5.9.47" data-crump-body-v1="true">
+  <link rel="stylesheet" href="/crump-v1-body.css?v=5.9.48" data-crump-body-v1="true">
 </head>
 <body class="crump-v1-body">
 
@@ -71,7 +71,7 @@
         <p>Enter your email above to request a fresh link, or sign in if verification already completed.</p>
         <button id="resendVerificationBtn" class="btn btn-secondary btn-block" type="button">Resend verification email</button>
       </div>
-      <div id="loginSuccess" class="auth-success" style="display:none;"></div>
+      <div id="loginSuccess" class="auth-success" role="status" aria-live="polite" style="display:none;"></div>
     </div>
 
     <div id="registerForm" class="auth-form v1-auth-card" style="display:none;">
@@ -160,7 +160,7 @@
         <p class="auth-footer-text"><a href="#" id="showLoginFromReset" class="auth-link">Back to sign in</a></p>
       </form>
       <div id="resetPasswordError" class="auth-error" style="display:none;"></div>
-      <div id="resetPasswordSuccess" class="auth-success" style="display:none;"></div>
+      <div id="resetPasswordSuccess" class="auth-success" role="status" aria-live="polite" style="display:none;"></div>
     </div>
   </main>
 </div>
@@ -578,7 +578,7 @@
           </div>
           <div class="v1-about-signature">
             <img src="/assets/brand/crump-horizontal-light.png" alt="Ask Crump">
-            <span>Ask Crump 5.9.47 · Built to think, make, and continue.</span>
+            <span>Ask Crump 5.9.48 · Built to think, make, and continue.</span>
           </div>
         </section>
       </div>
@@ -599,17 +599,17 @@
 <script defer src="/profile-manager.js"></script>
 <script defer src="/billing-manager.js"></script>
 <script defer src="/subscription-ui.js"></script>
-<script defer src="/chat-resilience.js?v=5.9.47"></script>
-<script defer src="/ui-functions.js?v=5.9.47"></script>
+<script defer src="/chat-resilience.js?v=5.9.48"></script>
+<script defer src="/ui-functions.js?v=5.9.48"></script>
 <script defer src="/presence-manager.js"></script>
-<script defer src="/auth-resilience.js?v=5.9.47"></script>
-<script defer src="/device-auth.js?v=5.9.47"></script>
-<script defer src="/sync-manager.js?v=5.9.47"></script>
+<script defer src="/auth-resilience.js?v=5.9.48"></script>
+<script defer src="/device-auth.js?v=5.9.48"></script>
+<script defer src="/sync-manager.js?v=5.9.48"></script>
 <script defer src="/chat-sync.js"></script>
 <script defer src="/account-manager.js"></script>
-<script defer src="/app.js?v=5.9.47"></script>
-<script defer src="/product-analytics.js?v=5.9.47"></script>
-<script defer src="/auth-controller.js?v=5.9.47"></script>
+<script defer src="/app.js?v=5.9.48"></script>
+<script defer src="/product-analytics.js?v=5.9.48"></script>
+<script defer src="/auth-controller.js?v=5.9.48"></script>
 <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
