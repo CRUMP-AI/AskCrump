@@ -563,6 +563,33 @@
     } catch (_) {}
   }
 
+  function currentProjectTarget() {
+    const target = window.CrumpProduct53?.projectTarget?.();
+    const id = String(target?.id || '').trim();
+    if (!id) return null;
+    const name = String(target?.name || 'Project').replace(/\s+/g, ' ').trim() || 'Project';
+    return {id, name, displayName: name.length > 56 ? `${name.slice(0, 55)}…` : name};
+  }
+
+  function syncOutcomeProjectAction(button) {
+    if (!button || button.dataset.saved === 'true') return;
+    const target = currentProjectTarget();
+    button.dataset.projectId = target?.id || '';
+    button.textContent = target ? `Keep in \u201c${target.displayName}\u201d` : 'Start a Project';
+    button.setAttribute(
+      'aria-label',
+      target
+        ? `Save this private conversation to the Project \u201c${target.name}\u201d`
+        : 'Start a private Project with this conversation',
+    );
+  }
+
+  function syncOutcomeProjectActions() {
+    document.querySelectorAll('.outcome-project-btn').forEach(syncOutcomeProjectAction);
+  }
+
+  window.addEventListener?.('crump:project-target-changed', syncOutcomeProjectActions);
+
   function createOutcomeFeedback(message, index) {
     const eventKey = responseOutcomeKey(message, index);
     const group = document.createElement('div');
@@ -576,8 +603,7 @@
     const projectButton = document.createElement('button');
     projectButton.type = 'button';
     projectButton.className = 'outcome-feedback-btn outcome-project-btn';
-    projectButton.textContent = 'Keep in a Project';
-    projectButton.setAttribute('aria-label', 'Save this private conversation in a Project');
+    syncOutcomeProjectAction(projectButton);
     projectButton.addEventListener('click', async () => {
       if (projectButton.dataset.saved === 'true') {
         window.CrumpProduct53?.open?.('projects');
@@ -591,7 +617,7 @@
         return;
       }
       try {
-        const result = await keepConversation();
+        const result = await keepConversation({projectId: projectButton.dataset.projectId || null});
         if (!result?.success) throw new Error('Projects are still loading. Try again in a moment.');
         continuityPrompt.textContent = `Saved to "${result.project?.name || 'Project'}".`;
         projectButton.dataset.saved = 'true';

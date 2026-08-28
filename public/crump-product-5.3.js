@@ -40,6 +40,19 @@
     } catch (_) { /* storage is optional */ }
   }
 
+  function currentProjectTarget() {
+    const id = String(state.activeProject?.id || '').trim();
+    if (!id) return null;
+    return {
+      id,
+      name: String(state.activeProject?.name || 'Project').replace(/\s+/g, ' ').trim() || 'Project',
+    };
+  }
+
+  function notifyProjectTargetChanged() {
+    window.dispatchEvent(new Event('crump:project-target-changed'));
+  }
+
   function readStoredVideoJob() {
     try { return localStorage.getItem('askcrump.videoJob53') || ''; }
     catch (_) { return ''; }
@@ -762,17 +775,21 @@
     return String(firstPrompt?.content || 'Continued work').replace(/\s+/g, ' ').trim().slice(0, 100);
   }
 
-  async function keepConversation() {
+  async function keepConversation(options = {}) {
     const chat = currentConversation();
     const chatId = String(chat?.id || chat?.chat_id || '').trim();
     if (!chatId) throw new Error('Open a conversation before saving it to a Project.');
+    const hasExplicitTarget = Object.prototype.hasOwnProperty.call(options, 'projectId');
+    const targetProjectId = hasExplicitTarget
+      ? String(options.projectId || '').trim()
+      : String(state.activeProject?.id || '').trim();
 
     try {
       const sync = await window.syncChatsToServer?.();
       if (sync?.success === false) throw new Error('This conversation is still syncing. Try again in a moment.');
 
-      const data = state.activeProject?.id
-        ? await api(`/api/projects/${state.activeProject.id}/chats`, {
+      const data = targetProjectId
+        ? await api(`/api/projects/${targetProjectId}/chats`, {
             method: 'POST',
             body: {chatId},
             timeoutMs: PROJECT_SAVE_TIMEOUT_MS,
@@ -1030,6 +1047,7 @@
     document.querySelectorAll('.crump53-projects-button').forEach(node => {
       node.classList.toggle('is-active', Boolean(state.activeProject));
     });
+    notifyProjectTargetChanged();
     if (!state.activeProject) return;
     const header = document.querySelector('.v1-header-branding');
     if (!header) return;
@@ -1988,7 +2006,8 @@
 
   window.CrumpProduct53 = Object.freeze({
     open: openStudio,
-    keepConversation: () => keepConversation(),
+    projectTarget: () => currentProjectTarget(),
+    keepConversation: options => keepConversation(options),
     openManuscript: workspace => openManuscriptWorkspace(workspace),
     handleCreationHandoff: handoff => handleCreationHandoff(handoff),
   });

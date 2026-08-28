@@ -309,8 +309,9 @@ def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_
     product = (ROOT / "public" / "crump-product-5.3.js").read_text(encoding="utf-8")
     route = (ROOT / "backend" / "routes" / "projects.py").read_text(encoding="utf-8")
 
-    assert "Keep in a Project" in ui
-    assert ui.index("Keep in a Project") < ui.index("Or help someone else:")
+    assert "Start a Project" in ui
+    assert r"Keep in \u201c${target.displayName}\u201d" in ui
+    assert ui.index("syncOutcomeProjectAction(projectButton)") < ui.index("Or help someone else:")
     assert "group.append(continuityPrompt, projectButton, prompt, ...buttons)" in ui
     assert "group.replaceChildren(continuityPrompt, projectButton, status)" in ui
     assert "Open the Project containing this conversation" in ui
@@ -320,7 +321,11 @@ def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_
     ]
     assert "keepConversation" in direct_action
     assert "OutcomeFeedbackSubmitted" not in direct_action
-    assert "keepConversation: () => keepConversation()" in product
+    assert "projectTarget: () => currentProjectTarget()" in product
+    assert "keepConversation: options => keepConversation(options)" in product
+    assert "Object.prototype.hasOwnProperty.call(options, 'projectId')" in product
+    assert "const targetProjectId" in product
+    assert "keepConversation({projectId: projectButton.dataset.projectId || null})" in ui
     assert "await window.syncChatsToServer?.()" in product
     assert 'body: {chatId}' in product
     assert '@router.post("/{project_id}/chats")' in route
@@ -348,6 +353,24 @@ def test_project_save_timeout_fixture_uses_real_product_code_without_credentials
     assert "const PROJECT_SAVE_TIMEOUT_MS = 15_000" in product
     assert "timeoutMs: PROJECT_SAVE_TIMEOUT_MS" in product
     assert "void refreshProjects()" in product
+
+
+def test_project_target_disclosure_fixture_covers_selected_and_new_destinations():
+    fixture = (ROOT / "tests" / "fixtures" / "project-target-disclosure.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert '<script src="/public/ui-functions.js?v=project-target-disclosure-2"></script>' in fixture
+    assert '<script src="/public/crump-product-5.3.js?v=project-target-disclosure-2"></script>' in fixture
+    assert "Q3 Finance Forecast" in fixture
+    assert "Website launch checklist" in fixture
+    assert "await wait(120)" in fixture
+    assert "fixtureUsesStoredProject" in fixture
+    assert "window.__fixture.requests.push" in fixture
+    assert 'aria-label="Browser errors"' in fixture
+    assert "unhandledrejection" in fixture
+    assert "fixture-user" in fixture
+    assert "password" not in fixture.lower()
 
 
 def test_project_return_timeout_fixture_uses_real_project_runtime_without_credentials():

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Project target disclosure fixture</title>
+  <link rel="stylesheet" href="/public/styles.css">
+  <link rel="stylesheet" href="/public/conversation.css">
+  <style>
+    body { margin: 0; min-height: 100vh; background: #080a0d; color: #f4f1eb; }
+    main { width: min(820px, calc(100% - 32px)); margin: 0 auto; padding: 56px 0; }
+    .fixture-evidence { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+    .fixture-evidence output { padding: 7px 10px; border: 1px solid rgba(255,255,255,.08); border-radius: 999px; color: #b7b5b0; font: 12px/1.2 system-ui, sans-serif; }
+    #chatContainer { min-height: 220px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="fixture-evidence" aria-label="Fixture evidence">
+      <output id="fixtureTarget" aria-label="Selected project">Q3 Finance Forecast</output>
+      <output id="fixtureRequest" aria-label="Save destination">No save yet</output>
+      <output id="fixtureErrors" aria-label="Browser errors">0</output>
+    </div>
+    <div id="chatContainer" class="chat-container" aria-label="Conversation"></div>
+  </main>
+  <script>
+    const fixtureChatId = '00000000-0000-4000-8000-000000000061';
+    const fixtureProject = {
+      id: '00000000-0000-4000-8000-000000000062',
+      name: 'Q3 Finance Forecast',
+      updated_at: '2026-08-28T12:00:00Z',
+    };
+    const fixtureUsesStoredProject = new URLSearchParams(location.search).get('target') !== 'new';
+    if (fixtureUsesStoredProject) {
+      localStorage.setItem('askcrump.activeProject53', fixtureProject.id);
+    } else {
+      localStorage.removeItem('askcrump.activeProject53');
+      document.getElementById('fixtureTarget').textContent = 'No selected Project';
+    }
+    window.currentUser = {id: 'fixture-user'};
+    window.currentChatId = fixtureChatId;
+    window.chats = [{
+      id: fixtureChatId,
+      chat_id: fixtureChatId,
+      title: 'Website launch checklist',
+      messages: [{
+        id: 'fixture-response',
+        role: 'assistant',
+        content: 'The launch checklist is ready for review.',
+      }],
+    }];
+    window.__fixture = {requests: [], toasts: [], unexpectedRequests: 0};
+    const recordBrowserError = () => {
+      const output = document.getElementById('fixtureErrors');
+      output.textContent = String(Number(output.textContent || 0) + 1);
+    };
+    window.addEventListener('error', recordBrowserError);
+    window.addEventListener('unhandledrejection', recordBrowserError);
+    window.showToast = (message, tone) => window.__fixture.toasts.push({message, tone});
+    window.CrumpAnalytics = {track: () => Promise.resolve(true)};
+    window.CrumpPresence = {indicator: () => null};
+    window.syncChatsToServer = () => Promise.resolve({success: true});
+    const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+    window.fetch = async (input, options = {}) => {
+      const url = new URL(String(input), location.href);
+      const method = String(options.method || 'GET').toUpperCase();
+      if (url.pathname === '/api/projects' && method === 'GET') {
+        await wait(120);
+        return new Response(JSON.stringify({success: true, projects: [fixtureProject], limit: 3}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      if (url.pathname === '/api/features') {
+        return new Response(JSON.stringify({success: true}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      if (url.pathname === `/api/projects/${fixtureProject.id}/chats` && method === 'POST') {
+        window.__fixture.requests.push({destination: fixtureProject.id, body: JSON.parse(options.body)});
+        document.getElementById('fixtureRequest').textContent = `Saved to ${fixtureProject.name}`;
+        return new Response(JSON.stringify({success: true, project: fixtureProject}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      if (url.pathname === '/api/projects' && method === 'POST') {
+        const project = {id: '00000000-0000-4000-8000-000000000063', name: 'Website launch checklist'};
+        window.__fixture.requests.push({destination: 'new', body: JSON.parse(options.body)});
+        document.getElementById('fixtureRequest').textContent = 'Started Website launch checklist';
+        return new Response(JSON.stringify({success: true, project}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      window.__fixture.unexpectedRequests += 1;
+      return new Response(JSON.stringify({success: false, error: 'Unexpected fixture request.'}), {
+        status: 500,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+  </script>
+  <script src="/public/ui-functions.js?v=project-target-disclosure-2"></script>
+  <script src="/public/crump-product-5.3.js?v=project-target-disclosure-2"></script>
+  <script>
+    window.addEventListener('load', () => window.renderMessages(window.chats[0].messages));
+  </script>
+</body>
+</html>

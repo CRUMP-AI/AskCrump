@@ -1,5 +1,18 @@
 # Changelog
 
+## 5.9.61 — 2026-08-28
+
+### Truthful Project continuity
+
+- Replaced the ambiguous latest-response Project action with `Start a Project` when no destination
+  is selected and `Keep in “Project name”` when the save destination is known.
+- Bound every click to the Project named at click time, preventing delayed background hydration or
+  a subsequent selection change from silently routing the conversation somewhere else.
+- Kept the complete Project name in the accessible label when a long visible name is shortened.
+- Added a production-layer browser fixture covering an existing named Project, new Project creation,
+  delayed Project loading, exact save requests, and browser-error reporting.
+- Advanced the application to 5.9.61, native build 50961, and service-worker cache revision 95.
+
 ## 5.9.60 — 2026-08-28
 
 ### Reliable navigation across desktop and mobile
