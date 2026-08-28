@@ -1,5 +1,27 @@
 # Changelog
 
+## 5.9.49 — 2026-08-28
+
+### Durable mobile sign-in and PWA wake-up
+
+- Web sign-in now gives mobile browsers a bounded 2.65-second confirmation window for a newly
+  issued HttpOnly session instead of declaring failure after roughly 275 milliseconds. The server
+  still must confirm the session; authentication policy and credential handling are unchanged.
+- An installed Ask Crump app now checks for a service-worker update when it loads, returns from the
+  background, regains connectivity, or is restored from the page cache. A safe signed-out screen
+  adopts the corrected runtime automatically; signed-in work or entered authentication fields get
+  a restrained “Reload now” notice rather than a destructive refresh.
+- Authentication logs now record only categorical outcomes and an allowlisted web/native client
+  class. They never record an email address, password, token, user ID, or device name.
+
+### Verification and release
+
+- Added a credential-free loopback fixture using the real authentication transport, device auth,
+  and controller. It reproduces the former three-check failure, then proves one login opens the
+  workspace exactly once when the same session becomes visible on the fourth check.
+- Advanced the application to 5.9.49, native build 50949, and service-worker cache revision 83 so
+  web, installed PWA, and generated native clients receive the hardened sign-in runtime.
+
 ## 5.9.48 — 2026-08-28
 
 ### Durable password-reset handoff

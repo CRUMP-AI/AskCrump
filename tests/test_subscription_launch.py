@@ -24,5 +24,5 @@ def test_subscription_launch_assets_are_wired():
 def test_application_release_versions_match():
     package = json.loads((ROOT / 'package.json').read_text(encoding='utf-8'))
     version = (ROOT / 'backend' / 'version.py').read_text(encoding='utf-8')
-    assert package['version'] == '5.9.48'
+    assert package['version'] == '5.9.49'
     assert f"__version__ = '{package['version']}'" in version

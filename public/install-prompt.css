@@ -62,6 +62,73 @@
     transform: translateY(0);
 }
 
+.runtime-update-notice {
+    position: fixed;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: calc(24px + env(safe-area-inset-bottom));
+    z-index: 10001;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 14px;
+    width: min(620px, calc(100vw - 32px));
+    padding: 14px 16px;
+    border: 1px solid color-mix(in srgb, var(--color-accent-primary) 48%, var(--color-border));
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--color-bg-elevated) 96%, transparent);
+    color: var(--color-text-primary);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.runtime-update-notice.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.runtime-update-notice div {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.runtime-update-notice strong {
+    font-size: 0.92rem;
+}
+
+.runtime-update-notice span {
+    color: var(--color-text-secondary);
+    font-size: 0.82rem;
+}
+
+.runtime-update-action,
+.runtime-update-later {
+    min-height: 38px;
+    border-radius: 999px;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.runtime-update-action {
+    padding: 0 15px;
+    border: 1px solid var(--color-accent-primary);
+    background: var(--color-accent-primary);
+    color: #111;
+}
+
+.runtime-update-later {
+    padding: 0 6px;
+    border: 0;
+    background: transparent;
+    color: var(--color-text-secondary);
+}
+
 @media (max-width: 640px) {
     .install-button {
         bottom: calc(84px + env(safe-area-inset-bottom));
@@ -74,18 +141,32 @@
         left: 16px;
         max-width: none;
     }
+
+    .runtime-update-notice {
+        right: 12px;
+        bottom: calc(12px + env(safe-area-inset-bottom));
+        left: 12px;
+        grid-template-columns: minmax(0, 1fr) auto;
+        width: auto;
+    }
+
+    .runtime-update-later {
+        grid-column: 2;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .install-button,
-    .install-toast {
+    .install-toast,
+    .runtime-update-notice {
         transition: none;
     }
 }
 
 @media print {
     .install-button,
-    .install-toast {
+    .install-toast,
+    .runtime-update-notice {
         display: none !important;
     }
 }

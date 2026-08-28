@@ -59,7 +59,7 @@ class DeviceAuth {
 
       // A web login can set its HttpOnly cookie before a stalled body finishes.
       // Reconcile that issued session before reporting failure or rotating it again.
-      for (const delay of [0, 150, 500]) {
+      for (const delay of [0, 150, 500, 1000, 2000]) {
         if (delay) await new Promise(resolve => setTimeout(resolve, delay));
         const confirmation = await this.confirmIssuedSession();
         if (confirmation.status !== 'valid') continue;
@@ -78,9 +78,9 @@ class DeviceAuth {
     }
 
     // A successful login rotates the installation session exactly once. Give the
-    // browser a short bounded window to expose its new HttpOnly cookie instead of
-    // rotating the token again while the first response is still being committed.
-    for (const delay of [0, 75, 200]) {
+    // browser a bounded mobile-safe window to expose its new HttpOnly cookie instead
+    // of rotating the token again while the first response is still being committed.
+    for (const delay of [0, 100, 300, 750, 1500]) {
       if (delay) await new Promise(resolve => setTimeout(resolve, delay));
       const confirmation = await this.confirmIssuedSession();
       if (confirmation.status === 'valid') {

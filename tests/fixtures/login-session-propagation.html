@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Delayed login session propagation fixture</title>
+  <style>
+    body { background:#0b0b0b; color:#f5f2ec; font:16px/1.5 system-ui,sans-serif; padding:32px; }
+    form { display:grid; gap:12px; width:min(440px,100%); }
+    input,button { box-sizing:border-box; min-height:44px; padding:10px 12px; }
+  </style>
+</head>
+<body>
+  <div id="authContainer" style="display:none">
+    <div id="loginForm">
+      <h1>Sign in.</h1>
+      <form id="loginFormElement">
+        <label for="loginEmail">Email</label>
+        <input id="loginEmail" type="email" required>
+        <label for="loginPassword">Password</label>
+        <input id="loginPassword" type="password" required>
+        <button type="submit">Sign In</button>
+      </form>
+      <div id="loginError" role="alert" style="display:none"></div>
+      <div id="loginSuccess" role="status" style="display:none"></div>
+      <div id="verificationNeeded" style="display:none"></div>
+    </div>
+    <div id="registerForm" style="display:none"></div>
+    <div id="forgotPasswordForm" style="display:none"></div>
+    <div id="resetPasswordForm" style="display:none"></div>
+  </div>
+  <div id="tosModal" style="display:none"></div>
+  <div id="onboardingModal" style="display:none"></div>
+  <div id="appContainer" style="display:none">
+    <h1>Workspace ready.</h1>
+  </div>
+  <output id="fixtureResult" aria-live="polite">Waiting for sign-in.</output>
+  <script>
+    const nativeSetTimeout = window.setTimeout.bind(window);
+    window.setTimeout = (callback, delay, ...args) => nativeSetTimeout(callback, Math.min(delay, 35), ...args);
+    const fixtureUser = {
+      id:'fixture-user',
+      email:'fixture@example.test',
+      fullName:'Fixture User',
+      termsAcceptedAt:'2026-08-28T00:00:00Z',
+    };
+    window.__fixture = {loginCalls:0, sessionChecks:0, postLoginChecks:0, appStarts:0};
+    window.va = () => {};
+    window.CrumpAPI = {ready:Promise.resolve(), isNative:false, installationId:() => 'fixture'};
+    window.configureUserStorage = () => {};
+    window.profileManager = {applyServerSubscription() {}, updateProfile() {}};
+    window.CrumpAnalytics = {track:() => Promise.resolve(true)};
+    window.SyncManager = {pull:() => Promise.resolve()};
+    window.initializeApp = () => { window.__fixture.appStarts += 1; };
+    window.initializeAuthenticatedApp = () => {};
+
+    function json(data, status = 200) {
+      return Promise.resolve({ok:status >= 200 && status < 300, status, json:() => Promise.resolve(data)});
+    }
+
+    window.fetch = (url) => {
+      if (url === '/api/auth/login') {
+        window.__fixture.loginCalls += 1;
+        return json({success:true, data:{user:fixtureUser, settings:{}}});
+      }
+      if (url === '/api/auth/check-session') {
+        window.__fixture.sessionChecks += 1;
+        if (!window.__fixture.loginCalls) return json({success:true, authenticated:false});
+        window.__fixture.postLoginChecks += 1;
+        const authenticated = window.__fixture.postLoginChecks >= 4;
+        return json(authenticated
+          ? {success:true, authenticated:true, data:{user:fixtureUser, settings:{}}}
+          : {success:true, authenticated:false});
+      }
+      throw new Error(`Unexpected fixture request: ${url}`);
+    };
+
+    window.addEventListener('load', () => {
+      nativeSetTimeout(() => {
+        document.getElementById('loginEmail').value = 'fixture@example.test';
+        document.getElementById('loginPassword').value = 'Fixture1234';
+        document.getElementById('loginFormElement').requestSubmit();
+        nativeSetTimeout(() => {
+          const workspaceReady = document.getElementById('appContainer').style.display === 'flex';
+          document.getElementById('fixtureResult').textContent = JSON.stringify({
+            workspaceReady,
+            loginCalls:window.__fixture.loginCalls,
+            sessionChecks:window.__fixture.sessionChecks,
+            postLoginChecks:window.__fixture.postLoginChecks,
+            appStarts:window.__fixture.appStarts,
+            error:document.getElementById('loginError').textContent,
+          });
+        }, 400);
+      }, 25);
+    });
+  </script>
+  <script src="/public/auth-resilience.js?v=fixture-login-propagation"></script>
+  <script src="/public/device-auth.js?v=fixture-login-propagation"></script>
+  <script src="/public/auth-controller.js?v=fixture-login-propagation"></script>
+</body>
+</html>

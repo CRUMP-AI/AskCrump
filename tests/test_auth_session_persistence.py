@@ -23,14 +23,44 @@ def test_same_page_login_is_serialized_and_confirmed():
     assert 'if (this.loginPromise) return this.loginPromise' in source
     assert 'confirmIssuedSession()' in source
     assert "CrumpAuthTransport.request('/api/auth/check-session'" in source
-    assert 'for (const delay of [0, 75, 200])' in source
-    assert 'for (const delay of [0, 150, 500])' in source
+    assert 'for (const delay of [0, 100, 300, 750, 1500])' in source
+    assert 'for (const delay of [0, 150, 500, 1000, 2000])' in source
     assert "code !== 'AUTH_REQUEST_TIMEOUT'" in source
     assert 'for (let attempt = 0; attempt < 2; attempt += 1)' not in source
     assert "code: 'SESSION_ESTABLISHMENT_FAILED'" in source
-    assert 'src="/device-auth.js?v=5.9.48"' in shell
-    assert "'/device-auth.js?v=5.9.48'" in worker
+    assert 'src="/device-auth.js?v=5.9.49"' in shell
+    assert "'/device-auth.js?v=5.9.49'" in worker
     assert "url.pathname === '/device-auth.js'" in worker
+
+
+def test_sleeping_pwa_checks_for_updates_and_adopts_safe_signed_out_runtime():
+    installer = (PUBLIC / 'install-prompt.js').read_text(encoding='utf-8')
+    styles = (PUBLIC / 'install-prompt.css').read_text(encoding='utf-8')
+    shell = (PUBLIC / 'app.html').read_text(encoding='utf-8')
+    worker = (PUBLIC / 'sw.js').read_text(encoding='utf-8')
+
+    assert "navigator.serviceWorker.addEventListener('controllerchange'" in installer
+    assert "document.addEventListener('visibilitychange'" in installer
+    assert "window.addEventListener('pageshow'" in installer
+    assert 'serviceWorkerRegistration.update()' in installer
+    assert "!window.currentUser && !authFormHasWork()" in installer
+    assert "window.sessionStorage.setItem(reloadGuardKey" in installer
+    assert 'Reload to use the latest sign-in and reliability fixes.' in installer
+    assert '.runtime-update-notice' in styles
+    assert 'src="/install-prompt.js?v=5.9.49"' in shell
+    assert "'/install-prompt.js?v=5.9.49'" in worker
+    assert "url.pathname === '/install-prompt.js'" in worker
+
+
+def test_auth_outcome_logs_are_categorical_and_identity_free():
+    source = (ROOT / 'backend' / 'routes' / 'auth.py').read_text(encoding='utf-8')
+
+    assert 'Auth login outcome=invalid_credentials client=%s' in source
+    assert 'Auth login outcome=verification_required client=%s' in source
+    assert 'Auth login outcome=session_issued client=%s' in source
+    assert 'Auth session outcome=unauthenticated client=%s' in source
+    assert 'Auth session outcome=authenticated client=%s' in source
+    assert "logger.info('Auth login outcome=session_issued client=%s', email" not in source
 
 
 class DuplicateCookieDB:

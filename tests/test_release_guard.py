@@ -22,7 +22,7 @@ def test_vercel_build_runs_release_preflight_before_bundle():
 def test_subscription_runtime_is_part_of_javascript_contract():
     checker = read("scripts/check-javascript.mjs")
     assert "crump-subscriptions-5.3.2.js" in checker
-    assert "ask-crump-new-body-v1-r82" in checker
+    assert "ask-crump-new-body-v1-r83" in checker
     assert "crump-polish-5.6.js" in checker
 
 

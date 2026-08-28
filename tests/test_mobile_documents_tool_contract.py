@@ -53,6 +53,6 @@ def test_documents_mobile_hotfix_advances_shell_cache():
     sw = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
 
-    assert "ask-crump-new-body-v1-r82" in sw
+    assert "ask-crump-new-body-v1-r83" in sw
     assert "ask-crump-new-body-v1-r21" not in sw
-    assert "ask-crump-new-body-v1-r82" in checker
+    assert "ask-crump-new-body-v1-r83" in checker

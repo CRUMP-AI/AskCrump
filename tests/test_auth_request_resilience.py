@@ -58,13 +58,13 @@ def test_auth_transport_is_release_versioned_and_network_first():
     shell = read_public("app.html")
     worker = read_public("sw.js")
 
-    assert '<script defer src="/auth-resilience.js?v=5.9.48"></script>' in shell
-    assert shell.index("/auth-resilience.js?v=5.9.48") < shell.index(
-        "/device-auth.js?v=5.9.48"
+    assert '<script defer src="/auth-resilience.js?v=5.9.49"></script>' in shell
+    assert shell.index("/auth-resilience.js?v=5.9.49") < shell.index(
+        "/device-auth.js?v=5.9.49"
     )
-    assert "'/auth-resilience.js?v=5.9.48'" in worker
+    assert "'/auth-resilience.js?v=5.9.49'" in worker
     assert "url.pathname === '/auth-resilience.js'" in worker
-    assert "ask-crump-new-body-v1-r82" in worker
+    assert "ask-crump-new-body-v1-r83" in worker
 
 
 def test_auth_stall_fixtures_are_loopback_only_and_load_real_runtime_assets():
@@ -88,3 +88,17 @@ def test_auth_stall_fixtures_are_loopback_only_and_load_real_runtime_assets():
     assert "https://" not in login
     assert "askcrump.com" not in registration
     assert "askcrump.com" not in login
+
+
+def test_delayed_session_fixture_requires_a_fourth_post_login_confirmation():
+    fixture = (
+        ROOT / "tests" / "fixtures" / "login-session-propagation.html"
+    ).read_text(encoding="utf-8")
+
+    assert '/public/auth-resilience.js?v=fixture-login-propagation' in fixture
+    assert '/public/device-auth.js?v=fixture-login-propagation' in fixture
+    assert '/public/auth-controller.js?v=fixture-login-propagation' in fixture
+    assert 'postLoginChecks >= 4' in fixture
+    assert 'fixture@example.test' in fixture
+    assert 'https://' not in fixture
+    assert 'askcrump.com' not in fixture

@@ -92,6 +92,7 @@ if (!releaseVersion || !landingHtml.includes(`/landing.js?v=${releaseVersion}`))
 const requiredHtmlSignals = [
   '/runtime-body-v1.js',
   `/auth-resilience.js?v=${releaseVersion}`,
+  `/install-prompt.js?v=${releaseVersion}`,
   `/chat-resilience.js?v=${releaseVersion}`,
   `/product-analytics.js?v=${releaseVersion}`,
   '/crump-v1-body.css',
@@ -150,7 +151,7 @@ if (!v1Body.includes('removeLegacyEmptyState(container)')) {
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r82') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r83') ||
     !serviceWorker.includes(`/landing.js?v=${releaseVersion}`) ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes(`/conversation.css?v=${releaseVersion}`) ||
@@ -158,6 +159,8 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r82') ||
     !serviceWorker.includes(`/crump-5.0.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/ui-functions.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/auth-resilience.js?v=${releaseVersion}`) ||
+    !serviceWorker.includes(`/install-prompt.js?v=${releaseVersion}`) ||
+    !serviceWorker.includes(`/install-prompt.css?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/device-auth.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/sync-manager.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/product-analytics.js?v=${releaseVersion}`) ||
@@ -169,6 +172,8 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r82') ||
     !serviceWorker.includes("url.pathname === '/crump-5.0.js'") ||
     !serviceWorker.includes("url.pathname === '/ui-functions.js'") ||
     !serviceWorker.includes("url.pathname === '/auth-resilience.js'") ||
+    !serviceWorker.includes("url.pathname === '/install-prompt.js'") ||
+    !serviceWorker.includes("url.pathname === '/install-prompt.css'") ||
     !serviceWorker.includes("url.pathname === '/sync-manager.js'") ||
     !serviceWorker.includes("url.pathname === '/auth-controller.js'") ||
     !serviceWorker.includes('/crump-v1-body.js') ||

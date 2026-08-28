@@ -38,6 +38,15 @@ router = APIRouter(prefix="/api/auth", tags=["authentication"])
 logger = logging.getLogger("askcrump.auth")
 
 
+def _auth_client_kind(request: Request) -> str:
+    """Return an allowlisted client category without logging user-supplied identity data."""
+    return (
+        'native'
+        if request.headers.get('x-crump-client', '').lower() == 'native'
+        else 'web'
+    )
+
+
 def verification_delivery_failure(
     exc: EmailDeliveryError,
     *,
@@ -186,11 +195,19 @@ async def login(payload: LoginRequest, request: Request, response: Response):
     )
     user = await db.select_one('users', columns='*', filters={'email': eq(email)})
     if not user or not verify_password(payload.password, user.get('password_hash')):
+        logger.info(
+            'Auth login outcome=invalid_credentials client=%s',
+            _auth_client_kind(request),
+        )
         return JSONResponse(
             status_code=401,
             content={'success': False, 'error': 'Invalid email or password.'},
         )
     if not user.get('is_verified'):
+        logger.info(
+            'Auth login outcome=verification_required client=%s',
+            _auth_client_kind(request),
+        )
         return JSONResponse(
             status_code=403,
             content={
@@ -215,6 +232,10 @@ async def login(payload: LoginRequest, request: Request, response: Response):
         filters={'id': eq(user['id'])},
     )
     set_session_cookie(response, raw_token, request)
+    logger.info(
+        'Auth login outcome=session_issued client=%s',
+        _auth_client_kind(request),
+    )
     user_settings = await db.select_one(
         'user_settings',
         filters={'user_id': eq(user['id'])},
@@ -236,8 +257,16 @@ async def check_session(request: Request, response: Response):
     try:
         auth = await authenticate_request(request, db, settings)
     except AuthenticationError:
+        logger.info(
+            'Auth session outcome=unauthenticated client=%s',
+            _auth_client_kind(request),
+        )
         return {'success': True, 'authenticated': False}
     set_session_cookie(response, auth.token, request)
+    logger.info(
+        'Auth session outcome=authenticated client=%s',
+        _auth_client_kind(request),
+    )
     user_settings = await db.select_one(
         'user_settings',
         filters={'user_id': eq(auth.user['id'])},

@@ -5,6 +5,85 @@
     const installedKey = 'crump_pwa_installed';
     let deferredPrompt = null;
     let installButton = null;
+    let serviceWorkerRegistration = null;
+    let updateNotice = null;
+    let updateCheckStartedAt = 0;
+    let runtimeUpdateHandled = false;
+    let runtimeUpdatePending = false;
+    let reloadStarted = false;
+
+    const updateCheckIntervalMs = 60_000;
+    const reloadGuardKey = 'crump_runtime_reload_started_at';
+
+    function authFormHasWork() {
+        const authContainer = document.getElementById('authContainer');
+        if (!authContainer) return false;
+        const hasValue = Array.from(authContainer.querySelectorAll('input')).some(input => Boolean(input.value));
+        const hasBusyForm = Boolean(authContainer.querySelector('form button:disabled, form[aria-busy="true"]'));
+        return hasValue || hasBusyForm;
+    }
+
+    function reloadForRuntimeUpdate() {
+        if (reloadStarted) return;
+        reloadStarted = true;
+        try {
+            const lastReload = Number(window.sessionStorage.getItem(reloadGuardKey) || 0);
+            if (lastReload && Date.now() - lastReload < 15_000) {
+                reloadStarted = false;
+                showRuntimeUpdateNotice();
+                return;
+            }
+            window.sessionStorage.setItem(reloadGuardKey, String(Date.now()));
+        } catch (_) {}
+        window.location.reload();
+    }
+
+    function showRuntimeUpdateNotice() {
+        if (updateNotice) return;
+        updateNotice = document.createElement('section');
+        updateNotice.className = 'runtime-update-notice';
+        updateNotice.setAttribute('role', 'status');
+        updateNotice.setAttribute('aria-live', 'polite');
+        updateNotice.innerHTML = `
+            <div>
+                <strong>Ask Crump is ready to update.</strong>
+                <span>Reload to use the latest sign-in and reliability fixes.</span>
+            </div>
+            <button type="button" class="runtime-update-action">Reload now</button>
+            <button type="button" class="runtime-update-later" aria-label="Dismiss update notice">Later</button>
+        `;
+        updateNotice.querySelector('.runtime-update-action')?.addEventListener('click', reloadForRuntimeUpdate);
+        updateNotice.querySelector('.runtime-update-later')?.addEventListener('click', () => {
+            updateNotice?.remove();
+            updateNotice = null;
+        });
+        document.body.appendChild(updateNotice);
+        requestAnimationFrame(() => updateNotice?.classList.add('visible'));
+    }
+
+    function handleRuntimeUpdate() {
+        if (runtimeUpdateHandled) return;
+        runtimeUpdateHandled = true;
+        runtimeUpdatePending = true;
+        window.setTimeout(() => {
+            // A signed-out page with no entered credentials is safe to refresh. Keep
+            // drafts and in-flight authentication input under the user's control.
+            if (!window.currentUser && !authFormHasWork()) reloadForRuntimeUpdate();
+            else showRuntimeUpdateNotice();
+        }, 250);
+    }
+
+    async function checkForRuntimeUpdate({force = false} = {}) {
+        if (!serviceWorkerRegistration) return;
+        const now = Date.now();
+        if (!force && now - updateCheckStartedAt < updateCheckIntervalMs) return;
+        updateCheckStartedAt = now;
+        try {
+            await serviceWorkerRegistration.update();
+        } catch (error) {
+            console.warn('[Service worker] Update check unavailable:', error);
+        }
+    }
 
     function isInstalled() {
         return Boolean(window.CrumpAPI?.isNative)
@@ -106,11 +185,35 @@
     }
 
     if (!window.CrumpAPI?.isNative && 'serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js').catch(error => {
+        let wasControlledAtBoot = Boolean(navigator.serviceWorker.controller);
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!wasControlledAtBoot) {
+                // The first controller owns the same fresh runtime that registered it.
+                wasControlledAtBoot = true;
+                return;
+            }
+            handleRuntimeUpdate();
+        });
+
+        window.addEventListener('load', async () => {
+            try {
+                serviceWorkerRegistration = await navigator.serviceWorker.register('/sw.js');
+                await checkForRuntimeUpdate({force: true});
+            } catch (error) {
                 console.error('[Service worker] Registration failed:', error);
-            });
+            }
         }, { once: true });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) return;
+            if (runtimeUpdatePending && !updateNotice) showRuntimeUpdateNotice();
+            void checkForRuntimeUpdate();
+        });
+        window.addEventListener('pageshow', () => {
+            if (runtimeUpdatePending && !updateNotice) showRuntimeUpdateNotice();
+            void checkForRuntimeUpdate();
+        });
+        window.addEventListener('online', () => { void checkForRuntimeUpdate({force: true}); });
     }
 
     if (document.readyState === 'loading') {
