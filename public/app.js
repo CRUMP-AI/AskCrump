@@ -50,6 +50,7 @@ const COMPOSER_SCAFFOLDS = Object.freeze({
     research: 'Search the web for ',
     code: 'Help me with code: ',
 });
+const USAGE_PREFLIGHT_TIMEOUT_MS = 10_000;
 
 function asTimestamp(value) {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -468,12 +469,26 @@ function checkInBeingAnswered(chat, userMessage) {
 }
 
 async function ensureUsageAvailable() {
-    const usageResponse = await fetch('/api/usage/check');
-    if (usageResponse.status === 401) throw new Error('Your session expired. Please sign in again.');
-    const usageData = await usageResponse.json().catch(() => ({}));
-    if (usageResponse.ok && usageData.limits?.messages !== -1 && usageData.usage?.messages >= usageData.limits?.messages) {
-        window.showUpgradePrompt?.();
-        throw new Error('Your daily message limit has been reached.');
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), USAGE_PREFLIGHT_TIMEOUT_MS);
+    try {
+        const usageResponse = await fetch('/api/usage/check', {signal: controller.signal});
+        if (usageResponse.status === 401) throw new Error('Your session expired. Please sign in again.');
+        const usageData = await usageResponse.json().catch(() => ({}));
+        if (usageResponse.ok && usageData.limits?.messages !== -1 && usageData.usage?.messages >= usageData.limits?.messages) {
+            window.showUpgradePrompt?.();
+            throw new Error('Your daily message limit has been reached.');
+        }
+    } catch (error) {
+        if (error?.name === 'AbortError') {
+            throw new Error('Message check took too long. Your draft is still here — try again.');
+        }
+        if (['Your session expired. Please sign in again.', 'Your daily message limit has been reached.'].includes(error?.message)) {
+            throw error;
+        }
+        throw new Error('Crump could not check message availability. Check your connection and try again.');
+    } finally {
+        window.clearTimeout(timeoutId);
     }
 }
 
@@ -658,6 +673,10 @@ async function sendMessage() {
                 window.CrumpPresence?.haptic?.('error');
                 showToast(error.message || 'Failed to send message.', 'error');
             }
+        } else {
+            window.CrumpPresence?.haptic?.('error');
+            showToast(error.message || 'Crump could not start this message. Try again.', 'error');
+            userInput?.focus({ preventScroll: true });
         }
     } finally {
         isProcessing = false;

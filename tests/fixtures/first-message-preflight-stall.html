@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>First-message preflight stall fixture</title>
+</head>
+<body>
+  <main>
+    <div id="chatContainer"></div>
+    <div id="chatsList"></div>
+    <label for="userInput">Message</label>
+    <textarea id="userInput"></textarea>
+    <button id="sendButton" type="button">Send</button>
+    <button id="newChatBtn" type="button">New chat</button>
+    <input id="fileInput" type="file">
+    <div id="filePreview"></div>
+    <output id="fixtureStatus" aria-live="polite"></output>
+    <div id="toastContainer"></div>
+  </main>
+  <script>
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('crump_')) localStorage.removeItem(key);
+    }
+    window.SafeStorage = {
+      getItem: key => localStorage.getItem(key),
+      setItem: (key, value) => localStorage.setItem(key, value),
+      removeItem: key => localStorage.removeItem(key),
+    };
+    window.CrumpPresence = {
+      indicator: () => null,
+      stop() {},
+      haptic() {},
+    };
+    window.__fixture = {
+      usageRequests: 0,
+      unexpectedRequests: 0,
+    };
+    const nativeSetTimeout = window.setTimeout.bind(window);
+    window.setTimeout = (callback, delay, ...args) => nativeSetTimeout(
+      callback,
+      delay === 10_000 ? 250 : delay,
+      ...args,
+    );
+    window.fetch = async (input, options = {}) => {
+      const url = new URL(String(input), location.href);
+      if (url.pathname === '/api/usage/check') {
+        window.__fixture.usageRequests += 1;
+        document.getElementById('fixtureStatus').textContent =
+          `Usage preflight started. Requests: ${window.__fixture.usageRequests}.`;
+        return new Promise((_resolve, reject) => {
+          options.signal?.addEventListener('abort', () => {
+            document.getElementById('fixtureStatus').textContent =
+              `Usage preflight stopped. Requests: ${window.__fixture.usageRequests}.`;
+            reject(new DOMException('The fixture request was aborted.', 'AbortError'));
+          }, {once: true});
+        });
+      }
+      window.__fixture.unexpectedRequests += 1;
+      return new Response(JSON.stringify({success: false, error: 'Unexpected fixture request.'}), {
+        status: 500,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+  </script>
+  <script src="/public/ui-functions.js?v=first-message-fixture-2"></script>
+  <script src="/public/app.js?v=first-message-fixture-2"></script>
+  <script>
+    window.addEventListener('load', () => {
+      window.initializeApp();
+      const input = document.getElementById('userInput');
+      input.value = 'Draft a launch plan for a neighborhood bakery.';
+      input.dispatchEvent(new Event('input', {bubbles: true}));
+    });
+  </script>
+</body>
+</html>

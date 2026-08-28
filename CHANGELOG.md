@@ -1,5 +1,21 @@
 # Changelog
 
+## 5.9.43 — 2026-08-28
+
+### Recoverable first-message preflight
+
+- Bounded the message-availability preflight through response-body parsing so a stalled request can
+  no longer make repeated Send actions silently stop responding before the first message exists.
+- Preserved and refocused the user's draft when the preflight times out or the connection fails,
+  with a visible explanation and an immediately retryable Send path.
+- Kept usage limits, credit accounting, authentication, chat delivery, provider routing, and
+  activation measurement unchanged.
+
+### Verification and release
+
+- Advanced the application to 5.9.43, native build 50943, and service-worker cache revision 77 so
+  web and installed clients receive the first-message recovery boundary together.
+
 ## 5.9.42 — 2026-08-27
 
 ### Recoverable continuing-work sync
