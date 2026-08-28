@@ -94,6 +94,50 @@ def test_registration_autofill_fixture_uses_real_local_runtime_without_productio
     assert 'askcrump.com' not in fixture
 
 
+def test_auth_view_transitions_move_focus_to_the_first_actionable_field():
+    app = (PUBLIC / 'app.html').read_text(encoding='utf-8')
+    controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
+    fixture = (
+        ROOT / 'tests' / 'fixtures' / 'auth-navigation-focus.html'
+    ).read_text(encoding='utf-8')
+
+    for view, container_id, field_id in (
+        ('login', 'loginForm', 'loginEmail'),
+        ('register', 'registerForm', 'registerEmail'),
+        ('forgot', 'forgotPasswordForm', 'forgotPasswordEmail'),
+        ('reset', 'resetPasswordForm', 'newPassword'),
+    ):
+        assert f"{view}: {{containerId: '{container_id}', fieldId: '{field_id}'}}" in controller
+    assert 'function focusAuthView(view)' in controller
+    assert "requestAnimationFrame(() => byId(fieldId)?.focus({preventScroll: true}))" in controller
+    assert "showAuth('register')" in controller
+    assert "showAuth('forgot')" in controller
+    assert "showAuth('reset')" in controller
+    assert 'role="alert" aria-live="assertive"' in app
+    assert '/public/auth-controller.js?v=fixture-auth-focus-2' in fixture
+    assert 'credential-free-auth-probe' not in fixture
+    assert 'https://' not in fixture
+    assert 'askcrump.com' not in fixture
+
+
+def test_login_validation_failures_are_visible_and_observable_before_network_submission():
+    controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
+
+    login = controller[
+        controller.index('function wireLogin()'):
+        controller.index('function wireRegistration()')
+    ]
+    assert "form.addEventListener('invalid'" in login
+    assert "field?.setAttribute('aria-invalid', 'true')" in login
+    assert 'Enter a valid email address.' in login
+    assert 'Enter your email.' in login
+    assert 'Enter your password.' in login
+    assert "trackFunnel('LoginValidationFailed', {reason})" in login
+    assert "trackFunnel('LoginSubmitted')" in login
+    assert "trackFunnel('LoginCompleted')" in login
+    assert "trackFunnel('LoginFailed'" in login
+
+
 def test_signup_success_has_durable_verification_handoff_and_recovery_ui():
     app = (PUBLIC / 'app.html').read_text(encoding='utf-8')
     controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
@@ -161,7 +205,8 @@ def test_password_reset_success_has_a_durable_private_signin_handoff():
     assert "history.replaceState({}, document.title, location.pathname)" in reset_bootstrap
     assert "if (resetForm) delete resetForm.dataset.token" in reset_submit
     assert "setText('loginSuccess', data.message || 'Password updated." in reset_submit
-    assert "byId('loginEmail')?.focus({preventScroll: true})" in reset_submit
+    assert "showAuth('login')" in reset_submit
+    assert "login: {containerId: 'loginForm', fieldId: 'loginEmail'}" in controller
     assert "setTimeout(() => { history.replaceState" not in reset_submit
     assert 'id="loginSuccess" class="auth-success" role="status" aria-live="polite"' in app
     assert '/public/auth-resilience.js?v=fixture-password-reset-handoff' in fixture

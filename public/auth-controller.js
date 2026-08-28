@@ -21,6 +21,12 @@
   const show = (id, display = 'block') => { const node = byId(id); if (node) node.style.display = display; };
   const hide = id => { const node = byId(id); if (node) node.style.display = 'none'; };
   const setText = (id, text, visible = true) => { const node = byId(id); if (!node) return; node.textContent = text || ''; node.style.display = visible ? 'block' : 'none'; };
+  const AUTH_VIEWS = Object.freeze({
+    login: {containerId: 'loginForm', fieldId: 'loginEmail'},
+    register: {containerId: 'registerForm', fieldId: 'registerEmail'},
+    forgot: {containerId: 'forgotPasswordForm', fieldId: 'forgotPasswordEmail'},
+    reset: {containerId: 'resetPasswordForm', fieldId: 'newPassword'},
+  });
 
   function authRequest(url, options, timeoutMessage) {
     return window.CrumpAuthTransport.request(url, options, {timeoutMessage});
@@ -201,14 +207,22 @@
     if (!user.fullName) maybeOfferProfileSetup();
   }
 
+  function focusAuthView(view) {
+    const fieldId = AUTH_VIEWS[view]?.fieldId;
+    if (!fieldId) return;
+    requestAnimationFrame(() => byId(fieldId)?.focus({preventScroll: true}));
+  }
+
   function showAuth(view = 'login') {
+    const normalizedView = AUTH_VIEWS[view] ? view : 'login';
     hide('appContainer');
     hide('tosModal');
     hide('onboardingModal');
     show('authContainer', 'flex');
-    ['loginForm', 'registerForm', 'forgotPasswordForm', 'resetPasswordForm'].forEach(hide);
-    if (view === 'register') resetRegistrationView();
-    show(view === 'register' ? 'registerForm' : 'loginForm');
+    Object.values(AUTH_VIEWS).forEach(({containerId}) => hide(containerId));
+    if (normalizedView === 'register') resetRegistrationView();
+    show(AUTH_VIEWS[normalizedView].containerId);
+    focusAuthView(normalizedView);
   }
 
   function resetRegistrationView() {
@@ -278,9 +292,7 @@
     const signupRequested = params.get('signup') === '1';
     const resetToken = params.get('token');
     if (resetToken) {
-      show('authContainer', 'flex');
-      hide('loginForm');
-      show('resetPasswordForm');
+      showAuth('reset');
       byId('resetPasswordForm').dataset.token = resetToken;
       history.replaceState({}, document.title, location.pathname);
       return;
@@ -318,22 +330,18 @@
   function wireNavigation() {
     byId('showRegisterLink')?.addEventListener('click', event => {
       event.preventDefault();
-      hide('loginForm');
-      resetRegistrationView();
-      show('registerForm');
+      showAuth('register');
       trackFunnel('SignupIntent', {location: 'auth-link'});
     });
-    byId('showLoginLink')?.addEventListener('click', event => { event.preventDefault(); hide('registerForm'); show('loginForm'); });
-    byId('showForgotPasswordLink')?.addEventListener('click', event => { event.preventDefault(); hide('loginForm'); show('forgotPasswordForm'); });
-    byId('showLoginFromForgot')?.addEventListener('click', event => { event.preventDefault(); hide('forgotPasswordForm'); show('loginForm'); });
+    byId('showLoginLink')?.addEventListener('click', event => { event.preventDefault(); showAuth('login'); });
+    byId('showForgotPasswordLink')?.addEventListener('click', event => { event.preventDefault(); showAuth('forgot'); });
+    byId('showLoginFromForgot')?.addEventListener('click', event => { event.preventDefault(); showAuth('login'); });
     byId('showLoginFromReset')?.addEventListener('click', event => {
       event.preventDefault();
       const resetForm = byId('resetPasswordForm');
       if (resetForm) delete resetForm.dataset.token;
       history.replaceState({}, document.title, location.pathname);
-      hide('resetPasswordForm');
-      show('loginForm');
-      byId('loginEmail')?.focus({preventScroll: true});
+      showAuth('login');
     });
   }
 
@@ -472,10 +480,36 @@
   }
 
   function wireLogin() {
-    byId('loginFormElement')?.addEventListener('submit', async event => {
+    const form = byId('loginFormElement');
+    if (!form) return;
+    let nativeValidationTracked = false;
+
+    form.addEventListener('invalid', event => {
+      if (nativeValidationTracked) return;
+      nativeValidationTracked = true;
+      setTimeout(() => { nativeValidationTracked = false; }, 0);
+      const field = event.target;
+      const isEmail = field?.id === 'loginEmail';
+      const reason = isEmail
+        ? (field.validity?.typeMismatch ? 'email_format' : 'email_required')
+        : 'password_required';
+      const message = reason === 'email_format'
+        ? 'Enter a valid email address.'
+        : (isEmail ? 'Enter your email.' : 'Enter your password.');
+      field?.setAttribute('aria-invalid', 'true');
+      setText('loginError', message);
+      trackFunnel('LoginValidationFailed', {reason});
+    }, true);
+
+    form.addEventListener('input', event => {
+      event.target?.removeAttribute('aria-invalid');
+    }, {passive: true});
+
+    form.addEventListener('submit', async event => {
       event.preventDefault();
       setText('loginError', '', false);
       hide('verificationNeeded');
+      trackFunnel('LoginSubmitted');
       const restore = setBusy(event.currentTarget, true, 'Signing in…');
       try {
         const result = await window.deviceAuth.login(byId('loginEmail').value.trim(), byId('loginPassword').value);
@@ -485,9 +519,13 @@
         window.configureUserStorage?.(activeUser.id);
         applyServerSettings(result.data.settings);
         setText('loginSuccess', 'Signed in.');
+        trackFunnel('LoginCompleted');
         routeAuthenticatedUser(activeUser);
       } catch (error) {
         setText('loginError', error.message || 'Network error. Try again.');
+        trackFunnel('LoginFailed', {
+          reason: error.result?.needsVerification ? 'verification_required' : 'request_failed',
+        });
         if (error.result?.needsVerification) show('verificationNeeded');
       } finally {
         restore();
@@ -609,10 +647,8 @@
         const resetForm = byId('resetPasswordForm');
         if (resetForm) delete resetForm.dataset.token;
         history.replaceState({}, document.title, location.pathname);
-        hide('resetPasswordForm');
-        show('loginForm');
+        showAuth('login');
         setText('loginSuccess', data.message || 'Password updated. Sign in with your new password.');
-        byId('loginEmail')?.focus({preventScroll: true});
       } catch (error) { setText('resetPasswordError', error.message); }
       finally { restore(); }
     });
@@ -634,12 +670,10 @@
     });
 
     byId('registrationPendingSigninBtn')?.addEventListener('click', () => {
-      hide('registerForm');
-      show('loginForm');
+      showAuth('login');
       hide('verificationNeeded');
       setText('loginError', '', false);
       setText('loginSuccess', 'Email ready. Sign in after completing verification.');
-      byId('loginEmail')?.focus();
     });
   }
 

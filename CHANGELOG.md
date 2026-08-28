@@ -1,5 +1,18 @@
 # Changelog
 
+## 5.9.55 — 2026-08-28
+
+### Clear, accessible authentication handoffs
+
+- Sign-in, registration, password recovery, and password-reset views now move focus to their first
+  actionable field after every direct link and in-page transition. Keyboard and assistive-input users
+  no longer remain on a control that was just hidden.
+- Browser validation that stops a sign-in before the network request now renders a persistent,
+  announced message for the exact missing or malformed field instead of relying on a transient native
+  bubble. Safe funnel events distinguish validation, submission, completion, and request failure
+  without recording credentials or account identifiers.
+- Advanced the application to 5.9.55, native build 50955, and service-worker cache revision 89.
+
 ## 5.9.54 — 2026-08-28
 
 ### Private upstream observability boundary

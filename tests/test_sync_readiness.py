@@ -24,13 +24,13 @@ def test_changed_sync_manager_is_release_versioned_and_network_first():
     shell = (PUBLIC / "app.html").read_text(encoding="utf-8")
     worker = (PUBLIC / "sw.js").read_text(encoding="utf-8")
 
-    assert '"version": "5.9.54"' in package
-    assert '<script defer src="/sync-manager.js?v=5.9.54"></script>' in shell
-    assert "'/sync-manager.js?v=5.9.54'" in worker
-    assert '<script defer src="/presence-manager.js?v=5.9.54"></script>' in shell
-    assert "'/presence-manager.js?v=5.9.54'" in worker
-    assert '<script defer src="/chat-sync.js?v=5.9.54"></script>' in shell
-    assert "'/chat-sync.js?v=5.9.54'" in worker
+    assert '"version": "5.9.55"' in package
+    assert '<script defer src="/sync-manager.js?v=5.9.55"></script>' in shell
+    assert "'/sync-manager.js?v=5.9.55'" in worker
+    assert '<script defer src="/presence-manager.js?v=5.9.55"></script>' in shell
+    assert "'/presence-manager.js?v=5.9.55'" in worker
+    assert '<script defer src="/chat-sync.js?v=5.9.55"></script>' in shell
+    assert "'/chat-sync.js?v=5.9.55'" in worker
     assert "url.pathname === '/sync-manager.js'" in worker
 
 

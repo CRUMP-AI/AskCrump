@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Authentication navigation focus fixture</title>
+  <style>
+    body { background:#0b0b0b; color:#f5f2ec; font:16px/1.5 system-ui,sans-serif; padding:32px; }
+    form { display:grid; gap:10px; width:min(440px,100%); }
+    input,button,a { min-height:44px; }
+    output { display:block; margin-top:12px; }
+  </style>
+</head>
+<body>
+  <div id="authContainer" style="display:none">
+    <div id="loginForm">
+      <h1>Welcome back.</h1>
+      <form id="loginFormElement">
+        <label for="loginEmail">Email</label>
+        <input id="loginEmail" type="email" required autocomplete="email">
+        <label for="loginPassword">Password</label>
+        <input id="loginPassword" type="password" required autocomplete="current-password">
+        <button type="submit">Sign in</button>
+        <a id="showRegisterLink" href="#">Create account</a>
+        <a id="showForgotPasswordLink" href="#">Forgot password?</a>
+      </form>
+      <div id="loginError" style="display:none"></div>
+      <div id="loginSuccess" style="display:none"></div>
+      <div id="verificationNeeded" style="display:none"></div>
+      <button id="resendVerificationBtn" type="button">Resend verification email</button>
+    </div>
+
+    <div id="registerForm" style="display:none">
+      <div id="registerEntry">
+        <h1>Create your workspace.</h1>
+        <form id="registerFormElement">
+          <label for="registerEmail">Email</label>
+          <input id="registerEmail" type="email" required autocomplete="email">
+          <label for="registerPassword">Password</label>
+          <input id="registerPassword" type="password" required minlength="10" maxlength="256" autocomplete="new-password" aria-describedby="registerPasswordHint">
+          <div id="registerPasswordHint">
+            <span data-password-rule="length"><i>○</i>10+ characters</span>
+            <span data-password-rule="letter"><i>○</i>One letter</span>
+            <span data-password-rule="number"><i>○</i>One number</span>
+          </div>
+          <span id="registerPasswordStatus" aria-live="polite"></span>
+          <button type="submit">Create free account</button>
+          <a id="showLoginLink" href="#">Sign in</a>
+        </form>
+        <div id="registerError" style="display:none"></div>
+        <div id="registerSuccess" style="display:none"></div>
+      </div>
+      <section id="registrationPending" style="display:none" tabindex="-1">
+        <strong id="registrationPendingEmail"></strong>
+        <div id="registrationPendingSuccess" style="display:none"></div>
+        <div id="registrationPendingError" style="display:none"></div>
+        <button id="registrationPendingSigninBtn" type="button">I’ve verified — sign in</button>
+        <button id="registrationPendingResendBtn" type="button">Resend verification email</button>
+      </section>
+    </div>
+
+    <div id="forgotPasswordForm" style="display:none">
+      <h1>Reset your password.</h1>
+      <form id="forgotPasswordFormElement">
+        <label for="forgotPasswordEmail">Email</label>
+        <input id="forgotPasswordEmail" type="email" autocomplete="email">
+        <button type="submit">Send reset link</button>
+        <a id="showLoginFromForgot" href="#">Back to sign in</a>
+      </form>
+      <div id="forgotPasswordError" style="display:none"></div>
+      <div id="forgotPasswordSuccess" style="display:none"></div>
+    </div>
+
+    <div id="resetPasswordForm" style="display:none">
+      <form id="resetPasswordFormElement">
+        <input id="newPassword" type="password">
+        <input id="confirmNewPassword" type="password">
+        <button type="submit">Update password</button>
+        <a id="showLoginFromReset" href="#">Back to sign in</a>
+      </form>
+      <div id="resetPasswordError" style="display:none"></div>
+    </div>
+  </div>
+  <div id="tosModal" style="display:none"></div>
+  <div id="onboardingModal" style="display:none"></div>
+  <div id="appContainer" style="display:none"><textarea id="userInput"></textarea></div>
+
+  <output id="fixtureActiveElement" aria-label="Active element">none</output>
+  <output id="fixtureErrors" aria-label="Browser errors">0</output>
+
+  <script>
+    window.va = () => {};
+    window.CrumpAPI = {ready: Promise.resolve()};
+    window.deviceAuth = {
+      async checkSession() { return {success:true, authenticated:false}; },
+      async login() { return {success:false}; },
+      async logout() {},
+    };
+    window.configureUserStorage = () => {};
+    window.profileManager = {applyServerSubscription() {}, updateProfile() {}};
+    window.SyncManager = {pull: () => Promise.resolve()};
+    window.fetch = () => Promise.resolve(new Response(JSON.stringify({success:true}), {
+      status:200,
+      headers:{'Content-Type':'application/json'},
+    }));
+    const recordError = () => {
+      const output = document.getElementById('fixtureErrors');
+      output.textContent = String(Number(output.textContent || 0) + 1);
+    };
+    const reportFocus = () => {
+      document.getElementById('fixtureActiveElement').textContent = document.activeElement?.id || document.activeElement?.tagName?.toLowerCase() || 'none';
+    };
+    window.addEventListener('error', recordError);
+    window.addEventListener('unhandledrejection', recordError);
+    document.addEventListener('focusin', reportFocus);
+    document.addEventListener('click', () => setTimeout(reportFocus, 0));
+    window.addEventListener('load', () => setTimeout(reportFocus, 20));
+  </script>
+  <script src="/public/auth-resilience.js?v=fixture-auth-focus-2"></script>
+  <script src="/public/auth-controller.js?v=fixture-auth-focus-2"></script>
+</body>
+</html>
