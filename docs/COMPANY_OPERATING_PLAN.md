@@ -56,10 +56,10 @@ Project or retained a file, and no external activity occurred after August 23. T
 to help users keep useful work, return to it, and measure a new post-instrumentation cohort. Scaling
 ads before that proof would purchase traffic before Ask Crump has demonstrated continued value.
 
-Production-only Web Analytics on August 27 reported 87 visitors and 233 page views over seven days,
+Production-only Web Analytics on August 27 reported 88 visitors and 238 page views over seven days,
 but those anonymous counts cross the first-event measurement boundary and cannot be reconciled to
 external accounts. The comparable service-role funnel still contains zero external accounts and
-the artifact journey contains no rows. In the most recent 24 hours, 15 visitors produced 68 page
+the artifact journey contains no rows. In the most recent 24 hours, 16 visitors produced 72 page
 views, three marketing CTA visitors, and two signup-form starts without a credentials-ready,
 submission, or account-created event. A separate user-observed existing-account sign-in handoff
 defect was verified and repaired in 5.9.29. That incident and the two anonymous starts do not
@@ -178,6 +178,11 @@ provider, privacy, cost, or security gate is incomplete.
   rules independently before submission, with polite screen-reader state and post-review invalid
   state. The release came from a reproducible local defect, not a conversion claim from two
   anonymous starts; no production signup event was created during verification.
+- **Verification handoff:** Production 5.9.37 keeps the successful account-creation next step
+  visible instead of replacing it after 1.8 seconds with a generic sign-in form. The destination
+  email, resend recovery, delivery/network feedback, and verified-to-sign-in action persist. The
+  same state recovers an account created before initial email delivery failed. No auth policy,
+  backend verification mechanic, production account, or synthetic event was introduced.
 - **Shipped foundation:** production 5.9.35 adds a Project-attached Crump Code review workspace,
   explicit client/server run confirmation, visible cost/patch/verification/approval state, and
   cancellation checks before each next model/tool step. It remains disabled publicly pending the
@@ -185,12 +190,12 @@ provider, privacy, cost, or security gate is incomplete.
 - **Shipped foundation:** server-only ElevenLabs voice path with device-speech fallback; disabled
   until disclosure, credentials, and smoke tests are approved.
 - **Risk:** no external durable-value, return, or artifact journey has been observed yet.
-- **Traffic evidence:** production Web Analytics recorded 87 seven-day visitors and 20 visitors
+- **Traffic evidence:** production Web Analytics recorded 88 seven-day visitors and 20 visitors
   reaching signup intent, but the period crosses the measurement boundary. The last 24 hours had
-  15 visitors, 68 page views, three marketing CTA visitors, and two visitors each at signup intent
+  16 visitors, 72 page views, three marketing CTA visitors, and two visitors each at signup intent
   and form start, with no valid-credentials, submission, or account-created event. Release 5.9.29
   separates ordinary sign-in links from account-creation CTAs. These anonymous counts are context,
-  not an account conversion rate. The protected aggregate refreshed at 21:40 ET still contained
+  not an account conversion rate. The protected aggregate's latest refresh still contained
   zero comparable external accounts or artifact journeys.
 - **Reliability evidence:** a project-wide trailing-24-hour production scan on 2026-08-27 found no
   runtime error clusters, no error/fatal/warning logs, and no 5xx responses. Five 401 responses were
@@ -206,7 +211,7 @@ provider, privacy, cost, or security gate is incomplete.
   Professional price ID matches the production fallback. Both live webhook destinations now use
   direct `www` handlers and returned 200 to signed harmless replays. Their original three-event and
   one-event scopes are restored; no price, product, customer, tax setting, payment, or secret changed.
-- **Product experience direction:** production 5.9.36 builds on the first staged, owner-approved
+- **Product experience direction:** production 5.9.37 builds on the first staged, owner-approved
   reorganization around Ask, Projects, Create, Library, and You on desktop and mobile. It preserves
   existing data, routes, entitlements, and working capabilities behind a local rollback switch.
   Projects now surface their saved conversations through an owner-scoped, content-free resume path.
@@ -222,7 +227,7 @@ provider, privacy, cost, or security gate is incomplete.
 - **External input needed:** an ElevenLabs production API key and voice ID with confirmed rights.
 - **Next evidence:** submit the sitemap after owner confirmation, then obtain the first legitimate
   post-instrumentation acquisition, durable-value, return, and artifact-journey observations.
-- **Native distribution:** Android 5.9.36/build 50936 source and an unsigned `.aab` pass the hosted
-  API 36/Java 21 release audit; the generated iOS 5.9.36 Release configuration passes its hosted
+- **Native distribution:** Android 5.9.37/build 50937 source and an unsigned `.aab` pass the hosted
+  API 36/Java 21 release audit; the generated iOS 5.9.37 Release configuration passes its hosted
   macOS compile. Owner-controlled developer accounts, signing, push, native billing, reviewer access,
   signed-device tests, screenshots, declarations, and final submission approval remain open.
