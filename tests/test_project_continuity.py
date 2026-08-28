@@ -27,6 +27,19 @@ class ProjectContinuityDB:
             return {"id": PROJECT_ID, "user_id": USER_ID, "name": "Quarterly strategy"}
         return None
 
+    async def select(self, table, **kwargs):
+        self.calls.append(("select", table, kwargs))
+        if table == "project_chats":
+            return [{"chat_id": CHAT_ID, "created_at": "2026-08-27T12:00:00Z"}]
+        if table == "user_chats":
+            return [{
+                "chat_id": CHAT_ID,
+                "title": "Quarterly strategy",
+                "created_at": "2026-08-27T12:00:00Z",
+                "updated_at": "2026-08-27T13:00:00Z",
+            }]
+        return []
+
     async def insert(self, table, payload):
         self.calls.append(("insert", table, payload))
         return [{**payload, "id": PROJECT_ID}]
@@ -93,6 +106,62 @@ async def test_create_from_chat_rejects_unowned_or_unsynced_conversations_before
         )
 
     assert not any(call[:2] == ("insert", "projects") for call in database.calls)
+
+
+@pytest.mark.asyncio
+async def test_project_conversations_are_owner_scoped_and_content_free():
+    database = ProjectContinuityDB()
+    service = ProjectService(database)
+
+    conversations = await service.list_chats(user_id=USER_ID, project_id=PROJECT_ID)
+
+    assert conversations == [{
+        "chatId": CHAT_ID,
+        "title": "Quarterly strategy",
+        "createdAt": "2026-08-27T12:00:00Z",
+        "updatedAt": "2026-08-27T13:00:00Z",
+    }]
+    mapping_lookup = next(call for call in database.calls if call[:2] == ("select", "project_chats"))
+    assert mapping_lookup[2]["columns"] == "chat_id,created_at"
+    assert mapping_lookup[2]["filters"] == {
+        "project_id": f"eq.{PROJECT_ID}",
+        "user_id": f"eq.{USER_ID}",
+    }
+    chat_lookup = next(call for call in database.calls if call[:2] == ("select", "user_chats"))
+    assert chat_lookup[2]["columns"] == "chat_id,title,created_at,updated_at"
+    assert "messages" not in chat_lookup[2]["columns"]
+    assert chat_lookup[2]["filters"]["user_id"] == f"eq.{USER_ID}"
+    assert chat_lookup[2]["filters"]["deleted_at"] == "is.null"
+
+
+@pytest.mark.asyncio
+async def test_empty_project_conversation_mapping_does_not_query_chat_records():
+    class EmptyProjectDB(ProjectContinuityDB):
+        async def select(self, table, **kwargs):
+            self.calls.append(("select", table, kwargs))
+            return []
+
+    database = EmptyProjectDB()
+    service = ProjectService(database)
+
+    assert await service.list_chats(user_id=USER_ID, project_id=PROJECT_ID) == []
+    assert not any(call[:2] == ("select", "user_chats") for call in database.calls)
+
+
+def test_project_workspace_surfaces_saved_conversations_and_a_private_resume_action():
+    product = (ROOT / "public" / "crump-product-5.3.js").read_text(encoding="utf-8")
+    route = (ROOT / "backend" / "routes" / "projects.py").read_text(encoding="utf-8")
+
+    assert '@router.get("/{project_id}/chats")' in route
+    assert '"conversations": conversations' in route
+    assert 'id="crump53ProjectConversationsCard"' in product
+    assert "refreshProjectConversations()" in product
+    assert "await window.syncChatsFromServer?.()" in product
+    assert "window.loadChat(normalized)" in product
+    resume = product[product.index("async function resumeProjectConversation"):product.index("async function saveProject")]
+    assert "chatId:" not in resume
+    assert "title:" not in resume
+    assert "source: 'project'" in resume
 
 
 @pytest.mark.asyncio

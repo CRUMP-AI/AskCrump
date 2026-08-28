@@ -6,6 +6,7 @@
     projects: [],
     activeProject: null,
     editingProject: null,
+    projectConversations: [],
     manuscripts: [],
     activeManuscript: null,
     activeSection: null,
@@ -345,6 +346,16 @@
                 </form>
               </div>
             </div>
+            <div class="crump53-card" id="crump53ProjectConversationsCard" hidden style="margin-top:16px">
+              <div class="crump53-section-head">
+                <div>
+                  <h3>Conversations</h3>
+                  <p>Continue any conversation you kept in this Project without rebuilding the context.</p>
+                </div>
+                <span id="crump53ProjectConversationCount" class="crump53-count-badge"></span>
+              </div>
+              <div id="crump53ProjectConversationList" class="crump53-list" aria-live="polite"></div>
+            </div>
             <div class="crump53-card" id="crump53ProjectContextCard" hidden style="margin-top:16px">
               <h3>Canon & project notes</h3>
               <p>Save durable facts, rules, timeline details, or decisions that Crump should keep isolated to this Project.</p>
@@ -657,6 +668,10 @@
       renderProjectList(data.limit);
       renderProjectIndicator();
       renderManuscriptProjectState();
+      const projectsPanel = document.querySelector('[data-crump53-panel="projects"]');
+      if (!byId('crump53Studio')?.hidden && !projectsPanel?.hidden && state.activeProject) {
+        renderActiveProjectWorkspace();
+      }
     } catch (error) {
       setStatus('crump53ProjectStatus', error.message, true);
     }
@@ -736,6 +751,12 @@
     state.editingProject = project;
     storeProject(project.id);
     renderProjectIndicator();
+    renderActiveProjectWorkspace();
+  }
+
+  function renderActiveProjectWorkspace() {
+    const project = state.activeProject;
+    if (!project) return;
     byId('crump53ProjectName').value = project.name || '';
     byId('crump53ProjectDescription').value = project.description || '';
     byId('crump53ProjectInstructions').value = project.instructions || '';
@@ -743,6 +764,7 @@
     renderProjectList(state.features?.projectLimit);
     renderManuscriptProjectState();
     void refreshProjectContext();
+    void refreshProjectConversations();
   }
 
   function resetProjectForm() {
@@ -753,7 +775,76 @@
     state.editingProject = null;
     const contextCard = byId('crump53ProjectContextCard');
     if (contextCard) contextCard.hidden = true;
+    const conversationsCard = byId('crump53ProjectConversationsCard');
+    if (conversationsCard) conversationsCard.hidden = true;
     renderProjectList(state.features?.projectLimit);
+  }
+
+  async function refreshProjectConversations() {
+    const card = byId('crump53ProjectConversationsCard');
+    const list = byId('crump53ProjectConversationList');
+    const count = byId('crump53ProjectConversationCount');
+    if (!card || !list) return;
+    if (!state.activeProject?.id) {
+      state.projectConversations = [];
+      card.hidden = true;
+      list.innerHTML = '';
+      if (count) count.textContent = '';
+      return;
+    }
+    card.hidden = false;
+    list.innerHTML = '<div class="crump53-note">Loading saved conversations…</div>';
+    const projectId = state.activeProject.id;
+    try {
+      const data = await api(`/api/projects/${projectId}/chats`);
+      if (state.activeProject?.id !== projectId) return;
+      state.projectConversations = Array.isArray(data.conversations) ? data.conversations : [];
+      if (count) count.textContent = String(state.projectConversations.length);
+      if (!state.projectConversations.length) {
+        list.innerHTML = '<div class="crump53-note">No conversations saved here yet. After a useful result in Ask, choose “Keep in a Project.”</div>';
+        return;
+      }
+      list.innerHTML = state.projectConversations.map(item => {
+        const title = String(item.title || 'New conversation').replace(/\s+/g, ' ').trim();
+        return `<button type="button" class="crump53-list-button crump53-conversation-button" data-project-chat-id="${escapeHtml(item.chatId)}" aria-label="Continue ${escapeHtml(title)}">
+          <span>${escapeHtml(title)}</span><small>Continue</small>
+        </button>`;
+      }).join('');
+      list.querySelectorAll('[data-project-chat-id]').forEach(button => {
+        button.addEventListener('click', () => void resumeProjectConversation(button.dataset.projectChatId));
+      });
+    } catch (error) {
+      if (state.activeProject?.id !== projectId) return;
+      state.projectConversations = [];
+      if (count) count.textContent = '';
+      list.innerHTML = `<div class="crump53-note">${escapeHtml(error.message || 'Could not load saved conversations.')}</div>`;
+    }
+  }
+
+  async function resumeProjectConversation(chatId) {
+    const normalized = String(chatId || '').trim();
+    if (!normalized || typeof window.loadChat !== 'function') {
+      window.showToast?.('That conversation is not available yet.', 'error');
+      return;
+    }
+    if (!(Array.isArray(window.chats) && window.chats.some(item => item.id === normalized))) {
+      try {
+        await window.syncChatsFromServer?.();
+      } catch (_) {
+        window.showToast?.('Could not sync that conversation on this device yet.', 'error');
+        return;
+      }
+    }
+    if (!(Array.isArray(window.chats) && window.chats.some(item => item.id === normalized))) {
+      window.showToast?.('That conversation could not be restored on this device yet.', 'error');
+      return;
+    }
+    void window.CrumpAnalytics?.track?.('RecentWorkResumed', {
+      eventKey: 'recent-work-resumed',
+      source: 'project',
+    });
+    closeStudio();
+    window.loadChat(normalized);
   }
 
   async function saveProject(event) {
@@ -865,6 +956,8 @@
       renderManuscriptProjectState();
       const contextCard = byId('crump53ProjectContextCard');
       if (contextCard) contextCard.hidden = true;
+      const conversationsCard = byId('crump53ProjectConversationsCard');
+      if (conversationsCard) conversationsCard.hidden = true;
     });
     header.appendChild(chip);
   }

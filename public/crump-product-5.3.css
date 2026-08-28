@@ -233,6 +233,34 @@ body.crump-v1-body .crump53-list-button small {
   color: #62696d;
   font-size: 8px;
 }
+body.crump-v1-body .crump53-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+body.crump-v1-body .crump53-count-badge {
+  display: inline-grid;
+  min-width: 26px;
+  height: 26px;
+  place-items: center;
+  padding: 0 8px;
+  border: 1px solid rgba(217,191,132,.15);
+  border-radius: 999px;
+  background: rgba(217,191,132,.055);
+  color: #cdb67e;
+  font-size: 8px;
+  font-weight: 750;
+}
+body.crump-v1-body .crump53-conversation-button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.crump-v1-body .crump53-conversation-button small {
+  color: #c7ae72;
+  font-weight: 700;
+}
 body.crump-v1-body .crump53-form {
   display: grid;
   gap: 10px;

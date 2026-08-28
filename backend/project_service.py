@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from .db import SupabaseDB, eq
+from .db import SupabaseDB, eq, in_
 from .security import normalize_chat_id
 
 
@@ -210,6 +210,50 @@ class ProjectService:
             filters={"id": eq(project["id"]), "user_id": eq(user_id)},
         )
         return project
+
+    async def list_chats(
+        self,
+        *,
+        user_id: str,
+        project_id: str,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Return content-free metadata for conversations linked to an owned Project."""
+        project = await self.get(user_id, project_id)
+        safe_limit = max(1, min(100, int(limit)))
+        mappings = await self.db.select(
+            "project_chats",
+            columns="chat_id,created_at",
+            filters={"project_id": eq(project["id"]), "user_id": eq(user_id)},
+            order="created_at.desc",
+            limit=safe_limit,
+        )
+        chat_ids = [str(row.get("chat_id") or "").strip() for row in mappings]
+        chat_ids = [chat_id for chat_id in chat_ids if chat_id]
+        if not chat_ids:
+            return []
+
+        rows = await self.db.select(
+            "user_chats",
+            columns="chat_id,title,created_at,updated_at",
+            filters={
+                "user_id": eq(user_id),
+                "chat_id": in_(chat_ids),
+                "deleted_at": "is.null",
+            },
+            order="updated_at.desc",
+            limit=safe_limit,
+        )
+        return [
+            {
+                "chatId": str(row.get("chat_id") or ""),
+                "title": _clean(row.get("title") or "New conversation", 180) or "New conversation",
+                "createdAt": row.get("created_at"),
+                "updatedAt": row.get("updated_at"),
+            }
+            for row in rows
+            if row.get("chat_id")
+        ]
 
     async def attach_file(
         self,
