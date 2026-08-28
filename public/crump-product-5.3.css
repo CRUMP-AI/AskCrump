@@ -167,6 +167,10 @@ body.crump-v1-body .crump53-tabs {
   border-radius: 999px;
   background: rgba(0,0,0,.18);
 }
+body.crump-v1-body .crump53-tabs[hidden] { display: none !important; }
+body.crump-v1-body .crump53-sheet[data-crump53-section="library"] {
+  width: min(1120px, 100%);
+}
 body.crump-v1-body .crump53-tab {
   flex: 1;
   min-height: 36px;

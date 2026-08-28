@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Dedicated Library destination fixture</title>
+  <link rel="stylesheet" href="/public/crump-product-5.3.css">
+  <link rel="stylesheet" href="/public/crump-library-5.7.css">
+  <link rel="stylesheet" href="/public/crump-navigation-5.9.30.css">
+  <style>
+    body { margin: 0; min-height: 100vh; background: #080b0f; color: #eee; font-family: system-ui, sans-serif; }
+    .v1-shell { display: grid; grid-template-columns: 94px 1fr; min-height: 100vh; }
+    .v1-rail { min-height: 100vh; background: #0c1116; }
+    .fixture-workspace { display: grid; place-items: center; }
+    .v1-mode-strip { display: flex; gap: 8px; }
+    .v1-mode-pill { min-height: 44px; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body class="crump-v1-body">
+  <div id="appContainer">
+    <div class="v1-shell">
+      <nav class="v1-rail" aria-label="Ask Crump navigation"></nav>
+      <main class="fixture-workspace">
+        <div>
+          <h1>Library destination fixture</h1>
+          <div class="v1-mode-strip">
+            <button type="button" class="v1-mode-pill" data-v1-command="file">Files</button>
+          </div>
+          <output id="fixtureResult">attach=0</output>
+        </div>
+      </main>
+    </div>
+  </div>
+  <aside id="sidebar" aria-label="Conversation library"></aside>
+  <div id="sidebarOverlay"></div>
+
+  <script>
+    window.fixtureAttachCount = 0;
+    document.querySelector('[data-v1-command="file"]').addEventListener('click', () => {
+      window.fixtureAttachCount += 1;
+      document.getElementById('fixtureResult').textContent = `attach=${window.fixtureAttachCount}`;
+    });
+    window.fetch = async () => new Response(JSON.stringify({features: {}, projects: [], files: []}), {
+      status: 200,
+      headers: {'Content-Type': 'application/json'},
+    });
+  </script>
+  <script src="/public/crump-product-5.3.js?fixture=dedicated-library"></script>
+  <script src="/public/crump-library-5.7.js?fixture=dedicated-library"></script>
+  <script src="/public/crump-navigation-5.9.30.js?fixture=dedicated-library"></script>
+</body>
+</html>

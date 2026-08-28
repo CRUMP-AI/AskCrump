@@ -1,5 +1,19 @@
 # Changelog
 
+## 5.9.63 — 2026-08-28
+
+### One Library, one destination
+
+- Made the top-level Library open a dedicated Library view instead of exposing the shared
+  Projects/Create workspace tabs.
+- Consolidated the manuscript bookshelf with saved documents, images, videos, exports, and uploads
+  in that single private destination.
+- Removed the redundant Saved/Library workspace tab and stopped renaming Manuscripts as Library.
+- Restored Files to attaching a reference file instead of intercepting it as another Library path.
+- Kept Chats as the separate conversation-history control and preserved Projects, Create, and all
+  owner-scoped storage and editing workflows.
+- Advanced the application to 5.9.63, native build 50963, and service-worker cache revision 97.
+
 ## 5.9.62 — 2026-08-28
 
 ### Presentation output users can judge

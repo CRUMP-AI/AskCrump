@@ -14,7 +14,7 @@ def test_product53_runtime_is_registered_last_and_cached():
     assert "/crump-product-5.3.css" in runtime
     assert "/crump-product-5.3.js" in runtime
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r96" in worker
+    assert "ask-crump-new-body-v1-r97" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 
@@ -101,7 +101,7 @@ def test_private_account_library_surfaces_saved_creations():
     assert "'deleted_at': 'is.null'" in routes
     assert "order='created_at.desc'" in routes
     assert "'createdAt': row.get('created_at')" in service
-    assert 'data-crump53-tab="library"' in product
+    assert 'data-crump53-panel="library"' in product
     assert "api('/api/files?limit=200')" in product
     assert "Saved to Library" in product
     assert "openStudio('library')" in product
@@ -109,6 +109,36 @@ def test_private_account_library_surfaces_saved_creations():
     assert "const opened = await loadManuscript(manuscriptId)" in product
     assert "target.scrollIntoView" in product
     assert "'Opened ' + (workspace?.title || 'manuscript') + '.'" in product
+
+
+def test_library_is_one_dedicated_destination_instead_of_a_workspace_tab():
+    product = read("public/crump-product-5.3.js")
+    library = read("public/crump-library-5.7.js")
+    navigation = read("public/crump-navigation-5.9.30.js")
+    styles = read("public/crump-product-5.3.css")
+
+    assert 'id="crump53Sheet"' in product
+    assert 'id="crump53WorkspaceTabs"' in product
+    assert 'data-crump53-tab="library"' not in product
+    assert "const librarySection = tab === 'library'" in product
+    assert "tabs.hidden = librarySection" in product
+    assert "librarySection ? 'Library' : 'Projects & Create'" in product
+    assert "librarySection ? 'Ask Crump Library' : 'Ask Crump workspace'" in product
+    assert "filesPill.addEventListener" not in product
+    assert "file: {label: 'Files', description: 'Attach a reference file'}" in product
+    assert "Open your private Library" not in product
+    assert "openStudio('library')" in product
+    assert "const libraryPanel = document.querySelector('[data-crump53-panel=\"library\"]')" in library
+    assert "libraryPanel.insertBefore(card, libraryPanel.firstElementChild)" in library
+    assert "manuscriptTab.textContent = 'Library'" not in library
+    assert "dataset.crump53Section === 'library'" in navigation
+    assert '.crump53-tabs[hidden]' in styles
+
+    fixture = read("tests/fixtures/dedicated-library-destination.html")
+    assert "/public/crump-product-5.3.js?fixture=dedicated-library" in fixture
+    assert "/public/crump-library-5.7.js?fixture=dedicated-library" in fixture
+    assert "/public/crump-navigation-5.9.30.js?fixture=dedicated-library" in fixture
+    assert 'data-v1-command="file"' in fixture
 
 
 def test_private_video_library_uses_owner_checked_inline_playback():

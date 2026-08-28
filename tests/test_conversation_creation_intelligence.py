@@ -103,9 +103,9 @@ def test_crump_voice_avoids_generic_assistant_form_language():
 def test_conversation_intelligence_advances_shell_cache():
     sw = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
-    assert "ask-crump-new-body-v1-r96" in sw
+    assert "ask-crump-new-body-v1-r97" in sw
     assert "ask-crump-new-body-v1-r23" not in sw
-    assert "ask-crump-new-body-v1-r96" in checker
+    assert "ask-crump-new-body-v1-r97" in checker
 
 
 def test_reload_opens_a_clean_conversation_without_discarding_history():
@@ -126,8 +126,8 @@ def test_reload_opens_a_clean_conversation_without_discarding_history():
     assert "createNewChat({ sync: false })" in fresh_start
     assert "chats = []" not in fresh_start
     assert "recordChatDeletion" not in fresh_start
-    assert 'src="/app.js?v=5.9.62"' in shell
-    assert "'/app.js?v=5.9.62'" in worker
+    assert 'src="/app.js?v=5.9.63"' in shell
+    assert "'/app.js?v=5.9.63'" in worker
 
 def test_runtime_document_extraction_patch_accepts_project_pdf_keyword():
     compatibility = read("backend/crump52_patches.py")

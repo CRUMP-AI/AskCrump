@@ -1229,17 +1229,13 @@
   function installLibraryPanel() {
     const manuscriptList = byId('crump53ManuscriptList');
     if (!manuscriptList) return false;
-    const panel = manuscriptList.closest('[data-crump53-panel="manuscripts"]');
+    const manuscriptPanel = manuscriptList.closest('[data-crump53-panel="manuscripts"]');
+    const libraryPanel = document.querySelector('[data-crump53-panel="library"]');
     const originalCard = manuscriptList.closest('.crump53-card');
-    if (!panel || !originalCard) return false;
+    if (!manuscriptPanel || !libraryPanel || !originalCard) return false;
 
-    const shell = panel.closest('.crump53-sheet');
+    const shell = libraryPanel.closest('.crump53-sheet');
     if (shell) shell.classList.add('crump57-library-shell');
-
-    const manuscriptTab = document.querySelector('[data-crump53-tab="manuscripts"]');
-    const filesTab = document.querySelector('[data-crump53-tab="library"]');
-    if (manuscriptTab) manuscriptTab.textContent = 'Library';
-    if (filesTab) filesTab.textContent = 'Files';
 
     const heading = originalCard.querySelector('h3');
     if (heading) heading.textContent = 'Current Project manuscript';
@@ -1286,7 +1282,7 @@
           <div id="crump57LayoutControls" class="crump57-layout-controls" aria-label="Library layout"></div>
         </div>
         <div id="crump57Bookshelf" class="crump57-bookshelf"></div>`;
-      panel.insertBefore(card, panel.firstElementChild);
+      libraryPanel.insertBefore(card, libraryPanel.firstElementChild);
 
       const coverFilter = byId('crump57CoverFilter');
       const sort = byId('crump57Sort');

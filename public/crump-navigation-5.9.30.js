@@ -297,9 +297,9 @@
 
   function selectedStudioDestination() {
     if (!studioIsOpen()) return null;
+    if (byId('crump53Sheet')?.dataset.crump53Section === 'library') return 'library';
     const selected = document.querySelector('[data-crump53-tab].is-active')?.dataset.crump53Tab;
     if (selected === 'projects') return 'projects';
-    if (selected === 'library') return 'library';
     return 'create';
   }
 

@@ -183,7 +183,7 @@
     document: {label: 'Document', description: 'Build a polished file'},
     manuscript: {label: 'Manuscript', description: 'Plan and draft long-form work'},
     video: {label: 'Video', description: 'Create or continue a scene'},
-    file: {label: 'Saved', description: 'Open your private Library'},
+    file: {label: 'Files', description: 'Attach a reference file'},
   });
 
   function toolKey(button) {
@@ -361,15 +361,6 @@
         return button;
       };
       const filesPill = strip.querySelector('[data-v1-command="file"]');
-      if (filesPill && filesPill.dataset.crump53Library !== 'true') {
-        filesPill.dataset.crump53Library = 'true';
-        filesPill.setAttribute('aria-label', 'Open saved files and creations');
-        filesPill.addEventListener('click', event => {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          openStudio('library');
-        }, true);
-      }
       const documentButton = createMode('crump53DocumentMode', 'Document', () => window.CrumpDocumentStudio?.open?.());
       const manuscriptButton = createMode('crump53ManuscriptMode', 'Manuscript', () => openStudio('manuscripts'));
       const videoButton = createMode('crump53VideoMode', 'Video', () => openStudio('video'));
@@ -387,17 +378,16 @@
     overlay.className = 'crump53-overlay';
     overlay.hidden = true;
     overlay.innerHTML = `
-      <section class="crump53-sheet" role="dialog" aria-modal="true" aria-label="Ask Crump Projects and Create studio">
+      <section class="crump53-sheet" id="crump53Sheet" role="dialog" aria-modal="true" aria-label="Ask Crump workspace" data-crump53-section="workspace">
         <header class="crump53-sheet-head">
-          <div><div class="crump53-kicker">WORKSPACE</div><strong>Projects & Create</strong></div>
+          <div><div class="crump53-kicker" id="crump53WorkspaceKicker">WORKSPACE</div><strong id="crump53WorkspaceTitle">Projects & Create</strong></div>
           <button type="button" class="crump53-close" id="crump53Close" aria-label="Close">×</button>
         </header>
         <div class="crump53-sheet-body">
-          <div class="crump53-tabs" role="tablist">
+          <div class="crump53-tabs" id="crump53WorkspaceTabs" role="tablist">
             <button type="button" class="crump53-tab is-active" data-crump53-tab="projects">Projects</button>
             <button type="button" class="crump53-tab" data-crump53-tab="manuscripts">Manuscripts</button>
             <button type="button" class="crump53-tab" data-crump53-tab="video">Video</button>
-            <button type="button" class="crump53-tab" data-crump53-tab="library">Saved</button>
           </div>
 
           <section class="crump53-panel" data-crump53-panel="projects">
@@ -613,9 +603,25 @@
     });
   }
 
+  function configureStudioSection(tab) {
+    const librarySection = tab === 'library';
+    const sheet = byId('crump53Sheet');
+    const tabs = byId('crump53WorkspaceTabs');
+    const kicker = byId('crump53WorkspaceKicker');
+    const title = byId('crump53WorkspaceTitle');
+    if (sheet) {
+      sheet.dataset.crump53Section = librarySection ? 'library' : 'workspace';
+      sheet.setAttribute('aria-label', librarySection ? 'Ask Crump Library' : 'Ask Crump workspace');
+    }
+    if (tabs) tabs.hidden = librarySection;
+    if (kicker) kicker.textContent = librarySection ? 'PRIVATE LIBRARY' : 'WORKSPACE';
+    if (title) title.textContent = librarySection ? 'Library' : 'Projects & Create';
+  }
+
   function openStudio(tab = 'projects') {
     const studio = byId('crump53Studio');
     if (!studio) return;
+    configureStudioSection(tab);
     studio.hidden = false;
     document.body.style.overflow = 'hidden';
     selectTab(tab);
@@ -1794,7 +1800,7 @@
           <div class="crump53-note">Native continuation uses the previous Veo scene as the reference point, adds about 7 seconds, and returns one combined video. 80 credits per continuation.</div>
           <div class="crump53-actions"><button type="button" class="crump53-button is-primary" id="crump53SubmitContinuation">Continue · 80 credits</button><button type="button" class="crump53-button" id="crump53CancelContinuation">Cancel</button></div>
         </div>` : ''}`;
-    byId('crump53OpenLibraryFromVideo')?.addEventListener('click', () => selectTab('library'));
+    byId('crump53OpenLibraryFromVideo')?.addEventListener('click', () => openStudio('library'));
     byId('crump53ContinueScene')?.addEventListener('click', () => {
       const composer = byId('crump53VideoContinuation');
       if (composer) composer.hidden = false;
