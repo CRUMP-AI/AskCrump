@@ -364,6 +364,56 @@ body.crump-v1-body .v1-auth-card .form-hint {
   font-size: 9px;
 }
 
+body.crump-v1-body .v1-password-requirements {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 12px;
+  margin: 8px 1px 0;
+  color: #8f9498;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+body.crump-v1-body .v1-password-requirements span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: color 140ms ease;
+}
+
+body.crump-v1-body .v1-password-requirements i {
+  display: inline-grid;
+  width: 14px;
+  height: 14px;
+  place-items: center;
+  border-radius: 50%;
+  color: #8f9498;
+  font-style: normal;
+  font-size: 12px;
+  line-height: 1;
+}
+
+body.crump-v1-body .v1-password-requirements .is-met,
+body.crump-v1-body .v1-password-requirements .is-met i {
+  color: #a8d9b4;
+}
+
+body.crump-v1-body .v1-auth-card .form-input[aria-invalid="true"] {
+  border-color: rgba(215,131,127,.48) !important;
+  box-shadow: 0 0 0 3px rgba(215,131,127,.07) !important;
+}
+
+body.crump-v1-body .v1-visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0,0,0,0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
 body.crump-v1-body .v1-signup-assurance {
   margin: 12px 2px 0;
   color: #666d71;

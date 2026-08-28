@@ -1,5 +1,22 @@
 # Changelog
 
+## 5.9.36 — 2026-08-27
+
+### Clearer account creation
+
+- Added a live, visible password checklist for the three unchanged account requirements: ten or
+  more characters, one letter, and one number. Each rule confirms independently as it is met.
+- Added a polite screen-reader status that announces only when a requirement state changes, plus
+  an invalid-field state after the password field has been reviewed or a submission is attempted.
+- Kept account creation, password policy, verification, pricing, analytics, and authentication
+  semantics unchanged. The improvement is pre-submit guidance, not a looser security rule.
+
+### Verification and release
+
+- Advanced the application to 5.9.36, native build 50936, and service-worker cache revision 70.
+  The authentication controller is now release-versioned and network-first so installed clients do
+  not serve an older signup interaction during a new release.
+
 ## 5.9.35 — 2026-08-27
 
 ### Crump Code review workspace

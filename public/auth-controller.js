@@ -302,13 +302,61 @@
     return () => { button.disabled = false; button.textContent = original; };
   }
 
+  function passwordRuleState(password) {
+    return {
+      length: password.length >= 10,
+      withinLimit: password.length <= 256,
+      letter: /[A-Za-z]/.test(password),
+      number: /\d/.test(password),
+    };
+  }
+
   function validatePasswordInput(password) {
-    if (password.length < 10) return 'Password must be at least 10 characters long.';
-    if (password.length > 256) return 'Password is too long.';
-    if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+    const rules = passwordRuleState(password);
+    if (!rules.length) return 'Password must be at least 10 characters long.';
+    if (!rules.withinLimit) return 'Password is too long.';
+    if (!rules.letter || !rules.number) {
       return 'Password must contain at least one letter and one number.';
     }
     return null;
+  }
+
+  function updateRegistrationPasswordGuidance({ touched = false } = {}) {
+    const input = byId('registerPassword');
+    const hint = byId('registerPasswordHint');
+    const status = byId('registerPasswordStatus');
+    if (!input || !hint || !status) return;
+
+    if (touched) input.dataset.passwordTouched = 'true';
+    const value = input.value || '';
+    const rules = passwordRuleState(value);
+    const ruleNames = {
+      length: '10 or more characters',
+      letter: 'one letter',
+      number: 'one number',
+    };
+    const missing = [];
+
+    for (const [rule, label] of Object.entries(ruleNames)) {
+      const item = hint.querySelector(`[data-password-rule="${rule}"]`);
+      const met = rules[rule];
+      item?.classList.toggle('is-met', met);
+      const marker = item?.querySelector('i');
+      if (marker) marker.textContent = met ? '✓' : '○';
+      if (!met) missing.push(label);
+    }
+
+    const complete = missing.length === 0 && rules.withinLimit;
+    if (!value) input.removeAttribute('aria-invalid');
+    else if (input.dataset.passwordTouched === 'true') input.setAttribute('aria-invalid', String(!complete));
+
+    const stateKey = `${Number(rules.length)}${Number(rules.letter)}${Number(rules.number)}${Number(rules.withinLimit)}`;
+    if (input.dataset.passwordRuleState === stateKey) return;
+    input.dataset.passwordRuleState = stateKey;
+    if (!value) status.textContent = 'Password requires 10 or more characters, one letter, and one number.';
+    else if (!rules.withinLimit) status.textContent = 'Password is too long.';
+    else if (complete) status.textContent = 'Password meets all requirements.';
+    else status.textContent = `Password still needs ${missing.join(', ')}.`;
   }
 
   function applyPasswordPolicyMarkup() {
@@ -322,13 +370,12 @@
 
     const registerPassword = byId('registerPassword');
     const resetPassword = byId('newPassword');
-    if (registerPassword) registerPassword.placeholder = '10+ characters with a letter and number';
+    if (registerPassword) registerPassword.placeholder = 'Create a password';
     if (resetPassword) resetPassword.placeholder = '10+ characters with a letter and number';
 
-    for (const input of [registerPassword, resetPassword]) {
-      const hint = input?.parentElement?.querySelector('.form-hint');
-      if (hint) hint.textContent = 'At least 10 characters with a letter and a number';
-    }
+    const resetHint = resetPassword?.parentElement?.querySelector('.form-hint');
+    if (resetHint) resetHint.textContent = 'At least 10 characters with a letter and a number';
+    updateRegistrationPasswordGuidance();
   }
 
   function wirePasswordVisibility() {
@@ -375,6 +422,7 @@
   function wireRegistration() {
     const form = byId('registerFormElement');
     if (!form) return;
+    const passwordInput = byId('registerPassword');
     let signupStartedTracked = false;
     let credentialsReadyTracked = false;
     let nativeValidationTracked = false;
@@ -386,6 +434,7 @@
     });
 
     form.addEventListener('input', () => {
+      updateRegistrationPasswordGuidance();
       if (credentialsReadyTracked) return;
       const email = byId('registerEmail');
       const password = byId('registerPassword');
@@ -393,6 +442,8 @@
       credentialsReadyTracked = true;
       trackFunnel('SignupCredentialsReady');
     }, {passive: true});
+
+    passwordInput?.addEventListener('blur', () => updateRegistrationPasswordGuidance({touched: true}));
 
     form.addEventListener('invalid', event => {
       if (nativeValidationTracked) return;
@@ -412,6 +463,7 @@
       const password = byId('registerPassword').value;
       const passwordError = validatePasswordInput(password);
       if (passwordError) {
+        updateRegistrationPasswordGuidance({touched: true});
         const reason = password.length < 10 ? 'password_length' : 'password_rules';
         trackFunnel('SignupValidationFailed', {reason});
         return setText('registerError', passwordError);

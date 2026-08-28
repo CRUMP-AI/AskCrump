@@ -64,9 +64,7 @@
 
   function fixPasswordCopy() {
     const registration = $('#registerPassword');
-    if (registration) registration.placeholder = '10+ characters';
-    const hint = registration?.closest('.form-group')?.querySelector('.form-hint');
-    if (hint) hint.textContent = '10+ characters with at least one letter and one number';
+    if (registration) registration.placeholder = 'Create a password';
 
     const reset = $('#newPassword');
     if (reset) reset.placeholder = '10+ characters';

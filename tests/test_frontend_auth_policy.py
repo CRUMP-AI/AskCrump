@@ -19,6 +19,26 @@ def test_frontend_password_policy_matches_server_contract_at_runtime():
     assert 'applyPasswordPolicyMarkup();' in controller
 
 
+def test_registration_explains_password_readiness_before_submission():
+    app = (PUBLIC / 'app.html').read_text(encoding='utf-8')
+    controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
+    body = (PUBLIC / 'crump-v1-body.css').read_text(encoding='utf-8')
+
+    assert 'id="registerPasswordHint" class="v1-password-requirements"' in app
+    assert 'data-password-rule="length"' in app
+    assert 'data-password-rule="letter"' in app
+    assert 'data-password-rule="number"' in app
+    assert 'id="registerPasswordStatus"' in app and 'aria-live="polite"' in app
+    assert 'aria-describedby="registerPasswordHint"' in app
+    assert 'function passwordRuleState(password)' in controller
+    assert 'function updateRegistrationPasswordGuidance' in controller
+    assert "status.textContent = 'Password meets all requirements.'" in controller
+    assert 'updateRegistrationPasswordGuidance({touched: true})' in controller
+    assert "input.setAttribute('aria-invalid', String(!complete))" in controller
+    assert '.v1-password-requirements .is-met' in body
+    assert '.form-input[aria-invalid="true"]' in body
+
+
 def test_registration_has_one_verifiable_password_field_and_tracks_safe_validation_reasons():
     app = (PUBLIC / 'app.html').read_text(encoding='utf-8')
     controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
