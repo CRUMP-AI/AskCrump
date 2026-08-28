@@ -179,6 +179,11 @@ provider, privacy, cost, or security gate is incomplete.
   old disabled-button and blank-screen states; both corrected paths open the account shell while
   server-authoritative synchronization continues in the existing background lifecycle. Auth and
   data policy remain unchanged; fresh owner credential-entry proof remains pending.
+- **Continuing-work sync readiness:** Production 5.9.42 bounds cross-device sync through response
+  parsing, preserves the account-scoped pending queue on timeout/network failure, and returns an
+  explicit retryable result. The credential-free result-to-Project fixture recovered with exactly
+  one queued save; Project ownership, merge rules, auth, pricing, payments, and analytics remain
+  unchanged. Legitimate Project conversion and later return remain unobserved.
 - **Signup clarity:** Production 5.9.36 now shows the unchanged length, letter, and number password
   rules independently before submission, with polite screen-reader state and post-review invalid
   state. The release came from a reproducible local defect, not a conversion claim from two
@@ -228,7 +233,7 @@ provider, privacy, cost, or security gate is incomplete.
   Professional price ID matches the production fallback. Both live webhook destinations now use
   direct `www` handlers and returned 200 to signed harmless replays. Their original three-event and
   one-event scopes are restored; no price, product, customer, tax setting, payment, or secret changed.
-- **Product experience direction:** production 5.9.41 builds on the first staged, owner-approved
+- **Product experience direction:** production 5.9.42 builds on the first staged, owner-approved
   reorganization around Ask, Projects, Create, Library, and You on desktop and mobile. It preserves
   existing data, routes, entitlements, and working capabilities behind a local rollback switch.
   Projects now surface their saved conversations through an owner-scoped, content-free resume path.
@@ -244,7 +249,7 @@ provider, privacy, cost, or security gate is incomplete.
 - **External input needed:** an ElevenLabs production API key and voice ID with confirmed rights.
 - **Next evidence:** submit the sitemap after owner confirmation, then obtain the first legitimate
   post-instrumentation acquisition, durable-value, return, and artifact-journey observations.
-- **Native distribution:** Android 5.9.41/build 50941 source and an unsigned `.aab` pass the hosted
-  API 36/Java 21 release audit; the generated iOS 5.9.41 Release configuration passes its hosted
+- **Native distribution:** Android 5.9.42/build 50942 source and an unsigned `.aab` pass the hosted
+  API 36/Java 21 release audit; the generated iOS 5.9.42 Release configuration passes its hosted
   macOS compile. Owner-controlled developer accounts, signing, push, native billing, reviewer access,
   signed-device tests, screenshots, declarations, and final submission approval remain open.
