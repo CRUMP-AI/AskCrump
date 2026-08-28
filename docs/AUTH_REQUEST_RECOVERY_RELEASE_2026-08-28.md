@@ -1,8 +1,11 @@
 # Ask Crump authentication request recovery release
 
-**Date:** 2026-08-28  
-**Release:** 5.9.45 / native build 50945  
-**Code commit:** `0012a307884b888ab9c33e15b42e53d7c7ff2b0d`  
+**Date:** 2026-08-28
+
+**Release:** 5.9.45 / native build 50945
+
+**Code commit:** `0012a307884b888ab9c33e15b42e53d7c7ff2b0d`
+
 **Production deployment:** `dpl_3QsniFHTrMSACqNWPf7DzNqMckJ2`
 
 ## Outcome
