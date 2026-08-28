@@ -1,8 +1,8 @@
 # Organic entry-page release evidence
 
-Date: 2026-08-27  
-Release: 5.9.32 / native build 50932  
-Code commit: `afd54732f6d12f71a9f2164b654deba0fe881a2d`  
+Date: 2026-08-27
+Release: 5.9.32 / native build 50932
+Code commit: `afd54732f6d12f71a9f2164b654deba0fe881a2d`
 Production deployment: `dpl_3VQGjdTVUeDNNzRHqRa1UprHHZ2e`
 
 ## Decision
