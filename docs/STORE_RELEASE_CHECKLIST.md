@@ -21,10 +21,10 @@
 - permanent package/bundle identifier verification for both native platforms
 - Android cleartext traffic and local backup disabled for account-linked session data
 
-## 2026-08-27 audit snapshot
+## 2026-08-28 audit snapshot
 
-- [x] Production 5.9.42, bounded queue-preserving sync, non-blocking authenticated entry, truthful first-prompt handoff, reliable first workspace choice, optional first-workspace personalization, durable registration-verification handoff, accessible password readiness and web/PWA pinch zoom, WCAG AA public first visit, reliable web-session handoff, five-destination desktop/mobile workspace, resumable Project conversations, named recent-work continuation, one-click Project continuity, disabled-by-default Crump Code review workspace, six canonical crawlable pages, truthful referral-copy handling, canonical native API host, and direct signed Stripe delivery verified
-- [x] Android source regenerated and verified as 5.9.42/build 50942, API 36
+- [x] Production 5.9.43, recoverable first-message preflight, bounded queue-preserving sync, non-blocking authenticated entry, truthful first-prompt handoff, reliable first workspace choice, optional first-workspace personalization, durable registration-verification handoff, accessible password readiness and web/PWA pinch zoom, WCAG AA public first visit, reliable web-session handoff, five-destination desktop/mobile workspace, resumable Project conversations, named recent-work continuation, one-click Project continuity, disabled-by-default Crump Code review workspace, six canonical crawlable pages, truthful referral-copy handling, canonical native API host, and direct signed Stripe delivery verified
+- [x] Android source regenerated and verified as 5.9.43/build 50943, API 36
 - [x] Store metadata fits current Apple and Google field limits
 - [x] Current Google API-level, AI-reporting, deletion, Data Safety, and app-access rules reviewed
 - [x] Current Apple privacy, reviewer-access, and screenshot requirements reviewed
@@ -34,10 +34,10 @@
 - [ ] Android Firebase, RevenueCat public key, and upload keystore supplied; the hosted Java 21
       release-build path is verified, while local Android Studio still needs a compatible JDK
 - [ ] iOS source generated, signed, and archived on macOS
-- [x] No-upload GitHub macOS source/Release compile verification passed for 5.9.42 before signing
-      credentials were added ([run 33140100058](https://github.com/CRUMP-AI/AskCrump/actions/runs/33140100058), 2026-08-27)
+- [x] No-upload GitHub macOS source/Release compile verification passed for 5.9.43 before signing
+      credentials were added ([run 33140715370](https://github.com/CRUMP-AI/AskCrump/actions/runs/33140715370), 2026-08-28)
 - [x] No-upload GitHub Java 21 Android App Bundle verification passed before signing credentials
-      were added ([run 33140100029](https://github.com/CRUMP-AI/AskCrump/actions/runs/33140100029), 2026-08-27)
+      were added ([run 33140715347](https://github.com/CRUMP-AI/AskCrump/actions/runs/33140715347), 2026-08-28)
 - [ ] Exact signed builds pass the physical-device, billing, privacy, and console gates
 
 See `docs/STORE_READINESS_AUDIT_2026-08-27.md` for evidence, blockers, and official references.

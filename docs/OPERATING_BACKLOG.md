@@ -1,6 +1,6 @@
 # Ask Crump operating backlog
 
-Last updated: 2026-08-27
+Last updated: 2026-08-28
 
 ## Operating standard
 
@@ -26,6 +26,7 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 | Truthful first-prompt handoff | Commit `3ab5acb`; deployment `dpl_CT2aQtDDAwNLAEc2MzDwoWkvCaeW`; production 5.9.40 corrects a browser-reproduced composer handoff where Research/Image erased an existing draft and programmatic text did not update the active composer state. Research, Image, and Code now prefix the draft once, emit the real input event, preserve focus/caret, and stop an exact bare scaffold before usage checks or chat mutation. File and starter-intent contracts remain unchanged. All 329 tests, lint, 42 JavaScript validations, production/native/store checks, CI run `33138434467`, Android run `33138434500`, and iOS run `33138434478` passed. Production health returned 5.9.40; live composer/cache assets returned 200; the release had no runtime error cluster, non-informational log, or 5xx. No production prompt, account, usage check, or synthetic event was created. | Verified delivery; outcome pending |
 | Reliable authenticated entry | Commit `ee3862d`; deployment `dpl_7sBD8Y3e8oyW696ec7HpHBLNLMVU`; production 5.9.41 removes the secondary full-state sync from the authenticated-entry critical path. A credential-free browser fixture proved that a never-settling sync left a completed login on a permanently disabled `Signing in…` button and a restored session on a blank screen. Both corrected paths open the account-scoped shell immediately while the existing server-authoritative synchronizer continues in the background. Credentials, verification, session rotation, cookies, ownership, pricing, entitlements, analytics, Supabase schema, and RLS remain unchanged. All 332 tests, lint, 42 JavaScript validations, production/native/store checks, CI run `33139229180`, Android run `33139229175`, and iOS run `33139229205` passed. Production health returned 5.9.41; the live shell/controller/cache assets returned 200; the release had no runtime error cluster, warning/error/fatal log, or 5xx. The fixture made no production write; owner credential-entry recheck remains pending. | Verified delivery; human proof pending |
 | Recoverable continuing-work sync | Commit `76455e5`; deployment `dpl_G77wN9y7d7T1ftgWch1kw8AU63zQ`; production 5.9.42 bounds sync requests through body parsing and preserves the account-scoped pending queue on timeout/network failure. A credential-free browser fixture proved the old latest-result Project action remained disabled forever; the corrected path stopped the stalled request, enabled retry, and retained exactly one queued save. Project ownership, merge/revision rules, auth, pricing, entitlements, analytics, Supabase, and payments remain unchanged. All 336 tests, lint, 42 JavaScript validations, production/native/store checks, CI run `33140100110`, Android run `33140100029`, and iOS run `33140100058` passed. Production health returned 5.9.42; the live versioned/network-first sync asset and cache revision returned 200; the release had no runtime error cluster or warning/error/fatal log. No production login, chat, Project, account, payment, or synthetic event was created. | Verified delivery; retention outcome pending |
+| Recoverable first message | Commit `6111540`; deployment `dpl_52eNo3CQUC3JFcooDeBsbpgx7Z4q`; production 5.9.43 bounds the usage-availability preflight through body parsing. A credential-free browser fixture proved the old never-settling check silently ignored a second Send; the corrected path stopped the stalled request, displayed specific draft-preserving recovery, restored focus, and accepted the next Send. Usage limits, credits, auth, chat delivery, provider routing, analytics, Supabase, pricing, entitlements, and payments remain unchanged. All 340 tests, lint, 42 JavaScript validations, production/native/store checks, CI run `33140715343`, Android run `33140715347`, and iOS run `33140715370` passed. Production health returned 5.9.43; the live versioned app asset and cache revision returned 200; the release had no runtime error cluster or warning/error/fatal log. No production login, message, usage check, chat, Project, account, payment, or synthetic event was created. | Verified delivery; activation outcome pending |
 | Crump Voice private foundation | Explicit signed-in playback route, Professional entitlement, rate/character/audio limits, provider-failure refund, server-held ElevenLabs key, non-cacheable ephemeral MP3 response, and device-speech fallback are implemented. Public feature flag remains off pending approved disclosure, credentials/voice rights, and smoke tests. | Staged, disabled |
 | Private conversation-to-Project continuity | Commit `e99fc1f`; production 5.9.22 puts `Keep in a Project` directly on the latest result, reducing durable-work preservation from two commitments to one. The existing server route synchronizes and ownership-checks the chat, attaches idempotently to the selected/new Project, and records only a content-free Project milestone. All 285 tests, backend lint/compile checks, 40 JavaScript validations, production preflight, and native web-bundle build passed. Live health and version checks returned HTTP 200, the deployed client contained the direct action, and the deployment-scoped error/fatal scan was empty. | Verified |
 | Comparable growth-cohort boundary | Supabase migration `product_growth_measurement_boundary`; live first-event evidence fixes the lower bound at `2026-08-23 09:10:55.602863+00`; the 30-day report now returns 18 metrics and zero comparable external accounts instead of misclassifying three historical accounts. The function remains security invoker, `anon`/`authenticated` execution is denied, `service_role` execution succeeds, and post-change advisors reported no errors or warnings. | Verified |
@@ -148,6 +149,16 @@ asset/cache returned 200; the exact deployment had no runtime error cluster or w
 log. CI plus both hosted unsigned native compiles passed. No production login, chat, Project,
 account, payment, or synthetic event was created, so retention impact remains unproven.
 
+The 5.9.43 first-message readiness release applied the bounded-network contract to the usage
+preflight before the first chat request. A never-settling availability check previously held the
+composer processing state forever and silently ignored subsequent Send attempts. The corrected
+path aborts through response parsing, reports timeout or connection recovery, preserves and
+refocuses the draft, and releases Send for immediate retry. A credential-free loopback browser
+fixture proved the old one-request stall and the corrected second request. Production health, live
+app/cache assets, CI, and both hosted unsigned native compiles passed; the exact deployment had no
+runtime error cluster or warning/error/fatal log. No production login, message, usage check, chat,
+account, payment, or synthetic event was created, so activation impact remains unproven.
+
 ### Current monetization checkpoint
 
 A live Stripe reconciliation on 2026-08-27 found five active catalog products and no transactions,
@@ -192,10 +203,10 @@ create one, and record only a content-free durable-value milestone. Keep feedbac
 referral sharing secondary.
 
 **Release gate:** automated ownership, mapping, direct-action ordering, content-free analytics, full
-release verification, production health, desktop/mobile UI checks, named resume, and bounded
-queue-preserving persistence passed through 5.9.42. The remaining outcome gate is at least one legitimate external
-conversation-to-Project transition and a later return. Do not infer a retention rate from a single
-user.
+release verification, production health, desktop/mobile UI checks, named resume, bounded
+queue-preserving persistence, and recoverable first-message preflight passed through 5.9.43. The
+remaining outcome gate is at least one legitimate external conversation-to-Project transition and
+a later return. Do not infer a retention rate from a single user.
 
 ### P0 — Review the first complete artifact journey cohort
 
@@ -322,13 +333,13 @@ rate without platform impression data.
 
 ### P1 — Prepare native store distribution without premature submission
 
-**Evidence:** production 5.9.42 is healthy; the Android release source regenerates as build 50942
+**Evidence:** production 5.9.43 is healthy; the Android release source regenerates as build 50943
 with API 36, the permanent package ID, generated assets, cleartext/backup protections, and a passing
 native source verifier. Structured en-US metadata passes current field limits. A reviewed Node 22
 lockfile now supports clean `npm ci`, a zero-vulnerability npm audit, and deterministic Android
-preparation from an isolated worktree. GitHub run `33140100058` generated the 5.9.42 iOS project and
+preparation from an isolated worktree. GitHub run `33140715370` generated the 5.9.43 iOS project and
 compiled its unsigned Release configuration on hosted macOS with no signing or upload credentials.
-GitHub run `33140100029` generated the 5.9.42/build 50942 Android project under Java 21, passed the
+GitHub run `33140715347` generated the 5.9.43/build 50943 Android project under Java 21, passed the
 native and signing-control verifiers, compiled `bundleRelease`, and confirmed a non-empty unsigned
 `.aab`, also with no signing or upload credentials. Firebase, RevenueCat public keys/products,
 signing credentials,
