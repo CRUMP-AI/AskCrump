@@ -36,6 +36,7 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 | Authenticated workspace startup boundary | Commit `ea74f83`; deployment `dpl_71UWy9RoEESp5WBGKVoT2XMvZAUE`; production 5.9.50 defers Projects/Video, Crump Code, Library, and credits hydration until the server-confirmed account reaches the workspace. A full-shell browser run changed signed-out startup from five expected 401s to one successful session check and zero protected calls, while the matched authenticated run loaded every protected surface without delay or script error. All 362 tests, lint, 44 JavaScript validations, production/native/store checks, CI run `33156887623`, Android run `33156887563`, and iOS run `33156887586` passed. The fresh production browser served `r84`, made one 200 session request, and produced no failed response, script error, or error/fatal deployment log. | Verified delivery; activation outcome pending |
 | Single-owner startup and reconnect sync | Commit `f17b3f6`; deployment `dpl_EoWF3UipaBDMcCaqyct8dJssdMk5`; production 5.9.51 removes the starter conversation's delayed blind push and makes the synchronization layer the sole data-sync owner for browser reconnection while presence retains its status and announcement role. Restored-session and fresh-login browsers each produced one ordered pull/push/confirmation-pull sequence; a stalled pull produced no competing push; offline startup produced no sync traffic before exactly one reconnect sequence. All 364 tests, lint/compile, 44 JavaScript validations, production/native/store checks, CI run `33159045825`, Android run `33159045783`, and iOS run `33159045809` passed. Production served `r85` with one 200 signed-out session check, zero protected startup calls, no console error, no runtime error cluster, and no error/fatal deployment log. | Verified delivery; owner credential recheck pending |
 | Recoverable private Project handoff | Commit `bde31da`; deployment `dpl_8mYEDxe4uVoEEUCy5qKt8UjMDBrx`; production 5.9.52 bounds the Project create/attach response behind `Keep in a Project`, restores the disabled action with truthful retry guidance, and confirms a completed save without waiting for the secondary list refresh. An uncertain create retry reuses the newest active owned Project already holding that conversation, including at the plan limit, and the successful button now exposes an accurate accessible action name. A credential-free browser proved the old indefinite disabled state, two corrected timeout/retry cycles, and the complete success response with zero browser errors. All 367 tests, lint/compile, 44 JavaScript validations, production/native/store checks, CI run `33162073713`, Android run `33162073773`, and iOS run `33162073775` passed. Production serves 5.9.52/r86 with the changed assets, no runtime error cluster, and no warning/error/fatal deployment log. | Verified delivery; retention outcome pending |
+| Recoverable Project return reads | Commit `23e6f9e`; deployment `dpl_3VVnB261rupDFtaDQeENRrh3dc3K`; production 5.9.53 bounds the Project list, saved-conversation list, Project-note read, and their response-body parsing. Each failed surface exposes an accurately named Retry action without discarding the active Project or hiding another successful surface, and stale Project-note results cannot overwrite a newly selected Project. A credential-free real-runtime fixture proved all four stall modes, a reusable retry, and the successful return to the exact saved conversation with zero browser errors. All 368 tests, lint/compile, 44 JavaScript validations, production/native/store checks, CI run `33168768095`, Android run `33168768090`, and iOS run `33168768141` passed. Production serves 5.9.53/r87 with the changed runtime, no runtime error cluster, and no error/fatal deployment log. | Verified delivery; retention outcome pending |
 | Crump Voice private foundation | Explicit signed-in playback route, Professional entitlement, rate/character/audio limits, provider-failure refund, server-held ElevenLabs key, non-cacheable ephemeral MP3 response, and device-speech fallback are implemented. Public feature flag remains off pending approved disclosure, credentials/voice rights, and smoke tests. | Staged, disabled |
 | Private conversation-to-Project continuity | Commit `e99fc1f`; production 5.9.22 puts `Keep in a Project` directly on the latest result, reducing durable-work preservation from two commitments to one. The existing server route synchronizes and ownership-checks the chat, attaches idempotently to the selected/new Project, and records only a content-free Project milestone. All 285 tests, backend lint/compile checks, 40 JavaScript validations, production preflight, and native web-bundle build passed. Live health and version checks returned HTTP 200, the deployed client contained the direct action, and the deployment-scoped error/fatal scan was empty. | Verified |
 | Comparable growth-cohort boundary | Supabase migration `product_growth_measurement_boundary`; live first-event evidence fixes the lower bound at `2026-08-23 09:10:55.602863+00`; the 30-day report now returns 18 metrics and zero comparable external accounts instead of misclassifying three historical accounts. The function remains security invoker, `anon`/`authenticated` execution is denied, `service_role` execution succeeds, and post-change advisors reported no errors or warnings. | Verified |
@@ -227,6 +228,14 @@ serves `r86`; hosted CI and both unsigned native source builds passed, and the i
 has no severe log or runtime error cluster. Legitimate Project conversion and later return remain
 unobserved.
 
+Production 5.9.53 then closed the corresponding return-to-work read boundary. Project discovery,
+saved conversations, private notes, and response-body parsing are bounded independently; each
+surface exposes its own reusable Retry action, and stale note results cannot cross a Project switch.
+The real browser fixture proved Project-list, conversation, note, and body-stream stalls plus the
+complete successful continuation with zero browser errors. Production serves `r87`; hosted CI and
+both unsigned native source builds passed, and the exact deployment has no error/fatal log or
+runtime error cluster. Legitimate Project return and retention lift remain unobserved.
+
 ### Current monetization checkpoint
 
 A live Stripe reconciliation on 2026-08-27 found five active catalog products and no transactions,
@@ -414,13 +423,13 @@ rate without platform impression data.
 
 ### P1 — Prepare native store distribution without premature submission
 
-**Evidence:** production 5.9.52 is healthy; the Android release source regenerates as build 50952
+**Evidence:** production 5.9.53 is healthy; the Android release source regenerates as build 50953
 with API 36, the permanent package ID, generated assets, cleartext/backup protections, and a passing
 native source verifier. Structured en-US metadata passes current field limits. A reviewed Node 22
 lockfile now supports clean `npm ci`, a zero-vulnerability npm audit, and deterministic Android
-preparation from an isolated worktree. GitHub run `33162073775` generated the 5.9.52 iOS project and
+preparation from an isolated worktree. GitHub run `33168768141` generated the 5.9.53 iOS project and
 compiled its unsigned Release configuration on hosted macOS with no signing or upload credentials.
-GitHub run `33162073773` generated the 5.9.52/build 50952 Android project under Java 21, passed the
+GitHub run `33168768090` generated the 5.9.53/build 50953 Android project under Java 21, passed the
 native and signing-control verifiers, compiled `bundleRelease`, and confirmed a non-empty unsigned
 `.aab`, also with no signing or upload credentials. Firebase, RevenueCat public keys/products,
 signing credentials,
@@ -473,7 +482,7 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
-Complete the owner-run sign-out and manual credential-entry proof on production 5.9.52 after fully
+Complete the owner-run sign-out and manual credential-entry proof on production 5.9.53 after fully
 closing any PWA page that was already asleep before 5.9.49. Submit the live canonical
 sitemap after owner confirmation, allow the social-preview experiment to reach its minimum
 observation window, then obtain the first consented post-instrumentation account, durable-value,
