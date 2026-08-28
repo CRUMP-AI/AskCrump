@@ -71,7 +71,7 @@ next constraint.
 ### Product and reliability
 
 - Keep conversational document delivery, the 5.9.58 presentation visual-rhythm correction, and
-  the 5.9.60 desktop/mobile navigation repair under production observation.
+  the 5.9.60 through 5.9.64 navigation/destination repairs under production observation.
 - Observe the first legitimate 5.9.58 presentation through request, packaging, download, and a
   consented audience/decision review; do not infer quality lift from the internal render audit.
 - Keep the 5.9.61 exact-destination conversation-to-Project action primary after a useful result;
@@ -288,6 +288,12 @@ provider, privacy, cost, or security gate is incomplete.
   uploads. It removes the redundant Saved/Library workspace tab, leaves Chats as conversation
   history, and restores Files to attachment. Projects, Create, and existing owner-scoped workflows
   remain intact; saved-artifact reuse and return outcomes remain unobserved.
+- **Destination isolation:** Production 5.9.64 removes the remaining Projects, Manuscripts, and
+  Video internal tabs. Projects, Manuscripts, Video Studio, and Library now open as separately
+  titled focused workspaces, while the primary navigation alone communicates location. Manuscripts
+  offers an explicit Projects recovery when required. Delivery is verified on desktop, mobile, and
+  hosted Android/iOS source gates; discovery, Project adoption, reuse, and return outcomes remain
+  unobserved.
 - **Risk:** a real sandbox run has not verified production OIDC/runtime behavior.
 - **Permission needed:** a sub-cent Vercel sandbox smoke test and the exact premium-voice disclosure.
 - **Completed payment gate:** owner-approved direct-host edits and signed delivery tests passed on
