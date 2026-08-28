@@ -155,21 +155,25 @@ any acquisition spend scales.
 ### P1 — Close the organic acquisition loop
 
 **Evidence:** the Search Console domain property is verified through the live DNS TXT record, and
-Google is processing the property's first search and indexing data. Production 5.9.23 now serves
-unique presentation and document workflow pages at clean canonical URLs, links them from the home
-page and from each other, and includes all four public URLs in the live sitemap. The protected growth
-and artifact reports still show zero comparable external activity, so acquisition is the current
-evidence-backed bottleneck. A read-only Search Console inspection on 2026-08-27 showed that Google is
-still processing performance and indexing data and the Submitted sitemaps table contains zero rows.
-The sitemap is live and ready, but it is not entered or submitted in Search Console.
+Google is processing the property's first performance and indexing reports. Production 5.9.32 now
+serves four high-intent capability pages at clean canonical URLs, links them from the homepage and
+from each other, and includes all six public URLs in the live sitemap. The protected growth and
+artifact reports still show zero comparable external activity, so acquisition is the current
+evidence-backed bottleneck. A read-only Search Console inspection on 2026-08-27 showed that the
+homepage is indexed, while the presentation, document, résumé, and video pages are all unknown to
+Google with no referring sitemap or page detected. The Submitted sitemaps table contains zero rows.
+A live URL test reports that the video page is available to Google and can be indexed, proving that
+technical crawlability is not the current block. The sitemap is live and ready, but it is not
+entered or submitted in Search Console.
 
 **Outcome:** verified domain ownership, one canonical sitemap submitted, valid canonical URLs,
 and indexed landing pages tied to privacy-safe account-creation attribution.
 
 **Release gate:** Search Console verification, live sitemap delivery, clean canonical HTTP/browser
-inspection, unique metadata, and crawlability checks passed. Remaining gates are owner-confirmed
-submission and Search Console acceptance of `https://www.askcrump.com/sitemap.xml`, followed by an
-indexed-page coverage review after Google has had time to crawl.
+inspection, unique metadata, and a Google live crawlability test passed. Remaining gates are
+owner-confirmed submission and Search Console acceptance of
+`https://www.askcrump.com/sitemap.xml`, followed by an indexed-page coverage review after Google has
+had time to crawl.
 
 The authoritative action-time checklist is `docs/SEARCH_CONSOLE_RELEASE_GATE_2026-08-27.md`.
 

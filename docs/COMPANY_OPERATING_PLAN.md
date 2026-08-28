@@ -155,10 +155,12 @@ provider, privacy, cost, or security gate is incomplete.
   first observed production event (`2026-08-23 09:10:55.602863+00`) from comparable funnel and
   retention cohorts while preserving historical aggregates separately.
 - **Organic acquisition:** Google Search Console ownership for `askcrump.com` is verified. Production
-  5.9.23 serves two high-intent, crawlable workflow pages with clean canonical URLs, internal links,
-  valid structured data, and privacy-safe `organic` attribution; the four-URL canonical sitemap is
-  live. Search Console currently shows zero submitted sitemaps and is still processing its first
-  performance and indexing data; submission remains an owner-confirmed external action.
+  5.9.32 serves four high-intent, crawlable capability pages with clean canonical URLs, internal
+  links, valid structured data, and privacy-safe `organic` attribution; the six-URL canonical
+  sitemap is live. Search Console reports that the homepage is indexed, while all four capability
+  pages are unknown to Google and have no detected referring sitemap. A live URL test confirms that
+  the video page is available to Google and can be indexed. The submitted-sitemaps table remains
+  empty; submission is the owner-confirmed external action now gating discovery.
 - **Referral acquisition:** Production 5.9.24 carries a content-free referral invitation into
   registration and records only verified share delivery. Failed clipboard writes no longer create
   a success message or `ResponseShared` event. No legitimate referred activation is observed yet.

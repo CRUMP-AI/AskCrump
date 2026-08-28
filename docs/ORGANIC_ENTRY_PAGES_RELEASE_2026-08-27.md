@@ -65,3 +65,8 @@ This is verified delivery, not verified acquisition lift. No traffic, signup, ac
 or retention improvement is claimed. Search Console sitemap submission remains a separate owner
 gate, and no advertising spend, social post, mass outreach, price, billing setting, or external
 account state changed in this release.
+
+The post-release read-only Search Console baseline narrows the remaining gate: the homepage is
+indexed, but all four capability pages are unknown to Google and the submitted-sitemaps table is
+empty. A Google live URL test confirms that the video page is available and can be indexed, so no
+technical crawlability repair is justified. No sitemap or indexing request was submitted.

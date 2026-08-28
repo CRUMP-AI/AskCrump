@@ -6,10 +6,19 @@
 - The Overview page says performance and indexing data are still processing.
 - The Submitted sitemaps table contains no rows (`0-0 of 0`). The sitemap is not entered,
   submitted, accepted, or read by Google yet.
-- `https://www.askcrump.com/sitemap.xml` returns HTTP 200 as XML and contains the four intended
-  canonical URLs: home, AI presentation maker, AI document generator, and legal/privacy.
+- URL Inspection reports that `https://www.askcrump.com/` is on Google and indexed.
+- URL Inspection reports that the AI presentation maker, AI document generator, AI résumé builder,
+  and AI video generator are not on Google because each URL is currently unknown to Google. None
+  reports a referring sitemap or referring page in the indexed-data view.
+- A read-only live URL test of `https://www.askcrump.com/ai-video-generator` passed on 2026-08-27:
+  Search Console reports that the URL is available to Google and the page can be indexed. No
+  indexing request was made.
+- Search Console reports `No issues detected` for both Manual Actions and Security Issues.
+- `https://www.askcrump.com/sitemap.xml` returns HTTP 200 as XML and contains the six intended
+  canonical URLs: home, AI presentation maker, AI document generator, AI résumé builder, AI video
+  generator, and legal/privacy.
 - `robots.txt` returns HTTP 200 and points to the canonical sitemap.
-- The canonical pages and production health endpoint return HTTP 200 on release 5.9.24.
+- The canonical pages and production health endpoint return HTTP 200 on release 5.9.32.
 
 ## HTTPS reconciliation
 
