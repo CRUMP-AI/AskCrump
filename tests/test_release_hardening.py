@@ -9,6 +9,7 @@ import httpx
 import pytest
 
 from backend.auth_service import create_session
+from backend.config import _canonical_app_name
 from backend.email_service import EmailDeliveryError, EmailService
 from backend.routes import auth as auth_routes
 from backend.routes import billing as billing_routes
@@ -24,6 +25,14 @@ def email_settings() -> SimpleNamespace:
         app_name='Ask Crump',
         app_url='https://www.askcrump.com',
     )
+
+
+def test_retired_virtual_assistant_environment_label_normalizes_to_product_name():
+    assert _canonical_app_name(None) == 'Ask Crump'
+    assert _canonical_app_name('  Ask   Crump  ') == 'Ask Crump'
+    assert _canonical_app_name('Ask Crump - AI Virtual Assistant') == 'Ask Crump'
+    assert _canonical_app_name('Ask Crump — AI Virtual Assistant') == 'Ask Crump'
+    assert _canonical_app_name('Ask Crump Preview') == 'Ask Crump Preview'
 
 
 @pytest.mark.asyncio

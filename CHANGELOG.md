@@ -11,6 +11,8 @@
   shrinks on first use, and password sign-in remains available afterward.
 - Updated the verification email and pending-account screen to state that the link opens the
   workspace automatically while preserving an explicit sign-in fallback for another device.
+- Normalized the retired production `AI Virtual Assistant` environment label to the canonical
+  `Ask Crump` product name in transactional email and operational service metadata.
 - Versioned the authentication controller independently so existing web and PWA sessions receive
   the corrected completion language and startup behavior without a broad application version bump.
 

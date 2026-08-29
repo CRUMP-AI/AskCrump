@@ -26,6 +26,16 @@ def _transactional_from_email(environment: str, configured: str | None) -> str:
     return value
 
 
+def _canonical_app_name(configured: str | None) -> str:
+    value = ' '.join(str(configured or '').split()) or 'Ask Crump'
+    if value.casefold() in {
+        'ask crump - ai virtual assistant',
+        'ask crump — ai virtual assistant',
+    }:
+        return 'Ask Crump'
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     app_name: str
@@ -189,7 +199,7 @@ def get_settings() -> Settings:
     defaults = production_origins if environment == 'production' else development_origins
 
     settings = Settings(
-        app_name=os.getenv('APP_NAME', 'Ask Crump'),
+        app_name=_canonical_app_name(os.getenv('APP_NAME')),
         app_url=app_url,
         environment=environment,
         supabase_url=os.getenv('SUPABASE_URL', '').rstrip('/'),
