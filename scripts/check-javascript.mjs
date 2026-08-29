@@ -48,7 +48,7 @@ const repoRoot = new URL('../', import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot), 'utf8'));
 const releaseVersion = String(packageJson.version || '');
 const registrationConsentVersion = `${releaseVersion}-registration-consent-1`;
-const authControllerVersion = registrationConsentVersion;
+const authControllerVersion = `${releaseVersion}-registration-consent-projects-1`;
 const requiredBodyFiles = [
   'public/crump-v1-body.css',
   'public/crump-v1-body.js',
@@ -100,6 +100,7 @@ const speedInsightPages = [
   ['public/ai-document-generator.html', '/ai-document-generator'],
   ['public/ai-resume-builder.html', '/ai-resume-builder'],
   ['public/ai-video-generator.html', '/ai-video-generator'],
+  ['public/ai-project-workspace.html', '/ai-project-workspace'],
   ['public/app.html', '/app'],
   ['public/clever-crump.html', '/clever-crump'],
 ];

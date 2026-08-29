@@ -7,7 +7,7 @@
   const byId = id => document.getElementById(id);
   const all = selector => [...document.querySelectorAll(selector)];
   const MODE_KEY = 'askcrump.navigation.mode';
-  const CREATION_HANDOFF_INTENTS = new Set(['document', 'presentation', 'resume', 'video']);
+  const CREATION_HANDOFF_INTENTS = new Set(['document', 'presentation', 'resume', 'video', 'projects']);
   let lastFocus = null;
   let syncFrame = 0;
 
@@ -226,6 +226,10 @@
 
   function openCreateTool(action) {
     closeCreateHub();
+    if (action === 'projects') {
+      openProjects();
+      return true;
+    }
     setActive('create');
     if (action === 'document') {
       window.CrumpDocumentStudio?.open?.();

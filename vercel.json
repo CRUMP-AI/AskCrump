@@ -52,6 +52,14 @@
       "permanent": true
     },
     {
+      "source": "/ai-project-workspace",
+      "has": [
+        { "type": "host", "value": "www.clevercrump.com" }
+      ],
+      "destination": "https://www.askcrump.com/ai-project-workspace",
+      "permanent": true
+    },
+    {
       "source": "/legal",
       "has": [
         { "type": "host", "value": "www.clevercrump.com" }

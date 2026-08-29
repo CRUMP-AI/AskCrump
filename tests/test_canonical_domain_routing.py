@@ -44,6 +44,7 @@ def test_clever_crump_does_not_serve_duplicate_ask_product_pages():
         "/ai-document-generator": "https://www.askcrump.com/ai-document-generator",
         "/ai-resume-builder": "https://www.askcrump.com/ai-resume-builder",
         "/ai-video-generator": "https://www.askcrump.com/ai-video-generator",
+        "/ai-project-workspace": "https://www.askcrump.com/ai-project-workspace",
         "/legal": "https://www.askcrump.com/legal",
         "/delete-account": "https://www.askcrump.com/delete-account",
         "/robots.txt": "https://www.clevercrump.com/clever-crump-robots.txt",

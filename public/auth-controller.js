@@ -15,12 +15,13 @@
   const PLAN_INTENT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
   const CREATION_INTENT_TTL_MS = 24 * 60 * 60 * 1000;
   const PAID_PLAN_INTENTS = new Set(['professional', 'enterprise']);
-  const CREATION_INTENTS = new Set(['document', 'presentation', 'resume', 'video']);
+  const CREATION_INTENTS = new Set(['document', 'presentation', 'resume', 'video', 'projects']);
   const CREATION_INTENT_EXPLORE_DESTINATIONS = Object.freeze({
     document: {href: '/ai-document-generator', label: 'See document examples first'},
     presentation: {href: '/ai-presentation-maker', label: 'See presentation examples first'},
     resume: {href: '/ai-resume-builder', label: 'See résumé examples first'},
     video: {href: '/ai-video-generator', label: 'Explore Video Studio first'},
+    projects: {href: '/ai-project-workspace', label: 'See how Projects work first'},
   });
   const REGISTRATION_CREATION_HANDOFFS = Object.freeze({
     document: {
@@ -38,6 +39,10 @@
     video: {
       title: 'Open your Video Studio.',
       description: 'After verification, Ask Crump opens Video Studio so you can choose a generation mode, see its Crump Credit cost, and keep completed clips in your private Library.',
+    },
+    projects: {
+      title: 'Open your private Project workspace.',
+      description: 'After verification, Ask Crump opens Projects so you can keep instructions, files, conversations, and durable context together before you continue the work.',
     },
   });
   const REGISTRATION_PLAN_HANDOFFS = Object.freeze({

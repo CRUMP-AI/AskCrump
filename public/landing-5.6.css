@@ -159,6 +159,7 @@ h1,h2,h3,p { margin-top: 0; }
   transition: transform .2s ease, border-color .2s ease;
 }
 .discovery-card:hover { transform: translateY(-3px); border-color: rgba(213,185,113,.3); }
+.discovery-card.is-wide { grid-column: 1 / -1; min-height: 280px; }
 .discovery-kicker { margin-bottom: 56px; color: #bca35f; font-size: 9px; font-weight: 800; letter-spacing: .17em; }
 .discovery-card strong { max-width: 440px; margin-bottom: 12px; color: #e9e6df; font-family: var(--serif); font-size: clamp(30px,4vw,43px); font-weight: 400; line-height: 1.05; letter-spacing: -.035em; }
 .discovery-card > span:not(.discovery-kicker) { max-width: 490px; color: #7f878c; font-size: 13px; }

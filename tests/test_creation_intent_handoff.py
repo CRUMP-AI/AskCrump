@@ -27,6 +27,7 @@ def test_every_capability_cta_preserves_the_promised_creation_intent():
         "public/ai-presentation-maker.html": "presentation",
         "public/ai-resume-builder.html": "resume",
         "public/ai-video-generator.html": "video",
+        "public/ai-project-workspace.html": "projects",
     }
 
     for relative, expected_intent in pages.items():
@@ -56,7 +57,7 @@ def test_creation_intent_survives_auth_without_storing_user_content():
 
     assert "askcrump.pending-creation-intent" in controller
     assert "CREATION_INTENT_TTL_MS = 24 * 60 * 60 * 1000" in controller
-    assert "new Set(['document', 'presentation', 'resume', 'video'])" in controller
+    assert "new Set(['document', 'presentation', 'resume', 'video', 'projects'])" in controller
     assert "captureCreationIntent();" in controller
     assert "dispatchPendingCreationIntent();" in controller
     assert "crump:body-runtime-ready" in intent_slice
@@ -73,7 +74,9 @@ def test_creation_intent_opens_the_exact_non_generating_workspace():
         navigation.index("function openAsk")
     ]
 
-    assert "CREATION_HANDOFF_INTENTS = new Set(['document', 'presentation', 'resume', 'video'])" in navigation
+    assert "CREATION_HANDOFF_INTENTS = new Set(['document', 'presentation', 'resume', 'video', 'projects'])" in navigation
+    assert "if (action === 'projects')" in handler
+    assert "openProjects();" in handler
     assert "window.CrumpDocumentStudio?.open?.()" in handler
     assert "window.CrumpDocumentStudio?.select?.('pptx'" in handler
     assert "window.CrumpDocumentStudio?.select?.('docx'" in handler

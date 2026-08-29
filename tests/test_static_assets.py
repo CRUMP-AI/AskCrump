@@ -49,7 +49,7 @@ def local_asset(value):
 
 
 def test_html_local_assets_exist_and_no_inline_handlers():
-    for filename in ('ask-crump.html', 'app.html', 'legal.html', 'delete-account.html'):
+    for filename in ('ask-crump.html', 'ai-project-workspace.html', 'app.html', 'legal.html', 'delete-account.html'):
         parser = AssetParser()
         parser.feed((PUBLIC / filename).read_text())
         assert not parser.inline_handlers, f'{filename}: {parser.inline_handlers}'
