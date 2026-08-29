@@ -577,6 +577,12 @@
 
     byId('crump53Close')?.addEventListener('click', closeStudio);
     overlay.addEventListener('click', event => { if (event.target === overlay) closeStudio(); });
+    byId('crump53ProjectList')?.addEventListener('click', event => {
+      const button = event.target.closest('[data-project-id]');
+      if (!button || !event.currentTarget.contains(button)) return;
+      event.preventDefault();
+      selectProject(button.dataset.projectId);
+    });
     byId('crump53ProjectBack')?.addEventListener('click', showProjectIndex);
     byId('crump53CreateProject')?.addEventListener('click', resetProjectForm);
     byId('crump53StartProjectChat')?.addEventListener('click', startProjectConversation);
@@ -851,18 +857,21 @@
       </button>`).join('') + (Number(limit) > 0
         ? `<div class="crump53-status">${state.projects.length} / ${limit} active projects</div>`
         : (Number(limit) < 0 ? '<div class="crump53-status">Founder Lab · unlimited project workspaces</div>' : ''));
-    list.querySelectorAll('[data-project-id]').forEach(button => {
-      button.addEventListener('click', () => selectProject(button.dataset.projectId));
-    });
   }
 
   function selectProject(projectId) {
-    const project = state.projects.find(item => item.id === projectId);
-    if (!project) return;
+    const normalizedProjectId = String(projectId || '').trim();
+    const project = state.projects.find(item => String(item.id || '') === normalizedProjectId);
+    if (!project) {
+      setStatus('crump53ProjectStatus', 'That Project could not be opened. Refresh Projects and try again.', true);
+      window.showToast?.('That Project could not be opened. Refresh Projects and try again.', 'error');
+      return;
+    }
     state.activeProject = project;
     state.editingProject = project;
     storeProject(project.id);
     renderProjectIndicator();
+    setProjectView('detail', {focus: false});
     renderActiveProjectWorkspace({open: true});
   }
 

@@ -2,6 +2,17 @@
 
 ## 5.9.76 — 2026-08-29
 
+### Project workspace click reliability
+
+- Moved Project-row activation onto the stable Projects list container so asynchronous list
+  refreshes cannot leave a newly rendered row without a working click path.
+- Normalized Project identifiers at the browser boundary and replaced the previous silent miss
+  with a visible retry message if a stale row can no longer be resolved.
+- Made every selected Project an unmistakable dedicated workspace on desktop as well as mobile,
+  with its own title, instructions, files, conversations, durable notes, and Back to Projects path.
+- Advanced the independently versioned Project assets so open browser sessions and installed PWAs
+  receive the repaired interaction without waiting for a broad application release.
+
 ### Registration consent and direct verified entry
 
 - Moved the existing explicit age, Terms, and Privacy consent into account creation and records the

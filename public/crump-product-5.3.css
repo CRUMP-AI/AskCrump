@@ -209,6 +209,12 @@ body.crump-v1-body [data-crump53-panel="projects"]:not(.is-project-open) :is(
 ) {
   display: none !important;
 }
+body.crump-v1-body [data-crump53-panel="projects"].is-project-open > .crump53-grid {
+  grid-template-columns: minmax(0,1fr);
+}
+body.crump-v1-body [data-crump53-panel="projects"].is-project-open .crump53-project-index-card {
+  display: none;
+}
 body.crump-v1-body .crump53-sheet[data-project-view="new"] :is(
   #crump531ProjectFilesCard,
   #crump53ProjectConversationsCard,
@@ -647,9 +653,6 @@ body.crump-v1-body .crump53-manuscript-handoff button {
       max(20px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
   }
   body.crump-v1-body .crump53-grid { grid-template-columns: 1fr; }
-  body.crump-v1-body [data-crump53-panel="projects"].is-project-open .crump53-project-index-card {
-    display: none;
-  }
   body.crump-v1-body .crump53-project-hero {
     align-items: stretch;
     flex-direction: column;

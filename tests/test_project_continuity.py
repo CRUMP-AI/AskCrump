@@ -208,12 +208,17 @@ def test_project_rows_open_a_real_project_workspace_and_scoped_new_chat():
     assert 'id="crump53ProjectWorkspaceName"' in product
     assert 'id="crump53StartProjectChat"' in product
     assert 'aria-label="Open Project ${escapeHtml(item.name)}"' in product
+    assert "byId('crump53ProjectList')?.addEventListener('click'" in product
+    assert "event.target.closest('[data-project-id]')" in product
+    assert "String(item.id || '') === normalizedProjectId" in product
+    assert "setProjectView('detail', {focus: false})" in product
     assert "renderActiveProjectWorkspace({open: true})" in product
     assert "setProjectView('detail'" in product
     assert "window.CrumpBodyV1.command('new')" in product
     assert "Message Crump in ${name}" in product
     assert "document.querySelector('.v1-workspace-context')" in product
     assert '[data-crump53-panel="projects"].is-project-open .crump53-project-index-card' in styles
+    assert '[data-crump53-panel="projects"].is-project-open > .crump53-grid' in styles
     assert 'id="fixtureProjectView"' in fixture
     assert "sheet?.dataset.projectView" in fixture
     assert 'aria-label="Started Project chat"' in fixture
