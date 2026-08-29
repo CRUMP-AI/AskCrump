@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 import logging
+import re
 import secrets
 from typing import Any
 from urllib.parse import urlparse
@@ -20,6 +21,18 @@ from .rate_limit import RateLimitError
 from .runtime import settings
 
 logger = logging.getLogger("askcrump.http")
+
+_DATABASE_DETAIL_CODE = re.compile(r"^[A-Za-z][A-Za-z0-9_]{1,63}$")
+
+
+def _database_detail_code(details: Any) -> str:
+    if not isinstance(details, dict):
+        return "none"
+    for key in ("code", "error_type"):
+        value = str(details.get(key) or "")
+        if _DATABASE_DETAIL_CODE.fullmatch(value):
+            return value
+    return "unknown"
 
 
 async def request_guards(request: Request, call_next):
@@ -180,9 +193,12 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(DatabaseError)
     async def database_error_handler(_: Request, exc: DatabaseError):
         logger.error(
-            "Database request failed status=%s detail_type=%s",
+            "Database request failed status=%s detail_type=%s detail_code=%s retryable=%s attempts=%s",
             exc.status_code,
             type(exc.details).__name__,
+            _database_detail_code(exc.details),
+            exc.retryable,
+            exc.attempts,
         )
         status = 503 if exc.status_code >= 500 else 500
         headers = {"Retry-After": str(exc.retry_after)} if exc.retryable else None

@@ -103,7 +103,13 @@ async def test_database_exception_log_is_categorical_and_excludes_provider_detai
 
     @app.get("/failure")
     async def failure():
-        raise DatabaseError("Database operation failed", 409, {"details": sensitive})
+        raise DatabaseError(
+            "Database operation failed",
+            409,
+            {"code": "PGRST001", "details": sensitive},
+            retryable=True,
+            attempts=4,
+        )
 
     from httpx import ASGITransport, AsyncClient
 
@@ -115,6 +121,9 @@ async def test_database_exception_log_is_categorical_and_excludes_provider_detai
     assert response.json()["code"] == "DATABASE_ERROR"
     assert "status=409" in caplog.text
     assert "detail_type=dict" in caplog.text
+    assert "detail_code=PGRST001" in caplog.text
+    assert "retryable=True" in caplog.text
+    assert "attempts=4" in caplog.text
     assert sensitive not in caplog.text
 
 

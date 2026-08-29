@@ -71,9 +71,10 @@ class SupabaseDB:
         payload: Any = None,
         prefer: str | None = None,
         timeout: float = 20.0,
+        retry_transient: bool = False,
     ) -> Any:
         method = method.upper()
-        retryable_read = method in _RETRYABLE_READ_METHODS
+        retryable_request = method in _RETRYABLE_READ_METHODS or retry_transient
         headers = self.headers
         if prefer:
             headers['Prefer'] = prefer
@@ -99,7 +100,7 @@ class SupabaseDB:
                         timeout=request_timeout,
                     )
                 except httpx.HTTPError as exc:
-                    if retryable_read and attempt < len(_READ_RETRY_DELAYS_SECONDS):
+                    if retryable_request and attempt < len(_READ_RETRY_DELAYS_SECONDS):
                         delay = _READ_RETRY_DELAYS_SECONDS[attempt]
                         logger.warning(
                             "Database read transport retry attempt=%s delay_seconds=%.2f error_type=%s",
@@ -113,14 +114,14 @@ class SupabaseDB:
                         'Database connection failed',
                         503,
                         {'error_type': type(exc).__name__},
-                        retryable=retryable_read,
-                        retry_after=2 if retryable_read else 0,
+                        retryable=retryable_request,
+                        retry_after=2 if retryable_request else 0,
                         attempts=attempt + 1,
                     ) from exc
 
                 transient_status = response.status_code in _RETRYABLE_READ_STATUSES
                 if (
-                    retryable_read
+                    retryable_request
                     and transient_status
                     and attempt < len(_READ_RETRY_DELAYS_SECONDS)
                 ):
@@ -143,8 +144,8 @@ class SupabaseDB:
                         'Database operation failed',
                         response.status_code,
                         details,
-                        retryable=retryable_read and transient_status,
-                        retry_after=2 if retryable_read and transient_status else 0,
+                        retryable=retryable_request and transient_status,
+                        retry_after=2 if retryable_request and transient_status else 0,
                         attempts=attempt + 1,
                     )
 
@@ -225,8 +226,19 @@ class SupabaseDB:
             'DELETE', table, params=filters, prefer='return=representation'
         )
 
-    async def rpc(self, function_name: str, payload: dict[str, Any]) -> Any:
-        return await self.request('POST', f'rpc/{function_name}', payload=payload)
+    async def rpc(
+        self,
+        function_name: str,
+        payload: dict[str, Any],
+        *,
+        retry_transient: bool = False,
+    ) -> Any:
+        return await self.request(
+            'POST',
+            f'rpc/{function_name}',
+            payload=payload,
+            retry_transient=retry_transient,
+        )
 
 
 def eq(value: Any) -> str:

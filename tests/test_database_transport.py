@@ -96,6 +96,40 @@ async def test_non_idempotent_write_is_never_retried_after_transient_status():
 
 
 @pytest.mark.asyncio
+async def test_explicitly_idempotent_rpc_retries_with_the_same_payload():
+    calls: list[httpx.Request] = []
+    sleeps: list[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if len(calls) == 1:
+            return httpx.Response(503, json={"code": "PGRST001"})
+        return httpx.Response(200, json=[])
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    payload = {
+        "p_lease_seconds": 420,
+        "p_claim_token": "00000000-0000-4000-8000-000000000001",
+    }
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        database = SupabaseDB(db_settings(), client=client, sleep=fake_sleep)
+        result = await database.rpc(
+            "claim_manuscript_run",
+            payload,
+            retry_transient=True,
+        )
+
+    assert result == []
+    assert len(calls) == 2
+    assert calls[0].content == calls[1].content
+    assert calls[0].headers.get("x-retry-count") is None
+    assert calls[1].headers["x-retry-count"] == "1"
+    assert sleeps == [0.25]
+
+
+@pytest.mark.asyncio
 async def test_non_transient_read_error_is_not_retried():
     calls: list[httpx.Request] = []
 

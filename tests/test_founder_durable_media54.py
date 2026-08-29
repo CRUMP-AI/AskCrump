@@ -1,5 +1,6 @@
 from pathlib import Path
 from types import SimpleNamespace
+from uuid import UUID
 
 import httpx
 import pytest
@@ -210,3 +211,44 @@ def test_durable_run_schema_is_private_leased_and_scheduled():
     assert "/api/manuscript-runs/{run_id}/pause" in routes
     assert "/api/manuscript-runs/{run_id}/resume" in routes
     assert "/api/manuscript-runs/{run_id}/cancel" in routes
+
+
+@pytest.mark.asyncio
+async def test_manuscript_worker_uses_a_unique_replay_safe_claim_token():
+    class ClaimDB:
+        def __init__(self):
+            self.calls = []
+
+        async def rpc(self, name, payload, *, retry_transient=False):
+            self.calls.append((name, payload, retry_transient))
+            return []
+
+    database = ClaimDB()
+    service = ManuscriptService(
+        database,
+        SimpleNamespace(),
+        SimpleNamespace(),
+        features=SimpleNamespace(),
+        files=SimpleNamespace(),
+    )
+
+    assert await service.process_next_run() == {"claimed": False}
+    assert len(database.calls) == 1
+    name, payload, retry_transient = database.calls[0]
+    assert name == "claim_manuscript_run"
+    assert payload["p_lease_seconds"] == 420
+    assert str(UUID(payload["p_claim_token"])) == payload["p_claim_token"]
+    assert retry_transient is True
+
+
+def test_replay_safe_claim_migration_is_private_and_returns_the_same_lease():
+    migration = (ROOT / "migrations" / "20260829183700_idempotent_manuscript_claim.sql").read_text()
+    normalized = " ".join(migration.lower().split())
+
+    assert "p_claim_token uuid" in normalized
+    assert "lease_token = p_claim_token" in normalized
+    assert normalized.index("and lease_token = p_claim_token") < normalized.index("for update skip locked")
+    assert "security invoker" in normalized
+    assert "security definer" not in normalized
+    assert "from public, anon, authenticated" in normalized
+    assert "to service_role" in normalized

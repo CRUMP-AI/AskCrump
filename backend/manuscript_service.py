@@ -964,7 +964,12 @@ User brief:
         """
         if not self.features or not self.files:
             raise RuntimeError("Durable manuscript dependencies are not configured.")
-        claimed = await self.db.rpc("claim_manuscript_run", {"p_lease_seconds": 420})
+        claim_token = str(uuid4())
+        claimed = await self.db.rpc(
+            "claim_manuscript_run",
+            {"p_lease_seconds": 420, "p_claim_token": claim_token},
+            retry_transient=True,
+        )
         run = claimed[0] if isinstance(claimed, list) and claimed else (claimed or None)
         if not isinstance(run, dict) or not run.get("id"):
             return {"claimed": False}

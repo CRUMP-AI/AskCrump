@@ -2,6 +2,17 @@
 
 ## 5.9.76 — 2026-08-29
 
+### Replay-safe manuscript scheduling
+
+- Made the manuscript worker's lease claim safely replayable after a transient Data API response
+  by supplying one server-generated UUID for the complete retry sequence.
+- Added a private two-argument claim function that returns the same still-live lease when a prior
+  response was lost, preventing a retry from claiming a second manuscript or waiting for expiry.
+- Kept ordinary writes and RPC calls single-attempt by default; only this explicitly idempotent
+  lease claim opts into the existing bounded 503/504 transport retry policy.
+- Expanded database failure logs with categorical provider codes, retry state, and attempt count
+  while continuing to exclude provider messages, SQL, content, account data, and identifiers.
+
 ### Context before referral signup
 
 - Changed response-share links from a cold registration wall to Ask Crump's public product page,
