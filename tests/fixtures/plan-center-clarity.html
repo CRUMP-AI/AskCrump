@@ -15,23 +15,25 @@
       webEnterprisePriceLabel: '$50/month',
     };
     window.__planCenterEvents = [];
-    window.CrumpAnalytics = {
-      track: async (eventName, values) => {
-        window.__planCenterEvents.push({eventName, values});
-        document.documentElement.dataset.lastPlanEvent = eventName;
-        document.documentElement.dataset.lastPlanSource = values.source;
-        document.documentElement.dataset.lastPlanKey = values.eventKey;
-        return true;
-      },
-    };
     window.BillingManager = {
       isNative: () => false,
       getProducts: async () => ({}),
       getCreditProducts: async () => ({}),
     };
     window.showToast = () => {};
-    window.fetch = async url => {
+    window.fetch = async (url, options = {}) => {
       const pathname = new URL(String(url), window.location.href).pathname;
+      if (pathname === '/api/analytics/events') {
+        const event = JSON.parse(String(options.body || '{}'));
+        window.__planCenterEvents.push(event);
+        document.documentElement.dataset.lastPlanEvent = event.eventName;
+        document.documentElement.dataset.lastPlanSource = event.source;
+        document.documentElement.dataset.lastPlanKey = event.eventKey;
+        return new Response(JSON.stringify({success: true, recorded: true}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
       const responses = {
         '/api/billing/credits/status': {credits: {balance: 12}, catalog: [], history: []},
         '/api/usage/check': {daily: {limit: 25, used: 3, remaining: 22}},

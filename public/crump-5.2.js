@@ -23,11 +23,35 @@
     return planCenterSources.has(requested) ? requested : 'settings';
   }
 
-  function recordPlanCenterView(options = {}) {
-    void window.CrumpAnalytics?.track('PlanCenterViewed', {
-      eventKey: 'plan-center-viewed',
-      source: planCenterSource(options),
-    });
+  async function recordPlanCenterView(options = {}) {
+    const source = planCenterSource(options);
+    document.documentElement.dataset.crumpPlanCenterEvent = `pending:${source}`;
+    try {
+      if (await window.CrumpAnalytics?.track?.('PlanCenterViewed', {
+        eventKey: 'plan-center-viewed',
+        source,
+      })) {
+        document.documentElement.dataset.crumpPlanCenterEvent = `accepted:${source}`;
+        return true;
+      }
+      const response = await fetch('/api/analytics/events', {
+        method: 'POST',
+        credentials: 'same-origin',
+        keepalive: true,
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          eventName: 'PlanCenterViewed',
+          eventKey: 'plan-center-viewed',
+          source,
+        }),
+      });
+      document.documentElement.dataset.crumpPlanCenterEvent =
+        `${response.ok ? 'accepted' : 'rejected'}:${source}`;
+      return response.ok;
+    } catch (_) {
+      document.documentElement.dataset.crumpPlanCenterEvent = `failed:${source}`;
+      return false;
+    }
   }
 
   function cssEscape(value) {
@@ -577,7 +601,7 @@
     document.body.appendChild(modal);
     state.billing = modal;
     document.body.classList.add('billing51-open');
-    recordPlanCenterView(options);
+    void recordPlanCenterView(options);
 
     // One capture-phase handler owns checkout for both the explicit button and
     // the full credit card. This survives re-renders and is reliable on iOS

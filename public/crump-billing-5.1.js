@@ -27,12 +27,35 @@
     return planCenterSources.has(requested) ? requested : 'settings';
   }
 
-  function recordPlanCenterView(options = {}) {
+  async function recordPlanCenterView(options = {}) {
     const source = planCenterSource(options);
-    void window.CrumpAnalytics?.track('PlanCenterViewed', {
-      eventKey: 'plan-center-viewed',
-      source,
-    });
+    document.documentElement.dataset.crumpPlanCenterEvent = `pending:${source}`;
+    try {
+      if (await window.CrumpAnalytics?.track?.('PlanCenterViewed', {
+        eventKey: 'plan-center-viewed',
+        source,
+      })) {
+        document.documentElement.dataset.crumpPlanCenterEvent = `accepted:${source}`;
+        return true;
+      }
+      const response = await fetch('/api/analytics/events', {
+        method: 'POST',
+        credentials: 'same-origin',
+        keepalive: true,
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          eventName: 'PlanCenterViewed',
+          eventKey: 'plan-center-viewed',
+          source,
+        }),
+      });
+      document.documentElement.dataset.crumpPlanCenterEvent =
+        `${response.ok ? 'accepted' : 'rejected'}:${source}`;
+      return response.ok;
+    } catch (_) {
+      document.documentElement.dataset.crumpPlanCenterEvent = `failed:${source}`;
+      return false;
+    }
   }
 
   async function jsonFetch(url, options = {}) {
@@ -402,7 +425,7 @@
     document.body.appendChild(modal);
     state.modal = modal;
     document.body.classList.add('billing51-open');
-    recordPlanCenterView(options);
+    void recordPlanCenterView(options);
     requestAnimationFrame(() => modal.classList.add('is-visible'));
     hydrate(modal);
     return modal;

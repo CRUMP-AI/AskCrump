@@ -90,19 +90,27 @@ def test_plan_center_measurement_is_daily_content_free_and_fail_open():
 
     assert "PlanCenterViewed" in analytics
     assert "eventKey: 'plan-center-viewed'" in billing
-    assert "void window.CrumpAnalytics?.track('PlanCenterViewed'" in billing
-    assert "recordPlanCenterView(options);" in billing
+    assert "window.CrumpAnalytics?.track?.('PlanCenterViewed'" in billing
+    assert "void recordPlanCenterView(options);" in billing
+    assert "eventName: 'PlanCenterViewed'" in billing
+    assert "eventKey: 'plan-center-viewed'" in billing
+    assert "dataset.crumpPlanCenterEvent" in billing
     final_billing = read_public("crump-5.2.js")
     assert "function showBillingCenter52(options = {})" in final_billing
-    assert "void window.CrumpAnalytics?.track('PlanCenterViewed'" in final_billing
-    assert "recordPlanCenterView(options);" in final_billing
+    assert "window.CrumpAnalytics?.track?.('PlanCenterViewed'" in final_billing
+    assert "void recordPlanCenterView(options);" in final_billing
+    assert "eventName: 'PlanCenterViewed'" in final_billing
+    assert "eventKey: 'plan-center-viewed'" in final_billing
+    assert "dataset.crumpPlanCenterEvent" in final_billing
     assert "button.addEventListener('click', () => showBillingCenter52({source: 'settings'}));" in final_billing
     tracker = billing[
         billing.index("function recordPlanCenterView"):
         billing.index("async function jsonFetch")
     ]
     assert "prompt" not in tracker.lower()
-    assert "content" not in tracker.lower()
+    assert "filename" not in tracker.lower()
+    assert "email" not in tracker.lower()
+    assert "payment" not in tracker.lower()
 
     assert "'PlanCenterViewed'" in migration
     assert "product_plan_conversion_snapshot" in migration

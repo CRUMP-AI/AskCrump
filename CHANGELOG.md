@@ -15,6 +15,8 @@
 - Advanced the application to 5.9.76, native build 50976, and service-worker cache revision 118.
 - Wired the privacy-safe plan-view milestone into the final workspace billing override, removed
   its stale pre-launch fallback copy, and advanced the corrective web cache to revision 119.
+- Added a fail-open direct intake fallback for the same three-field plan-view contract when the
+  shared analytics helper is late or unavailable, then advanced the cache to revision 120.
 
 ## 5.9.75 — 2026-08-29
 
