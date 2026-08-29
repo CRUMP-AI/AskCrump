@@ -46,6 +46,10 @@ which exposed an oversized brand mark and partially styled workspace beneath the
   the gate faded from 1 to 0 and then became hidden with no busy or inert residue.
 - A separate signed-out local reload was sampled 32 times and recorded zero visible unstyled-gate or
   missing-mark frames before the sign-in surface appeared.
+- A follow-on authenticated production refresh at a 393-by-659 iPhone-sized viewport loaded all 22
+  workspace stylesheets, decoded the 640-pixel startup mark, removed the gate completely, cleared
+  busy and inert state, preserved zero horizontal overflow, and produced no browser warning or
+  error.
 - The inspected deployment window contained 48 HTTP 200 responses and no runtime error cluster.
 
 ## Verification
@@ -59,5 +63,7 @@ which exposed an oversized brand mark and partially styled workspace beneath the
 ## Outcome boundary
 
 The previously reproducible stylesheet gap is eliminated in controlled production and signed-out
-checks. The release remains pending owner confirmation on the affected real device; no activation,
-retention, or conversion improvement is claimed from this visual correction.
+checks. The available desktop runner did not contain a WebKit binary, so no physical Safari result
+is inferred from the iPhone-sized Chromium check. The release remains pending owner confirmation on
+the affected real device; no activation, retention, or conversion improvement is claimed from this
+visual correction.
