@@ -45,6 +45,9 @@ def test_delayed_session_fixture_protects_both_cold_auth_entry_paths():
     assert "sessionSettled: false" in fixture
     assert "get('authenticated') === '1'" in fixture
     assert "fixtureAppState" in fixture
+    assert "startupEvents.push('runtime-ready')" in fixture
+    assert "startupEvents.push('app-initialized')" in fixture
+    assert "startupEvents.push('authenticated-initialized')" in fixture
     assert "Fixture stopped before account creation." in fixture
     assert "fetch(" not in fixture
     assert "https://" not in fixture

@@ -84,6 +84,7 @@ def test_mobile_signup_keeps_the_primary_action_above_a_short_phone_fold():
 
 def test_cold_signup_entry_keeps_product_value_and_assurance_readable():
     app = (PUBLIC / 'app.html').read_text(encoding='utf-8')
+    controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
     body = (PUBLIC / 'crump-v1-body.css').read_text(encoding='utf-8')
     registration = app[app.index('id="registerForm"'):app.index('id="forgotPasswordForm"')]
 
@@ -92,6 +93,25 @@ def test_cold_signup_entry_keeps_product_value_and_assurance_readable():
     assurance = body[body.index('.v1-signup-assurance {'):]
     assert 'color: #8f9498;' in assurance[:240]
     assert 'font-size: 11px;' in assurance[:240]
+    assert 'id="registrationExploreLink" href="/"' in registration
+    assert 'Explore Ask Crump first' in registration
+    assert "document: {href: '/ai-document-generator', label: 'See document examples first'}" in controller
+    assert "presentation: {href: '/ai-presentation-maker', label: 'See presentation examples first'}" in controller
+    assert "resume: {href: '/ai-resume-builder', label: 'See résumé examples first'}" in controller
+    assert "video: {href: '/ai-video-generator', label: 'Explore Video Studio first'}" in controller
+    assert 'configureRegistrationExploreLink();' in controller
+    assert '.v1-registration-explore a:focus-visible' in body
+
+
+def test_cold_signup_explore_fixture_uses_real_runtime_without_production_writes():
+    fixture = (
+        ROOT / 'tests' / 'fixtures' / 'cold-auth-entry-delay.html'
+    ).read_text(encoding='utf-8')
+
+    assert 'id="registrationExploreLink" href="/"' in fixture
+    assert '/public/auth-controller.js?v=fixture-cold-auth-delay-2' in fixture
+    assert 'https://' not in fixture
+    assert 'askcrump.com' not in fixture
 
 
 def test_registration_autofill_fixture_uses_real_local_runtime_without_production_writes():

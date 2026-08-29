@@ -7,6 +7,8 @@
     body { background:#0b0b0b; color:#f5f2ec; font:16px/1.5 system-ui,sans-serif; padding:32px; }
     form { display:grid; gap:12px; width:min(440px,100%); }
     input,button { box-sizing:border-box; min-height:44px; padding:10px 12px; }
+    #v1RuntimeGate { position:fixed; inset:0; display:grid; place-items:center; background:#080b0f; opacity:1; transition:opacity .2s ease; }
+    #v1RuntimeGate.is-ready { opacity:0; }
     .v1-runtime-gate-card { display:grid; gap:8px; width:min(440px,100%); }
   </style>
 </head>
@@ -40,6 +42,7 @@
           </div>
           <span id="registerPasswordStatus" aria-live="polite"></span>
           <button type="submit">Create free account</button>
+          <a id="registrationExploreLink" href="/">Explore Ask Crump first</a>
           <a id="showLoginLink" href="#">Sign in</a>
         </form>
         <div id="registerError" style="display:none"></div>
@@ -77,18 +80,29 @@
       termsAcceptedAt: '2026-08-28T00:00:00Z',
       preferences: {},
     };
-    window.__fixture = {sessionSettled: false, loginCalls: 0, registerCalls: 0, appStarts: 0};
+    window.__fixture = {sessionSettled: false, loginCalls: 0, registerCalls: 0, appStarts: 0, startupEvents: []};
     window.va = () => {};
-    window.CrumpWorkspaceRuntime = {load: async () => {}};
+    window.CrumpWorkspaceRuntime = {
+      async load() {
+        window.__fixture.startupEvents.push('runtime-load-started');
+        await new Promise(resolve => setTimeout(resolve, 120));
+        document.documentElement.dataset.crumpBodyRuntime = 'ready';
+        window.__fixture.startupEvents.push('runtime-ready');
+        window.dispatchEvent(new CustomEvent('crump:body-runtime-ready'));
+      },
+    };
     window.CrumpAPI = {ready: Promise.resolve()};
     window.CrumpAnalytics = {track: () => Promise.resolve(true)};
     window.configureUserStorage = () => {};
     window.profileManager = {applyServerSubscription() {}, updateProfile() {}};
     window.initializeApp = () => {
       window.__fixture.appStarts += 1;
+      window.__fixture.startupEvents.push('app-initialized');
       document.getElementById('fixtureAppState').textContent = 'started';
     };
-    window.initializeAuthenticatedApp = () => {};
+    window.initializeAuthenticatedApp = () => {
+      window.__fixture.startupEvents.push('authenticated-initialized');
+    };
     window.deviceAuth = {
       async checkSession() {
         await new Promise(resolve => setTimeout(resolve, 3000));

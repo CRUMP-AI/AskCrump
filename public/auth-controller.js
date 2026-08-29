@@ -7,6 +7,7 @@
   let signupIntentTracked = false;
   let workspaceRuntimeGateTimer = 0;
   let workspaceRuntimeGateWaiting = false;
+  let workspaceRuntimeGateRevealFrame = 0;
   const TERMS_VERSION = '2026-07-30';
   const PLAN_INTENT_KEY = 'askcrump.pending-plan-intent';
   const CREATION_INTENT_KEY = 'askcrump.pending-creation-intent';
@@ -15,6 +16,12 @@
   const CREATION_INTENT_TTL_MS = 24 * 60 * 60 * 1000;
   const PAID_PLAN_INTENTS = new Set(['professional', 'enterprise']);
   const CREATION_INTENTS = new Set(['document', 'presentation', 'resume', 'video']);
+  const CREATION_INTENT_EXPLORE_DESTINATIONS = Object.freeze({
+    document: {href: '/ai-document-generator', label: 'See document examples first'},
+    presentation: {href: '/ai-presentation-maker', label: 'See presentation examples first'},
+    resume: {href: '/ai-resume-builder', label: 'See résumé examples first'},
+    video: {href: '/ai-video-generator', label: 'Explore Video Studio first'},
+  });
   const LEGACY_ACQUISITION_SOURCES = new Set([
     'instagram', 'facebook', 'facebook-pinned', 'linkedin', 'tiktok',
     'youtube', 'x', 'referral', 'organic', 'clevercrump',
@@ -143,6 +150,19 @@
     return CREATION_INTENTS.has(normalized) ? normalized : '';
   }
 
+  function configureRegistrationExploreLink() {
+    const link = byId('registrationExploreLink');
+    if (!link) return;
+    const params = new URLSearchParams(location.search);
+    const kind = creationIntentValue(params.get('intent')) || pendingCreationIntent()?.kind || '';
+    const destination = CREATION_INTENT_EXPLORE_DESTINATIONS[kind] || {
+      href: '/',
+      label: 'Explore Ask Crump first',
+    };
+    link.href = destination.href;
+    link.textContent = destination.label;
+  }
+
   function captureCreationIntent() {
     const params = new URLSearchParams(location.search);
     const kind = creationIntentValue(params.get('intent'));
@@ -260,7 +280,9 @@
     if (workspaceRuntimeGateTimer) window.clearTimeout(workspaceRuntimeGateTimer);
     workspaceRuntimeGateTimer = 0;
     workspaceRuntimeGateWaiting = false;
-    window.removeEventListener('crump:body-runtime-ready', releaseWorkspaceRuntimeGate);
+    if (workspaceRuntimeGateRevealFrame) window.cancelAnimationFrame(workspaceRuntimeGateRevealFrame);
+    workspaceRuntimeGateRevealFrame = 0;
+    window.removeEventListener('crump:body-runtime-ready', scheduleWorkspaceRuntimeGateRelease);
     byId('appContainer')?.removeAttribute('aria-busy');
     document.querySelector('.v1-shell')?.removeAttribute('inert');
     const gate = byId('v1RuntimeGate');
@@ -272,9 +294,22 @@
     }, 220);
   }
 
+  function scheduleWorkspaceRuntimeGateRelease() {
+    if (document.documentElement.dataset.crumpBodyRuntime !== 'ready') return;
+    if (workspaceRuntimeGateRevealFrame) window.cancelAnimationFrame(workspaceRuntimeGateRevealFrame);
+    // Commit one complete workspace frame before beginning the cover fade.
+    // The second frame prevents deferred navigation and authenticated modules
+    // from visibly rearranging the shell underneath a partially transparent gate.
+    workspaceRuntimeGateRevealFrame = window.requestAnimationFrame(() => {
+      workspaceRuntimeGateRevealFrame = window.requestAnimationFrame(() => {
+        workspaceRuntimeGateRevealFrame = 0;
+        releaseWorkspaceRuntimeGate();
+      });
+    });
+  }
+
   function holdWorkspaceForRuntime() {
     if (document.documentElement.dataset.crumpBodyRuntime === 'ready') {
-      releaseWorkspaceRuntimeGate();
       return;
     }
     const gate = byId('v1RuntimeGate');
@@ -288,7 +323,7 @@
     shell?.setAttribute('inert', '');
     if (!workspaceRuntimeGateWaiting) {
       workspaceRuntimeGateWaiting = true;
-      window.addEventListener('crump:body-runtime-ready', releaseWorkspaceRuntimeGate, {once: true});
+      window.addEventListener('crump:body-runtime-ready', scheduleWorkspaceRuntimeGateRelease, {once: true});
     }
     if (workspaceRuntimeGateTimer) window.clearTimeout(workspaceRuntimeGateTimer);
     workspaceRuntimeGateTimer = window.setTimeout(releaseWorkspaceRuntimeGate, 5000);
@@ -332,6 +367,7 @@
       window.initializeAuthenticatedApp?.(activeUser);
       window.dispatchEvent(new Event('crump:authenticated-ready'));
     }
+    scheduleWorkspaceRuntimeGateRelease();
     if (activeUser) {
       const day = new Date().toISOString().slice(0, 10);
       void window.CrumpAnalytics?.track('WorkspaceOpened', {eventKey: `workspace-open:${day}`});
@@ -469,6 +505,7 @@
 
   async function bootstrap() {
     captureCreationIntent();
+    configureRegistrationExploreLink();
     capturePlanIntent();
     const params = new URLSearchParams(location.search);
     const signupRequested = params.get('signup') === '1';

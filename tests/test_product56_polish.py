@@ -52,8 +52,15 @@ def test_authenticated_workspace_stays_behind_a_bounded_runtime_gate():
     assert ".v1-runtime-gate" in styles
     assert "holdWorkspaceForRuntime();" in controller
     assert "shell?.setAttribute('inert', '');" in controller
-    assert "window.addEventListener('crump:body-runtime-ready', releaseWorkspaceRuntimeGate" in controller
+    assert "window.addEventListener('crump:body-runtime-ready', scheduleWorkspaceRuntimeGateRelease" in controller
     assert "window.setTimeout(releaseWorkspaceRuntimeGate, 5000)" in controller
+    assert "function scheduleWorkspaceRuntimeGateRelease()" in controller
+    assert "document.documentElement.dataset.crumpBodyRuntime !== 'ready'" in controller
+    start_app = controller[controller.index("  function startApp()"):controller.index("  function profileNudgeKey()")]
+    assert start_app.index("window.initializeApp?.();") < start_app.index("scheduleWorkspaceRuntimeGateRelease();")
+    assert start_app.index("window.dispatchEvent(new Event('crump:authenticated-ready'));") < start_app.index(
+        "scheduleWorkspaceRuntimeGateRelease();"
+    )
     assert "window.CrumpWorkspaceRuntime = Object.freeze({load});" in runtime
     assert "await prepareAuthenticatedWorkspace();" in controller
     assert "window.addEventListener('load'" not in runtime

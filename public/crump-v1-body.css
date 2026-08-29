@@ -422,6 +422,25 @@ body.crump-v1-body .v1-signup-assurance {
   text-align: center;
 }
 
+body.crump-v1-body .v1-registration-explore {
+  margin: 10px 2px 0;
+  text-align: center;
+}
+
+body.crump-v1-body .v1-registration-explore a {
+  color: #c8b47f;
+  font-size: 11px;
+  font-weight: 650;
+  text-decoration: none;
+  text-underline-offset: 4px;
+}
+
+body.crump-v1-body .v1-registration-explore a:hover,
+body.crump-v1-body .v1-registration-explore a:focus-visible {
+  color: #ead9af;
+  text-decoration: underline;
+}
+
 body.crump-v1-body .v1-auth-card .btn-primary {
   width: 100%;
   min-height: 58px !important;
@@ -2488,6 +2507,7 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
   body.crump-v1-body #registerForm .form-hint { margin-top: 4px; }
   body.crump-v1-body #registerForm .btn-primary { min-height: 52px !important; }
   body.crump-v1-body #registerForm .v1-signup-assurance { margin-top: 8px; }
+  body.crump-v1-body #registerForm .v1-registration-explore { margin-top: 7px; }
   body.crump-v1-body #registerForm .auth-footer-text { margin-top: 10px !important; }
 }
 
