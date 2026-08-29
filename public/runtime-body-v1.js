@@ -51,7 +51,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-4.3.js?v=5.9.76', 'crump43'],
     ['/crump-4.4.js', 'crump44'],
     ['/crump-5.0.js?v=5.9.76', 'crump50'],
-    ['/crump-billing-5.1.js', 'billing51'],
+    ['/crump-billing-5.1.js?v=5.9.76-credit-refresh-1', 'billing51'],
     ['/crump-5.2.js', 'crump52'],
     ['/crump-5.2.2.js', 'crump522'],
     ['/crump-v1-body.js', 'crumpbodyv1'],

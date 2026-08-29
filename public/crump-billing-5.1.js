@@ -8,7 +8,11 @@
     modal: null,
     credits: 0,
     loading: false,
+    lastBalanceFetchAt: 0,
+    balanceRequest: null,
   };
+
+  const BALANCE_STALE_MS = 5 * 60 * 1000;
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const native = () => Boolean(window.BillingManager?.isNative?.());
@@ -294,7 +298,7 @@
         jsonFetch('/api/billing/status').catch(() => ({tier:'free', status:'inactive', provider:null})),
       ]);
 
-      state.credits = Number(creditData.credits?.balance || 0);
+      applyBalance(creditData.credits?.balance);
       const balance = $('#billing51Balance', modal);
       if (balance) balance.textContent = String(state.credits);
       const allowance = $('#billing51Allowance', modal);
@@ -348,7 +352,6 @@
       }
 
       renderHistory(creditData.history || []);
-      updateSidebarBalance(state.credits);
     } catch (error) {
       window.showToast?.(error.message || 'Billing information could not be loaded.', 'error');
     } finally {
@@ -518,12 +521,26 @@
     }
   }
 
-  async function refreshBalance() {
-    try {
-      const data = await jsonFetch('/api/billing/credits/status');
-      state.credits = Number(data.credits?.balance || 0);
-      updateSidebarBalance(state.credits);
-    } catch (_) {}
+  function applyBalance(balance) {
+    const normalized = Number(balance);
+    if (!Number.isFinite(normalized)) return false;
+    state.credits = Math.max(0, normalized);
+    state.lastBalanceFetchAt = Date.now();
+    updateSidebarBalance(state.credits);
+    return true;
+  }
+
+  function refreshBalance({force = false} = {}) {
+    if (!window.currentUser) return Promise.resolve(false);
+    if (!force && state.lastBalanceFetchAt && Date.now() - state.lastBalanceFetchAt < BALANCE_STALE_MS) {
+      return Promise.resolve(false);
+    }
+    if (state.balanceRequest) return state.balanceRequest;
+    state.balanceRequest = jsonFetch('/api/billing/credits/status')
+      .then(data => applyBalance(data.credits?.balance))
+      .catch(() => false)
+      .finally(() => { state.balanceRequest = null; });
+    return state.balanceRequest;
   }
 
   function boot() {
@@ -537,19 +554,15 @@
     ownSidebarButton();
     finalizeReturn();
     if (window.currentUser) refreshBalance();
-    window.addEventListener('crump:authenticated-ready', refreshBalance);
+    window.addEventListener('crump:authenticated-ready', () => refreshBalance());
     window.addEventListener('crump:credits-updated', event => {
-      const balance = Number(event.detail?.balance ?? event.detail?.credits?.balance ?? state.credits);
-      if (Number.isFinite(balance)) {
-        state.credits = Math.max(0, balance);
-        updateSidebarBalance(state.credits);
-      } else {
-        refreshBalance();
-      }
+      const balance = Number(event.detail?.balance ?? event.detail?.credits?.balance);
+      if (!applyBalance(balance)) refreshBalance({force: true});
     });
-    setInterval(() => {
-      if (!document.hidden && window.currentUser) refreshBalance();
-    }, 60_000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) refreshBalance();
+    });
+    window.addEventListener('focus', () => refreshBalance());
     setTimeout(ownSidebarButton, 1200);
   }
 

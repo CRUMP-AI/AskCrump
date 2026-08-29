@@ -28,6 +28,18 @@
     return error;
   }
 
+  function notifyCreditBalance(data) {
+    const balance = Number(
+      data?.featureUsage?.creditBalance
+      ?? data?.dailyUsage?.creditBalance
+      ?? data?.credits?.balance,
+    );
+    if (!Number.isFinite(balance)) return;
+    window.dispatchEvent(new CustomEvent('crump:credits-updated', {
+      detail: {balance: Math.max(0, balance)},
+    }));
+  }
+
   async function requestJson(path, options, config) {
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), config.timeoutMs);
@@ -60,6 +72,7 @@
     if (!response.ok) {
       throw apiError(response, data, 'Crump could not check message availability. Try again.');
     }
+    notifyCreditBalance(data);
     if (data.limits?.messages !== -1 && data.usage?.messages >= data.limits?.messages) {
       window.showUpgradePrompt?.();
       throw new Error('Your daily message limit has been reached.');
@@ -116,7 +129,10 @@
         if (!['CLIENT_TIMEOUT', 'NETWORK_INTERRUPTED'].includes(error?.code)) throw error;
         lastTransportError = error;
       }
-      if (job?.state === 'completed') return job.data;
+      if (job?.state === 'completed') {
+        notifyCreditBalance(job.data);
+        return job.data;
+      }
       if (job?.state === 'retryable') return null;
       if (attempt < polls - 1) {
         const retryAfter = Math.min(10, Math.max(1, Number(job?.retryAfter || STATUS_RETRY_MS / 1000)));
@@ -153,7 +169,10 @@
         throw error;
       }
 
-      if (response.ok) return data;
+      if (response.ok) {
+        notifyCreditBalance(data);
+        return data;
+      }
       lastError = apiError(response, data, 'Crump could not complete that request.');
       if (response.status === 401) window.deviceAuth?.clearLocalState?.();
       if (data.upgradeRequired) window.showUpgradePrompt?.();

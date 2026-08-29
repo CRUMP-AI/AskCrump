@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Credit balance refresh fixture</title>
+</head>
+<body>
+  <button id="upgradeBtnSidebar" type="button"><span>Plan &amp; credits</span></button>
+  <output id="fixtureState">waiting</output>
+  <script>
+    window.currentUser = {id: 'fixture-user'};
+    window.__fixtureClock = 1_000_000;
+    window.__fixtureStatusCalls = 0;
+    Date.now = () => window.__fixtureClock;
+    window.BillingManager = {isNative: () => false};
+    window.fetch = async url => {
+      const pathname = new URL(String(url), location.href).pathname;
+      if (pathname !== '/api/billing/credits/status') {
+        return new Response('{}', {status: 200, headers: {'Content-Type': 'application/json'}});
+      }
+      window.__fixtureStatusCalls += 1;
+      const balance = window.__fixtureStatusCalls === 1 ? 12 : 22;
+      return new Response(JSON.stringify({credits: {balance}}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    function badge() {
+      return document.querySelector('.billing51-sidebar-balance')?.textContent || '';
+    }
+
+    window.addEventListener('load', () => {
+      setTimeout(async () => {
+        const initial = {calls: window.__fixtureStatusCalls, badge: badge()};
+        window.dispatchEvent(new Event('crump:authenticated-ready'));
+        document.dispatchEvent(new Event('visibilitychange'));
+        await new Promise(resolve => setTimeout(resolve, 20));
+        const coalesced = {calls: window.__fixtureStatusCalls, badge: badge()};
+
+        window.dispatchEvent(new CustomEvent('crump:credits-updated', {detail: {balance: 41}}));
+        const eventDriven = {calls: window.__fixtureStatusCalls, badge: badge()};
+
+        window.__fixtureClock += 4 * 60 * 1000;
+        document.dispatchEvent(new Event('visibilitychange'));
+        await new Promise(resolve => setTimeout(resolve, 20));
+        const freshReturn = {calls: window.__fixtureStatusCalls, badge: badge()};
+
+        window.__fixtureClock += 2 * 60 * 1000;
+        document.dispatchEvent(new Event('visibilitychange'));
+        await new Promise(resolve => setTimeout(resolve, 20));
+        const staleReturn = {calls: window.__fixtureStatusCalls, badge: badge()};
+
+        window.__fixture = {initial, coalesced, eventDriven, freshReturn, staleReturn};
+        document.getElementById('fixtureState').textContent = JSON.stringify(window.__fixture);
+      }, 140);
+    });
+  </script>
+  <script src="/public/crump-billing-5.1.js"></script>
+</body>
+</html>

@@ -32,7 +32,7 @@ def test_protected_product_modules_wait_for_authenticated_workspace():
     assert 'if (window.currentUser) void refreshBooks();' in library
     assert "window.addEventListener('crump:authenticated-ready'" in library
     assert 'if (window.currentUser) refreshBalance();' in billing
-    assert "window.addEventListener('crump:authenticated-ready', refreshBalance)" in billing
+    assert "window.addEventListener('crump:authenticated-ready', () => refreshBalance())" in billing
 
 
 def test_signed_out_initializers_do_not_directly_hydrate_protected_data():
