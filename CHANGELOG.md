@@ -1,5 +1,20 @@
 # Changelog
 
+## 5.9.71 — 2026-08-28
+
+### Value-aware signup entry
+
+- Replaced the cold signup screen's cost-only introduction with a concise explanation of what a
+  new workspace enables: asking questions, creating useful work, and continuing it later.
+- Preserved the existing free/no-card reassurance, registration fields, password policy,
+  verification flow, authentication behavior, pricing, and funnel-event semantics.
+- Increased the verification note to an 11-pixel readable treatment using the existing neutral
+  text color already proven elsewhere in the interface.
+- Added a regression contract for value-forward signup copy and readable assurance text.
+- Verified the real local screen at desktop, 390-by-844, and 390-by-667 viewports with the primary
+  action visible, keyboard focus on email, and no browser errors.
+- Advanced the application to 5.9.71, native build 50971, and service-worker cache revision 105.
+
 ## 5.9.70 — 2026-08-28
 
 ### Recoverable database reads

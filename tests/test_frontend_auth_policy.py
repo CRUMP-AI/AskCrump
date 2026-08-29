@@ -46,7 +46,8 @@ def test_registration_has_one_verifiable_password_field_and_tracks_safe_validati
     assert 'id="registerPassword"' in app
     assert 'id="registerPasswordConfirm"' not in app
     assert 'data-password-target="registerPassword"' in app
-    assert 'Free to start. No card required.' in app
+    assert 'Ask questions, create useful work, and pick up where you left off.' in app
+    assert 'Free to start—no card required.' in app
     assert 'secure verification link' in app
     assert 'id="registerName"' not in app
     assert 'Full Name' not in app[app.index('id="registerForm"'):app.index('id="forgotPasswordForm"')]
@@ -79,6 +80,18 @@ def test_mobile_signup_keeps_the_primary_action_above_a_short_phone_fold():
         controller.index("trackCredentialsReady();\n      trackFunnel('SignupSubmitted')")
         < controller.index("const restore = setBusy", controller.index("function wireRegistration"))
     )
+
+
+def test_cold_signup_entry_keeps_product_value_and_assurance_readable():
+    app = (PUBLIC / 'app.html').read_text(encoding='utf-8')
+    body = (PUBLIC / 'crump-v1-body.css').read_text(encoding='utf-8')
+    registration = app[app.index('id="registerForm"'):app.index('id="forgotPasswordForm"')]
+
+    assert 'Ask questions, create useful work, and pick up where you left off.' in registration
+    assert 'Free to start—no card required.' in registration
+    assurance = body[body.index('.v1-signup-assurance {'):]
+    assert 'color: #8f9498;' in assurance[:240]
+    assert 'font-size: 11px;' in assurance[:240]
 
 
 def test_registration_autofill_fixture_uses_real_local_runtime_without_production_writes():
