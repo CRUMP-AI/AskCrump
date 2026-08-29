@@ -111,11 +111,11 @@
         <div class="v1-registration-confirmation" aria-hidden="true">✓</div>
         <div class="v1-auth-eyebrow">ACCOUNT CREATED</div>
         <h2 id="registrationPendingTitle">Check your inbox.</h2>
-        <p>We sent a secure verification link to <strong id="registrationPendingEmail"></strong>. Open it to activate your workspace, then return here to sign in.</p>
+        <p>We sent a secure verification link to <strong id="registrationPendingEmail"></strong>. Open it to verify your email and enter your workspace automatically. If it opens on another device, you can still sign in here with the password you created.</p>
         <div id="registrationPendingSuccess" class="auth-success" role="status" aria-live="polite" style="display:none;"></div>
         <div id="registrationPendingError" class="auth-error" role="alert" style="display:none;"></div>
         <div class="v1-registration-actions">
-          <button id="registrationPendingSigninBtn" class="btn btn-primary btn-large btn-block" type="button">I’ve verified — sign in</button>
+          <button id="registrationPendingSigninBtn" class="btn btn-primary btn-large btn-block" type="button">Sign in on this device</button>
           <button id="registrationPendingResendBtn" class="btn btn-secondary btn-block" type="button">Resend verification email</button>
         </div>
         <p class="v1-registration-help">The link may take a minute. Check spam or promotions if it does not appear.</p>
@@ -628,7 +628,7 @@
 <script defer src="/install-prompt.js?v=5.9.76"></script>
 <script defer src="/auth-resilience.js?v=5.9.76"></script>
 <script defer src="/device-auth.js?v=5.9.76"></script>
-<script defer src="/auth-controller.js?v=5.9.76"></script>
+<script defer src="/auth-controller.js?v=5.9.76-verification-session-1"></script>
 <script defer src="/_vercel/insights/script.js"></script>
 <script defer src="/_vercel/speed-insights/script.js" data-route="/app"></script>
 </body>

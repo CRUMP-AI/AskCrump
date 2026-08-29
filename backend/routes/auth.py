@@ -525,7 +525,7 @@ async def resend_verification(payload: EmailRequest, request: Request):
 
 
 @router.get('/verify-email')
-async def verify_email(token: str):
+async def verify_email(token: str, request: Request):
     user = await db.select_one(
         'users',
         columns='*',
@@ -539,22 +539,41 @@ async def verify_email(token: str):
             f'{settings.app_url}/app?verification=failed',
             status_code=303,
         )
-    if user.get('is_verified'):
-        return RedirectResponse(
-            f'{settings.app_url}/app?verification=already_verified',
-            status_code=303,
-        )
-    await db.update(
-        'users',
-        {
+
+    # Possession of the verification link proves control of the inbox. Issue the
+    # first session here so a successful signup does not require another password
+    # entry. Keep the hashed token usable for a short period after first use: mail
+    # security scanners can otherwise consume a one-time GET before the person
+    # opens it. The first real click shrinks the original 24-hour verification
+    # window to 15 minutes; password login remains available after that window.
+    if not user.get('is_verified'):
+        verification_values = {
             'is_verified': True,
-            'verification_token_hash': None,
-            'verification_token_expires': None,
+            'verification_token_expires': expiry_iso(minutes=15),
             'updated_at': iso_now(),
-        },
-        filters={'id': eq(user['id'])},
+        }
+        await db.update(
+            'users',
+            verification_values,
+            filters={'id': eq(user['id'])},
+        )
+        user = {**user, **verification_values}
+
+    raw_token, _ = await create_session(
+        db,
+        settings,
+        user,
+        request,
+        device_name='Verified email link',
+        platform='web',
     )
-    return RedirectResponse(
+    response = RedirectResponse(
         f'{settings.app_url}/app?verification=success',
         status_code=303,
     )
+    set_session_cookie(response, raw_token, request)
+    logger.info(
+        'Auth verification outcome=session_issued client=%s',
+        _auth_client_kind(request),
+    )
+    return response

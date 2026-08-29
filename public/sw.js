@@ -54,7 +54,7 @@ const CORE = [
   '/account-manager.js',
   '/app.js?v=5.9.76',
   '/product-analytics.js?v=5.9.76',
-  '/auth-controller.js?v=5.9.76',
+  '/auth-controller.js?v=5.9.76-verification-session-1',
   '/crump-4.3.css',
   '/crump-4.3.js?v=5.9.76',
   '/crump-4.4.css',

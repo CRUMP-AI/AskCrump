@@ -223,11 +223,14 @@ def test_signup_success_has_durable_verification_handoff_and_recovery_ui():
     assert 'id="registrationPending"' in app
     assert 'Check your inbox.' in app
     assert 'id="registrationPendingSigninBtn"' in app
+    assert 'enter your workspace automatically' in app
+    assert 'Sign in on this device' in app
     assert 'id="registrationPendingResendBtn"' in app
     assert 'function showRegistrationPending(email, message' in controller
     assert "showRegistrationPending(email, data.message || 'Verification email sent.')" in controller
     assert "if (loginEmail) loginEmail.value = email" in controller
     assert "byId('registrationPending')?.focus()" in controller
+    assert 'Email verified. Your workspace is ready.' in controller
     assert "setTimeout(() => { hide('registerForm'); show('loginForm'); }, 1800)" not in controller
 
 

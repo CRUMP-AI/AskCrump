@@ -128,9 +128,9 @@ class EmailService:
     async def send_verification(self, email: str, name: str | None, token: str) -> bool:
         url = f"{self.settings.app_url}/api/auth/verify-email?token={token}"
         safe_name = html.escape(name or 'there')
-        content = f"""<p>Hi {safe_name},</p><p>Confirm your email to finish creating your account.</p>
-<p><a href="{html.escape(url)}" style="display:inline-block;background:#c9b892;color:#101419;text-decoration:none;padding:13px 20px;border-radius:10px;font-weight:700">Verify email</a></p>
-<p style="color:#9aa4ad">This link expires in 24 hours. If you did not create this account, ignore this message.</p>"""
+        content = f"""<p>Hi {safe_name},</p><p>Confirm your email and open your Ask Crump workspace.</p>
+<p><a href="{html.escape(url)}" style="display:inline-block;background:#c9b892;color:#101419;text-decoration:none;padding:13px 20px;border-radius:10px;font-weight:700">Verify &amp; open Ask Crump</a></p>
+<p style="color:#9aa4ad">This secure link expires in 24 hours. After verification, the same link can open your workspace for 15 minutes. If you did not create this account, ignore this message.</p>"""
         return await self._send(
             email,
             f'Verify your {self.settings.app_name} account',

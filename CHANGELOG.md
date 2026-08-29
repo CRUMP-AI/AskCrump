@@ -2,6 +2,18 @@
 
 ## 5.9.76 — 2026-08-29
 
+### One-click verified workspace entry
+
+- Changed a successful email-verification link from a return-to-login loop into an authenticated
+  workspace handoff using the existing secure session-cookie contract.
+- Kept the hashed verification link usable for 15 minutes after first verification so automated
+  mail safety checks cannot consume the person's only usable click; the original 24-hour window
+  shrinks on first use, and password sign-in remains available afterward.
+- Updated the verification email and pending-account screen to state that the link opens the
+  workspace automatically while preserving an explicit sign-in fallback for another device.
+- Versioned the authentication controller independently so existing web and PWA sessions receive
+  the corrected completion language and startup behavior without a broad application version bump.
+
 ### Replay-safe manuscript scheduling
 
 - Made the manuscript worker's lease claim safely replayable after a transient Data API response

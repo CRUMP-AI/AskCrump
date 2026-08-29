@@ -569,7 +569,7 @@
 
   function showVerificationResult(value) {
     const messages = {
-      success: 'Email verified. You can sign in now.',
+      success: 'Email verified. Your workspace is ready.',
       already_verified: 'This email is already verified.',
       failed: 'That verification link is invalid, expired, or already used. Enter your email below to resend verification, or sign in if verification already completed.',
     };
