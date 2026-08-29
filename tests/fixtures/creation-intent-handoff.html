@@ -39,6 +39,7 @@
     window.addEventListener('load', () => setTimeout(render, 80));
 
     window.va = (command, payload) => window.__fixture.events.push({command, ...payload});
+    window.CrumpWorkspaceRuntime = {load: async () => {}};
     window.CrumpAPI = {ready: Promise.resolve()};
     window.deviceAuth = {
       async checkSession() {

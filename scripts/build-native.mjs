@@ -44,7 +44,10 @@ const loader = String.raw`
 (() => {
   'use strict';
 
-  const styles = Object.freeze([
+  const workspaceStyles = Object.freeze([
+    ['/billing.css', 'workspacebilling'],
+    ['/onboarding.css', 'workspaceonboarding'],
+    ['/conversation.css?v=5.9.75', 'workspaceconversation'],
     ['/crump-4.3.css', 'crump43'],
     ['/crump-4.4.css', 'crump44'],
     ['/crump-5.0.css', 'crump50'],
@@ -52,10 +55,25 @@ const loader = String.raw`
     ['/crump-5.2.css', 'crump52'],
     ['/crump-5.2.2.css', 'crump522'],
     ['/crump-v1-body.css?v=5.9.75', 'crumpbodyv1'],
-    ['/crump-v1-stability.css', 'crumpv1stability'],
   ]);
 
-  const scripts = Object.freeze([
+  const workspaceScripts = Object.freeze([
+    ['/onboarding.js', 'workspaceonboarding'],
+    ['/scroll-manager.js', 'workspacescroll'],
+    ['/profile-manager.js', 'workspaceprofile'],
+    ['/billing-manager.js', 'workspacebilling'],
+    ['/subscription-ui.js', 'workspacesubscription'],
+    ['/chat-resilience.js?v=5.9.75', 'workspacechatresilience'],
+    ['/ui-functions.js?v=5.9.75', 'workspaceui'],
+    ['/presence-manager.js?v=5.9.75', 'workspacepresence'],
+    ['/sync-manager.js?v=5.9.75', 'workspacesync'],
+    ['/chat-sync.js?v=5.9.75', 'workspacechatsync'],
+    ['/account-manager.js', 'workspaceaccount'],
+    ['/app.js?v=5.9.75', 'workspaceapp'],
+    ['/product-analytics.js?v=5.9.75', 'workspaceanalytics'],
+  ]);
+
+  const enhancementScripts = Object.freeze([
     ['/crump-4.3.js?v=5.9.75', 'crump43'],
     ['/crump-4.4.js', 'crump44'],
     ['/crump-5.0.js?v=5.9.75', 'crump50'],
@@ -101,8 +119,11 @@ const loader = String.raw`
     });
   }
 
+  let runtimePromise = null;
+
   async function boot() {
-    await Promise.all(styles.map(([url,key]) => loadStyle(url,key)));
+    document.documentElement.dataset.crumpBodyRuntime = 'loading';
+    await Promise.all(workspaceStyles.map(([url,key]) => loadStyle(url,key)));
 
     await loadStyle('/crump-navigation-5.2.5.css', 'crumpnav525');
     await loadStyle('/crump-product-5.3.css', 'crumpproduct53');
@@ -110,9 +131,11 @@ const loader = String.raw`
     await loadStyle('/crump-polish-5.6.css', 'crumppolish56');
     await loadStyle('/crump-library-5.7.css', 'crumplibrary57');
     await loadStyle('/crump-code-5.9.35.css', 'crumpcode5935');
+    await loadStyle('/crump-v1-stability.css', 'crumpv1stability');
     await loadStyle('/crump-navigation-5.9.30.css', 'crumpnav5930');
 
-    for (const [url,key] of scripts) await loadScript(url,key);
+    for (const [url,key] of workspaceScripts) await loadScript(url,key);
+    for (const [url,key] of enhancementScripts) await loadScript(url,key);
 
     await loadScript('/crump-navigation-5.2.5.js', 'crumpnav525');
     await loadScript('/crump-product-5.3.js', 'crumpproduct53');
@@ -124,10 +147,22 @@ const loader = String.raw`
     await loadScript('/crump-code-5.9.35.js', 'crumpcode5935');
 
     document.documentElement.dataset.crumpBodyRuntime = 'ready';
+    window.dispatchEvent(new CustomEvent('crump:body-runtime-ready'));
   }
 
-  if (document.readyState === 'complete') void boot();
-  else window.addEventListener('load', () => { void boot(); }, {once:true});
+  function load() {
+    if (document.documentElement.dataset.crumpBodyRuntime === 'ready') return Promise.resolve();
+    if (runtimePromise) return runtimePromise;
+    runtimePromise = boot().catch(error => {
+      runtimePromise = null;
+      delete document.documentElement.dataset.crumpBodyRuntime;
+      throw error;
+    });
+    return runtimePromise;
+  }
+
+  window.CrumpWorkspaceRuntime = Object.freeze({load});
+  window.addEventListener('crump:workspace-runtime-requested', () => { void load(); });
 })();
 `;
 

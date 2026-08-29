@@ -95,6 +95,7 @@
       window.__fixture.events.push(payload.name);
       document.getElementById('fixtureEvents').textContent = window.__fixture.events.join(',');
     };
+    window.CrumpWorkspaceRuntime = {load: async () => {}};
     window.CrumpAPI = {ready: Promise.resolve()};
     window.deviceAuth = {
       async checkSession() { return {success:true, authenticated:false}; },

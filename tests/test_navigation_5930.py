@@ -20,7 +20,7 @@ def test_five_destination_navigation_is_final_runtime_layer_and_boot_critical():
         assert asset.lstrip("/") in checker
 
     assert runtime.index("/crump-library-5.7.js") < runtime.index("/crump-navigation-5.9.30.js")
-    assert "ask-crump-new-body-v1-r113" in worker
+    assert "ask-crump-new-body-v1-r114" in worker
 
 
 def test_navigation_exposes_exact_product_destinations_on_desktop_and_mobile():

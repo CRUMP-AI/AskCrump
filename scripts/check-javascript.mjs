@@ -93,8 +93,6 @@ const requiredHtmlSignals = [
   '/runtime-body-v1.js',
   `/auth-resilience.js?v=${releaseVersion}`,
   `/install-prompt.js?v=${releaseVersion}`,
-  `/chat-resilience.js?v=${releaseVersion}`,
-  `/product-analytics.js?v=${releaseVersion}`,
   '/crump-v1-body.css',
   'class="crump-v1-body"',
   'class="v1-shell"',
@@ -122,7 +120,13 @@ if (appHtml.includes('fonts.googleapis.com') || appHtml.includes('fonts.gstatic.
 }
 
 const runtime = await readFile(new URL('public/runtime-body-v1.js', repoRoot), 'utf8');
-if (!runtime.includes('/crump-v1-body.js') || !runtime.includes('/crump-v1-body.css') ||
+if (!runtime.includes('/billing.css') || !runtime.includes('/onboarding.css') ||
+    !runtime.includes(`/conversation.css?v=${releaseVersion}`) ||
+    !runtime.includes(`/chat-resilience.js?v=${releaseVersion}`) ||
+    !runtime.includes(`/ui-functions.js?v=${releaseVersion}`) ||
+    !runtime.includes(`/product-analytics.js?v=${releaseVersion}`) ||
+    !runtime.includes(`/app.js?v=${releaseVersion}`) ||
+    !runtime.includes('/crump-v1-body.js') || !runtime.includes('/crump-v1-body.css') ||
     !runtime.includes(`/crump-5.0.js?v=${releaseVersion}`) ||
     !runtime.includes('/crump-product-5.3.js') || !runtime.includes('/crump-product-5.3.css') ||
     !runtime.includes('/crump-product-5.3.1.js') || !runtime.includes('/crump-product-5.3.1.css') ||
@@ -139,6 +143,63 @@ if (runtime.includes('/crump-5.2.4.js') || runtime.includes('/crump-5.2.4.css'))
   process.exit(1);
 }
 
+const appendedRuntimeAssets = [];
+const dispatchedRuntimeEvents = [];
+const runtimeDocument = {
+  documentElement: {dataset: {}},
+  head: {
+    appendChild(node) {
+      const url = node.href || node.src;
+      if (url) appendedRuntimeAssets.push(url);
+      Promise.resolve().then(() => node.listeners.load?.());
+      return node;
+    },
+  },
+  querySelector() { return null; },
+  createElement(tagName) {
+    return {
+      tagName,
+      dataset: {},
+      listeners: {},
+      addEventListener(type, callback) { this.listeners[type] = callback; },
+    };
+  },
+};
+const runtimeWindow = {
+  addEventListener() {},
+  dispatchEvent(event) { dispatchedRuntimeEvents.push(event.type); },
+};
+class RuntimeCustomEvent {
+  constructor(type) { this.type = type; }
+}
+runInContext(runtime, createContext({
+  CustomEvent: RuntimeCustomEvent,
+  document: runtimeDocument,
+  Promise,
+  window: runtimeWindow,
+}));
+if (appendedRuntimeAssets.length !== 0 || typeof runtimeWindow.CrumpWorkspaceRuntime?.load !== 'function') {
+  console.error('Workspace runtime must stay idle until authentication requests it.');
+  process.exit(1);
+}
+const firstRuntimeLoad = runtimeWindow.CrumpWorkspaceRuntime.load();
+const concurrentRuntimeLoad = runtimeWindow.CrumpWorkspaceRuntime.load();
+if (firstRuntimeLoad !== concurrentRuntimeLoad) {
+  console.error('Concurrent workspace runtime requests must share one idempotent load.');
+  process.exit(1);
+}
+await firstRuntimeLoad;
+const loadedRuntimeAssetCount = appendedRuntimeAssets.length;
+await runtimeWindow.CrumpWorkspaceRuntime.load();
+if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
+    dispatchedRuntimeEvents.filter(type => type === 'crump:body-runtime-ready').length !== 1 ||
+    appendedRuntimeAssets.length !== loadedRuntimeAssetCount ||
+    appendedRuntimeAssets.indexOf(`/app.js?v=${releaseVersion}`) > appendedRuntimeAssets.indexOf(`/crump-4.3.js?v=${releaseVersion}`) ||
+    appendedRuntimeAssets.at(-1) !== '/crump-code-5.9.35.js') {
+  console.error('Authenticated workspace runtime load order or completion contract failed.');
+  process.exit(1);
+}
+
 const crump43 = await readFile(new URL('public/crump-4.3.js', repoRoot), 'utf8');
 const v1Body = await readFile(new URL('public/crump-v1-body.js', repoRoot), 'utf8');
 if (!crump43.includes('v1OwnsEmptyState') || !crump43.includes("classList.contains('crump-v1-body')")) {
@@ -151,7 +212,7 @@ if (!v1Body.includes('removeLegacyEmptyState(container)')) {
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r113') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r114') ||
     !serviceWorker.includes(`/landing.js?v=${releaseVersion}`) ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes(`/conversation.css?v=${releaseVersion}`) ||
@@ -187,6 +248,73 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r113') ||
     !serviceWorker.includes('/crump-library-5.7.js') ||
     !serviceWorker.includes('/crump-library-5.7.css')) {
   console.error('New-body service-worker contract is incomplete.');
+  process.exit(1);
+}
+
+const installPromptSource = await readFile(new URL('public/install-prompt.js', repoRoot), 'utf8');
+async function simulateServiceWorkerRegistration(hasExistingRegistration) {
+  const windowListeners = new Map();
+  const storage = {
+    getItem() { return null; },
+    setItem() {},
+  };
+  let registrationCalls = 0;
+  const registration = {update: async () => {}};
+  const navigatorMock = {
+    standalone: false,
+    serviceWorker: {
+      controller: null,
+      addEventListener() {},
+      getRegistration: async () => hasExistingRegistration ? registration : null,
+      register: async () => {
+        registrationCalls += 1;
+        return registration;
+      },
+    },
+  };
+  const windowMock = {
+    CrumpAPI: {isNative: false},
+    currentUser: null,
+    localStorage: storage,
+    matchMedia: () => ({matches: false}),
+    navigator: navigatorMock,
+    safeStorage: storage,
+    addEventListener(type, callback) {
+      const listeners = windowListeners.get(type) || [];
+      listeners.push(callback);
+      windowListeners.set(type, listeners);
+    },
+  };
+  const documentMock = {
+    hidden: false,
+    readyState: 'complete',
+    addEventListener() {},
+    getElementById() { return null; },
+    querySelector() { return null; },
+  };
+  runInContext(installPromptSource, createContext({
+    MutationObserver: class { observe() {} },
+    console,
+    document: documentMock,
+    navigator: navigatorMock,
+    requestAnimationFrame: callback => callback(),
+    setTimeout,
+    window: windowMock,
+  }));
+  for (const callback of windowListeners.get('load') || []) await callback();
+  await Promise.resolve();
+  await Promise.resolve();
+  const afterLoad = registrationCalls;
+  for (const callback of windowListeners.get('crump:authenticated-ready') || []) await callback();
+  await Promise.resolve();
+  await Promise.resolve();
+  return {afterLoad, afterAuthentication: registrationCalls};
+}
+const freshRegistrationScenario = await simulateServiceWorkerRegistration(false);
+const existingRegistrationScenario = await simulateServiceWorkerRegistration(true);
+if (freshRegistrationScenario.afterLoad !== 0 || freshRegistrationScenario.afterAuthentication !== 1 ||
+    existingRegistrationScenario.afterLoad !== 1 || existingRegistrationScenario.afterAuthentication !== 1) {
+  console.error('Service-worker registration must wait for authentication only on a genuinely new browser.');
   process.exit(1);
 }
 

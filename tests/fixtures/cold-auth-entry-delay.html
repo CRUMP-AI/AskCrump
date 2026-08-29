@@ -79,6 +79,7 @@
     };
     window.__fixture = {sessionSettled: false, loginCalls: 0, registerCalls: 0, appStarts: 0};
     window.va = () => {};
+    window.CrumpWorkspaceRuntime = {load: async () => {}};
     window.CrumpAPI = {ready: Promise.resolve()};
     window.CrumpAnalytics = {track: () => Promise.resolve(true)};
     window.configureUserStorage = () => {};

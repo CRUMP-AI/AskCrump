@@ -604,7 +604,9 @@ def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
     worker = (ROOT / "public" / "sw.js").read_text(encoding="utf-8")
     application = (ROOT / "backend" / "application.py").read_text(encoding="utf-8")
 
-    assert app.index('/product-analytics.js') < app.index('/auth-controller.js')
+    runtime = (ROOT / "public" / "runtime-body-v1.js").read_text(encoding="utf-8")
+    assert '/product-analytics.js' not in app
+    assert runtime.index('/app.js') < runtime.index('/product-analytics.js')
     assert (
         "new Set(['WorkspaceOpened', 'StarterIntentReached', 'ActivationReached', "
         "'OutcomeFeedbackSubmitted', 'RecentWorkResumed', 'PlanIntentReached', "

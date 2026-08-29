@@ -11,6 +11,7 @@
     let runtimeUpdateHandled = false;
     let runtimeUpdatePending = false;
     let reloadStarted = false;
+    let registrationStarted = false;
 
     const updateCheckIntervalMs = 60_000;
     const reloadGuardKey = 'crump_runtime_reload_started_at';
@@ -165,6 +166,33 @@
         observer.observe(app, { attributes: true, attributeFilter: ['hidden', 'style', 'class'] });
     }
 
+    async function registerServiceWorker() {
+        if (registrationStarted || window.CrumpAPI?.isNative || !('serviceWorker' in navigator)) return;
+        registrationStarted = true;
+        try {
+            serviceWorkerRegistration = await navigator.serviceWorker.register('/sw.js');
+            await checkForRuntimeUpdate({force: true});
+        } catch (error) {
+            registrationStarted = false;
+            console.error('[Service worker] Registration failed:', error);
+        }
+    }
+
+    async function registerExistingOrWaitForAuthentication() {
+        try {
+            const existing = await navigator.serviceWorker.getRegistration();
+            if (existing || window.currentUser) {
+                await registerServiceWorker();
+                return;
+            }
+        } catch (error) {
+            console.warn('[Service worker] Existing registration check unavailable:', error);
+        }
+        window.addEventListener('crump:authenticated-ready', () => {
+            void registerServiceWorker();
+        }, {once: true});
+    }
+
     function initialize() {
         if (isInstalled()) return;
 
@@ -195,13 +223,8 @@
             handleRuntimeUpdate();
         });
 
-        window.addEventListener('load', async () => {
-            try {
-                serviceWorkerRegistration = await navigator.serviceWorker.register('/sw.js');
-                await checkForRuntimeUpdate({force: true});
-            } catch (error) {
-                console.error('[Service worker] Registration failed:', error);
-            }
+        window.addEventListener('load', () => {
+            void registerExistingOrWaitForAuthentication();
         }, { once: true });
 
         document.addEventListener('visibilitychange', () => {

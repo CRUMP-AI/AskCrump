@@ -266,6 +266,14 @@
     show('appContainer', 'flex');
   }
 
+  async function prepareAuthenticatedWorkspace() {
+    const runtime = window.CrumpWorkspaceRuntime;
+    if (!runtime || typeof runtime.load !== 'function') {
+      throw new Error('Ask Crump could not prepare your workspace. Reload and try again.');
+    }
+    await runtime.load();
+  }
+
   function startApp() {
     hide('authContainer');
     hide('tosModal');
@@ -460,6 +468,8 @@
       if (verification) showVerificationResult(verification);
       return;
     }
+    await prepareAuthenticatedWorkspace();
+    if (authFlowRevision !== bootstrapAuthFlowRevision) return;
     activeUser = session.data.user;
     window.currentUser = activeUser;
     window.configureUserStorage?.(activeUser.id);
@@ -656,6 +666,7 @@
       try {
         const result = await window.deviceAuth.login(byId('loginEmail').value.trim(), byId('loginPassword').value);
         if (!result.success || !result.data?.user) throw Object.assign(new Error(result.error || 'Sign in failed.'), { result });
+        await prepareAuthenticatedWorkspace();
         activeUser = result.data.user;
         window.currentUser = activeUser;
         window.configureUserStorage?.(activeUser.id);

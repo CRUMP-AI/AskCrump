@@ -27,6 +27,7 @@
   <div id="appContainer" style="display:none">
     <textarea id="userInput"></textarea>
   </div>
+  <output id="runtimeLoads" aria-live="polite">0</output>
   <script>
     const fixtureUser = {
       id: 'fixture-user',
@@ -40,8 +41,13 @@
       authenticatedStarts: 0,
       loginCalls: 0,
       syncPulls: 0,
+      runtimeLoads: 0,
     };
     window.va = () => {};
+    window.CrumpWorkspaceRuntime = {load: async () => {
+      window.__fixture.runtimeLoads += 1;
+      document.getElementById('runtimeLoads').textContent = String(window.__fixture.runtimeLoads);
+    }};
     window.CrumpAPI = { ready: Promise.resolve() };
     window.CrumpAnalytics = { track: () => Promise.resolve(true) };
     window.configureUserStorage = () => {};

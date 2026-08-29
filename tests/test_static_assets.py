@@ -151,9 +151,11 @@ def test_no_decorative_startup_video_or_in_app_splash():
 
 def test_presence_is_inline_and_accessible():
     app_html = (PUBLIC / 'app.html').read_text()
+    runtime = (PUBLIC / 'runtime-body-v1.js').read_text()
     polish = (PUBLIC / 'conversation.css').read_text()
     presence = (PUBLIC / 'presence-manager.js').read_text()
-    assert '/presence-manager.js' in app_html
+    assert '/presence-manager.js' not in app_html
+    assert '/presence-manager.js?v=5.9.75' in runtime
     assert 'id="thinkingIndicator"' not in app_html
     assert 'id="conversationStatus"' in app_html
     assert 'aria-live="polite"' in app_html

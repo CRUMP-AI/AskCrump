@@ -18,7 +18,10 @@ window.CRUMP_CONFIG = Object.freeze({
 (() => {
   'use strict';
 
-  const styles = Object.freeze([
+  const workspaceStyles = Object.freeze([
+    ['/billing.css', 'workspacebilling'],
+    ['/onboarding.css', 'workspaceonboarding'],
+    ['/conversation.css?v=5.9.75', 'workspaceconversation'],
     ['/crump-4.3.css', 'crump43'],
     ['/crump-4.4.css', 'crump44'],
     ['/crump-5.0.css', 'crump50'],
@@ -28,7 +31,23 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-v1-body.css?v=5.9.75', 'crumpbodyv1'],
   ]);
 
-  const scripts = Object.freeze([
+  const workspaceScripts = Object.freeze([
+    ['/onboarding.js', 'workspaceonboarding'],
+    ['/scroll-manager.js', 'workspacescroll'],
+    ['/profile-manager.js', 'workspaceprofile'],
+    ['/billing-manager.js', 'workspacebilling'],
+    ['/subscription-ui.js', 'workspacesubscription'],
+    ['/chat-resilience.js?v=5.9.75', 'workspacechatresilience'],
+    ['/ui-functions.js?v=5.9.75', 'workspaceui'],
+    ['/presence-manager.js?v=5.9.75', 'workspacepresence'],
+    ['/sync-manager.js?v=5.9.75', 'workspacesync'],
+    ['/chat-sync.js?v=5.9.75', 'workspacechatsync'],
+    ['/account-manager.js', 'workspaceaccount'],
+    ['/app.js?v=5.9.75', 'workspaceapp'],
+    ['/product-analytics.js?v=5.9.75', 'workspaceanalytics'],
+  ]);
+
+  const enhancementScripts = Object.freeze([
     ['/crump-4.3.js?v=5.9.75', 'crump43'],
     ['/crump-4.4.js', 'crump44'],
     ['/crump-5.0.js?v=5.9.75', 'crump50'],
@@ -75,8 +94,11 @@ window.CRUMP_CONFIG = Object.freeze({
     });
   }
 
+  let runtimePromise = null;
+
   async function boot() {
-    await Promise.all(styles.map(([url, key]) => loadStyle(url, key)));
+    document.documentElement.dataset.crumpBodyRuntime = 'loading';
+    await Promise.all(workspaceStyles.map(([url, key]) => loadStyle(url, key)));
 
     // Navigation cleanup is intentionally loaded after the existing visual stack so
     // its narrow sidebar rules have final authority without disturbing legacy layers.
@@ -93,7 +115,11 @@ window.CRUMP_CONFIG = Object.freeze({
     // It reorganizes navigation without changing the underlying product surfaces.
     await loadStyle('/crump-navigation-5.9.30.css', 'crumpnav5930');
 
-    for (const [url, key] of scripts) {
+    for (const [url, key] of workspaceScripts) {
+      await loadScript(url, key);
+    }
+
+    for (const [url, key] of enhancementScripts) {
       await loadScript(url, key);
     }
 
@@ -111,9 +137,17 @@ window.CRUMP_CONFIG = Object.freeze({
     window.dispatchEvent(new CustomEvent('crump:body-runtime-ready'));
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => { void boot(); }, {once: true});
-  } else {
-    void boot();
+  function load() {
+    if (document.documentElement.dataset.crumpBodyRuntime === 'ready') return Promise.resolve();
+    if (runtimePromise) return runtimePromise;
+    runtimePromise = boot().catch(error => {
+      runtimePromise = null;
+      delete document.documentElement.dataset.crumpBodyRuntime;
+      throw error;
+    });
+    return runtimePromise;
   }
+
+  window.CrumpWorkspaceRuntime = Object.freeze({load});
+  window.addEventListener('crump:workspace-runtime-requested', () => { void load(); });
 })();

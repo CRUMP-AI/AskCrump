@@ -45,6 +45,7 @@
     };
     window.__fixture = {loginCalls:0, sessionChecks:0, postLoginChecks:0, appStarts:0};
     window.va = () => {};
+    window.CrumpWorkspaceRuntime = {load: async () => {}};
     window.CrumpAPI = {ready:Promise.resolve(), isNative:false, installationId:() => 'fixture'};
     window.configureUserStorage = () => {};
     window.profileManager = {applyServerSubscription() {}, updateProfile() {}};

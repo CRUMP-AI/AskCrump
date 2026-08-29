@@ -17,7 +17,7 @@ def test_56_polish_layer_is_last_on_web_and_native():
         assert source.index("/crump-4.3.js") < source.index("/crump-4.4.js")
         assert source.index("/crump-product-5.3.1.js") < source.index("/crump-polish-5.6.js")
         assert "/crump-polish-5.6.css" in source
-    assert "ask-crump-new-body-v1-r113" in worker
+    assert "ask-crump-new-body-v1-r114" in worker
     assert "/crump-polish-5.6.css" in worker and "/crump-polish-5.6.js" in worker
     assert "crump-polish-5.6.js" in checker
 
@@ -54,7 +54,8 @@ def test_authenticated_workspace_stays_behind_a_bounded_runtime_gate():
     assert "shell?.setAttribute('inert', '');" in controller
     assert "window.addEventListener('crump:body-runtime-ready', releaseWorkspaceRuntimeGate" in controller
     assert "window.setTimeout(releaseWorkspaceRuntimeGate, 5000)" in controller
-    assert "document.addEventListener('DOMContentLoaded'" in runtime
+    assert "window.CrumpWorkspaceRuntime = Object.freeze({load});" in runtime
+    assert "await prepareAuthenticatedWorkspace();" in controller
     assert "window.addEventListener('load'" not in runtime
 
 

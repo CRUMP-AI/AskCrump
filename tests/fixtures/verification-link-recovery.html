@@ -39,6 +39,7 @@
   <div id="appContainer" style="display:none"><textarea id="userInput"></textarea></div>
   <script>
     window.va = () => {};
+    window.CrumpWorkspaceRuntime = {load: async () => {}};
     window.CrumpAPI = {ready: Promise.resolve()};
     window.deviceAuth = {
       async checkSession() { return {success:true, authenticated:false}; },
