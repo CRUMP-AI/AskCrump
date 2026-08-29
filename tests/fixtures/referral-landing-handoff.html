@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Referral landing handoff fixture</title>
+</head>
+<body>
+  <main>
+    <h1>Referral landing handoff fixture</h1>
+    <a id="signupCta" data-cta="hero" data-plan="free" href="/app?signup=1&amp;source=hero&amp;plan=free">Start free</a>
+    <a id="signinCta" data-cta="nav-signin" data-plan="free" href="/app?source=nav-signin&amp;plan=free">Sign in</a>
+    <output id="fixtureSignupHref" aria-label="Signup destination">pending</output>
+    <output id="fixtureSigninHref" aria-label="Sign-in destination">pending</output>
+    <output id="fixtureEvents" aria-label="Recorded marketing events">pending</output>
+    <output id="fixtureStoredSource" aria-label="Stored acquisition source">pending</output>
+    <output id="fixtureStoredPlacement" aria-label="Stored acquisition placement">pending</output>
+    <output id="fixtureErrors" aria-label="Browser errors">0</output>
+  </main>
+  <script>
+    window.__fixture = {events: [], errors: []};
+    window.va = (command, payload) => window.__fixture.events.push({command, payload});
+    window.addEventListener('error', event => {
+      window.__fixture.errors.push(String(event.message || 'error'));
+      document.getElementById('fixtureErrors').textContent = String(window.__fixture.errors.length);
+    });
+    document.querySelectorAll('a').forEach(link => link.addEventListener('click', event => event.preventDefault()));
+  </script>
+  <script src="/public/landing.js?v=referral-landing-fixture"></script>
+  <script>
+    const signup = document.getElementById('signupCta');
+    const signin = document.getElementById('signinCta');
+    [signup, signin].forEach(link => {
+      link.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true}));
+    });
+    document.getElementById('fixtureSignupHref').textContent = signup.getAttribute('href');
+    document.getElementById('fixtureSigninHref').textContent = signin.getAttribute('href');
+    document.getElementById('fixtureEvents').textContent = JSON.stringify(window.__fixture.events);
+    document.getElementById('fixtureStoredSource').textContent =
+      sessionStorage.getItem('askcrump.acquisition-source') || 'none';
+    document.getElementById('fixtureStoredPlacement').textContent =
+      sessionStorage.getItem('askcrump.acquisition-placement') || 'none';
+  </script>
+</body>
+</html>

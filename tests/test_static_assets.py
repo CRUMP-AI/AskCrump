@@ -272,10 +272,11 @@ def test_ai_responses_have_privacy_safe_sharing():
     assert "ResponseShared" in ui
     assert "responseShareKey(message, index)" in ui
     assert (
-        "https://www.askcrump.com/app?signup=1&acquisition=referral&source=response-share"
+        "https://www.askcrump.com/?acquisition=referral&source=response-share"
         in ui
     )
     share_url = ui[ui.index("const ASK_CRUMP_SHARE_URL"):ui.index("async function writeClipboard")]
+    assert "/app?signup=1" not in share_url
     assert "user_id" not in share_url.lower()
     assert "message" not in share_url.lower()
     assert "chat" not in share_url.lower()

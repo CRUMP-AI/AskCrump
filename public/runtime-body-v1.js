@@ -38,7 +38,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/billing-manager.js', 'workspacebilling'],
     ['/subscription-ui.js', 'workspacesubscription'],
     ['/chat-resilience.js?v=5.9.76', 'workspacechatresilience'],
-    ['/ui-functions.js?v=5.9.76', 'workspaceui'],
+    ['/ui-functions.js?v=5.9.76-referral-1', 'workspaceui'],
     ['/presence-manager.js?v=5.9.76', 'workspacepresence'],
     ['/sync-manager.js?v=5.9.76', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-sync-cadence-1', 'workspacechatsync'],
@@ -110,7 +110,7 @@ window.CRUMP_CONFIG = Object.freeze({
     // Navigation cleanup is intentionally loaded after the existing visual stack so
     // its narrow sidebar rules have final authority without disturbing legacy layers.
     await loadStyle('/crump-navigation-5.2.5.css', 'crumpnav525');
-    await loadStyle('/crump-product-5.3.css', 'crumpproduct53');
+    await loadStyle('/crump-product-5.3.css?v=5.9.76-project-workspaces-2', 'crumpproduct53');
     await loadStyle('/crump-product-5.3.1.css', 'crumpproduct531');
     await loadStyle('/crump-polish-5.6.css', 'crumppolish56');
     await loadStyle('/crump-library-5.7.css', 'crumplibrary57');
@@ -132,7 +132,7 @@ window.CRUMP_CONFIG = Object.freeze({
 
     // Load last so the cleanup runs after legacy/V1 handlers have initialized.
     await loadScript('/crump-navigation-5.2.5.js', 'crumpnav525');
-    await loadScript('/crump-product-5.3.js', 'crumpproduct53');
+    await loadScript('/crump-product-5.3.js?v=5.9.76-project-workspaces-2', 'crumpproduct53');
     await loadScript('/crump-product-5.3.1.js', 'crumpproduct531');
     await loadScript('/crump-subscriptions-5.3.2.js', 'crumpsubscriptions532');
     await loadScript('/crump-polish-5.6.js', 'crumppolish56');

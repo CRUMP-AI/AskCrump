@@ -6,6 +6,8 @@
   };
 
   const ACQUISITION_KEY = 'askcrump.acquisition-source';
+  const ACQUISITION_PLACEMENT_KEY = 'askcrump.acquisition-placement';
+  const ACQUISITION_PLACEMENTS = new Set(['response-share']);
   const LEGACY_ACQUISITION_SOURCES = new Set([
     'instagram', 'facebook', 'facebook-pinned', 'linkedin', 'tiktok',
     'youtube', 'x', 'referral', 'organic', 'clevercrump',
@@ -72,7 +74,23 @@
     return derived;
   }
 
+  function acquisitionPlacement() {
+    const params = new URLSearchParams(location.search);
+    const explicit = safeSource(params.get('source'));
+    if (ACQUISITION_PLACEMENTS.has(explicit)) {
+      try { sessionStorage.setItem(ACQUISITION_PLACEMENT_KEY, explicit); } catch (_) {}
+      return explicit;
+    }
+    try {
+      const stored = safeSource(sessionStorage.getItem(ACQUISITION_PLACEMENT_KEY));
+      return ACQUISITION_PLACEMENTS.has(stored) ? stored : '';
+    } catch (_) {
+      return '';
+    }
+  }
+
   const acquisition = acquisitionSource();
+  const placement = acquisitionPlacement();
   document.querySelectorAll('[data-cta]').forEach(link => {
     let analyticsEvent = 'MarketingCTA';
     let creationIntent = 'unspecified';
@@ -84,6 +102,7 @@
           : 'MarketingSignin';
         creationIntent = safeSource(destination.searchParams.get('intent'), 'unspecified');
         destination.searchParams.set('acquisition', acquisition);
+        if (placement) destination.searchParams.set('source', placement);
         link.setAttribute('href', `${destination.pathname}${destination.search}${destination.hash}`);
       }
     } catch (_) {}

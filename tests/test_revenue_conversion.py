@@ -64,7 +64,7 @@ def test_marketing_ctas_are_first_party_analytics_events():
 
     assert '/_vercel/insights/script.js' in page
     assert '/_vercel/speed-insights/script.js' in page
-    assert '<script defer src="/landing.js?v=5.9.76"></script>' in page
+    assert '<script defer src="/landing.js?v=5.9.76-referral-1"></script>' in page
     assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.76-1">' in page
     assert "window.vaq" in script
     assert "MarketingCTA" in script
@@ -74,6 +74,9 @@ def test_marketing_ctas_are_first_party_analytics_events():
     assert "link.dataset.plan" in script
     assert "utm_source" in script
     assert "destination.searchParams.set('acquisition', acquisition)" in script
+    assert "new Set(['response-share'])" in script
+    assert "destination.searchParams.set('source', placement)" in script
+    assert "sessionStorage.setItem(ACQUISITION_PLACEMENT_KEY" in script
     assert "sessionStorage.setItem(ACQUISITION_KEY" in script
     assert "document.referrer" in script
     assert "referrer URL" not in script
@@ -174,7 +177,7 @@ def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
         assert f'<link rel="canonical" href="https://www.askcrump.com/{slug}">' in page
         assert f'<meta property="og:url" content="https://www.askcrump.com/{slug}">' in page
         assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
-        assert '<script defer src="/landing.js?v=5.9.76"></script>' in page
+        assert '<script defer src="/landing.js?v=5.9.76-referral-1"></script>' in page
         assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.76-1">' in page
         assert '<link rel="stylesheet" href="/use-case.css?v=5.9.76">' in page
         assert '/_vercel/insights/script.js' in page
@@ -468,10 +471,10 @@ def test_release_version_and_cache_advance_together():
 
     assert '"version": "5.9.76"' in package
     assert "__version__ = '5.9.76'" in backend
-    assert "ask-crump-new-body-v1-r124" in worker
+    assert "ask-crump-new-body-v1-r125" in worker
     assert "/landing-5.6.css?v=5.9.76-1" in worker
     assert "/use-case.css?v=5.9.76" in worker
-    assert "/landing.js?v=5.9.76" in worker
+    assert "/landing.js?v=5.9.76-referral-1" in worker
 
 
 def test_changed_activation_assets_are_release_versioned():
@@ -489,7 +492,7 @@ def test_changed_activation_assets_are_release_versioned():
 
     for asset in (
         "/conversation.css?v=5.9.76",
-        "/ui-functions.js?v=5.9.76",
+        "/ui-functions.js?v=5.9.76-referral-1",
         "/product-analytics.js?v=5.9.76",
         "/app.js?v=5.9.76",
     ):

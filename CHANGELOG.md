@@ -2,6 +2,16 @@
 
 ## 5.9.76 — 2026-08-29
 
+### Context before referral signup
+
+- Changed response-share links from a cold registration wall to Ask Crump's public product page,
+  giving a new visitor product context before they decide to create an account.
+- Preserved only the fixed `referral` acquisition channel and `response-share` placement through
+  the visitor's later signup or sign-in action; arbitrary source values, content, and identifiers
+  are not carried into the handoff.
+- Versioned the Project workspace runtime explicitly so existing browser and installed-PWA caches
+  receive the dedicated Project-opening behavior, and advanced the application cache to revision 125.
+
 ### Measurable Project returns
 
 - Corrected the authenticated analytics boundary so continuing a saved conversation from its
