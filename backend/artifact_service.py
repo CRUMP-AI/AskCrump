@@ -523,12 +523,17 @@ class ArtifactService:
                         cell.width = column_width
                 table.rows[0]._tr.get_or_add_trPr().append(OxmlElement('w:tblHeader'))
                 for row_index, values in enumerate(rows):
+                    row_properties = table.rows[row_index]._tr.get_or_add_trPr()
+                    if row_properties.find(qn('w:cantSplit')) is None:
+                        row_properties.append(OxmlElement('w:cantSplit'))
                     for column_index in range(width):
                         cell = table.cell(row_index, column_index); cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
                         self._set_cell_margins(cell)
                         if row_index == 0: self._set_cell_shading(cell, SOFT)
                         elif row_index % 2 == 0: self._set_cell_shading(cell, 'F8F9FA')
                         p = cell.paragraphs[0]; p.paragraph_format.first_line_indent = Inches(0); p.paragraph_format.space_after = Pt(0)
+                        p.paragraph_format.keep_together = True
+                        p.paragraph_format.keep_with_next = row_index == 0 and len(rows) > 1
                         self._add_docx_inline(p, str(values[column_index] if column_index < len(values) else ''))
                         for run in p.runs:
                             run.font.size = Pt(9.2)

@@ -139,20 +139,20 @@
 }
 .presentation-proof-grid .presentation-proof-title { grid-row: 1 / 3; }
 .presentation-proof-figure figcaption { margin-top: 11px; color: #70797f; font-size: 10px; text-align: right; }
-.resume-proof-section {
+.artifact-proof-section {
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   background:
     radial-gradient(circle at 18% 20%, rgba(207,172,91,.12), transparent 30%),
     linear-gradient(145deg, #090e13, #0d141b 58%, #080c10);
 }
-.resume-proof-layout {
+.artifact-proof-layout {
   display: grid;
   grid-template-columns: minmax(0, .88fr) minmax(420px, .82fr);
   gap: clamp(42px, 7vw, 92px);
   align-items: center;
 }
-.resume-proof-copy h2 {
+.artifact-proof-copy h2 {
   max-width: 570px;
   margin: 0 0 20px;
   font-family: var(--serif);
@@ -161,21 +161,21 @@
   line-height: 1.02;
   letter-spacing: -.04em;
 }
-.resume-proof-copy > p { color: #9aa1a6; font-size: 16px; }
-.resume-proof-notes {
+.artifact-proof-copy > p { color: #9aa1a6; font-size: 16px; }
+.artifact-proof-notes {
   display: grid;
   gap: 11px;
   margin: 28px 0;
   padding: 0;
   list-style: none;
 }
-.resume-proof-notes li {
+.artifact-proof-notes li {
   position: relative;
   padding-left: 22px;
   color: #dedbd3;
   font-size: 13px;
 }
-.resume-proof-notes li::before {
+.artifact-proof-notes li::before {
   content: '';
   position: absolute;
   top: .55em;
@@ -184,10 +184,10 @@
   height: 1px;
   background: #cfac5b;
 }
-.resume-proof-actions { justify-content: flex-start; margin: 0 0 24px; }
-.resume-proof-copy .resume-proof-disclosure { color: #757e84; font-size: 11px; }
-.resume-proof-figure { min-width: 0; margin: 0; }
-.resume-proof-open {
+.artifact-proof-actions { justify-content: flex-start; margin: 0 0 24px; }
+.artifact-proof-copy .artifact-proof-disclosure { color: #757e84; font-size: 11px; }
+.artifact-proof-figure { min-width: 0; margin: 0; }
+.artifact-proof-open {
   position: relative;
   display: block;
   padding: 12px;
@@ -198,8 +198,8 @@
   text-decoration: none;
   box-shadow: 0 30px 76px rgba(0,0,0,.42);
 }
-.resume-proof-open:focus-visible { outline: 2px solid #d8bd76; outline-offset: 5px; }
-.resume-proof-toolbar {
+.artifact-proof-open:focus-visible { outline: 2px solid #d8bd76; outline-offset: 5px; }
+.artifact-proof-toolbar {
   display: flex;
   justify-content: space-between;
   gap: 18px;
@@ -209,7 +209,7 @@
   font-size: 9px;
   letter-spacing: .12em;
 }
-.resume-proof-open img {
+.artifact-proof-open img {
   display: block;
   width: 100%;
   height: auto;
@@ -218,7 +218,7 @@
   background: #fff;
   box-shadow: 0 12px 34px rgba(0,0,0,.34);
 }
-.resume-proof-open-label {
+.artifact-proof-open-label {
   display: flex;
   justify-content: space-between;
   gap: 18px;
@@ -227,7 +227,7 @@
   font-size: 11px;
   letter-spacing: .04em;
 }
-.resume-proof-figure figcaption { margin-top: 11px; color: #70797f; font-size: 10px; text-align: right; }
+.artifact-proof-figure figcaption { margin-top: 11px; color: #70797f; font-size: 10px; text-align: right; }
 .workflow-list { display: grid; gap: 10px; counter-reset: workflow; }
 .workflow-step {
   counter-increment: workflow;
@@ -283,8 +283,8 @@
   .use-case-card { min-height: auto; }
   .trust-panel { grid-template-columns: 1fr; }
   .presentation-proof-layout { grid-template-columns: 1fr; }
-  .resume-proof-layout { grid-template-columns: 1fr; }
-  .resume-proof-figure { width: min(680px, 100%); }
+  .artifact-proof-layout { grid-template-columns: 1fr; }
+  .artifact-proof-figure { width: min(680px, 100%); }
 }
 @media (max-width: 620px) {
   .use-case-hero { padding: 120px 18px 64px; }
@@ -299,8 +299,8 @@
   .presentation-proof-grid .presentation-proof-title { grid-row: auto; }
   .presentation-proof-grid img { height: auto; }
   .presentation-proof-figure figcaption { text-align: left; }
-  .resume-proof-open { padding: 8px; border-radius: 17px; }
-  .resume-proof-toolbar { padding-bottom: 8px; font-size: 8px; }
-  .resume-proof-figure figcaption { text-align: left; }
+  .artifact-proof-open { padding: 8px; border-radius: 17px; }
+  .artifact-proof-toolbar { padding-bottom: 8px; font-size: 8px; }
+  .artifact-proof-figure figcaption { text-align: left; }
   .use-case-footer-links { justify-content: flex-start; }
 }

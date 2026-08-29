@@ -164,6 +164,24 @@ def test_word_export_has_real_hierarchy_table_metadata_and_neutral_page_number()
     assert 'Ask Crump' not in document.sections[0].footer.paragraphs[0].text
 
 
+def test_word_tables_keep_headers_with_data_and_do_not_split_rows():
+    document = Document(BytesIO(service().docx(SAMPLE, profile='business')))
+    table = document.tables[0]
+
+    assert len(table.rows) > 1
+    assert all('w:cantSplit' in row._tr.xml for row in table.rows)
+    assert all(
+        paragraph.paragraph_format.keep_with_next
+        for cell in table.rows[0].cells
+        for paragraph in cell.paragraphs
+    )
+    assert all(
+        not paragraph.paragraph_format.keep_with_next
+        for cell in table.rows[1].cells
+        for paragraph in cell.paragraphs
+    )
+
+
 def test_academic_and_resume_profiles_use_professional_conventions():
     generator = service()
     assert generator.profile_for('', 'Write a college research essay in APA style', 'docx') == 'academic'

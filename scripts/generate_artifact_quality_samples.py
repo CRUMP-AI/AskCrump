@@ -164,6 +164,40 @@ The values below are sample audit inputs, not production measurements.
 - Premium means clarity, continuity, and craft—front to back.
 """
 
+DOCUMENT_BRIEF = """# Launch Readiness Brief
+
+A decision memo for a fictional software launch. All names, dates, and figures are illustrative.
+
+## Decision
+
+Proceed with a controlled early-access launch on September 14 only if the activation path, support coverage, and rollback drill pass their evidence gates by September 10.
+
+## What Must Be True
+
+- A new user reaches the first useful result without staff intervention.
+- Every launch-critical alert names an owner and a tested response.
+- The release can be paused without losing customer work.
+
+## Launch Owners
+
+| Workstream | Evidence Due | Owner | Status |
+| --- | --- | --- | --- |
+| Product | Activation walkthrough | Maya Chen | In progress |
+| Reliability | Rollback rehearsal | Jordan Lee | Ready |
+| Support | Coverage and escalation map | Ana Rivera | In review |
+| Growth | Qualified early-access list | Dev Patel | Planned |
+
+## Risks and Controls
+
+- **Activation:** Run five moderated first-use sessions; pause promotion if two people cannot finish the core task.
+- **Reliability:** Keep the prior release deployable and require a named rollback decision maker.
+- **Support:** Staff the first 48 hours and publish one escalation channel before invitations begin.
+
+## Next Review
+
+The launch council meets September 10 at 2:00 p.m. to inspect evidence, assign exceptions, and make the final go/no-go decision.
+"""
+
 WORKBOOK = """# Launch Operating Model
 
 All figures below are illustrative assumptions for quality verification, not forecasts.
@@ -204,6 +238,7 @@ def main() -> None:
     (OUTPUT / 'academic-essay.docx').write_bytes(artifacts.docx(ACADEMIC, profile='academic'))
     (OUTPUT / 'academic-essay.pdf').write_bytes(artifacts.pdf(ACADEMIC, profile='academic'))
     (OUTPUT / 'executive-resume.docx').write_bytes(artifacts.docx(RESUME, profile='resume'))
+    (OUTPUT / 'launch-readiness-brief.docx').write_bytes(artifacts.docx(DOCUMENT_BRIEF, profile='business'))
     (OUTPUT / 'quality-standard-deck.pptx').write_bytes(artifacts.pptx(DECK))
     (OUTPUT / 'launch-operating-model.xlsx').write_bytes(artifacts.xlsx(WORKBOOK))
 

@@ -63,8 +63,8 @@ def test_marketing_ctas_are_first_party_analytics_events():
     script = read("public/landing.js")
 
     assert '/_vercel/insights/script.js' in page
-    assert '<script defer src="/landing.js?v=5.9.74"></script>' in page
-    assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.74">' in page
+    assert '<script defer src="/landing.js?v=5.9.75"></script>' in page
+    assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.75">' in page
     assert "window.vaq" in script
     assert "MarketingCTA" in script
     assert "MarketingSignin" in script
@@ -123,8 +123,8 @@ def test_public_marketing_surface_is_indexable_while_the_private_app_is_not():
     assert "<loc>https://www.askcrump.com/ai-document-generator</loc>" in sitemap
     assert "<loc>https://www.askcrump.com/ai-resume-builder</loc>" in sitemap
     assert "<loc>https://www.askcrump.com/ai-video-generator</loc>" in sitemap
-    assert sitemap.count("<lastmod>2026-08-27</lastmod>") == 4
-    assert sitemap.count("<lastmod>2026-08-29</lastmod>") == 1
+    assert sitemap.count("<lastmod>2026-08-27</lastmod>") == 3
+    assert sitemap.count("<lastmod>2026-08-29</lastmod>") == 2
     assert sitemap.count("<lastmod>2026-08-24</lastmod>") == 1
 
     namespace = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
@@ -136,7 +136,7 @@ def test_public_marketing_surface_is_indexable_while_the_private_app_is_not():
     assert urls == {
         "https://www.askcrump.com/": "2026-08-27",
         "https://www.askcrump.com/ai-presentation-maker": "2026-08-27",
-        "https://www.askcrump.com/ai-document-generator": "2026-08-27",
+        "https://www.askcrump.com/ai-document-generator": "2026-08-29",
         "https://www.askcrump.com/ai-resume-builder": "2026-08-29",
         "https://www.askcrump.com/ai-video-generator": "2026-08-27",
         "https://www.askcrump.com/legal": "2026-08-24",
@@ -173,9 +173,9 @@ def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
         assert f'<link rel="canonical" href="https://www.askcrump.com/{slug}">' in page
         assert f'<meta property="og:url" content="https://www.askcrump.com/{slug}">' in page
         assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
-        assert '<script defer src="/landing.js?v=5.9.74"></script>' in page
-        assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.74">' in page
-        assert '<link rel="stylesheet" href="/use-case.css?v=5.9.74">' in page
+        assert '<script defer src="/landing.js?v=5.9.75"></script>' in page
+        assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.75">' in page
+        assert '<link rel="stylesheet" href="/use-case.css?v=5.9.75">' in page
         assert '/_vercel/insights/script.js' in page
         assert f'source={source}' in page
         assert page.count('data-cta="') >= 4
@@ -244,14 +244,39 @@ def test_resume_page_proves_output_with_a_synthetic_rendered_example():
     assert 'source=resume-proof' in page
     assert 'intent=resume' in page
     assert 'href="/assets/examples/resume-product-operations.png"' in page
-    assert ".resume-proof-layout" in styles
-    assert ".resume-proof-open:focus-visible" in styles
+    assert ".artifact-proof-layout" in styles
+    assert ".artifact-proof-open:focus-visible" in styles
     assert "grid-template-columns: minmax(0, .88fr) minmax(420px, .82fr)" in styles
 
     with Image.open(example_path) as example:
         assert example.format == "PNG"
         assert example.mode in {"RGB", "RGBA"}
         assert example.size == (1275, 1650)
+
+
+def test_document_page_proves_output_with_a_synthetic_rendered_example():
+    page = read("public/ai-document-generator.html")
+    styles = read("public/use-case.css")
+    example_path = ROOT / "public" / "assets" / "examples" / "document-launch-readiness.png"
+
+    assert 'id="representative-output"' in page
+    assert "Inspect the work before you start." in page
+    assert "current Word exporter" in page
+    assert "actual editable .docx structure—not a hand-designed mockup" in page
+    assert "Representative synthetic output." in page
+    assert "no customer content or testimonial is shown" in page
+    assert 'data-cta="document-proof"' in page
+    assert 'source=document-proof' in page
+    assert 'intent=document' in page
+    assert 'href="/assets/examples/document-launch-readiness.png"' in page
+    assert ".artifact-proof-layout" in styles
+    assert ".artifact-proof-open:focus-visible" in styles
+    assert "grid-template-columns: minmax(0, .88fr) minmax(420px, .82fr)" in styles
+
+    with Image.open(example_path) as example:
+        assert example.format == "PNG"
+        assert example.mode in {"RGB", "RGBA"}
+        assert example.size == (1224, 1584)
 
 
 def test_social_share_cards_are_large_brand_safe_and_page_specific():
@@ -368,12 +393,12 @@ def test_release_version_and_cache_advance_together():
     backend = read("backend/version.py")
     worker = read("public/sw.js")
 
-    assert '"version": "5.9.74"' in package
-    assert "__version__ = '5.9.74'" in backend
-    assert "ask-crump-new-body-v1-r108" in worker
-    assert "/landing-5.6.css?v=5.9.74" in worker
-    assert "/use-case.css?v=5.9.74" in worker
-    assert "/landing.js?v=5.9.74" in worker
+    assert '"version": "5.9.75"' in package
+    assert "__version__ = '5.9.75'" in backend
+    assert "ask-crump-new-body-v1-r109" in worker
+    assert "/landing-5.6.css?v=5.9.75" in worker
+    assert "/use-case.css?v=5.9.75" in worker
+    assert "/landing.js?v=5.9.75" in worker
 
 
 def test_changed_activation_assets_are_release_versioned():
@@ -381,17 +406,17 @@ def test_changed_activation_assets_are_release_versioned():
     worker = read("public/sw.js")
 
     for asset in (
-        "/conversation.css?v=5.9.74",
-        "/crump-v1-body.css?v=5.9.74",
-        "/ui-functions.js?v=5.9.74",
-        "/device-auth.js?v=5.9.74",
-        "/product-analytics.js?v=5.9.74",
-        "/auth-controller.js?v=5.9.74",
-        "/app.js?v=5.9.74",
+        "/conversation.css?v=5.9.75",
+        "/crump-v1-body.css?v=5.9.75",
+        "/ui-functions.js?v=5.9.75",
+        "/device-auth.js?v=5.9.75",
+        "/product-analytics.js?v=5.9.75",
+        "/auth-controller.js?v=5.9.75",
+        "/app.js?v=5.9.75",
     ):
         assert asset in shell
         assert asset in worker
 
     runtime = read("public/runtime-body-v1.js")
-    assert "/crump-4.3.js?v=5.9.74" in runtime
-    assert "/crump-4.3.js?v=5.9.74" in worker
+    assert "/crump-4.3.js?v=5.9.75" in runtime
+    assert "/crump-4.3.js?v=5.9.75" in worker

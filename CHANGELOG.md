@@ -1,5 +1,21 @@
 # Changelog
 
+## 5.9.75 — 2026-08-29
+
+### Document output you can inspect
+
+- Added a full-size representative Word-document preview to the public AI document generator
+  page so prospective users can inspect current output before creating an account.
+- Generated the example through Ask Crump’s current editable Word exporter from a wholly
+  fictional launch-readiness brief, then rendered and reviewed the complete one-page document.
+- Prevented table rows from splitting across pages and kept header rows with their first data row
+  so exported documents retain readable structure at page boundaries.
+- Kept the proof truthful with explicit synthetic-output, variability, and no-customer-content
+  disclosures; the example is not presented as a testimonial or guaranteed result.
+- Consolidated résumé and document proof styling into one responsive, keyboard-accessible
+  component and added image, attribution, pagination, and conversion-path regression coverage.
+- Advanced the application to 5.9.75, native build 50975, and service-worker cache revision 109.
+
 ## 5.9.74 — 2026-08-29
 
 ### Résumé output you can inspect
