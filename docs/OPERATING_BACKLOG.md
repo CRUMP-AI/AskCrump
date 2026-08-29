@@ -536,7 +536,10 @@ signing credentials,
 publisher-account state, reviewer access, signed builds, physical-device results, screenshots, and
 console declarations are not yet verified. The internal Apple/Google listing copy, reviewer path,
 and exact-build screenshot sequence now match the released Ask, Projects, Create, Library, and You
-information architecture, with Research correctly presented inside Ask.
+information architecture, with Research correctly presented inside Ask. A live store-review URL
+audit also found that the prior apex fields incurred an avoidable HTTP 307 before reaching working
+pages. The packet now uses direct-200 canonical `www` support, marketing, privacy, privacy-choice,
+and deletion routes, and the verifier fails if those exact destinations drift.
 
 **Outcome:** produce exact signed Android and iOS candidates with truthful listings, reviewer access,
 privacy/data-safety reconciliation, native purchase restoration, AI reporting, deletion, push,

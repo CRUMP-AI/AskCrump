@@ -28,8 +28,8 @@ function httpsUrl(value, label) {
   try {
     const url = new URL(text);
     if (url.protocol !== 'https:') failures.push(`${label} must use HTTPS.`);
-    if (!['askcrump.com', 'www.askcrump.com'].includes(url.hostname)) {
-      failures.push(`${label} must use the controlled Ask Crump domain.`);
+    if (url.hostname !== 'www.askcrump.com') {
+      failures.push(`${label} must use the canonical www Ask Crump domain without an apex redirect.`);
     }
   } catch {
     failures.push(`${label} is not a valid URL.`);
@@ -57,13 +57,16 @@ if ([...googleDescription].length < 250) failures.push('Google full description 
 if ((metadata.apple?.screenshotPlan || []).length < 4) failures.push('Apple screenshot plan needs at least four frames.');
 if ((metadata.google?.screenshotPlan || []).length < 4) failures.push('Google screenshot plan needs at least four frames.');
 
-for (const [key, label] of [
-  ['supportUrl', 'Support URL'],
-  ['marketingUrl', 'Marketing URL'],
-  ['privacyUrl', 'Privacy URL'],
-  ['privacyChoicesUrl', 'Privacy choices URL'],
-  ['accountDeletionUrl', 'Account deletion URL'],
-]) httpsUrl(metadata.app?.[key], label);
+for (const [key, label, expected] of [
+  ['supportUrl', 'Support URL', 'https://www.askcrump.com/legal#contact'],
+  ['marketingUrl', 'Marketing URL', 'https://www.askcrump.com/'],
+  ['privacyUrl', 'Privacy URL', 'https://www.askcrump.com/legal#privacy'],
+  ['privacyChoicesUrl', 'Privacy choices URL', 'https://www.askcrump.com/delete-account'],
+  ['accountDeletionUrl', 'Account deletion URL', 'https://www.askcrump.com/delete-account'],
+]) {
+  httpsUrl(metadata.app?.[key], label);
+  if (metadata.app?.[key] !== expected) failures.push(`${label} must use the verified direct-200 canonical URL.`);
+}
 
 for (const phrase of [
   metadata.app?.name,

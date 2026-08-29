@@ -6,11 +6,11 @@
     "bundleId": "com.clevercrump.askcrump",
     "primaryCategory": "Productivity",
     "secondaryAppleCategory": "Utilities",
-    "supportUrl": "https://askcrump.com/legal.html#contact",
-    "marketingUrl": "https://askcrump.com/",
-    "privacyUrl": "https://askcrump.com/legal.html#privacy",
-    "privacyChoicesUrl": "https://askcrump.com/delete-account.html",
-    "accountDeletionUrl": "https://askcrump.com/delete-account.html"
+    "supportUrl": "https://www.askcrump.com/legal#contact",
+    "marketingUrl": "https://www.askcrump.com/",
+    "privacyUrl": "https://www.askcrump.com/legal#privacy",
+    "privacyChoicesUrl": "https://www.askcrump.com/delete-account",
+    "accountDeletionUrl": "https://www.askcrump.com/delete-account"
   },
   "apple": {
     "subtitle": "Create, research, and build",

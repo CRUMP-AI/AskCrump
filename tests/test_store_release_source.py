@@ -141,6 +141,11 @@ def test_store_metadata_source_is_structured_private_and_within_static_limits():
 
     assert metadata['app']['bundleId'] == 'com.clevercrump.askcrump'
     assert len(metadata['app']['name']) <= 30
+    assert metadata['app']['supportUrl'] == 'https://www.askcrump.com/legal#contact'
+    assert metadata['app']['marketingUrl'] == 'https://www.askcrump.com/'
+    assert metadata['app']['privacyUrl'] == 'https://www.askcrump.com/legal#privacy'
+    assert metadata['app']['privacyChoicesUrl'] == 'https://www.askcrump.com/delete-account'
+    assert metadata['app']['accountDeletionUrl'] == 'https://www.askcrump.com/delete-account'
     assert len(apple['subtitle']) <= 30
     assert len(apple['promotionalText']) <= 170
     assert len(apple['keywords'].encode('utf-8')) <= 100
@@ -162,3 +167,4 @@ def test_store_metadata_source_is_structured_private_and_within_static_limits():
     assert 'Apple promotional text' in verifier
     assert 'Google short description' in verifier
     assert 'Store listing draft is out of sync' in verifier
+    assert 'verified direct-200 canonical URL' in verifier

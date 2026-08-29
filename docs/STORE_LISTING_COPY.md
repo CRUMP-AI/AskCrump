@@ -10,9 +10,11 @@ textually aligned with it. Reviewer credentials belong only in the ignored
 - **Name:** Ask Crump
 - **Primary category:** Productivity
 - **Secondary Apple category:** Utilities
-- **Support URL:** `https://askcrump.com/legal.html#contact`
-- **Privacy URL:** `https://askcrump.com/legal.html#privacy`
-- **Account deletion URL:** `https://askcrump.com/delete-account.html`
+- **Support URL:** `https://www.askcrump.com/legal#contact`
+- **Marketing URL:** `https://www.askcrump.com/`
+- **Privacy URL:** `https://www.askcrump.com/legal#privacy`
+- **Privacy choices URL:** `https://www.askcrump.com/delete-account`
+- **Account deletion URL:** `https://www.askcrump.com/delete-account`
 
 ## Apple App Store
 
