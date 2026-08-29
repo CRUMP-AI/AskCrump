@@ -46,6 +46,8 @@ def test_clever_crump_does_not_serve_duplicate_ask_product_pages():
         "/ai-video-generator": "https://www.askcrump.com/ai-video-generator",
         "/legal": "https://www.askcrump.com/legal",
         "/delete-account": "https://www.askcrump.com/delete-account",
+        "/robots.txt": "https://www.clevercrump.com/clever-crump-robots.txt",
+        "/sitemap.xml": "https://www.clevercrump.com/clever-crump-sitemap.xml",
     }
 
     assert set(clever_redirects) == set(destinations)
@@ -56,16 +58,17 @@ def test_clever_crump_does_not_serve_duplicate_ask_product_pages():
 
 def test_clever_crump_has_host_correct_search_discovery_files():
     config = json.loads(read("vercel.json"))
-    discovery_rewrites = {
-        rule["source"]: rule["destination"]
-        for rule in config["rewrites"]
+    discovery_redirects = {
+        rule["source"]: rule
+        for rule in config["redirects"]
         if rule.get("has") == [{"type": "host", "value": "www.clevercrump.com"}]
         and rule["source"] in {"/robots.txt", "/sitemap.xml"}
     }
-    assert discovery_rewrites == {
-        "/robots.txt": "/clever-crump-robots.txt",
-        "/sitemap.xml": "/clever-crump-sitemap.xml",
+    assert {source: rule["destination"] for source, rule in discovery_redirects.items()} == {
+        "/robots.txt": "https://www.clevercrump.com/clever-crump-robots.txt",
+        "/sitemap.xml": "https://www.clevercrump.com/clever-crump-sitemap.xml",
     }
+    assert all(rule["permanent"] is True for rule in discovery_redirects.values())
 
     robots = read("public/clever-crump-robots.txt")
     assert "Sitemap: https://www.clevercrump.com/sitemap.xml" in robots

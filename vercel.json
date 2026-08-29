@@ -66,23 +66,25 @@
       ],
       "destination": "https://www.askcrump.com/delete-account",
       "permanent": true
-    }
-  ],
-  "rewrites": [
+    },
     {
       "source": "/robots.txt",
       "has": [
         { "type": "host", "value": "www.clevercrump.com" }
       ],
-      "destination": "/clever-crump-robots.txt"
+      "destination": "https://www.clevercrump.com/clever-crump-robots.txt",
+      "permanent": true
     },
     {
       "source": "/sitemap.xml",
       "has": [
         { "type": "host", "value": "www.clevercrump.com" }
       ],
-      "destination": "/clever-crump-sitemap.xml"
-    },
+      "destination": "https://www.clevercrump.com/clever-crump-sitemap.xml",
+      "permanent": true
+    }
+  ],
+  "rewrites": [
     {
       "source": "/",
       "has": [
