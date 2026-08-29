@@ -527,8 +527,8 @@ rate without platform impression data.
 with API 36, the permanent package ID, generated assets, cleartext/backup protections, and a passing
 native source verifier. Structured en-US metadata passes current field limits. A reviewed Node 22
 lockfile now supports clean `npm ci`, a zero-vulnerability npm audit, and deterministic Android
-preparation from an isolated worktree. GitHub run `33224902385` generated the 5.9.71 iOS project and compiled its unsigned Release
-configuration on hosted macOS with no signing or upload credentials. GitHub run `33224902413`
+preparation from an isolated worktree. GitHub run `33228342063` generated the 5.9.71 iOS project and compiled its unsigned Release
+configuration on hosted macOS with no signing or upload credentials. GitHub run `33228342176`
 generated the 5.9.71/build 50971 Android project under Java 21, passed the native and signing-control
 verifiers, compiled `bundleRelease`, and confirmed a non-empty unsigned
 `.aab`, also with no signing or upload credentials. Firebase, RevenueCat public keys/products,

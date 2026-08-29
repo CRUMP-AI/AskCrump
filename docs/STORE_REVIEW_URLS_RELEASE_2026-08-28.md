@@ -25,3 +25,15 @@ The store metadata verifier now requires the exact direct-200 canonical URLs and
 host or legacy `.html` forms. The source suite also protects every final field value. Reviewer
 credentials, signed builds, physical-device checks, screenshots, console declarations, and final
 per-platform submission remain owner-controlled gates.
+
+## Verification
+
+- Source commit: `87110a8`.
+- CI run `33228342115` passed the complete 415-test suite, production bundle, JavaScript checks,
+  and store metadata verifier.
+- Android run `33228342176` regenerated 5.9.71/build 50971 and compiled a non-empty unsigned
+  Release App Bundle with no signing or upload credential.
+- iOS run `33228342063` regenerated 5.9.71/build 50971 and compiled the unsigned Release
+  configuration on hosted macOS with no signing or upload credential.
+- Production deployment `dpl_B6YpWHbTJxFKABnYfahd4NnzXEBL` reached `READY`; the post-deploy
+  runtime-error scan was empty and `/api/health` returned HTTP 200 for 5.9.71.
