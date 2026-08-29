@@ -15,6 +15,7 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 
 | Outcome | Evidence | State |
 | --- | --- | --- |
+| Public Projects acquisition and fixed workspace handoff | Commit `1e36c63`; deployment `dpl_EVUDxSqkkx64oNrFRdwJarNywkzA`; Ask Crump now has a canonical `/ai-project-workspace` page, a wide homepage discovery card, reciprocal links from every creation page, and a sitemap entry. Six fixed CTAs preserve only the categorical `projects` intent through signup/sign-in, then the ready authenticated runtime opens the existing Projects destination, records one content-free continuation event, acknowledges the handoff, and clears it without creating a Project or generating anything. A real browser proved the styled desktop page, 390-by-844 responsive layout, exact authenticated handoff, and zero browser errors. All 479 tests, Python lint/compile, 45 JavaScript validations, production preflight, native web build, and store metadata passed. The canonical page and exact changed assets returned 200; the deployment is `READY` on six aliases and its first runtime window contained two HTTP 200 responses with no warning/error/fatal log. Evidence: `docs/PROJECT_ACQUISITION_HANDOFF_RELEASE_2026-08-29.md`. | Verified delivery; first legitimate external Projects visit → account/workspace → durable value → return outcome pending |
 | Registration consent handoff and reliable dedicated Project opening | Commits `b5283be` and `52f5e81`; deployment `dpl_w7qv72UP7SWXwbY99HJrq1jYMsEX`; current registrations record explicit age/Terms/Privacy consent with the published `2026-08-01` version before verification while retaining the authenticated fallback for legacy or missing consent. Project rows now use one stable delegated click path, normalize IDs, show a visible stale-row failure, and transition immediately from the index into a named dedicated workspace on desktop and mobile. An isolated browser proved required unchecked consent at 390 by 700, then proved Project open, Back, reopen, and phone-width layout without overflow or browser errors. Supabase reported eight active Projects with no missing IDs or names. All 479 tests, Python lint/compile, 45 JavaScript validations, production preflight, native web build, and store metadata passed. Canonical health and exact registration/Project assets returned 200; the final deployment is `READY` on all six aliases and its first runtime window contained two HTTP 200 responses with no warning/error/fatal log. Evidence: `docs/REGISTRATION_CONSENT_HANDOFF_RELEASE_2026-08-29.md` and `docs/PROJECT_CLICK_RELIABILITY_RELEASE_2026-08-29.md`. | Verified delivery; first legitimate current-registration activation and owner desktop/phone Project-return outcome pending |
 | Verified-email workspace handoff | Commits `165f37b` and `17a9700`; final deployment `dpl_H6EgjJW1KkUrq8ZLhrg52G4TN19v`; a valid verification link now verifies the account, creates the normal hardened web session, and opens the workspace without redundant password entry. First use narrows the original 24-hour token to a 15-minute replay window so mail scanners cannot silently consume the only usable GET link; invalid or expired links create no session, and password sign-in remains available for another device. The retired production `AI Virtual Assistant` label is normalized to `Ask Crump`. All 476 tests, live-path lint/compile checks, 45 JavaScript validations, production preflight, native web build, and store metadata passed. Canonical health returned service `Ask Crump`; the final deployment was `READY` on all six aliases and its first window contained 22 HTTP 200 responses with no runtime error or warning/error/fatal log. Full evidence is in `docs/VERIFIED_WORKSPACE_HANDOFF_RELEASE_2026-08-29.md`. | Verified delivery; first legitimate verification-to-workspace activation and 14-day/50-social-visitor outcome boundary pending |
 | Replay-safe manuscript scheduling | Commit `d9e3189`; deployment `dpl_86QGTpLX4duvhqngCqTeoKuWCUYY`; three isolated database 503 responses affected only `/api/cron/manuscripts` on an older deployment while Postgres showed no engine error or connection-exhaustion cluster. The worker now supplies one UUID to a private replay-aware lease function and opts only that idempotent RPC into bounded transient retries; ordinary writes remain single-attempt. Supabase migration `20260829184012` preserves security-invoker and service-role-only execution. All 472 tests, 45 JavaScript validations, explicit Python compilation, production preflight, native web build, and store metadata passed. Two natural post-deploy schedules returned 200 in both Vercel and Supabase; the exact release window contained only 200 responses with no non-informational log or runtime-error cluster. Full evidence is in `docs/REPLAY_SAFE_MANUSCRIPT_CLAIM_RELEASE_2026-08-29.md`. | Verified correction; 24-hour recurrence boundary pending |
@@ -399,7 +400,10 @@ verification. Rollback is to restore the prior apex URLs, although Stripe would 
 the external aggregate contains zero Projects and zero files, and no external activity occurred
 after 2026-08-23. Release 5.9.22 exposed the durable-work action directly. Release 5.9.28 now names
 the exact conversation on the most prominent return card instead of asking mobile users to resume
-unknown work.
+unknown work. Release 5.9.76 adds the missing acquisition boundary: a canonical public Projects page
+and a fixed content-free signup/sign-in intent that opens the authenticated Projects destination
+without creating a Project or starting generation. Delivery is verified; a legitimate external
+durable-value transition and later return remain pending.
 
 **Outcome:** expose private Project continuity directly on the latest result as a one-click next
 action. Synchronize and ownership-check the conversation, attach it to the selected Project or
@@ -466,21 +470,23 @@ any acquisition spend scales.
 ### P1 — Close the organic acquisition loop
 
 **Evidence:** the Search Console domain property is verified through the live DNS TXT record, and
-Google is processing the property's first performance and indexing reports. Production 5.9.34 now
-serves four high-intent capability pages at clean canonical URLs, links them from the homepage and
-from each other, and includes all six public URLs in the live sitemap. The protected growth and
+Google is processing the property's first performance and indexing reports. Production 5.9.34
+introduced four high-intent capability pages at clean canonical URLs and linked them from the
+homepage and from each other. Production 5.9.76 adds the canonical Projects workspace page and
+reciprocal discovery links, bringing the live Ask Crump sitemap to seven public URLs. The protected growth and
 artifact reports still show zero comparable external activity, so acquisition is the current
 evidence-backed bottleneck. A read-only Search Console inspection on 2026-08-27 showed that the
 homepage is indexed, while the presentation, document, résumé, and video pages are all unknown to
 Google with no referring sitemap or page detected. The Submitted sitemaps table contains zero rows.
 A live URL test reports that the video page is available to Google and can be indexed, proving that
-technical crawlability is not the current block. The sitemap is live and ready, but it is not
+technical crawlability is not the current block. The expanded sitemap is live and ready, but it is not
 entered or submitted in Search Console. A second read-only review on 2026-08-28 found the Page
 indexing report still processing and the Submitted sitemaps table still at zero rows. Direct live
 checks confirmed HTTP 200 delivery for `robots.txt`, `sitemap.xml`, the homepage, and every use-case
 page, with no response-level robots block. The public pages still expose unique canonicals,
 metadata, structured data, and crawlable internal links. No additional code defect was found; the
-remaining acquisition gate is the owner-confirmed Search Console submission.
+remaining acquisition gate is the owner-confirmed Search Console submission. The Projects page has
+not yet accumulated a Search Console indexing observation.
 
 **Outcome:** verified domain ownership, one canonical sitemap submitted, valid canonical URLs,
 and indexed landing pages tied to privacy-safe account-creation attribution.
@@ -651,8 +657,9 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
-Observe legitimate capability CTA → auth → `CreationIntentContinued` → starter intent → artifact
-delivery, with the résumé journey retaining the selected purpose through first download. Measure
+Observe legitimate capability or Projects CTA → auth → `CreationIntentContinued` → starter intent or
+Projects workspace → durable value delivery, with the résumé journey retaining the selected purpose
+through first download. Measure
 whether bounded read recovery converts the intermittent database-transport pattern into categorical
 retry warnings rather than final customer-visible `503` responses; do not change the shared
 database boundary without a post-release recurrence. Submit the live canonical sitemap after owner
