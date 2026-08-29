@@ -91,6 +91,23 @@ if (!releaseVersion || !landingHtml.includes(`/landing.js?v=${releaseVersion}`))
   process.exit(1);
 }
 
+const speedInsightPages = [
+  'public/ask-crump.html',
+  'public/ai-presentation-maker.html',
+  'public/ai-document-generator.html',
+  'public/ai-resume-builder.html',
+  'public/ai-video-generator.html',
+  'public/app.html',
+  'public/clever-crump.html',
+];
+for (const relative of speedInsightPages) {
+  const page = await readFile(new URL(relative, repoRoot), 'utf8');
+  if (page.match(/\/_vercel\/speed-insights\/script\.js/g)?.length !== 1) {
+    console.error(`${relative} must load Vercel Speed Insights exactly once.`);
+    process.exit(1);
+  }
+}
+
 function extractNamedFunction(source, name) {
   const marker = `function ${name}(`;
   const start = source.indexOf(marker);
@@ -133,6 +150,7 @@ if (!referringAcquisitionSource ||
 }
 const requiredHtmlSignals = [
   '/runtime-body-v1.js',
+  '/_vercel/speed-insights/script.js',
   `/auth-resilience.js?v=${releaseVersion}`,
   `/install-prompt.js?v=${releaseVersion}`,
   '/crump-v1-body.css',
