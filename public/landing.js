@@ -7,7 +7,7 @@
 
   const ACQUISITION_KEY = 'askcrump.acquisition-source';
   const ACQUISITION_PLACEMENT_KEY = 'askcrump.acquisition-placement';
-  const ACQUISITION_PLACEMENTS = new Set(['response-share']);
+  const ACQUISITION_PLACEMENTS = new Set(['response-share', 'profile-link']);
   const LEGACY_ACQUISITION_SOURCES = new Set([
     'instagram', 'facebook', 'facebook-pinned', 'linkedin', 'tiktok',
     'youtube', 'x', 'referral', 'organic', 'clevercrump',

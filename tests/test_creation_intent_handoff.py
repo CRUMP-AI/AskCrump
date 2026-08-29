@@ -133,6 +133,23 @@ def test_referral_landing_fixture_preserves_only_the_fixed_share_placement():
     assert "https://" not in fixture
 
 
+def test_profile_link_fixture_preserves_only_categorical_channel_and_placement():
+    fixture = read("tests/fixtures/profile-link-attribution-handoff.html")
+
+    assert '/public/landing.js?v=profile-link-attribution-fixture' in fixture
+    assert 'data-cta="hero"' in fixture
+    assert 'data-cta="nav-signin"' in fixture
+    assert "askcrump.acquisition-source" in fixture
+    assert "askcrump.acquisition-placement" in fixture
+    assert "fixtureStoredPlacement" in fixture
+    assert "window.__fixture.events" in fixture
+    assert "MarketingCTA" not in fixture
+    assert "MarketingSignin" not in fixture
+    assert "fetch(" not in fixture
+    assert "askcrump.com" not in fixture
+    assert "https://" not in fixture
+
+
 def test_resume_purpose_survives_send_retry_and_server_packaging():
     studio = read("public/crump-5.0.js")
     route = read("backend/routes/chat.py")
