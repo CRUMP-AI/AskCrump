@@ -17,7 +17,7 @@ def test_56_polish_layer_is_last_on_web_and_native():
         assert source.index("/crump-4.3.js") < source.index("/crump-4.4.js")
         assert source.index("/crump-product-5.3.1.js") < source.index("/crump-polish-5.6.js")
         assert "/crump-polish-5.6.css" in source
-    assert "ask-crump-new-body-v1-r125" in worker
+    assert "ask-crump-new-body-v1-r126" in worker
     assert "/crump-polish-5.6.css" in worker and "/crump-polish-5.6.js" in worker
     assert "crump-polish-5.6.js" in checker
 
@@ -26,11 +26,15 @@ def test_tutorial_is_current_and_no_longer_bootstraps_legacy_runtime():
     tutorial = read("public/onboarding.js")
     styles = read("public/onboarding.css")
     polish = read("public/crump-polish-5.6.js")
-    assert "crump_tutorial_completed_v6" in tutorial
+    assert "crump_tutorial_completed_v7" in tutorial
     for destination in ("Ask", "Projects", "Create", "Library", "You"):
         assert f"destination: '{destination}'" in tutorial
     assert "Conversation history remains in Chats." in tutorial
     assert "Nothing generates until you review the setup and send the request." in tutorial
+    assert "select a named Project to enter its dedicated workspace" in tutorial
+    assert "Open a named Project" in tutorial
+    assert "tutorial-open-destination" in tutorial and ".tutorial-open-destination" in styles
+    assert "window.CrumpNavigation5930.open(normalized)" in tutorial
     assert "tutorial-destination-map" in tutorial and ".tutorial-destination-map" in styles
     assert "aria-current', 'step'" in tutorial
     assert "Replay workspace guide" in polish
@@ -73,9 +77,11 @@ def test_authenticated_workspace_stays_behind_a_bounded_runtime_gate():
 def test_five_destination_tutorial_fixture_uses_production_assets():
     fixture = read("tests/fixtures/five-destination-tutorial.html")
 
-    assert "/public/onboarding.css" in fixture
-    assert "/public/onboarding.js?fixture=five-destinations" in fixture
+    assert "/public/onboarding.css?v=actionable-tour-fixture-1" in fixture
+    assert "/public/onboarding.js?fixture=actionable-five-destinations" in fixture
     assert "window.tutorial.start({force: true})" in fixture
+    assert 'id="fixtureDestination"' in fixture
+    assert "window.CrumpNavigation5930" in fixture
 
 
 def test_home_surface_exposes_projects_and_video_without_hiding_core_chat():

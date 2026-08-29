@@ -46,7 +46,7 @@ const loader = String.raw`
 
   const workspaceStyles = Object.freeze([
     ['/billing.css', 'workspacebilling'],
-    ['/onboarding.css', 'workspaceonboarding'],
+    ['/onboarding.css?v=5.9.76-actionable-tour-1', 'workspaceonboarding'],
     ['/conversation.css?v=5.9.76', 'workspaceconversation'],
     ['/crump-4.3.css', 'crump43'],
     ['/crump-4.4.css', 'crump44'],
@@ -58,7 +58,7 @@ const loader = String.raw`
   ]);
 
   const workspaceScripts = Object.freeze([
-    ['/onboarding.js', 'workspaceonboarding'],
+    ['/onboarding.js?v=5.9.76-actionable-tour-1', 'workspaceonboarding'],
     ['/scroll-manager.js', 'workspacescroll'],
     ['/profile-manager.js', 'workspaceprofile'],
     ['/billing-manager.js', 'workspacebilling'],

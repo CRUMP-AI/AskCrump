@@ -15,16 +15,18 @@ It intentionally leaves the working FastAPI authentication, Supabase security mo
 This prevents the 60-second pull → push → pull sync loop from replacing a newer local conversation with an older server snapshot simply because the server revision is numerically higher.
 
 ### 2. Replaces the tutorial
-`public/onboarding.js` and `public/onboarding.css` replace the old 7-step spotlight tour with a calmer five-part product tour:
+`public/onboarding.js` and `public/onboarding.css` replace the old 7-step spotlight tour with a calmer five-destination product guide:
 
-1. Meet Crump
-2. More than chat
-3. Continuity
-4. Optional check-ins
-5. Start chatting
+1. Ask
+2. Projects
+3. Create
+4. Library
+5. You
 
-The tutorial API is unchanged (`autoStart`, `restart`, etc.), so `auth-controller.js` does not need to change.
-The completion key is bumped to `v4`, so existing users see the new tour once.
+Each step can hand the user directly into the corresponding real destination without generating,
+charging, or creating content. The Projects step explicitly teaches that selecting a named Project
+opens its dedicated workspace. The tutorial API remains unchanged (`autoStart`, `restart`, etc.),
+and the per-account completion key is `v7`.
 
 ### 3. Full interface polish
 `public/crump-4.3.css` and `public/crump-4.3.js` remain compatibility layers, now loaded deterministically by the runtime before later product layers. `public/crump-polish-5.6.css` and `.js` are the final-authority store-debut polish layer.

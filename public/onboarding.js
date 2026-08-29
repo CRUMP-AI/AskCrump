@@ -4,6 +4,8 @@
   const STEPS = Object.freeze([
     {
       destination: 'Ask',
+      action: 'ask',
+      actionLabel: 'Open Ask',
       eyebrow: 'ASK · CHATS',
       title: 'Start with the conversation.',
       content: 'Ask is where you think, research, and work with Crump. Chats opens your synchronized conversation history without turning it into a second application menu.',
@@ -12,14 +14,18 @@
     },
     {
       destination: 'Projects',
+      action: 'projects',
+      actionLabel: 'Open Projects',
       eyebrow: 'PROJECTS',
       title: 'Give continuing work a home.',
-      content: 'Projects keep the conversations, instructions, notes, and reference files for one body of work together so you can return without rebuilding the context.',
+      content: 'Open Projects, then select a named Project to enter its dedicated workspace. Its conversations, instructions, notes, and reference files stay together so you can return without rebuilding the context.',
       icon: '▣',
-      features: ['Durable context', 'Notes & reference files', 'Saved conversations'],
+      features: ['Open a named Project', 'Continue its conversations', 'Manage files & canon'],
     },
     {
       destination: 'Create',
+      action: 'create',
+      actionLabel: 'Open Create',
       eyebrow: 'CREATE',
       title: 'Choose the outcome you need.',
       content: 'Create opens the right workspace for documents, presentations, images, manuscripts, and video. Nothing generates until you review the setup and send the request.',
@@ -28,6 +34,8 @@
     },
     {
       destination: 'Library',
+      action: 'library',
+      actionLabel: 'Open Library',
       eyebrow: 'LIBRARY',
       title: 'Keep the things you create.',
       content: 'Library is the dedicated home for your private books, documents, images, videos, exports, and uploads. Conversation history remains in Chats.',
@@ -36,6 +44,8 @@
     },
     {
       destination: 'You',
+      action: 'you',
+      actionLabel: 'Open You',
       eyebrow: 'YOU',
       title: 'Your account has one clear home.',
       content: 'You contains your profile, behavior preferences, plan and credits, account controls, product guidance, and legal information.',
@@ -56,7 +66,7 @@
 
     storageKey() {
       const userId = String(window.currentUser?.id || 'guest').replace(/[^a-zA-Z0-9_-]/g, '');
-      return `crump_tutorial_completed_v6:${userId || 'guest'}`;
+      return `crump_tutorial_completed_v7:${userId || 'guest'}`;
     }
 
     isComplete() {
@@ -68,7 +78,7 @@
       const app = document.getElementById('appContainer');
       if (!app || getComputedStyle(app).display === 'none') return;
       // The authenticated launchpad is already a task-oriented first-run
-      // experience. Do not block a new user with six passive tour screens
+      // experience. Do not block a new user with five passive tour screens
       // before they can ask their first question. The full tour remains
       // available from Settings and through restart().
       if (document.getElementById('v1Launchpad')) return;
@@ -203,7 +213,14 @@
         featureGrid.appendChild(item);
       }
 
-      body.append(visual, progressLabel, eyebrow, title, description, destinationMap, featureGrid);
+      const openDestination = this.button(
+        `${step.actionLabel} →`,
+        'tutorial-open-destination',
+        () => this.openDestination(step.action),
+      );
+      openDestination.setAttribute('aria-label', `${step.actionLabel} and close the guide`);
+
+      body.append(visual, progressLabel, eyebrow, title, description, destinationMap, featureGrid, openDestination);
 
       const footer = document.createElement('div');
       footer.className = 'tutorial-footer';
@@ -272,6 +289,26 @@
       this.stop();
       if (!skipped) window.showToast?.('Workspace ready.', 'success');
       document.getElementById('userInput')?.focus({ preventScroll: true });
+    }
+
+    openDestination(destination) {
+      const normalized = String(destination || '').trim().toLowerCase();
+      if (!['ask', 'projects', 'create', 'library', 'you'].includes(normalized)) return;
+      localStorage.setItem(this.storageKey(), 'true');
+      this.stop();
+      requestAnimationFrame(() => {
+        if (typeof window.CrumpNavigation5930?.open === 'function') {
+          window.CrumpNavigation5930.open(normalized);
+          return;
+        }
+        if (normalized === 'ask') {
+          document.getElementById('userInput')?.focus({ preventScroll: true });
+          return;
+        }
+        document.querySelector(
+          `[data-crump5930-destination="${normalized}"], [data-v1-command="${normalized}"]`,
+        )?.click();
+      });
     }
 
     restart() {

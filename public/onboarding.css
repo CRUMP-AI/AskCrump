@@ -179,6 +179,28 @@ body.tutorial-open { overflow: hidden !important; }
   background: #c9ad71;
   box-shadow: 0 0 0 4px rgba(201,173,113,.07);
 }
+.tutorial-open-destination {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  margin-top: 16px;
+  padding: 0 14px;
+  border: 1px solid rgba(217,191,126,.18);
+  border-radius: 13px;
+  background: rgba(217,191,126,.055);
+  color: #d8c386;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 740;
+  cursor: pointer;
+  transition: background .16s ease, border-color .16s ease, color .16s ease;
+}
+.tutorial-open-destination:hover,
+.tutorial-open-destination:focus-visible {
+  border-color: rgba(217,191,126,.34);
+  background: rgba(217,191,126,.10);
+  color: #f0dfad;
+}
 
 .tutorial-footer {
   display: grid;
@@ -226,6 +248,7 @@ body.tutorial-open { overflow: hidden !important; }
 .tutorial-btn-secondary:focus-visible { background: rgba(255,255,255,.06); color: #fff; }
 
 .tutorial-skip:focus-visible,
+.tutorial-open-destination:focus-visible,
 .tutorial-btn:focus-visible {
   outline: 2px solid rgba(217,191,126,.68);
   outline-offset: 2px;
@@ -251,6 +274,7 @@ body.tutorial-open { overflow: hidden !important; }
   .tutorial-description { font-size: 13px; }
   .tutorial-feature-grid { grid-template-columns: 1fr; gap: 6px; margin-top: 20px; }
   .tutorial-feature { min-height: 42px; }
+  .tutorial-open-destination { width: 100%; justify-content: center; }
   .tutorial-footer { grid-template-columns: 1fr; gap: 12px; padding: 14px 17px max(17px, env(safe-area-inset-bottom)); }
   .tutorial-dots { justify-content: center; }
   .tutorial-actions { width: 100%; }
@@ -258,7 +282,7 @@ body.tutorial-open { overflow: hidden !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tutorial-overlay, .tutorial-card, .tutorial-dot, .tutorial-btn, .v1-runtime-gate { transition: none !important; }
+  .tutorial-overlay, .tutorial-card, .tutorial-dot, .tutorial-btn, .tutorial-open-destination, .v1-runtime-gate { transition: none !important; }
   .v1-runtime-gate-progress i { animation: none !important; transform: none; }
 }
 

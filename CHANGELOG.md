@@ -2,6 +2,15 @@
 
 ## 5.9.76 — 2026-08-29
 
+### Actionable five-destination workspace guide
+
+- Updated the Projects tutorial step to teach the shipped named-Project interaction: open Projects,
+  select the Project by name, and continue inside its dedicated workspace.
+- Added a safe destination action to every guide step so a user can move directly into Ask,
+  Projects, Create, Library, or You without generating content or spending credits.
+- Advanced the per-account tutorial completion key and independently versioned the onboarding
+  assets across the browser, service worker, and generated native bundle.
+
 ### Project workspace click reliability
 
 - Moved Project-row activation onto the stable Projects list container so asynchronous list
