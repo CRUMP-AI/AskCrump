@@ -366,11 +366,22 @@ async def test_recent_work_route_rejects_non_contract_values(event_key, source):
 
 
 def test_recent_work_source_is_narrow_and_content_free():
-    assert RECENT_WORK_SOURCES == frozenset({"launchpad"})
+    assert RECENT_WORK_SOURCES == frozenset({"launchpad", "project"})
 
 
 @pytest.mark.asyncio
-async def test_recent_work_route_derives_one_server_utc_day_key(monkeypatch):
+@pytest.mark.parametrize(
+    ("source", "event_key_prefix"),
+    [
+        ("launchpad", "recent-work-resumed:"),
+        ("project", "recent-work-resumed:project:"),
+    ],
+)
+async def test_recent_work_route_derives_one_server_utc_day_key_per_source(
+    monkeypatch,
+    source,
+    event_key_prefix,
+):
     calls = []
 
     async def authenticate(_request, _database, _settings):
@@ -391,16 +402,16 @@ async def test_recent_work_route_derives_one_server_utc_day_key(monkeypatch):
         ProductEventRequest(
             eventName="RecentWorkResumed",
             eventKey="recent-work-resumed",
-            source="launchpad",
+            source=source,
         ),
         request_for("www.askcrump.com"),
     )
 
     assert result == {"success": True, "recorded": True}
     assert calls[0]["event_name"] == "RecentWorkResumed"
-    assert calls[0]["event_key"].startswith("recent-work-resumed:")
-    assert len(calls[0]["event_key"]) == len("recent-work-resumed:2026-08-24")
-    assert calls[0]["source"] == "launchpad"
+    assert calls[0]["event_key"].startswith(event_key_prefix)
+    assert len(calls[0]["event_key"]) == len(f"{event_key_prefix}2026-08-24")
+    assert calls[0]["source"] == source
     assert set(calls[0]) == {"user_id", "event_name", "event_key", "request", "source", "plan"}
 
 

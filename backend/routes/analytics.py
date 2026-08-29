@@ -48,7 +48,8 @@ async def create_product_event(payload: ProductEventRequest, request: Request):
     event_key = payload.eventKey
     if payload.eventName == "RecentWorkResumed":
         server_day = datetime.now(timezone.utc).date().isoformat()
-        event_key = f"recent-work-resumed:{server_day}"
+        source_segment = "" if payload.source == "launchpad" else f"{payload.source}:"
+        event_key = f"recent-work-resumed:{source_segment}{server_day}"
     if payload.eventName == "PlanCenterViewed":
         server_day = datetime.now(timezone.utc).date().isoformat()
         event_key = f"plan-center-viewed:{server_day}"

@@ -2,6 +2,16 @@
 
 ## 5.9.76 — 2026-08-29
 
+### Measurable Project returns
+
+- Corrected the authenticated analytics boundary so continuing a saved conversation from its
+  Project workspace records the existing content-free `RecentWorkResumed` milestone instead of
+  being rejected because only the launchpad source was allowlisted.
+- Kept the accepted sources limited to `launchpad` and `project`, retained the established
+  launchpad key, and derived a separate server-owned UTC-day key for Project returns.
+- Continued to exclude Project IDs, chat IDs, titles, prompts, responses, filenames, and arbitrary
+  metadata from the retention event.
+
 ### Projects that visibly open
 
 - Replaced the silent Project-row form refresh with an explicit Projects list → named Project
