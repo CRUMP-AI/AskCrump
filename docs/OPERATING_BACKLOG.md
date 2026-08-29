@@ -625,6 +625,15 @@ mobile plus a non-generating Create chooser. The migration map and rollback are 
 `docs/PRODUCT_REORGANIZATION_MAP_2026-08-27.md`. Production and hosted native verification passed;
 real-user task-flow evidence remains open before final screenshots.
 
+Production 5.9.76 now closes the next activation gap in that reorganization. The replayable workspace
+guide explicitly teaches that a named Project opens its own dedicated workspace, and every guide step
+can hand the person into the corresponding real destination without generating content or spending
+credits. The signed-in production path from You → About → Replay workspace guide → Projects opened
+the real owner-scoped Project index with zero browser errors. All 479 regressions, 45 JavaScript
+validations, production preflight, native web bundling, and store-metadata source checks passed. The
+decision and release evidence are recorded in
+`docs/ACTIONABLE_WORKSPACE_GUIDE_RELEASE_2026-08-29.md`.
+
 **Outcome:** organize the workspace around five user destinations: Ask, Projects, Create, Library,
 and You. Keep Research as an intelligent mode within Ask; group documents, presentations, images,
 and video under Create; preserve every account, conversation, Project, file, entitlement, and stable
