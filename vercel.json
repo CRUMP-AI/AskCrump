@@ -1,6 +1,88 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    {
+      "source": "/ask-crump",
+      "destination": "https://www.askcrump.com/",
+      "permanent": true
+    },
+    {
+      "source": "/clever-crump",
+      "destination": "https://www.clevercrump.com/",
+      "permanent": true
+    },
+    {
+      "source": "/app",
+      "has": [
+        { "type": "host", "value": "www.clevercrump.com" }
+      ],
+      "destination": "https://www.askcrump.com/app",
+      "permanent": true
+    },
+    {
+      "source": "/ai-presentation-maker",
+      "has": [
+        { "type": "host", "value": "www.clevercrump.com" }
+      ],
+      "destination": "https://www.askcrump.com/ai-presentation-maker",
+      "permanent": true
+    },
+    {
+      "source": "/ai-document-generator",
+      "has": [
+        { "type": "host", "value": "www.clevercrump.com" }
+      ],
+      "destination": "https://www.askcrump.com/ai-document-generator",
+      "permanent": true
+    },
+    {
+      "source": "/ai-resume-builder",
+      "has": [
+        { "type": "host", "value": "www.clevercrump.com" }
+      ],
+      "destination": "https://www.askcrump.com/ai-resume-builder",
+      "permanent": true
+    },
+    {
+      "source": "/ai-video-generator",
+      "has": [
+        { "type": "host", "value": "www.clevercrump.com" }
+      ],
+      "destination": "https://www.askcrump.com/ai-video-generator",
+      "permanent": true
+    },
+    {
+      "source": "/legal",
+      "has": [
+        { "type": "host", "value": "www.clevercrump.com" }
+      ],
+      "destination": "https://www.askcrump.com/legal",
+      "permanent": true
+    },
+    {
+      "source": "/delete-account",
+      "has": [
+        { "type": "host", "value": "www.clevercrump.com" }
+      ],
+      "destination": "https://www.askcrump.com/delete-account",
+      "permanent": true
+    }
+  ],
   "rewrites": [
+    {
+      "source": "/robots.txt",
+      "has": [
+        { "type": "host", "value": "www.clevercrump.com" }
+      ],
+      "destination": "/clever-crump-robots.txt"
+    },
+    {
+      "source": "/sitemap.xml",
+      "has": [
+        { "type": "host", "value": "www.clevercrump.com" }
+      ],
+      "destination": "/clever-crump-sitemap.xml"
+    },
     {
       "source": "/",
       "has": [
