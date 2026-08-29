@@ -54,3 +54,9 @@ This release verifies the missing resume path, not improved retention. The compa
 cohort remains empty, and the production audit deliberately did not generate a retention event.
 Evaluate legitimate `RecentWorkResumed` observations and return behavior after external activated
 accounts exist; do not claim a retention lift from owner testing.
+
+Measurement follow-up: production release `3fa6f34` corrected the later-discovered intake mismatch
+that rejected the client's content-free `source: project` value. Project returns are measurable
+from that release boundary forward; earlier absence of Project-source events must not be interpreted
+as evidence that no one used the resume control. See
+`docs/PROJECT_RETURN_MEASUREMENT_RELEASE_2026-08-29.md`.
