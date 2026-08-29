@@ -216,22 +216,27 @@ def test_real_user_performance_measurement_covers_growth_surfaces_once():
 
     for relative, route in pages.items():
         page = read(relative)
-        privacy_config = 'src="/speed-insights-config.js?v=5.9.75"'
+        privacy_config = 'src="/telemetry-config.js?v=5.9.75"'
+        web_analytics = 'src="/_vercel/insights/script.js"'
         collector = (
             f'src="/_vercel/speed-insights/script.js" data-route="{route}"'
         )
-        assert page.count('/speed-insights-config.js') == 1
+        assert page.count('/telemetry-config.js') == 1
+        assert page.count('/_vercel/insights/script.js') == 1
         assert page.count('/_vercel/speed-insights/script.js') == 1
         assert privacy_config in page
+        assert web_analytics in page
         assert collector in page
+        assert page.index(privacy_config) < page.index(web_analytics)
         assert page.index(privacy_config) < page.index(collector)
 
 
-def test_speed_insights_strips_query_and_fragment_before_transmission():
-    config = read("public/speed-insights-config.js")
+def test_vercel_telemetry_strips_query_and_fragment_before_transmission():
+    config = read("public/telemetry-config.js")
     controller = read("public/auth-controller.js")
 
     assert "params.get('token')" in controller
+    assert "window.va('beforeSend'" in config
     assert "window.si('beforeSend'" in config
     assert "url.search = ''" in config
     assert "url.hash = ''" in config

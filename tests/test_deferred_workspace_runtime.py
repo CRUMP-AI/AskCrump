@@ -22,6 +22,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/crump-v1-body.css?v=5.9.75',
     ]
     assert scripts == [
+        '/telemetry-config.js?v=5.9.75',
         '/runtime-body-v1.js',
         '/native-runtime.js',
         '/mobile-bridge.js',
@@ -31,7 +32,6 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/device-auth.js?v=5.9.75',
         '/auth-controller.js?v=5.9.75',
         '/_vercel/insights/script.js',
-        '/speed-insights-config.js?v=5.9.75',
         '/_vercel/speed-insights/script.js',
     ]
 
