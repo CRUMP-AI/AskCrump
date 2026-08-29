@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "public" / "assets"
 OUTPUT = ASSETS / "social"
 ICON = ASSETS / "ask-crump-app-icon-v2-1024.png"
+WORDMARK = ASSETS / "brand" / "crump-horizontal-light.png"
 
 WIDTH = 1200
 HEIGHT = 630
@@ -114,6 +115,86 @@ def render_card(filename: str, eyebrow: str, headline: str, detail: str) -> None
     image.convert("RGB").save(OUTPUT / filename, format="PNG", optimize=True)
 
 
+def portrait_background(width: int, height: int) -> Image.Image:
+    image = Image.new("RGB", (width, height), (5, 6, 8))
+    pixels = image.load()
+    for y in range(height):
+        for x in range(width):
+            distance = ((x - width * 0.5) ** 2 + (y - height * 0.43) ** 2) ** 0.5
+            glow = max(0.0, 1.0 - distance / (width * 0.78))
+            lower_glow = max(0.0, 1.0 - abs(y - height * 0.83) / (height * 0.26))
+            pixels[x, y] = (
+                int(5 + 10 * glow + 9 * lower_glow),
+                int(6 + 8 * glow + 6 * lower_glow),
+                int(8 + 3 * glow),
+            )
+    return image
+
+
+def render_portrait_card(filename: str, eyebrow: str, headline: str, detail: str) -> None:
+    width, height = 1080, 1350
+    image = portrait_background(width, height).convert("RGBA")
+
+    ribbons = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    ribbon_draw = ImageDraw.Draw(ribbons)
+    ribbon_draw.polygon(
+        ((-130, 1160), (490, 1050), (1160, 1270), (1160, 1410), (420, 1160), (-130, 1330)),
+        fill=(221, 192, 112, 26),
+    )
+    ribbon_draw.polygon(
+        ((-70, 1280), (540, 1110), (1160, 1150), (1160, 1265), (520, 1205), (-70, 1390)),
+        fill=(221, 192, 112, 18),
+    )
+    ribbons = ribbons.filter(ImageFilter.GaussianBlur(22))
+    image = Image.alpha_composite(image, ribbons)
+
+    draw = ImageDraw.Draw(image)
+    draw.rounded_rectangle((34, 34, width - 34, height - 34), radius=28, outline=(221, 192, 112, 68), width=1)
+    draw.line((78, 158, width - 78, 158), fill=(221, 192, 112, 70), width=1)
+    draw.line((78, height - 136, width - 78, height - 136), fill=(221, 192, 112, 70), width=1)
+    draw.line((-50, 1235, 505, 1095), fill=(221, 192, 112, 54), width=2)
+    draw.line((505, 1095, 1130, 1220), fill=(221, 192, 112, 42), width=2)
+
+    wordmark = Image.open(WORDMARK).convert("RGBA")
+    wordmark.thumbnail((470, 124), Image.Resampling.LANCZOS)
+    image.alpha_composite(wordmark, ((width - wordmark.width) // 2, 61))
+
+    eyebrow_font = font(SANS_CANDIDATES, 20)
+    headline_font = font(SERIF_CANDIDATES, 76)
+    detail_font = font(SANS_CANDIDATES, 25)
+    sequence_font = font(SANS_CANDIDATES, 15)
+    footer_font = font(SANS_CANDIDATES, 16)
+
+    eyebrow_box = draw.textbbox((0, 0), eyebrow.upper(), font=eyebrow_font)
+    draw.text(((width - (eyebrow_box[2] - eyebrow_box[0])) / 2, 255), eyebrow.upper(), font=eyebrow_font, fill=GOLD)
+
+    headline_lines = wrap_text(draw, headline, headline_font, 850)
+    headline_line_height = 88
+    headline_y = 328
+    for line in headline_lines:
+        box = draw.textbbox((0, 0), line, font=headline_font)
+        draw.text(((width - (box[2] - box[0])) / 2, headline_y), line, font=headline_font, fill=OFF_WHITE)
+        headline_y += headline_line_height
+
+    detail_lines = wrap_text(draw, detail, detail_font, 790)
+    detail_y = headline_y + 35
+    for line in detail_lines:
+        box = draw.textbbox((0, 0), line, font=detail_font)
+        draw.text(((width - (box[2] - box[0])) / 2, detail_y), line, font=detail_font, fill=MUTED)
+        detail_y += 39
+
+    sequence = "THINK  ·  RESEARCH  ·  CREATE  ·  KEEP GOING"
+    sequence_box = draw.textbbox((0, 0), sequence, font=sequence_font)
+    draw.text(((width - (sequence_box[2] - sequence_box[0])) / 2, height - 189), sequence, font=sequence_font, fill=(193, 163, 88))
+    draw.text((78, height - 103), "A CLEVER CRUMP COMPANY", font=footer_font, fill=(195, 188, 167))
+    domain = "ASKCRUMP.COM"
+    domain_box = draw.textbbox((0, 0), domain, font=footer_font)
+    draw.text((width - 78 - (domain_box[2] - domain_box[0]), height - 103), domain, font=footer_font, fill=GOLD)
+
+    OUTPUT.mkdir(parents=True, exist_ok=True)
+    image.convert("RGB").save(OUTPUT / filename, format="PNG", optimize=True)
+
+
 def main() -> None:
     cards = (
         (
@@ -150,6 +231,22 @@ def main() -> None:
     for card in cards:
         render_card(*card)
 
+    portrait_cards = (
+        (
+            "ask-crump-workspace-portrait.png",
+            "An AI workspace",
+            "Work that continues.",
+            "Conversations, Projects, research, files, and finished work—together in one place.",
+        ),
+        (
+            "ask-crump-presentations-portrait.png",
+            "AI presentation maker",
+            "From an idea to an editable PowerPoint.",
+            "Build a structured .pptx draft, download it, revise it, and keep the work moving.",
+        ),
+    )
+    for card in portrait_cards:
+        render_portrait_card(*card)
 
 if __name__ == "__main__":
     main()

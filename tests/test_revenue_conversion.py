@@ -346,6 +346,28 @@ def test_social_share_cards_are_large_brand_safe_and_page_specific():
             assert card.size == (1200, 630)
 
 
+def test_social_launch_cards_include_platform_native_portraits():
+    expected = (
+        "ask-crump-workspace-portrait.png",
+        "ask-crump-presentations-portrait.png",
+    )
+    for filename in expected:
+        with Image.open(ROOT / "public" / "assets" / "social" / filename) as card:
+            assert card.format == "PNG"
+            assert card.mode == "RGB"
+            assert card.size == (1080, 1350)
+
+
+def test_social_launch_batch_uses_contextual_attributed_destinations():
+    packet = read("docs/SOCIAL_LAUNCH_BATCH_2026-08-29.md")
+
+    assert "https://www.askcrump.com/?utm_source=facebook" in packet
+    assert "https://www.askcrump.com/?utm_source=instagram" in packet
+    assert "https://www.askcrump.com/ai-presentation-maker?utm_source=facebook" in packet
+    assert "https://www.askcrump.com/ai-presentation-maker?utm_source=instagram" in packet
+    assert "https://www.askcrump.com/app" not in packet
+
+
 def test_public_marketing_text_colors_meet_wcag_aa_contrast():
     landing = read("public/landing-5.6.css")
     use_case = read("public/use-case.css")

@@ -652,3 +652,10 @@ the campaign itself provides sufficient product context. Do not rewrite authenti
 anonymous aggregates. Keep both new provider foundations off. Do not enable Crump Code until the real
 sandbox/OIDC test, review UI, monitoring, and benchmark gates pass. Do not enable Crump Voice
 until its disclosure, key, voice rights, and playback tests are approved.
+
+The four-publication launch batch is now specified in
+`docs/SOCIAL_LAUNCH_BATCH_2026-08-29.md`. Facebook uses public contextual destinations with explicit
+allowlisted acquisition labels; Instagram uses matching contextual profile links. Two deterministic
+1080-by-1350 portrait cards complement the existing 1200-by-630 landscape cards so neither platform
+requires an unsafe crop. Publication and the dedicated ChatGPT progress update remain behind the
+owner's exact action-time phrase.
