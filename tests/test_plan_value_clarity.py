@@ -55,10 +55,11 @@ def test_public_plan_comparison_matches_server_enforced_allowances():
 
 def test_signed_in_plan_cards_state_specific_value_and_metering():
     billing = read_public("crump-billing-5.1.js")
+    final_billing = read_public("crump-5.2.js")
     subscriptions = read_public("crump-subscriptions-5.3.2.js")
     stylesheet = read_public("crump-billing-5.1.css")
 
-    for source in (billing, subscriptions):
+    for source in (billing, final_billing, subscriptions):
         for expected in (
             "500 included messages daily",
             "25 private Projects",
@@ -71,7 +72,9 @@ def test_signed_in_plan_cards_state_specific_value_and_metering():
         ):
             assert expected in source
         assert "billing51-plan-benefits" in source
-        assert "textContent = item" in source
+
+    for dynamic_source in (billing, subscriptions):
+        assert "textContent = item" in dynamic_source
 
     assert ".billing51-plan-benefits" in stylesheet
     assert ".billing51-plan-meter-note" in stylesheet
@@ -89,6 +92,11 @@ def test_plan_center_measurement_is_daily_content_free_and_fail_open():
     assert "eventKey: 'plan-center-viewed'" in billing
     assert "void window.CrumpAnalytics?.track('PlanCenterViewed'" in billing
     assert "recordPlanCenterView(options);" in billing
+    final_billing = read_public("crump-5.2.js")
+    assert "function showBillingCenter52(options = {})" in final_billing
+    assert "void window.CrumpAnalytics?.track('PlanCenterViewed'" in final_billing
+    assert "recordPlanCenterView(options);" in final_billing
+    assert "button.addEventListener('click', () => showBillingCenter52({source: 'settings'}));" in final_billing
     tracker = billing[
         billing.index("function recordPlanCenterView"):
         billing.index("async function jsonFetch")
@@ -115,6 +123,7 @@ def test_browser_fixture_uses_the_production_plan_center_layers():
 
     assert "/public/crump-billing-5.1.css" in fixture
     assert "/public/crump-billing-5.1.js" in fixture
+    assert "/public/crump-5.2.js" in fixture
     assert "/public/crump-subscriptions-5.3.2.js" in fixture
     assert "window.__planCenterEvents" in fixture
     assert "fixture-user" in fixture

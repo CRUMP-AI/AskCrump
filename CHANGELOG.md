@@ -13,6 +13,8 @@
 - Kept prompts, responses, names, emails, filenames, payment details, and arbitrary metadata
   outside the measurement contract.
 - Advanced the application to 5.9.76, native build 50976, and service-worker cache revision 118.
+- Wired the privacy-safe plan-view milestone into the final workspace billing override, removed
+  its stale pre-launch fallback copy, and advanced the corrective web cache to revision 119.
 
 ## 5.9.75 — 2026-08-29
 

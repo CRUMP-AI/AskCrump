@@ -5,6 +5,7 @@
   window.__crump52Loaded = true;
 
   const $ = (selector, root = document) => root.querySelector(selector);
+  const planCenterSources = new Set(['settings', 'plan_intent', 'upgrade_prompt']);
   const state = {
     menu: null,
     billing: null,
@@ -13,6 +14,21 @@
     legacyFileLoading: new Set(),
     checkoutOpening: false,
   };
+
+  function planCenterSource(options = {}) {
+    if (['professional', 'enterprise'].includes(String(options?.plan || '').toLowerCase())) {
+      return 'plan_intent';
+    }
+    const requested = String(options?.source || '').trim().toLowerCase();
+    return planCenterSources.has(requested) ? requested : 'settings';
+  }
+
+  function recordPlanCenterView(options = {}) {
+    void window.CrumpAnalytics?.track('PlanCenterViewed', {
+      eventKey: 'plan-center-viewed',
+      source: planCenterSource(options),
+    });
+  }
 
   function cssEscape(value) {
     if (window.CSS?.escape) return window.CSS.escape(String(value));
@@ -511,7 +527,7 @@
     }
   }
 
-  function showBillingCenter52() {
+  function showBillingCenter52(options = {}) {
     closeBilling52();
     const modal = document.createElement('div');
     modal.className = 'billing51-modal is-visible crump52-billing-modal';
@@ -533,10 +549,22 @@
           </div>
         </section>
         <section class="billing51-section">
-          <div class="billing51-section-head"><div><span>MONTHLY ACCESS</span><h3>Subscriptions</h3></div><p>Subscriptions are being priced from real model and media costs before launch.</p></div>
+          <div class="billing51-section-head"><div><span>MONTHLY ACCESS</span><h3>Subscriptions</h3></div><p>Choose monthly access for more included usage. You can manage or cancel a web subscription at any time.</p></div>
           <div class="billing51-plans">
-            <article class="billing51-plan is-featured"><div class="billing51-plan-top"><strong>Professional</strong><span>Coming soon</span></div><p>Higher included usage, files, memory, image creation, and priority access.</p><button class="billing51-plan-button" disabled>Not live yet</button></article>
-            <article class="billing51-plan"><div class="billing51-plan-top"><strong>Enterprise</strong><span>Coming soon</span></div><p>Maximum included capacity for demanding workflows and organizations.</p><button class="billing51-plan-button" disabled>Not live yet</button></article>
+            <article class="billing51-plan is-featured" data-crump-plan="professional">
+              <div class="billing51-plan-top"><strong>Professional</strong><span>$20/month</span></div>
+              <p class="billing51-plan-summary">For independent work you return to every day.</p>
+              <ul class="billing51-plan-benefits"><li>500 included messages daily</li><li>25 private Projects</li><li>20 research · 1 image · 20 visual analyses daily</li><li>Think Longer and premium creation access</li></ul>
+              <p class="billing51-plan-meter-note">Premium video and other high-compute generations use Crump Credits.</p>
+              <button class="billing51-plan-button" disabled>Loading plan…</button>
+            </article>
+            <article class="billing51-plan" data-crump-plan="enterprise">
+              <div class="billing51-plan-top"><strong>Enterprise</strong><span>$50/month</span></div>
+              <p class="billing51-plan-summary">For sustained, high-capacity individual or organization workflows.</p>
+              <ul class="billing51-plan-benefits"><li>5,000 included messages daily</li><li>200 private Projects</li><li>50 research · 2 images · 100 visual analyses daily</li><li>10-second Cinematic video access</li></ul>
+              <p class="billing51-plan-meter-note">Premium video and other high-compute generations use Crump Credits.</p>
+              <button class="billing51-plan-button" disabled>Loading plan…</button>
+            </article>
           </div>
         </section>
         <section class="billing51-section billing51-history-section">
@@ -549,6 +577,7 @@
     document.body.appendChild(modal);
     state.billing = modal;
     document.body.classList.add('billing51-open');
+    recordPlanCenterView(options);
 
     // One capture-phase handler owns checkout for both the explicit button and
     // the full credit card. This survives re-renders and is reliable on iOS
@@ -577,14 +606,17 @@
 
   function ownBillingButton() {
     window.showBillingCenter = showBillingCenter52;
-    window.showUpgradePrompt = showBillingCenter52;
+    window.showUpgradePrompt = options => showBillingCenter52({
+      ...(options && typeof options === 'object' ? options : {}),
+      source: 'upgrade_prompt',
+    });
     const current = $('#upgradeBtnSidebar');
     if (!current || current.dataset.crump52Billing === 'true') return;
     const button = current.cloneNode(true);
     button.id = 'upgradeBtnSidebar';
     button.dataset.crump52Billing = 'true';
     current.replaceWith(button);
-    button.addEventListener('click', showBillingCenter52);
+    button.addEventListener('click', () => showBillingCenter52({source: 'settings'}));
   }
 
   function boot() {
