@@ -22,6 +22,36 @@
     resume: {href: '/ai-resume-builder', label: 'See résumé examples first'},
     video: {href: '/ai-video-generator', label: 'Explore Video Studio first'},
   });
+  const REGISTRATION_CREATION_HANDOFFS = Object.freeze({
+    document: {
+      title: 'Create your document workspace.',
+      description: 'After verification, Ask Crump opens the document workspace so you can turn a request, notes, or source material into an editable Word draft or PDF.',
+    },
+    presentation: {
+      title: 'Create your presentation workspace.',
+      description: 'After verification, Ask Crump opens the presentation workspace so you can turn a topic, outline, or source material into an editable PowerPoint draft.',
+    },
+    resume: {
+      title: 'Build your résumé workspace.',
+      description: 'After verification, Ask Crump opens the résumé workspace so you can shape your real experience into an editable Word résumé without invented credentials.',
+    },
+    video: {
+      title: 'Open your Video Studio.',
+      description: 'After verification, Ask Crump opens Video Studio so you can choose a generation mode, see its Crump Credit cost, and keep completed clips in your private Library.',
+    },
+  });
+  const REGISTRATION_PLAN_HANDOFFS = Object.freeze({
+    professional: {
+      title: 'Create your account for Professional.',
+      disclosure: 'Professional is $20/month and remains unpurchased until you review and confirm checkout.',
+      button: 'Create account & review Professional',
+    },
+    enterprise: {
+      title: 'Create your account for Enterprise.',
+      disclosure: 'Enterprise is $50/month and remains unpurchased until you review and confirm checkout.',
+      button: 'Create account & review Enterprise',
+    },
+  });
   const LEGACY_ACQUISITION_SOURCES = new Set([
     'instagram', 'facebook', 'facebook-pinned', 'linkedin', 'tiktok',
     'youtube', 'x', 'referral', 'organic', 'clevercrump',
@@ -134,6 +164,11 @@
 
   function capturePlanIntent() {
     const context = funnelContext();
+    const params = new URLSearchParams(location.search);
+    if (params.get('signup') === '1' && context.plan === 'free') {
+      try { localStorage.removeItem(PLAN_INTENT_KEY); } catch (_) {}
+      return;
+    }
     if (!PAID_PLAN_INTENTS.has(context.plan)) return;
     try {
       localStorage.setItem(PLAN_INTENT_KEY, JSON.stringify({
@@ -164,6 +199,31 @@
     link.dataset.exploreDestination = kind || 'overview';
   }
 
+  function configureRegistrationHandoff() {
+    const title = byId('registrationTitle');
+    const description = byId('registrationDescription');
+    const button = byId('registrationSubmitBtn');
+    if (!title || !description || !button) return;
+
+    const params = new URLSearchParams(location.search);
+    const creationKind = creationIntentValue(params.get('intent')) || pendingCreationIntent()?.kind || '';
+    const explicitPlan = funnelValue(params.get('plan'), '');
+    const planKind = PAID_PLAN_INTENTS.has(explicitPlan)
+      ? explicitPlan
+      : (params.has('plan') ? '' : pendingPlanIntent()?.plan || '');
+    const creation = REGISTRATION_CREATION_HANDOFFS[creationKind];
+    const plan = REGISTRATION_PLAN_HANDOFFS[planKind];
+
+    title.textContent = creation?.title || plan?.title || 'Create your workspace.';
+    description.textContent = creation?.description
+      || (plan
+        ? 'Account creation is free. Your workspace opens after verification.'
+        : 'Ask questions, create useful work, and pick up where you left off. Free to start—no card required.');
+    if (plan) description.textContent += ` ${plan.disclosure}`;
+    else if (creation) description.textContent += ' Free to start—no card required.';
+    button.textContent = plan?.button || (creation ? 'Create account & continue' : 'Create free account');
+  }
+
   function wireExploreRegistrationLink() {
     const link = byId('registrationExploreLink');
     if (!link) return;
@@ -176,7 +236,12 @@
   function captureCreationIntent() {
     const params = new URLSearchParams(location.search);
     const kind = creationIntentValue(params.get('intent'));
-    if (!kind) return;
+    if (!kind) {
+      if (params.get('signup') === '1') {
+        try { localStorage.removeItem(CREATION_INTENT_KEY); } catch (_) {}
+      }
+      return;
+    }
     const context = funnelContext();
     try {
       localStorage.setItem(CREATION_INTENT_KEY, JSON.stringify({
@@ -448,7 +513,10 @@
     hide('onboardingModal');
     show('authContainer', 'flex');
     Object.values(AUTH_VIEWS).forEach(({containerId}) => hide(containerId));
-    if (normalizedView === 'register') resetRegistrationView();
+    if (normalizedView === 'register') {
+      resetRegistrationView();
+      configureRegistrationHandoff();
+    }
     show(AUTH_VIEWS[normalizedView].containerId);
     focusAuthView(normalizedView);
   }
@@ -517,6 +585,7 @@
     captureCreationIntent();
     configureRegistrationExploreLink();
     capturePlanIntent();
+    configureRegistrationHandoff();
     const params = new URLSearchParams(location.search);
     const signupRequested = params.get('signup') === '1';
     const resetToken = params.get('token');

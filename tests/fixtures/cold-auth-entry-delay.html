@@ -29,7 +29,8 @@
     </div>
     <div id="registerForm" style="display:none">
       <div id="registerEntry">
-        <h1>Create your workspace.</h1>
+        <h1 id="registrationTitle">Create your workspace.</h1>
+        <p id="registrationDescription">Ask questions, create useful work, and pick up where you left off. Free to start—no card required.</p>
         <form id="registerFormElement">
           <label for="registerEmail">Email</label>
           <input id="registerEmail" type="email" required autocomplete="email">
@@ -41,7 +42,7 @@
             <span data-password-rule="number"><i>○</i>One number</span>
           </div>
           <span id="registerPasswordStatus" aria-live="polite"></span>
-          <button type="submit">Create free account</button>
+          <button id="registrationSubmitBtn" type="submit">Create free account</button>
           <a id="registrationExploreLink" href="/">Explore Ask Crump first</a>
           <a id="showLoginLink" href="#">Sign in</a>
         </form>
@@ -82,6 +83,10 @@
       preferences: {},
     };
     window.__fixture = {sessionSettled: false, loginCalls: 0, registerCalls: 0, appStarts: 0, startupEvents: [], events: []};
+    if (new URLSearchParams(location.search).get('stale') === '1') {
+      localStorage.setItem('askcrump.pending-plan-intent', JSON.stringify({plan:'professional', source:'direct', location:'pricing', capturedAt:Date.now()}));
+      localStorage.setItem('askcrump.pending-creation-intent', JSON.stringify({kind:'resume', source:'resume-page', acquisition:'organic', capturedAt:Date.now()}));
+    }
     window.va = (command, payload) => {
       if (command !== 'event') return;
       window.__fixture.events.push(payload);
@@ -139,6 +144,6 @@
       },
     };
   </script>
-  <script src="/public/auth-controller.js?v=fixture-cold-auth-delay-2"></script>
+  <script src="/public/auth-controller.js?v=fixture-cold-auth-delay-4"></script>
 </body>
 </html>

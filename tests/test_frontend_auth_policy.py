@@ -107,6 +107,41 @@ def test_cold_signup_entry_keeps_product_value_and_assurance_readable():
     assert '.v1-registration-explore a:focus-visible' in body
 
 
+def test_registration_preserves_allowlisted_creation_and_paid_plan_promises():
+    app = (PUBLIC / 'app.html').read_text(encoding='utf-8')
+    controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
+
+    assert 'id="registrationTitle"' in app
+    assert 'id="registrationDescription"' in app
+    assert 'id="registrationSubmitBtn"' in app
+    assert 'const REGISTRATION_CREATION_HANDOFFS = Object.freeze({' in controller
+    assert "title: 'Create your presentation workspace.'" in controller
+    assert 'editable PowerPoint draft' in controller
+    assert "title: 'Build your résumé workspace.'" in controller
+    assert 'without invented credentials' in controller
+    assert "title: 'Open your Video Studio.'" in controller
+    assert 'see its Crump Credit cost' in controller
+    assert 'const REGISTRATION_PLAN_HANDOFFS = Object.freeze({' in controller
+    assert 'Professional is $20/month and remains unpurchased until you review and confirm checkout' in controller
+    assert 'Enterprise is $50/month and remains unpurchased until you review and confirm checkout' in controller
+    assert 'function configureRegistrationHandoff()' in controller
+    assert "button.textContent = plan?.button || (creation ? 'Create account & continue' : 'Create free account');" in controller
+    assert 'configureRegistrationHandoff();' in controller
+
+
+def test_explicit_generic_free_signup_clears_stale_specific_intents():
+    controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
+    fixture = (ROOT / 'tests' / 'fixtures' / 'cold-auth-entry-delay.html').read_text(encoding='utf-8')
+
+    assert "params.get('signup') === '1' && context.plan === 'free'" in controller
+    assert 'localStorage.removeItem(PLAN_INTENT_KEY)' in controller
+    assert "if (params.get('signup') === '1')" in controller
+    assert 'localStorage.removeItem(CREATION_INTENT_KEY)' in controller
+    assert "get('stale') === '1'" in fixture
+    assert "plan:'professional'" in fixture
+    assert "kind:'resume'" in fixture
+
+
 def test_cold_signup_explore_fixture_uses_real_runtime_without_production_writes():
     fixture = (
         ROOT / 'tests' / 'fixtures' / 'cold-auth-entry-delay.html'
@@ -116,7 +151,7 @@ def test_cold_signup_explore_fixture_uses_real_runtime_without_production_writes
     assert 'id="fixtureEvents"' in fixture
     assert "window.__fixture.events.push(payload);" in fixture
     assert "addEventListener('click', event => event.preventDefault())" in fixture
-    assert '/public/auth-controller.js?v=fixture-cold-auth-delay-2' in fixture
+    assert '/public/auth-controller.js?v=fixture-cold-auth-delay-4' in fixture
     assert 'https://' not in fixture
     assert 'askcrump.com' not in fixture
 
@@ -127,7 +162,7 @@ def test_registration_autofill_fixture_uses_real_local_runtime_without_productio
     ).read_text(encoding='utf-8')
 
     assert '/public/auth-resilience.js?v=fixture-registration-autofill' in fixture
-    assert '/public/auth-controller.js?v=fixture-registration-autofill-2' in fixture
+    assert '/public/auth-controller.js?v=fixture-registration-autofill-4' in fixture
     assert "document.getElementById('registerEmail').value = 'autofill@example.test'" in fixture
     assert "document.getElementById('registerPassword').value = 'Autofill1234'" in fixture
     assert "Fixture stopped before account creation." in fixture

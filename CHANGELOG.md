@@ -19,6 +19,9 @@
   shared analytics helper is late or unavailable, then advanced the cache to revision 120.
 - Matched the initial desktop rail width to the final five-destination navigation width, removing
   the last 20-pixel wordmark settle during signed-in refresh, and advanced the cache to revision 121.
+- Preserved the visitor’s allowlisted document, presentation, résumé, video, Professional, or
+  Enterprise promise in the registration headline, explanation, and primary action; explicit
+  generic Free signup now clears stale specific intents before authentication.
 
 ## 5.9.75 — 2026-08-29
 

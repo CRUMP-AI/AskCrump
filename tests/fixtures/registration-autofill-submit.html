@@ -20,7 +20,8 @@
     </div>
     <div id="registerForm" style="display:none">
       <div id="registerEntry">
-        <h1>Create your workspace.</h1>
+        <h1 id="registrationTitle">Create your workspace.</h1>
+        <p id="registrationDescription">Ask questions, create useful work, and pick up where you left off. Free to start—no card required.</p>
         <form id="registerFormElement">
           <label for="registerEmail">Email</label>
           <input id="registerEmail" type="email" required autocomplete="email">
@@ -32,7 +33,7 @@
             <span data-password-rule="number"><i>○</i>One number</span>
           </div>
           <span id="registerPasswordStatus" aria-live="polite"></span>
-          <button type="submit">Create free account</button>
+          <button id="registrationSubmitBtn" type="submit">Create free account</button>
         </form>
         <div id="registerError" class="auth-error" role="alert" style="display:none"></div>
         <div id="registerSuccess" style="display:none"></div>
@@ -85,6 +86,6 @@
     document.getElementById('registerPassword').value = 'Autofill1234';
   </script>
   <script src="/public/auth-resilience.js?v=fixture-registration-autofill"></script>
-  <script src="/public/auth-controller.js?v=fixture-registration-autofill-2"></script>
+  <script src="/public/auth-controller.js?v=fixture-registration-autofill-4"></script>
 </body>
 </html>
