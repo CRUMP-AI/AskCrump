@@ -35,3 +35,30 @@ def test_browser_fixture_reproduces_a_never_settling_sync_without_real_credentia
     assert "fixture@example.test" in fixture
     assert "fetch(" not in fixture
     assert "askcrump.com" not in fixture
+
+
+def test_delayed_session_fixture_protects_both_cold_auth_entry_paths():
+    fixture = (ROOT / "tests" / "fixtures" / "cold-auth-entry-delay.html").read_text(encoding="utf-8")
+
+    assert '<script src="/public/auth-controller.js?v=fixture-cold-auth-delay-2"></script>' in fixture
+    assert "setTimeout(resolve, 3000)" in fixture
+    assert "sessionSettled: false" in fixture
+    assert "get('authenticated') === '1'" in fixture
+    assert "fixtureAppState" in fixture
+    assert "Fixture stopped before account creation." in fixture
+    assert "fetch(" not in fixture
+    assert "https://" not in fixture
+    assert "askcrump.com" not in fixture
+
+
+def test_bootstrap_exposes_a_truthful_surface_before_the_bounded_session_probe():
+    controller = (PUBLIC / "auth-controller.js").read_text(encoding="utf-8")
+    bootstrap = controller[controller.index("async function bootstrap()") : controller.index("function wireNavigation()")]
+
+    assert "function showReturningVisitorGate()" in controller
+    assert "const bootstrapAuthFlowRevision = authFlowRevision;" in bootstrap
+    assert bootstrap.index("showAuth('register')") < bootstrap.index("await window.CrumpAPI?.ready")
+    assert bootstrap.index("showReturningVisitorGate()") < bootstrap.index("await window.CrumpAPI?.ready")
+    assert bootstrap.index("await window.CrumpAPI?.ready") < bootstrap.index("window.deviceAuth.checkSession()")
+    assert "if (authFlowRevision !== bootstrapAuthFlowRevision) return;" in bootstrap
+    assert "authFlowRevision += 1;" in controller

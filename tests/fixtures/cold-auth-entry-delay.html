@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Cold authentication entry delay fixture</title>
+  <style>
+    body { background:#0b0b0b; color:#f5f2ec; font:16px/1.5 system-ui,sans-serif; padding:32px; }
+    form { display:grid; gap:12px; width:min(440px,100%); }
+    input,button { box-sizing:border-box; min-height:44px; padding:10px 12px; }
+    .v1-runtime-gate-card { display:grid; gap:8px; width:min(440px,100%); }
+  </style>
+</head>
+<body>
+  <div id="authContainer" style="display:none">
+    <div id="loginForm" style="display:none">
+      <form id="loginFormElement">
+        <label for="loginEmail">Email</label>
+        <input id="loginEmail" type="email" required>
+        <label for="loginPassword">Password</label>
+        <input id="loginPassword" type="password" required>
+        <button type="submit">Sign In</button>
+      </form>
+      <a id="showRegisterLink" href="#">Create account</a>
+      <div id="loginError" style="display:none"></div>
+      <div id="loginSuccess" style="display:none"></div>
+      <div id="verificationNeeded" style="display:none"></div>
+    </div>
+    <div id="registerForm" style="display:none">
+      <div id="registerEntry">
+        <h1>Create your workspace.</h1>
+        <form id="registerFormElement">
+          <label for="registerEmail">Email</label>
+          <input id="registerEmail" type="email" required autocomplete="email">
+          <label for="registerPassword">Password</label>
+          <input id="registerPassword" type="password" required minlength="10" maxlength="256" autocomplete="new-password" aria-describedby="registerPasswordHint">
+          <div id="registerPasswordHint">
+            <span data-password-rule="length"><i>○</i>10+ characters</span>
+            <span data-password-rule="letter"><i>○</i>One letter</span>
+            <span data-password-rule="number"><i>○</i>One number</span>
+          </div>
+          <span id="registerPasswordStatus" aria-live="polite"></span>
+          <button type="submit">Create free account</button>
+          <a id="showLoginLink" href="#">Sign in</a>
+        </form>
+        <div id="registerError" style="display:none"></div>
+        <div id="registerSuccess" style="display:none"></div>
+      </div>
+      <section id="registrationPending" style="display:none" tabindex="-1">
+        <strong id="registrationPendingEmail"></strong>
+        <div id="registrationPendingSuccess" style="display:none"></div>
+        <div id="registrationPendingError" style="display:none"></div>
+        <button id="registrationPendingSigninBtn" type="button">I’ve verified — sign in</button>
+        <button id="registrationPendingResendBtn" type="button">Resend verification email</button>
+      </section>
+    </div>
+    <div id="forgotPasswordForm" style="display:none"></div>
+    <div id="resetPasswordForm" style="display:none"></div>
+  </div>
+  <div id="tosModal" style="display:none"></div>
+  <div id="onboardingModal" style="display:none"></div>
+  <div id="appContainer" style="display:none">
+    <div id="v1RuntimeGate" role="status">
+      <div class="v1-runtime-gate-card">
+        <strong>Opening your workspace</strong>
+        <p>Bringing your conversations, Projects, and Library into place.</p>
+      </div>
+    </div>
+    <div class="v1-shell"><textarea id="userInput"></textarea></div>
+  </div>
+  <output id="fixtureSessionState">checking</output>
+  <output id="fixtureAppState">not started</output>
+  <script>
+    const fixtureUser = {
+      id: 'fixture-user',
+      email: 'fixture@example.test',
+      fullName: 'Fixture User',
+      termsAcceptedAt: '2026-08-28T00:00:00Z',
+      preferences: {},
+    };
+    window.__fixture = {sessionSettled: false, loginCalls: 0, registerCalls: 0, appStarts: 0};
+    window.va = () => {};
+    window.CrumpAPI = {ready: Promise.resolve()};
+    window.CrumpAnalytics = {track: () => Promise.resolve(true)};
+    window.configureUserStorage = () => {};
+    window.profileManager = {applyServerSubscription() {}, updateProfile() {}};
+    window.initializeApp = () => {
+      window.__fixture.appStarts += 1;
+      document.getElementById('fixtureAppState').textContent = 'started';
+    };
+    window.initializeAuthenticatedApp = () => {};
+    window.deviceAuth = {
+      async checkSession() {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        window.__fixture.sessionSettled = true;
+        if (new URLSearchParams(location.search).get('authenticated') === '1') {
+          document.getElementById('fixtureSessionState').textContent = 'signed in';
+          return {success:true, authenticated:true, data:{user:fixtureUser, settings:{}}};
+        }
+        document.getElementById('fixtureSessionState').textContent = 'signed out';
+        return {success:true, authenticated:false};
+      },
+      async login() {
+        window.__fixture.loginCalls += 1;
+        return {success:false, error:'Fixture stopped before sign in.'};
+      },
+      async logout() {},
+    };
+    window.CrumpAuthTransport = {
+      async request(url) {
+        if (url === '/api/auth/register') window.__fixture.registerCalls += 1;
+        return {
+          response: new Response(JSON.stringify({success:false, error:'Fixture stopped before account creation.'}), {
+            status:400,
+            headers:{'Content-Type':'application/json'},
+          }),
+          data:{success:false, error:'Fixture stopped before account creation.'},
+        };
+      },
+    };
+  </script>
+  <script src="/public/auth-controller.js?v=fixture-cold-auth-delay-2"></script>
+</body>
+</html>

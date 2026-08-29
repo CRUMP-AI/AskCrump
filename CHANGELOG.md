@@ -1,5 +1,21 @@
 # Changelog
 
+## 5.9.73 — 2026-08-29
+
+### Immediate, race-safe account entry
+
+- Removed the cold `/app` dead-air window that could hide both account entry and the workspace
+  for the full bounded session probe.
+- Made explicit signup links usable before session restoration finishes, while returning visitors
+  see the existing truthful “Opening your workspace” gate instead of a sign-in flash.
+- Added an authentication-flow revision guard so a late saved-session result cannot overwrite a
+  sign-in or registration the person has already started.
+- Preserved the existing session authority, account fields, password policy, verification flow,
+  cookies, pricing, and content-free funnel events.
+- Added a credential-free delayed-session browser fixture covering signed-out signup, signed-out
+  return, saved-session handoff, and the active-registration race.
+- Advanced the application to 5.9.73, native build 50973, and service-worker cache revision 107.
+
 ## 5.9.71 — 2026-08-28
 
 ### Value-aware signup entry

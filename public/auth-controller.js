@@ -3,6 +3,8 @@
   let appStarted = false;
   let activeUser = null;
   let planIntentDispatched = false;
+  let authFlowRevision = 0;
+  let signupIntentTracked = false;
   let workspaceRuntimeGateTimer = 0;
   let workspaceRuntimeGateWaiting = false;
   const TERMS_VERSION = '2026-07-30';
@@ -71,6 +73,12 @@
 
   function trackFunnel(name, data = {}) {
     window.va('event', {name, data: {...funnelContext(), ...data}});
+  }
+
+  function trackSignupIntent(locationName) {
+    if (signupIntentTracked) return;
+    signupIntentTracked = true;
+    trackFunnel('SignupIntent', {location: locationName});
   }
 
   function capturePlanIntent() {
@@ -242,6 +250,22 @@
     workspaceRuntimeGateTimer = window.setTimeout(releaseWorkspaceRuntimeGate, 5000);
   }
 
+  function showReturningVisitorGate() {
+    hide('authContainer');
+    hide('tosModal');
+    hide('onboardingModal');
+    const gate = byId('v1RuntimeGate');
+    const shell = document.querySelector('.v1-shell');
+    if (gate) {
+      gate.hidden = false;
+      gate.classList.remove('is-ready');
+      gate.removeAttribute('aria-hidden');
+    }
+    byId('appContainer')?.setAttribute('aria-busy', 'true');
+    shell?.setAttribute('inert', '');
+    show('appContainer', 'flex');
+  }
+
   function startApp() {
     hide('authContainer');
     hide('tosModal');
@@ -394,7 +418,6 @@
   async function bootstrap() {
     captureCreationIntent();
     capturePlanIntent();
-    await window.CrumpAPI?.ready;
     const params = new URLSearchParams(location.search);
     const signupRequested = params.get('signup') === '1';
     const resetToken = params.get('token');
@@ -410,19 +433,30 @@
       history.replaceState({}, document.title, location.pathname);
     }
 
+    if (signupRequested) {
+      showAuth('register');
+    } else {
+      showReturningVisitorGate();
+    }
+
+    const bootstrapAuthFlowRevision = authFlowRevision;
+    await window.CrumpAPI?.ready;
     const session = await window.deviceAuth.checkSession();
+    if (authFlowRevision !== bootstrapAuthFlowRevision) return;
     if (session.unavailable) {
-      showAuth(signupRequested ? 'register' : 'login');
-      setText(
-        'loginError',
-        'Ask Crump could not verify your existing session right now. Your saved sign-in was preserved; try again in a moment.',
-      );
+      if (!signupRequested) {
+        showAuth('login');
+        setText(
+          'loginError',
+          'Ask Crump could not verify your existing session right now. Your saved sign-in was preserved; try again in a moment.',
+        );
+      }
       if (verification) showVerificationResult(verification);
       return;
     }
     if (!session.authenticated || !session.data?.user) {
-      showAuth(signupRequested ? 'register' : 'login');
-      if (signupRequested) trackFunnel('SignupIntent', {location: 'deep-link'});
+      if (!signupRequested) showAuth('login');
+      if (signupRequested) trackSignupIntent('deep-link');
       if (verification) showVerificationResult(verification);
       return;
     }
@@ -438,7 +472,7 @@
     byId('showRegisterLink')?.addEventListener('click', event => {
       event.preventDefault();
       showAuth('register');
-      trackFunnel('SignupIntent', {location: 'auth-link'});
+      trackSignupIntent('auth-link');
     });
     byId('showLoginLink')?.addEventListener('click', event => { event.preventDefault(); showAuth('login'); });
     byId('showForgotPasswordLink')?.addEventListener('click', event => { event.preventDefault(); showAuth('forgot'); });
@@ -614,6 +648,7 @@
 
     form.addEventListener('submit', async event => {
       event.preventDefault();
+      authFlowRevision += 1;
       setText('loginError', '', false);
       hide('verificationNeeded');
       trackFunnel('LoginSubmitted');
@@ -651,6 +686,8 @@
     const trackSignupStarted = () => {
       if (signupStartedTracked) return;
       signupStartedTracked = true;
+      const deepLinked = new URLSearchParams(location.search).get('signup') === '1';
+      trackSignupIntent(deepLinked ? 'deep-link' : 'registration');
       trackFunnel('SignupStarted');
     };
 
@@ -686,6 +723,7 @@
 
     form.addEventListener('submit', async event => {
       event.preventDefault();
+      authFlowRevision += 1;
       setText('registerError', '', false);
       setText('registerSuccess', '', false);
       const password = byId('registerPassword').value;
