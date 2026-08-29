@@ -149,6 +149,13 @@ def test_store_metadata_source_is_structured_private_and_within_static_limits():
     assert len(google['fullDescription']) <= 4000
     assert len(apple['screenshotPlan']) >= 4
     assert len(google['screenshotPlan']) >= 4
+    for description in (apple['description'], google['fullDescription']):
+        assert 'Ask, Projects, Create, Library, and You' in description
+    expected_frames = ('Ask —', 'Projects —', 'Create —', 'Research in Ask —', 'Library —', 'You —')
+    for plan in (apple['screenshotPlan'], google['screenshotPlan']):
+        assert plan == metadata['apple']['screenshotPlan']
+        for frame in expected_frames:
+            assert any(item.startswith(frame) for item in plan), frame
     assert 'REPLACE_IN_UNTRACKED_FILE' in read('store/reviewer-access.example.json')
     assert 'store/reviewer-access.json' in read('.gitignore')
     verifier = read('scripts/verify-store-metadata.mjs')

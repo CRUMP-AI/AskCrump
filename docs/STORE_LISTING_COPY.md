@@ -17,22 +17,23 @@ textually aligned with it. Reviewer credentials belong only in the ignored
 ## Apple App Store
 
 - **Subtitle:** Create, research, and build
-- **Promotional text:** Turn questions into ongoing work with Projects, research, images, documents, manuscripts, multi-engine video, scene continuation, and a private Library.
+- **Promotional text:** Move from question to continuing work across Ask, Projects, Create, Library, and You—with research, files, documents, presentations, images, and video.
 - **Keywords:** `AI,assistant,research,writer,documents,images,video,manuscript,productivity,files`
 
 ### Description
 
 Ask Crump is a multimodal AI workspace built to help you move from an idea to something useful.
 
-Ask questions, research a topic, create images and videos, draft documents, develop long-form manuscripts, and keep generated work in a private Library. Projects keep instructions, reference files, canon, conversations, and creations together. Compatible extendable videos can continue from the ending of a previous generated scene.
+The workspace stays clear across five destinations: Ask, Projects, Create, Library, and You. Ask handles conversations and guided research. Projects keep instructions, reference files, conversations, and creations together. Create brings documents, presentations, images, short video, and long-form manuscript work into one place. Library holds uploaded files and generated work. You contains settings, sessions, purchase restoration, and account controls.
 
 Create and organize:
 
-- conversational answers and guided research
+- conversational answers and guided research inside Ask
+- continuing work and reference context in Projects
 - images and multi-engine short-form video, including compatible scene continuation
-- documents and exportable files
+- editable documents, presentations, and exportable files
 - structured long-form manuscript projects
-- uploaded files and generated creations
+- uploaded files and generated creations in Library
 
 Stay in control:
 
@@ -48,21 +49,22 @@ Some features require a paid plan, credits, provider availability, or an interne
 
 ## Google Play
 
-- **Short description:** Create, research, generate media, and manage ambitious projects with Crump.
+- **Short description:** Ask, research, create files and media, and keep ambitious projects moving.
 
 ### Full description
 
 Ask Crump is a multimodal AI workspace for turning questions and ideas into useful work.
 
-Research topics, create images and short videos, draft documents, build structured long-form manuscripts, and keep generated work in a private Library. Projects keep ongoing work and reference context together, and compatible extendable videos can continue from a previous generated scene.
+The workspace is organized around five clear destinations: Ask, Projects, Create, Library, and You. Ask handles conversations and guided research. Projects keep ongoing work and reference context together. Create brings documents, presentations, images, short video, and long-form manuscript work into one place. Library holds uploaded files and generated work. You contains settings, sessions, purchase restoration, and account controls.
 
 WHAT YOU CAN DO
 
-• Ask questions and explore guided research
+• Ask questions and explore guided research inside Ask
+• Organize continuing work and reference context in Projects
 • Generate images and short-form video with Quick, Extendable, and Cinematic modes
-• Create documents and exportable files
+• Create editable documents, presentations, and exportable files
 • Develop long-form manuscript projects
-• Upload files and organize generated creations
+• Upload files and organize generated creations in Library
 • Reopen saved work across supported devices
 
 CONTROL AND SAFETY
@@ -81,13 +83,13 @@ Some features require a paid plan, credits, provider availability, or an interne
 
 Use real output and hide personal data. Keep the same visual language across both stores.
 
-1. **Ask Crump** — polished conversation with a useful, clearly structured answer.
-2. **Research with direction** — sourced research result and next-step controls.
-3. **Create original visuals** — image result with View, Edit, and Download.
-4. **Build real documents** — document workflow with export options.
-5. **Develop long-form work** — manuscript project/status view.
-6. **Direct a video scene** — Quick, Extendable, and Cinematic options with a polished playable result.
-7. **Continue and keep the work** — scene continuation and the private Library.
+1. **Ask** — polished conversation with a useful, clearly structured answer and `Keep in a Project`.
+2. **Projects** — resume continuing work with its instructions, conversations, and references together.
+3. **Create** — the unified chooser for documents, presentations, images, video, and long-form work.
+4. **Research in Ask** — sourced research result and next-step controls inside the Ask destination.
+5. **Editable work** — Document Studio with real document and presentation download controls.
+6. **Library** — uploaded files and generated creations in their dedicated destination.
+7. **You** — settings, sessions, privacy, and account controls without personal data.
 
 Capture at least one modern large iPhone size and current Android phone size. Apple accepts 1–10 screenshots; Google requires at least two and benefits from four or more high-quality phone screenshots.
 
@@ -95,15 +97,16 @@ Capture at least one modern large iPhone size and current Android phone size. Ap
 
 Ask Crump is a locally bundled Capacitor application with native secure-session storage, haptics, network/keyboard handling, push-notification hooks, native in-app billing, account/session management, and synchronized user content. It is not a website-only wrapper.
 
-Provide the reviewer with a dedicated demo account that has enough credits to test Ask, Research, Image, Document, Manuscript, Video, Files, and the Library. Include exact sign-in credentials in the private review fields, never in public listing copy.
+Provide the reviewer with a dedicated demo account that has enough credits to test Ask, guided research, Projects, the available Create modes, Library, reporting, purchase restoration, session controls, export, and deletion. Include exact sign-in credentials in the private review fields, never in public listing copy.
 
 Suggested review path:
 
 1. Sign in with the review account.
-2. Open each creation mode from the composer mode menu.
-3. Open Projects, Create, and Library from their separate primary destinations.
-4. Use **Report** beneath an assistant response to see the in-app safety flow.
-5. Open Settings → Account to view session controls, export, legal links, and permanent account deletion.
-6. Open the subscription screen to verify native store billing and Restore Purchases.
+2. Use Ask for a normal answer, then start guided research inside Ask.
+3. Open Projects and resume the prepared continuing-work example.
+4. Open Create and test only the modes enabled in the signed build.
+5. Open Library and verify the prepared files and creations are available.
+6. Open You → Settings to view session controls, export, legal links, and permanent account deletion.
+7. Open the subscription screen to verify native store billing and Restore Purchases.
 
 If a provider-backed mode is temporarily unavailable, do not submit until reviewer access is stable.

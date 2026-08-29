@@ -7,13 +7,16 @@ badges, or download calls to action.
 
 Required sequence:
 
-1. Ask Crump — useful structured answer and the direct `Keep in a Project` action.
-2. Research with direction — sourced current research and next-step controls.
-3. Create original visuals — a real image result with View, Edit, and Download.
-4. Build real documents — Document Studio and an exportable result.
-5. Develop long-form work — a real manuscript workspace/status view.
-6. Direct a video scene — only engines available in the signed build and a playable result.
-7. Continue and keep the work — Projects plus the private Library.
+1. Ask — useful structured answer and the direct `Keep in a Project` action.
+2. Projects — resume prepared continuing work with its instructions, conversations, and references.
+3. Create — the unified chooser showing only modes enabled in the signed build.
+4. Research in Ask — sourced current research and next-step controls inside Ask.
+5. Editable work — Document Studio with real document and presentation download controls.
+6. Library — prepared uploaded files and generated creations in the dedicated destination.
+7. You — settings, sessions, privacy, and account controls with all personal data removed.
+
+Use the exact destination labels shown in the signed build. The screenshot sequence must agree with
+the in-app tutorial and reviewer path before either store packet is approved.
 
 Capture targets:
 

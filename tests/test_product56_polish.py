@@ -147,7 +147,12 @@ def test_store_and_pwa_copy_match_current_creation_surface():
     listing = read("docs/STORE_LISTING_COPY.md")
     manifest = read("public/manifest.json")
     assert "scene continuation" in listing
-    assert "Open Projects, Create, and Library from their separate primary destinations." in listing
+    assert "Ask, Projects, Create, Library, and You" in listing
+    assert "guided research inside Ask" in listing
+    assert "Open Projects and resume" in listing
+    assert "Open Create and test" in listing
+    assert "Open Library and verify" in listing
+    assert "Open You → Settings" in listing
     assert "Saved Library" not in listing
     assert "Quick, Extendable, and Cinematic" in listing
     assert "manuscripts" in manifest and "video" in manifest and "Projects" in manifest

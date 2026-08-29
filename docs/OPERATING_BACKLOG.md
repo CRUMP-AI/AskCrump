@@ -523,18 +523,20 @@ rate without platform impression data.
 
 ### P1 — Prepare native store distribution without premature submission
 
-**Evidence:** production 5.9.55 is healthy; the Android release source regenerates as build 50955
+**Evidence:** production 5.9.71 is healthy; the Android release source regenerates as build 50971
 with API 36, the permanent package ID, generated assets, cleartext/backup protections, and a passing
 native source verifier. Structured en-US metadata passes current field limits. A reviewed Node 22
 lockfile now supports clean `npm ci`, a zero-vulnerability npm audit, and deterministic Android
-preparation from an isolated worktree. GitHub run `33179824243` generated the 5.9.55 iOS project and compiled its unsigned Release
-configuration on hosted macOS with no signing or upload credentials. GitHub run `33179824154`
-generated the 5.9.55/build 50955 Android project under Java 21, passed the native and signing-control
+preparation from an isolated worktree. GitHub run `33224902385` generated the 5.9.71 iOS project and compiled its unsigned Release
+configuration on hosted macOS with no signing or upload credentials. GitHub run `33224902413`
+generated the 5.9.71/build 50971 Android project under Java 21, passed the native and signing-control
 verifiers, compiled `bundleRelease`, and confirmed a non-empty unsigned
 `.aab`, also with no signing or upload credentials. Firebase, RevenueCat public keys/products,
 signing credentials,
 publisher-account state, reviewer access, signed builds, physical-device results, screenshots, and
-console declarations are not yet verified.
+console declarations are not yet verified. The internal Apple/Google listing copy, reviewer path,
+and exact-build screenshot sequence now match the released Ask, Projects, Create, Library, and You
+information architecture, with Research correctly presented inside Ask.
 
 **Outcome:** produce exact signed Android and iOS candidates with truthful listings, reviewer access,
 privacy/data-safety reconciliation, native purchase restoration, AI reporting, deletion, push,
