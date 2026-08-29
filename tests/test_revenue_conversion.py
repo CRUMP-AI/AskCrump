@@ -402,6 +402,8 @@ def test_signup_deep_link_opens_registration_and_tracks_the_funnel():
     assert "trackFunnel('SignupCredentialsReady');" in controller
     assert "SignupSubmitted" in controller
     assert "AccountCreated" in controller
+    assert "trackFunnel('RegistrationExplore', {destination});" in controller
+    assert "creationIntentValue(link.dataset.exploreDestination) || 'overview'" in controller
     assert "source: funnelContext().acquisition" in controller
     assert "params.get('acquisition')" in controller
     assert "function referringAcquisitionSource()" in controller

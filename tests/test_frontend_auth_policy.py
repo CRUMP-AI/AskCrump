@@ -100,6 +100,10 @@ def test_cold_signup_entry_keeps_product_value_and_assurance_readable():
     assert "resume: {href: '/ai-resume-builder', label: 'See résumé examples first'}" in controller
     assert "video: {href: '/ai-video-generator', label: 'Explore Video Studio first'}" in controller
     assert 'configureRegistrationExploreLink();' in controller
+    assert "link.dataset.exploreDestination = kind || 'overview';" in controller
+    assert 'function wireExploreRegistrationLink()' in controller
+    assert "trackFunnel('RegistrationExplore', {destination});" in controller
+    assert 'wireExploreRegistrationLink();' in controller
     assert '.v1-registration-explore a:focus-visible' in body
 
 
@@ -109,6 +113,9 @@ def test_cold_signup_explore_fixture_uses_real_runtime_without_production_writes
     ).read_text(encoding='utf-8')
 
     assert 'id="registrationExploreLink" href="/"' in fixture
+    assert 'id="fixtureEvents"' in fixture
+    assert "window.__fixture.events.push(payload);" in fixture
+    assert "addEventListener('click', event => event.preventDefault())" in fixture
     assert '/public/auth-controller.js?v=fixture-cold-auth-delay-2' in fixture
     assert 'https://' not in fixture
     assert 'askcrump.com' not in fixture

@@ -72,6 +72,7 @@
   </div>
   <output id="fixtureSessionState">checking</output>
   <output id="fixtureAppState">not started</output>
+  <output id="fixtureEvents">none</output>
   <script>
     const fixtureUser = {
       id: 'fixture-user',
@@ -80,8 +81,13 @@
       termsAcceptedAt: '2026-08-28T00:00:00Z',
       preferences: {},
     };
-    window.__fixture = {sessionSettled: false, loginCalls: 0, registerCalls: 0, appStarts: 0, startupEvents: []};
-    window.va = () => {};
+    window.__fixture = {sessionSettled: false, loginCalls: 0, registerCalls: 0, appStarts: 0, startupEvents: [], events: []};
+    window.va = (command, payload) => {
+      if (command !== 'event') return;
+      window.__fixture.events.push(payload);
+      document.getElementById('fixtureEvents').textContent = JSON.stringify(window.__fixture.events);
+    };
+    document.getElementById('registrationExploreLink').addEventListener('click', event => event.preventDefault());
     window.CrumpWorkspaceRuntime = {
       async load() {
         window.__fixture.startupEvents.push('runtime-load-started');

@@ -161,6 +161,16 @@
     };
     link.href = destination.href;
     link.textContent = destination.label;
+    link.dataset.exploreDestination = kind || 'overview';
+  }
+
+  function wireExploreRegistrationLink() {
+    const link = byId('registrationExploreLink');
+    if (!link) return;
+    link.addEventListener('click', () => {
+      const destination = creationIntentValue(link.dataset.exploreDestination) || 'overview';
+      trackFunnel('RegistrationExplore', {destination});
+    });
   }
 
   function captureCreationIntent() {
@@ -1000,6 +1010,7 @@
       }
     });
     wireNavigation();
+    wireExploreRegistrationLink();
     wireTerms();
     wireLogin();
     wireRegistration();
