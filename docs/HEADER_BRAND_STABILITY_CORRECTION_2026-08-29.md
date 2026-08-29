@@ -74,3 +74,22 @@ The native release verifier continues to report pre-existing store submission
 gates: the iOS project has not been added, RevenueCat public SDK keys were not
 present during the local native build, and Android Firebase configuration is
 missing. These do not affect the deployed web/PWA correction.
+
+## Desktop rail-handoff follow-up
+
+A later 1280-pixel signed-in refresh trace exposed one remaining desktop-only
+settle that the phone-width proof could not reveal: the initial V1 shell
+reserved a 74-pixel navigation rail, then the deferred five-destination layer
+changed that rail to 94 pixels. The decoded wordmark did not resize or swap,
+but its library column moved 20 pixels after the navigation runtime became
+ready.
+
+Commit `af99087` makes the initial and final rail declarations both 94 pixels
+and advances the service-worker cache to `r121`. Deployment
+`dpl_5sinMLpbfLYZLH36GPVDZ8LjXp1f` reached `READY` with all six production
+aliases and no alias error. The corrected live trace found the decoded
+198-by-50 wordmark at x=111/y=16 at 200 ms, 1 second, 3.2 seconds, and 8 seconds;
+the position remained identical while the navigation state changed from
+loading to ready. All 455 Python tests, 45 JavaScript validations, production
+preflight, and the native web build passed. The release window contained 60
+HTTP 200 responses, no warning/error/fatal log, and no runtime error cluster.
