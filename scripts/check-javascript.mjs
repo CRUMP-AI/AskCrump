@@ -315,6 +315,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r123') ||
     !serviceWorker.includes(`/install-prompt.css?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/device-auth.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/sync-manager.js?v=${releaseVersion}`) ||
+    !serviceWorker.includes(`/chat-sync.js?v=${releaseVersion}-sync-cadence-1`) ||
     !serviceWorker.includes(`/product-analytics.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/auth-controller.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/crump-v1-body.css?v=${releaseVersion}`) ||

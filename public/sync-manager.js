@@ -3,6 +3,8 @@
   const PENDING_KEY = 'crump_sync_queue_v4';
   const SYNC_KEY = 'crump_last_sync_v4';
   const SYNC_REQUEST_TIMEOUT_MS = 12_000;
+  let flushPromise = null;
+  let flushPromiseKey = null;
 
   const read = (key, fallback) => {
     try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch (_) { return fallback; }
@@ -68,42 +70,79 @@
     return { chats: [...chats.values()], deletedChats: [...deleted.values()], settings };
   }
 
-  async function flush() {
-    if (!navigator.onLine || !window.currentUser) return { success: false, queued: true };
+  const queueEntryId = (entry, index) => entry?.id || `legacy:${entry?.at || ''}:${index}`;
+
+  async function flushQueued() {
+    if (!window.currentUser) return { success: false, queued: true, flushed: false };
     const key = userKey(PENDING_KEY);
-    const queue = read(key, []);
-    if (!queue.length) return { success: true };
-    let response;
-    let data;
-    try {
-      ({response, data} = await requestJson(
-        '/api/sync/push',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(mergeQueue(queue)),
-        },
-        'Invalid sync response.',
-      ));
-    } catch (error) {
-      return {
-        success: false,
-        queued: true,
-        retryable: true,
-        error: error?.message || 'Synchronization is temporarily unavailable. Your work is still queued.',
-      };
-    }
-    if (response.ok && data.success) {
-      write(key, []);
+    let flushed = false;
+    let lastResult = { success: true, flushed: false };
+
+    while (true) {
+      const queue = read(key, []);
+      if (!queue.length) return {...lastResult, flushed};
+      if (!navigator.onLine) return { success: false, queued: true, flushed };
+
+      const batchIds = new Set(queue.map(queueEntryId));
+      let response;
+      let data;
+      try {
+        ({response, data} = await requestJson(
+          '/api/sync/push',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(mergeQueue(queue)),
+          },
+          'Invalid sync response.',
+        ));
+      } catch (error) {
+        return {
+          success: false,
+          queued: true,
+          retryable: true,
+          flushed,
+          error: error?.message || 'Synchronization is temporarily unavailable. Your work is still queued.',
+        };
+      }
+      if (!response.ok || !data.success) return {...data, queued: true, flushed};
+
+      const remaining = read(key, []).filter((entry, index) => !batchIds.has(queueEntryId(entry, index)));
+      write(key, remaining);
       write(userKey(SYNC_KEY), data.serverTime || new Date().toISOString());
+      flushed = true;
+      lastResult = data;
     }
-    return data;
+  }
+
+  async function flush() {
+    const key = userKey(PENDING_KEY);
+    if (flushPromise && flushPromiseKey === key) return flushPromise;
+    if (flushPromise) {
+      try { await flushPromise; } catch (_) {}
+      if (flushPromise && flushPromiseKey === key) return flushPromise;
+    }
+    const activePromise = flushQueued();
+    flushPromise = activePromise;
+    flushPromiseKey = key;
+    try {
+      return await activePromise;
+    } finally {
+      if (flushPromise === activePromise) {
+        flushPromise = null;
+        flushPromiseKey = null;
+      }
+    }
   }
 
   async function push(_legacyDeviceId, payload) {
     const key = userKey(PENDING_KEY);
     const queue = read(key, []);
-    queue.push({ at: new Date().toISOString(), payload });
+    queue.push({
+      id: crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      at: new Date().toISOString(),
+      payload,
+    });
     write(key, queue.slice(-100));
     return flush();
   }

@@ -67,7 +67,7 @@ const loader = String.raw`
     ['/ui-functions.js?v=5.9.76', 'workspaceui'],
     ['/presence-manager.js?v=5.9.76', 'workspacepresence'],
     ['/sync-manager.js?v=5.9.76', 'workspacesync'],
-    ['/chat-sync.js?v=5.9.76', 'workspacechatsync'],
+    ['/chat-sync.js?v=5.9.76-sync-cadence-1', 'workspacechatsync'],
     ['/account-manager.js', 'workspaceaccount'],
     ['/app.js?v=5.9.76', 'workspaceapp'],
     ['/product-analytics.js?v=5.9.76', 'workspaceanalytics'],

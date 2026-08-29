@@ -50,7 +50,7 @@ const CORE = [
   '/auth-resilience.js?v=5.9.76',
   '/device-auth.js?v=5.9.76',
   '/sync-manager.js?v=5.9.76',
-  '/chat-sync.js?v=5.9.76',
+  '/chat-sync.js?v=5.9.76-sync-cadence-1',
   '/account-manager.js',
   '/app.js?v=5.9.76',
   '/product-analytics.js?v=5.9.76',

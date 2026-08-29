@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Idle sync cadence fixture</title>
+</head>
+<body>
+  <main>
+    <output id="fixtureInterval" aria-label="Automatic sync interval">pending</output>
+    <output id="fixtureIdleGets" aria-label="Idle pull requests">pending</output>
+    <output id="fixtureIdlePosts" aria-label="Idle push requests">pending</output>
+    <output id="fixtureOfflineQueue" aria-label="Offline queued writes">pending</output>
+    <output id="fixtureReconnectPosts" aria-label="Reconnect push requests">pending</output>
+    <output id="fixtureRemainingQueue" aria-label="Remaining queued writes">pending</output>
+    <output id="fixtureErrors" aria-label="Browser errors">0</output>
+  </main>
+  <script>
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('crump_') || key.startsWith('fixture_')) localStorage.removeItem(key);
+    }
+    window.currentUser = {id: 'fixture-user'};
+    window.STORAGE_KEYS = {CHATS: 'fixture_chats'};
+    window.SafeStorage = {
+      getItem: key => localStorage.getItem(key),
+      setItem: (key, value) => localStorage.setItem(key, value),
+    };
+    SafeStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify([{
+      id: 'fixture-chat',
+      chat_id: 'fixture-chat',
+      title: 'Saved work',
+      messages: [{id: 'fixture-message', role: 'user', content: 'Local-only fixture text.'}],
+      createdAt: '2026-08-29T12:00:00.000Z',
+      updatedAt: '2026-08-29T12:00:00.000Z',
+      revision: 1,
+    }]));
+    window.__fixture = {requests: [], intervalMs: 0, intervalCallback: null};
+    window.setInterval = (callback, delay) => {
+      window.__fixture.intervalMs = delay;
+      window.__fixture.intervalCallback = callback;
+      return 1;
+    };
+    window.clearInterval = () => {};
+    window.fetch = async (input, options = {}) => {
+      const url = new URL(String(input), location.href);
+      const method = String(options.method || 'GET').toUpperCase();
+      window.__fixture.requests.push({method, path: `${url.pathname}${url.search}`});
+      if (method === 'POST') {
+        return new Response(JSON.stringify({success: true, serverTime: '2026-08-29T12:01:00.000Z', accepted: ['fixture-chat'], ignored: []}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      return new Response(JSON.stringify({success: true, serverTime: '2026-08-29T12:01:00.000Z', data: {chats: []}}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+    const setOnline = value => Object.defineProperty(window.navigator, 'onLine', {
+      configurable: true,
+      value,
+    });
+    const count = method => window.__fixture.requests.filter(item => item.method === method).length;
+    const waitFor = async predicate => {
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        if (predicate()) return;
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      throw new Error('Fixture condition timed out.');
+    };
+    const recordError = () => {
+      const output = document.getElementById('fixtureErrors');
+      output.textContent = String(Number(output.textContent || 0) + 1);
+    };
+    window.addEventListener('error', recordError);
+    window.addEventListener('unhandledrejection', recordError);
+  </script>
+  <script src="/public/sync-manager.js?v=idle-sync-cadence-1"></script>
+  <script src="/public/chat-sync.js?v=idle-sync-cadence-1"></script>
+  <script>
+    window.addEventListener('load', async () => {
+      setOnline(true);
+      window.startAutoSync();
+      await window.__fixture.intervalCallback();
+      await waitFor(() => count('GET') === 1);
+      document.getElementById('fixtureInterval').textContent = String(window.__fixture.intervalMs);
+      document.getElementById('fixtureIdleGets').textContent = String(count('GET'));
+      document.getElementById('fixtureIdlePosts').textContent = String(count('POST'));
+
+      setOnline(false);
+      await window.syncChatsToServer();
+      const queueKey = 'crump_sync_queue_v4:fixture-user';
+      document.getElementById('fixtureOfflineQueue').textContent = String(
+        JSON.parse(localStorage.getItem(queueKey) || '[]').length,
+      );
+
+      setOnline(true);
+      window.dispatchEvent(new Event('online'));
+      await waitFor(() => count('POST') === 1 && JSON.parse(localStorage.getItem(queueKey) || '[]').length === 0);
+      document.getElementById('fixtureReconnectPosts').textContent = String(count('POST'));
+      document.getElementById('fixtureRemainingQueue').textContent = String(
+        JSON.parse(localStorage.getItem(queueKey) || '[]').length,
+      );
+      window.stopAutoSync();
+    });
+  </script>
+</body>
+</html>

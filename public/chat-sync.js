@@ -2,10 +2,14 @@
   'use strict';
 
   const DELETED_KEY = 'crump_deleted_chats_v4';
+  const AUTO_SYNC_INTERVAL_MS = 60_000;
   const deletedKey = () => `${DELETED_KEY}:${window.currentUser?.id || 'anonymous'}`;
   let intervalId = null;
   let syncing = false;
   let syncRequested = false;
+  let fullSyncRequested = false;
+  let visibilityBound = false;
+  let initialReconciliationPending = true;
 
   const toTime = value => {
     if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
@@ -200,11 +204,11 @@
     return merged;
   }
 
-  async function pullAndMerge(prefetched = null) {
+  async function pullAndMerge(prefetched = null, { full = true } = {}) {
     if (!window.currentUser || !navigator.onLine) return null;
     const result = prefetched
       ? { success: true, data: prefetched }
-      : await window.SyncManager.pull(null, { full: true });
+      : await window.SyncManager.pull(null, { full });
 
     if (!result?.success || !Array.isArray(result.data?.chats)) return result;
 
@@ -222,7 +226,7 @@
   }
 
   async function pushLocal() {
-    if (!window.currentUser || !navigator.onLine) return { success: false, offline: true };
+    if (!window.currentUser) return { success: false, offline: true };
 
     let local = [];
     try { local = JSON.parse(SafeStorage.getItem(STORAGE_KEYS.CHATS) || '[]'); } catch (_) {}
@@ -239,31 +243,51 @@
       deletedChats: readDeleted(),
     };
 
+    if (!payload.chats.length && !payload.deletedChats.length) return { success: true, skipped: true };
     const result = await window.SyncManager.push(null, payload);
     if (result?.success) writeDeleted([]);
     return result;
   }
 
-  async function synchronize(prefetched = null) {
+  async function synchronize(prefetched = null, { full = true, reconcileLocal = false } = {}) {
     if (!window.currentUser || !navigator.onLine) return { success: false, offline: true };
     if (syncing) {
       syncRequested = true;
+      fullSyncRequested = fullSyncRequested || full;
       return { success: true, deferred: true };
     }
 
     syncing = true;
-    let lastPush = { success: true };
     let firstPrefetch = prefetched;
+    let nextFull = full;
+    let lastResult = { success: true };
 
     try {
       do {
         syncRequested = false;
-        await pullAndMerge(firstPrefetch);
+        fullSyncRequested = false;
+        const snapshot = firstPrefetch;
+        if (snapshot) await pullAndMerge(snapshot, { full: true });
         firstPrefetch = null;
-        lastPush = await pushLocal() || { success: true };
-        await pullAndMerge();
+        const flushResult = await window.SyncManager.flush?.() || { success: true, flushed: false };
+        if (flushResult.success === false) return flushResult;
+        if (!snapshot || flushResult.flushed) {
+          lastResult = await pullAndMerge(null, { full: nextFull || flushResult.flushed }) || flushResult;
+        } else {
+          lastResult = flushResult;
+        }
+        if (reconcileLocal) {
+          const reconciliation = await pushLocal();
+          if (reconciliation?.success === false) return reconciliation;
+          lastResult = reconciliation || lastResult;
+          if (Array.isArray(reconciliation?.ignored) && reconciliation.ignored.length) {
+            lastResult = await pullAndMerge(null, { full: true }) || lastResult;
+          }
+          reconcileLocal = false;
+        }
+        nextFull = fullSyncRequested;
       } while (syncRequested);
-      return lastPush;
+      return lastResult;
     } catch (error) {
       console.warn('[Sync] Synchronization failed:', error);
       return { success: false, error: error?.message || 'Synchronization failed.' };
@@ -272,7 +296,16 @@
     }
   }
 
-  window.syncChatsFromServer = () => synchronize(window.__crumpSyncData || null);
+  window.syncChatsFromServer = () => {
+    const prefetched = window.__crumpSyncData || null;
+    window.__crumpSyncData = null;
+    const reconcileLocal = initialReconciliationPending;
+    initialReconciliationPending = false;
+    return synchronize(prefetched, { full: true, reconcileLocal }).then(result => {
+      if (result?.success === false) initialReconciliationPending = true;
+      return result;
+    });
+  };
 
   // Explicit saves are push-only. Pulling here can replace app.js's live chat
   // object while an AI reply is in flight, leaving the reply attached to a
@@ -282,11 +315,19 @@
 
   window.startAutoSync = () => {
     clearInterval(intervalId);
-    intervalId = setInterval(() => synchronize(), 20_000);
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) synchronize();
-    });
+    intervalId = setInterval(() => {
+      if (!document.hidden) synchronize(null, { full: false });
+    }, AUTO_SYNC_INTERVAL_MS);
+    if (!visibilityBound) {
+      visibilityBound = true;
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) synchronize(null, { full: false });
+      });
+    }
   };
-  window.stopAutoSync = () => clearInterval(intervalId);
-  window.addEventListener('online', () => synchronize());
+  window.stopAutoSync = () => {
+    clearInterval(intervalId);
+    intervalId = null;
+  };
+  window.addEventListener('online', () => synchronize(null, { full: false }));
 })();

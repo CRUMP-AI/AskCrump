@@ -32,9 +32,9 @@ def test_changed_sync_manager_is_release_versioned_and_network_first():
     assert '<script defer src="/presence-manager.js?v=5.9.76"></script>' not in shell
     assert "['/presence-manager.js?v=5.9.76', 'workspacepresence']" in runtime
     assert "'/presence-manager.js?v=5.9.76'" in worker
-    assert '<script defer src="/chat-sync.js?v=5.9.76"></script>' not in shell
-    assert "['/chat-sync.js?v=5.9.76', 'workspacechatsync']" in runtime
-    assert "'/chat-sync.js?v=5.9.76'" in worker
+    assert '<script defer src="/chat-sync.js?v=5.9.76-sync-cadence-1"></script>' not in shell
+    assert "['/chat-sync.js?v=5.9.76-sync-cadence-1', 'workspacechatsync']" in runtime
+    assert "'/chat-sync.js?v=5.9.76-sync-cadence-1'" in worker
     assert "url.pathname === '/sync-manager.js'" in worker
 
 
@@ -45,7 +45,43 @@ def test_failed_push_keeps_the_queue_and_returns_a_retryable_result():
     assert "queued: true" in flush
     assert "retryable: true" in flush
     assert "Your work is still queued." in flush
-    assert flush.index("write(key, [])") > flush.index("if (response.ok && data.success)")
+    assert flush.index("write(key, remaining)") > flush.index(
+        "if (!response.ok || !data.success)"
+    )
+
+
+def test_idle_sync_is_incremental_visible_only_and_never_blindly_pushes_state():
+    sync = (PUBLIC / "chat-sync.js").read_text(encoding="utf-8")
+
+    synchronize = sync[
+        sync.index("async function synchronize") : sync.index("window.syncChatsFromServer")
+    ]
+    scheduler = sync[sync.index("window.startAutoSync") :]
+
+    assert "AUTO_SYNC_INTERVAL_MS = 60_000" in sync
+    assert "window.SyncManager.flush?.()" in synchronize
+    assert synchronize.count("pushLocal()") == 1
+    assert "if (reconcileLocal)" in synchronize
+    assert "document.hidden" in scheduler
+    assert "synchronize(null, { full: false })" in scheduler
+    assert "window.__crumpSyncData = null" in sync
+    assert "initialReconciliationPending" in sync
+    assert "full: true, reconcileLocal" in sync
+
+
+def test_offline_changes_queue_before_the_network_flush_and_flush_is_single_flight():
+    manager = (PUBLIC / "sync-manager.js").read_text(encoding="utf-8")
+    sync = (PUBLIC / "chat-sync.js").read_text(encoding="utf-8")
+
+    push = manager[manager.index("async function push") : manager.index("window.addEventListener")]
+    push_local = sync[sync.index("async function pushLocal") : sync.index("async function synchronize")]
+
+    assert "let flushPromise = null" in manager
+    assert "let flushPromiseKey = null" in manager
+    assert "flushPromise && flushPromiseKey === key" in manager
+    assert push.index("write(key, queue.slice(-100))") < push.index("return flush()")
+    assert "navigator.onLine" not in push_local
+    assert "window.SyncManager.push(null, payload)" in push_local
 
 
 def test_startup_draft_does_not_persist_or_schedule_a_blind_push():
@@ -69,7 +105,10 @@ def test_reconnect_sync_has_one_owner():
     sync = (PUBLIC / "chat-sync.js").read_text(encoding="utf-8")
     presence = (PUBLIC / "presence-manager.js").read_text(encoding="utf-8")
 
-    assert "window.addEventListener('online', () => synchronize());" in sync
+    assert (
+        "window.addEventListener('online', () => synchronize(null, { full: false }));"
+        in sync
+    )
     reconnect = presence[
         presence.index("function setOnline") : presence.index("async function loadPreferences")
     ]
@@ -89,3 +128,19 @@ def test_browser_fixture_uses_the_real_sync_manager_without_credentials_or_netwo
     assert "fixture-user" in fixture
     assert "password" not in fixture.lower()
     assert "askcrump.com" not in fixture
+
+
+def test_idle_sync_fixture_uses_real_clients_and_stays_local():
+    fixture = (ROOT / "tests" / "fixtures" / "idle-sync-cadence.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert "/public/sync-manager.js?v=idle-sync-cadence-1" in fixture
+    assert "/public/chat-sync.js?v=idle-sync-cadence-1" in fixture
+    assert "window.__fixture.intervalCallback()" in fixture
+    assert "window.syncChatsToServer()" in fixture
+    assert "window.dispatchEvent(new Event('online'))" in fixture
+    assert "fixture-user" in fixture
+    assert "password" not in fixture.lower()
+    assert "askcrump.com" not in fixture
+    assert "https://" not in fixture
