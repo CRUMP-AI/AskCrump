@@ -30,6 +30,23 @@ The collector adds one deferred script to the cold signed-out app shell. The aut
 workspace runtime, login and signup controls, attribution logic, and service-worker cache revision
 remain unchanged.
 
+## Route-label follow-up
+
+The first seven desktop events proved ingestion but were all grouped under `Unknown`, making the
+sample unusable for page-level decisions. Production commit `a3fc449`, deployed as
+`dpl_DtaaNbQUhvpvekMjG973eBfjuyGy`, now gives each collector one explicit route:
+
+- `/` for the Ask Crump homepage;
+- the exact public path for each of the four acquisition pages;
+- `/app` for the web/PWA shell; and
+- `/clever-crump` as the parent-company surface's logical project route, keeping it distinct from
+  the Ask Crump homepage inside the shared Vercel project.
+
+All seven canonical documents returned HTTP 200 with the expected route exactly once. One bounded
+desktop verification visit then produced three `/` metric events alongside the seven historical
+`Unknown` events, proving the route label reached the dashboard. Those ten events are release
+verification traffic, not a legitimate customer sample and not evidence of product performance.
+
 ## Verification
 
 - Commit `ddb4344` deployed as `dpl_8H52xj6sQDmT55HznVmcmLenmxbo`.
@@ -47,6 +64,10 @@ remain unchanged.
   was introduced by this release.
 - The release window contained no runtime error cluster or warning/error/fatal deployment log; the
   observed deployment status group was HTTP 200.
+- The route-label follow-up repeated all 433 regressions, all 44 JavaScript validations, production
+  preflight, native web-bundle build, and store metadata checks.
+- The route-label deployment reached all six aliases, returned only HTTP 200 in the observed status
+  group, and had no runtime error cluster or warning/error/fatal log.
 
 ## Measurement boundary
 
