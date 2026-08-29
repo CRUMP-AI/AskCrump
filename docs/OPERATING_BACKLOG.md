@@ -657,5 +657,8 @@ The four-publication launch batch is now specified in
 `docs/SOCIAL_LAUNCH_BATCH_2026-08-29.md`. Facebook uses public contextual destinations with explicit
 allowlisted acquisition labels; Instagram uses matching contextual profile links. Two deterministic
 1080-by-1350 portrait cards complement the existing 1200-by-630 landscape cards so neither platform
-requires an unsafe crop. Publication and the dedicated ChatGPT progress update remain behind the
-owner's exact action-time phrase.
+requires an unsafe crop. Commit `6546b1c` passed all 436 regressions, 45 JavaScript validations,
+production preflight, and store-metadata checks. Deployment `dpl_CcWeAy5rJwaEn7xnYHBA618fBDCs`
+is `READY` on all six aliases; both live portrait assets reported their exact dimensions with no
+browser error, runtime error cluster, or warning/error/fatal deployment log. Publication and the
+dedicated ChatGPT progress update remain behind the owner's exact action-time phrase.

@@ -11,6 +11,20 @@ uses an explicit privacy-minimized acquisition label. Instagram uses the profile
 point to the matching contextual URL with `utm_source=instagram` before publication. Ask Crump stores
 only the allowlisted source label; Vercel telemetry removes query strings and fragments.
 
+## Verification
+
+- Feature commit: `6546b1c` (`Stage contextual social launch batch`).
+- Production deployment: `dpl_CcWeAy5rJwaEn7xnYHBA618fBDCs`, `READY` on all six Ask Crump and
+  Clever Crump aliases with no alias error.
+- All 436 regression tests, 45 JavaScript validations, production preflight, and store-metadata
+  checks passed.
+- A live browser loaded both portrait assets from `www.askcrump.com` at exactly 1080×1350 with no
+  browser error log.
+- The release window contained no Vercel runtime error cluster and no warning, error, or fatal log
+  for the deployment.
+- No post, profile link, social-account setting, Search Console setting, production account, or
+  customer data was created or changed during verification.
+
 ## Publication 1 — Facebook — workspace positioning
 
 - Asset: `public/assets/social/ask-crump-workspace.png` (1200×630)
