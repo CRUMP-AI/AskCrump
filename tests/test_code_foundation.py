@@ -121,6 +121,13 @@ def test_code_schema_is_private_audited_and_deny_all_by_contract():
     assert "approval.requested" in migration and "publish" in migration
 
 
+def test_code_audit_foreign_keys_remain_indexed_for_bounded_cleanup():
+    migration = read("migrations/20260829200000_code_task_foreign_key_indexes.sql")
+    for table in ("code_task_events", "code_task_approvals"):
+        for column in ("user_id", "project_id"):
+            assert f"on public.{table}({column})" in migration
+
+
 def test_sandbox_execution_is_ephemeral_bounded_and_has_no_environment():
     source = read("backend/code_runner.py")
     assert "NetworkPolicy.deny_all()" in source
