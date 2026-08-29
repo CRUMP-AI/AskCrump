@@ -17,7 +17,7 @@ def test_56_polish_layer_is_last_on_web_and_native():
         assert source.index("/crump-4.3.js") < source.index("/crump-4.4.js")
         assert source.index("/crump-product-5.3.1.js") < source.index("/crump-polish-5.6.js")
         assert "/crump-polish-5.6.css" in source
-    assert "ask-crump-new-body-v1-r115" in worker
+    assert "ask-crump-new-body-v1-r116" in worker
     assert "/crump-polish-5.6.css" in worker and "/crump-polish-5.6.js" in worker
     assert "crump-polish-5.6.js" in checker
 
@@ -49,7 +49,11 @@ def test_authenticated_workspace_stays_behind_a_bounded_runtime_gate():
 
     assert 'id="v1RuntimeGate"' in page
     assert "Opening your workspace" in page
+    assert '<link rel="preload" as="image" href="/assets/brand/crump-mark.png" fetchpriority="high">' in page
+    assert 'loading="eager" decoding="sync" fetchpriority="high"' in page
     assert ".v1-runtime-gate" in styles
+    assert "const node = existing.cloneNode();" in runtime
+    assert "document.head.appendChild(existing);" not in runtime
     assert "holdWorkspaceForRuntime();" in controller
     assert "shell?.setAttribute('inert', '');" in controller
     assert "window.addEventListener('crump:body-runtime-ready', scheduleWorkspaceRuntimeGateRelease" in controller

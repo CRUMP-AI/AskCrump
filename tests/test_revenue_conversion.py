@@ -466,7 +466,7 @@ def test_release_version_and_cache_advance_together():
 
     assert '"version": "5.9.75"' in package
     assert "__version__ = '5.9.75'" in backend
-    assert "ask-crump-new-body-v1-r115" in worker
+    assert "ask-crump-new-body-v1-r116" in worker
     assert "/landing-5.6.css?v=5.9.75-1" in worker
     assert "/use-case.css?v=5.9.75" in worker
     assert "/landing.js?v=5.9.75" in worker

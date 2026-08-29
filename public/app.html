@@ -13,6 +13,7 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" sizes="180x180" href="/assets/ask-crump-app-icon-v2-180.png">
   <link rel="apple-touch-icon-precomposed" sizes="180x180" href="/assets/ask-crump-app-icon-v2-180.png">
+  <link rel="preload" as="image" href="/assets/brand/crump-mark.png" fetchpriority="high">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/install-prompt.css?v=5.9.75">
   <link rel="stylesheet" href="/auth-styles.css">
@@ -225,7 +226,7 @@
 <div id="appContainer" class="app-container" style="display:none;">
   <div id="v1RuntimeGate" class="v1-runtime-gate" role="status" aria-live="polite" aria-atomic="true">
     <div class="v1-runtime-gate-card">
-      <img src="/assets/brand/crump-mark.png" width="640" height="714" loading="lazy" decoding="async" alt="" aria-hidden="true">
+      <img src="/assets/brand/crump-mark.png" width="640" height="714" loading="eager" decoding="sync" fetchpriority="high" alt="" aria-hidden="true">
       <span>ASK CRUMP</span>
       <strong>Opening your workspace</strong>
       <p>Bringing your conversations, Projects, and Library into place.</p>

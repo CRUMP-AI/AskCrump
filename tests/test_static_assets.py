@@ -109,9 +109,13 @@ def test_signed_out_entry_eagerly_loads_only_visible_brand_images():
     eager_images = [image for image in brand_images if image.get('loading') != 'lazy']
     deferred_images = [image for image in brand_images if image.get('loading') == 'lazy']
 
-    assert len(eager_images) == 2
-    assert all(image['src'] == '/assets/brand/crump-horizontal-light.png' for image in eager_images)
-    assert len(deferred_images) == len(brand_images) - 2
+    assert len(eager_images) == 3
+    assert sum(image['src'] == '/assets/brand/crump-horizontal-light.png' for image in eager_images) == 2
+    startup_mark = next(image for image in eager_images if image['src'] == '/assets/brand/crump-mark.png')
+    assert startup_mark.get('loading') == 'eager'
+    assert startup_mark.get('decoding') == 'sync'
+    assert startup_mark.get('fetchpriority') == 'high'
+    assert len(deferred_images) == len(brand_images) - 3
     assert all(image.get('decoding') == 'async' for image in deferred_images)
     assert all(image.get('width') and image.get('height') for image in brand_images)
 

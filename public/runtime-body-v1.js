@@ -64,9 +64,16 @@ window.CRUMP_CONFIG = Object.freeze({
 
     const existing = document.querySelector(`link[href="${url}"]`);
     if (existing) {
-      existing.dataset[key] = 'true';
-      document.head.appendChild(existing);
-      return Promise.resolve();
+      // Keep the active stylesheet in place. Moving a loaded <link> briefly
+      // detaches its CSS in Chromium, exposing an unstyled workspace frame.
+      // A cached clone can take final cascade position without creating that gap.
+      return new Promise(resolve => {
+        const node = existing.cloneNode();
+        node.dataset[key] = 'true';
+        node.addEventListener('load', resolve, {once: true});
+        node.addEventListener('error', resolve, {once: true});
+        document.head.appendChild(node);
+      });
     }
 
     return new Promise(resolve => {

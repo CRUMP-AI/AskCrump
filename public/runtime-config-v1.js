@@ -41,11 +41,15 @@ window.CRUMP_CONFIG = Object.freeze({
 
     const existing = document.querySelector(`link[href="${url}"]`);
     if (existing) {
-      existing.dataset[key] = 'true';
-      // Re-append a preloaded stylesheet at its canonical runtime position.
-      // For V1 this makes it the final CSS authority after feature layers load.
-      document.head.appendChild(existing);
-      return Promise.resolve();
+      // Preserve the live stylesheet while a cached clone takes the canonical
+      // runtime position. Re-appending the live node can flash unstyled content.
+      return new Promise(resolve => {
+        const node = existing.cloneNode();
+        node.dataset[key] = 'true';
+        node.addEventListener('load', resolve, {once: true});
+        node.addEventListener('error', resolve, {once: true});
+        document.head.appendChild(node);
+      });
     }
 
     return new Promise(resolve => {
@@ -76,8 +80,8 @@ window.CRUMP_CONFIG = Object.freeze({
     const styles = assets.filter(([kind]) => kind === 'style');
     const scripts = assets.filter(([kind]) => kind === 'script');
 
-    // Styles can fetch concurrently. Their DOM insertion order still follows the
-    // canonical asset list, with V1 re-appended last to own the final cascade.
+    // Styles can fetch concurrently. A preloaded V1 layer is cloned at the final
+    // cascade position so its active copy never leaves the document.
     await Promise.all(styles.map(([, url, key]) => loadStyle(url, key)));
 
     // Behavior layers stay deterministic because later modules wrap earlier ones.
