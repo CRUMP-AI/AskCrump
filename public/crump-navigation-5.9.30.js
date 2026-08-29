@@ -75,7 +75,7 @@
     if (!rail) return;
     rail.classList.add('crump5930-rail');
     rail.innerHTML = `
-      <div class="crump5930-rail-brand" aria-hidden="true"><img src="/assets/brand/crump-mark.png" alt=""></div>
+      <div class="crump5930-rail-brand" aria-hidden="true"><img src="/assets/brand/crump-mark.png" width="640" height="714" loading="lazy" decoding="async" alt=""></div>
       <div class="crump5930-rail-destinations">
         ${buttonMarkup(destinations[0])}
         ${conversationLibraryMarkup()}

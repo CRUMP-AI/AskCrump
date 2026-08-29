@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r110';
+const CACHE_NAME = 'ask-crump-new-body-v1-r112';
 
 const CORE = [
   '/app',
@@ -67,7 +67,6 @@ const CORE = [
   '/crump-5.2.js',
   '/crump-5.2.2.css',
   '/crump-5.2.2.js',
-  '/assets/brand/crump-mark.png',
   '/assets/brand/crump-horizontal-light.png',
   '/assets/brand/crump-horizontal-dark.png',
   '/assets/ask-crump-app-icon-v2-180.png',

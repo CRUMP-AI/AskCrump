@@ -86,6 +86,46 @@ def test_apple_install_icon_is_versioned_and_uses_the_locked_mark():
         assert splash.size == (2732, 2732)
 
 
+def test_signed_out_entry_eagerly_loads_only_visible_brand_images():
+    class ImageParser(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.images = []
+
+        def handle_starttag(self, tag, attrs):
+            if tag == 'img':
+                self.images.append(dict(attrs))
+
+    parser = ImageParser()
+    parser.feed((PUBLIC / 'app.html').read_text())
+
+    brand_images = [
+        image for image in parser.images
+        if image.get('src') in {
+            '/assets/brand/crump-horizontal-light.png',
+            '/assets/brand/crump-mark.png',
+        }
+    ]
+    eager_images = [image for image in brand_images if image.get('loading') != 'lazy']
+    deferred_images = [image for image in brand_images if image.get('loading') == 'lazy']
+
+    assert len(eager_images) == 2
+    assert all(image['src'] == '/assets/brand/crump-horizontal-light.png' for image in eager_images)
+    assert len(deferred_images) == len(brand_images) - 2
+    assert all(image.get('decoding') == 'async' for image in deferred_images)
+    assert all(image.get('width') and image.get('height') for image in brand_images)
+
+    navigation = (PUBLIC / 'crump-navigation-5.9.30.js').read_text()
+    assert (
+        '<img src="/assets/brand/crump-mark.png" width="640" height="714" '
+        'loading="lazy" decoding="async" alt="">'
+    ) in navigation
+
+    worker = (PUBLIC / 'sw.js').read_text()
+    core = worker[worker.index('const CORE = ['):worker.index('];')]
+    assert "'/assets/brand/crump-mark.png'" not in core
+
+
 def test_service_worker_never_cache_firsts_api_requests():
     source = (PUBLIC / 'sw.js').read_text()
     assert "url.pathname.startsWith('/api/')" in source
