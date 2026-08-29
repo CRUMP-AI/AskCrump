@@ -1,6 +1,6 @@
 # Ask Crump operating backlog
 
-Last updated: 2026-08-28
+Last updated: 2026-08-29
 
 ## Operating standard
 
@@ -15,6 +15,7 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 
 | Outcome | Evidence | State |
 | --- | --- | --- |
+| Immediate, race-safe account entry | Commit `1f49a39`; deployment `dpl_3aKh1GgGrP1qN77WtvcWhr4zb2rb`; production 5.9.73 removes the deterministic dead-air window that hid both auth and app surfaces during the bounded session probe. Signup deep links expose the existing form immediately; returning visitors receive the branded loading gate with the workspace inert; a revision guard prevents late bootstrap results from overwriting an active login or registration. The delayed-session fixture proved signed-out signup, signed-out return, saved-session handoff, and active-registration race behavior without credentials or production writes. All 423 tests, 44 JavaScript validations, production/native/store checks, CI `33233033441`, Android `33233033460`, and iOS `33233033493` passed. Production serves 5.9.73/cache revision 107 with no release-window runtime error or warning/error/fatal deployment log. | Verified repair; legitimate cold-entry interaction outcome pending |
 | Exact native billing identity | Commit `7543093`; deployment `dpl_5dHGpkcZ3MgmQF8FjywtnBtXLqYp`; production 5.9.72 replaces client and server package-name inference with one non-secret RevenueCat catalog and exact entitlement/product matching. Unknown active entitlements now fail fully closed as Free/inactive, credit packs require exact product IDs, and native release verification rejects malformed, duplicate, or stale identifiers. No product, price, key, account, signed build, or submission changed. All 421 tests, 44 JavaScript validations, production/native/store checks, CI `33230117812`, Android `33230117806`, and iOS `33230117811` passed. Production serves 5.9.72/cache revision 106 with no release-window runtime error or warning/error/fatal deployment log. | Verified safety release; signed-device billing proof pending |
 | Conversational document delivery | Commit `c4ef9ee`; explicit follow-up delivery requests cannot be downgraded to clarification; targeted regressions pass; the fix is present in every current production build; no `/api/chat` runtime error cluster was reported in the seven-day production scan on 2026-08-27. | Verified |
 | Professional presentation exports | Commit `b98d82a`; dark/light editorial rhythm, executive layouts, improved tables, native editable charts, and strict OOXML chart compatibility; full backend suite, JavaScript validation, production preflight, native build, and a ten-slide render review passed; production health returned HTTP 200 after deployment. | Verified |
