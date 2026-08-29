@@ -31,3 +31,12 @@ def test_workspace_positioning_is_part_of_the_canonical_brand_asset():
 
     assert 'TAGLINE = "AN AI WORKSPACE FOR WORK THAT CONTINUES"' in generator
     assert 'WORDMARK = ROOT / "public" / "assets" / "brand" / "crump-horizontal-light.png"' in generator
+
+
+def test_initial_and_final_desktop_rail_widths_match_before_runtime_handoff():
+    initial_shell = read("public/crump-v1-body.css")
+    final_navigation = read("public/crump-navigation-5.9.30.css")
+
+    assert "--ac-rail: 94px;" in initial_shell
+    assert "--ac-rail: 94px;" in final_navigation
+    assert "--ac-rail: 74px;" not in initial_shell

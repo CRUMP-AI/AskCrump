@@ -17,6 +17,8 @@
   its stale pre-launch fallback copy, and advanced the corrective web cache to revision 119.
 - Added a fail-open direct intake fallback for the same three-field plan-view contract when the
   shared analytics helper is late or unavailable, then advanced the cache to revision 120.
+- Matched the initial desktop rail width to the final five-destination navigation width, removing
+  the last 20-pixel wordmark settle during signed-in refresh, and advanced the cache to revision 121.
 
 ## 5.9.75 — 2026-08-29
 

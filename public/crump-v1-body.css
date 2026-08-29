@@ -30,7 +30,9 @@
              "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --ac-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
   --ac-mono: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
-  --ac-rail: 74px;
+  /* Match the final five-destination navigation layer before it loads so the
+     conversation-library wordmark never shifts during the runtime handoff. */
+  --ac-rail: 94px;
   --ac-library: 292px;
   --ac-header: 76px;
   --ac-composer: 860px;
