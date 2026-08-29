@@ -26,6 +26,7 @@
     const branding = $('.header-branding');
     if (!branding || branding.dataset.crump43 === 'true') return;
     branding.dataset.crump43 = 'true';
+    if (document.body.classList.contains('crump-v1-body')) return;
     branding.replaceChildren();
 
     const icon = document.createElement('img');

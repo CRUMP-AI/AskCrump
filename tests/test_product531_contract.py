@@ -39,7 +39,7 @@ def test_project_reference_ui_and_chat_rename_are_final_runtime_layers():
     assert "/crump-product-5.3.1.css" in runtime
     assert "/crump-product-5.3.1.js" in runtime
     assert runtime.index("/crump-product-5.3.js") < runtime.index("/crump-product-5.3.1.js")
-    assert "ask-crump-new-body-v1-r116" in worker
+    assert "ask-crump-new-body-v1-r117" in worker
     assert "Reference files" in js
     assert "Project files" in js
     assert "Rename chat" in js
@@ -76,3 +76,10 @@ def test_clever_crump_page_uses_plain_language_positioning():
     assert "Saved Library" not in page
     assert "transformative intelligence ecosystem" not in page.lower()
     assert "chatgpt" not in page.lower()
+
+
+def test_parent_company_uses_the_current_ask_crump_positioning():
+    page = read("public/clever-crump.html")
+
+    assert 'alt="Ask Crump — An AI workspace for work that continues"' in page
+    assert 'alt="Ask Crump — AI Virtual Assistant"' not in page

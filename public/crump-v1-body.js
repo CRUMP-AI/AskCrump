@@ -13,21 +13,40 @@
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
   const byId = id => document.getElementById(id);
 
-  function makeImage(src, className, alt = 'Ask Crump') {
+  function makeImage(src, className, alt = 'Ask Crump', critical = false) {
     const img = document.createElement('img');
     img.src = src;
     img.alt = alt;
     img.className = className;
-    img.decoding = 'async';
+    img.width = 1200;
+    img.height = 296;
+    img.loading = critical ? 'eager' : 'lazy';
+    img.decoding = critical ? 'sync' : 'async';
+    if (critical) img.fetchPriority = 'high';
     return img;
   }
 
   function restoreHeaderBrand() {
     const host = $('.header-branding');
     if (!host) return;
-    const existing = host.querySelector(':scope > .v1-body-header-logo');
-    if (existing && host.children.length === 1) return;
-    host.replaceChildren(makeImage(BRAND.horizontalLight, 'v1-body-header-logo'));
+    const existing = host.querySelector(':scope > img');
+    if (existing) {
+      if (existing.getAttribute('src') !== BRAND.horizontalLight) existing.src = BRAND.horizontalLight;
+      existing.alt = 'Ask Crump — An AI workspace for work that continues';
+      existing.classList.add('v1-header-logo', 'v1-body-header-logo');
+      existing.width = 1200;
+      existing.height = 296;
+      existing.loading = 'eager';
+      existing.decoding = 'sync';
+      existing.fetchPriority = 'high';
+      return;
+    }
+    host.replaceChildren(makeImage(
+      BRAND.horizontalLight,
+      'v1-header-logo v1-body-header-logo',
+      'Ask Crump — An AI workspace for work that continues',
+      true,
+    ));
   }
 
   function restoreLibraryBrand() {

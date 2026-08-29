@@ -911,7 +911,7 @@
   function premiumShell() {
     document.body.classList.add('crump-50');
     const branding = $('.header-branding');
-    if (branding && !$('#crump50Brand')) {
+    if (branding && !document.body.classList.contains('crump-v1-body') && !$('#crump50Brand')) {
       branding.replaceChildren();
       const brand = document.createElement('div'); brand.id='crump50Brand'; brand.className='crump50-brand';
       brand.innerHTML='<span class="crump50-mark">C</span><span><strong>Ask Crump</strong><small>AI assistant</small></span>';
