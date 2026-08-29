@@ -1,6 +1,7 @@
 import { copyFile, cp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
+import { loadRevenueCatCatalog } from './revenuecat-catalog.mjs';
 
 const outDir = new URL('../dist/', import.meta.url);
 const publicDir = new URL('../public/', import.meta.url);
@@ -21,16 +22,17 @@ await build({
   legalComments: 'none',
 });
 
+const revenueCatCatalog = await loadRevenueCatCatalog();
 const config = {
   apiBase: process.env.CRUMP_API_BASE || 'https://www.askcrump.com',
   revenueCatAppleApiKey: process.env.REVENUECAT_IOS_PUBLIC_SDK_KEY || '',
   revenueCatGoogleApiKey: process.env.REVENUECAT_ANDROID_PUBLIC_SDK_KEY || '',
-  revenueCatEntitlement: process.env.REVENUECAT_ENTITLEMENT || 'professional',
-  revenueCatProfessionalProductId: process.env.REVENUECAT_PROFESSIONAL_PRODUCT_ID || 'askcrump_professional_monthly',
-  revenueCatEnterpriseProductId: process.env.REVENUECAT_ENTERPRISE_PRODUCT_ID || 'askcrump_enterprise_monthly',
-  revenueCatCredits50ProductId: process.env.REVENUECAT_CREDITS_50_PRODUCT_ID || 'askcrump_credits_50',
-  revenueCatCredits150ProductId: process.env.REVENUECAT_CREDITS_150_PRODUCT_ID || 'askcrump_credits_150',
-  revenueCatCredits400ProductId: process.env.REVENUECAT_CREDITS_400_PRODUCT_ID || 'askcrump_credits_400',
+  revenueCatEntitlement: revenueCatCatalog.entitlementId,
+  revenueCatProfessionalProductId: revenueCatCatalog.subscriptions.professional,
+  revenueCatEnterpriseProductId: revenueCatCatalog.subscriptions.enterprise,
+  revenueCatCredits50ProductId: revenueCatCatalog.credits.credits_50,
+  revenueCatCredits150ProductId: revenueCatCatalog.credits.credits_150,
+  revenueCatCredits400ProductId: revenueCatCatalog.credits.credits_400,
   webProfessionalPriceLabel: process.env.WEB_PROFESSIONAL_PRICE_LABEL || '$20/month',
   webEnterprisePriceLabel: process.env.WEB_ENTERPRISE_PRICE_LABEL || '$50/month',
   webCredits50PriceLabel: process.env.WEB_CREDITS_50_PRICE_LABEL || '$4.99',
@@ -49,14 +51,14 @@ const loader = String.raw`
     ['/crump-billing-5.1.css', 'billing51'],
     ['/crump-5.2.css', 'crump52'],
     ['/crump-5.2.2.css', 'crump522'],
-    ['/crump-v1-body.css?v=5.9.71', 'crumpbodyv1'],
+    ['/crump-v1-body.css?v=5.9.72', 'crumpbodyv1'],
     ['/crump-v1-stability.css', 'crumpv1stability'],
   ]);
 
   const scripts = Object.freeze([
-    ['/crump-4.3.js?v=5.9.71', 'crump43'],
+    ['/crump-4.3.js?v=5.9.72', 'crump43'],
     ['/crump-4.4.js', 'crump44'],
-    ['/crump-5.0.js?v=5.9.71', 'crump50'],
+    ['/crump-5.0.js?v=5.9.72', 'crump50'],
     ['/crump-billing-5.1.js', 'billing51'],
     ['/crump-5.2.js', 'crump52'],
     ['/crump-5.2.2.js', 'crump522'],

@@ -1,0 +1,12 @@
+{
+  "entitlementId": "professional",
+  "subscriptions": {
+    "professional": "askcrump_professional_monthly",
+    "enterprise": "askcrump_enterprise_monthly"
+  },
+  "credits": {
+    "credits_50": "askcrump_credits_50",
+    "credits_150": "askcrump_credits_150",
+    "credits_400": "askcrump_credits_400"
+  }
+}

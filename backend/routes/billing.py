@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 from ..auth_service import authenticate_request, public_user
 from ..db import eq
 from ..product_analytics import record_product_event
+from ..revenuecat_catalog import event_subscription_tier, subscription_tier
 from ..runtime import db, settings
 from ..schemas import CheckoutRequest
 from ..security import iso_now
@@ -724,18 +725,25 @@ async def sync_revenuecat_customer(user_id: str) -> dict[str, Any] | None:
     period_end = None
     for entitlement_id, entitlement, expiry in active:
         product = str(entitlement.get('product_identifier') or '')
-        label = f'{entitlement_id} {product}'.lower()
-        candidate = 'enterprise' if 'enterprise' in label else 'professional'
+        candidate = subscription_tier(entitlement_id, product)
+        if not candidate:
+            logger.warning(
+                'Ignoring unrecognized RevenueCat entitlement/product pair: entitlement=%s product=%s',
+                entitlement_id,
+                product,
+            )
+            continue
         if candidate == 'enterprise' or tier == 'free':
             tier = candidate
             product_id = product or product_id
         if expiry and (period_end is None or expiry > period_end):
             period_end = expiry
 
+    entitled = tier in {'professional', 'enterprise'}
     values = {
         'subscription_tier': tier,
-        'subscription_status': 'active' if active else 'inactive',
-        'subscription_provider': 'revenuecat' if active else None,
+        'subscription_status': 'active' if entitled else 'inactive',
+        'subscription_provider': 'revenuecat' if entitled else None,
         'store_product_id': product_id,
         'subscription_current_period_end': period_end.isoformat() if period_end else None,
         'updated_at': iso_now(),
@@ -804,7 +812,7 @@ async def revenuecat_webhook(request: Request):
         return {'success': True}
 
     entitlement_ids = event.get('entitlement_ids') or []
-    product_id = str(event.get('new_product_id') or event.get('product_id') or '').lower()
+    product_id = str(event.get('new_product_id') or event.get('product_id') or '').strip()
     active_types = {
         'INITIAL_PURCHASE',
         'RENEWAL',
@@ -820,12 +828,10 @@ async def revenuecat_webhook(request: Request):
         'SUBSCRIPTION_PAUSED',
     }:
         return {'success': True}
-    entitlement_text = ' '.join(str(item).lower() for item in entitlement_ids)
-    purchased_tier = (
-        'enterprise'
-        if 'enterprise' in product_id or 'enterprise' in entitlement_text
-        else 'professional'
-    )
+    purchased_tier = event_subscription_tier(entitlement_ids, product_id)
+    if not purchased_tier:
+        logger.warning('Ignoring RevenueCat event for an unrecognized native subscription product.')
+        return {'success': True}
     if event_type == 'EXPIRATION':
         tier, status, provider = 'free', 'inactive', None
     elif event_type == 'CANCELLATION':

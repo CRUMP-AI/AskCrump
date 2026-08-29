@@ -41,10 +41,8 @@
   function tierForPackage(item = {}) {
     const values = config();
     const productId = productIdentifier(item);
-    const packageId = String(item.identifier || item.packageIdentifier || item.package_identifier || '');
-    const label = `${productId} ${packageId}`.toLowerCase();
-    if (productId === values.revenueCatEnterpriseProductId || label.includes('enterprise')) return 'enterprise';
-    if (productId === values.revenueCatProfessionalProductId || label.includes('professional') || label.includes('pro')) return 'professional';
+    if (productId === values.revenueCatEnterpriseProductId) return 'enterprise';
+    if (productId === values.revenueCatProfessionalProductId) return 'professional';
     return null;
   }
 
@@ -74,12 +72,7 @@
 
   function creditPackForPackage(item = {}) {
     const productId = productIdentifier(item);
-    const packageId = String(item.identifier || item.packageIdentifier || item.package_identifier || '');
-    return creditPackConfig().find(pack => (
-      productId === pack.productId
-      || packageId === pack.code
-      || packageId.includes(pack.productId)
-    )) || null;
+    return creditPackConfig().find(pack => productId === pack.productId) || null;
   }
 
   async function offeringPackages() {

@@ -4,6 +4,8 @@ from dataclasses import dataclass
 import os
 from typing import Any
 
+from .revenuecat_catalog import credit_product_id
+
 
 @dataclass(frozen=True, slots=True)
 class CreditPack:
@@ -31,10 +33,7 @@ def _pack(
         subtitle=subtitle,
         web_price_label=os.getenv(f'WEB_CREDITS_{suffix}_PRICE_LABEL', price_label),
         stripe_price_id=os.getenv(f'STRIPE_CREDITS_{suffix}_PRICE_ID') or None,
-        native_product_id=os.getenv(
-            f'REVENUECAT_CREDITS_{suffix}_PRODUCT_ID',
-            f'askcrump_credits_{suffix}',
-        ),
+        native_product_id=credit_product_id(code),
     )
 
 

@@ -69,6 +69,8 @@ See `docs/STORE_READINESS_AUDIT_2026-08-27.md` for evidence, blockers, and offic
 
 ## RevenueCat and server schedule
 
+- [x] Native build and server reconciliation share one exact-match, non-secret RevenueCat catalog;
+      duplicate/malformed product IDs and stale native runtime IDs fail release verification
 - [x] `migrations/014_ai_content_reports.sql` applied to production (2026-08-16)
 - [x] Supabase access grants and security/performance advisors reviewed after the migration
 - [ ] Store products and entitlements exactly match production environment IDs

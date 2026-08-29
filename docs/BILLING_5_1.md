@@ -47,6 +47,12 @@ The product identifiers are configurable through:
 - `REVENUECAT_CREDITS_150_PRODUCT_ID`
 - `REVENUECAT_CREDITS_400_PRODUCT_ID`
 
+The committed non-secret source of truth is `backend/revenuecat_catalog.json`. Native builds and
+server reconciliation both load that catalog, then apply the same environment-variable overrides.
+Subscription entitlement and product identifiers, and consumable product identifiers, are matched
+exactly; package-name guessing is intentionally rejected. Run the native release verifier after
+supplying any overrides so a build cannot ship with a stale catalog.
+
 After the SDK purchase succeeds, Ask Crump calls the server. The server queries RevenueCat's customer record and reconciles each non-subscription transaction ID into the local credit ledger exactly once.
 
 Consumable purchases are not treated as subscription entitlements. The Ask Crump account ledger is what preserves already-delivered credits across devices.

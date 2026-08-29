@@ -1,5 +1,6 @@
 import { access, readFile, readdir } from 'node:fs/promises';
 import { constants } from 'node:fs';
+import { loadRevenueCatCatalog } from './revenuecat-catalog.mjs';
 
 const root = new URL('../', import.meta.url);
 const target = String(process.argv[2] || 'all').toLowerCase();
@@ -21,6 +22,7 @@ if (!Number.isSafeInteger(expectedBuildNumber) || expectedBuildNumber < 1 || exp
 
 const failures = [];
 const warnings = [];
+const revenueCatCatalog = await loadRevenueCatCatalog();
 
 async function exists(url) {
   try { await access(url, constants.F_OK); return true; } catch { return false; }
@@ -51,6 +53,19 @@ if (!(await exists(runtimeConfigPath))) {
   failures.push('dist/runtime-body-v1.js is missing. Run `npm run build`.');
 } else {
   runtimeConfig = await readFile(runtimeConfigPath, 'utf8');
+  const expectedBillingConfig = {
+    revenueCatEntitlement: revenueCatCatalog.entitlementId,
+    revenueCatProfessionalProductId: revenueCatCatalog.subscriptions.professional,
+    revenueCatEnterpriseProductId: revenueCatCatalog.subscriptions.enterprise,
+    revenueCatCredits50ProductId: revenueCatCatalog.credits.credits_50,
+    revenueCatCredits150ProductId: revenueCatCatalog.credits.credits_150,
+    revenueCatCredits400ProductId: revenueCatCatalog.credits.credits_400,
+  };
+  for (const [key, value] of Object.entries(expectedBillingConfig)) {
+    if (!runtimeConfig.includes(`${JSON.stringify(key)}: ${JSON.stringify(value)}`)) {
+      failures.push(`Native runtime ${key} does not match the authoritative RevenueCat catalog.`);
+    }
+  }
 }
 
 if (target === 'all' || target === 'android') {
