@@ -3,7 +3,7 @@
 ## Outcome
 
 Ask Crump has a verified store-release source foundation, but it is not yet ready for upload or
-submission. Android source was regenerated for 5.9.71/build 50971 and its unsigned Release App
+submission. Android source was regenerated for 5.9.72/build 50972 and its unsigned Release App
 Bundle compiled on a hosted Java 21 runner. The iOS project was generated and its unsigned Release
 configuration compiled on a hosted macOS runner. Signing, push, native billing products, reviewer
 access, physical-device testing, screenshots, console declarations, and publisher-account setup
@@ -16,20 +16,21 @@ during this audit.
 
 | Area | Evidence | State |
 | --- | --- | --- |
-| Production release | Production health returned 5.9.71; the deployed client contains the repaired web-session handoff and the five-destination Ask, Projects, Create, Library, and You navigation on desktop/mobile while preserving the direct `Keep in a Project` action, crawlable workflow pages, verified referral-copy handling, canonical native API defaults, and the backward-compatible credits webhook secret-key alias. Current-deployment runtime checks passed with no observed error cluster. | Verified |
+| Production release | Production health returned 5.9.72; the deployed client contains the repaired web-session handoff, the five-destination Ask, Projects, Create, Library, and You navigation, and the exact native billing catalog contract. Current-deployment runtime and warning/error/fatal log checks passed with no observed error cluster. | Verified |
 | Permanent identifier | Capacitor app ID and Android namespace/application ID are `com.clevercrump.askcrump`; native verification now fails if either platform drifts. | Verified |
 | Android platform level | Regenerated source uses min SDK 24 and compile/target SDK 36. Google requires new apps and updates to target API 36 beginning August 31, 2026. | Verified |
-| Android release identity | Regenerated source uses version 5.9.71 and build/version code 50971. | Verified |
+| Android release identity | Regenerated source uses version 5.9.72 and build/version code 50972. | Verified |
 | Android local security | Generated releases explicitly disable cleartext traffic and local app backup; durable work is restored through Ask Crump's authenticated server sync. | Verified in source |
 | Android assets | Launcher and splash assets exist and the native release verifier accepts the generated set. | Verified in source |
 | AI safety reporting | Every rendered assistant response exposes an in-app Report action backed by the private, rate-limited moderation queue, satisfying Google's in-app AI-content reporting requirement in source. | Verified in source and automated tests |
-| Account deletion | In-app permanent deletion and `https://askcrump.com/delete-account.html` exist; the final signed-build deletion journey still needs a physical-device test. | Source ready; device test pending |
+| Account deletion | In-app permanent deletion and `https://www.askcrump.com/delete-account` exist; the final signed-build deletion journey still needs a physical-device test. | Source ready; device test pending |
+| Native billing identity | `backend/revenuecat_catalog.json` is the shared non-secret entitlement/product source for native builds and server reconciliation. Exact matching fails closed for unknown entitlements/products, and release verification rejects malformed, duplicate, or stale identifiers. | Verified in source and automated negative test |
 | Store copy | `store/listing.en-US.json` is machine-checked against Apple/Google field limits and the reviewed Markdown draft. Its support, marketing, privacy, privacy-choice, and account-deletion fields now use the canonical `www` routes verified to return HTTP 200 directly; the legal page contains the promised `contact` and `privacy` anchors, and the deletion page contains the account-deletion instructions. | Verified in source and production |
 | Reproducible dependencies | The tracked npm v3 lockfile was generated with Node 22.22.0/npm 11.6.0 in an isolated worktree. Clean `npm ci`, `npm ls --all`, a zero-vulnerability `npm audit`, production build, and deterministic Android preparation passed. | Verified |
 | Privacy inventory | `docs/DATA_SAFETY.md`, the public privacy notice, and the iOS base privacy manifest enumerate account, content, device, usage, purchase, reporting, push, and provider flows. | Source ready; final SDK/archive reconciliation pending |
-| iOS generation | The deterministic scripts set the bundle ID/version, push callbacks, Photos explanations, and bundled privacy manifest. GitHub run [33228342063](https://github.com/CRUMP-AI/AskCrump/actions/runs/33228342063) regenerated 5.9.71/build 50971 and compiled its Release configuration on hosted macOS against the direct-200 store URL verifier. | Verified unsigned Release compile |
+| iOS generation | The deterministic scripts set the bundle ID/version, push callbacks, Photos explanations, and bundled privacy manifest. GitHub run [33230117811](https://github.com/CRUMP-AI/AskCrump/actions/runs/33230117811) regenerated 5.9.72/build 50972 and compiled its Release configuration on hosted macOS against the exact billing-catalog and direct-200 store URL verifiers. | Verified unsigned Release compile |
 | iOS cloud boundary | `.github/workflows/ios-store-verify.yml` uses a standard GitHub macOS runner with signing disabled and no upload credentials. The first run exposed a workspace/project assumption; the corrected workflow accepts the generated Xcode project and the second run passed. | Verified no-secret/no-upload boundary |
-| Android cloud boundary | `.github/workflows/android-store-verify.yml` prepares source with Node 22, selects Temurin Java 21, compiles a Release App Bundle, and requires the `.aab` to be non-empty. The refreshed 5.9.71/build 50971 [run 33228342176](https://github.com/CRUMP-AI/AskCrump/actions/runs/33228342176) passed every source, direct-200 store URL, signing-control, Gradle, and bundle-output step. | Verified unsigned `.aab` compile |
+| Android cloud boundary | `.github/workflows/android-store-verify.yml` prepares source with Node 22, selects Temurin Java 21, compiles a Release App Bundle, and requires the `.aab` to be non-empty. The refreshed 5.9.72/build 50972 [run 33230117806](https://github.com/CRUMP-AI/AskCrump/actions/runs/33230117806) passed every source, exact billing-catalog, direct-200 store URL, signing-control, Gradle, and bundle-output step. | Verified unsigned `.aab` compile |
 | Signing controls | Mobile signing verification found no tracked keys, certificates, provisioning profiles, service-account files, or passwords. | Verified |
 
 ## Current blockers
