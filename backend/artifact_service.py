@@ -73,7 +73,23 @@ class ArtifactService:
 
     ACTION_PATTERN = re.compile(
         r"\b(create|make|generate|export|deliver|build|produce|turn|convert|save|"
-        r"write|draft|compose|prepare|format|package|send|provide|give|download)\b", re.I,
+        r"put|write|draft|compose|prepare|format|package|send|provide|give|download)\b", re.I,
+    )
+    FOLLOW_UP_DELIVERY_PATTERN = re.compile(
+        r"\b(export|deliver|download|package|attach)\b|"
+        r"\b(make|turn|put|convert|send|provide|give)\b.{0,80}"
+        r"\b(downloadable|file|attachment|document|doc)\b",
+        re.I,
+    )
+    FOLLOW_UP_REFERENCE_PATTERN = re.compile(
+        r"\b(this|that|it|the above|what you wrote|your draft|the draft|"
+        r"downloadable|file|attachment|document|doc)\b",
+        re.I,
+    )
+    NON_DOCUMENT_CREATION_PATTERN = re.compile(
+        r"\b(image|picture|photo|photograph|artwork|illustration|logo|poster|cover|"
+        r"video|movie|film|clip|animation|scene|book|novel|memoir|screenplay)\b",
+        re.I,
     )
     LONG_FORM_PATTERN = re.compile(
         r"\b(novel|book|memoir|manuscript|screenplay|dissertation|thesis)\b", re.I,
@@ -116,17 +132,14 @@ class ArtifactService:
         )
 
     @classmethod
-    def detect_request(cls, message: str, explicit: Any = None) -> str | None:
-        selected = cls.normalize_format(explicit)
-        if selected:
-            return selected
-        text = str(message or '').lower().strip()
-        if not cls.ACTION_PATTERN.search(text):
+    def _mentioned_format(cls, value: Any, *, allow_generic: bool = False) -> str | None:
+        text = str(value or '').lower().strip()
+        if not text:
             return None
         formats = [
             (r'\b(powerpoint|pptx|slide deck|presentation)\b', 'pptx'),
             (r'\b(excel|xlsx|spreadsheet|workbook)\b', 'xlsx'),
-            (r'\bdocx\b|\bmicrosoft\s+word\b|\bword\s+(?:document(?:ed)?|doc|file|manuscript)\b', 'docx'),
+            (r'\bdocx\b|\bmicrosoft\s+word\b|\bword\s+(?:document(?:ed)?|doc|file|manuscript)\b|\bdoc\b', 'docx'),
             (r'\bpdf\b', 'pdf'),
             (r'\bmarkdown|\.md\b', 'md'),
             (r'\btext file|\.txt\b', 'txt'),
@@ -134,10 +147,49 @@ class ArtifactService:
         for pattern, fmt in formats:
             if re.search(pattern, text):
                 return fmt
-        if re.search(
-            r'\b(document|manuscript|report|letter|resume|r[ée]sum[ée]|essay|paper)\b', text,
-        ) and re.search(r'\b(file|download|attachment|send|deliver|export|document)\b', text):
+        if allow_generic and re.search(
+            r'\b(document|manuscript|report|letter|resume|r[ée]sum[ée]|essay|paper|proposal|cv)\b',
+            text,
+        ):
             return 'docx'
+        return None
+
+    @classmethod
+    def detect_request(
+        cls,
+        message: str,
+        explicit: Any = None,
+        history: Any = None,
+    ) -> str | None:
+        selected = cls.normalize_format(explicit)
+        if selected:
+            return selected
+        text = str(message or '').lower().strip()
+        if not cls.ACTION_PATTERN.search(text):
+            return None
+        mentioned = cls._mentioned_format(text)
+        if mentioned:
+            return mentioned
+        if re.search(
+            r'\b(document|manuscript|report|letter|resume|r[ée]sum[ée]|essay|paper|proposal|cv)\b',
+            text,
+        ) and re.search(r'\b(file|downloadable|download|attachment|send|deliver|export|document)\b', text):
+            return 'docx'
+        if not (
+            cls.FOLLOW_UP_DELIVERY_PATTERN.search(text)
+            and cls.FOLLOW_UP_REFERENCE_PATTERN.search(text)
+            and isinstance(history, list)
+        ):
+            return None
+        for item in reversed(history[-12:]):
+            if not isinstance(item, dict) or str(item.get('role') or '').lower() != 'user':
+                continue
+            content = item.get('content')
+            mentioned = cls._mentioned_format(content, allow_generic=True)
+            if mentioned:
+                return mentioned
+            if cls.NON_DOCUMENT_CREATION_PATTERN.search(str(content or '')):
+                return None
         return None
 
     @classmethod

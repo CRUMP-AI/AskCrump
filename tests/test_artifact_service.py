@@ -136,7 +136,57 @@ def test_natural_language_document_requests_are_detected():
     assert ArtifactService.detect_request('Please compose the proposal and deliver a PDF.') == 'pdf'
     assert ArtifactService.detect_request('Create a downloadable resume document.') == 'docx'
     assert ArtifactService.detect_request('Could you deliver this in a document format?') == 'docx'
+    assert ArtifactService.detect_request('Put this into a Word doc.') == 'docx'
     assert ArtifactService.detect_request('Write a report here in the chat.') is None
+
+
+def test_contextual_document_delivery_follow_ups_survive_router_failure():
+    resume_history = [
+        {'role': 'user', 'content': 'Create a detailed résumé for a fraud detection technology role.'},
+        {'role': 'assistant', 'content': 'Here is the completed draft.'},
+    ]
+    presentation_history = [
+        {'role': 'user', 'content': 'Build a presentation for the product launch.'},
+        {'role': 'assistant', 'content': 'Here is the slide narrative.'},
+    ]
+    spreadsheet_history = [
+        {'role': 'user', 'content': 'Create an Excel workbook for the launch budget.'},
+        {'role': 'assistant', 'content': 'Here is the budget structure.'},
+    ]
+
+    assert ArtifactService.detect_request(
+        'Make that downloadable.', history=resume_history,
+    ) == 'docx'
+    assert ArtifactService.detect_request(
+        'Can you export it?', history=presentation_history,
+    ) == 'pptx'
+    assert ArtifactService.detect_request(
+        'Turn that into a file I can download.', history=spreadsheet_history,
+    ) == 'xlsx'
+
+
+def test_contextual_delivery_follow_up_stays_fail_closed_without_document_context():
+    image_history = [
+        {'role': 'user', 'content': 'Create an image of a Savannah skyline at night.'},
+        {'role': 'assistant', 'content': 'The image is ready.'},
+    ]
+
+    assert ArtifactService.detect_request('Make that downloadable.') is None
+    assert ArtifactService.detect_request(
+        'Make that downloadable.', history=image_history,
+    ) is None
+    assert ArtifactService.detect_request(
+        'Save it.', history=[{'role': 'user', 'content': 'Write a project report.'}],
+    ) is None
+    assert ArtifactService.detect_request(
+        'Download it.',
+        history=[
+            {'role': 'user', 'content': 'Build a presentation for the product launch.'},
+            {'role': 'assistant', 'content': 'Here is the slide narrative.'},
+            {'role': 'user', 'content': 'Now create an image of the keynote stage.'},
+            {'role': 'assistant', 'content': 'The image is ready.'},
+        ],
+    ) is None
 
 
 def test_book_scale_work_is_handed_to_a_persistent_manuscript():

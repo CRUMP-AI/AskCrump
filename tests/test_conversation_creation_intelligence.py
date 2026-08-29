@@ -65,6 +65,7 @@ def test_explicit_document_delivery_cannot_be_downgraded_to_clarification():
 
 def test_chat_route_uses_resolved_brief_and_avoids_reasking_forms():
     route = read("backend/routes/chat.py")
+    assert "history=request_payload.get('history')" in route
     assert "execution_brief = str(creation_intent.get('brief') or original_message)" in route
     assert "brief=execution_brief" in route
     assert "creation_title.casefold() not in execution_brief.casefold()" in route
@@ -139,6 +140,13 @@ def test_runtime_document_extraction_patch_accepts_project_pdf_keyword():
     assert "or include_pdf" in compatibility
     assert "MediaService.extract_nonvisual = _extract_nonvisual_v52" in compatibility
     assert "include_pdf=True" in route
+
+
+def test_runtime_artifact_compatibility_patch_preserves_contextual_delivery_history():
+    compatibility = read("backend/crump52_patches.py")
+
+    assert "history: Any = None" in compatibility
+    assert "_ORIGINAL_DETECT_ARTIFACT(cls, message, explicit, history)" in compatibility
 
 
 def test_conversation_intelligence_remains_enabled_after_project_chat_compatibility_fix():

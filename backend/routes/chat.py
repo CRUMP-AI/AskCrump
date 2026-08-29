@@ -356,6 +356,7 @@ async def chat(request: Request):
     legacy_artifact = artifacts.detect_request(
         str(request_payload.get('message') or ''),
         request_payload.get('artifactFormat'),
+        history=request_payload.get('history'),
     )
     legacy_long_form = artifacts.is_long_form_request(str(request_payload.get('message') or ''))
     prepared = await intelligence.prepare(

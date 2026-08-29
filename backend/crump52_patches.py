@@ -489,8 +489,13 @@ async def _understand_v52(
     return await _ORIGINAL_UNDERSTAND(self, payload=working, file_rows=file_rows)
 
 
-def _detect_artifact_v52(cls, message: str, explicit: Any = None) -> str | None:
-    detected = _ORIGINAL_DETECT_ARTIFACT(cls, message, explicit)
+def _detect_artifact_v52(
+    cls,
+    message: str,
+    explicit: Any = None,
+    history: Any = None,
+) -> str | None:
+    detected = _ORIGINAL_DETECT_ARTIFACT(cls, message, explicit, history)
     if detected:
         return detected
     text = str(message or "").lower().strip()
