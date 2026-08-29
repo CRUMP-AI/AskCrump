@@ -47,7 +47,8 @@ for (const name of files) {
 const repoRoot = new URL('../', import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot), 'utf8'));
 const releaseVersion = String(packageJson.version || '');
-const authControllerVersion = `${releaseVersion}-verification-session-1`;
+const registrationConsentVersion = `${releaseVersion}-registration-consent-1`;
+const authControllerVersion = registrationConsentVersion;
 const requiredBodyFiles = [
   'public/crump-v1-body.css',
   'public/crump-v1-body.js',
@@ -319,7 +320,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r125') ||
     !serviceWorker.includes(`/chat-sync.js?v=${releaseVersion}-sync-cadence-1`) ||
     !serviceWorker.includes(`/product-analytics.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/auth-controller.js?v=${authControllerVersion}`) ||
-    !serviceWorker.includes(`/crump-v1-body.css?v=${releaseVersion}`) ||
+    !serviceWorker.includes(`/crump-v1-body.css?v=${registrationConsentVersion}`) ||
     !serviceWorker.includes(`/crump-4.3.js?v=${releaseVersion}`) ||
     !serviceWorker.includes("url.pathname === '/conversation.css'") ||
     !serviceWorker.includes("url.pathname === '/chat-resilience.js'") ||

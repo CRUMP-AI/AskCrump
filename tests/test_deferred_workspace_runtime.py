@@ -19,7 +19,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/styles.css',
         '/install-prompt.css?v=5.9.76',
         '/auth-styles.css',
-        '/crump-v1-body.css?v=5.9.76',
+        '/crump-v1-body.css?v=5.9.76-registration-consent-1',
     ]
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
@@ -30,7 +30,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/install-prompt.js?v=5.9.76',
         '/auth-resilience.js?v=5.9.76',
         '/device-auth.js?v=5.9.76',
-        '/auth-controller.js?v=5.9.76-verification-session-1',
+        '/auth-controller.js?v=5.9.76-registration-consent-1',
         '/_vercel/insights/script.js',
         '/_vercel/speed-insights/script.js',
     ]

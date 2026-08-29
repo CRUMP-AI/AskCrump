@@ -49,7 +49,7 @@ def test_settings_profile_save_is_truthful_and_refreshes_the_optional_nudge():
     assert "showToast(error.message || 'Your name could not be saved. Try again.', 'error')" in app
 
 
-def test_terms_remain_a_required_server_saved_gate_before_workspace_entry():
+def test_terms_remain_a_required_server_saved_fallback_gate_before_workspace_entry():
     controller = read("auth-controller.js")
 
     terms_gate = controller[controller.index("if (!user.termsAcceptedAt)"):controller.index("if (user.fullName)")]
@@ -57,6 +57,7 @@ def test_terms_remain_a_required_server_saved_gate_before_workspace_entry():
     assert "return;" in terms_gate
     assert "authRequest('/api/account/accept-terms'" in controller
     assert "body: JSON.stringify({ version: TERMS_VERSION })" in controller
+    assert "const TERMS_VERSION = '2026-08-01'" in controller
 
 
 def test_name_completion_event_semantics_remain_server_authoritative():

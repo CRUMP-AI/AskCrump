@@ -424,6 +424,35 @@ body.crump-v1-body .v1-signup-assurance {
   text-align: center;
 }
 
+body.crump-v1-body .v1-registration-consent {
+  display: grid;
+  grid-template-columns: 18px minmax(0,1fr);
+  gap: 10px;
+  align-items: start;
+  margin: 0 2px 11px;
+  color: #a4a8ab;
+  font-size: 11px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+body.crump-v1-body .v1-registration-consent input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: #c7ad70;
+}
+
+body.crump-v1-body .v1-registration-consent a {
+  color: #c8b47f;
+  text-underline-offset: 3px;
+}
+
+body.crump-v1-body .v1-registration-consent a:hover,
+body.crump-v1-body .v1-registration-consent a:focus-visible {
+  color: #ead9af;
+}
+
 body.crump-v1-body .v1-registration-explore {
   margin: 10px 2px 0;
   text-align: center;
@@ -2515,6 +2544,7 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
   body.crump-v1-body #registerForm .form-input { min-height: 50px !important; }
   body.crump-v1-body #registerForm .form-hint { margin-top: 4px; }
   body.crump-v1-body #registerForm .btn-primary { min-height: 52px !important; }
+  body.crump-v1-body #registerForm .v1-registration-consent { gap: 8px; margin-bottom: 8px; font-size: 10.5px; line-height: 1.4; }
   body.crump-v1-body #registerForm .v1-signup-assurance { margin-top: 8px; }
   body.crump-v1-body #registerForm .v1-registration-explore { margin-top: 7px; }
   body.crump-v1-body #registerForm .auth-footer-text { margin-top: 10px !important; }

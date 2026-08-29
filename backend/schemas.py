@@ -7,6 +7,9 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
+CURRENT_TERMS_VERSION = "2026-08-01"
+
+
 class APIModel(BaseModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
@@ -23,6 +26,8 @@ class RegisterRequest(APIModel):
     password: str = Field(min_length=1, max_length=256)
     fullName: str | None = Field(default=None, max_length=160)
     source: str | None = Field(default=None, max_length=32)
+    termsAccepted: bool = False
+    termsVersion: Literal["2026-08-01"] | None = None
 
 
 class EmailRequest(APIModel):
@@ -44,7 +49,7 @@ class ProfileUpdateRequest(APIModel):
 
 
 class TermsAcceptanceRequest(APIModel):
-    version: str = Field(default="2026-08-01", min_length=1, max_length=40)
+    version: Literal["2026-08-01"] = CURRENT_TERMS_VERSION
 
 
 class AIContentReportRequest(APIModel):

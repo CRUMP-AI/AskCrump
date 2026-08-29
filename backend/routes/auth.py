@@ -20,7 +20,14 @@ from ..http import clear_session_cookie, native_token_payload, set_session_cooki
 from ..product_analytics import record_product_event
 from ..rate_limit import enforce_auth_rate_limit
 from ..runtime import db, email_service, settings
-from ..schemas import EmailRequest, LoginRequest, RegisterRequest, ResetPasswordRequest, RevokeDeviceRequest
+from ..schemas import (
+    CURRENT_TERMS_VERSION,
+    EmailRequest,
+    LoginRequest,
+    RegisterRequest,
+    ResetPasswordRequest,
+    RevokeDeviceRequest,
+)
 from ..security import (
     expiry_iso,
     hash_password,
@@ -36,6 +43,19 @@ from ..security import (
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
 logger = logging.getLogger("askcrump.auth")
+
+
+def _registration_terms_values(
+    payload: RegisterRequest,
+    *,
+    accepted_at: str,
+) -> dict[str, str]:
+    if not payload.termsAccepted or payload.termsVersion != CURRENT_TERMS_VERSION:
+        return {}
+    return {
+        'terms_accepted_at': accepted_at,
+        'terms_version': CURRENT_TERMS_VERSION,
+    }
 
 
 def _auth_client_kind(request: Request) -> str:
@@ -105,10 +125,12 @@ async def register(payload: RegisterRequest, request: Request):
     existing = await db.select_one('users', columns='*', filters={'email': eq(email)})
     verification_token = random_token(40)
     now = iso_now()
+    terms_values = _registration_terms_values(payload, accepted_at=now)
     verification_values = {
         'verification_token_hash': token_hash(verification_token),
         'verification_token_expires': expiry_iso(hours=24),
         'updated_at': now,
+        **terms_values,
     }
 
     if existing and existing.get('is_verified'):
@@ -135,6 +157,7 @@ async def register(payload: RegisterRequest, request: Request):
             'preferences': {},
             'created_at': now,
             'updated_at': now,
+            **terms_values,
         }
         inserted = await db.insert('users', user_payload)
         user = inserted[0] if isinstance(inserted, list) and inserted else user_payload

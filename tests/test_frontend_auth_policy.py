@@ -50,10 +50,17 @@ def test_registration_has_one_verifiable_password_field_and_tracks_safe_validati
     assert 'Free to start—no card required.' in app
     assert 'secure verification link' in app
     assert 'id="registerName"' not in app
+    assert 'id="registerTerms" type="checkbox" required' in app
+    assert 'I am at least 17 and agree to the' in app
+    assert 'href="/legal.html#terms"' in app
+    assert 'href="/legal.html#privacy"' in app
     assert 'Full Name' not in app[app.index('id="registerForm"'):app.index('id="forgotPasswordForm"')]
     assert "fullName: byId('registerName')?.value.trim() || ''" in controller
+    assert "const TERMS_VERSION = '2026-08-01'" in controller
+    assert "termsAccepted: byId('registerTerms')?.checked === true" in controller
+    assert 'termsVersion: TERMS_VERSION' in controller
     assert "trackFunnel('SignupValidationFailed', {reason})" in controller
-    assert 'password_length' in controller and 'password_rules' in controller
+    assert 'password_length' in controller and 'password_rules' in controller and 'terms_required' in controller
     assert "form.addEventListener('invalid'" in controller
     assert 'email_format' in controller and 'required_field' in controller
 
@@ -66,6 +73,8 @@ def test_mobile_signup_keeps_the_primary_action_above_a_short_phone_fold():
 
     assert registration.count('class="form-group"') == 2
     assert registration.index('id="registerEmail"') < registration.index('id="registerPassword"')
+    assert registration.index('id="registerPassword"') < registration.index('id="registerTerms"')
+    assert registration.index('id="registerTerms"') < registration.index('Create free account')
     assert registration.index('id="registerPassword"') < registration.index('Create free account')
     assert '@media (max-width: 560px) and (max-height: 700px)' in body
     assert '#registerForm .btn-primary { min-height: 52px' in body
@@ -224,13 +233,14 @@ def test_signup_success_has_durable_verification_handoff_and_recovery_ui():
     assert 'Check your inbox.' in app
     assert 'id="registrationPendingSigninBtn"' in app
     assert 'enter your workspace automatically' in app
-    assert 'Sign in on this device' in app
+    assert 'Already verified? Sign in' in app
     assert 'id="registrationPendingResendBtn"' in app
     assert 'function showRegistrationPending(email, message' in controller
     assert "showRegistrationPending(email, data.message || 'Verification email sent.')" in controller
     assert "if (loginEmail) loginEmail.value = email" in controller
     assert "byId('registrationPending')?.focus()" in controller
     assert 'Email verified. Your workspace is ready.' in controller
+    assert 'Sign in here if you completed verification on another device.' in controller
     assert "setTimeout(() => { hide('registerForm'); show('loginForm'); }, 1800)" not in controller
 
 

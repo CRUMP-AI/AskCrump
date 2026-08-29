@@ -2,6 +2,17 @@
 
 ## 5.9.76 — 2026-08-29
 
+### Registration consent and direct verified entry
+
+- Moved the existing explicit age, Terms, and Privacy consent into account creation and records the
+  published August 1 legal version on the account before verification.
+- Preserved the authenticated server-saved terms modal for older clients, existing accounts, and
+  any registration request that does not explicitly carry the current consent version.
+- Removed the avoidable post-verification consent interruption for current registrations so the
+  verified email link can deliver the promised one-step workspace entry.
+- Clarified that pending-account sign-in is only for a person who already completed verification
+  on another device, instead of presenting premature sign-in as the primary next action.
+
 ### One-click verified workspace entry
 
 - Changed a successful email-verification link from a return-to-login loop into an authenticated

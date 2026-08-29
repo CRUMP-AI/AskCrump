@@ -8,7 +8,7 @@
   let workspaceRuntimeGateTimer = 0;
   let workspaceRuntimeGateWaiting = false;
   let workspaceRuntimeGateRevealFrame = 0;
-  const TERMS_VERSION = '2026-07-30';
+  const TERMS_VERSION = '2026-08-01';
   const PLAN_INTENT_KEY = 'askcrump.pending-plan-intent';
   const CREATION_INTENT_KEY = 'askcrump.pending-creation-intent';
   const ACQUISITION_KEY = 'askcrump.acquisition-source';
@@ -889,6 +889,7 @@
       let reason = 'required_field';
       if (field?.id === 'registerEmail' && field.validity?.typeMismatch) reason = 'email_format';
       if (field?.id === 'registerPassword') reason = 'password_length';
+      if (field?.id === 'registerTerms') reason = 'terms_required';
       trackFunnel('SignupValidationFailed', {reason});
     }, true);
 
@@ -917,6 +918,8 @@
             password,
             fullName: byId('registerName')?.value.trim() || '',
             source: funnelContext().acquisition,
+            termsAccepted: byId('registerTerms')?.checked === true,
+            termsVersion: TERMS_VERSION,
           }),
         }, 'Creating your account took too long to confirm. Check your inbox before retrying; the account may already exist.');
         if (!response.ok || !data.success) {
@@ -992,7 +995,7 @@
       showAuth('login');
       hide('verificationNeeded');
       setText('loginError', '', false);
-      setText('loginSuccess', 'Email ready. Sign in after completing verification.');
+      setText('loginSuccess', 'Sign in here if you completed verification on another device.');
     });
   }
 

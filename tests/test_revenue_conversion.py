@@ -483,9 +483,9 @@ def test_changed_activation_assets_are_release_versioned():
     worker = read("public/sw.js")
 
     for asset in (
-        "/crump-v1-body.css?v=5.9.76",
+        "/crump-v1-body.css?v=5.9.76-registration-consent-1",
         "/device-auth.js?v=5.9.76",
-        "/auth-controller.js?v=5.9.76-verification-session-1",
+        "/auth-controller.js?v=5.9.76-registration-consent-1",
     ):
         assert asset in shell
         assert asset in worker

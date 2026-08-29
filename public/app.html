@@ -18,7 +18,7 @@
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/install-prompt.css?v=5.9.76">
   <link rel="stylesheet" href="/auth-styles.css">
-  <link rel="stylesheet" href="/crump-v1-body.css?v=5.9.76" data-crump-body-v1="true">
+  <link rel="stylesheet" href="/crump-v1-body.css?v=5.9.76-registration-consent-1" data-crump-body-v1="true">
 </head>
 <body class="crump-v1-body">
 
@@ -98,6 +98,10 @@
             </div>
             <span id="registerPasswordStatus" class="v1-visually-hidden" aria-live="polite">Password requires 10 or more characters, one letter, and one number.</span>
           </div>
+          <label class="v1-registration-consent" for="registerTerms">
+            <input id="registerTerms" type="checkbox" required>
+            <span>I am at least 17 and agree to the <a href="/legal.html#terms" target="_blank" rel="noopener">Terms</a> and <a href="/legal.html#privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span>
+          </label>
           <button id="registrationSubmitBtn" type="submit" class="btn btn-primary btn-large btn-block">Create free account</button>
           <p class="v1-signup-assurance">We’ll email a secure verification link. Ask Crump never asks for payment to create an account.</p>
           <p class="v1-registration-explore"><a id="registrationExploreLink" href="/">Explore Ask Crump first</a></p>
@@ -115,7 +119,7 @@
         <div id="registrationPendingSuccess" class="auth-success" role="status" aria-live="polite" style="display:none;"></div>
         <div id="registrationPendingError" class="auth-error" role="alert" style="display:none;"></div>
         <div class="v1-registration-actions">
-          <button id="registrationPendingSigninBtn" class="btn btn-primary btn-large btn-block" type="button">Sign in on this device</button>
+          <button id="registrationPendingSigninBtn" class="btn btn-secondary btn-block" type="button">Already verified? Sign in</button>
           <button id="registrationPendingResendBtn" class="btn btn-secondary btn-block" type="button">Resend verification email</button>
         </div>
         <p class="v1-registration-help">The link may take a minute. Check spam or promotions if it does not appear.</p>
@@ -628,7 +632,7 @@
 <script defer src="/install-prompt.js?v=5.9.76"></script>
 <script defer src="/auth-resilience.js?v=5.9.76"></script>
 <script defer src="/device-auth.js?v=5.9.76"></script>
-<script defer src="/auth-controller.js?v=5.9.76-verification-session-1"></script>
+<script defer src="/auth-controller.js?v=5.9.76-registration-consent-1"></script>
 <script defer src="/_vercel/insights/script.js"></script>
 <script defer src="/_vercel/speed-insights/script.js" data-route="/app"></script>
 </body>
