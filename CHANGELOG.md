@@ -1,5 +1,21 @@
 # Changelog
 
+## 5.9.74 — 2026-08-29
+
+### Résumé output you can inspect
+
+- Added a full-size representative résumé preview to the public AI résumé builder page so
+  prospective users can inspect current output before creating an account.
+- Generated the example through Ask Crump’s current Word exporter from a wholly fictional
+  internal quality brief, then rendered and reviewed the complete one-page document.
+- Kept the proof truthful with explicit synthetic-output, variability, and no-customer-content
+  disclosures; the example is not presented as a testimonial or guaranteed result.
+- Added a résumé-intent signup action beside the proof and a keyboard-accessible full-size sample
+  link for closer inspection.
+- Added responsive presentation rules, image-dimension and disclosure contracts, and a current
+  sitemap modification date for the changed page.
+- Advanced the application to 5.9.74, native build 50974, and service-worker cache revision 108.
+
 ## 5.9.73 — 2026-08-29
 
 ### Immediate, race-safe account entry
