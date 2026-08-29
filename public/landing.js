@@ -20,7 +20,11 @@
     if (!document.referrer) return 'direct';
     try {
       const host = new URL(document.referrer).hostname.toLowerCase();
-      if (host === location.hostname || host.endsWith('.askcrump.com')) return 'direct';
+      if (
+        host === location.hostname
+        || host === 'askcrump.com'
+        || host.endsWith('.askcrump.com')
+      ) return 'direct';
       const searchHosts = [
         'bing.com',
         'duckduckgo.com',

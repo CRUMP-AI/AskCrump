@@ -44,6 +44,44 @@
     return /^[a-z0-9_-]{1,32}$/.test(normalized) ? normalized : fallback;
   }
 
+  function referringAcquisitionSource() {
+    if (!document.referrer) return 'direct';
+    try {
+      const host = new URL(document.referrer).hostname.toLowerCase();
+      if (
+        host === location.hostname
+        || host === 'askcrump.com'
+        || host.endsWith('.askcrump.com')
+      ) return 'direct';
+      const searchHosts = [
+        'bing.com',
+        'duckduckgo.com',
+        'search.yahoo.com',
+        'ecosia.org',
+        'search.brave.com',
+      ];
+      if (
+        /(^|\.)google\.[a-z.]+$/.test(host)
+        || searchHosts.some(domain => host === domain || host.endsWith('.' + domain))
+      ) return 'organic';
+      const sources = [
+        ['instagram.com', 'instagram'],
+        ['facebook.com', 'facebook'],
+        ['linkedin.com', 'linkedin'],
+        ['tiktok.com', 'tiktok'],
+        ['youtube.com', 'youtube'],
+        ['youtu.be', 'youtube'],
+        ['twitter.com', 'x'],
+        ['x.com', 'x'],
+        ['t.co', 'x'],
+        ['clevercrump.com', 'clevercrump'],
+      ];
+      return sources.find(([domain]) => host === domain || host.endsWith('.' + domain))?.[1] || 'referral';
+    } catch (_) {
+      return 'direct';
+    }
+  }
+
   function funnelContext() {
     const params = new URLSearchParams(location.search);
     const locationSource = funnelValue(params.get('source'), 'direct');
@@ -63,9 +101,15 @@
     }
     let storedAcquisition = '';
     try { storedAcquisition = funnelValue(sessionStorage.getItem(ACQUISITION_KEY), ''); } catch (_) {}
+    const derivedAcquisition = currentAcquisition || storedAcquisition
+      ? ''
+      : referringAcquisitionSource();
+    if (derivedAcquisition) {
+      try { sessionStorage.setItem(ACQUISITION_KEY, derivedAcquisition); } catch (_) {}
+    }
     return {
       source: locationSource,
-      acquisition: currentAcquisition || storedAcquisition || 'direct',
+      acquisition: currentAcquisition || storedAcquisition || derivedAcquisition || 'direct',
       plan: funnelValue(params.get('plan'), 'unspecified'),
       intent: creationIntentValue(params.get('intent')) || pendingCreationIntent()?.kind || 'unspecified',
     };

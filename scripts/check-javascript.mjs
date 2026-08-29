@@ -85,8 +85,50 @@ for (const relative of requiredBodyFiles) {
 
 const appHtml = await readFile(new URL('public/app.html', repoRoot), 'utf8');
 const landingHtml = await readFile(new URL('public/ask-crump.html', repoRoot), 'utf8');
+const authController = await readFile(new URL('public/auth-controller.js', repoRoot), 'utf8');
 if (!releaseVersion || !landingHtml.includes(`/landing.js?v=${releaseVersion}`)) {
   console.error('Ask Crump marketing page is missing its release-versioned script.');
+  process.exit(1);
+}
+
+function extractNamedFunction(source, name) {
+  const marker = `function ${name}(`;
+  const start = source.indexOf(marker);
+  const bodyStart = source.indexOf('{', start);
+  if (start < 0 || bodyStart < 0) return '';
+  let depth = 0;
+  for (let index = bodyStart; index < source.length; index += 1) {
+    if (source[index] === '{') depth += 1;
+    if (source[index] === '}') {
+      depth -= 1;
+      if (depth === 0) return source.slice(start, index + 1);
+    }
+  }
+  return '';
+}
+
+const referringAcquisitionSource = extractNamedFunction(authController, 'referringAcquisitionSource');
+function mappedAcquisition(referrer, hostname = 'www.askcrump.com') {
+  return runInContext(
+    `${referringAcquisitionSource}\nreferringAcquisitionSource();`,
+    createContext({document: {referrer}, location: {hostname}, URL}),
+  );
+}
+const acquisitionMapping = new Map([
+  ['', 'direct'],
+  ['https://www.askcrump.com/', 'direct'],
+  ['https://askcrump.com/', 'direct'],
+  ['https://m.facebook.com/story.php', 'facebook'],
+  ['https://l.instagram.com/', 'instagram'],
+  ['https://www.google.com/search?q=assistant', 'organic'],
+  ['https://news.example.org/article', 'referral'],
+  ['not a url', 'direct'],
+]);
+if (!referringAcquisitionSource ||
+    [...acquisitionMapping].some(([referrer, expected]) => mappedAcquisition(referrer) !== expected) ||
+    authController.indexOf('currentAcquisition || storedAcquisition') >
+      authController.indexOf(': referringAcquisitionSource()')) {
+  console.error('Direct-to-app acquisition attribution is missing, unsafe, or ordered incorrectly.');
   process.exit(1);
 }
 const requiredHtmlSignals = [
@@ -212,7 +254,7 @@ if (!v1Body.includes('removeLegacyEmptyState(container)')) {
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r114') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r115') ||
     !serviceWorker.includes(`/landing.js?v=${releaseVersion}`) ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes(`/conversation.css?v=${releaseVersion}`) ||

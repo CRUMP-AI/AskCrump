@@ -340,6 +340,13 @@ def test_signup_deep_link_opens_registration_and_tracks_the_funnel():
     assert "AccountCreated" in controller
     assert "source: funnelContext().acquisition" in controller
     assert "params.get('acquisition')" in controller
+    assert "function referringAcquisitionSource()" in controller
+    assert "document.referrer" in controller
+    assert "host === 'askcrump.com'" in controller
+    assert "['facebook.com', 'facebook']" in controller
+    assert "['instagram.com', 'instagram']" in controller
+    assert "const derivedAcquisition = currentAcquisition || storedAcquisition" in controller
+    assert "acquisition: currentAcquisition || storedAcquisition || derivedAcquisition || 'direct'" in controller
     assert "registerEmail" not in controller[controller.index("function trackFunnel"):controller.index("function applyServerSettings")]
 
 
@@ -361,7 +368,7 @@ def test_legacy_social_deep_links_keep_channel_attribution_without_relabeling_ct
         assert f"'{channel}'" in controller
     assert "LEGACY_ACQUISITION_SOURCES.has(locationSource)" in controller
     assert "const currentAcquisition = explicitAcquisition || legacyAcquisition" in controller
-    assert "acquisition: currentAcquisition || storedAcquisition || 'direct'" in controller
+    assert "acquisition: currentAcquisition || storedAcquisition || derivedAcquisition || 'direct'" in controller
     allowlist = controller[
         controller.index("const LEGACY_ACQUISITION_SOURCES"):
         controller.index("window.va =")
@@ -395,7 +402,7 @@ def test_release_version_and_cache_advance_together():
 
     assert '"version": "5.9.75"' in package
     assert "__version__ = '5.9.75'" in backend
-    assert "ask-crump-new-body-v1-r114" in worker
+    assert "ask-crump-new-body-v1-r115" in worker
     assert "/landing-5.6.css?v=5.9.75-1" in worker
     assert "/use-case.css?v=5.9.75" in worker
     assert "/landing.js?v=5.9.75" in worker
