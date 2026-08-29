@@ -116,3 +116,37 @@ async def test_database_exception_log_is_categorical_and_excludes_provider_detai
     assert "status=409" in caplog.text
     assert "detail_type=dict" in caplog.text
     assert sensitive not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_database_read_exhaustion_exposes_only_bounded_retry_guidance():
+    from fastapi import FastAPI
+
+    app = FastAPI()
+    register_exception_handlers(app)
+
+    @app.get("/failure")
+    async def failure():
+        raise DatabaseError(
+            "Database operation failed",
+            503,
+            {"error_type": "ConnectError"},
+            retryable=True,
+            retry_after=2,
+            attempts=4,
+        )
+
+    from httpx import ASGITransport, AsyncClient
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/failure")
+
+    assert response.status_code == 503
+    assert response.headers["retry-after"] == "2"
+    assert response.json() == {
+        "success": False,
+        "error": "The service database is temporarily unavailable.",
+        "code": "DATABASE_ERROR",
+        "shouldRetry": True,
+        "retryAfter": 2,
+    }

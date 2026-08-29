@@ -185,12 +185,16 @@ def register_exception_handlers(app: FastAPI) -> None:
             type(exc.details).__name__,
         )
         status = 503 if exc.status_code >= 500 else 500
+        headers = {"Retry-After": str(exc.retry_after)} if exc.retryable else None
         return JSONResponse(
             status_code=status,
+            headers=headers,
             content={
                 "success": False,
                 "error": "The service database is temporarily unavailable.",
                 "code": "DATABASE_ERROR",
+                "shouldRetry": exc.retryable,
+                "retryAfter": exc.retry_after,
             },
         )
 

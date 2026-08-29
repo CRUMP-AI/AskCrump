@@ -1,5 +1,20 @@
 # Changelog
 
+## 5.9.70 — 2026-08-28
+
+### Recoverable database reads
+
+- Added bounded automatic retries for idempotent Supabase Data API reads when a transient 408,
+  503, 504, 520, or network failure interrupts a request.
+- Kept inserts, updates, upserts, deletes, and RPC calls on a single server attempt so a lost
+  response cannot silently duplicate a customer or billing mutation.
+- Added an `X-Retry-Count` marker and categorical retry diagnostics without logging table names,
+  filters, session hashes, account identifiers, or provider response content.
+- Returns explicit retry guidance only after a safe read exhausts all attempts; the existing
+  client-side sync queue remains responsible for uncertain write recovery.
+- Added transport/status, exhaustion, privacy, and non-idempotent-write regressions.
+- Advanced the application to 5.9.70, native build 50970, and service-worker cache revision 104.
+
 ## 5.9.64 — 2026-08-28
 
 ### One destination, one workspace

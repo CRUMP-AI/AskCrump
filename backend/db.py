@@ -1,12 +1,21 @@
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Iterable
 import json
+import logging
+from typing import Any, Iterable
 
 import httpx
 
 from .config import Settings
+
+logger = logging.getLogger("askcrump.database")
+
+_RETRYABLE_READ_METHODS = frozenset({"GET", "HEAD"})
+_RETRYABLE_READ_STATUSES = frozenset({408, 503, 504, 520})
+_READ_RETRY_DELAYS_SECONDS = (0.25, 0.75, 1.5)
 
 
 @dataclass(slots=True)
@@ -14,6 +23,9 @@ class DatabaseError(RuntimeError):
     message: str
     status_code: int = 500
     details: Any = None
+    retryable: bool = False
+    retry_after: int = 0
+    attempts: int = 1
 
     def __str__(self) -> str:
         return self.message
@@ -26,9 +38,15 @@ class SupabaseDB:
     the Python function and makes every query easy to audit and test.
     """
 
-    def __init__(self, settings: Settings, client: httpx.AsyncClient | None = None) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        client: httpx.AsyncClient | None = None,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    ) -> None:
         self.settings = settings
         self._client = client
+        self._sleep = sleep
 
     @property
     def base_url(self) -> str:
@@ -54,38 +72,93 @@ class SupabaseDB:
         prefer: str | None = None,
         timeout: float = 20.0,
     ) -> Any:
+        method = method.upper()
+        retryable_read = method in _RETRYABLE_READ_METHODS
         headers = self.headers
         if prefer:
             headers['Prefer'] = prefer
         owns_client = self._client is None
-        client = self._client or httpx.AsyncClient(timeout=timeout)
+        request_timeout = httpx.Timeout(
+            timeout,
+            connect=min(5.0, timeout),
+            pool=min(5.0, timeout),
+        )
+        client = self._client or httpx.AsyncClient(timeout=request_timeout)
         try:
-            response = await client.request(
-                method,
-                f"{self.base_url}/{table}",
-                params=params,
-                json=payload,
-                headers=headers,
-            )
-        except httpx.HTTPError as exc:
-            raise DatabaseError('Database connection failed', 503, str(exc)) from exc
+            for attempt in range(len(_READ_RETRY_DELAYS_SECONDS) + 1):
+                request_headers = dict(headers)
+                if attempt:
+                    request_headers['X-Retry-Count'] = str(attempt)
+                try:
+                    response = await client.request(
+                        method,
+                        f"{self.base_url}/{table}",
+                        params=params,
+                        json=payload,
+                        headers=request_headers,
+                        timeout=request_timeout,
+                    )
+                except httpx.HTTPError as exc:
+                    if retryable_read and attempt < len(_READ_RETRY_DELAYS_SECONDS):
+                        delay = _READ_RETRY_DELAYS_SECONDS[attempt]
+                        logger.warning(
+                            "Database read transport retry attempt=%s delay_seconds=%.2f error_type=%s",
+                            attempt + 1,
+                            delay,
+                            type(exc).__name__,
+                        )
+                        await self._sleep(delay)
+                        continue
+                    raise DatabaseError(
+                        'Database connection failed',
+                        503,
+                        {'error_type': type(exc).__name__},
+                        retryable=retryable_read,
+                        retry_after=2 if retryable_read else 0,
+                        attempts=attempt + 1,
+                    ) from exc
+
+                transient_status = response.status_code in _RETRYABLE_READ_STATUSES
+                if (
+                    retryable_read
+                    and transient_status
+                    and attempt < len(_READ_RETRY_DELAYS_SECONDS)
+                ):
+                    delay = _READ_RETRY_DELAYS_SECONDS[attempt]
+                    logger.warning(
+                        "Database read status retry status=%s attempt=%s delay_seconds=%.2f",
+                        response.status_code,
+                        attempt + 1,
+                        delay,
+                    )
+                    await self._sleep(delay)
+                    continue
+
+                if response.status_code >= 400:
+                    try:
+                        details = response.json()
+                    except ValueError:
+                        details = response.text[:1000]
+                    raise DatabaseError(
+                        'Database operation failed',
+                        response.status_code,
+                        details,
+                        retryable=retryable_read and transient_status,
+                        retry_after=2 if retryable_read and transient_status else 0,
+                        attempts=attempt + 1,
+                    )
+
+                if not response.content:
+                    return None
+                try:
+                    return response.json()
+                except ValueError:
+                    return response.text
         finally:
             if owns_client:
                 await client.aclose()
 
-        if response.status_code >= 400:
-            try:
-                details = response.json()
-            except ValueError:
-                details = response.text[:1000]
-            raise DatabaseError('Database operation failed', response.status_code, details)
-
-        if not response.content:
-            return None
-        try:
-            return response.json()
-        except ValueError:
-            return response.text
+        raise RuntimeError('Database request retry loop exited unexpectedly.')
 
     async def select(
         self,
