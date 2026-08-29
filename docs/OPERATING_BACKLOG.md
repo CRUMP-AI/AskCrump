@@ -485,6 +485,15 @@ is intentionally hidden, leaving a socially deep-linked visitor with cost reassu
 concise product value before the credential fields. Production 5.9.71 corrects only that copy and
 readability gap. The evidence is recorded in
 `docs/COLD_SIGNUP_ENTRY_RELEASE_2026-08-28.md`.
+A pre-launch read-only production audit on 2026-08-28 then verified the presentation and résumé
+capability pages used by the staged organic campaign. Both pages exposed their intended editable-file
+outcome and limitations, and every signup or sign-in destination preserved the correct creation
+intent plus the incoming Facebook acquisition channel. A new credential-free, loopback-only fixture
+now executes the real landing runtime and proves that presentation and résumé CTAs remain distinct,
+sign-in is reported separately from signup, and the acquisition source survives the next landing-page
+navigation without contacting production. The fixture reported zero browser errors; all 415 tests and
+44 JavaScript validations passed. No social post, production signup event, account, or customer data
+was created during the audit. Publication of the staged batch remains owner-confirmed at action time.
 
 **Outcome:** a weekly operating review of account creation → workspace open → starter intent →
 activation → durable value → useful outcome → return/share → checkout → paid.
