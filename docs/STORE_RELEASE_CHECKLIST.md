@@ -23,8 +23,8 @@
 
 ## 2026-08-29 audit snapshot
 
-- [x] Production 5.9.73, immediate race-safe account entry, recoverable failed/reused verification-link return, complete ordered signup milestone delivery, bounded and recoverable authentication entry/recovery, recoverable primary first-message and reply delivery, bounded queue-preserving sync, non-blocking authenticated entry, truthful first-prompt handoff, reliable first workspace choice, optional first-workspace personalization, durable registration-verification handoff, accessible password readiness and web/PWA pinch zoom, WCAG AA public first visit, reliable web-session handoff, five-destination desktop/mobile workspace, resumable Project conversations, named recent-work continuation, one-click Project continuity, disabled-by-default Crump Code review workspace, six canonical crawlable pages, truthful referral-copy handling, canonical native API host, direct signed Stripe delivery, transient database-read recovery, value-aware cold signup entry, and exact native billing identity verified
-- [x] Android source regenerated and verified as 5.9.73/build 50973, API 36
+- [x] Production 5.9.74, truthful representative résumé output, immediate race-safe account entry, recoverable failed/reused verification-link return, complete ordered signup milestone delivery, bounded and recoverable authentication entry/recovery, recoverable primary first-message and reply delivery, bounded queue-preserving sync, non-blocking authenticated entry, truthful first-prompt handoff, reliable first workspace choice, optional first-workspace personalization, durable registration-verification handoff, accessible password readiness and web/PWA pinch zoom, WCAG AA public first visit, reliable web-session handoff, five-destination desktop/mobile workspace, resumable Project conversations, named recent-work continuation, one-click Project continuity, disabled-by-default Crump Code review workspace, six canonical crawlable pages, truthful referral-copy handling, canonical native API host, direct signed Stripe delivery, transient database-read recovery, value-aware cold signup entry, and exact native billing identity verified
+- [x] Android source regenerated and verified as 5.9.74/build 50974, API 36
 - [x] Store metadata fits current Apple and Google field limits
 - [x] Current Google API-level, AI-reporting, deletion, Data Safety, and app-access rules reviewed
 - [x] Current Apple privacy, reviewer-access, and screenshot requirements reviewed
@@ -34,10 +34,10 @@
 - [ ] Android Firebase, RevenueCat public key, and upload keystore supplied; the hosted Java 21
       release-build path is verified, while local Android Studio still needs a compatible JDK
 - [ ] iOS source generated, signed, and archived on macOS
-- [x] No-upload GitHub macOS source/Release compile verification passed for 5.9.73/build 50973 before signing
-      credentials were added ([run 33233033493](https://github.com/CRUMP-AI/AskCrump/actions/runs/33233033493), 2026-08-29)
+- [x] No-upload GitHub macOS source/Release compile verification passed for 5.9.74/build 50974 before signing
+      credentials were added ([run 33236210648](https://github.com/CRUMP-AI/AskCrump/actions/runs/33236210648), 2026-08-29)
 - [x] No-upload GitHub Java 21 Android App Bundle verification passed before signing credentials
-      were added for 5.9.73/build 50973 ([run 33233033460](https://github.com/CRUMP-AI/AskCrump/actions/runs/33233033460), 2026-08-29)
+      were added for 5.9.74/build 50974 ([run 33236210639](https://github.com/CRUMP-AI/AskCrump/actions/runs/33236210639), 2026-08-29)
 - [x] Apple/Google listing copy, reviewer path, and screenshot sequence match the released Ask,
       Projects, Create, Library, and You information architecture; Research remains inside Ask
 - [ ] Exact signed builds pass the physical-device, billing, privacy, and console gates

@@ -5,7 +5,7 @@ Last updated: 2026-08-29
 ## Outcome
 
 Ask Crump has a verified store-release source foundation, but it is not yet ready for upload or
-submission. Android source was regenerated for 5.9.73/build 50973 and its unsigned Release App
+submission. Android source was regenerated for 5.9.74/build 50974 and its unsigned Release App
 Bundle compiled on a hosted Java 21 runner. The iOS project was generated and its unsigned Release
 configuration compiled on a hosted macOS runner. Signing, push, native billing products, reviewer
 access, physical-device testing, screenshots, console declarations, and publisher-account setup
@@ -18,10 +18,10 @@ during this audit.
 
 | Area | Evidence | State |
 | --- | --- | --- |
-| Production release | Production health returned 5.9.73; the deployed client contains immediate race-safe account entry, the repaired web-session handoff, the five-destination Ask, Projects, Create, Library, and You navigation, and the exact native billing catalog contract. Current-deployment runtime and warning/error/fatal log checks passed with no observed error cluster. | Verified |
+| Production release | Production health returned 5.9.74; the deployed client contains truthful representative résumé output, immediate race-safe account entry, the repaired web-session handoff, the five-destination Ask, Projects, Create, Library, and You navigation, and the exact native billing catalog contract. Current-deployment runtime and warning/error/fatal log checks passed with no observed error cluster. | Verified |
 | Permanent identifier | Capacitor app ID and Android namespace/application ID are `com.clevercrump.askcrump`; native verification now fails if either platform drifts. | Verified |
 | Android platform level | Regenerated source uses min SDK 24 and compile/target SDK 36. Google requires new apps and updates to target API 36 beginning August 31, 2026. | Verified |
-| Android release identity | Regenerated source uses version 5.9.73 and build/version code 50973. | Verified |
+| Android release identity | Regenerated source uses version 5.9.74 and build/version code 50974. | Verified |
 | Android local security | Generated releases explicitly disable cleartext traffic and local app backup; durable work is restored through Ask Crump's authenticated server sync. | Verified in source |
 | Android assets | Launcher and splash assets exist and the native release verifier accepts the generated set. | Verified in source |
 | AI safety reporting | Every rendered assistant response exposes an in-app Report action backed by the private, rate-limited moderation queue, satisfying Google's in-app AI-content reporting requirement in source. | Verified in source and automated tests |
@@ -30,9 +30,9 @@ during this audit.
 | Store copy | `store/listing.en-US.json` is machine-checked against Apple/Google field limits and the reviewed Markdown draft. Its support, marketing, privacy, privacy-choice, and account-deletion fields now use the canonical `www` routes verified to return HTTP 200 directly; the legal page contains the promised `contact` and `privacy` anchors, and the deletion page contains the account-deletion instructions. | Verified in source and production |
 | Reproducible dependencies | The tracked npm v3 lockfile was generated with Node 22.22.0/npm 11.6.0 in an isolated worktree. Clean `npm ci`, `npm ls --all`, a zero-vulnerability `npm audit`, production build, and deterministic Android preparation passed. | Verified |
 | Privacy inventory | `docs/DATA_SAFETY.md`, the public privacy notice, and the iOS base privacy manifest enumerate account, content, device, usage, purchase, reporting, push, and provider flows. | Source ready; final SDK/archive reconciliation pending |
-| iOS generation | The deterministic scripts set the bundle ID/version, push callbacks, Photos explanations, and bundled privacy manifest. GitHub run [33233033493](https://github.com/CRUMP-AI/AskCrump/actions/runs/33233033493) regenerated 5.9.73/build 50973 and compiled its Release configuration on hosted macOS against the exact billing-catalog and direct-200 store URL verifiers. | Verified unsigned Release compile |
+| iOS generation | The deterministic scripts set the bundle ID/version, push callbacks, Photos explanations, and bundled privacy manifest. GitHub run [33236210648](https://github.com/CRUMP-AI/AskCrump/actions/runs/33236210648) regenerated 5.9.74/build 50974 and compiled its Release configuration on hosted macOS against the exact billing-catalog and direct-200 store URL verifiers. | Verified unsigned Release compile |
 | iOS cloud boundary | `.github/workflows/ios-store-verify.yml` uses a standard GitHub macOS runner with signing disabled and no upload credentials. The first run exposed a workspace/project assumption; the corrected workflow accepts the generated Xcode project and the second run passed. | Verified no-secret/no-upload boundary |
-| Android cloud boundary | `.github/workflows/android-store-verify.yml` prepares source with Node 22, selects Temurin Java 21, compiles a Release App Bundle, and requires the `.aab` to be non-empty. The refreshed 5.9.73/build 50973 [run 33233033460](https://github.com/CRUMP-AI/AskCrump/actions/runs/33233033460) passed every source, exact billing-catalog, direct-200 store URL, signing-control, Gradle, and bundle-output step. | Verified unsigned `.aab` compile |
+| Android cloud boundary | `.github/workflows/android-store-verify.yml` prepares source with Node 22, selects Temurin Java 21, compiles a Release App Bundle, and requires the `.aab` to be non-empty. The refreshed 5.9.74/build 50974 [run 33236210639](https://github.com/CRUMP-AI/AskCrump/actions/runs/33236210639) passed every source, exact billing-catalog, direct-200 store URL, signing-control, Gradle, and bundle-output step. | Verified unsigned `.aab` compile |
 | Signing controls | Mobile signing verification found no tracked keys, certificates, provisioning profiles, service-account files, or passwords. | Verified |
 
 ## Current blockers
