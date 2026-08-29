@@ -47,6 +47,26 @@ desktop verification visit then produced three `/` metric events alongside the s
 `Unknown` events, proving the route label reached the dashboard. Those ten events are release
 verification traffic, not a legitimate customer sample and not evidence of product performance.
 
+## URL-redaction follow-up
+
+The app accepts password-reset tokens in the `/app` query string, while the Speed Insights event
+shape contains a page URL. There is no evidence that a real reset token was captured, but route
+labels alone were not a sufficient prevention boundary because `/app?token=...` and `/app`
+share the same pathname.
+
+Production commit `448841a`, deployed as `dpl_3KmLcZ97Pra7DpG8qY7Drw5kQ1z3`, adds one shared
+configuration script before every Speed Insights collector. It uses the supported `beforeSend`
+hook to remove the complete query string and fragment from valid event URLs. Events without a
+valid URL are dropped rather than transmitted.
+
+The executable contract proves that
+`https://www.askcrump.com/app?token=secret&signup=1#recovery` becomes exactly
+`https://www.askcrump.com/app` while retaining the explicit `/app` route. The production
+sanitizer and a synthetic sentinel recovery URL both returned HTTP 200; the live DOM loaded the
+configuration once before the collector, retained the route, had zero horizontal overflow, and
+reported no warning/error console entry. No real token, account, credential, or customer content
+was used in verification.
+
 ## Verification
 
 - Commit `ddb4344` deployed as `dpl_8H52xj6sQDmT55HznVmcmLenmxbo`.
@@ -68,6 +88,10 @@ verification traffic, not a legitimate customer sample and not evidence of produ
   preflight, native web-bundle build, and store metadata checks.
 - The route-label deployment reached all six aliases, returned only HTTP 200 in the observed status
   group, and had no runtime error cluster or warning/error/fatal log.
+- The URL-redaction follow-up passed all 434 Python regressions, all 45 JavaScript validations,
+  production preflight, native web-bundle build, and store metadata checks.
+- All six aliases point to the redaction release. Its observed runtime group contained 51 HTTP 200
+  responses with no runtime error cluster or warning/error/fatal log.
 
 ## Measurement boundary
 
