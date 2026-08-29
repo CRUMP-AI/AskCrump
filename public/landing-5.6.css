@@ -46,7 +46,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .navlinks { display: flex; align-items: center; gap: 26px; }
 .navlinks a { color: #9da3a7; font-size: 13px; text-decoration: none; }
 .navlinks a:hover { color: #f3f0e8; }
-.nav-cta { min-height: 42px; display: inline-flex; align-items: center; padding: 0 16px; border: 1px solid rgba(213,185,113,.38); border-radius: 999px; color: #e0cc9a !important; }
+.nav-cta { min-height: 42px; display: inline-flex; flex: 0 0 auto; align-items: center; padding: 0 16px; border: 1px solid rgba(213,185,113,.38); border-radius: 999px; color: #e0cc9a !important; white-space: nowrap; }
 main { overflow: hidden; }
 .hero {
   min-height: 92vh;
@@ -253,7 +253,7 @@ footer a { color: #9ba0a3; text-decoration: none; }
 @media (max-width: 520px) {
   .navbar { height: 68px; padding-inline: 15px; }
   .nav-logo { width: 174px; height: 40px; }
-  .nav-cta { min-height: 38px; padding-inline: 13px; }
+  .nav-cta { min-height: 44px; padding-inline: 13px; }
   .nav-signin { display: none; }
   .hero { min-height: 88vh; padding: 118px 18px 74px; }
   .hero h1 { font-size: clamp(49px,14vw,65px); }
@@ -265,5 +265,11 @@ footer a { color: #9ba0a3; text-decoration: none; }
   .section { padding: 86px 18px; }
   .closing { padding: 96px 18px; }
   footer { flex-direction: column; }
+}
+@media (max-width: 360px) {
+  .navbar { padding-inline: 12px; }
+  .nav-logo { width: 150px; height: 36px; }
+  .navlinks { gap: 8px; }
+  .nav-cta { padding-inline: 10px; font-size: 12px; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }

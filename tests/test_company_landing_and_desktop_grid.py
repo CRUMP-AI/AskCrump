@@ -25,6 +25,26 @@ def test_clever_crump_has_a_dedicated_parent_company_landing_page():
     assert "prefers-reduced-motion" in styles
 
 
+def test_public_header_actions_stay_single_line_on_narrow_phones():
+    product_page = read("public/ask-crump.html")
+    product_styles = read("public/landing-5.6.css")
+    company_page = read("public/clever-crump.html")
+    company_styles = read("public/clever-crump.css")
+
+    assert '/landing-5.6.css?v=5.9.75-1' in product_page
+    assert ".nav-cta { min-height: 42px; display: inline-flex; flex: 0 0 auto;" in product_styles
+    assert "white-space: nowrap" in product_styles
+    assert "@media (max-width: 360px)" in product_styles
+    assert ".nav-logo { width: 150px; height: 36px; }" in product_styles
+    assert ".nav-cta { min-height: 44px; padding-inline: 13px; }" in product_styles
+
+    assert '/clever-crump.css?v=5.9.75-2' in company_page
+    assert 'class="header-cta-prefix"' in company_page
+    assert ".header-cta { display: inline-flex; flex-shrink: 0; min-height: 44px;" in company_styles
+    assert "@media (max-width: 370px)" in company_styles
+    assert ".header-cta-prefix { display: none; }" in company_styles
+
+
 def test_clever_crump_hosts_rewrite_only_the_root_to_the_company_page():
     config = json.loads(read("vercel.json"))
     company_rules = [

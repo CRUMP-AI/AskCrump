@@ -53,7 +53,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--gold); outline-
 .site-header nav { display: flex; align-items: center; gap: 28px; }
 .site-header nav a { color: #8f9394; font-size: 13px; transition: color .15s ease; }
 .site-header nav a:hover { color: var(--text); }
-.header-cta { display: inline-flex; min-height: 44px; align-items: center; gap: 10px; padding: 0 17px; border: 1px solid var(--line-gold); border-radius: 999px; color: var(--gold-soft); font-size: 12px; font-weight: 650; }
+.header-cta { display: inline-flex; flex-shrink: 0; min-height: 44px; align-items: center; gap: 10px; padding: 0 17px; border: 1px solid var(--line-gold); border-radius: 999px; color: var(--gold-soft); font-size: 12px; font-weight: 650; white-space: nowrap; }
 .header-cta:hover { border-color: rgba(216,185,111,.48); background: rgba(216,185,111,.055); }
 
 .hero {
@@ -167,7 +167,7 @@ footer a:hover { color: #d6d3cb; }
 @media (max-width: 700px) {
   .site-header { min-height: 72px; width: calc(100% - 32px); gap: 14px; }
   .company-brand { width: 170px; }
-  .header-cta { min-height: 40px; padding: 0 13px; font-size: 10px; }
+  .header-cta { min-height: 44px; padding: 0 13px; font-size: 10px; }
   .hero, .section-shell { width: calc(100% - 40px); }
   .hero { min-height: auto; padding: 78px 0 122px; }
   .hero h1 { font-size: clamp(53px, 16vw, 78px); }
@@ -194,6 +194,11 @@ footer a:hover { color: #d6d3cb; }
   .closing { align-items: flex-start; flex-direction: column; padding: 82px 0 90px; }
   footer { grid-template-columns: 1fr; width: calc(100% - 32px); gap: 18px; padding: 32px 0; }
   footer > span { grid-column: 1; }
+}
+
+@media (max-width: 370px) {
+  .site-header { gap: 8px; }
+  .header-cta-prefix { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

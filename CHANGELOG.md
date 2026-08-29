@@ -15,6 +15,10 @@
 - Consolidated résumé and document proof styling into one responsive, keyboard-accessible
   component and added image, attribution, pagination, and conversion-path regression coverage.
 - Advanced the application to 5.9.75, native build 50975, and service-worker cache revision 109.
+- Kept persistent public header actions on one line at 320-pixel phone widths, including the
+  longer Video Studio entry, while preserving the existing desktop and 390-pixel layouts.
+- Raised both mobile header actions to a 44-pixel touch target and advanced the web cache to
+  revision 110 without changing authentication, pricing, or native release metadata.
 
 ## 5.9.74 — 2026-08-29
 

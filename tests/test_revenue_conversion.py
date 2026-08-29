@@ -64,7 +64,7 @@ def test_marketing_ctas_are_first_party_analytics_events():
 
     assert '/_vercel/insights/script.js' in page
     assert '<script defer src="/landing.js?v=5.9.75"></script>' in page
-    assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.75">' in page
+    assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.75-1">' in page
     assert "window.vaq" in script
     assert "MarketingCTA" in script
     assert "MarketingSignin" in script
@@ -174,7 +174,7 @@ def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
         assert f'<meta property="og:url" content="https://www.askcrump.com/{slug}">' in page
         assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
         assert '<script defer src="/landing.js?v=5.9.75"></script>' in page
-        assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.75">' in page
+        assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.75-1">' in page
         assert '<link rel="stylesheet" href="/use-case.css?v=5.9.75">' in page
         assert '/_vercel/insights/script.js' in page
         assert f'source={source}' in page
@@ -395,8 +395,8 @@ def test_release_version_and_cache_advance_together():
 
     assert '"version": "5.9.75"' in package
     assert "__version__ = '5.9.75'" in backend
-    assert "ask-crump-new-body-v1-r109" in worker
-    assert "/landing-5.6.css?v=5.9.75" in worker
+    assert "ask-crump-new-body-v1-r110" in worker
+    assert "/landing-5.6.css?v=5.9.75-1" in worker
     assert "/use-case.css?v=5.9.75" in worker
     assert "/landing.js?v=5.9.75" in worker
 
