@@ -102,15 +102,15 @@ def test_signed_out_entry_eagerly_loads_only_visible_brand_images():
     brand_images = [
         image for image in parser.images
         if image.get('src') in {
-            '/assets/brand/crump-horizontal-light.png',
+            '/assets/brand/crump-workspace-lockup-light.png',
             '/assets/brand/crump-mark.png',
         }
     ]
     eager_images = [image for image in brand_images if image.get('loading') != 'lazy']
     deferred_images = [image for image in brand_images if image.get('loading') == 'lazy']
 
-    assert len(eager_images) == 4
-    assert sum(image['src'] == '/assets/brand/crump-horizontal-light.png' for image in eager_images) == 3
+    assert len(eager_images) == 5
+    assert sum(image['src'] == '/assets/brand/crump-workspace-lockup-light.png' for image in eager_images) == 4
     startup_mark = next(image for image in eager_images if image['src'] == '/assets/brand/crump-mark.png')
     assert startup_mark.get('loading') == 'eager'
     assert startup_mark.get('decoding') == 'sync'
@@ -121,7 +121,13 @@ def test_signed_out_entry_eagerly_loads_only_visible_brand_images():
     assert header_logo.get('width') == '1200'
     assert header_logo.get('height') == '296'
     assert 'An AI workspace for work that continues' in header_logo.get('alt', '')
-    assert len(deferred_images) == len(brand_images) - 4
+    library_logo = next(image for image in eager_images if 'v1-library-logo' in image.get('class', '').split())
+    assert library_logo.get('decoding') == 'sync'
+    assert library_logo.get('fetchpriority') == 'high'
+    assert library_logo.get('width') == '1200'
+    assert library_logo.get('height') == '296'
+    assert 'An AI workspace for work that continues' in library_logo.get('alt', '')
+    assert len(deferred_images) == len(brand_images) - 5
     assert all(image.get('decoding') == 'async' for image in deferred_images)
     assert all(image.get('width') and image.get('height') for image in brand_images)
 

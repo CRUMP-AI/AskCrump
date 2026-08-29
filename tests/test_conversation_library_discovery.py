@@ -38,6 +38,7 @@ def test_browser_fixture_uses_the_real_rail_assets_without_network_writes():
 
     assert '/public/crump-v1-body.css' in fixture
     assert '/public/crump-v1-body.js' in fixture
+    assert '/public/assets/brand/crump-workspace-lockup-light.png' in fixture
     assert 'data-v1-command="library"' in fixture
     assert '<span class="v1-rail-label">Chats</span>' in fixture
     assert "fetch(" not in fixture

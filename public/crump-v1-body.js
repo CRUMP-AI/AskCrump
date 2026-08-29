@@ -6,7 +6,7 @@
 
   const BRAND = Object.freeze({
     mark: '/assets/brand/crump-mark.png',
-    horizontalLight: '/assets/brand/crump-horizontal-light.png',
+    horizontalLight: '/assets/brand/crump-workspace-lockup-light.png',
   });
 
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -53,8 +53,22 @@
     const host = $('.sidebar-branding');
     if (!host) return;
     const existing = host.querySelector(':scope > .v1-library-logo');
-    if (existing && host.children.length === 1) return;
-    host.replaceChildren(makeImage(BRAND.horizontalLight, 'v1-library-logo'));
+    if (existing && host.children.length === 1) {
+      if (existing.getAttribute('src') !== BRAND.horizontalLight) existing.src = BRAND.horizontalLight;
+      existing.alt = 'Ask Crump — An AI workspace for work that continues';
+      existing.width = 1200;
+      existing.height = 296;
+      existing.loading = 'eager';
+      existing.decoding = 'sync';
+      existing.fetchPriority = 'high';
+      return;
+    }
+    host.replaceChildren(makeImage(
+      BRAND.horizontalLight,
+      'v1-library-logo',
+      'Ask Crump — An AI workspace for work that continues',
+      true,
+    ));
   }
 
   function restoreBranding() {

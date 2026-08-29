@@ -6,7 +6,8 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 ROOT = Path(__file__).resolve().parents[1]
-WORDMARK = ROOT / "public" / "assets" / "brand" / "crump-horizontal-light.png"
+SOURCE_WORDMARK = ROOT / "public" / "assets" / "brand" / "crump-horizontal-light.png"
+WORDMARK = ROOT / "public" / "assets" / "brand" / "crump-workspace-lockup-light.png"
 TAGLINE = "AN AI WORKSPACE FOR WORK THAT CONTINUES"
 TAGLINE_TOP = 238
 TAGLINE_X = 270
@@ -45,12 +46,13 @@ def draw_tracked_text(
 
 
 def main() -> None:
-    image = Image.open(WORDMARK).convert("RGBA")
+    image = Image.open(SOURCE_WORDMARK).convert("RGBA")
     if image.size != (1200, 296):
         raise ValueError(f"Expected a 1200x296 wordmark, got {image.size!r}")
 
-    # Preserve the approved mark, ASK CRUMP lettering, and rule exactly. Only the
-    # legacy descriptor beneath the rule is replaced with the current positioning.
+    # Preserve the approved mark, ASK CRUMP lettering, and rule exactly. Publish
+    # the workspace positioning under its own immutable asset URL so an installed
+    # PWA can never paint the legacy descriptor while its cache is turning over.
     image.paste((0, 0, 0, 0), (0, TAGLINE_TOP, image.width, image.height))
     draw = ImageDraw.Draw(image)
     draw_tracked_text(

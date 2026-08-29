@@ -26,11 +26,20 @@ def test_v1_brand_guard_reuses_the_initial_header_image():
     assert "existing.fetchPriority = 'high';" in body
 
 
+def test_visible_library_brand_is_also_normalized_as_a_critical_image():
+    body = read("public/crump-v1-body.js")
+
+    assert "const existing = host.querySelector(':scope > .v1-library-logo');" in body
+    assert "'Ask Crump — An AI workspace for work that continues',\n      true," in body
+    assert "horizontalLight: '/assets/brand/crump-workspace-lockup-light.png'" in body
+
+
 def test_workspace_positioning_is_part_of_the_canonical_brand_asset():
     generator = read("scripts/generate_workspace_brand_asset.py")
 
     assert 'TAGLINE = "AN AI WORKSPACE FOR WORK THAT CONTINUES"' in generator
-    assert 'WORDMARK = ROOT / "public" / "assets" / "brand" / "crump-horizontal-light.png"' in generator
+    assert 'SOURCE_WORDMARK = ROOT / "public" / "assets" / "brand" / "crump-horizontal-light.png"' in generator
+    assert 'WORDMARK = ROOT / "public" / "assets" / "brand" / "crump-workspace-lockup-light.png"' in generator
 
 
 def test_initial_and_final_desktop_rail_widths_match_before_runtime_handoff():
