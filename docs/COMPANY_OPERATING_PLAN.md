@@ -261,6 +261,13 @@ provider, privacy, cost, or security gate is incomplete.
   operating review without attributing the acquisition gap or the new creation handoff to it. The
   exact 5.9.57 deployment's observed requests returned 200 and its release-window scan found no
   runtime error group; that short clean window does not erase the wider transport signal.
+- **Synchronization efficiency:** a later 24-hour production aggregation found 4,688 sync pulls
+  and 2,345 sync pushes among 11,630 HTTP 200 responses. The client contract—not a database
+  failure—was running two full reads and one complete-state write every 20 seconds. Commits
+  `191a057` and `edba5dc` replace that loop with durable queued writes, one startup migration
+  reconciliation, and one incremental visible-tab read per minute. The real-client local fixture
+  passed; the first complete 24-hour production request window and legitimate cross-device outcome
+  remain pending.
 - **Social acquisition experiment:** Facebook supplied the largest observed external referral
   family, but public links still previewed only a square app icon. Release 5.9.25 replaces that with
   page-specific 1,200-by-630 cards built from the canonical mark. Evaluate socially attributed
