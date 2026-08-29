@@ -59,6 +59,14 @@ configuration script before every Speed Insights collector. It uses the supporte
 hook to remove the complete query string and fragment from valid event URLs. Events without a
 valid URL are dropped rather than transmitted.
 
+A follow-up audit found that Vercel Web Analytics loads on the same app document and has the same
+supported event-URL hook. Commit `cf39fa6`, deployed as
+`dpl_8CsKxRq3wQz73hjGyNURMj6wAGMc`, consolidates both collectors behind one
+`telemetry-config.js` boundary. The configuration now registers the same fail-closed sanitizer
+with both `window.va` and `window.si` before either collector executes. The Clever Crump page
+also receives the first-party Web Analytics pageview collector so the parent-company acquisition
+surface is no longer absent from project traffic measurement.
+
 The executable contract proves that
 `https://www.askcrump.com/app?token=secret&signup=1#recovery` becomes exactly
 `https://www.askcrump.com/app` while retaining the explicit `/app` route. The production
@@ -92,6 +100,12 @@ was used in verification.
   production preflight, native web-bundle build, and store metadata checks.
 - All six aliases point to the redaction release. Its observed runtime group contained 51 HTTP 200
   responses with no runtime error cluster or warning/error/fatal log.
+- The unified Web Analytics and Speed Insights boundary repeated all 434 regressions, all 45
+  JavaScript validations, production preflight, native web-bundle build, and store metadata checks.
+- The production app's synthetic sentinel recovery URL and the Clever Crump homepage each loaded
+  the configuration and both collectors exactly once, with the configuration first, zero horizontal
+  overflow, and no warning/error console entry. No runtime error cluster or warning/error/fatal log
+  appeared after the unified release.
 
 ## Measurement boundary
 
