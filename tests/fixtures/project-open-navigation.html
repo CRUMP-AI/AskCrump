@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Project open navigation fixture</title>
   <link rel="stylesheet" href="/public/crump-v1-body.css?v=project-open-fixture-1">
-  <link rel="stylesheet" href="/public/crump-product-5.3.css?v=project-open-fixture-3">
+  <link rel="stylesheet" href="/public/crump-product-5.3.css?v=project-open-fixture-5">
 </head>
 <body class="crump-v1-body">
   <main>
@@ -13,6 +13,7 @@
     <button id="newChatBtn" type="button">New conversation</button>
     <textarea id="userInput" aria-label="Message Crump"></textarea>
     <output id="fixtureProjectView" aria-label="Project view">index</output>
+    <output id="fixtureProjectRoute" aria-label="Project route">none</output>
     <output id="fixtureStartedChat" aria-label="Started Project chat">no</output>
     <output id="fixtureErrors" aria-label="Browser errors">0</output>
   </main>
@@ -63,17 +64,23 @@
       });
     };
   </script>
-  <script src="/public/crump-product-5.3.js?v=project-open-fixture-3"></script>
+  <script src="/public/crump-product-5.3.js?v=project-open-fixture-5"></script>
   <script>
     window.addEventListener('load', async () => {
       const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
-      window.CrumpProduct53.open('projects');
-      await wait(180);
-      document.querySelector('[data-project-id]')?.click();
+      const fixtureParams = new URLSearchParams(location.search);
+      const requestedProjectId = fixtureParams.get('project');
+      const holdFixture = fixtureParams.get('hold') === '1';
+      if (!requestedProjectId) {
+        window.CrumpProduct53.open('projects');
+        await wait(180);
+        document.querySelector('[data-project-id]')?.click();
+      }
       await wait(180);
       const sheet = document.getElementById('crump53Sheet');
       document.getElementById('fixtureProjectView').textContent = sheet?.dataset.projectView || 'missing';
-      if (new URLSearchParams(location.search).get('hold') === '1') return;
+      document.getElementById('fixtureProjectRoute').textContent = new URLSearchParams(location.search).get('project') || 'none';
+      if (holdFixture) return;
       document.getElementById('crump53StartProjectChat')?.click();
     });
   </script>

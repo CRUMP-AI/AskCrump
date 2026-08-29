@@ -2,6 +2,17 @@
 
 ## 5.9.76 — 2026-08-29
 
+### Addressable Project workspaces
+
+- Turned every named Project row into a real app link while retaining instant in-place opening,
+  so a delayed or replaced click handler can no longer leave the row inert.
+- Added Project-aware browser history: refreshing restores the same dedicated workspace, Back
+  returns to the Project index, and an unavailable Project falls back visibly instead of hanging.
+- Canonicalized Project URLs to the app path plus only the Project identifier so stale signup,
+  campaign, or verification parameters are never carried into durable workspace links.
+- Advanced the browser, PWA, and generated-native Project assets and the service-worker cache so
+  open sessions and installed clients receive the repaired navigation boundary.
+
 ### Actionable five-destination workspace guide
 
 - Updated the Projects tutorial step to teach the shipped named-Project interaction: open Projects,

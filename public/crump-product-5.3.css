@@ -254,6 +254,7 @@ body.crump-v1-body .crump53-list-button {
   border-radius: 13px;
   background: rgba(255,255,255,.015);
   color: #bec1c0;
+  text-decoration: none;
   text-align: left;
   cursor: pointer;
 }

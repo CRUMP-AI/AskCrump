@@ -24,6 +24,7 @@
   const nativeFetch = window.fetch.bind(window);
   const PROJECT_SAVE_TIMEOUT_MS = 15_000;
   const PROJECT_READ_TIMEOUT_MS = 15_000;
+  const PROJECT_ROUTE_PARAM = 'project';
   const byId = id => document.getElementById(id);
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -39,6 +40,33 @@
       if (value) localStorage.setItem('askcrump.activeProject53', value);
       else localStorage.removeItem('askcrump.activeProject53');
     } catch (_) { /* storage is optional */ }
+  }
+
+  function readProjectRoute() {
+    try { return new URL(window.location.href).searchParams.get(PROJECT_ROUTE_PARAM) || ''; }
+    catch (_) { return ''; }
+  }
+
+  function projectRouteHref(projectId = '') {
+    try {
+      const url = new URL(window.location.pathname, window.location.origin);
+      const normalized = String(projectId || '').trim();
+      if (normalized) url.searchParams.set(PROJECT_ROUTE_PARAM, normalized);
+      return `${url.pathname}${url.search}`;
+    } catch (_) {
+      return '/app';
+    }
+  }
+
+  function writeProjectRoute(projectId = '', {replace = false} = {}) {
+    const href = projectRouteHref(projectId);
+    const current = `${window.location.pathname}${window.location.search}`;
+    if (href === current) return;
+    const normalized = String(projectId || '').trim();
+    const nextState = {...(window.history.state || {})};
+    if (normalized) nextState.askCrumpProjectRoute = normalized;
+    else delete nextState.askCrumpProjectRoute;
+    window.history[replace ? 'replaceState' : 'pushState'](nextState, '', href);
   }
 
   function currentProjectTarget() {
@@ -578,8 +606,10 @@
     byId('crump53Close')?.addEventListener('click', closeStudio);
     overlay.addEventListener('click', event => { if (event.target === overlay) closeStudio(); });
     byId('crump53ProjectList')?.addEventListener('click', event => {
-      const button = event.target.closest('[data-project-id]');
+      const target = event.target instanceof Element ? event.target : null;
+      const button = target?.closest('[data-project-id]');
       if (!button || !event.currentTarget.contains(button)) return;
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
       selectProject(button.dataset.projectId);
     });
@@ -643,14 +673,17 @@
     return section;
   }
 
-  function openStudio(tab = 'projects') {
+  function openStudio(tab = 'projects', {preserveProjectRoute = false} = {}) {
     const studio = byId('crump53Studio');
     if (!studio) return;
     const section = configureStudioSection(tab);
     studio.hidden = false;
     document.body.style.overflow = 'hidden';
     selectStudioPanel(section);
-    if (section === 'projects') setProjectView('index', {focus: false});
+    if (section === 'projects') {
+      if (!preserveProjectRoute && readProjectRoute()) writeProjectRoute('', {replace: true});
+      setProjectView('index', {focus: false});
+    }
     void refreshFeatures();
     void refreshProjects();
   }
@@ -658,6 +691,7 @@
   function closeStudio() {
     const studio = byId('crump53Studio');
     if (studio) studio.hidden = true;
+    if (readProjectRoute()) writeProjectRoute('', {replace: true});
     document.querySelectorAll('#crump53LibraryGrid video').forEach(video => video.pause());
     document.body.style.overflow = '';
     if (state.manuscriptPollTimer) window.clearTimeout(state.manuscriptPollTimer);
@@ -773,6 +807,18 @@
       renderProjectList(data.limit);
       renderProjectIndicator();
       renderManuscriptProjectState();
+      const requestedProjectId = readProjectRoute();
+      if (requestedProjectId) {
+        const requestedProject = state.projects.find(
+          item => String(item.id || '') === requestedProjectId,
+        );
+        if (requestedProject) {
+          selectProject(requestedProjectId, {updateRoute: false, focus: false});
+          return;
+        }
+        writeProjectRoute('', {replace: true});
+        setStatus('crump53ProjectStatus', 'That Project is no longer available.', true);
+      }
       const projectsPanel = document.querySelector('[data-crump53-panel="projects"]');
       if (!byId('crump53Studio')?.hidden && !projectsPanel?.hidden && state.activeProject && state.projectView !== 'new') {
         renderActiveProjectWorkspace({open: false});
@@ -852,14 +898,14 @@
       return;
     }
     list.innerHTML = state.projects.map(item => `
-      <button type="button" class="crump53-list-button crump53-project-list-button ${state.activeProject?.id === item.id ? 'is-active' : ''}" data-project-id="${escapeHtml(item.id)}" aria-label="Open Project ${escapeHtml(item.name)}" ${state.activeProject?.id === item.id ? 'aria-current="page"' : ''}>
+      <a href="${escapeHtml(projectRouteHref(item.id))}" class="crump53-list-button crump53-project-list-button ${String(state.activeProject?.id || '') === String(item.id || '') ? 'is-active' : ''}" data-project-id="${escapeHtml(item.id)}" aria-label="Open Project ${escapeHtml(item.name)}" ${String(state.activeProject?.id || '') === String(item.id || '') ? 'aria-current="page"' : ''}>
         <span>${escapeHtml(item.name)}</span><small>Open&nbsp;›</small>
-      </button>`).join('') + (Number(limit) > 0
+      </a>`).join('') + (Number(limit) > 0
         ? `<div class="crump53-status">${state.projects.length} / ${limit} active projects</div>`
         : (Number(limit) < 0 ? '<div class="crump53-status">Founder Lab · unlimited project workspaces</div>' : ''));
   }
 
-  function selectProject(projectId) {
+  function selectProject(projectId, {updateRoute = true, replaceRoute = false, focus = true, reveal = true} = {}) {
     const normalizedProjectId = String(projectId || '').trim();
     const project = state.projects.find(item => String(item.id || '') === normalizedProjectId);
     if (!project) {
@@ -870,9 +916,17 @@
     state.activeProject = project;
     state.editingProject = project;
     storeProject(project.id);
+    if (updateRoute) writeProjectRoute(project.id, {replace: replaceRoute});
+    if (reveal) {
+      const studio = byId('crump53Studio');
+      configureStudioSection('projects');
+      if (studio) studio.hidden = false;
+      document.body.style.overflow = 'hidden';
+      selectStudioPanel('projects');
+    }
     renderProjectIndicator();
     setProjectView('detail', {focus: false});
-    renderActiveProjectWorkspace({open: true});
+    renderActiveProjectWorkspace({open: focus});
   }
 
   function setProjectView(view, {focus = true} = {}) {
@@ -910,8 +964,11 @@
     });
   }
 
-  function showProjectIndex() {
+  function showProjectIndex({updateRoute = true} = {}) {
     setProjectView('index');
+    if (!updateRoute || !readProjectRoute()) return;
+    if (window.history.state?.askCrumpProjectRoute) window.history.back();
+    else writeProjectRoute('', {replace: true});
   }
 
   function renderActiveProjectWorkspace({open = false} = {}) {
@@ -1988,7 +2045,7 @@
       setStatus('crump53ManuscriptStatus', 'That Project is no longer available.', true);
       return false;
     }
-    selectProject(projectId);
+    selectProject(projectId, {updateRoute: false, focus: false, reveal: false});
     await refreshManuscripts();
     const opened = await loadManuscript(manuscriptId);
     if (!opened) return false;
@@ -2124,6 +2181,18 @@
     if (scrollButton) scrollButton.title = 'Jump to newest message';
     document.addEventListener('keydown', event => {
       if (event.key === 'Escape' && !byId('crump53Studio')?.hidden) closeStudio();
+    });
+    window.addEventListener('popstate', () => {
+      const requestedProjectId = readProjectRoute();
+      if (!requestedProjectId) {
+        if (byId('crump53Sheet')?.dataset.crump53Section === 'projects') {
+          showProjectIndex({updateRoute: false});
+        }
+        return;
+      }
+      const project = state.projects.find(item => String(item.id || '') === requestedProjectId);
+      if (project) selectProject(requestedProjectId, {updateRoute: false, focus: false});
+      else void refreshProjects();
     });
     hydrateAuthenticatedState();
     setTimeout(() => {

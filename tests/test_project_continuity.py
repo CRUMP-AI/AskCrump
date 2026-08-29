@@ -208,11 +208,16 @@ def test_project_rows_open_a_real_project_workspace_and_scoped_new_chat():
     assert 'id="crump53ProjectWorkspaceName"' in product
     assert 'id="crump53StartProjectChat"' in product
     assert 'aria-label="Open Project ${escapeHtml(item.name)}"' in product
+    assert 'href="${escapeHtml(projectRouteHref(item.id))}"' in product
+    assert "const PROJECT_ROUTE_PARAM = 'project'" in product
+    assert "new URL(window.location.pathname, window.location.origin)" in product
+    assert "window.history[replace ? 'replaceState' : 'pushState']" in product
+    assert "window.addEventListener('popstate'" in product
     assert "byId('crump53ProjectList')?.addEventListener('click'" in product
-    assert "event.target.closest('[data-project-id]')" in product
+    assert "target?.closest('[data-project-id]')" in product
     assert "String(item.id || '') === normalizedProjectId" in product
     assert "setProjectView('detail', {focus: false})" in product
-    assert "renderActiveProjectWorkspace({open: true})" in product
+    assert "renderActiveProjectWorkspace({open: focus})" in product
     assert "setProjectView('detail'" in product
     assert "window.CrumpBodyV1.command('new')" in product
     assert "Message Crump in ${name}" in product
@@ -220,6 +225,9 @@ def test_project_rows_open_a_real_project_workspace_and_scoped_new_chat():
     assert '[data-crump53-panel="projects"].is-project-open .crump53-project-index-card' in styles
     assert '[data-crump53-panel="projects"].is-project-open > .crump53-grid' in styles
     assert 'id="fixtureProjectView"' in fixture
+    assert 'id="fixtureProjectRoute"' in fixture
+    assert "const holdFixture = fixtureParams.get('hold') === '1'" in fixture
+    assert "new URLSearchParams(location.search).get('project')" in fixture
     assert "sheet?.dataset.projectView" in fixture
     assert 'aria-label="Started Project chat"' in fixture
     assert 'aria-label="Browser errors"' in fixture
