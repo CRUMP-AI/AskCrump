@@ -92,18 +92,20 @@ if (!releaseVersion || !landingHtml.includes(`/landing.js?v=${releaseVersion}`))
 }
 
 const speedInsightPages = [
-  'public/ask-crump.html',
-  'public/ai-presentation-maker.html',
-  'public/ai-document-generator.html',
-  'public/ai-resume-builder.html',
-  'public/ai-video-generator.html',
-  'public/app.html',
-  'public/clever-crump.html',
+  ['public/ask-crump.html', '/'],
+  ['public/ai-presentation-maker.html', '/ai-presentation-maker'],
+  ['public/ai-document-generator.html', '/ai-document-generator'],
+  ['public/ai-resume-builder.html', '/ai-resume-builder'],
+  ['public/ai-video-generator.html', '/ai-video-generator'],
+  ['public/app.html', '/app'],
+  ['public/clever-crump.html', '/clever-crump'],
 ];
-for (const relative of speedInsightPages) {
+for (const [relative, route] of speedInsightPages) {
   const page = await readFile(new URL(relative, repoRoot), 'utf8');
-  if (page.match(/\/_vercel\/speed-insights\/script\.js/g)?.length !== 1) {
-    console.error(`${relative} must load Vercel Speed Insights exactly once.`);
+  const expected = `src="/_vercel/speed-insights/script.js" data-route="${route}"`;
+  if (page.match(/\/_vercel\/speed-insights\/script\.js/g)?.length !== 1 ||
+      !page.includes(expected)) {
+    console.error(`${relative} must load Vercel Speed Insights exactly once with route ${route}.`);
     process.exit(1);
   }
 }

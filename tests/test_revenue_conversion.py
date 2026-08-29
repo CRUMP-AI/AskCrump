@@ -204,19 +204,23 @@ def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
 
 
 def test_real_user_performance_measurement_covers_growth_surfaces_once():
-    pages = (
-        "public/ask-crump.html",
-        "public/ai-presentation-maker.html",
-        "public/ai-document-generator.html",
-        "public/ai-resume-builder.html",
-        "public/ai-video-generator.html",
-        "public/app.html",
-        "public/clever-crump.html",
-    )
+    pages = {
+        "public/ask-crump.html": "/",
+        "public/ai-presentation-maker.html": "/ai-presentation-maker",
+        "public/ai-document-generator.html": "/ai-document-generator",
+        "public/ai-resume-builder.html": "/ai-resume-builder",
+        "public/ai-video-generator.html": "/ai-video-generator",
+        "public/app.html": "/app",
+        "public/clever-crump.html": "/clever-crump",
+    }
 
-    for relative in pages:
+    for relative, route in pages.items():
         page = read(relative)
         assert page.count('/_vercel/speed-insights/script.js') == 1
+        assert (
+            f'src="/_vercel/speed-insights/script.js" data-route="{route}"'
+            in page
+        )
 
 
 def test_presentation_page_proves_output_with_synthetic_rendered_examples():
