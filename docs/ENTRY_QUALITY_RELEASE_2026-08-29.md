@@ -2,6 +2,11 @@
 
 Status: verified in production; repeat-device and signup outcomes pending
 
+Correction: the owner still observed a refresh glitch after this release. A second, independent
+stylesheet-handoff defect was reproduced and corrected in
+`docs/STARTUP_TRANSITION_CORRECTION_2026-08-29.md`; this document remains the evidence for the
+gate-timing and cold-signup exploration changes only.
+
 ## Decision
 
 Correct two deterministic entry defects without changing authentication policy, session ownership,
