@@ -123,7 +123,15 @@ def test_signed_out_entry_eagerly_loads_only_visible_brand_images():
 
     worker = (PUBLIC / 'sw.js').read_text()
     core = worker[worker.index('const CORE = ['):worker.index('];')]
-    assert "'/assets/brand/crump-mark.png'" not in core
+    on_demand_images = {
+        '/assets/brand/crump-mark.png',
+        '/assets/brand/crump-horizontal-dark.png',
+        '/assets/ask-crump-app-icon-v2-180.png',
+        '/assets/ask-crump-app-icon-v2-192.png',
+        '/assets/ask-crump-app-icon-v2-512.png',
+        '/assets/ask-crump-app-icon-v2-1024.png',
+    }
+    assert all(f"'{asset}'" not in core for asset in on_demand_images)
 
 
 def test_service_worker_never_cache_firsts_api_requests():
