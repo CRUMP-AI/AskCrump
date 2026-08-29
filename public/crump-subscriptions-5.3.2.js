@@ -116,14 +116,28 @@
         id,
         name: 'Enterprise',
         price: config.webEnterprisePriceLabel || '$50/month',
-        detail: 'Maximum included capacity for demanding workflows and organizations.',
+        detail: 'For sustained, high-capacity individual or organization workflows.',
+        benefits: [
+          '5,000 included messages daily',
+          '200 private Projects',
+          '50 research · 2 images · 100 visual analyses daily',
+          '10-second Cinematic video access',
+        ],
+        meterNote: 'Premium video and other high-compute generations use Crump Credits.',
       };
     }
     return {
       id: 'professional',
       name: 'Professional',
       price: config.webProfessionalPriceLabel || '$20/month',
-      detail: 'Higher included usage, files, memory, image creation, and priority access.',
+      detail: 'For independent work you return to every day.',
+      benefits: [
+        '500 included messages daily',
+        '25 private Projects',
+        '20 research · 1 image · 20 visual analyses daily',
+        'Think Longer and premium creation access',
+      ],
+      meterNote: 'Premium video and other high-compute generations use Crump Credits.',
     };
   }
 
@@ -149,7 +163,20 @@
     top.append(name, price);
 
     const detail = document.createElement('p');
+    detail.className = 'billing51-plan-summary';
     detail.textContent = plan.detail;
+
+    const benefits = document.createElement('ul');
+    benefits.className = 'billing51-plan-benefits';
+    plan.benefits.forEach(item => {
+      const benefit = document.createElement('li');
+      benefit.textContent = item;
+      benefits.appendChild(benefit);
+    });
+
+    const meterNote = document.createElement('p');
+    meterNote.className = 'billing51-plan-meter-note';
+    meterNote.textContent = plan.meterNote;
 
     const button = document.createElement('button');
     button.type = 'button';
@@ -168,7 +195,7 @@
       button.addEventListener('click', () => openCheckout(plan.id, button));
     }
 
-    article.append(top, detail, button);
+    article.append(top, detail, benefits, meterNote, button);
     return article;
   }
 

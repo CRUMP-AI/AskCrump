@@ -79,6 +79,7 @@ class ProductEventRequest(APIModel):
         "ActivationReached",
         "OutcomeFeedbackSubmitted",
         "RecentWorkResumed",
+        "PlanCenterViewed",
         "PlanIntentReached",
         "ResponseShared",
     ]

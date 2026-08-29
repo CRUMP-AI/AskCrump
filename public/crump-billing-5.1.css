@@ -320,11 +320,36 @@
 .billing51-plan-top strong { font-size: 16px; }
 .billing51-plan-top span { color: #d8c08d; font-size: 13px; font-weight: 650; }
 .billing51-plan p {
-  min-height: 38px;
   margin: 0;
   color: #969188;
   font-size: 12px;
   line-height: 1.55;
+}
+.billing51-plan-summary { min-height: 38px; }
+.billing51-plan-benefits {
+  display: grid;
+  gap: 8px;
+  min-height: 126px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: #d4cfc6;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.billing51-plan-benefits li {
+  position: relative;
+  padding-left: 16px;
+}
+.billing51-plan-benefits li::before {
+  position: absolute;
+  left: 0;
+  color: #d8c08d;
+  content: '✓';
+}
+.billing51-plan .billing51-plan-meter-note {
+  color: #77736c;
+  font-size: 11px;
 }
 .billing51-plan-button {
   background: rgba(217,195,147,.09);
@@ -448,6 +473,7 @@
   .billing51-buy { grid-column: 1 / -1; margin-top: 11px; }
   .billing51-badge { display: none; }
   .billing51-plans { grid-template-columns: 1fr; }
+  .billing51-plan-benefits { min-height: 0; }
   .billing51-skeleton { min-height: 115px; }
 }
 

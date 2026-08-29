@@ -8,6 +8,7 @@ from ..auth_service import authenticate_request
 from ..product_analytics import (
     CLIENT_EVENT_NAMES,
     OUTCOME_FEEDBACK_SOURCES,
+    PLAN_CENTER_SOURCES,
     RECENT_WORK_SOURCES,
     RESPONSE_SHARE_SOURCES,
     record_product_event,
@@ -38,10 +39,19 @@ async def create_product_event(payload: ProductEventRequest, request: Request):
         or payload.eventKey != "recent-work-resumed"
     ):
         raise HTTPException(status_code=422, detail="Invalid recent work event.")
+    if payload.eventName == "PlanCenterViewed" and (
+        payload.source not in PLAN_CENTER_SOURCES
+        or payload.eventKey != "plan-center-viewed"
+        or payload.plan is not None
+    ):
+        raise HTTPException(status_code=422, detail="Invalid plan center event.")
     event_key = payload.eventKey
     if payload.eventName == "RecentWorkResumed":
         server_day = datetime.now(timezone.utc).date().isoformat()
         event_key = f"recent-work-resumed:{server_day}"
+    if payload.eventName == "PlanCenterViewed":
+        server_day = datetime.now(timezone.utc).date().isoformat()
+        event_key = f"plan-center-viewed:{server_day}"
     auth = await authenticate_request(request, db, settings)
     await enforce_user_rate_limit(
         db,

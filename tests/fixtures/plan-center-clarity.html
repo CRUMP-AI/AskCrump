@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plan center clarity fixture</title>
+  <link rel="stylesheet" href="/public/crump-billing-5.1.css">
+</head>
+<body style="margin:0;background:#0f1419;color:#f4f1eb;font-family:Arial,sans-serif">
+  <button id="upgradeBtnSidebar" type="button"><span>Plan &amp; credits</span></button>
+  <script>
+    window.currentUser = {id: 'fixture-user'};
+    window.CRUMP_CONFIG = {
+      webProfessionalPriceLabel: '$20/month',
+      webEnterprisePriceLabel: '$50/month',
+    };
+    window.__planCenterEvents = [];
+    window.CrumpAnalytics = {
+      track: async (eventName, values) => {
+        window.__planCenterEvents.push({eventName, values});
+        document.documentElement.dataset.lastPlanEvent = eventName;
+        document.documentElement.dataset.lastPlanSource = values.source;
+        document.documentElement.dataset.lastPlanKey = values.eventKey;
+        return true;
+      },
+    };
+    window.BillingManager = {
+      isNative: () => false,
+      getProducts: async () => ({}),
+      getCreditProducts: async () => ({}),
+    };
+    window.showToast = () => {};
+    window.fetch = async url => {
+      const pathname = new URL(String(url), window.location.href).pathname;
+      const responses = {
+        '/api/billing/credits/status': {credits: {balance: 12}, catalog: [], history: []},
+        '/api/usage/check': {daily: {limit: 25, used: 3, remaining: 22}},
+        '/api/billing/status': {tier: 'free', status: 'inactive', provider: null},
+      };
+      return new Response(JSON.stringify(responses[pathname] || {}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+  </script>
+  <script src="/public/crump-billing-5.1.js"></script>
+  <script src="/public/crump-subscriptions-5.3.2.js"></script>
+</body>
+</html>

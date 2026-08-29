@@ -12,10 +12,27 @@
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const native = () => Boolean(window.BillingManager?.isNative?.());
+  const planCenterSources = new Set(['settings', 'plan_intent', 'upgrade_prompt']);
 
   function moneySafe(value, fallback) {
     const text = String(value || fallback || '').trim();
     return text || fallback;
+  }
+
+  function planCenterSource(options = {}) {
+    if (['professional', 'enterprise'].includes(String(options?.plan || '').toLowerCase())) {
+      return 'plan_intent';
+    }
+    const requested = String(options?.source || '').trim().toLowerCase();
+    return planCenterSources.has(requested) ? requested : 'settings';
+  }
+
+  function recordPlanCenterView(options = {}) {
+    const source = planCenterSource(options);
+    void window.CrumpAnalytics?.track('PlanCenterViewed', {
+      eventKey: 'plan-center-viewed',
+      source,
+    });
   }
 
   async function jsonFetch(url, options = {}) {
@@ -204,6 +221,7 @@
   function planCard(plan, product, currentTier, currentStatus) {
     const article = document.createElement('article');
     article.className = `billing51-plan ${plan.id === 'professional' ? 'is-featured' : ''}`;
+    article.dataset.crumpPlan = plan.id;
     const top = document.createElement('div');
     top.className = 'billing51-plan-top';
     const name = document.createElement('strong');
@@ -212,7 +230,18 @@
     price.textContent = moneySafe(product?.price, plan.fallback);
     top.append(name, price);
     const detail = document.createElement('p');
+    detail.className = 'billing51-plan-summary';
     detail.textContent = plan.detail;
+    const benefits = document.createElement('ul');
+    benefits.className = 'billing51-plan-benefits';
+    plan.benefits.forEach(item => {
+      const benefit = document.createElement('li');
+      benefit.textContent = item;
+      benefits.appendChild(benefit);
+    });
+    const meterNote = document.createElement('p');
+    meterNote.className = 'billing51-plan-meter-note';
+    meterNote.textContent = plan.meterNote;
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'billing51-plan-button';
@@ -225,7 +254,7 @@
       button.textContent = 'Not configured';
     }
     button.addEventListener('click', () => { if (!isCurrent) buyPlan(plan.id, button); });
-    article.append(top, detail, button);
+    article.append(top, detail, benefits, meterNote, button);
     return article;
   }
 
@@ -259,13 +288,27 @@
           id: 'professional',
           name: 'Professional',
           fallback: (window.CRUMP_CONFIG || {}).webProfessionalPriceLabel || '$20/month',
-          detail: 'More included usage, image creation, web research, files, memory, and priority access.',
+          detail: 'For independent work you return to every day.',
+          benefits: [
+            '500 included messages daily',
+            '25 private Projects',
+            '20 research · 1 image · 20 visual analyses daily',
+            'Think Longer and premium creation access',
+          ],
+          meterNote: 'Premium video and other high-compute generations use Crump Credits.',
         },
         {
           id: 'enterprise',
           name: 'Enterprise',
           fallback: (window.CRUMP_CONFIG || {}).webEnterprisePriceLabel || '$50/month',
-          detail: 'Maximum included usage and priority capacity for demanding workflows.',
+          detail: 'For sustained, high-capacity individual or organization workflows.',
+          benefits: [
+            '5,000 included messages daily',
+            '200 private Projects',
+            '50 research · 2 images · 100 visual analyses daily',
+            '10-second Cinematic video access',
+          ],
+          meterNote: 'Premium video and other high-compute generations use Crump Credits.',
         },
       ];
       const plansHost = $('#billing51Plans', modal);
@@ -359,6 +402,7 @@
     document.body.appendChild(modal);
     state.modal = modal;
     document.body.classList.add('billing51-open');
+    recordPlanCenterView(options);
     requestAnimationFrame(() => modal.classList.add('is-visible'));
     hydrate(modal);
     return modal;
@@ -384,7 +428,7 @@
     const button = old.cloneNode(true);
     button.dataset.billing51 = 'true';
     old.replaceWith(button);
-    button.addEventListener('click', () => showBillingCenter());
+    button.addEventListener('click', () => showBillingCenter({source: 'settings'}));
     updateSidebarBalance(state.credits);
   }
 
@@ -463,7 +507,10 @@
     window.showBillingCenter = showBillingCenter;
     // Every existing "upgrade required" call now opens the combined premium
     // billing center rather than a subscription-only dead end.
-    window.showUpgradePrompt = showBillingCenter;
+    window.showUpgradePrompt = options => showBillingCenter({
+      ...(options && typeof options === 'object' ? options : {}),
+      source: 'upgrade_prompt',
+    });
     ownSidebarButton();
     finalizeReturn();
     if (window.currentUser) refreshBalance();

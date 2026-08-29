@@ -28,10 +28,10 @@ def test_changed_first_message_asset_is_release_versioned():
     runtime = (PUBLIC / "runtime-body-v1.js").read_text(encoding="utf-8")
     worker = (PUBLIC / "sw.js").read_text(encoding="utf-8")
 
-    assert '"version": "5.9.75"' in package
-    assert '<script defer src="/app.js?v=5.9.75"></script>' not in shell
-    assert "['/app.js?v=5.9.75', 'workspaceapp']" in runtime
-    assert "'/app.js?v=5.9.75'" in worker
+    assert '"version": "5.9.76"' in package
+    assert '<script defer src="/app.js?v=5.9.76"></script>' not in shell
+    assert "['/app.js?v=5.9.76', 'workspaceapp']" in runtime
+    assert "'/app.js?v=5.9.76'" in worker
 
 
 def test_pre_message_failure_preserves_the_draft_and_explains_recovery():

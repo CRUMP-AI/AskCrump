@@ -25,16 +25,16 @@ def test_changed_sync_manager_is_release_versioned_and_network_first():
     runtime = (PUBLIC / "runtime-body-v1.js").read_text(encoding="utf-8")
     worker = (PUBLIC / "sw.js").read_text(encoding="utf-8")
 
-    assert '"version": "5.9.75"' in package
-    assert '<script defer src="/sync-manager.js?v=5.9.75"></script>' not in shell
-    assert "['/sync-manager.js?v=5.9.75', 'workspacesync']" in runtime
-    assert "'/sync-manager.js?v=5.9.75'" in worker
-    assert '<script defer src="/presence-manager.js?v=5.9.75"></script>' not in shell
-    assert "['/presence-manager.js?v=5.9.75', 'workspacepresence']" in runtime
-    assert "'/presence-manager.js?v=5.9.75'" in worker
-    assert '<script defer src="/chat-sync.js?v=5.9.75"></script>' not in shell
-    assert "['/chat-sync.js?v=5.9.75', 'workspacechatsync']" in runtime
-    assert "'/chat-sync.js?v=5.9.75'" in worker
+    assert '"version": "5.9.76"' in package
+    assert '<script defer src="/sync-manager.js?v=5.9.76"></script>' not in shell
+    assert "['/sync-manager.js?v=5.9.76', 'workspacesync']" in runtime
+    assert "'/sync-manager.js?v=5.9.76'" in worker
+    assert '<script defer src="/presence-manager.js?v=5.9.76"></script>' not in shell
+    assert "['/presence-manager.js?v=5.9.76', 'workspacepresence']" in runtime
+    assert "'/presence-manager.js?v=5.9.76'" in worker
+    assert '<script defer src="/chat-sync.js?v=5.9.76"></script>' not in shell
+    assert "['/chat-sync.js?v=5.9.76', 'workspacechatsync']" in runtime
+    assert "'/chat-sync.js?v=5.9.76'" in worker
     assert "url.pathname === '/sync-manager.js'" in worker
 
 

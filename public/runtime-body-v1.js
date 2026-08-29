@@ -21,14 +21,14 @@ window.CRUMP_CONFIG = Object.freeze({
   const workspaceStyles = Object.freeze([
     ['/billing.css', 'workspacebilling'],
     ['/onboarding.css', 'workspaceonboarding'],
-    ['/conversation.css?v=5.9.75', 'workspaceconversation'],
+    ['/conversation.css?v=5.9.76', 'workspaceconversation'],
     ['/crump-4.3.css', 'crump43'],
     ['/crump-4.4.css', 'crump44'],
     ['/crump-5.0.css', 'crump50'],
     ['/crump-billing-5.1.css', 'billing51'],
     ['/crump-5.2.css', 'crump52'],
     ['/crump-5.2.2.css', 'crump522'],
-    ['/crump-v1-body.css?v=5.9.75', 'crumpbodyv1'],
+    ['/crump-v1-body.css?v=5.9.76', 'crumpbodyv1'],
   ]);
 
   const workspaceScripts = Object.freeze([
@@ -37,20 +37,20 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/profile-manager.js', 'workspaceprofile'],
     ['/billing-manager.js', 'workspacebilling'],
     ['/subscription-ui.js', 'workspacesubscription'],
-    ['/chat-resilience.js?v=5.9.75', 'workspacechatresilience'],
-    ['/ui-functions.js?v=5.9.75', 'workspaceui'],
-    ['/presence-manager.js?v=5.9.75', 'workspacepresence'],
-    ['/sync-manager.js?v=5.9.75', 'workspacesync'],
-    ['/chat-sync.js?v=5.9.75', 'workspacechatsync'],
+    ['/chat-resilience.js?v=5.9.76', 'workspacechatresilience'],
+    ['/ui-functions.js?v=5.9.76', 'workspaceui'],
+    ['/presence-manager.js?v=5.9.76', 'workspacepresence'],
+    ['/sync-manager.js?v=5.9.76', 'workspacesync'],
+    ['/chat-sync.js?v=5.9.76', 'workspacechatsync'],
     ['/account-manager.js', 'workspaceaccount'],
-    ['/app.js?v=5.9.75', 'workspaceapp'],
-    ['/product-analytics.js?v=5.9.75', 'workspaceanalytics'],
+    ['/app.js?v=5.9.76', 'workspaceapp'],
+    ['/product-analytics.js?v=5.9.76', 'workspaceanalytics'],
   ]);
 
   const enhancementScripts = Object.freeze([
-    ['/crump-4.3.js?v=5.9.75', 'crump43'],
+    ['/crump-4.3.js?v=5.9.76', 'crump43'],
     ['/crump-4.4.js', 'crump44'],
-    ['/crump-5.0.js?v=5.9.75', 'crump50'],
+    ['/crump-5.0.js?v=5.9.76', 'crump50'],
     ['/crump-billing-5.1.js', 'billing51'],
     ['/crump-5.2.js', 'crump52'],
     ['/crump-5.2.2.js', 'crump522'],

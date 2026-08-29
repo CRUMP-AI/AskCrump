@@ -17,20 +17,20 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
 
     assert styles == [
         '/styles.css',
-        '/install-prompt.css?v=5.9.75',
+        '/install-prompt.css?v=5.9.76',
         '/auth-styles.css',
-        '/crump-v1-body.css?v=5.9.75',
+        '/crump-v1-body.css?v=5.9.76',
     ]
     assert scripts == [
-        '/telemetry-config.js?v=5.9.75',
+        '/telemetry-config.js?v=5.9.76',
         '/runtime-body-v1.js',
         '/native-runtime.js',
         '/mobile-bridge.js',
         '/safe-storage.js',
-        '/install-prompt.js?v=5.9.75',
-        '/auth-resilience.js?v=5.9.75',
-        '/device-auth.js?v=5.9.75',
-        '/auth-controller.js?v=5.9.75',
+        '/install-prompt.js?v=5.9.76',
+        '/auth-resilience.js?v=5.9.76',
+        '/device-auth.js?v=5.9.76',
+        '/auth-controller.js?v=5.9.76',
         '/_vercel/insights/script.js',
         '/_vercel/speed-insights/script.js',
     ]
@@ -44,20 +44,20 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
     deferred_assets = [
         '/billing.css',
         '/onboarding.css',
-        '/conversation.css?v=5.9.75',
+        '/conversation.css?v=5.9.76',
         '/onboarding.js',
         '/scroll-manager.js',
         '/profile-manager.js',
         '/billing-manager.js',
         '/subscription-ui.js',
-        '/chat-resilience.js?v=5.9.75',
-        '/ui-functions.js?v=5.9.75',
-        '/presence-manager.js?v=5.9.75',
-        '/sync-manager.js?v=5.9.75',
-        '/chat-sync.js?v=5.9.75',
+        '/chat-resilience.js?v=5.9.76',
+        '/ui-functions.js?v=5.9.76',
+        '/presence-manager.js?v=5.9.76',
+        '/sync-manager.js?v=5.9.76',
+        '/chat-sync.js?v=5.9.76',
         '/account-manager.js',
-        '/app.js?v=5.9.75',
-        '/product-analytics.js?v=5.9.75',
+        '/app.js?v=5.9.76',
+        '/product-analytics.js?v=5.9.76',
     ]
     for asset in deferred_assets:
         assert asset not in shell

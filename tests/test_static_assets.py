@@ -165,7 +165,7 @@ def test_presence_is_inline_and_accessible():
     polish = (PUBLIC / 'conversation.css').read_text()
     presence = (PUBLIC / 'presence-manager.js').read_text()
     assert '/presence-manager.js' not in app_html
-    assert '/presence-manager.js?v=5.9.75' in runtime
+    assert '/presence-manager.js?v=5.9.76' in runtime
     assert 'id="thinkingIndicator"' not in app_html
     assert 'id="conversationStatus"' in app_html
     assert 'aria-live="polite"' in app_html

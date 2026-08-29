@@ -64,8 +64,8 @@ def test_marketing_ctas_are_first_party_analytics_events():
 
     assert '/_vercel/insights/script.js' in page
     assert '/_vercel/speed-insights/script.js' in page
-    assert '<script defer src="/landing.js?v=5.9.75"></script>' in page
-    assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.75-1">' in page
+    assert '<script defer src="/landing.js?v=5.9.76"></script>' in page
+    assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.76-1">' in page
     assert "window.vaq" in script
     assert "MarketingCTA" in script
     assert "MarketingSignin" in script
@@ -174,9 +174,9 @@ def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
         assert f'<link rel="canonical" href="https://www.askcrump.com/{slug}">' in page
         assert f'<meta property="og:url" content="https://www.askcrump.com/{slug}">' in page
         assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
-        assert '<script defer src="/landing.js?v=5.9.75"></script>' in page
-        assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.75-1">' in page
-        assert '<link rel="stylesheet" href="/use-case.css?v=5.9.75">' in page
+        assert '<script defer src="/landing.js?v=5.9.76"></script>' in page
+        assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.76-1">' in page
+        assert '<link rel="stylesheet" href="/use-case.css?v=5.9.76">' in page
         assert '/_vercel/insights/script.js' in page
         assert '/_vercel/speed-insights/script.js' in page
         assert f'source={source}' in page
@@ -216,7 +216,7 @@ def test_real_user_performance_measurement_covers_growth_surfaces_once():
 
     for relative, route in pages.items():
         page = read(relative)
-        privacy_config = 'src="/telemetry-config.js?v=5.9.75"'
+        privacy_config = 'src="/telemetry-config.js?v=5.9.76"'
         web_analytics = 'src="/_vercel/insights/script.js"'
         collector = (
             f'src="/_vercel/speed-insights/script.js" data-route="{route}"'
@@ -466,12 +466,12 @@ def test_release_version_and_cache_advance_together():
     backend = read("backend/version.py")
     worker = read("public/sw.js")
 
-    assert '"version": "5.9.75"' in package
-    assert "__version__ = '5.9.75'" in backend
-    assert "ask-crump-new-body-v1-r117" in worker
-    assert "/landing-5.6.css?v=5.9.75-1" in worker
-    assert "/use-case.css?v=5.9.75" in worker
-    assert "/landing.js?v=5.9.75" in worker
+    assert '"version": "5.9.76"' in package
+    assert "__version__ = '5.9.76'" in backend
+    assert "ask-crump-new-body-v1-r118" in worker
+    assert "/landing-5.6.css?v=5.9.76-1" in worker
+    assert "/use-case.css?v=5.9.76" in worker
+    assert "/landing.js?v=5.9.76" in worker
 
 
 def test_changed_activation_assets_are_release_versioned():
@@ -480,22 +480,22 @@ def test_changed_activation_assets_are_release_versioned():
     worker = read("public/sw.js")
 
     for asset in (
-        "/crump-v1-body.css?v=5.9.75",
-        "/device-auth.js?v=5.9.75",
-        "/auth-controller.js?v=5.9.75",
+        "/crump-v1-body.css?v=5.9.76",
+        "/device-auth.js?v=5.9.76",
+        "/auth-controller.js?v=5.9.76",
     ):
         assert asset in shell
         assert asset in worker
 
     for asset in (
-        "/conversation.css?v=5.9.75",
-        "/ui-functions.js?v=5.9.75",
-        "/product-analytics.js?v=5.9.75",
-        "/app.js?v=5.9.75",
+        "/conversation.css?v=5.9.76",
+        "/ui-functions.js?v=5.9.76",
+        "/product-analytics.js?v=5.9.76",
+        "/app.js?v=5.9.76",
     ):
         assert asset not in shell
         assert asset in runtime
         assert asset in worker
 
-    assert "/crump-4.3.js?v=5.9.75" in runtime
-    assert "/crump-4.3.js?v=5.9.75" in worker
+    assert "/crump-4.3.js?v=5.9.76" in runtime
+    assert "/crump-4.3.js?v=5.9.76" in worker

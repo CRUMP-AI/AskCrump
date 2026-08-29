@@ -1,5 +1,19 @@
 # Changelog
 
+## 5.9.76 — 2026-08-29
+
+### A plan decision users can understand
+
+- Replaced vague Professional and Enterprise descriptions with the exact daily message,
+  Project, research, image, and visual-analysis capacity Ask Crump already enforces.
+- Made the Crump Credit boundary explicit before checkout, including the fact that premium
+  video and other high-compute generations remain credit-metered.
+- Added a content-free, server-day-deduplicated `PlanCenterViewed` milestone and a
+  service-role-only aggregate plan-view-to-checkout report.
+- Kept prompts, responses, names, emails, filenames, payment details, and arbitrary metadata
+  outside the measurement contract.
+- Advanced the application to 5.9.76, native build 50976, and service-worker cache revision 118.
+
 ## 5.9.75 — 2026-08-29
 
 ### Document output you can inspect

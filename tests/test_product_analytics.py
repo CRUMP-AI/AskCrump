@@ -10,6 +10,7 @@ from backend.product_analytics import (
     CLIENT_EVENT_NAMES,
     EVENT_NAMES,
     OUTCOME_FEEDBACK_SOURCES,
+    PLAN_CENTER_SOURCES,
     RECENT_WORK_SOURCES,
     RESPONSE_SHARE_SOURCES,
     artifact_type_for_file,
@@ -92,6 +93,16 @@ def test_artifact_journey_events_are_server_allowlisted_only():
     }
     assert artifact_events.issubset(EVENT_NAMES)
     assert artifact_events.isdisjoint(CLIENT_EVENT_NAMES)
+
+
+def test_plan_center_view_is_allowlisted_but_content_free():
+    assert "PlanCenterViewed" in EVENT_NAMES
+    assert "PlanCenterViewed" in CLIENT_EVENT_NAMES
+    assert PLAN_CENTER_SOURCES == frozenset({
+        "settings",
+        "plan_intent",
+        "upgrade_prompt",
+    })
 
 
 @pytest.mark.asyncio
@@ -393,6 +404,65 @@ async def test_recent_work_route_derives_one_server_utc_day_key(monkeypatch):
     assert set(calls[0]) == {"user_id", "event_name", "event_key", "request", "source", "plan"}
 
 
+@pytest.mark.asyncio
+async def test_plan_center_route_derives_one_server_utc_day_key(monkeypatch):
+    calls = []
+
+    async def authenticate(_request, _database, _settings):
+        return type("Auth", (), {"user": {"id": "00000000-0000-0000-0000-000000000001"}})()
+
+    async def rate_limit(*_args, **_kwargs):
+        return None
+
+    async def recorder(_database, **kwargs):
+        calls.append(kwargs)
+        return True
+
+    monkeypatch.setattr(analytics_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(analytics_routes, "enforce_user_rate_limit", rate_limit)
+    monkeypatch.setattr(analytics_routes, "record_product_event", recorder)
+
+    result = await analytics_routes.create_product_event(
+        ProductEventRequest(
+            eventName="PlanCenterViewed",
+            eventKey="plan-center-viewed",
+            source="settings",
+        ),
+        request_for("www.askcrump.com"),
+    )
+
+    assert result == {"success": True, "recorded": True}
+    assert calls[0]["event_name"] == "PlanCenterViewed"
+    assert calls[0]["event_key"].startswith("plan-center-viewed:")
+    assert len(calls[0]["event_key"]) == len("plan-center-viewed:2026-08-29")
+    assert calls[0]["source"] == "settings"
+    assert calls[0]["plan"] is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("event_key", "source", "plan"),
+    [
+        ("plan-center-viewed:2026-08-29", "settings", None),
+        ("plan-center-viewed", "campaign", None),
+        ("plan-center-viewed", "settings", "professional"),
+    ],
+)
+async def test_plan_center_route_rejects_non_contract_values(event_key, source, plan):
+    with pytest.raises(HTTPException) as error:
+        await analytics_routes.create_product_event(
+            ProductEventRequest(
+                eventName="PlanCenterViewed",
+                eventKey=event_key,
+                source=source,
+                plan=plan,
+            ),
+            request_for("www.askcrump.com"),
+        )
+
+    assert error.value.status_code == 422
+
+
 def test_migration_is_private_idempotent_and_has_no_arbitrary_metadata():
     migration = (ROOT / "migrations" / "017_product_events.sql").read_text(encoding="utf-8")
     assert "enable row level security" in migration
@@ -609,7 +679,7 @@ def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
     assert runtime.index('/app.js') < runtime.index('/product-analytics.js')
     assert (
         "new Set(['WorkspaceOpened', 'StarterIntentReached', 'ActivationReached', "
-        "'OutcomeFeedbackSubmitted', 'RecentWorkResumed', 'PlanIntentReached', "
+        "'OutcomeFeedbackSubmitted', 'RecentWorkResumed', 'PlanCenterViewed', 'PlanIntentReached', "
         "'ResponseShared'])"
     ) in client
     assert "prompt" not in client.lower()
