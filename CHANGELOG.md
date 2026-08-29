@@ -19,6 +19,9 @@
   longer Video Studio entry, while preserving the existing desktop and 390-pixel layouts.
 - Raised both mobile header actions to a 44-pixel touch target and advanced the web cache to
   revision 110 without changing authentication, pricing, or native release metadata.
+- Replaced the 4,622,802-byte master mark on the Clever Crump hero with the existing
+  353,713-byte production mark, removing 4,269,089 bytes from the public first load while
+  preserving the same branded composition at its rendered size.
 
 ## 5.9.74 — 2026-08-29
 

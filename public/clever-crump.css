@@ -86,7 +86,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--gold); outline-
 .hero-mark::before { inset: 0; border: 1px solid rgba(216,185,111,.14); }
 .hero-mark::after { inset: 14%; border: 1px solid rgba(255,255,255,.075); }
 .hero-mark-orbit { inset: 28%; border: 1px solid rgba(216,185,111,.24); box-shadow: 0 0 90px rgba(216,185,111,.05); }
-.hero-mark img { position: relative; z-index: 2; width: 62%; height: 62%; object-fit: contain; filter: drop-shadow(0 26px 55px rgba(0,0,0,.55)); }
+.hero-mark img { position: relative; z-index: 2; width: 38%; height: 38%; object-fit: contain; filter: drop-shadow(0 26px 55px rgba(0,0,0,.55)); }
 .hero-mark-label { position: absolute; right: 4%; bottom: 12%; color: #6f6858; font: 700 9px/1 var(--sans); letter-spacing: .2em; }
 
 .hero-index { position: absolute; right: 0; bottom: 50px; left: 0; display: grid; grid-template-columns: auto auto 1fr auto auto 1fr auto auto; align-items: center; gap: 16px; padding-top: 24px; border-top: 1px solid var(--line); }

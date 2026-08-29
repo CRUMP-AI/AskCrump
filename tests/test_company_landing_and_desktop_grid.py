@@ -20,6 +20,9 @@ def test_clever_crump_has_a_dedicated_parent_company_landing_page():
     assert 'id="principles"' in page
     assert "https://www.askcrump.com/app?signup=1&amp;source=clevercrump&amp;plan=free" in page
     assert "public/index.html" not in page
+    assert "crump-mark-master.png" not in page
+    assert page.count('src="/assets/brand/crump-mark.png"') == 2
+    assert ".hero-mark img { position: relative; z-index: 2; width: 38%; height: 38%;" in styles
     assert "overflow-x: hidden" in styles
     assert "@media (max-width: 700px)" in styles
     assert "prefers-reduced-motion" in styles
@@ -38,7 +41,7 @@ def test_public_header_actions_stay_single_line_on_narrow_phones():
     assert ".nav-logo { width: 150px; height: 36px; }" in product_styles
     assert ".nav-cta { min-height: 44px; padding-inline: 13px; }" in product_styles
 
-    assert '/clever-crump.css?v=5.9.75-2' in company_page
+    assert '/clever-crump.css?v=5.9.75-3' in company_page
     assert 'class="header-cta-prefix"' in company_page
     assert ".header-cta { display: inline-flex; flex-shrink: 0; min-height: 44px;" in company_styles
     assert "@media (max-width: 370px)" in company_styles
