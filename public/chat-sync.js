@@ -310,7 +310,8 @@
   // Explicit saves are push-only. Pulling here can replace app.js's live chat
   // object while an AI reply is in flight, leaving the reply attached to a
   // stale object. The database merge function is authoritative and lossless,
-  // while the periodic synchronizer still performs pull -> merge -> push.
+  // while the visible-tab synchronizer flushes only queued writes and then
+  // performs one incremental pull.
   window.syncChatsToServer = () => pushLocal();
 
   window.startAutoSync = () => {
