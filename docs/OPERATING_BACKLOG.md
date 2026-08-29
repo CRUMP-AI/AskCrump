@@ -580,8 +580,15 @@ begin a ground-up rewrite or major architecture change from visual preference al
 
 ### P2 — Prove the advertising creative system
 
-**Evidence:** Deevid has produced promising video candidates, but the two newest candidate files
-have not yet received a completed frame-by-frame review because screen control was paused.
+**Evidence:** A local frame-by-frame review on 2026-08-29 covered all five owner-supplied MOV
+candidates without uploading or publishing them. Individual shots showed useful atmosphere, but
+every finished clip failed at least one acquisition gate: generated branding dominated the short
+clips, the two longer files were letterboxed montages without a product throughline, and none
+demonstrated a clear Ask Crump user outcome. The decision and reusable moments are recorded in
+docs/VIDEO_CREATIVE_QA_2026-08-29.md. A new six-frame, unbranded, 9:16 “Work That Continues”
+storyboard now provides a consistent protagonist, product story, real-world outcome, post-production
+brand area, motion limits, voiceover, delivery specification, and release checklist. Its source
+frames and handoff are recorded in docs/ASK_CRUMP_AD_STORYBOARD_2026-08-29.md.
 
 **Outcome:** a restrained campaign library organized by hook, audience, duration, CTA, and funnel
 stage, with branding added in post to prevent generated-logo distortion.
