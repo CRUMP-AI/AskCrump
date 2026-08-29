@@ -31,7 +31,7 @@ def test_visible_library_brand_is_also_normalized_as_a_critical_image():
 
     assert "const existing = host.querySelector(':scope > .v1-library-logo');" in body
     assert "'Ask Crump — An AI workspace for work that continues',\n      true," in body
-    assert "horizontalLight: '/assets/brand/crump-workspace-lockup-light.png'" in body
+    assert "horizontalLight: '/assets/brand/crump-shell-lockup-light.png'" in body
 
 
 def test_workspace_positioning_is_part_of_the_canonical_brand_asset():
@@ -40,6 +40,18 @@ def test_workspace_positioning_is_part_of_the_canonical_brand_asset():
     assert 'TAGLINE = "AN AI WORKSPACE FOR WORK THAT CONTINUES"' in generator
     assert 'SOURCE_WORDMARK = ROOT / "public" / "assets" / "brand" / "crump-horizontal-light.png"' in generator
     assert 'WORDMARK = ROOT / "public" / "assets" / "brand" / "crump-workspace-lockup-light.png"' in generator
+    assert 'SHELL_WORDMARK = ROOT / "public" / "assets" / "brand" / "crump-shell-lockup-light.png"' in generator
+    assert 'shell = Image.new("RGBA", (1200, 300)' in generator
+
+
+def test_shell_lockup_uses_exact_paint_boxes():
+    body = read("public/crump-v1-body.css")
+
+    assert "width: 200px;" in body
+    assert "height: 50px;" in body
+    assert "aspect-ratio: 4 / 1;" in body
+    assert "width: 176px;" in body
+    assert "height: 44px;" in body
 
 
 def test_initial_and_final_desktop_rail_widths_match_before_runtime_handoff():

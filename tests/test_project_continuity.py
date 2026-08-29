@@ -197,6 +197,31 @@ def test_project_workspace_surfaces_saved_conversations_and_a_private_resume_act
     assert "source: 'project'" in resume
 
 
+def test_project_rows_open_a_real_project_workspace_and_scoped_new_chat():
+    product = (ROOT / "public" / "crump-product-5.3.js").read_text(encoding="utf-8")
+    styles = (ROOT / "public" / "crump-product-5.3.css").read_text(encoding="utf-8")
+    fixture = (ROOT / "tests" / "fixtures" / "project-open-navigation.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'id="crump53ProjectBack"' in product
+    assert 'id="crump53ProjectWorkspaceName"' in product
+    assert 'id="crump53StartProjectChat"' in product
+    assert 'aria-label="Open Project ${escapeHtml(item.name)}"' in product
+    assert "renderActiveProjectWorkspace({open: true})" in product
+    assert "setProjectView('detail'" in product
+    assert "window.CrumpBodyV1.command('new')" in product
+    assert "Message Crump in ${name}" in product
+    assert "document.querySelector('.v1-workspace-context')" in product
+    assert '[data-crump53-panel="projects"].is-project-open .crump53-project-index-card' in styles
+    assert 'id="fixtureProjectView"' in fixture
+    assert "sheet?.dataset.projectView" in fixture
+    assert 'aria-label="Started Project chat"' in fixture
+    assert 'aria-label="Browser errors"' in fixture
+    assert "fixture-user" in fixture
+    assert "password" not in fixture.lower()
+
+
 @pytest.mark.asyncio
 async def test_project_route_records_content_free_durable_value_after_attach(monkeypatch):
     analytics = []

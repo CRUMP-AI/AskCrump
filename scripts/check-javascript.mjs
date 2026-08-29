@@ -68,7 +68,7 @@ const requiredBodyFiles = [
   'public/chat-resilience.js',
   'public/assets/brand/crump-mark.png',
   'public/assets/brand/crump-horizontal-light.png',
-  'public/assets/brand/crump-workspace-lockup-light.png',
+  'public/assets/brand/crump-shell-lockup-light.png',
   'public/assets/brand/crump-horizontal-dark.png',
   'public/assets/brand/crump-mark-master.png',
   'public/assets/brand/crump-horizontal-light-master.png',
@@ -303,7 +303,7 @@ if (!v1Body.includes('removeLegacyEmptyState(container)')) {
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r123') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r124') ||
     !serviceWorker.includes(`/landing.js?v=${releaseVersion}`) ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes(`/conversation.css?v=${releaseVersion}`) ||

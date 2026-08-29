@@ -2,6 +2,19 @@
 
 ## 5.9.76 — 2026-08-29
 
+### Projects that visibly open
+
+- Replaced the silent Project-row form refresh with an explicit Projects list → named Project
+  workspace transition, selected-state treatment, and a clear Back to Projects path.
+- Made the Projects section full-height on phones and kept the selected Project's files,
+  conversations, instructions, and durable notes together in its opened workspace.
+- Added an explicit “New chat in this Project” action that opens a fresh Project-scoped composer
+  without persisting another blank conversation before the first message.
+- Moved the late active-Project indicator out of the mobile brand container so restored Project
+  state cannot compress or nudge the header logo after authentication.
+- Published the approved “An AI workspace for work that continues” lockup under a dedicated
+  1200×300 shell URL with exact 4:1 display boxes and advanced the PWA cache to revision 124.
+
 ### A plan decision users can understand
 
 - Replaced vague Professional and Enterprise descriptions with the exact daily message,

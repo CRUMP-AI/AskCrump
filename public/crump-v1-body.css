@@ -850,8 +850,11 @@ body.crump-v1-body .sidebar-branding {
 }
 body.crump-v1-body .v1-library-logo {
   display: block;
-  width: min(198px, 100%);
-  max-height: 50px;
+  width: 200px;
+  height: 50px;
+  max-width: 100%;
+  aspect-ratio: 4 / 1;
+  flex: 0 0 auto;
   object-fit: contain;
   object-position: left center;
 }
@@ -1099,8 +1102,11 @@ body.crump-v1-body .v1-header-branding {
 body.crump-v1-body .v1-header-logo,
 body.crump-v1-body .v1-body-header-logo {
   display: block;
-  width: min(205px, 100%);
-  max-height: 46px;
+  width: 184px;
+  height: 46px;
+  max-width: 100%;
+  aspect-ratio: 4 / 1;
+  flex: 0 0 auto;
   object-fit: contain;
   object-position: left center;
 }
@@ -2234,7 +2240,7 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
   }
   body.crump-v1-body .v1-mobile-menu { display: grid; place-items: center; }
   body.crump-v1-body .v1-header-logo,
-  body.crump-v1-body .v1-body-header-logo { width: min(174px,100%); max-height: 40px; }
+  body.crump-v1-body .v1-body-header-logo { width: 176px; height: 44px; }
   body.crump-v1-body .v1-workspace-context { padding-left: 8px; }
   body.crump-v1-body #crumpIntelligenceButton,
   body.crump-v1-body .crump44-control-button {
@@ -2307,7 +2313,8 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
   }
   body.crump-v1-body .v1-header-logo,
   body.crump-v1-body .v1-body-header-logo {
-    width: min(188px,50vw);
+    width: 176px;
+    height: 44px;
     object-position: center;
   }
 
@@ -2439,7 +2446,7 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
   body.crump-v1-body .v1-workspace-header { gap: 7px; padding-right: max(10px,env(safe-area-inset-right)) !important; padding-left: max(10px,env(safe-area-inset-left)) !important; }
   body.crump-v1-body .v1-mobile-menu { width: 44px !important; height: 44px !important; }
   body.crump-v1-body .v1-header-logo,
-  body.crump-v1-body .v1-body-header-logo { width: min(170px,46vw); }
+  body.crump-v1-body .v1-body-header-logo { width: 168px; height: 42px; }
   body.crump-v1-body #crumpIntelligenceButton,
   body.crump-v1-body .crump44-control-button {
     top: calc(env(safe-area-inset-top) + 14px) !important;

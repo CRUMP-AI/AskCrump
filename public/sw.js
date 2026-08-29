@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r123';
+const CACHE_NAME = 'ask-crump-new-body-v1-r124';
 
 const CORE = [
   '/app',
@@ -67,7 +67,7 @@ const CORE = [
   '/crump-5.2.js',
   '/crump-5.2.2.css',
   '/crump-5.2.2.js',
-  '/assets/brand/crump-workspace-lockup-light.png',
+  '/assets/brand/crump-shell-lockup-light.png',
 ];
 
 async function preCache() {

@@ -6,6 +6,7 @@
     projects: [],
     activeProject: null,
     editingProject: null,
+    projectView: 'index',
     projectConversations: [],
     manuscripts: [],
     activeManuscript: null,
@@ -380,18 +381,34 @@
     overlay.innerHTML = `
       <section class="crump53-sheet" id="crump53Sheet" role="dialog" aria-modal="true" aria-label="Ask Crump Projects" data-crump53-section="projects">
         <header class="crump53-sheet-head">
-          <div><div class="crump53-kicker" id="crump53WorkspaceKicker">WORKSPACE</div><strong id="crump53WorkspaceTitle">Projects</strong></div>
+          <div class="crump53-sheet-identity">
+            <button type="button" class="crump53-project-back" id="crump53ProjectBack" hidden aria-label="Back to all Projects">‹ <span>Projects</span></button>
+            <div><div class="crump53-kicker" id="crump53WorkspaceKicker">WORKSPACE</div><strong id="crump53WorkspaceTitle">Projects</strong></div>
+          </div>
           <button type="button" class="crump53-close" id="crump53Close" aria-label="Close">×</button>
         </header>
         <div class="crump53-sheet-body">
           <section class="crump53-panel" data-crump53-panel="projects">
             <div class="crump53-grid">
-              <div class="crump53-card">
-                <h3>Your projects</h3>
-                <p>Each project keeps its own instructions, canon, files, manuscripts, and conversations.</p>
+              <div class="crump53-card crump53-project-index-card" id="crump53ProjectIndexCard">
+                <div class="crump53-section-head">
+                  <div>
+                    <h3>Your projects</h3>
+                    <p>Each Project keeps its own instructions, files, conversations, and durable context.</p>
+                  </div>
+                  <button class="crump53-button" type="button" id="crump53CreateProject">New Project</button>
+                </div>
                 <div id="crump53ProjectList" class="crump53-list"></div>
               </div>
-              <div class="crump53-card">
+              <div class="crump53-card crump53-project-detail-card" id="crump53ProjectDetailCard">
+                <div class="crump53-project-hero" id="crump53ProjectHero" hidden>
+                  <div>
+                    <div class="crump53-kicker">PROJECT WORKSPACE</div>
+                    <h2 id="crump53ProjectWorkspaceName" tabindex="-1">Project</h2>
+                    <p id="crump53ProjectWorkspaceDescription">Everything for this Project stays together.</p>
+                  </div>
+                  <button class="crump53-button is-primary" type="button" id="crump53StartProjectChat">New chat in this Project</button>
+                </div>
                 <h3 id="crump53ProjectFormTitle">New project</h3>
                 <form id="crump53ProjectForm" class="crump53-form">
                   <label class="crump53-label">Name<input id="crump53ProjectName" class="crump53-input" maxlength="100" required></label>
@@ -399,8 +416,8 @@
                   <label class="crump53-label">Project instructions<textarea id="crump53ProjectInstructions" class="crump53-textarea" maxlength="12000" placeholder="Canon, tone, goals, rules, constraints..."></textarea></label>
                   <div class="crump53-actions">
                     <button class="crump53-button is-primary" type="submit">Save project</button>
-                    <button class="crump53-button" type="button" id="crump53UseProject">Use in conversation</button>
-                    <button class="crump53-button" type="button" id="crump53NewProject">New</button>
+                    <button class="crump53-button" type="button" id="crump53UseProject">Use in current conversation</button>
+                    <button class="crump53-button" type="button" id="crump53NewProject">Create another</button>
                   </div>
                   <div id="crump53ProjectStatus" class="crump53-status" aria-live="polite"></div>
                 </form>
@@ -560,6 +577,9 @@
 
     byId('crump53Close')?.addEventListener('click', closeStudio);
     overlay.addEventListener('click', event => { if (event.target === overlay) closeStudio(); });
+    byId('crump53ProjectBack')?.addEventListener('click', showProjectIndex);
+    byId('crump53CreateProject')?.addEventListener('click', resetProjectForm);
+    byId('crump53StartProjectChat')?.addEventListener('click', startProjectConversation);
     byId('crump53ProjectForm')?.addEventListener('submit', saveProject);
     byId('crump53UseProject')?.addEventListener('click', activateSelectedProject);
     byId('crump53NewProject')?.addEventListener('click', resetProjectForm);
@@ -624,6 +644,7 @@
     studio.hidden = false;
     document.body.style.overflow = 'hidden';
     selectStudioPanel(section);
+    if (section === 'projects') setProjectView('index', {focus: false});
     void refreshFeatures();
     void refreshProjects();
   }
@@ -747,8 +768,8 @@
       renderProjectIndicator();
       renderManuscriptProjectState();
       const projectsPanel = document.querySelector('[data-crump53-panel="projects"]');
-      if (!byId('crump53Studio')?.hidden && !projectsPanel?.hidden && state.activeProject) {
-        renderActiveProjectWorkspace();
+      if (!byId('crump53Studio')?.hidden && !projectsPanel?.hidden && state.activeProject && state.projectView !== 'new') {
+        renderActiveProjectWorkspace({open: false});
       }
     } catch (error) {
       const message = error.message || 'Could not load Projects.';
@@ -825,8 +846,8 @@
       return;
     }
     list.innerHTML = state.projects.map(item => `
-      <button type="button" class="crump53-list-button ${state.activeProject?.id === item.id ? 'is-active' : ''}" data-project-id="${escapeHtml(item.id)}">
-        <span>${escapeHtml(item.name)}</span><small>${escapeHtml(item.updated_at ? 'Saved' : '')}</small>
+      <button type="button" class="crump53-list-button crump53-project-list-button ${state.activeProject?.id === item.id ? 'is-active' : ''}" data-project-id="${escapeHtml(item.id)}" aria-label="Open Project ${escapeHtml(item.name)}" ${state.activeProject?.id === item.id ? 'aria-current="page"' : ''}>
+        <span>${escapeHtml(item.name)}</span><small>Open&nbsp;›</small>
       </button>`).join('') + (Number(limit) > 0
         ? `<div class="crump53-status">${state.projects.length} / ${limit} active projects</div>`
         : (Number(limit) < 0 ? '<div class="crump53-status">Founder Lab · unlimited project workspaces</div>' : ''));
@@ -842,18 +863,65 @@
     state.editingProject = project;
     storeProject(project.id);
     renderProjectIndicator();
-    renderActiveProjectWorkspace();
+    renderActiveProjectWorkspace({open: true});
   }
 
-  function renderActiveProjectWorkspace() {
+  function setProjectView(view, {focus = true} = {}) {
+    const normalized = view === 'detail' || view === 'new' ? view : 'index';
+    state.projectView = normalized;
+    const panel = document.querySelector('[data-crump53-panel="projects"]');
+    const sheet = byId('crump53Sheet');
+    const back = byId('crump53ProjectBack');
+    const kicker = byId('crump53WorkspaceKicker');
+    const title = byId('crump53WorkspaceTitle');
+    const isOpen = normalized !== 'index';
+    panel?.classList.toggle('is-project-open', isOpen);
+    if (sheet) sheet.dataset.projectView = normalized;
+    if (back) back.hidden = !isOpen;
+    if (normalized === 'detail' && state.activeProject) {
+      if (kicker) kicker.textContent = 'PROJECT';
+      if (title) title.textContent = state.activeProject.name || 'Project';
+      sheet?.setAttribute('aria-label', `Ask Crump Project: ${state.activeProject.name || 'Project'}`);
+    } else if (normalized === 'new') {
+      if (kicker) kicker.textContent = 'PROJECTS';
+      if (title) title.textContent = 'New Project';
+      sheet?.setAttribute('aria-label', 'Create an Ask Crump Project');
+    } else {
+      if (kicker) kicker.textContent = STUDIO_SECTION_META.projects.kicker;
+      if (title) title.textContent = STUDIO_SECTION_META.projects.title;
+      sheet?.setAttribute('aria-label', STUDIO_SECTION_META.projects.label);
+    }
+    const body = sheet?.querySelector('.crump53-sheet-body');
+    if (body) body.scrollTop = 0;
+    if (!focus) return;
+    requestAnimationFrame(() => {
+      if (normalized === 'detail') byId('crump53ProjectWorkspaceName')?.focus({preventScroll: true});
+      else if (normalized === 'new') byId('crump53ProjectName')?.focus({preventScroll: true});
+      else byId('crump53ProjectList')?.querySelector('button')?.focus({preventScroll: true});
+    });
+  }
+
+  function showProjectIndex() {
+    setProjectView('index');
+  }
+
+  function renderActiveProjectWorkspace({open = false} = {}) {
     const project = state.activeProject;
     if (!project) return;
     byId('crump53ProjectName').value = project.name || '';
     byId('crump53ProjectDescription').value = project.description || '';
     byId('crump53ProjectInstructions').value = project.instructions || '';
     byId('crump53ProjectFormTitle').textContent = 'Edit project';
+    const hero = byId('crump53ProjectHero');
+    if (hero) hero.hidden = false;
+    if (byId('crump53ProjectWorkspaceName')) byId('crump53ProjectWorkspaceName').textContent = project.name || 'Project';
+    if (byId('crump53ProjectWorkspaceDescription')) {
+      byId('crump53ProjectWorkspaceDescription').textContent =
+        project.description || 'Conversations, files, instructions, and durable context for this Project.';
+    }
     renderProjectList(state.features?.projectLimit);
     renderManuscriptProjectState();
+    if (open || state.projectView === 'detail') setProjectView('detail', {focus: open});
     void refreshProjectContext();
     void refreshProjectConversations();
   }
@@ -863,12 +931,15 @@
     byId('crump53ProjectDescription').value = '';
     byId('crump53ProjectInstructions').value = '';
     byId('crump53ProjectFormTitle').textContent = 'New project';
+    const hero = byId('crump53ProjectHero');
+    if (hero) hero.hidden = true;
     state.editingProject = null;
     const contextCard = byId('crump53ProjectContextCard');
     if (contextCard) contextCard.hidden = true;
     const conversationsCard = byId('crump53ProjectConversationsCard');
     if (conversationsCard) conversationsCard.hidden = true;
     renderProjectList(state.features?.projectLimit);
+    setProjectView('new');
   }
 
   async function refreshProjectConversations() {
@@ -960,6 +1031,7 @@
       state.activeProject = data.project;
       state.editingProject = data.project;
       storeProject(data.project.id);
+      state.projectView = 'detail';
       setStatus('crump53ProjectStatus', 'Project saved and selected.');
       await refreshProjects();
     } catch (error) {
@@ -1044,6 +1116,26 @@
     setStatus('crump53ProjectStatus', 'New messages will use this project context.');
   }
 
+  function startProjectConversation() {
+    if (!state.activeProject?.id) {
+      setStatus('crump53ProjectStatus', 'Choose or save a Project first.', true);
+      return;
+    }
+    const name = String(state.activeProject.name || 'Project').replace(/\s+/g, ' ').trim() || 'Project';
+    storeProject(state.activeProject.id);
+    renderProjectIndicator();
+    closeStudio();
+    if (window.CrumpBodyV1?.command) window.CrumpBodyV1.command('new');
+    else byId('newChatBtn')?.click();
+    requestAnimationFrame(() => {
+      const input = byId('userInput');
+      if (!input) return;
+      input.placeholder = `Message Crump in ${name}…`;
+      input.focus({preventScroll: true});
+    });
+    window.showToast?.(`${name} is open. Your next message starts a Project conversation.`, 'success');
+  }
+
   function renderProjectIndicator() {
     document.querySelector('.crump53-active-project')?.remove();
     document.querySelectorAll('.crump53-projects-button').forEach(node => {
@@ -1051,7 +1143,7 @@
     });
     notifyProjectTargetChanged();
     if (!state.activeProject) return;
-    const header = document.querySelector('.v1-header-branding');
+    const header = document.querySelector('.v1-workspace-context');
     if (!header) return;
     const chip = document.createElement('span');
     chip.className = 'crump53-active-project';

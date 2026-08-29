@@ -8,6 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_WORDMARK = ROOT / "public" / "assets" / "brand" / "crump-horizontal-light.png"
 WORDMARK = ROOT / "public" / "assets" / "brand" / "crump-workspace-lockup-light.png"
+SHELL_WORDMARK = ROOT / "public" / "assets" / "brand" / "crump-shell-lockup-light.png"
 TAGLINE = "AN AI WORKSPACE FOR WORK THAT CONTINUES"
 TAGLINE_TOP = 238
 TAGLINE_X = 270
@@ -67,6 +68,15 @@ def main() -> None:
     temporary = WORDMARK.with_suffix(".tmp.png")
     image.save(temporary, format="PNG", optimize=True)
     temporary.replace(WORDMARK)
+
+    # The application shell renders the lockup at exact 4:1 boxes. A dedicated
+    # 1200x300 canvas avoids fractional image scaling during the authenticated
+    # runtime handoff while preserving the approved social-positioning artwork.
+    shell = Image.new("RGBA", (1200, 300), (0, 0, 0, 0))
+    shell.alpha_composite(image, (0, 2))
+    shell_temporary = SHELL_WORDMARK.with_suffix(".tmp.png")
+    shell.save(shell_temporary, format="PNG", optimize=True)
+    shell_temporary.replace(SHELL_WORDMARK)
 
 
 if __name__ == "__main__":

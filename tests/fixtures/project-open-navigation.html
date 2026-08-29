@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Project open navigation fixture</title>
+  <link rel="stylesheet" href="/public/crump-v1-body.css?v=project-open-fixture-1">
+  <link rel="stylesheet" href="/public/crump-product-5.3.css?v=project-open-fixture-2">
+</head>
+<body class="crump-v1-body">
+  <main>
+    <div class="v1-workspace-context"><span>WORKSPACE</span><strong>New conversation</strong></div>
+    <button id="newChatBtn" type="button">New conversation</button>
+    <textarea id="userInput" aria-label="Message Crump"></textarea>
+    <output id="fixtureProjectView" aria-label="Project view">index</output>
+    <output id="fixtureStartedChat" aria-label="Started Project chat">no</output>
+    <output id="fixtureErrors" aria-label="Browser errors">0</output>
+  </main>
+  <script>
+    const fixtureProject = {
+      id: '00000000-0000-4000-8000-000000000071',
+      name: 'Launch Operations',
+      description: 'The launch plan, decisions, and source files.',
+      instructions: 'Keep launch decisions and owners together.',
+      updated_at: '2026-08-29T12:00:00Z',
+    };
+    window.currentUser = {id: 'fixture-user'};
+    window.currentChatId = '';
+    window.chats = [];
+    window.showToast = () => {};
+    window.CrumpAnalytics = {track: () => Promise.resolve(true)};
+    window.CrumpBodyV1 = {
+      command: command => {
+        if (command === 'new') document.getElementById('fixtureStartedChat').textContent = 'yes';
+      },
+    };
+    const recordBrowserError = () => {
+      const output = document.getElementById('fixtureErrors');
+      output.textContent = String(Number(output.textContent || 0) + 1);
+    };
+    window.addEventListener('error', recordBrowserError);
+    window.addEventListener('unhandledrejection', recordBrowserError);
+    window.fetch = async (input, options = {}) => {
+      const url = new URL(String(input), location.href);
+      const method = String(options.method || 'GET').toUpperCase();
+      let data = {success: true};
+      if (url.pathname === '/api/features') data = {success: true, projectLimit: 3, features: {}};
+      else if (url.pathname === '/api/projects' && method === 'GET') {
+        data = {success: true, projects: [fixtureProject], limit: 3};
+      } else if (url.pathname === `/api/projects/${fixtureProject.id}`) {
+        data = {success: true, project: fixtureProject, context: {canon: []}};
+      } else if (url.pathname === `/api/projects/${fixtureProject.id}/chats`) {
+        data = {success: true, conversations: []};
+      } else {
+        return new Response(JSON.stringify({success: false, error: 'Unexpected fixture request.'}), {
+          status: 500,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+  </script>
+  <script src="/public/crump-product-5.3.js?v=project-open-fixture-1"></script>
+  <script>
+    window.addEventListener('load', async () => {
+      const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+      window.CrumpProduct53.open('projects');
+      await wait(180);
+      document.querySelector('[data-project-id]')?.click();
+      await wait(180);
+      const sheet = document.getElementById('crump53Sheet');
+      document.getElementById('fixtureProjectView').textContent = sheet?.dataset.projectView || 'missing';
+      if (new URLSearchParams(location.search).get('hold') === '1') return;
+      document.getElementById('crump53StartProjectChat')?.click();
+    });
+  </script>
+</body>
+</html>

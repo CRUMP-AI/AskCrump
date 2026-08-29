@@ -6,7 +6,7 @@
 
   const BRAND = Object.freeze({
     mark: '/assets/brand/crump-mark.png',
-    horizontalLight: '/assets/brand/crump-workspace-lockup-light.png',
+    horizontalLight: '/assets/brand/crump-shell-lockup-light.png',
   });
 
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -19,7 +19,7 @@
     img.alt = alt;
     img.className = className;
     img.width = 1200;
-    img.height = 296;
+    img.height = 300;
     img.loading = critical ? 'eager' : 'lazy';
     img.decoding = critical ? 'sync' : 'async';
     if (critical) img.fetchPriority = 'high';
@@ -35,7 +35,7 @@
       existing.alt = 'Ask Crump — An AI workspace for work that continues';
       existing.classList.add('v1-header-logo', 'v1-body-header-logo');
       existing.width = 1200;
-      existing.height = 296;
+      existing.height = 300;
       existing.loading = 'eager';
       existing.decoding = 'sync';
       existing.fetchPriority = 'high';
@@ -57,7 +57,7 @@
       if (existing.getAttribute('src') !== BRAND.horizontalLight) existing.src = BRAND.horizontalLight;
       existing.alt = 'Ask Crump — An AI workspace for work that continues';
       existing.width = 1200;
-      existing.height = 296;
+      existing.height = 300;
       existing.loading = 'eager';
       existing.decoding = 'sync';
       existing.fetchPriority = 'high';
