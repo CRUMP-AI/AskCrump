@@ -15,7 +15,7 @@ const expectedFiles = new Set([
   'device-auth.js', 'install-prompt.js', 'landing.js', 'mobile-bridge.js', 'native-entry.js',
   'native-runtime.js', 'onboarding.js', 'presence-manager.js', 'profile-manager.js',
   'runtime-config.js', 'runtime-config-v1.js', 'runtime-body-v1.js', 'safe-storage.js',
-  'scroll-manager.js', 'subscription-ui.js', 'sw.js', 'sync-manager.js', 'ui-functions.js',
+  'scroll-manager.js', 'speed-insights-config.js', 'subscription-ui.js', 'sw.js', 'sync-manager.js', 'ui-functions.js',
   'product-analytics.js',
 ]);
 
@@ -103,11 +103,34 @@ const speedInsightPages = [
 for (const [relative, route] of speedInsightPages) {
   const page = await readFile(new URL(relative, repoRoot), 'utf8');
   const expected = `src="/_vercel/speed-insights/script.js" data-route="${route}"`;
-  if (page.match(/\/_vercel\/speed-insights\/script\.js/g)?.length !== 1 ||
-      !page.includes(expected)) {
+  const privacyConfig = `src="/speed-insights-config.js?v=${releaseVersion}"`;
+  if (page.match(/\/speed-insights-config\.js/g)?.length !== 1 ||
+      page.match(/\/_vercel\/speed-insights\/script\.js/g)?.length !== 1 ||
+      !page.includes(expected) ||
+      page.indexOf(privacyConfig) > page.indexOf(expected)) {
     console.error(`${relative} must load Vercel Speed Insights exactly once with route ${route}.`);
     process.exit(1);
   }
+}
+
+const speedInsightConfig = await readFile(new URL('public/speed-insights-config.js', repoRoot), 'utf8');
+const speedInsightWindow = {};
+runInContext(speedInsightConfig, createContext({window: speedInsightWindow, URL}));
+const speedInsightQueue = speedInsightWindow.siq;
+const speedInsightFilter = speedInsightQueue?.[0]?.[1];
+const filteredVital = speedInsightFilter?.({
+  type: 'vital',
+  url: 'https://www.askcrump.com/app?token=secret&signup=1#recovery',
+  route: '/app',
+});
+if (speedInsightQueue?.length !== 1 ||
+    speedInsightQueue[0][0] !== 'beforeSend' ||
+    filteredVital?.url !== 'https://www.askcrump.com/app' ||
+    filteredVital?.route !== '/app' ||
+    speedInsightFilter?.({type: 'vital', url: 'not a url'}) !== null ||
+    speedInsightFilter?.({type: 'vital'}) !== null) {
+  console.error('Speed Insights must remove query strings and fragments before transmission.');
+  process.exit(1);
 }
 
 function extractNamedFunction(source, name) {
@@ -152,6 +175,7 @@ if (!referringAcquisitionSource ||
 }
 const requiredHtmlSignals = [
   '/runtime-body-v1.js',
+  `/speed-insights-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
   `/auth-resilience.js?v=${releaseVersion}`,
   `/install-prompt.js?v=${releaseVersion}`,

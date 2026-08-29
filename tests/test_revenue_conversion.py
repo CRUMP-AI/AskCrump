@@ -216,11 +216,26 @@ def test_real_user_performance_measurement_covers_growth_surfaces_once():
 
     for relative, route in pages.items():
         page = read(relative)
-        assert page.count('/_vercel/speed-insights/script.js') == 1
-        assert (
+        privacy_config = 'src="/speed-insights-config.js?v=5.9.75"'
+        collector = (
             f'src="/_vercel/speed-insights/script.js" data-route="{route}"'
-            in page
         )
+        assert page.count('/speed-insights-config.js') == 1
+        assert page.count('/_vercel/speed-insights/script.js') == 1
+        assert privacy_config in page
+        assert collector in page
+        assert page.index(privacy_config) < page.index(collector)
+
+
+def test_speed_insights_strips_query_and_fragment_before_transmission():
+    config = read("public/speed-insights-config.js")
+    controller = read("public/auth-controller.js")
+
+    assert "params.get('token')" in controller
+    assert "window.si('beforeSend'" in config
+    assert "url.search = ''" in config
+    assert "url.hash = ''" in config
+    assert "return null" in config
 
 
 def test_presentation_page_proves_output_with_synthetic_rendered_examples():

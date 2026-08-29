@@ -31,6 +31,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/device-auth.js?v=5.9.75',
         '/auth-controller.js?v=5.9.75',
         '/_vercel/insights/script.js',
+        '/speed-insights-config.js?v=5.9.75',
         '/_vercel/speed-insights/script.js',
     ]
 
