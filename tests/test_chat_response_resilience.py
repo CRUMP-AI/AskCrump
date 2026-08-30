@@ -128,9 +128,9 @@ def test_changed_primary_runtime_and_transport_are_release_versioned_and_network
 
     assert '/chat-resilience.js?v=5.9.76' not in shell
     assert "['/chat-resilience.js?v=5.9.76', 'workspacechatresilience']" in runtime
-    assert "['/crump-5.0.js?v=5.9.76', 'crump50']" in runtime
+    assert "['/crump-5.0.js?v=5.9.76-artifact-project-1', 'crump50']" in runtime
     assert "'/chat-resilience.js?v=5.9.76'" in worker
-    assert "'/crump-5.0.js?v=5.9.76'" in worker
+    assert "'/crump-5.0.js?v=5.9.76-artifact-project-1'" in worker
     assert "url.pathname === '/chat-resilience.js'" in worker
     assert "url.pathname === '/crump-5.0.js'" in worker
 

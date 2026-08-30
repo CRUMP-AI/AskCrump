@@ -930,11 +930,45 @@
       state.activeProject = data.project;
       state.editingProject = data.project;
       storeProject(data.project.id);
-      window.showToast?.(`Saved to ${data.project.name}.`, 'success');
-      void refreshProjects();
+      if (options.notify !== false) {
+        window.showToast?.(`Saved to ${data.project.name}.`, 'success');
+      }
+      if (options.refresh !== false) void refreshProjects();
       return {success: true, project: data.project};
     } catch (error) {
-      window.showToast?.(error.message || 'The conversation could not be saved.', 'error');
+      if (options.notify !== false) {
+        window.showToast?.(error.message || 'The conversation could not be saved.', 'error');
+      }
+      throw error;
+    }
+  }
+
+  async function keepArtifact(file, options = {}) {
+    const fileId = String(file?.id || '').trim();
+    if (!fileId) throw new Error('This file is not ready to add to a Project yet.');
+    const hasExplicitTarget = Object.prototype.hasOwnProperty.call(options, 'projectId');
+    const targetProjectId = hasExplicitTarget
+      ? String(options.projectId || '').trim()
+      : String(state.activeProject?.id || '').trim();
+
+    try {
+      const kept = await keepConversation({
+        projectId: targetProjectId || null,
+        notify: false,
+        refresh: false,
+      });
+      const projectId = String(kept?.project?.id || '').trim();
+      if (!projectId) throw new Error('Choose a Project before adding this file.');
+      const data = await api(`/api/projects/${encodeURIComponent(projectId)}/files`, {
+        method: 'POST',
+        body: {fileId, role: 'generated_document'},
+        timeoutMs: PROJECT_SAVE_TIMEOUT_MS,
+      });
+      window.showToast?.(`Added to ${kept.project.name}.`, 'success');
+      void refreshProjects();
+      return {success: true, project: kept.project, file: data.file};
+    } catch (error) {
+      window.showToast?.(error.message || 'The file could not be added to a Project.', 'error');
       throw error;
     }
   }
@@ -2261,6 +2295,7 @@
     openProject: projectId => openProject(projectId),
     projectTarget: () => currentProjectTarget(),
     keepConversation: options => keepConversation(options),
+    keepArtifact: (file, options) => keepArtifact(file, options),
     openManuscript: workspace => openManuscriptWorkspace(workspace),
     handleCreationHandoff: handoff => handleCreationHandoff(handoff),
   });

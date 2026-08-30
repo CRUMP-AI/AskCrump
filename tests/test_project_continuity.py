@@ -387,6 +387,27 @@ def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_
     assert 'artifact_type="project"' in route
 
 
+def test_generated_artifact_can_join_a_project_with_its_source_conversation():
+    ui = (ROOT / "public" / "crump-5.0.js").read_text(encoding="utf-8")
+    product = (ROOT / "public" / "crump-product-5.3.js").read_text(encoding="utf-8")
+    fixture = (ROOT / "tests" / "fixtures" / "project-target-disclosure.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert "data-artifact-project" in ui
+    assert "Add to Project" in ui
+    assert "Open Project" in ui
+    assert "window.CrumpProduct53?.keepArtifact" in ui
+    assert "async function keepArtifact(file, options = {})" in product
+    assert "notify: false" in product
+    assert "refresh: false" in product
+    assert "body: {fileId, role: 'generated_document'}" in product
+    assert "keepArtifact: (file, options) => keepArtifact(file, options)" in product
+    assert "/public/crump-5.0.js?v=artifact-project-handoff-1" in fixture
+    assert "fixtureFileRequest" in fixture
+    assert "body.role" in fixture
+
+
 def test_project_save_timeout_fixture_uses_real_product_code_without_credentials():
     fixture = (ROOT / "tests" / "fixtures" / "project-save-stall.html").read_text(
         encoding="utf-8"

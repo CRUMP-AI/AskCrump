@@ -871,9 +871,44 @@
       }
       if (message.artifact) {
         const artifact = document.createElement('div'); artifact.className = 'crump50-artifact';
-        artifact.innerHTML = `<span>${String(message.artifact.format || 'FILE').toUpperCase()}</span><div><strong></strong><small>Created by Crump · ${formatBytes(message.artifact.size)}</small></div><button type="button">Download</button>`;
+        artifact.innerHTML = `<span>${String(message.artifact.format || 'FILE').toUpperCase()}</span><div class="crump50-artifact-copy"><strong></strong><small>Created by Crump · ${formatBytes(message.artifact.size)}</small></div><div class="crump50-artifact-actions"><button type="button" data-artifact-project>Add to Project</button><button type="button" data-artifact-download>Download</button></div>`;
         $('strong', artifact).textContent = message.artifact.title || message.artifact.name || 'Crump document';
-        $('button', artifact).addEventListener('click', () => openFile(message.artifact, true)); wrapper.appendChild(artifact);
+        const projectButton = $('[data-artifact-project]', artifact);
+        const downloadButton = $('[data-artifact-download]', artifact);
+        if (!message.artifact.id) projectButton?.remove();
+        else if (projectButton) {
+          const artifactName = message.artifact.title || message.artifact.name || 'this file';
+          projectButton.setAttribute('aria-label', `Add ${artifactName} and its source conversation to a Project`);
+          projectButton.addEventListener('click', async () => {
+            const savedProjectId = String(projectButton.dataset.projectId || '').trim();
+            if (savedProjectId) {
+              const opened = await window.CrumpProduct53?.openProject?.(savedProjectId);
+              if (!opened) window.CrumpProduct53?.open?.('projects');
+              return;
+            }
+            const keepArtifact = window.CrumpProduct53?.keepArtifact;
+            if (typeof keepArtifact !== 'function') {
+              show('Projects are still loading. Try again in a moment.', 'error');
+              return;
+            }
+            projectButton.disabled = true;
+            projectButton.setAttribute('aria-busy', 'true');
+            try {
+              const result = await keepArtifact(message.artifact);
+              const projectId = String(result?.project?.id || '').trim();
+              if (!result?.success || !projectId) throw new Error('The file could not be added to a Project.');
+              projectButton.dataset.projectId = projectId;
+              projectButton.textContent = 'Open Project';
+              projectButton.setAttribute('aria-label', `Open ${result.project?.name || 'the Project'} containing ${artifactName}`);
+            } catch (_) {
+              projectButton.disabled = false;
+            } finally {
+              projectButton.removeAttribute('aria-busy');
+            }
+            projectButton.disabled = false;
+          });
+        }
+        downloadButton?.addEventListener('click', () => openFile(message.artifact, true)); wrapper.appendChild(artifact);
       }
       if (message.imageFile && message.imageUrl) {
         const generated = wrapper.querySelector('.generated-image-wrapper');

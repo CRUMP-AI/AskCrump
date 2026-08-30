@@ -1130,3 +1130,35 @@ body.crump-v1-body .crump53-video-continuation {
   background: linear-gradient(180deg, rgba(217,191,132,.045), rgba(255,255,255,.018));
 }
 body.crump-v1-body .crump53-video-continuation[hidden] { display: none; }
+
+/* Generated work should move into a Project with the conversation that made it. */
+body.crump-v1-body .crump50-artifact > .crump50-artifact-actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+body.crump-v1-body .crump50-artifact-actions button {
+  min-width: 0;
+  white-space: nowrap;
+}
+body.crump-v1-body .crump50-artifact-actions [data-artifact-project] {
+  border-color: rgba(217,191,132,.27);
+  background: rgba(217,191,132,.11);
+  color: #efe0bc;
+}
+body.crump-v1-body .crump50-artifact-actions button:focus-visible {
+  outline: 2px solid #d9bf84;
+  outline-offset: 3px;
+}
+
+@media (max-width: 620px) {
+  body.crump-v1-body .crump50-artifact > .crump50-artifact-actions {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  body.crump-v1-body .crump50-artifact-actions button {
+    flex: 1 1 130px;
+  }
+}

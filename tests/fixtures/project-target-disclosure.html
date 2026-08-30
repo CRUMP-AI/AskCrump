@@ -6,6 +6,9 @@
   <title>Project target disclosure fixture</title>
   <link rel="stylesheet" href="/public/styles.css">
   <link rel="stylesheet" href="/public/conversation.css">
+  <link rel="stylesheet" href="/public/crump-5.0.css">
+  <link rel="stylesheet" href="/public/crump-v1-body.css">
+  <link rel="stylesheet" href="/public/crump-product-5.3.css">
   <style>
     body { margin: 0; min-height: 100vh; background: #080a0d; color: #f4f1eb; }
     main { width: min(820px, calc(100% - 32px)); margin: 0 auto; padding: 56px 0; }
@@ -14,11 +17,12 @@
     #chatContainer { min-height: 220px; }
   </style>
 </head>
-<body>
+<body class="crump-v1 crump-v1-body">
   <main>
     <div class="fixture-evidence" aria-label="Fixture evidence">
       <output id="fixtureTarget" aria-label="Selected project">Q3 Finance Forecast</output>
       <output id="fixtureRequest" aria-label="Save destination">No save yet</output>
+      <output id="fixtureFileRequest" aria-label="File destination">No file yet</output>
       <output id="fixtureErrors" aria-label="Browser errors">0</output>
     </div>
     <div id="chatContainer" class="chat-container" aria-label="Conversation"></div>
@@ -47,6 +51,13 @@
         id: 'fixture-response',
         role: 'assistant',
         content: 'The launch checklist is ready for review.',
+        artifact: {
+          id: '00000000-0000-4000-8000-000000000064',
+          format: 'docx',
+          name: 'website-launch-checklist.docx',
+          title: 'Website launch checklist',
+          size: 18432,
+        },
       }],
     }];
     window.__fixture = {requests: [], toasts: [], unexpectedRequests: 0};
@@ -85,11 +96,29 @@
           headers: {'Content-Type': 'application/json'},
         });
       }
+      if (url.pathname === `/api/projects/${fixtureProject.id}/files` && method === 'POST') {
+        const body = JSON.parse(options.body);
+        window.__fixture.requests.push({destination: `${fixtureProject.id}:file`, body});
+        document.getElementById('fixtureFileRequest').textContent = `Added ${body.fileId} as ${body.role}`;
+        return new Response(JSON.stringify({success: true, file: window.chats[0].messages[0].artifact}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
       if (url.pathname === '/api/projects' && method === 'POST') {
         const project = {id: '00000000-0000-4000-8000-000000000063', name: 'Website launch checklist'};
         window.__fixture.requests.push({destination: 'new', body: JSON.parse(options.body)});
         document.getElementById('fixtureRequest').textContent = 'Started Website launch checklist';
         return new Response(JSON.stringify({success: true, project}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      if (url.pathname === '/api/projects/00000000-0000-4000-8000-000000000063/files' && method === 'POST') {
+        const body = JSON.parse(options.body);
+        window.__fixture.requests.push({destination: 'new:file', body});
+        document.getElementById('fixtureFileRequest').textContent = `Added ${body.fileId} as ${body.role}`;
+        return new Response(JSON.stringify({success: true, file: window.chats[0].messages[0].artifact}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
@@ -102,6 +131,7 @@
     };
   </script>
   <script src="/public/ui-functions.js?v=project-target-disclosure-2"></script>
+  <script src="/public/crump-5.0.js?v=artifact-project-handoff-1"></script>
   <script src="/public/crump-product-5.3.js?v=project-target-disclosure-2"></script>
   <script>
     window.addEventListener('load', () => window.renderMessages(window.chats[0].messages));
