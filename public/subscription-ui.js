@@ -2,8 +2,8 @@
   'use strict';
 
   const plans = [
-    { id: 'professional', name: 'Professional', fallbackPrice: '$20/month', detail: 'Higher daily limits, image creation, web search, and priority access.' },
-    { id: 'enterprise', name: 'Enterprise', fallbackPrice: '$50/month', detail: 'Maximum limits and priority support for demanding workflows.' },
+    { id: 'professional', name: 'Professional', fallbackPrice: '$20/month', detail: '500 included messages daily, 25 private Projects, and broader research and creation access.' },
+    { id: 'enterprise', name: 'Enterprise', fallbackPrice: '$50/month', detail: '5,000 included messages daily, 200 private Projects, and the highest current limits for demanding individual workflows.' },
   ];
 
   function closeUpgradePrompt() {
@@ -76,6 +76,7 @@
             </article>`).join('')}
         </div>
         ${native ? '<button class="tier-btn" id="restorePurchasesBtn" type="button">Restore purchases</button>' : '<p class="upgrade-footer">Secure web checkout is handled by Stripe.</p>'}
+        <p class="upgrade-footer">Premium video and other high-compute generations use Crump Credits.</p>
         <p class="upgrade-footer">Subscriptions renew automatically each month until canceled through the billing provider. The final localized price and terms are shown before purchase. <a href="/legal.html#terms">Terms</a> · <a href="/legal.html#privacy">Privacy</a></p>
       </section>`;
     modal.querySelectorAll('[data-close-upgrade]').forEach(node => node.addEventListener('click', closeUpgradePrompt));

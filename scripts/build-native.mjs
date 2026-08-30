@@ -74,7 +74,7 @@ const loader = String.raw`
     ['/scroll-manager.js', 'workspacescroll'],
     ['/profile-manager.js', 'workspaceprofile'],
     ['/billing-manager.js', 'workspacebilling'],
-    ['/subscription-ui.js', 'workspacesubscription'],
+    ['/subscription-ui.js?v=5.9.76-truthful-plan-1', 'workspacesubscription'],
     ['/chat-resilience.js?v=5.9.76-contextual-plan-recovery-1', 'workspacechatresilience'],
     ['/ui-functions.js?v=5.9.76-intelligence-receipt-1', 'workspaceui'],
     ['/presence-manager.js?v=5.9.76', 'workspacepresence'],

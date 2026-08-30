@@ -23,7 +23,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
     ]
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
-        '/runtime-body-v1.js?v=5.9.76-desktop-chats-default-1',
+        '/runtime-body-v1.js?v=5.9.76-truthful-plan-1',
         '/native-runtime.js',
         '/mobile-bridge.js',
         '/safe-storage.js',
@@ -49,7 +49,7 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/scroll-manager.js',
         '/profile-manager.js',
         '/billing-manager.js',
-        '/subscription-ui.js',
+        '/subscription-ui.js?v=5.9.76-truthful-plan-1',
         '/chat-resilience.js?v=5.9.76-contextual-plan-recovery-1',
         '/ui-functions.js?v=5.9.76-intelligence-receipt-1',
         '/presence-manager.js?v=5.9.76',

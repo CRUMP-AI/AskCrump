@@ -90,6 +90,42 @@ def test_signed_in_plan_cards_state_specific_value_and_metering():
     assert ".billing51-plan-meter-note" in stylesheet
 
 
+def test_quick_upgrade_prompt_matches_truthful_current_capabilities():
+    source = read_public("subscription-ui.js")
+
+    for expected in (
+        "500 included messages daily",
+        "25 private Projects",
+        "5,000 included messages daily",
+        "200 private Projects",
+        "demanding individual workflows",
+        "Premium video and other high-compute generations use Crump Credits.",
+    ):
+        assert expected in source
+
+    for unsupported in (
+        "priority support",
+        "dedicated support",
+        "SSO",
+        "SLA",
+        "admin controls",
+        "procurement",
+    ):
+        assert unsupported.lower() not in source.lower()
+
+
+def test_quick_upgrade_asset_is_versioned_for_web_pwa_and_native():
+    versioned = "/subscription-ui.js?v=5.9.76-truthful-plan-1"
+    sources = (
+        read_public("runtime-body-v1.js"),
+        read_public("sw.js"),
+        (ROOT / "scripts" / "build-native.mjs").read_text(encoding="utf-8"),
+    )
+
+    for source in sources:
+        assert versioned in source
+
+
 def test_plan_center_measurement_is_daily_content_free_and_fail_open():
     billing = read_public("crump-billing-5.1.js")
     analytics = read_public("product-analytics.js")
@@ -166,8 +202,8 @@ def test_plan_center_containment_assets_are_versioned_everywhere():
     for source in sources:
         assert versioned_billing in source
         assert versioned_final in source
-    assert "ask-crump-new-body-v1-r164" in read_public("sw.js")
-    assert "/runtime-body-v1.js?v=5.9.76-desktop-chats-default-1" in read_public("app.html")
+    assert "ask-crump-new-body-v1-r165" in read_public("sw.js")
+    assert "/runtime-body-v1.js?v=5.9.76-truthful-plan-1" in read_public("app.html")
 
 
 def test_browser_fixture_uses_the_production_plan_center_layers():
