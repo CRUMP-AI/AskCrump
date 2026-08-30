@@ -5,6 +5,7 @@
     features: null,
     projects: [],
     activeProject: null,
+    rememberedProjectTarget: null,
     editingProject: null,
     projectView: 'index',
     projectConversations: [],
@@ -27,6 +28,8 @@
   const PROJECT_ROUTE_PARAM = 'project';
   const conversationProjectCache = new Map();
   const conversationProjectRequests = new Map();
+  let storedProjectTargetPromise = null;
+  let storedProjectTargetId = '';
   const FEATURE_ACCESS_CODES = new Set([
     'SUBSCRIPTION_REQUIRED',
     'CREDITS_REQUIRED',
@@ -44,8 +47,12 @@
   }
 
   function storeProject(value) {
+    const normalized = String(value || '').trim();
+    if (String(state.rememberedProjectTarget?.id || '') !== normalized) {
+      state.rememberedProjectTarget = null;
+    }
     try {
-      if (value) localStorage.setItem('askcrump.activeProject53', value);
+      if (normalized) localStorage.setItem('askcrump.activeProject53', normalized);
       else localStorage.removeItem('askcrump.activeProject53');
     } catch (_) { /* storage is optional */ }
   }
@@ -78,11 +85,17 @@
   }
 
   function currentProjectTarget() {
-    const id = String(state.activeProject?.id || '').trim();
+    const storedProjectId = readStoredProject();
+    const rememberedProject = storedProjectId
+      && String(state.rememberedProjectTarget?.id || '') === storedProjectId
+      ? state.rememberedProjectTarget
+      : null;
+    const project = state.activeProject || rememberedProject;
+    const id = String(project?.id || '').trim();
     if (!id) return null;
     return {
       id,
-      name: String(state.activeProject?.name || 'Project').replace(/\s+/g, ' ').trim() || 'Project',
+      name: String(project?.name || 'Project').replace(/\s+/g, ' ').trim() || 'Project',
     };
   }
 
@@ -973,6 +986,57 @@
       .finally(() => conversationProjectRequests.delete(normalizedChatId));
     conversationProjectRequests.set(normalizedChatId, request);
     return request;
+  }
+
+  async function restoreStoredProjectTarget() {
+    const current = currentProjectTarget();
+    if (current) return current;
+    const projectId = String(readStoredProject() || '').trim();
+    if (!projectId) return null;
+    if (storedProjectTargetPromise && storedProjectTargetId === projectId) {
+      return storedProjectTargetPromise;
+    }
+
+    const request = (async () => {
+      try {
+        const data = await api(
+          `/api/projects/target/${encodeURIComponent(projectId)}`,
+          {timeoutMs: PROJECT_READ_TIMEOUT_MS},
+        );
+        const returnedId = String(data.project?.id || '').trim();
+        if (!returnedId || returnedId !== projectId) return null;
+        const selectedDuringLookup = currentProjectTarget();
+        if (selectedDuringLookup) return selectedDuringLookup;
+        if (readStoredProject() !== projectId) return currentProjectTarget();
+        state.rememberedProjectTarget = {
+          id: returnedId,
+          name: String(data.project?.name || 'Project').replace(/\s+/g, ' ').trim() || 'Project',
+        };
+        notifyProjectTargetChanged();
+        return currentProjectTarget();
+      } catch (_) {
+        // A remembered destination is optional; relationship recognition remains authoritative.
+        return null;
+      }
+    })();
+
+    storedProjectTargetId = projectId;
+    storedProjectTargetPromise = request;
+    try {
+      return await request;
+    } finally {
+      if (storedProjectTargetPromise === request) {
+        storedProjectTargetPromise = null;
+        storedProjectTargetId = '';
+      }
+    }
+  }
+
+  async function resolveOutcomeProject(chatId) {
+    const savedProject = await projectForConversation(chatId);
+    if (savedProject) return {project: savedProject, saved: true};
+    const project = currentProjectTarget() || await restoreStoredProjectTarget();
+    return {project, saved: false};
   }
 
   function projectNameForConversation(chat) {
@@ -2396,6 +2460,7 @@
     openFiles: () => openProjectFiles(),
     projectTarget: () => currentProjectTarget(),
     projectForConversation: chatId => projectForConversation(chatId),
+    resolveOutcomeProject: chatId => resolveOutcomeProject(chatId),
     keepConversation: options => keepConversation(options),
     keepArtifact: (file, options) => keepArtifact(file, options),
     openManuscript: workspace => openManuscriptWorkspace(workspace),

@@ -24,6 +24,7 @@
       <output id="fixtureRequest" aria-label="Save destination">No save yet</output>
       <output id="fixtureFileRequest" aria-label="File destination">No file yet</output>
       <output id="fixtureLookup" aria-label="Project relationship lookups">0</output>
+      <output id="fixtureTargetLookup" aria-label="Remembered project lookups">0</output>
       <output id="fixtureOpened" aria-label="Opened project">Not opened</output>
       <output id="fixtureErrors" aria-label="Browser errors">0</output>
     </div>
@@ -40,6 +41,7 @@
     const fixtureUsesStoredProject = fixtureParams.get('target') !== 'new';
     const fixtureConversationAlreadySaved = fixtureParams.get('saved') === '1';
     const fixtureSlowLookup = fixtureParams.get('lookup') === 'slow';
+    const fixtureStoredLookup = fixtureParams.get('stored') || 'ready';
     if (fixtureUsesStoredProject) {
       localStorage.setItem('askcrump.activeProject53', fixtureProject.id);
     } else {
@@ -65,7 +67,13 @@
         },
       }],
     }];
-    window.__fixture = {requests: [], toasts: [], unexpectedRequests: 0, projectLookups: 0};
+    window.__fixture = {
+      requests: [],
+      toasts: [],
+      unexpectedRequests: 0,
+      projectLookups: 0,
+      targetLookups: 0,
+    };
     const recordBrowserError = () => {
       const output = document.getElementById('fixtureErrors');
       output.textContent = String(Number(output.textContent || 0) + 1);
@@ -101,6 +109,26 @@
           success: true,
           project: fixtureConversationAlreadySaved ? fixtureProject : null,
         }), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      if (url.pathname === `/api/projects/target/${fixtureProject.id}` && method === 'GET') {
+        window.__fixture.targetLookups += 1;
+        document.getElementById('fixtureTargetLookup').textContent = String(window.__fixture.targetLookups);
+        if (fixtureStoredLookup === 'error') {
+          return new Response(JSON.stringify({success: false, error: 'Stored lookup unavailable.'}), {
+            status: 503,
+            headers: {'Content-Type': 'application/json'},
+          });
+        }
+        if (fixtureStoredLookup === 'stale') {
+          return new Response(JSON.stringify({success: false, error: 'Project not found.'}), {
+            status: 404,
+            headers: {'Content-Type': 'application/json'},
+          });
+        }
+        return new Response(JSON.stringify({success: true, project: fixtureProject}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
@@ -164,9 +192,9 @@
       });
     };
   </script>
-  <script src="/public/ui-functions.js?v=project-relationship-guard-1"></script>
+  <script src="/public/ui-functions.js?v=persisted-project-target-1"></script>
   <script src="/public/crump-5.0.js?v=artifact-project-handoff-1"></script>
-  <script src="/public/crump-product-5.3.js?v=project-target-disclosure-3"></script>
+  <script src="/public/crump-product-5.3.js?v=persisted-project-target-1"></script>
   <script>
     window.addEventListener('load', () => window.renderMessages(window.chats[0].messages));
   </script>

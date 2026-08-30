@@ -226,6 +226,34 @@ async def test_project_for_chat_route_returns_null_without_leaking_missing_chat_
     }
 
 
+@pytest.mark.asyncio
+async def test_project_target_route_returns_only_the_owner_scoped_summary(monkeypatch):
+    async def authenticate(*_args, **_kwargs):
+        return type("Auth", (), {"user": {"id": USER_ID}})()
+
+    class Projects:
+        async def get(self, user_id, project_id):
+            assert user_id == USER_ID
+            assert project_id == PROJECT_ID
+            return {
+                "id": PROJECT_ID,
+                "user_id": USER_ID,
+                "name": "Quarterly strategy",
+                "description": "Private description",
+                "instructions": "Private instructions",
+            }
+
+    monkeypatch.setattr(projects_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(projects_routes, "projects", Projects())
+
+    result = await projects_routes.project_target(PROJECT_ID, object())
+
+    assert result == {
+        "success": True,
+        "project": {"id": PROJECT_ID, "name": "Quarterly strategy"},
+    }
+
+
 def test_project_workspace_surfaces_saved_conversations_and_a_private_resume_action():
     product = (ROOT / "public" / "crump-product-5.3.js").read_text(encoding="utf-8")
     route = (ROOT / "backend" / "routes" / "projects.py").read_text(encoding="utf-8")
@@ -423,6 +451,8 @@ def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_
     assert "OutcomeFeedbackSubmitted" not in direct_action
     assert "projectTarget: () => currentProjectTarget()" in product
     assert "projectForConversation: chatId => projectForConversation(chatId)" in product
+    assert "resolveOutcomeProject: chatId => resolveOutcomeProject(chatId)" in product
+    assert "/api/projects/target/" in product
     assert "conversationProjectCache" in product
     assert "/api/projects/for-chat/" in product
     assert "rememberConversationProject(chatId, data.project)" in product
@@ -449,7 +479,7 @@ def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_
     assert "button.disabled = true;" in relationship_guard
     assert "button.setAttribute('aria-busy', 'true');" in relationship_guard
     assert "button.textContent = 'Checking Project…';" in relationship_guard
-    assert relationship_guard.index("button.disabled = true;") < relationship_guard.index("await lookup(chatId)")
+    assert relationship_guard.index("button.disabled = true;") < relationship_guard.index("await resolver(chatId)")
     assert "if (button.dataset.saved !== 'true') syncOutcomeProjectAction(button);" in relationship_guard
     assert "button.disabled = wasDisabled;" in relationship_guard
 
@@ -503,8 +533,8 @@ def test_project_target_disclosure_fixture_covers_selected_and_new_destinations(
         encoding="utf-8"
     )
 
-    assert '<script src="/public/ui-functions.js?v=project-relationship-guard-1"></script>' in fixture
-    assert '<script src="/public/crump-product-5.3.js?v=project-target-disclosure-3"></script>' in fixture
+    assert '<script src="/public/ui-functions.js?v=persisted-project-target-1"></script>' in fixture
+    assert '<script src="/public/crump-product-5.3.js?v=persisted-project-target-1"></script>' in fixture
     assert "Q3 Finance Forecast" in fixture
     assert "Website launch checklist" in fixture
     assert "await wait(120)" in fixture
@@ -513,7 +543,11 @@ def test_project_target_disclosure_fixture_covers_selected_and_new_destinations(
     assert "fixtureSlowLookup" in fixture
     assert "if (fixtureSlowLookup) await wait(1600);" in fixture
     assert "/api/projects/for-chat/" in fixture
+    assert "/api/projects/target/" in fixture
     assert "Project relationship lookups" in fixture
+    assert "Remembered project lookups" in fixture
+    assert "fixtureStoredLookup === 'stale'" in fixture
+    assert "fixtureStoredLookup === 'error'" in fixture
     assert "Opened project" in fixture
     assert "context: {canon: []}" in fixture
     assert "conversations: []" in fixture

@@ -472,7 +472,7 @@ def test_release_version_and_cache_advance_together():
 
     assert '"version": "5.9.76"' in package
     assert "__version__ = '5.9.76'" in backend
-    assert "ask-crump-new-body-v1-r152" in worker
+    assert "ask-crump-new-body-v1-r153" in worker
     assert "/landing-5.6.css?v=5.9.76-truthful-destinations-1" in worker
     assert "/use-case.css?v=5.9.76" in worker
     assert "/landing.js?v=5.9.76-profile-link-1" in worker
@@ -493,7 +493,7 @@ def test_changed_activation_assets_are_release_versioned():
 
     for asset in (
         "/conversation.css?v=5.9.76",
-        "/ui-functions.js?v=5.9.76-project-relationship-guard-1",
+        "/ui-functions.js?v=5.9.76-persisted-project-target-1",
         "/product-analytics.js?v=5.9.76",
         "/app.js?v=5.9.76",
     ):

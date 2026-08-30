@@ -600,8 +600,9 @@
   async function hydrateOutcomeProjectAction(button) {
     if (!button || button.dataset.saved === 'true' || button.dataset.projectLookup === 'pending') return;
     const chatId = String(button.dataset.chatId || '').trim();
+    const resolver = window.CrumpProduct53?.resolveOutcomeProject;
     const lookup = window.CrumpProduct53?.projectForConversation;
-    if (!chatId || typeof lookup !== 'function') return;
+    if (!chatId || (typeof resolver !== 'function' && typeof lookup !== 'function')) return;
     const wasDisabled = button.disabled;
     const previousBusy = button.getAttribute('aria-busy');
     button.dataset.projectLookup = 'pending';
@@ -610,8 +611,12 @@
     button.textContent = 'Checking Project…';
     button.setAttribute('aria-label', 'Checking whether this conversation is already saved to a Project');
     try {
-      const project = await lookup(chatId);
-      if (button.dataset.saved !== 'true') showSavedOutcomeProject(button, project);
+      const resolution = typeof resolver === 'function'
+        ? await resolver(chatId)
+        : {project: await lookup(chatId), saved: true};
+      if (button.dataset.saved !== 'true' && resolution?.saved) {
+        showSavedOutcomeProject(button, resolution.project);
+      }
     } catch (_) {
       // Relationship recognition is fail-open; the existing save action remains available.
     } finally {

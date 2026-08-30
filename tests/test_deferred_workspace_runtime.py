@@ -51,7 +51,7 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/billing-manager.js',
         '/subscription-ui.js',
         '/chat-resilience.js?v=5.9.76-contextual-plan-recovery-1',
-        '/ui-functions.js?v=5.9.76-project-relationship-guard-1',
+        '/ui-functions.js?v=5.9.76-persisted-project-target-1',
         '/presence-manager.js?v=5.9.76',
         '/sync-manager.js?v=5.9.76',
         '/chat-sync.js?v=5.9.76-sync-cadence-1',

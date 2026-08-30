@@ -75,7 +75,7 @@ const loader = String.raw`
     ['/billing-manager.js', 'workspacebilling'],
     ['/subscription-ui.js', 'workspacesubscription'],
     ['/chat-resilience.js?v=5.9.76-contextual-plan-recovery-1', 'workspacechatresilience'],
-    ['/ui-functions.js?v=5.9.76-project-relationship-guard-1', 'workspaceui'],
+    ['/ui-functions.js?v=5.9.76-persisted-project-target-1', 'workspaceui'],
     ['/presence-manager.js?v=5.9.76', 'workspacepresence'],
     ['/sync-manager.js?v=5.9.76', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-sync-cadence-1', 'workspacechatsync'],
@@ -97,7 +97,7 @@ const loader = String.raw`
 
   const finalScripts = Object.freeze([
     ['/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1', 'crumpnav525'],
-    ['/crump-product-5.3.js?v=5.9.76-canonical-files-handoff-1', 'crumpproduct53'],
+    ['/crump-product-5.3.js?v=5.9.76-persisted-project-target-1', 'crumpproduct53'],
     ['/crump-product-5.3.1.js?v=5.9.76-demand-hydration-1', 'crumpproduct531'],
     ['/crump-subscriptions-5.3.2.js?v=5.9.76-billing-timeout-1', 'crumpsubscriptions532'],
     ['/crump-polish-5.6.js', 'crumppolish56'],

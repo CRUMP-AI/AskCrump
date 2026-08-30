@@ -50,7 +50,7 @@ const releaseVersion = String(packageJson.version || '');
 const registrationConsentVersion = `${releaseVersion}-registration-consent-1`;
 const authControllerVersion = `${releaseVersion}-video-files-handoff-1`;
 const canonicalFilesHandoffVersion = `${releaseVersion}-canonical-files-handoff-1`;
-const projectRelationshipGuardVersion = `${releaseVersion}-project-relationship-guard-1`;
+const persistedProjectTargetVersion = `${releaseVersion}-persisted-project-target-1`;
 const requiredBodyFiles = [
   'public/crump-v1-body.css',
   'public/crump-v1-body.js',
@@ -225,12 +225,12 @@ const runtime = await readFile(new URL('public/runtime-body-v1.js', repoRoot), '
 if (!runtime.includes('/billing.css') || !runtime.includes('/onboarding.css') ||
     !runtime.includes(`/conversation.css?v=${releaseVersion}`) ||
     !runtime.includes(`/chat-resilience.js?v=${releaseVersion}`) ||
-    !runtime.includes(`/ui-functions.js?v=${projectRelationshipGuardVersion}`) ||
+    !runtime.includes(`/ui-functions.js?v=${persistedProjectTargetVersion}`) ||
     !runtime.includes(`/product-analytics.js?v=${releaseVersion}`) ||
     !runtime.includes(`/app.js?v=${releaseVersion}`) ||
     !runtime.includes(`/crump-v1-body.js?v=${canonicalFilesHandoffVersion}`) || !runtime.includes('/crump-v1-body.css') ||
     !runtime.includes(`/crump-5.0.js?v=${releaseVersion}`) ||
-    !runtime.includes(`/crump-product-5.3.js?v=${canonicalFilesHandoffVersion}`) || !runtime.includes('/crump-product-5.3.css') ||
+    !runtime.includes(`/crump-product-5.3.js?v=${persistedProjectTargetVersion}`) || !runtime.includes('/crump-product-5.3.css') ||
     !runtime.includes('/crump-product-5.3.1.js') || !runtime.includes('/crump-product-5.3.1.css') ||
     !runtime.includes('/crump-subscriptions-5.3.2.js') ||
     !runtime.includes('/crump-polish-5.6.js') || !runtime.includes('/crump-polish-5.6.css') ||
@@ -343,13 +343,13 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r152') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r153') ||
     !serviceWorker.includes(`/landing.js?v=${releaseVersion}`) ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes(`/conversation.css?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.js?v=${releaseVersion}`) ||
-    !serviceWorker.includes(`/ui-functions.js?v=${projectRelationshipGuardVersion}`) ||
+    !serviceWorker.includes(`/ui-functions.js?v=${persistedProjectTargetVersion}`) ||
     !serviceWorker.includes(`/auth-resilience.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/install-prompt.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/install-prompt.css?v=${releaseVersion}`) ||
@@ -360,7 +360,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r152') ||
     !serviceWorker.includes(`/auth-controller.js?v=${authControllerVersion}`) ||
     !serviceWorker.includes(`/crump-v1-body.css?v=${registrationConsentVersion}`) ||
     !serviceWorker.includes(`/crump-4.3.js?v=${releaseVersion}`) ||
-    !serviceWorker.includes(`/crump-product-5.3.js?v=${canonicalFilesHandoffVersion}`) ||
+    !serviceWorker.includes(`/crump-product-5.3.js?v=${persistedProjectTargetVersion}`) ||
     !serviceWorker.includes("url.pathname === '/conversation.css'") ||
     !serviceWorker.includes("url.pathname === '/chat-resilience.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-5.0.js'") ||

@@ -41,7 +41,7 @@ def test_project_reference_ui_and_chat_rename_are_final_runtime_layers():
     assert runtime.index("/crump-product-5.3.js") < runtime.index("/crump-product-5.3.1.js")
     assert "/crump-product-5.3.1.js?v=5.9.76-demand-hydration-1" in runtime
     assert "/crump-product-5.3.1.js?v=5.9.76-demand-hydration-1" in worker
-    assert "ask-crump-new-body-v1-r152" in worker
+    assert "ask-crump-new-body-v1-r153" in worker
     assert "Reference files" in js
     assert "Project files" in js
     assert "conversationsCard.insertAdjacentElement('afterend', card)" in js

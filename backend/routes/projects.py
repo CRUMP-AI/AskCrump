@@ -136,6 +136,20 @@ async def project_for_chat(chat_id: str, request: Request):
     return {"success": True, "project": project}
 
 
+@router.get("/target/{project_id}")
+async def project_target(project_id: str, request: Request):
+    auth = await authenticate_request(request, db, settings)
+    try:
+        item = await projects.get(auth.user["id"], project_id)
+        project = {
+            "id": str(item.get("id") or ""),
+            "name": str(item.get("name") or "Project"),
+        }
+        return {"success": True, "project": project}
+    except ProjectNotFoundError as exc:
+        return _error(str(exc), "PROJECT_NOT_FOUND", 404)
+
+
 @router.get("/{project_id}/chats")
 async def list_project_chats(project_id: str, request: Request):
     auth = await authenticate_request(request, db, settings)
