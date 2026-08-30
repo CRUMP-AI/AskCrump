@@ -50,12 +50,12 @@
   const REGISTRATION_PLAN_HANDOFFS = Object.freeze({
     professional: {
       title: 'Create your account for Professional.',
-      disclosure: 'Professional is $20/month and remains unpurchased until you review and confirm checkout.',
+      disclosure: 'Professional includes Advanced Intelligence at $20/month and remains unpurchased until you review and confirm checkout.',
       button: 'Create account & review Professional',
     },
     enterprise: {
       title: 'Create your account for Enterprise.',
-      disclosure: 'Enterprise is $50/month and remains unpurchased until you review and confirm checkout.',
+      disclosure: 'Enterprise includes Advanced Intelligence at $50/month and remains unpurchased until you review and confirm checkout.',
       button: 'Create account & review Enterprise',
     },
   });

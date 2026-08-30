@@ -44,11 +44,14 @@ def test_public_plan_comparison_matches_server_enforced_allowances():
         "5,000 included messages each day",
         "200 private Projects",
         "50 research, 2 images, and 100 visual analyses each day",
+        "Advanced Intelligence: Think Longer + Always Review",
         "10-second Cinematic video access",
     ):
         assert expected in landing
 
     assert "Premium video and other high-compute generations use Crump Credits." in landing
+    assert landing.count("Advanced Intelligence: Think Longer + Always Review") == 2
+    assert "Think Longer and premium creation access" not in landing
     assert "Crump Code" not in landing
     assert "Crump Voice" not in landing
 
@@ -67,11 +70,18 @@ def test_signed_in_plan_cards_state_specific_value_and_metering():
             "5,000 included messages daily",
             "200 private Projects",
             "50 research · 2 images · 100 visual analyses daily",
+            "Advanced Intelligence: Think Longer + Always Review",
             "10-second Cinematic video access",
+            "Premium creation access",
             "Premium video and other high-compute generations use Crump Credits.",
         ):
             assert expected in source
+        assert source.count("Advanced Intelligence: Think Longer + Always Review") == 2
         assert "billing51-plan-benefits" in source
+
+    assert "Think Longer and premium creation access" not in billing
+    assert "Think Longer and premium creation access" not in final_billing
+    assert "Think Longer and premium creation access" not in subscriptions
 
     for dynamic_source in (billing, subscriptions):
         assert "textContent = item" in dynamic_source
@@ -143,8 +153,8 @@ def test_both_plan_center_owners_contain_and_restore_modal_focus():
 
 
 def test_plan_center_containment_assets_are_versioned_everywhere():
-    versioned_billing = "/crump-billing-5.1.js?v=5.9.76-monetization-recovery-1"
-    versioned_final = "/crump-5.2.js?v=5.9.76-monetization-recovery-1"
+    versioned_billing = "/crump-billing-5.1.js?v=5.9.76-plan-intelligence-1"
+    versioned_final = "/crump-5.2.js?v=5.9.76-plan-intelligence-1"
     sources = (
         read_public("runtime-body-v1.js"),
         read_public("sw.js"),
@@ -156,8 +166,8 @@ def test_plan_center_containment_assets_are_versioned_everywhere():
     for source in sources:
         assert versioned_billing in source
         assert versioned_final in source
-    assert "ask-crump-new-body-v1-r157" in read_public("sw.js")
-    assert "/runtime-body-v1.js?v=5.9.76-monetization-recovery-1" in read_public("app.html")
+    assert "ask-crump-new-body-v1-r158" in read_public("sw.js")
+    assert "/runtime-body-v1.js?v=5.9.76-plan-intelligence-1" in read_public("app.html")
 
 
 def test_browser_fixture_uses_the_production_plan_center_layers():

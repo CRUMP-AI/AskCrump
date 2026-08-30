@@ -148,6 +148,7 @@
           '5,000 included messages daily',
           '200 private Projects',
           '50 research · 2 images · 100 visual analyses daily',
+          'Advanced Intelligence: Think Longer + Always Review',
           '10-second Cinematic video access',
         ],
         meterNote: 'Premium video and other high-compute generations use Crump Credits.',
@@ -162,7 +163,8 @@
         '500 included messages daily',
         '25 private Projects',
         '20 research · 1 image · 20 visual analyses daily',
-        'Think Longer and premium creation access',
+        'Advanced Intelligence: Think Longer + Always Review',
+        'Premium creation access',
       ],
       meterNote: 'Premium video and other high-compute generations use Crump Credits.',
     };

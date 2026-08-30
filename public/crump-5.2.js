@@ -743,14 +743,14 @@
             <article class="billing51-plan is-featured" data-crump-plan="professional">
               <div class="billing51-plan-top"><strong>Professional</strong><span>$20/month</span></div>
               <p class="billing51-plan-summary">For independent work you return to every day.</p>
-              <ul class="billing51-plan-benefits"><li>500 included messages daily</li><li>25 private Projects</li><li>20 research · 1 image · 20 visual analyses daily</li><li>Think Longer and premium creation access</li></ul>
+              <ul class="billing51-plan-benefits"><li>500 included messages daily</li><li>25 private Projects</li><li>20 research · 1 image · 20 visual analyses daily</li><li>Advanced Intelligence: Think Longer + Always Review</li><li>Premium creation access</li></ul>
               <p class="billing51-plan-meter-note">Premium video and other high-compute generations use Crump Credits.</p>
               <button class="billing51-plan-button" disabled>Loading plan…</button>
             </article>
             <article class="billing51-plan" data-crump-plan="enterprise">
               <div class="billing51-plan-top"><strong>Enterprise</strong><span>$50/month</span></div>
               <p class="billing51-plan-summary">For sustained, high-capacity individual or organization workflows.</p>
-              <ul class="billing51-plan-benefits"><li>5,000 included messages daily</li><li>200 private Projects</li><li>50 research · 2 images · 100 visual analyses daily</li><li>10-second Cinematic video access</li></ul>
+              <ul class="billing51-plan-benefits"><li>5,000 included messages daily</li><li>200 private Projects</li><li>50 research · 2 images · 100 visual analyses daily</li><li>Advanced Intelligence: Think Longer + Always Review</li><li>10-second Cinematic video access</li></ul>
               <p class="billing51-plan-meter-note">Premium video and other high-compute generations use Crump Credits.</p>
               <button class="billing51-plan-button" disabled>Loading plan…</button>
             </article>

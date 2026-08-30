@@ -158,8 +158,8 @@ def test_registration_preserves_allowlisted_creation_and_paid_plan_promises():
     assert 'find completed clips in Projects → Files' in controller
     assert 'keep completed clips in your private Library' not in controller
     assert 'const REGISTRATION_PLAN_HANDOFFS = Object.freeze({' in controller
-    assert 'Professional is $20/month and remains unpurchased until you review and confirm checkout' in controller
-    assert 'Enterprise is $50/month and remains unpurchased until you review and confirm checkout' in controller
+    assert 'Professional includes Advanced Intelligence at $20/month and remains unpurchased until you review and confirm checkout' in controller
+    assert 'Enterprise includes Advanced Intelligence at $50/month and remains unpurchased until you review and confirm checkout' in controller
     assert 'function configureRegistrationHandoff()' in controller
     assert "button.textContent = plan?.button || (creation ? 'Create account & continue' : 'Create free account');" in controller
     assert 'configureRegistrationHandoff();' in controller

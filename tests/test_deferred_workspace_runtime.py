@@ -23,14 +23,14 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
     ]
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
-        '/runtime-body-v1.js?v=5.9.76-monetization-recovery-1',
+        '/runtime-body-v1.js?v=5.9.76-plan-intelligence-1',
         '/native-runtime.js',
         '/mobile-bridge.js',
         '/safe-storage.js',
         '/install-prompt.js?v=5.9.76',
         '/auth-resilience.js?v=5.9.76',
         '/device-auth.js?v=5.9.76',
-        '/auth-controller.js?v=5.9.76-registration-clarity-1',
+        '/auth-controller.js?v=5.9.76-plan-intelligence-1',
         '/_vercel/insights/script.js',
         '/_vercel/speed-insights/script.js',
     ]
