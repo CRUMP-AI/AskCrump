@@ -290,6 +290,13 @@ provider, privacy, cost, or security gate is incomplete.
   now also survives send, sync, retry, model guidance, and DOCX/PDF packaging rather than collapsing
   to a generic business document. Validate signed-device zoom, legitimate acquisition-to-artifact
   continuation, and return behavior before claiming lift or taking final native screenshots.
+- **Paid Intelligence value:** production 5.9.76 now presents Advanced Intelligence as the same
+  Professional and Enterprise benefit across public pricing, the signed-in Plan center, fallback
+  rendering, and paid-plan registration. Think Longer and Always Review remain enforced by the
+  existing Professional entitlement, and signup still makes clear that account creation does not
+  purchase a plan. Prices, quotas, credits, and checkout behavior remain unchanged. The latest
+  aggregate account, artifact, and plan snapshots are still empty, so treat this as conversion
+  readiness and acquire legitimate external traffic before claiming lift or revisiting price.
 - **Library information architecture:** Production 5.9.63 originally consolidated the manuscript
   bookshelf and saved files. The current 5.9.76 release sharpens that boundary: Library is solely
   the private bookshelf for manuscripts and books, while documents, images, videos, exports, and
