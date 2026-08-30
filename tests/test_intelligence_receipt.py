@@ -61,12 +61,13 @@ def test_intelligence_receipt_assets_are_cache_versioned_atomically():
     shell = read("public/app.html")
     runtime = read("public/runtime-body-v1.js")
     worker = read("public/sw.js")
-    version = "5.9.76-intelligence-receipt-1"
+    receipt_version = "5.9.76-intelligence-receipt-1"
+    runtime_version = "5.9.76-destination-tools-1"
 
-    assert f"/runtime-body-v1.js?v={version}" in shell
-    assert f"/runtime-body-v1.js?v={version}" in worker
+    assert f"/runtime-body-v1.js?v={runtime_version}" in shell
+    assert f"/runtime-body-v1.js?v={runtime_version}" in worker
     for asset in ("conversation.css", "ui-functions.js", "app.js"):
-        versioned = f"/{asset}?v={version}"
+        versioned = f"/{asset}?v={receipt_version}"
         assert versioned in runtime
         assert versioned in worker
-    assert "ask-crump-new-body-v1-r159" in worker
+    assert "ask-crump-new-body-v1-r160" in worker

@@ -423,7 +423,9 @@
       <div id="filePreview" class="file-preview" style="display:none;"></div>
 
       <section class="v1-command-dock" aria-label="Ask Crump composer">
-        <div class="v1-mode-strip" role="toolbar" aria-label="Workspace tools">
+        <!-- Compatibility controls for older internal commands. User-facing
+             destinations live in Intelligence, Create, and the composer add button. -->
+        <div class="v1-mode-strip" hidden aria-hidden="true">
           <button type="button" class="v1-mode-pill is-active" data-v1-command="focus"><span>Ask</span></button>
           <button type="button" class="v1-mode-pill" data-v1-command="research"><span>Research</span></button>
           <button type="button" class="v1-mode-pill" data-v1-command="image"><span>Image</span></button>
@@ -625,7 +627,7 @@
 <input type="file" id="fileInput" accept="image/*,.pdf,.docx,.xlsx,.pptx,.txt,.md,.csv,.tsv,.json,.html,.rtf" aria-label="Choose an attachment" hidden>
 
 <script defer src="/telemetry-config.js?v=5.9.76"></script>
-<script defer src="/runtime-body-v1.js?v=5.9.76-intelligence-receipt-1"></script>
+<script defer src="/runtime-body-v1.js?v=5.9.76-destination-tools-1"></script>
 <script defer src="/native-runtime.js"></script>
 <script defer src="/mobile-bridge.js"></script>
 <script defer src="/safe-storage.js"></script>

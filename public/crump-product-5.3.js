@@ -271,145 +271,21 @@
     };
   }
 
-  const TOOL_MENU_META = Object.freeze({
-    focus: {label: 'Ask', description: 'Think something through'},
-    research: {label: 'Research', description: 'Search current sources'},
-    image: {label: 'Image', description: 'Generate or edit visuals'},
-    document: {label: 'Document', description: 'Build a polished file'},
-    manuscript: {label: 'Manuscript', description: 'Plan and draft long-form work'},
-    video: {label: 'Video', description: 'Create or continue a scene'},
-    file: {label: 'Files', description: 'Attach a reference file'},
-  });
+  function retireLegacyToolStrip(strip) {
+    if (!strip) return;
 
-  function toolKey(button) {
-    if (button?.dataset?.v1Command) return button.dataset.v1Command;
-    if (button?.id === 'crump53DocumentMode') return 'document';
-    if (button?.id === 'crump53ManuscriptMode') return 'manuscript';
-    if (button?.id === 'crump53VideoMode') return 'video';
-    return 'focus';
-  }
-
-  function toolIcon(key) {
-    const paths = {
-      focus: '<path d="M5 7.5h14v9H9l-4 3v-12Z"/><path d="M9 11h6M9 14h4"/>',
-      research: '<circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 4 4M10.5 8v5M8 10.5h5"/>',
-      image: '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="m6.5 16 4-4 3 3 2-2 2 3M15.5 9h.01"/>',
-      document: '<path d="M7 3.5h7l3 3V20H7z"/><path d="M14 3.5V7h3M9.5 11h5M9.5 14h5M9.5 17h3"/>',
-      manuscript: '<path d="M5 5.5A3.5 3.5 0 0 1 8.5 2H19v16H8.5A3.5 3.5 0 0 0 5 21.5z"/><path d="M5 5.5v16M9 6h6M9 9h6"/>',
-      video: '<rect x="3.5" y="5" width="13" height="14" rx="2"/><path d="m16.5 10 4-2v8l-4-2zM8 9l5 3-5 3z"/>',
-      file: '<path d="M4 7h6l2 2h8v10H4z"/><path d="M4 7V5h7l2 2"/>',
-    };
-    return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[key] || paths.focus}</svg>`;
-  }
-
-  function enhanceToolMenu(strip) {
-    if (!strip || strip.dataset.crump53Menu === 'true') return;
-    strip.dataset.crump53Menu = 'true';
-
-    const shell = document.createElement('div');
-    shell.className = 'crump53-tool-shell';
-    const trigger = document.createElement('button');
-    trigger.id = 'crump53ToolTrigger';
-    trigger.type = 'button';
-    trigger.className = 'crump53-tool-trigger';
-    trigger.setAttribute('aria-haspopup', 'menu');
-    trigger.setAttribute('aria-controls', 'crump53ToolMenu');
-    trigger.setAttribute('aria-expanded', 'false');
-    trigger.innerHTML = `
-      <span class="crump53-tool-trigger-mark">${toolIcon('focus')}</span>
-      <span class="crump53-tool-trigger-copy"><small>TOOLS</small><strong data-crump53-tool-label>Ask</strong></span>
-      <span class="crump53-tool-count">7 tools</span>
-      <svg class="crump53-tool-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>`;
-
-    const menu = document.createElement('div');
-    menu.id = 'crump53ToolMenu';
-    menu.className = 'crump53-tool-menu';
-    menu.hidden = true;
-    menu.innerHTML = `
-      <div class="crump53-tool-menu-head">
-        <span><small>ASK CRUMP TOOLS</small><strong>What do you want to do?</strong></span>
-        <i aria-hidden="true">✦</i>
-      </div>`;
-
-    const parent = strip.parentNode;
-    parent.insertBefore(shell, strip);
-    shell.append(trigger, menu);
-    menu.appendChild(strip);
-    strip.classList.add('crump53-tool-grid');
-    strip.setAttribute('role', 'menu');
-    strip.setAttribute('aria-label', 'Create with Crump tools');
-
-    const options = Array.from(strip.querySelectorAll('.v1-mode-pill'));
-    options.forEach(button => {
-      const key = toolKey(button);
-      const meta = TOOL_MENU_META[key] || TOOL_MENU_META.focus;
-      button.dataset.crump53Tool = key;
-      button.classList.add('crump53-tool-option');
-      button.setAttribute('role', 'menuitemradio');
-      button.setAttribute('aria-label', `${meta.label}: ${meta.description}`);
-      button.innerHTML = `
-        <span class="crump53-tool-icon">${toolIcon(key)}</span>
-        <span class="crump53-tool-option-copy"><strong>${meta.label}</strong><small>${meta.description}</small></span>`;
-    });
-
-    const choose = button => {
-      if (!button) return;
-      const key = toolKey(button);
-      const meta = TOOL_MENU_META[key] || TOOL_MENU_META.focus;
-      options.forEach(option => {
-        const selected = option === button;
-        option.classList.toggle('is-active', selected);
-        option.setAttribute('aria-checked', selected ? 'true' : 'false');
-      });
-      const label = trigger.querySelector('[data-crump53-tool-label]');
-      const mark = trigger.querySelector('.crump53-tool-trigger-mark');
-      if (label) label.textContent = meta.label;
-      if (mark) mark.innerHTML = toolIcon(key);
-    };
-
-    const setOpen = open => {
-      const next = Boolean(open);
-      menu.hidden = !next;
-      shell.classList.toggle('is-open', next);
-      trigger.setAttribute('aria-expanded', next ? 'true' : 'false');
-    };
-
-    choose(options.find(button => button.classList.contains('is-active')) || options[0]);
-    trigger.addEventListener('click', () => setOpen(menu.hidden));
-    menu.addEventListener('click', event => {
-      const button = event.target.closest('.v1-mode-pill');
-      if (!button || !strip.contains(button)) return;
-      choose(button);
-      setOpen(false);
-    }, true);
-    shell.addEventListener('keydown', event => {
-      const current = event.target.closest('.v1-mode-pill');
-      if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && event.target === trigger) {
-        event.preventDefault();
-        setOpen(true);
-        (options.find(button => button.classList.contains('is-active')) || options[0])?.focus();
-        return;
-      }
-      if (current && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
-        event.preventDefault();
-        const index = options.indexOf(current);
-        const offset = event.key === 'ArrowDown' ? 1 : -1;
-        options[(index + offset + options.length) % options.length]?.focus();
-      }
-      if (event.key === 'Escape' && !menu.hidden) {
-        event.preventDefault();
-        setOpen(false);
-        trigger.focus();
-      }
-    });
-    document.addEventListener('click', event => {
-      if (!shell.contains(event.target)) setOpen(false);
-    });
-
-    new MutationObserver(() => {
-      const active = options.find(button => button.classList.contains('is-active'));
-      if (active) choose(active);
-    }).observe(strip, {subtree: true, attributes: true, attributeFilter: ['class']});
+    // These controls remain as programmatic compatibility targets while their
+    // user-facing destinations live in one intentional place:
+    // Research in Intelligence, creation in Create, and files on the + button.
+    const legacyShell = strip.closest('.crump53-tool-shell');
+    if (legacyShell?.parentNode) {
+      legacyShell.parentNode.insertBefore(strip, legacyShell);
+      legacyShell.remove();
+    }
+    strip.hidden = true;
+    strip.setAttribute('aria-hidden', 'true');
+    strip.removeAttribute('role');
+    strip.removeAttribute('aria-label');
   }
 
   function injectNavigation() {
@@ -463,7 +339,7 @@
       strip.insertBefore(manuscriptButton, filesPill || null);
       strip.insertBefore(videoButton, filesPill || null);
     }
-    enhanceToolMenu(strip);
+    retireLegacyToolStrip(strip);
   }
 
   function injectStudio() {

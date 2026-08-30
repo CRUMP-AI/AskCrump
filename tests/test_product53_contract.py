@@ -13,10 +13,10 @@ def test_product53_runtime_is_registered_last_and_cached():
     checker = read("scripts/check-javascript.mjs")
     assert "/crump-product-5.3.css" in runtime
     assert "/crump-product-5.3.js" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-persisted-project-target-1" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-persisted-project-target-1" in worker
+    assert "/crump-product-5.3.js?v=5.9.76-destination-tools-1" in runtime
+    assert "/crump-product-5.3.js?v=5.9.76-destination-tools-1" in worker
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r159" in worker
+    assert "ask-crump-new-body-v1-r160" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 
@@ -129,6 +129,8 @@ def test_library_is_one_dedicated_destination_instead_of_a_workspace_tab():
     library = read("public/crump-library-5.7.js")
     navigation = read("public/crump-navigation-5.9.30.js")
     styles = read("public/crump-product-5.3.css")
+    shell = read("public/app.html")
+    body = read("public/crump-v1-body.js")
 
     assert 'id="crump53Sheet"' in product
     assert 'id="crump53Sheet" role="dialog" aria-modal="false"' in product
@@ -139,7 +141,8 @@ def test_library_is_one_dedicated_destination_instead_of_a_workspace_tab():
     assert "projects: {kicker: 'WORKSPACE', title: 'Projects', label: 'Ask Crump Projects'}" in product
     assert "library: {kicker: 'PRIVATE LIBRARY', title: 'Library', label: 'Ask Crump Library'}" in product
     assert "filesPill.addEventListener" not in product
-    assert "file: {label: 'Files', description: 'Attach a reference file'}" in product
+    assert 'id="attachBtn"' in shell
+    assert "forwardClick('attachBtn')" in body
     assert "Open your private Library" not in product
     assert "if (tab === 'library') void window.CrumpLibrary57?.refresh?.();" in product
     assert "const libraryPanel = document.querySelector('[data-crump53-panel=\"library\"]')" in library
@@ -205,13 +208,14 @@ def test_private_video_library_uses_owner_checked_inline_playback():
     assert ".crump53-playback-state" in styles
 
 
-def test_compact_creation_menu_preserves_every_tool():
+def test_legacy_tools_menu_is_retired_but_internal_mode_targets_remain():
     product = read("public/crump-product-5.3.js")
     styles = read("public/crump-product-5.3.css")
-    for tool in ("focus", "research", "image", "document", "manuscript", "video", "file"):
-        assert f"{tool}: {{label:" in product
-    assert "enhanceToolMenu(strip)" in product
-    assert ".crump53-tool-menu" in styles
+    for target in ("crump53DocumentMode", "crump53ManuscriptMode", "crump53VideoMode"):
+        assert target in product
+    assert "retireLegacyToolStrip(strip)" in product
+    assert ".v1-mode-strip[hidden]" in styles
+    assert ".crump53-tool-menu" not in styles
 
 
 def test_feature_policy_has_explicit_expensive_tool_gates():
