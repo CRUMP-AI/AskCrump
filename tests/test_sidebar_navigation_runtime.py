@@ -11,6 +11,8 @@ def test_runtime_loads_navigation_cleanup_last():
     runtime = read("public/runtime-body-v1.js")
     assert "crump-navigation-5.2.5.css" in runtime
     assert "crump-navigation-5.2.5.js" in runtime
+    assert "/crump-v1-body.js?v=5.9.76-chats-language-1" in runtime
+    assert "/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1" in runtime
     assert runtime.index("crump-v1-stability.js") < runtime.index("crump-navigation-5.2.5.js")
 
 
@@ -55,4 +57,6 @@ def test_destination_fallback_restores_core_sidebar_routes_without_double_openin
     assert "window.CrumpProduct53?.open?.('projects');" in script
     assert "const destinationId = destination.id;" in script
     assert "openDestination(destinationId);" in script
-    assert "byId('menuBtn')?.setAttribute('aria-expanded', 'false');" in script
+    assert "menu?.setAttribute('aria-expanded', 'false');" in script
+    assert "menu?.setAttribute('aria-label', 'Open Chats');" in script
+    assert "window.CrumpBodyV1?.syncConversationLibrary?.();" in script

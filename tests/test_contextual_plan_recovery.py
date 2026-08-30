@@ -82,4 +82,4 @@ def test_contextual_recovery_assets_are_registered_for_web_pwa_and_native():
     assert f"/chat-resilience.js?v={context_version}" in worker
     assert f"/crump-product-5.3.js?v={context_version}" in runtime
     assert f"/crump-product-5.3.js?v={context_version}" in worker
-    assert "ask-crump-new-body-v1-r148" in worker
+    assert "ask-crump-new-body-v1-r149" in worker

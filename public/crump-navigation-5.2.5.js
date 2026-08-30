@@ -9,7 +9,11 @@
   function closeMobileSidebar() {
     byId('sidebar')?.classList.remove('active');
     byId('sidebarOverlay')?.classList.remove('active');
-    byId('menuBtn')?.setAttribute('aria-expanded', 'false');
+    const menu = byId('menuBtn');
+    menu?.setAttribute('aria-expanded', 'false');
+    menu?.setAttribute('aria-label', 'Open Chats');
+    menu?.setAttribute('title', 'Open Chats');
+    window.CrumpBodyV1?.syncConversationLibrary?.();
   }
 
   function removeDuplicateRailDestinations() {

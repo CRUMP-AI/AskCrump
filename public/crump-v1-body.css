@@ -835,7 +835,7 @@ body.crump-v1-body .v1-rail-primary {
   color: #ddc78f;
 }
 
-/* Conversation library */
+/* Chats sidebar (legacy library class names retained for compatibility). */
 body.crump-v1-body .v1-library {
   position: relative !important;
   top: auto !important;

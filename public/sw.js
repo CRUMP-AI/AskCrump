@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r148';
+const CACHE_NAME = 'ask-crump-new-body-v1-r149';
 
 const CORE = [
   '/app',
@@ -16,11 +16,11 @@ const CORE = [
   '/conversation.css?v=5.9.76',
   '/auth-styles.css',
   '/crump-v1-body.css?v=5.9.76-registration-consent-1',
-  '/crump-v1-body.js',
+  '/crump-v1-body.js?v=5.9.76-chats-language-1',
   '/crump-v1-stability.css',
   '/crump-v1-stability.js',
   '/crump-navigation-5.2.5.css',
-  '/crump-navigation-5.2.5.js',
+  '/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1',
   '/crump-navigation-5.9.30.css?v=5.9.76-chats-hierarchy-1',
   '/crump-navigation-5.9.30.js?v=5.9.76-chats-hierarchy-1',
   '/crump-code-5.9.35.css',

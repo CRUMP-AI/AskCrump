@@ -64,7 +64,7 @@ def test_auth_transport_is_release_versioned_and_network_first():
     )
     assert "'/auth-resilience.js?v=5.9.76'" in worker
     assert "url.pathname === '/auth-resilience.js'" in worker
-    assert "ask-crump-new-body-v1-r148" in worker
+    assert "ask-crump-new-body-v1-r149" in worker
 
 
 def test_auth_stall_fixtures_are_loopback_only_and_load_real_runtime_assets():

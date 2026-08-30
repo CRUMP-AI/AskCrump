@@ -52,7 +52,9 @@ def test_credit_badge_remains_attached_and_mobile_destination_click_closes_drawe
     assert "#settingsBtn, #upgradeBtnSidebar, #crump53ProjectsSidebar" in cleanup
     assert "byId('sidebar')?.classList.remove('active');" in cleanup
     assert "byId('sidebarOverlay')?.classList.remove('active');" in cleanup
-    assert "byId('menuBtn')?.setAttribute('aria-expanded', 'false');" in cleanup
+    assert "menu?.setAttribute('aria-expanded', 'false');" in cleanup
+    assert "menu?.setAttribute('aria-label', 'Open Chats');" in cleanup
+    assert "window.CrumpBodyV1?.syncConversationLibrary?.();" in cleanup
     assert cleanup.index("openDestination(destinationId);") < cleanup.index("closeMobileSidebar();", cleanup.index("openDestination(destinationId);"))
     assert "#upgradeBtnSidebar .billing51-sidebar-balance" in cleanup_css
     assert "margin-left: auto" in cleanup_css
@@ -95,7 +97,8 @@ def test_final_desktop_navigation_keeps_a_permanent_chats_toggle():
     assert "function conversationLibraryMarkup()" in navigation
     assert "data-crump5930-library-toggle" in navigation
     assert 'aria-label="Hide Chats"' in navigation
-    assert "const action = expanded ? 'Hide' : 'Show'" in body
+    assert ": (expanded ? 'Hide' : 'Show')" in body
+    assert "? (expanded ? 'Close' : 'Open')" in body
     assert "window.CrumpBodyV1?.toggleConversationLibrary?.()" in navigation
     assert "window.CrumpBodyV1?.syncConversationLibrary?.()" in navigation
     assert "syncConversationLibrary: syncLibraryControl" in body
@@ -112,3 +115,12 @@ def test_mobile_sidebar_browser_fixture_uses_the_production_navigation_layers():
     assert '/public/crump-product-5.3.1.js' in fixture
     assert '/public/crump-navigation-5.9.30.js' in fixture
     assert 'aria-label="Conversation options"' not in fixture
+
+
+def test_runtime_and_native_shell_load_the_chats_language_revision():
+    runtime = (ROOT / "public" / "runtime-body-v1.js").read_text(encoding="utf-8")
+    native = (ROOT / "scripts" / "build-native.mjs").read_text(encoding="utf-8")
+
+    for source in (runtime, native):
+        assert "/crump-v1-body.js?v=5.9.76-chats-language-1" in source
+        assert "/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1" in source

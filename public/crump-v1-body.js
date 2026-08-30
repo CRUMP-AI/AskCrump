@@ -123,12 +123,18 @@
       ? sidebar.classList.contains('active')
       : !document.body.classList.contains('v1-library-collapsed');
     controls.forEach(control => {
-      const chatsUtility = control.hasAttribute('data-crump5930-library-toggle');
+      const chatsDrawerControl = control.hasAttribute('data-crump5930-library-toggle')
+        || control.matches('[data-v1-command="library"]');
+      const mobileMenu = control.id === 'menuBtn';
       control.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-      control.classList.toggle(chatsUtility ? 'is-open' : 'is-active', expanded);
-      if (chatsUtility) {
+      control.classList.toggle(chatsDrawerControl ? 'is-open' : 'is-active', expanded);
+      if (chatsDrawerControl) {
         control.classList.remove('is-active');
-        const action = expanded ? 'Hide' : 'Show';
+      }
+      if (chatsDrawerControl || mobileMenu) {
+        const action = mobileMenu
+          ? (expanded ? 'Close' : 'Open')
+          : (expanded ? 'Hide' : 'Show');
         control.setAttribute('aria-label', `${action} Chats`);
         control.setAttribute('title', `${action} Chats`);
       }

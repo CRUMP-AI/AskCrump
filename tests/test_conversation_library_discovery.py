@@ -16,6 +16,11 @@ def test_desktop_rail_names_conversations_in_plain_language():
     assert '<span class="v1-rail-label">Chats</span>' in shell
     assert '<span class="v1-rail-label">Projects</span>' in product
     assert 'aria-controls="sidebar" aria-expanded="true"' in shell
+    assert 'aria-label="Chats"' in shell
+    assert 'aria-label="Close Chats"' in shell
+    assert 'aria-label="Open Chats"' in shell
+    assert 'Conversation library' not in shell
+    assert 'conversation library' not in shell
 
 
 def test_conversation_library_control_exposes_and_tracks_its_state():
@@ -24,8 +29,10 @@ def test_conversation_library_control_exposes_and_tracks_its_state():
 
     assert "function syncLibraryControl()" in body
     assert "control.setAttribute('aria-expanded', expanded ? 'true' : 'false')" in body
-    assert "control.classList.toggle(chatsUtility ? 'is-open' : 'is-active', expanded)" in body
-    assert "control.classList.remove('is-active')" in body
+    assert "control.classList.toggle(chatsDrawerControl ? 'is-open' : 'is-active', expanded)" in body
+    assert "if (chatsDrawerControl)" in body
+    assert "const mobileMenu = control.id === 'menuBtn'" in body
+    assert "? (expanded ? 'Close' : 'Open')" in body
     assert "control.setAttribute('aria-label', `${action} Chats`)" in body
     assert "sidebar.setAttribute('aria-hidden', expanded ? 'false' : 'true')" in body
     assert "sidebar.removeAttribute('inert')" in body
@@ -55,4 +62,6 @@ def test_browser_fixture_uses_the_real_rail_assets_without_network_writes():
     assert '/public/assets/brand/crump-shell-lockup-light.png' in fixture
     assert 'data-v1-command="library"' in fixture
     assert '<span class="v1-rail-label">Chats</span>' in fixture
+    assert 'aria-label="Chats"' in fixture
+    assert 'Conversation library' not in fixture
     assert "fetch(" not in fixture
