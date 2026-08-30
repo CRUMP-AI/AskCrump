@@ -38,7 +38,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/billing-manager.js', 'workspacebilling'],
     ['/subscription-ui.js', 'workspacesubscription'],
     ['/chat-resilience.js?v=5.9.76', 'workspacechatresilience'],
-    ['/ui-functions.js?v=5.9.76-referral-1', 'workspaceui'],
+    ['/ui-functions.js?v=5.9.76-project-continuity-1', 'workspaceui'],
     ['/presence-manager.js?v=5.9.76', 'workspacepresence'],
     ['/sync-manager.js?v=5.9.76', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-sync-cadence-1', 'workspacechatsync'],

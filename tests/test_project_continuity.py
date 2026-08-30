@@ -365,6 +365,8 @@ def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_
     assert "group.append(continuityPrompt, projectButton, prompt, ...buttons)" in ui
     assert "group.replaceChildren(continuityPrompt, projectButton, status)" in ui
     assert "Open the Project containing this conversation" in ui
+    assert "projectButton.dataset.projectId = String(result.project?.id" in ui
+    assert "if (await openProject(projectId)) return" in ui
     direct_action = ui[
         ui.index("const continuityPrompt"):
         ui.index("const renderThanks")
@@ -373,6 +375,8 @@ def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_
     assert "OutcomeFeedbackSubmitted" not in direct_action
     assert "projectTarget: () => currentProjectTarget()" in product
     assert "keepConversation: options => keepConversation(options)" in product
+    assert "openProject: projectId => openProject(projectId)" in product
+    assert "return selectProject(normalizedProjectId)" in product
     assert "Object.prototype.hasOwnProperty.call(options, 'projectId')" in product
     assert "const targetProjectId" in product
     assert "keepConversation({projectId: projectButton.dataset.projectId || null})" in ui
@@ -389,10 +393,11 @@ def test_project_save_timeout_fixture_uses_real_product_code_without_credentials
     )
     product = (ROOT / "public" / "crump-product-5.3.js").read_text(encoding="utf-8")
 
-    assert '<script src="/public/ui-functions.js?v=project-save-fixture-4"></script>' in fixture
-    assert '<script src="/public/crump-product-5.3.js?v=project-save-fixture-3"></script>' in fixture
+    assert '<script src="/public/ui-functions.js?v=project-save-fixture-5"></script>' in fixture
+    assert '<script src="/public/crump-product-5.3.js?v=project-save-fixture-4"></script>' in fixture
     assert "fixtureSuccessfulSave" in fixture
     assert "Project save request completed." in fixture
+    assert "window.__fixture.savedProject" in fixture
     assert 'aria-label="Browser errors"' in fixture
     assert "unhandledrejection" in fixture
     assert "Project save request stalled." in fixture

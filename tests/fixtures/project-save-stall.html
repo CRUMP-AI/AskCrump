@@ -31,6 +31,7 @@
       projectRequests: 0,
       abortedProjectRequests: 0,
       unexpectedRequests: 0,
+      savedProject: null,
       toasts: [],
     };
     const recordBrowserError = () => {
@@ -56,7 +57,11 @@
       const url = new URL(String(input), location.href);
       const method = String(options.method || 'GET').toUpperCase();
       if (url.pathname === '/api/projects' && method === 'GET') {
-        return new Response(JSON.stringify({success: true, projects: [], limit: 3}), {
+        return new Response(JSON.stringify({
+          success: true,
+          projects: window.__fixture.savedProject ? [window.__fixture.savedProject] : [],
+          limit: 3,
+        }), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
@@ -72,10 +77,13 @@
         document.getElementById('fixtureRequests').textContent = String(window.__fixture.projectRequests);
         if (fixtureSuccessfulSave) {
           document.getElementById('fixtureStatus').textContent = 'Project save request completed.';
-          return new Response(JSON.stringify({success: true, project: {
+          window.__fixture.savedProject = {
             id: '00000000-0000-4000-8000-000000000052',
             name: 'Launch plan',
-          }}), {
+            description: 'Continued from an Ask Crump conversation.',
+            instructions: '',
+          };
+          return new Response(JSON.stringify({success: true, project: window.__fixture.savedProject}), {
             status: 200,
             headers: {'Content-Type': 'application/json'},
           });
@@ -90,6 +98,18 @@
           }, {once: true});
         });
       }
+      if (window.__fixture.savedProject && url.pathname === `/api/projects/${window.__fixture.savedProject.id}` && method === 'GET') {
+        return new Response(JSON.stringify({success: true, project: window.__fixture.savedProject, context: {canon: []}}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      if (window.__fixture.savedProject && url.pathname === `/api/projects/${window.__fixture.savedProject.id}/chats` && method === 'GET') {
+        return new Response(JSON.stringify({success: true, conversations: []}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
       window.__fixture.unexpectedRequests += 1;
       return new Response(JSON.stringify({success: false, error: 'Unexpected fixture request.'}), {
         status: 500,
@@ -97,8 +117,8 @@
       });
     };
   </script>
-  <script src="/public/ui-functions.js?v=project-save-fixture-4"></script>
-  <script src="/public/crump-product-5.3.js?v=project-save-fixture-3"></script>
+  <script src="/public/ui-functions.js?v=project-save-fixture-5"></script>
+  <script src="/public/crump-product-5.3.js?v=project-save-fixture-4"></script>
   <script>
     window.addEventListener('load', () => window.renderMessages(window.chats[0].messages));
   </script>

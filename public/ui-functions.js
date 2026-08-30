@@ -606,6 +606,18 @@
     syncOutcomeProjectAction(projectButton);
     projectButton.addEventListener('click', async () => {
       if (projectButton.dataset.saved === 'true') {
+        const projectId = String(projectButton.dataset.projectId || '').trim();
+        const openProject = window.CrumpProduct53?.openProject;
+        if (projectId && typeof openProject === 'function') {
+          projectButton.disabled = true;
+          projectButton.setAttribute('aria-busy', 'true');
+          try {
+            if (await openProject(projectId)) return;
+          } finally {
+            projectButton.disabled = false;
+            projectButton.removeAttribute('aria-busy');
+          }
+        }
         window.CrumpProduct53?.open?.('projects');
         return;
       }
@@ -620,6 +632,7 @@
         const result = await keepConversation({projectId: projectButton.dataset.projectId || null});
         if (!result?.success) throw new Error('Projects are still loading. Try again in a moment.');
         continuityPrompt.textContent = `Saved to "${result.project?.name || 'Project'}".`;
+        projectButton.dataset.projectId = String(result.project?.id || projectButton.dataset.projectId || '').trim();
         projectButton.dataset.saved = 'true';
         projectButton.textContent = 'Open Project';
         projectButton.setAttribute('aria-label', 'Open the Project containing this conversation');

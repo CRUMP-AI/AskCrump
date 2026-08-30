@@ -698,6 +698,36 @@
     }
   }
 
+  async function openProject(projectId) {
+    const normalizedProjectId = String(projectId || '').trim();
+    if (!normalizedProjectId) {
+      openStudio('projects');
+      return false;
+    }
+    const studio = byId('crump53Studio');
+    if (!studio) return false;
+    configureStudioSection('projects');
+    studio.hidden = false;
+    document.body.style.overflow = 'hidden';
+    selectStudioPanel('projects');
+
+    let project = state.projects.find(item => String(item.id || '') === normalizedProjectId);
+    if (!project && String(state.activeProject?.id || '') === normalizedProjectId) {
+      project = state.activeProject;
+      state.projects = [project, ...state.projects.filter(item => String(item.id || '') !== normalizedProjectId)];
+    }
+    if (!project) {
+      await refreshProjects();
+      project = state.projects.find(item => String(item.id || '') === normalizedProjectId);
+    }
+    if (!project) {
+      setProjectView('index', {focus: false});
+      setStatus('crump53ProjectStatus', 'That Project could not be opened. Refresh Projects and try again.', true);
+      return false;
+    }
+    return selectProject(normalizedProjectId);
+  }
+
   function closeStudio() {
     const studio = byId('crump53Studio');
     if (studio) studio.hidden = true;
@@ -2228,6 +2258,7 @@
 
   window.CrumpProduct53 = Object.freeze({
     open: openStudio,
+    openProject: projectId => openProject(projectId),
     projectTarget: () => currentProjectTarget(),
     keepConversation: options => keepConversation(options),
     openManuscript: workspace => openManuscriptWorkspace(workspace),
