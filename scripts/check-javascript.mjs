@@ -49,8 +49,8 @@ const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot),
 const releaseVersion = String(packageJson.version || '');
 const registrationConsentVersion = `${releaseVersion}-registration-consent-1`;
 const authControllerVersion = `${releaseVersion}-video-files-handoff-1`;
-const durableProjectRecognitionVersion = `${releaseVersion}-durable-project-recognition-1`;
 const canonicalFilesHandoffVersion = `${releaseVersion}-canonical-files-handoff-1`;
+const projectRelationshipGuardVersion = `${releaseVersion}-project-relationship-guard-1`;
 const requiredBodyFiles = [
   'public/crump-v1-body.css',
   'public/crump-v1-body.js',
@@ -225,7 +225,7 @@ const runtime = await readFile(new URL('public/runtime-body-v1.js', repoRoot), '
 if (!runtime.includes('/billing.css') || !runtime.includes('/onboarding.css') ||
     !runtime.includes(`/conversation.css?v=${releaseVersion}`) ||
     !runtime.includes(`/chat-resilience.js?v=${releaseVersion}`) ||
-    !runtime.includes(`/ui-functions.js?v=${durableProjectRecognitionVersion}`) ||
+    !runtime.includes(`/ui-functions.js?v=${projectRelationshipGuardVersion}`) ||
     !runtime.includes(`/product-analytics.js?v=${releaseVersion}`) ||
     !runtime.includes(`/app.js?v=${releaseVersion}`) ||
     !runtime.includes(`/crump-v1-body.js?v=${canonicalFilesHandoffVersion}`) || !runtime.includes('/crump-v1-body.css') ||
@@ -343,13 +343,13 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r151') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r152') ||
     !serviceWorker.includes(`/landing.js?v=${releaseVersion}`) ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes(`/conversation.css?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.js?v=${releaseVersion}`) ||
-    !serviceWorker.includes(`/ui-functions.js?v=${durableProjectRecognitionVersion}`) ||
+    !serviceWorker.includes(`/ui-functions.js?v=${projectRelationshipGuardVersion}`) ||
     !serviceWorker.includes(`/auth-resilience.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/install-prompt.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/install-prompt.css?v=${releaseVersion}`) ||
@@ -453,6 +453,20 @@ if (freshRegistrationScenario.afterLoad !== 0 || freshRegistrationScenario.after
 }
 
 const uiFunctions = await readFile(new URL('public/ui-functions.js', repoRoot), 'utf8');
+const projectRelationshipGuard = uiFunctions.slice(
+  uiFunctions.indexOf('async function hydrateOutcomeProjectAction'),
+  uiFunctions.indexOf('function syncOutcomeProjectActions'),
+);
+if (!projectRelationshipGuard.includes("button.dataset.projectLookup = 'pending';") ||
+    !projectRelationshipGuard.includes('button.disabled = true;') ||
+    !projectRelationshipGuard.includes("button.setAttribute('aria-busy', 'true');") ||
+    !projectRelationshipGuard.includes("button.textContent = 'Checking Project…';") ||
+    !projectRelationshipGuard.includes("if (button.dataset.saved !== 'true') syncOutcomeProjectAction(button);") ||
+    !projectRelationshipGuard.includes('button.disabled = wasDisabled;') ||
+    projectRelationshipGuard.indexOf('button.disabled = true;') > projectRelationshipGuard.indexOf('await lookup(chatId)')) {
+  console.error('A Project continuity action must stay unavailable until its owner-scoped relationship lookup settles.');
+  process.exit(1);
+}
 const markdownWindow = {
   crypto: { randomUUID: () => 'markdown-contract' },
   location: { origin: 'https://www.askcrump.com' },

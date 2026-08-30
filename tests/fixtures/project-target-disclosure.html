@@ -39,6 +39,7 @@
     const fixtureParams = new URLSearchParams(location.search);
     const fixtureUsesStoredProject = fixtureParams.get('target') !== 'new';
     const fixtureConversationAlreadySaved = fixtureParams.get('saved') === '1';
+    const fixtureSlowLookup = fixtureParams.get('lookup') === 'slow';
     if (fixtureUsesStoredProject) {
       localStorage.setItem('askcrump.activeProject53', fixtureProject.id);
     } else {
@@ -95,6 +96,7 @@
       if (url.pathname === `/api/projects/for-chat/${fixtureChatId}` && method === 'GET') {
         window.__fixture.projectLookups += 1;
         document.getElementById('fixtureLookup').textContent = String(window.__fixture.projectLookups);
+        if (fixtureSlowLookup) await wait(1600);
         return new Response(JSON.stringify({
           success: true,
           project: fixtureConversationAlreadySaved ? fixtureProject : null,
@@ -162,7 +164,7 @@
       });
     };
   </script>
-  <script src="/public/ui-functions.js?v=project-target-disclosure-3"></script>
+  <script src="/public/ui-functions.js?v=project-relationship-guard-1"></script>
   <script src="/public/crump-5.0.js?v=artifact-project-handoff-1"></script>
   <script src="/public/crump-product-5.3.js?v=project-target-disclosure-3"></script>
   <script>

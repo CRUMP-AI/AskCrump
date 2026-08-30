@@ -75,7 +75,7 @@ const loader = String.raw`
     ['/billing-manager.js', 'workspacebilling'],
     ['/subscription-ui.js', 'workspacesubscription'],
     ['/chat-resilience.js?v=5.9.76-contextual-plan-recovery-1', 'workspacechatresilience'],
-    ['/ui-functions.js?v=5.9.76-durable-project-recognition-1', 'workspaceui'],
+    ['/ui-functions.js?v=5.9.76-project-relationship-guard-1', 'workspaceui'],
     ['/presence-manager.js?v=5.9.76', 'workspacepresence'],
     ['/sync-manager.js?v=5.9.76', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-sync-cadence-1', 'workspacechatsync'],

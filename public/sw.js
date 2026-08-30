@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r151';
+const CACHE_NAME = 'ask-crump-new-body-v1-r152';
 
 const CORE = [
   '/app',
@@ -45,7 +45,7 @@ const CORE = [
   '/billing-manager.js',
   '/subscription-ui.js',
   '/chat-resilience.js?v=5.9.76-contextual-plan-recovery-1',
-  '/ui-functions.js?v=5.9.76-durable-project-recognition-1',
+  '/ui-functions.js?v=5.9.76-project-relationship-guard-1',
   '/presence-manager.js?v=5.9.76',
   '/auth-resilience.js?v=5.9.76',
   '/device-auth.js?v=5.9.76',

@@ -602,7 +602,13 @@
     const chatId = String(button.dataset.chatId || '').trim();
     const lookup = window.CrumpProduct53?.projectForConversation;
     if (!chatId || typeof lookup !== 'function') return;
+    const wasDisabled = button.disabled;
+    const previousBusy = button.getAttribute('aria-busy');
     button.dataset.projectLookup = 'pending';
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    button.textContent = 'Checking Project…';
+    button.setAttribute('aria-label', 'Checking whether this conversation is already saved to a Project');
     try {
       const project = await lookup(chatId);
       if (button.dataset.saved !== 'true') showSavedOutcomeProject(button, project);
@@ -610,6 +616,10 @@
       // Relationship recognition is fail-open; the existing save action remains available.
     } finally {
       delete button.dataset.projectLookup;
+      if (button.dataset.saved !== 'true') syncOutcomeProjectAction(button);
+      button.disabled = wasDisabled;
+      if (previousBusy === null) button.removeAttribute('aria-busy');
+      else button.setAttribute('aria-busy', previousBusy);
     }
   }
 

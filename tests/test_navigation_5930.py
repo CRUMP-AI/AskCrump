@@ -20,7 +20,7 @@ def test_five_destination_navigation_is_final_runtime_layer_and_boot_critical():
         assert asset.lstrip("/") in checker
 
     assert runtime.index("/crump-library-5.7.js") < runtime.index("/crump-navigation-5.9.30.js")
-    assert "ask-crump-new-body-v1-r151" in worker
+    assert "ask-crump-new-body-v1-r152" in worker
     assert "/crump-navigation-5.9.30.css?v=5.9.76-chats-hierarchy-1" in runtime
     assert "/crump-navigation-5.9.30.js?v=5.9.76-chats-hierarchy-1" in runtime
 

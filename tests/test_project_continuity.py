@@ -441,6 +441,18 @@ def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_
     assert 'event_key="first-durable-project"' in route
     assert 'artifact_type="project"' in route
 
+    relationship_guard = ui[
+        ui.index("async function hydrateOutcomeProjectAction"):
+        ui.index("function syncOutcomeProjectActions")
+    ]
+    assert "button.dataset.projectLookup = 'pending';" in relationship_guard
+    assert "button.disabled = true;" in relationship_guard
+    assert "button.setAttribute('aria-busy', 'true');" in relationship_guard
+    assert "button.textContent = 'Checking Project…';" in relationship_guard
+    assert relationship_guard.index("button.disabled = true;") < relationship_guard.index("await lookup(chatId)")
+    assert "if (button.dataset.saved !== 'true') syncOutcomeProjectAction(button);" in relationship_guard
+    assert "button.disabled = wasDisabled;" in relationship_guard
+
 
 def test_generated_artifact_can_join_a_project_with_its_source_conversation():
     ui = (ROOT / "public" / "crump-5.0.js").read_text(encoding="utf-8")
@@ -491,13 +503,15 @@ def test_project_target_disclosure_fixture_covers_selected_and_new_destinations(
         encoding="utf-8"
     )
 
-    assert '<script src="/public/ui-functions.js?v=project-target-disclosure-3"></script>' in fixture
+    assert '<script src="/public/ui-functions.js?v=project-relationship-guard-1"></script>' in fixture
     assert '<script src="/public/crump-product-5.3.js?v=project-target-disclosure-3"></script>' in fixture
     assert "Q3 Finance Forecast" in fixture
     assert "Website launch checklist" in fixture
     assert "await wait(120)" in fixture
     assert "fixtureUsesStoredProject" in fixture
     assert "fixtureConversationAlreadySaved" in fixture
+    assert "fixtureSlowLookup" in fixture
+    assert "if (fixtureSlowLookup) await wait(1600);" in fixture
     assert "/api/projects/for-chat/" in fixture
     assert "Project relationship lookups" in fixture
     assert "Opened project" in fixture
