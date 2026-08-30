@@ -31,9 +31,9 @@ Mobile reduced the rail to a conversation menu and left the product hierarchy im
 | Destination | User job | Existing surface reused | Preserved behavior |
 | --- | --- | --- | --- |
 | Ask | Think, decide, research, work from files, or continue a conversation | Main conversation workspace, launchpad, composer tools, research mode | Conversations, sync, memory, file intake, current chat state, and model orchestration |
-| Projects | Keep ongoing work, instructions, canon, files, manuscripts, and conversations together | Existing owner-scoped Projects panel | Project APIs, ownership checks, limits, Project-to-chat associations, and saved context |
+| Projects | Keep ongoing work, instructions, canon, files, manuscripts, and conversations together | Existing owner-scoped Projects panel plus its separate Files view | Project APIs, ownership checks, limits, Project-to-chat associations, saved context, and access to unassigned private files |
 | Create | Choose an output before entering its focused setup | New non-generating hub handing off to existing document, PowerPoint, image, manuscript, and video tools | Existing feature gates, credit costs, provider selection, generation flows, and private file storage |
-| Library | Find and reuse saved files and creations | Existing private saved-library panel | Owner-scoped file listing, playback, download, reuse, filters, and deletion behavior |
+| Library | Read, import, and manage manuscripts and books | Existing private manuscript bookshelf | Owner-scoped book and manuscript listing, reading, import, editing, export, and deletion behavior |
 | You | Manage profile, behavior, account, privacy, and device settings | Existing Settings dialog | Authentication, device sessions, profile persistence, sign-out, and account-deletion path |
 
 Research stays inside Ask because it changes how a conversation reasons; it is not a separate
@@ -83,8 +83,10 @@ destination layer. Neither path changes server data.
 
 The staged navigation is now reflected inside the product surfaces as well as the primary rail:
 
-- Library opens one dedicated Library containing the manuscript bookshelf and saved files.
+- Library opens one dedicated bookshelf containing manuscripts and books only.
 - Projects opens one dedicated Projects workspace.
+- Projects includes a separate Files view for documents, images, video, exports, and uploads,
+  including private files that are not yet attached to a named Project.
 - Manuscripts and Video Studio open as focused Create destinations without an internal tab bar.
 - Manuscripts provides an explicit `Open Projects` recovery when no active Project exists.
 - Files remains the reference-file attachment action.

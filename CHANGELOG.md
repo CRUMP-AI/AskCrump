@@ -2,6 +2,16 @@
 
 ## 5.9.76 — 2026-08-29
 
+### Books-only Library and separate Files
+
+- Made Library solely the private bookshelf for manuscripts and books created with Crump or
+  imported by the user.
+- Preserved documents, images, videos, exports, and uploads under Projects → Files, including
+  existing private files that are not attached to a named Project; no record is migrated or
+  deleted.
+- Updated finished-video handoffs, the replayable tutorial, store-listing source, generated-native
+  runtime, and PWA cache revision 132 to teach and ship the same information architecture.
+
 ### Project-first workspace hierarchy
 
 - Made an opened Project lead with the work itself: start a Project chat, continue in the current

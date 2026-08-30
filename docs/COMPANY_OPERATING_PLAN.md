@@ -290,11 +290,12 @@ provider, privacy, cost, or security gate is incomplete.
   now also survives send, sync, retry, model guidance, and DOCX/PDF packaging rather than collapsing
   to a generic business document. Validate signed-device zoom, legitimate acquisition-to-artifact
   continuation, and return behavior before claiming lift or taking final native screenshots.
-- **Library information architecture:** Production 5.9.63 makes Library one top-level private
-  destination containing the manuscript bookshelf and saved documents, images, videos, exports, and
-  uploads. It removes the redundant Saved/Library workspace tab, leaves Chats as conversation
-  history, and restores Files to attachment. Projects, Create, and existing owner-scoped workflows
-  remain intact; saved-artifact reuse and return outcomes remain unobserved.
+- **Library information architecture:** Production 5.9.63 originally consolidated the manuscript
+  bookshelf and saved files. The current 5.9.76 release sharpens that boundary: Library is solely
+  the private bookshelf for manuscripts and books, while documents, images, videos, exports, and
+  uploads remain accessible under Projects → Files. Chats stays conversation history, the composer
+  Files action stays attachment, and no stored record is migrated or deleted. Reuse and return
+  outcomes remain unobserved.
 - **Destination isolation:** Production 5.9.64 removes the remaining Projects, Manuscripts, and
   Video internal tabs. Projects, Manuscripts, Video Studio, and Library now open as separately
   titled focused workspaces, while the primary navigation alone communicates location. Manuscripts

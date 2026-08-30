@@ -26,7 +26,7 @@ textually aligned with it. Reviewer credentials belong only in the ignored
 
 Ask Crump is a multimodal AI workspace built to help you move from an idea to something useful.
 
-The workspace stays clear across five destinations: Ask, Projects, Create, Library, and You. Ask handles conversations and guided research. Projects keep instructions, reference files, conversations, and creations together. Create brings documents, presentations, images, short video, and long-form manuscript work into one place. Library holds uploaded files and generated work. You contains settings, sessions, purchase restoration, and account controls.
+The workspace stays clear across five destinations: Ask, Projects, Create, Library, and You. Ask handles conversations and guided research. Projects keep instructions, reference files, conversations, creations, and a separate Files view together. Create brings documents, presentations, images, short video, and long-form manuscript work into one place. Library is a private bookshelf for manuscripts and books. You contains settings, sessions, purchase restoration, and account controls.
 
 Create and organize:
 
@@ -35,7 +35,7 @@ Create and organize:
 - images and multi-engine short-form video, including compatible scene continuation
 - editable documents, presentations, and exportable files
 - structured long-form manuscript projects
-- uploaded files and generated creations in Library
+- a private manuscript and book Library, with files kept separately under Projects
 
 Stay in control:
 
@@ -57,7 +57,7 @@ Some features require a paid plan, credits, provider availability, or an interne
 
 Ask Crump is a multimodal AI workspace for turning questions and ideas into useful work.
 
-The workspace is organized around five clear destinations: Ask, Projects, Create, Library, and You. Ask handles conversations and guided research. Projects keep ongoing work and reference context together. Create brings documents, presentations, images, short video, and long-form manuscript work into one place. Library holds uploaded files and generated work. You contains settings, sessions, purchase restoration, and account controls.
+The workspace is organized around five clear destinations: Ask, Projects, Create, Library, and You. Ask handles conversations and guided research. Projects keep ongoing work, reference context, and a separate Files view together. Create brings documents, presentations, images, short video, and long-form manuscript work into one place. Library is a private bookshelf for manuscripts and books. You contains settings, sessions, purchase restoration, and account controls.
 
 WHAT YOU CAN DO
 
@@ -66,7 +66,7 @@ WHAT YOU CAN DO
 • Generate images and short-form video with Quick, Extendable, and Cinematic modes
 • Create editable documents, presentations, and exportable files
 • Develop long-form manuscript projects
-• Upload files and organize generated creations in Library
+• Keep manuscripts and books in Library, with other files under Projects
 • Reopen saved work across supported devices
 
 CONTROL AND SAFETY
@@ -90,7 +90,7 @@ Use real output and hide personal data. Keep the same visual language across bot
 3. **Create** — the unified chooser for documents, presentations, images, video, and long-form work.
 4. **Research in Ask** — sourced research result and next-step controls inside the Ask destination.
 5. **Editable work** — Document Studio with real document and presentation download controls.
-6. **Library** — uploaded files and generated creations in their dedicated destination.
+6. **Library** — manuscripts and books in a dedicated private bookshelf.
 7. **You** — settings, sessions, privacy, and account controls without personal data.
 
 Capture at least one modern large iPhone size and current Android phone size. Apple accepts 1–10 screenshots; Google requires at least two and benefits from four or more high-quality phone screenshots.
@@ -107,7 +107,7 @@ Suggested review path:
 2. Use Ask for a normal answer, then start guided research inside Ask.
 3. Open Projects and resume the prepared continuing-work example.
 4. Open Create and test only the modes enabled in the signed build.
-5. Open Library and verify the prepared files and creations are available.
+5. Open Library and verify the prepared books and manuscripts are available, then open Projects → Files to verify prepared documents and media.
 6. Open You → Settings to view session controls, export, legal links, and permanent account deletion.
 7. Open the subscription screen to verify native store billing and Restore Purchases.
 

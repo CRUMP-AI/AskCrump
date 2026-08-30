@@ -17,7 +17,7 @@ def test_56_polish_layer_is_last_on_web_and_native():
         assert source.index("/crump-4.3.js") < source.index("/crump-4.4.js")
         assert source.index("/crump-product-5.3.1.js") < source.index("/crump-polish-5.6.js")
         assert "/crump-polish-5.6.css" in source
-    assert "ask-crump-new-body-v1-r131" in worker
+    assert "ask-crump-new-body-v1-r132" in worker
     assert "/crump-polish-5.6.css" in worker and "/crump-polish-5.6.js" in worker
     assert "crump-polish-5.6.js" in checker
 
@@ -128,8 +128,8 @@ def test_video_result_actions_share_one_button_system():
     assert "crump53-video-result-actions" in product
     assert "crump53-button-link" in product
     assert "Download video</a>" in product
-    assert "Open Library" in product
-    assert "Saved to Library" in product
+    assert "Open Files" in product
+    assert "Saved to Files" in product
     assert "text-decoration: none !important" in polish
     assert "a.crump53-button" in polish
 
@@ -170,6 +170,7 @@ def test_store_and_pwa_copy_match_current_creation_surface():
     assert "Open Projects and resume" in listing
     assert "Open Create and test" in listing
     assert "Open Library and verify" in listing
+    assert "Projects → Files" in listing
     assert "Open You → Settings" in listing
     assert "Saved Library" not in listing
     assert "Quick, Extendable, and Cinematic" in listing

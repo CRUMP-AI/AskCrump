@@ -203,6 +203,7 @@ body.crump-v1-body [data-crump53-panel="projects"]:not(.is-project-open) > .crum
 }
 body.crump-v1-body [data-crump53-panel="projects"]:not(.is-project-open) :is(
   .crump53-project-detail-card,
+  #crump53SavedFilesCard,
   #crump531ProjectFilesCard,
   #crump53ProjectConversationsCard,
   #crump53ProjectContextCard
@@ -216,11 +217,24 @@ body.crump-v1-body [data-crump53-panel="projects"].is-project-open .crump53-proj
   display: none;
 }
 body.crump-v1-body .crump53-sheet[data-project-view="new"] :is(
+  #crump53SavedFilesCard,
   #crump531ProjectFilesCard,
   #crump53ProjectConversationsCard,
   #crump53ProjectContextCard
 ) {
   display: none !important;
+}
+body.crump-v1-body #crump53SavedFilesCard { display: none; }
+body.crump-v1-body .crump53-sheet[data-project-view="files"] [data-crump53-panel="projects"] > :is(
+  .crump53-grid,
+  #crump531ProjectFilesCard,
+  #crump53ProjectConversationsCard,
+  #crump53ProjectContextCard
+) {
+  display: none !important;
+}
+body.crump-v1-body .crump53-sheet[data-project-view="files"] #crump53SavedFilesCard {
+  display: block;
 }
 body.crump-v1-body .crump53-card {
   padding: 17px;
@@ -375,6 +389,13 @@ body.crump-v1-body .crump53-section-head {
   align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
+}
+body.crump-v1-body .crump53-section-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 body.crump-v1-body .crump53-count-badge {
   display: inline-grid;
@@ -716,6 +737,12 @@ body.crump-v1-body .crump53-manuscript-handoff button {
       max(20px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
   }
   body.crump-v1-body .crump53-grid { grid-template-columns: 1fr; }
+  body.crump-v1-body .crump53-section-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+  body.crump-v1-body .crump53-project-index-card .crump53-section-head { align-items: stretch; flex-direction: column; }
   body.crump-v1-body .crump53-project-hero {
     align-items: stretch;
     flex-direction: column;

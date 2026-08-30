@@ -424,7 +424,10 @@
                     <h3>Your projects</h3>
                     <p>Each Project keeps its own instructions, files, conversations, and durable context.</p>
                   </div>
-                  <button class="crump53-button" type="button" id="crump53CreateProject">New Project</button>
+                  <div class="crump53-section-actions">
+                    <button class="crump53-button" type="button" id="crump53OpenFiles">Files</button>
+                    <button class="crump53-button" type="button" id="crump53CreateProject">New Project</button>
+                  </div>
                 </div>
                 <div id="crump53ProjectList" class="crump53-list"></div>
               </div>
@@ -457,6 +460,24 @@
                   </form>
                 </details>
               </div>
+            </div>
+            <div class="crump53-card crump53-saved-files-card" id="crump53SavedFilesCard">
+              <div class="crump53-kicker">PRIVATE FILES</div>
+              <div class="crump53-library-head">
+                <div>
+                  <h3>Your files</h3>
+                  <p>Documents, images, video, exports, and uploads stay private and available across devices. Books and manuscripts live separately in Library.</p>
+                </div>
+                <button type="button" class="crump53-button" id="crump53RefreshLibrary">Refresh</button>
+              </div>
+              <div class="crump53-library-filters" role="group" aria-label="Filter saved files">
+                <button type="button" class="crump53-library-filter is-active" data-library-filter="all">All</button>
+                <button type="button" class="crump53-library-filter" data-library-filter="video">Videos</button>
+                <button type="button" class="crump53-library-filter" data-library-filter="image">Images</button>
+                <button type="button" class="crump53-library-filter" data-library-filter="document">Documents</button>
+              </div>
+              <div id="crump53LibraryStatus" class="crump53-status" aria-live="polite"></div>
+              <div id="crump53LibraryGrid" class="crump53-library-grid"></div>
             </div>
             <div class="crump53-card" id="crump53ProjectConversationsCard" hidden style="margin-top:16px">
               <div class="crump53-section-head">
@@ -553,26 +574,7 @@
             </div>
           </section>
 
-          <section class="crump53-panel" data-crump53-panel="library" hidden>
-            <div class="crump53-card">
-              <div class="crump53-kicker">YOUR LIBRARY</div>
-              <div class="crump53-library-head">
-                <div>
-                  <h3>Everything you have saved</h3>
-                  <p>Videos, images, documents, manuscript exports, and uploads stay private to your account and available across devices.</p>
-                </div>
-                <button type="button" class="crump53-button" id="crump53RefreshLibrary">Refresh</button>
-              </div>
-              <div class="crump53-library-filters" role="group" aria-label="Filter saved files">
-                <button type="button" class="crump53-library-filter is-active" data-library-filter="all">All</button>
-                <button type="button" class="crump53-library-filter" data-library-filter="video">Videos</button>
-                <button type="button" class="crump53-library-filter" data-library-filter="image">Images</button>
-                <button type="button" class="crump53-library-filter" data-library-filter="document">Documents</button>
-              </div>
-              <div id="crump53LibraryStatus" class="crump53-status" aria-live="polite"></div>
-              <div id="crump53LibraryGrid" class="crump53-library-grid"></div>
-            </div>
-          </section>
+          <section class="crump53-panel" data-crump53-panel="library" hidden></section>
 
           <section class="crump53-panel" data-crump53-panel="video" hidden>
             <div class="crump53-card">
@@ -614,6 +616,7 @@
     overlay.addEventListener('click', event => { if (event.target === overlay) closeStudio(); });
     byId('crump53ProjectBack')?.addEventListener('click', showProjectIndex);
     byId('crump53CreateProject')?.addEventListener('click', resetProjectForm);
+    byId('crump53OpenFiles')?.addEventListener('click', openProjectFiles);
     byId('crump53StartProjectChat')?.addEventListener('click', startProjectConversation);
     byId('crump53ProjectForm')?.addEventListener('submit', saveProject);
     byId('crump53UseProject')?.addEventListener('click', activateSelectedProject);
@@ -712,7 +715,7 @@
       const pendingJob = readStoredVideoJob();
       if (pendingJob) pollVideo(pendingJob);
     }
-    if (tab === 'library') void refreshLibrary();
+    if (tab === 'library') void window.CrumpLibrary57?.refresh?.();
   }
 
   function selectedVideoFeature() {
@@ -819,7 +822,7 @@
         setStatus('crump53ProjectStatus', 'That Project is no longer available.', true);
       }
       const projectsPanel = document.querySelector('[data-crump53-panel="projects"]');
-      if (!byId('crump53Studio')?.hidden && !projectsPanel?.hidden && state.activeProject && state.projectView !== 'new') {
+      if (!byId('crump53Studio')?.hidden && !projectsPanel?.hidden && state.activeProject && state.projectView === 'detail') {
         renderActiveProjectWorkspace({open: false});
       }
     } catch (error) {
@@ -951,7 +954,7 @@
   }
 
   function setProjectView(view, {focus = true} = {}) {
-    const normalized = view === 'detail' || view === 'new' ? view : 'index';
+    const normalized = ['detail', 'new', 'files'].includes(view) ? view : 'index';
     state.projectView = normalized;
     const panel = document.querySelector('[data-crump53-panel="projects"]');
     const sheet = byId('crump53Sheet');
@@ -962,7 +965,11 @@
     panel?.classList.toggle('is-project-open', isOpen);
     if (sheet) sheet.dataset.projectView = normalized;
     if (back) back.hidden = !isOpen;
-    if (normalized === 'detail' && state.activeProject) {
+    if (normalized === 'files') {
+      if (kicker) kicker.textContent = 'PROJECTS';
+      if (title) title.textContent = 'Files';
+      sheet?.setAttribute('aria-label', 'Ask Crump Files');
+    } else if (normalized === 'detail' && state.activeProject) {
       if (kicker) kicker.textContent = 'PROJECT';
       if (title) title.textContent = state.activeProject.name || 'Project';
       sheet?.setAttribute('aria-label', `Ask Crump Project: ${state.activeProject.name || 'Project'}`);
@@ -979,10 +986,16 @@
     if (body) body.scrollTop = 0;
     if (!focus) return;
     requestAnimationFrame(() => {
-      if (normalized === 'detail') byId('crump53ProjectWorkspaceName')?.focus({preventScroll: true});
+      if (normalized === 'files') byId('crump53RefreshLibrary')?.focus({preventScroll: true});
+      else if (normalized === 'detail') byId('crump53ProjectWorkspaceName')?.focus({preventScroll: true});
       else if (normalized === 'new') byId('crump53ProjectName')?.focus({preventScroll: true});
       else byId('crump53ProjectList')?.querySelector('button')?.focus({preventScroll: true});
     });
+  }
+
+  function openProjectFiles() {
+    setProjectView('files');
+    void refreshLibrary();
   }
 
   function showProjectIndex({updateRoute = true} = {}) {
@@ -1725,7 +1738,7 @@
     const detail = preview.querySelector('[data-playback-detail]');
     const retry = preview.querySelector('[data-playback-retry]');
     if (status) status.textContent = 'Preparing preview';
-    if (detail) detail.textContent = 'Securely loading from your private Library…';
+    if (detail) detail.textContent = 'Securely loading from your private Files…';
     if (retry) retry.hidden = true;
 
     video.pause();
@@ -1798,7 +1811,7 @@
     const visible = state.libraryFiles.filter(file => filter === 'all' || libraryCategory(file) === filter);
     if (!visible.length) {
       state.libraryVideoObserver?.disconnect?.();
-      grid.innerHTML = '<div class="crump53-library-empty">No saved items in this category yet.</div>';
+      grid.innerHTML = '<div class="crump53-library-empty">No files in this category yet.</div>';
       return;
     }
 
@@ -1813,7 +1826,7 @@
            <div class="crump53-playback-state" aria-live="polite">
              <span class="crump53-playback-pulse">${toolIcon('video')}</span>
              <strong data-playback-status>Preparing preview</strong>
-             <small data-playback-detail>Securely loading from your private Library…</small>
+             <small data-playback-detail>Securely loading from your private Files…</small>
              <button type="button" class="crump53-button" data-playback-retry="${escapeHtml(file.id)}" hidden>Try again</button>
            </div>`
         : category === 'image'
@@ -1901,9 +1914,9 @@
   async function refreshLibrary() {
     const grid = byId('crump53LibraryGrid');
     if (!grid) return;
-    setStatus('crump53LibraryStatus', 'Loading your private library…');
+    setStatus('crump53LibraryStatus', 'Loading your private files…');
     if (!state.libraryFiles.length) {
-      grid.innerHTML = '<div class="crump53-library-empty">Loading saved creations…</div>';
+      grid.innerHTML = '<div class="crump53-library-empty">Loading saved files…</div>';
     }
     try {
       const data = await api('/api/files?limit=200');
@@ -1915,7 +1928,7 @@
       );
     } catch (error) {
       setStatus('crump53LibraryStatus', error.message || 'Could not load your saved files.', true);
-      grid.innerHTML = '<div class="crump53-library-empty is-error">Your library could not be loaded.</div>';
+      grid.innerHTML = '<div class="crump53-library-empty is-error">Your files could not be loaded.</div>';
     }
   }
 
@@ -1974,7 +1987,7 @@
       <div class="crump53-video-result-actions">
         ${continuation}
         <a class="crump53-button crump53-button-link" href="${escapeHtml(job.file.url)}?download=1" download>Download video</a>
-        <button type="button" class="crump53-button" id="crump53OpenLibraryFromVideo">Open Library</button>
+        <button type="button" class="crump53-button" id="crump53OpenLibraryFromVideo">Open Files</button>
       </div>
       ${job.canContinue ? `
         <div class="crump53-video-continuation" id="crump53VideoContinuation" hidden>
@@ -1983,7 +1996,10 @@
           <div class="crump53-note">Native continuation uses the previous Veo scene as the reference point, adds about 7 seconds, and returns one combined video. 80 credits per continuation.</div>
           <div class="crump53-actions"><button type="button" class="crump53-button is-primary" id="crump53SubmitContinuation">Continue · 80 credits</button><button type="button" class="crump53-button" id="crump53CancelContinuation">Cancel</button></div>
         </div>` : ''}`;
-    byId('crump53OpenLibraryFromVideo')?.addEventListener('click', () => openStudio('library'));
+    byId('crump53OpenLibraryFromVideo')?.addEventListener('click', () => {
+      openStudio('projects');
+      openProjectFiles();
+    });
     byId('crump53ContinueScene')?.addEventListener('click', () => {
       const composer = byId('crump53VideoContinuation');
       if (composer) composer.hidden = false;
@@ -2033,7 +2049,7 @@
         state.activeVideoJob = job;
         if (job.status === 'ready' && job.file?.url) {
           storeVideoJob('');
-          setStatus('crump53VideoStatus', `Saved to Library · ${job.durationSeconds || 8}s · ${job.resolution || '720p'}`);
+          setStatus('crump53VideoStatus', `Saved to Files · ${job.durationSeconds || 8}s · ${job.resolution || '720p'}`);
           renderReadyVideo(job);
           void refreshLibrary();
           return;

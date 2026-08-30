@@ -13,10 +13,10 @@ def test_product53_runtime_is_registered_last_and_cached():
     checker = read("scripts/check-javascript.mjs")
     assert "/crump-product-5.3.css" in runtime
     assert "/crump-product-5.3.js" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-project-home-6" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-project-home-6" in worker
+    assert "/crump-product-5.3.js?v=5.9.76-books-library-7" in runtime
+    assert "/crump-product-5.3.js?v=5.9.76-books-library-7" in worker
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r131" in worker
+    assert "ask-crump-new-body-v1-r132" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 
@@ -94,7 +94,7 @@ def test_video_retry_does_not_bill_twice():
     assert "could not save the file" in video
 
 
-def test_private_account_library_surfaces_saved_creations():
+def test_private_account_files_surface_saved_creations_under_projects():
     routes = read("backend/routes/files.py")
     service = read("backend/file_service.py")
     product = read("public/crump-product-5.3.js")
@@ -105,8 +105,8 @@ def test_private_account_library_surfaces_saved_creations():
     assert "'createdAt': row.get('created_at')" in service
     assert 'data-crump53-panel="library"' in product
     assert "api('/api/files?limit=200')" in product
-    assert "Saved to Library" in product
-    assert "openStudio('library')" in product
+    assert "Saved to Files" in product
+    assert "openProjectFiles();" in product
     assert ".crump53-library-grid" in styles
     assert "const opened = await loadManuscript(manuscriptId)" in product
     assert "target.scrollIntoView" in product
@@ -128,12 +128,25 @@ def test_library_is_one_dedicated_destination_instead_of_a_workspace_tab():
     assert "filesPill.addEventListener" not in product
     assert "file: {label: 'Files', description: 'Attach a reference file'}" in product
     assert "Open your private Library" not in product
-    assert "openStudio('library')" in product
+    assert "if (tab === 'library') void window.CrumpLibrary57?.refresh?.();" in product
     assert "const libraryPanel = document.querySelector('[data-crump53-panel=\"library\"]')" in library
     assert "libraryPanel.insertBefore(card, libraryPanel.firstElementChild)" in library
     assert "manuscriptTab.textContent = 'Library'" not in library
     assert "section === 'library'" in navigation
     assert '.crump53-tabs' not in styles
+
+    projects_start = product.index('<section class="crump53-panel" data-crump53-panel="projects">')
+    library_start = product.index('<section class="crump53-panel" data-crump53-panel="library" hidden>')
+    projects_markup = product[projects_start:library_start]
+    library_markup = product[library_start:product.index('</section>', library_start)]
+    assert 'id="crump53OpenFiles"' in projects_markup
+    assert 'id="crump53SavedFilesCard"' in projects_markup
+    assert 'id="crump53LibraryGrid"' in projects_markup
+    assert 'id="crump53SavedFilesCard"' not in library_markup
+    assert 'id="crump53LibraryGrid"' not in library_markup
+    assert "setProjectView('files')" in product
+    assert "window.CrumpLibrary57?.refresh?.()" in product
+    assert '.crump53-sheet[data-project-view="files"] #crump53SavedFilesCard' in styles
 
     fixture = read("tests/fixtures/dedicated-library-destination.html")
     assert "/public/crump-product-5.3.js?fixture=dedicated-library" in fixture

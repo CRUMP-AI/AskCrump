@@ -12,7 +12,7 @@ Required sequence:
 3. Create — the unified chooser showing only modes enabled in the signed build.
 4. Research in Ask — sourced current research and next-step controls inside Ask.
 5. Editable work — Document Studio with real document and presentation download controls.
-6. Library — prepared uploaded files and generated creations in the dedicated destination.
+6. Library — prepared manuscripts and books in the dedicated private bookshelf.
 7. You — settings, sessions, privacy, and account controls with all personal data removed.
 
 Use the exact destination labels shown in the signed build. The screenshot sequence must agree with

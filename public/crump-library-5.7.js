@@ -91,7 +91,7 @@
   }
 
   async function signedFile(file) {
-    if (!file?.id) throw new Error('That saved media item is missing its Library ID.');
+    if (!file?.id) throw new Error('That saved media item is missing its file ID.');
     const data = await api(`/api/files/${encodeURIComponent(file.id)}/signed`);
     if (!data.url) throw new Error('Crump could not prepare that media file.');
     return data;

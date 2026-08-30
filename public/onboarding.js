@@ -38,7 +38,7 @@
       actionLabel: 'Open Library',
       eyebrow: 'LIBRARY',
       title: 'Keep the things you create.',
-      content: 'Library is the dedicated home for your private books, documents, images, videos, exports, and uploads. Conversation history remains in Chats.',
+      content: 'Library is your private bookshelf for manuscripts and books created with Crump or imported from your files. Documents, images, videos, exports, and uploads stay under Projects → Files. Conversation history remains in Chats.',
       icon: '▱',
       features: ['Private to your account', 'Across your devices', 'Open and reuse'],
     },
