@@ -1,6 +1,6 @@
 # Feature access recovery release
 
-Date: 2026-08-30  
+Date: 2026-08-30
 Production version: `5.9.76`
 
 ## Outcome
