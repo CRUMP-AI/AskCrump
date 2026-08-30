@@ -50,6 +50,7 @@ const releaseVersion = String(packageJson.version || '');
 const authControllerVersion = `${releaseVersion}-plan-intelligence-1`;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
+const desktopChatsVersion = `${releaseVersion}-desktop-chats-default-1`;
 const requiredBodyFiles = [
   'public/crump-v1-body.css',
   'public/crump-v1-body.js',
@@ -227,7 +228,7 @@ if (!runtime.includes('/billing.css') || !runtime.includes('/onboarding.css') ||
     !runtime.includes(`/ui-functions.js?v=${intelligenceReceiptVersion}`) ||
     !runtime.includes(`/product-analytics.js?v=${releaseVersion}`) ||
     !runtime.includes(`/app.js?v=${intelligenceArchitectureVersion}`) ||
-    !runtime.includes(`/crump-v1-body.js?v=${intelligenceArchitectureVersion}`) ||
+    !runtime.includes(`/crump-v1-body.js?v=${desktopChatsVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${intelligenceArchitectureVersion}`) ||
     !runtime.includes(`/crump-5.0.js?v=${releaseVersion}`) ||
     !runtime.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
@@ -357,7 +358,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r161') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r162') ||
     !serviceWorker.includes(`/landing.js?v=${releaseVersion}`) ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
@@ -392,7 +393,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r161') ||
     !serviceWorker.includes("url.pathname === '/install-prompt.css'") ||
     !serviceWorker.includes("url.pathname === '/sync-manager.js'") ||
     !serviceWorker.includes("url.pathname === '/auth-controller.js'") ||
-    !serviceWorker.includes(`/crump-v1-body.js?v=${intelligenceArchitectureVersion}`) ||
+    !serviceWorker.includes(`/crump-v1-body.js?v=${desktopChatsVersion}`) ||
     !serviceWorker.includes('/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1') ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.2.5.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.2.5.css'") ||

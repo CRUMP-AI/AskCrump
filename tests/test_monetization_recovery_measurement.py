@@ -96,12 +96,12 @@ def test_private_monetization_report_keeps_old_metrics_and_adds_credit_and_recov
 
 def test_monetization_measurement_assets_are_registered_for_web_pwa_and_native():
     plan_version = "5.9.76-plan-intelligence-1"
-    runtime_version = "5.9.76-intelligence-architecture-1"
+    loader_version = "5.9.76-desktop-chats-default-1"
     runtime = read("public/runtime-body-v1.js")
     worker = read("public/sw.js")
     native = read("scripts/build-native.mjs")
 
-    assert f'/runtime-body-v1.js?v={runtime_version}' in read("public/app.html")
+    assert f'/runtime-body-v1.js?v={loader_version}' in read("public/app.html")
     for asset in (
         f"/crump-billing-5.1.js?v={plan_version}",
         f"/crump-5.2.js?v={plan_version}",
@@ -109,4 +109,4 @@ def test_monetization_measurement_assets_are_registered_for_web_pwa_and_native()
         assert asset in runtime
         assert asset in worker
         assert asset in native
-    assert "ask-crump-new-body-v1-r161" in worker
+    assert "ask-crump-new-body-v1-r162" in worker

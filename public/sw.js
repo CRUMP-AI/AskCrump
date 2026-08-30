@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r161';
+const CACHE_NAME = 'ask-crump-new-body-v1-r162';
 
 const CORE = [
   '/app',
@@ -16,7 +16,7 @@ const CORE = [
   '/conversation.css?v=5.9.76-intelligence-receipt-1',
   '/auth-styles.css',
   '/crump-v1-body.css?v=5.9.76-intelligence-architecture-1',
-  '/crump-v1-body.js?v=5.9.76-intelligence-architecture-1',
+  '/crump-v1-body.js?v=5.9.76-desktop-chats-default-1',
   '/crump-v1-stability.css',
   '/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1',
   '/crump-navigation-5.2.5.css',
@@ -34,7 +34,7 @@ const CORE = [
   '/crump-library-5.7.css',
   '/crump-library-5.7.js?v=5.9.76-demand-hydration-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-intelligence-plan-handoff-1',
-  '/runtime-body-v1.js?v=5.9.76-intelligence-architecture-1',
+  '/runtime-body-v1.js?v=5.9.76-desktop-chats-default-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',

@@ -165,12 +165,6 @@
 
     document.body.classList.toggle('v1-library-collapsed');
     syncLibraryControl();
-    try {
-      localStorage.setItem(
-        'crump_v1_library_collapsed',
-        document.body.classList.contains('v1-library-collapsed') ? '1' : '0'
-      );
-    } catch (_) {}
   }
 
   function forwardClick(id) {
@@ -557,18 +551,14 @@
 
   function restoreDesktopPreference() {
     if (!matchMedia('(max-width: 1100px)').matches) {
+      // Chats is a persistent part of the desktop workspace. A legacy saved
+      // collapsed preference caused the history column to render briefly and
+      // then disappear after authentication. Always begin a desktop session
+      // expanded; Hide Chats remains available as an in-session choice.
+      document.body.classList.remove('v1-library-collapsed');
       try {
-        // The reorganized rail originally removed the only visible Chats
-        // control. Clear that stranded preference once so existing desktop
-        // users see their conversation history and can make a fresh choice
-        // with the permanent Chats toggle.
-        if (localStorage.getItem('crump_v1_library_control_v2') !== 'ready') {
-          localStorage.removeItem('crump_v1_library_collapsed');
-          localStorage.setItem('crump_v1_library_control_v2', 'ready');
-        }
-        if (localStorage.getItem('crump_v1_library_collapsed') === '1') {
-          document.body.classList.add('v1-library-collapsed');
-        }
+        localStorage.removeItem('crump_v1_library_collapsed');
+        localStorage.removeItem('crump_v1_library_control_v2');
       } catch (_) {}
     }
     syncLibraryControl();
