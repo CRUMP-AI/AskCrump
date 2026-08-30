@@ -1164,8 +1164,16 @@
   }
 
   function openProjectFiles() {
+    const studio = byId('crump53Studio');
+    if (!studio) return false;
+    configureStudioSection('projects');
+    studio.hidden = false;
+    document.body.style.overflow = 'hidden';
+    selectStudioPanel('projects');
+    if (readProjectRoute()) writeProjectRoute('', {replace: true});
     setProjectView('files');
     void refreshLibrary();
+    return true;
   }
 
   function showProjectIndex({updateRoute = true} = {}) {
@@ -2172,10 +2180,7 @@
           <div class="crump53-note">Native continuation uses the previous Veo scene as the reference point, adds about 7 seconds, and returns one combined video. 80 credits per continuation.</div>
           <div class="crump53-actions"><button type="button" class="crump53-button is-primary" id="crump53SubmitContinuation">Continue · 80 credits</button><button type="button" class="crump53-button" id="crump53CancelContinuation">Cancel</button></div>
         </div>` : ''}`;
-    byId('crump53OpenLibraryFromVideo')?.addEventListener('click', () => {
-      openStudio('projects');
-      openProjectFiles();
-    });
+    byId('crump53OpenLibraryFromVideo')?.addEventListener('click', openProjectFiles);
     byId('crump53ContinueScene')?.addEventListener('click', () => {
       const composer = byId('crump53VideoContinuation');
       if (composer) composer.hidden = false;
@@ -2388,6 +2393,7 @@
   window.CrumpProduct53 = Object.freeze({
     open: openStudio,
     openProject: projectId => openProject(projectId),
+    openFiles: () => openProjectFiles(),
     projectTarget: () => currentProjectTarget(),
     projectForConversation: chatId => projectForConversation(chatId),
     keepConversation: options => keepConversation(options),

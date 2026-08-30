@@ -122,5 +122,5 @@ def test_runtime_and_native_shell_load_the_chats_language_revision():
     native = (ROOT / "scripts" / "build-native.mjs").read_text(encoding="utf-8")
 
     for source in (runtime, native):
-        assert "/crump-v1-body.js?v=5.9.76-chats-language-1" in source
+        assert "/crump-v1-body.js?v=5.9.76-canonical-files-handoff-1" in source
         assert "/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1" in source

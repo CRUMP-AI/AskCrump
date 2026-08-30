@@ -345,7 +345,11 @@
         openProduct('video');
         break;
       case 'saved':
-        openProduct('library');
+        if (typeof window.CrumpProduct53?.openFiles === 'function') {
+          window.CrumpProduct53.openFiles();
+        } else {
+          openProduct('projects');
+        }
         break;
       case 'code':
         setActiveMode('focus');

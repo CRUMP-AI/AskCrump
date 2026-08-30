@@ -17,7 +17,7 @@ def test_56_polish_layer_is_last_on_web_and_native():
         assert source.index("/crump-4.3.js") < source.index("/crump-4.4.js")
         assert source.index("/crump-product-5.3.1.js") < source.index("/crump-polish-5.6.js")
         assert "/crump-polish-5.6.css" in source
-    assert "ask-crump-new-body-v1-r150" in worker
+    assert "ask-crump-new-body-v1-r151" in worker
     assert "/crump-polish-5.6.css" in worker and "/crump-polish-5.6.js" in worker
     assert "crump-polish-5.6.js" in checker
 
@@ -92,6 +92,23 @@ def test_home_surface_exposes_projects_and_video_without_hiding_core_chat():
     assert 'data-v1-command="video"' in app
     assert "case 'projects':" in body and "openProduct('projects')" in body
     assert "case 'video':" in body and "openProduct('video')" in body
+    destination_map = app[
+        app.index('<div class="v1-launchpad-foot"'):
+        app.index('</div>', app.index('<div class="v1-launchpad-foot"'))
+    ]
+    assert 'aria-label="Ask Crump destinations"' in destination_map
+    assert [
+        destination_map.index(f"<span>{destination}</span>")
+        for destination in ("Ask", "Projects", "Create", "Library", "You")
+    ] == sorted([
+        destination_map.index(f"<span>{destination}</span>")
+        for destination in ("Ask", "Projects", "Create", "Library", "You")
+    ])
+    assert "<span>Saved</span>" not in destination_map
+    saved_branch = body[body.index("case 'saved':"):body.index("case 'code':")]
+    assert "CrumpProduct53?.openFiles" in saved_branch
+    assert "openProduct('library')" not in saved_branch
+    assert "openProduct('projects')" in saved_branch
 
 
 def test_clean_start_offers_a_private_recent_work_continuation():

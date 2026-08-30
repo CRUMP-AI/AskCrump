@@ -50,6 +50,7 @@ const releaseVersion = String(packageJson.version || '');
 const registrationConsentVersion = `${releaseVersion}-registration-consent-1`;
 const authControllerVersion = `${releaseVersion}-video-files-handoff-1`;
 const durableProjectRecognitionVersion = `${releaseVersion}-durable-project-recognition-1`;
+const canonicalFilesHandoffVersion = `${releaseVersion}-canonical-files-handoff-1`;
 const requiredBodyFiles = [
   'public/crump-v1-body.css',
   'public/crump-v1-body.js',
@@ -200,6 +201,8 @@ const requiredHtmlSignals = [
   'id="fileInput"',
   'id="deleteAccountBtn"',
   'href="/delete-account.html"',
+  '<div class="v1-launchpad-foot" aria-label="Ask Crump destinations">',
+  '<span>Ask</span><i></i><span>Projects</span><i></i><span>Create</span><i></i><span>Library</span><i></i><span>You</span>',
 ];
 
 for (const signal of requiredHtmlSignals) {
@@ -213,6 +216,10 @@ if (appHtml.includes('fonts.googleapis.com') || appHtml.includes('fonts.gstatic.
   console.error('Ask Crump application shell must not depend on Google Fonts.');
   process.exit(1);
 }
+if (appHtml.includes('<span>Saved</span>')) {
+  console.error('The retired Saved destination must not return to the authenticated launchpad.');
+  process.exit(1);
+}
 
 const runtime = await readFile(new URL('public/runtime-body-v1.js', repoRoot), 'utf8');
 if (!runtime.includes('/billing.css') || !runtime.includes('/onboarding.css') ||
@@ -221,9 +228,9 @@ if (!runtime.includes('/billing.css') || !runtime.includes('/onboarding.css') ||
     !runtime.includes(`/ui-functions.js?v=${durableProjectRecognitionVersion}`) ||
     !runtime.includes(`/product-analytics.js?v=${releaseVersion}`) ||
     !runtime.includes(`/app.js?v=${releaseVersion}`) ||
-    !runtime.includes('/crump-v1-body.js') || !runtime.includes('/crump-v1-body.css') ||
+    !runtime.includes(`/crump-v1-body.js?v=${canonicalFilesHandoffVersion}`) || !runtime.includes('/crump-v1-body.css') ||
     !runtime.includes(`/crump-5.0.js?v=${releaseVersion}`) ||
-    !runtime.includes(`/crump-product-5.3.js?v=${durableProjectRecognitionVersion}`) || !runtime.includes('/crump-product-5.3.css') ||
+    !runtime.includes(`/crump-product-5.3.js?v=${canonicalFilesHandoffVersion}`) || !runtime.includes('/crump-product-5.3.css') ||
     !runtime.includes('/crump-product-5.3.1.js') || !runtime.includes('/crump-product-5.3.1.css') ||
     !runtime.includes('/crump-subscriptions-5.3.2.js') ||
     !runtime.includes('/crump-polish-5.6.js') || !runtime.includes('/crump-polish-5.6.css') ||
@@ -311,6 +318,7 @@ if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
 
 const crump43 = await readFile(new URL('public/crump-4.3.js', repoRoot), 'utf8');
 const v1Body = await readFile(new URL('public/crump-v1-body.js', repoRoot), 'utf8');
+const product53 = await readFile(new URL('public/crump-product-5.3.js', repoRoot), 'utf8');
 if (!crump43.includes('v1OwnsEmptyState') || !crump43.includes("classList.contains('crump-v1-body')")) {
   console.error('Legacy 4.3 empty-state guard for the V1 body is missing.');
   process.exit(1);
@@ -319,9 +327,23 @@ if (!v1Body.includes('removeLegacyEmptyState(container)')) {
   console.error('V1 must remove stale legacy empty-state nodes.');
   process.exit(1);
 }
+const legacySavedBranch = v1Body.slice(v1Body.indexOf("case 'saved':"), v1Body.indexOf("case 'code':"));
+const filesHandoff = product53.slice(
+  product53.indexOf('function openProjectFiles'),
+  product53.indexOf('function showProjectIndex'),
+);
+if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
+    legacySavedBranch.includes("openProduct('library')") ||
+    !product53.includes('openFiles: () => openProjectFiles()') ||
+    !filesHandoff.includes("configureStudioSection('projects');") ||
+    !filesHandoff.includes("selectStudioPanel('projects');") ||
+    !filesHandoff.includes("setProjectView('files');")) {
+  console.error('Legacy Saved and finished-work actions must fail forward to Projects Files.');
+  process.exit(1);
+}
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r150') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r151') ||
     !serviceWorker.includes(`/landing.js?v=${releaseVersion}`) ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes(`/conversation.css?v=${releaseVersion}`) ||
@@ -338,7 +360,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r150') ||
     !serviceWorker.includes(`/auth-controller.js?v=${authControllerVersion}`) ||
     !serviceWorker.includes(`/crump-v1-body.css?v=${registrationConsentVersion}`) ||
     !serviceWorker.includes(`/crump-4.3.js?v=${releaseVersion}`) ||
-    !serviceWorker.includes(`/crump-product-5.3.js?v=${durableProjectRecognitionVersion}`) ||
+    !serviceWorker.includes(`/crump-product-5.3.js?v=${canonicalFilesHandoffVersion}`) ||
     !serviceWorker.includes("url.pathname === '/conversation.css'") ||
     !serviceWorker.includes("url.pathname === '/chat-resilience.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-5.0.js'") ||
@@ -348,7 +370,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r150') ||
     !serviceWorker.includes("url.pathname === '/install-prompt.css'") ||
     !serviceWorker.includes("url.pathname === '/sync-manager.js'") ||
     !serviceWorker.includes("url.pathname === '/auth-controller.js'") ||
-    !serviceWorker.includes('/crump-v1-body.js?v=5.9.76-chats-language-1') ||
+    !serviceWorker.includes(`/crump-v1-body.js?v=${canonicalFilesHandoffVersion}`) ||
     !serviceWorker.includes('/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1') ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.2.5.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.2.5.css'") ||

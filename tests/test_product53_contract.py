@@ -13,10 +13,10 @@ def test_product53_runtime_is_registered_last_and_cached():
     checker = read("scripts/check-javascript.mjs")
     assert "/crump-product-5.3.css" in runtime
     assert "/crump-product-5.3.js" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-durable-project-recognition-1" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-durable-project-recognition-1" in worker
+    assert "/crump-product-5.3.js?v=5.9.76-canonical-files-handoff-1" in runtime
+    assert "/crump-product-5.3.js?v=5.9.76-canonical-files-handoff-1" in worker
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r150" in worker
+    assert "ask-crump-new-body-v1-r151" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 
@@ -99,6 +99,10 @@ def test_private_account_files_surface_saved_creations_under_projects():
     service = read("backend/file_service.py")
     product = read("public/crump-product-5.3.js")
     styles = read("public/crump-product-5.3.css")
+    files_handoff = product[
+        product.index("function openProjectFiles"):
+        product.index("function showProjectIndex")
+    ]
     assert "@router.get('')" in routes
     assert "'deleted_at': 'is.null'" in routes
     assert "order='created_at.desc'" in routes
@@ -106,7 +110,14 @@ def test_private_account_files_surface_saved_creations_under_projects():
     assert 'data-crump53-panel="library"' in product
     assert "api('/api/files?limit=200')" in product
     assert "Saved to Files" in product
-    assert "openProjectFiles();" in product
+    assert "openFiles: () => openProjectFiles()" in product
+    assert "configureStudioSection('projects');" in files_handoff
+    assert "selectStudioPanel('projects');" in files_handoff
+    assert "if (readProjectRoute()) writeProjectRoute('', {replace: true});" in files_handoff
+    assert "setProjectView('files');" in files_handoff
+    assert "void refreshLibrary();" in files_handoff
+    assert "return true;" in files_handoff
+    assert "addEventListener('click', openProjectFiles)" in product
     assert ".crump53-library-grid" in styles
     assert "const opened = await loadManuscript(manuscriptId)" in product
     assert "target.scrollIntoView" in product
