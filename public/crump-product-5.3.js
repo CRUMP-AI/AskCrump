@@ -685,9 +685,17 @@
     if (section === 'projects') {
       if (!preserveProjectRoute && readProjectRoute()) writeProjectRoute('', {replace: true});
       setProjectView('index', {focus: false});
+      void refreshProjects();
+    } else if (section === 'manuscripts') {
+      void refreshProjects().then(() => {
+        const currentSection = byId('crump53Sheet')?.dataset.crump53Section;
+        if (!byId('crump53Studio')?.hidden && currentSection === 'manuscripts') {
+          void refreshManuscripts();
+        }
+      });
+    } else if (section === 'video') {
+      void refreshFeatures();
     }
-    void refreshFeatures();
-    void refreshProjects();
   }
 
   function closeStudio() {
@@ -708,7 +716,6 @@
       node.hidden = node.dataset.crump53Panel !== tab;
     });
     if (tab === 'manuscripts') {
-      void refreshManuscripts();
       scheduleManuscriptPoll();
     }
     if (tab === 'video') {
@@ -799,41 +806,51 @@
     }
   }
 
+  let projectRefreshPromise = null;
+
   async function refreshProjects() {
-    try {
-      const data = await api('/api/projects', {timeoutMs: PROJECT_READ_TIMEOUT_MS});
-      state.projects = Array.isArray(data.projects) ? data.projects : [];
-      const stored = state.activeProject?.id || readStoredProject();
-      state.activeProject = state.projects.find(item => item.id === stored) || null;
-      if (!state.activeProject && stored) storeProject('');
-      renderProjectList(data.limit);
-      renderProjectIndicator();
-      renderManuscriptProjectState();
-      const requestedProjectId = readProjectRoute();
-      if (requestedProjectId) {
-        const requestedProject = state.projects.find(
-          item => String(item.id || '') === requestedProjectId,
-        );
-        if (requestedProject) {
-          selectProject(requestedProjectId, {updateRoute: false, focus: false});
-          return;
+    if (projectRefreshPromise) return projectRefreshPromise;
+    projectRefreshPromise = (async () => {
+      try {
+        const data = await api('/api/projects', {timeoutMs: PROJECT_READ_TIMEOUT_MS});
+        state.projects = Array.isArray(data.projects) ? data.projects : [];
+        const stored = state.activeProject?.id || readStoredProject();
+        state.activeProject = state.projects.find(item => item.id === stored) || null;
+        if (!state.activeProject && stored) storeProject('');
+        renderProjectList(data.limit);
+        renderProjectIndicator();
+        renderManuscriptProjectState();
+        const requestedProjectId = readProjectRoute();
+        if (requestedProjectId) {
+          const requestedProject = state.projects.find(
+            item => String(item.id || '') === requestedProjectId,
+          );
+          if (requestedProject) {
+            selectProject(requestedProjectId, {updateRoute: false, focus: false});
+            return;
+          }
+          writeProjectRoute('', {replace: true});
+          setStatus('crump53ProjectStatus', 'That Project is no longer available.', true);
         }
-        writeProjectRoute('', {replace: true});
-        setStatus('crump53ProjectStatus', 'That Project is no longer available.', true);
+        const projectsPanel = document.querySelector('[data-crump53-panel="projects"]');
+        if (!byId('crump53Studio')?.hidden && !projectsPanel?.hidden && state.activeProject && state.projectView === 'detail') {
+          renderActiveProjectWorkspace({open: false});
+        }
+      } catch (error) {
+        const message = error.message || 'Could not load Projects.';
+        setStatus('crump53ProjectStatus', message, true);
+        renderRetryableListError(
+          byId('crump53ProjectList'),
+          message,
+          'Retry loading Projects',
+          () => refreshProjects(),
+        );
       }
-      const projectsPanel = document.querySelector('[data-crump53-panel="projects"]');
-      if (!byId('crump53Studio')?.hidden && !projectsPanel?.hidden && state.activeProject && state.projectView === 'detail') {
-        renderActiveProjectWorkspace({open: false});
-      }
-    } catch (error) {
-      const message = error.message || 'Could not load Projects.';
-      setStatus('crump53ProjectStatus', message, true);
-      renderRetryableListError(
-        byId('crump53ProjectList'),
-        message,
-        'Retry loading Projects',
-        () => refreshProjects(),
-      );
+    })();
+    try {
+      return await projectRefreshPromise;
+    } finally {
+      projectRefreshPromise = null;
     }
   }
 
@@ -2204,9 +2221,9 @@
 
   function hydrateAuthenticatedState() {
     if (authenticatedHydrationStarted || !window.currentUser) return;
+    if (!readProjectRoute()) return;
     authenticatedHydrationStarted = true;
-    void refreshProjects();
-    void refreshFeatures();
+    openStudio('projects', {preserveProjectRoute: true});
   }
 
   window.CrumpProduct53 = Object.freeze({

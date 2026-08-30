@@ -13,10 +13,10 @@ def test_product53_runtime_is_registered_last_and_cached():
     checker = read("scripts/check-javascript.mjs")
     assert "/crump-product-5.3.css" in runtime
     assert "/crump-product-5.3.js" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-books-library-7" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-books-library-7" in worker
+    assert "/crump-product-5.3.js?v=5.9.76-demand-hydration-1" in runtime
+    assert "/crump-product-5.3.js?v=5.9.76-demand-hydration-1" in worker
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r132" in worker
+    assert "ask-crump-new-body-v1-r133" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 
@@ -151,6 +151,13 @@ def test_library_is_one_dedicated_destination_instead_of_a_workspace_tab():
     fixture = read("tests/fixtures/dedicated-library-destination.html")
     assert "/public/crump-product-5.3.js?fixture=dedicated-library" in fixture
     assert "/public/crump-library-5.7.js?fixture=dedicated-library" in fixture
+    assert "/public/crump-code-5.9.35.js?fixture=dedicated-library" in fixture
+    assert "window.currentUser = {id: 'fixture-user'};" in fixture
+    assert 'id="fixtureFeatureRequests"' in fixture
+    assert 'id="fixtureProjectRequests"' in fixture
+    assert 'id="fixtureBookRequests"' in fixture
+    assert 'id="fixtureDeletedBookRequests"' in fixture
+    assert 'id="fixtureErrors"' in fixture
     assert "/public/crump-navigation-5.9.30.js?fixture=dedicated-library" in fixture
     assert 'data-v1-command="file"' in fixture
     assert ".v1-rail { position: relative;" in fixture

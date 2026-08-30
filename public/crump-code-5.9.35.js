@@ -724,20 +724,11 @@
 
   window.CrumpCodeWorkspace = Object.freeze({open, close, refresh, refreshAvailability});
 
-  function hydrateAuthenticatedAvailability() {
-    if (!window.currentUser) return;
-    void refreshAvailability();
-  }
-
-  window.addEventListener('crump:authenticated-ready', hydrateAuthenticatedAvailability);
-
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       createStaticShell();
-      hydrateAuthenticatedAvailability();
     }, {once: true});
   } else {
     createStaticShell();
-    hydrateAuthenticatedAvailability();
   }
 })();

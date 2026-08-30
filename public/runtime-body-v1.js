@@ -132,13 +132,13 @@ window.CRUMP_CONFIG = Object.freeze({
 
     // Load last so the cleanup runs after legacy/V1 handlers have initialized.
     await loadScript('/crump-navigation-5.2.5.js', 'crumpnav525');
-    await loadScript('/crump-product-5.3.js?v=5.9.76-books-library-7', 'crumpproduct53');
+    await loadScript('/crump-product-5.3.js?v=5.9.76-demand-hydration-1', 'crumpproduct53');
     await loadScript('/crump-product-5.3.1.js', 'crumpproduct531');
     await loadScript('/crump-subscriptions-5.3.2.js', 'crumpsubscriptions532');
     await loadScript('/crump-polish-5.6.js', 'crumppolish56');
-    await loadScript('/crump-library-5.7.js', 'crumplibrary57');
+    await loadScript('/crump-library-5.7.js?v=5.9.76-demand-hydration-1', 'crumplibrary57');
     await loadScript('/crump-navigation-5.9.30.js?v=5.9.76-projects-entry-1', 'crumpnav5930');
-    await loadScript('/crump-code-5.9.35.js', 'crumpcode5935');
+    await loadScript('/crump-code-5.9.35.js?v=5.9.76-demand-hydration-1', 'crumpcode5935');
 
     document.documentElement.dataset.crumpBodyRuntime = 'ready';
     window.dispatchEvent(new CustomEvent('crump:body-runtime-ready'));

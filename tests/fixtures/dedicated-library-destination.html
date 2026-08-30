@@ -28,6 +28,11 @@
             <button type="button" class="v1-mode-pill" data-v1-command="file">Files</button>
           </div>
           <output id="fixtureResult">attach=0</output>
+          <output id="fixtureFeatureRequests" aria-label="Feature requests">0</output>
+          <output id="fixtureProjectRequests" aria-label="Project requests">0</output>
+          <output id="fixtureBookRequests" aria-label="Book requests">0</output>
+          <output id="fixtureDeletedBookRequests" aria-label="Deleted-book requests">0</output>
+          <output id="fixtureErrors" aria-label="Browser errors">0</output>
         </div>
       </main>
     </div>
@@ -36,18 +41,56 @@
   <div id="sidebarOverlay"></div>
 
   <script>
+    window.currentUser = {id: 'fixture-user'};
     window.fixtureAttachCount = 0;
+    window.fixtureRequests = {features: 0, projects: 0, books: 0, deletedBooks: 0};
+    const recordBrowserError = () => {
+      const output = document.getElementById('fixtureErrors');
+      output.textContent = String(Number(output.textContent || 0) + 1);
+    };
+    window.addEventListener('error', recordBrowserError);
+    window.addEventListener('unhandledrejection', recordBrowserError);
+    const recordRequest = key => {
+      window.fixtureRequests[key] += 1;
+      const outputIds = {
+        features: 'fixtureFeatureRequests',
+        projects: 'fixtureProjectRequests',
+        books: 'fixtureBookRequests',
+        deletedBooks: 'fixtureDeletedBookRequests',
+      };
+      document.getElementById(outputIds[key]).textContent = String(window.fixtureRequests[key]);
+    };
     document.querySelector('[data-v1-command="file"]').addEventListener('click', () => {
       window.fixtureAttachCount += 1;
       document.getElementById('fixtureResult').textContent = `attach=${window.fixtureAttachCount}`;
     });
-    window.fetch = async () => new Response(JSON.stringify({features: {}, projects: [], files: []}), {
-      status: 200,
-      headers: {'Content-Type': 'application/json'},
-    });
+    window.fetch = async input => {
+      const path = new URL(String(input), location.href).pathname;
+      let data = {success: true};
+      if (path === '/api/features') {
+        recordRequest('features');
+        data = {success: true, features: {code_workspace: {configured: false, entitled: false}}, providers: {code: {configured: false}}};
+      } else if (path === '/api/projects') {
+        recordRequest('projects');
+        data = {success: true, projects: [], limit: 3};
+      } else if (path === '/api/library/books') {
+        recordRequest('books');
+        data = {success: true, books: []};
+      } else if (path === '/api/library/books/deleted') {
+        recordRequest('deletedBooks');
+        data = {success: true, books: []};
+      } else {
+        data = {success: true, files: []};
+      }
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
   </script>
   <script src="/public/crump-product-5.3.js?fixture=dedicated-library"></script>
   <script src="/public/crump-library-5.7.js?fixture=dedicated-library"></script>
   <script src="/public/crump-navigation-5.9.30.js?fixture=dedicated-library"></script>
+  <script src="/public/crump-code-5.9.35.js?fixture=dedicated-library"></script>
 </body>
 </html>
