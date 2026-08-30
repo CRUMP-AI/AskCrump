@@ -299,7 +299,8 @@
   window.addEventListener('crump:plan-intent', event => {
     const plan = String(event.detail?.plan || '').toLowerCase();
     if (!['professional', 'enterprise'].includes(plan)) return;
-    const modal = window.showBillingCenter?.({plan});
+    const modal = document.querySelector('.crump52-billing-modal')
+      || window.showBillingCenter?.({plan});
     if (!modal) return;
     modal.dataset.crumpPlanIntent = plan;
     void activatePlans(modal, true).then(() => {

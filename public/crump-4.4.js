@@ -11,6 +11,7 @@
     autoTools: true,
     verificationLevel: 'auto',
   });
+  const PLAN_OPEN_TIMEOUT_MS = 15_000;
 
   const originalFetch = window.fetch.bind(window);
   let state = { ...DEFAULTS };
@@ -19,6 +20,7 @@
   let memoryViewOpen = false;
   let statusData = null;
   let entitlements = { thinkLonger: false, minimumTier: 'professional' };
+  let planOpenPending = false;
 
   const $ = (selector, root = document) => root.querySelector(selector);
 
@@ -268,16 +270,32 @@
 
   function openProfessionalPlans(source) {
     closePanel();
-    const modal = window.showBillingCenter?.({ plan: 'professional' });
-    if (!modal) window.showUpgradePrompt?.();
-    window.dispatchEvent(new CustomEvent('crump:plan-intent', {
-      detail: {
-        plan: 'professional',
-        source,
-        location: 'intelligence',
-        capturedAt: Date.now(),
-      },
-    }));
+    const detail = {
+      plan: 'professional',
+      source,
+      location: 'intelligence',
+      capturedAt: Date.now(),
+    };
+    const open = () => {
+      planOpenPending = false;
+      const modal = window.showBillingCenter?.({ plan: 'professional' });
+      if (!modal) window.showUpgradePrompt?.({ plan: 'professional' });
+      window.dispatchEvent(new CustomEvent('crump:plan-intent', { detail }));
+    };
+    if (typeof window.showBillingCenter === 'function' || typeof window.showUpgradePrompt === 'function') {
+      open();
+      return;
+    }
+    if (planOpenPending) return;
+    planOpenPending = true;
+    window.showToast?.('Plans are loading. Crump will open them when ready.', 'info');
+    window.addEventListener('crump:body-runtime-ready', open, { once: true });
+    window.setTimeout(() => {
+      if (!planOpenPending) return;
+      planOpenPending = false;
+      window.removeEventListener('crump:body-runtime-ready', open);
+      window.showToast?.('Plan & credits did not finish loading. Please try again.', 'warning');
+    }, PLAN_OPEN_TIMEOUT_MS);
   }
 
   function makeModeSelector() {

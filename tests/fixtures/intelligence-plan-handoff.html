@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Intelligence plan handoff fixture</title>
+</head>
+<body>
+  <header class="header"></header>
+  <label for="userInput">Message</label>
+  <textarea id="userInput"></textarea>
+  <output id="fixtureErrors" aria-label="Browser errors">0</output>
+  <output id="billingOpenCount" aria-label="Billing opens">0</output>
+  <output id="billingStatusRequests" aria-label="Billing status requests">0</output>
+  <output id="planIntentAnalytics" aria-label="Plan intent analytics">0</output>
+  <output id="planIntentConsumed" aria-label="Plan intent consumed">0</output>
+  <button id="finishRuntime" type="button">Finish runtime</button>
+  <script>
+    const delayBilling = new URLSearchParams(location.search).get('delay') === '1';
+    window.currentUser = {id: 'fixture-user'};
+    window.currentChatId = null;
+    window.__billingOpenCount = 0;
+    window.__billingStatusRequests = 0;
+    window.__planIntentReached = [];
+    window.__planIntentConsumed = 0;
+    window.__fixtureErrors = 0;
+    window.getAssistantName = () => 'Crump';
+    window.showToast = () => {};
+    const syncMetric = (id, value) => {
+      document.getElementById(id).textContent = String(value);
+    };
+    window.va = (name, payload) => {
+      if (name === 'event' && payload?.name === 'PlanIntentReached') {
+        window.__planIntentReached.push(payload.data);
+        syncMetric('planIntentAnalytics', window.__planIntentReached.length);
+      }
+    };
+    window.CrumpAnalytics = {
+      track(name, data) {
+        if (name === 'PlanIntentReached') {
+          window.__planIntentReached.push(data);
+          syncMetric('planIntentAnalytics', window.__planIntentReached.length);
+        }
+        return Promise.resolve();
+      },
+    };
+    const showBillingCenter = options => {
+      window.__billingOpenCount += 1;
+      syncMetric('billingOpenCount', window.__billingOpenCount);
+      document.querySelector('.crump52-billing-modal')?.remove();
+      const modal = document.createElement('div');
+      modal.className = 'billing51-modal crump52-billing-modal';
+      modal.dataset.openedFor = String(options?.plan || '');
+      modal.innerHTML =
+        '<section class="billing51-section">' +
+          '<div class="billing51-section-head"><p></p></div>' +
+          '<div class="billing51-plans"></div>' +
+        '</section>';
+      document.body.appendChild(modal);
+      return modal;
+    };
+    const enableBilling = () => {
+      window.showBillingCenter = showBillingCenter;
+      window.showUpgradePrompt = options => window.showBillingCenter(options);
+    };
+    if (!delayBilling) enableBilling();
+    document.getElementById('finishRuntime').addEventListener('click', () => {
+      enableBilling();
+      window.dispatchEvent(new CustomEvent('crump:body-runtime-ready'));
+    });
+    window.fetch = async (input, options = {}) => {
+      const path = new URL(typeof input === 'string' ? input : input.url, location.origin).pathname;
+      const method = String(options.method || 'GET').toUpperCase();
+      let payload = {success: true};
+      if (path === '/api/intelligence/preferences' && method === 'GET') {
+        payload = {
+          success: true,
+          preferences: {
+            intelligenceMode: 'auto',
+            memoryEnabled: true,
+            autoLearn: true,
+            autoTools: true,
+            verificationLevel: 'auto',
+          },
+          entitlements: {thinkLonger: false, minimumTier: 'professional'},
+        };
+      } else if (path === '/api/intelligence/status') {
+        payload = {
+          success: true,
+          memoryCount: 0,
+          entitlements: {thinkLonger: false, minimumTier: 'professional'},
+        };
+      } else if (path === '/api/billing/status') {
+        window.__billingStatusRequests += 1;
+        syncMetric('billingStatusRequests', window.__billingStatusRequests);
+        payload = {success: true, tier: 'free', status: 'inactive', provider: null};
+      }
+      return new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+    window.addEventListener('crump:plan-intent-consumed', () => {
+      window.__planIntentConsumed += 1;
+      syncMetric('planIntentConsumed', window.__planIntentConsumed);
+    });
+    const recordError = () => {
+      window.__fixtureErrors += 1;
+      document.getElementById('fixtureErrors').textContent = String(window.__fixtureErrors);
+    };
+    window.addEventListener('error', recordError);
+    window.addEventListener('unhandledrejection', recordError);
+  </script>
+  <script src="/public/crump-4.4.js?v=intelligence-plan-handoff-fixture-1"></script>
+  <script src="/public/crump-subscriptions-5.3.2.js?v=intelligence-plan-handoff-fixture-1"></script>
+</body>
+</html>

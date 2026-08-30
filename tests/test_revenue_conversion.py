@@ -462,6 +462,7 @@ def test_paid_plan_intent_survives_auth_and_stops_before_checkout():
     assert "crump:plan-intent" in controller
     assert "crump:body-runtime-ready" in runtime
     assert "window.showBillingCenter?.({plan})" in subscriptions
+    assert "document.querySelector('.crump52-billing-modal')" in subscriptions
     assert "data-crump-plan" in subscriptions or "dataset.crumpPlan" in subscriptions
     assert "PlanIntentReached" in subscriptions
     listener = subscriptions[subscriptions.index("window.addEventListener('crump:plan-intent'"):]

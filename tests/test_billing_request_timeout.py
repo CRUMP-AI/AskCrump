@@ -33,7 +33,7 @@ def test_billing_timeout_assets_are_versioned_across_web_pwa_and_native():
     assets = (
         "/crump-billing-5.1.js?v=5.9.76-plan-intelligence-1",
         "/crump-5.2.2.js?v=5.9.76-plan-intelligence-1",
-        "/crump-subscriptions-5.3.2.js?v=5.9.76-plan-intelligence-1",
+        "/crump-subscriptions-5.3.2.js?v=5.9.76-intelligence-plan-handoff-1",
     )
     for asset in assets:
         assert asset in runtime
