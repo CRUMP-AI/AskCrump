@@ -25,6 +25,12 @@
   const PROJECT_SAVE_TIMEOUT_MS = 15_000;
   const PROJECT_READ_TIMEOUT_MS = 15_000;
   const PROJECT_ROUTE_PARAM = 'project';
+  const FEATURE_ACCESS_CODES = new Set([
+    'SUBSCRIPTION_REQUIRED',
+    'CREDITS_REQUIRED',
+    'FEATURE_LIMIT_REACHED',
+    'PROJECT_LIMIT_REACHED',
+  ]);
   const byId = id => document.getElementById(id);
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -157,6 +163,45 @@
     if (!node) return;
     node.textContent = message || '';
     node.classList.toggle('is-error', Boolean(isError));
+  }
+
+  function featureAccessCode(error) {
+    return String(error?.data?.code || error?.code || '').toUpperCase();
+  }
+
+  function openFeatureAccessRecovery(error) {
+    const open = window.showUpgradePrompt || window.showBillingCenter;
+    if (typeof open !== 'function') {
+      window.showToast?.('Plan & credits is still loading. Try again in a moment.', 'error');
+      return false;
+    }
+    const requiredTier = error?.data?.requiredTier;
+    open({
+      ...(requiredTier ? {plan: requiredTier} : {}),
+      source: 'feature_recovery',
+    });
+    return true;
+  }
+
+  function setFeatureAccessStatus(id, error, message = '') {
+    setStatus(id, message || error?.message || 'This feature is not available yet.', true);
+    const code = featureAccessCode(error);
+    if (!FEATURE_ACCESS_CODES.has(code)) return false;
+    const node = byId(id);
+    if (!node) return false;
+    const actions = document.createElement('span');
+    actions.className = 'crump53-actions crump53-feature-recovery';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'crump53-button';
+    button.textContent = code === 'CREDITS_REQUIRED'
+      ? 'Add credits or compare plans'
+      : (code === 'SUBSCRIPTION_REQUIRED' ? 'Compare plans' : 'Review Plan & credits');
+    button.setAttribute('aria-label', `${button.textContent} for this feature`);
+    button.addEventListener('click', () => openFeatureAccessRecovery(error));
+    actions.appendChild(button);
+    node.appendChild(actions);
+    return true;
   }
 
   function renderRetryableListError(list, message, label, retry) {
@@ -936,6 +981,9 @@
       if (options.refresh !== false) void refreshProjects();
       return {success: true, project: data.project};
     } catch (error) {
+      if (featureAccessCode(error) === 'PROJECT_LIMIT_REACHED') {
+        openFeatureAccessRecovery(error);
+      }
       if (options.notify !== false) {
         window.showToast?.(error.message || 'The conversation could not be saved.', 'error');
       }
@@ -1224,7 +1272,7 @@
       const settings = byId('crump53ProjectSettings');
       if (settings) settings.open = false;
     } catch (error) {
-      setStatus('crump53ProjectStatus', error.message, true);
+      setFeatureAccessStatus('crump53ProjectStatus', error);
     }
   }
 
@@ -1367,7 +1415,7 @@
       state.manuscripts = Array.isArray(data.manuscripts) ? data.manuscripts : [];
       renderManuscriptList();
     } catch (error) {
-      setStatus('crump53ManuscriptStatus', error.message, true);
+      setFeatureAccessStatus('crump53ManuscriptStatus', error);
     }
   }
 
@@ -1441,7 +1489,7 @@
       const message = error.data?.creditsRequired
         ? `${error.message} Current balance: ${error.data.creditBalance ?? 0}. The empty manuscript was saved.`
         : error.message;
-      setStatus('crump53ManuscriptStatus', message, true);
+      setFeatureAccessStatus('crump53ManuscriptStatus', error, message);
     }
   }
 
@@ -1500,8 +1548,14 @@
       ? `<a class="crump53-button" href="${escapeHtml(run.outputFile.url)}?download=1">Download ${escapeHtml(String(run.preferredExportFormat || 'file').toUpperCase())}</a>`
       : '';
     const error = run.error ? `<div class="crump53-status is-error">${escapeHtml(run.error)}</div>` : '';
+    const creditRecovery = run.status === 'awaiting_credits'
+      ? '<button type="button" class="crump53-button" id="crump53ManuscriptCredits">Add credits or compare plans</button>'
+      : '';
     node.hidden = false;
-    node.innerHTML = `<strong>${escapeHtml(stageLabels[run.stage] || 'Manuscript run')} · ${escapeHtml(run.status || '')}</strong><br><span>${completed} of ${total} chapters drafted. This job is saved and can resume after a timeout or browser close.</span>${error}${output ? `<div class="crump53-actions" style="margin-top:8px">${output}</div>` : ''}`;
+    node.innerHTML = `<strong>${escapeHtml(stageLabels[run.stage] || 'Manuscript run')} · ${escapeHtml(run.status || '')}</strong><br><span>${completed} of ${total} chapters drafted. This job is saved and can resume after a timeout or browser close.</span>${error}${output || creditRecovery ? `<div class="crump53-actions" style="margin-top:8px">${creditRecovery}${output}</div>` : ''}`;
+    byId('crump53ManuscriptCredits')?.addEventListener('click', () => openFeatureAccessRecovery({
+      data: {code: 'CREDITS_REQUIRED'},
+    }));
   }
 
   function scheduleManuscriptPoll() {
@@ -1552,7 +1606,7 @@
       const message = error.data?.creditsRequired
         ? `${error.message} Current balance: ${error.data.creditBalance ?? 0}.`
         : error.message;
-      setStatus('crump53ManuscriptStatus', message, true);
+      setFeatureAccessStatus('crump53ManuscriptStatus', error, message);
     }
   }
 
@@ -1566,7 +1620,7 @@
       scheduleManuscriptPoll();
       setStatus('crump53ManuscriptStatus', `Manuscript run ${action === 'cancel' ? 'cancelled' : `${action}d`}.`);
     } catch (error) {
-      setStatus('crump53ManuscriptStatus', error.message, true);
+      setFeatureAccessStatus('crump53ManuscriptStatus', error);
     }
   }
 
@@ -1645,7 +1699,7 @@
       const message = error.data?.creditsRequired
         ? `${error.message} Current balance: ${error.data.creditBalance ?? 0}.`
         : error.message;
-      setStatus('crump53ManuscriptStatus', message, true);
+      setFeatureAccessStatus('crump53ManuscriptStatus', error, message);
     }
   }
 
@@ -1713,7 +1767,7 @@
       const message = error.data?.creditsRequired
         ? `${error.message} Current balance: ${error.data.creditBalance ?? 0}.`
         : error.message;
-      setStatus('crump53ManuscriptStatus', message, true);
+      setFeatureAccessStatus('crump53ManuscriptStatus', error, message);
     }
   }
 
@@ -1735,7 +1789,7 @@
       const message = error.data?.creditsRequired
         ? `${error.message} Current balance: ${error.data.creditBalance ?? 0}.`
         : error.message;
-      setStatus('crump53ManuscriptStatus', message, true);
+      setFeatureAccessStatus('crump53ManuscriptStatus', error, message);
     }
   }
 
@@ -1757,7 +1811,7 @@
       setStatus('crump53ManuscriptStatus', `Export ready · ${data.kdp?.wordCount?.toLocaleString?.() || 0} words.`);
       if (data.file?.url) window.open(`${data.file.url}?download=1`, '_blank', 'noopener');
     } catch (error) {
-      setStatus('crump53ManuscriptStatus', error.message, true);
+      setFeatureAccessStatus('crump53ManuscriptStatus', error);
     }
   }
 
@@ -2044,7 +2098,7 @@
       const suffix = error.data?.creditsRequired
         ? ` Needs ${error.data.creditsRequired} credits; balance ${error.data.creditBalance ?? 0}.`
         : '';
-      setStatus('crump53VideoStatus', `${error.message}${suffix}`, true);
+      setFeatureAccessStatus('crump53VideoStatus', error, `${error.message}${suffix}`);
     }
   }
 
@@ -2116,7 +2170,7 @@
       const suffix = error.data?.creditsRequired
         ? ` Needs ${error.data.creditsRequired} credits; balance ${error.data.creditBalance ?? 0}.`
         : '';
-      setStatus('crump53VideoStatus', `${error.message}${suffix}`, true);
+      setFeatureAccessStatus('crump53VideoStatus', error, `${error.message}${suffix}`);
       if (button) button.disabled = false;
     }
   }

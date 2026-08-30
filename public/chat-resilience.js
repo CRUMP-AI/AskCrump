@@ -9,6 +9,11 @@
   const STATUS_TIMEOUT_MS = 10_000;
   const STATUS_RETRY_MS = 3_000;
   const STATUS_MAX_POLLS = 10;
+  const FEATURE_ACCESS_CODES = new Set([
+    'SUBSCRIPTION_REQUIRED',
+    'CREDITS_REQUIRED',
+    'FEATURE_LIMIT_REACHED',
+  ]);
 
   const wait = milliseconds => new Promise(resolve => window.setTimeout(resolve, milliseconds));
 
@@ -25,7 +30,17 @@
     error.shouldRetry = Boolean(data?.shouldRetry);
     error.retryAfter = data?.retryAfter;
     error.status = response.status;
+    error.data = data;
     return error;
+  }
+
+  function offerPlanRecovery(data) {
+    const code = String(data?.code || '').toUpperCase();
+    if (!data?.upgradeRequired && !FEATURE_ACCESS_CODES.has(code)) return;
+    window.showUpgradePrompt?.({
+      ...(data?.requiredTier ? {plan: data.requiredTier} : {}),
+      source: 'feature_recovery',
+    });
   }
 
   function notifyCreditBalance(data) {
@@ -175,7 +190,7 @@
       }
       lastError = apiError(response, data, 'Crump could not complete that request.');
       if (response.status === 401) window.deviceAuth?.clearLocalState?.();
-      if (data.upgradeRequired) window.showUpgradePrompt?.();
+      offerPlanRecovery(data);
       if (data.code === 'REPLY_IN_PROGRESS') {
         const recovered = await recover(requestBody.messageId);
         if (recovered) return recovered;

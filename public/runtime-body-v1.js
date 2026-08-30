@@ -33,7 +33,7 @@ window.CRUMP_CONFIG = Object.freeze({
 
   const enhancementStyles = Object.freeze([
     ['/crump-navigation-5.2.5.css', 'crumpnav525'],
-    ['/crump-product-5.3.css?v=5.9.76-artifact-project-1', 'crumpproduct53'],
+    ['/crump-product-5.3.css?v=5.9.76-feature-recovery-1', 'crumpproduct53'],
     ['/crump-product-5.3.1.css', 'crumpproduct531'],
     ['/crump-polish-5.6.css', 'crumppolish56'],
     ['/crump-library-5.7.css', 'crumplibrary57'],
@@ -48,7 +48,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/profile-manager.js', 'workspaceprofile'],
     ['/billing-manager.js', 'workspacebilling'],
     ['/subscription-ui.js', 'workspacesubscription'],
-    ['/chat-resilience.js?v=5.9.76', 'workspacechatresilience'],
+    ['/chat-resilience.js?v=5.9.76-feature-recovery-1', 'workspacechatresilience'],
     ['/ui-functions.js?v=5.9.76-project-continuity-1', 'workspaceui'],
     ['/presence-manager.js?v=5.9.76', 'workspacepresence'],
     ['/sync-manager.js?v=5.9.76', 'workspacesync'],
@@ -71,7 +71,7 @@ window.CRUMP_CONFIG = Object.freeze({
 
   const finalScripts = Object.freeze([
     ['/crump-navigation-5.2.5.js', 'crumpnav525'],
-    ['/crump-product-5.3.js?v=5.9.76-artifact-project-1', 'crumpproduct53'],
+    ['/crump-product-5.3.js?v=5.9.76-feature-recovery-1', 'crumpproduct53'],
     ['/crump-product-5.3.1.js?v=5.9.76-demand-hydration-1', 'crumpproduct531'],
     ['/crump-subscriptions-5.3.2.js?v=5.9.76-billing-timeout-1', 'crumpsubscriptions532'],
     ['/crump-polish-5.6.js', 'crumppolish56'],

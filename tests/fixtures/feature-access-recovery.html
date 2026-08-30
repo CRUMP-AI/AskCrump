@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Feature access recovery fixture</title>
+  <link rel="stylesheet" href="/public/crump-product-5.3.css?v=feature-access-recovery-1">
+  <style>
+    body { margin:0; min-height:100vh; background:#080b0f; color:#eee; font:14px/1.5 system-ui,sans-serif; }
+    .v1-shell { display:grid; grid-template-columns:94px 1fr; min-height:100vh; }
+    .v1-rail { min-height:100vh; background:#0c1116; }
+    .fixture-panel { width:min(720px,calc(100% - 40px)); margin:48px auto; }
+    .fixture-actions { display:flex; flex-wrap:wrap; gap:10px; margin:20px 0; }
+    .fixture-actions button { min-height:42px; padding:0 16px; border:1px solid #5e5136; border-radius:12px; background:#17140e; color:#e2c77f; }
+    output { display:block; margin-top:8px; color:#b8b6af; }
+    [hidden] { display:none !important; }
+  </style>
+</head>
+<body class="crump-v1-body">
+  <div id="appContainer" class="v1-shell">
+    <nav class="v1-rail" aria-label="Ask Crump navigation"></nav>
+    <main class="fixture-panel">
+      <h1>Plan & credits recovery</h1>
+      <p>This fixture returns real feature-boundary response shapes without credentials or production writes.</p>
+      <div class="fixture-actions">
+        <button type="button" id="fixtureChat">Test chat boundary</button>
+        <button type="button" id="fixtureVideo">Test video boundary</button>
+      </div>
+      <output id="fixtureChatResult" aria-label="Chat result">Not tested</output>
+      <output id="fixtureRecoveryResult" aria-label="Recovery result">No recovery opened</output>
+      <output id="fixtureRequests" aria-label="Fixture requests">0 requests</output>
+      <output id="fixtureErrors" aria-label="Browser errors">0</output>
+    </main>
+  </div>
+  <aside id="sidebar" aria-label="Conversation library"></aside>
+  <div id="sidebarOverlay"></div>
+
+  <script>
+    window.currentUser = {id:'fixture-user'};
+    window.__fixture = {requests:[], recoveries:[]};
+    const renderFixture = () => {
+      document.getElementById('fixtureRecoveryResult').textContent = JSON.stringify(window.__fixture.recoveries);
+      document.getElementById('fixtureRequests').textContent = `${window.__fixture.requests.length} requests`;
+    };
+    const recordBrowserError = () => {
+      const output = document.getElementById('fixtureErrors');
+      output.textContent = String(Number(output.textContent || 0) + 1);
+    };
+    window.addEventListener('error', recordBrowserError);
+    window.addEventListener('unhandledrejection', recordBrowserError);
+    window.showUpgradePrompt = options => {
+      window.__fixture.recoveries.push(options || {});
+      renderFixture();
+    };
+    window.showToast = () => {};
+    window.fetch = async (input, options = {}) => {
+      const path = new URL(String(input), location.href).pathname;
+      const method = String(options.method || 'GET').toUpperCase();
+      window.__fixture.requests.push({path, method});
+      renderFixture();
+      if (path === '/api/features') {
+        return new Response(JSON.stringify({
+          success:true,
+          creditBalance:0,
+          features:{video:{configured:true, entitled:true, minimumTier:'professional'}},
+        }), {status:200, headers:{'Content-Type':'application/json'}});
+      }
+      if (path === '/api/chat') {
+        return new Response(JSON.stringify({
+          success:false,
+          error:'This request needs more credits.',
+          code:'CREDITS_REQUIRED',
+          creditsRequired:8,
+          creditBalance:0,
+        }), {status:402, headers:{'Content-Type':'application/json'}});
+      }
+      if (path === '/api/media/video') {
+        return new Response(JSON.stringify({
+          success:false,
+          error:'This video needs more credits.',
+          code:'CREDITS_REQUIRED',
+          creditsRequired:60,
+          creditBalance:0,
+        }), {status:402, headers:{'Content-Type':'application/json'}});
+      }
+      return new Response(JSON.stringify({success:true, projects:[], files:[]}), {
+        status:200,
+        headers:{'Content-Type':'application/json'},
+      });
+    };
+  </script>
+  <script src="/public/chat-resilience.js?v=feature-access-recovery-1"></script>
+  <script src="/public/crump-product-5.3.js?v=feature-access-recovery-1"></script>
+  <script>
+    document.getElementById('fixtureChat').addEventListener('click', async () => {
+      try {
+        await window.CrumpChatTransport.send({messageId:'fixture-credit-message'});
+      } catch (error) {
+        document.getElementById('fixtureChatResult').textContent =
+          `${error.code} · needs ${error.data?.creditsRequired} credits`;
+      }
+    });
+    document.getElementById('fixtureVideo').addEventListener('click', async () => {
+      window.CrumpProduct53.open('video');
+      await new Promise(resolve => setTimeout(resolve, 40));
+      document.getElementById('crump53VideoPrompt').value = 'A restrained product film with precise camera movement.';
+      document.getElementById('crump53VideoForm').requestSubmit();
+    });
+  </script>
+</body>
+</html>

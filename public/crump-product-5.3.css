@@ -490,6 +490,14 @@ body.crump-v1-body .crump53-status {
   font-size: 9px;
 }
 body.crump-v1-body .crump53-status.is-error { color: #c88d88; }
+body.crump-v1-body .crump53-feature-recovery {
+  display: flex;
+  margin-top: 8px;
+}
+body.crump-v1-body .crump53-feature-recovery .crump53-button {
+  min-height: 36px;
+  color: #d9bf84;
+}
 body.crump-v1-body .crump53-video-preview {
   width: 100%;
   max-height: 460px;
