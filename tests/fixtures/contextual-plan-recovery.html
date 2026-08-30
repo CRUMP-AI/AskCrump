@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Contextual Plan center recovery fixture</title>
+  <link rel="stylesheet" href="/public/crump-billing-5.1.css?v=contextual-recovery-fixture-1">
+  <style>
+    body { margin:0; min-height:100vh; background:#090d11; color:#eee; font:14px/1.5 system-ui,sans-serif; }
+    main { width:min(820px,calc(100% - 40px)); margin:48px auto; }
+    .fixture-actions { display:flex; flex-wrap:wrap; gap:8px; }
+    .fixture-actions button { min-height:42px; padding:0 14px; border:1px solid #5d5036; border-radius:11px; background:#17140e; color:#e2c77f; }
+    output { display:block; margin-top:10px; color:#aaa; }
+  </style>
+</head>
+<body>
+  <main id="billingFixtureBackground">
+    <h1>Contextual recovery fixture</h1>
+    <div class="fixture-actions">
+      <button type="button" id="fixtureGeneric">Generic Plan center</button>
+      <button type="button" id="fixtureCredits">Credit recovery</button>
+      <button type="button" id="fixtureTier">Enterprise recovery</button>
+      <button type="button" id="fixtureProjects">Project-cap recovery</button>
+      <button type="button" id="fixtureUsage">Message-limit recovery</button>
+    </div>
+    <button id="upgradeBtnSidebar" type="button"><span>Plan &amp; credits</span></button>
+    <output id="fixtureContext" aria-label="Recovery context">No recovery context</output>
+    <output id="fixtureIntent" aria-label="Plan intent">No highlighted plan</output>
+    <output id="fixtureCheckout" aria-label="Checkout requests">0 checkout requests</output>
+    <output id="fixtureErrors" aria-label="Browser errors">0</output>
+  </main>
+  <script>
+    window.currentUser = {id:'fixture-user'};
+    window.CRUMP_CONFIG = {
+      webProfessionalPriceLabel:'$20/month',
+      webEnterprisePriceLabel:'$50/month',
+    };
+    window.__fixture = {checkoutRequests:0, events:[]};
+    window.BillingManager = {
+      isNative:() => false,
+      getProducts:async () => ({}),
+      getCreditProducts:async () => ({}),
+    };
+    window.CrumpAnalytics = {
+      track:async (name, data) => {
+        window.__fixture.events.push({name, data});
+        return true;
+      },
+    };
+    window.showToast = () => {};
+    const recordBrowserError = () => {
+      const output = document.getElementById('fixtureErrors');
+      output.textContent = String(Number(output.textContent || 0) + 1);
+    };
+    window.addEventListener('error', recordBrowserError);
+    window.addEventListener('unhandledrejection', recordBrowserError);
+    window.fetch = async (input, options = {}) => {
+      const path = new URL(String(input), location.href).pathname;
+      if (path.includes('/checkout')) window.__fixture.checkoutRequests += 1;
+      document.getElementById('fixtureCheckout').textContent = `${window.__fixture.checkoutRequests} checkout requests`;
+      const responses = {
+        '/api/billing/credits/status': {
+          credits:{balance:12},
+          catalog:[
+            {code:'credits_50',credits:50,price:'$4.99',available:true},
+            {code:'credits_150',credits:150,price:'$9.99',available:true},
+            {code:'credits_400',credits:400,price:'$19.99',available:true},
+          ],
+          history:[],
+        },
+        '/api/usage/check': {daily:{limit:25,used:25,remaining:0}},
+        '/api/billing/status': {tier:'free',status:'inactive',provider:null},
+      };
+      return new Response(JSON.stringify(responses[path] || {success:false,error:'Fixture checkout is disabled.'}), {
+        status:path.includes('/checkout') ? 503 : 200,
+        headers:{'Content-Type':'application/json'},
+      });
+    };
+    function renderFixture() {
+      const recovery = document.querySelector('.billing51-recovery');
+      document.getElementById('fixtureContext').textContent = recovery?.innerText || 'No recovery context';
+      const intent = document.querySelector('.billing51-plan.is-intent');
+      document.getElementById('fixtureIntent').textContent = intent?.dataset.crumpPlan || 'No highlighted plan';
+    }
+    const observer = new MutationObserver(() => setTimeout(renderFixture, 0));
+    observer.observe(document.documentElement, {childList:true, subtree:true, attributes:true, attributeFilter:['class']});
+  </script>
+  <script src="/public/crump-billing-5.1.js?v=contextual-recovery-fixture-1"></script>
+  <script src="/public/crump-5.2.js?v=contextual-recovery-fixture-1"></script>
+  <script src="/public/crump-subscriptions-5.3.2.js?v=contextual-recovery-fixture-1"></script>
+  <script>
+    document.getElementById('fixtureGeneric').addEventListener('click', () => window.showBillingCenter({source:'settings'}));
+    document.getElementById('fixtureCredits').addEventListener('click', () => window.showUpgradePrompt({
+      accessCode:'CREDITS_REQUIRED', creditsRequired:60, creditBalance:12, source:'feature_recovery',
+    }));
+    document.getElementById('fixtureTier').addEventListener('click', () => window.showUpgradePrompt({
+      accessCode:'SUBSCRIPTION_REQUIRED', plan:'enterprise', source:'feature_recovery',
+    }));
+    document.getElementById('fixtureProjects').addEventListener('click', () => window.showUpgradePrompt({
+      accessCode:'PROJECT_LIMIT_REACHED', source:'feature_recovery',
+    }));
+    document.getElementById('fixtureUsage').addEventListener('click', () => window.showUpgradePrompt({
+      accessCode:'USAGE_LIMIT', usageLimit:25, source:'feature_recovery',
+    }));
+  </script>
+</body>
+</html>

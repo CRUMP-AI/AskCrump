@@ -175,9 +175,15 @@
       window.showToast?.('Plan & credits is still loading. Try again in a moment.', 'error');
       return false;
     }
+    const code = featureAccessCode(error);
     const requiredTier = error?.data?.requiredTier;
+    const creditsRequired = error?.data?.creditsRequired == null ? null : Number(error.data.creditsRequired);
+    const creditBalance = error?.data?.creditBalance == null ? null : Number(error.data.creditBalance);
     open({
-      ...(requiredTier ? {plan: requiredTier} : {}),
+      accessCode: code,
+      ...(code === 'SUBSCRIPTION_REQUIRED' && requiredTier ? {plan: requiredTier} : {}),
+      ...(Number.isFinite(creditsRequired) ? {creditsRequired: Math.max(0, Math.floor(creditsRequired))} : {}),
+      ...(Number.isFinite(creditBalance) ? {creditBalance: Math.max(0, Math.floor(creditBalance))} : {}),
       source: 'feature_recovery',
     });
     return true;

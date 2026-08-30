@@ -34,6 +34,71 @@
     return planCenterSources.has(requested) ? requested : 'settings';
   }
 
+  function boundedCount(value) {
+    if (value == null || !Number.isFinite(Number(value))) return null;
+    return Math.max(0, Math.floor(Number(value)));
+  }
+
+  function billingRecoveryContext(options = {}) {
+    const code = String(options?.accessCode || '').toUpperCase();
+    const creditsRequired = boundedCount(options?.creditsRequired);
+    const creditBalance = boundedCount(options?.creditBalance);
+    const usageLimit = boundedCount(options?.usageLimit);
+    const plan = ['professional', 'enterprise'].includes(String(options?.plan || '').toLowerCase())
+      ? String(options.plan).toLowerCase()
+      : '';
+    if (code === 'CREDITS_REQUIRED') {
+      return {
+        code,
+        kind: 'credits',
+        title: creditsRequired == null ? 'More credits are needed to continue.' : `This action needs ${creditsRequired.toLocaleString()} credits.`,
+        detail: creditBalance == null
+          ? 'Review the credit packs below, then return and retry when you are ready.'
+          : `You currently have ${creditBalance.toLocaleString()}. Add enough credits below, then return and retry.`,
+      };
+    }
+    if (code === 'SUBSCRIPTION_REQUIRED') {
+      const label = plan === 'enterprise' ? 'Enterprise' : 'Professional';
+      return {
+        code,
+        kind: 'plan',
+        plan: plan || 'professional',
+        title: `${label} access is needed for this feature.`,
+        detail: 'Compare the monthly plans below. Nothing changes until you choose a plan and confirm checkout.',
+      };
+    }
+    if (code === 'FEATURE_LIMIT_REACHED') {
+      return {
+        code,
+        kind: 'plan',
+        title: 'Your included use for this feature is complete.',
+        detail: 'Compare monthly plans below, or return after the allowance resets. Nothing changes automatically.',
+      };
+    }
+    if (code === 'PROJECT_LIMIT_REACHED') {
+      return {
+        code,
+        kind: 'plan',
+        title: 'Your active Project limit has been reached.',
+        detail: 'Compare monthly plans below before creating another Project. Nothing changes until you choose and confirm.',
+      };
+    }
+    if (code === 'USAGE_LIMIT') {
+      return {
+        code,
+        kind: 'plan',
+        title: usageLimit ? `Today's ${usageLimit.toLocaleString()} included messages have been used.` : 'Today\'s included messages have been used.',
+        detail: 'Compare monthly plans for more included daily messages, or return after the daily allowance resets.',
+      };
+    }
+    return null;
+  }
+
+  function billingRecoveryMarkup(context) {
+    if (!context) return '';
+    return `<aside class="billing51-recovery" data-recovery-kind="${context.kind}" aria-label="Why Plan and credits opened"><span>CONTINUE YOUR WORK</span><h3>${context.title}</h3><p>${context.detail}</p></aside>`;
+  }
+
   async function recordPlanCenterView(options = {}) {
     const source = planCenterSource(options);
     document.documentElement.dataset.crumpPlanCenterEvent = `pending:${source}`;
@@ -637,6 +702,7 @@
   function showBillingCenter52(options = {}) {
     closeBilling52({restoreFocus: false});
     state.billingTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const recovery = billingRecoveryContext(options);
     const modal = document.createElement('div');
     modal.className = 'billing51-modal is-visible crump52-billing-modal';
     modal.innerHTML = `
@@ -646,6 +712,7 @@
           <div class="billing51-brand"><span class="billing51-mark">C</span><div><span>ASK CRUMP</span><h2 id="billing52Title">Plan & credits</h2></div></div>
           <button type="button" class="billing51-close" data-close aria-label="Close">×</button>
         </header>
+        ${billingRecoveryMarkup(recovery)}
         <div class="billing51-balance-card">
           <div><span>YOUR BALANCE</span><strong><b id="billing52Balance">…</b> <small>credits</small></strong><p>Credits take over only after your included allowance runs out.</p></div>
           <div id="billing52Allowance"><div class="billing51-allowance"><div><span>Included today</span><strong>Loading…</strong></div><div class="billing51-progress"><i style="width:25%"></i></div></div></div>
@@ -684,6 +751,7 @@
     modal.querySelectorAll('[data-close]').forEach(node => node.addEventListener('click', closeBilling52));
     document.body.appendChild(modal);
     state.billing = modal;
+    if (recovery?.plan) modal.dataset.crumpPlanIntent = recovery.plan;
     document.body.classList.add('billing51-open');
     const closeButton = $('.billing51-close', modal);
     closeButton?.focus({preventScroll: true});

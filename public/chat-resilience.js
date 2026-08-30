@@ -37,8 +37,13 @@
   function offerPlanRecovery(data) {
     const code = String(data?.code || '').toUpperCase();
     if (!data?.upgradeRequired && !FEATURE_ACCESS_CODES.has(code)) return;
+    const creditsRequired = data?.creditsRequired == null ? null : Number(data.creditsRequired);
+    const creditBalance = data?.creditBalance == null ? null : Number(data.creditBalance);
     window.showUpgradePrompt?.({
-      ...(data?.requiredTier ? {plan: data.requiredTier} : {}),
+      accessCode: code,
+      ...(code === 'SUBSCRIPTION_REQUIRED' && data?.requiredTier ? {plan: data.requiredTier} : {}),
+      ...(Number.isFinite(creditsRequired) ? {creditsRequired: Math.max(0, Math.floor(creditsRequired))} : {}),
+      ...(Number.isFinite(creditBalance) ? {creditBalance: Math.max(0, Math.floor(creditBalance))} : {}),
       source: 'feature_recovery',
     });
   }
@@ -89,7 +94,11 @@
     }
     notifyCreditBalance(data);
     if (data.limits?.messages !== -1 && data.usage?.messages >= data.limits?.messages) {
-      window.showUpgradePrompt?.();
+      window.showUpgradePrompt?.({
+        accessCode: 'USAGE_LIMIT',
+        usageLimit: Math.max(0, Number(data.limits?.messages || 0)),
+        source: 'feature_recovery',
+      });
       throw new Error('Your daily message limit has been reached.');
     }
     return data;

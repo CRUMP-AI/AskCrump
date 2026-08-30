@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r143';
+const CACHE_NAME = 'ask-crump-new-body-v1-r144';
 
 const CORE = [
   '/app',
@@ -26,7 +26,7 @@ const CORE = [
   '/crump-code-5.9.35.css',
   '/crump-code-5.9.35.js?v=5.9.76-demand-hydration-1',
   '/crump-product-5.3.css?v=5.9.76-feature-recovery-1',
-  '/crump-product-5.3.js?v=5.9.76-feature-recovery-1',
+  '/crump-product-5.3.js?v=5.9.76-contextual-plan-recovery-1',
   '/crump-product-5.3.1.css',
   '/crump-product-5.3.1.js?v=5.9.76-demand-hydration-1',
   '/crump-polish-5.6.css',
@@ -34,7 +34,7 @@ const CORE = [
   '/crump-library-5.7.css',
   '/crump-library-5.7.js?v=5.9.76-demand-hydration-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-billing-timeout-1',
-  '/runtime-body-v1.js?v=5.9.76-feature-recovery-1',
+  '/runtime-body-v1.js?v=5.9.76-contextual-plan-recovery-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
@@ -44,7 +44,7 @@ const CORE = [
   '/profile-manager.js',
   '/billing-manager.js',
   '/subscription-ui.js',
-  '/chat-resilience.js?v=5.9.76-feature-recovery-1',
+  '/chat-resilience.js?v=5.9.76-contextual-plan-recovery-1',
   '/ui-functions.js?v=5.9.76-project-continuity-1',
   '/presence-manager.js?v=5.9.76',
   '/auth-resilience.js?v=5.9.76',
@@ -61,10 +61,10 @@ const CORE = [
   '/crump-4.4.js',
   '/crump-5.0.css',
   '/crump-5.0.js?v=5.9.76-artifact-project-1',
-  '/crump-billing-5.1.css',
-  '/crump-billing-5.1.js?v=5.9.76-billing-modal-containment-1',
+  '/crump-billing-5.1.css?v=5.9.76-contextual-plan-recovery-1',
+  '/crump-billing-5.1.js?v=5.9.76-contextual-plan-recovery-1',
   '/crump-5.2.css',
-  '/crump-5.2.js?v=5.9.76-billing-modal-containment-1',
+  '/crump-5.2.js?v=5.9.76-contextual-plan-recovery-1',
   '/crump-5.2.2.css',
   '/crump-5.2.2.js?v=5.9.76-billing-timeout-1',
   '/assets/brand/crump-shell-lockup-light.png',
