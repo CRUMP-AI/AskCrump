@@ -5,6 +5,7 @@
   window.__crump522Loaded = true;
 
   const PACK_CODES = new Set(['credits_50', 'credits_150', 'credits_400']);
+  const BILLING_REQUEST_TIMEOUT_MS = 15_000;
   const state = {
     checkoutOpening: false,
     lastPointerCheckoutAt: 0,
@@ -26,6 +27,34 @@
 
   function show(message, tone = 'info') {
     window.showToast?.(message, tone);
+  }
+
+  async function jsonFetch(url, options = {}) {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), BILLING_REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, {
+        credentials: 'same-origin',
+        ...options,
+        signal: controller.signal,
+        headers: {
+          ...(options.body ? {'Content-Type': 'application/json'} : {}),
+          ...(options.headers || {}),
+        },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || data.message || `Checkout could not start (${response.status}).`);
+      }
+      return data;
+    } catch (error) {
+      if (controller.signal.aborted) {
+        throw new Error('Billing took too long. Check your connection and try again.');
+      }
+      throw error;
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
   }
 
   function normalizeBillingCards(root = document) {
@@ -70,16 +99,10 @@
     }
 
     try {
-      const response = await fetch('/api/billing/credits/checkout', {
+      const data = await jsonFetch('/api/billing/credits/checkout', {
         method: 'POST',
-        credentials: 'same-origin',
-        headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({pack: code}),
       });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || data.success === false) {
-        throw new Error(data.error || data.message || `Checkout could not start (${response.status}).`);
-      }
       const url = String(data.url || '');
       if (!/^https:\/\/checkout\.stripe\.com\//i.test(url)) {
         throw new Error('Stripe did not return a secure checkout destination.');

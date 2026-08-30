@@ -306,7 +306,7 @@ if (!v1Body.includes('removeLegacyEmptyState(container)')) {
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r135') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r136') ||
     !serviceWorker.includes(`/landing.js?v=${releaseVersion}`) ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes(`/conversation.css?v=${releaseVersion}`) ||

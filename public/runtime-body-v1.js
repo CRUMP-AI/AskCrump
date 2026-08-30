@@ -51,9 +51,9 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-4.3.js?v=5.9.76', 'crump43'],
     ['/crump-4.4.js', 'crump44'],
     ['/crump-5.0.js?v=5.9.76', 'crump50'],
-    ['/crump-billing-5.1.js?v=5.9.76-credit-refresh-1', 'billing51'],
+    ['/crump-billing-5.1.js?v=5.9.76-billing-timeout-1', 'billing51'],
     ['/crump-5.2.js', 'crump52'],
-    ['/crump-5.2.2.js', 'crump522'],
+    ['/crump-5.2.2.js?v=5.9.76-billing-timeout-1', 'crump522'],
     ['/crump-v1-body.js', 'crumpbodyv1'],
     ['/crump-v1-stability.js', 'crumpv1stability'],
   ]);
@@ -134,7 +134,7 @@ window.CRUMP_CONFIG = Object.freeze({
     await loadScript('/crump-navigation-5.2.5.js', 'crumpnav525');
     await loadScript('/crump-product-5.3.js?v=5.9.76-demand-hydration-1', 'crumpproduct53');
     await loadScript('/crump-product-5.3.1.js?v=5.9.76-demand-hydration-1', 'crumpproduct531');
-    await loadScript('/crump-subscriptions-5.3.2.js', 'crumpsubscriptions532');
+    await loadScript('/crump-subscriptions-5.3.2.js?v=5.9.76-billing-timeout-1', 'crumpsubscriptions532');
     await loadScript('/crump-polish-5.6.js', 'crumppolish56');
     await loadScript('/crump-library-5.7.js?v=5.9.76-demand-hydration-1', 'crumplibrary57');
     await loadScript('/crump-navigation-5.9.30.js?v=5.9.76-projects-entry-1', 'crumpnav5930');

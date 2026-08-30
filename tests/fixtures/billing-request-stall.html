@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Billing request stall fixture</title>
+</head>
+<body>
+  <main>
+    <h1>Billing request recovery</h1>
+    <output id="fixtureSurface" aria-label="Billing surface">unknown</output>
+    <output id="fixtureRequests" aria-label="Billing requests">0</output>
+    <output id="fixtureAborts" aria-label="Aborted billing requests">0</output>
+    <output id="fixtureUrl" aria-label="Current query"></output>
+    <output id="fixtureMessage" aria-label="Billing message"></output>
+    <output id="fixtureErrors" aria-label="Browser errors">0</output>
+
+    <div class="billing51-modal crump52-billing-modal">
+      <section class="billing51-section">
+        <div class="billing51-section-head"><p>Subscription choices</p></div>
+        <div class="billing51-plans"></div>
+      </section>
+      <article class="billing51-pack" data-crump-pack="credits_50">
+        <strong>50 credits</strong>
+        <button type="button" class="billing51-buy" data-crump-pack="credits_50">Add credits</button>
+      </article>
+    </div>
+  </main>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const fixtureSurface = params.get('surface') || 'credit';
+    window.currentUser = null;
+    window.CRUMP_CONFIG = {
+      webProfessionalPriceLabel: '$20/month',
+      webEnterprisePriceLabel: '$50/month',
+    };
+    window.BillingManager = {isNative: () => false};
+    window.CrumpAnalytics = {track: () => Promise.resolve(true)};
+    window.__fixture = {requests: 0, aborts: 0};
+
+    const updateUrl = () => {
+      document.getElementById('fixtureUrl').textContent = location.search || '(clean)';
+    };
+    document.getElementById('fixtureSurface').textContent = fixtureSurface;
+    updateUrl();
+    const nativeReplaceState = history.replaceState.bind(history);
+    history.replaceState = (...args) => {
+      nativeReplaceState(...args);
+      updateUrl();
+    };
+    const recordBrowserError = () => {
+      const output = document.getElementById('fixtureErrors');
+      output.textContent = String(Number(output.textContent || 0) + 1);
+    };
+    window.addEventListener('error', recordBrowserError);
+    window.addEventListener('unhandledrejection', recordBrowserError);
+    window.showToast = message => {
+      document.getElementById('fixtureMessage').textContent = String(message || '');
+    };
+
+    const nativeSetTimeout = window.setTimeout.bind(window);
+    window.setTimeout = (callback, delay, ...args) => nativeSetTimeout(
+      callback,
+      Number(delay) === 15_000 ? 250 : delay,
+      ...args,
+    );
+
+    window.fetch = async (input, options = {}) => {
+      const url = new URL(String(input), location.href);
+      const method = String(options.method || 'GET').toUpperCase();
+      if (url.pathname === '/api/billing/status' && method === 'GET') {
+        return new Response(JSON.stringify({success: true, tier: 'free', status: 'inactive'}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      const shouldStall =
+        (fixtureSurface === 'credit' && url.pathname === '/api/billing/credits/checkout') ||
+        (fixtureSurface === 'plan' && url.pathname === '/api/stripe/create-checkout-session') ||
+        (fixtureSurface === 'return' && url.pathname === '/api/stripe/finalize-checkout');
+      if (shouldStall) {
+        window.__fixture.requests += 1;
+        document.getElementById('fixtureRequests').textContent = String(window.__fixture.requests);
+        return new Promise((_resolve, reject) => {
+          options.signal?.addEventListener('abort', () => {
+            window.__fixture.aborts += 1;
+            document.getElementById('fixtureAborts').textContent = String(window.__fixture.aborts);
+            reject(new DOMException('The fixture billing request was aborted.', 'AbortError'));
+          }, {once: true});
+        });
+      }
+      return new Response(JSON.stringify({success: false, error: 'Unexpected fixture request.'}), {
+        status: 500,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+  </script>
+  <script src="/public/crump-billing-5.1.js?v=billing-stall-fixture-1"></script>
+  <script src="/public/crump-5.2.2.js?v=billing-stall-fixture-1"></script>
+  <script src="/public/crump-subscriptions-5.3.2.js?v=billing-stall-fixture-1"></script>
+</body>
+</html>

@@ -13,6 +13,7 @@
   };
 
   const BALANCE_STALE_MS = 5 * 60 * 1000;
+  const BILLING_REQUEST_TIMEOUT_MS = 15_000;
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const native = () => Boolean(window.BillingManager?.isNative?.());
@@ -63,21 +64,47 @@
   }
 
   async function jsonFetch(url, options = {}) {
-    const response = await fetch(url, {
-      credentials: 'same-origin',
-      ...options,
-      headers: {
-        ...(options.body ? {'Content-Type': 'application/json'} : {}),
-        ...(options.headers || {}),
-      },
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || data.success === false) {
-      const error = new Error(data.error || 'Billing could not complete that request.');
-      error.code = data.code;
+    const {
+      timeoutMs = BILLING_REQUEST_TIMEOUT_MS,
+      signal: upstreamSignal,
+      ...requestOptions
+    } = options;
+    const controller = new AbortController();
+    const abortFromUpstream = () => controller.abort();
+    if (upstreamSignal?.aborted) controller.abort();
+    else upstreamSignal?.addEventListener?.('abort', abortFromUpstream, {once: true});
+    const timeoutId = window.setTimeout(
+      () => controller.abort(),
+      Math.max(1, Number(timeoutMs) || BILLING_REQUEST_TIMEOUT_MS),
+    );
+    try {
+      const response = await fetch(url, {
+        credentials: 'same-origin',
+        ...requestOptions,
+        signal: controller.signal,
+        headers: {
+          ...(requestOptions.body ? {'Content-Type': 'application/json'} : {}),
+          ...(requestOptions.headers || {}),
+        },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.success === false) {
+        const error = new Error(data.error || 'Billing could not complete that request.');
+        error.code = data.code;
+        throw error;
+      }
+      return data;
+    } catch (error) {
+      if (controller.signal.aborted && !upstreamSignal?.aborted) {
+        const timeoutError = new Error('Billing took too long. Check your connection and try again.');
+        timeoutError.code = 'BILLING_REQUEST_TIMEOUT';
+        throw timeoutError;
+      }
       throw error;
+    } finally {
+      window.clearTimeout(timeoutId);
+      upstreamSignal?.removeEventListener?.('abort', abortFromUpstream);
     }
-    return data;
   }
 
   function close() {
