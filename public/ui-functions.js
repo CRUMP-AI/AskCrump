@@ -847,6 +847,31 @@
     return row;
   }
 
+  function createIntelligenceReceipt(message) {
+    const intelligence = message?.intelligence;
+    if (!intelligence || typeof intelligence !== 'object') return null;
+    const signals = [];
+    if (intelligence.plannerUsed === true) signals.push('Thought longer');
+    if (intelligence.verifierUsed === true) signals.push('Reviewed');
+    if (!signals.length) return null;
+
+    const receipt = document.createElement('div');
+    receipt.className = 'message-intelligence-receipt';
+    receipt.setAttribute('role', 'status');
+    receipt.setAttribute('aria-label', `Advanced Intelligence used: ${signals.join(' and ')}`);
+    const label = document.createElement('span');
+    label.className = 'message-intelligence-label';
+    label.textContent = 'Advanced Intelligence';
+    receipt.appendChild(label);
+    signals.forEach(signal => {
+      const badge = document.createElement('span');
+      badge.className = 'message-intelligence-signal';
+      badge.textContent = signal;
+      receipt.appendChild(badge);
+    });
+    return receipt;
+  }
+
   function renderMessages(messages) {
     const container = document.getElementById('chatContainer');
     if (!container) return;
@@ -898,6 +923,8 @@
       if (isUser && index === lastUserIndex) wrapper.appendChild(createDeliveryStatus(message));
 
       if (!isUser) {
+        const intelligenceReceipt = createIntelligenceReceipt(message);
+        if (intelligenceReceipt) wrapper.appendChild(intelligenceReceipt);
         const actions = document.createElement('div');
         actions.className = 'message-actions';
         const copy = document.createElement('button');

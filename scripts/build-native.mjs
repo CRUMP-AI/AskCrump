@@ -47,7 +47,7 @@ const loader = String.raw`
   const workspaceStyles = Object.freeze([
     ['/billing.css', 'workspacebilling'],
     ['/onboarding.css?v=5.9.76-actionable-tour-1', 'workspaceonboarding'],
-    ['/conversation.css?v=5.9.76', 'workspaceconversation'],
+    ['/conversation.css?v=5.9.76-intelligence-receipt-1', 'workspaceconversation'],
     ['/crump-4.3.css', 'crump43'],
     ['/crump-4.4.css', 'crump44'],
     ['/crump-5.0.css', 'crump50'],
@@ -75,12 +75,12 @@ const loader = String.raw`
     ['/billing-manager.js', 'workspacebilling'],
     ['/subscription-ui.js', 'workspacesubscription'],
     ['/chat-resilience.js?v=5.9.76-contextual-plan-recovery-1', 'workspacechatresilience'],
-    ['/ui-functions.js?v=5.9.76-persisted-project-target-1', 'workspaceui'],
+    ['/ui-functions.js?v=5.9.76-intelligence-receipt-1', 'workspaceui'],
     ['/presence-manager.js?v=5.9.76', 'workspacepresence'],
     ['/sync-manager.js?v=5.9.76', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-sync-cadence-1', 'workspacechatsync'],
     ['/account-manager.js', 'workspaceaccount'],
-    ['/app.js?v=5.9.76', 'workspaceapp'],
+    ['/app.js?v=5.9.76-intelligence-receipt-1', 'workspaceapp'],
     ['/product-analytics.js?v=5.9.76', 'workspaceanalytics'],
   ]);
 

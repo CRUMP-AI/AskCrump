@@ -389,6 +389,32 @@ button.message-status {
   transform: none;
 }
 
+.message-intelligence-receipt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  color: rgba(233, 223, 201, 0.7);
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.message-intelligence-label {
+  color: rgba(230, 205, 145, 0.9);
+  font-weight: 700;
+  letter-spacing: 0.035em;
+}
+
+.message-intelligence-signal {
+  padding: 3px 7px;
+  border: 1px solid rgba(218, 190, 127, 0.2);
+  border-radius: 999px;
+  background: rgba(218, 190, 127, 0.065);
+  color: rgba(244, 237, 221, 0.78);
+  white-space: nowrap;
+}
+
 .message-action-btn {
   min-height: 30px;
   padding: 5px 10px;

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Advanced Intelligence receipt fixture</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/public/conversation.css?v=intelligence-receipt-fixture-1">
+</head>
+<body style="margin:0;background:#111;color:#f8f5ef;font-family:Arial,sans-serif">
+  <main style="max-width:760px;margin:0 auto;padding:24px">
+    <h1>Advanced Intelligence receipt</h1>
+    <div id="chatContainer" style="height:auto;overflow:visible"></div>
+    <output id="fixtureResult" aria-label="Fixture result">pending</output>
+  </main>
+  <script src="/public/ui-functions.js?v=intelligence-receipt-fixture-1"></script>
+  <script>
+    window.currentChatId = '11111111-1111-4111-8111-111111111111';
+    window.chats = [];
+    window.renderMessages([
+      {id: 'one', role: 'assistant', content: 'A planned and reviewed answer.', intelligence: {plannerUsed: true, verifierUsed: true}},
+      {id: 'two', role: 'assistant', content: 'An ordinary answer.', intelligence: {plannerUsed: false, verifierUsed: false}},
+      {id: 'three', role: 'assistant', content: 'Untrusted values stay hidden.', intelligence: {plannerUsed: 'true', verifierUsed: 1}},
+      {id: 'four', role: 'user', content: 'A user message cannot claim a receipt.', intelligence: {plannerUsed: true, verifierUsed: true}},
+    ]);
+    const receipts = document.querySelectorAll('.message-intelligence-receipt');
+    const signals = [...document.querySelectorAll('.message-intelligence-signal')].map(node => node.textContent);
+    document.getElementById('fixtureResult').textContent = JSON.stringify({receipts: receipts.length, signals});
+  </script>
+</body>
+</html>

@@ -77,6 +77,17 @@ def safe_image_url(value: Any) -> str | None:
     return None
 
 
+def safe_intelligence_receipt(value: Any) -> dict[str, bool] | None:
+    """Keep only server-confirmed, content-free intelligence execution flags."""
+    if not isinstance(value, dict):
+        return None
+    receipt: dict[str, bool] = {}
+    for key in ('plannerUsed', 'verifierUsed'):
+        if value.get(key) is True:
+            receipt[key] = True
+    return receipt or None
+
+
 def sanitize_message(item: Any) -> dict[str, Any] | None:
     if not isinstance(item, dict):
         return None
@@ -128,6 +139,11 @@ def sanitize_message(item: Any) -> dict[str, Any] | None:
     reply_error = clean_text(item.get('replyError') or item.get('reply_error'), 500)
     if role == 'user' and reply_error:
         message['replyError'] = reply_error
+
+    if role == 'assistant':
+        intelligence = safe_intelligence_receipt(item.get('intelligence'))
+        if intelligence:
+            message['intelligence'] = intelligence
 
     files = item.get('files')
     if isinstance(files, list):

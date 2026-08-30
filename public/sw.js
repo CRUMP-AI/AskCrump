@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r158';
+const CACHE_NAME = 'ask-crump-new-body-v1-r159';
 
 const CORE = [
   '/app',
@@ -13,7 +13,7 @@ const CORE = [
   '/billing.css',
   '/install-prompt.css?v=5.9.76',
   '/onboarding.css?v=5.9.76-actionable-tour-1',
-  '/conversation.css?v=5.9.76',
+  '/conversation.css?v=5.9.76-intelligence-receipt-1',
   '/auth-styles.css',
   '/crump-v1-body.css?v=5.9.76-registration-consent-1',
   '/crump-v1-body.js?v=5.9.76-canonical-files-handoff-1',
@@ -34,7 +34,7 @@ const CORE = [
   '/crump-library-5.7.css',
   '/crump-library-5.7.js?v=5.9.76-demand-hydration-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-plan-intelligence-1',
-  '/runtime-body-v1.js?v=5.9.76-plan-intelligence-1',
+  '/runtime-body-v1.js?v=5.9.76-intelligence-receipt-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
@@ -45,14 +45,14 @@ const CORE = [
   '/billing-manager.js',
   '/subscription-ui.js',
   '/chat-resilience.js?v=5.9.76-contextual-plan-recovery-1',
-  '/ui-functions.js?v=5.9.76-persisted-project-target-1',
+  '/ui-functions.js?v=5.9.76-intelligence-receipt-1',
   '/presence-manager.js?v=5.9.76',
   '/auth-resilience.js?v=5.9.76',
   '/device-auth.js?v=5.9.76',
   '/sync-manager.js?v=5.9.76',
   '/chat-sync.js?v=5.9.76-sync-cadence-1',
   '/account-manager.js',
-  '/app.js?v=5.9.76',
+  '/app.js?v=5.9.76-intelligence-receipt-1',
   '/product-analytics.js?v=5.9.76',
   '/auth-controller.js?v=5.9.76-plan-intelligence-1',
   '/crump-4.3.css',

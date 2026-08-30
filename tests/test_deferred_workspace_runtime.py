@@ -23,7 +23,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
     ]
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
-        '/runtime-body-v1.js?v=5.9.76-plan-intelligence-1',
+        '/runtime-body-v1.js?v=5.9.76-intelligence-receipt-1',
         '/native-runtime.js',
         '/mobile-bridge.js',
         '/safe-storage.js',
@@ -44,19 +44,19 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
     deferred_assets = [
         '/billing.css',
         '/onboarding.css?v=5.9.76-actionable-tour-1',
-        '/conversation.css?v=5.9.76',
+        '/conversation.css?v=5.9.76-intelligence-receipt-1',
         '/onboarding.js?v=5.9.76-books-library-2',
         '/scroll-manager.js',
         '/profile-manager.js',
         '/billing-manager.js',
         '/subscription-ui.js',
         '/chat-resilience.js?v=5.9.76-contextual-plan-recovery-1',
-        '/ui-functions.js?v=5.9.76-persisted-project-target-1',
+        '/ui-functions.js?v=5.9.76-intelligence-receipt-1',
         '/presence-manager.js?v=5.9.76',
         '/sync-manager.js?v=5.9.76',
         '/chat-sync.js?v=5.9.76-sync-cadence-1',
         '/account-manager.js',
-        '/app.js?v=5.9.76',
+        '/app.js?v=5.9.76-intelligence-receipt-1',
         '/product-analytics.js?v=5.9.76',
     ]
     for asset in deferred_assets:

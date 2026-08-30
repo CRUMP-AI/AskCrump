@@ -646,6 +646,10 @@ async def chat(request: Request):
             question=str(request_payload.get('message') or ''),
             result=result,
         )
+    intelligence_receipt = {
+        'plannerUsed': bool(prepared.planner_used),
+        'verifierUsed': bool(verifier_used),
+    }
 
     if artifact_format:
         try:
@@ -742,6 +746,8 @@ async def chat(request: Request):
             assistant_message['manuscriptWorkspace'] = result['manuscriptWorkspace']
         if result.get('creationHandoff'):
             assistant_message['creationHandoff'] = result['creationHandoff']
+        if any(intelligence_receipt.values()):
+            assistant_message['intelligence'] = intelligence_receipt
 
         try:
             persisted = await db.rpc(
@@ -790,8 +796,7 @@ async def chat(request: Request):
         'mode': prepared.effective_mode,
         'requestedMode': prepared.requested_mode,
         'route': prepared.route,
-        'plannerUsed': prepared.planner_used,
-        'verifierUsed': verifier_used,
+        **intelligence_receipt,
         'memoryCount': prepared.memory_count,
         'memoriesSaved': memories_saved,
         'privateChat': prepared.private_chat,
