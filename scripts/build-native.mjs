@@ -103,7 +103,7 @@ const loader = String.raw`
     ['/crump-polish-5.6.js', 'crumppolish56'],
     ['/crump-library-5.7.js?v=5.9.76-demand-hydration-1', 'crumplibrary57'],
     ['/crump-navigation-5.9.30.js?v=5.9.76-chats-hierarchy-1', 'crumpnav5930'],
-    ['/crump-code-5.9.35.js?v=5.9.76-code-lifecycle-expiry-1', 'crumpcode5935'],
+    ['/crump-code-5.9.35.js?v=5.9.76-code-durable-worker-1', 'crumpcode5935'],
   ]);
 
   const scriptPlan = Object.freeze([

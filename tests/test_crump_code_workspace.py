@@ -19,7 +19,7 @@ def test_code_workspace_is_loaded_but_hidden_until_server_configuration_and_enti
     assert 'id="crumpCodeCreateSlot" class="crump-code-create-slot" hidden' in navigation
     assert "feature?.configured && feature?.entitled && provider?.configured" in script
     assert "slot.hidden = !state.available" in script
-    versioned_script = "/crump-code-5.9.35.js?v=5.9.76-code-lifecycle-expiry-1"
+    versioned_script = "/crump-code-5.9.35.js?v=5.9.76-code-durable-worker-1"
     assert versioned_script in runtime
     assert versioned_script in native
     assert versioned_script in worker
@@ -39,6 +39,9 @@ def test_code_workspace_separates_preparation_from_confirmed_metered_execution()
     assert "method: 'POST', body: {confirmed: true}" in script
     assert 'payload.get("confirmed") is not True' in routes
     assert '"RUN_CONFIRMATION_REQUIRED"' in routes
+    assert "status_code=202" in routes
+    assert '"accepted": True' in routes
+    assert "Task accepted. You can close this window" in script
 
 
 def test_code_workspace_exposes_review_cancellation_approval_and_patch_surfaces():

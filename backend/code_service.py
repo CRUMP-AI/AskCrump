@@ -1,14 +1,14 @@
 """Durable, owner-scoped control plane for Crump Code tasks."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 import re
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
-from .db import SupabaseDB, eq, gt, lte
+from .db import SupabaseDB, eq, gt, in_, lte
 from .project_service import ProjectService
 from .security import normalize_chat_id
 
@@ -226,7 +226,8 @@ class CodeTaskService:
             columns=(
                 "id,project_id,objective,mode,source_repo_url,source_ref,status,network_policy,"
                 "base_revision,result_summary,failure_code,payment_source,credits_spent,"
-                "started_at,completed_at,expires_at,created_at,updated_at"
+                "attempt_count,max_attempts,next_attempt_at,started_at,completed_at,"
+                "expires_at,created_at,updated_at"
             ),
             filters={"user_id": eq(user_id), "project_id": eq(project["id"])},
             order="created_at.desc",
@@ -311,14 +312,19 @@ class CodeTaskService:
         if target not in TRANSITIONS.get(current, frozenset()):
             raise CodeTaskConflictError(f"Crump Code task cannot move from {current} to {target}.")
         payload = {"status": target, "updated_at": _now(), **(changes or {})}
+        if target in TERMINAL_STATUSES or target in {"queued", "awaiting_approval"}:
+            payload = {"lease_token": None, "lease_expires_at": None, **payload}
+        filters = {
+            "id": eq(task["id"]),
+            "user_id": eq(task["user_id"]),
+            "status": eq(current),
+        }
+        if task.get("lease_token"):
+            filters["lease_token"] = eq(task["lease_token"])
         rows = await self.db.update(
             "code_tasks",
             payload,
-            filters={
-                "id": eq(task["id"]),
-                "user_id": eq(task["user_id"]),
-                "status": eq(current),
-            },
+            filters=filters,
         )
         if not rows:
             raise CodeTaskConflictError("Crump Code task changed while this request was running.")
@@ -327,34 +333,162 @@ class CodeTaskService:
             await self.append_event(updated, event_type, event_payload)
         return updated
 
-    async def claim(self, task: dict[str, Any]) -> dict[str, Any]:
+    async def claim(
+        self,
+        task: dict[str, Any],
+        *,
+        changes: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         task = await self.ensure_not_expired(task)
         return await self.transition(
             task,
             "provisioning",
-            changes={"started_at": _now(), "failure_code": None},
+            changes={
+                "started_at": _now(),
+                "failure_code": None,
+                "next_attempt_at": _now(),
+                **(changes or {}),
+            },
             event_type="task.claimed",
             event_payload={"status": "provisioning"},
         )
 
+    async def claim_next(self, *, lease_seconds: int, claim_token: str) -> dict[str, Any] | None:
+        result = await self.db.rpc(
+            "claim_code_task",
+            {
+                "p_lease_seconds": max(60, min(300, int(lease_seconds))),
+                "p_claim_token": claim_token,
+            },
+            retry_transient=True,
+        )
+        rows = result if isinstance(result, list) else ([result] if result else [])
+        return rows[0] if rows else None
+
+    async def dispatch(
+        self,
+        task: dict[str, Any],
+        *,
+        receipt: dict[str, Any],
+        dispatch_token: str,
+    ) -> dict[str, Any]:
+        task = await self.ensure_not_expired(task)
+        result = await self.db.rpc(
+            "dispatch_code_task",
+            {
+                "p_task_id": task["id"],
+                "p_user_id": task["user_id"],
+                "p_dispatch_token": dispatch_token,
+                "p_usage_receipt": receipt,
+                "p_payment_source": receipt.get("paymentSource"),
+                "p_credits_spent": int(receipt.get("creditsSpent") or 0),
+            },
+            retry_transient=True,
+        )
+        rows = result if isinstance(result, list) else ([result] if result else [])
+        if not rows:
+            raise CodeTaskConflictError("Crump Code task is no longer ready to run.")
+        return rows[0]
+
     async def update_fields(self, task: dict[str, Any], changes: dict[str, Any]) -> dict[str, Any]:
+        filters = {"id": eq(task["id"]), "user_id": eq(task["user_id"])}
+        if task.get("lease_token"):
+            filters["lease_token"] = eq(task["lease_token"])
         rows = await self.db.update(
             "code_tasks",
             {**changes, "updated_at": _now()},
-            filters={"id": eq(task["id"]), "user_id": eq(task["user_id"])},
+            filters=filters,
         )
         if not rows:
             raise CodeTaskConflictError("Crump Code task changed while this request was running.")
+        return rows[0]
+
+    async def requeue_after_failure(
+        self,
+        task: dict[str, Any],
+        *,
+        failure_code: str,
+        delay_seconds: int,
+    ) -> dict[str, Any]:
+        current = str(task.get("status") or "")
+        if current not in {"provisioning", "running", "verifying"}:
+            raise CodeTaskConflictError("Crump Code task is no longer retryable.")
+        filters = {
+            "id": eq(task["id"]),
+            "user_id": eq(task["user_id"]),
+            "status": eq(current),
+            "lease_token": eq(task.get("lease_token")),
+        }
+        retry_at = datetime.now(timezone.utc) + timedelta(
+            seconds=max(5, min(300, int(delay_seconds)))
+        )
+        rows = await self.db.update(
+            "code_tasks",
+            {
+                "status": "provisioning",
+                "failure_code": _clean_text(failure_code, 80) or "CODE_RUN_FAILED",
+                "next_attempt_at": retry_at.isoformat(),
+                "lease_token": None,
+                "lease_expires_at": None,
+                "updated_at": _now(),
+            },
+            filters=filters,
+        )
+        if not rows:
+            raise CodeTaskConflictError("Crump Code task changed before its retry was saved.")
+        updated = rows[0]
+        await self.append_event(
+            updated,
+            "task.requeued",
+            {"failureCode": failure_code, "status": "provisioning"},
+        )
+        return updated
+
+    async def next_refund_pending(self) -> dict[str, Any] | None:
+        rows = await self.db.select(
+            "code_tasks",
+            filters={
+                "payment_source": eq("refund_pending"),
+                "status": in_(("failed", "cancelled")),
+            },
+            order="updated_at.asc",
+            limit=1,
+        )
+        return rows[0] if rows else None
+
+    async def mark_refunded(self, task: dict[str, Any]) -> dict[str, Any]:
+        rows = await self.db.update(
+            "code_tasks",
+            {
+                "usage_receipt": None,
+                "payment_source": "refunded",
+                "credits_spent": 0,
+                "updated_at": _now(),
+            },
+            filters={
+                "id": eq(task["id"]),
+                "user_id": eq(task["user_id"]),
+                "payment_source": eq("refund_pending"),
+            },
+        )
+        if not rows:
+            raise CodeTaskConflictError("Crump Code refund state changed while settling.")
         return rows[0]
 
     async def reconcile_task_expiry(self, task: dict[str, Any]) -> dict[str, Any]:
         if task.get("status") in TERMINAL_STATUSES or not timestamp_has_passed(task.get("expires_at")):
             return task
         try:
+            changes = {
+                "failure_code": "CODE_TASK_EXPIRED",
+                "completed_at": _now(),
+            }
+            if task.get("usage_receipt"):
+                changes["payment_source"] = "refund_pending"
             return await self.transition(
                 task,
                 "cancelled",
-                changes={"failure_code": "CODE_TASK_EXPIRED", "completed_at": _now()},
+                changes=changes,
                 event_type="task.cancelled",
                 event_payload={"failureCode": "CODE_TASK_EXPIRED", "status": "cancelled"},
             )
@@ -382,10 +516,16 @@ class CodeTaskService:
         if task.get("status") in TERMINAL_STATUSES:
             return task
         try:
+            changes = {
+                "failure_code": "CODE_APPROVAL_EXPIRED",
+                "completed_at": _now(),
+            }
+            if task.get("usage_receipt"):
+                changes["payment_source"] = "refund_pending"
             return await self.transition(
                 task,
                 "cancelled",
-                changes={"failure_code": "CODE_APPROVAL_EXPIRED", "completed_at": _now()},
+                changes=changes,
                 event_type="task.cancelled",
                 event_payload={"failureCode": "CODE_APPROVAL_EXPIRED", "status": "cancelled"},
             )
@@ -441,10 +581,13 @@ class CodeTaskService:
     async def cancel(self, task: dict[str, Any]) -> dict[str, Any]:
         if task.get("status") in TERMINAL_STATUSES:
             return task
+        changes = {"cancel_requested_at": _now(), "completed_at": _now()}
+        if task.get("usage_receipt"):
+            changes["payment_source"] = "refund_pending"
         return await self.transition(
             task,
             "cancelled",
-            changes={"cancel_requested_at": _now(), "completed_at": _now()},
+            changes=changes,
             event_type="task.cancelled",
             event_payload={"status": "cancelled"},
         )
@@ -562,5 +705,8 @@ class CodeTaskService:
             "base_snapshot_id",
             "final_snapshot_id",
             "usage_receipt",
+            "lease_token",
+            "lease_expires_at",
+            "dispatch_token",
         }
         return {key: value for key, value in task.items() if key not in hidden}

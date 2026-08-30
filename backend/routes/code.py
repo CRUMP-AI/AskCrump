@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
+from uuid import uuid4
 
 from ..auth_service import authenticate_request
-from ..code_runner import CodeRunnerError, run_with_deadline
 from ..code_service import (
     CodeTaskConflictError,
     CodeTaskError,
@@ -13,7 +13,7 @@ from ..code_service import (
 )
 from ..feature_service import FeatureAccessError
 from ..project_service import ProjectNotFoundError
-from ..runtime import code_runner, code_tasks, db, features, settings
+from ..runtime import code_tasks, db, features, settings
 
 router = APIRouter(tags=["code"])
 
@@ -44,14 +44,15 @@ def _task_error(exc: CodeTaskError) -> JSONResponse:
     return _error(str(exc), exc.code, exc.status_code)
 
 
-def _sandbox_token(request: Request) -> str:
-    return str(
+def _configured(request: Request) -> bool:
+    oidc_token = str(
         request.headers.get("x-vercel-oidc-token") or settings.vercel_oidc_token or ""
     ).strip()
-
-
-def _configured() -> bool:
-    return bool(settings.code_workspace_enabled and settings.anthropic_api_key)
+    return bool(
+        settings.code_workspace_enabled
+        and settings.anthropic_api_key
+        and oidc_token
+    )
 
 
 @router.get("/api/projects/{project_id}/code/tasks")
@@ -61,7 +62,7 @@ async def list_code_tasks(project_id: str, request: Request):
         items = await code_tasks.list(user_id=auth.user["id"], project_id=project_id)
         return {
             "success": True,
-            "configured": _configured(),
+            "configured": _configured(request),
             "tasks": [CodeTaskService.public_task(item) for item in items],
         }
     except ProjectNotFoundError:
@@ -71,7 +72,7 @@ async def list_code_tasks(project_id: str, request: Request):
 @router.post("/api/projects/{project_id}/code/tasks")
 async def create_code_task(project_id: str, request: Request):
     auth = await authenticate_request(request, db, settings)
-    if not _configured():
+    if not _configured(request):
         return _error("Crump Code is not enabled yet.", "CODE_WORKSPACE_NOT_CONFIGURED", 503)
     try:
         await features.require_tier(auth.user, "code_workspace")
@@ -115,7 +116,7 @@ async def get_code_task(task_id: str, request: Request):
 @router.post("/api/code/tasks/{task_id}/run")
 async def run_code_task(task_id: str, request: Request):
     auth = await authenticate_request(request, db, settings)
-    if not _configured():
+    if not _configured(request):
         return _error("Crump Code is not enabled yet.", "CODE_WORKSPACE_NOT_CONFIGURED", 503)
     try:
         payload = await request.json()
@@ -127,80 +128,50 @@ async def run_code_task(task_id: str, request: Request):
             "RUN_CONFIRMATION_REQUIRED",
             400,
         )
-    token = _sandbox_token(request)
-    if not token:
-        return _error("Sandbox authentication is unavailable.", "SANDBOX_NOT_CONFIGURED", 503)
     try:
         task = await code_tasks.get(user_id=auth.user["id"], task_id=task_id)
         task = await code_tasks.ensure_not_expired(task)
         await features.require_tier(auth.user, "code_workspace")
-        claimed = await code_tasks.claim(task)
     except FeatureAccessError as exc:
         return _feature_error(exc)
     except CodeTaskError as exc:
         return _task_error(exc)
 
-    receipt: dict | None = None
     try:
         receipt = await features.consume(
             auth.user,
             "code_workspace",
-            {"route": "code_task", "mode": claimed.get("mode")},
-        )
-        claimed = await code_tasks.update_fields(
-            claimed,
-            {
-                "usage_receipt": receipt,
-                "payment_source": receipt.get("paymentSource"),
-                "credits_spent": int(receipt.get("creditsSpent") or 0),
-            },
+            {"route": "code_task", "mode": task.get("mode")},
         )
     except FeatureAccessError as exc:
-        try:
-            await code_tasks.transition(
-                claimed,
-                "queued",
-                changes={"started_at": None},
-                event_type="task.requeued",
-                event_payload={"status": "queued"},
-            )
-        except CodeTaskError:
-            pass
         return _feature_error(exc)
 
+    dispatch_token = str(uuid4())
     try:
-        completed = await run_with_deadline(code_runner, claimed, oidc_token=token)
-        return {"success": True, "task": CodeTaskService.public_task(completed)}
-    except (CodeRunnerError, CodeTaskConflictError) as exc:
-        await features.refund(auth.user["id"], receipt)
-        current = await code_tasks.get(user_id=auth.user["id"], task_id=task_id)
-        if current.get("status") not in {"completed", "failed", "cancelled"}:
-            try:
-                current = await code_tasks.transition(
-                    current,
-                    "failed",
-                    changes={
-                        "failure_code": getattr(exc, "code", "CODE_RUN_FAILED"),
-                        "usage_receipt": None,
-                        "payment_source": "refunded",
-                        "credits_spent": 0,
-                    },
-                    event_type="task.failed",
-                    event_payload={
-                        "failureCode": getattr(exc, "code", "CODE_RUN_FAILED"),
-                        "status": "failed",
-                    },
-                )
-            except CodeTaskError:
-                pass
-        return _error(
-            str(exc),
-            getattr(exc, "code", "CODE_RUN_FAILED"),
-            409
-            if isinstance(exc, CodeTaskConflictError)
-            or getattr(exc, "code", "") == "CODE_TASK_CANCELLED"
-            else 502,
+        claimed = await code_tasks.dispatch(
+            task,
+            receipt=receipt,
+            dispatch_token=dispatch_token,
         )
+    except CodeTaskError as exc:
+        await features.refund(auth.user["id"], receipt)
+        return _task_error(exc)
+    except Exception:
+        current = await code_tasks.get(user_id=auth.user["id"], task_id=task_id)
+        if str(current.get("dispatch_token") or "") == dispatch_token:
+            claimed = current
+        else:
+            await features.refund(auth.user["id"], receipt)
+            raise
+
+    return JSONResponse(
+        status_code=202,
+        content={
+            "success": True,
+            "accepted": True,
+            "task": CodeTaskService.public_task(claimed),
+        },
+    )
 
 
 @router.post("/api/code/tasks/{task_id}/cancel")

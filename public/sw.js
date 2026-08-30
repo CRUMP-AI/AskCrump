@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r154';
+const CACHE_NAME = 'ask-crump-new-body-v1-r155';
 
 const CORE = [
   '/app',
@@ -24,7 +24,7 @@ const CORE = [
   '/crump-navigation-5.9.30.css?v=5.9.76-chats-hierarchy-1',
   '/crump-navigation-5.9.30.js?v=5.9.76-chats-hierarchy-1',
   '/crump-code-5.9.35.css',
-  '/crump-code-5.9.35.js?v=5.9.76-code-lifecycle-expiry-1',
+  '/crump-code-5.9.35.js?v=5.9.76-code-durable-worker-1',
   '/crump-product-5.3.css?v=5.9.76-feature-recovery-1',
   '/crump-product-5.3.js?v=5.9.76-persisted-project-target-1',
   '/crump-product-5.3.1.css',

@@ -592,9 +592,8 @@
   async function runTask(button) {
     if (!state.task?.id || !byId('crumpCodeRunConfirmed')?.checked) return;
     const taskId = state.task.id;
-    const restore = setButtonBusy(button, true, 'Running…');
-    setNotice('Starting the isolated workspace. You can keep this window open to follow progress.');
-    startPolling(taskId);
+    const restore = setButtonBusy(button, true, 'Submitting…');
+    setNotice('Submitting the confirmed task to the private worker…');
     try {
       const data = await api(`/api/code/tasks/${encodeURIComponent(taskId)}/run`, {
         method: 'POST', body: {confirmed: true},
@@ -602,13 +601,14 @@
       state.task = data.task;
       renderDetail();
       renderTasks();
-      setNotice('Crump Code finished. Review the result, checks, and patch before using it.', 'success');
+      setNotice('Task accepted. You can close this window; Crump Code will continue safely.', 'success');
+      startPolling(taskId);
     } catch (error) {
+      stopPolling();
       await selectTask(taskId, {quiet: true});
       setNotice(error.message, error.code === 'CODE_TASK_CANCELLED' ? '' : 'danger');
     } finally {
       restore();
-      stopPolling();
     }
   }
 
@@ -689,9 +689,18 @@
         state.task = data.task || state.task;
         renderDetail();
         renderTasks();
-        if (!ACTIVE.has(String(state.task?.status || '')) || state.task?.status === 'queued') return;
+        if (!ACTIVE.has(String(state.task?.status || '')) || state.task?.status === 'queued') {
+          if (state.task?.status === 'completed') {
+            setNotice('Crump Code finished. Review the result, checks, and patch before using it.', 'success');
+          } else if (state.task?.status === 'failed') {
+            setNotice('Crump Code stopped safely. Review the task history before retrying.', 'danger');
+          } else if (state.task?.status === 'cancelled') {
+            setNotice('Cancellation recorded. No source changes were published.');
+          }
+          return;
+        }
       } catch (_) {
-        // The foreground run reports actionable failures; polling remains quiet.
+        // A later poll can recover from a brief connectivity interruption.
       }
       state.pollTimer = window.setTimeout(poll, 2500);
     };

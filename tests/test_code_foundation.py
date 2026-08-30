@@ -188,12 +188,15 @@ def test_code_routes_are_authenticated_server_surfaces():
     assert ("POST", "/api/code/tasks/{task_id}/cancel") in routes
     assert ("POST", "/api/code/tasks/{task_id}/approvals/{approval_id}") in routes
     source = read("backend/routes/code.py")
+    cron_source = read("backend/routes/manuscripts.py")
     assert "authenticate_request(request, db, settings)" in source
     assert "features.consume(" in source
-    assert 'request.headers.get("x-vercel-oidc-token")' in source
+    assert "code_tasks.dispatch(" in source
+    assert 'request.headers.get("x-vercel-oidc-token")' in cron_source
     assert 'payload.get("confirmed") is not True' in source
     assert '"RUN_CONFIRMATION_REQUIRED"' in source
     assert source.index("ensure_not_expired(task)") < source.index("features.consume(")
+    assert source.index("features.consume(") < source.index("code_tasks.dispatch(")
 
 
 def test_code_schema_is_private_audited_and_deny_all_by_contract():
@@ -244,6 +247,20 @@ async def test_cancelled_code_task_stops_before_the_next_expensive_step():
     with pytest.raises(CodeRunnerError) as run_exc:
         await runner.run({"id": "task-id", "user_id": "user-id"}, oidc_token="unused")
     assert run_exc.value.code == "CODE_TASK_CANCELLED"
+
+
+@pytest.mark.asyncio
+async def test_worker_stops_when_its_private_lease_is_replaced():
+    class ReclaimedTaskService:
+        async def get(self, **_kwargs):
+            return {"status": "provisioning", "lease_token": "new-owner"}
+
+    runner = CrumpCodeRunner(SimpleNamespace(), ReclaimedTaskService())
+    with pytest.raises(CodeRunnerError) as exc:
+        await runner._ensure_not_cancelled(
+            {"id": "task-id", "user_id": "user-id", "lease_token": "old-owner"}
+        )
+    assert exc.value.code == "CODE_TASK_LEASE_LOST"
 
 
 @pytest.mark.asyncio

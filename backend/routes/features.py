@@ -14,6 +14,9 @@ async def feature_status(request: Request):
     auth = await authenticate_request(request, db, settings)
     status = await features.status(auth.user)
     engines = video.engine_status
+    sandbox_configured = bool(
+        request.headers.get("x-vercel-oidc-token") or settings.vercel_oidc_token
+    )
     configured = {
         "think_longer": bool(settings.anthropic_api_key),
         "research": bool((settings.brave_api_key and settings.web_search_enabled) or settings.openweather_api_key),
@@ -30,7 +33,9 @@ async def feature_status(request: Request):
         "manuscript_blueprint": bool(settings.anthropic_api_key and settings.manuscript_generation_enabled),
         "kdp_export": settings.manuscript_generation_enabled,
         "code_workspace": bool(
-            settings.code_workspace_enabled and settings.anthropic_api_key
+            settings.code_workspace_enabled
+            and settings.anthropic_api_key
+            and sandbox_configured
         ),
         "premium_voice": voice.configured,
     }

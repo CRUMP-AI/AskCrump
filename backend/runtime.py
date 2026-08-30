@@ -5,6 +5,7 @@ from .ai_service import AIService
 from .artifact_service import ArtifactService
 from .code_runner import CrumpCodeRunner
 from .code_service import CodeTaskService
+from .code_worker import CodeWorker
 from .config import get_settings
 from .db import SupabaseDB
 from .email_service import EmailService
@@ -26,6 +27,7 @@ features = FeatureService(db)
 projects = ProjectService(db)
 code_tasks = CodeTaskService(db, projects)
 code_runner = CrumpCodeRunner(settings, code_tasks)
+code_worker = CodeWorker(settings, db, code_tasks, code_runner, features)
 voice = ElevenLabsVoiceService(settings)
 media = MediaService(settings, files)
 video = VideoService(settings, db, files)

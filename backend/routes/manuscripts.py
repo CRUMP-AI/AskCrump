@@ -10,7 +10,7 @@ from ..auth_service import authenticate_request
 from ..feature_service import FeatureAccessError
 from ..manuscript_service import ManuscriptError
 from ..project_service import ProjectNotFoundError
-from ..runtime import db, features, files, manuscripts, projects, settings
+from ..runtime import code_worker, db, features, files, manuscripts, projects, settings
 
 router = APIRouter(tags=["manuscripts"])
 
@@ -216,8 +216,14 @@ async def manuscript_cron(request: Request):
     authorization = request.headers.get("authorization", "")
     if not expected or not hmac.compare_digest(authorization, f"Bearer {expected}"):
         return JSONResponse(status_code=401, content={"success": False, "error": "Unauthorized."})
+    oidc_token = str(
+        request.headers.get("x-vercel-oidc-token") or settings.vercel_oidc_token or ""
+    ).strip()
+    code_summary = await code_worker.process_next(oidc_token=oidc_token)
+    if code_summary.get("handled"):
+        return {"success": True, "worker": "code", **code_summary}
     summary = await manuscripts.process_next_run()
-    return {"success": True, **summary}
+    return {"success": True, "worker": "manuscripts", **summary}
 
 
 @router.post("/api/manuscripts/{manuscript_id}/blueprint")

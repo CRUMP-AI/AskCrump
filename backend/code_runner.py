@@ -576,6 +576,12 @@ class CrumpCodeRunner:
             )
         if current.get("status") == "cancelled":
             raise CodeRunnerError("Crump Code was cancelled.", "CODE_TASK_CANCELLED")
+        expected_lease = str(task.get("lease_token") or "")
+        if expected_lease and str(current.get("lease_token") or "") != expected_lease:
+            raise CodeRunnerError(
+                "Crump Code execution ownership changed safely.",
+                "CODE_TASK_LEASE_LOST",
+            )
 
     async def _execute_tool(
         self,
