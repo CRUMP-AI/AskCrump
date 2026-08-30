@@ -584,11 +584,44 @@
     );
   }
 
+  function showSavedOutcomeProject(button, project) {
+    const projectId = String(project?.id || '').trim();
+    if (!button || !projectId) return false;
+    const projectName = String(project?.name || 'Project').replace(/\s+/g, ' ').trim() || 'Project';
+    button.dataset.projectId = projectId;
+    button.dataset.saved = 'true';
+    button.textContent = 'Open Project';
+    button.setAttribute('aria-label', `Open Project \u201c${projectName}\u201d containing this conversation`);
+    const prompt = button.closest('.outcome-feedback')?.querySelector('.outcome-continuity-prompt');
+    if (prompt) prompt.textContent = `Saved to "${projectName}".`;
+    return true;
+  }
+
+  async function hydrateOutcomeProjectAction(button) {
+    if (!button || button.dataset.saved === 'true' || button.dataset.projectLookup === 'pending') return;
+    const chatId = String(button.dataset.chatId || '').trim();
+    const lookup = window.CrumpProduct53?.projectForConversation;
+    if (!chatId || typeof lookup !== 'function') return;
+    button.dataset.projectLookup = 'pending';
+    try {
+      const project = await lookup(chatId);
+      if (button.dataset.saved !== 'true') showSavedOutcomeProject(button, project);
+    } catch (_) {
+      // Relationship recognition is fail-open; the existing save action remains available.
+    } finally {
+      delete button.dataset.projectLookup;
+    }
+  }
+
   function syncOutcomeProjectActions() {
-    document.querySelectorAll('.outcome-project-btn').forEach(syncOutcomeProjectAction);
+    document.querySelectorAll('.outcome-project-btn').forEach(button => {
+      syncOutcomeProjectAction(button);
+      void hydrateOutcomeProjectAction(button);
+    });
   }
 
   window.addEventListener?.('crump:project-target-changed', syncOutcomeProjectActions);
+  window.addEventListener?.('crump:project-service-ready', syncOutcomeProjectActions);
 
   function createOutcomeFeedback(message, index) {
     const eventKey = responseOutcomeKey(message, index);
@@ -603,6 +636,7 @@
     const projectButton = document.createElement('button');
     projectButton.type = 'button';
     projectButton.className = 'outcome-feedback-btn outcome-project-btn';
+    projectButton.dataset.chatId = String(window.currentChatId || '').trim();
     syncOutcomeProjectAction(projectButton);
     projectButton.addEventListener('click', async () => {
       if (projectButton.dataset.saved === 'true') {
@@ -632,10 +666,7 @@
         const result = await keepConversation({projectId: projectButton.dataset.projectId || null});
         if (!result?.success) throw new Error('Projects are still loading. Try again in a moment.');
         continuityPrompt.textContent = `Saved to "${result.project?.name || 'Project'}".`;
-        projectButton.dataset.projectId = String(result.project?.id || projectButton.dataset.projectId || '').trim();
-        projectButton.dataset.saved = 'true';
-        projectButton.textContent = 'Open Project';
-        projectButton.setAttribute('aria-label', 'Open the Project containing this conversation');
+        showSavedOutcomeProject(projectButton, result.project);
       } catch (_) {
         projectButton.disabled = false;
         return;
@@ -673,6 +704,7 @@
     const savedFeedback = savedOutcomeFeedback(eventKey);
     if (savedFeedback) {
       renderThanks(savedFeedback);
+      void hydrateOutcomeProjectAction(projectButton);
       return group;
     }
 
@@ -704,6 +736,7 @@
     }
 
     group.append(continuityPrompt, projectButton, prompt, ...buttons);
+    void hydrateOutcomeProjectAction(projectButton);
     return group;
   }
 

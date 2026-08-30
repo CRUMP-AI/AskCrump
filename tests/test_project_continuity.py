@@ -181,6 +181,51 @@ async def test_empty_project_conversation_mapping_does_not_query_chat_records():
     assert not any(call[:2] == ("select", "user_chats") for call in database.calls)
 
 
+@pytest.mark.asyncio
+async def test_project_for_chat_route_returns_only_the_owner_scoped_summary(monkeypatch):
+    async def authenticate(*_args, **_kwargs):
+        return type("Auth", (), {"user": {"id": USER_ID}})()
+
+    class Projects:
+        async def find_for_chat(self, **kwargs):
+            assert kwargs == {"user_id": USER_ID, "chat_id": CHAT_ID}
+            return {
+                "id": PROJECT_ID,
+                "user_id": USER_ID,
+                "name": "Quarterly strategy",
+                "description": "Private description",
+                "instructions": "Private instructions",
+            }
+
+    monkeypatch.setattr(projects_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(projects_routes, "projects", Projects())
+
+    result = await projects_routes.project_for_chat(CHAT_ID, object())
+
+    assert result == {
+        "success": True,
+        "project": {"id": PROJECT_ID, "name": "Quarterly strategy"},
+    }
+
+
+@pytest.mark.asyncio
+async def test_project_for_chat_route_returns_null_without_leaking_missing_chat_state(monkeypatch):
+    async def authenticate(*_args, **_kwargs):
+        return type("Auth", (), {"user": {"id": USER_ID}})()
+
+    class Projects:
+        async def find_for_chat(self, **_kwargs):
+            raise ProjectChatNotFoundError("Conversation not found.")
+
+    monkeypatch.setattr(projects_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(projects_routes, "projects", Projects())
+
+    assert await projects_routes.project_for_chat("not-a-chat-id", object()) == {
+        "success": True,
+        "project": None,
+    }
+
+
 def test_project_workspace_surfaces_saved_conversations_and_a_private_resume_action():
     product = (ROOT / "public" / "crump-product-5.3.js").read_text(encoding="utf-8")
     route = (ROOT / "backend" / "routes" / "projects.py").read_text(encoding="utf-8")
@@ -364,8 +409,11 @@ def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_
     assert ui.index("syncOutcomeProjectAction(projectButton)") < ui.index("Or help someone else:")
     assert "group.append(continuityPrompt, projectButton, prompt, ...buttons)" in ui
     assert "group.replaceChildren(continuityPrompt, projectButton, status)" in ui
-    assert "Open the Project containing this conversation" in ui
-    assert "projectButton.dataset.projectId = String(result.project?.id" in ui
+    assert r'Open Project \u201c${projectName}\u201d containing this conversation' in ui
+    assert "showSavedOutcomeProject(projectButton, result.project)" in ui
+    assert "projectButton.dataset.chatId = String(window.currentChatId" in ui
+    assert "hydrateOutcomeProjectAction(projectButton)" in ui
+    assert "window.addEventListener?.('crump:project-service-ready'" in ui
     assert "if (await openProject(projectId)) return" in ui
     direct_action = ui[
         ui.index("const continuityPrompt"):
@@ -374,6 +422,11 @@ def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_
     assert "keepConversation" in direct_action
     assert "OutcomeFeedbackSubmitted" not in direct_action
     assert "projectTarget: () => currentProjectTarget()" in product
+    assert "projectForConversation: chatId => projectForConversation(chatId)" in product
+    assert "conversationProjectCache" in product
+    assert "/api/projects/for-chat/" in product
+    assert "rememberConversationProject(chatId, data.project)" in product
+    assert "window.dispatchEvent(new Event('crump:project-service-ready'))" in product
     assert "keepConversation: options => keepConversation(options)" in product
     assert "openProject: projectId => openProject(projectId)" in product
     assert "return selectProject(normalizedProjectId)" in product
@@ -383,6 +436,8 @@ def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_
     assert "await window.syncChatsToServer?.()" in product
     assert 'body: {chatId}' in product
     assert '@router.post("/{project_id}/chats")' in route
+    assert '@router.get("/for-chat/{chat_id}")' in route
+    assert '"project": project' in route
     assert 'event_key="first-durable-project"' in route
     assert 'artifact_type="project"' in route
 
@@ -436,12 +491,18 @@ def test_project_target_disclosure_fixture_covers_selected_and_new_destinations(
         encoding="utf-8"
     )
 
-    assert '<script src="/public/ui-functions.js?v=project-target-disclosure-2"></script>' in fixture
-    assert '<script src="/public/crump-product-5.3.js?v=project-target-disclosure-2"></script>' in fixture
+    assert '<script src="/public/ui-functions.js?v=project-target-disclosure-3"></script>' in fixture
+    assert '<script src="/public/crump-product-5.3.js?v=project-target-disclosure-3"></script>' in fixture
     assert "Q3 Finance Forecast" in fixture
     assert "Website launch checklist" in fixture
     assert "await wait(120)" in fixture
     assert "fixtureUsesStoredProject" in fixture
+    assert "fixtureConversationAlreadySaved" in fixture
+    assert "/api/projects/for-chat/" in fixture
+    assert "Project relationship lookups" in fixture
+    assert "Opened project" in fixture
+    assert "context: {canon: []}" in fixture
+    assert "conversations: []" in fixture
     assert "window.__fixture.requests.push" in fixture
     assert 'aria-label="Browser errors"' in fixture
     assert "unhandledrejection" in fixture

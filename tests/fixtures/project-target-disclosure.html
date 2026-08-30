@@ -23,6 +23,8 @@
       <output id="fixtureTarget" aria-label="Selected project">Q3 Finance Forecast</output>
       <output id="fixtureRequest" aria-label="Save destination">No save yet</output>
       <output id="fixtureFileRequest" aria-label="File destination">No file yet</output>
+      <output id="fixtureLookup" aria-label="Project relationship lookups">0</output>
+      <output id="fixtureOpened" aria-label="Opened project">Not opened</output>
       <output id="fixtureErrors" aria-label="Browser errors">0</output>
     </div>
     <div id="chatContainer" class="chat-container" aria-label="Conversation"></div>
@@ -34,7 +36,9 @@
       name: 'Q3 Finance Forecast',
       updated_at: '2026-08-28T12:00:00Z',
     };
-    const fixtureUsesStoredProject = new URLSearchParams(location.search).get('target') !== 'new';
+    const fixtureParams = new URLSearchParams(location.search);
+    const fixtureUsesStoredProject = fixtureParams.get('target') !== 'new';
+    const fixtureConversationAlreadySaved = fixtureParams.get('saved') === '1';
     if (fixtureUsesStoredProject) {
       localStorage.setItem('askcrump.activeProject53', fixtureProject.id);
     } else {
@@ -60,7 +64,7 @@
         },
       }],
     }];
-    window.__fixture = {requests: [], toasts: [], unexpectedRequests: 0};
+    window.__fixture = {requests: [], toasts: [], unexpectedRequests: 0, projectLookups: 0};
     const recordBrowserError = () => {
       const output = document.getElementById('fixtureErrors');
       output.textContent = String(Number(output.textContent || 0) + 1);
@@ -84,6 +88,34 @@
       }
       if (url.pathname === '/api/features') {
         return new Response(JSON.stringify({success: true}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      if (url.pathname === `/api/projects/for-chat/${fixtureChatId}` && method === 'GET') {
+        window.__fixture.projectLookups += 1;
+        document.getElementById('fixtureLookup').textContent = String(window.__fixture.projectLookups);
+        return new Response(JSON.stringify({
+          success: true,
+          project: fixtureConversationAlreadySaved ? fixtureProject : null,
+        }), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      if (url.pathname === `/api/projects/${fixtureProject.id}` && method === 'GET') {
+        document.getElementById('fixtureOpened').textContent = `Opened ${fixtureProject.name}`;
+        return new Response(JSON.stringify({
+          success: true,
+          project: fixtureProject,
+          context: {canon: []},
+        }), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      if (url.pathname === `/api/projects/${fixtureProject.id}/chats` && method === 'GET') {
+        return new Response(JSON.stringify({success: true, conversations: []}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
@@ -130,9 +162,9 @@
       });
     };
   </script>
-  <script src="/public/ui-functions.js?v=project-target-disclosure-2"></script>
+  <script src="/public/ui-functions.js?v=project-target-disclosure-3"></script>
   <script src="/public/crump-5.0.js?v=artifact-project-handoff-1"></script>
-  <script src="/public/crump-product-5.3.js?v=project-target-disclosure-2"></script>
+  <script src="/public/crump-product-5.3.js?v=project-target-disclosure-3"></script>
   <script>
     window.addEventListener('load', () => window.renderMessages(window.chats[0].messages));
   </script>

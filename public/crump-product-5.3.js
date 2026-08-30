@@ -25,6 +25,8 @@
   const PROJECT_SAVE_TIMEOUT_MS = 15_000;
   const PROJECT_READ_TIMEOUT_MS = 15_000;
   const PROJECT_ROUTE_PARAM = 'project';
+  const conversationProjectCache = new Map();
+  const conversationProjectRequests = new Map();
   const FEATURE_ACCESS_CODES = new Set([
     'SUBSCRIPTION_REQUIRED',
     'CREDITS_REQUIRED',
@@ -941,6 +943,38 @@
     ) || null;
   }
 
+  function rememberConversationProject(chatId, project) {
+    const normalizedChatId = String(chatId || '').trim();
+    if (!normalizedChatId) return null;
+    const projectId = String(project?.id || '').trim();
+    const normalizedProject = projectId
+      ? {
+          id: projectId,
+          name: String(project?.name || 'Project').replace(/\s+/g, ' ').trim() || 'Project',
+        }
+      : null;
+    conversationProjectCache.set(normalizedChatId, normalizedProject);
+    return normalizedProject;
+  }
+
+  async function projectForConversation(chatId) {
+    const normalizedChatId = String(chatId || '').trim();
+    if (!normalizedChatId) return null;
+    if (conversationProjectCache.has(normalizedChatId)) {
+      return conversationProjectCache.get(normalizedChatId);
+    }
+    if (conversationProjectRequests.has(normalizedChatId)) {
+      return conversationProjectRequests.get(normalizedChatId);
+    }
+    const request = api(
+      `/api/projects/for-chat/${encodeURIComponent(normalizedChatId)}`,
+      {timeoutMs: PROJECT_READ_TIMEOUT_MS},
+    ).then(data => rememberConversationProject(normalizedChatId, data.project))
+      .finally(() => conversationProjectRequests.delete(normalizedChatId));
+    conversationProjectRequests.set(normalizedChatId, request);
+    return request;
+  }
+
   function projectNameForConversation(chat) {
     const title = String(chat?.title || '').replace(/\s+/g, ' ').trim();
     if (title && title.toLowerCase() !== 'new conversation') return title.slice(0, 100);
@@ -981,6 +1015,7 @@
       state.activeProject = data.project;
       state.editingProject = data.project;
       storeProject(data.project.id);
+      rememberConversationProject(chatId, data.project);
       if (options.notify !== false) {
         window.showToast?.(`Saved to ${data.project.name}.`, 'success');
       }
@@ -2354,6 +2389,7 @@
     open: openStudio,
     openProject: projectId => openProject(projectId),
     projectTarget: () => currentProjectTarget(),
+    projectForConversation: chatId => projectForConversation(chatId),
     keepConversation: options => keepConversation(options),
     keepArtifact: (file, options) => keepArtifact(file, options),
     openManuscript: workspace => openManuscriptWorkspace(workspace),
@@ -2365,6 +2401,7 @@
     injectStudio();
     injectProjectIntoChatRequests();
     wrapManuscriptRenderer();
+    window.dispatchEvent(new Event('crump:project-service-ready'));
     const scrollButton = byId('scrollToEndBtn');
     if (scrollButton) scrollButton.title = 'Jump to newest message';
     document.addEventListener('keydown', event => {

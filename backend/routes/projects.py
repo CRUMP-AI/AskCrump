@@ -117,6 +117,25 @@ async def attach_project_chat(project_id: str, request: Request):
         return _error(str(exc), "PROJECT_CHAT_NOT_READY", 409)
 
 
+@router.get("/for-chat/{chat_id}")
+async def project_for_chat(chat_id: str, request: Request):
+    auth = await authenticate_request(request, db, settings)
+    try:
+        item = await projects.find_for_chat(
+            user_id=auth.user["id"],
+            chat_id=chat_id,
+        )
+    except ProjectChatNotFoundError:
+        item = None
+    project = None
+    if item:
+        project = {
+            "id": str(item.get("id") or ""),
+            "name": str(item.get("name") or "Project"),
+        }
+    return {"success": True, "project": project}
+
+
 @router.get("/{project_id}/chats")
 async def list_project_chats(project_id: str, request: Request):
     auth = await authenticate_request(request, db, settings)
