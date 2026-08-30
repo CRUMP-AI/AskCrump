@@ -10,6 +10,8 @@
     loading: false,
     lastBalanceFetchAt: 0,
     balanceRequest: null,
+    trigger: null,
+    background: [],
   };
 
   const BALANCE_STALE_MS = 5 * 60 * 1000;
@@ -18,6 +20,15 @@
   const $ = (selector, root = document) => root.querySelector(selector);
   const native = () => Boolean(window.BillingManager?.isNative?.());
   const planCenterSources = new Set(['settings', 'plan_intent', 'upgrade_prompt']);
+  const BILLING_FOCUSABLE = [
+    'a[href]',
+    'button:not([disabled])',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    '[role="button"][tabindex]:not([tabindex="-1"])',
+    '[tabindex]:not([tabindex="-1"])',
+  ].join(',');
 
   function moneySafe(value, fallback) {
     const text = String(value || fallback || '').trim();
@@ -107,10 +118,82 @@
     }
   }
 
-  function close() {
+  function visibleElement(element) {
+    return Boolean(element && (element.offsetWidth || element.offsetHeight || element.getClientRects().length));
+  }
+
+  function restoreBillingBackground() {
+    state.background.forEach(item => {
+      if (!item.element?.isConnected) return;
+      if (!item.inert) item.element.removeAttribute('inert');
+      if (item.ariaHidden === null) item.element.removeAttribute('aria-hidden');
+      else item.element.setAttribute('aria-hidden', item.ariaHidden);
+    });
+    state.background = [];
+  }
+
+  function isolateBillingBackground(modal) {
+    restoreBillingBackground();
+    state.background = [...document.body.children]
+      .filter(element => element !== modal)
+      .filter(element => !['SCRIPT', 'STYLE', 'LINK'].includes(element.tagName))
+      .filter(element => element.id !== 'toastContainer')
+      .filter(visibleElement)
+      .map(element => ({
+        element,
+        inert: element.hasAttribute('inert'),
+        ariaHidden: element.getAttribute('aria-hidden'),
+      }));
+    state.background.forEach(item => {
+      item.element.setAttribute('inert', '');
+      item.element.setAttribute('aria-hidden', 'true');
+    });
+  }
+
+  function billingFocusable(modal) {
+    const sheet = $('.billing51-sheet', modal);
+    if (!sheet) return [];
+    return [...sheet.querySelectorAll(BILLING_FOCUSABLE)].filter(element => {
+      if (element.closest('[hidden], [aria-hidden="true"]')) return false;
+      return visibleElement(element);
+    });
+  }
+
+  function containBillingFocus(event, modal) {
+    if (event.key !== 'Tab') return false;
+    const focusable = billingFocusable(modal);
+    const sheet = $('.billing51-sheet', modal);
+    if (!focusable.length) {
+      event.preventDefault();
+      sheet?.focus({preventScroll: true});
+      return true;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+    if (event.shiftKey && (active === first || !modal.contains(active))) {
+      event.preventDefault();
+      last.focus({preventScroll: true});
+      return true;
+    }
+    if (!event.shiftKey && (active === last || !modal.contains(active))) {
+      event.preventDefault();
+      first.focus({preventScroll: true});
+      return true;
+    }
+    return false;
+  }
+
+  function close({restoreFocus = true} = {}) {
+    const trigger = state.trigger;
     state.modal?.remove();
     state.modal = null;
     document.body.classList.remove('billing51-open');
+    restoreBillingBackground();
+    state.trigger = null;
+    if (restoreFocus && trigger?.isConnected && !trigger.disabled) {
+      requestAnimationFrame(() => trigger.focus?.({preventScroll: true}));
+    }
   }
 
   function setBusy(button, busy, label = null) {
@@ -388,12 +471,13 @@
   }
 
   function showBillingCenter(options = {}) {
-    close();
+    close({restoreFocus: false});
+    state.trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const modal = document.createElement('div');
     modal.className = 'billing51-modal';
     modal.innerHTML = `
       <div class="billing51-backdrop" data-billing-close></div>
-      <section class="billing51-sheet" role="dialog" aria-modal="true" aria-labelledby="billing51Title">
+      <section class="billing51-sheet" role="dialog" aria-modal="true" aria-labelledby="billing51Title" tabindex="-1">
         <header class="billing51-header">
           <div class="billing51-brand">
             <span class="billing51-mark">C</span>
@@ -446,15 +530,22 @@
         </footer>
       </section>`;
 
-    modal.querySelectorAll('[data-billing-close]').forEach(node => node.addEventListener('click', close));
+    modal.querySelectorAll('[data-billing-close]').forEach(node => node.addEventListener('click', () => close()));
     modal.addEventListener('keydown', event => {
-      if (event.key === 'Escape') close();
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        close();
+        return;
+      }
+      containBillingFocus(event, modal);
     });
     modal.querySelector('#billing51Restore')?.addEventListener('click', event => restore(event.currentTarget));
     modal.querySelector('#billing51Manage')?.addEventListener('click', event => manageSubscription(event.currentTarget));
     document.body.appendChild(modal);
     state.modal = modal;
     document.body.classList.add('billing51-open');
+    $('.billing51-close', modal)?.focus({preventScroll: true});
+    isolateBillingBackground(modal);
     void recordPlanCenterView(options);
     requestAnimationFrame(() => modal.classList.add('is-visible'));
     hydrate(modal);

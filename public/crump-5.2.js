@@ -6,6 +6,15 @@
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const planCenterSources = new Set(['settings', 'plan_intent', 'upgrade_prompt']);
+  const BILLING_FOCUSABLE = [
+    'a[href]',
+    'button:not([disabled])',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    '[role="button"][tabindex]:not([tabindex="-1"])',
+    '[tabindex]:not([tabindex="-1"])',
+  ].join(',');
   const state = {
     menu: null,
     billing: null,
@@ -13,6 +22,8 @@
     legacyFileCache: new Map(),
     legacyFileLoading: new Set(),
     checkoutOpening: false,
+    billingTrigger: null,
+    billingBackground: [],
   };
 
   function planCenterSource(options = {}) {
@@ -412,10 +423,82 @@
     return data;
   }
 
-  function closeBilling52() {
+  function visibleElement(element) {
+    return Boolean(element && (element.offsetWidth || element.offsetHeight || element.getClientRects().length));
+  }
+
+  function restoreBillingBackground52() {
+    state.billingBackground.forEach(item => {
+      if (!item.element?.isConnected) return;
+      if (!item.inert) item.element.removeAttribute('inert');
+      if (item.ariaHidden === null) item.element.removeAttribute('aria-hidden');
+      else item.element.setAttribute('aria-hidden', item.ariaHidden);
+    });
+    state.billingBackground = [];
+  }
+
+  function isolateBillingBackground52(modal) {
+    restoreBillingBackground52();
+    state.billingBackground = [...document.body.children]
+      .filter(element => element !== modal)
+      .filter(element => !['SCRIPT', 'STYLE', 'LINK'].includes(element.tagName))
+      .filter(element => element.id !== 'toastContainer')
+      .filter(visibleElement)
+      .map(element => ({
+        element,
+        inert: element.hasAttribute('inert'),
+        ariaHidden: element.getAttribute('aria-hidden'),
+      }));
+    state.billingBackground.forEach(item => {
+      item.element.setAttribute('inert', '');
+      item.element.setAttribute('aria-hidden', 'true');
+    });
+  }
+
+  function billingFocusable52(modal) {
+    const sheet = $('.billing51-sheet', modal);
+    if (!sheet) return [];
+    return [...sheet.querySelectorAll(BILLING_FOCUSABLE)].filter(element => {
+      if (element.closest('[hidden], [aria-hidden="true"]')) return false;
+      return visibleElement(element);
+    });
+  }
+
+  function containBillingFocus52(event, modal) {
+    if (event.key !== 'Tab') return false;
+    const focusable = billingFocusable52(modal);
+    const sheet = $('.billing51-sheet', modal);
+    if (!focusable.length) {
+      event.preventDefault();
+      sheet?.focus({preventScroll: true});
+      return true;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+    if (event.shiftKey && (active === first || !modal.contains(active))) {
+      event.preventDefault();
+      last.focus({preventScroll: true});
+      return true;
+    }
+    if (!event.shiftKey && (active === last || !modal.contains(active))) {
+      event.preventDefault();
+      first.focus({preventScroll: true});
+      return true;
+    }
+    return false;
+  }
+
+  function closeBilling52({restoreFocus = true} = {}) {
+    const trigger = state.billingTrigger;
     state.billing?.remove();
     state.billing = null;
     document.body.classList.remove('billing51-open');
+    restoreBillingBackground52();
+    state.billingTrigger = null;
+    if (restoreFocus && trigger?.isConnected && !trigger.disabled) {
+      requestAnimationFrame(() => trigger.focus?.({preventScroll: true}));
+    }
   }
 
   async function openCreditCheckout(packCode, trigger) {
@@ -552,12 +635,13 @@
   }
 
   function showBillingCenter52(options = {}) {
-    closeBilling52();
+    closeBilling52({restoreFocus: false});
+    state.billingTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const modal = document.createElement('div');
     modal.className = 'billing51-modal is-visible crump52-billing-modal';
     modal.innerHTML = `
       <div class="billing51-backdrop" data-close></div>
-      <section class="billing51-sheet" role="dialog" aria-modal="true" aria-labelledby="billing52Title">
+      <section class="billing51-sheet" role="dialog" aria-modal="true" aria-labelledby="billing52Title" tabindex="-1">
         <header class="billing51-header">
           <div class="billing51-brand"><span class="billing51-mark">C</span><div><span>ASK CRUMP</span><h2 id="billing52Title">Plan & credits</h2></div></div>
           <button type="button" class="billing51-close" data-close aria-label="Close">×</button>
@@ -601,6 +685,9 @@
     document.body.appendChild(modal);
     state.billing = modal;
     document.body.classList.add('billing51-open');
+    const closeButton = $('.billing51-close', modal);
+    closeButton?.focus({preventScroll: true});
+    isolateBillingBackground52(modal);
     void recordPlanCenterView(options);
 
     // One capture-phase handler owns checkout for both the explicit button and
@@ -617,6 +704,12 @@
       openCreditCheckout(card.dataset.crumpPack || packTarget.dataset.crumpPack, button);
     }, {capture: true});
     modal.addEventListener('keydown', event => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeBilling52();
+        return;
+      }
+      if (containBillingFocus52(event, modal)) return;
       if (event.key !== 'Enter' && event.key !== ' ') return;
       const card = event.target.closest?.('.billing51-pack[data-crump-pack]');
       if (!card) return;

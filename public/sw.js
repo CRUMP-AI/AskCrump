@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r138';
+const CACHE_NAME = 'ask-crump-new-body-v1-r139';
 
 const CORE = [
   '/app',
@@ -34,7 +34,7 @@ const CORE = [
   '/crump-library-5.7.css',
   '/crump-library-5.7.js?v=5.9.76-demand-hydration-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-billing-timeout-1',
-  '/runtime-body-v1.js?v=5.9.76-modal-containment-1',
+  '/runtime-body-v1.js?v=5.9.76-billing-modal-containment-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
@@ -62,9 +62,9 @@ const CORE = [
   '/crump-5.0.css',
   '/crump-5.0.js?v=5.9.76',
   '/crump-billing-5.1.css',
-  '/crump-billing-5.1.js?v=5.9.76-billing-timeout-1',
+  '/crump-billing-5.1.js?v=5.9.76-billing-modal-containment-1',
   '/crump-5.2.css',
-  '/crump-5.2.js',
+  '/crump-5.2.js?v=5.9.76-billing-modal-containment-1',
   '/crump-5.2.2.css',
   '/crump-5.2.2.js?v=5.9.76-billing-timeout-1',
   '/assets/brand/crump-shell-lockup-light.png',

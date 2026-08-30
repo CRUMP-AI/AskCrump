@@ -124,6 +124,42 @@ def test_plan_center_measurement_is_daily_content_free_and_fail_open():
     assert "email" not in normalized
 
 
+def test_both_plan_center_owners_contain_and_restore_modal_focus():
+    billing = read_public("crump-billing-5.1.js")
+    final_billing = read_public("crump-5.2.js")
+
+    for source in (billing, final_billing):
+        assert "const BILLING_FOCUSABLE" in source
+        assert "element.setAttribute('inert', '')" in source
+        assert "element.setAttribute('aria-hidden', 'true')" in source
+        assert "element.removeAttribute('inert')" in source
+        assert "element.removeAttribute('aria-hidden')" in source
+        assert "event.key !== 'Tab'" in source
+        assert "active === first || !modal.contains(active)" in source
+        assert "active === last || !modal.contains(active)" in source
+        assert "requestAnimationFrame(() => trigger.focus?.({preventScroll: true}))" in source
+        assert 'aria-modal="true" aria-labelledby="billing' in source
+        assert 'tabindex="-1"' in source
+
+
+def test_plan_center_containment_assets_are_versioned_everywhere():
+    versioned_billing = "/crump-billing-5.1.js?v=5.9.76-billing-modal-containment-1"
+    versioned_final = "/crump-5.2.js?v=5.9.76-billing-modal-containment-1"
+    sources = (
+        read_public("runtime-body-v1.js"),
+        read_public("sw.js"),
+        read_public("runtime-config.js"),
+        read_public("runtime-config-v1.js"),
+        (ROOT / "scripts" / "build-native.mjs").read_text(encoding="utf-8"),
+    )
+
+    for source in sources:
+        assert versioned_billing in source
+        assert versioned_final in source
+    assert "ask-crump-new-body-v1-r139" in read_public("sw.js")
+    assert "/runtime-body-v1.js?v=5.9.76-billing-modal-containment-1" in read_public("app.html")
+
+
 def test_browser_fixture_uses_the_production_plan_center_layers():
     fixture = (
         ROOT / "tests" / "fixtures" / "plan-center-clarity.html"
@@ -132,7 +168,10 @@ def test_browser_fixture_uses_the_production_plan_center_layers():
     assert "/public/crump-billing-5.1.css" in fixture
     assert "/public/crump-billing-5.1.js" in fixture
     assert "/public/crump-5.2.js" in fixture
+    assert "billing-modal-containment-fixture-1" in fixture
     assert "/public/crump-subscriptions-5.3.2.js" in fixture
     assert "window.__planCenterEvents" in fixture
     assert "fixture-user" in fixture
+    assert 'id="billingFixtureBackground"' in fixture
+    assert 'aria-label="Browser errors"' in fixture
     assert "/api/stripe/create-checkout-session" not in fixture

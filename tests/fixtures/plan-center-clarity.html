@@ -7,7 +7,10 @@
   <link rel="stylesheet" href="/public/crump-billing-5.1.css">
 </head>
 <body style="margin:0;background:#0f1419;color:#f4f1eb;font-family:Arial,sans-serif">
-  <button id="upgradeBtnSidebar" type="button"><span>Plan &amp; credits</span></button>
+  <main id="billingFixtureBackground">
+    <button id="upgradeBtnSidebar" type="button"><span>Plan &amp; credits</span></button>
+    <output id="billingFixtureErrors" aria-label="Browser errors">0</output>
+  </main>
   <script>
     window.currentUser = {id: 'fixture-user'};
     window.CRUMP_CONFIG = {
@@ -21,6 +24,12 @@
       getCreditProducts: async () => ({}),
     };
     window.showToast = () => {};
+    const recordBrowserError = () => {
+      const output = document.getElementById('billingFixtureErrors');
+      output.textContent = String(Number(output.textContent || 0) + 1);
+    };
+    window.addEventListener('error', recordBrowserError);
+    window.addEventListener('unhandledrejection', recordBrowserError);
     window.fetch = async (url, options = {}) => {
       const pathname = new URL(String(url), window.location.href).pathname;
       if (pathname === '/api/analytics/events') {
@@ -45,8 +54,8 @@
       });
     };
   </script>
-  <script src="/public/crump-billing-5.1.js"></script>
-  <script src="/public/crump-5.2.js"></script>
+  <script src="/public/crump-billing-5.1.js?v=billing-modal-containment-fixture-1"></script>
+  <script src="/public/crump-5.2.js?v=billing-modal-containment-fixture-1"></script>
   <script src="/public/crump-subscriptions-5.3.2.js"></script>
 </body>
 </html>
