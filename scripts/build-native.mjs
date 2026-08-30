@@ -55,6 +55,7 @@ const loader = String.raw`
     ['/crump-5.2.css', 'crump52'],
     ['/crump-5.2.2.css', 'crump522'],
     ['/crump-v1-body.css?v=5.9.76-intelligence-architecture-1', 'crumpbodyv1'],
+    ['/lifecycle.css?v=5.9.76-lifecycle-activation-1', 'lifecycleactivation'],
   ]);
 
   const enhancementStyles = Object.freeze([
@@ -104,6 +105,8 @@ const loader = String.raw`
     ['/crump-library-5.7.js?v=5.9.76-demand-hydration-1', 'crumplibrary57'],
     ['/crump-navigation-5.9.30.js?v=5.9.76-intelligence-architecture-1', 'crumpnav5930'],
     ['/crump-code-5.9.35.js?v=5.9.76-intelligence-architecture-1', 'crumpcode5935'],
+    ['/lifecycle-share.js?v=5.9.76-lifecycle-activation-1', 'lifecycleshare'],
+    ['/lifecycle-manager.js?v=5.9.76-lifecycle-activation-1', 'lifecyclemanager'],
   ]);
 
   const scriptPlan = Object.freeze([

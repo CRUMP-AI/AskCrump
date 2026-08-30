@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r163';
+const CACHE_NAME = 'ask-crump-new-body-v1-r164';
 
 const CORE = [
   '/app',
@@ -16,6 +16,7 @@ const CORE = [
   '/conversation.css?v=5.9.76-intelligence-receipt-1',
   '/auth-styles.css',
   '/crump-v1-body.css?v=5.9.76-intelligence-architecture-1',
+  '/lifecycle.css?v=5.9.76-lifecycle-activation-1',
   '/crump-v1-body.js?v=5.9.76-desktop-chats-default-1',
   '/crump-v1-stability.css',
   '/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1',
@@ -54,6 +55,8 @@ const CORE = [
   '/account-manager.js',
   '/app.js?v=5.9.76-intelligence-architecture-1',
   '/product-analytics.js?v=5.9.76',
+  '/lifecycle-share.js?v=5.9.76-lifecycle-activation-1',
+  '/lifecycle-manager.js?v=5.9.76-lifecycle-activation-1',
   '/auth-controller.js?v=5.9.76-weekly-growth-attribution-1',
   '/crump-4.3.css',
   '/crump-4.3.js?v=5.9.76-intelligence-architecture-1',
@@ -103,6 +106,7 @@ function bootCritical(request, url) {
     url.pathname === '/runtime-body-v1.js' ||
     url.pathname === '/crump-v1-body.js' ||
     url.pathname === '/crump-v1-body.css' ||
+    url.pathname === '/lifecycle.css' ||
     url.pathname === '/crump-v1-stability.js' ||
     url.pathname === '/crump-v1-stability.css' ||
     url.pathname === '/crump-navigation-5.2.5.js' ||
@@ -131,6 +135,8 @@ function bootCritical(request, url) {
     url.pathname === '/sync-manager.js' ||
     url.pathname === '/onboarding.js' ||
     url.pathname === '/product-analytics.js' ||
+    url.pathname === '/lifecycle-share.js' ||
+    url.pathname === '/lifecycle-manager.js' ||
     url.pathname === '/auth-controller.js' ||
     url.pathname === '/crump-4.3.js';
 }

@@ -16,7 +16,7 @@ const expectedFiles = new Set([
   'native-runtime.js', 'onboarding.js', 'presence-manager.js', 'profile-manager.js',
   'runtime-config.js', 'runtime-config-v1.js', 'runtime-body-v1.js', 'safe-storage.js',
   'scroll-manager.js', 'subscription-ui.js', 'sw.js', 'sync-manager.js', 'telemetry-config.js', 'ui-functions.js',
-  'product-analytics.js',
+  'product-analytics.js', 'lifecycle-manager.js', 'lifecycle-share.js',
 ]);
 
 const publicDirectory = new URL('../public/', import.meta.url);
@@ -225,6 +225,9 @@ const requiredBodyFiles = [
   'public/crump-code-5.9.35.css',
   'public/crump-code-5.9.35.js',
   'public/runtime-body-v1.js',
+  'public/lifecycle.css',
+  'public/lifecycle-manager.js',
+  'public/lifecycle-share.js',
   'public/auth-resilience.js',
   'public/chat-resilience.js',
   'public/assets/brand/crump-mark.png',
@@ -383,6 +386,9 @@ if (!runtime.includes('/billing.css') || !runtime.includes('/onboarding.css') ||
     !runtime.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
     !runtime.includes(`/chat-resilience.js?v=${releaseVersion}`) ||
     !runtime.includes(`/ui-functions.js?v=${intelligenceReceiptVersion}`) ||
+    !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
+    !runtime.includes(`/lifecycle-share.js?v=${releaseVersion}-lifecycle-activation-1`) ||
+    !runtime.includes(`/lifecycle-manager.js?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/product-analytics.js?v=${releaseVersion}`) ||
     !runtime.includes(`/app.js?v=${intelligenceArchitectureVersion}`) ||
     !runtime.includes(`/crump-v1-body.js?v=${desktopChatsVersion}`) ||
@@ -470,12 +476,12 @@ await runtimeWindow.CrumpWorkspaceRuntime.load();
 if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
     dispatchedRuntimeEvents.filter(type => type === 'crump:body-runtime-ready').length !== 1 ||
     appendedRuntimeAssets.length !== loadedRuntimeAssetCount ||
-    loadedRuntimeStyles.length !== 18 ||
-    preloadedRuntimeScripts.length !== 29 ||
-    loadedRuntimeScripts.length !== 29 ||
+    loadedRuntimeStyles.length !== 19 ||
+    preloadedRuntimeScripts.length !== 31 ||
+    loadedRuntimeScripts.length !== 31 ||
     !loadedRuntimeScripts.every(asset => preloadedRuntimeScripts.includes(asset)) ||
     loadedRuntimeScripts.indexOf(`/app.js?v=${intelligenceArchitectureVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
-    loadedRuntimeScripts.at(-1) !== `/crump-code-5.9.35.js?v=${intelligenceArchitectureVersion}`) {
+    loadedRuntimeScripts.at(-1) !== `/lifecycle-manager.js?v=${releaseVersion}-lifecycle-activation-1`) {
   console.error('Authenticated workspace runtime load order or completion contract failed.');
   process.exit(1);
 }
@@ -515,13 +521,16 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r163') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r164') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/ui-functions.js?v=${intelligenceReceiptVersion}`) ||
+    !serviceWorker.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
+    !serviceWorker.includes(`/lifecycle-share.js?v=${releaseVersion}-lifecycle-activation-1`) ||
+    !serviceWorker.includes(`/lifecycle-manager.js?v=${releaseVersion}-lifecycle-activation-1`) ||
     !serviceWorker.includes(`/auth-resilience.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/install-prompt.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/install-prompt.css?v=${releaseVersion}`) ||
@@ -545,6 +554,9 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r163') ||
     !serviceWorker.includes("url.pathname === '/chat-resilience.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-5.0.js'") ||
     !serviceWorker.includes("url.pathname === '/ui-functions.js'") ||
+    !serviceWorker.includes("url.pathname === '/lifecycle.css'") ||
+    !serviceWorker.includes("url.pathname === '/lifecycle-share.js'") ||
+    !serviceWorker.includes("url.pathname === '/lifecycle-manager.js'") ||
     !serviceWorker.includes("url.pathname === '/auth-resilience.js'") ||
     !serviceWorker.includes("url.pathname === '/install-prompt.js'") ||
     !serviceWorker.includes("url.pathname === '/install-prompt.css'") ||

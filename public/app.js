@@ -552,6 +552,7 @@ function completeUserMessage(chat, userMessage, data) {
     }
     window.syncChatsToServer?.();
     void recordFirstSuccessfulResponse();
+    setTimeout(() => { void window.CrumpLifecycle?.evaluate?.({force: true}); }, 1200);
     setTimeout(safeScrollToBottom, 80);
 }
 
@@ -632,6 +633,7 @@ async function sendMessage() {
     }
     let chat = chats.find(item => item.id === currentChatId) || null;
     isProcessing = true;
+    window.CrumpLifecycle?.suppressActiveWork?.();
     let userMessage = null;
 
     try {
@@ -707,6 +709,7 @@ window.retryMessage = async function retryMessage(id) {
         return;
     }
     isProcessing = true;
+    window.CrumpLifecycle?.suppressActiveWork?.();
     try {
         const recovered = await window.CrumpChatTransport?.recover?.(id);
         if (recovered) {

@@ -13,7 +13,7 @@ from .http import register_exception_handlers, request_guards
 from .logging_privacy import enforce_transport_log_privacy
 from .routes import (
     account, analytics, auth, billing, chat, code, credits, features, files, health, intelligence,
-    library, manuscripts, media, presence, projects, safety, sync, voice,
+    library, lifecycle, manuscripts, media, presence, projects, safety, sync, voice,
 )
 from .runtime import settings
 from .version import __version__
@@ -68,6 +68,7 @@ def create_app() -> FastAPI:
     application.include_router(library.router)
     application.include_router(chat.router)
     application.include_router(intelligence.router)
+    application.include_router(lifecycle.router)
     application.include_router(presence.router)
     application.include_router(billing.router)
     application.include_router(credits.router)

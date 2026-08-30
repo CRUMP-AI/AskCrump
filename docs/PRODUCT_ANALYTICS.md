@@ -85,6 +85,24 @@ snapshot.
 | `BillingPortalOpened` | Server | Stripe created a customer portal session. |
 | `SubscriptionStatusChanged` | Stripe webhook | Stripe changed or deleted a subscription. |
 
+## Service-role lifecycle guidance evidence
+
+Migration `20260830175952_in_product_lifecycle_activation.sql` adds a separate,
+allowlisted lifecycle evidence boundary. Eligibility is selected by the authenticated
+server from content-free account and product-milestone facts; the client cannot choose
+a message family or supply rendered copy.
+
+The server enforces an account-stable holdout per message key, a default 20% holdout,
+per-key kill switches, stale-state revalidation, one shown prompt per page session, two
+shown prompts per seven days, and message-specific cooldowns.
+
+The service-role-only `product_weekly_lifecycle_export` returns aggregate rows grouped by
+fixed message key, intent, prompt/holdout cohort, and suppression category. It excludes
+deleted and internal accounts, respects the registration-environment boundary, and never
+returns account identifiers, prompts, responses, Projects, conversations, filenames, URLs,
+or rendered lifecycle copy. Release evidence is recorded in
+`docs/IN_PRODUCT_LIFECYCLE_ACTIVATION_RELEASE_2026-08-30.md`.
+
 ## Operating queries
 
 All operating queries must filter `environment = 'production'`. The primary weekly view is

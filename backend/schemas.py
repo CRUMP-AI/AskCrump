@@ -126,3 +126,33 @@ class PushTokenRequest(APIModel):
     token: str = Field(min_length=20, max_length=5000)
     platform: str = Field(min_length=3, max_length=20)
     installationId: str = Field(min_length=8, max_length=200)
+
+
+class LifecycleDecisionRequest(APIModel):
+    sessionId: str = Field(
+        min_length=16,
+        max_length=100,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{15,99}$",
+    )
+    intent: str | None = Field(default=None, max_length=32)
+    activeWork: bool = False
+    recoverySurface: bool = False
+    currentSurface: str = Field(default="other", max_length=20)
+
+
+class LifecycleActionRequest(APIModel):
+    sessionId: str = Field(
+        min_length=16,
+        max_length=100,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{15,99}$",
+    )
+    decisionId: str = Field(
+        min_length=36,
+        max_length=36,
+        pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+    )
+    action: Literal["shown", "dismissed", "acted", "suppressed"]
+    activeWork: bool = False
+    recoverySurface: bool = False
+    currentSurface: str = Field(default="other", max_length=20)
+    suppressionReason: str | None = Field(default=None, max_length=32)
