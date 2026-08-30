@@ -1,6 +1,6 @@
 # Crump Code security and release boundary
 
-Last reviewed: 2026-08-27
+Last reviewed: 2026-08-30
 
 ## Product scope
 
@@ -36,8 +36,14 @@ They may also move to `awaiting_approval`, `failed`, or `cancelled` where allowe
 graph. Approval records are designed for network access, credential access, destructive source
 writes, publishing, or extended runtime. None of those actions is granted by the initial runner.
 
-Cancellation prevents a queued task from starting and records the decision. A running sandbox
-is also bounded by its execution deadline and destruction-on-exit contract. The initial release
+Nonterminal tasks expire after seven days and pending approvals expire after 30 minutes. Owner
+reads reconcile stale records into durable terminal states, while atomic claim and approval filters
+enforce the boundary even before reconciliation. Expiry is checked before entitlement evaluation,
+claim, charging, Sandbox identity resolution, and provisioning. Cancellation or expiry is checked
+again after provisioning and around the remaining model, verification, and patch boundaries.
+
+Cancellation prevents a queued task from starting and records the decision. A running sandbox is
+also bounded by its execution deadline and destruction-on-exit contract. The initial release
 returns a patch; it does not push, merge, publish, deploy, or mutate the source repository.
 Rollback therefore consists of declining the patch or reverting an applied patch outside the
 sandbox.
@@ -61,6 +67,8 @@ activation requires all of the following:
 1. A real no-secret sandbox smoke test confirms OIDC, resource limits, deny-all networking, and
    automatic destruction.
 2. End-to-end tests cover creation, run, cancellation, failure/refund, patch review, and expiry.
+   Automated coverage now proves task expiry, approval expiry, late-decision rejection, list/detail
+   reconciliation, and pre-provision cancellation; live Sandbox execution remains gated by item 1.
 3. A user interface makes mode, source, cost, diff, verification, and approval state explicit.
 4. A benchmark set measures task completion, patch validity, security, latency, and unit cost.
 5. Monitoring and a one-click kill switch are verified in production.
@@ -71,5 +79,7 @@ activation requires all of the following:
   intentionally unsupported.
 - Execution is synchronous at the API boundary. Durable background orchestration is required
   before longer or highly concurrent tasks.
+- Expiry reconciliation is lazy on owner list/detail reads and execution boundaries rather than a
+  background scheduler. Atomic run and approval guards remain authoritative.
 - Approval records exist, but the initial runner never requests elevated capabilities.
 - The model and verification suite can still miss defects. Every patch remains user-reviewable.
