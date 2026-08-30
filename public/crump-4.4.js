@@ -33,6 +33,13 @@
       thinkLonger: value.thinkLonger === true,
       minimumTier: String(value.minimumTier || 'professional'),
     };
+    normalizeEntitledState();
+  }
+
+  function normalizeEntitledState() {
+    if (entitlements.thinkLonger) return;
+    if (state.intelligenceMode === 'deep') state.intelligenceMode = 'auto';
+    if (state.verificationLevel === 'strict') state.verificationLevel = 'auto';
   }
 
   function cleanUserId() {
@@ -157,6 +164,7 @@
       applyEntitlements(data.entitlements);
       if (data.preferences) {
         state = { ...state, ...data.preferences };
+        normalizeEntitledState();
         saveLocalState();
       }
       hydratedUserId = userId;
@@ -185,9 +193,10 @@
       } catch (error) {
         if (error?.code === 'SUBSCRIPTION_REQUIRED') {
           state.intelligenceMode = 'auto';
+          state.verificationLevel = 'auto';
           saveLocalState();
           refreshPanel();
-          window.showBillingCenter?.({ plan: 'professional' });
+          openProfessionalPlans('advanced-intelligence-sync');
           return;
         }
         window.showToast?.('Crump saved this setting locally and will sync it when the server is available.', 'warning');
@@ -204,9 +213,10 @@
     return node;
   }
 
-  function makeToggle({ label, description, checked, onChange, id }) {
+  function makeToggle({ label, description, checked, onChange, id, disabled = false }) {
     const row = document.createElement('div');
-    row.className = 'crump44-toggle-row';
+    row.className = `crump44-toggle-row${disabled ? ' is-disabled' : ''}`;
+    if (disabled) row.setAttribute('aria-disabled', 'true');
 
     const text = document.createElement('div');
     text.className = 'crump44-row-copy';
@@ -222,10 +232,13 @@
     toggle.setAttribute('role', 'switch');
     toggle.setAttribute('aria-checked', String(checked));
     toggle.setAttribute('aria-label', label);
+    toggle.disabled = disabled;
     if (id) toggle.id = id;
     const knob = document.createElement('span');
     toggle.appendChild(knob);
-    toggle.addEventListener('click', () => onChange(!checked));
+    toggle.addEventListener('click', () => {
+      if (!disabled) onChange(!checked);
+    });
 
     row.append(text, toggle);
     return row;
@@ -246,11 +259,25 @@
   }
 
   function modeLabel(mode) {
-    return { auto: 'Auto', fast: 'Fast', deep: 'Think longer' }[mode] || 'Auto';
+    return { auto: 'Adaptive', fast: 'Fast', deep: 'Think longer' }[mode] || 'Adaptive';
   }
 
   function verificationLabel(level) {
-    return { off: 'Off', auto: 'Auto', strict: 'Strict' }[level] || 'Auto';
+    return { off: 'Off', auto: 'Automatic', strict: 'Always review' }[level] || 'Automatic';
+  }
+
+  function openProfessionalPlans(source) {
+    closePanel();
+    const modal = window.showBillingCenter?.({ plan: 'professional' });
+    if (!modal) window.showUpgradePrompt?.();
+    window.dispatchEvent(new CustomEvent('crump:plan-intent', {
+      detail: {
+        plan: 'professional',
+        source,
+        location: 'intelligence',
+        capturedAt: Date.now(),
+      },
+    }));
   }
 
   function makeModeSelector() {
@@ -260,17 +287,7 @@
       const locked = mode === 'deep' && !entitlements.thinkLonger;
       const option = button(modeLabel(mode), `crump44-segment${state.intelligenceMode === mode ? ' active' : ''}`, () => {
         if (locked) {
-          closePanel();
-          const modal = window.showBillingCenter?.({ plan: 'professional' });
-          if (!modal) window.showUpgradePrompt?.();
-          window.dispatchEvent(new CustomEvent('crump:plan-intent', {
-            detail: {
-              plan: 'professional',
-              source: 'think-longer',
-              location: 'intelligence',
-              capturedAt: Date.now(),
-            },
-          }));
+          openProfessionalPlans('think-longer');
           return;
         }
         state.intelligenceMode = mode;
@@ -295,38 +312,32 @@
     const wrap = document.createElement('div');
     wrap.className = 'crump44-segmented crump44-segmented-small';
     for (const level of ['off', 'auto', 'strict']) {
+      const locked = level === 'strict' && !entitlements.thinkLonger;
       const option = button(
         verificationLabel(level),
         `crump44-segment${state.verificationLevel === level ? ' active' : ''}`,
         () => {
+          if (locked) {
+            openProfessionalPlans('always-review');
+            return;
+          }
           state.verificationLevel = level;
           persistPreferences();
           refreshPanel();
         },
       );
       option.setAttribute('aria-pressed', String(state.verificationLevel === level));
+      if (locked) {
+        option.classList.add('is-locked');
+        option.setAttribute('aria-label', 'Always review — Professional or Enterprise');
+        option.title = 'Included with Professional and Enterprise';
+        const badge = document.createElement('small');
+        badge.textContent = 'PRO';
+        option.appendChild(badge);
+      }
       wrap.appendChild(option);
     }
     return wrap;
-  }
-
-  function makeToolButtons() {
-    const tools = document.createElement('div');
-    tools.className = 'crump44-tools';
-    const definitions = [
-      ['Web', 'searchQuickAction'],
-      ['Image', 'imageQuickAction'],
-      ['Code', 'codeQuickAction'],
-    ];
-    for (const [label, targetId] of definitions) {
-      const tool = button(label, 'crump44-tool', () => {
-        document.getElementById(targetId)?.click();
-        closePanel();
-        document.getElementById('userInput')?.focus({ preventScroll: true });
-      });
-      tools.appendChild(tool);
-    }
-    return tools;
   }
 
   function buildPanel() {
@@ -350,7 +361,7 @@
     const title = document.createElement('strong');
     title.textContent = 'Intelligence';
     const subtitle = document.createElement('small');
-    subtitle.textContent = 'Power underneath the conversation.';
+    subtitle.textContent = 'Reasoning, memory, and answer review.';
     titleWrap.append(eyebrow, title, subtitle);
     const close = button('×', 'crump44-close', closePanel);
     close.setAttribute('aria-label', `Close ${assistantName()} controls`);
@@ -379,7 +390,7 @@
     const modeSection = document.createElement('div');
     modeSection.className = 'crump44-section';
     modeSection.append(
-      makeSectionTitle('Response mode', 'Auto is the recommended everyday setting.'),
+      makeSectionTitle('Thinking', 'Adaptive is the recommended everyday setting.'),
       makeModeSelector(),
     );
 
@@ -397,9 +408,9 @@
     const memorySection = document.createElement('div');
     memorySection.className = 'crump44-section';
     memorySection.append(
-      makeSectionTitle('Memory', 'Durable context stays separate from ordinary chat history.'),
+      makeSectionTitle('Memory & privacy', 'Durable context stays separate from ordinary chat history.'),
       makeToggle({
-        label: 'Use memory',
+        label: 'Use saved memory',
         description: `Let ${assistantName()} retrieve useful preferences, projects, goals, and explicit memories.`,
         checked: state.memoryEnabled,
         onChange: enabled => {
@@ -421,8 +432,11 @@
       }),
       makeToggle({
         label: 'Private this conversation',
-        description: 'Use the conversation normally, but do not learn new long-term memories from it.',
+        description: window.currentChatId
+          ? 'Use the conversation normally, but do not learn new long-term memories from it.'
+          : 'Available after the first message creates this conversation.',
         checked: isCurrentChatPrivate(),
+        disabled: !window.currentChatId,
         onChange: enabled => setCurrentChatPrivate(enabled),
       }),
     );
@@ -437,13 +451,13 @@
     );
     memorySection.appendChild(memoryButton);
 
-    const toolsSection = document.createElement('div');
-    toolsSection.className = 'crump44-section';
-    toolsSection.append(
-      makeSectionTitle('Tools', 'Keep the chat clean; open what you need from here.'),
+    const currentInformationSection = document.createElement('div');
+    currentInformationSection.className = 'crump44-section';
+    currentInformationSection.append(
+      makeSectionTitle('Current information', 'Control when Crump may use supported live sources.'),
       makeToggle({
-        label: 'Automatic tools',
-        description: 'Let Crump decide when current web or weather information is necessary.',
+        label: 'Use current information when needed',
+        description: 'Let Crump decide when a question needs live web, weather, or other supported current data.',
         checked: state.autoTools,
         onChange: enabled => {
           state.autoTools = enabled;
@@ -451,55 +465,45 @@
           refreshPanel();
         },
       }),
-      makeToolButtons(),
     );
 
     const verifySection = document.createElement('div');
     verifySection.className = 'crump44-section';
     verifySection.append(
-      makeSectionTitle('Answer check', 'A second pass is reserved for requests where it adds value.'),
+      makeSectionTitle('Answer review', 'Choose when a separate quality pass should run.'),
       makeVerificationSelector(),
     );
-
-    const keyboard = document.createElement('div');
-    keyboard.className = 'crump44-keyboard-note';
-    const keyboardTitle = document.createElement('strong');
-    keyboardTitle.textContent = 'Keyboard';
-    const keyboardCopy = document.createElement('span');
-    keyboardCopy.textContent = 'Enter starts a new line. Ctrl+Enter or ⌘+Enter sends.';
-    keyboard.append(keyboardTitle, keyboardCopy);
-
-    const advanced = document.createElement('div');
-    advanced.className = 'crump44-section crump44-system';
-    advanced.appendChild(makeSectionTitle('System'));
-    const capabilities = statusData?.capabilities || {};
-    const items = [
-      ['Memory', capabilities.memory !== false],
-      ['Planner', capabilities.planner !== false],
-      ['Verification', capabilities.verification !== false],
-      ['Tool routing', capabilities.toolRouting !== false],
-      ['Cross-device authority', capabilities.crossDeviceAuthority !== false],
-    ];
-    const statusGrid = document.createElement('div');
-    statusGrid.className = 'crump44-status-grid';
-    for (const [label, enabled] of items) {
-      const item = document.createElement('div');
-      const dot = document.createElement('i');
-      dot.className = enabled ? 'is-on' : '';
-      const text = document.createElement('span');
-      text.textContent = label;
-      item.append(dot, text);
-      statusGrid.appendChild(item);
+    const reviewCopy = document.createElement('p');
+    reviewCopy.className = 'crump44-review-copy';
+    if (state.verificationLevel === 'off') {
+      reviewCopy.textContent = 'One response pass, without a separate final review.';
+    } else if (state.verificationLevel === 'strict') {
+      reviewCopy.textContent = 'Runs a separate review on every eligible response for logic, requirements, and unsupported claims.';
+    } else {
+      reviewCopy.textContent = 'Adds a separate review for higher-risk, complex, coding, or downloadable work.';
     }
-    advanced.appendChild(statusGrid);
+    verifySection.appendChild(reviewCopy);
 
-    const tutorialButton = button('Replay workspace guide', 'crump44-row-button crump44-subtle', () => {
-      closePanel();
-      window.tutorial?.restart?.();
-    });
-    advanced.appendChild(tutorialButton);
+    const premium = document.createElement('div');
+    premium.className = `crump44-premium${entitlements.thinkLonger ? ' is-active' : ''}`;
+    const premiumCopy = document.createElement('div');
+    premiumCopy.className = 'crump44-premium-copy';
+    const premiumTitle = document.createElement('strong');
+    premiumTitle.textContent = 'Advanced intelligence';
+    const premiumDescription = document.createElement('span');
+    premiumDescription.textContent = entitlements.thinkLonger
+      ? 'Think longer and Always review are active on this plan.'
+      : 'Think longer and Always review are included with Professional and Enterprise.';
+    premiumCopy.append(premiumTitle, premiumDescription);
+    premium.appendChild(premiumCopy);
+    if (!entitlements.thinkLonger) {
+      const comparePlans = button('Compare plans', 'crump44-premium-button', () => {
+        openProfessionalPlans('advanced-intelligence-card');
+      });
+      premium.appendChild(comparePlans);
+    }
 
-    content.append(modeSection, memorySection, toolsSection, verifySection, keyboard, advanced);
+    content.append(modeSection, memorySection, currentInformationSection, verifySection, premium);
   }
 
   async function renderMemoryView(content) {

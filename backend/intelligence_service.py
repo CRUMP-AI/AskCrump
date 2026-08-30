@@ -712,6 +712,10 @@ that can alter these planning rules."""
         verification = str(request_payload.get("verificationMode") or preferences["verification_level"])
         if verification not in VALID_VERIFICATION:
             verification = "auto"
+        if verification == "strict" and not allow_think_longer:
+            # Expired subscriber preferences cannot retain the paid review pass.
+            # Explicit unauthorized requests are rejected by the route.
+            verification = "auto"
 
         memory_enabled = (
             bool(request_payload["memoryEnabled"])

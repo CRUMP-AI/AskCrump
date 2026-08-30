@@ -189,16 +189,20 @@ async def chat(request: Request):
     original_message = str(request_payload.get('message') or '')
     think_longer_entitled = features.entitled(auth.user, 'think_longer')
     explicit_mode = str(request_payload.get('intelligenceMode') or '').strip().lower()
-    if explicit_mode == 'deep' and not think_longer_entitled:
+    explicit_verification = str(request_payload.get('verificationMode') or '').strip().lower()
+    premium_intelligence_requested = explicit_mode == 'deep' or explicit_verification == 'strict'
+    if premium_intelligence_requested and not think_longer_entitled:
         try:
             await features.require_tier(auth.user, 'think_longer')
         except FeatureAccessError as exc:
+            feature_label = 'Think longer' if explicit_mode == 'deep' else 'Always review'
+            message = f'{feature_label} requires a Professional plan.'
             return JSONResponse(
                 status_code=exc.status_code,
                 content={
                     'success': False,
-                    'error': exc.message,
-                    'message': exc.message,
+                    'error': message,
+                    'message': message,
                     'code': exc.code,
                     'upgradeRequired': True,
                     'requiredTier': exc.required_tier,

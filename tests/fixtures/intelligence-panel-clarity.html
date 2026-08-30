@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Intelligence panel clarity fixture</title>
+  <link rel="stylesheet" href="/public/crump-4.4.css">
+</head>
+<body style="margin:0;min-height:100vh;background:#0b1015;color:#f4f1eb;font-family:Arial,sans-serif">
+  <header class="header" style="height:64px;border-bottom:1px solid rgba(255,255,255,.08)">
+    <strong style="display:inline-block;padding:22px">Ask Crump</strong>
+  </header>
+  <main style="padding:24px">
+    <label for="userInput">Message Crump</label>
+    <textarea id="userInput" style="display:block;margin-top:8px"></textarea>
+    <output id="intelligenceFixtureErrors" aria-label="Browser errors">0</output>
+  </main>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const paid = params.get('tier') === 'professional';
+    window.currentUser = {id: 'fixture-user'};
+    window.currentChatId = params.get('chat') === 'existing' ? '11111111-1111-4111-8111-111111111111' : null;
+    window.__intelligencePatches = [];
+    window.__intelligencePlanOpens = [];
+    window.__intelligencePlanIntents = [];
+    window.getAssistantName = () => 'Crump';
+    window.showToast = () => {};
+    window.showUpgradePrompt = () => {};
+    window.showBillingCenter = options => {
+      window.__intelligencePlanOpens.push(options);
+      return {};
+    };
+    window.addEventListener('crump:plan-intent', event => {
+      window.__intelligencePlanIntents.push(event.detail);
+    });
+    const recordBrowserError = () => {
+      const output = document.getElementById('intelligenceFixtureErrors');
+      output.textContent = String(Number(output.textContent || 0) + 1);
+    };
+    window.addEventListener('error', recordBrowserError);
+    window.addEventListener('unhandledrejection', recordBrowserError);
+    window.fetch = async (url, options = {}) => {
+      const pathname = new URL(String(url), location.href).pathname;
+      const entitlements = {thinkLonger: paid, minimumTier: 'professional'};
+      const preferences = {
+        intelligenceMode: 'auto',
+        memoryEnabled: true,
+        autoLearn: true,
+        autoTools: true,
+        verificationLevel: 'auto',
+      };
+      if (pathname === '/api/intelligence/preferences' && String(options.method || 'GET').toUpperCase() === 'PATCH') {
+        const next = JSON.parse(String(options.body || '{}'));
+        window.__intelligencePatches.push(next);
+        return Response.json({success: true, preferences: next});
+      }
+      if (pathname === '/api/intelligence/preferences') {
+        return Response.json({success: true, preferences, entitlements});
+      }
+      if (pathname === '/api/intelligence/status') {
+        return Response.json({
+          success: true,
+          memoryCount: 0,
+          capabilities: {},
+          entitlements,
+        });
+      }
+      if (pathname === '/api/intelligence/memories') {
+        return Response.json({success: true, memories: [], count: 0});
+      }
+      return Response.json({success: true});
+    };
+  </script>
+  <script src="/public/crump-4.4.js"></script>
+</body>
+</html>

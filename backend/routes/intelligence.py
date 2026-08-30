@@ -33,6 +33,9 @@ async def get_preferences(request: Request):
     intelligence_mode = preferences["intelligence_mode"]
     if intelligence_mode == "deep" and not think_longer_entitled:
         intelligence_mode = "auto"
+    verification_level = preferences["verification_level"]
+    if verification_level == "strict" and not think_longer_entitled:
+        verification_level = "auto"
     return {
         "success": True,
         "preferences": {
@@ -40,7 +43,7 @@ async def get_preferences(request: Request):
             "memoryEnabled": preferences["memory_enabled"],
             "autoLearn": preferences["auto_learn"],
             "autoTools": preferences["auto_tools"],
-            "verificationLevel": preferences["verification_level"],
+            "verificationLevel": verification_level,
         },
         "entitlements": {
             "thinkLonger": think_longer_entitled,
@@ -61,15 +64,22 @@ async def update_preferences(request: Request):
     requested_mode = str(
         payload.get("intelligenceMode", payload.get("intelligence_mode", ""))
     ).strip().lower()
-    if requested_mode == "deep" and not features.entitled(auth.user, "think_longer"):
+    requested_verification = str(
+        payload.get("verificationLevel", payload.get("verification_level", ""))
+    ).strip().lower()
+    premium_requested = requested_mode == "deep" or requested_verification == "strict"
+    if premium_requested and not features.entitled(auth.user, "think_longer"):
         try:
             await features.require_tier(auth.user, "think_longer")
         except FeatureAccessError as exc:
+            feature_label = "Think longer" if requested_mode == "deep" else "Always review"
+            message = f"{feature_label} requires a Professional plan."
             return JSONResponse(
                 status_code=exc.status_code,
                 content={
                     "success": False,
-                    "error": exc.message,
+                    "error": message,
+                    "message": message,
                     "code": exc.code,
                     "upgradeRequired": True,
                     "requiredTier": exc.required_tier,

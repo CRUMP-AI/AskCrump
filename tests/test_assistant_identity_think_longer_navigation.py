@@ -10,6 +10,7 @@ from backend.ai_service import AIService
 from backend.feature_service import FeatureAccessError, FeatureService
 from backend.intelligence_service import DEFAULT_PREFERENCES, IntelligenceService
 from backend.routes import chat as chat_routes
+from backend.routes import intelligence as intelligence_routes
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -91,6 +92,41 @@ def test_chat_api_rejects_a_browser_attempt_to_unlock_think_longer(monkeypatch):
     assert response.json()["requiredTier"] == "professional"
 
 
+def test_chat_api_rejects_a_browser_attempt_to_unlock_always_review(monkeypatch):
+    class DeniedFeatures:
+        def entitled(self, _user, code):
+            assert code == "think_longer"
+            return False
+
+        async def require_tier(self, _user, code):
+            raise FeatureAccessError(
+                "Think longer requires a Professional plan.",
+                "SUBSCRIPTION_REQUIRED",
+                403,
+                "professional",
+            )
+
+    async def authenticate(*_args, **_kwargs):
+        return SimpleNamespace(
+            user={"id": "free-user", "subscription_tier": "free"},
+            session={"id": "session"},
+            token="token",
+        )
+
+    monkeypatch.setattr(chat_routes, "features", DeniedFeatures())
+    monkeypatch.setattr(chat_routes, "authenticate_request", authenticate)
+
+    response = CLIENT.post(
+        "/api/chat",
+        json={"message": "Check this answer", "verificationMode": "strict"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["code"] == "SUBSCRIPTION_REQUIRED"
+    assert response.json()["requiredTier"] == "professional"
+    assert response.json()["message"] == "Always review requires a Professional plan."
+
+
 @pytest.mark.asyncio
 async def test_auto_mode_never_silently_uses_paid_multi_pass_work_for_free_users():
     service = IntelligenceService(
@@ -127,6 +163,76 @@ async def test_auto_mode_never_silently_uses_paid_multi_pass_work_for_free_users
     assert paid.payload["responseEffort"] == "high"
 
 
+@pytest.mark.asyncio
+async def test_saved_always_review_preference_downgrades_after_paid_access_expires():
+    service = IntelligenceService(
+        db=SimpleNamespace(),
+        ai=SimpleNamespace(),
+        settings=SimpleNamespace(),
+    )
+    service.get_preferences = AsyncMock(
+        return_value={**DEFAULT_PREFERENCES, "verification_level": "strict"}
+    )
+    service.infer_creation_intent = AsyncMock(return_value=None)
+    service.retrieve_memories = AsyncMock(return_value=[])
+
+    free = await service.prepare(
+        "free-user",
+        {"message": "Summarize this."},
+        allow_think_longer=False,
+        user_tier="free",
+    )
+    paid = await service.prepare(
+        "paid-user",
+        {"message": "Summarize this."},
+        allow_think_longer=True,
+        user_tier="professional",
+    )
+
+    assert free.verification_level == "auto"
+    assert paid.verification_level == "strict"
+
+
+def test_free_intelligence_preferences_normalize_and_reject_always_review(monkeypatch):
+    class DeniedFeatures:
+        def entitled(self, _user, code):
+            assert code == "think_longer"
+            return False
+
+        async def require_tier(self, _user, code):
+            raise FeatureAccessError(
+                "Think longer requires a Professional plan.",
+                "SUBSCRIPTION_REQUIRED",
+                403,
+                "professional",
+            )
+
+    class IntelligenceStub:
+        async def get_preferences(self, _user_id):
+            return {**DEFAULT_PREFERENCES, "verification_level": "strict"}
+
+        async def update_preferences(self, _user_id, _payload):
+            raise AssertionError("Unauthorized preferences must not be persisted")
+
+    async def authenticate(*_args, **_kwargs):
+        return SimpleNamespace(user={"id": "free-user", "subscription_tier": "free"})
+
+    monkeypatch.setattr(intelligence_routes, "features", DeniedFeatures())
+    monkeypatch.setattr(intelligence_routes, "intelligence", IntelligenceStub())
+    monkeypatch.setattr(intelligence_routes, "authenticate_request", authenticate)
+
+    get_response = CLIENT.get("/api/intelligence/preferences")
+    patch_response = CLIENT.patch(
+        "/api/intelligence/preferences",
+        json={"verificationLevel": "strict"},
+    )
+
+    assert get_response.status_code == 200
+    assert get_response.json()["preferences"]["verificationLevel"] == "auto"
+    assert patch_response.status_code == 403
+    assert patch_response.json()["message"] == "Always review requires a Professional plan."
+
+
 def test_frontend_identity_paid_mode_and_navigation_contracts():
     app = read("public/app.js")
     intelligence = read("public/crump-4.4.js")
@@ -139,6 +245,17 @@ def test_frontend_identity_paid_mode_and_navigation_contracts():
     assert "Think longer" in intelligence
     assert "entitlements.thinkLonger" in intelligence
     assert "showBillingCenter?.({ plan: 'professional' })" in intelligence
+    assert "Thinking" in intelligence
+    assert "Memory & privacy" in intelligence
+    assert "Current information" in intelligence
+    assert "Answer review" in intelligence
+    assert "Always review" in intelligence
+    assert "Advanced intelligence" in intelligence
+    assert "makeToolButtons" not in intelligence
+    assert "searchQuickAction" not in intelligence
+    assert "imageQuickAction" not in intelligence
+    assert "codeQuickAction" not in intelligence
+    assert "Replay workspace guide" not in intelligence
     assert "closeConversationMenu();" in app
     assert "menuBtn.setAttribute('aria-expanded', 'false')" in app
     assert '<a class="brand" href="/app" aria-label="Return to Ask Crump">' in legal

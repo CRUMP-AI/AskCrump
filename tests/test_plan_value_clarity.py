@@ -156,7 +156,7 @@ def test_plan_center_containment_assets_are_versioned_everywhere():
     for source in sources:
         assert versioned_billing in source
         assert versioned_final in source
-    assert "ask-crump-new-body-v1-r156" in read_public("sw.js")
+    assert "ask-crump-new-body-v1-r157" in read_public("sw.js")
     assert "/runtime-body-v1.js?v=5.9.76-monetization-recovery-1" in read_public("app.html")
 
 
