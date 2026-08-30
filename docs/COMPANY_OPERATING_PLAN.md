@@ -294,9 +294,13 @@ provider, privacy, cost, or security gate is incomplete.
   Professional and Enterprise benefit across public pricing, the signed-in Plan center, fallback
   rendering, and paid-plan registration. Think Longer and Always Review remain enforced by the
   existing Professional entitlement, and signup still makes clear that account creation does not
-  purchase a plan. Prices, quotas, credits, and checkout behavior remain unchanged. The latest
-  aggregate account, artifact, and plan snapshots are still empty, so treat this as conversion
-  readiness and acquire legitimate external traffic before claiming lift or revisiting price.
+  purchase a plan. The answer-level receipt now persists and displays **Thought longer** or
+  **Reviewed** only when the corresponding pass actually returned a result; the durable receipt is
+  limited to two booleans and contains no content, hidden reasoning, provider detail, token count,
+  or cost. Prices, quotas, credits, checkout behavior, and model routing remain unchanged. The
+  latest aggregate account, artifact, and plan snapshots are still empty, so treat this as
+  conversion readiness and acquire legitimate external traffic before claiming lift or revisiting
+  price. Evidence: `docs/ADVANCED_INTELLIGENCE_RECEIPT_RELEASE_2026-08-30.md`.
 - **Library information architecture:** Production 5.9.63 originally consolidated the manuscript
   bookshelf and saved files. The current 5.9.76 release sharpens that boundary: Library is solely
   the private bookshelf for manuscripts and books, while documents, images, videos, exports, and
