@@ -92,6 +92,14 @@
 
   <script>
     window.fixtureEvents = {billing: 0};
+    window.fixtureErrors = [];
+    document.documentElement.dataset.fixtureErrorCount = '0';
+    const recordFixtureError = value => {
+      window.fixtureErrors.push(String(value));
+      document.documentElement.dataset.fixtureErrorCount = String(window.fixtureErrors.length);
+    };
+    window.addEventListener('error', event => recordFixtureError(event.message || 'error'));
+    window.addEventListener('unhandledrejection', event => recordFixtureError(event.reason || 'rejection'));
     window.openSettings = () => { document.getElementById('settingsModal').style.display = 'block'; };
     window.showBillingCenter = () => {
       window.fixtureEvents.billing += 1;
@@ -105,7 +113,7 @@
     window.CrumpProduct53 = {open() {}};
   </script>
   <script src="/public/crump-v1-body.js?v=5.9.76"></script>
-  <script src="/public/crump-navigation-5.9.30.js?v=5.9.76"></script>
+  <script src="/public/crump-navigation-5.9.30.js?v=5.9.76-modal-containment-1"></script>
   <script>
     const mobileProof = new URLSearchParams(location.search).get('mobile');
     if (mobileProof === 'drawer') {

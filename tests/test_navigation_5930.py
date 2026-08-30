@@ -20,7 +20,7 @@ def test_five_destination_navigation_is_final_runtime_layer_and_boot_critical():
         assert asset.lstrip("/") in checker
 
     assert runtime.index("/crump-library-5.7.js") < runtime.index("/crump-navigation-5.9.30.js")
-    assert "ask-crump-new-body-v1-r137" in worker
+    assert "ask-crump-new-body-v1-r138" in worker
 
 
 def test_navigation_exposes_exact_product_destinations_on_desktop_and_mobile():
@@ -75,6 +75,24 @@ def test_create_hub_is_non_generating_and_accessible_until_user_sends():
     assert "fetch(" not in script
 
 
+def test_create_hub_contains_keyboard_and_assistive_technology_focus():
+    script = read("public/crump-navigation-5.9.30.js")
+
+    assert "function setCreateBackgroundInert(inert)" in script
+    assert "app.setAttribute('inert', '')" in script
+    assert "app.setAttribute('aria-hidden', 'true')" in script
+    assert "app.removeAttribute('inert')" in script
+    assert "app.removeAttribute('aria-hidden')" in script
+    assert "function createFocusableElements()" in script
+    assert "[...hub.querySelectorAll(CREATE_FOCUSABLE)]" in script
+    assert "function containCreateFocus(event)" in script
+    assert "event.key !== 'Tab'" in script
+    assert "active === first || !hub.contains(active)" in script
+    assert "active === last || !hub.contains(active)" in script
+    assert "setCreateBackgroundInert(true)" in script
+    assert "setCreateBackgroundInert(false)" in script
+
+
 def test_navigation_has_a_bounded_local_rollback_switch():
     script = read("public/crump-navigation-5.9.30.js")
 
@@ -112,6 +130,9 @@ def test_navigation_consolidation_fixture_uses_the_production_layers():
 
     assert '/public/crump-v1-body.js' in fixture
     assert '/public/crump-navigation-5.9.30.js' in fixture
+    assert '5.9.76-modal-containment-1' in fixture
+    assert 'window.fixtureErrors = []' in fixture
+    assert "dataset.fixtureErrorCount = '0'" in fixture
     assert 'id="v1OpenPlanBtn"' in fixture
     assert 'id="billingProof"' in fixture
     assert 'billing51-sidebar-balance">649 C' in fixture
