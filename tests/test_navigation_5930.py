@@ -20,7 +20,7 @@ def test_five_destination_navigation_is_final_runtime_layer_and_boot_critical():
         assert asset.lstrip("/") in checker
 
     assert runtime.index("/crump-library-5.7.js") < runtime.index("/crump-navigation-5.9.30.js")
-    assert "ask-crump-new-body-v1-r139" in worker
+    assert "ask-crump-new-body-v1-r140" in worker
 
 
 def test_navigation_exposes_exact_product_destinations_on_desktop_and_mobile():
@@ -45,6 +45,23 @@ def test_destination_surfaces_leave_persistent_navigation_clickable():
     assert "left: var(--ac-rail);" in styles
     assert "bottom: calc(var(--crump5930-mobile-nav) + env(safe-area-inset-bottom));" in styles
     assert "100dvh - var(--crump5930-mobile-nav)" in styles
+
+
+def test_persistent_destinations_hide_only_the_covered_workspace_from_assistive_technology():
+    page = read("public/app.html")
+    product = read("public/crump-product-5.3.js")
+    script = read("public/crump-navigation-5.9.30.js")
+
+    assert 'role="dialog" aria-modal="false" aria-label="Settings"' in page
+    assert 'id="crump53Sheet" role="dialog" aria-modal="false"' in product
+    assert "function destinationBackgroundElements()" in script
+    assert "[byId('sidebar'), document.querySelector('.v1-workspace')]" in script
+    assert "element.setAttribute('inert', '')" in script
+    assert "element.setAttribute('aria-hidden', 'true')" in script
+    assert "element.removeAttribute('inert')" in script
+    assert "element.removeAttribute('aria-hidden')" in script
+    assert "setDestinationBackgroundInert(studioIsOpen() || settingsIsOpen())" in script
+    assert "syncDestinationBackground();" in script
 
 
 def test_navigation_reuses_existing_product_surfaces_without_data_migration():
@@ -130,9 +147,11 @@ def test_navigation_consolidation_fixture_uses_the_production_layers():
 
     assert '/public/crump-v1-body.js' in fixture
     assert '/public/crump-navigation-5.9.30.js' in fixture
-    assert '5.9.76-modal-containment-1' in fixture
+    assert '5.9.76-persistent-destinations-1' in fixture
     assert 'window.fixtureErrors = []' in fixture
     assert "dataset.fixtureErrorCount = '0'" in fixture
     assert 'id="v1OpenPlanBtn"' in fixture
     assert 'id="billingProof"' in fixture
     assert 'billing51-sidebar-balance">649 C' in fixture
+    assert 'id="crump53Studio"' in fixture
+    assert fixture.count('aria-modal="false"') == 2

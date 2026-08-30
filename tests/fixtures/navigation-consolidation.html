@@ -55,8 +55,14 @@
     <button id="userInput" type="button" hidden>Composer</button>
   </div>
 
+  <div id="crump53Studio" class="crump53-overlay" hidden>
+    <section id="crump53Sheet" role="dialog" aria-modal="false" aria-label="Ask Crump Projects" data-crump53-section="projects">
+      <button id="crump53Close" type="button">Close destination</button>
+    </section>
+  </div>
+
   <div id="settingsModal" class="modal v1-modal">
-    <div class="modal-content settings-sheet v1-settings-sheet" role="dialog" aria-modal="true" aria-label="Settings">
+    <div class="modal-content settings-sheet v1-settings-sheet" role="dialog" aria-modal="false" aria-label="Settings">
       <div class="settings-sheet-header v1-settings-header">
         <button id="closeSettingsBtn" type="button">Close</button>
         <div><div>ASK CRUMP</div><strong>Settings</strong></div>
@@ -110,10 +116,19 @@
     document.getElementById('closeSettingsBtn').addEventListener('click', () => { document.getElementById('settingsModal').style.display = 'none'; });
     document.getElementById('menuBtn').addEventListener('click', () => { document.getElementById('sidebar').classList.add('active'); });
     window.CrumpBodyV1 = {syncConversationLibrary() {}, toggleConversationLibrary() {}};
-    window.CrumpProduct53 = {open() {}};
+    window.CrumpProduct53 = {
+      open(section = 'projects') {
+        const studio = document.getElementById('crump53Studio');
+        const sheet = document.getElementById('crump53Sheet');
+        sheet.dataset.crump53Section = section;
+        sheet.setAttribute('aria-label', section === 'library' ? 'Ask Crump Library' : 'Ask Crump Projects');
+        studio.hidden = false;
+      },
+    };
+    document.getElementById('crump53Close').addEventListener('click', () => { document.getElementById('crump53Studio').hidden = true; });
   </script>
   <script src="/public/crump-v1-body.js?v=5.9.76"></script>
-  <script src="/public/crump-navigation-5.9.30.js?v=5.9.76-modal-containment-1"></script>
+  <script src="/public/crump-navigation-5.9.30.js?v=5.9.76-persistent-destinations-1"></script>
   <script>
     const mobileProof = new URLSearchParams(location.search).get('mobile');
     if (mobileProof === 'drawer') {

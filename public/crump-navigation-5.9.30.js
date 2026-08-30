@@ -18,6 +18,7 @@
   ].join(',');
   let lastFocus = null;
   let createBackgroundState = null;
+  let destinationBackgroundState = null;
   let syncFrame = 0;
 
   const destinations = Object.freeze([
@@ -161,6 +162,38 @@
     if (settingsIsOpen()) byId('closeSettingsBtn')?.click();
   }
 
+  function destinationBackgroundElements() {
+    return [byId('sidebar'), document.querySelector('.v1-workspace')].filter(Boolean);
+  }
+
+  function setDestinationBackgroundInert(inert) {
+    if (inert) {
+      if (!destinationBackgroundState) {
+        destinationBackgroundState = destinationBackgroundElements().map(element => ({
+          element,
+          inert: element.hasAttribute('inert'),
+          ariaHidden: element.getAttribute('aria-hidden'),
+        }));
+      }
+      destinationBackgroundState.forEach(({element}) => {
+        element.setAttribute('inert', '');
+        element.setAttribute('aria-hidden', 'true');
+      });
+      return;
+    }
+    if (!destinationBackgroundState) return;
+    destinationBackgroundState.forEach(({element, inert: wasInert, ariaHidden}) => {
+      if (!wasInert) element.removeAttribute('inert');
+      if (ariaHidden === null) element.removeAttribute('aria-hidden');
+      else element.setAttribute('aria-hidden', ariaHidden);
+    });
+    destinationBackgroundState = null;
+  }
+
+  function syncDestinationBackground() {
+    setDestinationBackgroundInert(studioIsOpen() || settingsIsOpen());
+  }
+
   function closeToolSheet() {
     document.querySelector('.crump50-sheet .crump50-sheet-close')?.click();
   }
@@ -273,6 +306,7 @@
     closeSidebar();
     closeStudio();
     closeSettings();
+    setDestinationBackgroundInert(false);
     closeToolSheet();
     injectCreateHub();
     const hub = byId('crump5930CreateHub');
@@ -340,6 +374,7 @@
     closeSidebar();
     closeStudio();
     closeSettings();
+    setDestinationBackgroundInert(false);
     closeCreateHub();
     closeToolSheet();
     setActive('ask');
@@ -352,6 +387,7 @@
     closeCreateHub();
     closeToolSheet();
     window.CrumpProduct53?.open?.('projects');
+    syncDestinationBackground();
     setActive('projects');
   }
 
@@ -361,6 +397,7 @@
     closeCreateHub();
     closeToolSheet();
     window.CrumpProduct53?.open?.('library');
+    syncDestinationBackground();
     setActive('library');
   }
 
@@ -371,6 +408,7 @@
     closeToolSheet();
     if (typeof window.openSettings === 'function') window.openSettings();
     else byId('settingsBtn')?.click();
+    syncDestinationBackground();
     setActive('you');
   }
 
@@ -407,6 +445,7 @@
 
   function syncFromSurfaces() {
     syncFrame = 0;
+    syncDestinationBackground();
     if (createHubIsOpen()) return setActive('create');
     const studioDestination = selectedStudioDestination();
     if (studioDestination) return setActive(studioDestination);

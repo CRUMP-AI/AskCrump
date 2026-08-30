@@ -97,12 +97,12 @@ const loader = String.raw`
 
   const finalScripts = Object.freeze([
     ['/crump-navigation-5.2.5.js', 'crumpnav525'],
-    ['/crump-product-5.3.js?v=5.9.76-demand-hydration-1', 'crumpproduct53'],
+    ['/crump-product-5.3.js?v=5.9.76-persistent-destinations-1', 'crumpproduct53'],
     ['/crump-product-5.3.1.js?v=5.9.76-demand-hydration-1', 'crumpproduct531'],
     ['/crump-subscriptions-5.3.2.js?v=5.9.76-billing-timeout-1', 'crumpsubscriptions532'],
     ['/crump-polish-5.6.js', 'crumppolish56'],
     ['/crump-library-5.7.js?v=5.9.76-demand-hydration-1', 'crumplibrary57'],
-    ['/crump-navigation-5.9.30.js?v=5.9.76-modal-containment-1', 'crumpnav5930'],
+    ['/crump-navigation-5.9.30.js?v=5.9.76-persistent-destinations-1', 'crumpnav5930'],
     ['/crump-code-5.9.35.js?v=5.9.76-demand-hydration-1', 'crumpcode5935'],
   ]);
 

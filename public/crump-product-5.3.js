@@ -407,7 +407,7 @@
     overlay.className = 'crump53-overlay';
     overlay.hidden = true;
     overlay.innerHTML = `
-      <section class="crump53-sheet" id="crump53Sheet" role="dialog" aria-modal="true" aria-label="Ask Crump Projects" data-crump53-section="projects">
+      <section class="crump53-sheet" id="crump53Sheet" role="dialog" aria-modal="false" aria-label="Ask Crump Projects" data-crump53-section="projects">
         <header class="crump53-sheet-head">
           <div class="crump53-sheet-identity">
             <button type="button" class="crump53-project-back" id="crump53ProjectBack" hidden aria-label="Back to all Projects">‹ <span>Projects</span></button>
