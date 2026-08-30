@@ -2,11 +2,18 @@
 
 ## Status
 
+**Superseded — do not use this packet to publish the presentation pair.**
+
 The workspace-positioning message is already live on Facebook and Instagram. Do not publish those
-two messages again. The remaining launch batch is the presentation outcome adapted once for
-Facebook and once for Instagram. Nothing in this packet authorizes the remaining actions. Proceed
-only after the owner says the exact action-time phrase
-`Apply the tracked profile links, submit the Ask Crump sitemap, publish the presentation batch, and send the progress update.`
+two messages again. The presentation assets originally staged in this repository are retired from
+campaign use because the Instagram portrait still carries the obsolete `AI VIRTUAL ASSISTANT`
+descriptor. The original action-time approval phrase in this file is therefore void.
+
+The current presentation creative is owned by the marketing workspace at
+`ask-crump-marketing/campaigns/presentation-proof-current/final`, with its governing handoff at
+`ask-crump-marketing/handoffs/PRESENTATION_BATCH_REPLACEMENT.md`. Marketing must review that package
+and obtain the appropriate action-time approval before any publication. This product-repository
+record neither copies the marketing assets nor authorizes publishing them.
 
 The external acquisition handoff is not complete: Facebook's public profile links are untagged,
 Instagram's public profile currently shows no clickable external link, and the verified Search
@@ -76,9 +83,10 @@ Caption:
 >
 > #AskCrump #AIWorkspace #FutureOfWork
 
-## Remaining publication 1 — Facebook — presentation outcome
+## Retired reference — Facebook — presentation outcome
 
-- Asset: `public/assets/social/ask-crump-presentations.png` (1200×630)
+- Invalid campaign asset: `public/assets/social/ask-crump-presentations.png` (1200×630)
+- Status: do not publish; use the current marketing-owned replacement package after review.
 - Destination: `https://www.askcrump.com/ai-presentation-maker?utm_source=facebook`
 - CTA: Learn more
 - Alt text: Black-and-gold Ask Crump campaign card describing an AI presentation maker that creates
@@ -93,9 +101,10 @@ Caption:
 >
 > See how it works: https://www.askcrump.com/ai-presentation-maker?utm_source=facebook
 
-## Remaining publication 2 — Instagram — presentation outcome
+## Retired reference — Instagram — presentation outcome
 
-- Asset: `public/assets/social/ask-crump-presentations-portrait.png` (1080×1350)
+- Invalid campaign asset: `public/assets/social/ask-crump-presentations-portrait.png` (1080×1350)
+- Status: do not publish; this asset visibly carries the retired descriptor.
 - Profile destination: `https://www.askcrump.com/ai-presentation-maker?acquisition=instagram&source=profile-link`
 - Alt text: Vertical black-and-gold Ask Crump campaign card reading “From an idea to an editable
   PowerPoint,” with the Ask Crump wordmark and restrained gold geometry.
@@ -112,19 +121,15 @@ Caption:
 
 ## Action-time checklist
 
-1. Apply the exact tracked Facebook and Instagram profile links above; do not expose credentials or
-   account data in either URL.
-2. Submit `https://www.askcrump.com/sitemap.xml` to the verified `askcrump.com` Search Console
-   property.
-3. Confirm the remaining Facebook image, caption, CTA, destination, and alt text exactly match this
-   packet.
-4. Confirm the Instagram profile link points to the presentation page before publication; do not
-   point either cold campaign directly to `/app`.
-5. Preview both presentation assets on phone and desktop. Preserve the full wordmark and principal
-   headline.
-6. Publish only the two remaining presentation messages, one per platform.
-7. Send one concise progress update to the dedicated ChatGPT conversation after the profile links,
-   sitemap, and two publications are visibly confirmed.
-8. Record publication URLs and timestamps. Observe at least 14 days and 50 combined social-referral
-   visitors before making a conversion decision; do not treat verification or owner traffic as
+1. Do not publish either product-repository presentation asset or reuse the original approval phrase.
+2. Review `ask-crump-marketing/handoffs/PRESENTATION_BATCH_REPLACEMENT.md` and the current final
+   creative package in the marketing workspace.
+3. Keep profile-link, Search Console, publication, and campaign-spend actions under the marketing
+   task's explicit approval boundary.
+4. Preserve the full current workspace lockup and verify that no retired descriptor appears in any
+   final preview.
+5. Use one canonical tracked destination per platform so acquisition attribution is not split.
+6. Record any eventual publication URLs and timestamps in the marketing system of record. Observe
+   legitimate acquisition, activation, retention, payer, recognized-revenue, refund, and variable-
+   cost evidence before making a scale decision; do not treat verification or owner traffic as
    customer evidence.
