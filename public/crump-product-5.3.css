@@ -267,6 +267,10 @@ body.crump-v1-body .crump53-project-list-button {
   min-height: 48px;
   align-items: center;
 }
+body.crump-v1-body .crump53-project-list-button[aria-busy="true"] {
+  opacity: .72;
+  cursor: progress;
+}
 body.crump-v1-body .crump53-project-list-button small {
   color: #8b7650;
   font-weight: 720;

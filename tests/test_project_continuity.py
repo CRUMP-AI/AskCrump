@@ -213,8 +213,11 @@ def test_project_rows_open_a_real_project_workspace_and_scoped_new_chat():
     assert "new URL(window.location.pathname, window.location.origin)" in product
     assert "window.history[replace ? 'replaceState' : 'pushState']" in product
     assert "window.addEventListener('popstate'" in product
-    assert "byId('crump53ProjectList')?.addEventListener('click'" in product
-    assert "target?.closest('[data-project-id]')" in product
+    assert "wireProjectLinks(list)" in product
+    assert "link.addEventListener('click'" in product
+    assert "link.setAttribute('aria-busy', 'true')" in product
+    assert "if (!opened) window.location.assign(link.href)" in product
+    assert "return true" in product
     assert "String(item.id || '') === normalizedProjectId" in product
     assert "setProjectView('detail', {focus: false})" in product
     assert "renderActiveProjectWorkspace({open: focus})" in product

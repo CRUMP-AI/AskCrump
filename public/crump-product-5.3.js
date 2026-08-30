@@ -605,14 +605,6 @@
 
     byId('crump53Close')?.addEventListener('click', closeStudio);
     overlay.addEventListener('click', event => { if (event.target === overlay) closeStudio(); });
-    byId('crump53ProjectList')?.addEventListener('click', event => {
-      const target = event.target instanceof Element ? event.target : null;
-      const button = target?.closest('[data-project-id]');
-      if (!button || !event.currentTarget.contains(button)) return;
-      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      event.preventDefault();
-      selectProject(button.dataset.projectId);
-    });
     byId('crump53ProjectBack')?.addEventListener('click', showProjectIndex);
     byId('crump53CreateProject')?.addEventListener('click', resetProjectForm);
     byId('crump53StartProjectChat')?.addEventListener('click', startProjectConversation);
@@ -903,6 +895,25 @@
       </a>`).join('') + (Number(limit) > 0
         ? `<div class="crump53-status">${state.projects.length} / ${limit} active projects</div>`
         : (Number(limit) < 0 ? '<div class="crump53-status">Founder Lab · unlimited project workspaces</div>' : ''));
+    wireProjectLinks(list);
+  }
+
+  function wireProjectLinks(list) {
+    list.querySelectorAll('[data-project-id]').forEach(link => {
+      link.addEventListener('click', event => {
+        // Preserve normal browser behavior for new-tab/window modifiers. A regular
+        // tap or click is owned directly by its Project row so list re-renders and
+        // ancestor menu handlers cannot turn the interaction into a silent no-op.
+        if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        if (link.getAttribute('aria-busy') === 'true') return;
+        link.setAttribute('aria-busy', 'true');
+        const action = link.querySelector('small');
+        if (action) action.textContent = 'Opening…';
+        const opened = selectProject(link.dataset.projectId);
+        if (!opened) window.location.assign(link.href);
+      });
+    });
   }
 
   function selectProject(projectId, {updateRoute = true, replaceRoute = false, focus = true, reveal = true} = {}) {
@@ -911,7 +922,7 @@
     if (!project) {
       setStatus('crump53ProjectStatus', 'That Project could not be opened. Refresh Projects and try again.', true);
       window.showToast?.('That Project could not be opened. Refresh Projects and try again.', 'error');
-      return;
+      return false;
     }
     state.activeProject = project;
     state.editingProject = project;
@@ -927,6 +938,7 @@
     renderProjectIndicator();
     setProjectView('detail', {focus: false});
     renderActiveProjectWorkspace({open: focus});
+    return true;
   }
 
   function setProjectView(view, {focus = true} = {}) {

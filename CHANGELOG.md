@@ -2,6 +2,15 @@
 
 ## 5.9.76 — 2026-08-29
 
+### Deterministic Project opening
+
+- Bound each freshly rendered Project row directly to its own open action, preventing mobile menu
+  bubbling or an asynchronous list replacement from leaving a visible row inert.
+- Added immediate `Opening…` feedback and a route-backed reload fallback when a stale in-memory
+  Project cannot be resolved, while preserving modified-click behavior for new tabs.
+- Advanced the browser, installed-PWA, and generated-native Project assets plus the service-worker
+  cache so existing clients receive the repaired interaction after their update prompt.
+
 ### Addressable Project workspaces
 
 - Turned every named Project row into a real app link while retaining instant in-place opening,
