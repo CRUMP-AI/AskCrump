@@ -1,11 +1,13 @@
 """Authenticated Crump Code task and approval endpoints."""
 from __future__ import annotations
 
+import logging
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from uuid import uuid4
 
 from ..auth_service import authenticate_request
+from ..code_observability import code_log
 from ..code_service import (
     CodeTaskConflictError,
     CodeTaskError,
@@ -16,6 +18,7 @@ from ..project_service import ProjectNotFoundError
 from ..runtime import code_tasks, db, features, settings
 
 router = APIRouter(tags=["code"])
+logger = logging.getLogger("askcrump.code")
 
 
 def _error(message: str, code: str, status: int) -> JSONResponse:
@@ -147,6 +150,7 @@ async def run_code_task(task_id: str, request: Request):
         return _feature_error(exc)
 
     dispatch_token = str(uuid4())
+    recovered = False
     try:
         claimed = await code_tasks.dispatch(
             task,
@@ -155,15 +159,39 @@ async def run_code_task(task_id: str, request: Request):
         )
     except CodeTaskError as exc:
         await features.refund(auth.user["id"], receipt)
+        code_log(
+            logger,
+            logging.WARNING,
+            "dispatch_rejected",
+            failure_code=exc.code,
+            outcome="refunded",
+        )
         return _task_error(exc)
-    except Exception:
+    except Exception as exc:
         current = await code_tasks.get(user_id=auth.user["id"], task_id=task_id)
         if str(current.get("dispatch_token") or "") == dispatch_token:
             claimed = current
+            recovered = True
         else:
             await features.refund(auth.user["id"], receipt)
+            code_log(
+                logger,
+                logging.ERROR,
+                "dispatch_rejected",
+                error_type=type(exc).__name__,
+                outcome="refunded",
+            )
             raise
 
+    code_log(
+        logger,
+        logging.INFO,
+        "dispatch_recovered" if recovered else "dispatch_accepted",
+        mode=str(claimed.get("mode") or ""),
+        status=str(claimed.get("status") or ""),
+        payment_source=str(claimed.get("payment_source") or ""),
+        credits_spent=int(claimed.get("credits_spent") or 0),
+    )
     return JSONResponse(
         status_code=202,
         content={
@@ -180,6 +208,13 @@ async def cancel_code_task(task_id: str, request: Request):
     try:
         task = await code_tasks.get(user_id=auth.user["id"], task_id=task_id)
         cancelled = await code_tasks.cancel(task)
+        code_log(
+            logger,
+            logging.INFO,
+            "cancellation_recorded",
+            status=str(cancelled.get("status") or ""),
+            refund_pending=cancelled.get("payment_source") == "refund_pending",
+        )
         return {"success": True, "task": CodeTaskService.public_task(cancelled)}
     except CodeTaskError as exc:
         return _task_error(exc)
