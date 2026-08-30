@@ -277,7 +277,12 @@ provider, privacy, cost, or security gate is incomplete.
   family, but public links still previewed only a square app icon. Release 5.9.25 replaces that with
   page-specific 1,200-by-630 cards built from the canonical mark. Evaluate socially attributed
   signup intent only after at least 14 days and 50 combined social-referral visitors; do not claim a
-  click-through improvement without platform impression data.
+  click-through improvement without platform impression data. The current channel audit found the
+  workspace-positioning message already live on Facebook and Instagram, but Facebook's public
+  profile links remain untagged, Instagram exposes no clickable external link, and Search Console
+  lists no submitted sitemap. Do not duplicate the workspace post. Use the prepared tracked profile
+  links, canonical sitemap, and two-post presentation remainder only after the exact action-time
+  approval in `docs/SOCIAL_LAUNCH_BATCH_2026-08-29.md`.
 - **Monetization reconciliation:** the live Stripe account contains five intended active products,
   no transactions, no active subscriptions, no paid customer, and $0 gross volume/balance. The
   Professional price ID matches the production fallback. Both live webhook destinations now use
@@ -325,8 +330,9 @@ provider, privacy, cost, or security gate is incomplete.
 - **External input needed:** an ElevenLabs production API key and voice ID with confirmed rights.
 - **Next evidence:** observe a legitimate capability CTA → authentication →
   `CreationIntentContinued` → artifact journey, including selected résumé purpose through first
-  download; submit the sitemap after owner confirmation; and obtain the first post-instrumentation
-  durable-value, return, and referral observations.
+  download; complete the tracked profile-link, sitemap, and non-duplicate presentation launch after
+  owner confirmation; and obtain the first post-instrumentation durable-value, return, and referral
+  observations.
 - **Native distribution:** Android 5.9.57/build 50957 source and an unsigned `.aab` pass the hosted
   API 36/Java 21 release audit in run `33189736730`; the generated iOS 5.9.57 Release configuration
   passes its hosted macOS compile in run `33189736888`. Owner-controlled developer accounts,

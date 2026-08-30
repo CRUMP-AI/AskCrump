@@ -368,8 +368,12 @@ def test_social_launch_batch_uses_contextual_attributed_destinations():
     assert "https://www.askcrump.com/?utm_source=facebook" in packet
     assert "https://www.askcrump.com/?utm_source=instagram" in packet
     assert "https://www.askcrump.com/ai-presentation-maker?utm_source=facebook" in packet
-    assert "https://www.askcrump.com/ai-presentation-maker?utm_source=instagram" in packet
-    assert "https://www.askcrump.com/app" not in packet
+    assert (
+        "https://www.askcrump.com/ai-presentation-maker?"
+        "acquisition=instagram&source=profile-link"
+    ) in packet
+    assert "- Destination: `https://www.askcrump.com/app" not in packet
+    assert "- Profile destination: `https://www.askcrump.com/app" not in packet
 
 
 def test_public_marketing_text_colors_meet_wcag_aa_contrast():

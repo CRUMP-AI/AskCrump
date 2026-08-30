@@ -737,12 +737,12 @@ anonymous aggregates. Keep both new provider foundations off. Do not enable Crum
 sandbox/OIDC test, review UI, monitoring, and benchmark gates pass. Do not enable Crump Voice
 until its disclosure, key, voice rights, and playback tests are approved.
 
-The four-publication launch batch is now specified in
-`docs/SOCIAL_LAUNCH_BATCH_2026-08-29.md`. Facebook uses public contextual destinations with explicit
-allowlisted acquisition labels; Instagram uses matching contextual profile links. Two deterministic
-1080-by-1350 portrait cards complement the existing 1200-by-630 landscape cards so neither platform
-requires an unsafe crop. Commit `6546b1c` passed all 436 regressions, 45 JavaScript validations,
-production preflight, and store-metadata checks. Deployment `dpl_CcWeAy5rJwaEn7xnYHBA618fBDCs`
-is `READY` on all six aliases; both live portrait assets reported their exact dimensions with no
-browser error, runtime error cluster, or warning/error/fatal deployment log. Publication and the
-dedicated ChatGPT progress update remain behind the owner's exact action-time phrase.
+The launch packet is specified in `docs/SOCIAL_LAUNCH_BATCH_2026-08-29.md`. A current read-only
+channel audit found that the workspace-positioning message is already live on Facebook and
+Instagram, so the packet now prevents duplicate publication and retains only the presentation
+outcome as the two-post remainder. Facebook still exposes untagged public links, Instagram does not
+expose a clickable external link, and the verified Search Console property still lists zero
+submitted sitemaps. The packet now names the exact privacy-minimized profile destinations, the
+canonical sitemap, the two remaining contextual posts, and one action-time approval phrase.
+Publication, profile edits, sitemap submission, and the dedicated ChatGPT progress update remain
+owner-gated.

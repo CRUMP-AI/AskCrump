@@ -2,14 +2,25 @@
 
 ## Status
 
-Four publications are staged: two campaign messages adapted for Facebook and Instagram. Nothing in
-this packet authorizes publication. Publish only after the owner says the exact action-time phrase
-`Publish the launch batch and send the progress update`.
+The workspace-positioning message is already live on Facebook and Instagram. Do not publish those
+two messages again. The remaining launch batch is the presentation outcome adapted once for
+Facebook and once for Instagram. Nothing in this packet authorizes the remaining actions. Proceed
+only after the owner says the exact action-time phrase
+`Apply the tracked profile links, submit the Ask Crump sitemap, publish the presentation batch, and send the progress update.`
+
+The external acquisition handoff is not complete: Facebook's public profile links are untagged,
+Instagram's public profile currently shows no clickable external link, and the verified Search
+Console property has no submitted sitemap. Nothing in this packet authorizes those edits or the two
+remaining publications.
 
 The links deliberately send cold visitors to a contextual public page before credentials. Facebook
-uses an explicit privacy-minimized acquisition label. Instagram uses the profile link, which should
-point to the matching contextual URL with `utm_source=instagram` before publication. Ask Crump stores
-only the allowlisted source label; Vercel telemetry removes query strings and fragments.
+uses an explicit privacy-minimized acquisition label. During the presentation campaign, Instagram's
+clickable profile link should point to
+`https://www.askcrump.com/ai-presentation-maker?acquisition=instagram&source=profile-link`.
+Facebook's profile link should use
+`https://www.askcrump.com/?acquisition=facebook&source=profile-link`.
+Ask Crump stores only the allowlisted source and placement labels; Vercel telemetry removes query
+strings and fragments.
 
 ## Verification
 
@@ -25,7 +36,9 @@ only the allowlisted source label; Vercel telemetry removes query strings and fr
 - No post, profile link, social-account setting, Search Console setting, production account, or
   customer data was created or changed during verification.
 
-## Publication 1 — Facebook — workspace positioning
+## Live reference 1 — Facebook — workspace positioning
+
+Status: already live; retain as a historical campaign reference and do not republish.
 
 - Asset: `public/assets/social/ask-crump-workspace.png` (1200×630)
 - Destination: `https://www.askcrump.com/?utm_source=facebook`
@@ -43,7 +56,9 @@ Caption:
 >
 > Explore the workspace: https://www.askcrump.com/?utm_source=facebook
 
-## Publication 2 — Instagram — workspace positioning
+## Live reference 2 — Instagram — workspace positioning
+
+Status: already live; retain as a historical campaign reference and do not republish.
 
 - Asset: `public/assets/social/ask-crump-workspace-portrait.png` (1080×1350)
 - Profile destination: `https://www.askcrump.com/?utm_source=instagram`
@@ -61,7 +76,7 @@ Caption:
 >
 > #AskCrump #AIWorkspace #FutureOfWork
 
-## Publication 3 — Facebook — presentation outcome
+## Remaining publication 1 — Facebook — presentation outcome
 
 - Asset: `public/assets/social/ask-crump-presentations.png` (1200×630)
 - Destination: `https://www.askcrump.com/ai-presentation-maker?utm_source=facebook`
@@ -78,10 +93,10 @@ Caption:
 >
 > See how it works: https://www.askcrump.com/ai-presentation-maker?utm_source=facebook
 
-## Publication 4 — Instagram — presentation outcome
+## Remaining publication 2 — Instagram — presentation outcome
 
 - Asset: `public/assets/social/ask-crump-presentations-portrait.png` (1080×1350)
-- Profile destination: `https://www.askcrump.com/ai-presentation-maker?utm_source=instagram`
+- Profile destination: `https://www.askcrump.com/ai-presentation-maker?acquisition=instagram&source=profile-link`
 - Alt text: Vertical black-and-gold Ask Crump campaign card reading “From an idea to an editable
   PowerPoint,” with the Ask Crump wordmark and restrained gold geometry.
 
@@ -97,13 +112,19 @@ Caption:
 
 ## Action-time checklist
 
-1. Confirm the Facebook image, caption, CTA, destination, and alt text exactly match this packet.
-2. Confirm the Instagram profile link matches the corresponding contextual destination before each
-   post; do not point either cold campaign directly to `/app`.
-3. Preview crops on phone and desktop. Preserve the full wordmark and the principal headline.
-4. Publish the workspace message first on both platforms. Publish the presentation message second.
-5. Send one concise progress update to the dedicated ChatGPT conversation after all four
-   publications are visibly live.
-6. Record publication URLs and timestamps. Observe at least 14 days and 50 combined social-referral
+1. Apply the exact tracked Facebook and Instagram profile links above; do not expose credentials or
+   account data in either URL.
+2. Submit `https://www.askcrump.com/sitemap.xml` to the verified `askcrump.com` Search Console
+   property.
+3. Confirm the remaining Facebook image, caption, CTA, destination, and alt text exactly match this
+   packet.
+4. Confirm the Instagram profile link points to the presentation page before publication; do not
+   point either cold campaign directly to `/app`.
+5. Preview both presentation assets on phone and desktop. Preserve the full wordmark and principal
+   headline.
+6. Publish only the two remaining presentation messages, one per platform.
+7. Send one concise progress update to the dedicated ChatGPT conversation after the profile links,
+   sitemap, and two publications are visibly confirmed.
+8. Record publication URLs and timestamps. Observe at least 14 days and 50 combined social-referral
    visitors before making a conversion decision; do not treat verification or owner traffic as
    customer evidence.
