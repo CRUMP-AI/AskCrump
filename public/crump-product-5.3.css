@@ -35,13 +35,6 @@
     transform: translateX(-50%) scale(.94) !important;
   }
 
-  body.crump-v1-body .v1-mode-strip {
-    max-width: calc(100vw - 24px);
-  }
-  body.crump-v1-body .v1-mode-pill {
-    padding-right: 10px;
-    padding-left: 10px;
-  }
 }
 
 /* Projects rail destination injected by the 5.3 runtime. */
@@ -863,10 +856,6 @@ body.crump-v1-body .crump53-library-preview.is-error .crump53-playback-pulse::af
   0% { opacity: .65; transform: scale(.82); }
   75%,100% { opacity: 0; transform: scale(1.12); }
 }
-
-/* Legacy composer mode controls are retained only as hidden compatibility
-   targets. Intelligence, Create, and the composer + button own the UI. */
-body.crump-v1-body .v1-mode-strip[hidden] { display: none !important; }
 
 @media (prefers-reduced-motion: reduce) {
   body.crump-v1-body .crump53-playback-pulse::after { animation: none; }

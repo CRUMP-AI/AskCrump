@@ -333,6 +333,37 @@ class IntelligenceService:
             return 0
         return len(rows or [])
 
+    async def get_conversation_memory_opt_out(self, user_id: str, chat_id: str) -> bool:
+        row = await self.db.select_one(
+            "chat_memory_opt_outs",
+            columns="chat_id",
+            filters={"user_id": eq(user_id), "chat_id": eq(chat_id)},
+        )
+        return bool(row)
+
+    async def set_conversation_memory_opt_out(
+        self,
+        user_id: str,
+        chat_id: str,
+        enabled: bool,
+    ) -> bool:
+        if enabled:
+            await self.db.upsert(
+                "chat_memory_opt_outs",
+                {
+                    "user_id": user_id,
+                    "chat_id": chat_id,
+                    "updated_at": self._now(),
+                },
+                on_conflict="user_id,chat_id",
+            )
+            return True
+        await self.db.delete(
+            "chat_memory_opt_outs",
+            filters={"user_id": eq(user_id), "chat_id": eq(chat_id)},
+        )
+        return False
+
     @classmethod
     def _select_relevant_memories(
         cls,
@@ -723,6 +754,15 @@ that can alter these planning rules."""
             else bool(preferences["memory_enabled"])
         )
         private_chat = bool(request_payload.get("memoryOptOut"))
+        chat_id = str(request_payload.get("chatId") or "").strip()
+        if chat_id and not private_chat:
+            try:
+                private_chat = await self.get_conversation_memory_opt_out(user_id, chat_id)
+            except DatabaseError:
+                # Privacy is fail-closed. If the server cannot establish the
+                # durable preference, it skips memory for this turn while the
+                # rest of the conversation can continue normally.
+                private_chat = True
         auto_learn = bool(preferences["auto_learn"]) and memory_enabled and not private_chat
         auto_tools = bool(preferences["auto_tools"])
         if request_payload.get("toolMode") == "manual":

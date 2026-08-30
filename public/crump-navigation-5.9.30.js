@@ -37,6 +37,11 @@
       icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h6l2 2h8v10H4z"/><path d="M4 7V5h7l2 2"/></svg>',
     },
     {
+      id: 'code',
+      label: 'Code',
+      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7-5 5 5 5M15 7l5 5-5 5M13 4l-2 16"/></svg>',
+    },
+    {
       id: 'create',
       label: 'Create',
       icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/><path d="m17 5 .8 1.7L19.5 7.5l-1.7.8L17 10l-.8-1.7-1.7-.8 1.7-.8z"/></svg>',
@@ -77,7 +82,8 @@
   }
 
   function buttonMarkup(destination) {
-    return `<button type="button" class="crump5930-destination" data-crump5930-destination="${destination.id}" aria-label="${destination.label}">${destination.icon}<span>${destination.label}</span></button>`;
+    const codeBoundary = destination.id === 'code' ? ' data-crump-code-destination hidden' : '';
+    return `<button type="button" class="crump5930-destination" data-crump5930-destination="${destination.id}"${codeBoundary} aria-label="${destination.label}">${destination.icon}<span>${destination.label}</span></button>`;
   }
 
   function conversationLibraryMarkup() {
@@ -162,6 +168,15 @@
     return Boolean(modal && modal.style.display && modal.style.display !== 'none');
   }
 
+  function codeWorkspaceIsOpen() {
+    const workspace = byId('crumpCodeWorkspace');
+    return Boolean(workspace && !workspace.hidden);
+  }
+
+  function closeCodeWorkspace() {
+    if (codeWorkspaceIsOpen()) window.CrumpCodeWorkspace?.close?.();
+  }
+
   function closeSettings() {
     if (settingsIsOpen()) byId('closeSettingsBtn')?.click();
   }
@@ -195,10 +210,11 @@
   }
 
   function syncDestinationBackground() {
-    setDestinationBackgroundInert(studioIsOpen() || settingsIsOpen());
+    setDestinationBackgroundInert(studioIsOpen() || settingsIsOpen() || codeWorkspaceIsOpen());
   }
 
   function persistentDestination() {
+    if (codeWorkspaceIsOpen()) return 'code';
     return selectedStudioDestination() || (settingsIsOpen() ? 'you' : null);
   }
 
@@ -217,13 +233,15 @@
   }
 
   function destinationSurface(destination) {
-    return destination === 'you'
-      ? document.querySelector('#settingsModal [role="dialog"]')
-      : byId('crump53Sheet');
+    if (destination === 'you') return document.querySelector('#settingsModal [role="dialog"]');
+    if (destination === 'code') return document.querySelector('#crumpCodeWorkspace [role="dialog"]');
+    return byId('crump53Sheet');
   }
 
   function destinationFocusTarget(destination) {
-    return destination === 'you' ? byId('settingsTitle') : byId('crump53WorkspaceTitle');
+    if (destination === 'you') return byId('settingsTitle');
+    if (destination === 'code') return byId('crumpCodeTitle');
+    return byId('crump53WorkspaceTitle');
   }
 
   function scheduleDestinationSurfaceFocus(destination) {
@@ -381,7 +399,6 @@
           ${createCard('image', 'VISUALS', 'Images', 'Generate, edit, or build from a reference.', '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m7 16 4-4 3 3 2-2 2 3"/><circle cx="9" cy="9" r="1.5"/></svg>')}
           ${createCard('manuscript', 'LONG-FORM', 'Manuscripts', 'Plan, draft, pause, and continue chapter by chapter.', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h6a3 3 0 0 1 3 3v13a3 3 0 0 0-3-3H5z"/><path d="M19 4h-3a2 2 0 0 0-2 2v14a3 3 0 0 1 3-3h2z"/></svg>')}
           ${createCard('video', 'MOTION', 'Video', 'Create a scene or continue a compatible clip.', '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="13" height="14" rx="2"/><path d="m16.5 10 4-2v8l-4-2zM8 9l5 3-5 3z"/></svg>')}
-          <span id="crumpCodeCreateSlot" class="crump-code-create-slot" hidden>${createCard('code', 'DEVELOPMENT', 'Crump Code', 'Plan or implement a reviewed change in an isolated repository copy.', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7-5 5 5 5M15 7l5 5-5 5M13 4l-2 16"/></svg>')}</span>
         </div>
         <footer><span>Nothing generates until you review the setup and send your request.</span></footer>
       </section>`;
@@ -401,6 +418,7 @@
     suppressPersistentDestinationRestore();
     closeStudio();
     closeSettings();
+    closeCodeWorkspace();
     setDestinationBackgroundInert(false);
     syncDestinationFocus();
     closeToolSheet();
@@ -440,10 +458,6 @@
       else window.CrumpBodyV1?.command?.('image');
       return true;
     }
-    if (action === 'code') {
-      window.CrumpCodeWorkspace?.open?.();
-      return true;
-    }
     if (action === 'manuscript' || action === 'video') {
       rememberDestinationOpener('create');
       window.CrumpProduct53?.open?.(action === 'manuscript' ? 'manuscripts' : 'video');
@@ -474,6 +488,7 @@
     suppressPersistentDestinationRestore();
     closeStudio();
     closeSettings();
+    closeCodeWorkspace();
     setDestinationBackgroundInert(false);
     syncDestinationFocus();
     closeCreateHub();
@@ -486,6 +501,7 @@
     rememberDestinationOpener('projects');
     closeSidebar();
     closeSettings();
+    closeCodeWorkspace();
     closeCreateHub();
     closeToolSheet();
     window.CrumpProduct53?.open?.('projects');
@@ -498,6 +514,7 @@
     rememberDestinationOpener('library');
     closeSidebar();
     closeSettings();
+    closeCodeWorkspace();
     closeCreateHub();
     closeToolSheet();
     window.CrumpProduct53?.open?.('library');
@@ -510,6 +527,7 @@
     rememberDestinationOpener('you');
     closeSidebar();
     closeStudio();
+    closeCodeWorkspace();
     closeCreateHub();
     closeToolSheet();
     if (typeof window.openSettings === 'function') window.openSettings();
@@ -519,8 +537,26 @@
     syncDestinationFocus();
   }
 
+  async function openCode() {
+    rememberDestinationOpener('code');
+    closeSidebar();
+    closeStudio();
+    closeSettings();
+    closeCreateHub();
+    closeToolSheet();
+    const opened = await window.CrumpCodeWorkspace?.open?.();
+    if (!opened) {
+      setActive('ask');
+      return;
+    }
+    syncDestinationBackground();
+    setActive('code');
+    syncDestinationFocus();
+  }
+
   function openDestination(destination) {
     if (destination === 'projects') openProjects();
+    else if (destination === 'code') void openCode();
     else if (destination === 'create') openCreateHub();
     else if (destination === 'library') openLibrary();
     else if (destination === 'you') openYou();
@@ -554,6 +590,7 @@
     syncFrame = 0;
     syncDestinationBackground();
     syncDestinationFocus();
+    if (codeWorkspaceIsOpen()) return setActive('code');
     if (createHubIsOpen()) return setActive('create');
     const studioDestination = selectedStudioDestination();
     if (studioDestination) return setActive(studioDestination);

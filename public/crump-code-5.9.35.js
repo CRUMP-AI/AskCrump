@@ -7,6 +7,8 @@
   const byId = id => document.getElementById(id);
   const state = {
     available: false,
+    configured: false,
+    entitled: false,
     feature: null,
     featureStatus: null,
     provider: null,
@@ -222,7 +224,6 @@
   }
 
   async function refreshAvailability() {
-    const slot = byId('crumpCodeCreateSlot');
     try {
       const data = await api('/api/features');
       const feature = data.features?.code_workspace || null;
@@ -230,13 +231,25 @@
       state.featureStatus = data;
       state.feature = feature;
       state.provider = provider;
-      state.available = Boolean(feature?.configured && feature?.entitled && provider?.configured);
+      state.configured = Boolean(feature?.configured && provider?.configured);
+      state.entitled = feature?.entitled === true;
+      state.available = state.configured && state.entitled;
     } catch (_) {
       state.available = false;
+      state.configured = false;
+      state.entitled = false;
       state.feature = null;
       state.provider = null;
     }
-    if (slot) slot.hidden = !state.available;
+    document.querySelectorAll('[data-crump-code-destination]').forEach(destination => {
+      destination.hidden = !state.configured;
+      destination.classList.toggle('is-locked', state.configured && !state.entitled);
+      destination.setAttribute(
+        'aria-label',
+        state.configured && !state.entitled ? 'Code — Professional plan' : 'Code',
+      );
+    });
+    document.body.classList.toggle('crump-code-configured', state.configured);
     if (!state.available && !byId('crumpCodeWorkspace')?.hidden) close();
     return state.available;
   }
@@ -715,7 +728,12 @@
   async function open() {
     createStaticShell();
     if (!(await refreshAvailability())) {
-      window.showToast?.('Crump Code is still in private preview.', 'info');
+      if (state.configured && !state.entitled) {
+        const modal = window.showBillingCenter?.({plan: 'professional'});
+        if (!modal) window.showUpgradePrompt?.({plan: 'professional'});
+      } else {
+        window.showToast?.('Crump Code is still in private preview.', 'info');
+      }
       return false;
     }
     const overlay = byId('crumpCodeWorkspace');
@@ -743,8 +761,11 @@
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       createStaticShell();
+      if (window.currentUser) void refreshAvailability();
     }, {once: true});
   } else {
     createStaticShell();
+    if (window.currentUser) void refreshAvailability();
   }
+  window.addEventListener('crump:authenticated-ready', () => void refreshAvailability());
 })();

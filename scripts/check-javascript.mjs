@@ -47,11 +47,9 @@ for (const name of files) {
 const repoRoot = new URL('../', import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot), 'utf8'));
 const releaseVersion = String(packageJson.version || '');
-const registrationConsentVersion = `${releaseVersion}-registration-consent-1`;
 const authControllerVersion = `${releaseVersion}-plan-intelligence-1`;
-const canonicalFilesHandoffVersion = `${releaseVersion}-canonical-files-handoff-1`;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
-const destinationToolsVersion = `${releaseVersion}-destination-tools-1`;
+const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
 const requiredBodyFiles = [
   'public/crump-v1-body.css',
   'public/crump-v1-body.js',
@@ -202,7 +200,6 @@ const requiredHtmlSignals = [
   'id="fileInput"',
   'id="deleteAccountBtn"',
   'href="/delete-account.html"',
-  '<div class="v1-mode-strip" hidden aria-hidden="true">',
   '<div class="v1-launchpad-foot" aria-label="Ask Crump destinations">',
   '<span>Ask</span><i></i><span>Projects</span><i></i><span>Create</span><i></i><span>Library</span><i></i><span>You</span>',
 ];
@@ -229,17 +226,23 @@ if (!runtime.includes('/billing.css') || !runtime.includes('/onboarding.css') ||
     !runtime.includes(`/chat-resilience.js?v=${releaseVersion}`) ||
     !runtime.includes(`/ui-functions.js?v=${intelligenceReceiptVersion}`) ||
     !runtime.includes(`/product-analytics.js?v=${releaseVersion}`) ||
-    !runtime.includes(`/app.js?v=${intelligenceReceiptVersion}`) ||
-    !runtime.includes(`/crump-v1-body.js?v=${canonicalFilesHandoffVersion}`) || !runtime.includes('/crump-v1-body.css') ||
+    !runtime.includes(`/app.js?v=${intelligenceArchitectureVersion}`) ||
+    !runtime.includes(`/crump-v1-body.js?v=${intelligenceArchitectureVersion}`) ||
+    !runtime.includes(`/crump-v1-body.css?v=${intelligenceArchitectureVersion}`) ||
     !runtime.includes(`/crump-5.0.js?v=${releaseVersion}`) ||
-    !runtime.includes(`/crump-product-5.3.js?v=${destinationToolsVersion}`) ||
-    !runtime.includes(`/crump-product-5.3.css?v=${destinationToolsVersion}`) ||
+    !runtime.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
+    !runtime.includes(`/crump-4.4.js?v=${intelligenceArchitectureVersion}`) ||
+    !runtime.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
+    !runtime.includes(`/crump-product-5.3.js?v=${intelligenceArchitectureVersion}`) ||
+    !runtime.includes(`/crump-product-5.3.css?v=${intelligenceArchitectureVersion}`) ||
     !runtime.includes('/crump-product-5.3.1.js') || !runtime.includes('/crump-product-5.3.1.css') ||
     !runtime.includes('/crump-subscriptions-5.3.2.js') ||
     !runtime.includes('/crump-polish-5.6.js') || !runtime.includes('/crump-polish-5.6.css') ||
     !runtime.includes('/crump-library-5.7.js') || !runtime.includes('/crump-library-5.7.css') ||
-    !runtime.includes('/crump-navigation-5.9.30.js') || !runtime.includes('/crump-navigation-5.9.30.css') ||
-    !runtime.includes('/crump-code-5.9.35.js') || !runtime.includes('/crump-code-5.9.35.css')) {
+    !runtime.includes(`/crump-navigation-5.9.30.js?v=${intelligenceArchitectureVersion}`) ||
+    !runtime.includes(`/crump-navigation-5.9.30.css?v=${intelligenceArchitectureVersion}`) ||
+    !runtime.includes(`/crump-code-5.9.35.js?v=${intelligenceArchitectureVersion}`) ||
+    !runtime.includes(`/crump-code-5.9.35.css?v=${intelligenceArchitectureVersion}`)) {
   console.error('New-body runtime is missing the canonical shell.');
   process.exit(1);
 }
@@ -313,8 +316,8 @@ if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
     preloadedRuntimeScripts.length !== 29 ||
     loadedRuntimeScripts.length !== 29 ||
     !loadedRuntimeScripts.every(asset => preloadedRuntimeScripts.includes(asset)) ||
-    loadedRuntimeScripts.indexOf(`/app.js?v=${releaseVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${releaseVersion}`) ||
-    loadedRuntimeScripts.at(-1) !== `/crump-code-5.9.35.js?v=${releaseVersion}-code-durable-worker-1`) {
+    loadedRuntimeScripts.indexOf(`/app.js?v=${intelligenceArchitectureVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
+    loadedRuntimeScripts.at(-1) !== `/crump-code-5.9.35.js?v=${intelligenceArchitectureVersion}`) {
   console.error('Authenticated workspace runtime load order or completion contract failed.');
   process.exit(1);
 }
@@ -330,11 +333,12 @@ if (!v1Body.includes('removeLegacyEmptyState(container)')) {
   console.error('V1 must remove stale legacy empty-state nodes.');
   process.exit(1);
 }
-if (!product53.includes('function retireLegacyToolStrip(strip)') ||
+if (product53.includes('retireLegacyToolStrip') ||
     product53.includes('crump53ToolTrigger') ||
     product53.includes('crump53ToolMenu') ||
-    product53.includes('enhanceToolMenu')) {
-  console.error('The retired Tools menu must remain hidden compatibility plumbing.');
+    product53.includes('enhanceToolMenu') ||
+    appHtml.includes('v1-mode-strip')) {
+  console.error('Retired Tools and composer-mode controls must not ship in the product surface.');
   process.exit(1);
 }
 const legacySavedBranch = v1Body.slice(v1Body.indexOf("case 'saved':"), v1Body.indexOf("case 'code':"));
@@ -353,7 +357,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r160') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r161') ||
     !serviceWorker.includes(`/landing.js?v=${releaseVersion}`) ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
@@ -367,12 +371,18 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r160') ||
     !serviceWorker.includes(`/sync-manager.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/chat-sync.js?v=${releaseVersion}-sync-cadence-1`) ||
     !serviceWorker.includes(`/product-analytics.js?v=${releaseVersion}`) ||
-    !serviceWorker.includes(`/app.js?v=${intelligenceReceiptVersion}`) ||
+    !serviceWorker.includes(`/app.js?v=${intelligenceArchitectureVersion}`) ||
     !serviceWorker.includes(`/auth-controller.js?v=${authControllerVersion}`) ||
-    !serviceWorker.includes(`/crump-v1-body.css?v=${registrationConsentVersion}`) ||
-    !serviceWorker.includes(`/crump-4.3.js?v=${releaseVersion}`) ||
-    !serviceWorker.includes(`/crump-product-5.3.js?v=${destinationToolsVersion}`) ||
-    !serviceWorker.includes(`/crump-product-5.3.css?v=${destinationToolsVersion}`) ||
+    !serviceWorker.includes(`/crump-v1-body.css?v=${intelligenceArchitectureVersion}`) ||
+    !serviceWorker.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
+    !serviceWorker.includes(`/crump-4.4.js?v=${intelligenceArchitectureVersion}`) ||
+    !serviceWorker.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
+    !serviceWorker.includes(`/crump-product-5.3.js?v=${intelligenceArchitectureVersion}`) ||
+    !serviceWorker.includes(`/crump-product-5.3.css?v=${intelligenceArchitectureVersion}`) ||
+    !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${intelligenceArchitectureVersion}`) ||
+    !serviceWorker.includes(`/crump-navigation-5.9.30.css?v=${intelligenceArchitectureVersion}`) ||
+    !serviceWorker.includes(`/crump-code-5.9.35.js?v=${intelligenceArchitectureVersion}`) ||
+    !serviceWorker.includes(`/crump-code-5.9.35.css?v=${intelligenceArchitectureVersion}`) ||
     !serviceWorker.includes("url.pathname === '/conversation.css'") ||
     !serviceWorker.includes("url.pathname === '/chat-resilience.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-5.0.js'") ||
@@ -382,7 +392,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r160') ||
     !serviceWorker.includes("url.pathname === '/install-prompt.css'") ||
     !serviceWorker.includes("url.pathname === '/sync-manager.js'") ||
     !serviceWorker.includes("url.pathname === '/auth-controller.js'") ||
-    !serviceWorker.includes(`/crump-v1-body.js?v=${canonicalFilesHandoffVersion}`) ||
+    !serviceWorker.includes(`/crump-v1-body.js?v=${intelligenceArchitectureVersion}`) ||
     !serviceWorker.includes('/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1') ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.2.5.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.2.5.css'") ||

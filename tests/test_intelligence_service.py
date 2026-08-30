@@ -1,8 +1,10 @@
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
 from backend.intelligence_service import IntelligenceService, PreparedRequest
+from backend.db import DatabaseError
 
 
 def test_complex_requests_score_above_simple_chat():
@@ -72,6 +74,68 @@ def test_source_heavy_academic_requests_route_to_grounded_research():
         "Write a research paper with peer-reviewed citations and a bibliography.",
         {},
     ) == "web"
+
+
+@pytest.mark.asyncio
+async def test_server_conversation_opt_out_overrides_client_omission():
+    service = IntelligenceService(
+        db=SimpleNamespace(), ai=SimpleNamespace(), settings=SimpleNamespace()
+    )
+    service.get_preferences = AsyncMock(return_value={
+        "intelligence_mode": "auto",
+        "memory_enabled": True,
+        "auto_learn": True,
+        "auto_tools": True,
+        "verification_level": "auto",
+    })
+    service.get_conversation_memory_opt_out = AsyncMock(return_value=True)
+    service.infer_creation_intent = AsyncMock(return_value=None)
+    service.retrieve_memories = AsyncMock(return_value=[{"content": "must not load"}])
+
+    prepared = await service.prepare(
+        "user-1",
+        {
+            "chatId": "00000000-0000-0000-0000-000000000111",
+            "message": "Continue our work.",
+            "memoryOptOut": False,
+        },
+    )
+
+    assert prepared.private_chat is True
+    assert prepared.auto_learn is False
+    assert prepared.memory_count == 0
+    service.retrieve_memories.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_conversation_privacy_fails_closed_when_database_is_unavailable():
+    service = IntelligenceService(
+        db=SimpleNamespace(), ai=SimpleNamespace(), settings=SimpleNamespace()
+    )
+    service.get_preferences = AsyncMock(return_value={
+        "intelligence_mode": "auto",
+        "memory_enabled": True,
+        "auto_learn": True,
+        "auto_tools": True,
+        "verification_level": "auto",
+    })
+    service.get_conversation_memory_opt_out = AsyncMock(
+        side_effect=DatabaseError("temporary outage")
+    )
+    service.infer_creation_intent = AsyncMock(return_value=None)
+    service.retrieve_memories = AsyncMock(return_value=[])
+
+    prepared = await service.prepare(
+        "user-1",
+        {
+            "chatId": "00000000-0000-0000-0000-000000000111",
+            "message": "Continue our work.",
+        },
+    )
+
+    assert prepared.private_chat is True
+    assert prepared.auto_learn is False
+    service.retrieve_memories.assert_not_awaited()
 
 
 @pytest.mark.asyncio

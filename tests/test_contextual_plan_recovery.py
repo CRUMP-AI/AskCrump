@@ -62,7 +62,7 @@ def test_recovery_summary_is_responsive_and_does_not_create_checkout():
 
 def test_contextual_recovery_assets_are_registered_for_web_pwa_and_native():
     context_version = "5.9.76-contextual-plan-recovery-1"
-    destination_tools_version = "5.9.76-destination-tools-1"
+    intelligence_architecture_version = "5.9.76-intelligence-architecture-1"
     controller_version = "5.9.76-plan-intelligence-1"
     runtime = read("public/runtime-body-v1.js")
     worker = read("public/sw.js")
@@ -81,6 +81,6 @@ def test_contextual_recovery_assets_are_registered_for_web_pwa_and_native():
     assert css in native
     assert f"/chat-resilience.js?v={context_version}" in runtime
     assert f"/chat-resilience.js?v={context_version}" in worker
-    assert f"/crump-product-5.3.js?v={destination_tools_version}" in runtime
-    assert f"/crump-product-5.3.js?v={destination_tools_version}" in worker
-    assert "ask-crump-new-body-v1-r160" in worker
+    assert f"/crump-product-5.3.js?v={intelligence_architecture_version}" in runtime
+    assert f"/crump-product-5.3.js?v={intelligence_architecture_version}" in worker
+    assert "ask-crump-new-body-v1-r161" in worker

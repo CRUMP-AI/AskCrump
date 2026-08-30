@@ -263,15 +263,6 @@
     update();
   }
 
-  function refreshQuickActionLabels() {
-    const image = $('#imageQuickAction');
-    const search = $('#searchQuickAction');
-    const code = $('#codeQuickAction');
-    if (image) image.textContent = 'Image';
-    if (search) search.textContent = 'Web';
-    if (code) code.textContent = 'Code';
-  }
-
   function boot() {
     if (document.documentElement.dataset.crump43Booted === 'true') return;
     document.documentElement.dataset.crump43Booted = 'true';
@@ -283,8 +274,6 @@
     wireComposer();
     observeConversationList();
     observeViewport();
-    refreshQuickActionLabels();
-
     if (!patchRenderer()) {
       let attempts = 0;
       const timer = setInterval(() => {

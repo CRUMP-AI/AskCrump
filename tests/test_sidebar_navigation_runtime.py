@@ -11,7 +11,7 @@ def test_runtime_loads_navigation_cleanup_last():
     runtime = read("public/runtime-body-v1.js")
     assert "crump-navigation-5.2.5.css" in runtime
     assert "crump-navigation-5.2.5.js" in runtime
-    assert "/crump-v1-body.js?v=5.9.76-canonical-files-handoff-1" in runtime
+    assert "/crump-v1-body.js?v=5.9.76-intelligence-architecture-1" in runtime
     assert "/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1" in runtime
     assert runtime.index("crump-v1-stability.js") < runtime.index("crump-navigation-5.2.5.js")
 

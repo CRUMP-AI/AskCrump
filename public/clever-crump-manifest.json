@@ -1,0 +1,31 @@
+{
+  "id": "/",
+  "name": "Clever Crump",
+  "short_name": "Clever Crump",
+  "description": "Clever Crump is an independent AI product company building software for work that continues beyond the prompt.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080a0d",
+  "theme_color": "#080a0d",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/assets/ask-crump-app-icon-v2-192.png?v=5.9.76-approved-mark-1",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/ask-crump-app-icon-v2-512.png?v=5.9.76-approved-mark-1",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/ask-crump-app-icon-v2-1024.png?v=5.9.76-approved-mark-1",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

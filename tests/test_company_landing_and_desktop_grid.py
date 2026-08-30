@@ -28,6 +28,22 @@ def test_clever_crump_has_a_dedicated_parent_company_landing_page():
     assert "prefers-reduced-motion" in styles
 
 
+def test_clever_crump_iphone_home_screen_uses_the_approved_crump_mark():
+    page = read("public/clever-crump.html")
+    manifest = json.loads(read("public/clever-crump-manifest.json"))
+
+    approved_icon = "/assets/ask-crump-app-icon-v2-180.png?v=5.9.76-approved-mark-1"
+    assert f'rel="apple-touch-icon" sizes="180x180" href="{approved_icon}"' in page
+    assert f'rel="apple-touch-icon-precomposed" sizes="180x180" href="{approved_icon}"' in page
+    assert 'rel="manifest" href="/clever-crump-manifest.json?v=5.9.76-approved-mark-1"' in page
+    assert '<meta name="apple-mobile-web-app-title" content="Clever Crump">' in page
+    assert manifest["name"] == "Clever Crump"
+    assert manifest["start_url"] == "/"
+    assert manifest["display"] == "standalone"
+    assert [icon["sizes"] for icon in manifest["icons"]] == ["192x192", "512x512", "1024x1024"]
+    assert all("ask-crump-app-icon-v2" in icon["src"] for icon in manifest["icons"])
+
+
 def test_public_header_actions_stay_single_line_on_narrow_phones():
     product_page = read("public/ask-crump.html")
     product_styles = read("public/landing-5.6.css")

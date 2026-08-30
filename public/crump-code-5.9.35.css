@@ -1,5 +1,3 @@
-.crump-code-create-slot:not([hidden]) { display: contents; }
-
 body.crump-code-open { overflow: hidden !important; }
 
 .crump-code-overlay {
@@ -14,8 +12,7 @@ body.crump-code-open { overflow: hidden !important; }
   color: #f7f5ef;
 }
 
-.crump-code-overlay[hidden],
-#crumpCodeCreateSlot[hidden] { display: none !important; }
+.crump-code-overlay[hidden] { display: none !important; }
 
 .crump-code-shell {
   width: min(1220px, 100%);

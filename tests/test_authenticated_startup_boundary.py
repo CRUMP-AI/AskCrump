@@ -36,7 +36,9 @@ def test_protected_product_modules_hydrate_only_after_an_intentional_open():
     assert 'if (window.currentUser) void refreshBooks();' not in library
     assert "window.addEventListener('crump:authenticated-ready'" in library
     assert 'if (!state.installed) installWhenReady();' in library
-    assert "window.addEventListener('crump:authenticated-ready', hydrateAuthenticatedAvailability)" not in code
+    assert "window.addEventListener('crump:authenticated-ready', () => void refreshAvailability())" in code
+    auth_listener = code.index("window.addEventListener('crump:authenticated-ready'")
+    assert "loadProjects()" not in code[auth_listener:]
     assert 'if (!(await refreshAvailability()))' in code
     assert 'if (window.currentUser) refreshBalance();' in billing
     assert "window.addEventListener('crump:authenticated-ready', () => refreshBalance())" in billing

@@ -97,12 +97,6 @@
     }
   }
 
-  function setActiveMode(command) {
-    $$('.v1-mode-pill').forEach(button => {
-      button.classList.toggle('is-active', button.dataset.v1Command === command);
-    });
-  }
-
   function focusComposer(placeholder) {
     const input = byId('userInput');
     if (!input) return;
@@ -312,7 +306,6 @@
     switch (command) {
       case 'new':
         forwardClick('newChatBtn');
-        setActiveMode('focus');
         requestAnimationFrame(() => focusComposer());
         break;
       case 'library':
@@ -325,17 +318,17 @@
         forwardClick('upgradeBtnSidebar');
         break;
       case 'research':
-        setActiveMode('research');
-        forwardClick('searchQuickAction');
+        window.triggerWebSearch?.();
         requestAnimationFrame(() => focusComposer('What should Crump research?'));
         break;
       case 'image':
-        setActiveMode('image');
-        forwardClick('imageQuickAction');
-        requestAnimationFrame(() => focusComposer('Describe the image you want to create or change…'));
+        if (window.CrumpImageStudio?.open) window.CrumpImageStudio.open();
+        else {
+          window.triggerImageGeneration?.();
+          requestAnimationFrame(() => focusComposer('Describe the image you want to create or change…'));
+        }
         break;
       case 'file':
-        setActiveMode('file');
         forwardClick('attachBtn');
         break;
       case 'projects':
@@ -352,13 +345,10 @@
         }
         break;
       case 'code':
-        setActiveMode('focus');
-        forwardClick('codeQuickAction');
-        requestAnimationFrame(() => focusComposer('What are we building or debugging?'));
+        window.CrumpCodeWorkspace?.open?.();
         break;
       case 'focus':
       default:
-        setActiveMode('focus');
         requestAnimationFrame(() => focusComposer('Message Crump'));
         break;
     }

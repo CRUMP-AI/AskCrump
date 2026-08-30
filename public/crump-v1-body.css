@@ -1723,35 +1723,6 @@ body.crump-v1-body .v1-command-dock {
 }
 body.crump-v1-body .v1-command-dock > * { pointer-events: auto; }
 
-body.crump-v1-body .v1-mode-strip {
-  display: flex;
-  gap: 4px;
-  margin: 0 auto 7px;
-  padding: 4px;
-  border: 1px solid rgba(255,255,255,.07);
-  border-radius: 999px;
-  background: rgba(12,16,21,.86);
-  -webkit-backdrop-filter: blur(22px);
-  backdrop-filter: blur(22px);
-  box-shadow: 0 10px 30px rgba(0,0,0,.18);
-}
-body.crump-v1-body .v1-mode-pill {
-  min-height: 31px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: #6d7376;
-  font-size: 9px;
-  font-weight: 650;
-  cursor: pointer;
-}
-body.crump-v1-body .v1-mode-pill:hover { color: #b8b8b4; }
-body.crump-v1-body .v1-mode-pill.is-active {
-  background: rgba(217,191,132,.09);
-  color: #e0d1af;
-}
-
 body.crump-v1-body .input-area {
   position: relative !important;
   right: auto !important;
@@ -1952,7 +1923,7 @@ body.crump-v1-body .crump44-toggle.is-on {
   border-color: rgba(217,191,132,.32) !important;
   background: rgba(217,191,132,.22) !important;
 }
-body.crump-v1-body :is(.crump44-row-button,.crump44-clear-memory,.crump44-tool) {
+body.crump-v1-body :is(.crump44-row-button,.crump44-clear-memory) {
   min-height: 43px !important;
   border-color: var(--ac-line) !important;
   border-radius: 12px !important;
@@ -2376,11 +2347,6 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
     padding-bottom: max(9px,env(safe-area-inset-bottom));
     padding-left: max(9px,env(safe-area-inset-left));
   }
-  body.crump-v1-body .v1-mode-strip {
-    max-width: calc(100vw - 18px);
-    margin-bottom: 5px;
-  }
-  body.crump-v1-body .v1-mode-pill { padding: 0 10px; font-size: 8.5px; }
   body.crump-v1-body .input-area,
   body.crump-v1-body.v1-library-collapsed .input-area { width: calc(100vw - 18px) !important; }
   body.crump-v1-body .input-container { min-height: 59px !important; padding: 6px !important; border-radius: 22px !important; }
@@ -2510,9 +2476,6 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
   body.crump-v1-body .assistant-message .message-content { font-size: 15.8px !important; line-height: 1.68 !important; }
   body.crump-v1-body .crump50-artifact { grid-template-columns: 46px minmax(0,1fr) !important; }
   body.crump-v1-body .crump50-artifact button { grid-column: 1/-1; width: 100%; }
-
-  body.crump-v1-body .v1-mode-strip { width: fit-content; }
-  body.crump-v1-body .v1-mode-pill { min-height: 29px; padding: 0 9px; font-size: 8px; }
 
   body.crump-v1-body .v1-settings-header { grid-template-columns: 44px 1fr auto; gap: 9px; }
   body.crump-v1-body .settings-primary-btn { padding: 0 11px !important; font-size: 9px !important; }

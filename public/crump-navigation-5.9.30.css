@@ -1,4 +1,4 @@
-/* Ask Crump 5.9.30 — five-destination product navigation. */
+/* Ask Crump 5.9.30 — product navigation with a release-gated Code destination. */
 
 html[data-crump-navigation5930="ready"] {
   --ac-rail: 94px;
@@ -69,6 +69,23 @@ body.crump-v1-body .crump5930-destination {
   color: #73797d;
   cursor: pointer;
   transition: color .16s ease, border-color .16s ease, background .16s ease, transform .16s ease;
+}
+
+body.crump-v1-body .crump5930-destination[hidden] { display: none !important; }
+
+body.crump-v1-body .crump5930-destination.is-locked::after {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  padding: 2px 4px;
+  border: 1px solid rgba(217,191,132,.2);
+  border-radius: 999px;
+  background: rgba(217,191,132,.08);
+  color: #cdb77f;
+  content: 'PRO';
+  font-size: 5.5px;
+  font-weight: 800;
+  letter-spacing: .05em;
 }
 
 body.crump-v1-body .crump5930-destination svg {
@@ -344,6 +361,10 @@ body.crump-v1-body .crump5930-create-sheet footer {
     -webkit-backdrop-filter: blur(24px) saturate(135%);
     backdrop-filter: blur(24px) saturate(135%);
     box-shadow: 0 -16px 42px rgba(0,0,0,.24);
+  }
+
+  html[data-crump-navigation5930="ready"] body.crump-v1-body.crump-code-configured .crump5930-mobile-nav {
+    grid-template-columns: repeat(6,minmax(0,1fr));
   }
 
   body.crump-v1-body .crump5930-mobile-nav .crump5930-destination {

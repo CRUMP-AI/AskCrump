@@ -13,10 +13,10 @@ def test_product53_runtime_is_registered_last_and_cached():
     checker = read("scripts/check-javascript.mjs")
     assert "/crump-product-5.3.css" in runtime
     assert "/crump-product-5.3.js" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-destination-tools-1" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-destination-tools-1" in worker
+    assert "/crump-product-5.3.js?v=5.9.76-intelligence-architecture-1" in runtime
+    assert "/crump-product-5.3.js?v=5.9.76-intelligence-architecture-1" in worker
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r160" in worker
+    assert "ask-crump-new-body-v1-r161" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 
@@ -208,13 +208,12 @@ def test_private_video_library_uses_owner_checked_inline_playback():
     assert ".crump53-playback-state" in styles
 
 
-def test_legacy_tools_menu_is_retired_but_internal_mode_targets_remain():
+def test_legacy_tools_menu_and_internal_mode_targets_are_removed():
     product = read("public/crump-product-5.3.js")
     styles = read("public/crump-product-5.3.css")
     for target in ("crump53DocumentMode", "crump53ManuscriptMode", "crump53VideoMode"):
-        assert target in product
-    assert "retireLegacyToolStrip(strip)" in product
-    assert ".v1-mode-strip[hidden]" in styles
+        assert target not in product
+    assert "retireLegacyToolStrip" not in product
     assert ".crump53-tool-menu" not in styles
 
 
@@ -267,4 +266,4 @@ def test_manuscript_ui_exposes_planning_progress_and_chat_handoff():
     assert "Draft next chapter" in js
     assert 'id="crump53ManuscriptWorkspace"' in js
     assert "manuscriptWorkspace" in js
-    assert "crump53DocumentMode" in js
+    assert "openManuscriptWorkspace(workspace)" in js

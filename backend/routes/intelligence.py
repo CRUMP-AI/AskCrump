@@ -6,12 +6,25 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from ..auth_service import authenticate_request
+from ..db import DatabaseError
 from ..feature_service import FeatureAccessError
 from ..runtime import db, features, intelligence, settings
 from ..security import normalize_chat_id
 
 
 router = APIRouter(prefix="/api/intelligence", tags=["intelligence"])
+
+
+def _privacy_unavailable() -> JSONResponse:
+    return JSONResponse(
+        status_code=503,
+        content={
+            "success": False,
+            "error": "Conversation privacy is temporarily unavailable.",
+            "code": "CONVERSATION_PRIVACY_UNAVAILABLE",
+            "shouldRetry": True,
+        },
+    )
 
 
 @router.get("/status")
@@ -55,7 +68,10 @@ async def get_preferences(request: Request):
 @router.patch("/preferences")
 async def update_preferences(request: Request):
     auth = await authenticate_request(request, db, settings)
-    payload = await request.json()
+    try:
+        payload = await request.json()
+    except (ValueError, UnicodeDecodeError):
+        payload = None
     if not isinstance(payload, dict):
         return JSONResponse(
             status_code=400,
@@ -120,3 +136,53 @@ async def clear_memories(request: Request):
     auth = await authenticate_request(request, db, settings)
     count = await intelligence.clear_memories(auth.user["id"])
     return {"success": True, "deleted": count}
+
+
+@router.get("/conversations/{chat_id}/privacy")
+async def get_conversation_privacy(chat_id: str, request: Request):
+    auth = await authenticate_request(request, db, settings)
+    try:
+        normalized_id = normalize_chat_id(chat_id)
+    except Exception:
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "error": "Invalid conversation identifier."},
+        )
+    try:
+        memory_opt_out = await intelligence.get_conversation_memory_opt_out(
+            auth.user["id"], normalized_id
+        )
+    except DatabaseError:
+        return _privacy_unavailable()
+    return {"success": True, "chatId": normalized_id, "memoryOptOut": memory_opt_out}
+
+
+@router.patch("/conversations/{chat_id}/privacy")
+async def update_conversation_privacy(chat_id: str, request: Request):
+    auth = await authenticate_request(request, db, settings)
+    try:
+        normalized_id = normalize_chat_id(chat_id)
+    except Exception:
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "error": "Invalid conversation identifier."},
+        )
+    try:
+        payload = await request.json()
+    except (ValueError, UnicodeDecodeError):
+        payload = None
+    if not isinstance(payload, dict) or type(payload.get("memoryOptOut")) is not bool:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "success": False,
+                "error": "memoryOptOut must be true or false.",
+            },
+        )
+    try:
+        memory_opt_out = await intelligence.set_conversation_memory_opt_out(
+            auth.user["id"], normalized_id, payload["memoryOptOut"]
+        )
+    except DatabaseError:
+        return _privacy_unavailable()
+    return {"success": True, "chatId": normalized_id, "memoryOptOut": memory_opt_out}

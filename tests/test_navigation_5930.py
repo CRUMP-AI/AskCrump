@@ -20,9 +20,9 @@ def test_five_destination_navigation_is_final_runtime_layer_and_boot_critical():
         assert asset.lstrip("/") in checker
 
     assert runtime.index("/crump-library-5.7.js") < runtime.index("/crump-navigation-5.9.30.js")
-    assert "ask-crump-new-body-v1-r160" in worker
-    assert "/crump-navigation-5.9.30.css?v=5.9.76-chats-hierarchy-1" in runtime
-    assert "/crump-navigation-5.9.30.js?v=5.9.76-chats-hierarchy-1" in runtime
+    assert "ask-crump-new-body-v1-r161" in worker
+    assert "/crump-navigation-5.9.30.css?v=5.9.76-intelligence-architecture-1" in runtime
+    assert "/crump-navigation-5.9.30.js?v=5.9.76-intelligence-architecture-1" in runtime
 
 
 def test_navigation_exposes_exact_product_destinations_on_desktop_and_mobile():
@@ -62,7 +62,7 @@ def test_persistent_destinations_hide_only_the_covered_workspace_from_assistive_
     assert "element.setAttribute('aria-hidden', 'true')" in script
     assert "element.removeAttribute('inert')" in script
     assert "element.removeAttribute('aria-hidden')" in script
-    assert "setDestinationBackgroundInert(studioIsOpen() || settingsIsOpen())" in script
+    assert "setDestinationBackgroundInert(studioIsOpen() || settingsIsOpen() || codeWorkspaceIsOpen())" in script
     assert "syncDestinationBackground();" in script
 
 
@@ -166,7 +166,7 @@ def test_navigation_consolidation_fixture_uses_the_production_layers():
 
     assert '/public/crump-v1-body.js' in fixture
     assert '/public/crump-navigation-5.9.30.js' in fixture
-    assert '5.9.76-chats-hierarchy-1' in fixture
+    assert '5.9.76-intelligence-architecture-1' in fixture
     assert 'window.fixtureErrors = []' in fixture
     assert "dataset.fixtureErrorCount = '0'" in fixture
     assert 'id="v1OpenPlanBtn"' in fixture

@@ -233,6 +233,49 @@ def test_free_intelligence_preferences_normalize_and_reject_always_review(monkey
     assert patch_response.json()["message"] == "Always review requires a Professional plan."
 
 
+def test_conversation_memory_privacy_is_authenticated_and_account_scoped(monkeypatch):
+    chat_id = "00000000-0000-0000-0000-000000000111"
+
+    class IntelligenceStub:
+        async def get_conversation_memory_opt_out(self, user_id, requested_chat_id):
+            assert user_id == "privacy-user"
+            assert requested_chat_id == chat_id
+            return True
+
+        async def set_conversation_memory_opt_out(self, user_id, requested_chat_id, enabled):
+            assert user_id == "privacy-user"
+            assert requested_chat_id == chat_id
+            return enabled
+
+    async def authenticate(*_args, **_kwargs):
+        return SimpleNamespace(user={"id": "privacy-user"})
+
+    monkeypatch.setattr(intelligence_routes, "intelligence", IntelligenceStub())
+    monkeypatch.setattr(intelligence_routes, "authenticate_request", authenticate)
+
+    read_response = CLIENT.get(f"/api/intelligence/conversations/{chat_id}/privacy")
+    update_response = CLIENT.patch(
+        f"/api/intelligence/conversations/{chat_id}/privacy",
+        json={"memoryOptOut": False},
+    )
+    invalid_response = CLIENT.patch(
+        f"/api/intelligence/conversations/{chat_id}/privacy",
+        json={"memoryOptOut": "false"},
+    )
+    malformed_response = CLIENT.patch(
+        f"/api/intelligence/conversations/{chat_id}/privacy",
+        content=b"{",
+        headers={"content-type": "application/json"},
+    )
+
+    assert read_response.status_code == 200
+    assert read_response.json()["memoryOptOut"] is True
+    assert update_response.status_code == 200
+    assert invalid_response.status_code == 400
+    assert malformed_response.status_code == 400
+    assert update_response.json()["memoryOptOut"] is False
+
+
 def test_frontend_identity_paid_mode_and_navigation_contracts():
     app = read("public/app.js")
     intelligence = read("public/crump-4.4.js")
@@ -245,12 +288,12 @@ def test_frontend_identity_paid_mode_and_navigation_contracts():
     assert "Think longer" in intelligence
     assert "entitlements.thinkLonger" in intelligence
     assert "showBillingCenter?.({ plan: 'professional' })" in intelligence
-    assert "Thinking" in intelligence
+    assert "Response effort" in intelligence
     assert "Memory & privacy" in intelligence
-    assert "Current information" in intelligence
-    assert "Answer review" in intelligence
+    assert "Live knowledge" in intelligence
+    assert "Quality review" in intelligence
     assert "Always review" in intelligence
-    assert "Advanced intelligence" in intelligence
+    assert "Advanced Intelligence · Professional" in intelligence
     assert "makeToolButtons" not in intelligence
     assert "searchQuickAction" not in intelligence
     assert "imageQuickAction" not in intelligence

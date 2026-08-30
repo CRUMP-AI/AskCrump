@@ -21,6 +21,8 @@
   let statusData = null;
   let entitlements = { thinkLonger: false, minimumTier: 'professional' };
   let planOpenPending = false;
+  let hydratedPrivateChatId = null;
+  let privateMutationRevision = 0;
 
   const $ = (selector, root = document) => root.querySelector(selector);
 
@@ -54,6 +56,10 @@
 
   function privateKey() {
     return `crump_private_chats_v44:${cleanUserId() || 'guest'}`;
+  }
+
+  function privatePendingKey() {
+    return `crump_private_chat_pending_v44:${cleanUserId() || 'guest'}`;
   }
 
   function readJSON(key, fallback) {
@@ -94,8 +100,7 @@
     return !!id && privateChats().has(id);
   }
 
-  function setCurrentChatPrivate(enabled) {
-    const id = window.currentChatId;
+  function writeLocalPrivateState(id, enabled) {
     if (!id) return;
     const chats = privateChats();
     if (enabled) chats.add(id);
@@ -103,6 +108,81 @@
     try {
       localStorage.setItem(privateKey(), JSON.stringify([...chats].slice(-500)));
     } catch (_) {}
+  }
+
+  function pendingPrivateChanges() {
+    const value = readJSON(privatePendingKey(), {});
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  }
+
+  function writePendingPrivateChange(id, enabled) {
+    const pending = pendingPrivateChanges();
+    pending[id] = Boolean(enabled);
+    const entries = Object.entries(pending).slice(-500);
+    try {
+      localStorage.setItem(privatePendingKey(), JSON.stringify(Object.fromEntries(entries)));
+    } catch (_) {}
+  }
+
+  function clearPendingPrivateChange(id, expected) {
+    const pending = pendingPrivateChanges();
+    if (!Object.prototype.hasOwnProperty.call(pending, id) || pending[id] !== expected) return;
+    delete pending[id];
+    try {
+      localStorage.setItem(privatePendingKey(), JSON.stringify(pending));
+    } catch (_) {}
+  }
+
+  async function syncConversationPrivacy(id, enabled, revision) {
+    try {
+      const data = await api(`/api/intelligence/conversations/${encodeURIComponent(id)}/privacy`, {
+        method: 'PATCH',
+        body: JSON.stringify({ memoryOptOut: Boolean(enabled) }),
+      });
+      clearPendingPrivateChange(id, Boolean(enabled));
+      if (revision !== privateMutationRevision || String(window.currentChatId || '') !== id) return;
+      writeLocalPrivateState(id, data.memoryOptOut === true);
+      hydratedPrivateChatId = id;
+      refreshPanel();
+    } catch (_) {
+      if (revision !== privateMutationRevision) return;
+      window.showToast?.('This privacy choice is saved on this device and will sync when the server is available.', 'warning');
+    }
+  }
+
+  function setCurrentChatPrivate(enabled) {
+    const id = String(window.currentChatId || '');
+    if (!id) return;
+    privateMutationRevision += 1;
+    const revision = privateMutationRevision;
+    writeLocalPrivateState(id, enabled);
+    writePendingPrivateChange(id, enabled);
+    hydratedPrivateChatId = id;
+    refreshPanel();
+    void syncConversationPrivacy(id, enabled, revision);
+  }
+
+  async function hydrateCurrentChatPrivacy({ force = false } = {}) {
+    const id = String(window.currentChatId || '');
+    if (!window.currentUser?.id || !id) return;
+    if (!force && hydratedPrivateChatId === id) return;
+    const startedRevision = privateMutationRevision;
+    hydratedPrivateChatId = id;
+    const pending = pendingPrivateChanges();
+    const hasPending = Object.prototype.hasOwnProperty.call(pending, id);
+    try {
+      const data = hasPending
+        ? await api(`/api/intelligence/conversations/${encodeURIComponent(id)}/privacy`, {
+            method: 'PATCH',
+            body: JSON.stringify({ memoryOptOut: Boolean(pending[id]) }),
+          })
+        : await api(`/api/intelligence/conversations/${encodeURIComponent(id)}/privacy`);
+      if (hasPending) clearPendingPrivateChange(id, Boolean(pending[id]));
+      if (startedRevision !== privateMutationRevision || String(window.currentChatId || '') !== id) return;
+      writeLocalPrivateState(id, data.memoryOptOut === true);
+    } catch (_) {
+      if (String(window.currentChatId || '') === id) hydratedPrivateChatId = null;
+    }
     refreshPanel();
   }
 
@@ -379,7 +459,7 @@
     const title = document.createElement('strong');
     title.textContent = 'Intelligence';
     const subtitle = document.createElement('small');
-    subtitle.textContent = 'Reasoning, memory, and answer review.';
+    subtitle.textContent = `How ${assistantName()} thinks, remembers, and verifies.`;
     titleWrap.append(eyebrow, title, subtitle);
     const close = button('×', 'crump44-close', closePanel);
     close.setAttribute('aria-label', `Close ${assistantName()} controls`);
@@ -408,7 +488,7 @@
     const modeSection = document.createElement('div');
     modeSection.className = 'crump44-section';
     modeSection.append(
-      makeSectionTitle('Thinking', 'Adaptive is the recommended everyday setting.'),
+      makeSectionTitle('Response effort', 'Adaptive balances speed and depth for everyday work.'),
       makeModeSelector(),
     );
 
@@ -451,7 +531,7 @@
       makeToggle({
         label: 'Private this conversation',
         description: window.currentChatId
-          ? 'Use the conversation normally, but do not learn new long-term memories from it.'
+          ? `Applies to your account on every signed-in device. ${assistantName()} will not retrieve or learn long-term memories here.`
           : 'Available after the first message creates this conversation.',
         checked: isCurrentChatPrivate(),
         disabled: !window.currentChatId,
@@ -472,10 +552,10 @@
     const currentInformationSection = document.createElement('div');
     currentInformationSection.className = 'crump44-section';
     currentInformationSection.append(
-      makeSectionTitle('Current information', 'Control when Crump may use supported live sources.'),
+      makeSectionTitle('Live knowledge', `Choose whether ${assistantName()} may quietly consult supported current sources.`),
       makeToggle({
-        label: 'Use current information when needed',
-        description: 'Let Crump decide when a question needs live web, weather, or other supported current data.',
+        label: 'Use live information when needed',
+        description: `Let ${assistantName()} recognize when an answer depends on current facts, weather, or other supported live data.`,
         checked: state.autoTools,
         onChange: enabled => {
           state.autoTools = enabled;
@@ -488,7 +568,7 @@
     const verifySection = document.createElement('div');
     verifySection.className = 'crump44-section';
     verifySection.append(
-      makeSectionTitle('Answer review', 'Choose when a separate quality pass should run.'),
+      makeSectionTitle('Quality review', 'Choose when a separate answer-checking pass should run.'),
       makeVerificationSelector(),
     );
     const reviewCopy = document.createElement('p');
@@ -507,15 +587,17 @@
     const premiumCopy = document.createElement('div');
     premiumCopy.className = 'crump44-premium-copy';
     const premiumTitle = document.createElement('strong');
-    premiumTitle.textContent = 'Advanced intelligence';
+    premiumTitle.textContent = entitlements.thinkLonger
+      ? 'Advanced Intelligence · Active'
+      : 'Advanced Intelligence · Professional';
     const premiumDescription = document.createElement('span');
     premiumDescription.textContent = entitlements.thinkLonger
-      ? 'Think longer and Always review are active on this plan.'
-      : 'Think longer and Always review are included with Professional and Enterprise.';
+      ? 'Think longer and Always review are unlocked on this plan.'
+      : 'Professional unlocks Think longer and Always review. Enterprise includes them too.';
     premiumCopy.append(premiumTitle, premiumDescription);
     premium.appendChild(premiumCopy);
     if (!entitlements.thinkLonger) {
-      const comparePlans = button('Compare plans', 'crump44-premium-button', () => {
+      const comparePlans = button('See Professional', 'crump44-premium-button', () => {
         openProfessionalPlans('advanced-intelligence-card');
       });
       premium.appendChild(comparePlans);
@@ -636,7 +718,7 @@
 
   async function openPanel() {
     if (!panel) panel = buildPanel();
-    await hydratePreferences();
+    await Promise.all([hydratePreferences(), hydrateCurrentChatPrivacy()]);
     panel.hidden = false;
     document.body.classList.add('crump44-panel-open');
     const trigger = $('#crumpIntelligenceButton');
@@ -712,13 +794,22 @@
 
   function watchAuthenticatedUser() {
     let lastUser = cleanUserId();
+    let lastChatId = String(window.currentChatId || '');
     setInterval(() => {
       const nextUser = cleanUserId();
       if (nextUser !== lastUser) {
         lastUser = nextUser;
         hydratedUserId = null;
+        hydratedPrivateChatId = null;
         loadLocalState();
         hydratePreferences({ force: true });
+      }
+      const nextChatId = String(window.currentChatId || '');
+      if (nextChatId !== lastChatId) {
+        lastChatId = nextChatId;
+        hydratedPrivateChatId = null;
+        if (panel && !panel.hidden) void hydrateCurrentChatPrivacy({ force: true });
+        else refreshPanel();
       }
     }, 1500);
   }

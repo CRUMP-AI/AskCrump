@@ -38,14 +38,15 @@ def test_changed_handoff_assets_are_versioned_and_fixture_is_content_free():
     worker = read("public/sw.js")
     native = read("scripts/build-native.mjs")
     fixture = read("tests/fixtures/intelligence-plan-handoff.html")
-    version = "5.9.76-intelligence-plan-handoff-1"
+    version = "5.9.76-intelligence-architecture-1"
+    subscription_version = "5.9.76-intelligence-plan-handoff-1"
 
     assert f"/crump-4.4.js?v={version}" in runtime
     assert f"/crump-4.4.js?v={version}" in worker
     assert f"/crump-4.4.js?v={version}" in native
-    assert f"/crump-subscriptions-5.3.2.js?v={version}" in runtime
-    assert f"/crump-subscriptions-5.3.2.js?v={version}" in worker
-    assert f"/crump-subscriptions-5.3.2.js?v={version}" in native
+    assert f"/crump-subscriptions-5.3.2.js?v={subscription_version}" in runtime
+    assert f"/crump-subscriptions-5.3.2.js?v={subscription_version}" in worker
+    assert f"/crump-subscriptions-5.3.2.js?v={subscription_version}" in native
     assert "window.__billingOpenCount" in fixture
     assert 'aria-label="Billing opens"' in fixture
     assert 'aria-label="Billing status requests"' in fixture

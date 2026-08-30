@@ -49,7 +49,6 @@ const previewObjectUrls = new Set();
 const COMPOSER_SCAFFOLDS = Object.freeze({
     image: 'Generate an image of ',
     research: 'Search the web for ',
-    code: 'Help me with code: ',
 });
 const USAGE_PREFLIGHT_TIMEOUT_MS = 10_000;
 
@@ -213,9 +212,6 @@ function setupEventListeners() {
         ['clearChatsBtn', () => clearAllChats()],
         ['settingsBtn', () => window.openSettings?.()],
         ['upgradeBtnSidebar', () => window.showUpgradePrompt?.()],
-        ['imageQuickAction', () => window.triggerImageGeneration?.()],
-        ['searchQuickAction', () => window.triggerWebSearch?.()],
-        ['codeQuickAction', () => window.triggerCodeHelp?.()],
         ['closeSettingsBtn', () => window.closeSettings?.()],
         ['saveSettingsBtn', () => window.saveSettings?.()],
         ['signOutBtn', () => window.logoutUser?.()],
@@ -629,7 +625,6 @@ async function sendMessage() {
         const guidance = {
             image: 'Add what you want Crump to create.',
             research: 'Add what you want Crump to research.',
-            code: 'Add what you want Crump to help build or debug.',
         }[incompleteScaffold[0]];
         showToast(guidance, 'info');
         userInput?.focus({ preventScroll: true });
@@ -1023,10 +1018,6 @@ window.triggerImageGeneration = function() {
 
 window.triggerWebSearch = function() {
     return primeComposer(COMPOSER_SCAFFOLDS.research);
-};
-
-window.triggerCodeHelp = function() {
-    return primeComposer(COMPOSER_SCAFFOLDS.code);
 };
 
 // Settings

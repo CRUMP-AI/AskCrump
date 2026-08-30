@@ -271,23 +271,6 @@
     };
   }
 
-  function retireLegacyToolStrip(strip) {
-    if (!strip) return;
-
-    // These controls remain as programmatic compatibility targets while their
-    // user-facing destinations live in one intentional place:
-    // Research in Intelligence, creation in Create, and files on the + button.
-    const legacyShell = strip.closest('.crump53-tool-shell');
-    if (legacyShell?.parentNode) {
-      legacyShell.parentNode.insertBefore(strip, legacyShell);
-      legacyShell.remove();
-    }
-    strip.hidden = true;
-    strip.setAttribute('aria-hidden', 'true');
-    strip.removeAttribute('role');
-    strip.removeAttribute('aria-label');
-  }
-
   function injectNavigation() {
     const primaryStack = document.querySelector('.v1-rail .v1-rail-stack');
     if (primaryStack && !document.querySelector('.crump53-projects-button')) {
@@ -316,30 +299,6 @@
       footer.insertBefore(button, footer.firstChild);
     }
 
-    const strip = document.querySelector('.v1-mode-strip');
-    if (strip && !byId('crump53DocumentMode')) {
-      const createMode = (id, label, handler) => {
-        const button = document.createElement('button');
-        button.id = id;
-        button.type = 'button';
-        button.className = 'v1-mode-pill';
-        button.innerHTML = `<span>${label}</span>`;
-        button.addEventListener('click', event => {
-          event.preventDefault();
-          event.stopPropagation();
-          handler();
-        });
-        return button;
-      };
-      const filesPill = strip.querySelector('[data-v1-command="file"]');
-      const documentButton = createMode('crump53DocumentMode', 'Document', () => window.CrumpDocumentStudio?.open?.());
-      const manuscriptButton = createMode('crump53ManuscriptMode', 'Manuscript', () => openStudio('manuscripts'));
-      const videoButton = createMode('crump53VideoMode', 'Video', () => openStudio('video'));
-      strip.insertBefore(documentButton, filesPill || null);
-      strip.insertBefore(manuscriptButton, filesPill || null);
-      strip.insertBefore(videoButton, filesPill || null);
-    }
-    retireLegacyToolStrip(strip);
   }
 
   function injectStudio() {

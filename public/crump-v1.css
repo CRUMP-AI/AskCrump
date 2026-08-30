@@ -1404,7 +1404,7 @@ body.crump-v1 .crump44-toggle.is-on span {
   background: #e1c986 !important;
 }
 
-body.crump-v1 :is(.crump44-row-button, .crump44-clear-memory, .crump44-tool) {
+body.crump-v1 :is(.crump44-row-button, .crump44-clear-memory) {
   min-height: 44px !important;
   border-color: var(--v1-line) !important;
   border-radius: 12px !important;

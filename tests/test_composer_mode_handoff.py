@@ -28,7 +28,7 @@ def test_reselecting_a_mode_does_not_duplicate_its_visible_scaffold():
     assert "else if (!alreadyPrimed)" in app
     assert "primeComposer(COMPOSER_SCAFFOLDS.image)" in app
     assert "primeComposer(COMPOSER_SCAFFOLDS.research)" in app
-    assert "primeComposer(COMPOSER_SCAFFOLDS.code)" in app
+    assert "COMPOSER_SCAFFOLDS.code" not in app
 
 
 def test_bare_scaffolds_are_stopped_before_usage_or_chat_mutation():
@@ -38,7 +38,7 @@ def test_bare_scaffolds_are_stopped_before_usage_or_chat_mutation():
     assert "const incompleteScaffold = Object.entries(COMPOSER_SCAFFOLDS)" in send
     assert "Add what you want Crump to research." in send
     assert "Add what you want Crump to create." in send
-    assert "Add what you want Crump to help build or debug." in send
+    assert "Add what you want Crump to help build or debug." not in send
     assert send.index("if (incompleteScaffold)") < send.index("await ensureUsageAvailable()")
     assert send.index("if (incompleteScaffold)") < send.index("chat.messages.push(userMessage)")
 
