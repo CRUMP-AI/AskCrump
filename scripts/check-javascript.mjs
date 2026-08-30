@@ -238,6 +238,9 @@ if (runtime.includes('/crump-5.2.4.js') || runtime.includes('/crump-5.2.4.css'))
 }
 
 const appendedRuntimeAssets = [];
+const preloadedRuntimeScripts = [];
+const loadedRuntimeStyles = [];
+const loadedRuntimeScripts = [];
 const dispatchedRuntimeEvents = [];
 const runtimeDocument = {
   documentElement: {dataset: {}},
@@ -245,6 +248,13 @@ const runtimeDocument = {
     appendChild(node) {
       const url = node.href || node.src;
       if (url) appendedRuntimeAssets.push(url);
+      if (node.rel === 'preload' && node.as === 'script' && node.href) {
+        preloadedRuntimeScripts.push(node.href);
+      } else if (node.rel === 'stylesheet' && node.href) {
+        loadedRuntimeStyles.push(node.href);
+      } else if (node.tagName === 'script' && node.src) {
+        loadedRuntimeScripts.push(node.src);
+      }
       Promise.resolve().then(() => node.listeners.load?.());
       return node;
     },
@@ -288,8 +298,12 @@ await runtimeWindow.CrumpWorkspaceRuntime.load();
 if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
     dispatchedRuntimeEvents.filter(type => type === 'crump:body-runtime-ready').length !== 1 ||
     appendedRuntimeAssets.length !== loadedRuntimeAssetCount ||
-    appendedRuntimeAssets.indexOf(`/app.js?v=${releaseVersion}`) > appendedRuntimeAssets.indexOf(`/crump-4.3.js?v=${releaseVersion}`) ||
-    appendedRuntimeAssets.at(-1) !== `/crump-code-5.9.35.js?v=${releaseVersion}-demand-hydration-1`) {
+    loadedRuntimeStyles.length !== 18 ||
+    preloadedRuntimeScripts.length !== 29 ||
+    loadedRuntimeScripts.length !== 29 ||
+    !loadedRuntimeScripts.every(asset => preloadedRuntimeScripts.includes(asset)) ||
+    loadedRuntimeScripts.indexOf(`/app.js?v=${releaseVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${releaseVersion}`) ||
+    loadedRuntimeScripts.at(-1) !== `/crump-code-5.9.35.js?v=${releaseVersion}-demand-hydration-1`) {
   console.error('Authenticated workspace runtime load order or completion contract failed.');
   process.exit(1);
 }
@@ -306,7 +320,7 @@ if (!v1Body.includes('removeLegacyEmptyState(container)')) {
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r136') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r137') ||
     !serviceWorker.includes(`/landing.js?v=${releaseVersion}`) ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes(`/conversation.css?v=${releaseVersion}`) ||

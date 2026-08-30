@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Workspace runtime fetch plan fixture</title>
+</head>
+<body>
+  <main>
+    <h1>Workspace runtime fetch plan</h1>
+    <output id="runtimeState" aria-label="Runtime state">starting</output>
+    <output id="styleCount" aria-label="Styles requested">0</output>
+    <output id="maxStyles" aria-label="Maximum concurrent styles">0</output>
+    <output id="preloadCount" aria-label="Scripts preloaded before execution">0</output>
+    <output id="scriptCount" aria-label="Scripts executed">0</output>
+    <output id="firstScript" aria-label="First executed script">none</output>
+    <output id="lastScript" aria-label="Last executed script">none</output>
+    <output id="runtimeMs" aria-label="Simulated runtime milliseconds">0</output>
+    <output id="browserErrors" aria-label="Browser errors">0</output>
+  </main>
+  <script src="/public/runtime-body-v1.js?v=workspace-fetch-plan-fixture-2"></script>
+  <script>
+    const nativeAppendChild = document.head.appendChild.bind(document.head);
+    const simulatedFetchMs = 120;
+    const simulatedExecuteMs = 5;
+    const scriptReadyAt = new Map();
+    const executedScripts = [];
+    let activeStyles = 0;
+    let maximumStyles = 0;
+    let stylesRequested = 0;
+    let preloadsBeforeExecution = 0;
+    let executionStarted = false;
+
+    const assetName = value => {
+      const url = new URL(String(value || ''), location.href);
+      return `${url.pathname}${url.search}`;
+    };
+    const setOutput = (id, value) => {
+      document.getElementById(id).textContent = String(value);
+    };
+    const recordBrowserError = () => {
+      const current = Number(document.getElementById('browserErrors').textContent || 0);
+      setOutput('browserErrors', current + 1);
+    };
+    window.addEventListener('error', recordBrowserError);
+    window.addEventListener('unhandledrejection', recordBrowserError);
+
+    document.head.appendChild = node => {
+      if (node.tagName === 'LINK' && node.rel === 'stylesheet') {
+        stylesRequested += 1;
+        activeStyles += 1;
+        maximumStyles = Math.max(maximumStyles, activeStyles);
+        window.setTimeout(() => {
+          activeStyles -= 1;
+          node.dispatchEvent(new Event('load'));
+        }, simulatedFetchMs);
+        return node;
+      }
+
+      if (node.tagName === 'LINK' && node.rel === 'preload' && node.as === 'script') {
+        const asset = assetName(node.href);
+        scriptReadyAt.set(asset, performance.now() + simulatedFetchMs);
+        if (!executionStarted) preloadsBeforeExecution += 1;
+        return node;
+      }
+
+      if (node.tagName === 'SCRIPT') {
+        executionStarted = true;
+        const asset = assetName(node.src);
+        executedScripts.push(asset);
+        const readyAt = scriptReadyAt.get(asset) || performance.now() + simulatedFetchMs;
+        const remainingFetchMs = Math.max(0, readyAt - performance.now());
+        window.setTimeout(
+          () => node.dispatchEvent(new Event('load')),
+          remainingFetchMs + simulatedExecuteMs,
+        );
+        return node;
+      }
+
+      return nativeAppendChild(node);
+    };
+
+    const startedAt = performance.now();
+    window.CrumpWorkspaceRuntime.load().then(() => {
+      setOutput('runtimeState', document.documentElement.dataset.crumpBodyRuntime || 'missing');
+      setOutput('styleCount', stylesRequested);
+      setOutput('maxStyles', maximumStyles);
+      setOutput('preloadCount', preloadsBeforeExecution);
+      setOutput('scriptCount', executedScripts.length);
+      setOutput('firstScript', executedScripts[0] || 'none');
+      setOutput('lastScript', executedScripts.at(-1) || 'none');
+      setOutput('runtimeMs', Math.round(performance.now() - startedAt));
+    }).catch(error => {
+      recordBrowserError();
+      setOutput('runtimeState', error?.message || 'failed');
+    });
+  </script>
+</body>
+</html>

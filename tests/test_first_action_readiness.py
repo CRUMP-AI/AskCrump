@@ -17,9 +17,10 @@ def test_product_starter_waits_for_the_real_runtime_instead_of_a_timer_guess():
     assert "window.addEventListener('crump:body-runtime-ready', flushPendingProduct);" in body
     assert "document.documentElement.dataset.crumpBodyRuntime === 'ready'" in body
     assert "window.setTimeout(() => window.CrumpProduct53?.open?.(tab), 120)" not in body
-    assert runtime.index("await loadScript('/crump-product-5.3.js?v=5.9.76-demand-hydration-1'") < runtime.index(
+    assert runtime.index("['/crump-product-5.3.js?v=5.9.76-demand-hydration-1', 'crumpproduct53']") < runtime.index(
         "window.dispatchEvent(new CustomEvent('crump:body-runtime-ready'))"
     )
+    assert "for (const [url, key] of scriptPlan)" in runtime
 
 
 def test_queued_product_starter_has_visible_progress_and_an_explicit_failure_path():

@@ -57,6 +57,17 @@ const loader = String.raw`
     ['/crump-v1-body.css?v=5.9.76', 'crumpbodyv1'],
   ]);
 
+  const enhancementStyles = Object.freeze([
+    ['/crump-navigation-5.2.5.css', 'crumpnav525'],
+    ['/crump-product-5.3.css?v=5.9.76-books-library-7', 'crumpproduct53'],
+    ['/crump-product-5.3.1.css', 'crumpproduct531'],
+    ['/crump-polish-5.6.css', 'crumppolish56'],
+    ['/crump-library-5.7.css', 'crumplibrary57'],
+    ['/crump-code-5.9.35.css', 'crumpcode5935'],
+    ['/crump-v1-stability.css', 'crumpv1stability'],
+    ['/crump-navigation-5.9.30.css', 'crumpnav5930'],
+  ]);
+
   const workspaceScripts = Object.freeze([
     ['/onboarding.js?v=5.9.76-books-library-2', 'workspaceonboarding'],
     ['/scroll-manager.js', 'workspacescroll'],
@@ -82,6 +93,23 @@ const loader = String.raw`
     ['/crump-5.2.2.js?v=5.9.76-billing-timeout-1', 'crump522'],
     ['/crump-v1-body.js', 'crumpbodyv1'],
     ['/crump-v1-stability.js', 'crumpv1stability'],
+  ]);
+
+  const finalScripts = Object.freeze([
+    ['/crump-navigation-5.2.5.js', 'crumpnav525'],
+    ['/crump-product-5.3.js?v=5.9.76-demand-hydration-1', 'crumpproduct53'],
+    ['/crump-product-5.3.1.js?v=5.9.76-demand-hydration-1', 'crumpproduct531'],
+    ['/crump-subscriptions-5.3.2.js?v=5.9.76-billing-timeout-1', 'crumpsubscriptions532'],
+    ['/crump-polish-5.6.js', 'crumppolish56'],
+    ['/crump-library-5.7.js?v=5.9.76-demand-hydration-1', 'crumplibrary57'],
+    ['/crump-navigation-5.9.30.js?v=5.9.76-projects-entry-1', 'crumpnav5930'],
+    ['/crump-code-5.9.35.js?v=5.9.76-demand-hydration-1', 'crumpcode5935'],
+  ]);
+
+  const scriptPlan = Object.freeze([
+    ...workspaceScripts,
+    ...enhancementScripts,
+    ...finalScripts,
   ]);
 
   function loadStyle(url, key) {
@@ -119,32 +147,33 @@ const loader = String.raw`
     });
   }
 
+  function primeScript(url, key) {
+    if (document.querySelector('script[data-' + key + ']') ||
+        document.querySelector('link[data-crump-script-preload="' + key + '"]')) return;
+
+    const node = document.createElement('link');
+    node.rel = 'preload';
+    node.as = 'script';
+    node.href = url;
+    node.dataset.crumpScriptPreload = key;
+    document.head.appendChild(node);
+  }
+
+  function primeScripts(entries) {
+    entries.forEach(([url,key]) => primeScript(url,key));
+  }
+
   let runtimePromise = null;
 
   async function boot() {
     document.documentElement.dataset.crumpBodyRuntime = 'loading';
-    await Promise.all(workspaceStyles.map(([url,key]) => loadStyle(url,key)));
+    const stylesReady = Promise.all(
+      [...workspaceStyles, ...enhancementStyles].map(([url,key]) => loadStyle(url,key)),
+    );
+    primeScripts(scriptPlan);
+    await stylesReady;
 
-    await loadStyle('/crump-navigation-5.2.5.css', 'crumpnav525');
-    await loadStyle('/crump-product-5.3.css?v=5.9.76-books-library-7', 'crumpproduct53');
-    await loadStyle('/crump-product-5.3.1.css', 'crumpproduct531');
-    await loadStyle('/crump-polish-5.6.css', 'crumppolish56');
-    await loadStyle('/crump-library-5.7.css', 'crumplibrary57');
-    await loadStyle('/crump-code-5.9.35.css', 'crumpcode5935');
-    await loadStyle('/crump-v1-stability.css', 'crumpv1stability');
-    await loadStyle('/crump-navigation-5.9.30.css', 'crumpnav5930');
-
-    for (const [url,key] of workspaceScripts) await loadScript(url,key);
-    for (const [url,key] of enhancementScripts) await loadScript(url,key);
-
-    await loadScript('/crump-navigation-5.2.5.js', 'crumpnav525');
-    await loadScript('/crump-product-5.3.js?v=5.9.76-demand-hydration-1', 'crumpproduct53');
-    await loadScript('/crump-product-5.3.1.js?v=5.9.76-demand-hydration-1', 'crumpproduct531');
-    await loadScript('/crump-subscriptions-5.3.2.js?v=5.9.76-billing-timeout-1', 'crumpsubscriptions532');
-    await loadScript('/crump-polish-5.6.js', 'crumppolish56');
-    await loadScript('/crump-library-5.7.js?v=5.9.76-demand-hydration-1', 'crumplibrary57');
-    await loadScript('/crump-navigation-5.9.30.js?v=5.9.76-projects-entry-1', 'crumpnav5930');
-    await loadScript('/crump-code-5.9.35.js?v=5.9.76-demand-hydration-1', 'crumpcode5935');
+    for (const [url,key] of scriptPlan) await loadScript(url,key);
 
     document.documentElement.dataset.crumpBodyRuntime = 'ready';
     window.dispatchEvent(new CustomEvent('crump:body-runtime-ready'));
