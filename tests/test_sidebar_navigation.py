@@ -94,7 +94,8 @@ def test_final_desktop_navigation_keeps_a_permanent_chats_toggle():
 
     assert "function conversationLibraryMarkup()" in navigation
     assert "data-crump5930-library-toggle" in navigation
-    assert 'aria-label="Chats"' in navigation
+    assert 'aria-label="Hide Chats"' in navigation
+    assert "const action = expanded ? 'Hide' : 'Show'" in body
     assert "window.CrumpBodyV1?.toggleConversationLibrary?.()" in navigation
     assert "window.CrumpBodyV1?.syncConversationLibrary?.()" in navigation
     assert "syncConversationLibrary: syncLibraryControl" in body

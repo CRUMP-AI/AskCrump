@@ -81,7 +81,7 @@
   }
 
   function conversationLibraryMarkup() {
-    return `<button type="button" class="crump5930-destination crump5930-chats-toggle" data-crump5930-library-toggle aria-label="Chats" aria-controls="sidebar" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg><span>Chats</span></button>`;
+    return `<button type="button" class="crump5930-destination crump5930-chats-toggle" data-crump5930-library-toggle aria-label="Hide Chats" title="Hide Chats" aria-controls="sidebar" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg><span>Chats</span></button>`;
   }
 
   function injectDesktopNavigation() {
