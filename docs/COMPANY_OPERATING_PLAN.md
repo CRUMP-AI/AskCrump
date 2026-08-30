@@ -310,7 +310,10 @@ provider, privacy, cost, or security gate is incomplete.
   or cost. Prices, quotas, credits, checkout behavior, and model routing remain unchanged. The
   latest aggregate account, artifact, and plan snapshots are still empty, so treat this as
   conversion readiness and acquire legitimate external traffic before claiming lift or revisiting
-  price. Evidence: `docs/ADVANCED_INTELLIGENCE_RECEIPT_RELEASE_2026-08-30.md`.
+  price. The locked-control handoff now also opens exactly one Professional plan center, waits safely
+  through the brief billing-runtime load window, and restores retry after a bounded failure without
+  starting checkout. Evidence: `docs/ADVANCED_INTELLIGENCE_RECEIPT_RELEASE_2026-08-30.md` and
+  `docs/INTELLIGENCE_PLAN_HANDOFF_RELEASE_2026-08-30.md`.
 - **Library information architecture:** Production 5.9.63 originally consolidated the manuscript
   bookshelf and saved files. The current 5.9.76 release sharpens that boundary: Library is solely
   the private bookshelf for manuscripts and books, while documents, images, videos, exports, and
