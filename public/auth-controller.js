@@ -12,6 +12,8 @@
   const PLAN_INTENT_KEY = 'askcrump.pending-plan-intent';
   const CREATION_INTENT_KEY = 'askcrump.pending-creation-intent';
   const ACQUISITION_KEY = 'askcrump.acquisition-source';
+  const FREE_REGISTRATION_ASSURANCE = 'Free includes 25 messages each day and 2 private Projects. We’ll email a secure verification link; no card required.';
+  const PAID_REGISTRATION_ASSURANCE = 'We’ll email a secure verification link. Creating your account does not start billing; checkout remains a separate confirmation.';
   const PLAN_INTENT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
   const CREATION_INTENT_TTL_MS = 24 * 60 * 60 * 1000;
   const PAID_PLAN_INTENTS = new Set(['professional', 'enterprise']);
@@ -208,6 +210,7 @@
     const title = byId('registrationTitle');
     const description = byId('registrationDescription');
     const button = byId('registrationSubmitBtn');
+    const assurance = byId('registrationAssurance');
     if (!title || !description || !button) return;
 
     const params = new URLSearchParams(location.search);
@@ -227,6 +230,9 @@
     if (plan) description.textContent += ` ${plan.disclosure}`;
     else if (creation) description.textContent += ' Free to start—no card required.';
     button.textContent = plan?.button || (creation ? 'Create account & continue' : 'Create free account');
+    if (assurance) assurance.textContent = plan
+      ? PAID_REGISTRATION_ASSURANCE
+      : FREE_REGISTRATION_ASSURANCE;
   }
 
   function wireExploreRegistrationLink() {

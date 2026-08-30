@@ -116,6 +116,31 @@ def test_cold_signup_entry_keeps_product_value_and_assurance_readable():
     assert '.v1-registration-explore a:focus-visible' in body
 
 
+def test_registration_offer_matches_enforced_free_limits_and_canonical_product_map():
+    app = (PUBLIC / 'app.html').read_text(encoding='utf-8')
+    controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
+    config = (ROOT / 'backend' / 'config.py').read_text(encoding='utf-8')
+    features = (ROOT / 'backend' / 'feature_service.py').read_text(encoding='utf-8')
+    brand = app[app.index('class="v1-auth-brand"'):app.index('class="v1-auth-stage"')]
+    assurance = (
+        'Free includes 25 messages each day and 2 private Projects. '
+        'We’ll email a secure verification link; no card required.'
+    )
+
+    assert 'Ask, Projects, Create, Library, and You' in brand
+    for destination in ('Ask', 'Projects', 'Create', 'Library', 'You'):
+        assert f'<span>{destination}</span>' in brand
+    assert '<span>Research</span>' not in brand
+    assert '<span>Memory</span>' not in brand
+    assert 'id="registrationAssurance"' in app
+    assert assurance in app
+    assert assurance in controller
+    assert 'Creating your account does not start billing; checkout remains a separate confirmation.' in controller
+    assert "if (assurance) assurance.textContent = plan" in controller
+    assert "free_daily_messages=int(os.getenv('FREE_DAILY_MESSAGES', '25'))" in config
+    assert 'PROJECT_LIMITS = {"free": 2' in features
+
+
 def test_registration_preserves_allowlisted_creation_and_paid_plan_promises():
     app = (PUBLIC / 'app.html').read_text(encoding='utf-8')
     controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
@@ -159,6 +184,7 @@ def test_cold_signup_explore_fixture_uses_real_runtime_without_production_writes
     ).read_text(encoding='utf-8')
 
     assert 'id="registrationExploreLink" href="/"' in fixture
+    assert 'id="registrationAssurance"' in fixture
     assert 'id="fixtureEvents"' in fixture
     assert "window.__fixture.events.push(payload);" in fixture
     assert "addEventListener('click', event => event.preventDefault())" in fixture

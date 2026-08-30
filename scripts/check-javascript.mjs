@@ -48,7 +48,7 @@ const repoRoot = new URL('../', import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot), 'utf8'));
 const releaseVersion = String(packageJson.version || '');
 const registrationConsentVersion = `${releaseVersion}-registration-consent-1`;
-const authControllerVersion = `${releaseVersion}-video-files-handoff-1`;
+const authControllerVersion = `${releaseVersion}-registration-clarity-1`;
 const canonicalFilesHandoffVersion = `${releaseVersion}-canonical-files-handoff-1`;
 const persistedProjectTargetVersion = `${releaseVersion}-persisted-project-target-1`;
 const requiredBodyFiles = [
@@ -343,7 +343,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r155') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r156') ||
     !serviceWorker.includes(`/landing.js?v=${releaseVersion}`) ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes(`/conversation.css?v=${releaseVersion}`) ||
