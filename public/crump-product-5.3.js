@@ -435,20 +435,27 @@
                     <h2 id="crump53ProjectWorkspaceName" tabindex="-1">Project</h2>
                     <p id="crump53ProjectWorkspaceDescription">Everything for this Project stays together.</p>
                   </div>
-                  <button class="crump53-button is-primary" type="button" id="crump53StartProjectChat">New chat in this Project</button>
-                </div>
-                <h3 id="crump53ProjectFormTitle">New project</h3>
-                <form id="crump53ProjectForm" class="crump53-form">
-                  <label class="crump53-label">Name<input id="crump53ProjectName" class="crump53-input" maxlength="100" required></label>
-                  <label class="crump53-label">Description<textarea id="crump53ProjectDescription" class="crump53-textarea" maxlength="1200"></textarea></label>
-                  <label class="crump53-label">Project instructions<textarea id="crump53ProjectInstructions" class="crump53-textarea" maxlength="12000" placeholder="Canon, tone, goals, rules, constraints..."></textarea></label>
-                  <div class="crump53-actions">
-                    <button class="crump53-button is-primary" type="submit">Save project</button>
+                  <div class="crump53-project-hero-actions">
+                    <button class="crump53-button is-primary" type="button" id="crump53StartProjectChat">New chat in this Project</button>
                     <button class="crump53-button" type="button" id="crump53UseProject">Use in current conversation</button>
-                    <button class="crump53-button" type="button" id="crump53NewProject">Create another</button>
                   </div>
-                  <div id="crump53ProjectStatus" class="crump53-status" aria-live="polite"></div>
-                </form>
+                </div>
+                <details class="crump53-project-settings" id="crump53ProjectSettings" open>
+                  <summary>
+                    <span id="crump53ProjectFormTitle">New project</span>
+                    <small id="crump53ProjectSettingsHint">Name it, describe it, and set the context Crump should keep.</small>
+                  </summary>
+                  <form id="crump53ProjectForm" class="crump53-form">
+                    <label class="crump53-label">Name<input id="crump53ProjectName" class="crump53-input" maxlength="100" required></label>
+                    <label class="crump53-label">Description<textarea id="crump53ProjectDescription" class="crump53-textarea" maxlength="1200"></textarea></label>
+                    <label class="crump53-label">Project instructions<textarea id="crump53ProjectInstructions" class="crump53-textarea" maxlength="12000" placeholder="Canon, tone, goals, rules, constraints..."></textarea></label>
+                    <div class="crump53-actions">
+                      <button class="crump53-button is-primary" type="submit">Save project</button>
+                      <button class="crump53-button" type="button" id="crump53NewProject">Create another</button>
+                    </div>
+                    <div id="crump53ProjectStatus" class="crump53-status" aria-live="polite"></div>
+                  </form>
+                </details>
               </div>
             </div>
             <div class="crump53-card" id="crump53ProjectConversationsCard" hidden style="margin-top:16px">
@@ -927,6 +934,8 @@
     state.activeProject = project;
     state.editingProject = project;
     storeProject(project.id);
+    const settings = byId('crump53ProjectSettings');
+    if (settings) settings.open = false;
     if (updateRoute) writeProjectRoute(project.id, {replace: replaceRoute});
     if (reveal) {
       const studio = byId('crump53Studio');
@@ -990,6 +999,8 @@
     byId('crump53ProjectDescription').value = project.description || '';
     byId('crump53ProjectInstructions').value = project.instructions || '';
     byId('crump53ProjectFormTitle').textContent = 'Edit project';
+    const hint = byId('crump53ProjectSettingsHint');
+    if (hint) hint.textContent = 'Rename this Project, revise its description, or update the instructions Crump keeps with it.';
     const hero = byId('crump53ProjectHero');
     if (hero) hero.hidden = false;
     if (byId('crump53ProjectWorkspaceName')) byId('crump53ProjectWorkspaceName').textContent = project.name || 'Project';
@@ -1009,6 +1020,10 @@
     byId('crump53ProjectDescription').value = '';
     byId('crump53ProjectInstructions').value = '';
     byId('crump53ProjectFormTitle').textContent = 'New project';
+    const hint = byId('crump53ProjectSettingsHint');
+    if (hint) hint.textContent = 'Name it, describe it, and set the context Crump should keep.';
+    const settings = byId('crump53ProjectSettings');
+    if (settings) settings.open = true;
     const hero = byId('crump53ProjectHero');
     if (hero) hero.hidden = true;
     state.editingProject = null;
@@ -1112,6 +1127,8 @@
       state.projectView = 'detail';
       setStatus('crump53ProjectStatus', 'Project saved and selected.');
       await refreshProjects();
+      const settings = byId('crump53ProjectSettings');
+      if (settings) settings.open = false;
     } catch (error) {
       setStatus('crump53ProjectStatus', error.message, true);
     }

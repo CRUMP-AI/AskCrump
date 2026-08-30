@@ -207,6 +207,10 @@ def test_project_rows_open_a_real_project_workspace_and_scoped_new_chat():
     assert 'id="crump53ProjectBack"' in product
     assert 'id="crump53ProjectWorkspaceName"' in product
     assert 'id="crump53StartProjectChat"' in product
+    assert 'id="crump53ProjectSettings"' in product
+    assert product.index('id="crump53StartProjectChat"') < product.index('id="crump53ProjectSettings"')
+    assert "if (settings) settings.open = false" in product
+    assert "if (settings) settings.open = true" in product
     assert 'aria-label="Open Project ${escapeHtml(item.name)}"' in product
     assert 'href="${escapeHtml(projectRouteHref(item.id))}"' in product
     assert "const PROJECT_ROUTE_PARAM = 'project'" in product
@@ -227,6 +231,8 @@ def test_project_rows_open_a_real_project_workspace_and_scoped_new_chat():
     assert "document.querySelector('.v1-workspace-context')" in product
     assert '[data-crump53-panel="projects"].is-project-open .crump53-project-index-card' in styles
     assert '[data-crump53-panel="projects"].is-project-open > .crump53-grid' in styles
+    assert '.crump53-project-hero-actions' in styles
+    assert '.crump53-project-settings summary' in styles
     assert 'id="fixtureProjectView"' in fixture
     assert 'id="fixtureProjectRoute"' in fixture
     assert "const holdFixture = fixtureParams.get('hold') === '1'" in fixture
@@ -234,6 +240,8 @@ def test_project_rows_open_a_real_project_workspace_and_scoped_new_chat():
     assert "sheet?.dataset.projectView" in fixture
     assert 'aria-label="Started Project chat"' in fixture
     assert 'aria-label="Browser errors"' in fixture
+    assert "/public/crump-product-5.3.1.js?v=project-home-fixture-7" in fixture
+    assert "Launch brief.pdf" in fixture
     assert "fixture-user" in fixture
     assert "password" not in fixture.lower()
 

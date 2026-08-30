@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Project open navigation fixture</title>
   <link rel="stylesheet" href="/public/crump-v1-body.css?v=project-open-fixture-1">
-  <link rel="stylesheet" href="/public/crump-product-5.3.css?v=project-open-fixture-6">
+  <link rel="stylesheet" href="/public/crump-product-5.3.css?v=project-home-fixture-7">
+  <link rel="stylesheet" href="/public/crump-product-5.3.1.css?v=project-home-fixture-7">
 </head>
 <body class="crump-v1-body">
   <main>
@@ -52,6 +53,16 @@
         data = {success: true, project: fixtureProject, context: {canon: []}};
       } else if (url.pathname === `/api/projects/${fixtureProject.id}/chats`) {
         data = {success: true, conversations: []};
+      } else if (url.pathname === `/api/projects/${fixtureProject.id}/files`) {
+        data = {
+          success: true,
+          files: [{
+            id: '00000000-0000-4000-8000-000000000072',
+            name: 'Launch brief.pdf',
+            size: 48000,
+            projectRole: 'reference',
+          }],
+        };
       } else {
         return new Response(JSON.stringify({success: false, error: 'Unexpected fixture request.'}), {
           status: 500,
@@ -64,7 +75,8 @@
       });
     };
   </script>
-  <script src="/public/crump-product-5.3.js?v=project-open-fixture-6"></script>
+  <script src="/public/crump-product-5.3.js?v=project-home-fixture-7"></script>
+  <script src="/public/crump-product-5.3.1.js?v=project-home-fixture-7"></script>
   <script>
     window.addEventListener('load', async () => {
       const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));

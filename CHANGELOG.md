@@ -2,6 +2,18 @@
 
 ## 5.9.76 — 2026-08-29
 
+### Project-first workspace hierarchy
+
+- Made an opened Project lead with the work itself: start a Project chat, continue in the current
+  conversation, resume saved conversations, then review Project files and durable context.
+- Moved rename, description, reference upload, and instruction controls into a native, keyboard-
+  accessible `Edit project` disclosure that stays collapsed for existing Projects and opens for
+  intentional Project creation.
+- Kept conversations ahead of Project files in the layered runtime while preserving every existing
+  ownership check, file action, Project route, browser Back path, and editable field.
+- Advanced the Project assets and PWA cache to revision 131 so browser, installed-PWA, and generated
+  native clients receive the calmer hierarchy together.
+
 ### Deterministic Project opening
 
 - Bound each freshly rendered Project row directly to its own open action, preventing mobile menu

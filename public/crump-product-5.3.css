@@ -308,6 +308,64 @@ body.crump-v1-body .crump53-project-hero p {
   max-width: 620px;
   margin: 7px 0 0;
 }
+body.crump-v1-body .crump53-project-hero-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+body.crump-v1-body .crump53-project-settings {
+  border-top: 1px solid rgba(255,255,255,.07);
+}
+body.crump-v1-body .crump53-project-settings summary {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 2px 0;
+  color: #d9d7d1;
+  cursor: pointer;
+  list-style: none;
+}
+body.crump-v1-body .crump53-project-settings summary::-webkit-details-marker { display: none; }
+body.crump-v1-body .crump53-project-settings summary:focus-visible {
+  outline: 2px solid rgba(217,191,132,.72);
+  outline-offset: 5px;
+  border-radius: 8px;
+}
+body.crump-v1-body .crump53-project-settings summary::after {
+  content: '›';
+  color: #bca469;
+  font-size: 20px;
+  line-height: 1;
+  transform: rotate(90deg);
+  transition: transform .16s ease;
+}
+body.crump-v1-body .crump53-project-settings[open] summary::after { transform: rotate(-90deg); }
+body.crump-v1-body .crump53-project-settings summary span {
+  display: grid;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 720;
+}
+body.crump-v1-body .crump53-project-settings summary small {
+  grid-column: 1;
+  color: #72797d;
+  font-size: 9px;
+  font-weight: 450;
+  line-height: 1.45;
+}
+body.crump-v1-body .crump53-project-settings[open] summary { padding-bottom: 13px; }
+body.crump-v1-body .crump53-project-settings .crump53-form {
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,.055);
+  border-radius: 15px;
+  background: rgba(0,0,0,.12);
+}
+@media (prefers-reduced-motion: reduce) {
+  body.crump-v1-body .crump53-project-settings summary::after { transition: none; }
+}
 body.crump-v1-body .crump53-list-button small {
   color: #62696d;
   font-size: 8px;
@@ -661,6 +719,10 @@ body.crump-v1-body .crump53-manuscript-handoff button {
   body.crump-v1-body .crump53-project-hero {
     align-items: stretch;
     flex-direction: column;
+  }
+  body.crump-v1-body .crump53-project-hero-actions {
+    display: grid;
+    grid-template-columns: 1fr;
   }
   body.crump-v1-body .crump53-project-hero .crump53-button { width: 100%; }
   body.crump-v1-body .crump53-grid.crump53-compact-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }

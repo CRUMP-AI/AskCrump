@@ -275,6 +275,7 @@
 
     const projectPanel = form.closest('[data-crump53-panel="projects"]');
     const grid = projectPanel?.querySelector('.crump53-grid');
+    const conversationsCard = byId('crump53ProjectConversationsCard');
     if (projectPanel && grid && !byId('crump531ProjectFilesCard')) {
       const card = document.createElement('div');
       card.id = 'crump531ProjectFilesCard';
@@ -289,7 +290,8 @@
         </div>
         <div id="crump531ProjectFilesList"></div>
       `;
-      grid.insertAdjacentElement('afterend', card);
+      if (conversationsCard) conversationsCard.insertAdjacentElement('afterend', card);
+      else grid.insertAdjacentElement('afterend', card);
     }
 
     form.addEventListener('submit', () => {
