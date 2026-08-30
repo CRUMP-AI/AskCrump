@@ -1,6 +1,6 @@
 # Ask Crump company operating plan
 
-Last updated: 2026-08-28
+Last updated: 2026-08-30
 Owner and final authority: Greg Crump
 
 ## Mission and operating thesis
@@ -153,6 +153,11 @@ provider, privacy, cost, or security gate is incomplete.
 ## Current decisions and handoff
 
 - **Decision:** prioritize durable continuing work and return behavior over traffic volume.
+- **Workspace hierarchy:** Production commit **b65fb73** removes the redundant Tools menu. Ask is the
+  default workspace; Intelligence owns research/current information and answer quality; Create owns
+  Documents, Presentations, Images, Manuscripts, and Video; the composer **+** owns attachments; and
+  Crump Code remains a separate hidden gated destination. Do not recreate parallel navigation for
+  these capabilities.
 - **Verified evidence:** two external accounts completed 14 successful AI jobs before the first
   observed product-event traffic; neither created a Project/file or returned after August 23.
 - **Shipped retention intervention:** 5.9.22 puts private conversation-to-Project continuity directly
