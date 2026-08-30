@@ -64,7 +64,7 @@ def test_marketing_ctas_are_first_party_analytics_events():
 
     assert '/_vercel/insights/script.js' in page
     assert '/_vercel/speed-insights/script.js' in page
-    assert '<script defer src="/landing.js?v=5.9.76-profile-link-1"></script>' in page
+    assert '<script defer src="/landing.js?v=5.9.76-weekly-growth-attribution-1"></script>' in page
     assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.76-truthful-destinations-1">' in page
     assert "window.vaq" in script
     assert "MarketingCTA" in script
@@ -73,9 +73,11 @@ def test_marketing_ctas_are_first_party_analytics_events():
     assert "link.dataset.cta" in script
     assert "link.dataset.plan" in script
     assert "utm_source" in script
-    assert "destination.searchParams.set('acquisition', acquisition)" in script
-    assert "new Set(['response-share', 'profile-link'])" in script
-    assert "destination.searchParams.set('source', placement)" in script
+    assert "destination.searchParams.set('acquisition', attribution.acquisition)" in script
+    assert "destination.searchParams.set('campaign', attribution.campaign)" in script
+    assert "destination.searchParams.set('creative', attribution.creative)" in script
+    assert "'response-share', 'profile-link', 'workflow-guide', 'organic-social'" in script
+    assert "destination.searchParams.set('source', attribution.placement)" in script
     assert "sessionStorage.setItem(ACQUISITION_PLACEMENT_KEY" in script
     assert "sessionStorage.setItem(ACQUISITION_KEY" in script
     assert "document.referrer" in script
@@ -101,7 +103,7 @@ def test_known_search_referrers_are_privacy_minimized_as_organic():
     for host in ("bing.com", "duckduckgo.com", "search.yahoo.com", "ecosia.org", "search.brave.com"):
         assert host in script
     assert "return 'organic'" in script
-    assert "LEGACY_ACQUISITION_SOURCES.has(legacySource)" in script
+    assert "LEGACY_ACQUISITION_SOURCES.has(sourceToken)" in script
     assert "'organic'" in controller
     assert "referrer URL" not in script
 
@@ -178,7 +180,7 @@ def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
         assert f'<link rel="canonical" href="https://www.askcrump.com/{slug}">' in page
         assert f'<meta property="og:url" content="https://www.askcrump.com/{slug}">' in page
         assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
-        assert '<script defer src="/landing.js?v=5.9.76-profile-link-1"></script>' in page
+        assert '<script defer src="/landing.js?v=5.9.76-weekly-growth-attribution-1"></script>' in page
         assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.76-truthful-destinations-1">' in page
         assert '<link rel="stylesheet" href="/use-case.css?v=5.9.76">' in page
         assert '/_vercel/insights/script.js' in page
@@ -412,15 +414,18 @@ def test_signup_deep_link_opens_registration_and_tracks_the_funnel():
     assert "AccountCreated" in controller
     assert "trackFunnel('RegistrationExplore', {destination});" in controller
     assert "creationIntentValue(link.dataset.exploreDestination) || 'overview'" in controller
-    assert "source: funnelContext().acquisition" in controller
+    assert "source: attribution.acquisition" in controller
+    assert "campaign: attribution.campaign" in controller
+    assert "creative: attribution.creative" in controller
     assert "params.get('acquisition')" in controller
     assert "function referringAcquisitionSource()" in controller
     assert "document.referrer" in controller
     assert "host === 'askcrump.com'" in controller
     assert "['facebook.com', 'facebook']" in controller
     assert "['instagram.com', 'instagram']" in controller
-    assert "const derivedAcquisition = currentAcquisition || storedAcquisition" in controller
-    assert "acquisition: currentAcquisition || storedAcquisition || derivedAcquisition || 'direct'" in controller
+    assert "|| referringAcquisitionSource()" in controller
+    assert "const acquisition = explicitAcquisition" in controller
+    assert "|| (ACQUISITION_SOURCES.has(storedAcquisition) ? storedAcquisition : '')" in controller
     assert "registerEmail" not in controller[controller.index("function trackFunnel"):controller.index("function applyServerSettings")]
 
 
@@ -441,8 +446,9 @@ def test_legacy_social_deep_links_keep_channel_attribution_without_relabeling_ct
     ):
         assert f"'{channel}'" in controller
     assert "LEGACY_ACQUISITION_SOURCES.has(locationSource)" in controller
-    assert "const currentAcquisition = explicitAcquisition || legacyAcquisition" in controller
-    assert "acquisition: currentAcquisition || storedAcquisition || derivedAcquisition || 'direct'" in controller
+    assert "const acquisition = explicitAcquisition" in controller
+    assert "|| legacyAcquisition" in controller
+    assert "...attribution" in controller
     allowlist = controller[
         controller.index("const LEGACY_ACQUISITION_SOURCES"):
         controller.index("window.va =")
@@ -477,10 +483,10 @@ def test_release_version_and_cache_advance_together():
 
     assert '"version": "5.9.76"' in package
     assert "__version__ = '5.9.76'" in backend
-    assert "ask-crump-new-body-v1-r162" in worker
+    assert "ask-crump-new-body-v1-r163" in worker
     assert "/landing-5.6.css?v=5.9.76-truthful-destinations-1" in worker
     assert "/use-case.css?v=5.9.76" in worker
-    assert "/landing.js?v=5.9.76-profile-link-1" in worker
+    assert "/landing.js?v=5.9.76-weekly-growth-attribution-1" in worker
 
 
 def test_changed_activation_assets_are_release_versioned():
@@ -491,7 +497,7 @@ def test_changed_activation_assets_are_release_versioned():
     for asset in (
         "/crump-v1-body.css?v=5.9.76-intelligence-architecture-1",
         "/device-auth.js?v=5.9.76",
-        "/auth-controller.js?v=5.9.76-plan-intelligence-1",
+        "/auth-controller.js?v=5.9.76-weekly-growth-attribution-1",
     ):
         assert asset in shell
         assert asset in worker

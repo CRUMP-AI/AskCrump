@@ -44,10 +44,167 @@ for (const name of files) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
+const landingRuntimeSource = await readFile(new URL('landing.js', publicDirectory), 'utf8');
+
+function runLandingAttribution(url, storageValues, linkHref = '/app?signup=1&intent=projects') {
+  const pageUrl = new URL(url);
+  const listeners = new Map();
+  const events = [];
+  const link = {
+    dataset: {cta: 'fixture', plan: 'free'},
+    href: linkHref,
+    getAttribute(name) { return name === 'href' ? this.href : null; },
+    setAttribute(name, value) { if (name === 'href') this.href = value; },
+    addEventListener(name, handler) { listeners.set(name, handler); },
+  };
+  const sessionStorage = {
+    getItem(key) { return storageValues.has(key) ? storageValues.get(key) : null; },
+    setItem(key, value) { storageValues.set(key, String(value)); },
+    removeItem(key) { storageValues.delete(key); },
+  };
+  const document = {
+    referrer: '',
+    querySelectorAll(selector) { return selector === '[data-cta]' ? [link] : []; },
+    querySelector() { return null; },
+  };
+  const location = {
+    href: pageUrl.href,
+    origin: pageUrl.origin,
+    hostname: pageUrl.hostname,
+    pathname: pageUrl.pathname,
+    search: pageUrl.search,
+    hash: pageUrl.hash,
+  };
+  const window = {
+    va(command, payload) { events.push({command, payload}); },
+  };
+  runInContext(landingRuntimeSource, createContext({
+    window,
+    document,
+    location,
+    sessionStorage,
+    URL,
+    URLSearchParams,
+    Date,
+  }));
+  listeners.get('click')?.();
+  return {link, events};
+}
+
+function storedAttribution(storageValues) {
+  const value = JSON.parse(storageValues.get('askcrump.first-touch-attribution') || 'null');
+  if (value) delete value.capturedAt;
+  return value;
+}
+
+function assertAttribution(actual, expected, label) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    console.error(`${label} attribution mismatch.`, {actual, expected});
+    process.exit(1);
+  }
+}
+
+const presentationTouch = {
+  acquisition: 'instagram',
+  placement: 'profile-link',
+  campaign: 'presentation-proof-current',
+  creative: 'ig-feed',
+  intent: 'presentation',
+};
+const validPathStore = new Map();
+const validPath = runLandingAttribution(
+  'https://askcrump.com/ai-presentation-maker?acquisition=instagram&source=profile-link&campaign=presentation-proof-current&creative=ig-feed',
+  validPathStore,
+  '/app?signup=1&intent=presentation',
+);
+assertAttribution(storedAttribution(validPathStore), presentationTouch, 'Valid campaign path');
+const validDestination = new URL(validPath.link.href, 'https://askcrump.com');
+if (validDestination.searchParams.get('campaign') !== 'presentation-proof-current' ||
+    validDestination.searchParams.get('creative') !== 'ig-feed' ||
+    validPath.events[0]?.payload?.data?.campaign !== 'presentation-proof-current') {
+  console.error('Valid campaign path did not reach the CTA and anonymous event.');
+  process.exit(1);
+}
+
+const profileChainStore = new Map();
+runLandingAttribution(
+  'https://askcrump.com/?acquisition=facebook&source=profile-link&campaign=presentation-proof-current&creative=fb-static&intent=presentation',
+  profileChainStore,
+  '/app?signup=1&intent=presentation',
+);
+const profileCapability = runLandingAttribution(
+  'https://askcrump.com/ai-presentation-maker',
+  profileChainStore,
+  '/app?signup=1&intent=presentation',
+);
+assertAttribution(storedAttribution(profileChainStore), {
+  acquisition: 'facebook',
+  placement: 'profile-link',
+  campaign: 'presentation-proof-current',
+  creative: 'fb-static',
+  intent: 'presentation',
+}, 'Profile link to capability');
+if (!profileCapability.link.href.includes('campaign=presentation-proof-current')) {
+  console.error('Profile-link attribution did not survive the capability handoff.');
+  process.exit(1);
+}
+
+const guideChainStore = new Map();
+runLandingAttribution(
+  'https://askcrump.com/guides/what-ai-project-should-remember?acquisition=instagram&source=organic-social&campaign=project-memory-boundaries&creative=project-memory-feed&intent=projects',
+  guideChainStore,
+);
+const guideCapability = runLandingAttribution(
+  'https://askcrump.com/ai-project-workspace',
+  guideChainStore,
+);
+assertAttribution(storedAttribution(guideChainStore), {
+  acquisition: 'instagram',
+  placement: 'organic-social',
+  campaign: 'project-memory-boundaries',
+  creative: 'project-memory-feed',
+  intent: 'projects',
+}, 'Organic social to guide to capability');
+if (!guideCapability.link.href.includes('campaign=project-memory-boundaries')) {
+  console.error('Guide attribution did not survive the capability handoff.');
+  process.exit(1);
+}
+
+const immutableStore = new Map();
+runLandingAttribution(
+  'https://askcrump.com/ai-presentation-maker?acquisition=instagram&source=profile-link&campaign=presentation-proof-current&creative=ig-story',
+  immutableStore,
+  '/app?signup=1&intent=presentation',
+);
+runLandingAttribution(
+  'https://askcrump.com/ai-project-workspace?acquisition=instagram&source=organic-social&campaign=real-product-continuity&creative=continuity-story',
+  immutableStore,
+);
+assertAttribution(storedAttribution(immutableStore), {
+  ...presentationTouch,
+  creative: 'ig-story',
+}, 'Second campaign in the same tab');
+
+runLandingAttribution('https://askcrump.com/app?verified=1', immutableStore);
+assertAttribution(storedAttribution(immutableStore), {
+  ...presentationTouch,
+  creative: 'ig-story',
+}, 'Verification return');
+
+runLandingAttribution(
+  'https://askcrump.com/app?signin=1&acquisition=facebook&source=organic-social&campaign=real-product-continuity&creative=continuity-feed&intent=projects',
+  immutableStore,
+);
+assertAttribution(storedAttribution(immutableStore), {
+  ...presentationTouch,
+  creative: 'ig-story',
+}, 'Existing-account sign-in');
+
 const repoRoot = new URL('../', import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot), 'utf8'));
 const releaseVersion = String(packageJson.version || '');
-const authControllerVersion = `${releaseVersion}-plan-intelligence-1`;
+const landingVersion = `${releaseVersion}-weekly-growth-attribution-1`;
+const authControllerVersion = `${releaseVersion}-weekly-growth-attribution-1`;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
 const desktopChatsVersion = `${releaseVersion}-desktop-chats-default-1`;
@@ -91,7 +248,7 @@ for (const relative of requiredBodyFiles) {
 const appHtml = await readFile(new URL('public/app.html', repoRoot), 'utf8');
 const landingHtml = await readFile(new URL('public/ask-crump.html', repoRoot), 'utf8');
 const authController = await readFile(new URL('public/auth-controller.js', repoRoot), 'utf8');
-if (!releaseVersion || !landingHtml.includes(`/landing.js?v=${releaseVersion}`)) {
+if (!releaseVersion || !landingHtml.includes(`/landing.js?v=${landingVersion}`)) {
   console.error('Ask Crump marketing page is missing its release-versioned script.');
   process.exit(1);
 }
@@ -358,8 +515,8 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r162') ||
-    !serviceWorker.includes(`/landing.js?v=${releaseVersion}`) ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r163') ||
+    !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${releaseVersion}`) ||

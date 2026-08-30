@@ -69,10 +69,66 @@ ARTIFACT_TYPES = frozenset({
 })
 SAFE_KEY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9:._-]{0,159}$")
 SAFE_SOURCE_RE = re.compile(r"^[a-z0-9_-]{1,32}$")
+ATTRIBUTION_TOKEN_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
+ATTRIBUTION_ACQUISITIONS = frozenset({
+    "direct", "instagram", "facebook", "facebook-pinned", "linkedin",
+    "tiktok", "youtube", "x", "referral", "organic", "organic-search",
+    "clevercrump", "founder-outreach",
+})
+ATTRIBUTION_PLACEMENTS = frozenset({
+    "response-share", "profile-link", "workflow-guide", "organic-social",
+    "creator-cohort",
+})
+ATTRIBUTION_INTENTS = frozenset({
+    "document", "presentation", "resume", "video", "projects",
+})
+ATTRIBUTION_CAMPAIGNS = {
+    "presentation-proof-current": {
+        "intent": "presentation",
+        "acquisitions": frozenset({"facebook", "instagram"}),
+        "placements": frozenset({"profile-link", "organic-social"}),
+        "creatives": frozenset({"fb-static", "ig-feed", "ig-story"}),
+    },
+    "real-product-continuity": {
+        "intent": "projects",
+        "acquisitions": frozenset({"facebook", "instagram"}),
+        "placements": frozenset({"profile-link", "organic-social"}),
+        "creatives": frozenset({"continuity-feed", "continuity-story"}),
+    },
+    "rough-idea-launch-plan": {
+        "intent": "projects",
+        "acquisitions": frozenset({"organic-search"}),
+        "placements": frozenset({"workflow-guide"}),
+        "creatives": frozenset({"search-article"}),
+    },
+    "project-memory-boundaries": {
+        "intent": "projects",
+        "acquisitions": frozenset({"organic-search", "facebook", "instagram"}),
+        "placements": frozenset({"workflow-guide", "organic-social"}),
+        "creatives": frozenset({
+            "search-article", "project-memory-feed", "project-memory-story",
+        }),
+    },
+    "editable-powerpoint-review": {
+        "intent": "presentation",
+        "acquisitions": frozenset({"organic-search", "facebook", "instagram"}),
+        "placements": frozenset({"workflow-guide", "organic-social"}),
+        "creatives": frozenset({
+            "search-article", "presentation-feed", "presentation-story",
+        }),
+    },
+    "creator-cohort-01": {
+        "intent": "projects",
+        "acquisitions": frozenset({"founder-outreach"}),
+        "placements": frozenset({"creator-cohort"}),
+        "creatives": frozenset({"personal-invite"}),
+    },
+}
 
 
 def environment_for_request(request: Request | None) -> str:
-    host = str(request.url.hostname or "").lower() if request else ""
+    request_url = getattr(request, "url", None) if request else None
+    host = str(getattr(request_url, "hostname", "") or "").lower()
     if host == "askcrump.com" or host.endswith(".askcrump.com"):
         return "production"
     if host.endswith(".vercel.app"):
@@ -101,6 +157,53 @@ def normalize_source(value: str | None) -> str | None:
         return None
     candidate = str(value).strip().lower()
     return candidate if SAFE_SOURCE_RE.fullmatch(candidate) else "direct"
+
+
+def _attribution_token(value: str | None) -> str | None:
+    candidate = str(value or "").strip().lower()
+    return candidate if ATTRIBUTION_TOKEN_RE.fullmatch(candidate) else None
+
+
+def normalize_attribution(
+    *,
+    acquisition: str | None,
+    placement: str | None,
+    campaign: str | None,
+    creative: str | None,
+    intent: str | None,
+) -> dict[str, str | None]:
+    """Return only the registered, content-free first-touch tuple."""
+    safe_acquisition = _attribution_token(acquisition)
+    if safe_acquisition not in ATTRIBUTION_ACQUISITIONS:
+        safe_acquisition = None
+    safe_placement = _attribution_token(placement)
+    if safe_placement not in ATTRIBUTION_PLACEMENTS:
+        safe_placement = None
+    safe_intent = _attribution_token(intent)
+    if safe_intent not in ATTRIBUTION_INTENTS:
+        safe_intent = None
+
+    safe_campaign = _attribution_token(campaign)
+    specification = ATTRIBUTION_CAMPAIGNS.get(safe_campaign or "")
+    if not specification or (
+        safe_acquisition not in specification["acquisitions"]
+        or safe_placement not in specification["placements"]
+        or safe_intent != specification["intent"]
+    ):
+        safe_campaign = None
+        specification = None
+
+    safe_creative = _attribution_token(creative)
+    if not specification or safe_creative not in specification["creatives"]:
+        safe_creative = None
+
+    return {
+        "acquisition": safe_acquisition,
+        "placement": safe_placement,
+        "campaign": safe_campaign,
+        "creative": safe_creative,
+        "intent": safe_intent,
+    }
 
 
 def normalize_plan(value: str | None) -> str | None:
@@ -196,4 +299,43 @@ async def record_product_event(
         return bool(result)
     except Exception:
         logger.warning("Product analytics write failed event=%s", event_name, exc_info=True)
+        return False
+
+
+async def record_account_created_event(
+    database: Any,
+    *,
+    user_id: str,
+    request: Request | None = None,
+    acquisition: str | None = None,
+    placement: str | None = None,
+    campaign: str | None = None,
+    creative: str | None = None,
+    intent: str | None = None,
+) -> bool:
+    """Record one server-authoritative, content-free first-touch attribution row."""
+    attribution = normalize_attribution(
+        acquisition=acquisition,
+        placement=placement,
+        campaign=campaign,
+        creative=creative,
+        intent=intent,
+    )
+    try:
+        result = await database.rpc("record_account_created_event", {
+            "p_user_id": user_id,
+            "p_event_key": "account-created",
+            "p_environment": environment_for_request(request),
+            "p_client_platform": platform_for_request(request),
+            "p_acquisition": attribution["acquisition"],
+            "p_placement": attribution["placement"],
+            "p_campaign": attribution["campaign"],
+            "p_creative": attribution["creative"],
+            "p_intent": attribution["intent"],
+        })
+        if isinstance(result, list):
+            return bool(result[0]) if result else False
+        return bool(result)
+    except Exception:
+        logger.warning("Account attribution write failed", exc_info=True)
         return False

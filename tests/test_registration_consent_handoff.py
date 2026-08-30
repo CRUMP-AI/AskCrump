@@ -53,6 +53,7 @@ async def test_current_registration_consent_is_saved_before_verification(monkeyp
     monkeypatch.setattr(auth_routes, 'email_service', SentVerificationEmail())
     monkeypatch.setattr(auth_routes, 'enforce_auth_rate_limit', allow_rate_limit)
     monkeypatch.setattr(auth_routes, 'hash_password', lambda password: 'hashed-password')
+    monkeypatch.setattr(auth_routes, 'record_account_created_event', accept_product_event)
     monkeypatch.setattr(auth_routes, 'record_product_event', accept_product_event)
 
     response = await auth_routes.register(

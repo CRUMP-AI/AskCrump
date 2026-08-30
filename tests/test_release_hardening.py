@@ -115,6 +115,7 @@ class FailedVerificationEmail:
 @pytest.mark.asyncio
 async def test_registration_email_failure_returns_recoverable_pending_account(monkeypatch):
     fake_db = RegistrationDB()
+    account_events = []
     recorded_events = []
 
     async def allow_rate_limit(*args, **kwargs):
@@ -124,10 +125,15 @@ async def test_registration_email_failure_returns_recoverable_pending_account(mo
         recorded_events.append(dict(kwargs))
         return True
 
+    async def capture_account_event(*args, **kwargs):
+        account_events.append(dict(kwargs))
+        return True
+
     monkeypatch.setattr(auth_routes, 'db', fake_db)
     monkeypatch.setattr(auth_routes, 'email_service', FailedVerificationEmail())
     monkeypatch.setattr(auth_routes, 'enforce_auth_rate_limit', allow_rate_limit)
     monkeypatch.setattr(auth_routes, 'hash_password', lambda password: 'hashed-password')
+    monkeypatch.setattr(auth_routes, 'record_account_created_event', capture_account_event)
     monkeypatch.setattr(auth_routes, 'record_product_event', capture_product_event)
 
     payload = RegisterRequest(
@@ -147,11 +153,14 @@ async def test_registration_email_failure_returns_recoverable_pending_account(mo
     assert body['code'] == 'EMAIL_DELIVERY_UNAVAILABLE'
     assert fake_db.inserted_user['email'] == 'new-user@example.com'
     assert fake_db.settings_created is True
-    assert [event['event_name'] for event in recorded_events] == [
-        'AccountCreated',
-        'OnboardingCompleted',
-    ]
-    assert all(event['source'] == 'instagram' for event in recorded_events)
+    assert len(account_events) == 1
+    assert account_events[0]['acquisition'] == 'instagram'
+    assert account_events[0]['placement'] is None
+    assert account_events[0]['campaign'] is None
+    assert account_events[0]['creative'] is None
+    assert account_events[0]['intent'] is None
+    assert [event['event_name'] for event in recorded_events] == ['OnboardingCompleted']
+    assert 'source' not in recorded_events[0]
 
 
 class AtomicSessionDB:

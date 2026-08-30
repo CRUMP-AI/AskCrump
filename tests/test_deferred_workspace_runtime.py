@@ -30,7 +30,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/install-prompt.js?v=5.9.76',
         '/auth-resilience.js?v=5.9.76',
         '/device-auth.js?v=5.9.76',
-        '/auth-controller.js?v=5.9.76-plan-intelligence-1',
+        '/auth-controller.js?v=5.9.76-weekly-growth-attribution-1',
         '/_vercel/insights/script.js',
         '/_vercel/speed-insights/script.js',
     ]

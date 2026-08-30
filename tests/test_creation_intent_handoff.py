@@ -45,7 +45,7 @@ def test_marketing_analytics_keeps_only_the_allowlisted_intent_label():
 
     assert "destination.searchParams.get('intent')" in landing
     assert "intent: creationIntent" in landing
-    assert "safeSource(destination.searchParams.get('intent'), 'unspecified')" in landing
+    assert "safeSource(destination.searchParams.get('intent'), creationIntent)" in landing
 
 
 def test_creation_intent_survives_auth_without_storing_user_content():

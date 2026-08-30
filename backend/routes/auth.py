@@ -17,7 +17,11 @@ from ..auth_service import (
 from ..db import eq, gt
 from ..email_service import EmailDeliveryError
 from ..http import clear_session_cookie, native_token_payload, set_session_cookie
-from ..product_analytics import record_product_event
+from ..product_analytics import (
+    environment_for_request,
+    record_account_created_event,
+    record_product_event,
+)
 from ..rate_limit import enforce_auth_rate_limit
 from ..runtime import db, email_service, settings
 from ..schemas import (
@@ -154,6 +158,7 @@ async def register(payload: RegisterRequest, request: Request):
             'verification_token_expires': verification_values['verification_token_expires'],
             'subscription_tier': 'free',
             'subscription_status': 'inactive',
+            'registration_environment': environment_for_request(request),
             'preferences': {},
             'created_at': now,
             'updated_at': now,
@@ -166,13 +171,15 @@ async def register(payload: RegisterRequest, request: Request):
             {'user_id': user['id'], 'updated_at': now},
             on_conflict='user_id',
         )
-        await record_product_event(
+        await record_account_created_event(
             db,
             user_id=user['id'],
-            event_name='AccountCreated',
-            event_key='account-created',
             request=request,
-            source=payload.source,
+            acquisition=payload.source,
+            placement=payload.placement,
+            campaign=payload.campaign,
+            creative=payload.creative,
+            intent=payload.intent,
         )
         if user.get('full_name'):
             await record_product_event(
@@ -181,7 +188,6 @@ async def register(payload: RegisterRequest, request: Request):
                 event_name='OnboardingCompleted',
                 event_key='initial-profile',
                 request=request,
-                source=payload.source,
             )
 
     try:

@@ -23,6 +23,25 @@ request host. Replayed events are ignored by the database uniqueness constraint.
 
 ## Anonymous acquisition context
 
+### Registered first-touch campaign attribution
+
+Beginning with migration 20260830171056_weekly_growth_attribution_export.sql, a new
+account may retain one content-free first-touch tuple: acquisition, placement, campaign,
+creative family, and promised product intent. The tuple is immutable for 24 hours in the
+current browser tab and is accepted only when it matches the exact campaign registry in
+the landing runtime, auth runtime, Python boundary, and database constraints. Unknown or
+inconsistent labels are discarded. Campaign fields are permitted only on AccountCreated;
+no referrer URL, search term, content, filename, or arbitrary metadata is stored.
+
+users.registration_environment is derived from the registration request host and is the
+authoritative production-cohort boundary even when the optional analytics insert fails.
+Existing pre-release accounts with no environment are excluded rather than backfilled.
+product_weekly_attribution_export is service-role-only and returns grouped counts with
+explicit denominators. Its D1/D7 populations contain activated accounts only and are
+anchored on ActivationReached. Finance fields remain null until an authoritative aggregate
+provider supplies them. The operator contract and release evidence are recorded in
+docs/WEEKLY_ATTRIBUTION_RELEASE_2026-08-30.md.
+
 Vercel Web Analytics provides aggregate, anonymous context before account creation. These browser
 events are not written to `product_events` and must not be treated as server-authoritative account
 milestones:

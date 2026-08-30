@@ -54,4 +54,4 @@ def test_retired_tool_assets_are_cache_versioned_atomically():
         assert versioned in runtime
         assert versioned in worker
         assert versioned in native
-    assert "ask-crump-new-body-v1-r162" in worker
+    assert "ask-crump-new-body-v1-r163" in worker

@@ -26,6 +26,10 @@ class RegisterRequest(APIModel):
     password: str = Field(min_length=1, max_length=256)
     fullName: str | None = Field(default=None, max_length=160)
     source: str | None = Field(default=None, max_length=32)
+    placement: str | None = Field(default=None, max_length=32)
+    campaign: str | None = Field(default=None, max_length=32)
+    creative: str | None = Field(default=None, max_length=32)
+    intent: str | None = Field(default=None, max_length=32)
     termsAccepted: bool = False
     termsVersion: Literal["2026-08-01"] | None = None
 

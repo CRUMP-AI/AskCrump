@@ -7,11 +7,74 @@
 
   const ACQUISITION_KEY = 'askcrump.acquisition-source';
   const ACQUISITION_PLACEMENT_KEY = 'askcrump.acquisition-placement';
-  const ACQUISITION_PLACEMENTS = new Set(['response-share', 'profile-link']);
+  const FIRST_TOUCH_KEY = 'askcrump.first-touch-attribution';
+  const FIRST_TOUCH_TTL_MS = 24 * 60 * 60 * 1000;
+  const ACQUISITION_SOURCES = new Set([
+    'direct', 'instagram', 'facebook', 'facebook-pinned', 'linkedin', 'tiktok',
+    'youtube', 'x', 'referral', 'organic', 'organic-search', 'clevercrump',
+    'founder-outreach',
+  ]);
   const LEGACY_ACQUISITION_SOURCES = new Set([
     'instagram', 'facebook', 'facebook-pinned', 'linkedin', 'tiktok',
     'youtube', 'x', 'referral', 'organic', 'clevercrump',
   ]);
+  const ACQUISITION_PLACEMENTS = new Set([
+    'response-share', 'profile-link', 'workflow-guide', 'organic-social',
+    'creator-cohort',
+  ]);
+  const CREATION_INTENTS = new Set([
+    'document', 'presentation', 'resume', 'video', 'projects',
+  ]);
+  const PAGE_INTENTS = Object.freeze({
+    '/ai-document-generator': 'document',
+    '/ai-presentation-maker': 'presentation',
+    '/ai-resume-builder': 'resume',
+    '/ai-video-generator': 'video',
+    '/ai-project-workspace': 'projects',
+  });
+  const CAMPAIGN_REGISTRY = Object.freeze({
+    'presentation-proof-current': {
+      intent: 'presentation',
+      acquisitions: new Set(['facebook', 'instagram']),
+      placements: new Set(['profile-link', 'organic-social']),
+      creatives: new Set(['fb-static', 'ig-feed', 'ig-story']),
+    },
+    'real-product-continuity': {
+      intent: 'projects',
+      acquisitions: new Set(['facebook', 'instagram']),
+      placements: new Set(['profile-link', 'organic-social']),
+      creatives: new Set(['continuity-feed', 'continuity-story']),
+    },
+    'rough-idea-launch-plan': {
+      intent: 'projects',
+      acquisitions: new Set(['organic-search']),
+      placements: new Set(['workflow-guide']),
+      creatives: new Set(['search-article']),
+    },
+    'project-memory-boundaries': {
+      intent: 'projects',
+      acquisitions: new Set(['organic-search', 'facebook', 'instagram']),
+      placements: new Set(['workflow-guide', 'organic-social']),
+      creatives: new Set(['search-article', 'project-memory-feed', 'project-memory-story']),
+    },
+    'editable-powerpoint-review': {
+      intent: 'presentation',
+      acquisitions: new Set(['organic-search', 'facebook', 'instagram']),
+      placements: new Set(['workflow-guide', 'organic-social']),
+      creatives: new Set(['search-article', 'presentation-feed', 'presentation-story']),
+    },
+    'creator-cohort-01': {
+      intent: 'projects',
+      acquisitions: new Set(['founder-outreach']),
+      placements: new Set(['creator-cohort']),
+      creatives: new Set(['personal-invite']),
+    },
+  });
+
+  function tokenValue(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return /^[a-z0-9][a-z0-9-]{0,31}$/.test(normalized) ? normalized : '';
+  }
 
   function safeSource(value, fallback = '') {
     const normalized = String(value || '').trim().toLowerCase();
@@ -56,53 +119,103 @@
     }
   }
 
-  function acquisitionSource() {
+  function normalizeAttribution(candidate) {
+    const acquisitionToken = tokenValue(candidate?.acquisition);
+    const acquisition = ACQUISITION_SOURCES.has(acquisitionToken) ? acquisitionToken : 'direct';
+    const placementToken = tokenValue(candidate?.placement);
+    const placement = ACQUISITION_PLACEMENTS.has(placementToken) ? placementToken : null;
+    const intentToken = tokenValue(candidate?.intent);
+    const intent = CREATION_INTENTS.has(intentToken) ? intentToken : null;
+    const campaignToken = tokenValue(candidate?.campaign);
+    const specification = CAMPAIGN_REGISTRY[campaignToken];
+    const campaign = specification
+      && specification.acquisitions.has(acquisition)
+      && specification.placements.has(placement)
+      && specification.intent === intent
+      ? campaignToken
+      : null;
+    const creativeToken = tokenValue(candidate?.creative);
+    const creative = campaign && specification.creatives.has(creativeToken)
+      ? creativeToken
+      : null;
+    return {acquisition, placement, campaign, creative, intent};
+  }
+
+  function currentAttribution() {
     const params = new URLSearchParams(location.search);
-    const explicit = safeSource(params.get('utm_source') || params.get('acquisition'));
-    const legacySource = safeSource(params.get('source'));
-    const source = explicit || (LEGACY_ACQUISITION_SOURCES.has(legacySource) ? legacySource : '');
-    if (source) {
-      try { sessionStorage.setItem(ACQUISITION_KEY, source); } catch (_) {}
-      return source;
-    }
+    const sourceToken = tokenValue(params.get('source'));
+    const explicitAcquisition = tokenValue(params.get('acquisition') || params.get('utm_source'));
+    const legacyAcquisition = LEGACY_ACQUISITION_SOURCES.has(sourceToken) ? sourceToken : '';
+    let storedAcquisition = '';
+    let storedPlacement = '';
     try {
-      const stored = safeSource(sessionStorage.getItem(ACQUISITION_KEY));
-      if (stored) return stored;
+      storedAcquisition = tokenValue(sessionStorage.getItem(ACQUISITION_KEY));
+      storedPlacement = tokenValue(sessionStorage.getItem(ACQUISITION_PLACEMENT_KEY));
     } catch (_) {}
-    const derived = referringSource();
-    try { sessionStorage.setItem(ACQUISITION_KEY, derived); } catch (_) {}
-    return derived;
+    const acquisition = explicitAcquisition
+      || legacyAcquisition
+      || (ACQUISITION_SOURCES.has(storedAcquisition) ? storedAcquisition : '')
+      || referringSource();
+    const placement = ACQUISITION_PLACEMENTS.has(sourceToken)
+      ? sourceToken
+      : storedPlacement;
+    const queryIntent = tokenValue(params.get('intent'));
+    const intent = CREATION_INTENTS.has(queryIntent)
+      ? queryIntent
+      : PAGE_INTENTS[location.pathname] || null;
+    return normalizeAttribution({
+      acquisition,
+      placement,
+      campaign: params.get('campaign'),
+      creative: params.get('creative'),
+      intent,
+    });
   }
 
-  function acquisitionPlacement() {
-    const params = new URLSearchParams(location.search);
-    const explicit = safeSource(params.get('source'));
-    if (ACQUISITION_PLACEMENTS.has(explicit)) {
-      try { sessionStorage.setItem(ACQUISITION_PLACEMENT_KEY, explicit); } catch (_) {}
-      return explicit;
-    }
+  function storedFirstTouch() {
     try {
-      const stored = safeSource(sessionStorage.getItem(ACQUISITION_PLACEMENT_KEY));
-      return ACQUISITION_PLACEMENTS.has(stored) ? stored : '';
+      const stored = JSON.parse(sessionStorage.getItem(FIRST_TOUCH_KEY) || 'null');
+      const capturedAt = Number(stored?.capturedAt || 0);
+      if (!capturedAt || Date.now() - capturedAt > FIRST_TOUCH_TTL_MS) {
+        sessionStorage.removeItem(FIRST_TOUCH_KEY);
+        return null;
+      }
+      return {...normalizeAttribution(stored), capturedAt};
     } catch (_) {
-      return '';
+      return null;
     }
   }
 
-  const acquisition = acquisitionSource();
-  const placement = acquisitionPlacement();
+  function firstTouchAttribution() {
+    const candidate = currentAttribution();
+    const stored = storedFirstTouch();
+    const capturedAt = stored?.capturedAt || Date.now();
+    const attribution = stored ? normalizeAttribution(stored) : candidate;
+    try {
+      sessionStorage.setItem(FIRST_TOUCH_KEY, JSON.stringify({...attribution, capturedAt}));
+      sessionStorage.setItem(ACQUISITION_KEY, attribution.acquisition);
+      if (attribution.placement) {
+        sessionStorage.setItem(ACQUISITION_PLACEMENT_KEY, attribution.placement);
+      }
+    } catch (_) {}
+    return attribution;
+  }
+
+  const attribution = firstTouchAttribution();
   document.querySelectorAll('[data-cta]').forEach(link => {
     let analyticsEvent = 'MarketingCTA';
-    let creationIntent = 'unspecified';
+    let creationIntent = attribution.intent || 'unspecified';
     try {
       const destination = new URL(link.getAttribute('href'), location.href);
       if (destination.origin === location.origin && destination.pathname === '/app') {
         analyticsEvent = destination.searchParams.get('signup') === '1'
           ? 'MarketingCTA'
           : 'MarketingSignin';
-        creationIntent = safeSource(destination.searchParams.get('intent'), 'unspecified');
-        destination.searchParams.set('acquisition', acquisition);
-        if (placement) destination.searchParams.set('source', placement);
+        creationIntent = safeSource(destination.searchParams.get('intent'), creationIntent);
+        destination.searchParams.set('acquisition', attribution.acquisition);
+        if (attribution.placement) destination.searchParams.set('source', attribution.placement);
+        if (attribution.campaign) destination.searchParams.set('campaign', attribution.campaign);
+        if (attribution.creative) destination.searchParams.set('creative', attribution.creative);
         link.setAttribute('href', `${destination.pathname}${destination.search}${destination.hash}`);
       }
     } catch (_) {}
@@ -112,7 +225,7 @@
         data: {
           location: link.dataset.cta || 'unknown',
           plan: link.dataset.plan || 'unspecified',
-          acquisition,
+          ...attribution,
           intent: creationIntent,
         },
       });
@@ -125,7 +238,7 @@
         name: 'MarketingExplore',
         data: {
           destination: safeSource(link.dataset.explore, 'unknown'),
-          acquisition,
+          ...attribution,
         },
       });
     });

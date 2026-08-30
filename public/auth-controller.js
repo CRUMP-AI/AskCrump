@@ -12,10 +12,13 @@
   const PLAN_INTENT_KEY = 'askcrump.pending-plan-intent';
   const CREATION_INTENT_KEY = 'askcrump.pending-creation-intent';
   const ACQUISITION_KEY = 'askcrump.acquisition-source';
+  const ACQUISITION_PLACEMENT_KEY = 'askcrump.acquisition-placement';
+  const FIRST_TOUCH_KEY = 'askcrump.first-touch-attribution';
   const FREE_REGISTRATION_ASSURANCE = 'Free includes 25 messages each day and 2 private Projects. We’ll email a secure verification link; no card required.';
   const PAID_REGISTRATION_ASSURANCE = 'We’ll email a secure verification link. Creating your account does not start billing; checkout remains a separate confirmation.';
   const PLAN_INTENT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
   const CREATION_INTENT_TTL_MS = 24 * 60 * 60 * 1000;
+  const FIRST_TOUCH_TTL_MS = 24 * 60 * 60 * 1000;
   const PAID_PLAN_INTENTS = new Set(['professional', 'enterprise']);
   const CREATION_INTENTS = new Set(['document', 'presentation', 'resume', 'video', 'projects']);
   const CREATION_INTENT_EXPLORE_DESTINATIONS = Object.freeze({
@@ -63,6 +66,53 @@
     'instagram', 'facebook', 'facebook-pinned', 'linkedin', 'tiktok',
     'youtube', 'x', 'referral', 'organic', 'clevercrump',
   ]);
+  const ACQUISITION_SOURCES = new Set([
+    'direct', 'instagram', 'facebook', 'facebook-pinned', 'linkedin', 'tiktok',
+    'youtube', 'x', 'referral', 'organic', 'organic-search', 'clevercrump',
+    'founder-outreach',
+  ]);
+  const ACQUISITION_PLACEMENTS = new Set([
+    'response-share', 'profile-link', 'workflow-guide', 'organic-social',
+    'creator-cohort',
+  ]);
+  const CAMPAIGN_REGISTRY = Object.freeze({
+    'presentation-proof-current': {
+      intent: 'presentation',
+      acquisitions: new Set(['facebook', 'instagram']),
+      placements: new Set(['profile-link', 'organic-social']),
+      creatives: new Set(['fb-static', 'ig-feed', 'ig-story']),
+    },
+    'real-product-continuity': {
+      intent: 'projects',
+      acquisitions: new Set(['facebook', 'instagram']),
+      placements: new Set(['profile-link', 'organic-social']),
+      creatives: new Set(['continuity-feed', 'continuity-story']),
+    },
+    'rough-idea-launch-plan': {
+      intent: 'projects',
+      acquisitions: new Set(['organic-search']),
+      placements: new Set(['workflow-guide']),
+      creatives: new Set(['search-article']),
+    },
+    'project-memory-boundaries': {
+      intent: 'projects',
+      acquisitions: new Set(['organic-search', 'facebook', 'instagram']),
+      placements: new Set(['workflow-guide', 'organic-social']),
+      creatives: new Set(['search-article', 'project-memory-feed', 'project-memory-story']),
+    },
+    'editable-powerpoint-review': {
+      intent: 'presentation',
+      acquisitions: new Set(['organic-search', 'facebook', 'instagram']),
+      placements: new Set(['workflow-guide', 'organic-social']),
+      creatives: new Set(['search-article', 'presentation-feed', 'presentation-story']),
+    },
+    'creator-cohort-01': {
+      intent: 'projects',
+      acquisitions: new Set(['founder-outreach']),
+      placements: new Set(['creator-cohort']),
+      creatives: new Set(['personal-invite']),
+    },
+  });
 
   window.va = window.va || function queueVercelAnalytics() {
     (window.vaq = window.vaq || []).push(arguments);
@@ -86,6 +136,33 @@
   function funnelValue(value, fallback) {
     const normalized = String(value || '').trim().toLowerCase();
     return /^[a-z0-9_-]{1,32}$/.test(normalized) ? normalized : fallback;
+  }
+
+  function attributionToken(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return /^[a-z0-9][a-z0-9-]{0,31}$/.test(normalized) ? normalized : '';
+  }
+
+  function normalizeAttribution(candidate) {
+    const acquisitionToken = attributionToken(candidate?.acquisition);
+    const acquisition = ACQUISITION_SOURCES.has(acquisitionToken) ? acquisitionToken : 'direct';
+    const placementToken = attributionToken(candidate?.placement);
+    const placement = ACQUISITION_PLACEMENTS.has(placementToken) ? placementToken : null;
+    const intentToken = attributionToken(candidate?.intent);
+    const intent = CREATION_INTENTS.has(intentToken) ? intentToken : null;
+    const campaignToken = attributionToken(candidate?.campaign);
+    const specification = CAMPAIGN_REGISTRY[campaignToken];
+    const campaign = specification
+      && specification.acquisitions.has(acquisition)
+      && specification.placements.has(placement)
+      && specification.intent === intent
+      ? campaignToken
+      : null;
+    const creativeToken = attributionToken(candidate?.creative);
+    const creative = campaign && specification.creatives.has(creativeToken)
+      ? creativeToken
+      : null;
+    return {acquisition, placement, campaign, creative, intent};
   }
 
   function referringAcquisitionSource() {
@@ -126,12 +203,11 @@
     }
   }
 
-  function funnelContext() {
+  function currentAttribution() {
     const params = new URLSearchParams(location.search);
-    const locationSource = funnelValue(params.get('source'), 'direct');
-    const explicitAcquisition = funnelValue(
+    const locationSource = attributionToken(params.get('source'));
+    const explicitAcquisition = attributionToken(
       params.get('acquisition') || params.get('utm_source'),
-      '',
     );
     // Older social links used `source=<channel>` before the dedicated
     // `acquisition` parameter existed. Recover only known external channels;
@@ -139,23 +215,66 @@
     const legacyAcquisition = LEGACY_ACQUISITION_SOURCES.has(locationSource)
       ? locationSource
       : '';
-    const currentAcquisition = explicitAcquisition || legacyAcquisition;
-    if (currentAcquisition) {
-      try { sessionStorage.setItem(ACQUISITION_KEY, currentAcquisition); } catch (_) {}
-    }
     let storedAcquisition = '';
-    try { storedAcquisition = funnelValue(sessionStorage.getItem(ACQUISITION_KEY), ''); } catch (_) {}
-    const derivedAcquisition = currentAcquisition || storedAcquisition
-      ? ''
-      : referringAcquisitionSource();
-    if (derivedAcquisition) {
-      try { sessionStorage.setItem(ACQUISITION_KEY, derivedAcquisition); } catch (_) {}
+    let storedPlacement = '';
+    try {
+      storedAcquisition = attributionToken(sessionStorage.getItem(ACQUISITION_KEY));
+      storedPlacement = attributionToken(sessionStorage.getItem(ACQUISITION_PLACEMENT_KEY));
+    } catch (_) {}
+    const acquisition = explicitAcquisition
+      || legacyAcquisition
+      || (ACQUISITION_SOURCES.has(storedAcquisition) ? storedAcquisition : '')
+      || referringAcquisitionSource();
+    const placement = ACQUISITION_PLACEMENTS.has(locationSource)
+      ? locationSource
+      : storedPlacement;
+    const intent = creationIntentValue(params.get('intent')) || pendingCreationIntent()?.kind || null;
+    return normalizeAttribution({
+      acquisition,
+      placement,
+      campaign: params.get('campaign'),
+      creative: params.get('creative'),
+      intent,
+    });
+  }
+
+  function storedFirstTouch() {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem(FIRST_TOUCH_KEY) || 'null');
+      const capturedAt = Number(stored?.capturedAt || 0);
+      if (!capturedAt || Date.now() - capturedAt > FIRST_TOUCH_TTL_MS) {
+        sessionStorage.removeItem(FIRST_TOUCH_KEY);
+        return null;
+      }
+      return {...normalizeAttribution(stored), capturedAt};
+    } catch (_) {
+      return null;
     }
+  }
+
+  function firstTouchAttribution() {
+    const candidate = currentAttribution();
+    const stored = storedFirstTouch();
+    const capturedAt = stored?.capturedAt || Date.now();
+    const attribution = stored ? normalizeAttribution(stored) : candidate;
+    try {
+      sessionStorage.setItem(FIRST_TOUCH_KEY, JSON.stringify({...attribution, capturedAt}));
+      sessionStorage.setItem(ACQUISITION_KEY, attribution.acquisition);
+      if (attribution.placement) {
+        sessionStorage.setItem(ACQUISITION_PLACEMENT_KEY, attribution.placement);
+      }
+    } catch (_) {}
+    return attribution;
+  }
+
+  function funnelContext() {
+    const params = new URLSearchParams(location.search);
+    const attribution = firstTouchAttribution();
     return {
-      source: locationSource,
-      acquisition: currentAcquisition || storedAcquisition || derivedAcquisition || 'direct',
+      source: funnelValue(params.get('source'), 'direct'),
+      ...attribution,
       plan: funnelValue(params.get('plan'), 'unspecified'),
-      intent: creationIntentValue(params.get('intent')) || pendingCreationIntent()?.kind || 'unspecified',
+      intent: attribution.intent || creationIntentValue(params.get('intent')) || pendingCreationIntent()?.kind || 'unspecified',
     };
   }
 
@@ -922,13 +1041,18 @@
       const restore = setBusy(event.currentTarget, true, 'Creating account…');
       try {
         const email = byId('registerEmail').value.trim();
+        const attribution = firstTouchAttribution();
         const {response, data} = await authRequest('/api/auth/register', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email,
             password,
             fullName: byId('registerName')?.value.trim() || '',
-            source: funnelContext().acquisition,
+            source: attribution.acquisition,
+            placement: attribution.placement,
+            campaign: attribution.campaign,
+            creative: attribution.creative,
+            intent: attribution.intent,
             termsAccepted: byId('registerTerms')?.checked === true,
             termsVersion: TERMS_VERSION,
           }),

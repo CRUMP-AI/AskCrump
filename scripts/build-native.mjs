@@ -88,9 +88,9 @@ const loader = String.raw`
     ['/crump-4.3.js?v=5.9.76-intelligence-architecture-1', 'crump43'],
     ['/crump-4.4.js?v=5.9.76-intelligence-architecture-1', 'crump44'],
     ['/crump-5.0.js?v=5.9.76-artifact-project-1', 'crump50'],
-    ['/crump-billing-5.1.js?v=5.9.76-plan-intelligence-1', 'billing51'],
-    ['/crump-5.2.js?v=5.9.76-plan-intelligence-1', 'crump52'],
-    ['/crump-5.2.2.js?v=5.9.76-plan-intelligence-1', 'crump522'],
+    ['/crump-billing-5.1.js?v=5.9.76-weekly-growth-attribution-1', 'billing51'],
+    ['/crump-5.2.js?v=5.9.76-weekly-growth-attribution-1', 'crump52'],
+    ['/crump-5.2.2.js?v=5.9.76-weekly-growth-attribution-1', 'crump522'],
     ['/crump-v1-body.js?v=5.9.76-desktop-chats-default-1', 'crumpbodyv1'],
     ['/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1', 'crumpv1stability'],
   ]);

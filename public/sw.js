@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r162';
+const CACHE_NAME = 'ask-crump-new-body-v1-r163';
 
 const CORE = [
   '/app',
@@ -8,7 +8,7 @@ const CORE = [
   '/manifest.json',
   '/landing-5.6.css?v=5.9.76-truthful-destinations-1',
   '/use-case.css?v=5.9.76',
-  '/landing.js?v=5.9.76-profile-link-1',
+  '/landing.js?v=5.9.76-weekly-growth-attribution-1',
   '/styles.css',
   '/billing.css',
   '/install-prompt.css?v=5.9.76',
@@ -54,7 +54,7 @@ const CORE = [
   '/account-manager.js',
   '/app.js?v=5.9.76-intelligence-architecture-1',
   '/product-analytics.js?v=5.9.76',
-  '/auth-controller.js?v=5.9.76-plan-intelligence-1',
+  '/auth-controller.js?v=5.9.76-weekly-growth-attribution-1',
   '/crump-4.3.css',
   '/crump-4.3.js?v=5.9.76-intelligence-architecture-1',
   '/crump-4.4.css',
@@ -62,11 +62,11 @@ const CORE = [
   '/crump-5.0.css',
   '/crump-5.0.js?v=5.9.76-artifact-project-1',
   '/crump-billing-5.1.css?v=5.9.76-contextual-plan-recovery-1',
-  '/crump-billing-5.1.js?v=5.9.76-plan-intelligence-1',
+  '/crump-billing-5.1.js?v=5.9.76-weekly-growth-attribution-1',
   '/crump-5.2.css',
-  '/crump-5.2.js?v=5.9.76-plan-intelligence-1',
+  '/crump-5.2.js?v=5.9.76-weekly-growth-attribution-1',
   '/crump-5.2.2.css',
-  '/crump-5.2.2.js?v=5.9.76-plan-intelligence-1',
+  '/crump-5.2.2.js?v=5.9.76-weekly-growth-attribution-1',
   '/assets/brand/crump-shell-lockup-light.png',
 ];
 
