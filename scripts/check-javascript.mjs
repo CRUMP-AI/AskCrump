@@ -311,7 +311,7 @@ if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
     loadedRuntimeScripts.length !== 29 ||
     !loadedRuntimeScripts.every(asset => preloadedRuntimeScripts.includes(asset)) ||
     loadedRuntimeScripts.indexOf(`/app.js?v=${releaseVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${releaseVersion}`) ||
-    loadedRuntimeScripts.at(-1) !== `/crump-code-5.9.35.js?v=${releaseVersion}-demand-hydration-1`) {
+    loadedRuntimeScripts.at(-1) !== `/crump-code-5.9.35.js?v=${releaseVersion}-code-lifecycle-expiry-1`) {
   console.error('Authenticated workspace runtime load order or completion contract failed.');
   process.exit(1);
 }
@@ -343,7 +343,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r153') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r154') ||
     !serviceWorker.includes(`/landing.js?v=${releaseVersion}`) ||
     !serviceWorker.includes('/runtime-body-v1.js') ||
     !serviceWorker.includes(`/conversation.css?v=${releaseVersion}`) ||

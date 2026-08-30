@@ -50,7 +50,9 @@
     return data;
   }
 
-  function statusLabel(value) {
+  function statusLabel(value, failureCode = '') {
+    if (value === 'cancelled' && failureCode === 'CODE_TASK_EXPIRED') return 'Expired safely';
+    if (value === 'cancelled' && failureCode === 'CODE_APPROVAL_EXPIRED') return 'Approval expired';
     return STATUS_LABELS[String(value || '')] || 'Status unavailable';
   }
 
@@ -293,7 +295,7 @@
       const title = document.createElement('strong');
       title.textContent = String(task.objective || 'Untitled code task').replace(/\s+/g, ' ').trim().slice(0, 90);
       const meta = document.createElement('span');
-      meta.textContent = `${statusLabel(task.status)} · ${formatDate(task.updated_at || task.created_at)}`;
+      meta.textContent = `${statusLabel(task.status, task.failure_code)} · ${formatDate(task.updated_at || task.created_at)}`;
       button.append(title, meta);
       list.appendChild(button);
     }
@@ -324,7 +326,8 @@
       const title = document.createElement('strong');
       title.textContent = String(approval.title || 'Review this action');
       const detail = document.createElement('p');
-      detail.textContent = String(approval.details || 'Review the requested boundary before deciding.');
+      const approvalExpiry = formatDate(approval.expires_at);
+      detail.textContent = `${String(approval.details || 'Review the requested boundary before deciding.')}${approvalExpiry ? ` This approval expires ${approvalExpiry}.` : ''}`;
       const actions = document.createElement('div');
       actions.className = 'crump-code-actions';
       for (const [decision, label, tone] of [['denied', 'Deny', 'secondary'], ['approved', 'Approve bounded retry', 'primary']]) {
@@ -406,7 +409,7 @@
     const badge = document.createElement('span');
     badge.className = 'crump-code-status';
     badge.dataset.status = String(task.status || 'unknown');
-    badge.textContent = statusLabel(task.status);
+    badge.textContent = statusLabel(task.status, task.failure_code);
     head.append(titleWrap, badge);
     detail.appendChild(head);
 
@@ -416,6 +419,7 @@
     addTextRow(facts, 'Revision', task.source_ref || 'Default branch');
     addTextRow(facts, 'Network', task.network_policy === 'deny_all' ? 'Blocked after checkout' : task.network_policy);
     addTextRow(facts, 'Maximum', `${task.max_duration_seconds || state.provider?.maxDurationSeconds || 180} seconds`);
+    addTextRow(facts, 'Expires', formatDate(task.expires_at));
     addTextRow(facts, 'Charge', task.payment_source ? `${task.payment_source}${Number(task.credits_spent) ? ` · ${task.credits_spent} credits` : ''}` : 'Not started');
     detail.appendChild(facts);
 
@@ -639,6 +643,9 @@
       await selectTask(state.task.id, {quiet: true});
       setNotice(decision === 'approved' ? 'Bounded retry approved. Review it again before running.' : 'Request denied and task cancelled.', 'success');
     } catch (error) {
+      if (error.code === 'CODE_APPROVAL_EXPIRED') {
+        await selectTask(state.task.id, {quiet: true});
+      }
       setNotice(error.message, 'danger');
     } finally {
       restore();

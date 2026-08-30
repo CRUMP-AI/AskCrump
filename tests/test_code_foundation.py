@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -13,14 +14,103 @@ from backend.code_runner import (
     redact_sensitive_text,
     validate_verification_command,
 )
-from backend.code_service import normalize_repo_source, sanitize_event_payload
+from backend.code_service import (
+    CodeApprovalExpiredError,
+    CodeTaskExpiredError,
+    CodeTaskService,
+    normalize_repo_source,
+    sanitize_event_payload,
+    timestamp_has_passed,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
+CODE_USER_ID = "00000000-0000-4000-8000-000000000071"
+CODE_PROJECT_ID = "00000000-0000-4000-8000-000000000072"
+CODE_TASK_ID = "00000000-0000-4000-8000-000000000073"
+CODE_APPROVAL_ID = "00000000-0000-4000-8000-000000000074"
 
 
 def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
+
+
+def _timestamp(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
+
+
+class CodeLifecycleDB:
+    def __init__(self, task: dict, approval: dict | None = None):
+        self.task = dict(task)
+        self.approval = dict(approval) if approval else None
+        self.events: list[dict] = []
+
+    @staticmethod
+    def _matches(row: dict, filters: dict) -> bool:
+        for key, expression in filters.items():
+            operator, expected = str(expression).split(".", 1)
+            actual = row.get(key)
+            if operator == "eq" and str(actual) != expected:
+                return False
+            if operator == "gt" and _timestamp(str(actual)) <= _timestamp(expected):
+                return False
+            if operator == "lte" and _timestamp(str(actual)) > _timestamp(expected):
+                return False
+        return True
+
+    async def select_one(self, table, **kwargs):
+        row = self.task if table == "code_tasks" else self.approval
+        if not row or not self._matches(row, kwargs.get("filters") or {}):
+            return None
+        return dict(row)
+
+    async def select(self, table, **_kwargs):
+        if table == "code_task_events":
+            return [dict(item) for item in self.events]
+        if table == "code_task_approvals" and self.approval:
+            return [dict(self.approval)]
+        if table == "code_tasks":
+            return [dict(self.task)]
+        return []
+
+    async def update(self, table, payload, **kwargs):
+        row = self.task if table == "code_tasks" else self.approval
+        if not row or not self._matches(row, kwargs.get("filters") or {}):
+            return []
+        row.update(payload)
+        return [dict(row)]
+
+    async def insert(self, table, payload):
+        if table == "code_task_events":
+            event = {"id": len(self.events) + 1, **payload}
+            self.events.append(event)
+            return [dict(event)]
+        raise AssertionError(f"Unexpected insert into {table}")
+
+
+def code_task(*, status: str, expires_at: str) -> dict:
+    return {
+        "id": CODE_TASK_ID,
+        "user_id": CODE_USER_ID,
+        "project_id": CODE_PROJECT_ID,
+        "status": status,
+        "expires_at": expires_at,
+        "failure_code": None,
+    }
+
+
+def code_approval(*, expires_at: str) -> dict:
+    return {
+        "id": CODE_APPROVAL_ID,
+        "task_id": CODE_TASK_ID,
+        "user_id": CODE_USER_ID,
+        "project_id": CODE_PROJECT_ID,
+        "action_type": "extended_runtime",
+        "status": "pending",
+        "title": "Continue longer",
+        "details": "Review the bounded extension.",
+        "expires_at": expires_at,
+    }
 
 
 def test_public_github_source_is_canonical_and_bounded():
@@ -103,6 +193,7 @@ def test_code_routes_are_authenticated_server_surfaces():
     assert 'request.headers.get("x-vercel-oidc-token")' in source
     assert 'payload.get("confirmed") is not True' in source
     assert '"RUN_CONFIRMATION_REQUIRED"' in source
+    assert source.index("ensure_not_expired(task)") < source.index("features.consume(")
 
 
 def test_code_schema_is_private_audited_and_deny_all_by_contract():
@@ -149,6 +240,104 @@ async def test_cancelled_code_task_stops_before_the_next_expensive_step():
     with pytest.raises(CodeRunnerError) as exc:
         await runner._ensure_not_cancelled({"id": "task-id", "user_id": "user-id"})
     assert exc.value.code == "CODE_TASK_CANCELLED"
+
+    with pytest.raises(CodeRunnerError) as run_exc:
+        await runner.run({"id": "task-id", "user_id": "user-id"}, oidc_token="unused")
+    assert run_exc.value.code == "CODE_TASK_CANCELLED"
+
+
+@pytest.mark.asyncio
+async def test_expired_code_task_is_terminal_before_claim_or_charge():
+    database = CodeLifecycleDB(
+        code_task(status="queued", expires_at="2000-01-01T00:00:00+00:00")
+    )
+    service = CodeTaskService(database, SimpleNamespace())
+
+    task = await service.get(
+        user_id=CODE_USER_ID,
+        task_id=CODE_TASK_ID,
+        include_history=True,
+    )
+
+    assert task["status"] == "cancelled"
+    assert task["failure_code"] == "CODE_TASK_EXPIRED"
+    assert task["completed_at"]
+    assert [event["event_type"] for event in task["events"]] == ["task.cancelled"]
+    assert task["events"][0]["payload"] == {
+        "failureCode": "CODE_TASK_EXPIRED",
+        "status": "cancelled",
+    }
+    with pytest.raises(CodeTaskExpiredError):
+        await service.claim(task)
+    assert not any(event["event_type"] == "task.claimed" for event in database.events)
+
+
+@pytest.mark.asyncio
+async def test_code_task_list_reconciles_expiry_before_rendering():
+    database = CodeLifecycleDB(
+        code_task(status="queued", expires_at="2000-01-01T00:00:00+00:00")
+    )
+
+    async def get_project(_user_id, _project_id):
+        return {"id": CODE_PROJECT_ID}
+
+    service = CodeTaskService(database, SimpleNamespace(get=get_project))
+    tasks = await service.list(user_id=CODE_USER_ID, project_id=CODE_PROJECT_ID)
+
+    assert tasks[0]["status"] == "cancelled"
+    assert tasks[0]["failure_code"] == "CODE_TASK_EXPIRED"
+
+
+@pytest.mark.asyncio
+async def test_expired_code_approval_is_recorded_and_cancels_the_waiting_task():
+    database = CodeLifecycleDB(
+        code_task(status="awaiting_approval", expires_at="2999-01-01T00:00:00+00:00"),
+        code_approval(expires_at="2000-01-01T00:00:00+00:00"),
+    )
+    service = CodeTaskService(database, SimpleNamespace())
+
+    task = await service.get(
+        user_id=CODE_USER_ID,
+        task_id=CODE_TASK_ID,
+        include_history=True,
+    )
+
+    assert task["status"] == "cancelled"
+    assert task["failure_code"] == "CODE_APPROVAL_EXPIRED"
+    assert task["approvals"][0]["status"] == "expired"
+    assert [event["event_type"] for event in task["events"]] == [
+        "approval.decided",
+        "task.cancelled",
+    ]
+    assert task["events"][0]["payload"]["decision"] == "expired"
+
+
+@pytest.mark.asyncio
+async def test_expired_approval_cannot_win_a_late_decision_race():
+    task = code_task(status="awaiting_approval", expires_at="2999-01-01T00:00:00+00:00")
+    database = CodeLifecycleDB(
+        task,
+        code_approval(expires_at="2000-01-01T00:00:00+00:00"),
+    )
+    service = CodeTaskService(database, SimpleNamespace())
+
+    with pytest.raises(CodeApprovalExpiredError):
+        await service.decide_approval(
+            task=task,
+            approval_id=CODE_APPROVAL_ID,
+            decision="approved",
+        )
+
+    assert database.approval["status"] == "expired"
+    assert database.task["status"] == "cancelled"
+    assert database.task["failure_code"] == "CODE_APPROVAL_EXPIRED"
+
+
+def test_code_expiry_comparison_is_timezone_aware_and_fail_safe():
+    reference = datetime(2026, 8, 30, tzinfo=timezone.utc)
+    assert timestamp_has_passed("2026-08-29T23:59:59Z", now=reference)
+    assert not timestamp_has_passed("2026-08-30T00:00:01+00:00", now=reference)
+    assert not timestamp_has_passed("not-a-timestamp", now=reference)
 
 
 def test_crump_code_is_professional_and_cost_guarded():

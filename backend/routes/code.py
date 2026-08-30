@@ -132,6 +132,7 @@ async def run_code_task(task_id: str, request: Request):
         return _error("Sandbox authentication is unavailable.", "SANDBOX_NOT_CONFIGURED", 503)
     try:
         task = await code_tasks.get(user_id=auth.user["id"], task_id=task_id)
+        task = await code_tasks.ensure_not_expired(task)
         await features.require_tier(auth.user, "code_workspace")
         claimed = await code_tasks.claim(task)
     except FeatureAccessError as exc:

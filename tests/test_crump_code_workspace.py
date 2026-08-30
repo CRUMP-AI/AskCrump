@@ -19,6 +19,10 @@ def test_code_workspace_is_loaded_but_hidden_until_server_configuration_and_enti
     assert 'id="crumpCodeCreateSlot" class="crump-code-create-slot" hidden' in navigation
     assert "feature?.configured && feature?.entitled && provider?.configured" in script
     assert "slot.hidden = !state.available" in script
+    versioned_script = "/crump-code-5.9.35.js?v=5.9.76-code-lifecycle-expiry-1"
+    assert versioned_script in runtime
+    assert versioned_script in native
+    assert versioned_script in worker
     for asset in ("/crump-code-5.9.35.css", "/crump-code-5.9.35.js"):
         assert asset in runtime
         assert asset in native
@@ -53,6 +57,10 @@ def test_code_workspace_exposes_review_cancellation_approval_and_patch_surfaces(
     assert "pre.textContent = String(task.result_patch)" in script
     assert "copy.textContent = String(task.result_summary)" in script
     assert "request cancellation. Crump Code checks that request" in script
+    assert "This approval expires" in script
+    assert "CODE_APPROVAL_EXPIRED" in script
+    assert "CODE_TASK_EXPIRED" in script
+    assert "addTextRow(facts, 'Expires', formatDate(task.expires_at))" in script
 
 
 def test_code_workspace_has_accessible_modal_and_mobile_controls():
@@ -74,3 +82,5 @@ def test_local_preview_fixture_cannot_reach_real_product_endpoints():
     assert "window.__mockEnabled" in preview
     assert "https://www.askcrump.com" not in preview
     assert "task-preview" in preview
+    assert "previewStatus === 'expired'" in preview
+    assert "CODE_TASK_EXPIRED" in preview

@@ -13,6 +13,7 @@
   <script>
     const previewParams = new URLSearchParams(location.search);
     window.__mockEnabled = previewParams.get('enabled') === '1';
+    const previewStatus = previewParams.get('status') || 'completed';
     window.__mockTask = {
       id: 'task-preview',
       project_id: 'project-preview',
@@ -20,11 +21,12 @@
       mode: 'implement',
       source_repo_url: 'https://github.com/example/project.git',
       source_ref: 'main',
-      status: previewParams.get('status') === 'queued' ? 'queued' : 'completed',
+      status: previewStatus === 'queued' ? 'queued' : previewStatus === 'expired' ? 'cancelled' : 'completed',
       network_policy: 'deny_all',
       max_duration_seconds: 180,
       payment_source: 'included',
       credits_spent: 0,
+      failure_code: previewStatus === 'expired' ? 'CODE_TASK_EXPIRED' : null,
       result_summary: 'Added one bounded retry around the transient export operation and kept permanent failures unchanged.',
       result_patch: 'diff --git a/export.py b/export.py\n--- a/export.py\n+++ b/export.py\n@@ -1 +1,2 @@\n+retry_once()\n export()',
       verification: [{command: 'python3', args: ['-m', 'pytest', '-q'], returnCode: 0}],
@@ -36,8 +38,9 @@
       approvals: [],
       created_at: '2026-08-28T01:00:00Z',
       updated_at: '2026-08-28T01:02:10Z',
+      expires_at: previewStatus === 'expired' ? '2026-08-28T01:01:00Z' : '2999-08-28T01:00:00Z',
     };
-    if (window.__mockTask.status === 'queued') {
+    if (window.__mockTask.status !== 'completed') {
       window.__mockTask.result_summary = '';
       window.__mockTask.result_patch = '';
       window.__mockTask.verification = [];

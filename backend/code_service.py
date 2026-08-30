@@ -8,7 +8,7 @@ from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
-from .db import SupabaseDB, eq
+from .db import SupabaseDB, eq, gt, lte
 from .project_service import ProjectService
 from .security import normalize_chat_id
 
@@ -89,8 +89,30 @@ class CodeTaskConflictError(CodeTaskError):
     status_code = 409
 
 
+class CodeTaskExpiredError(CodeTaskConflictError):
+    code = "CODE_TASK_EXPIRED"
+
+
+class CodeApprovalExpiredError(CodeTaskConflictError):
+    code = "CODE_APPROVAL_EXPIRED"
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def timestamp_has_passed(value: Any, *, now: datetime | None = None) -> bool:
+    raw = str(value or "").strip()
+    if not raw:
+        return False
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    reference = now or datetime.now(timezone.utc)
+    return parsed.astimezone(timezone.utc) <= reference.astimezone(timezone.utc)
 
 
 def _clean_text(value: Any, limit: int) -> str:
@@ -199,7 +221,7 @@ class CodeTaskService:
 
     async def list(self, *, user_id: str, project_id: str) -> list[dict[str, Any]]:
         project = await self.projects.get(user_id, project_id)
-        return await self.db.select(
+        items = await self.db.select(
             "code_tasks",
             columns=(
                 "id,project_id,objective,mode,source_repo_url,source_ref,status,network_policy,"
@@ -210,6 +232,10 @@ class CodeTaskService:
             order="created_at.desc",
             limit=100,
         )
+        reconciled: list[dict[str, Any]] = []
+        for item in items:
+            reconciled.append(await self.reconcile_task_expiry(item))
+        return reconciled
 
     async def get(
         self,
@@ -227,23 +253,31 @@ class CodeTaskService:
         )
         if not task:
             raise CodeTaskNotFoundError("Crump Code task not found.")
+        task = await self.reconcile_task_expiry(task)
         if include_history:
-            task = dict(task)
-            task["events"] = await self.db.select(
-                "code_task_events",
-                columns="id,event_type,payload,created_at",
-                filters={"task_id": eq(normalized), "user_id": eq(user_id)},
-                order="id.asc",
-                limit=500,
-            )
-            task["approvals"] = await self.db.select(
-                "code_task_approvals",
-                columns="id,action_type,status,title,details,created_at,expires_at,decided_at",
-                filters={"task_id": eq(normalized), "user_id": eq(user_id)},
-                order="created_at.desc",
-                limit=100,
-            )
+            task = await self._attach_history(task)
+            task, reconciled = await self.reconcile_approval_expiry(task)
+            if reconciled:
+                task = await self._attach_history(task)
         return task
+
+    async def _attach_history(self, task: dict[str, Any]) -> dict[str, Any]:
+        detailed = dict(task)
+        detailed["events"] = await self.db.select(
+            "code_task_events",
+            columns="id,event_type,payload,created_at",
+            filters={"task_id": eq(task["id"]), "user_id": eq(task["user_id"])},
+            order="id.asc",
+            limit=500,
+        )
+        detailed["approvals"] = await self.db.select(
+            "code_task_approvals",
+            columns="id,action_type,status,title,details,created_at,expires_at,decided_at",
+            filters={"task_id": eq(task["id"]), "user_id": eq(task["user_id"])},
+            order="created_at.desc",
+            limit=100,
+        )
+        return detailed
 
     async def append_event(
         self,
@@ -294,6 +328,7 @@ class CodeTaskService:
         return updated
 
     async def claim(self, task: dict[str, Any]) -> dict[str, Any]:
+        task = await self.ensure_not_expired(task)
         return await self.transition(
             task,
             "provisioning",
@@ -311,6 +346,97 @@ class CodeTaskService:
         if not rows:
             raise CodeTaskConflictError("Crump Code task changed while this request was running.")
         return rows[0]
+
+    async def reconcile_task_expiry(self, task: dict[str, Any]) -> dict[str, Any]:
+        if task.get("status") in TERMINAL_STATUSES or not timestamp_has_passed(task.get("expires_at")):
+            return task
+        try:
+            return await self.transition(
+                task,
+                "cancelled",
+                changes={"failure_code": "CODE_TASK_EXPIRED", "completed_at": _now()},
+                event_type="task.cancelled",
+                event_payload={"failureCode": "CODE_TASK_EXPIRED", "status": "cancelled"},
+            )
+        except CodeTaskConflictError:
+            current = await self.db.select_one(
+                "code_tasks",
+                filters={"id": eq(task["id"]), "user_id": eq(task["user_id"])},
+            )
+            if not current:
+                raise CodeTaskNotFoundError("Crump Code task not found.")
+            return current
+
+    async def ensure_not_expired(self, task: dict[str, Any]) -> dict[str, Any]:
+        current = await self.reconcile_task_expiry(task)
+        if (
+            current.get("status") == "cancelled"
+            and current.get("failure_code") == "CODE_TASK_EXPIRED"
+        ):
+            raise CodeTaskExpiredError(
+                "This Crump Code task expired. Prepare a new task to continue."
+            )
+        return current
+
+    async def _cancel_for_expired_approval(self, task: dict[str, Any]) -> dict[str, Any]:
+        if task.get("status") in TERMINAL_STATUSES:
+            return task
+        try:
+            return await self.transition(
+                task,
+                "cancelled",
+                changes={"failure_code": "CODE_APPROVAL_EXPIRED", "completed_at": _now()},
+                event_type="task.cancelled",
+                event_payload={"failureCode": "CODE_APPROVAL_EXPIRED", "status": "cancelled"},
+            )
+        except CodeTaskConflictError:
+            current = await self.db.select_one(
+                "code_tasks",
+                filters={"id": eq(task["id"]), "user_id": eq(task["user_id"])},
+            )
+            if not current:
+                raise CodeTaskNotFoundError("Crump Code task not found.")
+            return current
+
+    async def reconcile_approval_expiry(
+        self, task: dict[str, Any]
+    ) -> tuple[dict[str, Any], bool]:
+        if task.get("status") != "awaiting_approval":
+            return task, False
+        now = _now()
+        changed = False
+        expired = False
+        for approval in task.get("approvals") or []:
+            status = str(approval.get("status") or "")
+            if status == "expired":
+                expired = True
+                continue
+            if status != "pending" or not timestamp_has_passed(approval.get("expires_at")):
+                continue
+            rows = await self.db.update(
+                "code_task_approvals",
+                {"status": "expired", "decided_at": now},
+                filters={
+                    "id": eq(approval["id"]),
+                    "task_id": eq(task["id"]),
+                    "user_id": eq(task["user_id"]),
+                    "status": eq("pending"),
+                    "expires_at": lte(now),
+                },
+            )
+            if not rows:
+                continue
+            changed = True
+            expired = True
+            await self.append_event(
+                task,
+                "approval.decided",
+                {"actionType": rows[0].get("action_type"), "decision": "expired"},
+            )
+        if expired:
+            task = await self._cancel_for_expired_approval(task)
+            changed = True
+        return task, changed
 
     async def cancel(self, task: dict[str, Any]) -> dict[str, Any]:
         if task.get("status") in TERMINAL_STATUSES:
@@ -365,17 +491,60 @@ class CodeTaskService:
         normalized_decision = str(decision or "").strip().lower()
         if normalized_decision not in {"approved", "denied"}:
             raise ValueError("Decision must be approved or denied.")
+        decided_at = _now()
         rows = await self.db.update(
             "code_task_approvals",
-            {"status": normalized_decision, "decided_at": _now()},
+            {"status": normalized_decision, "decided_at": decided_at},
             filters={
                 "id": eq(normalized),
                 "task_id": eq(task["id"]),
                 "user_id": eq(task["user_id"]),
                 "status": eq("pending"),
+                "expires_at": gt(decided_at),
             },
         )
         if not rows:
+            approval = await self.db.select_one(
+                "code_task_approvals",
+                filters={
+                    "id": eq(normalized),
+                    "task_id": eq(task["id"]),
+                    "user_id": eq(task["user_id"]),
+                },
+            )
+            if approval and (
+                approval.get("status") == "expired"
+                or (
+                    approval.get("status") == "pending"
+                    and timestamp_has_passed(approval.get("expires_at"))
+                )
+            ):
+                if approval.get("status") == "pending":
+                    expired_rows = await self.db.update(
+                        "code_task_approvals",
+                        {"status": "expired", "decided_at": decided_at},
+                        filters={
+                            "id": eq(normalized),
+                            "task_id": eq(task["id"]),
+                            "user_id": eq(task["user_id"]),
+                            "status": eq("pending"),
+                            "expires_at": lte(decided_at),
+                        },
+                    )
+                    if expired_rows:
+                        approval = expired_rows[0]
+                        await self.append_event(
+                            task,
+                            "approval.decided",
+                            {
+                                "actionType": approval.get("action_type"),
+                                "decision": "expired",
+                            },
+                        )
+                await self._cancel_for_expired_approval(task)
+                raise CodeApprovalExpiredError(
+                    "This approval request expired. Prepare a new task to continue."
+                )
             raise CodeTaskConflictError("Approval request is no longer pending.")
         await self.append_event(
             task,

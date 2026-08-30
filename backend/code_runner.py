@@ -564,11 +564,16 @@ class CrumpCodeRunner:
         return payload
 
     async def _ensure_not_cancelled(self, task: dict[str, Any]) -> None:
-        """Stop the next expensive step after a concurrent owner cancellation."""
+        """Stop the next expensive step after cancellation or task expiry."""
         current = await self.service.get(
             user_id=str(task["user_id"]),
             task_id=str(task["id"]),
         )
+        if current.get("failure_code") == "CODE_TASK_EXPIRED":
+            raise CodeRunnerError(
+                "This Crump Code task expired. Prepare a new task to continue.",
+                "CODE_TASK_EXPIRED",
+            )
         if current.get("status") == "cancelled":
             raise CodeRunnerError("Crump Code was cancelled.", "CODE_TASK_CANCELLED")
 
@@ -672,6 +677,7 @@ class CrumpCodeRunner:
         raise CodeRunnerError("The coding agent reached its safe step limit.", "CODE_STEP_LIMIT")
 
     async def run(self, task: dict[str, Any], *, oidc_token: str) -> dict[str, Any]:
+        await self._ensure_not_cancelled(task)
         project_id, team_id = self._oidc_identity(oidc_token)
         try:
             from vercel.api import session
@@ -709,6 +715,7 @@ class CrumpCodeRunner:
                 tags={"feature": "crump-code", "task": str(task["id"])},
                 destroy=True,
             ) as sandbox:
+                await self._ensure_not_cancelled(task)
                 task = await self.service.update_fields(
                     task,
                     {
@@ -730,6 +737,7 @@ class CrumpCodeRunner:
                 )
                 inventory = await workspace.list_files("")
                 summary = await self._agent_loop(task=task, workspace=workspace, inventory=inventory)
+                await self._ensure_not_cancelled(task)
                 task = await self.service.transition(
                     task,
                     "verifying",
@@ -738,8 +746,13 @@ class CrumpCodeRunner:
                 )
                 changed = await workspace.changed_paths()
                 if task.get("mode") == "implement" and changed:
+                    await self._ensure_not_cancelled(task)
                     await workspace.syntax_verify(changed)
-                patch = await workspace.patch() if task.get("mode") == "implement" else ""
+                if task.get("mode") == "implement":
+                    await self._ensure_not_cancelled(task)
+                    patch = await workspace.patch()
+                else:
+                    patch = ""
                 await self.service.append_event(
                     task,
                     "verification.completed",
