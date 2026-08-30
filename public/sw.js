@@ -34,7 +34,7 @@ const CORE = [
   '/crump-library-5.7.css',
   '/crump-library-5.7.js?v=5.9.76-demand-hydration-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-billing-timeout-1',
-  '/runtime-body-v1.js?v=5.9.76-destination-focus-1',
+  '/runtime-body-v1.js?v=5.9.76-artifact-project-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
