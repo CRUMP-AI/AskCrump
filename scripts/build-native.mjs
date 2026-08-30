@@ -139,7 +139,7 @@ const loader = String.raw`
 
     await loadScript('/crump-navigation-5.2.5.js', 'crumpnav525');
     await loadScript('/crump-product-5.3.js?v=5.9.76-demand-hydration-1', 'crumpproduct53');
-    await loadScript('/crump-product-5.3.1.js', 'crumpproduct531');
+    await loadScript('/crump-product-5.3.1.js?v=5.9.76-demand-hydration-1', 'crumpproduct531');
     await loadScript('/crump-subscriptions-5.3.2.js', 'crumpsubscriptions532');
     await loadScript('/crump-polish-5.6.js', 'crumppolish56');
     await loadScript('/crump-library-5.7.js?v=5.9.76-demand-hydration-1', 'crumplibrary57');

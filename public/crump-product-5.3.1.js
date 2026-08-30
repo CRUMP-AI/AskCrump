@@ -241,6 +241,29 @@
     }
   }
 
+  let projectFilesRefreshTimer = 0;
+
+  function hideProjectFiles() {
+    const card = byId('crump531ProjectFilesCard');
+    const list = byId('crump531ProjectFilesList');
+    if (card) card.hidden = true;
+    if (list) list.innerHTML = '';
+  }
+
+  function hydrateVisibleProjectFiles() {
+    if (projectFilesRefreshTimer) window.clearTimeout(projectFilesRefreshTimer);
+    projectFilesRefreshTimer = window.setTimeout(() => {
+      projectFilesRefreshTimer = 0;
+      const studio = byId('crump53Studio');
+      const sheet = byId('crump53Sheet');
+      if (studio?.hidden || sheet?.dataset.crump53Section !== 'projects' || sheet?.dataset.projectView !== 'detail') {
+        hideProjectFiles();
+        return;
+      }
+      void refreshProjectFiles();
+    }, 0);
+  }
+
   function installProjectReferences() {
     const form = byId('crump53ProjectForm');
     if (!form || form.dataset.crump531References === 'true') return;
@@ -301,15 +324,14 @@
       void attachQueuedAfterSave(previousId, editing);
     }, true);
 
-    byId('crump53ProjectList')?.addEventListener('click', () => {
-      setTimeout(() => { void refreshProjectFiles(); }, 160);
-    });
     byId('crump53NewProject')?.addEventListener('click', () => {
       state.queue = [];
       renderReferenceQueue();
-      setTimeout(() => { void refreshProjectFiles(); }, 80);
+      hideProjectFiles();
     });
-    setTimeout(() => { void refreshProjectFiles(); }, 120);
+    byId('crump53ProjectBack')?.addEventListener('click', hideProjectFiles);
+    window.addEventListener('crump:project-target-changed', hydrateVisibleProjectFiles);
+    hydrateVisibleProjectFiles();
   }
 
   function closeChatMenu() {

@@ -239,8 +239,9 @@ def test_project_rows_open_a_real_project_workspace_and_scoped_new_chat():
     assert "new URLSearchParams(location.search).get('project')" in fixture
     assert "sheet?.dataset.projectView" in fixture
     assert 'aria-label="Started Project chat"' in fixture
+    assert 'aria-label="Project file requests"' in fixture
     assert 'aria-label="Browser errors"' in fixture
-    assert "/public/crump-product-5.3.1.js?v=project-home-fixture-7" in fixture
+    assert "/public/crump-product-5.3.1.js?v=project-home-fixture-8" in fixture
     assert "Launch brief.pdf" in fixture
     assert "fixture-user" in fixture
     assert "password" not in fixture.lower()

@@ -16,6 +16,7 @@
     <output id="fixtureProjectView" aria-label="Project view">index</output>
     <output id="fixtureProjectRoute" aria-label="Project route">none</output>
     <output id="fixtureStartedChat" aria-label="Started Project chat">no</output>
+    <output id="fixtureFileRequests" aria-label="Project file requests">0</output>
     <output id="fixtureErrors" aria-label="Browser errors">0</output>
   </main>
   <script>
@@ -29,6 +30,7 @@
     window.currentUser = {id: 'fixture-user'};
     window.currentChatId = '';
     window.chats = [];
+    window.fixtureFileRequests = 0;
     window.showToast = () => {};
     window.CrumpAnalytics = {track: () => Promise.resolve(true)};
     window.CrumpBodyV1 = {
@@ -54,6 +56,8 @@
       } else if (url.pathname === `/api/projects/${fixtureProject.id}/chats`) {
         data = {success: true, conversations: []};
       } else if (url.pathname === `/api/projects/${fixtureProject.id}/files`) {
+        window.fixtureFileRequests += 1;
+        document.getElementById('fixtureFileRequests').textContent = String(window.fixtureFileRequests);
         data = {
           success: true,
           files: [{
@@ -76,7 +80,7 @@
     };
   </script>
   <script src="/public/crump-product-5.3.js?v=project-home-fixture-7"></script>
-  <script src="/public/crump-product-5.3.1.js?v=project-home-fixture-7"></script>
+  <script src="/public/crump-product-5.3.1.js?v=project-home-fixture-8"></script>
   <script>
     window.addEventListener('load', async () => {
       const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));

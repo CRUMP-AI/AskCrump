@@ -39,7 +39,9 @@ def test_project_reference_ui_and_chat_rename_are_final_runtime_layers():
     assert "/crump-product-5.3.1.css" in runtime
     assert "/crump-product-5.3.1.js" in runtime
     assert runtime.index("/crump-product-5.3.js") < runtime.index("/crump-product-5.3.1.js")
-    assert "ask-crump-new-body-v1-r133" in worker
+    assert "/crump-product-5.3.1.js?v=5.9.76-demand-hydration-1" in runtime
+    assert "/crump-product-5.3.1.js?v=5.9.76-demand-hydration-1" in worker
+    assert "ask-crump-new-body-v1-r134" in worker
     assert "Reference files" in js
     assert "Project files" in js
     assert "conversationsCard.insertAdjacentElement('afterend', card)" in js
@@ -49,6 +51,9 @@ def test_project_reference_ui_and_chat_rename_are_final_runtime_layers():
     assert "window.CrumpFileTools" in files
     assert "upload: async file =>" in files
     assert "CrumpFileTools?.upload" in js
+    assert "window.addEventListener('crump:project-target-changed', hydrateVisibleProjectFiles)" in js
+    assert "sheet?.dataset.projectView !== 'detail'" in js
+    assert 'setTimeout(() => { void refreshProjectFiles(); }, 120);' not in js
     assert ".crump531-chat-menu-button" in css
     assert ".crump531-project-file-group" in css
     assert "grid-template-columns: minmax(0,1fr)" in css
