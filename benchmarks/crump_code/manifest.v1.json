@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "suite_id": "crump-code-foundation-v1",
+  "source": {
+    "repository_url": "https://github.com/CRUMP-AI/AskCrump.git",
+    "revision": "f75ae5c53c167191f7dea7bfbe96d41b04e3add6"
+  },
+  "pass_threshold": 90,
+  "cases": [
+    {
+      "id": "python-boundary-001",
+      "mode": "implement",
+      "objective": "Fix clamp in benchmarks/crump_code/fixtures/python_boundary/range_utils.py so values below and above the range use the nearest inclusive boundary. Preserve inverted-range validation. Do not change the acceptance file. Run the specified acceptance verification.",
+      "required_paths": ["benchmarks/crump_code/fixtures/python_boundary/range_utils.py"],
+      "allowed_paths": ["benchmarks/crump_code/fixtures/python_boundary/range_utils.py"],
+      "forbidden_paths": ["benchmarks/crump_code/fixtures/python_boundary/acceptance_range_utils.py"],
+      "required_verifications": ["python3 -m pytest -q benchmarks/crump_code/fixtures/python_boundary/acceptance_range_utils.py"],
+      "summary_terms": ["range_utils.py", "boundary", "pytest"],
+      "limits": {"duration_ms": 205000, "max_attempts": 1, "max_patch_bytes": 12000}
+    },
+    {
+      "id": "javascript-slug-001",
+      "mode": "implement",
+      "objective": "Fix slugify in benchmarks/crump_code/fixtures/javascript_slug/slug.js so repeated whitespace, punctuation, underscores, and hyphens produce one lowercase hyphen separator with no leading or trailing separator. Do not change the acceptance file. Run the specified acceptance verification.",
+      "required_paths": ["benchmarks/crump_code/fixtures/javascript_slug/slug.js"],
+      "allowed_paths": ["benchmarks/crump_code/fixtures/javascript_slug/slug.js"],
+      "forbidden_paths": ["benchmarks/crump_code/fixtures/javascript_slug/acceptance_slug.py"],
+      "required_verifications": ["python3 -m pytest -q benchmarks/crump_code/fixtures/javascript_slug/acceptance_slug.py"],
+      "summary_terms": ["slug.js", "separator", "pytest"],
+      "limits": {"duration_ms": 205000, "max_attempts": 1, "max_patch_bytes": 12000}
+    },
+    {
+      "id": "security-headers-001",
+      "mode": "implement",
+      "objective": "Fix redact_headers in benchmarks/crump_code/fixtures/security_headers/header_redaction.py so sensitive header names are matched case-insensitively while the returned copy preserves original header names and the input remains unchanged. Do not change the acceptance file. Run the specified acceptance verification.",
+      "required_paths": ["benchmarks/crump_code/fixtures/security_headers/header_redaction.py"],
+      "allowed_paths": ["benchmarks/crump_code/fixtures/security_headers/header_redaction.py"],
+      "forbidden_paths": ["benchmarks/crump_code/fixtures/security_headers/acceptance_header_redaction.py"],
+      "required_verifications": ["python3 -m pytest -q benchmarks/crump_code/fixtures/security_headers/acceptance_header_redaction.py"],
+      "summary_terms": ["header_redaction.py", "case-insensitive", "pytest"],
+      "limits": {"duration_ms": 205000, "max_attempts": 1, "max_patch_bytes": 12000}
+    },
+    {
+      "id": "atomic-plan-001",
+      "mode": "plan",
+      "objective": "Inspect benchmarks/crump_code/fixtures/atomic_plan/api.py, store.py, and the acceptance expectations. Return a concise implementation plan that removes the concurrent read-then-write rate-limit race using an atomic store boundary, preserves the boolean caller contract, and specifies the concurrency verification. Do not edit files.",
+      "required_paths": [],
+      "allowed_paths": [],
+      "forbidden_paths": [
+        "benchmarks/crump_code/fixtures/atomic_plan/api.py",
+        "benchmarks/crump_code/fixtures/atomic_plan/store.py",
+        "benchmarks/crump_code/fixtures/atomic_plan/acceptance_atomic_plan.md"
+      ],
+      "required_verifications": [],
+      "summary_terms": ["api.py", "store.py", "atomic", "concurrent", "test"],
+      "limits": {"duration_ms": 90000, "max_attempts": 1, "max_patch_bytes": 0}
+    }
+  ]
+}
