@@ -40,6 +40,7 @@ def test_clever_crump_does_not_serve_duplicate_ask_product_pages():
     }
     destinations = {
         "/app": "https://www.askcrump.com/app",
+        "/guides/:path*": "https://www.askcrump.com/guides/:path*",
         "/ai-presentation-maker": "https://www.askcrump.com/ai-presentation-maker",
         "/ai-document-generator": "https://www.askcrump.com/ai-document-generator",
         "/ai-resume-builder": "https://www.askcrump.com/ai-resume-builder",

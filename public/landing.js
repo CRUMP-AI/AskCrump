@@ -31,6 +31,26 @@
     '/ai-resume-builder': 'resume',
     '/ai-video-generator': 'video',
     '/ai-project-workspace': 'projects',
+    '/guides/rough-idea-six-week-launch-plan': 'projects',
+    '/guides/what-ai-project-should-remember': 'projects',
+    '/guides/editable-ai-powerpoint-review': 'presentation',
+  });
+  const PAGE_CAMPAIGN_DEFAULTS = Object.freeze({
+    '/guides/rough-idea-six-week-launch-plan': {
+      placement: 'workflow-guide',
+      campaign: 'rough-idea-launch-plan',
+      creative: 'search-article',
+    },
+    '/guides/what-ai-project-should-remember': {
+      placement: 'workflow-guide',
+      campaign: 'project-memory-boundaries',
+      creative: 'search-article',
+    },
+    '/guides/editable-ai-powerpoint-review': {
+      placement: 'workflow-guide',
+      campaign: 'editable-powerpoint-review',
+      creative: 'search-article',
+    },
   });
   const CAMPAIGN_REGISTRY = Object.freeze({
     'presentation-proof-current': {
@@ -143,6 +163,7 @@
 
   function currentAttribution() {
     const params = new URLSearchParams(location.search);
+    const pageCampaign = PAGE_CAMPAIGN_DEFAULTS[location.pathname];
     const sourceToken = tokenValue(params.get('source'));
     const explicitAcquisition = tokenValue(params.get('acquisition') || params.get('utm_source'));
     const legacyAcquisition = LEGACY_ACQUISITION_SOURCES.has(sourceToken) ? sourceToken : '';
@@ -152,13 +173,18 @@
       storedAcquisition = tokenValue(sessionStorage.getItem(ACQUISITION_KEY));
       storedPlacement = tokenValue(sessionStorage.getItem(ACQUISITION_PLACEMENT_KEY));
     } catch (_) {}
-    const acquisition = explicitAcquisition
+    const referredAcquisition = referringSource();
+    const detectedAcquisition = explicitAcquisition
       || legacyAcquisition
       || (ACQUISITION_SOURCES.has(storedAcquisition) ? storedAcquisition : '')
-      || referringSource();
+      || referredAcquisition;
+    const acquisition = pageCampaign && detectedAcquisition === 'organic'
+      ? 'organic-search'
+      : detectedAcquisition;
+    const pageCampaignEligible = Boolean(pageCampaign && acquisition === 'organic-search');
     const placement = ACQUISITION_PLACEMENTS.has(sourceToken)
       ? sourceToken
-      : storedPlacement;
+      : (storedPlacement || (pageCampaignEligible ? pageCampaign.placement : ''));
     const queryIntent = tokenValue(params.get('intent'));
     const intent = CREATION_INTENTS.has(queryIntent)
       ? queryIntent
@@ -166,8 +192,8 @@
     return normalizeAttribution({
       acquisition,
       placement,
-      campaign: params.get('campaign'),
-      creative: params.get('creative'),
+      campaign: params.get('campaign') || (pageCampaignEligible ? pageCampaign.campaign : ''),
+      creative: params.get('creative') || (pageCampaignEligible ? pageCampaign.creative : ''),
       intent,
     });
   }

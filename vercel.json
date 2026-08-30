@@ -2,6 +2,19 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "redirects": [
     {
+      "source": "/guides/editable-powerpoint-review-checklist",
+      "destination": "https://www.askcrump.com/guides/editable-ai-powerpoint-review",
+      "permanent": true
+    },
+    {
+      "source": "/guides/:path*",
+      "has": [
+        { "type": "host", "value": "www.clevercrump.com" }
+      ],
+      "destination": "https://www.askcrump.com/guides/:path*",
+      "permanent": true
+    },
+    {
       "source": "/ask-crump",
       "destination": "https://www.askcrump.com/",
       "permanent": true

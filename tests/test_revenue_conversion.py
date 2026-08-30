@@ -64,7 +64,7 @@ def test_marketing_ctas_are_first_party_analytics_events():
 
     assert '/_vercel/insights/script.js' in page
     assert '/_vercel/speed-insights/script.js' in page
-    assert '<script defer src="/landing.js?v=5.9.76-weekly-growth-attribution-1"></script>' in page
+    assert '<script defer src="/landing.js?v=5.9.76-search-guides-1"></script>' in page
     assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.76-truthful-destinations-1">' in page
     assert "window.vaq" in script
     assert "MarketingCTA" in script
@@ -130,7 +130,7 @@ def test_public_marketing_surface_is_indexable_while_the_private_app_is_not():
     assert "<loc>https://www.askcrump.com/ai-resume-builder</loc>" in sitemap
     assert "<loc>https://www.askcrump.com/ai-video-generator</loc>" in sitemap
     assert "<loc>https://www.askcrump.com/ai-project-workspace</loc>" in sitemap
-    assert sitemap.count("<lastmod>2026-08-30</lastmod>") == 6
+    assert sitemap.count("<lastmod>2026-08-30</lastmod>") == 9
     assert sitemap.count("<lastmod>2026-08-24</lastmod>") == 1
 
     namespace = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
@@ -146,6 +146,9 @@ def test_public_marketing_surface_is_indexable_while_the_private_app_is_not():
         "https://www.askcrump.com/ai-document-generator": "2026-08-30",
         "https://www.askcrump.com/ai-resume-builder": "2026-08-30",
         "https://www.askcrump.com/ai-video-generator": "2026-08-30",
+        "https://www.askcrump.com/guides/rough-idea-six-week-launch-plan": "2026-08-30",
+        "https://www.askcrump.com/guides/what-ai-project-should-remember": "2026-08-30",
+        "https://www.askcrump.com/guides/editable-ai-powerpoint-review": "2026-08-30",
         "https://www.askcrump.com/legal": "2026-08-24",
     }
 
@@ -180,7 +183,7 @@ def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
         assert f'<link rel="canonical" href="https://www.askcrump.com/{slug}">' in page
         assert f'<meta property="og:url" content="https://www.askcrump.com/{slug}">' in page
         assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
-        assert '<script defer src="/landing.js?v=5.9.76-weekly-growth-attribution-1"></script>' in page
+        assert '<script defer src="/landing.js?v=5.9.76-search-guides-1"></script>' in page
         assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.76-truthful-destinations-1">' in page
         assert '<link rel="stylesheet" href="/use-case.css?v=5.9.76">' in page
         assert '/_vercel/insights/script.js' in page
@@ -486,7 +489,7 @@ def test_release_version_and_cache_advance_together():
     assert "ask-crump-new-body-v1-r164" in worker
     assert "/landing-5.6.css?v=5.9.76-truthful-destinations-1" in worker
     assert "/use-case.css?v=5.9.76" in worker
-    assert "/landing.js?v=5.9.76-weekly-growth-attribution-1" in worker
+    assert "/landing.js?v=5.9.76-search-guides-1" in worker
 
 
 def test_changed_activation_assets_are_release_versioned():

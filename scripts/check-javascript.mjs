@@ -46,7 +46,7 @@ for (const name of files) {
 
 const landingRuntimeSource = await readFile(new URL('landing.js', publicDirectory), 'utf8');
 
-function runLandingAttribution(url, storageValues, linkHref = '/app?signup=1&intent=projects') {
+function runLandingAttribution(url, storageValues, linkHref = '/app?signup=1&intent=projects', referrer = '') {
   const pageUrl = new URL(url);
   const listeners = new Map();
   const events = [];
@@ -63,7 +63,7 @@ function runLandingAttribution(url, storageValues, linkHref = '/app?signup=1&int
     removeItem(key) { storageValues.delete(key); },
   };
   const document = {
-    referrer: '',
+    referrer,
     querySelectorAll(selector) { return selector === '[data-cta]' ? [link] : []; },
     querySelector() { return null; },
   };
@@ -151,7 +151,7 @@ if (!profileCapability.link.href.includes('campaign=presentation-proof-current')
 
 const guideChainStore = new Map();
 runLandingAttribution(
-  'https://askcrump.com/guides/what-ai-project-should-remember?acquisition=instagram&source=organic-social&campaign=project-memory-boundaries&creative=project-memory-feed&intent=projects',
+  'https://askcrump.com/guides/what-ai-project-should-remember?acquisition=instagram&source=organic-social&campaign=project-memory-boundaries&creative=project-memory-feed',
   guideChainStore,
 );
 const guideCapability = runLandingAttribution(
@@ -169,6 +169,21 @@ if (!guideCapability.link.href.includes('campaign=project-memory-boundaries')) {
   console.error('Guide attribution did not survive the capability handoff.');
   process.exit(1);
 }
+
+const organicGuideStore = new Map();
+runLandingAttribution(
+  'https://askcrump.com/guides/rough-idea-six-week-launch-plan',
+  organicGuideStore,
+  '/ai-project-workspace?acquisition=organic-search&source=workflow-guide&campaign=rough-idea-launch-plan&creative=search-article',
+  'https://www.google.com/search?q=ai+project+launch+plan',
+);
+assertAttribution(storedAttribution(organicGuideStore), {
+  acquisition: 'organic-search',
+  placement: 'workflow-guide',
+  campaign: 'rough-idea-launch-plan',
+  creative: 'search-article',
+  intent: 'projects',
+}, 'Canonical organic-search guide entry');
 
 const immutableStore = new Map();
 runLandingAttribution(
@@ -203,7 +218,7 @@ assertAttribution(storedAttribution(immutableStore), {
 const repoRoot = new URL('../', import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot), 'utf8'));
 const releaseVersion = String(packageJson.version || '');
-const landingVersion = `${releaseVersion}-weekly-growth-attribution-1`;
+const landingVersion = `${releaseVersion}-search-guides-1`;
 const authControllerVersion = `${releaseVersion}-weekly-growth-attribution-1`;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
@@ -263,6 +278,9 @@ const speedInsightPages = [
   ['public/ai-resume-builder.html', '/ai-resume-builder'],
   ['public/ai-video-generator.html', '/ai-video-generator'],
   ['public/ai-project-workspace.html', '/ai-project-workspace'],
+  ['public/guides/rough-idea-six-week-launch-plan.html', '/guides/rough-idea-six-week-launch-plan'],
+  ['public/guides/what-ai-project-should-remember.html', '/guides/what-ai-project-should-remember'],
+  ['public/guides/editable-ai-powerpoint-review.html', '/guides/editable-ai-powerpoint-review'],
   ['public/app.html', '/app'],
   ['public/clever-crump.html', '/clever-crump'],
 ];
