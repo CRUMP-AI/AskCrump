@@ -156,8 +156,11 @@ from public.product_growth_funnel_snapshot(
 ## Service-role artifact journey snapshot
 
 Migration `20260827050550_artifact_journey.sql` installs
-`product_artifact_journey_snapshot`, a service-role-only aggregate report for a half-open
-event window. It returns requested, packaged, packaging-failed, and first-download counts by
+`product_artifact_journey_snapshot`, and migration
+`20260830192948_artifact_journey_cohort_boundary.sql` aligns its cohort boundary with the
+privacy-safe growth reports. The service-role-only aggregate defaults to non-deleted,
+non-internal accounts whose server-derived registration environment exactly matches the event
+environment. It returns requested, packaged, packaging-failed, and first-download counts by
 allowlisted artifact category, plus request-to-package and package-to-download rates. It never
 returns an account, message, file, prompt, response, URL, filename, or exception value.
 
@@ -166,7 +169,8 @@ select *
 from public.product_artifact_journey_snapshot(
   p_since => timestamptz '2026-08-27 00:00:00+00',
   p_until => now(),
-  p_environment => 'production'
+  p_environment => 'production',
+  p_include_internal => false
 );
 ```
 

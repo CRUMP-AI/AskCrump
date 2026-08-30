@@ -701,6 +701,36 @@ def test_artifact_journey_migration_is_private_aggregate_and_content_free():
     assert "metadata jsonb" not in normalized
 
 
+def test_artifact_journey_snapshot_excludes_internal_and_cross_environment_accounts():
+    migration = (
+        ROOT / "migrations" / "20260830192948_artifact_journey_cohort_boundary.sql"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(migration.lower().split())
+    return_contract = normalized[
+        normalized.index("returns table") : normalized.index("language plpgsql")
+    ]
+
+    assert (
+        "drop function if exists public.product_artifact_journey_snapshot( "
+        "timestamptz, timestamptz, text )"
+        in normalized
+    )
+    assert "p_include_internal boolean default false" in normalized
+    assert "join public.users as u on u.id = e.user_id" in normalized
+    assert "u.registration_environment = p_environment" in normalized
+    assert "u.deleted_at is null" in normalized
+    assert "p_include_internal or coalesce(u.internal_tier, '') = ''" in normalized
+    assert "security invoker" in normalized
+    assert "security definer" not in normalized
+    assert "set search_path = ''" in normalized
+    assert "from public, anon, authenticated" in normalized
+    assert "to service_role" in normalized
+    assert "user_id" not in return_contract
+    assert "email" not in return_contract
+    assert "prompt" not in return_contract
+    assert "filename" not in return_contract
+
+
 def test_chat_records_artifact_events_after_entitlement_and_around_packaging():
     source = (ROOT / "backend" / "routes" / "chat.py").read_text(encoding="utf-8")
     request_index = source.index("event_name='ArtifactRequested'")
