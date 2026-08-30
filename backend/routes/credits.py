@@ -22,6 +22,7 @@ from fastapi.responses import JSONResponse
 from ..auth_service import authenticate_request
 from ..credits_catalog import by_code, by_native_product, public_catalog
 from ..db import eq
+from ..product_analytics import record_product_event
 from ..runtime import db, settings
 from ..security import iso_now
 from ..usage_service import credit_status
@@ -183,7 +184,12 @@ def _verify_stripe_signature(body: bytes, header: str) -> bool:
     return any(hmac.compare_digest(expected, signature) for signature in signatures)
 
 
-async def _finalize_stripe_session(*, user_id: str, session: dict[str, Any]) -> dict[str, Any]:
+async def _finalize_stripe_session(
+    *,
+    user_id: str,
+    session: dict[str, Any],
+    request: Request,
+) -> dict[str, Any]:
     metadata = session.get('metadata') or {}
     if str(metadata.get('purchase_type') or '') != 'credits':
         raise ValueError('This checkout session is not a credit purchase.')
@@ -211,6 +217,16 @@ async def _finalize_stripe_session(*, user_id: str, session: dict[str, Any]) -> 
             'payment_intent': session.get('payment_intent'),
         },
     )
+    session_id = str(session.get('id') or '')
+    if session_id:
+        await record_product_event(
+            db,
+            user_id=user_id,
+            event_name='CreditCheckoutCompleted',
+            event_key=session_id,
+            request=request,
+            source=pack.code,
+        )
     return {'pack': pack.code, 'credits': pack.credits, **grant}
 
 
@@ -338,10 +354,20 @@ async def checkout(request: Request):
             },
         )
 
+    session_id = str(session.get('id') or '')
+    if session_id:
+        await record_product_event(
+            db,
+            user_id=auth.user['id'],
+            event_name='CreditCheckoutOpened',
+            event_key=session_id,
+            request=request,
+            source=pack.code,
+        )
     return {
         'success': True,
         'url': session.get('url'),
-        'sessionId': session.get('id'),
+        'sessionId': session_id,
         'pack': pack.code,
         'credits': pack.credits,
     }
@@ -359,7 +385,11 @@ async def finalize(request: Request):
         )
     try:
         session = await _stripe_get(f'checkout/sessions/{quote(session_id, safe="")}')
-        purchase = await _finalize_stripe_session(user_id=auth.user['id'], session=session)
+        purchase = await _finalize_stripe_session(
+            user_id=auth.user['id'],
+            session=session,
+            request=request,
+        )
         return {'success': True, **purchase}
     except PermissionError as exc:
         return JSONResponse(status_code=403, content={'success': False, 'error': str(exc)})
@@ -383,7 +413,11 @@ async def stripe_webhook(request: Request):
     if not user_id:
         return {'received': True}
     try:
-        await _finalize_stripe_session(user_id=user_id, session=session)
+        await _finalize_stripe_session(
+            user_id=user_id,
+            session=session,
+            request=request,
+        )
     except Exception:
         logger.exception('Could not finalize Stripe credit webhook')
         # A non-2xx response makes Stripe retry, which is exactly what we want.
@@ -447,6 +481,14 @@ async def revenuecat_sync(request: Request):
                         'is_sandbox': bool(transaction.get('is_sandbox')),
                         'purchase_date': transaction.get('purchase_date'),
                     },
+                )
+                await record_product_event(
+                    db,
+                    user_id=auth.user['id'],
+                    event_name='CreditCheckoutCompleted',
+                    event_key=transaction_id,
+                    request=request,
+                    source=pack.code,
                 )
                 if not grant['duplicate']:
                     granted += pack.credits

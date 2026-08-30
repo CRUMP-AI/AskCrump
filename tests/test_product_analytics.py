@@ -102,7 +102,14 @@ def test_plan_center_view_is_allowlisted_but_content_free():
         "settings",
         "plan_intent",
         "upgrade_prompt",
+        "recovery_credits",
+        "recovery_subscription",
+        "recovery_feature",
+        "recovery_project",
+        "recovery_usage",
     })
+    assert {"CreditCheckoutOpened", "CreditCheckoutCompleted"}.issubset(EVENT_NAMES)
+    assert {"CreditCheckoutOpened", "CreditCheckoutCompleted"}.isdisjoint(CLIENT_EVENT_NAMES)
 
 
 @pytest.mark.asyncio
@@ -447,6 +454,55 @@ async def test_plan_center_route_derives_one_server_utc_day_key(monkeypatch):
     assert calls[0]["event_key"].startswith("plan-center-viewed:")
     assert len(calls[0]["event_key"]) == len("plan-center-viewed:2026-08-29")
     assert calls[0]["source"] == "settings"
+    assert calls[0]["plan"] is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "source",
+    [
+        "plan_intent",
+        "upgrade_prompt",
+        "recovery_credits",
+        "recovery_subscription",
+        "recovery_feature",
+        "recovery_project",
+        "recovery_usage",
+    ],
+)
+async def test_plan_center_route_keeps_one_content_free_row_per_source_and_server_day(
+    monkeypatch,
+    source,
+):
+    calls = []
+
+    async def authenticate(_request, _database, _settings):
+        return type("Auth", (), {"user": {"id": "00000000-0000-0000-0000-000000000001"}})()
+
+    async def rate_limit(*_args, **_kwargs):
+        return None
+
+    async def recorder(_database, **kwargs):
+        calls.append(kwargs)
+        return True
+
+    monkeypatch.setattr(analytics_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(analytics_routes, "enforce_user_rate_limit", rate_limit)
+    monkeypatch.setattr(analytics_routes, "record_product_event", recorder)
+
+    result = await analytics_routes.create_product_event(
+        ProductEventRequest(
+            eventName="PlanCenterViewed",
+            eventKey="plan-center-viewed",
+            source=source,
+        ),
+        request_for("www.askcrump.com"),
+    )
+
+    assert result == {"success": True, "recorded": True}
+    assert calls[0]["event_key"].startswith(f"plan-center-viewed:{source}:")
+    assert len(calls[0]["event_key"]) == len(f"plan-center-viewed:{source}:2026-08-29")
+    assert calls[0]["source"] == source
     assert calls[0]["plan"] is None
 
 

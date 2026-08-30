@@ -52,7 +52,8 @@ async def create_product_event(payload: ProductEventRequest, request: Request):
         event_key = f"recent-work-resumed:{source_segment}{server_day}"
     if payload.eventName == "PlanCenterViewed":
         server_day = datetime.now(timezone.utc).date().isoformat()
-        event_key = f"plan-center-viewed:{server_day}"
+        source_segment = "" if payload.source == "settings" else f"{payload.source}:"
+        event_key = f"plan-center-viewed:{source_segment}{server_day}"
     auth = await authenticate_request(request, db, settings)
     await enforce_user_rate_limit(
         db,

@@ -29,6 +29,8 @@ EVENT_NAMES = frozenset({
     "ArtifactDownloaded",
     "SubscriptionCheckoutOpened",
     "SubscriptionCheckoutCompleted",
+    "CreditCheckoutOpened",
+    "CreditCheckoutCompleted",
     "BillingPortalOpened",
     "SubscriptionStatusChanged",
 })
@@ -50,7 +52,16 @@ RESPONSE_SHARE_SOURCES = frozenset({
     "useful_prompt_clipboard",
 })
 RECENT_WORK_SOURCES = frozenset({"launchpad", "project"})
-PLAN_CENTER_SOURCES = frozenset({"settings", "plan_intent", "upgrade_prompt"})
+PLAN_CENTER_SOURCES = frozenset({
+    "settings",
+    "plan_intent",
+    "upgrade_prompt",
+    "recovery_credits",
+    "recovery_subscription",
+    "recovery_feature",
+    "recovery_project",
+    "recovery_usage",
+})
 PAID_PLANS = frozenset({"professional", "enterprise"})
 ARTIFACT_TYPES = frozenset({
     "document", "image", "video", "manuscript", "code",

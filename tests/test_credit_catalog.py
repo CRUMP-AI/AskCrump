@@ -2,6 +2,10 @@ import hashlib
 import hmac
 import time
 from dataclasses import replace
+from types import SimpleNamespace
+from unittest.mock import ANY
+
+import pytest
 
 from backend.credits_catalog import by_code, by_native_product, packs
 from backend.routes import credits as credit_routes
@@ -63,3 +67,96 @@ def test_credit_webhook_prefers_documented_singular_secret(monkeypatch):
         body,
         _stripe_header('whsec_legacy', body),
     )
+
+
+class CreditRequest:
+    def __init__(self, payload=None):
+        self.headers = {}
+        self.url = SimpleNamespace(hostname='askcrump.com')
+        self._payload = payload or {}
+
+    async def json(self):
+        return self._payload
+
+
+@pytest.mark.asyncio
+async def test_credit_checkout_records_only_the_server_session_and_fixed_pack(monkeypatch):
+    events = []
+    pack = SimpleNamespace(code='credits_150', credits=150, stripe_price_id='price_credits_150')
+
+    async def authenticate(*_args, **_kwargs):
+        return SimpleNamespace(user={'id': 'user-1'})
+
+    async def ensure_customer(_user):
+        return 'cus_owner'
+
+    async def stripe_post(_path, _payload):
+        return {'id': 'cs_credit_opened', 'url': 'https://checkout.stripe.com/c/pay/test'}
+
+    async def record_event(_database, **kwargs):
+        events.append(kwargs)
+        return True
+
+    monkeypatch.setattr(credit_routes, 'authenticate_request', authenticate)
+    monkeypatch.setattr(credit_routes, '_ensure_stripe_customer', ensure_customer)
+    monkeypatch.setattr(credit_routes, '_stripe_post', stripe_post)
+    monkeypatch.setattr(credit_routes, 'by_code', lambda _code: pack)
+    monkeypatch.setattr(credit_routes, 'record_product_event', record_event)
+
+    result = await credit_routes.checkout(CreditRequest({'pack': 'credits_150'}))
+
+    assert result['success'] is True
+    assert result['sessionId'] == 'cs_credit_opened'
+    assert events == [{
+        'user_id': 'user-1',
+        'event_name': 'CreditCheckoutOpened',
+        'event_key': 'cs_credit_opened',
+        'request': ANY,
+        'source': 'credits_150',
+    }]
+
+
+@pytest.mark.asyncio
+async def test_credit_completion_uses_the_same_session_identity_and_no_payment_details(monkeypatch):
+    events = []
+    pack = SimpleNamespace(code='credits_50', credits=50, stripe_price_id='price_credits_50')
+
+    async def grant(**_kwargs):
+        return {'ledgerId': 'ledger-1', 'balance': 62, 'duplicate': False}
+
+    async def record_event(_database, **kwargs):
+        events.append(kwargs)
+        return True
+
+    monkeypatch.setattr(credit_routes, 'by_code', lambda _code: pack)
+    monkeypatch.setattr(credit_routes, '_grant', grant)
+    monkeypatch.setattr(credit_routes, 'record_product_event', record_event)
+    request = CreditRequest()
+    session = {
+        'id': 'cs_credit_complete',
+        'payment_status': 'paid',
+        'metadata': {
+            'purchase_type': 'credits',
+            'user_id': 'user-1',
+            'pack': 'credits_50',
+            'credits': '50',
+        },
+    }
+
+    result = await credit_routes._finalize_stripe_session(
+        user_id='user-1',
+        session=session,
+        request=request,
+    )
+
+    assert result == {
+        'pack': 'credits_50',
+        'credits': 50,
+        'ledgerId': 'ledger-1',
+        'balance': 62,
+        'duplicate': False,
+    }
+    assert events[0]['event_name'] == 'CreditCheckoutCompleted'
+    assert events[0]['event_key'] == 'cs_credit_complete'
+    assert events[0]['source'] == 'credits_50'
+    assert set(events[0]) == {'user_id', 'event_name', 'event_key', 'request', 'source'}

@@ -19,7 +19,19 @@
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const native = () => Boolean(window.BillingManager?.isNative?.());
-  const planCenterSources = new Set(['settings', 'plan_intent', 'upgrade_prompt']);
+  const recoverySources = Object.freeze({
+    CREDITS_REQUIRED: 'recovery_credits',
+    SUBSCRIPTION_REQUIRED: 'recovery_subscription',
+    FEATURE_LIMIT_REACHED: 'recovery_feature',
+    PROJECT_LIMIT_REACHED: 'recovery_project',
+    USAGE_LIMIT: 'recovery_usage',
+  });
+  const planCenterSources = new Set([
+    'settings',
+    'plan_intent',
+    'upgrade_prompt',
+    ...Object.values(recoverySources),
+  ]);
   const BILLING_FOCUSABLE = [
     'a[href]',
     'button:not([disabled])',
@@ -36,6 +48,8 @@
   }
 
   function planCenterSource(options = {}) {
+    const recoverySource = recoverySources[String(options?.accessCode || '').toUpperCase()];
+    if (recoverySource) return recoverySource;
     if (['professional', 'enterprise'].includes(String(options?.plan || '').toLowerCase())) {
       return 'plan_intent';
     }

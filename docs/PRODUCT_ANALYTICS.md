@@ -52,6 +52,7 @@ snapshot.
 | `AhaReached` | Server | The first durable artifact, generated image, manuscript workspace, or ownership-checked conversation-to-Project transition completed. Project analytics retain only the `project` category—not the Project ID, name, chat ID, title, or content. |
 | `OutcomeFeedbackSubmitted` | Authenticated client | The user answered whether one result moved the work forward. Only `useful` or `needs_work` is stored in `source`; no prompt, response, filename, comment, or other content is accepted. |
 | `RecentWorkResumed` | Authenticated client | The user opened a non-empty conversation from the clean-start launchpad or continued a conversation from its Project workspace. The server accepts only `launchpad` or `project`, derives a source-specific UTC-day key, and records at most one content-free milestone per account, source, and day; no Project ID, chat ID, title, prompt, response, or filename is sent. |
+| `PlanCenterViewed` | Authenticated client | The user reached the Plan center from settings, explicit paid-plan intent, an upgrade prompt, or one fixed recovery category. Recovery sources are limited to `recovery_credits`, `recovery_subscription`, `recovery_feature`, `recovery_project`, and `recovery_usage`; counts, balances, prompts, content, IDs, and error text are never sent. The server records at most one event per account, source, and UTC day. |
 | `PlanIntentReached` | Authenticated client | A paid-plan marketing intent reached the in-app plan review. |
 | `ResponseShared` | Authenticated client | A user completed native sharing or a clipboard write was positively verified for branded share text, including the optional content-free referral offered after a useful outcome. A denied/unsupported clipboard write returns an error and records no event. The source is restricted to the four delivery paths (`native_share`, `clipboard`, `useful_prompt_native`, or `useful_prompt_clipboard`). Every shared link opens the public product page first and carries only the aggregate `referral` channel and fixed `response-share` placement through a later signup or sign-in action—never a user, conversation, message, content, or arbitrary source identifier. |
 | `ArtifactRequested` | Server | An entitled document or presentation request reached generation. Only the artifact category and server-derived environment, platform, and plan are retained. |
@@ -60,6 +61,8 @@ snapshot.
 | `ArtifactDownloaded` | Server | The first authenticated download redirect was prepared for a generated document or manuscript export. Inline opens and ordinary uploads are excluded. |
 | `SubscriptionCheckoutOpened` | Server | Stripe created a subscription Checkout Session. |
 | `SubscriptionCheckoutCompleted` | Stripe webhook | Stripe verified a completed subscription Checkout Session. |
+| `CreditCheckoutOpened` | Server | Stripe created a credit-pack Checkout Session. Only the fixed pack code and server-issued session identity are used for attribution and idempotency. |
+| `CreditCheckoutCompleted` | Server | Stripe verified a completed credit-pack Checkout Session, or RevenueCat returned a verified credit-pack transaction. Only the fixed pack code and provider transaction identity are used. |
 | `BillingPortalOpened` | Server | Stripe created a customer portal session. |
 | `SubscriptionStatusChanged` | Stripe webhook | Stripe changed or deleted a subscription. |
 
@@ -72,7 +75,7 @@ D1, D7, and D30. Preview rows are kept out of business reporting.
 
 No acquisition spend should increase until production data can distinguish: account created,
 workspace opened, starter intent reached, activated, durable value reached, paid intent reached,
-checkout opened, and checkout completed.
+subscription or credit checkout opened, and subscription or credit checkout completed.
 The first comparable cohort begins at `2026-08-23 09:10:55.602863+00`, the first observed production
 product-event timestamp. Migration `20260827180833_product_growth_measurement_boundary.sql` enforces
 that lower bound even when an operator requests an earlier reporting window. Historical account
@@ -127,5 +130,26 @@ from public.product_artifact_journey_snapshot(
   p_since => timestamptz '2026-08-27 00:00:00+00',
   p_until => now(),
   p_environment => 'production'
+);
+```
+
+## Service-role Plan-center conversion snapshot
+
+Migration `20260830053822_monetization_recovery_measurement.sql` updates
+`product_plan_conversion_snapshot`, a service-role-only aggregate report for a half-open event
+window. It preserves the existing Plan-center, subscription Checkout-opened, and subscription
+Checkout-completed metrics, then adds credit Checkout open/completion and distinct-account counts
+for the five fixed recovery categories. The report excludes deleted and internal accounts by
+default and returns no account identity, content, balance, price, or payment detail. Migration
+`20260830055322_consolidate_monetization_index.sql` replaces the overlapping report indexes with
+one covering index for the subscription, credit, and recovery journey.
+
+```sql
+select *
+from public.product_plan_conversion_snapshot(
+  p_since => timestamptz '2026-08-30 00:00:00+00',
+  p_until => now(),
+  p_environment => 'production',
+  p_include_internal => false
 );
 ```
