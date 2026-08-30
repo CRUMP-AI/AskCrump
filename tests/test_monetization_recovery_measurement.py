@@ -108,4 +108,4 @@ def test_monetization_measurement_assets_are_registered_for_web_pwa_and_native()
         assert asset in runtime
         assert asset in worker
         assert asset in native
-    assert "ask-crump-new-body-v1-r147" in worker
+    assert "ask-crump-new-body-v1-r148" in worker

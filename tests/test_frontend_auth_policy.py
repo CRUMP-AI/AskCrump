@@ -130,6 +130,8 @@ def test_registration_preserves_allowlisted_creation_and_paid_plan_promises():
     assert 'without invented credentials' in controller
     assert "title: 'Open your Video Studio.'" in controller
     assert 'see its Crump Credit cost' in controller
+    assert 'find completed clips in Projects → Files' in controller
+    assert 'keep completed clips in your private Library' not in controller
     assert 'const REGISTRATION_PLAN_HANDOFFS = Object.freeze({' in controller
     assert 'Professional is $20/month and remains unpurchased until you review and confirm checkout' in controller
     assert 'Enterprise is $50/month and remains unpurchased until you review and confirm checkout' in controller

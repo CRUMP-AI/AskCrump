@@ -38,7 +38,7 @@
     },
     video: {
       title: 'Open your Video Studio.',
-      description: 'After verification, Ask Crump opens Video Studio so you can choose a generation mode, see its Crump Credit cost, and keep completed clips in your private Library.',
+      description: 'After verification, Ask Crump opens Video Studio so you can choose a generation mode, see its Crump Credit cost, and find completed clips in Projects → Files.',
     },
     projects: {
       title: 'Open your private Project workspace.',
