@@ -82,7 +82,7 @@ def test_clever_crump_has_host_correct_search_discovery_files():
     urls = parsed.findall("sm:url", namespace)
     assert len(urls) == 1
     assert urls[0].findtext("sm:loc", namespaces=namespace) == "https://www.clevercrump.com/"
-    assert urls[0].findtext("sm:lastmod", namespaces=namespace) == "2026-08-29"
+    assert urls[0].findtext("sm:lastmod", namespaces=namespace) == "2026-08-30"
 
 
 def test_ask_crump_robots_uses_the_clean_account_deletion_path():

@@ -115,9 +115,14 @@ h1,h2,h3,p { margin-top: 0; }
 .stage-top { height: 58px; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; border-bottom: 1px solid var(--line); color: #788087; font-size: 10px; letter-spacing: .08em; }
 .stage-dots { display: flex; gap: 7px; }
 .stage-dots i { width: 7px; height: 7px; border-radius: 50%; background: #303840; }
-.stage-shell { min-height: 650px; display: grid; grid-template-columns: 74px 1fr; }
-.stage-rail { padding-top: 22px; border-right: 1px solid var(--line); display: flex; justify-content: center; }
+.stage-shell { min-height: 650px; display: grid; grid-template-columns: 88px 1fr; }
+.stage-rail { padding: 22px 8px; border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 28px; }
 .stage-rail-mark { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid rgba(213,185,113,.18); border-radius: 13px; background: rgba(213,185,113,.04); color: #c7ac68; }
+.stage-destinations { width: 100%; display: grid; gap: 8px; }
+.stage-destination { min-height: 52px; display: grid; place-items: center; gap: 2px; padding: 6px 2px; border: 1px solid transparent; border-radius: 13px; color: #697178; }
+.stage-destination span { font-size: 15px; line-height: 1; }
+.stage-destination small { font-size: 7px; font-weight: 760; letter-spacing: .02em; }
+.stage-destination.active { border-color: rgba(213,185,113,.2); background: rgba(213,185,113,.055); color: #d1b875; }
 .stage-main { padding: 50px clamp(20px,5vw,60px) 42px; }
 .stage-brand { display: flex; justify-content: center; }
 .stage-brand img { width: min(290px, 70%); height: 48px; object-fit: contain; }
@@ -131,6 +136,7 @@ h1,h2,h3,p { margin-top: 0; }
 .stage-icon { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid rgba(213,185,113,.16); border-radius: 12px; color: #c6a965; }
 .stage-card strong { display: block; margin-bottom: 5px; color: #e4e2dc; font-size: 13px; }
 .stage-card span:last-child { color: #798186; font-size: 11px; line-height: 1.45; }
+.stage-card.account { grid-column: 1 / -1; min-height: 88px; }
 .stage-composer { width: min(820px,100%); height: 64px; margin: 18px auto 0; display: grid; grid-template-columns: 48px 1fr 42px; align-items: center; padding: 0 9px; border: 1px solid #2c343d; border-radius: 20px; background: #151c23; color: #858d94; }
 .stage-send { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: #d4b872; color: #0c0f12; font-size: 20px; }
 

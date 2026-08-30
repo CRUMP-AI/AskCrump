@@ -34,7 +34,7 @@ def test_public_header_actions_stay_single_line_on_narrow_phones():
     company_page = read("public/clever-crump.html")
     company_styles = read("public/clever-crump.css")
 
-    assert '/landing-5.6.css?v=5.9.76-projects-entry-1' in product_page
+    assert '/landing-5.6.css?v=5.9.76-truthful-destinations-1' in product_page
     assert ".nav-cta { min-height: 42px; display: inline-flex; flex: 0 0 auto;" in product_styles
     assert "white-space: nowrap" in product_styles
     assert "@media (max-width: 360px)" in product_styles
@@ -70,6 +70,18 @@ def test_clever_crump_hosts_rewrite_only_the_root_to_the_company_page():
     assert ask_root == [{"source": "/", "destination": "/ask-crump"}]
     assert not (ROOT / "public" / "index.html").exists()
     assert (ROOT / "public" / "ask-crump.html").exists()
+
+
+def test_public_company_preview_matches_the_current_destination_contract():
+    product_page = read("public/ask-crump.html")
+    company_page = read("public/clever-crump.html")
+
+    for destination in ("Ask", "Projects", "Create", "Library", "You"):
+        assert f"<small>{destination}</small>" in product_page
+    assert "Projects → Files" in product_page
+    assert "private, dedicated bookshelf" in product_page
+    assert "Books + manuscripts" in company_page
+    assert "Return + reuse" not in company_page
 
 
 def test_new_grid_cancels_the_legacy_desktop_sidebar_offset():

@@ -65,7 +65,7 @@ def test_marketing_ctas_are_first_party_analytics_events():
     assert '/_vercel/insights/script.js' in page
     assert '/_vercel/speed-insights/script.js' in page
     assert '<script defer src="/landing.js?v=5.9.76-profile-link-1"></script>' in page
-    assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.76-projects-entry-1">' in page
+    assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.76-truthful-destinations-1">' in page
     assert "window.vaq" in script
     assert "MarketingCTA" in script
     assert "MarketingSignin" in script
@@ -128,8 +128,7 @@ def test_public_marketing_surface_is_indexable_while_the_private_app_is_not():
     assert "<loc>https://www.askcrump.com/ai-resume-builder</loc>" in sitemap
     assert "<loc>https://www.askcrump.com/ai-video-generator</loc>" in sitemap
     assert "<loc>https://www.askcrump.com/ai-project-workspace</loc>" in sitemap
-    assert sitemap.count("<lastmod>2026-08-27</lastmod>") == 2
-    assert sitemap.count("<lastmod>2026-08-29</lastmod>") == 4
+    assert sitemap.count("<lastmod>2026-08-30</lastmod>") == 6
     assert sitemap.count("<lastmod>2026-08-24</lastmod>") == 1
 
     namespace = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
@@ -139,12 +138,12 @@ def test_public_marketing_surface_is_indexable_while_the_private_app_is_not():
         for entry in parsed.findall("sm:url", namespace)
     }
     assert urls == {
-        "https://www.askcrump.com/": "2026-08-29",
-        "https://www.askcrump.com/ai-project-workspace": "2026-08-29",
-        "https://www.askcrump.com/ai-presentation-maker": "2026-08-27",
-        "https://www.askcrump.com/ai-document-generator": "2026-08-29",
-        "https://www.askcrump.com/ai-resume-builder": "2026-08-29",
-        "https://www.askcrump.com/ai-video-generator": "2026-08-27",
+        "https://www.askcrump.com/": "2026-08-30",
+        "https://www.askcrump.com/ai-project-workspace": "2026-08-30",
+        "https://www.askcrump.com/ai-presentation-maker": "2026-08-30",
+        "https://www.askcrump.com/ai-document-generator": "2026-08-30",
+        "https://www.askcrump.com/ai-resume-builder": "2026-08-30",
+        "https://www.askcrump.com/ai-video-generator": "2026-08-30",
         "https://www.askcrump.com/legal": "2026-08-24",
     }
 
@@ -180,7 +179,7 @@ def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
         assert f'<meta property="og:url" content="https://www.askcrump.com/{slug}">' in page
         assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
         assert '<script defer src="/landing.js?v=5.9.76-profile-link-1"></script>' in page
-        assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.76-projects-entry-1">' in page
+        assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.76-truthful-destinations-1">' in page
         assert '<link rel="stylesheet" href="/use-case.css?v=5.9.76">' in page
         assert '/_vercel/insights/script.js' in page
         assert '/_vercel/speed-insights/script.js' in page
@@ -473,8 +472,8 @@ def test_release_version_and_cache_advance_together():
 
     assert '"version": "5.9.76"' in package
     assert "__version__ = '5.9.76'" in backend
-    assert "ask-crump-new-body-v1-r145" in worker
-    assert "/landing-5.6.css?v=5.9.76-projects-entry-1" in worker
+    assert "ask-crump-new-body-v1-r146" in worker
+    assert "/landing-5.6.css?v=5.9.76-truthful-destinations-1" in worker
     assert "/use-case.css?v=5.9.76" in worker
     assert "/landing.js?v=5.9.76-profile-link-1" in worker
 
