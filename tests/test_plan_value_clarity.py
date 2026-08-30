@@ -156,8 +156,8 @@ def test_plan_center_containment_assets_are_versioned_everywhere():
     for source in sources:
         assert versioned_billing in source
         assert versioned_final in source
-    assert "ask-crump-new-body-v1-r140" in read_public("sw.js")
-    assert "/runtime-body-v1.js?v=5.9.76-persistent-destinations-1" in read_public("app.html")
+    assert "ask-crump-new-body-v1-r141" in read_public("sw.js")
+    assert "/runtime-body-v1.js?v=5.9.76-destination-focus-1" in read_public("app.html")
 
 
 def test_browser_fixture_uses_the_production_plan_center_layers():

@@ -19,6 +19,10 @@
   let lastFocus = null;
   let createBackgroundState = null;
   let destinationBackgroundState = null;
+  let destinationFocusOpener = null;
+  let activePersistentDestination = null;
+  let suppressDestinationFocusRestore = false;
+  let destinationFocusFrame = 0;
   let syncFrame = 0;
 
   const destinations = Object.freeze([
@@ -194,6 +198,96 @@
     setDestinationBackgroundInert(studioIsOpen() || settingsIsOpen());
   }
 
+  function persistentDestination() {
+    return selectedStudioDestination() || (settingsIsOpen() ? 'you' : null);
+  }
+
+  function visibleDestinationButton(destination) {
+    return destinationButtons().find(button => {
+      if (button.dataset.crump5930Destination !== destination) return false;
+      return Boolean(button.offsetWidth || button.offsetHeight || button.getClientRects().length);
+    }) || null;
+  }
+
+  function rememberDestinationOpener(destination) {
+    const active = document.activeElement;
+    destinationFocusOpener = active?.dataset?.crump5930Destination === destination
+      ? active
+      : visibleDestinationButton(destination) || null;
+  }
+
+  function destinationSurface(destination) {
+    return destination === 'you'
+      ? document.querySelector('#settingsModal [role="dialog"]')
+      : byId('crump53Sheet');
+  }
+
+  function destinationFocusTarget(destination) {
+    return destination === 'you' ? byId('settingsTitle') : byId('crump53WorkspaceTitle');
+  }
+
+  function scheduleDestinationSurfaceFocus(destination) {
+    if (destinationFocusFrame) cancelAnimationFrame(destinationFocusFrame);
+    destinationFocusFrame = requestAnimationFrame(() => {
+      destinationFocusFrame = 0;
+      if (persistentDestination() !== destination) return;
+      const surface = destinationSurface(destination);
+      const target = destinationFocusTarget(destination);
+      if (!surface || !target || surface.contains(document.activeElement)) return;
+      target.focus({preventScroll: true});
+    });
+  }
+
+  function restoreDestinationFocus() {
+    if (destinationFocusFrame) cancelAnimationFrame(destinationFocusFrame);
+    destinationFocusFrame = 0;
+    const opener = destinationFocusOpener;
+    destinationFocusOpener = null;
+    requestAnimationFrame(() => {
+      if (persistentDestination()) return;
+      const target = opener?.isConnected && !opener.disabled
+        ? opener
+        : visibleDestinationButton('ask');
+      target?.focus?.({preventScroll: true});
+    });
+  }
+
+  function syncDestinationFocus() {
+    const current = persistentDestination();
+    const previous = activePersistentDestination;
+    if (current) {
+      if (current !== previous) {
+        const active = document.activeElement;
+        if (active?.dataset?.crump5930Destination === current) destinationFocusOpener = active;
+        else if (previous || !destinationFocusOpener) {
+          destinationFocusOpener = visibleDestinationButton(current) || destinationFocusOpener;
+        }
+        activePersistentDestination = current;
+        suppressDestinationFocusRestore = false;
+        scheduleDestinationSurfaceFocus(current);
+      }
+      return;
+    }
+    if (previous) {
+      activePersistentDestination = null;
+      if (suppressDestinationFocusRestore) {
+        suppressDestinationFocusRestore = false;
+        destinationFocusOpener = null;
+        return;
+      }
+      restoreDestinationFocus();
+      return;
+    }
+    if (suppressDestinationFocusRestore) {
+      suppressDestinationFocusRestore = false;
+      destinationFocusOpener = null;
+    }
+  }
+
+  function suppressPersistentDestinationRestore() {
+    if (persistentDestination() || activePersistentDestination) suppressDestinationFocusRestore = true;
+  }
+
   function closeToolSheet() {
     document.querySelector('.crump50-sheet .crump50-sheet-close')?.click();
   }
@@ -304,9 +398,11 @@
 
   function openCreateHub() {
     closeSidebar();
+    suppressPersistentDestinationRestore();
     closeStudio();
     closeSettings();
     setDestinationBackgroundInert(false);
+    syncDestinationFocus();
     closeToolSheet();
     injectCreateHub();
     const hub = byId('crump5930CreateHub');
@@ -349,7 +445,10 @@
       return true;
     }
     if (action === 'manuscript' || action === 'video') {
+      rememberDestinationOpener('create');
       window.CrumpProduct53?.open?.(action === 'manuscript' ? 'manuscripts' : 'video');
+      syncDestinationBackground();
+      syncDestinationFocus();
       return true;
     }
     return false;
@@ -372,9 +471,11 @@
 
   function openAsk() {
     closeSidebar();
+    suppressPersistentDestinationRestore();
     closeStudio();
     closeSettings();
     setDestinationBackgroundInert(false);
+    syncDestinationFocus();
     closeCreateHub();
     closeToolSheet();
     setActive('ask');
@@ -382,6 +483,7 @@
   }
 
   function openProjects() {
+    rememberDestinationOpener('projects');
     closeSidebar();
     closeSettings();
     closeCreateHub();
@@ -389,9 +491,11 @@
     window.CrumpProduct53?.open?.('projects');
     syncDestinationBackground();
     setActive('projects');
+    syncDestinationFocus();
   }
 
   function openLibrary() {
+    rememberDestinationOpener('library');
     closeSidebar();
     closeSettings();
     closeCreateHub();
@@ -399,9 +503,11 @@
     window.CrumpProduct53?.open?.('library');
     syncDestinationBackground();
     setActive('library');
+    syncDestinationFocus();
   }
 
   function openYou() {
+    rememberDestinationOpener('you');
     closeSidebar();
     closeStudio();
     closeCreateHub();
@@ -410,6 +516,7 @@
     else byId('settingsBtn')?.click();
     syncDestinationBackground();
     setActive('you');
+    syncDestinationFocus();
   }
 
   function openDestination(destination) {
@@ -446,6 +553,7 @@
   function syncFromSurfaces() {
     syncFrame = 0;
     syncDestinationBackground();
+    syncDestinationFocus();
     if (createHubIsOpen()) return setActive('create');
     const studioDestination = selectedStudioDestination();
     if (studioDestination) return setActive(studioDestination);

@@ -52,11 +52,12 @@
         <div class="fixture-card"><button id="menuBtn" type="button">Chats</button><span>WORKSPACE</span><h1>What are we moving forward?</h1><p id="result">ready</p></div>
       </main>
     </div>
-    <button id="userInput" type="button" hidden>Composer</button>
+    <button id="userInput" type="button">Composer</button>
   </div>
 
   <div id="crump53Studio" class="crump53-overlay" hidden>
     <section id="crump53Sheet" role="dialog" aria-modal="false" aria-label="Ask Crump Projects" data-crump53-section="projects">
+      <strong id="crump53WorkspaceTitle" tabindex="-1">Projects</strong>
       <button id="crump53Close" type="button">Close destination</button>
     </section>
   </div>
@@ -65,7 +66,7 @@
     <div class="modal-content settings-sheet v1-settings-sheet" role="dialog" aria-modal="false" aria-label="Settings">
       <div class="settings-sheet-header v1-settings-header">
         <button id="closeSettingsBtn" type="button">Close</button>
-        <div><div>ASK CRUMP</div><strong>Settings</strong></div>
+        <div><div>ASK CRUMP</div><strong id="settingsTitle" tabindex="-1">Settings</strong></div>
         <button id="saveSettingsBtn" type="button">Save changes</button>
       </div>
       <div class="v1-settings-layout">
@@ -122,13 +123,14 @@
         const sheet = document.getElementById('crump53Sheet');
         sheet.dataset.crump53Section = section;
         sheet.setAttribute('aria-label', section === 'library' ? 'Ask Crump Library' : 'Ask Crump Projects');
+        document.getElementById('crump53WorkspaceTitle').textContent = section === 'library' ? 'Library' : 'Projects';
         studio.hidden = false;
       },
     };
     document.getElementById('crump53Close').addEventListener('click', () => { document.getElementById('crump53Studio').hidden = true; });
   </script>
   <script src="/public/crump-v1-body.js?v=5.9.76"></script>
-  <script src="/public/crump-navigation-5.9.30.js?v=5.9.76-persistent-destinations-1"></script>
+  <script src="/public/crump-navigation-5.9.30.js?v=5.9.76-destination-focus-1"></script>
   <script>
     const mobileProof = new URLSearchParams(location.search).get('mobile');
     if (mobileProof === 'drawer') {

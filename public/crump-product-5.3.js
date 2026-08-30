@@ -411,7 +411,7 @@
         <header class="crump53-sheet-head">
           <div class="crump53-sheet-identity">
             <button type="button" class="crump53-project-back" id="crump53ProjectBack" hidden aria-label="Back to all Projects">‹ <span>Projects</span></button>
-            <div><div class="crump53-kicker" id="crump53WorkspaceKicker">WORKSPACE</div><strong id="crump53WorkspaceTitle">Projects</strong></div>
+            <div><div class="crump53-kicker" id="crump53WorkspaceKicker">WORKSPACE</div><strong id="crump53WorkspaceTitle" tabindex="-1">Projects</strong></div>
           </div>
           <button type="button" class="crump53-close" id="crump53Close" aria-label="Close">×</button>
         </header>

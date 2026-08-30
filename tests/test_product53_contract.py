@@ -13,10 +13,10 @@ def test_product53_runtime_is_registered_last_and_cached():
     checker = read("scripts/check-javascript.mjs")
     assert "/crump-product-5.3.css" in runtime
     assert "/crump-product-5.3.js" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-persistent-destinations-1" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-persistent-destinations-1" in worker
+    assert "/crump-product-5.3.js?v=5.9.76-destination-focus-1" in runtime
+    assert "/crump-product-5.3.js?v=5.9.76-destination-focus-1" in worker
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r140" in worker
+    assert "ask-crump-new-body-v1-r141" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 
@@ -121,6 +121,7 @@ def test_library_is_one_dedicated_destination_instead_of_a_workspace_tab():
 
     assert 'id="crump53Sheet"' in product
     assert 'id="crump53Sheet" role="dialog" aria-modal="false"' in product
+    assert 'id="crump53WorkspaceTitle" tabindex="-1"' in product
     assert 'id="crump53WorkspaceTabs"' not in product
     assert 'data-crump53-tab=' not in product
     assert "const STUDIO_SECTION_META = Object.freeze" in product

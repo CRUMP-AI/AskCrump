@@ -20,7 +20,7 @@ def test_five_destination_navigation_is_final_runtime_layer_and_boot_critical():
         assert asset.lstrip("/") in checker
 
     assert runtime.index("/crump-library-5.7.js") < runtime.index("/crump-navigation-5.9.30.js")
-    assert "ask-crump-new-body-v1-r140" in worker
+    assert "ask-crump-new-body-v1-r141" in worker
 
 
 def test_navigation_exposes_exact_product_destinations_on_desktop_and_mobile():
@@ -62,6 +62,23 @@ def test_persistent_destinations_hide_only_the_covered_workspace_from_assistive_
     assert "element.removeAttribute('aria-hidden')" in script
     assert "setDestinationBackgroundInert(studioIsOpen() || settingsIsOpen())" in script
     assert "syncDestinationBackground();" in script
+
+
+def test_persistent_destinations_announce_entry_and_restore_the_opening_control():
+    page = read("public/app.html")
+    product = read("public/crump-product-5.3.js")
+    script = read("public/crump-navigation-5.9.30.js")
+
+    assert 'id="settingsTitle" tabindex="-1"' in page
+    assert 'id="crump53WorkspaceTitle" tabindex="-1"' in product
+    assert "function rememberDestinationOpener(destination)" in script
+    assert "function scheduleDestinationSurfaceFocus(destination)" in script
+    assert "surface.contains(document.activeElement)" in script
+    assert "target.focus({preventScroll: true})" in script
+    assert "function restoreDestinationFocus()" in script
+    assert "opener?.isConnected && !opener.disabled" in script
+    assert "suppressPersistentDestinationRestore();" in script
+    assert "syncDestinationFocus();" in script
 
 
 def test_navigation_reuses_existing_product_surfaces_without_data_migration():
@@ -147,7 +164,7 @@ def test_navigation_consolidation_fixture_uses_the_production_layers():
 
     assert '/public/crump-v1-body.js' in fixture
     assert '/public/crump-navigation-5.9.30.js' in fixture
-    assert '5.9.76-persistent-destinations-1' in fixture
+    assert '5.9.76-destination-focus-1' in fixture
     assert 'window.fixtureErrors = []' in fixture
     assert "dataset.fixtureErrorCount = '0'" in fixture
     assert 'id="v1OpenPlanBtn"' in fixture
