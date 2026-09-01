@@ -35,7 +35,7 @@ const CORE = [
   '/crump-library-5.7.css',
   '/crump-library-5.7.js?v=5.9.76-demand-hydration-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-commerce-recovery-1',
-  '/runtime-body-v1.js?v=5.9.76-new-response-cue-loader-1',
+  '/runtime-body-v1.js?v=5.9.76-precision-edit-loader-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
@@ -62,8 +62,10 @@ const CORE = [
   '/crump-4.3.js?v=5.9.76-intelligence-architecture-1',
   '/crump-4.4.css',
   '/crump-4.4.js?v=5.9.76-core-reliability-1',
-  '/crump-5.0.css?v=5.9.76-image-reference-entry-1',
-  '/crump-5.0.js?v=5.9.76-user-controlled-scroll-1',
+  '/crump-5.0.css?v=5.9.76-precision-edit-entry-1',
+  '/crump-5.0.js?v=5.9.76-precision-edit-handoff-1',
+  '/crump-precision-image-edit.css?v=5.9.76-precision-edit-studio-1',
+  '/crump-precision-image-edit.js?v=5.9.76-precision-edit-studio-1',
   '/crump-billing-5.1.css?v=5.9.76-credit-pack-truth-1',
   '/crump-billing-5.1.js?v=5.9.76-credit-pack-truth-1',
   '/crump-5.2.css',
@@ -129,6 +131,8 @@ function bootCritical(request, url) {
     url.pathname === '/chat-resilience.js' ||
     url.pathname === '/crump-5.0.js' ||
     url.pathname === '/crump-5.0.css' ||
+    url.pathname === '/crump-precision-image-edit.js' ||
+    url.pathname === '/crump-precision-image-edit.css' ||
     url.pathname === '/ui-functions.js' ||
     url.pathname === '/auth-resilience.js' ||
     url.pathname === '/install-prompt.js' ||

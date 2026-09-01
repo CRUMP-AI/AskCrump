@@ -22,6 +22,7 @@
     lightbox: null,
     lightboxReturnFocus: null,
     imageRecovery: null,
+    precisionImageEdit: null,
   };
 
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -379,6 +380,7 @@
     const index = state.attachments.findIndex(item => item.localId === localId);
     if (index < 0) return;
     const [item] = state.attachments.splice(index, 1);
+    if (state.precisionImageEdit?.sourceId === item.server?.id) state.precisionImageEdit = null;
     item.controller?.abort?.();
     if (item.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl);
     renderAttachmentTray();
@@ -670,7 +672,41 @@
       if (item.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl);
     });
     state.attachments = state.attachments.filter(item => !isImageAttachment(item));
+    state.precisionImageEdit = null;
     renderAttachmentTray();
+  }
+
+  function stagePrecisionImageEdit({file, maskDataUrl, width, height} = {}) {
+    if (!file?.id || !String(maskDataUrl || '').startsWith('data:image/png;base64,')) {
+      throw new Error('The selected edit area could not be prepared.');
+    }
+    clearImageAttachments();
+    addRemoteReference(file, {imageReference: true});
+    state.precisionImageEdit = {sourceId: String(file.id), maskDataUrl: String(maskDataUrl)};
+    if (Number(width) > Number(height) * 1.08) state.imageAspect = 'landscape';
+    else if (Number(height) > Number(width) * 1.08) state.imageAspect = 'portrait';
+    else state.imageAspect = 'square';
+    state.imageRecovery = null;
+    state.tool = 'image';
+    closeMenu();
+    renderToolChip();
+    focusComposer('Describe exactly what should change inside the highlighted area…');
+    show('Selection ready. Describe only the change you want inside it.', 'success');
+  }
+
+  function openPrecisionImageEdit(file, url) {
+    if (window.CrumpPrecisionImageEditor?.open) {
+      void window.CrumpPrecisionImageEditor.open({file, url}).catch(error => {
+        show(error?.message || 'Precision Edit could not open this image.', 'error');
+      });
+      return;
+    }
+    state.precisionImageEdit = null;
+    addRemoteReference(file, {imageReference: true});
+    state.tool = 'image';
+    renderToolChip();
+    focusComposer('Tell Crump what to change…');
+    show('Precision selection is still loading. You can describe a full-image edit now.', 'info');
   }
 
   function chooseImageReference({replace = false} = {}) {
@@ -762,11 +798,21 @@
 
     const guidance = document.createElement('p');
     guidance.className = 'crump50-image-guidance';
-    guidance.textContent = 'Editing a person? Describe only what should change. Crump will ask the image model to preserve identity and appearance. Logos and readable text can still vary, so review the result.';
+    guidance.textContent = 'Editing a person? Select the pixels yourself and describe only the appearance change you want. Crump does not infer race or ethnicity. Logos and readable text should be placed as overlays for exact fidelity.';
+
+    const precision = document.createElement('button');
+    precision.type = 'button';
+    precision.className = 'crump50-precision-entry';
+    precision.disabled = !currentReference?.server?.id;
+    precision.innerHTML = '<span aria-hidden="true">✦</span><span><strong>Select a specific area</strong><small>Brush over only the pixels Crump may change</small></span><b>Open</b>';
+    precision.addEventListener('click', () => {
+      if (!currentReference?.server?.id) return;
+      openPrecisionImageEdit(currentReference.server, currentReference.previewUrl || currentReference.server.url);
+    });
 
     const activate = document.createElement('button'); activate.type = 'button'; activate.className = 'crump50-primary-action'; activate.textContent = currentReference ? 'Continue with reference' : 'Create without reference';
     activate.addEventListener('click', () => { state.imageRecovery = null; state.tool = 'image'; closeMenu(); renderToolChip(); focusComposer(currentReference ? 'Describe what to keep and what to change…' : 'Describe the image you want…'); });
-    body.append(aspectLabel, aspectControl, qualityLabel, qualityControl, referenceLabel, reference, guidance, activate);
+    body.append(aspectLabel, aspectControl, qualityLabel, qualityControl, referenceLabel, reference, precision, guidance, activate);
     wireMenuKeyboard(sheet, dismiss);
     sheet.appendChild(body);
     mountMenu(sheet, close);
@@ -862,6 +908,10 @@
     if (state.tool === 'image') {
       body.creativeTool = 'image'; body.imageAspect = state.imageAspect; body.imageQuality = state.imageQuality;
       body.imageUseReference = readyFiles.some(item => String(item.server?.type || '').startsWith('image/'));
+      const precision = state.precisionImageEdit;
+      if (precision && readyFiles.some(item => String(item.server?.id) === precision.sourceId)) {
+        body.imageEditMask = precision.maskDataUrl;
+      }
     }
     if (state.tool === 'document' && state.documentFormat) body.artifactFormat = state.documentFormat;
     if (state.tool === 'document' && state.documentPurpose) body.artifactPurpose = state.documentPurpose;
@@ -991,6 +1041,7 @@
       input.value = ''; input.style.height = 'auto';
       const body = buildRequestBody(currentChat() || fresh, userMessage, ready);
       state.attachments = [];
+      state.precisionImageEdit = null;
       renderAttachmentTray();
       const sentTool = state.tool;
       state.tool = null; state.documentFormat = null; state.documentPurpose = null; renderToolChip();
@@ -1522,7 +1573,7 @@
           if (!actions) {
             actions = document.createElement('div'); actions.className = 'crump50-image-actions';
             const view = document.createElement('button'); view.type='button'; view.textContent='View'; view.addEventListener('click', () => showLightbox(message.imageFile, message.imageUrl));
-            const edit = document.createElement('button'); edit.type='button'; edit.textContent='Edit'; edit.addEventListener('click', () => { state.imageRecovery=null; addRemoteReference(message.imageFile, {imageReference:true}); state.tool='image'; renderToolChip(); focusComposer('Tell Crump what to change…'); });
+            const edit = document.createElement('button'); edit.type='button'; edit.textContent='Edit'; edit.addEventListener('click', () => { state.imageRecovery=null; openPrecisionImageEdit(message.imageFile, message.imageUrl); });
             const project = document.createElement('button'); project.type='button';
             const download = document.createElement('button'); download.type='button'; download.textContent='Download'; download.addEventListener('click', () => openFile(message.imageFile, true));
             wireOutputProjectAction(project, {
@@ -1593,6 +1644,7 @@
   });
   window.CrumpImageStudio = Object.freeze({
     open: showImageOptions,
+    applyPrecisionSelection: stagePrecisionImageEdit,
   });
   function boot() {
     if (document.documentElement.dataset.crump50Booted === 'true') return;

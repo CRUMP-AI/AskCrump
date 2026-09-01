@@ -495,6 +495,9 @@ async def chat(request: Request):
     effective_user_tier = tier_name(auth.user)
     payload = await request.json()
     request_payload = dict(payload) if isinstance(payload, dict) else {}
+    # Precision masks are private, single-request image data. Keep them out of
+    # intelligence preparation, traces, synchronized messages, and analytics.
+    image_edit_mask = request_payload.pop('imageEditMask', None)
     original_message = str(request_payload.get('message') or '')
     think_longer_entitled = features.entitled(auth.user, 'think_longer')
     explicit_mode = str(request_payload.get('intelligenceMode') or '').strip().lower()
@@ -875,6 +878,7 @@ async def chat(request: Request):
                 file_rows=file_rows,
                 chat_id=chat_id,
                 message_id=message_id,
+                image_edit_mask=image_edit_mask if isinstance(image_edit_mask, str) else None,
             )
         elif file_rows and media.has_visual_files(file_rows):
             result = await media.understand(payload=request_payload, file_rows=file_rows)

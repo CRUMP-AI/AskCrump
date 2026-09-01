@@ -1,0 +1,110 @@
+body.crump-precision-open { overflow: hidden !important; }
+
+.crump-precision-backdrop {
+  position: fixed; inset: 0; z-index: 160500; display: grid; place-items: center; padding: 18px;
+  background: rgba(4, 6, 9, .88); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+}
+
+.crump-precision-editor {
+  width: min(1180px, 100%); height: min(880px, calc(100dvh - 36px)); min-height: 560px;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden;
+  border: 1px solid rgba(255,255,255,.105); border-radius: 28px;
+  background: #11171e; color: #f2f0eb; box-shadow: 0 40px 110px rgba(0,0,0,.58), inset 0 1px rgba(255,255,255,.035);
+  animation: crumpPrecisionEnter .18s ease both;
+}
+
+.crump-precision-editor > header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 20px 22px 17px;
+  border-bottom: 1px solid rgba(255,255,255,.075);
+}
+.crump-precision-editor > header > div { display: grid; gap: 5px; }
+.crump-precision-editor > header span { color: #d5bd87; font-size: 9px; font-weight: 700; letter-spacing: .14em; }
+.crump-precision-editor > header h2 { margin: 0; font-size: clamp(19px, 2.4vw, 27px); font-weight: 560; letter-spacing: -.035em; }
+.crump-precision-editor > header p { max-width: 690px; margin: 0; color: #8f98a4; font-size: 11px; line-height: 1.5; }
+.crump-precision-close {
+  flex: 0 0 auto; width: 40px; height: 40px; border: 1px solid rgba(255,255,255,.08); border-radius: 50%;
+  background: rgba(255,255,255,.04); color: #c8ced5; font-size: 24px; font-weight: 300;
+}
+.crump-precision-close:hover { background: rgba(255,255,255,.075); color: #fff; }
+
+.crump-precision-workspace { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 290px; }
+.crump-precision-stage {
+  min-width: 0; min-height: 0; display: grid; place-items: center; overflow: auto; padding: 18px;
+  background: radial-gradient(circle at 50% 30%, rgba(209,191,150,.045), transparent 48%), #090d12;
+  overscroll-behavior: contain;
+}
+.crump-precision-stage.is-loading { overflow: hidden; }
+.crump-precision-loading, .crump-precision-load-error { display: grid; justify-items: center; gap: 12px; color: #9ba4ae; text-align: center; }
+.crump-precision-loading > span { width: 28px; height: 28px; border: 2px solid rgba(255,255,255,.11); border-top-color: #d5bd87; border-radius: 50%; animation: crumpPrecisionSpin .8s linear infinite; }
+.crump-precision-loading strong, .crump-precision-load-error strong { color: #dfe3e7; font-size: 13px; }
+.crump-precision-load-error p { margin: 0; color: #8f98a4; font-size: 11px; }
+.crump-precision-canvas-frame {
+  position: relative; width: fit-content; max-width: 100%; max-height: 100%; display: grid; place-items: center;
+  overflow: hidden; border: 1px solid rgba(255,255,255,.11); border-radius: 15px; background: #05070a;
+  box-shadow: 0 24px 70px rgba(0,0,0,.34); line-height: 0;
+}
+.crump-precision-canvas-frame img { grid-area: 1 / 1; display: block; width: auto; height: auto; max-width: 100%; max-height: calc(100dvh - 245px); object-fit: contain; user-select: none; -webkit-user-drag: none; }
+.crump-precision-canvas-frame canvas {
+  position: absolute; inset: 0; z-index: 2; display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: none;
+}
+
+.crump-precision-controls {
+  min-height: 0; display: flex; flex-direction: column; gap: 15px; overflow: auto; padding: 19px;
+  border-left: 1px solid rgba(255,255,255,.075); background: #121920;
+}
+.crump-precision-control-head { display: grid; gap: 5px; }
+.crump-precision-control-head span { color: #d5bd87; font-size: 8px; font-weight: 700; letter-spacing: .13em; }
+.crump-precision-control-head strong { color: #e3e5e6; font-size: 13px; line-height: 1.35; }
+.crump-precision-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 3px; border: 1px solid rgba(255,255,255,.075); border-radius: 12px; background: #0d1319; }
+.crump-precision-modes button { min-height: 38px; border: 0; border-radius: 9px; background: transparent; color: #7f8995; font-size: 11px; font-weight: 600; }
+.crump-precision-modes button.is-active { background: rgba(209,191,150,.13); color: #ead9b3; }
+.crump-precision-size { display: grid; grid-template-columns: 1fr auto; gap: 8px; color: #aab1b9; font-size: 10px; }
+.crump-precision-size b { color: #d5bd87; font-weight: 650; }
+.crump-precision-size input { grid-column: 1 / -1; width: 100%; accent-color: #d5bd87; }
+.crump-precision-history { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.crump-precision-history button { min-height: 38px; border: 1px solid rgba(255,255,255,.075); border-radius: 11px; background: rgba(255,255,255,.03); color: #c4cad0; font-size: 10px; }
+.crump-precision-history button:disabled { opacity: .35; }
+.crump-precision-boundary { display: grid; grid-template-columns: 30px 1fr; gap: 10px; padding: 12px; border: 1px solid rgba(209,191,150,.16); border-radius: 14px; background: rgba(209,191,150,.055); }
+.crump-precision-boundary > span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; background: rgba(209,191,150,.12); color: #dbc48f; font-size: 12px; }
+.crump-precision-boundary p { margin: 0; display: grid; gap: 4px; }
+.crump-precision-boundary strong { color: #e1d6bf; font-size: 10px; }
+.crump-precision-boundary small { color: #8f98a4; font-size: 9px; line-height: 1.45; }
+.crump-precision-appearance { margin: 0; color: #8f98a4; font-size: 9.5px; line-height: 1.55; }
+.crump-precision-status { margin-top: auto; min-height: 34px; color: #9ba4ae; font-size: 9.5px; line-height: 1.45; }
+.crump-precision-status[data-tone="error"] { color: #e6a6a6; }
+
+.crump-precision-editor > footer { display: flex; justify-content: flex-end; gap: 8px; padding: 13px 18px max(13px, env(safe-area-inset-bottom)); border-top: 1px solid rgba(255,255,255,.075); background: #11171e; }
+.crump-precision-editor > footer button { min-height: 43px; padding: 0 17px; border-radius: 12px; font-size: 11px; font-weight: 650; }
+.crump-precision-cancel { border: 1px solid rgba(255,255,255,.09); background: rgba(255,255,255,.035); color: #c3c9cf; }
+.crump-precision-use { border: 0; background: #e8e2d5; color: #11151a; }
+.crump-precision-use:disabled { opacity: .5; cursor: wait; }
+
+@media (max-width: 820px) {
+  .crump-precision-backdrop { padding: 0; }
+  .crump-precision-editor { width: 100%; height: 100dvh; min-height: 0; border: 0; border-radius: 0; }
+  .crump-precision-editor > header { padding: max(14px, env(safe-area-inset-top)) 15px 13px; }
+  .crump-precision-editor > header p { font-size: 9.5px; }
+  .crump-precision-workspace { grid-template-columns: 1fr; grid-template-rows: minmax(260px, 1fr) auto; overflow: auto; }
+  .crump-precision-stage { min-height: 300px; padding: 10px; overflow: hidden; }
+  .crump-precision-canvas-frame img { max-height: min(52dvh, 520px); }
+  .crump-precision-controls { overflow: visible; border-left: 0; border-top: 1px solid rgba(255,255,255,.075); padding: 14px 15px; gap: 11px; }
+  .crump-precision-control-head, .crump-precision-appearance { display: none; }
+  .crump-precision-boundary { padding: 10px; }
+  .crump-precision-status { margin-top: 0; min-height: 22px; }
+  .crump-precision-editor > footer { padding-inline: 12px; }
+  .crump-precision-editor > footer button { flex: 1; }
+}
+
+@media (max-width: 430px) {
+  .crump-precision-editor > header h2 { font-size: 18px; }
+  .crump-precision-editor > header p { max-width: 270px; }
+  .crump-precision-stage { min-height: 250px; }
+  .crump-precision-boundary small { font-size: 8.5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crump-precision-editor { animation: none; }
+}
+
+@keyframes crumpPrecisionEnter { from { opacity: 0; transform: translateY(8px) scale(.992); } to { opacity: 1; transform: none; } }
+@keyframes crumpPrecisionSpin { to { transform: rotate(360deg); } }

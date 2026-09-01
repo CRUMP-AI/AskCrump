@@ -330,6 +330,18 @@ body.crump-50 .crump50-reference-action > span:nth-child(2) { min-width: 0; disp
 body.crump-50 .crump50-reference-action strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 620; }
 body.crump-50 .crump50-reference-action small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--c50-text-3); font-size: 9.5px; }
 body.crump-50 .crump50-reference-action b { color: var(--c50-gold); font-size: 9px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+body.crump-50 .crump50-precision-entry {
+  min-height: 58px; width: 100%; display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px;
+  padding: 8px 11px; border: 1px solid rgba(209,191,150,.2); border-radius: 14px;
+  background: rgba(209,191,150,.055); color: var(--c50-text); text-align: left;
+}
+body.crump-50 .crump50-precision-entry:hover:not(:disabled) { border-color: rgba(209,191,150,.38); background: rgba(209,191,150,.09); }
+body.crump-50 .crump50-precision-entry:disabled { opacity: .42; cursor: not-allowed; }
+body.crump-50 .crump50-precision-entry > span:first-child { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: rgba(209,191,150,.11); color: var(--c50-gold); }
+body.crump-50 .crump50-precision-entry > span:nth-child(2) { min-width: 0; display: grid; gap: 3px; }
+body.crump-50 .crump50-precision-entry strong { font-size: 11px; font-weight: 620; }
+body.crump-50 .crump50-precision-entry small { color: var(--c50-text-3); font-size: 9px; }
+body.crump-50 .crump50-precision-entry b { color: var(--c50-gold); font-size: 9px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
 body.crump-50 .crump50-image-guidance { margin: 1px 2px 0; color: var(--c50-text-3); font-size: 9.5px; line-height: 1.55; }
 body.crump-50 .crump50-primary-action { min-height: 48px; margin-top: 7px; border: 0; border-radius: 14px; background: #e7e2d7; color: #11151a; font-size: 12px; font-weight: 650; }
 body.crump-50 .crump50-format-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 7px; padding: 2px 7px 8px; }

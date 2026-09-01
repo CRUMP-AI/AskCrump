@@ -6,6 +6,7 @@ import base64
 import binascii
 from io import BytesIO
 import logging
+import math
 import re
 from typing import Any
 
@@ -34,6 +35,11 @@ IMAGE_REQUEST_TIMEOUT_SECONDS = 240.0
 IMAGE_TRANSIENT_RETRY_DELAY_SECONDS = 0.75
 IMAGE_MAX_ATTEMPTS = 2
 EDIT_IMAGE_MAX_EDGE = 4096
+PRECISION_IMAGE_MAX_EDGE = 3840
+PRECISION_IMAGE_MIN_PIXELS = 655_360
+PRECISION_IMAGE_MAX_PIXELS = 8_294_400
+PRECISION_MASK_MAX_BYTES = 2 * 1024 * 1024
+PRECISION_MASK_MAX_COVERAGE = 0.90
 
 
 class MediaService:
@@ -89,10 +95,44 @@ class MediaService:
 
     @staticmethod
     def image_aspect_for_size(size: str) -> str:
-        return {
+        known = {
             '1024x1536': 'portrait',
             '1536x1024': 'landscape',
-        }.get(str(size or '').lower(), 'square')
+        }.get(str(size or '').lower())
+        if known:
+            return known
+        match = re.fullmatch(r'(\d{2,4})x(\d{2,4})', str(size or '').lower())
+        if not match:
+            return 'square'
+        width, height = (int(value) for value in match.groups())
+        if width > height * 1.08:
+            return 'landscape'
+        if height > width * 1.08:
+            return 'portrait'
+        return 'square'
+
+    @staticmethod
+    def _load_edit_image(data: bytes) -> Image.Image:
+        try:
+            with Image.open(BytesIO(data)) as source:
+                source.seek(0)
+                image = ImageOps.exif_transpose(source)
+                image.load()
+                return image.copy()
+        except (UnidentifiedImageError, OSError, ValueError) as exc:
+            raise AIServiceError(
+                'This image could not be prepared for editing. Use a JPG, PNG, or WebP image and try again.',
+                400,
+                'INVALID_IMAGE_EDIT_SOURCE',
+                False,
+                0,
+            ) from exc
+
+    @staticmethod
+    def _png_bytes(image: Image.Image) -> bytes:
+        prepared = BytesIO()
+        image.save(prepared, format='PNG', optimize=False)
+        return prepared.getvalue()
 
     @staticmethod
     def _prepare_edit_image(data: bytes) -> tuple[bytes, str, str]:
@@ -103,20 +143,7 @@ class MediaService:
         them before provider spend and send one predictable PNG instead of
         forwarding the user's original encoding unchanged.
         """
-        try:
-            with Image.open(BytesIO(data)) as source:
-                source.seek(0)
-                image = ImageOps.exif_transpose(source)
-                image.load()
-                image = image.copy()
-        except (UnidentifiedImageError, OSError, ValueError) as exc:
-            raise AIServiceError(
-                'This image could not be prepared for editing. Use a JPG, PNG, or WebP image and try again.',
-                400,
-                'INVALID_IMAGE_EDIT_SOURCE',
-                False,
-                0,
-            ) from exc
+        image = MediaService._load_edit_image(data)
 
         longest_edge = max(image.size or (0, 0))
         if longest_edge <= 0:
@@ -136,9 +163,202 @@ class MediaService:
         if image.mode not in {'RGB', 'RGBA'}:
             image = image.convert('RGBA' if 'A' in image.getbands() or 'transparency' in image.info else 'RGB')
 
-        prepared = BytesIO()
-        image.save(prepared, format='PNG', optimize=False)
-        return prepared.getvalue(), 'Crump_Edit_Source.png', 'image/png'
+        return MediaService._png_bytes(image), 'Crump_Edit_Source.png', 'image/png'
+
+    @staticmethod
+    def _precision_provider_size(width: int, height: int) -> tuple[int, int]:
+        """Preserve aspect ratio while meeting GPT Image 2's flexible-size contract."""
+        width = int(width or 0)
+        height = int(height or 0)
+        if width <= 0 or height <= 0:
+            raise AIServiceError(
+                'This image has invalid dimensions and cannot be edited.',
+                400,
+                'INVALID_IMAGE_EDIT_SOURCE',
+                False,
+                0,
+            )
+        if max(width, height) / min(width, height) > 3:
+            raise AIServiceError(
+                'Precision Edit supports images up to a 3:1 aspect ratio. Crop this image and try again.',
+                400,
+                'PRECISION_EDIT_ASPECT_UNSUPPORTED',
+                False,
+                0,
+            )
+
+        pixels = width * height
+        lower_scale = math.sqrt(PRECISION_IMAGE_MIN_PIXELS / pixels) if pixels < PRECISION_IMAGE_MIN_PIXELS else 1.0
+        upper_scale = min(
+            PRECISION_IMAGE_MAX_EDGE / max(width, height),
+            math.sqrt(PRECISION_IMAGE_MAX_PIXELS / pixels),
+            1.0,
+        )
+        scale = lower_scale if lower_scale > 1 else upper_scale
+        rounding = math.ceil if scale > 1 else (math.floor if scale < 1 else round)
+        target_width = max(16, int(rounding((width * scale) / 16)) * 16)
+        target_height = max(16, int(rounding((height * scale) / 16)) * 16)
+
+        while target_width * target_height < PRECISION_IMAGE_MIN_PIXELS:
+            if width >= height:
+                target_width += 16
+            else:
+                target_height += 16
+        while (
+            target_width * target_height > PRECISION_IMAGE_MAX_PIXELS
+            or max(target_width, target_height) > PRECISION_IMAGE_MAX_EDGE
+        ):
+            if target_width >= target_height and target_width > 16:
+                target_width -= 16
+            elif target_height > 16:
+                target_height -= 16
+            else:
+                break
+        return target_width, target_height
+
+    @staticmethod
+    def _decode_precision_mask(data_url: str) -> Image.Image:
+        value = str(data_url or '').strip()
+        prefix = 'data:image/png;base64,'
+        if not value.startswith(prefix):
+            raise AIServiceError(
+                'The selected edit area could not be read. Paint the area again and retry.',
+                400,
+                'INVALID_IMAGE_EDIT_MASK',
+                False,
+                0,
+            )
+        encoded = value[len(prefix):]
+        if len(encoded) > ((PRECISION_MASK_MAX_BYTES * 4) // 3) + 8:
+            raise AIServiceError(
+                'The selected edit area is too large. Use a smaller selection and retry.',
+                413,
+                'IMAGE_EDIT_MASK_TOO_LARGE',
+                False,
+                0,
+            )
+        try:
+            raw = base64.b64decode(encoded, validate=True)
+        except (binascii.Error, ValueError, TypeError) as exc:
+            raise AIServiceError(
+                'The selected edit area could not be read. Paint the area again and retry.',
+                400,
+                'INVALID_IMAGE_EDIT_MASK',
+                False,
+                0,
+            ) from exc
+        if not raw or len(raw) > PRECISION_MASK_MAX_BYTES:
+            raise AIServiceError(
+                'The selected edit area is too large. Use a smaller selection and retry.',
+                413,
+                'IMAGE_EDIT_MASK_TOO_LARGE',
+                False,
+                0,
+            )
+        try:
+            with Image.open(BytesIO(raw)) as source:
+                if source.format != 'PNG' or 'A' not in source.getbands():
+                    raise ValueError('mask must be an alpha PNG')
+                source.load()
+                alpha = source.getchannel('A').copy()
+        except (UnidentifiedImageError, OSError, ValueError) as exc:
+            raise AIServiceError(
+                'The selected edit area could not be read. Paint the area again and retry.',
+                400,
+                'INVALID_IMAGE_EDIT_MASK',
+                False,
+                0,
+            ) from exc
+
+        histogram = alpha.histogram()
+        selected_weight = sum(histogram[level] * level for level in range(1, 256))
+        coverage = selected_weight / (255 * alpha.width * alpha.height)
+        if coverage <= 0:
+            raise AIServiceError(
+                'Paint the specific area you want Crump to change.',
+                400,
+                'EMPTY_IMAGE_EDIT_MASK',
+                False,
+                0,
+            )
+        if coverage > PRECISION_MASK_MAX_COVERAGE:
+            raise AIServiceError(
+                'Precision Edit protects the rest of the image. Select a smaller area, or use a regular image edit for a full-frame change.',
+                400,
+                'IMAGE_EDIT_MASK_TOO_BROAD',
+                False,
+                0,
+            )
+        return alpha
+
+    @classmethod
+    def _prepare_precision_edit(
+        cls,
+        source_data: bytes,
+        mask_data_url: str,
+    ) -> tuple[bytes, bytes, Image.Image, Image.Image, str]:
+        source = cls._load_edit_image(source_data)
+        selection = cls._decode_precision_mask(mask_data_url)
+        if selection.size != source.size:
+            raise AIServiceError(
+                'The selected area no longer matches this image. Reopen Precision Edit and paint it again.',
+                400,
+                'IMAGE_EDIT_MASK_SIZE_MISMATCH',
+                False,
+                0,
+            )
+        target_size = cls._precision_provider_size(*source.size)
+        if source.size != target_size:
+            source = source.resize(target_size, Image.Resampling.LANCZOS)
+            selection = selection.resize(target_size, Image.Resampling.LANCZOS)
+        if source.mode not in {'RGB', 'RGBA'}:
+            source = source.convert('RGBA' if 'A' in source.getbands() or 'transparency' in source.info else 'RGB')
+
+        # GPT Image treats transparent mask pixels as the requested edit area.
+        # Ask Crump's canvas uses the inverse, intuitive contract: painted alpha
+        # means selected. Keep that canonical selection for final compositing.
+        provider_alpha = ImageOps.invert(selection)
+        provider_mask = Image.new('RGBA', source.size, (255, 255, 255, 255))
+        provider_mask.putalpha(provider_alpha)
+        size = f'{source.width}x{source.height}'
+        return (
+            cls._png_bytes(source),
+            cls._png_bytes(provider_mask),
+            source.copy(),
+            selection.copy(),
+            size,
+        )
+
+    @classmethod
+    def _composite_precision_edit(
+        cls,
+        generated_data: bytes,
+        source: Image.Image,
+        selection: Image.Image,
+    ) -> bytes:
+        generated = cls._load_edit_image(generated_data).convert('RGBA')
+        protected_source = source.convert('RGBA')
+        if generated.size != protected_source.size or selection.size != protected_source.size:
+            raise AIServiceError(
+                'The image provider returned an unexpected canvas size. Your original remains unchanged; please retry.',
+                502,
+                'IMAGE_EDIT_DIMENSION_MISMATCH',
+                True,
+                5,
+            )
+        result = Image.composite(generated, protected_source, selection.convert('L'))
+        return cls._png_bytes(result)
+
+    @staticmethod
+    def _precision_edit_prompt(prompt: str) -> str:
+        request = str(prompt or '').strip() or 'Make the requested change inside the selected area.'
+        return (
+            f'{request}\n\n'
+            'Precision Edit requirements: modify only the transparent selected area in the supplied mask. '
+            'Keep composition, identity, facial structure, age, body proportions, and every unselected detail stable. '
+            'Do not infer or label race or ethnicity. If the user asks for an appearance adjustment, apply only the '
+            'explicitly requested visual change inside the selection. Do not recreate visible logos or readable text.'
+        )
 
     @staticmethod
     def _edit_fidelity_prompt(prompt: str) -> str:
@@ -354,12 +574,16 @@ class MediaService:
         file_rows: list[dict[str, Any]],
         chat_id: str | None,
         message_id: str | None,
+        image_edit_mask: str | None = None,
     ) -> dict[str, Any]:
         if not self.settings.openai_api_key or not self.settings.image_generation_enabled:
             raise AIServiceError('Image generation is not configured.', 503, 'IMAGE_NOT_CONFIGURED', False, 0)
         prompt = str(payload.get('message') or '').strip()
-        editing = self.is_edit_request(prompt, file_rows) or bool(payload.get('imageUseReference') and any(row.get('mime_type') in IMAGE_TYPES for row in file_rows))
-        if editing:
+        precision_editing = bool(image_edit_mask)
+        editing = precision_editing or self.is_edit_request(prompt, file_rows) or bool(payload.get('imageUseReference') and any(row.get('mime_type') in IMAGE_TYPES for row in file_rows))
+        if precision_editing:
+            provider_prompt = self._precision_edit_prompt(prompt)
+        elif editing:
             provider_prompt = self._edit_fidelity_prompt(prompt)
         else:
             provider_prompt = self._generation_fidelity_prompt(prompt)
@@ -368,16 +592,49 @@ class MediaService:
         size, quality, output_format = self._image_settings(payload)
         headers = {'Authorization': f'Bearer {self.settings.openai_api_key}'}
         endpoint = 'https://api.openai.com/v1/images/generations'
+        precision_source: Image.Image | None = None
+        precision_selection: Image.Image | None = None
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(IMAGE_REQUEST_TIMEOUT_SECONDS, connect=20.0)) as client:
                 if editing:
-                    source = next(row for row in file_rows if row.get('mime_type') in IMAGE_TYPES)
+                    source = next((row for row in file_rows if row.get('mime_type') in IMAGE_TYPES), None)
+                    if not source:
+                        raise AIServiceError(
+                            'Add the image you want to edit and try again.',
+                            400,
+                            'IMAGE_EDIT_SOURCE_REQUIRED',
+                            False,
+                            0,
+                        )
                     image_bytes = await self.files.download_bytes(row=source, max_bytes=25 * 1024 * 1024)
-                    image_bytes, image_name, image_mime = self._prepare_edit_image(image_bytes)
+                    provider_mask_bytes: bytes | None = None
+                    if precision_editing:
+                        if self.settings.openai_image_model != 'gpt-image-2':
+                            raise AIServiceError(
+                                'Precision Edit is temporarily unavailable on the configured image model.',
+                                503,
+                                'PRECISION_EDIT_MODEL_UNAVAILABLE',
+                                False,
+                                0,
+                            )
+                        (
+                            image_bytes,
+                            provider_mask_bytes,
+                            precision_source,
+                            precision_selection,
+                            size,
+                        ) = self._prepare_precision_edit(image_bytes, str(image_edit_mask or ''))
+                        output_format = 'png'
+                    else:
+                        image_bytes, image_name, image_mime = self._prepare_edit_image(image_bytes)
+                    image_name = 'Crump_Edit_Source.png'
+                    image_mime = 'image/png'
                     endpoint = 'https://api.openai.com/v1/images/edits'
                     multipart = {
                         'image[]': (image_name, image_bytes, image_mime),
                     }
+                    if provider_mask_bytes is not None:
+                        multipart['mask'] = ('Crump_Edit_Mask.png', provider_mask_bytes, 'image/png')
                     form = {
                         'model': self.settings.openai_image_model,
                         'prompt': provider_prompt,
@@ -431,6 +688,11 @@ class MediaService:
                 image_bytes = download.content
         if not image_bytes:
             raise AIServiceError('The image service returned no image.', 502, 'EMPTY_IMAGE', True, 5)
+        if precision_editing:
+            if precision_source is None or precision_selection is None:
+                raise AIServiceError('Precision Edit could not preserve the protected image area.', 502, 'PRECISION_EDIT_FAILED', True, 5)
+            image_bytes = self._composite_precision_edit(image_bytes, precision_source, precision_selection)
+            output_format = 'png'
         extension = 'jpg' if output_format == 'jpeg' else output_format
         mime = 'image/jpeg' if output_format == 'jpeg' else f'image/{output_format}'
         stored = await self.files.store_bytes(
@@ -441,12 +703,22 @@ class MediaService:
             kind='generated_image',
             chat_id=chat_id,
             message_id=message_id,
-            metadata={'prompt': prompt[:4000], 'size': size, 'quality': quality, 'edited': editing},
+            metadata={
+                'prompt': prompt[:4000],
+                'size': size,
+                'quality': quality,
+                'edited': editing,
+                'precisionEdit': precision_editing,
+            },
         )
         public = self.files.public_file(stored)
         image_aspect = self.image_aspect_for_size(size)
         return {
-            'response': 'I edited the image you provided.' if editing else 'I created the image you requested.',
+            'response': (
+                'I edited only the area you selected.'
+                if precision_editing
+                else ('I edited the image you provided.' if editing else 'I created the image you requested.')
+            ),
             'model': self.settings.openai_image_model,
             'imageUrl': public['url'],
             'imagePrompt': str(item.get('revised_prompt') or prompt),

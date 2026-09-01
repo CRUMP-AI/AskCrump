@@ -102,7 +102,7 @@ const { chromium } = require(playwrightModule);
     || !initialStudio.addReferenceVisible
     || !initialStudio.createWithoutReferenceVisible
     || initialStudio.squarePressed !== 'true'
-    || !initialStudio.guidance.includes('preserve identity and appearance')
+    || !initialStudio.guidance.includes('does not infer race or ethnicity')
     || initialStudio.workspaceInert !== ''
     || initialStudio.workspaceAriaHidden !== 'true'
     || reverseWrapFocus !== 'Create without reference'
