@@ -42,7 +42,7 @@ def test_redundant_tools_dropdown_is_retired_without_removing_real_capabilities(
 def test_retired_tool_assets_are_cache_versioned_atomically():
     version = "5.9.76-intelligence-architecture-1"
     loader_version = "5.9.76-continuity-action-1"
-    product_version = "5.9.76-visual-media-reliability-2"
+    product_version = "5.9.76-file-library-usability-1"
     shell = read("public/app.html")
     runtime = read("public/runtime-body-v1.js")
     worker = read("public/sw.js")

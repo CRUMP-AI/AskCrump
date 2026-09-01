@@ -13,8 +13,8 @@ def test_product53_runtime_is_registered_last_and_cached():
     checker = read("scripts/check-javascript.mjs")
     assert "/crump-product-5.3.css" in runtime
     assert "/crump-product-5.3.js" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-visual-media-reliability-2" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-visual-media-reliability-2" in worker
+    assert "/crump-product-5.3.js?v=5.9.76-file-library-usability-1" in runtime
+    assert "/crump-product-5.3.js?v=5.9.76-file-library-usability-1" in worker
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
     assert "ask-crump-new-body-v1-r181" in worker
     assert "/crump-product-5.3.js" in worker
@@ -109,6 +109,12 @@ def test_private_account_files_surface_saved_creations_under_projects():
     assert "'createdAt': row.get('created_at')" in service
     assert 'data-crump53-panel="library"' in product
     assert "api('/api/files?limit=200')" in product
+    assert 'id="crump53LibrarySearch"' in product
+    assert 'id="crump53LibrarySort"' in product
+    assert "function visibleLibraryFiles()" in product
+    assert "function updateLibraryControls(visibleCount)" in product
+    assert "No files match your search." in product
+    assert "aria-pressed" in product
     assert "Saved to Files" in product
     assert "openFiles: () => openProjectFiles()" in product
     assert "configureStudioSection('projects');" in files_handoff
@@ -119,6 +125,8 @@ def test_private_account_files_surface_saved_creations_under_projects():
     assert "return true;" in files_handoff
     assert "addEventListener('click', openProjectFiles)" in product
     assert ".crump53-library-grid" in styles
+    assert ".crump53-library-controls" in styles
+    assert (ROOT / "scripts" / "verify-file-library-usability.cjs").exists()
     assert "const opened = await loadManuscript(manuscriptId)" in product
     assert "target.scrollIntoView" in product
     assert "'Opened ' + (workspace?.title || 'manuscript') + '.'" in product

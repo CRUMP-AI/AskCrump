@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Files usability fixture</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/public/crump-product-5.3.css?fixture=file-library-usability">
+  <link rel="stylesheet" href="/public/crump-polish-5.6.css?fixture=file-library-usability">
+  <style>
+    body { margin: 0; min-height: 100vh; background: #080b0f; color: #eee; font-family: system-ui, sans-serif; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body class="crump-v1-body">
+  <div id="appContainer"><main><h1>Files usability fixture</h1></main></div>
+  <aside id="sidebar" aria-label="Chats"></aside>
+  <div id="sidebarOverlay"></div>
+  <script>
+    window.currentUser = {id: 'fixture-user'};
+    window.IntersectionObserver = class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
+    window.fetch = async input => {
+      const path = new URL(String(input), location.href).pathname;
+      let data = {success: true};
+      if (path === '/api/features') {
+        data = {success: true, features: {}, providers: {}};
+      } else if (path === '/api/projects') {
+        data = {success: true, projects: [], limit: 2};
+      } else if (path === '/api/files') {
+        data = {
+          success: true,
+          files: [
+            {
+              id: 'file-image',
+              name: 'Aurora concept.png',
+              type: 'image/png',
+              kind: 'generated_image',
+              size: 2048,
+              createdAt: '2026-08-30T12:00:00Z',
+              url: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="9"/>',
+              metadata: {prompt: 'Aurora launch visual'},
+            },
+            {
+              id: 'file-video',
+              name: 'Brand story.mp4',
+              type: 'video/mp4',
+              kind: 'generated_video',
+              size: 4096,
+              createdAt: '2026-08-28T12:00:00Z',
+              metadata: {prompt: 'Brand story cinematic', engine: 'quick', durationSeconds: 8},
+            },
+            {
+              id: 'file-pitch',
+              name: 'Quarterly pitch.pptx',
+              type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+              kind: 'generated_document',
+              size: 8192,
+              createdAt: '2026-08-25T12:00:00Z',
+              metadata: {title: 'Quarterly pitch deck'},
+            },
+            {
+              id: 'file-resume',
+              name: 'Renée résumé.docx',
+              type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              kind: 'upload',
+              size: 1024,
+              createdAt: '2026-08-20T12:00:00Z',
+              metadata: {},
+            },
+          ],
+        };
+      }
+      return new Response(JSON.stringify(data), {status: 200, headers: {'Content-Type': 'application/json'}});
+    };
+  </script>
+  <script src="/public/crump-product-5.3.js?fixture=file-library-usability"></script>
+</body>
+</html>

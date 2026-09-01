@@ -23,6 +23,8 @@
     activeVideoJob: null,
     libraryFiles: [],
     libraryFilter: 'all',
+    libraryQuery: '',
+    librarySort: 'newest',
     libraryVideoObserver: null,
   };
 
@@ -426,10 +428,24 @@
                 <button type="button" class="crump53-button" id="crump53RefreshLibrary">Refresh</button>
               </div>
               <div class="crump53-library-filters" role="group" aria-label="Filter saved files">
-                <button type="button" class="crump53-library-filter is-active" data-library-filter="all">All</button>
-                <button type="button" class="crump53-library-filter" data-library-filter="video">Videos</button>
-                <button type="button" class="crump53-library-filter" data-library-filter="image">Images</button>
-                <button type="button" class="crump53-library-filter" data-library-filter="document">Documents</button>
+                <button type="button" class="crump53-library-filter is-active" data-library-filter="all" data-library-label="All" aria-pressed="true">All</button>
+                <button type="button" class="crump53-library-filter" data-library-filter="video" data-library-label="Videos" aria-pressed="false">Videos</button>
+                <button type="button" class="crump53-library-filter" data-library-filter="image" data-library-label="Images" aria-pressed="false">Images</button>
+                <button type="button" class="crump53-library-filter" data-library-filter="document" data-library-label="Documents" aria-pressed="false">Documents</button>
+              </div>
+              <div class="crump53-library-controls">
+                <label class="crump53-label crump53-library-search" for="crump53LibrarySearch">
+                  <span>Search files</span>
+                  <input id="crump53LibrarySearch" class="crump53-input" type="search" autocomplete="off" spellcheck="false" placeholder="Search names, prompts, or file types">
+                </label>
+                <label class="crump53-label crump53-library-sort" for="crump53LibrarySort">
+                  <span>Sort</span>
+                  <select id="crump53LibrarySort" class="crump53-select">
+                    <option value="newest">Newest first</option>
+                    <option value="oldest">Oldest first</option>
+                    <option value="name">Name A–Z</option>
+                  </select>
+                </label>
               </div>
               <div id="crump53LibraryStatus" class="crump53-status" aria-live="polite"></div>
               <div id="crump53LibraryGrid" class="crump53-library-grid"></div>
@@ -608,11 +624,20 @@
     byId('crump53AddVideoReference')?.addEventListener('click', () => byId('crump53VideoReferenceInput')?.click());
     byId('crump53VideoReferenceInput')?.addEventListener('change', handleVideoReferenceUpload);
     byId('crump53RefreshLibrary')?.addEventListener('click', () => void refreshLibrary());
+    byId('crump53LibrarySearch')?.addEventListener('input', event => {
+      state.libraryQuery = String(event.currentTarget?.value || '');
+      renderLibrary();
+    });
+    byId('crump53LibrarySort')?.addEventListener('change', event => {
+      state.librarySort = String(event.currentTarget?.value || 'newest');
+      renderLibrary();
+    });
     overlay.querySelectorAll('[data-library-filter]').forEach(button => {
       button.addEventListener('click', () => {
         state.libraryFilter = button.dataset.libraryFilter || 'all';
         overlay.querySelectorAll('[data-library-filter]').forEach(item => {
           item.classList.toggle('is-active', item === button);
+          item.setAttribute('aria-pressed', item === button ? 'true' : 'false');
         });
         renderLibrary();
       });
@@ -1991,6 +2016,68 @@
     return String(file?.name || 'Saved file');
   }
 
+  function normalizedLibraryText(value) {
+    return String(value || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+
+  function librarySearchText(file) {
+    const metadata = file?.metadata && typeof file.metadata === 'object' ? file.metadata : {};
+    return normalizedLibraryText([
+      libraryTitle(file),
+      file?.name,
+      file?.type,
+      file?.kind,
+      metadata.title,
+      metadata.documentTitle,
+      metadata.prompt,
+      metadata.engine,
+    ].filter(Boolean).join(' '));
+  }
+
+  function libraryCreatedAt(file) {
+    const timestamp = new Date(file?.createdAt || '').getTime();
+    return Number.isFinite(timestamp) ? timestamp : 0;
+  }
+
+  function visibleLibraryFiles() {
+    const filter = state.libraryFilter || 'all';
+    const query = normalizedLibraryText(state.libraryQuery).trim();
+    const sort = state.librarySort || 'newest';
+    return state.libraryFiles
+      .filter(file => filter === 'all' || libraryCategory(file) === filter)
+      .filter(file => !query || librarySearchText(file).includes(query))
+      .slice()
+      .sort((left, right) => {
+        if (sort === 'oldest') return libraryCreatedAt(left) - libraryCreatedAt(right);
+        if (sort === 'name') return libraryTitle(left).localeCompare(libraryTitle(right), undefined, {sensitivity: 'base'});
+        return libraryCreatedAt(right) - libraryCreatedAt(left);
+      });
+  }
+
+  function updateLibraryControls(visibleCount) {
+    const counts = state.libraryFiles.reduce((current, file) => {
+      const category = libraryCategory(file);
+      current.all += 1;
+      current[category] += 1;
+      return current;
+    }, {all: 0, video: 0, image: 0, document: 0});
+    document.querySelectorAll('[data-library-filter]').forEach(button => {
+      const filter = button.dataset.libraryFilter || 'all';
+      const label = button.dataset.libraryLabel || 'Files';
+      const count = counts[filter] || 0;
+      button.textContent = `${label} (${count})`;
+      button.setAttribute('aria-label', `${label}, ${count} saved`);
+    });
+    const total = state.libraryFiles.length;
+    const filtered = Boolean(normalizedLibraryText(state.libraryQuery).trim()) || (state.libraryFilter || 'all') !== 'all';
+    setStatus(
+      'crump53LibraryStatus',
+      filtered
+        ? `${visibleCount} of ${total} saved item${total === 1 ? '' : 's'} shown · private to your account.`
+        : `${total} saved item${total === 1 ? '' : 's'} · private to your account.`,
+    );
+  }
+
   function showPlaybackError(preview, message) {
     if (!preview?.isConnected) return;
     preview.dataset.playbackState = 'error';
@@ -2088,11 +2175,12 @@
   function renderLibrary() {
     const grid = byId('crump53LibraryGrid');
     if (!grid) return;
-    const filter = state.libraryFilter || 'all';
-    const visible = state.libraryFiles.filter(file => filter === 'all' || libraryCategory(file) === filter);
+    const visible = visibleLibraryFiles();
+    updateLibraryControls(visible.length);
     if (!visible.length) {
       state.libraryVideoObserver?.disconnect?.();
-      grid.innerHTML = '<div class="crump53-library-empty">No files in this category yet.</div>';
+      const searching = Boolean(normalizedLibraryText(state.libraryQuery).trim());
+      grid.innerHTML = `<div class="crump53-library-empty">${searching ? 'No files match your search.' : 'No files in this category yet.'}</div>`;
       return;
     }
 
@@ -2203,10 +2291,6 @@
       const data = await api('/api/files?limit=200');
       state.libraryFiles = Array.isArray(data.files) ? data.files : [];
       renderLibrary();
-      setStatus(
-        'crump53LibraryStatus',
-        `${state.libraryFiles.length} saved item${state.libraryFiles.length === 1 ? '' : 's'} · private to your account.`,
-      );
     } catch (error) {
       setStatus('crump53LibraryStatus', error.message || 'Could not load your saved files.', true);
       grid.innerHTML = '<div class="crump53-library-empty is-error">Your files could not be loaded.</div>';
