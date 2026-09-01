@@ -204,6 +204,7 @@
     list.innerHTML = '<div class="crump531-empty">Loading Project files…</div>';
     try {
       const data = await api(`/api/projects/${encodeURIComponent(projectId)}/files`);
+      if (activeProjectId() !== projectId) return;
       const files = Array.isArray(data.files) ? data.files : [];
       if (!files.length) {
         list.innerHTML = '<div class="crump531-empty">No Project files yet.</div>';
@@ -237,7 +238,12 @@
         });
       });
     } catch (error) {
-      list.innerHTML = `<div class="crump531-empty is-error">${escapeHtml(error.message || 'Could not load Project files.')}</div>`;
+      if (activeProjectId() !== projectId) return;
+      list.innerHTML = `<div class="crump531-empty is-error"><span>${escapeHtml(error.message || 'Could not load Project files.')}</span> <button type="button" class="crump531-use-file" data-retry-project-files>Retry</button></div>`;
+      list.querySelector('[data-retry-project-files]')?.addEventListener(
+        'click',
+        () => void refreshProjectFiles(),
+      );
     }
   }
 

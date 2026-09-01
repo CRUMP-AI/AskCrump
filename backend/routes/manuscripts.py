@@ -2,17 +2,20 @@
 from __future__ import annotations
 
 import hmac
+import logging
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from ..auth_service import authenticate_request
 from ..feature_service import FeatureAccessError
+from ..file_service import FileServiceError
 from ..manuscript_service import ManuscriptError
 from ..project_service import ProjectNotFoundError
 from ..runtime import code_worker, db, features, files, manuscripts, projects, settings
 
 router = APIRouter(tags=["manuscripts"])
+logger = logging.getLogger(__name__)
 
 
 def _feature_error(exc: FeatureAccessError) -> JSONResponse:
@@ -44,8 +47,31 @@ async def _public_run(user_id: str, row: dict | None) -> dict | None:
     try:
         file_row = await files.get_owned(user_id=user_id, file_id=str(row["output_file_id"]))
         payload["outputFile"] = files.public_file(file_row)
+    except FileServiceError as exc:
+        missing = exc.code == "FILE_NOT_FOUND"
+        payload["outputFileRecovery"] = {
+            "status": "missing" if missing else "unavailable",
+            "code": (
+                "MANUSCRIPT_OUTPUT_FILE_NOT_FOUND"
+                if missing
+                else "MANUSCRIPT_OUTPUT_LOOKUP_UNAVAILABLE"
+            ),
+            "message": (
+                "This export is no longer available in Files. Your manuscript remains saved; create a new export only when you choose."
+                if missing
+                else "Your manuscript is complete, but its saved export is temporarily unavailable. Retry the file lookup without rerunning or charging for the manuscript."
+            ),
+            "shouldRetry": not missing,
+        }
+        logger.warning("Manuscript output lookup failed: code=%s", exc.code)
     except Exception:
-        pass
+        payload["outputFileRecovery"] = {
+            "status": "unavailable",
+            "code": "MANUSCRIPT_OUTPUT_LOOKUP_UNAVAILABLE",
+            "message": "Your manuscript is complete, but its saved export is temporarily unavailable. Retry the file lookup without rerunning or charging for the manuscript.",
+            "shouldRetry": True,
+        }
+        logger.warning("Manuscript output lookup failed: code=UNEXPECTED")
     return payload
 
 

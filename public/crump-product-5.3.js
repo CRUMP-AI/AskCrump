@@ -939,6 +939,7 @@
       ? String(options.projectId || '').trim()
       : String(state.activeProject?.id || '').trim();
 
+    const role = options.role === 'generated_image' ? 'generated_image' : 'generated_document';
     try {
       const kept = await keepConversation({
         projectId: targetProjectId || null,
@@ -949,7 +950,7 @@
       if (!projectId) throw new Error('Choose a Project before adding this file.');
       const data = await api(`/api/projects/${encodeURIComponent(projectId)}/files`, {
         method: 'POST',
-        body: {fileId, role: 'generated_document'},
+        body: {fileId, role},
         timeoutMs: PROJECT_SAVE_TIMEOUT_MS,
       });
       window.showToast?.(`Added to ${kept.project.name}.`, 'success');
@@ -1495,15 +1496,52 @@
     const output = run.outputFile?.url
       ? `<a class="crump53-button" href="${escapeHtml(run.outputFile.url)}?download=1">Download ${escapeHtml(String(run.preferredExportFormat || 'file').toUpperCase())}</a>`
       : '';
+    const outputRecovery = run.outputFileRecovery && typeof run.outputFileRecovery === 'object'
+      ? run.outputFileRecovery
+      : null;
+    const outputRecoveryNotice = outputRecovery?.message
+      ? `<div class="crump53-status is-error">${escapeHtml(outputRecovery.message)}</div>`
+      : '';
+    const outputRecoveryAction = outputRecovery?.shouldRetry
+      ? '<button type="button" class="crump53-button" id="crump53RetryManuscriptOutput">Retry saved export</button>'
+      : '';
     const error = run.error ? `<div class="crump53-status is-error">${escapeHtml(run.error)}</div>` : '';
     const creditRecovery = run.status === 'awaiting_credits'
       ? '<button type="button" class="crump53-button" id="crump53ManuscriptCredits">Add credits or compare plans</button>'
       : '';
     node.hidden = false;
-    node.innerHTML = `<strong>${escapeHtml(stageLabels[run.stage] || 'Manuscript run')} · ${escapeHtml(run.status || '')}</strong><br><span>${completed} of ${total} chapters drafted. This job is saved and can resume after a timeout or browser close.</span>${error}${output || creditRecovery ? `<div class="crump53-actions" style="margin-top:8px">${creditRecovery}${output}</div>` : ''}`;
+    node.innerHTML = `<strong>${escapeHtml(stageLabels[run.stage] || 'Manuscript run')} · ${escapeHtml(run.status || '')}</strong><br><span>${completed} of ${total} chapters drafted. This job is saved and can resume after a timeout or browser close.</span>${error}${outputRecoveryNotice}${output || creditRecovery || outputRecoveryAction ? `<div class="crump53-actions" style="margin-top:8px">${creditRecovery}${outputRecoveryAction}${output}</div>` : ''}`;
     byId('crump53ManuscriptCredits')?.addEventListener('click', () => openFeatureAccessRecovery({
       data: {code: 'CREDITS_REQUIRED'},
     }));
+    byId('crump53RetryManuscriptOutput')?.addEventListener('click', retryManuscriptOutputLookup);
+  }
+
+  async function retryManuscriptOutputLookup() {
+    const manuscriptId = state.activeManuscript?.id;
+    const button = byId('crump53RetryManuscriptOutput');
+    if (!manuscriptId || !state.manuscriptRun?.outputFileRecovery?.shouldRetry) return;
+    if (button) button.disabled = true;
+    setStatus('crump53ManuscriptStatus', 'Checking the saved export…');
+    try {
+      const data = await api(`/api/manuscripts/${manuscriptId}/run`);
+      if (state.activeManuscript?.id !== manuscriptId) return;
+      state.manuscriptRun = data.run || null;
+      renderManuscriptRun();
+      if (state.manuscriptRun?.outputFile?.url) {
+        setStatus('crump53ManuscriptStatus', 'Saved export ready.');
+        return;
+      }
+      setStatus(
+        'crump53ManuscriptStatus',
+        state.manuscriptRun?.outputFileRecovery?.message || 'The saved export is still unavailable.',
+        true,
+      );
+    } catch (error) {
+      if (state.activeManuscript?.id !== manuscriptId) return;
+      setStatus('crump53ManuscriptStatus', error.message, true);
+      renderManuscriptRun();
+    }
   }
 
   function scheduleManuscriptPoll() {
@@ -2050,6 +2088,43 @@
     }
   }
 
+  async function retryVideoProjectAttachment(job) {
+    const fileId = String(job?.file?.id || '').trim();
+    const receipt = job?.projectAttachment || {};
+    const projectId = String(receipt.projectId || '').trim();
+    if (!fileId || !projectId || receipt.status !== 'failed' || !receipt.shouldRetry) return;
+    const button = byId('crump53RetryVideoProject');
+    if (button) {
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+    }
+    try {
+      const data = await api(`/api/projects/${encodeURIComponent(projectId)}/files`, {
+        method: 'POST',
+        body: {fileId, role: 'generated_video'},
+        timeoutMs: PROJECT_SAVE_TIMEOUT_MS,
+      });
+      const updated = {
+        ...job,
+        file: data.file || job.file,
+        projectAttachment: {
+          status: 'attached',
+          projectId,
+          role: 'generated_video',
+          shouldRetry: false,
+        },
+      };
+      window.showToast?.('Video added to its Project.', 'success');
+      renderReadyVideo(updated);
+      void refreshProjects();
+    } catch (error) {
+      window.showToast?.(error.message || 'The video is safe in Files, but its Project link still needs a retry.', 'error');
+      if (button) button.disabled = false;
+    } finally {
+      button?.removeAttribute('aria-busy');
+    }
+  }
+
   function renderReadyVideo(job, openContinuation = false) {
     if (!job?.file?.url) return;
     state.activeVideoJob = job;
@@ -2059,6 +2134,20 @@
     const continuation = job.canContinue
       ? `<button type="button" class="crump53-button is-primary" id="crump53ContinueScene">Continue scene</button>`
       : '';
+    const projectReceipt = job.projectAttachment && typeof job.projectAttachment === 'object'
+      ? job.projectAttachment
+      : null;
+    const projectId = String(projectReceipt?.projectId || '').trim();
+    const projectAction = projectReceipt?.status === 'attached' && projectId
+      ? '<button type="button" class="crump53-button" id="crump53OpenVideoProject">Open Project</button>'
+      : (projectReceipt?.status === 'failed' && projectReceipt?.shouldRetry && projectId
+          ? '<button type="button" class="crump53-button" id="crump53RetryVideoProject">Retry Project save</button>'
+          : '');
+    const projectNotice = projectReceipt?.status === 'failed'
+      ? '<div class="crump53-note">Safe in Files · Project link needs retry</div>'
+      : (projectReceipt?.status === 'missing'
+          ? '<div class="crump53-note">Safe in Files · Original Project is no longer available</div>'
+          : '');
     const result = byId('crump53VideoResult');
     if (!result) return;
     result.innerHTML = `
@@ -2069,16 +2158,20 @@
       <video class="crump53-video-preview" controls playsinline src="${escapeHtml(job.file.url)}"></video>
       <div class="crump53-video-result-actions">
         ${continuation}
+        ${projectAction}
         <a class="crump53-button crump53-button-link" href="${escapeHtml(job.file.url)}?download=1" download>Download video</a>
         <button type="button" class="crump53-button" id="crump53OpenLibraryFromVideo">Open Files</button>
       </div>
+      ${projectNotice}
       ${job.canContinue ? `
         <div class="crump53-video-continuation" id="crump53VideoContinuation" hidden>
           <div class="crump53-kicker">NEXT SHOT</div>
           <label class="crump53-label">What happens next?<textarea id="crump53ContinuePrompt" class="crump53-textarea" maxlength="4000" placeholder="Continue the action from the final moment. Describe the next movement, camera direction, dialogue, or sound..."></textarea></label>
           <div class="crump53-note">Native continuation uses the previous Veo scene as the reference point, adds about 7 seconds, and returns one combined video. 80 credits per continuation.</div>
           <div class="crump53-actions"><button type="button" class="crump53-button is-primary" id="crump53SubmitContinuation">Continue · 80 credits</button><button type="button" class="crump53-button" id="crump53CancelContinuation">Cancel</button></div>
-        </div>` : ''}`;
+      </div>` : ''}`;
+    byId('crump53OpenVideoProject')?.addEventListener('click', () => void openProject(projectId));
+    byId('crump53RetryVideoProject')?.addEventListener('click', () => void retryVideoProjectAttachment(job));
     byId('crump53OpenLibraryFromVideo')?.addEventListener('click', openProjectFiles);
     byId('crump53ContinueScene')?.addEventListener('click', () => {
       const composer = byId('crump53VideoContinuation');

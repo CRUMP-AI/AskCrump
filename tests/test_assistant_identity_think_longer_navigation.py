@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 import app as app_module
 from backend.ai_service import AIService
+from backend.db import DatabaseError
 from backend.feature_service import FeatureAccessError, FeatureService
 from backend.intelligence_service import DEFAULT_PREFERENCES, IntelligenceService
 from backend.routes import chat as chat_routes
@@ -233,6 +234,50 @@ def test_free_intelligence_preferences_normalize_and_reject_always_review(monkey
     assert patch_response.json()["message"] == "Always review requires a Professional plan."
 
 
+def test_intelligence_preferences_reject_ambiguous_booleans_and_report_write_failures(monkeypatch):
+    class FeatureStub:
+        def entitled(self, _user, _code):
+            return False
+
+    class IntelligenceStub:
+        def __init__(self):
+            self.update_preferences = AsyncMock(
+                side_effect=DatabaseError("temporary outage")
+            )
+
+    async def authenticate(*_args, **_kwargs):
+        return SimpleNamespace(user={"id": "preference-user", "subscription_tier": "free"})
+
+    intelligence = IntelligenceStub()
+    monkeypatch.setattr(intelligence_routes, "features", FeatureStub())
+    monkeypatch.setattr(intelligence_routes, "intelligence", intelligence)
+    monkeypatch.setattr(intelligence_routes, "authenticate_request", authenticate)
+
+    string_response = CLIENT.patch(
+        "/api/intelligence/preferences",
+        json={"autoLearn": "false"},
+    )
+    conflict_response = CLIENT.patch(
+        "/api/intelligence/preferences",
+        json={"autoLearn": False, "auto_learn": True},
+    )
+
+    assert string_response.status_code == 400
+    assert string_response.json()["code"] == "INVALID_INTELLIGENCE_PREFERENCES"
+    assert conflict_response.status_code == 400
+    intelligence.update_preferences.assert_not_awaited()
+
+    outage_response = CLIENT.patch(
+        "/api/intelligence/preferences",
+        json={"autoLearn": False},
+    )
+
+    assert outage_response.status_code == 503
+    assert outage_response.json()["code"] == "INTELLIGENCE_PREFERENCES_UNAVAILABLE"
+    assert outage_response.json()["shouldRetry"] is True
+    intelligence.update_preferences.assert_awaited_once()
+
+
 def test_conversation_memory_privacy_is_authenticated_and_account_scoped(monkeypatch):
     chat_id = "00000000-0000-0000-0000-000000000111"
 
@@ -294,6 +339,10 @@ def test_frontend_identity_paid_mode_and_navigation_contracts():
     assert "Quality review" in intelligence
     assert "Always review" in intelligence
     assert "Advanced Intelligence · Professional" in intelligence
+    assert "body.autoLearn = state.autoLearn;" in intelligence
+    assert "crump_intelligence_pending_v44:" in intelligence
+    assert "writePendingPreferenceState(outgoing);" in intelligence
+    assert "clearPendingPreferenceState(outgoing);" in intelligence
     assert "makeToolButtons" not in intelligence
     assert "searchQuickAction" not in intelligence
     assert "imageQuickAction" not in intelligence

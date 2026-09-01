@@ -512,6 +512,34 @@ async function ensureUsageAvailable() {
     }
 }
 
+function syncCompletedReplyInBackground() {
+    try {
+        void Promise.resolve(window.syncChatsToServer?.()).catch(() => {
+            console.warn('Completed reply sync deferred; background sync will retry.');
+        });
+    } catch (_) {
+        console.warn('Completed reply sync deferred; background sync will retry.');
+    }
+}
+
+function runCompletedCreationHandoffInBackground(data) {
+    try {
+        let pending = null;
+        if (data.manuscriptWorkspace?.autoOpen) {
+            pending = window.CrumpProduct53?.handleCreationHandoff?.({kind: 'manuscript', workspace: data.manuscriptWorkspace});
+        } else if (data.creationHandoff) {
+            pending = window.CrumpProduct53?.handleCreationHandoff?.(data.creationHandoff);
+        } else {
+            return;
+        }
+        void Promise.resolve(pending).catch(() => {
+            console.warn('Completed creation handoff deferred; the saved reply remains available.');
+        });
+    } catch (_) {
+        console.warn('Completed creation handoff deferred; the saved reply remains available.');
+    }
+}
+
 function completeUserMessage(chat, userMessage, data) {
     const serverAssistant = data.assistantMessage && typeof data.assistantMessage === 'object'
         ? data.assistantMessage
@@ -525,7 +553,7 @@ function completeUserMessage(chat, userMessage, data) {
         origin: 'reply',
         inReplyTo: userMessage.id,
     };
-    for (const key of ['imageUrl', 'imagePrompt', 'imageFile', 'artifact', 'manuscriptWorkspace', 'creationHandoff', 'intelligence']) {
+    for (const key of ['imageUrl', 'imagePrompt', 'imageFile', 'artifact', 'artifactRecovery', 'projectAttachments', 'manuscriptWorkspace', 'creationHandoff', 'intelligence']) {
         if (assistantMessage[key] == null && data[key] != null) assistantMessage[key] = data[key];
     }
     const existingIndex = chat.messages.findIndex(item =>
@@ -545,15 +573,30 @@ function completeUserMessage(chat, userMessage, data) {
     window.renderMessages?.(chat.messages);
     renderChatsList();
     window.CrumpPresence?.haptic?.('success');
-    if (data.manuscriptWorkspace?.autoOpen) {
-        void window.CrumpProduct53?.handleCreationHandoff?.({kind: 'manuscript', workspace: data.manuscriptWorkspace});
-    } else if (data.creationHandoff) {
-        void window.CrumpProduct53?.handleCreationHandoff?.(data.creationHandoff);
-    }
-    window.syncChatsToServer?.();
+    runCompletedCreationHandoffInBackground(data);
+    syncCompletedReplyInBackground();
     void recordFirstSuccessfulResponse();
     setTimeout(() => { void window.CrumpLifecycle?.evaluate?.({force: true}); }, 1200);
     setTimeout(safeScrollToBottom, 80);
+}
+
+function applyCompletedReplySafely(chat, userMessage, data) {
+    try {
+        completeUserMessage(chat, userMessage, data);
+        return true;
+    } catch (_) {
+        try { window.CrumpPresence?.stop?.(); } catch (_) {}
+        try {
+            console.warn('Completed reply presentation deferred; the saved reply remains authoritative.');
+        } catch (_) {}
+        try {
+            showToast(
+                'Your reply was saved, but this screen could not finish updating. Refresh this conversation to load the saved reply.',
+                'warning',
+            );
+        } catch (_) {}
+        return false;
+    }
 }
 
 async function recordFirstSuccessfulResponse() {
@@ -612,7 +655,7 @@ async function processUserMessage(chat, userMessage, attachment = null) {
     if (attachment) requestBody.fileData = [attachment];
 
     const data = await transport.send(requestBody);
-    completeUserMessage(chat, userMessage, data);
+    applyCompletedReplySafely(chat, userMessage, data);
 }
 
 async function sendMessage() {
@@ -713,7 +756,7 @@ window.retryMessage = async function retryMessage(id) {
     try {
         const recovered = await window.CrumpChatTransport?.recover?.(id);
         if (recovered) {
-            completeUserMessage(chat, message, recovered);
+            applyCompletedReplySafely(chat, message, recovered);
             return;
         }
         await ensureUsageAvailable();

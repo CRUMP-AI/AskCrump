@@ -609,6 +609,34 @@
     return window.CrumpChatTransport.ensureUsage();
   }
 
+  function syncCompletedReplyInBackground() {
+    try {
+      void Promise.resolve(window.syncChatsFromServer?.()).catch(() => {
+        console.warn('Completed reply sync deferred; background sync will retry.');
+      });
+    } catch (_) {
+      console.warn('Completed reply sync deferred; background sync will retry.');
+    }
+  }
+
+  function runCompletedCreationHandoffInBackground(data) {
+    try {
+      let pending = null;
+      if (data.manuscriptWorkspace?.autoOpen) {
+        pending = window.CrumpProduct53?.handleCreationHandoff?.({kind:'manuscript', workspace:data.manuscriptWorkspace});
+      } else if (data.creationHandoff) {
+        pending = window.CrumpProduct53?.handleCreationHandoff?.(data.creationHandoff);
+      } else {
+        return;
+      }
+      void Promise.resolve(pending).catch(() => {
+        console.warn('Completed creation handoff deferred; the saved reply remains available.');
+      });
+    } catch (_) {
+      console.warn('Completed creation handoff deferred; the saved reply remains available.');
+    }
+  }
+
   async function completeReply(chat, userMessage, data) {
     chat = currentChat() || chat;
     const finalUser = chat.messages.find(item => item.id === userMessage.id) || userMessage;
@@ -625,7 +653,7 @@
       origin: 'reply',
       inReplyTo: userMessage.id,
     };
-    for (const key of ['imageUrl', 'imagePrompt', 'imageFile', 'artifact', 'manuscriptWorkspace', 'creationHandoff']) {
+    for (const key of ['imageUrl', 'imagePrompt', 'imageFile', 'artifact', 'artifactRecovery', 'projectAttachments', 'manuscriptWorkspace', 'creationHandoff']) {
       if (assistant[key] == null && data[key] != null) assistant[key] = data[key];
     }
     const existingIndex = chat.messages.findIndex(item => item.role === 'assistant' && item.inReplyTo === userMessage.id);
@@ -636,13 +664,28 @@
     }
     saveAndRender(chat);
     window.CrumpPresence?.stop?.(); window.CrumpPresence?.haptic?.('success');
-    if (data.manuscriptWorkspace?.autoOpen) {
-      void window.CrumpProduct53?.handleCreationHandoff?.({kind:'manuscript', workspace:data.manuscriptWorkspace});
-    } else if (data.creationHandoff) {
-      void window.CrumpProduct53?.handleCreationHandoff?.(data.creationHandoff);
-    }
-    await window.syncChatsFromServer?.();
+    runCompletedCreationHandoffInBackground(data);
+    syncCompletedReplyInBackground();
     setTimeout(() => window.crumpScrollManager?.scrollToBottom?.({behavior: 'smooth'}), 80);
+  }
+
+  async function applyCompletedReplySafely(chat, userMessage, data) {
+    try {
+      await completeReply(chat, userMessage, data);
+      return true;
+    } catch (_) {
+      try { window.CrumpPresence?.stop?.(); } catch (_) {}
+      try {
+        console.warn('Completed reply presentation deferred; the saved reply remains authoritative.');
+      } catch (_) {}
+      try {
+        show(
+          'Your reply was saved, but this screen could not finish updating. Refresh this conversation to load the saved reply.',
+          'warning',
+        );
+      } catch (_) {}
+      return false;
+    }
   }
 
   async function studioSendMessage() {
@@ -699,7 +742,7 @@
       window.CrumpPresence?.start?.(sentTool === 'image' ? 'creating' : ready.length ? 'reading' : ack.activity || 'thinking');
 
       const data = await window.CrumpChatTransport.send(body);
-      await completeReply(fresh, userMessage, data);
+      await applyCompletedReplySafely(fresh, userMessage, data);
     } catch (error) {
       window.CrumpPresence?.stop?.();
       const fresh = currentChat();
@@ -730,7 +773,7 @@
       window.CrumpPresence?.start?.('thinking');
       const recovered = await window.CrumpChatTransport?.recover?.(id);
       if (recovered) {
-        await completeReply(chat, message, recovered);
+        await applyCompletedReplySafely(chat, message, recovered);
         return;
       }
       window.CrumpPresence?.stop?.();
@@ -749,7 +792,7 @@
       window.CrumpPresence?.start?.(ready.length ? 'reading' : ack.activity || 'thinking');
       const body = buildRequestBody(chat, message, ready);
       const data = await window.CrumpChatTransport.send(body);
-      await completeReply(chat, message, data);
+      await applyCompletedReplySafely(chat, message, data);
     } catch (error) {
       window.CrumpPresence?.stop?.();
       chat=currentChat() || chat; message=chat?.messages?.find(item => item.id===id) || message;
@@ -857,6 +900,94 @@
     card.addEventListener('click', () => openFile(file)); return card;
   }
 
+  function outputProjectReceipt(message, kind) {
+    const receipt = message?.projectAttachments?.[kind];
+    if (!receipt || typeof receipt !== 'object') return null;
+    const status = receipt.status === 'attached' || receipt.status === 'failed' || receipt.status === 'missing'
+      ? receipt.status
+      : '';
+    const projectId = String(receipt.projectId || '').trim();
+    if (!status || !projectId) return null;
+    return {status, projectId};
+  }
+
+  function wireOutputProjectAction(button, {message, file, kind, role, label, statusNode = null}) {
+    if (!button || !file?.id) { button?.remove(); return; }
+    const receipt = outputProjectReceipt(message, kind);
+    const targetProjectId = receipt?.status === 'failed' ? receipt.projectId : '';
+    if (receipt?.status === 'attached') {
+      button.dataset.projectId = receipt.projectId;
+      button.textContent = 'Open Project';
+      button.setAttribute('aria-label', `Open the Project containing ${label}`);
+      if (statusNode) statusNode.textContent = 'Created by Crump · Saved in Project';
+    } else {
+      button.textContent = receipt?.status === 'failed'
+        ? 'Retry Project save'
+        : (receipt?.status === 'missing' ? 'Add to another Project' : 'Add to Project');
+      button.setAttribute(
+        'aria-label',
+        receipt?.status === 'failed'
+          ? `Retry adding ${label} to its Project`
+          : `Add ${label} and its source conversation to a Project`,
+      );
+      if (statusNode && receipt?.status === 'failed') {
+        statusNode.textContent = 'Created by Crump · Safe in Files · Project link needs retry';
+      } else if (statusNode && receipt?.status === 'missing') {
+        statusNode.textContent = 'Created by Crump · Safe in Files · Original Project is no longer available · Choose another Project';
+      }
+    }
+
+    button.addEventListener('click', async () => {
+      const savedProjectId = String(button.dataset.projectId || '').trim();
+      if (savedProjectId) {
+        const opened = await window.CrumpProduct53?.openProject?.(savedProjectId);
+        if (!opened) window.CrumpProduct53?.open?.('projects');
+        return;
+      }
+      const keepArtifact = window.CrumpProduct53?.keepArtifact;
+      if (typeof keepArtifact !== 'function') {
+        show('Projects are still loading. Try again in a moment.', 'error');
+        return;
+      }
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      try {
+        const options = {role};
+        if (targetProjectId) options.projectId = targetProjectId;
+        const result = await keepArtifact(file, options);
+        const projectId = String(result?.project?.id || '').trim();
+        if (!result?.success || !projectId) throw new Error('The file could not be added to a Project.');
+        message.projectAttachments = {
+          ...(message.projectAttachments || {}),
+          [kind]: {status: 'attached', projectId, role, shouldRetry: false},
+        };
+        const chat = currentChat();
+        if (chat) saveAndRender(chat);
+      } catch (error) {
+        if (targetProjectId && Number(error?.status) === 404) {
+          message.projectAttachments = {
+            ...(message.projectAttachments || {}),
+            [kind]: {
+              status: 'missing',
+              projectId: targetProjectId,
+              role,
+              shouldRetry: false,
+              message: 'The file is safe in Files, but its original Project is no longer available.',
+            },
+          };
+          const chat = currentChat();
+          if (chat) saveAndRender(chat);
+          window.showToast?.('Original Project is no longer available. Choose another Project.', 'info');
+          return;
+        }
+        button.disabled = false;
+      } finally {
+        button.removeAttribute('aria-busy');
+      }
+      button.disabled = false;
+    });
+  }
+
   function enhanceRenderedMessages(messages) {
     const safe = Array.isArray(messages) ? messages : [];
     safe.forEach(message => {
@@ -875,40 +1006,65 @@
         $('strong', artifact).textContent = message.artifact.title || message.artifact.name || 'Crump document';
         const projectButton = $('[data-artifact-project]', artifact);
         const downloadButton = $('[data-artifact-download]', artifact);
-        if (!message.artifact.id) projectButton?.remove();
-        else if (projectButton) {
-          const artifactName = message.artifact.title || message.artifact.name || 'this file';
-          projectButton.setAttribute('aria-label', `Add ${artifactName} and its source conversation to a Project`);
-          projectButton.addEventListener('click', async () => {
-            const savedProjectId = String(projectButton.dataset.projectId || '').trim();
-            if (savedProjectId) {
-              const opened = await window.CrumpProduct53?.openProject?.(savedProjectId);
-              if (!opened) window.CrumpProduct53?.open?.('projects');
-              return;
-            }
-            const keepArtifact = window.CrumpProduct53?.keepArtifact;
-            if (typeof keepArtifact !== 'function') {
-              show('Projects are still loading. Try again in a moment.', 'error');
-              return;
-            }
-            projectButton.disabled = true;
-            projectButton.setAttribute('aria-busy', 'true');
-            try {
-              const result = await keepArtifact(message.artifact);
-              const projectId = String(result?.project?.id || '').trim();
-              if (!result?.success || !projectId) throw new Error('The file could not be added to a Project.');
-              projectButton.dataset.projectId = projectId;
-              projectButton.textContent = 'Open Project';
-              projectButton.setAttribute('aria-label', `Open ${result.project?.name || 'the Project'} containing ${artifactName}`);
-            } catch (_) {
-              projectButton.disabled = false;
-            } finally {
-              projectButton.removeAttribute('aria-busy');
-            }
-            projectButton.disabled = false;
-          });
-        }
+        const artifactName = message.artifact.title || message.artifact.name || 'this file';
+        wireOutputProjectAction(projectButton, {
+          message, file: message.artifact, kind: 'artifact', role: 'generated_document',
+          label: artifactName, statusNode: $('small', artifact),
+        });
         downloadButton?.addEventListener('click', () => openFile(message.artifact, true)); wrapper.appendChild(artifact);
+      }
+      const artifactRecovery = message.artifactRecovery && typeof message.artifactRecovery === 'object'
+        ? message.artifactRecovery
+        : null;
+      if (artifactRecovery?.shouldRetry && message.inReplyTo) {
+        const recovery = document.createElement('div'); recovery.className = 'crump50-artifact';
+        const packaged = artifactRecovery.status === 'packaged' && !!message.artifact;
+        recovery.innerHTML = '<span data-artifact-recovery-format></span><div class="crump50-artifact-copy"><strong></strong><small></small></div><div class="crump50-artifact-actions"><button type="button" data-artifact-retry></button></div>';
+        $('[data-artifact-recovery-format]', recovery).textContent = String(artifactRecovery.format || 'FILE').toUpperCase();
+        $('strong', recovery).textContent = packaged ? 'Saved file link needs retry' : 'Downloadable file needs packaging';
+        $('small', recovery).textContent = packaged
+          ? 'Safe in Files · Conversation link needs retry'
+          : 'Crump’s answer is saved · No generation or credits needed';
+        const retry = $('[data-artifact-retry]', recovery);
+        retry.textContent = packaged ? 'Retry saved file link' : 'Retry file packaging';
+        retry.addEventListener('click', async () => {
+          retry.disabled = true;
+          retry.setAttribute('aria-busy', 'true');
+          try {
+            const data = await api(`/api/chat/artifacts/${encodeURIComponent(message.inReplyTo)}/retry`, {
+              method: 'POST', body: '{}', timeoutMs: 45_000,
+            });
+            const recovered = data.assistantMessage && typeof data.assistantMessage === 'object'
+              ? data.assistantMessage
+              : {};
+            if (data.artifact) message.artifact = data.artifact;
+            if (data.projectAttachments) {
+              message.projectAttachments = {...(message.projectAttachments || {}), ...data.projectAttachments};
+            }
+            if (data.artifactRecovery?.shouldRetry) message.artifactRecovery = data.artifactRecovery;
+            else delete message.artifactRecovery;
+            Object.assign(message, recovered);
+            const chat = currentChat();
+            if (chat) {
+              if (data.conversationRevision) {
+                chat.revision = Math.max(Number(chat.revision || 1), Number(data.conversationRevision || 1));
+              }
+              saveAndRender(chat);
+            }
+            window.showToast?.(
+              data.conversationSaved === false
+                ? 'The file is safe in Files. Retry its saved conversation link when ready.'
+                : 'Downloadable file packaged from the saved answer.',
+              data.conversationSaved === false ? 'info' : 'success',
+            );
+          } catch (error) {
+            window.showToast?.(error.message || 'The saved answer is safe, but its file still needs packaging.', 'error');
+            retry.disabled = false;
+          } finally {
+            retry.removeAttribute('aria-busy');
+          }
+        });
+        wrapper.appendChild(recovery);
       }
       if (message.imageFile && message.imageUrl) {
         const generated = wrapper.querySelector('.generated-image-wrapper');
@@ -921,8 +1077,13 @@
             actions = document.createElement('div'); actions.className = 'crump50-image-actions';
             const view = document.createElement('button'); view.type='button'; view.textContent='View'; view.addEventListener('click', () => showLightbox(message.imageFile, message.imageUrl));
             const edit = document.createElement('button'); edit.type='button'; edit.textContent='Edit'; edit.addEventListener('click', () => { addRemoteReference(message.imageFile, {imageReference:true}); state.tool='image'; renderToolChip(); focusComposer('Tell Crump what to change…'); });
+            const project = document.createElement('button'); project.type='button';
             const download = document.createElement('button'); download.type='button'; download.textContent='Download'; download.addEventListener('click', () => openFile(message.imageFile, true));
-            actions.append(view, edit, download); generated.appendChild(actions);
+            wireOutputProjectAction(project, {
+              message, file: message.imageFile, kind: 'imageFile', role: 'generated_image',
+              label: message.imageFile.name || 'this image',
+            });
+            actions.append(view, edit, project, download); generated.appendChild(actions);
           }
         }
       }

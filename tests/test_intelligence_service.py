@@ -139,6 +139,100 @@ async def test_conversation_privacy_fails_closed_when_database_is_unavailable():
 
 
 @pytest.mark.asyncio
+async def test_request_can_disable_auto_learning_before_preference_sync_finishes():
+    service = IntelligenceService(
+        db=SimpleNamespace(), ai=SimpleNamespace(), settings=SimpleNamespace()
+    )
+    service.get_preferences = AsyncMock(return_value={
+        "intelligence_mode": "auto",
+        "memory_enabled": True,
+        "auto_learn": True,
+        "auto_tools": True,
+        "verification_level": "auto",
+    })
+    service.infer_creation_intent = AsyncMock(return_value=None)
+    service.retrieve_memories = AsyncMock(return_value=[])
+
+    prepared = await service.prepare(
+        "user-1",
+        {"message": "Remember that I prefer blue.", "autoLearn": False},
+    )
+
+    assert prepared.memory_enabled is True
+    assert prepared.auto_learn is False
+
+
+@pytest.mark.asyncio
+async def test_request_memory_flags_fail_closed_and_cannot_expand_durable_permission():
+    service = IntelligenceService(
+        db=SimpleNamespace(), ai=SimpleNamespace(), settings=SimpleNamespace()
+    )
+    service.get_preferences = AsyncMock(return_value={
+        "intelligence_mode": "auto",
+        "memory_enabled": True,
+        "auto_learn": False,
+        "auto_tools": True,
+        "verification_level": "auto",
+    })
+    service.infer_creation_intent = AsyncMock(return_value=None)
+    service.retrieve_memories = AsyncMock(return_value=[{"content": "must not load"}])
+
+    expanded = await service.prepare(
+        "user-1",
+        {"message": "Remember this.", "memoryEnabled": True, "autoLearn": True},
+    )
+    malformed = await service.prepare(
+        "user-1",
+        {"message": "Continue.", "memoryEnabled": "false", "autoLearn": "true"},
+    )
+
+    assert expanded.auto_learn is False
+    assert malformed.memory_enabled is False
+    assert malformed.auto_learn is False
+    service.retrieve_memories.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_preference_write_failure_is_reported_instead_of_claiming_success():
+    class FailingPreferenceDB:
+        async def select_one(self, *_args, **_kwargs):
+            return None
+
+        async def upsert(self, *_args, **_kwargs):
+            raise DatabaseError("temporary outage")
+
+    service = IntelligenceService(
+        db=FailingPreferenceDB(), ai=SimpleNamespace(), settings=SimpleNamespace()
+    )
+
+    with pytest.raises(DatabaseError):
+        await service.update_preferences("user-1", {"autoLearn": False})
+
+
+@pytest.mark.asyncio
+async def test_preference_update_never_overwrites_defaults_after_a_failed_read():
+    class FailingPreferenceReadDB:
+        def __init__(self):
+            self.upsert_called = False
+
+        async def select_one(self, *_args, **_kwargs):
+            raise DatabaseError("temporary read outage")
+
+        async def upsert(self, *_args, **_kwargs):
+            self.upsert_called = True
+
+    db = FailingPreferenceReadDB()
+    service = IntelligenceService(
+        db=db, ai=SimpleNamespace(), settings=SimpleNamespace()
+    )
+
+    with pytest.raises(DatabaseError):
+        await service.update_preferences("user-1", {"autoLearn": False})
+
+    assert db.upsert_called is False
+
+
+@pytest.mark.asyncio
 async def test_image_trace_records_only_allowlisted_generation_controls():
     class TraceDB:
         def __init__(self):

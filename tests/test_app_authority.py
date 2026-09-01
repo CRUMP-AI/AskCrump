@@ -163,6 +163,119 @@ def test_chat_packages_contextual_download_follow_up_when_semantic_router_is_una
     assert ('ArtifactPackaged', 'presentation') in events
 
 
+def test_durable_document_reply_survives_chat_job_cache_finalization_failure(monkeypatch):
+    class FinalizationCacheFailureDB(FakeDB):
+        def __init__(self):
+            super().__init__()
+            self.persisted_reply = None
+            self.update_calls = []
+
+        async def rpc(self, name, payload, **options):
+            self.rpc_calls.append((name, payload))
+            if name == 'claim_chat_job':
+                return [{'job_state': 'claimed'}]
+            if name == 'persist_chat_reply':
+                self.persisted_reply = payload
+                return [{'resulting_revision': 8, 'resulting_updated_at': '2026-08-31T12:00:00Z'}]
+            return None
+
+        async def update(self, table, payload, **_kwargs):
+            self.update_calls.append((table, payload))
+            if table == 'chat_jobs' and payload.get('status') == 'completed':
+                raise RuntimeError('private cache finalization detail')
+            return []
+
+    fake_db = FinalizationCacheFailureDB()
+    fake_ai = FakeAI()
+    refunds = AsyncMock(return_value=None)
+
+    async def fake_consume(*_args, **_kwargs):
+        return {'eventId': 'event-1', 'used': 1, 'limit': 100, 'remaining': 99}
+
+    async def fake_authenticate(*_args, **_kwargs):
+        return SimpleNamespace(
+            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner'},
+            session={'id': 'session-1'},
+            token='token',
+        )
+
+    async def fake_prepare(_user_id, payload, **_kwargs):
+        return PreparedRequest(
+            payload=dict(payload),
+            requested_mode='auto',
+            effective_mode='balanced',
+            verification_level='off',
+            route='chat',
+            creation_intent=None,
+            user_tier='free',
+        )
+
+    async def fake_create(_self, **kwargs):
+        return {
+            'id': '00000000-0000-0000-0000-000000000099',
+            'format': kwargs['format_name'],
+            'name': 'durable-document.docx',
+            'kind': 'generated_document',
+            'status': 'ready',
+        }
+
+    async def ignore_event(*_args, **_kwargs):
+        return True
+
+    fake_intelligence = SimpleNamespace(
+        prepare=fake_prepare,
+        verify_answer=AsyncMock(side_effect=lambda **kwargs: (kwargs['result'], False)),
+        learn_explicit=AsyncMock(return_value=0),
+        record_trace=AsyncMock(return_value=None),
+    )
+    fake_files = SimpleNamespace(
+        resolve_many=AsyncMock(return_value=[]),
+        public_file=lambda row: row,
+    )
+    fake_media = SimpleNamespace(
+        needs_prior_files=lambda _message: False,
+        is_image_request=lambda *_args: False,
+        is_edit_request=lambda *_args: False,
+    )
+    fake_features = SimpleNamespace(
+        entitled=lambda *_args: False,
+        refund=AsyncMock(return_value=None),
+    )
+
+    monkeypatch.setattr(chat_routes, 'db', fake_db)
+    monkeypatch.setattr(chat_routes, 'ai', fake_ai)
+    monkeypatch.setattr(chat_routes, 'intelligence', fake_intelligence)
+    monkeypatch.setattr(chat_routes, 'features', fake_features)
+    monkeypatch.setattr(chat_routes, 'files', fake_files)
+    monkeypatch.setattr(chat_routes, 'media', fake_media)
+    monkeypatch.setattr(chat_routes, 'projects', SimpleNamespace(reference_files=AsyncMock(return_value=[])))
+    monkeypatch.setattr(chat_routes, 'authenticate_request', fake_authenticate)
+    monkeypatch.setattr(chat_routes, 'consume_usage', fake_consume)
+    monkeypatch.setattr(chat_routes, 'consume_feature_for_request', AsyncMock(return_value=None))
+    monkeypatch.setattr(chat_routes, 'apply_project_context', AsyncMock(return_value=None))
+    monkeypatch.setattr(chat_routes, 'mark_check_in_responded', AsyncMock(return_value=None))
+    monkeypatch.setattr(chat_routes, 'record_product_event', ignore_event)
+    monkeypatch.setattr(chat_routes, 'refund_usage', refunds)
+    monkeypatch.setattr(type(chat_routes.artifacts), 'create', fake_create)
+
+    response = client.post('/api/chat', json={
+        'chatId': '00000000-0000-0000-0000-000000000002',
+        'messageId': '00000000-0000-0000-0000-000000000003',
+        'message': 'Create a downloadable document from this answer.',
+        'artifactFormat': 'docx',
+    })
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body['success'] is True
+    assert body['artifact']['name'] == 'durable-document.docx'
+    assert body['assistantMessage']['artifact']['id'] == body['artifact']['id']
+    assert body['conversationRevision'] == 8
+    assert fake_db.persisted_reply['p_assistant_message']['artifact']['id'] == body['artifact']['id']
+    assert any(table == 'chat_jobs' and payload.get('status') == 'completed' for table, payload in fake_db.update_calls)
+    refunds.assert_not_awaited()
+
+
 def test_account_deletion_uses_atomic_database_rpc(monkeypatch):
     fake_db = FakeDB()
     password_hash = hash_password('StrongPassword123')

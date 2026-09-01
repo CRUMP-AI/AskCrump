@@ -131,6 +131,62 @@ def _safe_artifact(value: Any) -> dict[str, Any] | None:
     return result
 
 
+def _safe_artifact_recovery(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    status = sync_module.clean_text(value.get("status"), 30).lower()
+    fmt = sync_module.clean_text(value.get("format"), 20).lower().lstrip(".")
+    if status not in {"failed", "packaged"} or fmt not in {"docx", "pdf", "pptx", "xlsx", "md", "txt"}:
+        return None
+    recovery = {
+        "status": status,
+        "format": fmt,
+        "shouldRetry": bool(value.get("shouldRetry")),
+        "message": (
+            "The file is safe in Files, but its conversation link needs a retry."
+            if status == "packaged"
+            else "Crump wrote the content, but the downloadable file still needs packaging."
+        ),
+    }
+    if str(value.get("purpose") or "").strip().lower() == "resume" and fmt in {"docx", "pdf"}:
+        recovery["purpose"] = "resume"
+    return recovery
+
+
+def _safe_project_attachments(value: Any) -> dict[str, dict[str, Any]]:
+    if not isinstance(value, dict):
+        return {}
+    result: dict[str, dict[str, Any]] = {}
+    for kind, role in (
+        ("artifact", "generated_document"),
+        ("imageFile", "generated_image"),
+    ):
+        receipt = value.get(kind)
+        if not isinstance(receipt, dict):
+            continue
+        status = sync_module.clean_text(receipt.get("status"), 20).lower()
+        if status not in {"attached", "failed", "missing"}:
+            continue
+        try:
+            project_id = str(uuid.UUID(str(receipt.get("projectId") or "")))
+        except (ValueError, TypeError, AttributeError):
+            continue
+        safe = {
+            "status": status,
+            "projectId": project_id,
+            "role": role,
+            "shouldRetry": status == "failed",
+        }
+        if status == "failed":
+            safe["message"] = "The file is safe in Files, but its Project link needs a retry."
+        elif status == "missing":
+            safe["message"] = (
+                "The file is safe in Files, but its original Project is no longer available."
+            )
+        result[kind] = safe
+    return result
+
+
 def _safe_manuscript_workspace(value: Any) -> dict[str, Any] | None:
     if not isinstance(value, dict):
         return None
@@ -208,6 +264,14 @@ def _sanitize_message_v52(item: Any) -> dict[str, Any] | None:
     artifact = _safe_artifact(item.get("artifact"))
     if artifact:
         message["artifact"] = artifact
+
+    artifact_recovery = _safe_artifact_recovery(item.get("artifactRecovery"))
+    if artifact_recovery:
+        message["artifactRecovery"] = artifact_recovery
+
+    project_attachments = _safe_project_attachments(item.get("projectAttachments"))
+    if project_attachments:
+        message["projectAttachments"] = project_attachments
 
     manuscript_workspace = _safe_manuscript_workspace(item.get("manuscriptWorkspace"))
     if manuscript_workspace:

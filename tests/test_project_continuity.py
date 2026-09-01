@@ -1,8 +1,13 @@
+import json
 from pathlib import Path
 
 import pytest
 
-from backend.project_service import ProjectChatNotFoundError, ProjectService
+from backend import sync_service
+from backend.db import DatabaseError
+from backend.file_service import FileServiceError
+from backend.product53_hooks import attach_generated_outputs
+from backend.project_service import ProjectChatNotFoundError, ProjectNotFoundError, ProjectService
 from backend.routes import projects as projects_routes
 
 
@@ -63,6 +68,126 @@ class JsonRequest:
 
     async def json(self):
         return self.payload
+
+
+@pytest.mark.asyncio
+async def test_generated_output_attachment_returns_truthful_independent_receipts():
+    calls = []
+
+    class Projects:
+        async def attach_file(self, **kwargs):
+            calls.append(kwargs)
+            if kwargs["role"] == "generated_image":
+                raise DatabaseError("temporary outage")
+
+    receipts = await attach_generated_outputs(
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        result={
+            "imageFile": {"id": "00000000-0000-0000-0000-000000000091"},
+            "artifact": {"id": "00000000-0000-0000-0000-000000000092"},
+        },
+        projects=Projects(),
+    )
+
+    assert receipts == {
+        "imageFile": {
+            "status": "failed",
+            "projectId": PROJECT_ID,
+            "role": "generated_image",
+            "shouldRetry": True,
+            "message": "The file is safe in Files, but its Project link needs a retry.",
+        },
+        "artifact": {
+            "status": "attached",
+            "projectId": PROJECT_ID,
+            "role": "generated_document",
+            "shouldRetry": False,
+        },
+    }
+    assert [call["role"] for call in calls] == ["generated_image", "generated_document"]
+    assert all(call["user_id"] == USER_ID and call["project_id"] == PROJECT_ID for call in calls)
+
+
+@pytest.mark.asyncio
+async def test_generated_output_does_not_offer_retry_for_a_missing_project():
+    class MissingProject:
+        async def attach_file(self, **_kwargs):
+            raise ProjectNotFoundError("Project not found.")
+
+    receipts = await attach_generated_outputs(
+        user_id=USER_ID,
+        project_id=PROJECT_ID,
+        result={"artifact": {"id": "00000000-0000-0000-0000-000000000092"}},
+        projects=MissingProject(),
+    )
+
+    assert receipts == {
+        "artifact": {
+            "status": "missing",
+            "projectId": PROJECT_ID,
+            "role": "generated_document",
+            "shouldRetry": False,
+            "message": "The file is safe in Files, but its original Project is no longer available.",
+        }
+    }
+
+
+def test_missing_output_project_can_be_retargeted_instead_of_retrying_the_dead_id():
+    ui = (ROOT / "public" / "crump-5.0.js").read_text(encoding="utf-8")
+
+    assert "receipt.status === 'missing'" in ui
+    assert "const targetProjectId = receipt?.status === 'failed' ? receipt.projectId : '';" in ui
+    assert "Safe in Files · Original Project is no longer available · Choose another Project" in ui
+    assert "receipt?.status === 'missing' ? 'Add to another Project'" in ui
+    assert "targetProjectId && Number(error?.status) === 404" in ui
+    assert "Original Project is no longer available. Choose another Project." in ui
+
+
+def test_generated_output_project_receipts_survive_sync_with_a_content_free_allowlist():
+    message = sync_service.sanitize_message({
+        "id": "assistant-1",
+        "role": "assistant",
+        "content": "Your files are ready.",
+        "projectAttachments": {
+            "artifact": {
+                "status": "attached",
+                "projectId": PROJECT_ID,
+                "role": "attacker-controlled",
+                "shouldRetry": True,
+                "message": "attacker-controlled",
+                "secret": "must not survive",
+            },
+            "imageFile": {
+                "status": "missing",
+                "projectId": PROJECT_ID,
+                "role": "attacker-controlled",
+                "shouldRetry": True,
+                "message": "attacker-controlled",
+            },
+            "unexpected": {
+                "status": "failed",
+                "projectId": PROJECT_ID,
+                "secret": "must not survive",
+            },
+        },
+    })
+
+    assert message["projectAttachments"] == {
+        "artifact": {
+            "status": "attached",
+            "projectId": PROJECT_ID,
+            "role": "generated_document",
+            "shouldRetry": False,
+        },
+        "imageFile": {
+            "status": "missing",
+            "projectId": PROJECT_ID,
+            "role": "generated_image",
+            "shouldRetry": False,
+            "message": "The file is safe in Files, but its original Project is no longer available.",
+        },
+    }
 
 
 @pytest.mark.asyncio
@@ -252,6 +377,134 @@ async def test_project_target_route_returns_only_the_owner_scoped_summary(monkey
         "success": True,
         "project": {"id": PROJECT_ID, "name": "Quarterly strategy"},
     }
+
+
+@pytest.mark.asyncio
+async def test_project_file_list_reports_database_outage_instead_of_false_empty_success(monkeypatch):
+    async def authenticate(*_args, **_kwargs):
+        return type("Auth", (), {"user": {"id": USER_ID}})()
+
+    class Projects:
+        async def get(self, user_id, project_id):
+            assert (user_id, project_id) == (USER_ID, PROJECT_ID)
+            return {"id": PROJECT_ID}
+
+    class Database:
+        async def select(self, table, **kwargs):
+            assert table == "project_files"
+            assert kwargs["filters"]["user_id"] == f"eq.{USER_ID}"
+            return [{"file_id": "00000000-0000-0000-0000-000000000099", "role": "generated_document"}]
+
+    class Files:
+        async def get_owned(self, **_kwargs):
+            raise DatabaseError("temporary outage")
+
+        def public_file(self, _row):
+            raise AssertionError("An unavailable row must not be rendered.")
+
+    monkeypatch.setattr(projects_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(projects_routes, "projects", Projects())
+    monkeypatch.setattr(projects_routes, "db", Database())
+    monkeypatch.setattr(projects_routes, "files", Files())
+
+    response = await projects_routes.project_files(PROJECT_ID, object())
+    payload = json.loads(response.body)
+
+    assert response.status_code == 503
+    assert payload == {
+        "success": False,
+        "error": "Projects are temporarily unavailable. Try again.",
+        "code": "PROJECTS_UNAVAILABLE",
+        "shouldRetry": True,
+    }
+
+
+@pytest.mark.asyncio
+async def test_project_file_list_skips_only_a_genuinely_missing_owned_file(monkeypatch):
+    missing_id = "00000000-0000-0000-0000-000000000098"
+    ready_id = "00000000-0000-0000-0000-000000000099"
+
+    async def authenticate(*_args, **_kwargs):
+        return type("Auth", (), {"user": {"id": USER_ID}})()
+
+    class Projects:
+        async def get(self, _user_id, _project_id):
+            return {"id": PROJECT_ID}
+
+    class Database:
+        async def select(self, *_args, **_kwargs):
+            return [
+                {"file_id": missing_id, "role": "generated_document"},
+                {"file_id": ready_id, "role": "reference"},
+            ]
+
+    class Files:
+        async def get_owned(self, *, user_id, file_id):
+            assert user_id == USER_ID
+            if file_id == missing_id:
+                raise FileServiceError("File not found.", 404, "FILE_NOT_FOUND")
+            return {"id": ready_id, "file_name": "launch-plan.docx"}
+
+        def public_file(self, row):
+            return {"id": row["id"], "name": row["file_name"]}
+
+    monkeypatch.setattr(projects_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(projects_routes, "projects", Projects())
+    monkeypatch.setattr(projects_routes, "db", Database())
+    monkeypatch.setattr(projects_routes, "files", Files())
+
+    result = await projects_routes.project_files(PROJECT_ID, object())
+
+    assert result == {
+        "success": True,
+        "files": [{"id": ready_id, "name": "launch-plan.docx", "projectRole": "reference"}],
+    }
+
+
+@pytest.mark.asyncio
+async def test_project_file_attach_preserves_missing_and_retryable_failure_semantics(monkeypatch):
+    file_id = "00000000-0000-0000-0000-000000000099"
+
+    async def authenticate(*_args, **_kwargs):
+        return type("Auth", (), {"user": {"id": USER_ID}})()
+
+    class Projects:
+        async def get(self, _user_id, _project_id):
+            return {"id": PROJECT_ID}
+
+        async def attach_file(self, **_kwargs):
+            raise AssertionError("A missing or unavailable file must not be attached.")
+
+    class MissingFile:
+        async def get_owned(self, **_kwargs):
+            raise FileServiceError("File not found.", 404, "FILE_NOT_FOUND")
+
+    monkeypatch.setattr(projects_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(projects_routes, "projects", Projects())
+    monkeypatch.setattr(projects_routes, "files", MissingFile())
+
+    missing = await projects_routes.attach_project_file(
+        PROJECT_ID,
+        JsonRequest({"fileId": file_id, "role": "generated_document"}),
+    )
+
+    assert missing.status_code == 404
+    assert json.loads(missing.body)["code"] == "FILE_NOT_FOUND"
+
+    class UnavailableFile:
+        async def get_owned(self, **_kwargs):
+            raise DatabaseError("temporary outage")
+
+    monkeypatch.setattr(projects_routes, "files", UnavailableFile())
+    unavailable = await projects_routes.attach_project_file(
+        PROJECT_ID,
+        JsonRequest({"fileId": file_id, "role": "generated_document"}),
+    )
+    unavailable_payload = json.loads(unavailable.body)
+
+    assert unavailable.status_code == 503
+    assert unavailable_payload["code"] == "PROJECTS_UNAVAILABLE"
+    assert unavailable_payload["shouldRetry"] is True
 
 
 def test_project_workspace_surfaces_saved_conversations_and_a_private_resume_action():
@@ -487,6 +740,7 @@ def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_
 def test_generated_artifact_can_join_a_project_with_its_source_conversation():
     ui = (ROOT / "public" / "crump-5.0.js").read_text(encoding="utf-8")
     product = (ROOT / "public" / "crump-product-5.3.js").read_text(encoding="utf-8")
+    route = (ROOT / "backend" / "routes" / "chat.py").read_text(encoding="utf-8")
     fixture = (ROOT / "tests" / "fixtures" / "project-target-disclosure.html").read_text(
         encoding="utf-8"
     )
@@ -494,11 +748,17 @@ def test_generated_artifact_can_join_a_project_with_its_source_conversation():
     assert "data-artifact-project" in ui
     assert "Add to Project" in ui
     assert "Open Project" in ui
+    assert "Retry Project save" in ui
+    assert "Safe in Files · Project link needs retry" in ui
+    assert "kind: 'imageFile', role: 'generated_image'" in ui
     assert "window.CrumpProduct53?.keepArtifact" in ui
+    assert "result['projectAttachments'] = project_attachments" in route
+    assert "assistant_message['projectAttachments'] = result['projectAttachments']" in route
     assert "async function keepArtifact(file, options = {})" in product
     assert "notify: false" in product
     assert "refresh: false" in product
-    assert "body: {fileId, role: 'generated_document'}" in product
+    assert "const role = options.role === 'generated_image' ? 'generated_image' : 'generated_document'" in product
+    assert "body: {fileId, role}" in product
     assert "keepArtifact: (file, options) => keepArtifact(file, options)" in product
     assert "/public/crump-5.0.js?v=artifact-project-handoff-1" in fixture
     assert "fixtureFileRequest" in fixture

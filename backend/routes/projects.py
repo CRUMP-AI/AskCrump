@@ -5,7 +5,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from ..auth_service import authenticate_request
-from ..db import eq
+from ..db import DatabaseError, eq
+from ..file_service import FileServiceError
 from ..product_analytics import record_product_event
 from ..project_service import ProjectChatNotFoundError, ProjectNotFoundError
 from ..runtime import db, features, files, projects, settings
@@ -16,6 +17,18 @@ router = APIRouter(prefix="/api/projects", tags=["projects"])
 
 def _error(message: str, code: str, status: int) -> JSONResponse:
     return JSONResponse(status_code=status, content={"success": False, "error": message, "code": code})
+
+
+def _projects_unavailable() -> JSONResponse:
+    return JSONResponse(
+        status_code=503,
+        content={
+            "success": False,
+            "error": "Projects are temporarily unavailable. Try again.",
+            "code": "PROJECTS_UNAVAILABLE",
+            "shouldRetry": True,
+        },
+    )
 
 
 @router.get("")
@@ -227,24 +240,35 @@ async def project_files(project_id: str, request: Request):
     auth = await authenticate_request(request, db, settings)
     try:
         project = await projects.get(auth.user["id"], project_id)
-    except ProjectNotFoundError as exc:
-        return _error(str(exc), "PROJECT_NOT_FOUND", 404)
-    mappings = await db.select(
-        "project_files",
-        filters={"project_id": eq(project["id"]), "user_id": eq(auth.user["id"])},
-        order="created_at.desc",
-        limit=200,
-    )
-    output = []
-    for mapping in mappings:
-        try:
-            row = await files.get_owned(user_id=auth.user["id"], file_id=str(mapping["file_id"]))
+        mappings = await db.select(
+            "project_files",
+            filters={"project_id": eq(project["id"]), "user_id": eq(auth.user["id"])},
+            order="created_at.desc",
+            limit=200,
+        )
+        output = []
+        for mapping in mappings:
+            try:
+                row = await files.get_owned(
+                    user_id=auth.user["id"],
+                    file_id=str(mapping["file_id"]),
+                )
+            except FileServiceError as exc:
+                if exc.status_code == 404:
+                    # A stale mapping to a deleted/private file is absent. A
+                    # database outage must never be converted into this case.
+                    continue
+                return _error(exc.message, exc.code, exc.status_code)
             public = files.public_file(row)
             public["projectRole"] = mapping.get("role")
             output.append(public)
-        except Exception:
-            continue
-    return {"success": True, "files": output}
+        return {"success": True, "files": output}
+    except ProjectNotFoundError as exc:
+        return _error(str(exc), "PROJECT_NOT_FOUND", 404)
+    except DatabaseError:
+        return _projects_unavailable()
+
+
 @router.post("/{project_id}/files")
 async def attach_project_file(project_id: str, request: Request):
     auth = await authenticate_request(request, db, settings)
@@ -276,5 +300,9 @@ async def attach_project_file(project_id: str, request: Request):
         return {"success": True, "file": public}
     except ProjectNotFoundError as exc:
         return _error(str(exc), "PROJECT_NOT_FOUND", 404)
+    except FileServiceError as exc:
+        return _error(exc.message, exc.code, exc.status_code)
+    except DatabaseError:
+        return _projects_unavailable()
     except Exception:
-        return _error("Could not attach that file to the Project.", "PROJECT_FILE_FAILED", 400)
+        return _error("Could not attach that file to the Project.", "PROJECT_FILE_FAILED", 500)

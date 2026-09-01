@@ -216,9 +216,15 @@ class SupabaseDB:
         payload: dict[str, Any],
         *,
         filters: dict[str, Any],
+        retry_transient: bool = False,
     ) -> Any:
         return await self.request(
-            'PATCH', table, params=filters, payload=payload, prefer='return=representation'
+            'PATCH',
+            table,
+            params=filters,
+            payload=payload,
+            prefer='return=representation',
+            retry_transient=retry_transient,
         )
 
     async def delete(self, table: str, *, filters: dict[str, Any]) -> Any:

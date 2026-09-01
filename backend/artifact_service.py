@@ -1553,7 +1553,7 @@ class ArtifactService:
         workbook.properties.title = resolved_title; workbook.properties.creator = 'Ask Crump'; workbook.properties.subject = 'Professionally formatted editable workbook'
         out = BytesIO(); workbook.save(out); return out.getvalue()
 
-    async def create(self, *, user_id: str, markdown: str, format_name: str, chat_id: str | None, message_id: str | None, title: str | None = None, brief: str | None = None, purpose: Any = None) -> dict[str, Any]:
+    async def create(self, *, user_id: str, markdown: str, format_name: str, chat_id: str | None, message_id: str | None, title: str | None = None, brief: str | None = None, purpose: Any = None, file_id: str | None = None) -> dict[str, Any]:
         fmt = self.normalize_format(format_name)
         if not fmt: raise ValueError('Unsupported document format.')
         resolved_title = (title or self.title_from(markdown)).strip()[:160]; profile = self.profile_for(markdown, brief or '', fmt, purpose)
@@ -1567,6 +1567,6 @@ class ArtifactService:
         row = await self.files.store_bytes(
             user_id=user_id, data=data, filename=f'{stem}.{fmt}', mime_type=MIME[fmt],
             kind='generated_document', chat_id=chat_id, message_id=message_id,
-            metadata={'format': fmt, 'title': resolved_title, 'profile': profile},
+            metadata={'format': fmt, 'title': resolved_title, 'profile': profile}, file_id=file_id,
         )
         result = self.files.public_file(row); result.update({'format': fmt, 'title': resolved_title, 'profile': profile}); return result

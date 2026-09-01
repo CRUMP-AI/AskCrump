@@ -11,7 +11,7 @@ from typing import Any
 from .ai_service import AIService
 from .feature_service import FeatureService
 from .media_service import MediaService
-from .project_service import ProjectService
+from .project_service import ProjectNotFoundError, ProjectService
 
 
 def _append_context(payload: dict[str, Any], item: dict[str, Any]) -> None:
@@ -122,22 +122,49 @@ async def attach_generated_outputs(
     project_id: str | None,
     result: dict[str, Any],
     projects: ProjectService,
-) -> None:
+) -> dict[str, dict[str, Any]]:
     if not project_id:
-        return
+        return {}
     candidates = (
-        (result.get("imageFile"), "generated_image"),
-        (result.get("artifact"), "generated_document"),
+        ("imageFile", result.get("imageFile"), "generated_image"),
+        ("artifact", result.get("artifact"), "generated_document"),
     )
-    for candidate, role in candidates:
+    receipts: dict[str, dict[str, Any]] = {}
+    for kind, candidate, role in candidates:
         if not isinstance(candidate, dict):
             continue
         file_id = candidate.get("id")
         if not file_id:
             continue
-        await projects.attach_file(
-            user_id=user_id,
-            project_id=project_id,
-            file_id=str(file_id),
-            role=role,
-        )
+        try:
+            await projects.attach_file(
+                user_id=user_id,
+                project_id=project_id,
+                file_id=str(file_id),
+                role=role,
+            )
+            receipts[kind] = {
+                "status": "attached",
+                "projectId": project_id,
+                "role": role,
+                "shouldRetry": False,
+            }
+        except ProjectNotFoundError:
+            receipts[kind] = {
+                "status": "missing",
+                "projectId": project_id,
+                "role": role,
+                "shouldRetry": False,
+                "message": (
+                    "The file is safe in Files, but its original Project is no longer available."
+                ),
+            }
+        except Exception:
+            receipts[kind] = {
+                "status": "failed",
+                "projectId": project_id,
+                "role": role,
+                "shouldRetry": True,
+                "message": "The file is safe in Files, but its Project link needs a retry.",
+            }
+    return receipts

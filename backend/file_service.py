@@ -278,6 +278,7 @@ class FileService:
         chat_id: str | None = None,
         message_id: str | None = None,
         metadata: dict[str, Any] | None = None,
+        file_id: str | None = None,
     ) -> dict[str, Any]:
         name = self.clean_filename(filename)
         mime = self.normalized_mime(name, mime_type)
@@ -288,10 +289,22 @@ class FileService:
         )
         if len(data) > generated_limit:
             raise FileServiceError('Generated file exceeds the storage limit.', 413, 'GENERATED_FILE_TOO_LARGE')
-        file_id = str(uuid4())
-        storage_path = self._path(user_id, file_id, name)
+        stable_file_id = normalize_chat_id(file_id) if file_id else None
+        if stable_file_id:
+            existing = await self.db.select_one(
+                'user_files',
+                filters={
+                    'id': eq(stable_file_id),
+                    'user_id': eq(user_id),
+                    'deleted_at': 'is.null',
+                },
+            )
+            if existing:
+                return existing
+        resolved_file_id = stable_file_id or str(uuid4())
+        storage_path = self._path(user_id, resolved_file_id, name)
         encoded = quote(storage_path, safe='/')
-        headers = {**self.headers, 'x-upsert': 'false'}
+        headers = {**self.headers, 'x-upsert': 'true' if stable_file_id else 'false'}
         async with httpx.AsyncClient(timeout=httpx.Timeout(90.0, connect=15.0)) as client:
             response = await client.post(
                 f"{self.storage_url}/object/{self.bucket}/{encoded}",
@@ -302,7 +315,7 @@ class FileService:
         if response.status_code >= 400:
             raise FileServiceError('Could not save the generated file.', 503, 'STORAGE_WRITE_FAILED')
         row = {
-            'id': file_id,
+            'id': resolved_file_id,
             'user_id': user_id,
             'chat_id': normalize_chat_id(chat_id) if chat_id else None,
             'message_id': normalize_chat_id(message_id) if message_id else None,
@@ -315,8 +328,12 @@ class FileService:
             'metadata': metadata or {},
             'updated_at': self._now(),
         }
-        await self.db.insert('user_files', row)
-        return row
+        if stable_file_id:
+            row['deleted_at'] = None
+            stored = await self.db.upsert('user_files', row, on_conflict='id')
+        else:
+            stored = await self.db.insert('user_files', row)
+        return stored[0] if isinstance(stored, list) and stored else row
 
     async def soft_delete(self, *, user_id: str, file_id: str) -> None:
         await self.get_owned(user_id=user_id, file_id=file_id, include_pending=True)

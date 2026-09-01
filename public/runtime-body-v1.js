@@ -55,14 +55,14 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/sync-manager.js?v=5.9.76', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-sync-cadence-1', 'workspacechatsync'],
     ['/account-manager.js', 'workspaceaccount'],
-    ['/app.js?v=5.9.76-intelligence-architecture-1', 'workspaceapp'],
+    ['/app.js?v=5.9.76-core-reliability-1', 'workspaceapp'],
     ['/product-analytics.js?v=5.9.76', 'workspaceanalytics'],
   ]);
 
   const enhancementScripts = Object.freeze([
     ['/crump-4.3.js?v=5.9.76-intelligence-architecture-1', 'crump43'],
-    ['/crump-4.4.js?v=5.9.76-intelligence-architecture-1', 'crump44'],
-    ['/crump-5.0.js?v=5.9.76-artifact-project-1', 'crump50'],
+    ['/crump-4.4.js?v=5.9.76-core-reliability-1', 'crump44'],
+    ['/crump-5.0.js?v=5.9.76-core-reliability-1', 'crump50'],
     ['/crump-billing-5.1.js?v=5.9.76-weekly-growth-attribution-1', 'billing51'],
     ['/crump-5.2.js?v=5.9.76-weekly-growth-attribution-1', 'crump52'],
     ['/crump-5.2.2.js?v=5.9.76-weekly-growth-attribution-1', 'crump522'],
@@ -72,8 +72,8 @@ window.CRUMP_CONFIG = Object.freeze({
 
   const finalScripts = Object.freeze([
     ['/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1', 'crumpnav525'],
-    ['/crump-product-5.3.js?v=5.9.76-intelligence-architecture-1', 'crumpproduct53'],
-    ['/crump-product-5.3.1.js?v=5.9.76-demand-hydration-1', 'crumpproduct531'],
+    ['/crump-product-5.3.js?v=5.9.76-core-reliability-1', 'crumpproduct53'],
+    ['/crump-product-5.3.1.js?v=5.9.76-core-reliability-1', 'crumpproduct531'],
     ['/crump-subscriptions-5.3.2.js?v=5.9.76-intelligence-plan-handoff-1', 'crumpsubscriptions532'],
     ['/crump-polish-5.6.js', 'crumppolish56'],
     ['/crump-library-5.7.js?v=5.9.76-demand-hydration-1', 'crumplibrary57'],

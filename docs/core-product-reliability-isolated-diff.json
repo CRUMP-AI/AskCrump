@@ -1,0 +1,294 @@
+{
+  "schemaVersion": 1,
+  "candidateId": "core-product-reliability-20260830",
+  "status": "held",
+  "baseCommit": "86cd73feabc6b65b809999c5efc45dec239f3b68",
+  "cacheVersion": "5.9.76-core-reliability-1",
+  "serviceWorkerCache": "ask-crump-new-body-v1-r166",
+  "actionRecord": "docs/CORE_PRODUCT_RELIABILITY_RELEASE_ACTION_RECORD_2026-08-30.md",
+  "allowedPaths": [
+    "backend/artifact_service.py",
+    "backend/crump52_patches.py",
+    "backend/db.py",
+    "backend/file_service.py",
+    "backend/intelligence_service.py",
+    "backend/product53_hooks.py",
+    "backend/routes/chat.py",
+    "backend/routes/intelligence.py",
+    "backend/routes/manuscripts.py",
+    "backend/routes/media.py",
+    "backend/routes/projects.py",
+    "docs/CONVERSATIONAL_ARTIFACT_RECOVERY_RELEASE_ACTION_RECORD_2026-08-30.md",
+    "docs/CONVERSATIONAL_ARTIFACT_RECOVERY_STAGED_ACCEPTANCE_2026-08-30.md",
+    "docs/CORE_PRODUCT_RELIABILITY_ISOLATED_CANDIDATE_ACCEPTANCE_2026-08-30.md",
+    "docs/CORE_PRODUCT_RELIABILITY_RELEASE_ACTION_RECORD_2026-08-30.md",
+    "docs/core-product-reliability-isolated-diff.json",
+    "docs/MANUSCRIPT_OUTPUT_RECOVERY_RELEASE_ACTION_RECORD_2026-08-30.md",
+    "docs/MANUSCRIPT_OUTPUT_RECOVERY_STAGED_ACCEPTANCE_2026-08-30.md",
+    "docs/MEMORY_PREFERENCE_FAIL_CLOSED_RELEASE_ACTION_RECORD_2026-08-30.md",
+    "docs/MEMORY_PREFERENCE_FAIL_CLOSED_STAGED_ACCEPTANCE_2026-08-30.md",
+    "docs/PROJECT_FILE_TRUST_RELEASE_ACTION_RECORD_2026-08-30.md",
+    "docs/PROJECT_FILE_TRUST_STAGED_ACCEPTANCE_2026-08-30.md",
+    "docs/PROJECT_OUTPUT_ATTACHMENT_RECOVERY_RELEASE_ACTION_RECORD_2026-08-30.md",
+    "docs/PROJECT_OUTPUT_ATTACHMENT_RECOVERY_STAGED_ACCEPTANCE_2026-08-30.md",
+    "docs/VIDEO_PROJECT_ATTACHMENT_RECOVERY_RELEASE_ACTION_RECORD_2026-08-30.md",
+    "docs/VIDEO_PROJECT_ATTACHMENT_RECOVERY_STAGED_ACCEPTANCE_2026-08-30.md",
+    "public/app.html",
+    "public/app.js",
+    "public/crump-4.4.js",
+    "public/crump-5.0.js",
+    "public/crump-product-5.3.1.js",
+    "public/crump-product-5.3.js",
+    "public/runtime-body-v1.js",
+    "public/sw.js",
+    "scripts/build-native.mjs",
+    "scripts/check-javascript.mjs",
+    "scripts/verify-core-product-reliability-candidate.mjs",
+    "tests/fixtures/intelligence-preference-retry.html",
+    "tests/test_app_authority.py",
+    "tests/test_artifact_packaging_recovery.py",
+    "tests/test_assistant_identity_think_longer_navigation.py",
+    "tests/test_auth_request_resilience.py",
+    "tests/test_billing_request_timeout.py",
+    "tests/test_chat_response_resilience.py",
+    "tests/test_contextual_plan_recovery.py",
+    "tests/test_conversation_creation_intelligence.py",
+    "tests/test_credit_balance_refresh.py",
+    "tests/test_deferred_workspace_runtime.py",
+    "tests/test_destination_tool_hierarchy.py",
+    "tests/test_first_action_readiness.py",
+    "tests/test_first_message_readiness.py",
+    "tests/test_intelligence_glasses_icon_contract.py",
+    "tests/test_intelligence_plan_handoff.py",
+    "tests/test_intelligence_receipt.py",
+    "tests/test_intelligence_service.py",
+    "tests/test_lifecycle_activation.py",
+    "tests/test_manuscript_output_recovery.py",
+    "tests/test_mobile_documents_tool_contract.py",
+    "tests/test_mobile_zoom_policy_contract.py",
+    "tests/test_monetization_recovery_measurement.py",
+    "tests/test_navigation_5930.py",
+    "tests/test_plan_value_clarity.py",
+    "tests/test_product53_contract.py",
+    "tests/test_product531_contract.py",
+    "tests/test_product56_polish.py",
+    "tests/test_project_continuity.py",
+    "tests/test_public_destination_consistency.py",
+    "tests/test_release_guard.py",
+    "tests/test_revenue_conversion.py",
+    "tests/test_video_project_attachment_recovery.py",
+    "tests/test_workspace_runtime_fetch_plan.py"
+  ],
+  "contentHashes": {
+    "backend/artifact_service.py": "4ebb4dbd924de90f5a20e9d80ad68379e214e64133b1a11407db9309bc0d6618",
+    "backend/crump52_patches.py": "d0bf9c57163ca5f7b09ada91093ba7ad03a40a5f82df11aa8bf78d3020ead072",
+    "backend/db.py": "2d66df7a024d49386520c5c3f695a10f686481daf8080925ccc135fa464a20d2",
+    "backend/file_service.py": "f94ee682f2fb409eb67f9f0d69efd2559a2fbc8a0546e336a508ffceabbfab50",
+    "backend/intelligence_service.py": "1c9192a4a0104032b761a3c425abdacadfc882f40c56b9fcac24dad8d5d4814f",
+    "backend/product53_hooks.py": "aa9636c5a83b730670362a8805e24b0ab17b41d6d60253d3fd8a2706fcdbedae",
+    "backend/routes/chat.py": "59b9e0d1b9279d5514b27e6d2b3e81ed137e7c7363b17c0a6e1586cc01d8edbf",
+    "backend/routes/intelligence.py": "238d5fd9efed9f041d0c68348ff7f9021ec5b290c373a865a34aa8da4138d44a",
+    "backend/routes/manuscripts.py": "5c9dcac66c88f436343f5eb49bc6af1577663ad365c752bc15e89ce79d755334",
+    "backend/routes/media.py": "e39dedbb9d4f0c6dbb156be924e7e5defad405b97cac379a752fd6be7af47319",
+    "backend/routes/projects.py": "8dbeb78bf444e0be5b6b3814b163314b5e669a0df0e4a07bfb3c18d9ffb7a670",
+    "docs/CONVERSATIONAL_ARTIFACT_RECOVERY_RELEASE_ACTION_RECORD_2026-08-30.md": "2732839cf39595a2ce49d0235cb548ac1101f0fedb101ec6fcdd8daae9cf5802",
+    "docs/CONVERSATIONAL_ARTIFACT_RECOVERY_STAGED_ACCEPTANCE_2026-08-30.md": "2c2a29ed14936e214da40d57bc4dfe7284a413178acebf1ce18aa368206a2a62",
+    "docs/CORE_PRODUCT_RELIABILITY_RELEASE_ACTION_RECORD_2026-08-30.md": "f1b4fcbe88646871c1d52db24e88deaf630e88b5af4f45a01e58ee0a29bfebc8",
+    "docs/MANUSCRIPT_OUTPUT_RECOVERY_RELEASE_ACTION_RECORD_2026-08-30.md": "2dadff594fb46af6a3651d1365cc6908f52c77aa44b00904d4958f9826fb4d50",
+    "docs/MANUSCRIPT_OUTPUT_RECOVERY_STAGED_ACCEPTANCE_2026-08-30.md": "ed988a1a5227d1d42198d9e774aa55a0355308e9114cca7695bed225297ae79c",
+    "docs/MEMORY_PREFERENCE_FAIL_CLOSED_RELEASE_ACTION_RECORD_2026-08-30.md": "f833f564864fa17b8052fb585d624ba8ec813ea5d9c8ed1fc6d5e4432125db29",
+    "docs/MEMORY_PREFERENCE_FAIL_CLOSED_STAGED_ACCEPTANCE_2026-08-30.md": "04b72bf802b7e1bd881a0070dfe7b3baf0b961abdbcfa12b74c933c3ed533320",
+    "docs/PROJECT_FILE_TRUST_RELEASE_ACTION_RECORD_2026-08-30.md": "c93a73f919dbf916c148312115dd7365191c84ccaa8852852b0611e58eab7ce0",
+    "docs/PROJECT_FILE_TRUST_STAGED_ACCEPTANCE_2026-08-30.md": "9acc2313849f5fd54866c4330a4712812c70617eaee3769111e31f1ea8945931",
+    "docs/PROJECT_OUTPUT_ATTACHMENT_RECOVERY_RELEASE_ACTION_RECORD_2026-08-30.md": "dd50d6f2e3af18bc5626439f5d2323a167ebadc3bc36ccb66b03d8700b391c30",
+    "docs/PROJECT_OUTPUT_ATTACHMENT_RECOVERY_STAGED_ACCEPTANCE_2026-08-30.md": "e0c8af3bb24f363d99fea6d265d2f79c1afc4c47c781ab44a74bb842b4d3ee53",
+    "docs/VIDEO_PROJECT_ATTACHMENT_RECOVERY_RELEASE_ACTION_RECORD_2026-08-30.md": "e8384f3ae249514e878757912241b600fdd1585b925c15373933c53c86265b64",
+    "docs/VIDEO_PROJECT_ATTACHMENT_RECOVERY_STAGED_ACCEPTANCE_2026-08-30.md": "c910ccc82d9c9efc555d31875fd3d96a5bced7efe2130a2435ecfe48e749106b",
+    "public/app.html": "25db9921cb1efc54cbff75205a70fbe2744fa9db3a627cbcc6090eabe22ea0c1",
+    "public/app.js": "65512f9c4b006980fd04ad23336c466ff09fe35b2aa7038fa96554d8856fb27d",
+    "public/crump-4.4.js": "1091c35eed280701a2f9828b55265c832a090fcf6198bd208b3e9b0ed97d2954",
+    "public/crump-5.0.js": "44d6c235a1048391b3f0d5014d8982377b2885e286bd32b3b049b54af303534e",
+    "public/crump-product-5.3.1.js": "e8bd78bd5a9828626e15f5a27275eafdd321c3d0decc29a808cc6360e54bb58c",
+    "public/crump-product-5.3.js": "b8b206cb826b5e205fa3503c72adfab1db09f1f8fcb6b1083d8947267d557b36",
+    "public/runtime-body-v1.js": "6406f3b185adf809f501054e1291563f74e79d4fb42a8d829e95dcc3b07bb773",
+    "public/sw.js": "59acac6c5d24683c064ef21c3ad7a61155cce292eab4c06d9f2812eb589191af",
+    "scripts/build-native.mjs": "821dcf38ae0a6ffe1e29f5470b92d9fb35efa6311e42f30d8fe18fc78e2c25ac",
+    "scripts/check-javascript.mjs": "e1d463c5071a6469349dd32e8c8d6c2b76f289d2b4fa2ce15c5b681f3aed5c6f",
+    "tests/fixtures/intelligence-preference-retry.html": "c424cc2f6927671ea264110f1013b29b6e6ba4ef24296081c8212adf0e65870d",
+    "tests/test_app_authority.py": "f4d27da30d7ee2c9465adedfdc825862e24119ebf9344f39466c269b49b93416",
+    "tests/test_artifact_packaging_recovery.py": "70505df6e84fee4cc041be7a412059e73117288091741845a8a7238f9289ff88",
+    "tests/test_assistant_identity_think_longer_navigation.py": "180bd36f671eb33a15308f89190a419bbc053054b11c9ba019481218c02980f0",
+    "tests/test_auth_request_resilience.py": "2b8572c55ccfe3d0300a299ffb786a06c2683d47c15c6f96be426244fa24cbc1",
+    "tests/test_billing_request_timeout.py": "dbfeede10a2e048fb8bc89b41afa97d71f7a9bdbfd729456bfe3a0935954be99",
+    "tests/test_chat_response_resilience.py": "c9e497aa8142532220b62eed7190c5f0e92215f7a1399736fc894f32318649ea",
+    "tests/test_contextual_plan_recovery.py": "76af20d4e12f3a4ac398525d80b4788547f4d972db5f7225e4146b999ec1a19b",
+    "tests/test_conversation_creation_intelligence.py": "4e1f43d0eed8e777b2f81f06e31171fa99242ef1fef13cf4844599a99ffe6a9e",
+    "tests/test_credit_balance_refresh.py": "dfbe89f1ceef41aba814f4f7cb5b5219fd8cdca20618381e0ba271cc3d13150e",
+    "tests/test_deferred_workspace_runtime.py": "dd8cd16a59adec6629c2a3b1228d200574e34e1e442cf3b5e3a229f581b35fcc",
+    "tests/test_destination_tool_hierarchy.py": "40ba08b60a8a6073f059726ac2e76e4e78e69694d8561e77bff899a96adf70eb",
+    "tests/test_first_action_readiness.py": "e10ffaab2881bfc80a2f1880063b81fdd9403b7182f7eb59ee920cc0f56700fd",
+    "tests/test_first_message_readiness.py": "758a55956d3c37503822eff1dc2ae9984d5441c2e2a5570b6e7e4a31b8f1ebd3",
+    "tests/test_intelligence_glasses_icon_contract.py": "8e92ad1eb9cc379924fe997af596dedcb4cb9216e92f3eb349b4b44768c8ef95",
+    "tests/test_intelligence_plan_handoff.py": "5b29696f4ea423d3d7238c71f898a6ae7ad2dc64db58a659d8219aaa0e277f8b",
+    "tests/test_intelligence_receipt.py": "1e6b348f367b4db7d12f0acc41f25f15a2dc258ed819cc728c1ec5148edbece4",
+    "tests/test_intelligence_service.py": "0f4269d08f7c01e903279bd4166c5ace06dde9614a56581f3871fc0ab8e278a6",
+    "tests/test_lifecycle_activation.py": "c17b3b84481f488b6f170ef0d0fd7c87aebbb2131048bfc01e96248a23f91523",
+    "tests/test_manuscript_output_recovery.py": "b2c93ea18f77398c953e53329caa02d2f75fcc349d368e81cc40b4b94dea84ae",
+    "tests/test_mobile_documents_tool_contract.py": "4968b087ffba53ea0a41f0d316dddf68305aea1e9e11fa14b7278742b4d8eac7",
+    "tests/test_mobile_zoom_policy_contract.py": "0a65d9b15f58ad3ad6de8a254ca19eb9cb7b1d024c7b9de9502efdacdfc03f84",
+    "tests/test_monetization_recovery_measurement.py": "c0ed14ee8acdfc5b0616394616b7ec062e3b6605ff751b192273f17c03b45b63",
+    "tests/test_navigation_5930.py": "e6cbc5ed1cab8deb2ad31104b790941211fae78e5d3506a4c6f18393e5689589",
+    "tests/test_plan_value_clarity.py": "0eaa6d90030c13cbac1b841950759c79bc82dac7e39ed9981e9f6aa60e84518f",
+    "tests/test_product53_contract.py": "bed98130a0473db64077295f14cbfa509b2ce9ebcdb9e24b483a061ffe799e11",
+    "tests/test_product531_contract.py": "cb567da9028c0249d644ee1a1ba92f4a138fcc170ad9d981ab3cb049225a2a93",
+    "tests/test_product56_polish.py": "2939510e1b35dce38b0b8d0f6a8045a593f27d6aa5785942f30bacb384c53a20",
+    "tests/test_project_continuity.py": "8aba53906e9441fe1f9c5dc76be7260c5f2380ffe9c8ef58df81b12f9a7d2a54",
+    "tests/test_public_destination_consistency.py": "1b42cded887031a3c7cc8eaff23abbe293c9f18233fbdfae0287607d015895b0",
+    "tests/test_release_guard.py": "c4ae3d9aab7ed638e037e7099988c042a3163f40ae51757ffdc0fb0a18be282e",
+    "tests/test_revenue_conversion.py": "50057559076b909024bc26fd0d6c4ed42ee26fea1005d27c64856564b52a3666",
+    "tests/test_video_project_attachment_recovery.py": "8379fd472a99f631b5dbc3eba7838c084ed5617a12d2a234c492d1bf81c7d252",
+    "tests/test_workspace_runtime_fetch_plan.py": "e483c72d1905fec9305774a068cab58531a8cd92aa73f26d46bd1d12252904c3"
+  },
+  "requiredMarkers": {
+    "backend/artifact_service.py": [
+      "file_id=file_id"
+    ],
+    "backend/crump52_patches.py": [
+      "_safe_artifact_recovery",
+      "message[\"artifactRecovery\"]",
+      "_safe_project_attachments",
+      "message[\"projectAttachments\"]"
+    ],
+    "backend/db.py": [
+      "retry_transient: bool = False",
+      "retry_transient=retry_transient"
+    ],
+    "backend/file_service.py": [
+      "stable_file_id",
+      "x-upsert",
+      "on_conflict="
+    ],
+    "backend/intelligence_service.py": [
+      "raise_on_error=True",
+      "request_payload[\"autoLearn\"] is True"
+    ],
+    "backend/product53_hooks.py": [
+      "receipts: dict[str, dict[str, Any]]",
+      "\"status\": \"failed\"",
+      "except ProjectNotFoundError:",
+      "\"status\": \"missing\""
+    ],
+    "backend/routes/chat.py": [
+      "@router.post('/artifacts/{message_id}/retry')",
+      "result['projectAttachments'] = project_attachments",
+      "assistant_message['artifactRecovery']",
+      "retry_transient=True",
+      "durable reply retained",
+      "_durable_reply_for_job",
+      "'reconciled': True"
+    ],
+    "backend/routes/intelligence.py": [
+      "BOOLEAN_PREFERENCE_KEYS",
+      "INTELLIGENCE_PREFERENCES_UNAVAILABLE"
+    ],
+    "backend/routes/manuscripts.py": [
+      "outputFileRecovery",
+      "MANUSCRIPT_OUTPUT_LOOKUP_UNAVAILABLE"
+    ],
+    "backend/routes/media.py": [
+      "_attach_ready_video_to_project",
+      "projectAttachment"
+    ],
+    "backend/routes/projects.py": [
+      "PROJECTS_UNAVAILABLE",
+      "shouldRetry"
+    ],
+    "public/app.js": [
+      "'artifactRecovery', 'projectAttachments'",
+      "syncCompletedReplyInBackground",
+      "Completed reply sync deferred; background sync will retry.",
+      "runCompletedCreationHandoffInBackground",
+      "Completed creation handoff deferred; the saved reply remains available.",
+      "applyCompletedReplySafely",
+      "Completed reply presentation deferred; the saved reply remains authoritative."
+    ],
+    "public/crump-4.4.js": [
+      "crump_intelligence_pending_v44:",
+      "writePendingPreferenceState(outgoing)"
+    ],
+    "public/crump-5.0.js": [
+      "Retry file packaging",
+      "Retry Project save",
+      "Add to another Project",
+      "Original Project is no longer available",
+      "syncCompletedReplyInBackground",
+      "Promise.resolve(window.syncChatsFromServer?.())",
+      "runCompletedCreationHandoffInBackground",
+      "Promise.resolve(pending).catch",
+      "applyCompletedReplySafely",
+      "Refresh this conversation to load the saved reply."
+    ],
+    "public/crump-product-5.3.js": [
+      "Retry saved export",
+      "retryVideoProjectAttachment"
+    ],
+    "public/crump-product-5.3.1.js": [
+      "data-retry-project-files",
+      "activeProjectId() !== projectId"
+    ],
+    "public/runtime-body-v1.js": [
+      "5.9.76-core-reliability-1"
+    ],
+    "public/sw.js": [
+      "ask-crump-new-body-v1-r166",
+      "5.9.76-core-reliability-1"
+    ],
+    "scripts/build-native.mjs": [
+      "5.9.76-core-reliability-1"
+    ],
+    "scripts/check-javascript.mjs": [
+      "coreReliabilityVersion",
+      "ask-crump-new-body-v1-r166"
+    ],
+    "tests/test_project_continuity.py": [
+      "test_generated_output_does_not_offer_retry_for_a_missing_project",
+      "test_missing_output_project_can_be_retargeted_instead_of_retrying_the_dead_id",
+      "test_generated_output_project_receipts_survive_sync_with_a_content_free_allowlist"
+    ],
+    "tests/test_app_authority.py": [
+      "test_durable_document_reply_survives_chat_job_cache_finalization_failure",
+      "refunds.assert_not_awaited()"
+    ],
+    "tests/test_chat_response_resilience.py": [
+      "test_status_recovers_authoritative_document_after_response_and_job_cache_are_lost",
+      "conversationUpdatedAt",
+      "test_completed_reply_sync_is_best_effort_and_cannot_relabel_durable_success",
+      "test_completed_reply_creation_handoff_cannot_relabel_durable_success",
+      "test_completed_reply_presentation_failure_cannot_relabel_durable_success"
+    ]
+  },
+  "forbiddenAddedMarkers": [
+    "creditConfirmation",
+    "creditQuote",
+    "MarketingLanding",
+    "account_deletions",
+    "AccountDeletionCleanupService",
+    "STORAGE_DELETE_BATCH_LIMIT",
+    "delete_owner_prefix_objects",
+    "chapter_count_from_prompt",
+    "feature_for_request",
+    "spend_credits_confirmed",
+    "word-or-pdf",
+    "demo@askcrump.com",
+    "2026083"
+  ],
+  "forbiddenPathPrefixes": [
+    "migrations/",
+    "supabase/",
+    "backend/account_deletion_service.py",
+    "public/credit-confirmation",
+    "public/landing.js",
+    "public/auth-controller.js",
+    "scripts/manage_demo_account.py"
+  ]
+}

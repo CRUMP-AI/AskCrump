@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Intelligence preference retry fixture</title>
+</head>
+<body>
+  <header class="header"></header>
+  <textarea id="userInput"></textarea>
+  <script>
+    window.currentUser = { id: '00000000-0000-0000-0000-000000000044' };
+    window.currentChatId = '00000000-0000-0000-0000-000000000111';
+    window.getAssistantName = () => 'Crump';
+    window.showToast = (message, kind) => {
+      window.fixture.toasts.push({ message, kind });
+    };
+    window.fixture = {
+      patchAttempts: 0,
+      patchBodies: [],
+      chatBodies: [],
+      toasts: [],
+    };
+
+    const json = (status, value) => new Response(JSON.stringify(value), {
+      status,
+      headers: { 'content-type': 'application/json' },
+    });
+
+    window.fetch = async (input, init = {}) => {
+      const path = new URL(typeof input === 'string' ? input : input.url, location.origin).pathname;
+      const method = String(init.method || 'GET').toUpperCase();
+      if (path === '/api/intelligence/preferences' && method === 'GET') {
+        return json(200, {
+          success: true,
+          preferences: {
+            intelligenceMode: 'auto',
+            memoryEnabled: true,
+            autoLearn: true,
+            autoTools: true,
+            verificationLevel: 'auto',
+          },
+          entitlements: { thinkLonger: false, minimumTier: 'professional' },
+        });
+      }
+      if (path === '/api/intelligence/preferences' && method === 'PATCH') {
+        const body = JSON.parse(init.body || '{}');
+        window.fixture.patchAttempts += 1;
+        window.fixture.patchBodies.push(body);
+        if (window.fixture.patchAttempts === 1) {
+          return json(503, {
+            success: false,
+            code: 'INTELLIGENCE_PREFERENCES_UNAVAILABLE',
+            error: 'Intelligence settings are temporarily unavailable.',
+            shouldRetry: true,
+          });
+        }
+        return json(200, { success: true, preferences: body });
+      }
+      if (path === '/api/intelligence/status') {
+        return json(200, {
+          success: true,
+          memoryCount: 0,
+          entitlements: { thinkLonger: false, minimumTier: 'professional' },
+        });
+      }
+      if (path.endsWith('/privacy')) {
+        return json(200, { success: true, memoryOptOut: false });
+      }
+      if (path === '/api/chat' && method === 'POST') {
+        window.fixture.chatBodies.push(JSON.parse(init.body || '{}'));
+        return json(200, { success: true, response: 'ok' });
+      }
+      return json(404, { success: false });
+    };
+  </script>
+  <script src="../../public/crump-4.4.js"></script>
+</body>
+</html>

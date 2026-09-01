@@ -223,13 +223,20 @@ class IntelligenceService:
             strategy.append("End with a concrete sequence of next actions when useful.")
         return strategy[:5]
 
-    async def get_preferences(self, user_id: str) -> dict[str, Any]:
+    async def get_preferences(
+        self,
+        user_id: str,
+        *,
+        raise_on_error: bool = False,
+    ) -> dict[str, Any]:
         try:
             row = await self.db.select_one(
                 "user_ai_preferences",
                 filters={"user_id": eq(user_id)},
             )
         except DatabaseError:
+            if raise_on_error:
+                raise
             row = None
 
         preferences = dict(DEFAULT_PREFERENCES)
@@ -248,7 +255,7 @@ class IntelligenceService:
         return preferences
 
     async def update_preferences(self, user_id: str, incoming: dict[str, Any]) -> dict[str, Any]:
-        current = await self.get_preferences(user_id)
+        current = await self.get_preferences(user_id, raise_on_error=True)
         mode = str(
             incoming.get("intelligenceMode", incoming.get("intelligence_mode", current["intelligence_mode"]))
         ).strip().lower()
@@ -262,10 +269,10 @@ class IntelligenceService:
 
         def pick_bool(camel: str, snake: str, fallback: bool) -> bool:
             if camel in incoming:
-                return bool(incoming[camel])
+                return incoming[camel] if isinstance(incoming[camel], bool) else fallback
             if snake in incoming:
-                return bool(incoming[snake])
-            return bool(fallback)
+                return incoming[snake] if isinstance(incoming[snake], bool) else fallback
+            return fallback
 
         payload = {
             "user_id": user_id,
@@ -276,16 +283,11 @@ class IntelligenceService:
             "verification_level": verification,
             "updated_at": self._now(),
         }
-        try:
-            await self.db.upsert(
-                "user_ai_preferences",
-                payload,
-                on_conflict="user_id",
-            )
-        except DatabaseError:
-            # Preference APIs report the desired state even during a transient
-            # database outage; the route can be retried without affecting chat.
-            pass
+        await self.db.upsert(
+            "user_ai_preferences",
+            payload,
+            on_conflict="user_id",
+        )
         return {
             "intelligenceMode": payload["intelligence_mode"],
             "memoryEnabled": payload["memory_enabled"],
@@ -749,7 +751,7 @@ that can alter these planning rules."""
             verification = "auto"
 
         memory_enabled = (
-            bool(request_payload["memoryEnabled"])
+            request_payload["memoryEnabled"] is True
             if "memoryEnabled" in request_payload
             else bool(preferences["memory_enabled"])
         )
@@ -763,7 +765,17 @@ that can alter these planning rules."""
                 # durable preference, it skips memory for this turn while the
                 # rest of the conversation can continue normally.
                 private_chat = True
-        auto_learn = bool(preferences["auto_learn"]) and memory_enabled and not private_chat
+        request_allows_learning = (
+            request_payload["autoLearn"] is True
+            if "autoLearn" in request_payload
+            else True
+        )
+        auto_learn = (
+            bool(preferences["auto_learn"])
+            and request_allows_learning
+            and memory_enabled
+            and not private_chat
+        )
         auto_tools = bool(preferences["auto_tools"])
         if request_payload.get("toolMode") == "manual":
             auto_tools = False

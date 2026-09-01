@@ -23,6 +23,7 @@
   let planOpenPending = false;
   let hydratedPrivateChatId = null;
   let privateMutationRevision = 0;
+  let preferenceMutationRevision = 0;
 
   const $ = (selector, root = document) => root.querySelector(selector);
 
@@ -54,6 +55,10 @@
     return `crump_intelligence_v44:${cleanUserId() || 'guest'}`;
   }
 
+  function preferencePendingKey() {
+    return `crump_intelligence_pending_v44:${cleanUserId() || 'guest'}`;
+  }
+
   function privateKey() {
     return `crump_private_chats_v44:${cleanUserId() || 'guest'}`;
   }
@@ -77,6 +82,52 @@
     } catch (_) {}
   }
 
+  function preferencePayload(value = state) {
+    return {
+      intelligenceMode: ['auto', 'fast', 'deep'].includes(value?.intelligenceMode)
+        ? value.intelligenceMode
+        : 'auto',
+      memoryEnabled: value?.memoryEnabled === true,
+      autoLearn: value?.autoLearn === true,
+      autoTools: value?.autoTools === true,
+      verificationLevel: ['off', 'auto', 'strict'].includes(value?.verificationLevel)
+        ? value.verificationLevel
+        : 'auto',
+    };
+  }
+
+  function pendingPreferenceState() {
+    const value = readJSON(preferencePendingKey(), null);
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    if (
+      !['auto', 'fast', 'deep'].includes(value.intelligenceMode)
+      || typeof value.memoryEnabled !== 'boolean'
+      || typeof value.autoLearn !== 'boolean'
+      || typeof value.autoTools !== 'boolean'
+      || !['off', 'auto', 'strict'].includes(value.verificationLevel)
+    ) {
+      try {
+        localStorage.removeItem(preferencePendingKey());
+      } catch (_) {}
+      return null;
+    }
+    return preferencePayload(value);
+  }
+
+  function writePendingPreferenceState(value) {
+    try {
+      localStorage.setItem(preferencePendingKey(), JSON.stringify(preferencePayload(value)));
+    } catch (_) {}
+  }
+
+  function clearPendingPreferenceState(expected) {
+    const current = pendingPreferenceState();
+    if (!current || JSON.stringify(current) !== JSON.stringify(preferencePayload(expected))) return;
+    try {
+      localStorage.removeItem(preferencePendingKey());
+    } catch (_) {}
+  }
+
   function loadLocalState() {
     const saved = readJSON(preferenceKey(), {});
     state = {
@@ -85,9 +136,9 @@
     };
     if (!['auto', 'fast', 'deep'].includes(state.intelligenceMode)) state.intelligenceMode = 'auto';
     if (!['off', 'auto', 'strict'].includes(state.verificationLevel)) state.verificationLevel = 'auto';
-    state.memoryEnabled = state.memoryEnabled !== false;
-    state.autoLearn = state.autoLearn !== false;
-    state.autoTools = state.autoTools !== false;
+    state.memoryEnabled = state.memoryEnabled === true;
+    state.autoLearn = state.autoLearn === true;
+    state.autoTools = state.autoTools === true;
   }
 
   function privateChats() {
@@ -205,6 +256,7 @@
         if (body && typeof body === 'object') {
           body.intelligenceMode = state.intelligenceMode;
           body.memoryEnabled = state.memoryEnabled;
+          body.autoLearn = state.autoLearn;
           body.memoryOptOut = isCurrentChatPrivate();
           body.toolMode = state.autoTools ? 'auto' : 'manual';
           body.verificationMode = state.verificationLevel;
@@ -238,11 +290,20 @@
   async function hydratePreferences({ force = false } = {}) {
     const userId = cleanUserId();
     if (!window.currentUser?.id) return;
-    if (!force && hydratedUserId === userId) return;
+    const pending = pendingPreferenceState();
+    if (!force && hydratedUserId === userId && !pending) return;
 
     loadLocalState();
+    const startedRevision = preferenceMutationRevision;
     try {
-      const data = await api('/api/intelligence/preferences');
+      const data = pending
+        ? await api('/api/intelligence/preferences', {
+            method: 'PATCH',
+            body: JSON.stringify(pending),
+          })
+        : await api('/api/intelligence/preferences');
+      if (pending) clearPendingPreferenceState(pending);
+      if (startedRevision !== preferenceMutationRevision) return;
       applyEntitlements(data.entitlements);
       if (data.preferences) {
         state = { ...state, ...data.preferences };
@@ -250,8 +311,16 @@
         saveLocalState();
       }
       hydratedUserId = userId;
-    } catch (_) {
-      hydratedUserId = userId;
+    } catch (error) {
+      if (pending && error?.code === 'SUBSCRIPTION_REQUIRED') {
+        clearPendingPreferenceState(pending);
+        if (startedRevision === preferenceMutationRevision) {
+          state.intelligenceMode = 'auto';
+          state.verificationLevel = 'auto';
+          saveLocalState();
+        }
+      }
+      hydratedUserId = null;
     }
     refreshPanel();
   }
@@ -259,14 +328,20 @@
   let preferenceTimer = null;
   function persistPreferences() {
     saveLocalState();
+    const outgoing = preferencePayload();
+    writePendingPreferenceState(outgoing);
+    preferenceMutationRevision += 1;
+    const revision = preferenceMutationRevision;
     clearTimeout(preferenceTimer);
     preferenceTimer = setTimeout(async () => {
       if (!window.currentUser?.id) return;
       try {
         const data = await api('/api/intelligence/preferences', {
           method: 'PATCH',
-          body: JSON.stringify(state),
+          body: JSON.stringify(outgoing),
         });
+        clearPendingPreferenceState(outgoing);
+        if (revision !== preferenceMutationRevision) return;
         if (data.preferences) {
           state = { ...state, ...data.preferences };
           saveLocalState();
@@ -274,6 +349,8 @@
         }
       } catch (error) {
         if (error?.code === 'SUBSCRIPTION_REQUIRED') {
+          clearPendingPreferenceState(outgoing);
+          if (revision !== preferenceMutationRevision) return;
           state.intelligenceMode = 'auto';
           state.verificationLevel = 'auto';
           saveLocalState();
@@ -281,6 +358,7 @@
           openProfessionalPlans('advanced-intelligence-sync');
           return;
         }
+        if (revision !== preferenceMutationRevision) return;
         window.showToast?.('Crump saved this setting locally and will sync it when the server is available.', 'warning');
       }
     }, 250);

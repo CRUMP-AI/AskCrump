@@ -1,6 +1,8 @@
 """Cost-guarded asynchronous media generation endpoints."""
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
@@ -13,6 +15,7 @@ from ..usage_service import has_internal_access
 from ..video_service import VideoServiceError
 
 router = APIRouter(prefix="/api/media", tags=["media"])
+logger = logging.getLogger("askcrump.media")
 
 
 def _feature_error(exc: FeatureAccessError) -> JSONResponse:
@@ -55,6 +58,41 @@ async def _existing_job(user_id: str, key: str | None):
         "media_jobs",
         filters={"user_id": eq(user_id), "idempotency_key": eq(key)},
     )
+
+
+async def _attach_ready_video_to_project(*, user_id: str, row: dict) -> dict | None:
+    if row.get("status") != "ready" or not row.get("project_id") or not row.get("file_id"):
+        return None
+
+    project_id = str(row["project_id"])
+    receipt = {
+        "projectId": project_id,
+        "role": "generated_video",
+        "shouldRetry": False,
+    }
+    try:
+        await projects.attach_file(
+            user_id=user_id,
+            project_id=project_id,
+            file_id=str(row["file_id"]),
+            role="generated_video",
+        )
+        return {**receipt, "status": "attached"}
+    except ProjectNotFoundError:
+        logger.info("Generated video Project attachment skipped because the Project is unavailable.")
+        return {
+            **receipt,
+            "status": "missing",
+            "message": "The video is safe in Files, but its original Project is no longer available.",
+        }
+    except Exception:
+        logger.warning("Generated video Project attachment needs a retry.")
+        return {
+            **receipt,
+            "status": "failed",
+            "shouldRetry": True,
+            "message": "The video is safe in Files, but its Project link needs a retry.",
+        }
 
 
 @router.post("/video")
@@ -226,16 +264,10 @@ async def video_status(job_id: str, request: Request):
             )
             if updated:
                 row = updated[0]
-        if row.get("status") == "ready" and row.get("project_id") and row.get("file_id"):
-            try:
-                await projects.attach_file(
-                    user_id=auth.user["id"],
-                    project_id=str(row["project_id"]),
-                    file_id=str(row["file_id"]),
-                    role="generated_video",
-                )
-            except Exception:
-                pass
-        return {"success": True, "job": await video.public_job(user_id=auth.user["id"], row=row)}
+        project_attachment = await _attach_ready_video_to_project(user_id=auth.user["id"], row=row)
+        public_job = await video.public_job(user_id=auth.user["id"], row=row)
+        if project_attachment:
+            public_job["projectAttachment"] = project_attachment
+        return {"success": True, "job": public_job}
     except VideoServiceError as exc:
         return _video_error(exc)

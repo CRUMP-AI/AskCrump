@@ -13,6 +13,11 @@ from ..security import normalize_chat_id
 
 
 router = APIRouter(prefix="/api/intelligence", tags=["intelligence"])
+BOOLEAN_PREFERENCE_KEYS = (
+    ("memoryEnabled", "memory_enabled"),
+    ("autoLearn", "auto_learn"),
+    ("autoTools", "auto_tools"),
+)
 
 
 def _privacy_unavailable() -> JSONResponse:
@@ -77,6 +82,19 @@ async def update_preferences(request: Request):
             status_code=400,
             content={"success": False, "error": "Invalid preferences payload."},
         )
+    for camel, snake in BOOLEAN_PREFERENCE_KEYS:
+        present = [payload[key] for key in (camel, snake) if key in payload]
+        if any(not isinstance(value, bool) for value in present) or (
+            len(present) == 2 and present[0] != present[1]
+        ):
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "success": False,
+                    "error": f"{camel} must be a single true or false value.",
+                    "code": "INVALID_INTELLIGENCE_PREFERENCES",
+                },
+            )
     requested_mode = str(
         payload.get("intelligenceMode", payload.get("intelligence_mode", ""))
     ).strip().lower()
@@ -101,7 +119,18 @@ async def update_preferences(request: Request):
                     "requiredTier": exc.required_tier,
                 },
             )
-    preferences = await intelligence.update_preferences(auth.user["id"], payload)
+    try:
+        preferences = await intelligence.update_preferences(auth.user["id"], payload)
+    except DatabaseError:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "success": False,
+                "error": "Intelligence settings are temporarily unavailable.",
+                "code": "INTELLIGENCE_PREFERENCES_UNAVAILABLE",
+                "shouldRetry": True,
+            },
+        )
     return {"success": True, "preferences": preferences}
 
 
