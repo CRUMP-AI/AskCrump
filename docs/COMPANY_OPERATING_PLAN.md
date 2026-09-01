@@ -3,6 +3,10 @@
 Last updated: 2026-08-30
 Owner and final authority: Greg Crump
 
+Current monthly decision record: `docs/COMPANY_OPERATIONS_AND_MONTHLY_STRATEGY_REVIEW_2026-09-01.md`.
+It supersedes this document's numeric baseline where the later production reconciliation differs;
+the mission, authority, safety, and experiment standards below remain in force.
+
 ## Mission and operating thesis
 
 Ask Crump is **an AI workspace for work that continues**. Product, marketing, and revenue work
