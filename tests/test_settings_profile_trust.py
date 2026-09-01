@@ -48,6 +48,8 @@ def test_settings_save_action_tracks_real_edits_and_blocks_duplicate_submissions
     assert "modal.addEventListener('change', update);" in app
     assert "saveButton?.dataset.settingsSaving === 'true'" in app
     assert "disabled aria-disabled=\"true\" title=\"No changes to save\"" in shell
+    assert 'placeholder="Sign in to view account email"' in shell
+    assert 'aria-label="Account email" readonly' in shell
     assert ".settings-primary-btn:disabled" in css
 
 
