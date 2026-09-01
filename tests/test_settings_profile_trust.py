@@ -25,7 +25,7 @@ def test_identity_recovery_starts_before_optional_preference_loading():
     fixture = read("tests/fixtures/settings-profile-trust.html")
     loader = app[app.index("function loadSettingsValues()") : app.index("window.saveSettings = async function()")]
 
-    recovery = "if (!String(document.getElementById('settingsEmail').value || '').trim()) void restoreSettingsIdentity();"
+    recovery = "if (!String(settingsEmail.value || '').trim()) void restoreSettingsIdentity();"
     optional_preferences = "window.CrumpPresence?.applyPreferencesToForm?.();"
     assert recovery in loader
     assert optional_preferences in loader
@@ -33,6 +33,7 @@ def test_identity_recovery_starts_before_optional_preference_loading():
     assert "[Settings] Optional presence preferences could not be loaded:" in loader
     assert "Fixture-only optional preference failure" in fixture
     assert "email: '   '" in fixture
+    assert "fixtureGuest ? null" in fixture
 
 
 def test_settings_save_action_tracks_real_edits_and_blocks_duplicate_submissions():
@@ -60,3 +61,5 @@ def test_settings_profile_trust_browser_fixture_uses_the_real_runtime():
     assert "result.initial.saveDisabled" in verifier
     assert "result.reverted.saveDisabled" in verifier
     assert "result.behavior.horizontalOverflow" in verifier
+    assert "Sign in to view account email" in verifier
+    assert "guestFailed" in verifier

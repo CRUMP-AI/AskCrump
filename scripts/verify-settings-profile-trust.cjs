@@ -50,6 +50,25 @@ const baseUrl = process.env.ASKCRUMP_FIXTURE_ORIGIN || 'http://127.0.0.1:8765';
     results.push({viewport, initial, edited, reverted, behavior, errors});
     await page.close();
   }
+
+  const guestPage = await browser.newPage({viewport: {width: 390, height: 844}});
+  const guestErrors = [];
+  guestPage.on('console', message => { if (message.type() === 'error') guestErrors.push(message.text()); });
+  guestPage.on('pageerror', error => guestErrors.push(error.message));
+  await guestPage.goto(`${baseUrl}/tests/fixtures/settings-profile-trust.html?guest=1`, {waitUntil: 'networkidle'});
+  await guestPage.getByRole('button', {name: 'Open settings'}).click();
+  await guestPage.waitForFunction(() => document.getElementById('settingsEmail')?.placeholder === 'Sign in to view account email');
+  const guest = await guestPage.evaluate(() => ({
+    email: document.getElementById('settingsEmail')?.value || '',
+    emailReadOnly: document.getElementById('settingsEmail')?.readOnly || false,
+    emailBusy: document.getElementById('settingsEmail')?.getAttribute('aria-busy'),
+    emailPlaceholder: document.getElementById('settingsEmail')?.placeholder || '',
+    saveDisabled: document.getElementById('saveSettingsBtn')?.disabled || false,
+    saveAriaDisabled: document.getElementById('saveSettingsBtn')?.getAttribute('aria-disabled'),
+    horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    fixtureErrors: window.fixtureErrors,
+  }));
+  await guestPage.close();
   await browser.close();
 
   const failed = results.some(result => (
@@ -70,8 +89,17 @@ const baseUrl = process.env.ASKCRUMP_FIXTURE_ORIGIN || 'http://127.0.0.1:8765';
     || result.behavior.fixtureErrors.length
     || result.errors.length
   ));
-  if (failed) throw new Error(JSON.stringify(results));
-  process.stdout.write(`${JSON.stringify(results)}\n`);
+  const guestFailed = guest.email
+    || !guest.emailReadOnly
+    || guest.emailBusy !== null
+    || guest.emailPlaceholder !== 'Sign in to view account email'
+    || !guest.saveDisabled
+    || guest.saveAriaDisabled !== 'true'
+    || guest.horizontalOverflow
+    || guest.fixtureErrors.length
+    || guestErrors.length;
+  if (failed || guestFailed) throw new Error(JSON.stringify({results, guest, guestErrors}));
+  process.stdout.write(`${JSON.stringify({results, guest})}\n`);
 })().catch(error => {
   process.stderr.write(`${error.stack || error}\n`);
   process.exitCode = 1;

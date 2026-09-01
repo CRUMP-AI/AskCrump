@@ -43,14 +43,16 @@
     </section>
   </div>
   <script>
+    const fixtureGuest = new URLSearchParams(location.search).get('guest') === '1';
     window.fixtureErrors = [];
     window.addEventListener('error', event => window.fixtureErrors.push(event.message || 'error'));
     window.addEventListener('unhandledrejection', event => window.fixtureErrors.push(String(event.reason || 'rejection')));
-    window.currentUser = {id: 'fixture-user', fullName: 'Ask Crump Demo', email: '   '};
+    window.currentUser = fixtureGuest ? null : {id: 'fixture-user', fullName: 'Ask Crump Demo', email: '   '};
     window.deviceAuth = {
       session: null,
       async checkSession() {
         await new Promise(resolve => setTimeout(resolve, 60));
+        if (fixtureGuest) return {authenticated: false};
         return {
           authenticated: true,
           data: {user: {id: 'fixture-user', fullName: 'Ask Crump Demo', email: 'demo@example.com'}},

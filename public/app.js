@@ -1171,7 +1171,10 @@ async function restoreSettingsIdentity() {
         .catch(() => {})
         .finally(() => {
             emailField.removeAttribute('aria-busy');
-            emailField.placeholder = emailField.value ? 'you@email.com' : 'Account email unavailable';
+            const hasAccount = Boolean(window.deviceAuth?.session?.user?.id || window.currentUser?.id);
+            emailField.placeholder = emailField.value
+                ? 'you@email.com'
+                : hasAccount ? 'Account email unavailable' : 'Sign in to view account email';
             settingsIdentityRequest = null;
         });
     return settingsIdentityRequest;
@@ -1181,10 +1184,14 @@ function loadSettingsValues() {
     const profile = currentProfile?.getProfile?.() || {};
     const sessionUser = window.deviceAuth?.session?.user || {};
     const user = { ...sessionUser, ...(window.currentUser || {}) };
+    const settingsEmail = document.getElementById('settingsEmail');
     document.getElementById('settingsName').value = user.fullName || profile.name || '';
-    document.getElementById('settingsEmail').value = String(user.email || profile.email || '').trim();
-    document.getElementById('settingsEmail').readOnly = true;
-    if (!String(document.getElementById('settingsEmail').value || '').trim()) void restoreSettingsIdentity();
+    settingsEmail.value = String(user.email || profile.email || '').trim();
+    settingsEmail.readOnly = true;
+    settingsEmail.placeholder = settingsEmail.value
+        ? 'you@email.com'
+        : user.id ? 'Confirming account email…' : 'Sign in to view account email';
+    if (!String(settingsEmail.value || '').trim()) void restoreSettingsIdentity();
     document.getElementById('assistantName').value = SafeStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
 
     const workStartSelect = document.getElementById('workStart');
