@@ -8,16 +8,7 @@
   const all = selector => [...document.querySelectorAll(selector)];
   const MODE_KEY = 'askcrump.navigation.mode';
   const CREATION_HANDOFF_INTENTS = new Set(['document', 'presentation', 'resume', 'video', 'projects']);
-  const CREATE_FOCUSABLE = [
-    'button:not([disabled])',
-    'a[href]',
-    'input:not([disabled])',
-    'select:not([disabled])',
-    'textarea:not([disabled])',
-    '[tabindex]:not([tabindex="-1"])',
-  ].join(',');
   let lastFocus = null;
-  let createBackgroundState = null;
   let destinationBackgroundState = null;
   let destinationFocusOpener = null;
   let activePersistentDestination = null;
@@ -215,7 +206,9 @@
   }
 
   function syncDestinationBackground() {
-    setDestinationBackgroundInert(studioIsOpen() || settingsIsOpen() || codeWorkspaceIsOpen());
+    setDestinationBackgroundInert(
+      studioIsOpen() || settingsIsOpen() || codeWorkspaceIsOpen() || createHubIsOpen(),
+    );
   }
 
   function persistentDestination() {
@@ -320,63 +313,12 @@
     return Boolean(hub && !hub.hidden);
   }
 
-  function setCreateBackgroundInert(inert) {
-    const app = byId('appContainer');
-    if (!app) return;
-    if (inert) {
-      if (!createBackgroundState) {
-        createBackgroundState = {
-          inert: app.hasAttribute('inert'),
-          ariaHidden: app.getAttribute('aria-hidden'),
-        };
-      }
-      app.setAttribute('inert', '');
-      app.setAttribute('aria-hidden', 'true');
-      return;
-    }
-    if (!createBackgroundState) return;
-    if (!createBackgroundState.inert) app.removeAttribute('inert');
-    if (createBackgroundState.ariaHidden === null) app.removeAttribute('aria-hidden');
-    else app.setAttribute('aria-hidden', createBackgroundState.ariaHidden);
-    createBackgroundState = null;
-  }
-
-  function createFocusableElements() {
-    const hub = byId('crump5930CreateHub');
-    if (!hub || hub.hidden) return [];
-    return [...hub.querySelectorAll(CREATE_FOCUSABLE)].filter(element => {
-      if (element.closest('[hidden], [aria-hidden="true"]')) return false;
-      return Boolean(element.offsetWidth || element.offsetHeight || element.getClientRects().length);
-    });
-  }
-
-  function containCreateFocus(event) {
-    if (!createHubIsOpen() || event.key !== 'Tab') return;
-    const hub = byId('crump5930CreateHub');
-    const focusable = createFocusableElements();
-    if (!hub || !focusable.length) {
-      event.preventDefault();
-      byId('crump5930CreateClose')?.focus({preventScroll: true});
-      return;
-    }
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    const active = document.activeElement;
-    if (event.shiftKey && (active === first || !hub.contains(active))) {
-      event.preventDefault();
-      last.focus({preventScroll: true});
-    } else if (!event.shiftKey && (active === last || !hub.contains(active))) {
-      event.preventDefault();
-      first.focus({preventScroll: true});
-    }
-  }
-
   function closeCreateHub({restoreFocus = false} = {}) {
     const hub = byId('crump5930CreateHub');
     if (!hub || hub.hidden) return;
     hub.hidden = true;
     document.body.classList.remove('crump5930-create-open');
-    setCreateBackgroundInert(false);
+    setDestinationBackgroundInert(false);
     if (restoreFocus) lastFocus?.focus?.({preventScroll: true});
     lastFocus = null;
     scheduleSurfaceSync();
@@ -393,7 +335,7 @@
     overlay.className = 'crump5930-create-overlay';
     overlay.hidden = true;
     overlay.innerHTML = `
-      <section class="crump5930-create-sheet" role="dialog" aria-modal="true" aria-labelledby="crump5930CreateTitle">
+      <section class="crump5930-create-sheet" role="dialog" aria-modal="false" aria-labelledby="crump5930CreateTitle">
         <header class="crump5930-create-head">
           <div><span>CREATE</span><h2 id="crump5930CreateTitle">Make something useful.</h2><p>Choose an outcome. Crump will open the right workspace and keep the result connected to your account.</p></div>
           <button type="button" id="crump5930CreateClose" aria-label="Close Create">×</button>
@@ -433,7 +375,7 @@
     lastFocus = document.activeElement;
     hub.hidden = false;
     document.body.classList.add('crump5930-create-open');
-    setCreateBackgroundInert(true);
+    setDestinationBackgroundInert(true);
     setActive('create');
     void window.CrumpCodeWorkspace?.refreshAvailability?.();
     requestAnimationFrame(() => byId('crump5930CreateClose')?.focus({preventScroll: true}));
@@ -648,7 +590,6 @@
         closeCreateHub({restoreFocus: true});
         return;
       }
-      containCreateFocus(event);
     });
   }
 

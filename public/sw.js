@@ -23,7 +23,7 @@ const CORE = [
   '/crump-navigation-5.2.5.css',
   '/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1',
   '/crump-navigation-5.9.30.css?v=5.9.76-mobile-drawer-destinations-1',
-  '/crump-navigation-5.9.30.js?v=5.9.76-video-destination-1',
+  '/crump-navigation-5.9.30.js?v=5.9.76-create-destination-handoff-1',
   '/crump-code-5.9.35.css?v=5.9.76-intelligence-architecture-1',
   '/crump-code-5.9.35.js?v=5.9.76-intelligence-architecture-1',
   '/crump-product-5.3.css?v=5.9.76-visual-media-reliability-2',

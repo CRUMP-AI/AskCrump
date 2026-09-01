@@ -22,7 +22,7 @@ def test_six_destination_navigation_is_final_runtime_layer_and_boot_critical():
     assert runtime.index("/crump-library-5.7.js") < runtime.index("/crump-navigation-5.9.30.js")
     assert "ask-crump-new-body-v1-r181" in worker
     assert "/crump-navigation-5.9.30.css?v=5.9.76-mobile-drawer-destinations-1" in runtime
-    assert "/crump-navigation-5.9.30.js?v=5.9.76-video-destination-1" in runtime
+    assert "/crump-navigation-5.9.30.js?v=5.9.76-create-destination-handoff-1" in runtime
 
 
 def test_navigation_exposes_exact_product_destinations_on_desktop_and_mobile():
@@ -73,7 +73,7 @@ def test_persistent_destinations_hide_only_the_covered_workspace_from_assistive_
     assert "element.setAttribute('aria-hidden', 'true')" in script
     assert "element.removeAttribute('inert')" in script
     assert "element.removeAttribute('aria-hidden')" in script
-    assert "setDestinationBackgroundInert(studioIsOpen() || settingsIsOpen() || codeWorkspaceIsOpen())" in script
+    assert "studioIsOpen() || settingsIsOpen() || codeWorkspaceIsOpen() || createHubIsOpen()" in script
     assert "syncDestinationBackground();" in script
 
 
@@ -116,29 +116,22 @@ def test_navigation_reuses_existing_product_surfaces_without_data_migration():
 def test_create_hub_is_non_generating_and_accessible_until_user_sends():
     script = read("public/crump-navigation-5.9.30.js")
 
-    assert 'role="dialog" aria-modal="true"' in script
+    assert 'role="dialog" aria-modal="false"' in script
     assert "Nothing generates until you review the setup and send your request." in script
     assert "crump5930CreateClose" in script
     assert "event.key === 'Escape'" in script
     assert "fetch(" not in script
 
 
-def test_create_hub_contains_keyboard_and_assistive_technology_focus():
+def test_create_hub_keeps_persistent_destinations_operable_while_isolating_work():
     script = read("public/crump-navigation-5.9.30.js")
 
-    assert "function setCreateBackgroundInert(inert)" in script
-    assert "app.setAttribute('inert', '')" in script
-    assert "app.setAttribute('aria-hidden', 'true')" in script
-    assert "app.removeAttribute('inert')" in script
-    assert "app.removeAttribute('aria-hidden')" in script
-    assert "function createFocusableElements()" in script
-    assert "[...hub.querySelectorAll(CREATE_FOCUSABLE)]" in script
-    assert "function containCreateFocus(event)" in script
-    assert "event.key !== 'Tab'" in script
-    assert "active === first || !hub.contains(active)" in script
-    assert "active === last || !hub.contains(active)" in script
-    assert "setCreateBackgroundInert(true)" in script
-    assert "setCreateBackgroundInert(false)" in script
+    assert "studioIsOpen() || settingsIsOpen() || codeWorkspaceIsOpen() || createHubIsOpen()" in script
+    assert "setDestinationBackgroundInert(true)" in script
+    assert "setDestinationBackgroundInert(false)" in script
+    assert "function setCreateBackgroundInert" not in script
+    assert "app.setAttribute('inert', '')" not in script
+    assert "function containCreateFocus" not in script
 
 
 def test_navigation_has_a_bounded_local_rollback_switch():
@@ -179,6 +172,7 @@ def test_navigation_consolidation_fixture_uses_the_production_layers():
     assert '/public/crump-v1-body.js' in fixture
     assert '/public/crump-navigation-5.9.30.js' in fixture
     assert '5.9.76-mobile-drawer-destinations-1' in fixture
+    assert '5.9.76-create-destination-handoff-1' in fixture
     assert 'window.fixtureErrors = []' in fixture
     assert "dataset.fixtureErrorCount = '0'" in fixture
     assert 'id="v1OpenPlanBtn"' in fixture
@@ -186,3 +180,17 @@ def test_navigation_consolidation_fixture_uses_the_production_layers():
     assert 'billing51-sidebar-balance">649 C' in fixture
     assert 'id="crump53Studio"' in fixture
     assert fixture.count('aria-modal="false"') == 2
+
+
+def test_create_destination_handoff_has_desktop_and_mobile_browser_proof():
+    verifier = read("scripts/verify-create-destination-handoff.cjs")
+
+    assert "{width: 1280, height: 720}" in verifier
+    assert "{width: 390, height: 844}" in verifier
+    assert "opened.ariaModal, 'false'" in verifier
+    assert "opened.destinationInsideInert, false" in verifier
+    assert "opened.overlay.bottom - opened.navigation.top" in verifier
+    assert "opened.overlay.left - opened.navigation.right" in verifier
+    assert "await visibleDestination('video').click()" in verifier
+    assert "section: 'video'" in verifier
+    assert "await visibleDestination('ask').click()" in verifier
