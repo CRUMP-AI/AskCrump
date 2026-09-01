@@ -26,6 +26,14 @@ def _transactional_from_email(environment: str, configured: str | None) -> str:
     return value
 
 
+def _support_email(configured: str | None) -> str:
+    monitored = 'askcrump@gmail.com'
+    value = str(configured or '').strip()
+    if not value or value.casefold() == 'support@askcrump.com':
+        return monitored
+    return value
+
+
 def _canonical_app_name(configured: str | None) -> str:
     value = ' '.join(str(configured or '').split()) or 'Ask Crump'
     if value.casefold() in {
@@ -263,7 +271,7 @@ def get_settings() -> Settings:
         runway_monthly_provider_budget_cents=int(os.getenv('RUNWAY_MONTHLY_PROVIDER_BUDGET_CENTS', '50000')),
         resend_api_key=os.getenv('RESEND_API_KEY'),
         from_email=_transactional_from_email(environment, os.getenv('FROM_EMAIL')),
-        support_email=os.getenv('SUPPORT_EMAIL', 'support@askcrump.com'),
+        support_email=_support_email(os.getenv('SUPPORT_EMAIL')),
         stripe_secret_key=os.getenv('STRIPE_SECRET_KEY'),
         stripe_webhook_secret=os.getenv('STRIPE_WEBHOOK_SECRET'),
         stripe_professional_price_id=os.getenv('STRIPE_PROFESSIONAL_PRICE_ID'),

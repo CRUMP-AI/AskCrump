@@ -2,10 +2,14 @@
 
 ## Outcome
 
-You → About now gives signed-in users a direct **Product support** path instead of requiring them to
-leave the app, search a legal page, or find an old email. The destination uses
-`support@askcrump.com`, the same configured address already included in Ask Crump transactional email,
-and pre-fills only the generic subject **Ask Crump support**.
+You → About gives users a direct **Product support** path instead of requiring them to leave the app,
+search a legal page, or find an old email. The current destination uses the monitored
+`askcrump@gmail.com` inbox and pre-fills only the generic subject **Ask Crump support**.
+
+The earlier domain-mailbox claim in this receipt was superseded on 2026-09-01 after independent DNS
+validation found that mailbox was not provisioned. Product defaults now fail over the retired value
+to the monitored inbox so a stale deployment environment cannot silently publish an unreachable
+support destination.
 
 Legal, privacy, security, and abuse contacts remain separate and unchanged. The link does not send
 mail itself; it hands off to the user's configured email application only after deliberate activation.
@@ -20,7 +24,7 @@ mail itself; it hands off to the user's configured email application only after 
 - Python compilation, production preflight, native web-bundle generation, store metadata, mobile
   signing-source controls, and diff integrity passed.
 - Static acceptance binds the in-app address to the configured transactional-email support contract.
-- The signed-in production app displayed **Product support**, displayed the established address, and
+- The signed-in production app displayed **Product support**, displayed the then-current address, and
   exposed the exact `mailto:` destination. Verification inspected the destination without activating
   it.
 - The canonical app and service worker returned HTTP 200 with the exact support and cache markers.
@@ -31,7 +35,6 @@ checkout, payment, subscription, entitlement, or credit state changed during ver
 
 ## Remaining gate
 
-A founder-controlled support-address delivery and response test should confirm that legitimate inbound
-mail is received and triaged before public support-response expectations are advertised. Native store
-readiness separately still requires generated platform projects, RevenueCat public SDK keys,
-signed-device proof, screenshots, reviewer credentials, and store-console completion.
+No support-response time is advertised. Native store readiness separately still requires generated
+platform projects, RevenueCat public SDK keys, signed-device proof, screenshots, reviewer credentials,
+and store-console completion.

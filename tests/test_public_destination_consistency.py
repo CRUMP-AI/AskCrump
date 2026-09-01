@@ -58,14 +58,15 @@ def test_truthful_destination_assets_and_sitemaps_share_one_release_boundary():
     assert "<lastmod>2026-08-30</lastmod>" in read("public/clever-crump-sitemap.xml")
 
 
-def test_you_exposes_the_established_product_support_address():
+def test_you_exposes_the_monitored_product_support_address():
     app = read("public/app.html")
     config = read("backend/config.py")
     email_service = read("backend/email_service.py")
 
     assert 'Product guidance, support, legal information' in app
-    assert 'href="mailto:support@askcrump.com?subject=Ask%20Crump%20support"' in app
+    assert 'href="mailto:askcrump@gmail.com?subject=Ask%20Crump%20support"' in app
     assert '<div class="settings-label settings-link-label">Product support</div>' in app
-    assert '<div class="settings-help">Email support@askcrump.com</div>' in app
-    assert "'support@askcrump.com'" in config
+    assert '<div class="settings-help">Email askcrump@gmail.com</div>' in app
+    assert "monitored = 'askcrump@gmail.com'" in config
+    assert "support_email=_support_email(os.getenv('SUPPORT_EMAIL'))" in config
     assert 'self.settings.support_email' in email_service

@@ -9,7 +9,7 @@ import httpx
 import pytest
 
 from backend.auth_service import create_session
-from backend.config import _canonical_app_name
+from backend.config import _canonical_app_name, _support_email
 from backend.email_service import EmailDeliveryError, EmailService
 from backend.routes import auth as auth_routes
 from backend.routes import billing as billing_routes
@@ -21,7 +21,7 @@ def email_settings() -> SimpleNamespace:
     return SimpleNamespace(
         resend_api_key='re_test',
         from_email='Ask Crump <noreply@askcrump.com>',
-        support_email='support@askcrump.com',
+        support_email='askcrump@gmail.com',
         app_name='Ask Crump',
         app_url='https://www.askcrump.com',
     )
@@ -33,6 +33,12 @@ def test_retired_virtual_assistant_environment_label_normalizes_to_product_name(
     assert _canonical_app_name('Ask Crump - AI Virtual Assistant') == 'Ask Crump'
     assert _canonical_app_name('Ask Crump — AI Virtual Assistant') == 'Ask Crump'
     assert _canonical_app_name('Ask Crump Preview') == 'Ask Crump Preview'
+
+
+def test_support_contact_fails_over_from_unprovisioned_domain_mailbox():
+    assert _support_email(None) == 'askcrump@gmail.com'
+    assert _support_email('  support@askcrump.com  ') == 'askcrump@gmail.com'
+    assert _support_email('founder-controlled@example.com') == 'founder-controlled@example.com'
 
 
 @pytest.mark.asyncio
