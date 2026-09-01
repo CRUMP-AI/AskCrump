@@ -26,6 +26,21 @@ const { chromium } = require(playwrightModule);
     squarePressed: await studio.getByRole('button', {name: 'Square'}).getAttribute('aria-pressed'),
     guidance: await studio.locator('.crump50-image-guidance').textContent(),
   };
+  await studio.getByRole('button', {name: 'Close Image Studio'}).click();
+  await page.waitForFunction(() => document.activeElement?.id === 'openImageStudio');
+  const directCloseFocus = await page.evaluate(() => document.activeElement?.id || '');
+
+  await page.locator('#openImageStudioTransient').click();
+  await studio.waitFor();
+  await studio.getByRole('button', {name: 'Close Image Studio'}).click();
+  await page.waitForFunction(() => document.activeElement?.id === 'userInput');
+  const transientCloseFocus = await page.evaluate(() => ({
+    activeId: document.activeElement?.id || '',
+    transientHidden: document.getElementById('transientImageEntry')?.hidden || false,
+  }));
+
+  await page.locator('#openImageStudio').click();
+  await studio.waitFor();
   const png = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
     'base64',
@@ -76,6 +91,9 @@ const { chromium } = require(playwrightModule);
     || !initialStudio.createWithoutReferenceVisible
     || initialStudio.squarePressed !== 'true'
     || !initialStudio.guidance.includes('preserve identity and appearance')
+    || directCloseFocus !== 'openImageStudio'
+    || transientCloseFocus.activeId !== 'userInput'
+    || !transientCloseFocus.transientHidden
     || !readyStudio.referenceReadyVisible
     || !readyStudio.continueWithReferenceVisible
     || !readyStudio.referenceNameVisible
@@ -90,9 +108,9 @@ const { chromium } = require(playwrightModule);
     || result.editPlaceholder !== 'Describe what to keep and what to change…'
     || result.errorOverlay
   ) {
-    throw new Error(JSON.stringify({initialStudio, readyStudio, invalidReplacement, result, consoleErrors}));
+    throw new Error(JSON.stringify({initialStudio, directCloseFocus, transientCloseFocus, readyStudio, invalidReplacement, result, consoleErrors}));
   }
-  process.stdout.write(`${JSON.stringify({initialStudio, readyStudio, invalidReplacement, result, consoleErrors})}\n`);
+  process.stdout.write(`${JSON.stringify({initialStudio, directCloseFocus, transientCloseFocus, readyStudio, invalidReplacement, result, consoleErrors})}\n`);
 })().catch(error => {
   process.stderr.write(`${error.stack || error}\n`);
   process.exitCode = 1;

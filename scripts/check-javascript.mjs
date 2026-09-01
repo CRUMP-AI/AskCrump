@@ -385,6 +385,7 @@ const mobileDrawerDestinationsVersion = `${releaseVersion}-mobile-drawer-destina
 const destinationBackgroundGuardVersion = `${releaseVersion}-destination-background-guard-1`;
 const continuityActionVersion = `${releaseVersion}-continuity-action-1`;
 const imageReferenceEntryVersion = `${releaseVersion}-image-reference-entry-1`;
+const imageStudioFocusReturnVersion = `${releaseVersion}-image-studio-focus-return-1`;
 const requiredBodyFiles = [
   'public/crump-v1-body.css',
   'public/crump-v1-body.js',
@@ -625,7 +626,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-v1-body.js?v=${destinationBackgroundGuardVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${intelligenceArchitectureVersion}`) ||
     !runtime.includes(`/crump-5.0.css?v=${imageReferenceEntryVersion}`) ||
-    !runtime.includes(`/crump-5.0.js?v=${imageReferenceEntryVersion}`) ||
+    !runtime.includes(`/crump-5.0.js?v=${imageStudioFocusReturnVersion}`) ||
     !runtime.includes(`/crump-5.2.2.js?v=${imageScrollStabilityVersion}`) ||
     !runtime.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
     !runtime.includes(`/crump-4.4.js?v=${coreReliabilityVersion}`) ||
@@ -782,14 +783,14 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r189') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r190') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${continuityActionVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${imageSafetyRecoveryVersion}`) ||
     !serviceWorker.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.css?v=${imageReferenceEntryVersion}`) ||
-    !serviceWorker.includes(`/crump-5.0.js?v=${imageReferenceEntryVersion}`) ||
+    !serviceWorker.includes(`/crump-5.0.js?v=${imageStudioFocusReturnVersion}`) ||
     !serviceWorker.includes(`/ui-functions.js?v=${continuityActionVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.js?v=${imageScrollStabilityVersion}`) ||
     !serviceWorker.includes(`/onboarding.css?v=${videoDestinationVersion}`) ||

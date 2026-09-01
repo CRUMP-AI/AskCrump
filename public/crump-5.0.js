@@ -483,6 +483,12 @@
     document.body.classList.remove('crump50-sheet-open');
   }
 
+  function usableFocusReturnTarget(target) {
+    if (!(target instanceof HTMLElement) || !target.isConnected || target.disabled) return null;
+    if (target.closest('[hidden], [inert], [aria-hidden="true"]')) return null;
+    return target.getClientRects().length ? target : null;
+  }
+
   function menuButton(icon, title, subtitle, handler) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -609,7 +615,10 @@
     sheet.setAttribute('aria-label', 'Image Studio');
     const dismiss = () => {
       closeMenu();
-      if (returnFocus?.isConnected) returnFocus.focus({preventScroll: true});
+      requestAnimationFrame(() => {
+        const target = usableFocusReturnTarget(returnFocus) || $('#userInput');
+        target?.focus({preventScroll: true});
+      });
     };
     sheet.innerHTML = '<div class="crump50-sheet-head"><div><span>IMAGE STUDIO</span><strong>Build the frame before you describe it.</strong></div></div>';
     const close = document.createElement('button'); close.type = 'button'; close.className = 'crump50-sheet-close'; close.textContent = '×'; close.setAttribute('aria-label', 'Close Image Studio'); close.addEventListener('click', dismiss); $('.crump50-sheet-head', sheet).appendChild(close);

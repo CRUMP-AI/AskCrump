@@ -170,13 +170,28 @@ def test_image_studio_exposes_an_optional_reference_and_honest_fidelity_guidance
         "aria-label', 'Close Image Studio",
         "aria-modal', 'true",
         "close.focus({preventScroll: true})",
-        "if (returnFocus?.isConnected) returnFocus.focus({preventScroll: true})",
+        "usableFocusReturnTarget(returnFocus) || $('#userInput')",
         "event.key !== 'Escape'",
     ):
         assert contract in studio
     assert "reference.innerHTML" not in studio
     assert "referenceDescription.textContent = currentReference" in studio
     assert "crump50-reference-action" in styles
+
+
+def test_image_studio_close_restores_a_visible_opener_or_the_composer() -> None:
+    script = read("public/crump-5.0.js")
+    studio = script[script.index("function usableFocusReturnTarget") : script.index("function showDocumentOptions()")]
+    verifier = read("scripts/verify-visual-media-browser.cjs")
+    fixture = read("tests/fixtures/image-upload-preview-stability.html")
+
+    assert "target.closest('[hidden], [inert], [aria-hidden=\"true\"]')" in studio
+    assert "target.getClientRects().length" in studio
+    assert "usableFocusReturnTarget(returnFocus) || $('#userInput')" in studio
+    assert "requestAnimationFrame" in studio
+    assert 'id="openImageStudioTransient"' in fixture
+    assert "directCloseFocus !== 'openImageStudio'" in verifier
+    assert "transientCloseFocus.activeId !== 'userInput'" in verifier
 
 
 def test_image_reference_picker_is_single_image_private_state_and_replaces_only_images() -> None:
