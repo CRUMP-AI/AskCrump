@@ -36,6 +36,7 @@ const { chromium } = require(playwrightModule);
     button: document.querySelector('.outcome-project-btn')?.textContent || '',
     prompt: document.querySelector('.outcome-continuity-prompt')?.textContent || '',
     analytics: window.__fixture.analytics,
+    projectBodies: window.__fixture.projectBodies,
     errors: Number(document.querySelector('#fixtureErrors')?.textContent || 0),
   }));
   await stalledPage.screenshot({path: 'artifacts/project-save-recovery.png', fullPage: true});
@@ -47,6 +48,7 @@ const { chromium } = require(playwrightModule);
     button: document.querySelector('.outcome-project-btn')?.textContent || '',
     prompt: document.querySelector('.outcome-continuity-prompt')?.textContent || '',
     analytics: window.__fixture.analytics,
+    projectBodies: window.__fixture.projectBodies,
     projectRequests: window.__fixture.projectRequests,
     unexpectedRequests: window.__fixture.unexpectedRequests,
     errors: Number(document.querySelector('#fixtureErrors')?.textContent || 0),
@@ -54,7 +56,7 @@ const { chromium } = require(playwrightModule);
   await successPage.screenshot({path: 'artifacts/project-save-success.png', fullPage: true});
 
   const expectedIntent = [{
-    eventName: 'StarterIntentReached',
+    eventName: 'ProjectSaveIntentReached',
     values: {eventKey: 'project-save-intent', source: 'new_project'},
   }];
   assert.equal(pending.button, 'Saving…');
@@ -63,10 +65,12 @@ const { chromium } = require(playwrightModule);
   assert.equal(recovered.button, 'Start a Project');
   assert.match(recovered.prompt, /Couldn’t save yet/);
   assert.deepEqual(recovered.analytics, expectedIntent);
+  assert.equal(recovered.projectBodies[0]?.continuitySource, 'result_action');
   assert.equal(recovered.errors, 0);
   assert.equal(saved.button, 'Open Project');
   assert.match(saved.prompt, /Saved privately/);
   assert.deepEqual(saved.analytics, expectedIntent);
+  assert.equal(saved.projectBodies[0]?.continuitySource, 'result_action');
   assert.equal(saved.projectRequests, 1);
   assert.equal(saved.unexpectedRequests, 0);
   assert.equal(saved.errors, 0);

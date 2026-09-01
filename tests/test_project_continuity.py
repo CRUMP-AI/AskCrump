@@ -795,6 +795,122 @@ async def test_project_route_retry_reuses_the_saved_project_even_at_the_plan_lim
     assert analytics[0]["event_key"] == "first-durable-project"
 
 
+@pytest.mark.asyncio
+async def test_result_action_new_project_records_server_completed_save(monkeypatch):
+    analytics = []
+
+    async def authenticate(*_args, **_kwargs):
+        return type("Auth", (), {
+            "user": {
+                "id": USER_ID,
+                "subscription_tier": "professional",
+                "subscription_status": "active",
+            }
+        })()
+
+    class Projects:
+        async def count(self, _user_id):
+            return 0
+
+        async def create_from_chat(self, **kwargs):
+            assert kwargs["user_id"] == USER_ID
+            assert kwargs["chat_id"] == CHAT_ID
+            return {"id": PROJECT_ID, "name": kwargs["name"]}
+
+    class Features:
+        def project_limit(self, _user):
+            return 25
+
+    async def record(_database, **kwargs):
+        analytics.append(kwargs)
+        return True
+
+    monkeypatch.setattr(projects_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(projects_routes, "projects", Projects())
+    monkeypatch.setattr(projects_routes, "features", Features())
+    monkeypatch.setattr(projects_routes, "record_product_event", record)
+
+    result = await projects_routes.create_project(JsonRequest({
+        "name": "Quarterly strategy",
+        "description": "Continued from an Ask Crump conversation.",
+        "chatId": CHAT_ID,
+        "continuitySource": "result_action",
+    }))
+
+    assert result["success"] is True
+    assert [event["event_name"] for event in analytics] == [
+        "AhaReached",
+        "ProjectSaveCompleted",
+    ]
+    assert analytics[1]["event_key"] == "result-action-save"
+    assert analytics[1]["source"] == "new_project"
+    assert "chat_id" not in analytics[1]
+    assert "project_id" not in analytics[1]
+
+
+@pytest.mark.asyncio
+async def test_result_action_existing_project_records_server_completed_save(monkeypatch):
+    analytics = []
+
+    async def authenticate(*_args, **_kwargs):
+        return type("Auth", (), {
+            "user": {
+                "id": USER_ID,
+                "subscription_tier": "professional",
+                "subscription_status": "active",
+            }
+        })()
+
+    class Projects:
+        async def attach_owned_chat(self, **kwargs):
+            assert kwargs == {
+                "user_id": USER_ID,
+                "project_id": PROJECT_ID,
+                "chat_id": CHAT_ID,
+            }
+            return {"id": PROJECT_ID, "name": "Quarterly strategy"}
+
+    async def record(_database, **kwargs):
+        analytics.append(kwargs)
+        return True
+
+    monkeypatch.setattr(projects_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(projects_routes, "projects", Projects())
+    monkeypatch.setattr(projects_routes, "record_product_event", record)
+
+    result = await projects_routes.attach_project_chat(PROJECT_ID, JsonRequest({
+        "chatId": CHAT_ID,
+        "continuitySource": "result_action",
+    }))
+
+    assert result["success"] is True
+    assert [event["event_name"] for event in analytics] == [
+        "AhaReached",
+        "ProjectSaveCompleted",
+    ]
+    assert analytics[1]["event_key"] == "result-action-save"
+    assert analytics[1]["source"] == "existing_project"
+
+
+@pytest.mark.asyncio
+async def test_project_routes_reject_an_invented_save_source(monkeypatch):
+    async def authenticate(*_args, **_kwargs):
+        return type("Auth", (), {"user": {"id": USER_ID}})()
+
+    monkeypatch.setattr(projects_routes, "authenticate_request", authenticate)
+    response = await projects_routes.create_project(JsonRequest({
+        "chatId": CHAT_ID,
+        "continuitySource": "private-project-name",
+    }))
+
+    assert response.status_code == 400
+    assert json.loads(response.body) == {
+        "success": False,
+        "error": "Invalid Project save source.",
+        "code": "INVALID_PROJECT_SAVE_SOURCE",
+    }
+
+
 def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_and_referral():
     ui = (ROOT / "public" / "ui-functions.js").read_text(encoding="utf-8")
     product = (ROOT / "public" / "crump-product-5.3.js").read_text(encoding="utf-8")
@@ -807,6 +923,7 @@ def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_
     assert "group.replaceChildren(continuityPrompt, projectButton, status)" in ui
     assert r'Open Project \u201c${projectName}\u201d containing this conversation' in ui
     assert "showSavedOutcomeProject(projectButton, result.project)" in ui
+    assert "'ProjectSaveIntentReached'" in ui
     assert "eventKey: 'project-save-intent'" in ui
     assert "source: targetProjectId ? 'existing_project' : 'new_project'" in ui
     assert "projectButton.textContent = 'Saving…';" in ui
@@ -836,14 +953,17 @@ def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_
     assert "return selectProject(normalizedProjectId)" in product
     assert "Object.prototype.hasOwnProperty.call(options, 'projectId')" in product
     assert "const targetProjectId" in product
-    assert "keepConversation({projectId: targetProjectId || null})" in ui
+    assert "projectId: targetProjectId || null" in ui
+    assert "continuitySource: 'result_action'" in ui
     assert "await window.syncChatsToServer?.()" in product
-    assert 'body: {chatId}' in product
+    assert "...(continuitySource ? {continuitySource} : {})" in product
     assert '@router.post("/{project_id}/chats")' in route
     assert '@router.get("/for-chat/{chat_id}")' in route
     assert '"project": project' in route
     assert 'event_key="first-durable-project"' in route
     assert 'artifact_type="project"' in route
+    assert 'event_name="ProjectSaveCompleted"' in route
+    assert 'event_key="result-action-save"' in route
 
     relationship_guard = ui[
         ui.index("async function hydrateOutcomeProjectAction"):
@@ -936,6 +1056,7 @@ def test_project_save_timeout_fixture_uses_real_product_code_without_credentials
     assert "Project save request completed." in fixture
     assert "window.__fixture.savedProject" in fixture
     assert "window.__fixture.analytics.push({eventName, values})" in fixture
+    assert "window.__fixture.projectBodies.push" in fixture
     assert 'aria-label="Browser errors"' in fixture
     assert "unhandledrejection" in fixture
     assert "Project save request stalled." in fixture
@@ -948,6 +1069,7 @@ def test_project_save_timeout_fixture_uses_real_product_code_without_credentials
     assert "void refreshProjects()" in product
     verifier = (ROOT / "scripts" / "verify-project-save-activation.cjs").read_text(encoding="utf-8")
     assert "project-save-intent" in verifier
+    assert "continuitySource, 'result_action'" in verifier
     assert "Saving this conversation privately" in verifier
     assert "Couldn’t save yet" in verifier
     assert "Saved privately" in verifier

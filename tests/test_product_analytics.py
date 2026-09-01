@@ -11,6 +11,7 @@ from backend.product_analytics import (
     EVENT_NAMES,
     OUTCOME_FEEDBACK_SOURCES,
     PLAN_CENTER_SOURCES,
+    PROJECT_SAVE_SOURCES,
     RECENT_WORK_SOURCES,
     RESPONSE_SHARE_SOURCES,
     artifact_type_for_file,
@@ -110,6 +111,14 @@ def test_plan_center_view_is_allowlisted_but_content_free():
     })
     assert {"CreditCheckoutOpened", "CreditCheckoutCompleted"}.issubset(EVENT_NAMES)
     assert {"CreditCheckoutOpened", "CreditCheckoutCompleted"}.isdisjoint(CLIENT_EVENT_NAMES)
+
+
+def test_project_save_measurement_separates_client_intent_from_server_completion():
+    assert PROJECT_SAVE_SOURCES == frozenset({"new_project", "existing_project"})
+    assert "ProjectSaveIntentReached" in EVENT_NAMES
+    assert "ProjectSaveIntentReached" in CLIENT_EVENT_NAMES
+    assert "ProjectSaveCompleted" in EVENT_NAMES
+    assert "ProjectSaveCompleted" not in CLIENT_EVENT_NAMES
 
 
 @pytest.mark.asyncio
@@ -390,6 +399,69 @@ async def test_response_share_route_rejects_non_contract_values(event_key, sourc
                 eventName="ResponseShared",
                 eventKey=event_key,
                 source=source,
+            ),
+            request_for("www.askcrump.com"),
+        )
+
+    assert error.value.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_project_save_intent_route_accepts_only_the_fixed_content_free_contract(monkeypatch):
+    calls = []
+
+    async def authenticate(_request, _database, _settings):
+        return type("Auth", (), {"user": {"id": "00000000-0000-0000-0000-000000000001"}})()
+
+    async def rate_limit(*_args, **_kwargs):
+        return None
+
+    async def recorder(_database, **kwargs):
+        calls.append(kwargs)
+        return True
+
+    monkeypatch.setattr(analytics_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(analytics_routes, "enforce_user_rate_limit", rate_limit)
+    monkeypatch.setattr(analytics_routes, "record_product_event", recorder)
+
+    result = await analytics_routes.create_product_event(
+        ProductEventRequest(
+            eventName="ProjectSaveIntentReached",
+            eventKey="project-save-intent",
+            source="existing_project",
+        ),
+        request_for("www.askcrump.com"),
+    )
+
+    assert result == {"success": True, "recorded": True}
+    assert len(calls) == 1
+    assert calls[0]["user_id"] == "00000000-0000-0000-0000-000000000001"
+    assert calls[0]["event_name"] == "ProjectSaveIntentReached"
+    assert calls[0]["event_key"] == "project-save-intent"
+    assert calls[0]["source"] == "existing_project"
+    assert calls[0]["plan"] is None
+    assert set(calls[0]) == {
+        "user_id", "event_name", "event_key", "request", "source", "plan",
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("event_key", "source", "plan"),
+    [
+        ("other", "new_project", None),
+        ("project-save-intent", "made_up", None),
+        ("project-save-intent", "existing_project", "professional"),
+    ],
+)
+async def test_project_save_intent_route_rejects_non_contract_values(event_key, source, plan):
+    with pytest.raises(HTTPException) as error:
+        await analytics_routes.create_product_event(
+            ProductEventRequest(
+                eventName="ProjectSaveIntentReached",
+                eventKey=event_key,
+                source=source,
+                plan=plan,
             ),
             request_for("www.askcrump.com"),
         )
@@ -701,6 +773,37 @@ def test_recent_work_migration_is_private_content_free_and_reported_once():
     assert "p_filename" not in normalized
 
 
+def test_project_save_measurement_migration_is_private_content_free_and_stage_exact():
+    migration = (
+        ROOT / "migrations" / "20260901190546_project_save_intent_measurement.sql"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(migration.lower().split())
+    return_contract = normalized[
+        normalized.index("returns table") : normalized.index("language plpgsql")
+    ]
+
+    assert "'projectsaveintentreached'" in normalized
+    assert "'projectsavecompleted'" in normalized
+    assert "event_key = 'project-save-intent'" in normalized
+    assert "event_key = 'result-action-save'" in normalized
+    assert "e.source in ('new_project', 'existing_project')" in normalized
+    assert "product_project_continuity_snapshot" in normalized
+    assert "security invoker" in normalized
+    assert "security definer" not in normalized
+    assert "set search_path = ''" in normalized
+    assert "from public, anon, authenticated" in normalized
+    assert "to service_role" in normalized
+    assert "registration_environment = p_environment" in normalized
+    assert "coalesce(u.internal_tier, '') = ''" in normalized
+    assert "project_save_intent_without_completion" in return_contract
+    assert "project_save_completion_without_intent" in return_contract
+    assert "project_resumed_after_save" in return_contract
+    assert "save_completed_at >= j.save_intent_at" not in normalized
+    assert "user_id" not in return_contract
+    for forbidden in ("p_prompt", "p_response", "p_filename", "email", "metadata jsonb"):
+        assert forbidden not in normalized
+
+
 def test_growth_snapshot_excludes_pre_instrumentation_accounts_from_comparable_cohorts():
     migration = (
         ROOT / "migrations" / "20260827180833_product_growth_measurement_boundary.sql"
@@ -832,7 +935,7 @@ def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
     assert '/product-analytics.js' not in app
     assert runtime.index('/app.js') < runtime.index('/product-analytics.js')
     assert (
-        "new Set(['WorkspaceOpened', 'StarterIntentReached', 'ActivationReached', "
+        "new Set(['WorkspaceOpened', 'StarterIntentReached', 'ProjectSaveIntentReached', 'ActivationReached', "
         "'OutcomeFeedbackSubmitted', 'RecentWorkResumed', 'PlanCenterViewed', 'PlanIntentReached', "
         "'ResponseShared'])"
     ) in client
@@ -841,6 +944,7 @@ def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
     assert "ResponseShared" in client
     assert "RecentWorkResumed" in client
     assert "StarterIntentReached" in client
+    assert "ProjectSaveIntentReached" in client
     assert "/product-analytics.js" in worker
     assert "application.include_router(analytics.router)" in application
 

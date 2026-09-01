@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r208';
+const CACHE_NAME = 'ask-crump-new-body-v1-r209';
 
 const CORE = [
   '/app',
@@ -27,7 +27,7 @@ const CORE = [
   '/crump-code-5.9.35.css?v=5.9.76-intelligence-architecture-1',
   '/crump-code-5.9.35.js?v=5.9.76-intelligence-architecture-1',
   '/crump-product-5.3.css?v=5.9.76-file-library-window-1',
-  '/crump-product-5.3.js?v=5.9.76-file-library-window-1',
+  '/crump-product-5.3.js?v=5.9.76-project-save-measurement-1',
   '/crump-product-5.3.1.css',
   '/crump-product-5.3.1.js?v=5.9.76-core-reliability-1',
   '/crump-polish-5.6.css',
@@ -46,7 +46,7 @@ const CORE = [
   '/billing-manager.js?v=5.9.76-commerce-recovery-1',
   '/subscription-ui.js?v=5.9.76-commerce-recovery-1',
   '/chat-resilience.js?v=5.9.76-image-reference-recovery-1',
-  '/ui-functions.js?v=5.9.76-project-save-activation-1',
+  '/ui-functions.js?v=5.9.76-project-save-measurement-1',
   '/presence-manager.js?v=5.9.76',
   '/auth-resilience.js?v=5.9.76',
   '/device-auth.js?v=5.9.76',
@@ -54,7 +54,7 @@ const CORE = [
   '/chat-sync.js?v=5.9.76-sync-cadence-1',
   '/account-manager.js?v=5.9.76-account-deletion-billing-1',
   '/app.js?v=5.9.76-user-controlled-scroll-1',
-  '/product-analytics.js?v=5.9.76',
+  '/product-analytics.js?v=5.9.76-project-save-measurement-1',
   '/lifecycle-share.js?v=5.9.76-lifecycle-activation-1',
   '/lifecycle-manager.js?v=5.9.76-continuity-action-1',
   '/auth-controller.js?v=5.9.76-auth-entry-polish-1',

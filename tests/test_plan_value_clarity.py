@@ -249,7 +249,7 @@ def test_plan_center_containment_assets_are_versioned_everywhere():
         assert versioned_final in source
         assert versioned_billing_css in source
         assert versioned_credit_contract in source
-    assert "ask-crump-new-body-v1-r208" in read_public("sw.js")
+    assert "ask-crump-new-body-v1-r209" in read_public("sw.js")
     assert "/runtime-body-v1.js?v=5.9.76-local-photo-studio-loader-1" in read_public("app.html")
 
 

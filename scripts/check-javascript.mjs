@@ -405,7 +405,7 @@ const precisionEditGuideLoaderVersion = `${releaseVersion}-local-photo-studio-lo
 const precisionEditGuideVersion = `${releaseVersion}-local-photo-studio-guide-1`;
 const fileLibraryWindowVersion = `${releaseVersion}-file-library-window-1`;
 const imageReferenceRecoveryVersion = `${releaseVersion}-image-reference-recovery-1`;
-const projectSaveActivationVersion = `${releaseVersion}-project-save-activation-1`;
+const projectSaveMeasurementVersion = `${releaseVersion}-project-save-measurement-1`;
 const userControlledScrollVersion = `${releaseVersion}-user-controlled-scroll-1`;
 const newResponseCueVersion = `${releaseVersion}-new-response-cue-1`;
 const videoDestinationVersion = `${releaseVersion}-video-destination-1`;
@@ -649,11 +649,11 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/chat-resilience.js?v=${imageReferenceRecoveryVersion}`) ||
     !runtime.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
     !runtime.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
-    !runtime.includes(`/ui-functions.js?v=${projectSaveActivationVersion}`) ||
+    !runtime.includes(`/ui-functions.js?v=${projectSaveMeasurementVersion}`) ||
     !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-share.js?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-manager.js?v=${continuityActionVersion}`) ||
-    !runtime.includes(`/product-analytics.js?v=${releaseVersion}`) ||
+    !runtime.includes(`/product-analytics.js?v=${projectSaveMeasurementVersion}`) ||
     !runtime.includes(`/app.js?v=${userControlledScrollVersion}`) ||
     !runtime.includes(`/crump-v1-body.js?v=${destinationBackgroundGuardVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${creditPackTruthVersion}`) ||
@@ -666,7 +666,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
     !runtime.includes(`/crump-4.4.js?v=${coreReliabilityVersion}`) ||
     !runtime.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !runtime.includes(`/crump-product-5.3.js?v=${fileLibraryWindowVersion}`) ||
+    !runtime.includes(`/crump-product-5.3.js?v=${projectSaveMeasurementVersion}`) ||
     !runtime.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
     !runtime.includes(`/crump-product-5.3.1.js?v=${coreReliabilityVersion}`) || !runtime.includes('/crump-product-5.3.1.css') ||
     !runtime.includes('/crump-subscriptions-5.3.2.js') ||
@@ -818,7 +818,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r208') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r209') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${precisionEditGuideLoaderVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
@@ -829,7 +829,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r208') ||
     !serviceWorker.includes(`/crump-5.0.js?v=${imageReferenceRecoveryVersion}`) ||
     !serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     !serviceWorker.includes(`/crump-precision-image-edit.js?v=${precisionEditStudioVersion}`) ||
-    !serviceWorker.includes(`/ui-functions.js?v=${projectSaveActivationVersion}`) ||
+    !serviceWorker.includes(`/ui-functions.js?v=${projectSaveMeasurementVersion}`) ||
     !serviceWorker.includes(`/app.js?v=${userControlledScrollVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.js?v=${newResponseCueVersion}`) ||
@@ -847,13 +847,13 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r208') ||
     !serviceWorker.includes(`/device-auth.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/sync-manager.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/chat-sync.js?v=${releaseVersion}-sync-cadence-1`) ||
-    !serviceWorker.includes(`/product-analytics.js?v=${releaseVersion}`) ||
+    !serviceWorker.includes(`/product-analytics.js?v=${projectSaveMeasurementVersion}`) ||
     !serviceWorker.includes(`/auth-controller.js?v=${authControllerVersion}`) ||
     !serviceWorker.includes(`/crump-v1-body.css?v=${creditPackTruthVersion}`) ||
     !serviceWorker.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
     !serviceWorker.includes(`/crump-4.4.js?v=${coreReliabilityVersion}`) ||
     !serviceWorker.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !serviceWorker.includes(`/crump-product-5.3.js?v=${fileLibraryWindowVersion}`) ||
+    !serviceWorker.includes(`/crump-product-5.3.js?v=${projectSaveMeasurementVersion}`) ||
     !serviceWorker.includes(`/crump-product-5.3.1.js?v=${coreReliabilityVersion}`) ||
     !serviceWorker.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${destinationBackgroundGuardVersion}`) ||
@@ -981,9 +981,10 @@ const projectSaveActivationGuard = uiFunctions.slice(
   uiFunctions.indexOf('async function performOutcomeProjectAction'),
   uiFunctions.indexOf('async function keepLatestOutcomeInProject'),
 );
-if (!projectSaveActivationGuard.includes("window.CrumpAnalytics?.track?.('StarterIntentReached'") ||
+if (!projectSaveActivationGuard.includes("window.CrumpAnalytics?.track?.('ProjectSaveIntentReached'") ||
     !projectSaveActivationGuard.includes("eventKey: 'project-save-intent'") ||
     !projectSaveActivationGuard.includes("source: targetProjectId ? 'existing_project' : 'new_project'") ||
+    !projectSaveActivationGuard.includes("continuitySource: 'result_action'") ||
     !projectSaveActivationGuard.includes("projectButton.textContent = 'Saving…';") ||
     !projectSaveActivationGuard.includes("continuityPrompt.textContent = 'Saving this conversation privately…';") ||
     !projectSaveActivationGuard.includes("continuityPrompt.textContent = 'Couldn’t save yet. Your conversation is still here.';") ||

@@ -91,6 +91,7 @@ class ProductEventRequest(APIModel):
     eventName: Literal[
         "WorkspaceOpened",
         "StarterIntentReached",
+        "ProjectSaveIntentReached",
         "ActivationReached",
         "OutcomeFeedbackSubmitted",
         "RecentWorkResumed",

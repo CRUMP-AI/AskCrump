@@ -1222,6 +1222,9 @@
     const targetProjectId = hasExplicitTarget
       ? String(options.projectId || '').trim()
       : String(state.activeProject?.id || '').trim();
+    const continuitySource = options.continuitySource === 'result_action'
+      ? 'result_action'
+      : '';
 
     try {
       const sync = await window.syncChatsToServer?.();
@@ -1230,7 +1233,7 @@
       const data = targetProjectId
         ? await api(`/api/projects/${targetProjectId}/chats`, {
             method: 'POST',
-            body: {chatId},
+            body: {chatId, ...(continuitySource ? {continuitySource} : {})},
             timeoutMs: PROJECT_SAVE_TIMEOUT_MS,
           })
         : await api('/api/projects', {
@@ -1239,6 +1242,7 @@
               name: projectNameForConversation(chat),
               description: 'Continued from an Ask Crump conversation.',
               chatId,
+              ...(continuitySource ? {continuitySource} : {}),
             },
             timeoutMs: PROJECT_SAVE_TIMEOUT_MS,
           });

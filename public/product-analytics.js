@@ -4,7 +4,7 @@
   if (window.__crumpProductAnalyticsLoaded) return;
   window.__crumpProductAnalyticsLoaded = true;
 
-  const events = new Set(['WorkspaceOpened', 'StarterIntentReached', 'ActivationReached', 'OutcomeFeedbackSubmitted', 'RecentWorkResumed', 'PlanCenterViewed', 'PlanIntentReached', 'ResponseShared']);
+  const events = new Set(['WorkspaceOpened', 'StarterIntentReached', 'ProjectSaveIntentReached', 'ActivationReached', 'OutcomeFeedbackSubmitted', 'RecentWorkResumed', 'PlanCenterViewed', 'PlanIntentReached', 'ResponseShared']);
   const plans = new Set(['professional', 'enterprise']);
   const safeKey = /^[A-Za-z0-9][A-Za-z0-9:._-]{0,159}$/;
   const safeSource = /^[a-z0-9_-]{1,32}$/;

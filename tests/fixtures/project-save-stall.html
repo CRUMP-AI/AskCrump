@@ -32,6 +32,7 @@
       projectRequests: 0,
       abortedProjectRequests: 0,
       unexpectedRequests: 0,
+      projectBodies: [],
       savedProject: null,
       toasts: [],
       analytics: [],
@@ -87,6 +88,7 @@
       }
       if (url.pathname === '/api/projects' && method === 'POST') {
         window.__fixture.projectRequests += 1;
+        window.__fixture.projectBodies.push(JSON.parse(String(options.body || '{}')));
         document.getElementById('fixtureRequests').textContent = String(window.__fixture.projectRequests);
         if (fixtureSuccessfulSave) {
           document.getElementById('fixtureStatus').textContent = 'Project save request completed.';

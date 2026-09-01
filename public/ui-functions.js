@@ -656,7 +656,7 @@
     }
 
     const targetProjectId = String(projectButton.dataset.projectId || '').trim();
-    void window.CrumpAnalytics?.track?.('StarterIntentReached', {
+    void window.CrumpAnalytics?.track?.('ProjectSaveIntentReached', {
       eventKey: 'project-save-intent',
       source: targetProjectId ? 'existing_project' : 'new_project',
     });
@@ -670,7 +670,10 @@
     projectButton.textContent = 'Saving…';
     if (continuityPrompt) continuityPrompt.textContent = 'Saving this conversation privately…';
     try {
-      const result = await keepConversation({projectId: targetProjectId || null});
+      const result = await keepConversation({
+        projectId: targetProjectId || null,
+        continuitySource: 'result_action',
+      });
       if (!result?.success) throw new Error('Projects are still loading. Try again in a moment.');
       showSavedOutcomeProject(projectButton, result.project);
       return true;

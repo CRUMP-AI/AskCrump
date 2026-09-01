@@ -14,6 +14,8 @@ from ..usage_service import tier_name
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
+RESULT_ACTION_SOURCE = "result_action"
+
 
 def _error(message: str, code: str, status: int) -> JSONResponse:
     return JSONResponse(status_code=status, content={"success": False, "error": message, "code": code})
@@ -49,6 +51,9 @@ async def create_project(request: Request):
     if not isinstance(payload, dict):
         return _error("Invalid project request.", "INVALID_PROJECT_REQUEST", 400)
     chat_id = str(payload.get("chatId") or "").strip()
+    continuity_source = str(payload.get("continuitySource") or "").strip()
+    if continuity_source not in {"", RESULT_ACTION_SOURCE}:
+        return _error("Invalid Project save source.", "INVALID_PROJECT_SAVE_SOURCE", 400)
     existing = None
     count = await projects.count(auth.user["id"])
     limit = features.project_limit(auth.user)
@@ -85,6 +90,16 @@ async def create_project(request: Request):
                 plan=tier_name(auth.user),
                 artifact_type="project",
             )
+            if continuity_source == RESULT_ACTION_SOURCE:
+                await record_product_event(
+                    db,
+                    user_id=auth.user["id"],
+                    event_name="ProjectSaveCompleted",
+                    event_key="result-action-save",
+                    request=request,
+                    source="new_project",
+                    plan=tier_name(auth.user),
+                )
         else:
             item = await projects.create(**common)
         return {
@@ -106,6 +121,9 @@ async def attach_project_chat(project_id: str, request: Request):
     if not isinstance(payload, dict):
         return _error("Invalid conversation request.", "INVALID_PROJECT_CHAT", 400)
     chat_id = str(payload.get("chatId") or "").strip()
+    continuity_source = str(payload.get("continuitySource") or "").strip()
+    if continuity_source not in {"", RESULT_ACTION_SOURCE}:
+        return _error("Invalid Project save source.", "INVALID_PROJECT_SAVE_SOURCE", 400)
     if not chat_id:
         return _error("Choose a conversation first.", "INVALID_PROJECT_CHAT", 400)
     try:
@@ -123,6 +141,16 @@ async def attach_project_chat(project_id: str, request: Request):
             plan=tier_name(auth.user),
             artifact_type="project",
         )
+        if continuity_source == RESULT_ACTION_SOURCE:
+            await record_product_event(
+                db,
+                user_id=auth.user["id"],
+                event_name="ProjectSaveCompleted",
+                event_key="result-action-save",
+                request=request,
+                source="existing_project",
+                plan=tier_name(auth.user),
+            )
         return {"success": True, "project": item, "conversationSaved": True}
     except ProjectNotFoundError as exc:
         return _error(str(exc), "PROJECT_NOT_FOUND", 404)

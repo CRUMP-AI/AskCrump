@@ -9,6 +9,7 @@ from ..product_analytics import (
     CLIENT_EVENT_NAMES,
     OUTCOME_FEEDBACK_SOURCES,
     PLAN_CENTER_SOURCES,
+    PROJECT_SAVE_SOURCES,
     RECENT_WORK_SOURCES,
     RESPONSE_SHARE_SOURCES,
     record_product_event,
@@ -34,6 +35,12 @@ async def create_product_event(payload: ProductEventRequest, request: Request):
         or not payload.eventKey.startswith("response-share:")
     ):
         raise HTTPException(status_code=422, detail="Invalid response share event.")
+    if payload.eventName == "ProjectSaveIntentReached" and (
+        payload.source not in PROJECT_SAVE_SOURCES
+        or payload.eventKey != "project-save-intent"
+        or payload.plan is not None
+    ):
+        raise HTTPException(status_code=422, detail="Invalid Project save intent event.")
     if payload.eventName == "RecentWorkResumed" and (
         payload.source not in RECENT_WORK_SOURCES
         or payload.eventKey != "recent-work-resumed"
