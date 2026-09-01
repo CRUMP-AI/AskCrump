@@ -67,6 +67,8 @@ snapshot.
 | `OnboardingCompleted` | Server | The account supplied its initial display name. |
 | `WorkspaceOpened` | Authenticated client | The workspace opened; at most one row per UTC day. |
 | `StarterIntentReached` | Authenticated client | The account selected its first task category from the launchpad. Only one allowlisted category such as `research`, `file`, or `projects` is stored in `source`; no prompt or content is stored. |
+| `ProjectSaveIntentReached` | Authenticated client | The user selected the one-click result-to-Project action. The server accepts only the fixed `project-save-intent` key and `new_project` or `existing_project` source; plan and customer content are forbidden. |
+| `ProjectSaveCompleted` | Server | The ownership-checked Project route successfully created a Project from the conversation or attached the conversation to an owned Project after a result action. Clients cannot submit this event; only the fixed `result-action-save` key and bounded Project source are retained. |
 | `ActivationReached` | Server | The first successful, persisted AI response completed. |
 | `AhaReached` | Server | The first durable artifact, generated image, manuscript workspace, or ownership-checked conversation-to-Project transition completed. Project analytics retain only the `project` category—not the Project ID, name, chat ID, title, or content. |
 | `OutcomeFeedbackSubmitted` | Authenticated client | The user answered whether one result moved the work forward. Only `useful` or `needs_work` is stored in `source`; no prompt, response, filename, comment, or other content is accepted. |
@@ -119,6 +121,32 @@ that lower bound even when an operator requests an earlier reporting window. His
 behavior is not silently reconstructed from conversation or file content. Account/job/file/Project
 aggregates may be used to diagnose historical product use, but they must be labeled separately from
 event-based cohort rates and never converted into synthetic events.
+
+## Service-role Project continuity snapshot
+
+Migration `20260901190546_project_save_intent_measurement.sql` installs
+`product_project_continuity_snapshot`, a service-role-only, security-invoker aggregate for the
+result-save journey. It keeps `StarterIntentReached` reserved for launchpad task choice and reports
+distinct-account counts for bounded result-save intent, server-confirmed completion, missing-side
+diagnostics, and later Project resume. A valid intent and completion are paired regardless of
+millisecond arrival order because the browser receipt is fail-open; resume must occur at or after
+the server-confirmed completion.
+
+The cohort is bounded by `users.registration_environment`, excludes deleted and internal accounts
+by default, and is grouped only by the immutable allowlisted first-touch attribution tuple. The
+function returns no account ID, Project or conversation identifier, title, prompt, response,
+filename, URL, referrer, customer content, or arbitrary metadata. Its rates are observed-to-date
+diagnostics—not D1/D7 retention or evidence of lift.
+
+```sql
+select *
+from public.product_project_continuity_snapshot(
+  p_since => timestamptz '2026-08-23 09:10:55.602863+00',
+  p_until => now(),
+  p_environment => 'production',
+  p_include_internal => false
+);
+```
 
 ## Service-role growth snapshot
 

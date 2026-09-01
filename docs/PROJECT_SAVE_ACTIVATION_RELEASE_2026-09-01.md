@@ -14,6 +14,16 @@ server-authoritative Project creation/attachment path continues to record comple
 Together, those signals can distinguish no observed save intent from intent that did not reach a
 completed Project without inspecting conversation content.
 
+## Follow-up measurement correction
+
+The `StarterIntentReached` reuse described above was superseded by commit `e32acbf` and production
+deployment `dpl_Nro1aexyWdhM49nQzJssMRMCwieE`. That event remains exclusively the launchpad's first
+task-category choice. Result saving now emits the distinct client milestone
+`ProjectSaveIntentReached`; the ownership-checked Project route records the server-only
+`ProjectSaveCompleted` milestone only after creation or attachment succeeds. The fixed key/source
+contract and privacy boundary are unchanged. See
+`docs/PROJECT_SAVE_MEASUREMENT_CONTRACT_RELEASE_2026-09-01.md` for authoritative release evidence.
+
 ## Product and privacy boundaries
 
 - The save request, Project ownership checks, Project creation/attachment behavior, and 15-second
