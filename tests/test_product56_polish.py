@@ -17,7 +17,7 @@ def test_56_polish_layer_is_last_on_web_and_native():
         assert source.index("/crump-4.3.js") < source.index("/crump-4.4.js")
         assert source.index("/crump-product-5.3.1.js") < source.index("/crump-polish-5.6.js")
         assert "/crump-polish-5.6.css" in source
-    assert "ask-crump-new-body-v1-r204" in worker
+    assert "ask-crump-new-body-v1-r205" in worker
     assert "/crump-polish-5.6.css" in worker and "/crump-polish-5.6.js" in worker
     assert "crump-polish-5.6.js" in checker
 
@@ -31,7 +31,8 @@ def test_tutorial_is_current_and_no_longer_bootstraps_legacy_runtime():
         assert f"destination: '{destination}'" in tutorial
     assert "Conversation history remains in Chats." in tutorial
     assert "continue into a reviewed generative edit" in tutorial
-    assert "Precision Edit lets you zoom, brush over only what may change" in tutorial
+    assert "Precision Edit lets you zoom, brush or lasso exactly what may change" in tutorial
+    assert "invert a selection" in tutorial
     assert "place exact logos and readable text without an AI redraw" in tutorial
     assert "Save local edits without AI credits" in tutorial
     assert "Local image adjustments" in tutorial

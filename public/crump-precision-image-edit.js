@@ -6,6 +6,8 @@
 
   const MAX_OVERLAY_ITEMS = 12;
   const MAX_OVERLAY_SOURCE_PIXELS = 16_777_216;
+  const MAX_LASSO_POINTS = 4096;
+  const MIN_LASSO_AREA = 0.0001;
 
   const state = {
     modal: null,
@@ -36,6 +38,7 @@
     undo: null,
     redo: null,
     clear: null,
+    invert: null,
     previewCanvas: null,
     previewContext: null,
     previewSource: null,
@@ -56,6 +59,8 @@
     overlayOpacity: null,
     overlayColor: null,
     overlayRemove: null,
+    lassoGuide: null,
+    lassoPolygon: null,
   };
 
   const focusableSelector = 'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -74,6 +79,7 @@
     if (state.undo) state.undo.disabled = state.strokes.length === 0;
     if (state.redo) state.redo.disabled = state.redoStrokes.length === 0;
     if (state.clear) state.clear.disabled = state.strokes.length === 0;
+    if (state.invert) state.invert.disabled = state.strokes.length === 0;
     updateLocalControls();
   }
 
@@ -109,6 +115,7 @@
     state.undo = null;
     state.redo = null;
     state.clear = null;
+    state.invert = null;
     if (state.previewRequest) cancelAnimationFrame(state.previewRequest);
     state.previewCanvas = null;
     state.previewContext = null;
@@ -130,6 +137,8 @@
     state.overlayOpacity = null;
     state.overlayColor = null;
     state.overlayRemove = null;
+    state.lassoGuide = null;
+    state.lassoPolygon = null;
     document.body.classList.remove('crump-precision-open');
     const target = state.returnFocus;
     state.returnFocus = null;
@@ -175,7 +184,34 @@
   function drawStroke(stroke) {
     const canvas = state.canvas;
     const context = state.context;
-    if (!canvas || !context || !stroke?.points?.length) return;
+    if (!canvas || !context || !stroke) return;
+    if (stroke.mode === 'invert') {
+      const inverted = document.createElement('canvas');
+      inverted.width = canvas.width;
+      inverted.height = canvas.height;
+      const invertedContext = inverted.getContext('2d', {alpha: true});
+      invertedContext.fillStyle = 'rgba(226, 196, 126, 1)';
+      invertedContext.fillRect(0, 0, inverted.width, inverted.height);
+      invertedContext.globalCompositeOperation = 'destination-out';
+      invertedContext.drawImage(canvas, 0, 0);
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(inverted, 0, 0);
+      return;
+    }
+    if (!stroke.points?.length) return;
+    if (stroke.mode === 'lasso') {
+      if (stroke.points.length < 3) return;
+      context.save();
+      context.globalCompositeOperation = 'source-over';
+      context.fillStyle = 'rgba(226, 196, 126, 1)';
+      context.beginPath();
+      context.moveTo(stroke.points[0].x * canvas.width, stroke.points[0].y * canvas.height);
+      stroke.points.slice(1).forEach(point => context.lineTo(point.x * canvas.width, point.y * canvas.height));
+      context.closePath();
+      context.fill();
+      context.restore();
+      return;
+    }
     const width = Math.max(2, Math.min(canvas.width, canvas.height) * stroke.brushPercent / 100);
     context.save();
     context.globalCompositeOperation = stroke.mode === 'erase' ? 'destination-out' : 'source-over';
@@ -204,6 +240,49 @@
     state.selectionDirty = true;
     updateHistoryControls();
     scheduleLocalPreview();
+  }
+
+  function polygonArea(points) {
+    if (!Array.isArray(points) || points.length < 3) return 0;
+    let area = 0;
+    for (let index = 0; index < points.length; index += 1) {
+      const current = points[index];
+      const next = points[(index + 1) % points.length];
+      area += (current.x * next.y) - (next.x * current.y);
+    }
+    return Math.abs(area) / 2;
+  }
+
+  function updateLassoGuide(points = []) {
+    if (!state.lassoGuide || !state.lassoPolygon) return;
+    const usablePoints = Array.isArray(points) ? points : [];
+    state.lassoPolygon.setAttribute('points', usablePoints.map(point => `${point.x},${point.y}`).join(' '));
+    state.lassoGuide.hidden = usablePoints.length < 2;
+  }
+
+  function selectionCoverage() {
+    if (!state.context || !state.canvas) return 0;
+    const pixels = state.context.getImageData(0, 0, state.canvas.width, state.canvas.height).data;
+    let selectedWeight = 0;
+    for (let index = 3; index < pixels.length; index += 4) selectedWeight += pixels[index];
+    return selectedWeight / (255 * state.canvas.width * state.canvas.height);
+  }
+
+  function invertSelection() {
+    const coverage = selectionCoverage();
+    if (coverage <= 0) {
+      setStatus('Brush or outline an area before inverting the selection.', 'error');
+      return;
+    }
+    const invertedCoverage = 1 - coverage;
+    if (invertedCoverage <= 0 || invertedCoverage > .9) {
+      setStatus('The inverted area would be too broad. Outline more of the background, then try again.', 'error');
+      return;
+    }
+    state.strokes.push({mode: 'invert', points: []});
+    state.redoStrokes = [];
+    redraw();
+    setStatus('Selection inverted. The gold area is now the only area allowed to change.');
   }
 
   function hasLocalAdjustments() {
@@ -508,7 +587,7 @@
   }
 
   function setMode(mode, buttons) {
-    state.mode = ['paint', 'erase', 'move', 'place'].includes(mode) ? mode : 'paint';
+    state.mode = ['paint', 'erase', 'lasso', 'move', 'place'].includes(mode) ? mode : 'paint';
     Object.entries(buttons).forEach(([value, button]) => {
       button.classList.toggle('is-active', state.mode === value);
       button.setAttribute('aria-pressed', String(state.mode === value));
@@ -517,6 +596,7 @@
     setStatus({
       paint: 'Brush over what may change.',
       erase: 'Erase from the selected area.',
+      lasso: 'Draw a closed outline around what may change.',
       move: 'Drag the enlarged image to reach a tiny detail.',
       place: 'Drag the selected exact overlay into place.',
     }[state.mode]);
@@ -580,7 +660,8 @@
       };
       state.redoStrokes = [];
       state.strokes.push(state.activeStroke);
-      drawStroke(state.activeStroke);
+      if (state.mode === 'lasso') updateLassoGuide(state.activeStroke.points);
+      else drawStroke(state.activeStroke);
       state.selectionDirty = true;
       updateHistoryControls();
     });
@@ -606,6 +687,13 @@
       event.preventDefault();
       const point = pointFor(event);
       const previous = state.activeStroke.points[state.activeStroke.points.length - 1];
+      if (state.activeStroke.mode === 'lasso') {
+        if (state.activeStroke.points.length >= MAX_LASSO_POINTS) return;
+        if (Math.hypot(point.x - previous.x, point.y - previous.y) < .002) return;
+        state.activeStroke.points.push(point);
+        updateLassoGuide(state.activeStroke.points);
+        return;
+      }
       state.activeStroke.points.push(point);
       const segment = {...state.activeStroke, points: [previous, point]};
       drawStroke(segment);
@@ -630,11 +718,32 @@
       if (!state.activeStroke) return;
       event?.preventDefault?.();
       if (event?.pointerId !== undefined) canvas.releasePointerCapture?.(event.pointerId);
+      const completedStroke = state.activeStroke;
       state.activeStroke = null;
+      if (completedStroke.mode === 'lasso') {
+        const cancelled = event?.type === 'pointercancel';
+        const usable = !cancelled
+          && completedStroke.points.length >= 3
+          && polygonArea(completedStroke.points) >= MIN_LASSO_AREA;
+        if (!usable && state.strokes.at(-1) === completedStroke) state.strokes.pop();
+        updateLassoGuide();
+        if (usable) drawStroke(completedStroke);
+        state.selectionDirty = true;
+        updateHistoryControls();
+        scheduleLocalPreview();
+        updateLocalControls();
+        setStatus(
+          usable
+            ? 'Lasso selection ready. Add another area, erase, invert, undo, or continue.'
+            : 'Draw a wider closed outline to create a lasso selection.',
+          usable ? '' : 'error',
+        );
+        return;
+      }
       state.selectionDirty = true;
       scheduleLocalPreview();
       updateLocalControls();
-      setStatus('Selection ready. Add more, erase, undo, or continue.');
+      setStatus('Selection ready. Add more, erase, invert, undo, or continue.');
     };
     canvas.addEventListener('pointerup', finish);
     canvas.addEventListener('pointercancel', finish);
@@ -651,7 +760,7 @@
         reader.addEventListener('load', () => {
           const value = String(reader.result || '');
           if (value.length > 2_900_000) {
-            reject(new Error('This selection is too complex. Clear it and use fewer, broader brush strokes.'));
+            reject(new Error('This selection is too complex. Clear it and use fewer, broader selection actions.'));
             return;
           }
           resolve(value);
@@ -734,7 +843,7 @@
 
     const header = document.createElement('header');
     const heading = document.createElement('div');
-    heading.innerHTML = '<span>PRECISION EDIT</span><h2 id="crumpPrecisionTitle">Choose exactly what may change.</h2><p>Paint the area yourself. Zoom in to isolate the smallest possible detail, then describe the visible change. Crump will not identify or label anyone’s race or ethnicity.</p>';
+    heading.innerHTML = '<span>PRECISION EDIT</span><h2 id="crumpPrecisionTitle">Choose exactly what may change.</h2><p>Brush or outline the area yourself. Zoom in to isolate the smallest possible detail, then describe the visible change. Crump will not identify or label anyone’s race or ethnicity.</p>';
     const closeButton = document.createElement('button');
     closeButton.type = 'button';
     closeButton.className = 'crump-precision-close';
@@ -751,7 +860,7 @@
     state.stage = stage;
     const controls = document.createElement('aside');
     controls.className = 'crump-precision-controls';
-    controls.innerHTML = '<div class="crump-precision-control-head"><span>SELECTION</span><strong>Protect everything outside the brush.</strong></div>';
+    controls.innerHTML = '<div class="crump-precision-control-head"><span>SELECTION</span><strong>Protect everything outside your selection.</strong></div>';
 
     const modeGroup = document.createElement('div');
     modeGroup.className = 'crump-precision-modes';
@@ -759,15 +868,17 @@
     modeGroup.setAttribute('aria-label', 'Selection tool');
     const paint = document.createElement('button'); paint.type = 'button'; paint.className = 'is-active'; paint.textContent = 'Brush'; paint.setAttribute('aria-pressed', 'true');
     const erase = document.createElement('button'); erase.type = 'button'; erase.textContent = 'Erase'; erase.setAttribute('aria-pressed', 'false');
+    const lasso = document.createElement('button'); lasso.type = 'button'; lasso.textContent = 'Lasso'; lasso.setAttribute('aria-pressed', 'false');
     const move = document.createElement('button'); move.type = 'button'; move.textContent = 'Move'; move.setAttribute('aria-pressed', 'false');
     const place = document.createElement('button'); place.type = 'button'; place.textContent = 'Place'; place.setAttribute('aria-pressed', 'false');
-    const modeButtons = {paint, erase, move, place};
+    const modeButtons = {paint, erase, lasso, move, place};
     state.modeButtons = modeButtons;
     paint.addEventListener('click', () => setMode('paint', modeButtons));
     erase.addEventListener('click', () => setMode('erase', modeButtons));
+    lasso.addEventListener('click', () => setMode('lasso', modeButtons));
     move.addEventListener('click', () => setMode('move', modeButtons));
     place.addEventListener('click', () => setMode('place', modeButtons));
-    modeGroup.append(paint, erase, move, place);
+    modeGroup.append(paint, erase, lasso, move, place);
 
     const zoom = document.createElement('div');
     zoom.className = 'crump-precision-zoom';
@@ -797,29 +908,32 @@
     history.className = 'crump-precision-history';
     const undo = document.createElement('button'); undo.type = 'button'; undo.textContent = 'Undo'; undo.disabled = true;
     const redo = document.createElement('button'); redo.type = 'button'; redo.textContent = 'Redo'; redo.disabled = true;
+    const invert = document.createElement('button'); invert.type = 'button'; invert.textContent = 'Invert'; invert.disabled = true;
     const clear = document.createElement('button'); clear.type = 'button'; clear.textContent = 'Clear'; clear.disabled = true;
     undo.addEventListener('click', () => {
       const stroke = state.strokes.pop();
       if (stroke) state.redoStrokes.push(stroke);
       redraw();
-      setStatus('Last brush stroke removed.');
+      setStatus('Last selection action removed.');
     });
     redo.addEventListener('click', () => {
       const stroke = state.redoStrokes.pop();
       if (stroke) state.strokes.push(stroke);
       redraw();
-      setStatus('Brush stroke restored.');
+      setStatus('Selection action restored.');
     });
+    invert.addEventListener('click', invertSelection);
     clear.addEventListener('click', () => {
       state.strokes = [];
       state.redoStrokes = [];
       redraw();
-      setStatus('Selection cleared. Brush over what may change.');
+      setStatus('Selection cleared. Brush or outline what may change.');
     });
     state.undo = undo;
     state.redo = redo;
     state.clear = clear;
-    history.append(undo, redo, clear);
+    state.invert = invert;
+    history.append(undo, redo, invert, clear);
 
     const boundary = document.createElement('div');
     boundary.className = 'crump-precision-boundary';
@@ -1063,7 +1177,7 @@
     const use = document.createElement('button'); use.type = 'button'; use.className = 'crump-precision-use'; use.textContent = 'Continue with AI edit'; use.disabled = true;
     use.addEventListener('click', async () => {
       if (!selectionHasVisiblePixels()) {
-        setStatus('Brush over the specific area you want to change first.', 'error');
+        setStatus('Brush or outline the specific area you want to change first.', 'error');
         return;
       }
       use.disabled = true;
@@ -1102,7 +1216,7 @@
       canvas.width = image.naturalWidth;
       canvas.height = image.naturalHeight;
       canvas.className = 'crump-precision-mask';
-      canvas.setAttribute('aria-label', 'Paint the area of the image Crump may edit');
+      canvas.setAttribute('aria-label', 'Brush or outline the area of the image Crump may edit');
       const base = document.createElement('img');
       base.src = sourceUrl;
       base.alt = file?.name ? `Image to edit: ${file.name}` : 'Image to edit';
@@ -1131,9 +1245,17 @@
       overlayGuide.className = 'crump-precision-overlay-guide';
       overlayGuide.hidden = true;
       overlayGuide.setAttribute('aria-hidden', 'true');
+      const lassoGuide = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      lassoGuide.classList.add('crump-precision-lasso-guide');
+      lassoGuide.setAttribute('viewBox', '0 0 1 1');
+      lassoGuide.setAttribute('preserveAspectRatio', 'none');
+      lassoGuide.setAttribute('aria-hidden', 'true');
+      lassoGuide.hidden = true;
+      const lassoPolygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      lassoGuide.appendChild(lassoPolygon);
       const frame = document.createElement('div');
       frame.className = 'crump-precision-canvas-frame';
-      frame.append(base, preview, overlayCanvas, overlayGuide, canvas);
+      frame.append(base, preview, overlayCanvas, overlayGuide, canvas, lassoGuide);
       stage.replaceChildren(frame);
       stage.classList.remove('is-loading');
       state.canvas = canvas;
@@ -1146,6 +1268,8 @@
       state.overlayCanvas = overlayCanvas;
       state.overlayContext = overlayCanvas.getContext('2d', {alpha: true});
       state.overlayGuide = overlayGuide;
+      state.lassoGuide = lassoGuide;
+      state.lassoPolygon = lassoPolygon;
       const fitted = frame.getBoundingClientRect();
       state.fitWidth = fitted.width;
       state.fitHeight = fitted.height;
@@ -1157,7 +1281,7 @@
       updateZoomControls();
       use.disabled = false;
       updateLocalControls();
-      setStatus('Brush over the smallest area that should change.');
+      setStatus('Brush or outline the smallest area that should change.');
     } catch (error) {
       if (state.modal !== modal) return;
       stage.classList.remove('is-loading');

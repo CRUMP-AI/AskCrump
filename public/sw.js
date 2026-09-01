@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r204';
+const CACHE_NAME = 'ask-crump-new-body-v1-r205';
 
 const CORE = [
   '/app',
@@ -64,8 +64,8 @@ const CORE = [
   '/crump-4.4.js?v=5.9.76-core-reliability-1',
   '/crump-5.0.css?v=5.9.76-precision-edit-entry-1',
   '/crump-5.0.js?v=5.9.76-precision-edit-handoff-2',
-  '/crump-precision-image-edit.css?v=5.9.76-exact-overlay-1',
-  '/crump-precision-image-edit.js?v=5.9.76-exact-overlay-1',
+  '/crump-precision-image-edit.css?v=5.9.76-lasso-invert-1',
+  '/crump-precision-image-edit.js?v=5.9.76-lasso-invert-1',
   '/crump-billing-5.1.css?v=5.9.76-credit-pack-truth-1',
   '/crump-billing-5.1.js?v=5.9.76-credit-pack-truth-1',
   '/crump-5.2.css',

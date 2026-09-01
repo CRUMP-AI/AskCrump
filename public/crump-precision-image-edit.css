@@ -57,11 +57,15 @@ body.crump-precision-open { overflow: hidden !important; }
   position: absolute; inset: 0; z-index: 4; display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: none;
   opacity: .72;
 }
+.crump-precision-lasso-guide { position: absolute; inset: 0; z-index: 5; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.crump-precision-lasso-guide polygon { fill: rgba(226,196,126,.34); stroke: #f1d491; stroke-width: 2px; vector-effect: non-scaling-stroke; stroke-dasharray: 7px 5px; }
+.crump-precision-lasso-guide[hidden] { display: none; }
 .crump-precision-canvas-frame.has-local-preview .crump-precision-mask { opacity: .3; }
 .crump-precision-canvas-frame.is-comparing-original .crump-precision-mask,
 .crump-precision-canvas-frame.is-comparing-original .crump-precision-preview,
 .crump-precision-canvas-frame.is-comparing-original .crump-precision-exact-canvas,
-.crump-precision-canvas-frame.is-comparing-original .crump-precision-overlay-guide { visibility: hidden; }
+.crump-precision-canvas-frame.is-comparing-original .crump-precision-overlay-guide,
+.crump-precision-canvas-frame.is-comparing-original .crump-precision-lasso-guide { visibility: hidden; }
 .crump-precision-canvas-frame .crump-precision-mask[data-mode="erase"] { cursor: cell; }
 .crump-precision-canvas-frame .crump-precision-mask[data-mode="move"] { cursor: grab; }
 .crump-precision-canvas-frame .crump-precision-mask[data-mode="place"] { cursor: move; }
@@ -75,7 +79,7 @@ body.crump-precision-open { overflow: hidden !important; }
 .crump-precision-control-head { display: grid; gap: 5px; }
 .crump-precision-control-head span { color: #d5bd87; font-size: 8px; font-weight: 700; letter-spacing: .13em; }
 .crump-precision-control-head strong { color: #e3e5e6; font-size: 13px; line-height: 1.35; }
-.crump-precision-modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; padding: 3px; border: 1px solid rgba(255,255,255,.075); border-radius: 12px; background: #0d1319; }
+.crump-precision-modes { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; padding: 3px; border: 1px solid rgba(255,255,255,.075); border-radius: 12px; background: #0d1319; }
 .crump-precision-modes button { min-height: 38px; border: 0; border-radius: 9px; background: transparent; color: #7f8995; font-size: 11px; font-weight: 600; }
 .crump-precision-modes button.is-active { background: rgba(209,191,150,.13); color: #ead9b3; }
 .crump-precision-zoom { display: grid; grid-template-columns: 38px 1fr 38px 48px; align-items: center; gap: 5px; }
@@ -85,7 +89,7 @@ body.crump-precision-open { overflow: hidden !important; }
 .crump-precision-size { display: grid; grid-template-columns: 1fr auto; gap: 8px; color: #aab1b9; font-size: 10px; }
 .crump-precision-size b { color: #d5bd87; font-weight: 650; }
 .crump-precision-size input { grid-column: 1 / -1; width: 100%; accent-color: #d5bd87; }
-.crump-precision-history { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.crump-precision-history { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
 .crump-precision-history button { min-height: 38px; border: 1px solid rgba(255,255,255,.075); border-radius: 11px; background: rgba(255,255,255,.03); color: #c4cad0; font-size: 10px; }
 .crump-precision-history button:disabled { opacity: .35; }
 .crump-precision-boundary { display: grid; grid-template-columns: 30px 1fr; gap: 10px; padding: 12px; border: 1px solid rgba(209,191,150,.16); border-radius: 14px; background: rgba(209,191,150,.055); }

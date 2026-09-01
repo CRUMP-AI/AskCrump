@@ -712,10 +712,12 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
 
     for contract in (
         "Choose exactly what may change",
-        "Paint the area yourself",
+        "Brush or outline the area yourself",
         "Brush",
         "Erase",
+        "Lasso",
         "Move",
+        "Invert",
         "Zoom in",
         "Fit image to screen",
         "Undo",
@@ -753,6 +755,12 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
         "overlayCanvas.toBlob",
         "MAX_OVERLAY_ITEMS = 12",
         "MAX_OVERLAY_SOURCE_PIXELS = 16_777_216",
+        "MAX_LASSO_POINTS = 4096",
+        "MIN_LASSO_AREA = 0.0001",
+        "function polygonArea",
+        "function selectionCoverage",
+        "function invertSelection",
+        "crump-precision-lasso-guide",
         "applyPrecisionSelection",
         "aria-modal",
     ):
@@ -784,8 +792,8 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
     assert "input.dispatchEvent(new Event('input', {bubbles: true}))" in composer
     assert "Edit area" in composer
     assert "Precision Edit area" in composer
-    exact_script = "/crump-precision-image-edit.js?v=5.9.76-exact-overlay-1"
-    exact_style = "/crump-precision-image-edit.css?v=5.9.76-exact-overlay-1"
+    exact_script = "/crump-precision-image-edit.js?v=5.9.76-lasso-invert-1"
+    exact_style = "/crump-precision-image-edit.css?v=5.9.76-lasso-invert-1"
     for asset in (exact_script, exact_style):
         assert asset in runtime
         assert asset in worker

@@ -37,7 +37,73 @@ const {chromium} = require(playwrightModule);
   const movePressed = await editor.getByRole('button', {name: 'Move', exact: true}).getAttribute('aria-pressed');
   await editor.getByRole('button', {name: 'Warmer', exact: true}).click();
   const guidedInstruction = await editor.getByRole('textbox', {name: 'Edit instruction'}).inputValue();
+  await editor.getByRole('button', {name: 'Fit image to screen'}).click();
+  await editor.getByRole('button', {name: 'Lasso', exact: true}).click();
+  const lassoCanvas = editor.locator('.crump-precision-mask');
+  const lassoBox = await lassoCanvas.boundingBox();
+  if (!lassoBox) throw new Error('Precision lasso canvas was not visible.');
+  await page.mouse.move(lassoBox.x + lassoBox.width * .25, lassoBox.y + lassoBox.height * .25);
+  await page.mouse.down();
+  await page.mouse.move(lassoBox.x + lassoBox.width * .75, lassoBox.y + lassoBox.height * .25, {steps: 5});
+  await page.mouse.move(lassoBox.x + lassoBox.width * .75, lassoBox.y + lassoBox.height * .75, {steps: 5});
+  await page.mouse.move(lassoBox.x + lassoBox.width * .25, lassoBox.y + lassoBox.height * .75, {steps: 5});
+  const lassoGuideVisible = await editor.locator('.crump-precision-lasso-guide').isVisible();
+  await page.mouse.move(lassoBox.x + lassoBox.width * .25, lassoBox.y + lassoBox.height * .25, {steps: 5});
+  await page.mouse.up();
+  const lassoSelected = await lassoCanvas.evaluate(node => {
+    const context = node.getContext('2d');
+    return {
+      center: context.getImageData(320, 240, 1, 1).data[3],
+      corner: context.getImageData(10, 10, 1, 1).data[3],
+    };
+  });
+  await editor.getByRole('button', {name: 'Invert', exact: true}).click();
+  const lassoInverted = await lassoCanvas.evaluate(node => {
+    const context = node.getContext('2d');
+    return {
+      center: context.getImageData(320, 240, 1, 1).data[3],
+      corner: context.getImageData(10, 10, 1, 1).data[3],
+    };
+  });
+  await editor.getByRole('button', {name: 'Undo'}).click();
+  const lassoUndo = await lassoCanvas.evaluate(node => {
+    const context = node.getContext('2d');
+    return {
+      center: context.getImageData(320, 240, 1, 1).data[3],
+      corner: context.getImageData(10, 10, 1, 1).data[3],
+    };
+  });
+  await editor.getByRole('button', {name: 'Redo'}).click();
+  const lassoRedo = await lassoCanvas.evaluate(node => {
+    const context = node.getContext('2d');
+    return {
+      center: context.getImageData(320, 240, 1, 1).data[3],
+      corner: context.getImageData(10, 10, 1, 1).data[3],
+    };
+  });
+  const lassoProof = {
+    pressed: await editor.getByRole('button', {name: 'Lasso', exact: true}).getAttribute('aria-pressed'),
+    guideVisible: lassoGuideVisible,
+    selected: lassoSelected,
+    inverted: lassoInverted,
+    undo: lassoUndo,
+    redo: lassoRedo,
+  };
+  await editor.getByRole('button', {name: 'Clear'}).click();
   await editor.getByRole('button', {name: 'Brush'}).click();
+  await page.mouse.click(lassoBox.x + lassoBox.width * .5, lassoBox.y + lassoBox.height * .5);
+  await editor.getByRole('button', {name: 'Invert', exact: true}).click();
+  const broadInvertGuard = {
+    status: await editor.locator('.crump-precision-status').textContent(),
+    pixels: await lassoCanvas.evaluate(node => {
+      const context = node.getContext('2d');
+      return {
+        center: context.getImageData(320, 240, 1, 1).data[3],
+        corner: context.getImageData(10, 10, 1, 1).data[3],
+      };
+    }),
+  };
+  await editor.getByRole('button', {name: 'Clear'}).click();
   await page.screenshot({path: 'artifacts/precision-image-edit-desktop.png', fullPage: true});
 
   const box = await canvas.boundingBox();
@@ -200,6 +266,19 @@ const {chromium} = require(playwrightModule);
     || zoomed.label !== '150%'
     || zoomed.width <= fittedWidth * 1.4
     || movePressed !== 'true'
+    || lassoProof.pressed !== 'true'
+    || !lassoProof.guideVisible
+    || lassoProof.selected.center === 0
+    || lassoProof.selected.corner !== 0
+    || lassoProof.inverted.center !== 0
+    || lassoProof.inverted.corner === 0
+    || lassoProof.undo.center === 0
+    || lassoProof.undo.corner !== 0
+    || lassoProof.redo.center !== 0
+    || lassoProof.redo.corner === 0
+    || !broadInvertGuard.status.includes('too broad')
+    || broadInvertGuard.pixels.center === 0
+    || broadInvertGuard.pixels.corner !== 0
     || !redoEnabled
     || !guidedInstruction.includes('subtly warmer')
     || desktop.overflowX
@@ -251,9 +330,9 @@ const {chromium} = require(playwrightModule);
     || !mobile.workspaceScrollable
     || !escaped
   ) {
-    throw new Error(JSON.stringify({desktop, zoomed, fittedWidth, movePressed, redoEnabled, guidedInstruction, staged, preview, originalVisible, localSave, overlayPreview, overlaySave, mobile, escaped, errors}));
+    throw new Error(JSON.stringify({desktop, zoomed, fittedWidth, movePressed, lassoProof, broadInvertGuard, redoEnabled, guidedInstruction, staged, preview, originalVisible, localSave, overlayPreview, overlaySave, mobile, escaped, errors}));
   }
-  process.stdout.write(`${JSON.stringify({desktop, zoomed, fittedWidth, movePressed, redoEnabled, guidedInstruction, staged, preview, originalVisible, localSave, overlayPreview, overlaySave, mobile, escaped, errors})}\n`);
+  process.stdout.write(`${JSON.stringify({desktop, zoomed, fittedWidth, movePressed, lassoProof, broadInvertGuard, redoEnabled, guidedInstruction, staged, preview, originalVisible, localSave, overlayPreview, overlaySave, mobile, escaped, errors})}\n`);
 })().catch(error => {
   process.stderr.write(`${error.stack || error}\n`);
   process.exitCode = 1;
