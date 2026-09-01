@@ -373,12 +373,12 @@ const authControllerVersion = `${releaseVersion}-weekly-growth-attribution-1`;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
 const coreReliabilityVersion = `${releaseVersion}-core-reliability-1`;
-const visualMediaReliabilityVersion = `${releaseVersion}-visual-media-reliability-1`;
+const visualMediaReliabilityVersion = `${releaseVersion}-visual-media-reliability-2`;
 const imageSafetyRecoveryVersion = `${releaseVersion}-image-safety-recovery-1`;
 const imageScrollStabilityVersion = `${releaseVersion}-image-scroll-stability-1`;
 const videoDestinationVersion = `${releaseVersion}-video-destination-1`;
 const continuityActionVersion = `${releaseVersion}-continuity-action-1`;
-const fileDeliveryVersion = `${releaseVersion}-file-delivery-1`;
+const fileDeliveryVersion = `${releaseVersion}-file-delivery-2`;
 const desktopChatsVersion = `${releaseVersion}-desktop-chats-default-1`;
 const requiredBodyFiles = [
   'public/crump-v1-body.css',
@@ -709,7 +709,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r172') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r173') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${continuityActionVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||

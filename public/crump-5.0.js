@@ -19,6 +19,7 @@
     sending: false,
     menu: null,
     lightbox: null,
+    lightboxReturnFocus: null,
     imageRecovery: null,
   };
 
@@ -977,6 +978,40 @@
     document.addEventListener('drop', event => { if (!overlay) return; event.preventDefault(); const files = event.dataTransfer?.files; remove(); addFiles(files); });
   }
 
+  function mountLightbox(box, closeButton) {
+    if (!state.lightbox) {
+      state.lightboxReturnFocus = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    }
+    state.lightbox?.remove();
+    document.body.appendChild(box);
+    state.lightbox = box;
+
+    const dismiss = () => {
+      if (state.lightbox !== box) {
+        box.remove();
+        return;
+      }
+      box.remove();
+      state.lightbox = null;
+      const returnFocus = state.lightboxReturnFocus;
+      state.lightboxReturnFocus = null;
+      requestAnimationFrame(() => {
+        if (returnFocus?.isConnected) returnFocus.focus({preventScroll: true});
+      });
+    };
+    closeButton.addEventListener('click', dismiss);
+    box.addEventListener('keydown', event => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        dismiss();
+      }
+    });
+    requestAnimationFrame(() => closeButton.focus({preventScroll: true}));
+    return dismiss;
+  }
+
   function showFileViewer(file) {
     const url = file?.id ? `/api/files/${encodeURIComponent(file.id)}/content` : String(file?.url || '');
     if (!url) return false;
@@ -986,7 +1021,6 @@
       return true;
     }
 
-    state.lightbox?.remove();
     const box = document.createElement('section');
     box.className = 'crump50-lightbox crump50-file-viewer';
     box.setAttribute('role', 'dialog');
@@ -1005,11 +1039,6 @@
     const close = document.createElement('button');
     close.type = 'button';
     close.textContent = 'Done';
-    const dismiss = () => {
-      box.remove();
-      if (state.lightbox === box) state.lightbox = null;
-    };
-    close.addEventListener('click', dismiss);
     actions.append(download, close);
     top.append(title, actions);
 
@@ -1051,12 +1080,7 @@
     }
 
     box.append(top, body);
-    box.addEventListener('keydown', event => {
-      if (event.key === 'Escape') dismiss();
-    });
-    document.body.appendChild(box);
-    state.lightbox = box;
-    requestAnimationFrame(() => close.focus({preventScroll: true}));
+    mountLightbox(box, close);
     return true;
   }
 
@@ -1080,15 +1104,17 @@
   }
 
   function showLightbox(file, url) {
-    state.lightbox?.remove();
     const box = document.createElement('div'); box.className = 'crump50-lightbox';
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-modal', 'true');
+    box.setAttribute('aria-labelledby', 'crump50ImageViewerTitle');
     const img = document.createElement('img'); img.src = url; img.alt = file?.name || 'Generated image';
     const top = document.createElement('div'); top.className = 'crump50-lightbox-bar';
-    const title = document.createElement('span'); title.textContent = file?.name || 'Image';
+    const title = document.createElement('span'); title.id = 'crump50ImageViewerTitle'; title.textContent = file?.name || 'Image';
     const actions = document.createElement('div');
     const download = document.createElement('button'); download.type = 'button'; download.textContent = 'Download'; download.addEventListener('click', () => openFile(file, true));
-    const close = document.createElement('button'); close.type = 'button'; close.textContent = 'Done'; close.addEventListener('click', () => { box.remove(); if (state.lightbox === box) state.lightbox = null; });
-    actions.append(download, close); top.append(title, actions); box.append(top, img); document.body.appendChild(box); state.lightbox = box;
+    const close = document.createElement('button'); close.type = 'button'; close.textContent = 'Done';
+    actions.append(download, close); top.append(title, actions); box.append(top, img); mountLightbox(box, close);
   }
 
   function fileCard(file) {

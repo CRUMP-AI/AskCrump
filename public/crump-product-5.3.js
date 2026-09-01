@@ -1980,9 +1980,13 @@
 
   function libraryTitle(file) {
     const metadata = file?.metadata && typeof file.metadata === 'object' ? file.metadata : {};
-    const title = String(metadata.title || metadata.documentTitle || '').trim();
+    const cleanTitle = value => {
+      const normalized = String(value || '').replace(/\s+/g, ' ').trim();
+      return /^```[\w-]*$/i.test(normalized) ? '' : normalized;
+    };
+    const title = cleanTitle(metadata.title || metadata.documentTitle);
     if (title) return title.slice(0, 120);
-    const prompt = String(metadata.prompt || '').trim();
+    const prompt = cleanTitle(metadata.prompt);
     if (prompt) return prompt.slice(0, 96);
     return String(file?.name || 'Saved file');
   }
@@ -2101,7 +2105,7 @@
       const preview = category === 'video'
         ? `<video controls playsinline preload="metadata" aria-label="Play ${escapeHtml(title)}"></video>
            <div class="crump53-playback-state" aria-live="polite">
-             <span class="crump53-playback-pulse">${toolIcon('video')}</span>
+             <span class="crump53-playback-pulse" aria-hidden="true">&#9654;</span>
              <strong data-playback-status>Preparing preview</strong>
              <small data-playback-detail>Securely loading from your private Files…</small>
              <button type="button" class="crump53-button" data-playback-retry="${escapeHtml(file.id)}" hidden>Try again</button>
@@ -2125,8 +2129,8 @@
             <small>${escapeHtml(detail)}</small>
           </div>
           <div class="crump53-actions">
-            <button type="button" class="crump53-button" data-library-open="${escapeHtml(file.id)}">Open</button>
-            <button type="button" class="crump53-button" data-library-download="${escapeHtml(file.id)}">Download</button>
+            <button type="button" class="crump53-button" data-library-open="${escapeHtml(file.id)}" aria-label="Open ${escapeHtml(title)}">Open</button>
+            <button type="button" class="crump53-button" data-library-download="${escapeHtml(file.id)}" aria-label="Download ${escapeHtml(title)}">Download</button>
             ${category === 'video' && metadata.engine === 'extendable' && metadata.mediaJobId ? `<button type="button" class="crump53-button" data-library-continue="${escapeHtml(metadata.mediaJobId)}">Continue scene</button>` : ''}
             ${category !== 'video' ? `<button type="button" class="crump53-button" data-library-use="${escapeHtml(file.id)}">Use in chat</button>` : ''}
           </div>
@@ -2139,7 +2143,7 @@
         const file = byFileId.get(String(button.dataset.libraryOpen));
         if (!file) return;
         if (window.CrumpFileTools?.open) window.CrumpFileTools.open(file);
-        else window.open(file.url, '_blank', 'noopener');
+        else window.showToast?.('The private file viewer is still loading. Try again in a moment.', 'info');
       });
     });
     grid.querySelectorAll('[data-library-download]').forEach(button => {
@@ -2147,7 +2151,7 @@
         const file = byFileId.get(String(button.dataset.libraryDownload));
         if (!file) return;
         if (window.CrumpFileTools?.open) window.CrumpFileTools.open(file, true);
-        else window.location.assign(`${file.url}?download=1`);
+        else window.showToast?.('Private download is still loading. Try again in a moment.', 'info');
       });
     });
     grid.querySelectorAll('[data-library-use]').forEach(button => {

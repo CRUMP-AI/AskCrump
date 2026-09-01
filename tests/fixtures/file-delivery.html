@@ -6,9 +6,13 @@
   <title>Ask Crump file delivery fixture</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/public/crump-5.0.css?v=file-delivery-fixture-1">
+  <style>
+    .crump53-overlay { position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,.45); }
+  </style>
 </head>
 <body class="crump-50">
-  <main><div id="chatContainer"></div><textarea id="userInput"></textarea></main>
+  <main><button id="fixtureOpener" type="button">Open saved file</button><div id="chatContainer"></div><textarea id="userInput"></textarea></main>
+  <div class="crump53-overlay"><section role="dialog" aria-label="Ask Crump Files">Files panel</section></div>
   <script>
     window.__fixture = {downloads: [], openedWindows: 0};
     window.showToast = () => {};

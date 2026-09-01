@@ -349,7 +349,7 @@ body.crump-50 .crump50-artifact small { color: var(--c50-text-3); font-size: 9px
 body.crump-50 .crump50-artifact button { min-height: 36px; padding: 0 12px; border: 1px solid var(--c50-line); border-radius: 11px; background: rgba(255,255,255,.04); color: var(--c50-text); font-size: 10px; }
 
 /* Image lightbox */
-body.crump-50 .crump50-lightbox { position: fixed; inset: 0; z-index: 120; display: grid; grid-template-rows: 65px 1fr; background: rgba(5,7,10,.97); animation: c50Fade .16s ease both; }
+body.crump-50 .crump50-lightbox { position: fixed; inset: 0; z-index: 120100; isolation: isolate; display: grid; grid-template-rows: 65px 1fr; background: rgba(5,7,10,.97); overscroll-behavior: contain; animation: c50Fade .16s ease both; }
 body.crump-50 .crump50-lightbox-bar { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: max(10px,env(safe-area-inset-top)) 18px 8px; border-bottom: 1px solid var(--c50-line); }
 body.crump-50 .crump50-lightbox-bar > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--c50-text-2); font-size: 12px; }
 body.crump-50 .crump50-lightbox-bar > div { display: flex; gap: 6px; }

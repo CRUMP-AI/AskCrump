@@ -41,7 +41,7 @@ def test_project_reference_ui_and_chat_rename_are_final_runtime_layers():
     assert runtime.index("/crump-product-5.3.js") < runtime.index("/crump-product-5.3.1.js")
     assert "/crump-product-5.3.1.js?v=5.9.76-core-reliability-1" in runtime
     assert "/crump-product-5.3.1.js?v=5.9.76-core-reliability-1" in worker
-    assert "ask-crump-new-body-v1-r172" in worker
+    assert "ask-crump-new-body-v1-r173" in worker
     assert "Reference files" in js
     assert "Project files" in js
     assert "conversationsCard.insertAdjacentElement('afterend', card)" in js
@@ -55,6 +55,11 @@ def test_project_reference_ui_and_chat_rename_are_final_runtime_layers():
     assert "window.CrumpFileTools?.open?.(file, false)" in js
     assert "window.CrumpFileTools?.open?.(file, true)" in js
     assert "window.open(`/api/files/" not in js
+    assert "z-index: 120100" in read("public/crump-5.0.css")
+    assert "lightboxReturnFocus" in files
+    assert "toolIcon('video')" not in read("public/crump-product-5.3.js")
+    assert "else window.open(file.url" not in read("public/crump-product-5.3.js")
+    assert "else window.location.assign(`${file.url}" not in read("public/crump-product-5.3.js")
     assert (ROOT / "tests" / "fixtures" / "file-delivery.html").exists()
     assert (ROOT / "scripts" / "verify-file-delivery.cjs").exists()
     assert "window.addEventListener('crump:project-target-changed', hydrateVisibleProjectFiles)" in js

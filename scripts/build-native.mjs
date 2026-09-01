@@ -50,7 +50,7 @@ const loader = String.raw`
     ['/conversation.css?v=5.9.76-intelligence-receipt-1', 'workspaceconversation'],
     ['/crump-4.3.css', 'crump43'],
     ['/crump-4.4.css', 'crump44'],
-    ['/crump-5.0.css?v=5.9.76-file-delivery-1', 'crump50'],
+    ['/crump-5.0.css?v=5.9.76-file-delivery-2', 'crump50'],
     ['/crump-billing-5.1.css?v=5.9.76-contextual-plan-recovery-1', 'billing51'],
     ['/crump-5.2.css', 'crump52'],
     ['/crump-5.2.2.css', 'crump522'],
@@ -60,7 +60,7 @@ const loader = String.raw`
 
   const enhancementStyles = Object.freeze([
     ['/crump-navigation-5.2.5.css', 'crumpnav525'],
-    ['/crump-product-5.3.css?v=5.9.76-visual-media-reliability-1', 'crumpproduct53'],
+    ['/crump-product-5.3.css?v=5.9.76-visual-media-reliability-2', 'crumpproduct53'],
     ['/crump-product-5.3.1.css', 'crumpproduct531'],
     ['/crump-polish-5.6.css', 'crumppolish56'],
     ['/crump-library-5.7.css', 'crumplibrary57'],
@@ -88,7 +88,7 @@ const loader = String.raw`
   const enhancementScripts = Object.freeze([
     ['/crump-4.3.js?v=5.9.76-intelligence-architecture-1', 'crump43'],
     ['/crump-4.4.js?v=5.9.76-core-reliability-1', 'crump44'],
-    ['/crump-5.0.js?v=5.9.76-file-delivery-1', 'crump50'],
+    ['/crump-5.0.js?v=5.9.76-file-delivery-2', 'crump50'],
     ['/crump-billing-5.1.js?v=5.9.76-weekly-growth-attribution-1', 'billing51'],
     ['/crump-5.2.js?v=5.9.76-weekly-growth-attribution-1', 'crump52'],
     ['/crump-5.2.2.js?v=5.9.76-image-scroll-stability-1', 'crump522'],
@@ -98,7 +98,7 @@ const loader = String.raw`
 
   const finalScripts = Object.freeze([
     ['/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1', 'crumpnav525'],
-    ['/crump-product-5.3.js?v=5.9.76-visual-media-reliability-1', 'crumpproduct53'],
+    ['/crump-product-5.3.js?v=5.9.76-visual-media-reliability-2', 'crumpproduct53'],
     ['/crump-product-5.3.1.js?v=5.9.76-core-reliability-1', 'crumpproduct531'],
     ['/crump-subscriptions-5.3.2.js?v=5.9.76-intelligence-plan-handoff-1', 'crumpsubscriptions532'],
     ['/crump-polish-5.6.js?v=5.9.76-video-destination-1', 'crumppolish56'],

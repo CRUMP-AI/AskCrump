@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r172';
+const CACHE_NAME = 'ask-crump-new-body-v1-r173';
 
 const CORE = [
   '/app',
@@ -26,8 +26,8 @@ const CORE = [
   '/crump-navigation-5.9.30.js?v=5.9.76-video-destination-1',
   '/crump-code-5.9.35.css?v=5.9.76-intelligence-architecture-1',
   '/crump-code-5.9.35.js?v=5.9.76-intelligence-architecture-1',
-  '/crump-product-5.3.css?v=5.9.76-visual-media-reliability-1',
-  '/crump-product-5.3.js?v=5.9.76-visual-media-reliability-1',
+  '/crump-product-5.3.css?v=5.9.76-visual-media-reliability-2',
+  '/crump-product-5.3.js?v=5.9.76-visual-media-reliability-2',
   '/crump-product-5.3.1.css',
   '/crump-product-5.3.1.js?v=5.9.76-core-reliability-1',
   '/crump-polish-5.6.css',
@@ -62,8 +62,8 @@ const CORE = [
   '/crump-4.3.js?v=5.9.76-intelligence-architecture-1',
   '/crump-4.4.css',
   '/crump-4.4.js?v=5.9.76-core-reliability-1',
-  '/crump-5.0.css?v=5.9.76-file-delivery-1',
-  '/crump-5.0.js?v=5.9.76-file-delivery-1',
+  '/crump-5.0.css?v=5.9.76-file-delivery-2',
+  '/crump-5.0.js?v=5.9.76-file-delivery-2',
   '/crump-billing-5.1.css?v=5.9.76-contextual-plan-recovery-1',
   '/crump-billing-5.1.js?v=5.9.76-weekly-growth-attribution-1',
   '/crump-5.2.css',
