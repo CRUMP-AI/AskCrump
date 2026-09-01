@@ -801,6 +801,9 @@
   }
 
   function deliveryLabel(message) {
+    if (message?.replyStatus === 'failed' && message?.replyErrorCode === 'IMAGE_SAFETY_REJECTED') {
+      return { label: 'Seen · Image request needs changes — Tap to revise', tone: 'failed', action: 'revise-image' };
+    }
     if (message?.replyStatus === 'failed') return { label: 'Seen · Reply failed — Tap to retry', tone: 'failed', retry: true };
     const status = message?.deliveryStatus || 'seen';
     const labels = {
@@ -815,12 +818,17 @@
 
   function createDeliveryStatus(message) {
     const state = deliveryLabel(message);
-    const element = state.retry ? document.createElement('button') : document.createElement('div');
-    if (state.retry) element.type = 'button';
+    const actionable = state.retry || state.action === 'revise-image';
+    const element = actionable ? document.createElement('button') : document.createElement('div');
+    if (actionable) element.type = 'button';
     element.className = `message-status ${state.tone}`;
     element.textContent = state.label;
     element.setAttribute('aria-label', state.label);
-    if (state.retry) element.addEventListener('click', () => window.retryMessage?.(message.id));
+    if (state.action === 'revise-image') {
+      element.addEventListener('click', () => window.reviseImageMessage?.(message.id));
+    } else if (state.retry) {
+      element.addEventListener('click', () => window.retryMessage?.(message.id));
+    }
     return element;
   }
 
@@ -920,7 +928,9 @@
         if (imageBlock) wrapper.appendChild(imageBlock);
       }
 
-      if (isUser && index === lastUserIndex) wrapper.appendChild(createDeliveryStatus(message));
+      if (isUser && (index === lastUserIndex || message?.replyStatus === 'failed')) {
+        wrapper.appendChild(createDeliveryStatus(message));
+      }
 
       if (!isUser) {
         const intelligenceReceipt = createIntelligenceReceipt(message);

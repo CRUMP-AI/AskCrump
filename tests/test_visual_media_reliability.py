@@ -57,6 +57,42 @@ def test_provider_invalid_image_rejection_is_specific_and_actionable() -> None:
     assert "JPG, PNG, or WebP" in error.message
 
 
+def test_moderation_block_uses_stable_code_and_content_free_diagnostics(caplog) -> None:
+    sensitive_provider_message = "Blocked prompt: private family photo description"
+    response = httpx.Response(
+        400,
+        request=httpx.Request("POST", "https://api.openai.com/v1/images/edits"),
+        headers={"x-request-id": "image-request-123"},
+        json={
+            "error": {
+                "code": "moderation_blocked",
+                "type": "image_generation_user_error",
+                "message": sensitive_provider_message,
+                "moderation_details": {
+                    "moderation_stage": "input",
+                    "categories": {"violence": True, "private prompt content": True},
+                    "safety_violations": ["graphic", "not safe for logs"],
+                },
+            },
+        },
+    )
+
+    with caplog.at_level("WARNING", logger="askcrump.media"):
+        error = MediaService._image_provider_exception(response)
+
+    assert error.code == "IMAGE_SAFETY_REJECTED"
+    assert error.status_code == 400
+    assert error.retryable is False
+    assert "Adjust the prompt or reference image" in error.message
+    log_text = caplog.text
+    assert "moderation_stage=input" in log_text
+    assert "categories=violence,graphic" in log_text
+    assert "image-request-123" in log_text
+    assert sensitive_provider_message not in log_text
+    assert "private prompt content" not in log_text
+    assert "not safe for logs" not in log_text
+
+
 def test_themed_edits_preserve_people_and_do_not_invent_brand_marks() -> None:
     prompt = MediaService._edit_fidelity_prompt("Make this Snow White themed")
 
@@ -115,6 +151,43 @@ def test_upload_preview_reconciles_cards_without_recreating_images() -> None:
     assert "data-crump50-attachment-id" in block
     assert "if (!card)" in block
     assert "tray.insertBefore(card" in block
+
+
+def test_blocked_image_request_has_revision_instead_of_exact_retry_contract() -> None:
+    transport = read("public/chat-resilience.js")
+    composer = read("public/crump-5.0.js")
+    renderer = read("public/ui-functions.js")
+    route = read("backend/routes/chat.py")
+    ai_error_handler = route.split("except AIServiceError as exc:", 1)[1].split("except Exception:", 1)[0]
+
+    assert "safeImageRecovery(data?.recovery)" in transport
+    assert "message.replyErrorCode === 'IMAGE_SAFETY_REJECTED'" in composer
+    assert "reviseImageMessage(id);" in composer
+    assert "unchangedRecoveredImageRequest(text, ready)" in composer
+    assert "Change the wording or reference image before sending this request again." in composer
+    assert "window.reviseImageMessage = reviseImageMessage" in composer
+    assert "Image request needs changes — Tap to revise" in renderer
+    assert "window.reviseImageMessage?.(message.id)" in renderer
+    assert "index === lastUserIndex || message?.replyStatus === 'failed'" in renderer
+    assert "'action': 'revise_image_request'" in route
+    assert ai_error_handler.index("await refund_usage") < ai_error_handler.index("recovery = _ai_error_recovery(exc.code)")
+    assert ai_error_handler.index("await features.refund") < ai_error_handler.index("recovery = _ai_error_recovery(exc.code)")
+    for source in (read("backend/media_service.py"), route, transport, composer):
+        assert "moderation: low" not in source
+
+
+def test_image_rejection_browser_fixture_is_private_and_credential_free() -> None:
+    fixture = read("tests/fixtures/image-safety-recovery.html")
+    verifier = read("scripts/verify-image-safety-recovery-browser.cjs")
+
+    assert '<script src="/public/ui-functions.js?v=image-safety-recovery-fixture-1"></script>' in fixture
+    assert '<script src="/public/crump-5.0.js?v=image-safety-recovery-fixture-1"></script>' in fixture
+    assert "IMAGE_SAFETY_REJECTED" in fixture
+    assert "revise_image_request" in fixture
+    assert "sendCalls" in verifier
+    assert "ensureUsageCalls" in verifier
+    assert "askcrump.com" not in fixture
+    assert "password" not in fixture.lower()
 
 
 def test_video_job_survives_navigation_and_duplicate_submission() -> None:

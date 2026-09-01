@@ -36,6 +36,15 @@ router = APIRouter(prefix='/api/chat', tags=['chat'])
 logger = logging.getLogger('askcrump.chat')
 
 
+def _ai_error_recovery(error_code: str) -> dict | None:
+    if error_code != 'IMAGE_SAFETY_REJECTED':
+        return None
+    return {
+        'action': 'revise_image_request',
+        'usageRestored': True,
+    }
+
+
 def _artifact_file_id(*, user_id: str, message_id: str, format_name: str) -> str:
     return normalize_chat_id(f'artifact:{user_id}:{message_id}:{format_name}')
 
@@ -908,12 +917,16 @@ async def chat(request: Request):
             latency_ms=int((time.perf_counter() - started) * 1000), status='error',
             error_code=exc.code, verifier_used=False,
         )
+        content = {
+            'success': False, 'error': exc.message, 'message': exc.message, 'code': exc.code,
+            'shouldRetry': exc.retryable, 'retryAfter': exc.retry_after,
+        }
+        recovery = _ai_error_recovery(exc.code)
+        if recovery:
+            content['recovery'] = recovery
         return JSONResponse(
             status_code=exc.status_code,
-            content={
-                'success': False, 'error': exc.message, 'message': exc.message, 'code': exc.code,
-                'shouldRetry': exc.retryable, 'retryAfter': exc.retry_after,
-            },
+            content=content,
         )
     except Exception:
         if not long_form_request:

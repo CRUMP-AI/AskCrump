@@ -24,6 +24,14 @@
     return error;
   }
 
+  function safeImageRecovery(value) {
+    if (
+      value?.action !== 'revise_image_request'
+      || value?.usageRestored !== true
+    ) return null;
+    return Object.freeze({action: 'revise_image_request', usageRestored: true});
+  }
+
   function apiError(response, data, fallback) {
     const error = new Error(data?.message || data?.error || fallback || `Request failed (${response.status})`);
     error.code = data?.code;
@@ -31,6 +39,7 @@
     error.retryAfter = data?.retryAfter;
     error.status = response.status;
     error.data = data;
+    error.recovery = safeImageRecovery(data?.recovery);
     return error;
   }
 

@@ -19,6 +19,7 @@
     sending: false,
     menu: null,
     lightbox: null,
+    imageRecovery: null,
   };
 
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -130,6 +131,28 @@
       imageReference,
     });
     renderAttachmentTray();
+  }
+
+  function safeImageRecovery(value) {
+    if (value?.action !== 'revise_image_request' || value?.usageRestored !== true) return null;
+    return {action: 'revise_image_request', usageRestored: true};
+  }
+
+  function sortedReferenceIds(files) {
+    return (files || [])
+      .map(item => item?.server?.id || item?.id)
+      .filter(Boolean)
+      .map(String)
+      .sort();
+  }
+
+  function unchangedRecoveredImageRequest(prompt, readyFiles) {
+    const recovery = state.imageRecovery;
+    if (!recovery || state.tool !== 'image') return false;
+    if (String(prompt || '').trim() !== recovery.prompt) return false;
+    const currentIds = sortedReferenceIds(readyFiles);
+    return currentIds.length === recovery.fileIds.length
+      && currentIds.every((value, index) => value === recovery.fileIds[index]);
   }
 
   async function normalizeInputFile(file) {
@@ -444,6 +467,7 @@
     chip.className = 'crump50-tool-chip';
     chip.innerHTML = `<span>${label}</span><i aria-hidden="true">×</i>`;
     chip.addEventListener('click', () => {
+      if (state.tool === 'image') state.imageRecovery = null;
       state.tool = null;
       state.documentFormat = null;
       state.documentPurpose = null;
@@ -530,7 +554,7 @@
     };
     qualityControl = segmented([['medium','Balanced'],['high','Highest']], state.imageQuality, value => { state.imageQuality = value; rebuildQuality(); });
     const activate = document.createElement('button'); activate.type = 'button'; activate.className = 'crump50-primary-action'; activate.textContent = 'Use Image Studio';
-    activate.addEventListener('click', () => { state.tool = 'image'; closeMenu(); renderToolChip(); focusComposer('Describe the image you want…'); });
+    activate.addEventListener('click', () => { state.imageRecovery = null; state.tool = 'image'; closeMenu(); renderToolChip(); focusComposer('Describe the image you want…'); });
     body.append(aspectLabel, aspectControl, qualityLabel, qualityControl, activate);
     sheet.appendChild(body); document.body.appendChild(sheet); state.menu = sheet; document.body.classList.add('crump50-sheet-open'); requestAnimationFrame(() => sheet.classList.add('is-visible'));
   }
@@ -658,6 +682,8 @@
     chat = currentChat() || chat;
     const finalUser = chat.messages.find(item => item.id === userMessage.id) || userMessage;
     finalUser.deliveryStatus = 'seen'; finalUser.replyStatus = 'replied'; finalUser.replyError = null;
+    delete finalUser.replyErrorCode;
+    delete finalUser.replyRecovery;
     const serverAssistant = data.assistantMessage && typeof data.assistantMessage === 'object'
       ? data.assistantMessage
       : {};
@@ -714,8 +740,12 @@
     document.body.classList.add('crump50-sending');
     let userMessage = null;
     try {
-      await ensureUsage();
       const ready = await waitForUploads();
+      if (unchangedRecoveredImageRequest(text, ready)) {
+        show('Change the wording or reference image before sending this request again.', 'info');
+        return;
+      }
+      await ensureUsage();
       let fresh = currentChat() || window.ensureCurrentChat?.();
       if (!fresh) throw new Error('Crump could not start a new conversation. Try again.');
       const now = new Date().toISOString();
@@ -731,6 +761,7 @@
           ...(state.tool === 'document' && state.documentPurpose ? {artifactPurpose:state.documentPurpose} : {}),
         },
       };
+      state.imageRecovery = null;
       fresh.messages.push(userMessage);
       if (fresh.messages.length === 1 && text) fresh.title = text.slice(0, 50) + (text.length > 50 ? '…' : '');
       saveAndRender(fresh);
@@ -755,6 +786,8 @@
       fresh = currentChat() || fresh;
       const acknowledged = fresh.messages.find(item => item.id === userMessage.id) || liveUser;
       Object.assign(acknowledged, {deliveryStatus: 'seen', deliveredAt: ack.deliveredAt, seenAt: ack.seenAt, replyStatus: 'processing', replyError: null});
+      delete acknowledged.replyErrorCode;
+      delete acknowledged.replyRecovery;
       saveAndRender(fresh);
       window.CrumpPresence?.start?.(sentTool === 'image' ? 'creating' : ready.length ? 'reading' : ack.activity || 'thinking');
 
@@ -768,6 +801,15 @@
         target.deliveryStatus = error.quiet ? 'queued' : (target.deliveryStatus === 'sending' ? 'failed' : target.deliveryStatus);
         target.replyStatus = error.quiet ? 'pending' : 'failed';
         target.replyError = error.quiet ? null : (error.message || 'Reply failed.');
+        if (!error.quiet && error.code === 'IMAGE_SAFETY_REJECTED') {
+          target.replyErrorCode = 'IMAGE_SAFETY_REJECTED';
+          const recovery = safeImageRecovery(error.recovery || error.data?.recovery);
+          if (recovery) target.replyRecovery = recovery;
+          else delete target.replyRecovery;
+        } else if (!error.quiet) {
+          delete target.replyErrorCode;
+          delete target.replyRecovery;
+        }
         saveAndRender(fresh);
       }
       if (!error.quiet) show(error.message || 'Crump could not complete that request.', 'error');
@@ -784,6 +826,10 @@
     let chat = currentChat();
     let message = chat?.messages?.find(item => item.id === id && item.role === 'user');
     if (!chat || !message) return;
+    if (message.replyErrorCode === 'IMAGE_SAFETY_REJECTED') {
+      reviseImageMessage(id);
+      return;
+    }
     state.sending = true;
     document.body.classList.add('crump50-sending');
     try {
@@ -797,6 +843,8 @@
       await ensureUsage();
       const ready = (message.files || []).filter(file => file?.id).map(file => ({status:'ready', server:file, name:file.name, type:file.type, size:file.size}));
       message.deliveryStatus = 'sending'; message.replyStatus = 'pending'; message.replyError = null;
+      delete message.replyErrorCode;
+      delete message.replyRecovery;
       saveAndRender(chat);
       await window.syncChatsToServer?.();
       chat = currentChat() || chat;
@@ -813,11 +861,58 @@
     } catch (error) {
       window.CrumpPresence?.stop?.();
       chat=currentChat() || chat; message=chat?.messages?.find(item => item.id===id) || message;
-      if (message) { message.replyStatus='failed'; message.replyError=error.message || 'Reply failed.'; saveAndRender(chat); }
+      if (message) {
+        message.replyStatus='failed'; message.replyError=error.message || 'Reply failed.';
+        if (error.code === 'IMAGE_SAFETY_REJECTED') {
+          message.replyErrorCode = 'IMAGE_SAFETY_REJECTED';
+          const recovery = safeImageRecovery(error.recovery || error.data?.recovery);
+          if (recovery) message.replyRecovery = recovery;
+        }
+        saveAndRender(chat);
+      }
       show(error.message || 'Retry failed.', 'error');
     } finally {
       state.sending=false; document.body.classList.remove('crump50-sending');
     }
+  }
+
+  function reviseImageMessage(id) {
+    if (state.sending) return;
+    const chat = currentChat();
+    const message = chat?.messages?.find(item => item.id === id && item.role === 'user');
+    if (!message || message.replyErrorCode !== 'IMAGE_SAFETY_REJECTED') return;
+    const recovery = safeImageRecovery(message.replyRecovery);
+    if (!recovery) {
+      show('This request needs a changed prompt or reference image before it can be sent again.', 'warning');
+      return;
+    }
+    const input = $('#userInput');
+    if (!input) return;
+    const alreadyRestoring = state.imageRecovery?.messageId === id;
+    if (!alreadyRestoring && (String(input.value || '').trim() || state.attachments.length)) {
+      show('Finish or clear the current draft before revising this image request.', 'warning');
+      focusComposer();
+      return;
+    }
+
+    const references = (message.files || []).filter(file =>
+      file?.id && String(file.type || file.mime_type || '').toLowerCase().startsWith('image/')
+    );
+    references.forEach(file => addRemoteReference(file, {imageReference: true}));
+    const meta = message.requestMeta && typeof message.requestMeta === 'object' ? message.requestMeta : {};
+    state.imageAspect = ['square', 'portrait', 'landscape'].includes(meta.imageAspect) ? meta.imageAspect : 'square';
+    state.imageQuality = ['medium', 'high'].includes(meta.imageQuality) ? meta.imageQuality : 'medium';
+    state.tool = 'image';
+    state.imageRecovery = {
+      messageId: id,
+      prompt: String(message.content || '').trim(),
+      fileIds: references.map(file => String(file.id)).sort(),
+    };
+    input.value = message.content || '';
+    input.dispatchEvent(new Event('input', {bubbles: true}));
+    renderToolChip();
+    focusComposer('Revise the prompt or reference image before sending…');
+    show('The failed attempt was refunded. Change the wording or reference image before sending again.', 'info');
   }
 
   function replaceLegacyControls() {
@@ -850,6 +945,7 @@
     }
     window.sendMessage = studioSendMessage;
     window.retryMessage = retryMessage;
+    window.reviseImageMessage = reviseImageMessage;
   }
 
   function installPasteAndDrop() {
@@ -1093,7 +1189,7 @@
           if (!actions) {
             actions = document.createElement('div'); actions.className = 'crump50-image-actions';
             const view = document.createElement('button'); view.type='button'; view.textContent='View'; view.addEventListener('click', () => showLightbox(message.imageFile, message.imageUrl));
-            const edit = document.createElement('button'); edit.type='button'; edit.textContent='Edit'; edit.addEventListener('click', () => { addRemoteReference(message.imageFile, {imageReference:true}); state.tool='image'; renderToolChip(); focusComposer('Tell Crump what to change…'); });
+            const edit = document.createElement('button'); edit.type='button'; edit.textContent='Edit'; edit.addEventListener('click', () => { state.imageRecovery=null; addRemoteReference(message.imageFile, {imageReference:true}); state.tool='image'; renderToolChip(); focusComposer('Tell Crump what to change…'); });
             const project = document.createElement('button'); project.type='button';
             const download = document.createElement('button'); download.type='button'; download.textContent='Download'; download.addEventListener('click', () => openFile(message.imageFile, true));
             wireOutputProjectAction(project, {

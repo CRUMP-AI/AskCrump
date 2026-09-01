@@ -263,10 +263,10 @@ def test_changed_primary_runtime_and_transport_are_release_versioned_and_network
     worker = (PUBLIC / "sw.js").read_text(encoding="utf-8")
 
     assert '/chat-resilience.js?v=5.9.76-contextual-plan-recovery-1' not in shell
-    assert "['/chat-resilience.js?v=5.9.76-contextual-plan-recovery-1', 'workspacechatresilience']" in runtime
-    assert "['/crump-5.0.js?v=5.9.76-visual-media-reliability-1', 'crump50']" in runtime
-    assert "'/chat-resilience.js?v=5.9.76-contextual-plan-recovery-1'" in worker
-    assert "'/crump-5.0.js?v=5.9.76-visual-media-reliability-1'" in worker
+    assert "['/chat-resilience.js?v=5.9.76-image-safety-recovery-1', 'workspacechatresilience']" in runtime
+    assert "['/crump-5.0.js?v=5.9.76-image-safety-recovery-1', 'crump50']" in runtime
+    assert "'/chat-resilience.js?v=5.9.76-image-safety-recovery-1'" in worker
+    assert "'/crump-5.0.js?v=5.9.76-image-safety-recovery-1'" in worker
     assert "url.pathname === '/chat-resilience.js'" in worker
     assert "url.pathname === '/crump-5.0.js'" in worker
 

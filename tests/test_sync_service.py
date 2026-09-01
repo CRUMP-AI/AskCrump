@@ -134,6 +134,38 @@ def test_presence_and_check_in_metadata_survive_sanitization():
     assert assistant_message['checkInId'] == '1c6f0e61-847a-44e8-a72a-e3dbf9668edc'
 
 
+def test_image_safety_recovery_survives_sync_with_a_closed_allowlist():
+    allowed = sanitize_message({
+        'id': '8f611900-68b0-41c1-b6db-62460fa6ea12',
+        'role': 'user',
+        'content': 'Create a themed portrait from this reference.',
+        'replyStatus': 'failed',
+        'replyError': 'That image request was blocked by a safety check.',
+        'replyErrorCode': 'image_safety_rejected',
+        'replyRecovery': {
+            'action': 'revise_image_request',
+            'usageRestored': True,
+            'prompt': 'must not persist',
+            'credits': 999,
+        },
+    })
+    rejected = sanitize_message({
+        'id': 'c8b2b91e-d284-4512-92dd-4ca199252a59',
+        'role': 'user',
+        'content': 'Arbitrary client recovery data.',
+        'replyErrorCode': 'ARBITRARY_PROVIDER_ERROR',
+        'replyRecovery': {'action': 'run_anything', 'usageRestored': True},
+    })
+
+    assert allowed['replyErrorCode'] == 'IMAGE_SAFETY_REJECTED'
+    assert allowed['replyRecovery'] == {
+        'action': 'revise_image_request',
+        'usageRestored': True,
+    }
+    assert 'replyErrorCode' not in rejected
+    assert 'replyRecovery' not in rejected
+
+
 def test_resume_purpose_survives_sync_without_accepting_arbitrary_values():
     resume = sanitize_message({
         'id': '8f611900-68b0-41c1-b6db-62460fa6ea12',

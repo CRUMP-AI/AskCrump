@@ -139,6 +139,19 @@ def sanitize_message(item: Any) -> dict[str, Any] | None:
     reply_error = clean_text(item.get('replyError') or item.get('reply_error'), 500)
     if role == 'user' and reply_error:
         message['replyError'] = reply_error
+    reply_error_code = clean_text(item.get('replyErrorCode') or item.get('reply_error_code'), 80).upper()
+    if role == 'user' and reply_error_code == 'IMAGE_SAFETY_REJECTED':
+        message['replyErrorCode'] = reply_error_code
+        recovery = item.get('replyRecovery') or item.get('reply_recovery')
+        if (
+            isinstance(recovery, dict)
+            and recovery.get('action') == 'revise_image_request'
+            and recovery.get('usageRestored') is True
+        ):
+            message['replyRecovery'] = {
+                'action': 'revise_image_request',
+                'usageRestored': True,
+            }
 
     if role == 'assistant':
         intelligence = safe_intelligence_receipt(item.get('intelligence'))

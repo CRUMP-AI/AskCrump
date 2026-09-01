@@ -6,6 +6,7 @@ import base64
 import binascii
 from io import BytesIO
 import logging
+import re
 from typing import Any
 
 import httpx
@@ -173,19 +174,73 @@ class MediaService:
             provider_message = ' '.join(response.text.split())[:500]
         return provider_code, provider_type, provider_message
 
+    @staticmethod
+    def _provider_moderation_details(response: httpx.Response) -> tuple[str, tuple[str, ...]]:
+        """Return only coarse, allowlisted safety diagnostics for private logs."""
+        try:
+            body = response.json()
+            error = body.get('error') if isinstance(body, dict) else None
+            details = error.get('moderation_details') if isinstance(error, dict) else None
+            if not isinstance(details, dict):
+                return 'unknown', ()
+
+            raw_stage = str(details.get('moderation_stage') or '').strip().lower()
+            stage = raw_stage if raw_stage in {'input', 'output'} else 'unknown'
+            raw_categories = details.get('categories')
+            candidates: list[Any] = []
+            if isinstance(raw_categories, dict):
+                candidates.extend(key for key, enabled in raw_categories.items() if enabled)
+            elif isinstance(raw_categories, list):
+                candidates.extend(raw_categories)
+            raw_violations = details.get('safety_violations')
+            if isinstance(raw_violations, list):
+                candidates.extend(raw_violations)
+
+            categories: list[str] = []
+            for candidate in candidates:
+                value = str(candidate or '').strip().lower()
+                if re.fullmatch(r'[a-z0-9_-]{1,40}', value) and value not in categories:
+                    categories.append(value)
+                if len(categories) == 4:
+                    break
+            return stage, tuple(categories)
+        except (TypeError, ValueError):
+            return 'unknown', ()
+
     @classmethod
     def _image_provider_exception(cls, response: httpx.Response) -> AIServiceError:
         provider_code, provider_type, provider_message = cls._provider_error(response)
         request_id = str(response.headers.get('x-request-id') or '')[:160]
-        logger.error(
-            'OpenAI image request rejected status=%s code=%s type=%s request_id=%s message=%s',
-            response.status_code,
-            provider_code or '-',
-            provider_type or '-',
-            request_id or '-',
-            provider_message or '-',
-        )
         diagnostic = f'{provider_code} {provider_type} {provider_message}'.lower()
+        safety_rejected = provider_code.lower() == 'moderation_blocked' or 'content_policy' in diagnostic or 'safety' in diagnostic
+        if safety_rejected:
+            moderation_stage, moderation_categories = cls._provider_moderation_details(response)
+            logger.warning(
+                'OpenAI image safety rejection status=%s code=%s type=%s request_id=%s moderation_stage=%s categories=%s',
+                response.status_code,
+                provider_code or '-',
+                provider_type or '-',
+                request_id or '-',
+                moderation_stage,
+                ','.join(moderation_categories) or '-',
+            )
+        else:
+            logger.error(
+                'OpenAI image request rejected status=%s code=%s type=%s request_id=%s message=%s',
+                response.status_code,
+                provider_code or '-',
+                provider_type or '-',
+                request_id or '-',
+                provider_message or '-',
+            )
+        if provider_code.lower() == 'moderation_blocked':
+            return AIServiceError(
+                'That image request was blocked by a safety check. Adjust the prompt or reference image before sending it again.',
+                400,
+                'IMAGE_SAFETY_REJECTED',
+                False,
+                0,
+            )
         if 'verification' in diagnostic or 'organization_verification' in diagnostic:
             return AIServiceError(
                 'OpenAI requires organization verification before this image model can run.',
@@ -210,9 +265,9 @@ class MediaService:
                 False,
                 0,
             )
-        if 'content_policy' in diagnostic or 'safety' in diagnostic:
+        if safety_rejected:
             return AIServiceError(
-                'The image provider safety filter declined that request. For an edit, describe one clear visual change and leave the person’s identity, age, and body unchanged.',
+                'That image request was blocked by a safety check. Adjust the prompt or reference image before sending it again.',
                 400,
                 'IMAGE_SAFETY_REJECTED',
                 False,
