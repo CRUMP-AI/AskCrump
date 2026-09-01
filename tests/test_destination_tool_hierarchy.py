@@ -42,7 +42,8 @@ def test_redundant_tools_dropdown_is_retired_without_removing_real_capabilities(
 def test_retired_tool_assets_are_cache_versioned_atomically():
     version = "5.9.76-intelligence-architecture-1"
     loader_version = "5.9.76-continuity-action-1"
-    product_version = "5.9.76-file-library-usability-2"
+    product_style_version = "5.9.76-file-library-usability-2"
+    product_script_version = "5.9.76-studio-section-isolation-1"
     shell = read("public/app.html")
     runtime = read("public/runtime-body-v1.js")
     worker = read("public/sw.js")
@@ -50,10 +51,12 @@ def test_retired_tool_assets_are_cache_versioned_atomically():
 
     assert f"/runtime-body-v1.js?v={loader_version}" in shell
     assert f"/runtime-body-v1.js?v={loader_version}" in worker
-    for asset in ("crump-product-5.3.css", "crump-product-5.3.js"):
-        asset_version = product_version
+    for asset, asset_version in (
+        ("crump-product-5.3.css", product_style_version),
+        ("crump-product-5.3.js", product_script_version),
+    ):
         versioned = f"/{asset}?v={asset_version}"
         assert versioned in runtime
         assert versioned in worker
         assert versioned in native
-    assert "ask-crump-new-body-v1-r181" in worker
+    assert "ask-crump-new-body-v1-r182" in worker

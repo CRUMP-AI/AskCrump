@@ -191,6 +191,7 @@
         }));
       }
       destinationBackgroundState.forEach(({element}) => {
+        element.dataset.crump5930DestinationInert = 'true';
         element.setAttribute('inert', '');
         element.setAttribute('aria-hidden', 'true');
       });
@@ -198,6 +199,7 @@
     }
     if (!destinationBackgroundState) return;
     destinationBackgroundState.forEach(({element, inert: wasInert, ariaHidden}) => {
+      delete element.dataset.crump5930DestinationInert;
       if (!wasInert) element.removeAttribute('inert');
       if (ariaHidden === null) element.removeAttribute('aria-hidden');
       else element.setAttribute('aria-hidden', ariaHidden);

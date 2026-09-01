@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Project open navigation fixture</title>
+  <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/public/crump-v1-body.css?v=project-open-fixture-1">
   <link rel="stylesheet" href="/public/crump-product-5.3.css?v=project-home-fixture-7">
   <link rel="stylesheet" href="/public/crump-product-5.3.1.css?v=project-home-fixture-7">
@@ -67,6 +68,8 @@
             projectRole: 'reference',
           }],
         };
+      } else if (url.pathname === `/api/projects/${fixtureProject.id}/manuscripts`) {
+        data = {success: true, manuscripts: []};
       } else {
         return new Response(JSON.stringify({success: false, error: 'Unexpected fixture request.'}), {
           status: 500,

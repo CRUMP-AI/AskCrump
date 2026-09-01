@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r181';
+const CACHE_NAME = 'ask-crump-new-body-v1-r182';
 
 const CORE = [
   '/app',
@@ -17,17 +17,17 @@ const CORE = [
   '/auth-styles.css',
   '/crump-v1-body.css?v=5.9.76-intelligence-architecture-1',
   '/lifecycle.css?v=5.9.76-lifecycle-activation-1',
-  '/crump-v1-body.js?v=5.9.76-desktop-chats-default-1',
+  '/crump-v1-body.js?v=5.9.76-destination-background-guard-1',
   '/crump-v1-stability.css',
   '/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1',
   '/crump-navigation-5.2.5.css',
   '/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1',
   '/crump-navigation-5.9.30.css?v=5.9.76-mobile-drawer-destinations-1',
-  '/crump-navigation-5.9.30.js?v=5.9.76-create-destination-handoff-1',
+  '/crump-navigation-5.9.30.js?v=5.9.76-destination-background-guard-1',
   '/crump-code-5.9.35.css?v=5.9.76-intelligence-architecture-1',
   '/crump-code-5.9.35.js?v=5.9.76-intelligence-architecture-1',
   '/crump-product-5.3.css?v=5.9.76-file-library-usability-2',
-  '/crump-product-5.3.js?v=5.9.76-file-library-usability-2',
+  '/crump-product-5.3.js?v=5.9.76-studio-section-isolation-1',
   '/crump-product-5.3.1.css',
   '/crump-product-5.3.1.js?v=5.9.76-core-reliability-1',
   '/crump-polish-5.6.css',

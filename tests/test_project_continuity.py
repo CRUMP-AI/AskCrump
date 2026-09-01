@@ -573,6 +573,28 @@ def test_project_rows_open_a_real_project_workspace_and_scoped_new_chat():
     assert "password" not in fixture.lower()
 
 
+def test_top_level_studios_clear_project_only_navigation_state():
+    product = (ROOT / "public" / "crump-product-5.3.js").read_text(encoding="utf-8")
+    verifier = (ROOT / "scripts" / "verify-studio-section-isolation.cjs").read_text(
+        encoding="utf-8"
+    )
+
+    configure = product[
+        product.index("function configureStudioSection") : product.index("function openStudio")
+    ]
+    assert "if (section !== 'projects')" in configure
+    assert "state.projectView = 'index';" in configure
+    assert "projectBack.hidden = true;" in configure
+    assert "projectsPanel?.classList.remove('is-project-open');" in configure
+    assert "sheet.dataset.projectView = 'index';" in configure
+    assert "writeProjectRoute('', {replace: true});" in configure
+    for section in ("video", "library", "manuscripts"):
+        assert f"{{name: '{section}'" in verifier
+    assert "projectBackHidden: true" in verifier
+    assert "projectPanelOpen: false" in verifier
+    assert "routeProject: ''" in verifier
+
+
 @pytest.mark.asyncio
 async def test_project_route_records_content_free_durable_value_after_attach(monkeypatch):
     analytics = []

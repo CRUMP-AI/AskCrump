@@ -134,6 +134,11 @@
       }
     });
     sidebar.setAttribute('aria-hidden', expanded ? 'false' : 'true');
+    if (sidebar.dataset.crump5930DestinationInert === 'true') {
+      sidebar.setAttribute('inert', '');
+      sidebar.setAttribute('aria-hidden', 'true');
+      return;
+    }
 
     // Remove the interaction guard immediately when opening. When closing,
     // defer it until the triggering click has finished so iOS cannot redirect

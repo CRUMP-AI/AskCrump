@@ -66,18 +66,18 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-billing-5.1.js?v=5.9.76-commerce-recovery-1', 'billing51'],
     ['/crump-5.2.js?v=5.9.76-truthful-enterprise-positioning-1', 'crump52'],
     ['/crump-5.2.2.js?v=5.9.76-image-scroll-stability-1', 'crump522'],
-    ['/crump-v1-body.js?v=5.9.76-desktop-chats-default-1', 'crumpbodyv1'],
+    ['/crump-v1-body.js?v=5.9.76-destination-background-guard-1', 'crumpbodyv1'],
     ['/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1', 'crumpv1stability'],
   ]);
 
   const finalScripts = Object.freeze([
     ['/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1', 'crumpnav525'],
-    ['/crump-product-5.3.js?v=5.9.76-file-library-usability-2', 'crumpproduct53'],
+    ['/crump-product-5.3.js?v=5.9.76-studio-section-isolation-1', 'crumpproduct53'],
     ['/crump-product-5.3.1.js?v=5.9.76-core-reliability-1', 'crumpproduct531'],
     ['/crump-subscriptions-5.3.2.js?v=5.9.76-commerce-recovery-1', 'crumpsubscriptions532'],
     ['/crump-polish-5.6.js?v=5.9.76-video-destination-1', 'crumppolish56'],
     ['/crump-library-5.7.js?v=5.9.76-demand-hydration-1', 'crumplibrary57'],
-    ['/crump-navigation-5.9.30.js?v=5.9.76-create-destination-handoff-1', 'crumpnav5930'],
+    ['/crump-navigation-5.9.30.js?v=5.9.76-destination-background-guard-1', 'crumpnav5930'],
     ['/crump-code-5.9.35.js?v=5.9.76-intelligence-architecture-1', 'crumpcode5935'],
     ['/lifecycle-share.js?v=5.9.76-lifecycle-activation-1', 'lifecycleshare'],
     ['/lifecycle-manager.js?v=5.9.76-continuity-action-1', 'lifecyclemanager'],

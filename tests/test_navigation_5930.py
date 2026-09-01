@@ -20,9 +20,9 @@ def test_six_destination_navigation_is_final_runtime_layer_and_boot_critical():
         assert asset.lstrip("/") in checker
 
     assert runtime.index("/crump-library-5.7.js") < runtime.index("/crump-navigation-5.9.30.js")
-    assert "ask-crump-new-body-v1-r181" in worker
+    assert "ask-crump-new-body-v1-r182" in worker
     assert "/crump-navigation-5.9.30.css?v=5.9.76-mobile-drawer-destinations-1" in runtime
-    assert "/crump-navigation-5.9.30.js?v=5.9.76-create-destination-handoff-1" in runtime
+    assert "/crump-navigation-5.9.30.js?v=5.9.76-destination-background-guard-1" in runtime
 
 
 def test_navigation_exposes_exact_product_destinations_on_desktop_and_mobile():
@@ -71,6 +71,8 @@ def test_persistent_destinations_hide_only_the_covered_workspace_from_assistive_
     assert "[byId('sidebar'), document.querySelector('.v1-workspace')]" in script
     assert "element.setAttribute('inert', '')" in script
     assert "element.setAttribute('aria-hidden', 'true')" in script
+    assert "element.dataset.crump5930DestinationInert = 'true'" in script
+    assert "delete element.dataset.crump5930DestinationInert" in script
     assert "element.removeAttribute('inert')" in script
     assert "element.removeAttribute('aria-hidden')" in script
     assert "studioIsOpen() || settingsIsOpen() || codeWorkspaceIsOpen() || createHubIsOpen()" in script
@@ -125,6 +127,7 @@ def test_create_hub_is_non_generating_and_accessible_until_user_sends():
 
 def test_create_hub_keeps_persistent_destinations_operable_while_isolating_work():
     script = read("public/crump-navigation-5.9.30.js")
+    body = read("public/crump-v1-body.js")
 
     assert "studioIsOpen() || settingsIsOpen() || codeWorkspaceIsOpen() || createHubIsOpen()" in script
     assert "setDestinationBackgroundInert(true)" in script
@@ -132,6 +135,8 @@ def test_create_hub_keeps_persistent_destinations_operable_while_isolating_work(
     assert "function setCreateBackgroundInert" not in script
     assert "app.setAttribute('inert', '')" not in script
     assert "function containCreateFocus" not in script
+    assert "sidebar.dataset.crump5930DestinationInert === 'true'" in body
+    assert "sidebar.setAttribute('inert', '')" in body
 
 
 def test_navigation_has_a_bounded_local_rollback_switch():
@@ -172,7 +177,7 @@ def test_navigation_consolidation_fixture_uses_the_production_layers():
     assert '/public/crump-v1-body.js' in fixture
     assert '/public/crump-navigation-5.9.30.js' in fixture
     assert '5.9.76-mobile-drawer-destinations-1' in fixture
-    assert '5.9.76-create-destination-handoff-1' in fixture
+    assert '5.9.76-destination-background-guard-1' in fixture
     assert 'window.fixtureErrors = []' in fixture
     assert "dataset.fixtureErrorCount = '0'" in fixture
     assert 'id="v1OpenPlanBtn"' in fixture

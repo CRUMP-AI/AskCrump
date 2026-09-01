@@ -655,8 +655,17 @@
     const section = Object.hasOwn(STUDIO_SECTION_META, tab) ? tab : 'projects';
     const meta = STUDIO_SECTION_META[section];
     const sheet = byId('crump53Sheet');
+    const projectBack = byId('crump53ProjectBack');
+    const projectsPanel = document.querySelector('[data-crump53-panel="projects"]');
     const kicker = byId('crump53WorkspaceKicker');
     const title = byId('crump53WorkspaceTitle');
+    if (section !== 'projects') {
+      state.projectView = 'index';
+      if (projectBack) projectBack.hidden = true;
+      projectsPanel?.classList.remove('is-project-open');
+      if (sheet) sheet.dataset.projectView = 'index';
+      if (readProjectRoute()) writeProjectRoute('', {replace: true});
+    }
     if (sheet) {
       sheet.dataset.crump53Section = section;
       sheet.setAttribute('aria-label', meta.label);
