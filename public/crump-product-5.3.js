@@ -1527,6 +1527,9 @@
     });
     closeStudio();
     window.loadChat(normalized);
+    requestAnimationFrame(() => {
+      byId('userInput')?.focus({preventScroll: true});
+    });
   }
 
   async function saveProject(event) {

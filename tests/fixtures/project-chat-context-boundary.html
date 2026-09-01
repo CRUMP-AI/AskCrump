@@ -37,7 +37,11 @@
     window.fixtureIds = {linkedChatId, unrelatedChatId, freshChatId};
     window.currentUser = {id: 'fixture-user'};
     window.currentChatId = '';
-    window.chats = [];
+    window.chats = [{
+      id: linkedChatId,
+      title: 'Savannah launch plan',
+      messages: [],
+    }];
     window.fixtureChatRequests = [];
     window.showToast = () => {};
     window.CrumpAnalytics = {track: () => Promise.resolve(true)};
@@ -59,7 +63,10 @@
       } else if (url.pathname === `/api/projects/${fixtureProject.id}`) {
         data = {success: true, project: fixtureProject, context: {canon: []}};
       } else if (url.pathname === `/api/projects/${fixtureProject.id}/chats`) {
-        data = {success: true, conversations: []};
+        data = {success: true, conversations: [{
+          chatId: linkedChatId,
+          title: 'Savannah launch plan',
+        }]};
       } else if (url.pathname === `/api/projects/${fixtureProject.id}/manuscripts`) {
         data = {success: true, manuscripts: []};
       } else if (url.pathname.startsWith('/api/projects/for-chat/')) {
@@ -91,6 +98,7 @@
         detail: {chatId, fresh},
       }));
     };
+    window.loadChat = chatId => window.fixtureOpenConversation(chatId);
     window.fixtureSend = async chatId => {
       await window.fetch('/api/chat', {
         method: 'POST',

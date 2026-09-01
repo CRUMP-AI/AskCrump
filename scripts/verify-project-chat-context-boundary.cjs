@@ -91,11 +91,24 @@ async function verify(browser, viewport) {
   assert.equal(fresh.projectContextChecked, true, JSON.stringify(fresh));
   assert.equal(freshState.storedTarget, projectId);
   assert.equal(freshState.bodyActive, false);
+
+  await page.evaluate(project => window.CrumpProduct53.openProject(project), projectId);
+  await page.locator('[data-project-chat-id]').click();
+  await page.waitForFunction(() => document.getElementById('crump53Studio')?.hidden === true);
+  await page.waitForFunction(() => document.activeElement?.id === 'userInput');
+  const resumed = await page.evaluate(() => ({
+    activeElementId: document.activeElement?.id || '',
+    chatId: window.currentChatId,
+    projectActive: document.body.classList.contains('crump53-chat-project-active'),
+  }));
+  assert.equal(resumed.activeElementId, 'userInput', JSON.stringify(resumed));
+  assert.equal(resumed.chatId, linkedChatId, JSON.stringify(resumed));
+  assert.equal(resumed.projectActive, false, JSON.stringify(resumed));
   assert.equal(freshState.browserErrors, 0);
   assert.deepEqual(errors, []);
 
   await page.close();
-  return {viewport, selectedOnly, linkedState, freshState};
+  return {viewport, selectedOnly, linkedState, freshState, resumed};
 }
 
 (async () => {
