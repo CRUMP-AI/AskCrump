@@ -953,7 +953,7 @@
     if (registerPassword) registerPassword.placeholder = 'Create a password';
     if (resetPassword) resetPassword.placeholder = '10+ characters with a letter and number';
 
-    const resetHint = resetPassword?.parentElement?.querySelector('.form-hint');
+    const resetHint = resetPassword?.closest?.('.form-group')?.querySelector('.form-hint');
     if (resetHint) resetHint.textContent = 'At least 10 characters with a letter and a number';
     updateRegistrationPasswordGuidance();
   }
@@ -969,6 +969,10 @@
         input.type = showing ? 'password' : 'text';
         button.textContent = showing ? 'Show' : 'Hide';
         button.setAttribute('aria-pressed', String(!showing));
+        button.setAttribute(
+          'aria-label',
+          `${showing ? 'Show' : 'Hide'} ${button.dataset.passwordLabel || 'password'}`,
+        );
         input.focus({preventScroll: true});
       });
     });

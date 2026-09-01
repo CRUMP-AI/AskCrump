@@ -56,7 +56,10 @@
         </div>
         <div class="form-group">
           <label for="loginPassword">Password</label>
-          <input type="password" id="loginPassword" class="form-input" placeholder="Enter your password" required autocomplete="current-password">
+          <div class="v1-password-control">
+            <input type="password" id="loginPassword" class="form-input" placeholder="Enter your password" required autocomplete="current-password">
+            <button id="loginPasswordToggle" class="v1-password-toggle" type="button" data-password-target="loginPassword" data-password-label="current password" aria-controls="loginPassword" aria-label="Show current password" aria-pressed="false">Show</button>
+          </div>
         </div>
         <button type="submit" class="btn btn-primary btn-large btn-block">Sign In</button>
         <div class="v1-auth-links">
@@ -89,7 +92,7 @@
             <label for="registerPassword">Password</label>
             <div class="v1-password-control">
               <input type="password" id="registerPassword" class="form-input" placeholder="Create a password" required minlength="10" maxlength="256" autocomplete="new-password" aria-describedby="registerPasswordHint">
-              <button id="registerPasswordToggle" class="v1-password-toggle" type="button" data-password-target="registerPassword" aria-controls="registerPassword" aria-pressed="false">Show</button>
+              <button id="registerPasswordToggle" class="v1-password-toggle" type="button" data-password-target="registerPassword" data-password-label="new password" aria-controls="registerPassword" aria-label="Show new password" aria-pressed="false">Show</button>
             </div>
             <div id="registerPasswordHint" class="v1-password-requirements" aria-label="Password requirements">
               <span data-password-rule="length"><i aria-hidden="true">○</i>10+ characters</span>
@@ -153,12 +156,18 @@
       <form id="resetPasswordFormElement" class="auth-form-content">
         <div class="form-group">
           <label for="newPassword">New Password</label>
-          <input type="password" id="newPassword" class="form-input" placeholder="10+ characters with a letter and number" required minlength="10" maxlength="256" autocomplete="new-password">
+          <div class="v1-password-control">
+            <input type="password" id="newPassword" class="form-input" placeholder="10+ characters with a letter and number" required minlength="10" maxlength="256" autocomplete="new-password">
+            <button id="newPasswordToggle" class="v1-password-toggle" type="button" data-password-target="newPassword" data-password-label="new password" aria-controls="newPassword" aria-label="Show new password" aria-pressed="false">Show</button>
+          </div>
           <small class="form-hint">At least 10 characters with a letter and a number</small>
         </div>
         <div class="form-group">
           <label for="confirmNewPassword">Confirm Password</label>
-          <input type="password" id="confirmNewPassword" class="form-input" placeholder="Re-enter password" required autocomplete="new-password">
+          <div class="v1-password-control">
+            <input type="password" id="confirmNewPassword" class="form-input" placeholder="Re-enter password" required autocomplete="new-password">
+            <button id="confirmNewPasswordToggle" class="v1-password-toggle" type="button" data-password-target="confirmNewPassword" data-password-label="password confirmation" aria-controls="confirmNewPassword" aria-label="Show password confirmation" aria-pressed="false">Show</button>
+          </div>
         </div>
         <button type="submit" class="btn btn-primary btn-large btn-block">Reset Password</button>
         <p class="auth-footer-text"><a href="#" id="showLoginFromReset" class="auth-link">Back to sign in</a></p>
@@ -620,7 +629,7 @@
 <script defer src="/install-prompt.js?v=5.9.76"></script>
 <script defer src="/auth-resilience.js?v=5.9.76"></script>
 <script defer src="/device-auth.js?v=5.9.76"></script>
-<script defer src="/auth-controller.js?v=5.9.76-plan-intent-delivery-3"></script>
+<script defer src="/auth-controller.js?v=5.9.76-auth-entry-polish-1"></script>
 <script defer src="/_vercel/insights/script.js"></script>
 <script defer src="/_vercel/speed-insights/script.js" data-route="/app"></script>
 </body>

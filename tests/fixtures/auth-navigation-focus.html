@@ -19,6 +19,7 @@
         <input id="loginEmail" type="email" required autocomplete="email">
         <label for="loginPassword">Password</label>
         <input id="loginPassword" type="password" required autocomplete="current-password">
+        <button id="loginPasswordToggle" type="button" data-password-target="loginPassword" data-password-label="current password" aria-controls="loginPassword" aria-label="Show current password" aria-pressed="false">Show</button>
         <button type="submit">Sign in</button>
         <a id="showRegisterLink" href="#">Create account</a>
         <a id="showForgotPasswordLink" href="#">Forgot password?</a>
@@ -37,6 +38,7 @@
           <input id="registerEmail" type="email" required autocomplete="email">
           <label for="registerPassword">Password</label>
           <input id="registerPassword" type="password" required minlength="10" maxlength="256" autocomplete="new-password" aria-describedby="registerPasswordHint">
+          <button id="registerPasswordToggle" type="button" data-password-target="registerPassword" data-password-label="new password" aria-controls="registerPassword" aria-label="Show new password" aria-pressed="false">Show</button>
           <div id="registerPasswordHint">
             <span data-password-rule="length"><i>○</i>10+ characters</span>
             <span data-password-rule="letter"><i>○</i>One letter</span>
@@ -73,7 +75,9 @@
     <div id="resetPasswordForm" style="display:none">
       <form id="resetPasswordFormElement">
         <input id="newPassword" type="password">
+        <button id="newPasswordToggle" type="button" data-password-target="newPassword" data-password-label="new password" aria-controls="newPassword" aria-label="Show new password" aria-pressed="false">Show</button>
         <input id="confirmNewPassword" type="password">
+        <button id="confirmNewPasswordToggle" type="button" data-password-target="confirmNewPassword" data-password-label="password confirmation" aria-controls="confirmNewPassword" aria-label="Show password confirmation" aria-pressed="false">Show</button>
         <button type="submit">Update password</button>
         <a id="showLoginFromReset" href="#">Back to sign in</a>
       </form>
@@ -123,6 +127,6 @@
     window.addEventListener('load', () => setTimeout(reportFocus, 20));
   </script>
   <script src="/public/auth-resilience.js?v=fixture-auth-focus-3"></script>
-  <script src="/public/auth-controller.js?v=fixture-auth-focus-3"></script>
+  <script src="/public/auth-controller.js?v=fixture-auth-focus-4"></script>
 </body>
 </html>

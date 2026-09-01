@@ -65,6 +65,27 @@ def test_registration_has_one_verifiable_password_field_and_tracks_safe_validati
     assert 'email_format' in controller and 'required_field' in controller
 
 
+def test_every_user_entered_password_can_be_checked_before_submission():
+    app = (PUBLIC / 'app.html').read_text(encoding='utf-8')
+    controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
+
+    targets = ('loginPassword', 'registerPassword', 'newPassword', 'confirmNewPassword')
+    for target in targets:
+        assert f'data-password-target="{target}"' in app
+        assert f'aria-controls="{target}"' in app
+    assert app.count('class="v1-password-toggle"') == len(targets)
+    assert app.count('aria-pressed="false">Show</button>') == len(targets)
+    assert 'aria-label="Show current password"' in app
+    assert app.count('aria-label="Show new password"') == 2
+    assert 'aria-label="Show password confirmation"' in app
+    assert "document.querySelectorAll('[data-password-target]')" in controller
+    assert "button.textContent = showing ? 'Show' : 'Hide'" in controller
+    assert "button.setAttribute('aria-pressed', String(!showing))" in controller
+    assert "button.dataset.passwordLabel || 'password'" in controller
+    assert "input.focus({preventScroll: true})" in controller
+    assert "resetPassword?.closest?.('.form-group')?.querySelector('.form-hint')" in controller
+
+
 def test_mobile_signup_keeps_the_primary_action_above_a_short_phone_fold():
     app = (PUBLIC / 'app.html').read_text(encoding='utf-8')
     controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
@@ -227,9 +248,10 @@ def test_auth_view_transitions_move_focus_to_the_first_actionable_field():
     assert "showAuth('forgot')" in controller
     assert "showAuth('reset')" in controller
     assert 'role="alert" aria-live="assertive"' in app
-    assert '/public/auth-controller.js?v=fixture-auth-focus-3' in fixture
+    assert '/public/auth-controller.js?v=fixture-auth-focus-4' in fixture
     assert 'id="fixtureEvents"' in fixture
     assert 'window.__fixture = {events: []}' in fixture
+    assert fixture.count('data-password-target=') == 4
     assert 'credential-free-auth-probe' not in fixture
     assert 'https://' not in fixture
     assert 'askcrump.com' not in fixture
