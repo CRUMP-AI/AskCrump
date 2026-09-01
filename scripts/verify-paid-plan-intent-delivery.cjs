@@ -30,6 +30,8 @@ const consumerDelays = [180, 260, 340, 420, 500, 580, 660, 740, 820, 900];
           url.searchParams.set('plan', plan);
           url.searchParams.set('sessionDelay', '40');
           url.searchParams.set('planConsumerDelay', String(consumerDelay));
+          url.searchParams.set('legacyBillingOwner', '1');
+          url.searchParams.set('billingDelay', '750');
           await page.goto(url.toString(), {waitUntil: 'domcontentloaded'});
 
           const label = plan === 'enterprise' ? 'Enterprise' : 'Professional';
@@ -41,11 +43,11 @@ const consumerDelays = [180, 260, 340, 420, 500, 580, 660, 740, 820, 900];
           const state = await page.evaluate(() => ({
             ...window.__fixture,
             pendingPlan: localStorage.getItem('askcrump.pending-plan-intent'),
-            dialogs: document.querySelectorAll('.crump52-billing-modal[role="dialog"]').length,
+            dialogs: document.querySelectorAll('.billing51-modal[role="dialog"]').length,
             notices: document.querySelectorAll('.crump52-plan-intent').length,
             selectedCards: document.querySelectorAll('.billing51-plan.is-intent').length,
             selectedPlan: document.querySelector('.billing51-plan.is-intent')?.dataset.crumpPlan || '',
-            openedFor: document.querySelector('.crump52-billing-modal')?.dataset.openedFor || '',
+            openedFor: document.querySelector('.billing51-modal')?.dataset.openedFor || '',
           }));
           assert.equal(state.planConsumerLoaded, true);
           assert.equal(state.billingOpens, 1);

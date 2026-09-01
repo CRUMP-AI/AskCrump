@@ -39,6 +39,8 @@ def test_plan_review_consumer_is_idempotent_and_never_starts_checkout():
     assert "const deliveryKey = `${plan}:${capturedAt}`;" in listener
     assert "modal.dataset.crumpPlanIntentReached !== deliveryKey" in listener
     assert "if (!applyPlanIntent(modal, plan)) return false;" in listener
+    assert "document.querySelector('.crump52-billing-modal')" in listener
+    assert "|| document.querySelector('.billing51-modal')" in listener
     assert "detail: {plan, capturedAt}" in listener
     assert "openCheckout(" not in listener
 
@@ -51,6 +53,8 @@ def test_paid_plan_delivery_fixture_is_local_content_free_and_checks_checkout_bo
     assert "fixturePlanConsumerDelay" in fixture
     assert "planConsumerLoaded" in fixture
     assert "checkoutRequests" in fixture
+    assert "fixtureLegacyBillingOwner" in fixture
+    assert "fixtureBillingDelay" in fixture
     assert "Fixture blocks checkout." in fixture
     assert "askcrump.com" not in fixture
     assert "consumerDelays = [180, 260, 340, 420, 500, 580, 660, 740, 820, 900]" in verifier
@@ -58,5 +62,7 @@ def test_paid_plan_delivery_fixture_is_local_content_free_and_checks_checkout_bo
     assert "{name: 'phone', width: 390, height: 844}" in verifier
     assert "{name: 'desktop', width: 1280, height: 720}" in verifier
     assert "assert.equal(state.checkoutRequests, 0);" in verifier
+    assert "url.searchParams.set('legacyBillingOwner', '1');" in verifier
+    assert "url.searchParams.set('billingDelay', '750');" in verifier
     assert "assert.equal(state.pendingPlan, null);" in verifier
     assert "assert.equal(state.planConsumed, 1);" in verifier

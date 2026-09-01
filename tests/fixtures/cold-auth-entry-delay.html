@@ -86,6 +86,9 @@
     const fixtureParams = new URLSearchParams(location.search);
     const fixtureSessionDelay = Number(fixtureParams.get('sessionDelay') || 3000);
     const fixturePlanConsumerDelay = Number(fixtureParams.get('planConsumerDelay') || -1);
+    const fixtureBillingDelay = Number(fixtureParams.get('billingDelay') || 0);
+    const fixtureLegacyBillingOwner = fixtureParams.get('legacyBillingOwner') === '1';
+    let fixtureModernBillingOwner = !fixtureLegacyBillingOwner;
     const fixtureUser = {
       id: 'fixture-user',
       email: 'fixture@example.test',
@@ -144,11 +147,11 @@
     };
     window.configureUserStorage = () => {};
     window.profileManager = {applyServerSubscription() {}, updateProfile() {}};
-    window.showBillingCenter = options => {
+    const fixtureShowBillingCenter = options => {
       window.__fixture.billingOpens += 1;
       document.getElementById('fixtureBillingOpens').textContent = String(window.__fixture.billingOpens);
       const modal = document.createElement('div');
-      modal.className = 'billing51-modal crump52-billing-modal';
+      modal.className = `billing51-modal${fixtureModernBillingOwner ? ' crump52-billing-modal' : ''}`;
       modal.setAttribute('role', 'dialog');
       modal.setAttribute('aria-label', 'Plan & credits');
       modal.dataset.openedFor = String(options?.plan || '');
@@ -158,14 +161,19 @@
           '<div class="billing51-plans"></div>' +
         '</section>';
       document.body.appendChild(modal);
+      if (fixtureLegacyBillingOwner && !fixtureModernBillingOwner) {
+        window.setTimeout(() => { fixtureModernBillingOwner = true; }, 120);
+      }
       return modal;
     };
+    window.showBillingCenter = fixtureShowBillingCenter;
     window.showUpgradePrompt = options => window.showBillingCenter(options);
     window.fetch = async input => {
       const path = new URL(typeof input === 'string' ? input : input.url, location.origin).pathname;
       if (path === '/api/billing/status') {
         window.__fixture.billingRequests += 1;
         document.getElementById('fixtureBillingRequests').textContent = String(window.__fixture.billingRequests);
+        if (fixtureBillingDelay > 0) await new Promise(resolve => setTimeout(resolve, fixtureBillingDelay));
         return new Response(JSON.stringify({success: true, tier: 'free', status: 'inactive', provider: null}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},

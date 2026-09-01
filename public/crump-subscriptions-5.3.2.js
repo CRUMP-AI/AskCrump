@@ -290,7 +290,7 @@
   }
 
   function scan() {
-    document.querySelectorAll('.crump52-billing-modal').forEach(modal => {
+    document.querySelectorAll('.billing51-modal').forEach(modal => {
       void activatePlans(modal);
     });
   }
@@ -301,6 +301,7 @@
     const plan = String(event.detail?.plan || '').toLowerCase();
     if (!['professional', 'enterprise'].includes(plan)) return;
     const modal = document.querySelector('.crump52-billing-modal')
+      || document.querySelector('.billing51-modal')
       || window.showBillingCenter?.({plan});
     if (!modal) return;
     modal.dataset.crumpPlanIntent = plan;

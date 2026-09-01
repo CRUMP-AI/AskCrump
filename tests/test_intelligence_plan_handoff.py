@@ -16,6 +16,7 @@ def test_intelligence_plan_intent_reuses_the_open_billing_center():
     assert "window.showBillingCenter?.({ plan: 'professional' })" in intelligence
     assert "window.dispatchEvent(new CustomEvent('crump:plan-intent'" in intelligence
     assert "document.querySelector('.crump52-billing-modal')" in listener
+    assert "document.querySelector('.billing51-modal')" in listener
     assert listener.index("document.querySelector('.crump52-billing-modal')") < listener.index(
         "window.showBillingCenter?.({plan})"
     )
@@ -39,7 +40,7 @@ def test_changed_handoff_assets_are_versioned_and_fixture_is_content_free():
     native = read("scripts/build-native.mjs")
     fixture = read("tests/fixtures/intelligence-plan-handoff.html")
     version = "5.9.76-core-reliability-1"
-    subscription_version = "5.9.76-plan-intent-delivery-1"
+    subscription_version = "5.9.76-plan-intent-delivery-2"
 
     assert f"/crump-4.4.js?v={version}" in runtime
     assert f"/crump-4.4.js?v={version}" in worker
