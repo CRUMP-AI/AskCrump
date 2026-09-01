@@ -16,10 +16,18 @@
     const updateCheckIntervalMs = 60_000;
     const reloadGuardKey = 'crump_runtime_reload_started_at';
 
+    function authInputHasWork(input) {
+        if (!input || input.disabled) return false;
+        const type = String(input.type || '').toLowerCase();
+        if (type === 'checkbox' || type === 'radio') return input.checked === true;
+        if (type === 'file') return Boolean(input.files?.length);
+        return Boolean(input.value);
+    }
+
     function authFormHasWork() {
         const authContainer = document.getElementById('authContainer');
         if (!authContainer) return false;
-        const hasValue = Array.from(authContainer.querySelectorAll('input')).some(input => Boolean(input.value));
+        const hasValue = Array.from(authContainer.querySelectorAll('input')).some(authInputHasWork);
         const hasBusyForm = Boolean(authContainer.querySelector('form button:disabled, form[aria-busy="true"]'));
         return hasValue || hasBusyForm;
     }

@@ -47,9 +47,35 @@ def test_sleeping_pwa_checks_for_updates_and_adopts_safe_signed_out_runtime():
     assert "window.sessionStorage.setItem(reloadGuardKey" in installer
     assert 'Reload to use the latest sign-in and reliability fixes.' in installer
     assert '.runtime-update-notice' in styles
-    assert 'src="/install-prompt.js?v=5.9.76"' in shell
-    assert "'/install-prompt.js?v=5.9.76'" in worker
+    assert 'src="/install-prompt.js?v=5.9.76-auth-update-guard-1"' in shell
+    assert "'/install-prompt.js?v=5.9.76-auth-update-guard-1'" in worker
     assert "url.pathname === '/install-prompt.js'" in worker
+
+
+def test_runtime_update_guard_distinguishes_unchecked_controls_from_real_auth_work():
+    installer = (PUBLIC / 'install-prompt.js').read_text(encoding='utf-8')
+    fixture = (ROOT / 'tests' / 'fixtures' / 'runtime-update-auth-guard.html').read_text(
+        encoding='utf-8',
+    )
+    verifier = (ROOT / 'scripts' / 'verify-runtime-update-auth-guard.cjs').read_text(
+        encoding='utf-8',
+    )
+
+    assert "type === 'checkbox' || type === 'radio'" in installer
+    assert 'input.checked === true' in installer
+    assert "type === 'file'" in installer
+    assert 'Boolean(input.files?.length)' in installer
+    assert ".some(authInputHasWork)" in installer
+    assert "some(input => Boolean(input.value))" not in installer
+    assert 'runtime-update-auth-guard-fixture-1' in fixture
+    assert "mode === 'typed'" in fixture
+    assert "mode === 'checked'" in fixture
+    assert "run('clean')" in verifier
+    assert "run('typed')" in verifier
+    assert "run('checked')" in verifier
+    assert "clean.status, 'reloaded'" in verifier
+    assert "typed.status, 'preserved'" in verifier
+    assert "checked.status, 'preserved'" in verifier
 
 
 def test_auth_outcome_logs_are_categorical_and_identity_free():

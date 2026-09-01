@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Runtime update auth guard fixture</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/public/install-prompt.css?v=runtime-update-auth-guard-fixture-1">
+</head>
+<body>
+  <div id="authContainer">
+    <form>
+      <label for="fixtureEmail">Email</label>
+      <input id="fixtureEmail" type="email" autocomplete="email">
+      <label for="fixtureTerms">
+        <input id="fixtureTerms" type="checkbox">
+        Accept terms
+      </label>
+      <button type="button">Continue</button>
+    </form>
+  </div>
+  <output id="fixtureStatus" role="status">booting</output>
+  <script>
+    (() => {
+      const params = new URLSearchParams(location.search);
+      const mode = params.get('mode') || 'clean';
+      const token = params.get('token') || 'default';
+      const startedKey = `runtime_update_fixture_started_${mode}_${token}`;
+      const reloadGuardKey = 'crump_runtime_reload_started_at';
+      const status = document.getElementById('fixtureStatus');
+      const email = document.getElementById('fixtureEmail');
+      const terms = document.getElementById('fixtureTerms');
+
+      window.currentUser = null;
+      window.__fixture = {controllerChange: null, mode, startedKey, reloadGuardKey};
+
+      if (sessionStorage.getItem(startedKey)) {
+        status.textContent = 'reloaded';
+        return;
+      }
+
+      sessionStorage.setItem(startedKey, '1');
+      sessionStorage.removeItem(reloadGuardKey);
+      if (mode === 'typed') email.value = 'draft@example.test';
+      if (mode === 'checked') terms.checked = true;
+
+      const serviceWorker = {
+        controller: {},
+        addEventListener(type, callback) {
+          if (type === 'controllerchange') window.__fixture.controllerChange = callback;
+        },
+        async getRegistration() { return {}; },
+        async register() { return {update: async () => {}}; },
+      };
+      Object.defineProperty(navigator, 'serviceWorker', {
+        configurable: true,
+        value: serviceWorker,
+      });
+    })();
+  </script>
+  <script src="/public/install-prompt.js?v=runtime-update-auth-guard-fixture-1"></script>
+  <script>
+    window.addEventListener('load', () => {
+      if (document.getElementById('fixtureStatus').textContent === 'reloaded') return;
+      setTimeout(() => window.__fixture.controllerChange?.(), 20);
+      setTimeout(() => {
+        const notice = document.querySelector('.runtime-update-notice.visible');
+        const email = document.getElementById('fixtureEmail');
+        const terms = document.getElementById('fixtureTerms');
+        if (!notice) return;
+        const preserved = window.__fixture.mode === 'typed'
+          ? email.value === 'draft@example.test'
+          : terms.checked === true;
+        document.getElementById('fixtureStatus').textContent = preserved ? 'preserved' : 'lost';
+      }, 500);
+    }, {once: true});
+  </script>
+</body>
+</html>

@@ -406,6 +406,7 @@ const precisionEditGuideVersion = `${releaseVersion}-local-photo-studio-guide-1`
 const fileLibraryWindowVersion = `${releaseVersion}-file-library-window-1`;
 const imageReferenceRecoveryVersion = `${releaseVersion}-image-reference-recovery-1`;
 const projectSaveMeasurementVersion = `${releaseVersion}-project-save-measurement-1`;
+const authUpdateGuardVersion = `${releaseVersion}-auth-update-guard-1`;
 const userControlledScrollVersion = `${releaseVersion}-user-controlled-scroll-1`;
 const newResponseCueVersion = `${releaseVersion}-new-response-cue-1`;
 const videoDestinationVersion = `${releaseVersion}-video-destination-1`;
@@ -608,7 +609,7 @@ const requiredHtmlSignals = [
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
   `/auth-resilience.js?v=${releaseVersion}`,
-  `/install-prompt.js?v=${releaseVersion}`,
+  `/install-prompt.js?v=${authUpdateGuardVersion}`,
   '/crump-v1-body.css',
   'class="crump-v1-body"',
   'class="v1-shell"',
@@ -818,7 +819,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r209') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r210') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${precisionEditGuideLoaderVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
@@ -842,7 +843,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r209') ||
     !serviceWorker.includes(`/lifecycle-share.js?v=${releaseVersion}-lifecycle-activation-1`) ||
     !serviceWorker.includes(`/lifecycle-manager.js?v=${continuityActionVersion}`) ||
     !serviceWorker.includes(`/auth-resilience.js?v=${releaseVersion}`) ||
-    !serviceWorker.includes(`/install-prompt.js?v=${releaseVersion}`) ||
+    !serviceWorker.includes(`/install-prompt.js?v=${authUpdateGuardVersion}`) ||
     !serviceWorker.includes(`/install-prompt.css?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/device-auth.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/sync-manager.js?v=${releaseVersion}`) ||
@@ -896,6 +897,15 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r209') ||
 }
 
 const installPromptSource = await readFile(new URL('public/install-prompt.js', repoRoot), 'utf8');
+if (!installPromptSource.includes("type === 'checkbox' || type === 'radio'") ||
+    !installPromptSource.includes('input.checked === true') ||
+    !installPromptSource.includes("type === 'file'") ||
+    !installPromptSource.includes('Boolean(input.files?.length)') ||
+    !installPromptSource.includes('.some(authInputHasWork)') ||
+    installPromptSource.includes('some(input => Boolean(input.value))')) {
+  console.error('Runtime updates must distinguish default control values from genuine auth-form work.');
+  process.exit(1);
+}
 async function simulateServiceWorkerRegistration(hasExistingRegistration) {
   const windowListeners = new Map();
   const storage = {

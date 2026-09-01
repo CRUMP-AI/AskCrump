@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r209';
+const CACHE_NAME = 'ask-crump-new-body-v1-r210';
 
 const CORE = [
   '/app',
@@ -39,7 +39,7 @@ const CORE = [
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
-  '/install-prompt.js?v=5.9.76',
+  '/install-prompt.js?v=5.9.76-auth-update-guard-1',
   '/onboarding.js?v=5.9.76-local-photo-studio-guide-1',
   '/scroll-manager.js?v=5.9.76-user-controlled-scroll-1',
   '/profile-manager.js',

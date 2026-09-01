@@ -27,7 +27,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/native-runtime.js',
         '/mobile-bridge.js',
         '/safe-storage.js',
-        '/install-prompt.js?v=5.9.76',
+        '/install-prompt.js?v=5.9.76-auth-update-guard-1',
         '/auth-resilience.js?v=5.9.76',
         '/device-auth.js?v=5.9.76',
         '/auth-controller.js?v=5.9.76-auth-entry-polish-1',
