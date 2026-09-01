@@ -1,7 +1,9 @@
 # Ask Crump 5.9.76 credit-pack accessibility release
 
-Date: 2026-09-01  
-Feature commit: `c07cde96875fbd3be122eb8da2fec991509e2148`  
+Date: 2026-09-01
+
+Feature commit: `c07cde96875fbd3be122eb8da2fec991509e2148`
+
 Production deployment: `dpl_6L6wqoDSHxQEvZTS6z4LV58tay1v`
 
 ## Outcome
