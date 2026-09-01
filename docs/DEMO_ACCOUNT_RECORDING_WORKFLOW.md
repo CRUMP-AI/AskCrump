@@ -15,6 +15,8 @@ Use this workflow to prepare authentic Ask Crump recordings without exposing a f
 - The account row is deleted through the service-role-only `delete_user_account` function, which cascades user-owned database rows and invalidates sessions.
 - The replacement account is marked `registration_environment=preview` and `internal_tier=enterprise`, so it is excluded from customer growth and lifecycle reporting.
 - No `AccountCreated` analytics event is emitted, and the account has no billing entitlement or provider identity.
+- Inspection also verifies the generic profile, empty profile preferences, and default workspace settings. A content-free account with a customized profile is not considered recording-ready.
+- Automated schema-parity coverage fails if a newly migrated user-owned table is not assigned to a clean-state inspection category.
 
 ## Required operator environment
 
@@ -33,21 +35,24 @@ Use a Supabase secret key (`sb_secret_...`) or the legacy service-role JWT. A pu
 python scripts/manage_demo_account.py
 ```
 
-The output contains only fixed identity status and category-level presence. It does not display account IDs, filenames, project names, prompts, messages, or other content.
+The output contains only fixed identity status, profile-default status, recording readiness, and category-level presence. It does not display account IDs, filenames, project names, prompts, messages, or other content.
 
 ## Reset immediately before a recording session
 
 ```powershell
-python scripts/manage_demo_account.py --replace
+python scripts/manage_demo_account.py --replace --receipt docs/demo-clean-state-YYYY-MM-DD.json
 ```
 
 1. Review the read-only status printed first.
 2. Type the exact replacement acknowledgement when prompted.
 3. Enter a new strong password twice through the hidden prompt.
-4. Wait for `Customer-content state: clean` and the completion message.
-5. Sign in at Ask Crump with the fixed demo email and the password chosen in step 3.
+4. Wait for `Customer-content state: clean`, `Profile defaults: yes`, `Recording ready: yes`, and the completion message.
+5. Preserve the newly created JSON receipt with the recording evidence. It contains only the fixed demo identity, clean category names, exclusion flags, and reset counts—never credentials, account IDs, filenames, prompts, or customer content. Existing receipt files are never overwritten.
+6. Sign in at Ask Crump with the fixed demo email and the password chosen in step 3.
 
 The reset invalidates any previous demo sessions. Do not run it while someone is actively recording from this account.
+
+For a read-only evidence refresh after the account is already clean, omit `--replace` and keep `--receipt`. Receipt creation fails closed unless the account is fully recording-ready.
 
 ## Recording rules
 

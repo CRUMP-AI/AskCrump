@@ -36,6 +36,14 @@ from backend.security import hash_password, validate_password  # noqa: E402
 DEMO_EMAIL = "demo@askcrump.com"
 DEMO_NAME = "Ask Crump Demo"
 REPLACE_ACKNOWLEDGEMENT = f"REPLACE {DEMO_EMAIL}"
+DEMO_RECEIPT_SCHEMA = "ask-crump-demo-clean-state/v1"
+DEMO_SETTINGS: dict[str, Any] = {
+    "assistant_name": "Crump",
+    "work_mode": False,
+    "work_start": 9,
+    "work_end": 17,
+    "preferences": {},
+}
 
 # Only presence is inspected. The utility never downloads or displays customer
 # content, names, filenames, prompts, messages, or account identifiers.
@@ -69,6 +77,8 @@ ACCOUNT_COLUMNS = ",".join(
         "id",
         "email",
         "full_name",
+        "profile_picture",
+        "preferences",
         "is_verified",
         "subscription_tier",
         "subscription_status",
@@ -166,6 +176,19 @@ def is_replaceable_demo_identity(user: dict[str, Any]) -> bool:
     )
 
 
+def has_default_demo_profile(
+    user: dict[str, Any],
+    settings: dict[str, Any] | None,
+) -> bool:
+    """Verify only content-free profile fields needed for a clean recording state."""
+    return (
+        user.get("profile_picture") is None
+        and user.get("preferences") == {}
+        and settings is not None
+        and all(settings.get(field) == expected for field, expected in DEMO_SETTINGS.items())
+    )
+
+
 async def inspect_demo_account(db: SupabaseDB) -> dict[str, Any]:
     """Return content-free presence evidence for the fixed demo identity."""
     user = await db.select_one(
@@ -178,8 +201,17 @@ async def inspect_demo_account(db: SupabaseDB) -> dict[str, Any]:
             "exists": False,
             "eligible_for_replace": True,
             "clean": True,
+            "profile_defaults": False,
+            "ready_for_recording": False,
             "populated_categories": [],
         }
+
+    settings = await db.select_one(
+        "user_settings",
+        columns=",".join(DEMO_SETTINGS),
+        filters={"user_id": eq(user["id"])},
+    )
+    profile_defaults = has_default_demo_profile(user, settings)
 
     async def category_has_rows(tables: tuple[str, ...]) -> bool:
         for table in tables:
@@ -201,6 +233,10 @@ async def inspect_demo_account(db: SupabaseDB) -> dict[str, Any]:
         "exists": True,
         "eligible_for_replace": is_replaceable_demo_identity(user),
         "clean": not populated,
+        "profile_defaults": profile_defaults,
+        "ready_for_recording": (
+            is_replaceable_demo_identity(user) and profile_defaults and not populated
+        ),
         "populated_categories": populated,
     }
 
@@ -275,18 +311,69 @@ async def replace_demo_account(
         "user_settings",
         {
             "user_id": created_user_id,
-            "assistant_name": "Crump",
-            "work_mode": False,
-            "preferences": {},
+            **DEMO_SETTINGS,
             "updated_at": timestamp,
         },
         on_conflict="user_id",
     )
 
     inspection = await inspect_demo_account(db)
-    if not inspection["exists"] or not inspection["eligible_for_replace"] or not inspection["clean"]:
+    if not inspection["ready_for_recording"]:
         raise DemoAccountError("The replacement account did not pass the clean-state verification.")
     return {**inspection, "removed_private_files": removed_files}
+
+
+def build_clean_state_receipt(
+    inspection: dict[str, Any],
+    *,
+    generated_at: str,
+    operation: str,
+) -> dict[str, Any]:
+    """Build a versioned receipt that contains no account IDs or customer content."""
+    if operation not in {"inspection", "replacement"}:
+        raise DemoAccountError("The receipt operation is invalid.")
+    if not inspection.get("ready_for_recording"):
+        raise DemoAccountError("A receipt can be created only for a recording-ready demo account.")
+    receipt: dict[str, Any] = {
+        "schema": DEMO_RECEIPT_SCHEMA,
+        "generated_at": generated_at,
+        "operation": operation,
+        "demo_identity": DEMO_EMAIL,
+        "registration_environment": "preview",
+        "internal_account": True,
+        "customer_growth_excluded": True,
+        "finance_excluded": True,
+        "ready_for_recording": True,
+        "profile_defaults": True,
+        "verified_clean_categories": list(CONTENT_GROUPS),
+        "populated_categories": [],
+    }
+    if operation == "replacement":
+        receipt["removed_private_files"] = int(inspection.get("removed_private_files") or 0)
+    return receipt
+
+
+def write_clean_state_receipt(receipt: dict[str, Any], destination: Path) -> None:
+    """Create a new receipt without silently overwriting prior evidence."""
+    validate_receipt_destination(destination)
+    try:
+        with destination.open("x", encoding="utf-8", newline="\n") as handle:
+            json.dump(receipt, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+    except FileExistsError as exc:
+        raise DemoAccountError("Receipt not written: the destination already exists.") from exc
+    except FileNotFoundError as exc:
+        raise DemoAccountError("Receipt not written: the destination folder does not exist.") from exc
+    except OSError as exc:
+        raise DemoAccountError("Receipt not written because the destination is unavailable.") from exc
+
+
+def validate_receipt_destination(destination: Path) -> None:
+    """Fail before remote work when a requested receipt cannot be created safely."""
+    if destination.exists():
+        raise DemoAccountError("Receipt not written: the destination already exists.")
+    if not destination.parent.is_dir():
+        raise DemoAccountError("Receipt not written: the destination folder does not exist.")
 
 
 def format_inspection(inspection: dict[str, Any]) -> str:
@@ -296,6 +383,8 @@ def format_inspection(inspection: dict[str, Any]) -> str:
         f"Configured: {'yes' if inspection.get('exists') else 'no'}",
         f"Protected identity match: {'yes' if inspection.get('eligible_for_replace') else 'no'}",
         f"Customer-content state: {'clean' if inspection.get('clean') else 'contains demo material'}",
+        f"Profile defaults: {'yes' if inspection.get('profile_defaults') else 'no'}",
+        f"Recording ready: {'yes' if inspection.get('ready_for_recording') else 'no'}",
         f"Populated categories: {', '.join(categories) if categories else 'none'}",
     ]
     return "\n".join(lines)
@@ -323,10 +412,17 @@ def parser() -> argparse.ArgumentParser:
         action="store_true",
         help="destructively reset the fixed demo identity after interactive confirmation",
     )
+    cli.add_argument(
+        "--receipt",
+        type=Path,
+        help="write a new content-free JSON clean-state receipt to this path",
+    )
     return cli
 
 
-async def run(*, replace: bool) -> int:
+async def run(*, replace: bool, receipt_path: Path | None = None) -> int:
+    if receipt_path is not None:
+        validate_receipt_destination(receipt_path)
     settings = get_settings()
     validate_operator_credentials(settings.supabase_url, settings.supabase_service_key)
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -335,6 +431,14 @@ async def run(*, replace: bool) -> int:
         inspection = await inspect_demo_account(db)
         print(format_inspection(inspection))
         if not replace:
+            if receipt_path is not None:
+                receipt = build_clean_state_receipt(
+                    inspection,
+                    generated_at=datetime.now(timezone.utc).isoformat(),
+                    operation="inspection",
+                )
+                write_clean_state_receipt(receipt, receipt_path)
+                print(f"Clean-state receipt written: {receipt_path}")
             print("Read-only inspection complete; no changes were made.")
             return 0
         if inspection["exists"] and not inspection["eligible_for_replace"]:
@@ -350,6 +454,14 @@ async def run(*, replace: bool) -> int:
         del password
         result = await replace_demo_account(db, files, password_hash=password_digest)
         print(format_inspection(result))
+        if receipt_path is not None:
+            receipt = build_clean_state_receipt(
+                result,
+                generated_at=datetime.now(timezone.utc).isoformat(),
+                operation="replacement",
+            )
+            write_clean_state_receipt(receipt, receipt_path)
+            print(f"Clean-state receipt written: {receipt_path}")
         print(
             "Replacement complete. The internal preview account is excluded from customer growth cohorts."
         )
@@ -359,7 +471,7 @@ async def run(*, replace: bool) -> int:
 def main() -> int:
     args = parser().parse_args()
     try:
-        return asyncio.run(run(replace=args.replace))
+        return asyncio.run(run(replace=args.replace, receipt_path=args.receipt))
     except (DemoAccountError, EOFError, KeyboardInterrupt) as exc:
         message = str(exc).strip() or "Operation cancelled."
         print(message, file=sys.stderr)
