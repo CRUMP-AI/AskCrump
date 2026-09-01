@@ -372,6 +372,7 @@ const landingVersion = `${releaseVersion}-marketing-landing-1`;
 const authControllerVersion = `${releaseVersion}-plan-intent-delivery-3`;
 const planRendererVersion = `${releaseVersion}-truthful-enterprise-positioning-1`;
 const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
+const accountDeletionBillingVersion = `${releaseVersion}-account-deletion-billing-1`;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
 const coreReliabilityVersion = `${releaseVersion}-core-reliability-1`;
@@ -573,6 +574,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/onboarding.js?v=${videoDestinationVersion}`) ||
     !runtime.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
     !runtime.includes(`/chat-resilience.js?v=${imageSafetyRecoveryVersion}`) ||
+    !runtime.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
     !runtime.includes(`/ui-functions.js?v=${continuityActionVersion}`) ||
     !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-share.js?v=${releaseVersion}-lifecycle-activation-1`) ||
@@ -711,11 +713,12 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r178') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r179') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${continuityActionVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${imageSafetyRecoveryVersion}`) ||
+    !serviceWorker.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.css?v=${fileDeliveryVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.js?v=${fileDeliveryVersion}`) ||
     !serviceWorker.includes(`/ui-functions.js?v=${continuityActionVersion}`) ||

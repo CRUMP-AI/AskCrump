@@ -55,7 +55,7 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/presence-manager.js?v=5.9.76',
         '/sync-manager.js?v=5.9.76',
         '/chat-sync.js?v=5.9.76-sync-cadence-1',
-        '/account-manager.js',
+        '/account-manager.js?v=5.9.76-account-deletion-billing-1',
         '/app.js?v=5.9.76-core-reliability-1',
         '/product-analytics.js?v=5.9.76',
     ]

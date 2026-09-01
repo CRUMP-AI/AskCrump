@@ -170,14 +170,12 @@
       'This permanently deletes your account, synchronized conversations, settings, and active sessions. This action cannot be undone.',
     ));
 
-    if (window.BillingManager?.isNative?.()) {
-      const warning = textElement(
-        'p',
-        'Deleting your Ask Crump account does not cancel an Apple App Store or Google Play subscription. Cancel the subscription in your device settings to prevent renewal.',
-        'account-modal-warning',
-      );
-      card.appendChild(warning);
-    }
+    const warning = textElement(
+      'p',
+      'A web subscription is canceled immediately during deletion; deletion does not issue a refund. Apple App Store or Google Play subscriptions must be canceled separately in store settings to prevent renewal.',
+      'account-modal-warning',
+    );
+    card.appendChild(warning);
 
     const password = labeledInput('Password', 'deleteAccountPassword', 'password', 'current-password');
     const confirmation = labeledInput('Type DELETE', 'deleteAccountConfirmation', 'text', 'off');
