@@ -42,6 +42,8 @@ let currentProfile = null;
 let selectedFiles = [];
 let isProcessing = false;
 let freshConversationRequested = false;
+let settingsBaselineSignature = '';
+let settingsIdentityRequest = null;
 window.chats = chats;
 window.currentChatId = currentChatId;
 window.STORAGE_KEYS = STORAGE_KEYS;
@@ -51,6 +53,24 @@ const COMPOSER_SCAFFOLDS = Object.freeze({
     research: 'Search the web for ',
 });
 const USAGE_PREFLIGHT_TIMEOUT_MS = 10_000;
+const SETTINGS_EDITABLE_IDS = Object.freeze([
+    'settingsName',
+    'assistantName',
+    'workMode',
+    'workStart',
+    'workEnd',
+    'crumpCheckIns',
+    'checkInFrequency',
+    'quietStart',
+    'quietEnd',
+    'crumpNotifications',
+    'crumpHaptics',
+    'checkInFollowups',
+    'checkInReminders',
+    'checkInGoals',
+    'checkInEncouragement',
+]);
+const SETTINGS_EDITABLE_ID_SET = new Set(SETTINGS_EDITABLE_IDS);
 
 function asTimestamp(value) {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -1095,9 +1115,70 @@ function loadSettings() {
     // Settings are loaded from the synchronized cache by the auth controller.
 }
 
+function settingsFormSignature() {
+    return SETTINGS_EDITABLE_IDS.map(id => {
+        const field = document.getElementById(id);
+        if (!field) return `${id}:missing`;
+        const value = field.type === 'checkbox' ? String(field.checked) : String(field.value || '');
+        return `${id}:${value}`;
+    }).join('|');
+}
+
+function syncSettingsSaveState() {
+    const saveButton = document.getElementById('saveSettingsBtn');
+    if (!saveButton || saveButton.dataset.settingsSaving === 'true') return;
+    const dirty = Boolean(settingsBaselineSignature) && settingsFormSignature() !== settingsBaselineSignature;
+    saveButton.disabled = !dirty;
+    saveButton.setAttribute('aria-disabled', dirty ? 'false' : 'true');
+    saveButton.title = dirty ? 'Save your changes' : 'No changes to save';
+}
+
+function resetSettingsSaveState() {
+    settingsBaselineSignature = settingsFormSignature();
+    syncSettingsSaveState();
+}
+
+function wireSettingsSaveState() {
+    const modal = document.getElementById('settingsModal');
+    if (!modal || modal.dataset.settingsDirtyWired === 'true') return;
+    modal.dataset.settingsDirtyWired = 'true';
+    const update = event => {
+        if (SETTINGS_EDITABLE_ID_SET.has(event.target?.id)) syncSettingsSaveState();
+    };
+    modal.addEventListener('input', update);
+    modal.addEventListener('change', update);
+}
+
+async function restoreSettingsIdentity() {
+    const emailField = document.getElementById('settingsEmail');
+    if (!emailField || emailField.value || settingsIdentityRequest) return settingsIdentityRequest;
+    emailField.setAttribute('aria-busy', 'true');
+    emailField.placeholder = 'Confirming account email…';
+    settingsIdentityRequest = Promise.resolve(window.deviceAuth?.checkSession?.())
+        .then(result => {
+            const user = result?.authenticated ? result.data?.user : null;
+            if (!user?.email) return;
+            window.currentUser = { ...(window.currentUser || {}), ...user };
+            window.configureUserStorage?.(user.id);
+            currentProfile?.updateProfile?.({
+                ...(user.fullName ? { name: user.fullName } : {}),
+                email: user.email,
+            });
+            emailField.value = user.email;
+        })
+        .catch(() => {})
+        .finally(() => {
+            emailField.removeAttribute('aria-busy');
+            emailField.placeholder = emailField.value ? 'you@email.com' : 'Account email unavailable';
+            settingsIdentityRequest = null;
+        });
+    return settingsIdentityRequest;
+}
+
 function loadSettingsValues() {
     const profile = currentProfile?.getProfile?.() || {};
-    const user = window.currentUser || {};
+    const sessionUser = window.deviceAuth?.session?.user || {};
+    const user = { ...sessionUser, ...(window.currentUser || {}) };
     document.getElementById('settingsName').value = user.fullName || profile.name || '';
     document.getElementById('settingsEmail').value = user.email || profile.email || '';
     document.getElementById('settingsEmail').readOnly = true;
@@ -1124,9 +1205,26 @@ function loadSettingsValues() {
     updateVisibility();
     workModeToggle.onchange = updateVisibility;
     window.CrumpPresence?.applyPreferencesToForm?.();
+    wireSettingsSaveState();
+    resetSettingsSaveState();
+    if (!document.getElementById('settingsEmail').value) void restoreSettingsIdentity();
 }
 
 window.saveSettings = async function() {
+    const saveButton = document.getElementById('saveSettingsBtn');
+    if (saveButton?.disabled || saveButton?.dataset.settingsSaving === 'true') return;
+    if (saveButton) {
+        saveButton.dataset.settingsSaving = 'true';
+        saveButton.disabled = true;
+        saveButton.setAttribute('aria-busy', 'true');
+        saveButton.textContent = 'Saving…';
+    }
+    const finishSaveAttempt = () => {
+        if (!saveButton) return;
+        delete saveButton.dataset.settingsSaving;
+        saveButton.removeAttribute('aria-busy');
+        saveButton.textContent = 'Save changes';
+    };
     const name = document.getElementById('settingsName').value.trim();
     const assistantName = document.getElementById('assistantName').value.trim() || 'Crump';
     const workMode = document.getElementById('workMode').checked;
@@ -1152,6 +1250,8 @@ window.saveSettings = async function() {
     } catch (error) {
         console.warn('[Profile settings]', error);
         showToast(error.message || 'Your name could not be saved. Try again.', 'error');
+        finishSaveAttempt();
+        syncSettingsSaveState();
         return;
     }
     try {
@@ -1167,12 +1267,16 @@ window.saveSettings = async function() {
         await window.CrumpPresence?.savePreferences?.();
         updateAssistantNameDisplay();
         updateUserAvatar();
+        resetSettingsSaveState();
         closeSettings();
         showToast('Settings saved', 'success');
     } catch (error) {
         console.warn('[Settings]', error);
+        resetSettingsSaveState();
         showToast('Settings saved on this device; server sync will retry.', 'warning');
         closeSettings();
+    } finally {
+        finishSaveAttempt();
     }
 };
 

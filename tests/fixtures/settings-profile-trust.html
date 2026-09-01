@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Settings profile trust fixture</title>
+  <style>
+    body { margin: 0; background: #090d12; color: #f4f1ea; font-family: system-ui, sans-serif; }
+    #settingsModal { display: none; min-height: 100vh; padding: 24px; box-sizing: border-box; }
+    .settings-sheet { width: min(720px, 100%); margin: auto; display: grid; gap: 16px; }
+    .settings-row { display: grid; gap: 6px; }
+    input, select, button { min-height: 44px; font: inherit; }
+    input, select { box-sizing: border-box; width: 100%; }
+    #workHoursGroup, #checkInDetails { display: grid; gap: 8px; }
+  </style>
+</head>
+<body>
+  <button id="openSettings" type="button">Open settings</button>
+  <div id="settingsModal">
+    <section class="settings-sheet" role="dialog" aria-modal="true" aria-label="Settings">
+      <button id="saveSettingsBtn" type="button" disabled aria-disabled="true" title="No changes to save">Save changes</button>
+      <label class="settings-row">Your name <input id="settingsName" type="text"></label>
+      <label class="settings-row">Account email <input id="settingsEmail" type="email" readonly></label>
+      <label class="settings-row">Assistant name <input id="assistantName" type="text"></label>
+      <label><input id="workMode" type="checkbox"> Work Mode</label>
+      <div id="workHoursGroup">
+        <label>Work start <select id="workStart"></select></label>
+        <label>Work end <select id="workEnd"></select></label>
+      </div>
+      <label><input id="crumpCheckIns" type="checkbox"> Check-ins</label>
+      <div id="checkInDetails">
+        <label>Frequency <select id="checkInFrequency"><option value="balanced">Balanced</option></select></label>
+        <label>Quiet start <select id="quietStart"></select></label>
+        <label>Quiet end <select id="quietEnd"></select></label>
+        <label><input id="crumpNotifications" type="checkbox"> Notifications</label>
+        <label><input id="crumpHaptics" type="checkbox" checked> Haptics</label>
+        <label><input id="checkInFollowups" type="checkbox" checked> Follow-ups</label>
+        <label><input id="checkInReminders" type="checkbox" checked> Reminders</label>
+        <label><input id="checkInGoals" type="checkbox" checked> Goals</label>
+        <label><input id="checkInEncouragement" type="checkbox"> Encouragement</label>
+      </div>
+    </section>
+  </div>
+  <script>
+    window.fixtureErrors = [];
+    window.addEventListener('error', event => window.fixtureErrors.push(event.message || 'error'));
+    window.addEventListener('unhandledrejection', event => window.fixtureErrors.push(String(event.reason || 'rejection')));
+    window.currentUser = {id: 'fixture-user', fullName: 'Ask Crump Demo'};
+    window.deviceAuth = {
+      session: null,
+      async checkSession() {
+        await new Promise(resolve => setTimeout(resolve, 60));
+        return {
+          authenticated: true,
+          data: {user: {id: 'fixture-user', fullName: 'Ask Crump Demo', email: 'demo@example.com'}},
+        };
+      },
+    };
+    window.CrumpPresence = {
+      applyPreferencesToForm() {},
+      async savePreferences() {},
+    };
+    window.SyncManager = {async push() { return {success: true}; }};
+    window.showToast = () => {};
+  </script>
+  <script src="/public/safe-storage.js"></script>
+  <script src="/public/app.js?v=settings-profile-trust-fixture-1"></script>
+  <script>
+    document.getElementById('openSettings').addEventListener('click', () => window.openSettings());
+    document.getElementById('saveSettingsBtn').addEventListener('click', () => window.saveSettings());
+  </script>
+</body>
+</html>

@@ -23,7 +23,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
     ]
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
-        '/runtime-body-v1.js?v=5.9.76-continuity-action-1',
+        '/runtime-body-v1.js?v=5.9.76-settings-profile-trust-loader-1',
         '/native-runtime.js',
         '/mobile-bridge.js',
         '/safe-storage.js',
@@ -56,7 +56,7 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/sync-manager.js?v=5.9.76',
         '/chat-sync.js?v=5.9.76-sync-cadence-1',
         '/account-manager.js?v=5.9.76-account-deletion-billing-1',
-        '/app.js?v=5.9.76-project-chat-boundary-1',
+        '/app.js?v=5.9.76-settings-profile-trust-1',
         '/product-analytics.js?v=5.9.76',
     ]
     for asset in deferred_assets:

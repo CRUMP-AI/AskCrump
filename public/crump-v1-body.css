@@ -1977,6 +1977,11 @@ body.crump-v1-body .settings-primary-btn {
   font-size: 10px !important;
   font-weight: 670 !important;
 }
+body.crump-v1-body .settings-primary-btn:disabled {
+  cursor: default !important;
+  opacity: .44 !important;
+  filter: saturate(.5) !important;
+}
 body.crump-v1-body .v1-settings-layout {
   display: grid;
   min-height: 0;
