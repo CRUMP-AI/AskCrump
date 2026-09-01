@@ -43,6 +43,7 @@ async function inspect(page, viewport) {
     const actual = await page.evaluate(() => {
       const sheet = document.getElementById('crump53Sheet');
       const projectsPanel = document.querySelector('[data-crump53-panel="projects"]');
+      const videoProjectContext = document.getElementById('crump53VideoProjectContext');
       return {
         section: sheet?.dataset.crump53Section || '',
         title: document.getElementById('crump53WorkspaceTitle')?.textContent || '',
@@ -51,6 +52,8 @@ async function inspect(page, viewport) {
         projectView: sheet?.dataset.projectView || '',
         projectPanelOpen: Boolean(projectsPanel?.classList.contains('is-project-open')),
         routeProject: new URLSearchParams(location.search).get('project') || '',
+        videoProjectVisible: Boolean(videoProjectContext && !videoProjectContext.hidden && videoProjectContext.getClientRects().length),
+        videoProjectName: document.getElementById('crump53VideoProjectName')?.textContent || '',
       };
     });
     assert.deepEqual(actual, {
@@ -61,7 +64,24 @@ async function inspect(page, viewport) {
       projectView: 'index',
       projectPanelOpen: false,
       routeProject: '',
+      videoProjectVisible: section.name === 'video',
+      videoProjectName: 'Launch Operations',
     });
+    if (section.name === 'video') {
+      await page.locator('#crump53VideoProjectClear').click();
+      await page.waitForFunction(() => document.getElementById('crump53VideoProjectContext')?.hidden);
+      const cleared = await page.evaluate(() => ({
+        destinationHidden: Boolean(document.getElementById('crump53VideoProjectContext')?.hidden),
+        activeProjectChip: Boolean(document.querySelector('.crump53-active-project')),
+        status: document.getElementById('crump53VideoStatus')?.textContent || '',
+      }));
+      assert.deepEqual(cleared, {
+        destinationHidden: true,
+        activeProjectChip: false,
+        status: 'This video will save to your private Files only.',
+      });
+      actual.filesOnly = cleared;
+    }
     transitions.push(actual);
   }
 

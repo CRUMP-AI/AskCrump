@@ -164,8 +164,10 @@
     else button.removeAttribute('aria-busy');
     const referenceInput = byId('crump53VideoReferenceInput');
     const referenceButton = byId('crump53AddVideoReference');
+    const projectButton = byId('crump53VideoProjectClear');
     if (referenceInput) referenceInput.disabled = Boolean(busy);
     if (referenceButton) referenceButton.disabled = Boolean(busy);
+    if (projectButton) projectButton.disabled = Boolean(busy);
     document.querySelectorAll('[data-video-reference-remove]').forEach(remove => {
       remove.disabled = Boolean(busy);
     });
@@ -552,6 +554,14 @@
               <div class="crump53-kicker">VIDEO STUDIO</div>
               <h3>Create a scene. Keep directing.</h3>
               <p>Pick the experience you need. Crump handles the provider, saves the result privately, and keeps compatible scenes ready to continue.</p>
+              <div class="crump53-video-project-context" id="crump53VideoProjectContext" hidden>
+                <div>
+                  <span>SAVING TO PROJECT</span>
+                  <strong id="crump53VideoProjectName">Project</strong>
+                  <small id="crump53VideoProjectHelp">The finished video will appear in this Project and in your private Files.</small>
+                </div>
+                <button class="crump53-button" type="button" id="crump53VideoProjectClear" aria-describedby="crump53VideoProjectHelp">Use Files only</button>
+              </div>
               <div class="crump53-video-engine-guide" aria-label="Video engine guide">
                 <div class="crump53-video-engine-card is-active" data-video-engine-card="quick"><strong>Quick</strong><span>Fast short clips. Best when you just need a strong first take.</span></div>
                 <div class="crump53-video-engine-card" data-video-engine-card="extendable"><strong>Extendable</strong><span>Built for scenes that need another shot after the first clip ends.</span></div>
@@ -623,6 +633,10 @@
     byId('crump53VideoResolution')?.addEventListener('change', updateVideoStudio);
     byId('crump53AddVideoReference')?.addEventListener('click', () => byId('crump53VideoReferenceInput')?.click());
     byId('crump53VideoReferenceInput')?.addEventListener('change', handleVideoReferenceUpload);
+    byId('crump53VideoProjectClear')?.addEventListener('click', () => {
+      clearActiveProject({announce: true});
+      setStatus('crump53VideoStatus', 'This video will save to your private Files only.');
+    });
     byId('crump53RefreshLibrary')?.addEventListener('click', () => void refreshLibrary());
     byId('crump53LibrarySearch')?.addEventListener('input', event => {
       state.libraryQuery = String(event.currentTarget?.value || '');
@@ -749,6 +763,7 @@
       scheduleManuscriptPoll();
     }
     if (tab === 'video') {
+      renderVideoProjectDestination();
       const pendingJob = readStoredVideoJob();
       if (pendingJob) {
         setStatus('crump53VideoStatus', 'Your video is still generating. Crump is checking its saved job now.');
@@ -1527,6 +1542,7 @@
       node.classList.toggle('is-active', Boolean(state.activeProject));
     });
     notifyProjectTargetChanged();
+    renderVideoProjectDestination();
     if (!state.activeProject) return;
     const header = document.querySelector('.v1-workspace-context');
     if (!header) return;
@@ -1535,17 +1551,32 @@
     chip.innerHTML = `<span>${escapeHtml(state.activeProject.name)}</span><button type="button" aria-label="Leave project">×</button>`;
     chip.querySelector('button')?.addEventListener('click', event => {
       event.stopPropagation();
-      state.activeProject = null;
-      storeProject('');
-      renderProjectIndicator();
-      renderProjectList(state.features?.projectLimit);
-      renderManuscriptProjectState();
-      const contextCard = byId('crump53ProjectContextCard');
-      if (contextCard) contextCard.hidden = true;
-      const conversationsCard = byId('crump53ProjectConversationsCard');
-      if (conversationsCard) conversationsCard.hidden = true;
+      clearActiveProject();
     });
     header.appendChild(chip);
+  }
+
+  function renderVideoProjectDestination() {
+    const context = byId('crump53VideoProjectContext');
+    const name = byId('crump53VideoProjectName');
+    if (!context) return;
+    context.hidden = !state.activeProject;
+    if (name && state.activeProject) name.textContent = state.activeProject.name || 'Project';
+  }
+
+  function clearActiveProject({announce = false} = {}) {
+    const projectName = state.activeProject?.name || 'Project';
+    state.activeProject = null;
+    state.editingProject = null;
+    storeProject('');
+    renderProjectIndicator();
+    renderProjectList(state.features?.projectLimit);
+    renderManuscriptProjectState();
+    const contextCard = byId('crump53ProjectContextCard');
+    if (contextCard) contextCard.hidden = true;
+    const conversationsCard = byId('crump53ProjectConversationsCard');
+    if (conversationsCard) conversationsCard.hidden = true;
+    if (announce) window.showToast?.(`${projectName} is no longer the save destination.`, 'info');
   }
 
   function renderManuscriptProjectState() {
