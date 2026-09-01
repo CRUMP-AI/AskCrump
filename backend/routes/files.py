@@ -112,6 +112,7 @@ async def image_adjust(file_id: str, request: Request):
             source_file_id=normalized,
             mask_data_url=str(payload.get('maskDataUrl') or ''),
             adjustments=payload.get('adjustments'),
+            overlay_data_url=str(payload.get('overlayDataUrl') or ''),
             chat_id=chat_id,
         )
         return {

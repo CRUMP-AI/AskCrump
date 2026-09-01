@@ -127,6 +127,53 @@ def test_local_image_adjustments_change_only_the_manual_selection() -> None:
         assert adjusted[0] > adjusted[2]
 
 
+def test_exact_local_overlay_preserves_every_pixel_outside_supplied_artwork() -> None:
+    source = Image.new("RGBA", (120, 100), color=(30, 40, 50, 255))
+    source_bytes = BytesIO()
+    source.save(source_bytes, format="PNG")
+    overlay = Image.new("RGBA", source.size, color=(0, 0, 0, 0))
+    overlay.paste((220, 30, 40, 255), (42, 34, 78, 66))
+
+    result_bytes, values, size, has_overlay = MediaService._apply_local_image_composition(
+        source_bytes.getvalue(),
+        "",
+        {"warmth": 0, "exposure": 0, "saturation": 0},
+        _png_data_url(overlay),
+    )
+
+    assert values == {"warmth": 0.0, "exposure": 0.0, "saturation": 0.0}
+    assert size == "120x100"
+    assert has_overlay is True
+    with Image.open(BytesIO(result_bytes)) as result:
+        pixels = result.convert("RGBA")
+        assert pixels.getpixel((60, 50)) == (220, 30, 40, 255)
+        for point in ((0, 0), (41, 50), (78, 50), (119, 99)):
+            assert pixels.getpixel(point) == source.getpixel(point)
+
+
+@pytest.mark.parametrize(
+    ("overlay", "code"),
+    [
+        (Image.new("RGBA", (120, 100), color=(0, 0, 0, 0)), "EMPTY_LOCAL_IMAGE_OVERLAY"),
+        (Image.new("RGBA", (60, 50), color=(220, 30, 40, 255)), "LOCAL_IMAGE_OVERLAY_SIZE_MISMATCH"),
+    ],
+)
+def test_exact_local_overlay_rejects_empty_or_mismatched_pixels(overlay, code) -> None:
+    source = Image.new("RGBA", (120, 100), color=(30, 40, 50, 255))
+    source_bytes = BytesIO()
+    source.save(source_bytes, format="PNG")
+
+    with pytest.raises(AIServiceError) as caught:
+        MediaService._apply_local_image_composition(
+            source_bytes.getvalue(),
+            "",
+            {"warmth": 0, "exposure": 0, "saturation": 0},
+            _png_data_url(overlay),
+        )
+
+    assert caught.value.code == code
+
+
 @pytest.mark.parametrize(
     ("adjustments", "code"),
     [
@@ -323,6 +370,7 @@ async def test_local_image_adjustment_save_is_provider_free_private_and_retry_st
         "edited": True,
         "precisionEdit": True,
         "localAdjustment": True,
+        "deterministicOverlay": False,
         "sourceFileId": "source-image",
         "size": "120x100",
         "warmth": 12.0,
@@ -330,6 +378,41 @@ async def test_local_image_adjustment_save_is_provider_free_private_and_retry_st
         "saturation": 0.0,
     }
     assert "mask" not in files.stored["metadata"]
+
+
+@pytest.mark.asyncio
+async def test_exact_overlay_only_save_is_private_provider_free_and_retry_stable() -> None:
+    source = Image.new("RGBA", (120, 100), color=(30, 40, 50, 255))
+    source_bytes = BytesIO()
+    source.save(source_bytes, format="PNG")
+    overlay = Image.new("RGBA", source.size, color=(0, 0, 0, 0))
+    overlay.paste((220, 30, 40, 255), (42, 34, 78, 66))
+    files = PrecisionImageFiles(source_bytes.getvalue())
+    service = MediaService(SimpleNamespace(), files)
+
+    first = await service.save_local_image_adjustment(
+        user_id="user-one",
+        source_file_id="source-image",
+        mask_data_url="",
+        adjustments={"warmth": 0, "exposure": 0, "saturation": 0},
+        overlay_data_url=_png_data_url(overlay),
+        chat_id=None,
+    )
+    first_file_id = files.stored["file_id"]
+    second = await service.save_local_image_adjustment(
+        user_id="user-one",
+        source_file_id="source-image",
+        mask_data_url="",
+        adjustments={"warmth": 0, "exposure": 0, "saturation": 0},
+        overlay_data_url=_png_data_url(overlay),
+        chat_id=None,
+    )
+
+    assert first["id"] == second["id"]
+    assert files.stored["file_id"] == first_file_id
+    assert files.stored["metadata"]["localAdjustment"] is False
+    assert files.stored["metadata"]["deterministicOverlay"] is True
+    assert "overlay" not in files.stored["metadata"]
 
 
 @pytest.mark.asyncio
@@ -341,6 +424,7 @@ async def test_local_image_adjustment_route_uses_authenticated_owner_and_zero_pr
             return {
                 "maskDataUrl": "data:image/png;base64,fixture",
                 "adjustments": {"warmth": 8, "exposure": 0, "saturation": 0},
+                "overlayDataUrl": "data:image/png;base64,overlay",
                 "chatId": "22222222-2222-4222-8222-222222222222",
             }
 
@@ -369,6 +453,7 @@ async def test_local_image_adjustment_route_uses_authenticated_owner_and_zero_pr
         "source_file_id": "11111111-1111-4111-8111-111111111111",
         "mask_data_url": "data:image/png;base64,fixture",
         "adjustments": {"warmth": 8, "exposure": 0, "saturation": 0},
+        "overlay_data_url": "data:image/png;base64,overlay",
         "chat_id": "22222222-2222-4222-8222-222222222222",
     }
 
@@ -644,6 +729,16 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
         "Slightly lighter",
         "No person is identified or classified",
         "LOCAL ADJUSTMENTS · NO AI OR CREDITS",
+        "EXACT OVERLAY · NO AI OR CREDITS",
+        "Place",
+        "Add logo or image",
+        "Exact overlay image",
+        "Exact overlay text",
+        "Exact text color",
+        "Selected overlay size",
+        "Selected overlay opacity",
+        "Remove selected",
+        "model to redraw it",
         "['warmth', 'Warmth']",
         "['exposure', 'Exposure']",
         "['saturation', 'Saturation']",
@@ -654,6 +749,10 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
         "image-adjust",
         "selectionHasVisiblePixels",
         "maskDataUrl",
+        "overlayDataUrl",
+        "overlayCanvas.toBlob",
+        "MAX_OVERLAY_ITEMS = 12",
+        "MAX_OVERLAY_SOURCE_PIXELS = 16_777_216",
         "applyPrecisionSelection",
         "aria-modal",
     ):
@@ -668,8 +767,14 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
     assert "Crump Credits were used" in editor
     assert "rgba(226, 196, 126, 1)" in editor
     assert "image_adjust" in read("backend/routes/files.py")
+    assert "payload.get('overlayDataUrl')" in read("backend/routes/files.py")
     assert "providerUsed': False" in read("backend/routes/files.py")
     assert "creditsUsed': 0" in read("backend/routes/files.py")
+    backend = read("backend/media_service.py")
+    assert "_decode_local_overlay" in backend
+    assert "Image.alpha_composite" in backend
+    assert "'deterministicOverlay': has_overlay" in backend
+    assert "'sourceFileId': source_file_id" in backend
     assert "imageEditMask = precision.maskDataUrl" in composer
     assert "state.precisionImageEdit = null" in composer
     assert "imageEditMask" not in composer[composer.index("requestMeta: {") : composer.index("state.imageRecovery = null;")]
@@ -679,8 +784,8 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
     assert "input.dispatchEvent(new Event('input', {bubbles: true}))" in composer
     assert "Edit area" in composer
     assert "Precision Edit area" in composer
-    exact_script = "/crump-precision-image-edit.js?v=5.9.76-local-photo-studio-1"
-    exact_style = "/crump-precision-image-edit.css?v=5.9.76-local-photo-studio-1"
+    exact_script = "/crump-precision-image-edit.js?v=5.9.76-exact-overlay-1"
+    exact_style = "/crump-precision-image-edit.css?v=5.9.76-exact-overlay-1"
     for asset in (exact_script, exact_style):
         assert asset in runtime
         assert asset in worker

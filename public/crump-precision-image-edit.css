@@ -46,18 +46,27 @@ body.crump-precision-open { overflow: hidden !important; }
 .crump-precision-canvas-frame img { grid-area: 1 / 1; display: block; width: 100%; height: 100%; max-width: 100%; max-height: calc(100dvh - 245px); object-fit: fill; user-select: none; -webkit-user-drag: none; }
 .crump-precision-canvas-frame .crump-precision-preview { position: absolute; inset: 0; z-index: 1; display: block; width: 100%; height: 100%; pointer-events: none; }
 .crump-precision-canvas-frame .crump-precision-preview[hidden] { display: none; }
+.crump-precision-canvas-frame .crump-precision-exact-canvas { position: absolute; inset: 0; z-index: 2; display: block; width: 100%; height: 100%; pointer-events: none; }
+.crump-precision-canvas-frame .crump-precision-exact-canvas[hidden] { display: none; }
+.crump-precision-overlay-guide { position: absolute; z-index: 3; pointer-events: none; border: 1px solid #f1d491; border-radius: 4px; box-shadow: 0 0 0 1px rgba(0,0,0,.55), 0 0 0 4px rgba(209,191,150,.12); }
+.crump-precision-overlay-guide::after { content: ''; position: absolute; right: -4px; bottom: -4px; width: 7px; height: 7px; border: 1px solid #171b20; border-radius: 50%; background: #f1d491; }
+.crump-precision-overlay-guide[hidden] { display: none; }
 .crump-precision-canvas-frame.is-zoomed { max-width: none; max-height: none; }
 .crump-precision-canvas-frame.is-zoomed img { max-width: none; max-height: none; }
 .crump-precision-canvas-frame .crump-precision-mask {
-  position: absolute; inset: 0; z-index: 2; display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: none;
+  position: absolute; inset: 0; z-index: 4; display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: none;
   opacity: .72;
 }
 .crump-precision-canvas-frame.has-local-preview .crump-precision-mask { opacity: .3; }
 .crump-precision-canvas-frame.is-comparing-original .crump-precision-mask,
-.crump-precision-canvas-frame.is-comparing-original .crump-precision-preview { visibility: hidden; }
+.crump-precision-canvas-frame.is-comparing-original .crump-precision-preview,
+.crump-precision-canvas-frame.is-comparing-original .crump-precision-exact-canvas,
+.crump-precision-canvas-frame.is-comparing-original .crump-precision-overlay-guide { visibility: hidden; }
 .crump-precision-canvas-frame .crump-precision-mask[data-mode="erase"] { cursor: cell; }
 .crump-precision-canvas-frame .crump-precision-mask[data-mode="move"] { cursor: grab; }
+.crump-precision-canvas-frame .crump-precision-mask[data-mode="place"] { cursor: move; }
 .crump-precision-canvas-frame .crump-precision-mask.is-panning { cursor: grabbing; }
+.crump-precision-canvas-frame .crump-precision-mask.is-placing { cursor: grabbing; }
 
 .crump-precision-controls {
   min-height: 0; display: flex; flex-direction: column; gap: 15px; overflow: auto; padding: 19px;
@@ -66,7 +75,7 @@ body.crump-precision-open { overflow: hidden !important; }
 .crump-precision-control-head { display: grid; gap: 5px; }
 .crump-precision-control-head span { color: #d5bd87; font-size: 8px; font-weight: 700; letter-spacing: .13em; }
 .crump-precision-control-head strong { color: #e3e5e6; font-size: 13px; line-height: 1.35; }
-.crump-precision-modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 3px; border: 1px solid rgba(255,255,255,.075); border-radius: 12px; background: #0d1319; }
+.crump-precision-modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; padding: 3px; border: 1px solid rgba(255,255,255,.075); border-radius: 12px; background: #0d1319; }
 .crump-precision-modes button { min-height: 38px; border: 0; border-radius: 9px; background: transparent; color: #7f8995; font-size: 11px; font-weight: 600; }
 .crump-precision-modes button.is-active { background: rgba(209,191,150,.13); color: #ead9b3; }
 .crump-precision-zoom { display: grid; grid-template-columns: 38px 1fr 38px 48px; align-items: center; gap: 5px; }
@@ -95,6 +104,22 @@ body.crump-precision-open { overflow: hidden !important; }
 .crump-precision-local-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .crump-precision-local-actions button { min-height: 34px; border: 1px solid rgba(255,255,255,.075); border-radius: 10px; background: rgba(255,255,255,.03); color: #b9c0c7; font-size: 9px; }
 .crump-precision-local-actions button:disabled { opacity: .35; }
+.crump-precision-exact-overlay { display: grid; gap: 8px; padding: 12px; border: 1px solid rgba(209,191,150,.14); border-radius: 14px; background: rgba(209,191,150,.035); }
+.crump-precision-exact-overlay > span { color: #d5bd87; font-size: 8px; font-weight: 700; letter-spacing: .12em; }
+.crump-precision-exact-overlay > small { color: #7f8995; font-size: 8.5px; line-height: 1.45; }
+.crump-precision-overlay-actions { display: grid; }
+.crump-precision-overlay-actions button,
+.crump-precision-overlay-text button,
+.crump-precision-overlay-tuning button { min-height: 34px; border: 1px solid rgba(255,255,255,.08); border-radius: 10px; background: rgba(255,255,255,.035); color: #c6ccd2; font-size: 9px; }
+.crump-precision-overlay-text { display: grid; grid-template-columns: minmax(0, 1fr) 34px auto; gap: 5px; }
+.crump-precision-overlay-text input[type="text"] { min-width: 0; padding: 0 9px; border: 1px solid rgba(255,255,255,.08); border-radius: 10px; background: #0b1117; color: #e1e4e7; font: inherit; font-size: 9px; }
+.crump-precision-overlay-text input[type="color"] { width: 34px; min-height: 34px; padding: 3px; border: 1px solid rgba(255,255,255,.08); border-radius: 10px; background: #0b1117; }
+.crump-precision-overlay-tuning { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.crump-precision-overlay-tuning label { display: grid; gap: 4px; color: #8f98a4; font-size: 8px; }
+.crump-precision-overlay-tuning input { width: 100%; accent-color: #d5bd87; }
+.crump-precision-overlay-tuning button { grid-column: 1 / -1; }
+.crump-precision-overlay-tuning button:disabled,
+.crump-precision-overlay-text input:disabled { opacity: .35; }
 .crump-precision-adjustment { display: grid; gap: 8px; }
 .crump-precision-adjustment > span { color: #d5bd87; font-size: 8px; font-weight: 700; letter-spacing: .12em; }
 .crump-precision-presets { display: flex; flex-wrap: wrap; gap: 5px; }

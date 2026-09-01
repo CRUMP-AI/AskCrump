@@ -4,6 +4,9 @@
   if (window.__crumpPrecisionImageEditLoaded) return;
   window.__crumpPrecisionImageEditLoaded = true;
 
+  const MAX_OVERLAY_ITEMS = 12;
+  const MAX_OVERLAY_SOURCE_PIXELS = 16_777_216;
+
   const state = {
     modal: null,
     returnFocus: null,
@@ -17,6 +20,7 @@
     hasSelection: false,
     activeStroke: null,
     mode: 'paint',
+    modeButtons: {},
     brushPercent: 4,
     stage: null,
     frame: null,
@@ -42,6 +46,16 @@
     saveLocal: null,
     compare: null,
     comparingOriginal: false,
+    overlayCanvas: null,
+    overlayContext: null,
+    overlayGuide: null,
+    overlays: [],
+    activeOverlayId: '',
+    overlayDrag: null,
+    overlaySize: null,
+    overlayOpacity: null,
+    overlayColor: null,
+    overlayRemove: null,
   };
 
   const focusableSelector = 'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -79,6 +93,8 @@
     state.selectionDirty = true;
     state.hasSelection = false;
     state.activeStroke = null;
+    state.mode = 'paint';
+    state.modeButtons = {};
     state.stage = null;
     state.frame = null;
     state.fitWidth = 0;
@@ -104,6 +120,16 @@
     state.saveLocal = null;
     state.compare = null;
     state.comparingOriginal = false;
+    state.overlayCanvas = null;
+    state.overlayContext = null;
+    state.overlayGuide = null;
+    state.overlays = [];
+    state.activeOverlayId = '';
+    state.overlayDrag = null;
+    state.overlaySize = null;
+    state.overlayOpacity = null;
+    state.overlayColor = null;
+    state.overlayRemove = null;
     document.body.classList.remove('crump-precision-open');
     const target = state.returnFocus;
     state.returnFocus = null;
@@ -184,11 +210,23 @@
     return Object.values(state.adjustments).some(value => Number(value) !== 0);
   }
 
+  function hasDeterministicOverlay() {
+    return state.overlays.length > 0;
+  }
+
+  function localAdjustmentReady() {
+    return hasLocalAdjustments() && selectionHasVisiblePixels();
+  }
+
+  function hasSavableLocalEdit() {
+    return localAdjustmentReady() || hasDeterministicOverlay();
+  }
+
   function updateLocalControls() {
     if (state.saveLocal) {
-      state.saveLocal.disabled = !state.file?.id || !hasLocalAdjustments() || !selectionHasVisiblePixels();
+      state.saveLocal.disabled = !state.file?.id || !hasSavableLocalEdit();
     }
-    if (state.compare) state.compare.disabled = !hasLocalAdjustments() || !selectionHasVisiblePixels();
+    if (state.compare) state.compare.disabled = !hasSavableLocalEdit();
   }
 
   function clampChannel(value) {
@@ -204,9 +242,10 @@
     if (!canvas || !context || !source || !mask || !state.canvas) return;
     context.clearRect(0, 0, canvas.width, canvas.height);
     const active = hasLocalAdjustments() && selectionHasVisiblePixels();
-    state.frame?.classList.toggle('has-local-preview', active);
+    state.frame?.classList.toggle('has-local-preview', active || hasDeterministicOverlay());
     if (!active) {
       canvas.hidden = true;
+      updateLocalControls();
       return;
     }
     const maskContext = mask.getContext('2d', {alpha: true, willReadFrequently: true});
@@ -253,6 +292,8 @@
       state.compare.textContent = state.comparingOriginal ? 'Show edit' : 'Show original';
     }
     if (state.previewCanvas) state.previewCanvas.hidden = state.comparingOriginal || !hasLocalAdjustments();
+    if (state.overlayCanvas) state.overlayCanvas.hidden = state.comparingOriginal || !hasDeterministicOverlay();
+    updateOverlayGuide();
     setStatus(state.comparingOriginal ? 'Showing the untouched original.' : 'Showing the local adjustment preview.');
   }
 
@@ -268,8 +309,206 @@
     setStatus('Local adjustments reset. Your selection is unchanged.');
   }
 
+  function activeOverlay() {
+    return state.overlays.find(item => item.id === state.activeOverlayId) || null;
+  }
+
+  function overlayBounds(item, context = state.overlayContext) {
+    const canvas = state.overlayCanvas;
+    if (!item || !canvas || !context) return null;
+    if (item.type === 'image') {
+      const width = Math.max(.02, Math.min(.95, Number(item.sizePercent || 25) / 100));
+      const height = Math.max(.02, Math.min(.95, width * item.aspect * canvas.width / canvas.height));
+      return {x: item.x - width / 2, y: item.y - height / 2, width, height};
+    }
+    const pixels = Math.max(12, Math.min(canvas.width, canvas.height) * Number(item.sizePercent || 8) / 100);
+    context.font = `700 ${pixels}px Arial, sans-serif`;
+    const measured = context.measureText(item.text);
+    const width = Math.min(.96, Math.max(.02, (measured.width + pixels * .25) / canvas.width));
+    const height = Math.min(.5, Math.max(.02, pixels * 1.35 / canvas.height));
+    return {x: item.x - width / 2, y: item.y - height / 2, width, height, pixels};
+  }
+
+  function clampOverlay(item) {
+    const bounds = overlayBounds(item);
+    if (!bounds) return;
+    item.x = Math.max(bounds.width / 2, Math.min(1 - bounds.width / 2, Number(item.x) || .5));
+    item.y = Math.max(bounds.height / 2, Math.min(1 - bounds.height / 2, Number(item.y) || .5));
+  }
+
+  function updateOverlayGuide() {
+    const guide = state.overlayGuide;
+    const item = activeOverlay();
+    const bounds = overlayBounds(item);
+    if (!guide || !item || !bounds || state.comparingOriginal) {
+      if (guide) guide.hidden = true;
+      return;
+    }
+    guide.hidden = false;
+    guide.style.left = `${bounds.x * 100}%`;
+    guide.style.top = `${bounds.y * 100}%`;
+    guide.style.width = `${bounds.width * 100}%`;
+    guide.style.height = `${bounds.height * 100}%`;
+    guide.setAttribute('aria-label', `${item.type === 'image' ? 'Image' : 'Text'} overlay selected`);
+  }
+
+  function updateOverlayControls() {
+    const item = activeOverlay();
+    if (state.overlaySize) {
+      state.overlaySize.disabled = !item;
+      state.overlaySize.min = item?.type === 'text' ? '2' : '5';
+      state.overlaySize.max = item?.type === 'text' ? '24' : '90';
+      state.overlaySize.value = String(item?.sizePercent || (item?.type === 'text' ? 8 : 25));
+    }
+    if (state.overlayOpacity) {
+      state.overlayOpacity.disabled = !item;
+      state.overlayOpacity.value = String(Math.round(Number(item?.opacity || 1) * 100));
+    }
+    if (state.overlayColor) {
+      state.overlayColor.disabled = false;
+      if (item?.type === 'text') state.overlayColor.value = item.color;
+    }
+    if (state.overlayRemove) state.overlayRemove.disabled = !item;
+    updateOverlayGuide();
+  }
+
+  function renderOverlays() {
+    const canvas = state.overlayCanvas;
+    const context = state.overlayContext;
+    if (!canvas || !context) return;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    state.overlays.forEach(item => {
+      const bounds = overlayBounds(item, context);
+      if (!bounds) return;
+      context.save();
+      context.globalAlpha = Math.max(.1, Math.min(1, Number(item.opacity || 1)));
+      if (item.type === 'image' && item.image) {
+        context.drawImage(
+          item.image,
+          bounds.x * canvas.width,
+          bounds.y * canvas.height,
+          bounds.width * canvas.width,
+          bounds.height * canvas.height,
+        );
+      } else if (item.type === 'text') {
+        context.font = `700 ${bounds.pixels}px Arial, sans-serif`;
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillStyle = item.color;
+        context.fillText(item.text, item.x * canvas.width, item.y * canvas.height);
+      }
+      context.restore();
+    });
+    canvas.hidden = state.comparingOriginal || !hasDeterministicOverlay();
+    state.frame?.classList.toggle('has-exact-overlay', hasDeterministicOverlay());
+    updateOverlayControls();
+    updateLocalControls();
+  }
+
+  function selectOverlay(id) {
+    state.activeOverlayId = String(id || '');
+    updateOverlayControls();
+  }
+
+  function overlayAt(point) {
+    return [...state.overlays].reverse().find(item => {
+      const bounds = overlayBounds(item);
+      return bounds && point.x >= bounds.x && point.x <= bounds.x + bounds.width
+        && point.y >= bounds.y && point.y <= bounds.y + bounds.height;
+    }) || null;
+  }
+
+  async function addImageOverlay(file) {
+    if (state.overlays.length >= MAX_OVERLAY_ITEMS) {
+      throw new Error('Remove an overlay before adding another. Precision Edit supports up to 12 at once.');
+    }
+    const type = String(file?.type || '').toLowerCase();
+    if (!file || !['image/png', 'image/jpeg', 'image/webp'].includes(type)) {
+      throw new Error('Choose a PNG, JPG, or WebP logo or image.');
+    }
+    if (Number(file.size || 0) <= 0 || Number(file.size || 0) > 8 * 1024 * 1024) {
+      throw new Error('Use an overlay image between 1 byte and 8 MB.');
+    }
+    const objectUrl = URL.createObjectURL(file);
+    let image;
+    try {
+      image = await loadImage(objectUrl);
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+    if (!image.naturalWidth || !image.naturalHeight
+      || image.naturalWidth * image.naturalHeight > MAX_OVERLAY_SOURCE_PIXELS) {
+      throw new Error('Use an overlay image below 16 megapixels.');
+    }
+    const item = {
+      id: `overlay-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      type: 'image',
+      image,
+      aspect: image.naturalHeight / Math.max(1, image.naturalWidth),
+      x: .5,
+      y: .5,
+      sizePercent: 25,
+      opacity: 1,
+    };
+    state.overlays.push(item);
+    selectOverlay(item.id);
+    setComparingOriginal(false);
+    setMode('place', state.modeButtons);
+    clampOverlay(item);
+    renderOverlays();
+    setStatus('Exact image overlay added. Drag it into place, then adjust size or opacity.');
+  }
+
+  function addTextOverlay(value, color) {
+    if (state.overlays.length >= MAX_OVERLAY_ITEMS) {
+      throw new Error('Remove an overlay before adding another. Precision Edit supports up to 12 at once.');
+    }
+    const text = String(value || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+    if (!text) throw new Error('Enter the exact text you want to place.');
+    const item = {
+      id: `overlay-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      type: 'text',
+      text,
+      color: /^#[0-9a-f]{6}$/i.test(String(color || '')) ? String(color) : '#ffffff',
+      x: .5,
+      y: .82,
+      sizePercent: 8,
+      opacity: 1,
+    };
+    state.overlays.push(item);
+    selectOverlay(item.id);
+    setComparingOriginal(false);
+    setMode('place', state.modeButtons);
+    clampOverlay(item);
+    renderOverlays();
+    setStatus('Exact text added. Drag it into place, then adjust size, color, or opacity.');
+  }
+
+  function overlayDataUrl() {
+    return new Promise((resolve, reject) => {
+      if (!state.overlayCanvas || !hasDeterministicOverlay()) {
+        resolve('');
+        return;
+      }
+      state.overlayCanvas.toBlob(blob => {
+        if (!blob) {
+          reject(new Error('The exact overlay could not be prepared.'));
+          return;
+        }
+        if (blob.size > 2 * 1024 * 1024) {
+          reject(new Error('The exact overlay is too complex. Use a smaller logo or less text.'));
+          return;
+        }
+        const reader = new FileReader();
+        reader.addEventListener('load', () => resolve(String(reader.result || '')), {once: true});
+        reader.addEventListener('error', () => reject(new Error('The exact overlay could not be prepared.')), {once: true});
+        reader.readAsDataURL(blob);
+      }, 'image/png');
+    });
+  }
+
   function setMode(mode, buttons) {
-    state.mode = ['paint', 'erase', 'move'].includes(mode) ? mode : 'paint';
+    state.mode = ['paint', 'erase', 'move', 'place'].includes(mode) ? mode : 'paint';
     Object.entries(buttons).forEach(([value, button]) => {
       button.classList.toggle('is-active', state.mode === value);
       button.setAttribute('aria-pressed', String(state.mode === value));
@@ -279,6 +518,7 @@
       paint: 'Brush over what may change.',
       erase: 'Erase from the selected area.',
       move: 'Drag the enlarged image to reach a tiny detail.',
+      place: 'Drag the selected exact overlay into place.',
     }[state.mode]);
   }
 
@@ -309,6 +549,20 @@
       if (event.button !== undefined && event.button !== 0) return;
       event.preventDefault();
       canvas.setPointerCapture?.(event.pointerId);
+      if (state.mode === 'place') {
+        const point = pointFor(event);
+        const item = overlayAt(point);
+        selectOverlay(item?.id || '');
+        if (item) {
+          state.overlayDrag = {
+            id: item.id,
+            offsetX: point.x - item.x,
+            offsetY: point.y - item.y,
+          };
+          canvas.classList.add('is-placing');
+        }
+        return;
+      }
       if (state.mode === 'move') {
         state.panStart = {
           clientX: event.clientX,
@@ -331,6 +585,17 @@
       updateHistoryControls();
     });
     canvas.addEventListener('pointermove', event => {
+      if (state.overlayDrag) {
+        event.preventDefault();
+        const item = state.overlays.find(candidate => candidate.id === state.overlayDrag.id);
+        if (!item) return;
+        const point = pointFor(event);
+        item.x = point.x - state.overlayDrag.offsetX;
+        item.y = point.y - state.overlayDrag.offsetY;
+        clampOverlay(item);
+        renderOverlays();
+        return;
+      }
       if (state.panStart && state.stage) {
         event.preventDefault();
         state.stage.scrollLeft = state.panStart.scrollLeft - (event.clientX - state.panStart.clientX);
@@ -347,6 +612,14 @@
       state.selectionDirty = true;
     });
     const finish = event => {
+      if (state.overlayDrag) {
+        event?.preventDefault?.();
+        if (event?.pointerId !== undefined) canvas.releasePointerCapture?.(event.pointerId);
+        state.overlayDrag = null;
+        canvas.classList.remove('is-placing');
+        setStatus('Exact overlay position updated.');
+        return;
+      }
       if (state.panStart) {
         event?.preventDefault?.();
         if (event?.pointerId !== undefined) canvas.releasePointerCapture?.(event.pointerId);
@@ -444,6 +717,9 @@
     state.zoom = 1;
     state.adjustments = {warmth: 0, exposure: 0, saturation: 0};
     state.comparingOriginal = false;
+    state.overlays = [];
+    state.activeOverlayId = '';
+    state.overlayDrag = null;
 
     const backdrop = document.createElement('div');
     backdrop.className = 'crump-precision-backdrop';
@@ -484,11 +760,14 @@
     const paint = document.createElement('button'); paint.type = 'button'; paint.className = 'is-active'; paint.textContent = 'Brush'; paint.setAttribute('aria-pressed', 'true');
     const erase = document.createElement('button'); erase.type = 'button'; erase.textContent = 'Erase'; erase.setAttribute('aria-pressed', 'false');
     const move = document.createElement('button'); move.type = 'button'; move.textContent = 'Move'; move.setAttribute('aria-pressed', 'false');
-    const modeButtons = {paint, erase, move};
+    const place = document.createElement('button'); place.type = 'button'; place.textContent = 'Place'; place.setAttribute('aria-pressed', 'false');
+    const modeButtons = {paint, erase, move, place};
+    state.modeButtons = modeButtons;
     paint.addEventListener('click', () => setMode('paint', modeButtons));
     erase.addEventListener('click', () => setMode('erase', modeButtons));
     move.addEventListener('click', () => setMode('move', modeButtons));
-    modeGroup.append(paint, erase, move);
+    place.addEventListener('click', () => setMode('place', modeButtons));
+    modeGroup.append(paint, erase, move, place);
 
     const zoom = document.createElement('div');
     zoom.className = 'crump-precision-zoom';
@@ -592,6 +871,114 @@
     localActions.append(compare, reset);
     local.append(localLabel, localCopy, sliders, localActions);
 
+    const exactOverlay = document.createElement('section');
+    exactOverlay.className = 'crump-precision-exact-overlay';
+    exactOverlay.setAttribute('aria-labelledby', 'crumpPrecisionOverlayLabel');
+    const overlayLabel = document.createElement('span');
+    overlayLabel.id = 'crumpPrecisionOverlayLabel';
+    overlayLabel.textContent = 'EXACT OVERLAY · NO AI OR CREDITS';
+    const overlayCopy = document.createElement('small');
+    overlayCopy.textContent = 'Place a rights-cleared logo, image, or exact text as pixels. Crump does not ask a model to redraw it, and the separate source is not saved.';
+    const overlayActions = document.createElement('div');
+    overlayActions.className = 'crump-precision-overlay-actions';
+    const addOverlayImage = document.createElement('button');
+    addOverlayImage.type = 'button';
+    addOverlayImage.textContent = 'Add logo or image';
+    const overlayImageInput = document.createElement('input');
+    overlayImageInput.type = 'file';
+    overlayImageInput.accept = 'image/png,image/jpeg,image/webp';
+    overlayImageInput.hidden = true;
+    overlayImageInput.setAttribute('aria-label', 'Exact overlay image');
+    addOverlayImage.addEventListener('click', () => overlayImageInput.click());
+    overlayImageInput.addEventListener('change', async () => {
+      const file = overlayImageInput.files?.[0];
+      overlayImageInput.value = '';
+      if (!file) return;
+      addOverlayImage.disabled = true;
+      try {
+        await addImageOverlay(file);
+      } catch (error) {
+        setStatus(error?.message || 'The exact overlay could not be added.', 'error');
+      } finally {
+        addOverlayImage.disabled = false;
+      }
+    });
+    overlayActions.append(addOverlayImage, overlayImageInput);
+    const overlayTextRow = document.createElement('div');
+    overlayTextRow.className = 'crump-precision-overlay-text';
+    const overlayText = document.createElement('input');
+    overlayText.type = 'text';
+    overlayText.maxLength = 80;
+    overlayText.placeholder = 'Exact text';
+    overlayText.setAttribute('aria-label', 'Exact overlay text');
+    const overlayColor = document.createElement('input');
+    overlayColor.type = 'color';
+    overlayColor.value = '#ffffff';
+    overlayColor.setAttribute('aria-label', 'Exact text color');
+    const addOverlayText = document.createElement('button');
+    addOverlayText.type = 'button';
+    addOverlayText.textContent = 'Add text';
+    addOverlayText.addEventListener('click', () => {
+      try {
+        addTextOverlay(overlayText.value, overlayColor.value);
+        overlayText.value = '';
+      } catch (error) {
+        setStatus(error?.message || 'The exact text could not be added.', 'error');
+        overlayText.focus({preventScroll: true});
+      }
+    });
+    overlayTextRow.append(overlayText, overlayColor, addOverlayText);
+    const overlayTuning = document.createElement('div');
+    overlayTuning.className = 'crump-precision-overlay-tuning';
+    const overlaySizeLabel = document.createElement('label');
+    overlaySizeLabel.textContent = 'Selected size';
+    const overlaySize = document.createElement('input');
+    overlaySize.type = 'range'; overlaySize.min = '5'; overlaySize.max = '90'; overlaySize.step = '1'; overlaySize.value = '25'; overlaySize.disabled = true;
+    overlaySize.setAttribute('aria-label', 'Selected overlay size');
+    overlaySize.addEventListener('input', () => {
+      const item = activeOverlay();
+      if (!item) return;
+      item.sizePercent = Number(overlaySize.value);
+      clampOverlay(item);
+      renderOverlays();
+    });
+    overlaySizeLabel.appendChild(overlaySize);
+    const overlayOpacityLabel = document.createElement('label');
+    overlayOpacityLabel.textContent = 'Opacity';
+    const overlayOpacity = document.createElement('input');
+    overlayOpacity.type = 'range'; overlayOpacity.min = '10'; overlayOpacity.max = '100'; overlayOpacity.step = '1'; overlayOpacity.value = '100'; overlayOpacity.disabled = true;
+    overlayOpacity.setAttribute('aria-label', 'Selected overlay opacity');
+    overlayOpacity.addEventListener('input', () => {
+      const item = activeOverlay();
+      if (!item) return;
+      item.opacity = Number(overlayOpacity.value) / 100;
+      renderOverlays();
+    });
+    overlayOpacityLabel.appendChild(overlayOpacity);
+    overlayColor.addEventListener('input', () => {
+      const item = activeOverlay();
+      if (!item || item.type !== 'text') return;
+      item.color = overlayColor.value;
+      renderOverlays();
+    });
+    const removeOverlay = document.createElement('button');
+    removeOverlay.type = 'button';
+    removeOverlay.textContent = 'Remove selected';
+    removeOverlay.disabled = true;
+    removeOverlay.addEventListener('click', () => {
+      const id = state.activeOverlayId;
+      state.overlays = state.overlays.filter(item => item.id !== id);
+      selectOverlay(state.overlays.at(-1)?.id || '');
+      renderOverlays();
+      setStatus(state.overlays.length ? 'Selected overlay removed.' : 'Exact overlays cleared.');
+    });
+    state.overlaySize = overlaySize;
+    state.overlayOpacity = overlayOpacity;
+    state.overlayColor = overlayColor;
+    state.overlayRemove = removeOverlay;
+    overlayTuning.append(overlaySizeLabel, overlayOpacityLabel, removeOverlay);
+    exactOverlay.append(overlayLabel, overlayCopy, overlayActions, overlayTextRow, overlayTuning);
+
     const adjustment = document.createElement('section');
     adjustment.className = 'crump-precision-adjustment';
     adjustment.setAttribute('aria-labelledby', 'crumpPrecisionAdjustmentLabel');
@@ -632,7 +1019,7 @@
     status.setAttribute('aria-live', 'polite');
     status.textContent = 'Brush over the smallest area that should change.';
     state.status = status;
-    controls.append(modeGroup, zoom, sizeLabel, history, boundary, appearance, local, adjustment, status);
+    controls.append(modeGroup, zoom, sizeLabel, history, boundary, appearance, local, exactOverlay, adjustment, status);
     workspace.append(stage, controls);
 
     const footer = document.createElement('footer');
@@ -640,15 +1027,16 @@
     const saveLocal = document.createElement('button'); saveLocal.type = 'button'; saveLocal.className = 'crump-precision-save-local'; saveLocal.textContent = 'Save local edit'; saveLocal.disabled = true;
     state.saveLocal = saveLocal;
     saveLocal.addEventListener('click', async () => {
-      if (!selectionHasVisiblePixels() || !hasLocalAdjustments()) {
-        setStatus('Select an area and move at least one local adjustment first.', 'error');
+      if (!hasSavableLocalEdit()) {
+        setStatus('Move a local adjustment inside a selection or add an exact overlay first.', 'error');
         return;
       }
       saveLocal.disabled = true;
       saveLocal.setAttribute('aria-busy', 'true');
       setStatus('Saving a private, provider-free image version…');
       try {
-        const preparedMask = await maskDataUrl();
+        const preparedMask = localAdjustmentReady() ? await maskDataUrl() : '';
+        const preparedOverlay = await overlayDataUrl();
         const response = await fetch(`/api/files/${encodeURIComponent(state.file.id)}/image-adjust`, {
           method: 'POST',
           credentials: 'same-origin',
@@ -656,6 +1044,7 @@
           body: JSON.stringify({
             maskDataUrl: preparedMask,
             adjustments: state.adjustments,
+            overlayDataUrl: preparedOverlay,
             chatId: window.currentChatId || null,
           }),
         });
@@ -732,9 +1121,19 @@
       const previewMask = document.createElement('canvas');
       previewMask.width = preview.width;
       previewMask.height = preview.height;
+      const overlayCanvas = document.createElement('canvas');
+      overlayCanvas.className = 'crump-precision-exact-canvas';
+      overlayCanvas.width = image.naturalWidth;
+      overlayCanvas.height = image.naturalHeight;
+      overlayCanvas.hidden = true;
+      overlayCanvas.setAttribute('aria-hidden', 'true');
+      const overlayGuide = document.createElement('div');
+      overlayGuide.className = 'crump-precision-overlay-guide';
+      overlayGuide.hidden = true;
+      overlayGuide.setAttribute('aria-hidden', 'true');
       const frame = document.createElement('div');
       frame.className = 'crump-precision-canvas-frame';
-      frame.append(base, preview, canvas);
+      frame.append(base, preview, overlayCanvas, overlayGuide, canvas);
       stage.replaceChildren(frame);
       stage.classList.remove('is-loading');
       state.canvas = canvas;
@@ -744,6 +1143,9 @@
       state.previewContext = preview.getContext('2d', {alpha: true});
       state.previewSource = previewSourceContext.getImageData(0, 0, preview.width, preview.height);
       state.previewMask = previewMask;
+      state.overlayCanvas = overlayCanvas;
+      state.overlayContext = overlayCanvas.getContext('2d', {alpha: true});
+      state.overlayGuide = overlayGuide;
       const fitted = frame.getBoundingClientRect();
       state.fitWidth = fitted.width;
       state.fitHeight = fitted.height;
@@ -751,6 +1153,7 @@
       frame.style.height = `${Math.round(fitted.height)}px`;
       zoomFit.disabled = false;
       wireCanvas(canvas);
+      renderOverlays();
       updateZoomControls();
       use.disabled = false;
       updateLocalControls();

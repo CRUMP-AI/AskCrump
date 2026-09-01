@@ -20,7 +20,7 @@ const {chromium} = require(playwrightModule);
     boundary: await editor.locator('.crump-precision-boundary').textContent(),
     appearance: await editor.locator('.crump-precision-appearance').textContent(),
     brushPressed: await editor.getByRole('button', {name: 'Brush'}).getAttribute('aria-pressed'),
-    movePressed: await editor.getByRole('button', {name: 'Move'}).getAttribute('aria-pressed'),
+    movePressed: await editor.getByRole('button', {name: 'Move', exact: true}).getAttribute('aria-pressed'),
     zoom: await editor.locator('.crump-precision-zoom b').textContent(),
     guidedBoundary: await editor.locator('.crump-precision-adjustment small').textContent(),
     localBoundary: await editor.locator('.crump-precision-local').textContent(),
@@ -33,8 +33,8 @@ const {chromium} = require(playwrightModule);
     label: await editor.locator('.crump-precision-zoom b').textContent(),
     width: await canvas.evaluate(node => node.getBoundingClientRect().width),
   };
-  await editor.getByRole('button', {name: 'Move'}).click();
-  const movePressed = await editor.getByRole('button', {name: 'Move'}).getAttribute('aria-pressed');
+  await editor.getByRole('button', {name: 'Move', exact: true}).click();
+  const movePressed = await editor.getByRole('button', {name: 'Move', exact: true}).getAttribute('aria-pressed');
   await editor.getByRole('button', {name: 'Warmer', exact: true}).click();
   const guidedInstruction = await editor.getByRole('textbox', {name: 'Edit instruction'}).inputValue();
   await editor.getByRole('button', {name: 'Brush'}).click();
@@ -72,7 +72,8 @@ const {chromium} = require(playwrightModule);
   await warmth.fill('18');
   await page.waitForFunction(() => {
     const preview = document.querySelector('.crump-precision-preview');
-    return preview && !preview.hidden;
+    if (!preview || preview.hidden) return false;
+    return preview.getContext('2d').getImageData(320, 240, 1, 1).data[3] > 0;
   });
   const preview = {
     warmth: await warmth.inputValue(),
@@ -101,6 +102,62 @@ const {chromium} = require(playwrightModule);
     prefix: String(window.__localSaveRequest?.body?.maskDataUrl || '').slice(0, 22),
     adjustments: window.__localSaveRequest?.body?.adjustments,
     chatId: window.__localSaveRequest?.body?.chatId,
+    fileId: window.__openedLocalFile?.id,
+    toast: window.__lastToast,
+    focused: document.activeElement?.id,
+  }));
+
+  await page.evaluate(() => {
+    window.__localSaveRequest = null;
+    window.__openedLocalFile = null;
+    window.__lastToast = null;
+  });
+  await open.click();
+  await editor.waitFor();
+  const overlayCanvas = editor.locator('.crump-precision-exact-canvas');
+  const overlayInput = editor.getByLabel('Exact overlay image');
+  await overlayInput.setInputFiles({
+    name: 'approved-logo.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl2cAAAAASUVORK5CYII=', 'base64'),
+  });
+  await page.waitForFunction(() => {
+    const canvas = document.querySelector('.crump-precision-exact-canvas');
+    return canvas && !canvas.hidden;
+  });
+  await editor.getByRole('textbox', {name: 'Exact overlay text'}).fill('BLUE BIRD');
+  await editor.getByRole('button', {name: 'Add text'}).click();
+  await editor.getByRole('slider', {name: 'Selected overlay size'}).fill('12');
+  await editor.getByRole('slider', {name: 'Selected overlay opacity'}).fill('85');
+  const overlayMask = editor.locator('.crump-precision-mask');
+  const overlayBox = await overlayMask.boundingBox();
+  if (!overlayBox) throw new Error('Exact-overlay canvas was not visible.');
+  await page.mouse.move(overlayBox.x + overlayBox.width * .5, overlayBox.y + overlayBox.height * .82);
+  await page.mouse.down();
+  await page.mouse.move(overlayBox.x + overlayBox.width * .66, overlayBox.y + overlayBox.height * .28, {steps: 8});
+  await page.mouse.up();
+  const overlayPreview = {
+    placePressed: await editor.getByRole('button', {name: 'Place'}).getAttribute('aria-pressed'),
+    canvasVisible: await overlayCanvas.isVisible(),
+    guideVisible: await editor.locator('.crump-precision-overlay-guide').isVisible(),
+    saveEnabled: await editor.getByRole('button', {name: 'Save local edit'}).isEnabled(),
+    localCopy: await editor.locator('.crump-precision-exact-overlay').textContent(),
+    hasVisiblePixels: await overlayCanvas.evaluate(node => {
+      const pixels = node.getContext('2d').getImageData(0, 0, node.width, node.height).data;
+      for (let index = 3; index < pixels.length; index += 4) {
+        if (pixels[index] > 0) return true;
+      }
+      return false;
+    }),
+  };
+  await editor.getByRole('button', {name: 'Save local edit'}).click();
+  await page.waitForFunction(() => Boolean(window.__localSaveRequest?.body?.overlayDataUrl && window.__openedLocalFile));
+  await page.waitForFunction(() => document.activeElement?.id === 'openPrecision');
+  const overlaySave = await page.evaluate(() => ({
+    mask: window.__localSaveRequest?.body?.maskDataUrl,
+    overlayPrefix: String(window.__localSaveRequest?.body?.overlayDataUrl || '').slice(0, 22),
+    overlayLength: String(window.__localSaveRequest?.body?.overlayDataUrl || '').length,
+    adjustments: window.__localSaveRequest?.body?.adjustments,
     fileId: window.__openedLocalFile?.id,
     toast: window.__lastToast,
     focused: document.activeElement?.id,
@@ -169,6 +226,22 @@ const {chromium} = require(playwrightModule);
     || localSave.fileId !== '33333333-3333-4333-8333-333333333333'
     || !localSave.toast?.message?.includes('No AI provider or Crump Credits were used')
     || localSave.focused !== 'openPrecision'
+    || overlayPreview.placePressed !== 'true'
+    || !overlayPreview.canvasVisible
+    || !overlayPreview.guideVisible
+    || !overlayPreview.saveEnabled
+    || !overlayPreview.localCopy.includes('NO AI OR CREDITS')
+    || !overlayPreview.localCopy.includes('does not ask a model to redraw it')
+    || !overlayPreview.hasVisiblePixels
+    || overlaySave.mask !== ''
+    || overlaySave.overlayPrefix !== 'data:image/png;base64,'
+    || overlaySave.overlayLength <= 100
+    || overlaySave.adjustments?.warmth !== 0
+    || overlaySave.adjustments?.exposure !== 0
+    || overlaySave.adjustments?.saturation !== 0
+    || overlaySave.fileId !== '33333333-3333-4333-8333-333333333333'
+    || !overlaySave.toast?.message?.includes('No AI provider or Crump Credits were used')
+    || overlaySave.focused !== 'openPrecision'
     || mobile.overflowX
     || Math.abs(mobile.editorWidth - mobile.viewportWidth) > 4
     || !mobile.closeVisible
@@ -178,9 +251,9 @@ const {chromium} = require(playwrightModule);
     || !mobile.workspaceScrollable
     || !escaped
   ) {
-    throw new Error(JSON.stringify({desktop, zoomed, fittedWidth, movePressed, redoEnabled, guidedInstruction, staged, preview, originalVisible, localSave, mobile, escaped, errors}));
+    throw new Error(JSON.stringify({desktop, zoomed, fittedWidth, movePressed, redoEnabled, guidedInstruction, staged, preview, originalVisible, localSave, overlayPreview, overlaySave, mobile, escaped, errors}));
   }
-  process.stdout.write(`${JSON.stringify({desktop, zoomed, fittedWidth, movePressed, redoEnabled, guidedInstruction, staged, preview, originalVisible, localSave, mobile, escaped, errors})}\n`);
+  process.stdout.write(`${JSON.stringify({desktop, zoomed, fittedWidth, movePressed, redoEnabled, guidedInstruction, staged, preview, originalVisible, localSave, overlayPreview, overlaySave, mobile, escaped, errors})}\n`);
 })().catch(error => {
   process.stderr.write(`${error.stack || error}\n`);
   process.exitCode = 1;

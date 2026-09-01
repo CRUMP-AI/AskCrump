@@ -44,6 +44,7 @@ PRECISION_MASK_MAX_BYTES = 2 * 1024 * 1024
 PRECISION_MASK_MAX_COVERAGE = 0.90
 LOCAL_ADJUSTMENT_LIMIT = 30.0
 LOCAL_ADJUSTMENT_MAX_PIXELS = 16_777_216
+LOCAL_OVERLAY_MAX_BYTES = 2 * 1024 * 1024
 
 
 class MediaService:
@@ -354,7 +355,11 @@ class MediaService:
         return cls._png_bytes(result)
 
     @staticmethod
-    def _local_adjustment_values(payload: Any) -> dict[str, float]:
+    def _local_adjustment_values(
+        payload: Any,
+        *,
+        allow_empty: bool = False,
+    ) -> dict[str, float]:
         values = payload if isinstance(payload, dict) else {}
         normalized: dict[str, float] = {}
         for key in ('warmth', 'exposure', 'saturation'):
@@ -380,7 +385,7 @@ class MediaService:
                     0,
                 )
             normalized[key] = round(value, 1)
-        if not any(normalized.values()):
+        if not allow_empty and not any(normalized.values()):
             raise AIServiceError(
                 'Move at least one local adjustment before saving.',
                 400,
@@ -390,6 +395,149 @@ class MediaService:
             )
         return normalized
 
+    @staticmethod
+    def _decode_local_overlay(value: str, *, expected_size: tuple[int, int]) -> Image.Image:
+        """Decode one browser-rasterized transparent overlay at source resolution."""
+        encoded = str(value or '').strip()
+        prefix = 'data:image/png;base64,'
+        if not encoded.startswith(prefix):
+            raise AIServiceError(
+                'The exact overlay could not be read. Add the logo or text again.',
+                400,
+                'INVALID_LOCAL_IMAGE_OVERLAY',
+                False,
+                0,
+            )
+        try:
+            raw = base64.b64decode(encoded[len(prefix):], validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise AIServiceError(
+                'The exact overlay could not be read. Add the logo or text again.',
+                400,
+                'INVALID_LOCAL_IMAGE_OVERLAY',
+                False,
+                0,
+            ) from exc
+        if not raw or len(raw) > LOCAL_OVERLAY_MAX_BYTES:
+            raise AIServiceError(
+                'The exact overlay is too complex. Use a smaller logo or less text and try again.',
+                413,
+                'LOCAL_IMAGE_OVERLAY_TOO_LARGE',
+                False,
+                0,
+            )
+        try:
+            with Image.open(BytesIO(raw)) as source:
+                if source.format != 'PNG' or 'A' not in source.getbands():
+                    raise ValueError('overlay must be an alpha PNG')
+                if int(getattr(source, 'n_frames', 1) or 1) != 1:
+                    raise ValueError('overlay must have one frame')
+                if source.size != expected_size:
+                    raise AIServiceError(
+                        'The exact overlay no longer matches this image. Reopen Precision Edit and place it again.',
+                        400,
+                        'LOCAL_IMAGE_OVERLAY_SIZE_MISMATCH',
+                        False,
+                        0,
+                    )
+                if source.width * source.height > LOCAL_ADJUSTMENT_MAX_PIXELS:
+                    raise AIServiceError(
+                        'This image is too large for exact overlays. Resize it below 16 megapixels and try again.',
+                        413,
+                        'LOCAL_IMAGE_TOO_LARGE',
+                        False,
+                        0,
+                    )
+                source.load()
+                overlay = source.convert('RGBA').copy()
+        except AIServiceError:
+            raise
+        except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError) as exc:
+            raise AIServiceError(
+                'The exact overlay could not be read. Add the logo or text again.',
+                400,
+                'INVALID_LOCAL_IMAGE_OVERLAY',
+                False,
+                0,
+            ) from exc
+        if overlay.getchannel('A').getextrema()[1] <= 0:
+            raise AIServiceError(
+                'Add a visible logo or text before saving.',
+                400,
+                'EMPTY_LOCAL_IMAGE_OVERLAY',
+                False,
+                0,
+            )
+        return overlay
+
+    @classmethod
+    def _apply_local_image_composition(
+        cls,
+        source_data: bytes,
+        mask_data_url: str,
+        adjustments: Any,
+        overlay_data_url: str = '',
+    ) -> tuple[bytes, dict[str, float], str, bool]:
+        """Apply bounded adjustments and an exact raster overlay without a model."""
+        values = cls._local_adjustment_values(adjustments, allow_empty=True)
+        source = cls._load_edit_image(source_data)
+        if source.width * source.height > LOCAL_ADJUSTMENT_MAX_PIXELS:
+            raise AIServiceError(
+                'This image is too large for local edits. Resize it below 16 megapixels and try again.',
+                413,
+                'LOCAL_IMAGE_TOO_LARGE',
+                False,
+                0,
+            )
+
+        protected_source = source.convert('RGBA')
+        result = protected_source.copy()
+        has_adjustments = any(values.values())
+        if has_adjustments:
+            selection = cls._decode_precision_mask(mask_data_url)
+            if selection.size != source.size:
+                raise AIServiceError(
+                    'The selected area no longer matches this image. Reopen Precision Edit and paint it again.',
+                    400,
+                    'IMAGE_EDIT_MASK_SIZE_MISMATCH',
+                    False,
+                    0,
+                )
+            source_alpha = protected_source.getchannel('A')
+            adjusted_rgb = protected_source.convert('RGB')
+            if values['exposure']:
+                adjusted_rgb = ImageEnhance.Brightness(adjusted_rgb).enhance(2 ** (values['exposure'] / 100))
+            if values['saturation']:
+                adjusted_rgb = ImageEnhance.Color(adjusted_rgb).enhance(1 + (values['saturation'] / 100))
+            if values['warmth']:
+                red, green, blue = adjusted_rgb.split()
+                warmth = values['warmth'] / 100
+                red_factor = 1 + (warmth * 0.35)
+                blue_factor = 1 - (warmth * 0.35)
+                red = red.point(lambda channel: max(0, min(255, round(channel * red_factor))))
+                blue = blue.point(lambda channel: max(0, min(255, round(channel * blue_factor))))
+                adjusted_rgb = Image.merge('RGB', (red, green, blue))
+            adjusted = adjusted_rgb.convert('RGBA')
+            adjusted.putalpha(source_alpha)
+            result = Image.composite(adjusted, protected_source, selection.convert('L'))
+
+        has_overlay = bool(str(overlay_data_url or '').strip())
+        if has_overlay:
+            overlay = cls._decode_local_overlay(
+                overlay_data_url,
+                expected_size=protected_source.size,
+            )
+            result = Image.alpha_composite(result.convert('RGBA'), overlay)
+        if not has_adjustments and not has_overlay:
+            raise AIServiceError(
+                'Move a local adjustment or add an exact overlay before saving.',
+                400,
+                'EMPTY_LOCAL_IMAGE_EDIT',
+                False,
+                0,
+            )
+        return cls._png_bytes(result), values, f'{source.width}x{source.height}', has_overlay
+
     @classmethod
     def _apply_local_image_adjustments(
         cls,
@@ -398,45 +546,13 @@ class MediaService:
         adjustments: Any,
     ) -> tuple[bytes, dict[str, float], str]:
         """Apply bounded, deterministic appearance adjustments inside a manual mask."""
-        values = cls._local_adjustment_values(adjustments)
-        source = cls._load_edit_image(source_data)
-        if source.width * source.height > LOCAL_ADJUSTMENT_MAX_PIXELS:
-            raise AIServiceError(
-                'This image is too large for local adjustments. Resize it below 16 megapixels and try again.',
-                413,
-                'LOCAL_IMAGE_TOO_LARGE',
-                False,
-                0,
-            )
-        selection = cls._decode_precision_mask(mask_data_url)
-        if selection.size != source.size:
-            raise AIServiceError(
-                'The selected area no longer matches this image. Reopen Precision Edit and paint it again.',
-                400,
-                'IMAGE_EDIT_MASK_SIZE_MISMATCH',
-                False,
-                0,
-            )
-
-        protected_source = source.convert('RGBA')
-        source_alpha = protected_source.getchannel('A')
-        adjusted_rgb = protected_source.convert('RGB')
-        if values['exposure']:
-            adjusted_rgb = ImageEnhance.Brightness(adjusted_rgb).enhance(2 ** (values['exposure'] / 100))
-        if values['saturation']:
-            adjusted_rgb = ImageEnhance.Color(adjusted_rgb).enhance(1 + (values['saturation'] / 100))
-        if values['warmth']:
-            red, green, blue = adjusted_rgb.split()
-            warmth = values['warmth'] / 100
-            red_factor = 1 + (warmth * 0.35)
-            blue_factor = 1 - (warmth * 0.35)
-            red = red.point(lambda value: max(0, min(255, round(value * red_factor))))
-            blue = blue.point(lambda value: max(0, min(255, round(value * blue_factor))))
-            adjusted_rgb = Image.merge('RGB', (red, green, blue))
-        adjusted = adjusted_rgb.convert('RGBA')
-        adjusted.putalpha(source_alpha)
-        result = Image.composite(adjusted, protected_source, selection.convert('L'))
-        return cls._png_bytes(result), values, f'{source.width}x{source.height}'
+        cls._local_adjustment_values(adjustments)
+        result, values, size, _ = cls._apply_local_image_composition(
+            source_data,
+            mask_data_url,
+            adjustments,
+        )
+        return result, values, size
 
     async def save_local_image_adjustment(
         self,
@@ -445,6 +561,7 @@ class MediaService:
         source_file_id: str,
         mask_data_url: str,
         adjustments: Any,
+        overlay_data_url: str = '',
         chat_id: str | None = None,
     ) -> dict[str, Any]:
         """Create one owner-scoped, provider-free image version with retry-safe identity."""
@@ -458,10 +575,18 @@ class MediaService:
                 0,
             )
         source_data = await self.files.download_bytes(row=source_row, max_bytes=25 * 1024 * 1024)
-        result, values, size = self._apply_local_image_adjustments(source_data, mask_data_url, adjustments)
-        signature = hashlib.sha256(
-            f'{source_file_id}:{mask_data_url}:{values}'.encode('utf-8')
-        ).hexdigest()
+        result, values, size, has_overlay = self._apply_local_image_composition(
+            source_data,
+            mask_data_url,
+            adjustments,
+            overlay_data_url,
+        )
+        signature_hasher = hashlib.sha256()
+        for part in (source_file_id, mask_data_url, repr(values), overlay_data_url):
+            encoded_part = str(part or '').encode('utf-8')
+            signature_hasher.update(len(encoded_part).to_bytes(8, 'big'))
+            signature_hasher.update(encoded_part)
+        signature = signature_hasher.hexdigest()
         stable_file_id = str(uuid5(NAMESPACE_URL, f'askcrump:local-image-adjustment:{user_id}:{signature}'))
         stored = await self.files.store_bytes(
             user_id=user_id,
@@ -473,7 +598,8 @@ class MediaService:
             metadata={
                 'edited': True,
                 'precisionEdit': True,
-                'localAdjustment': True,
+                'localAdjustment': any(values.values()),
+                'deterministicOverlay': has_overlay,
                 'sourceFileId': source_file_id,
                 'size': size,
                 **values,
