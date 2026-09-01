@@ -19,8 +19,37 @@
   </main>
   <script>
     window.__precisionStaged = null;
+    window.__localSaveRequest = null;
+    window.__openedLocalFile = null;
     window.__lastToast = null;
+    window.currentChatId = '22222222-2222-4222-8222-222222222222';
     window.showToast = (message, tone) => { window.__lastToast = {message, tone}; };
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = async (input, init = {}) => {
+      const url = String(input || '');
+      if (url.includes('/image-adjust')) {
+        window.__localSaveRequest = {url, body: JSON.parse(String(init.body || '{}'))};
+        return new Response(JSON.stringify({
+          success: true,
+          providerUsed: false,
+          creditsUsed: 0,
+          file: {
+            id: '33333333-3333-4333-8333-333333333333',
+            name: 'Crump_Local_Edit.png',
+            type: 'image/png',
+            size: 3210,
+            url: '/api/files/33333333-3333-4333-8333-333333333333/content',
+          },
+        }), {status: 200, headers: {'Content-Type': 'application/json'}});
+      }
+      return nativeFetch(input, init);
+    };
+    window.CrumpFileTools = Object.freeze({
+      open(file) {
+        window.__openedLocalFile = file;
+        document.getElementById('fixtureOutput').textContent = 'local edit opened';
+      },
+    });
     window.CrumpImageStudio = Object.freeze({
       applyPrecisionSelection(payload) {
         window.__precisionStaged = payload;

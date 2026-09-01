@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r202';
+const CACHE_NAME = 'ask-crump-new-body-v1-r203';
 
 const CORE = [
   '/app',
@@ -35,12 +35,12 @@ const CORE = [
   '/crump-library-5.7.css',
   '/crump-library-5.7.js?v=5.9.76-demand-hydration-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-commerce-recovery-1',
-  '/runtime-body-v1.js?v=5.9.76-precision-edit-guide-loader-1',
+  '/runtime-body-v1.js?v=5.9.76-local-photo-studio-loader-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
   '/install-prompt.js?v=5.9.76',
-  '/onboarding.js?v=5.9.76-precision-edit-guide-2',
+  '/onboarding.js?v=5.9.76-local-photo-studio-guide-1',
   '/scroll-manager.js?v=5.9.76-user-controlled-scroll-1',
   '/profile-manager.js',
   '/billing-manager.js?v=5.9.76-commerce-recovery-1',
@@ -64,8 +64,8 @@ const CORE = [
   '/crump-4.4.js?v=5.9.76-core-reliability-1',
   '/crump-5.0.css?v=5.9.76-precision-edit-entry-1',
   '/crump-5.0.js?v=5.9.76-precision-edit-handoff-2',
-  '/crump-precision-image-edit.css?v=5.9.76-precision-edit-studio-2',
-  '/crump-precision-image-edit.js?v=5.9.76-precision-edit-studio-2',
+  '/crump-precision-image-edit.css?v=5.9.76-local-photo-studio-1',
+  '/crump-precision-image-edit.js?v=5.9.76-local-photo-studio-1',
   '/crump-billing-5.1.css?v=5.9.76-credit-pack-truth-1',
   '/crump-billing-5.1.js?v=5.9.76-credit-pack-truth-1',
   '/crump-5.2.css',

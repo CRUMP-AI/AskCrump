@@ -4,16 +4,18 @@ from __future__ import annotations
 import asyncio
 import base64
 import binascii
+import hashlib
 from io import BytesIO
 import logging
 import math
 import re
 from typing import Any
+from uuid import NAMESPACE_URL, uuid5
 
 import httpx
 from docx import Document
 from openpyxl import load_workbook
-from PIL import Image, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageEnhance, ImageOps, UnidentifiedImageError
 from pypdf import PdfReader
 from pptx import Presentation
 
@@ -40,6 +42,8 @@ PRECISION_IMAGE_MIN_PIXELS = 655_360
 PRECISION_IMAGE_MAX_PIXELS = 8_294_400
 PRECISION_MASK_MAX_BYTES = 2 * 1024 * 1024
 PRECISION_MASK_MAX_COVERAGE = 0.90
+LOCAL_ADJUSTMENT_LIMIT = 30.0
+LOCAL_ADJUSTMENT_MAX_PIXELS = 16_777_216
 
 
 class MediaService:
@@ -348,6 +352,135 @@ class MediaService:
             )
         result = Image.composite(generated, protected_source, selection.convert('L'))
         return cls._png_bytes(result)
+
+    @staticmethod
+    def _local_adjustment_values(payload: Any) -> dict[str, float]:
+        values = payload if isinstance(payload, dict) else {}
+        normalized: dict[str, float] = {}
+        for key in ('warmth', 'exposure', 'saturation'):
+            raw = values.get(key, 0)
+            if isinstance(raw, bool):
+                raw = None
+            try:
+                value = float(raw)
+            except (TypeError, ValueError) as exc:
+                raise AIServiceError(
+                    'Local image adjustments must use the studio controls.',
+                    400,
+                    'INVALID_LOCAL_IMAGE_ADJUSTMENT',
+                    False,
+                    0,
+                ) from exc
+            if not math.isfinite(value) or abs(value) > LOCAL_ADJUSTMENT_LIMIT:
+                raise AIServiceError(
+                    'Local image adjustments must stay within the studio limits.',
+                    400,
+                    'INVALID_LOCAL_IMAGE_ADJUSTMENT',
+                    False,
+                    0,
+                )
+            normalized[key] = round(value, 1)
+        if not any(normalized.values()):
+            raise AIServiceError(
+                'Move at least one local adjustment before saving.',
+                400,
+                'EMPTY_LOCAL_IMAGE_ADJUSTMENT',
+                False,
+                0,
+            )
+        return normalized
+
+    @classmethod
+    def _apply_local_image_adjustments(
+        cls,
+        source_data: bytes,
+        mask_data_url: str,
+        adjustments: Any,
+    ) -> tuple[bytes, dict[str, float], str]:
+        """Apply bounded, deterministic appearance adjustments inside a manual mask."""
+        values = cls._local_adjustment_values(adjustments)
+        source = cls._load_edit_image(source_data)
+        if source.width * source.height > LOCAL_ADJUSTMENT_MAX_PIXELS:
+            raise AIServiceError(
+                'This image is too large for local adjustments. Resize it below 16 megapixels and try again.',
+                413,
+                'LOCAL_IMAGE_TOO_LARGE',
+                False,
+                0,
+            )
+        selection = cls._decode_precision_mask(mask_data_url)
+        if selection.size != source.size:
+            raise AIServiceError(
+                'The selected area no longer matches this image. Reopen Precision Edit and paint it again.',
+                400,
+                'IMAGE_EDIT_MASK_SIZE_MISMATCH',
+                False,
+                0,
+            )
+
+        protected_source = source.convert('RGBA')
+        source_alpha = protected_source.getchannel('A')
+        adjusted_rgb = protected_source.convert('RGB')
+        if values['exposure']:
+            adjusted_rgb = ImageEnhance.Brightness(adjusted_rgb).enhance(2 ** (values['exposure'] / 100))
+        if values['saturation']:
+            adjusted_rgb = ImageEnhance.Color(adjusted_rgb).enhance(1 + (values['saturation'] / 100))
+        if values['warmth']:
+            red, green, blue = adjusted_rgb.split()
+            warmth = values['warmth'] / 100
+            red_factor = 1 + (warmth * 0.35)
+            blue_factor = 1 - (warmth * 0.35)
+            red = red.point(lambda value: max(0, min(255, round(value * red_factor))))
+            blue = blue.point(lambda value: max(0, min(255, round(value * blue_factor))))
+            adjusted_rgb = Image.merge('RGB', (red, green, blue))
+        adjusted = adjusted_rgb.convert('RGBA')
+        adjusted.putalpha(source_alpha)
+        result = Image.composite(adjusted, protected_source, selection.convert('L'))
+        return cls._png_bytes(result), values, f'{source.width}x{source.height}'
+
+    async def save_local_image_adjustment(
+        self,
+        *,
+        user_id: str,
+        source_file_id: str,
+        mask_data_url: str,
+        adjustments: Any,
+        chat_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Create one owner-scoped, provider-free image version with retry-safe identity."""
+        source_row = await self.files.get_owned(user_id=user_id, file_id=source_file_id)
+        if str(source_row.get('mime_type') or '').lower() not in IMAGE_TYPES:
+            raise AIServiceError(
+                'Precision Edit requires an image file.',
+                415,
+                'LOCAL_IMAGE_SOURCE_REQUIRED',
+                False,
+                0,
+            )
+        source_data = await self.files.download_bytes(row=source_row, max_bytes=25 * 1024 * 1024)
+        result, values, size = self._apply_local_image_adjustments(source_data, mask_data_url, adjustments)
+        signature = hashlib.sha256(
+            f'{source_file_id}:{mask_data_url}:{values}'.encode('utf-8')
+        ).hexdigest()
+        stable_file_id = str(uuid5(NAMESPACE_URL, f'askcrump:local-image-adjustment:{user_id}:{signature}'))
+        stored = await self.files.store_bytes(
+            user_id=user_id,
+            data=result,
+            filename='Crump_Local_Edit.png',
+            mime_type='image/png',
+            kind='generated_image',
+            chat_id=chat_id,
+            metadata={
+                'edited': True,
+                'precisionEdit': True,
+                'localAdjustment': True,
+                'sourceFileId': source_file_id,
+                'size': size,
+                **values,
+            },
+            file_id=stable_file_id,
+        )
+        return self.files.public_file(stored)
 
     @staticmethod
     def _precision_edit_prompt(prompt: str) -> str:

@@ -28,9 +28,9 @@
       actionLabel: 'Open Create',
       eyebrow: 'CREATE',
       title: 'Choose the outcome you need.',
-      content: 'Create opens the right workspace for documents, presentations, images, and manuscripts. For images, add a reference or choose Edit area after a result. Precision Edit lets you zoom in, brush over only what may change, and review optional appearance guidance before sending. Nothing generates until you review the setup and send the request.',
+      content: 'Create opens the right workspace for documents, presentations, images, and manuscripts. For images, add a reference or choose Edit area after a result. Precision Edit lets you zoom, brush over only what may change, preview local warmth, exposure, and saturation, then save without AI credits or continue into a reviewed generative edit.',
       icon: '+',
-      features: ['Editable files', 'Zoomable Precision Edit', 'Long-form manuscripts'],
+      features: ['Editable files', 'Local image adjustments', 'Long-form manuscripts'],
     },
     {
       destination: 'Video',

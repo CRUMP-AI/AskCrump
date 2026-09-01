@@ -4,11 +4,12 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 
+from ..ai_service import AIServiceError
 from ..auth_service import authenticate_request
 from ..db import eq
 from ..file_service import FileServiceError
 from ..product_analytics import artifact_type_for_file, record_product_event
-from ..runtime import db, files, settings
+from ..runtime import db, files, media, settings
 from ..security import normalize_chat_id
 from ..usage_service import tier_name
 
@@ -25,7 +26,7 @@ LISTABLE_KINDS = {
 MAX_DIRECT_DOWNLOAD_BYTES = 4 * 1024 * 1024
 
 
-def failure(exc: FileServiceError) -> JSONResponse:
+def failure(exc: FileServiceError | AIServiceError) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status_code,
         content={'success': False, 'error': exc.message, 'code': exc.code},
@@ -89,6 +90,37 @@ async def complete(file_id: str, request: Request):
         item = await files.complete_upload(user_id=auth.user['id'], file_id=normalized)
         return {'success': True, 'file': item}
     except FileServiceError as exc:
+        return failure(exc)
+
+
+@router.post('/{file_id}/image-adjust')
+async def image_adjust(file_id: str, request: Request):
+    """Save a deterministic, provider-free image version inside an owner-drawn mask."""
+    auth = await authenticate_request(request, db, settings)
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        return JSONResponse(
+            status_code=400,
+            content={'success': False, 'error': 'Invalid image adjustment request.'},
+        )
+    try:
+        normalized = normalize_chat_id(file_id)
+        raw_chat_id = str(payload.get('chatId') or '').strip()
+        chat_id = normalize_chat_id(raw_chat_id) if raw_chat_id else None
+        item = await media.save_local_image_adjustment(
+            user_id=auth.user['id'],
+            source_file_id=normalized,
+            mask_data_url=str(payload.get('maskDataUrl') or ''),
+            adjustments=payload.get('adjustments'),
+            chat_id=chat_id,
+        )
+        return {
+            'success': True,
+            'file': item,
+            'providerUsed': False,
+            'creditsUsed': 0,
+        }
+    except (FileServiceError, AIServiceError) as exc:
         return failure(exc)
 
 

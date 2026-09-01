@@ -379,8 +379,8 @@ const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
 const coreReliabilityVersion = `${releaseVersion}-core-reliability-1`;
 const settingsProfileTrustVersion = `${releaseVersion}-settings-profile-trust-8`;
-const precisionEditGuideLoaderVersion = `${releaseVersion}-precision-edit-guide-loader-1`;
-const precisionEditGuideVersion = `${releaseVersion}-precision-edit-guide-2`;
+const precisionEditGuideLoaderVersion = `${releaseVersion}-local-photo-studio-loader-1`;
+const precisionEditGuideVersion = `${releaseVersion}-local-photo-studio-guide-1`;
 const fileLibraryWindowVersion = `${releaseVersion}-file-library-window-1`;
 const imageSafetyRecoveryVersion = `${releaseVersion}-image-safety-recovery-1`;
 const userControlledScrollVersion = `${releaseVersion}-user-controlled-scroll-1`;
@@ -391,7 +391,7 @@ const destinationBackgroundGuardVersion = `${releaseVersion}-destination-backgro
 const continuityActionVersion = `${releaseVersion}-continuity-action-1`;
 const precisionEditEntryVersion = `${releaseVersion}-precision-edit-entry-1`;
 const precisionEditHandoffVersion = `${releaseVersion}-precision-edit-handoff-2`;
-const precisionEditStudioVersion = `${releaseVersion}-precision-edit-studio-2`;
+const precisionEditStudioVersion = `${releaseVersion}-local-photo-studio-1`;
 const creationSheetContainmentVersion = `${releaseVersion}-creation-sheet-containment-1`;
 const requiredBodyFiles = [
   'public/crump-v1-body.css',
@@ -796,7 +796,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r202') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r203') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${precisionEditGuideLoaderVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||

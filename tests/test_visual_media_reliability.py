@@ -9,6 +9,7 @@ from PIL import Image
 
 from backend.ai_service import AIServiceError
 from backend.media_service import EDIT_IMAGE_MAX_EDGE, MediaService
+from backend.routes import files as file_routes
 from backend.video_service import VideoService, VideoServiceError
 
 
@@ -101,6 +102,56 @@ def test_precision_edit_restores_every_fully_protected_pixel_after_provider_outp
             assert result.convert("RGBA").getpixel(point) == source.getpixel(point)
 
 
+def test_local_image_adjustments_change_only_the_manual_selection() -> None:
+    source = Image.new("RGBA", (120, 100), color=(100, 110, 120, 255))
+    source_bytes = BytesIO()
+    source.save(source_bytes, format="PNG")
+    mask = Image.new("RGBA", source.size, color=(209, 191, 150, 0))
+    mask.paste((209, 191, 150, 255), (40, 30, 80, 70))
+
+    result_bytes, values, size = MediaService._apply_local_image_adjustments(
+        source_bytes.getvalue(),
+        _png_data_url(mask),
+        {"warmth": 30, "exposure": 10, "saturation": 15},
+    )
+
+    assert values == {"warmth": 30.0, "exposure": 10.0, "saturation": 15.0}
+    assert size == "120x100"
+    with Image.open(BytesIO(result_bytes)) as result:
+        pixels = result.convert("RGBA")
+        assert pixels.getpixel((10, 10)) == source.getpixel((10, 10))
+        assert pixels.getpixel((39, 50)) == source.getpixel((39, 50))
+        assert pixels.getpixel((80, 50)) == source.getpixel((80, 50))
+        adjusted = pixels.getpixel((60, 50))
+        assert adjusted != source.getpixel((60, 50))
+        assert adjusted[0] > adjusted[2]
+
+
+@pytest.mark.parametrize(
+    ("adjustments", "code"),
+    [
+        ({"warmth": 0, "exposure": 0, "saturation": 0}, "EMPTY_LOCAL_IMAGE_ADJUSTMENT"),
+        ({"warmth": 31, "exposure": 0, "saturation": 0}, "INVALID_LOCAL_IMAGE_ADJUSTMENT"),
+        ({"warmth": "private prompt text", "exposure": 0, "saturation": 0}, "INVALID_LOCAL_IMAGE_ADJUSTMENT"),
+    ],
+)
+def test_local_image_adjustments_reject_empty_or_unbounded_values(adjustments, code) -> None:
+    source = Image.new("RGB", (100, 100), color=(100, 110, 120))
+    source_bytes = BytesIO()
+    source.save(source_bytes, format="PNG")
+    mask = Image.new("RGBA", source.size, color=(209, 191, 150, 0))
+    mask.paste((209, 191, 150, 255), (40, 40, 60, 60))
+
+    with pytest.raises(AIServiceError) as caught:
+        MediaService._apply_local_image_adjustments(
+            source_bytes.getvalue(),
+            _png_data_url(mask),
+            adjustments,
+        )
+
+    assert caught.value.code == code
+
+
 def test_precision_edit_rejects_empty_broad_and_mismatched_masks_before_provider_spend() -> None:
     source = Image.new("RGB", (1024, 1024), color=(18, 24, 30))
     source_bytes = BytesIO()
@@ -150,6 +201,11 @@ class PrecisionImageFiles:
         assert row["id"] == "source-image"
         assert max_bytes == 25 * 1024 * 1024
         return self.source
+
+    async def get_owned(self, *, user_id: str, file_id: str):
+        assert user_id == "user-one"
+        assert file_id == "source-image"
+        return {"id": file_id, "mime_type": "image/png"}
 
     async def store_bytes(self, **kwargs):
         self.stored = kwargs
@@ -231,6 +287,90 @@ async def test_precision_edit_full_path_sends_provider_mask_and_stores_protected
         pixels = stored.convert("RGBA")
         assert pixels.getpixel((100, 100)) == source.getpixel((100, 100))
         assert pixels.getpixel((500, 500)) == generated.getpixel((500, 500))
+
+
+@pytest.mark.asyncio
+async def test_local_image_adjustment_save_is_provider_free_private_and_retry_stable() -> None:
+    source = Image.new("RGBA", (120, 100), color=(100, 110, 120, 255))
+    source_bytes = BytesIO()
+    source.save(source_bytes, format="PNG")
+    mask = Image.new("RGBA", source.size, color=(209, 191, 150, 0))
+    mask.paste((209, 191, 150, 255), (40, 30, 80, 70))
+    files = PrecisionImageFiles(source_bytes.getvalue())
+    service = MediaService(SimpleNamespace(), files)
+
+    first = await service.save_local_image_adjustment(
+        user_id="user-one",
+        source_file_id="source-image",
+        mask_data_url=_png_data_url(mask),
+        adjustments={"warmth": 12, "exposure": 0, "saturation": 0},
+        chat_id=None,
+    )
+    first_file_id = files.stored["file_id"]
+    second = await service.save_local_image_adjustment(
+        user_id="user-one",
+        source_file_id="source-image",
+        mask_data_url=_png_data_url(mask),
+        adjustments={"warmth": 12, "exposure": 0, "saturation": 0},
+        chat_id=None,
+    )
+
+    assert first["name"] == second["name"] == "Crump_Local_Edit.png"
+    assert files.stored is not None
+    assert files.stored["file_id"] == first_file_id
+    assert files.stored["kind"] == "generated_image"
+    assert files.stored["metadata"] == {
+        "edited": True,
+        "precisionEdit": True,
+        "localAdjustment": True,
+        "sourceFileId": "source-image",
+        "size": "120x100",
+        "warmth": 12.0,
+        "exposure": 0.0,
+        "saturation": 0.0,
+    }
+    assert "mask" not in files.stored["metadata"]
+
+
+@pytest.mark.asyncio
+async def test_local_image_adjustment_route_uses_authenticated_owner_and_zero_provider_credits(monkeypatch) -> None:
+    captured: dict = {}
+
+    class LocalRequest:
+        async def json(self):
+            return {
+                "maskDataUrl": "data:image/png;base64,fixture",
+                "adjustments": {"warmth": 8, "exposure": 0, "saturation": 0},
+                "chatId": "22222222-2222-4222-8222-222222222222",
+            }
+
+    async def authenticate(_request, _db, _settings):
+        return SimpleNamespace(user={"id": "user-one"})
+
+    async def save(**kwargs):
+        captured.update(kwargs)
+        return {
+            "id": "33333333-3333-4333-8333-333333333333",
+            "name": "Crump_Local_Edit.png",
+            "type": "image/png",
+        }
+
+    monkeypatch.setattr(file_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(file_routes.media, "save_local_image_adjustment", save)
+    result = await file_routes.image_adjust(
+        "11111111-1111-4111-8111-111111111111",
+        LocalRequest(),
+    )
+
+    assert result["providerUsed"] is False
+    assert result["creditsUsed"] == 0
+    assert captured == {
+        "user_id": "user-one",
+        "source_file_id": "11111111-1111-4111-8111-111111111111",
+        "mask_data_url": "data:image/png;base64,fixture",
+        "adjustments": {"warmth": 8, "exposure": 0, "saturation": 0},
+        "chat_id": "22222222-2222-4222-8222-222222222222",
+    }
 
 
 def test_provider_invalid_image_rejection_is_specific_actionable_and_categorical(caplog) -> None:
@@ -494,6 +634,7 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
         "Zoom in",
         "Fit image to screen",
         "Undo",
+        "Redo",
         "Clear",
         "Outside-selection lock",
         "restores protected pixels",
@@ -502,6 +643,15 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
         "Slightly deeper",
         "Slightly lighter",
         "No person is identified or classified",
+        "LOCAL ADJUSTMENTS · NO AI OR CREDITS",
+        "['warmth', 'Warmth']",
+        "['exposure', 'Exposure']",
+        "['saturation', 'Saturation']",
+        "`${label} adjustment`",
+        "Save local edit",
+        "Show original",
+        "Continue with AI edit",
+        "image-adjust",
         "selectionHasVisiblePixels",
         "maskDataUrl",
         "applyPrecisionSelection",
@@ -514,6 +664,12 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
     assert "race classification" not in editor.lower()
     assert "localStorage" not in editor
     assert "sessionStorage" not in editor
+    assert "request_id" not in editor
+    assert "Crump Credits were used" in editor
+    assert "rgba(226, 196, 126, 1)" in editor
+    assert "image_adjust" in read("backend/routes/files.py")
+    assert "providerUsed': False" in read("backend/routes/files.py")
+    assert "creditsUsed': 0" in read("backend/routes/files.py")
     assert "imageEditMask = precision.maskDataUrl" in composer
     assert "state.precisionImageEdit = null" in composer
     assert "imageEditMask" not in composer[composer.index("requestMeta: {") : composer.index("state.imageRecovery = null;")]
@@ -523,8 +679,8 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
     assert "input.dispatchEvent(new Event('input', {bubbles: true}))" in composer
     assert "Edit area" in composer
     assert "Precision Edit area" in composer
-    exact_script = "/crump-precision-image-edit.js?v=5.9.76-precision-edit-studio-2"
-    exact_style = "/crump-precision-image-edit.css?v=5.9.76-precision-edit-studio-2"
+    exact_script = "/crump-precision-image-edit.js?v=5.9.76-local-photo-studio-1"
+    exact_style = "/crump-precision-image-edit.css?v=5.9.76-local-photo-studio-1"
     for asset in (exact_script, exact_style):
         assert asset in runtime
         assert asset in worker

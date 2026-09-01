@@ -17,7 +17,7 @@ def test_56_polish_layer_is_last_on_web_and_native():
         assert source.index("/crump-4.3.js") < source.index("/crump-4.4.js")
         assert source.index("/crump-product-5.3.1.js") < source.index("/crump-polish-5.6.js")
         assert "/crump-polish-5.6.css" in source
-    assert "ask-crump-new-body-v1-r202" in worker
+    assert "ask-crump-new-body-v1-r203" in worker
     assert "/crump-polish-5.6.css" in worker and "/crump-polish-5.6.js" in worker
     assert "crump-polish-5.6.js" in checker
 
@@ -30,9 +30,10 @@ def test_tutorial_is_current_and_no_longer_bootstraps_legacy_runtime():
     for destination in ("Ask", "Projects", "Create", "Video", "Library", "You"):
         assert f"destination: '{destination}'" in tutorial
     assert "Conversation history remains in Chats." in tutorial
-    assert "Nothing generates until you review the setup and send the request." in tutorial
-    assert "Precision Edit lets you zoom in, brush over only what may change" in tutorial
-    assert "Zoomable Precision Edit" in tutorial
+    assert "continue into a reviewed generative edit" in tutorial
+    assert "Precision Edit lets you zoom, brush over only what may change" in tutorial
+    assert "save without AI credits" in tutorial
+    assert "Local image adjustments" in tutorial
     assert "select a named Project to enter its dedicated workspace" in tutorial
     assert "Open a named Project" in tutorial
     assert "tutorial-open-destination" in tutorial and ".tutorial-open-destination" in styles

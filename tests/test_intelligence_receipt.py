@@ -63,7 +63,7 @@ def test_intelligence_receipt_assets_are_cache_versioned_atomically():
     worker = read("public/sw.js")
     receipt_version = "5.9.76-intelligence-receipt-1"
     image_recovery_version = "5.9.76-user-controlled-scroll-1"
-    loader_version = "5.9.76-precision-edit-guide-loader-1"
+    loader_version = "5.9.76-local-photo-studio-loader-1"
 
     assert f"/runtime-body-v1.js?v={loader_version}" in shell
     assert f"/runtime-body-v1.js?v={loader_version}" in worker
@@ -76,4 +76,4 @@ def test_intelligence_receipt_assets_are_cache_versioned_atomically():
         assert versioned in worker
     for source in (runtime, worker):
         assert "/app.js?v=5.9.76-user-controlled-scroll-1" in source
-    assert "ask-crump-new-body-v1-r202" in worker
+    assert "ask-crump-new-body-v1-r203" in worker
