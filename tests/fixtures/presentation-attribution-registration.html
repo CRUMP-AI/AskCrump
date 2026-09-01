@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Presentation attribution registration fixture</title>
+</head>
+<body>
+  <div id="authContainer" style="display:none">
+    <div id="loginForm" style="display:none">
+      <input id="loginEmail" type="email">
+      <div id="loginError" style="display:none"></div>
+      <div id="loginSuccess" style="display:none"></div>
+      <div id="verificationNeeded" style="display:none"></div>
+    </div>
+    <div id="registerForm" style="display:none">
+      <div id="registerEntry">
+        <h1 id="registrationTitle">Create your workspace.</h1>
+        <p id="registrationDescription">Fixture registration boundary.</p>
+        <form id="registerFormElement">
+          <label for="registerEmail">Email</label>
+          <input id="registerEmail" type="email" required autocomplete="off">
+          <label for="registerPassword">Password</label>
+          <input id="registerPassword" type="password" required minlength="10" maxlength="256" autocomplete="off" aria-describedby="registerPasswordHint">
+          <div id="registerPasswordHint">
+            <span data-password-rule="length"><i>○</i>10+ characters</span>
+            <span data-password-rule="letter"><i>○</i>One letter</span>
+            <span data-password-rule="number"><i>○</i>One number</span>
+          </div>
+          <span id="registerPasswordStatus" aria-live="polite"></span>
+          <label><input id="registerTerms" type="checkbox"> Accept terms</label>
+          <button id="registrationSubmitBtn" type="submit">Create fixture account</button>
+        </form>
+        <div id="registerError" role="alert" style="display:none"></div>
+        <div id="registerSuccess" style="display:none"></div>
+      </div>
+      <section id="registrationPending" style="display:none" tabindex="-1">
+        <strong id="registrationPendingEmail"></strong>
+        <div id="registrationPendingSuccess" style="display:none"></div>
+        <div id="registrationPendingError" style="display:none"></div>
+        <button id="registrationPendingSigninBtn" type="button">Sign in</button>
+        <button id="registrationPendingResendBtn" type="button">Resend</button>
+      </section>
+    </div>
+    <div id="forgotPasswordForm" style="display:none"></div>
+    <div id="resetPasswordForm" style="display:none"></div>
+  </div>
+  <div id="tosModal" style="display:none"></div>
+  <div id="onboardingModal" style="display:none"></div>
+  <div id="appContainer" style="display:none"><textarea id="userInput"></textarea></div>
+  <output id="fixtureRegisterCalls">0</output>
+  <output id="fixturePayload">pending</output>
+  <output id="fixtureErrors">0</output>
+
+  <script>
+    window.__fixture = {registerCalls: 0, payload: null, events: [], errors: []};
+    window.va = (command, payload) => {
+      if (command === 'event') window.__fixture.events.push(payload?.name || 'unknown');
+    };
+    window.addEventListener('error', event => {
+      window.__fixture.errors.push(String(event.message || 'error'));
+      document.getElementById('fixtureErrors').textContent = String(window.__fixture.errors.length);
+    });
+    window.addEventListener('unhandledrejection', event => {
+      window.__fixture.errors.push(String(event.reason?.message || 'rejection'));
+      document.getElementById('fixtureErrors').textContent = String(window.__fixture.errors.length);
+    });
+  </script>
+  <!-- Capture the exact first touch through the production landing implementation. -->
+  <script src="/public/landing.js?v=presentation-attribution-registration-fixture"></script>
+  <script>
+    // Present a second valid campaign in the same tab before registration. The
+    // already-captured unexpired first touch must remain immutable.
+    history.replaceState({}, '', '/tests/fixtures/presentation-attribution-registration.html?signup=1&acquisition=instagram&source=profile-link&campaign=real-product-continuity&creative=continuity-feed&intent=projects');
+
+    window.CrumpWorkspaceRuntime = {load: async () => {}};
+    window.CrumpAPI = {ready: Promise.resolve()};
+    window.deviceAuth = {
+      async checkSession() { return {success: true, authenticated: false}; },
+      async login() { return {success: false}; },
+      async logout() {},
+    };
+    window.configureUserStorage = () => {};
+    window.profileManager = {applyServerSubscription() {}, updateProfile() {}};
+    window.SyncManager = {pull: () => Promise.resolve()};
+    window.fetch = (url, options = {}) => {
+      if (url === '/api/auth/register') {
+        const request = JSON.parse(options.body || '{}');
+        window.__fixture.registerCalls += 1;
+        window.__fixture.payload = {
+          acquisition: request.source || null,
+          placement: request.placement || null,
+          campaign: request.campaign || null,
+          creative: request.creative || null,
+          intent: request.intent || null,
+          termsAccepted: request.termsAccepted === true,
+          hasSyntheticCredentials: Boolean(request.email && request.password),
+        };
+        document.getElementById('fixtureRegisterCalls').textContent = String(window.__fixture.registerCalls);
+        document.getElementById('fixturePayload').textContent = JSON.stringify(window.__fixture.payload);
+      }
+      return Promise.resolve(new Response(JSON.stringify({
+        success: false,
+        error: 'Fixture stopped before network account creation.',
+      }), {status: 400, headers: {'Content-Type': 'application/json'}}));
+    };
+  </script>
+  <script src="/public/auth-resilience.js?v=presentation-attribution-registration-fixture"></script>
+  <script src="/public/auth-controller.js?v=presentation-attribution-registration-fixture"></script>
+</body>
+</html>
