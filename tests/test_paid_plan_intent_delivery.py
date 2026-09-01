@@ -73,3 +73,5 @@ def test_paid_plan_delivery_fixture_is_local_content_free_and_checks_checkout_bo
     assert "url.searchParams.set('billingDelay', '750');" in verifier
     assert "assert.equal(state.pendingPlan, null);" in verifier
     assert "assert.equal(state.planConsumed, 1);" in verifier
+    assert "For sustained work that needs the largest current individual limits." in verifier
+    assert "state.enterpriseSummary.toLowerCase().includes('organization')" in verifier

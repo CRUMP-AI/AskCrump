@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 from backend.feature_service import POLICIES, PROJECT_LIMITS
 
@@ -78,6 +79,13 @@ def test_signed_in_plan_cards_state_specific_value_and_metering():
             assert expected in source
         assert source.count("Advanced Intelligence: Think Longer + Always Review") == 2
         assert "billing51-plan-benefits" in source
+        assert "For sustained work that needs the largest current individual limits." in source
+        assert "organization workflows" not in source.lower()
+        for unsupported in (
+            "team administration", "sso", "procurement", "sla",
+            "dedicated support", "enterprise security",
+        ):
+            assert re.search(rf"\b{re.escape(unsupported)}\b", source, re.IGNORECASE) is None
 
     assert "Think Longer and premium creation access" not in billing
     assert "Think Longer and premium creation access" not in final_billing
@@ -189,8 +197,8 @@ def test_both_plan_center_owners_contain_and_restore_modal_focus():
 
 
 def test_plan_center_containment_assets_are_versioned_everywhere():
-    versioned_billing = "/crump-billing-5.1.js?v=5.9.76-weekly-growth-attribution-1"
-    versioned_final = "/crump-5.2.js?v=5.9.76-weekly-growth-attribution-1"
+    versioned_billing = "/crump-billing-5.1.js?v=5.9.76-truthful-enterprise-positioning-1"
+    versioned_final = "/crump-5.2.js?v=5.9.76-truthful-enterprise-positioning-1"
     sources = (
         read_public("runtime-body-v1.js"),
         read_public("sw.js"),
@@ -202,7 +210,7 @@ def test_plan_center_containment_assets_are_versioned_everywhere():
     for source in sources:
         assert versioned_billing in source
         assert versioned_final in source
-    assert "ask-crump-new-body-v1-r176" in read_public("sw.js")
+    assert "ask-crump-new-body-v1-r177" in read_public("sw.js")
     assert "/runtime-body-v1.js?v=5.9.76-continuity-action-1" in read_public("app.html")
 
 

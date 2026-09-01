@@ -67,6 +67,7 @@ const activeConsumerDelays = consumerDelays.slice(
             selectedCards: document.querySelectorAll('.billing51-plan.is-intent').length,
             selectedPlan: document.querySelector('.billing51-plan.is-intent')?.dataset.crumpPlan || '',
             openedFor: document.querySelector('.billing51-modal')?.dataset.openedFor || '',
+            enterpriseSummary: document.querySelector('[data-crump-plan="enterprise"] .billing51-plan-summary')?.textContent || '',
           }));
           assert.equal(state.planConsumerLoaded, true);
           assert.equal(state.billingOpens, 1);
@@ -81,6 +82,8 @@ const activeConsumerDelays = consumerDelays.slice(
           assert.equal(state.selectedCards, 1);
           assert.equal(state.selectedPlan, plan);
           assert.equal(state.openedFor, plan);
+          assert.equal(state.enterpriseSummary, 'For sustained work that needs the largest current individual limits.');
+          assert.equal(state.enterpriseSummary.toLowerCase().includes('organization'), false);
           assert.deepEqual(state.browserErrors, []);
           assert.deepEqual(browserErrors, []);
           assert.equal(new URL(page.url()).searchParams.get('plan'), plan);

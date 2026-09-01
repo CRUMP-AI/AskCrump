@@ -370,7 +370,7 @@ const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot),
 const releaseVersion = String(packageJson.version || '');
 const landingVersion = `${releaseVersion}-marketing-landing-1`;
 const authControllerVersion = `${releaseVersion}-plan-intent-delivery-3`;
-const planIntentDeliveryVersion = `${releaseVersion}-plan-intent-delivery-3`;
+const planRendererVersion = `${releaseVersion}-truthful-enterprise-positioning-1`;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
 const coreReliabilityVersion = `${releaseVersion}-core-reliability-1`;
@@ -710,7 +710,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r176') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r177') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${continuityActionVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
@@ -768,7 +768,9 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r176') ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.9.30.css'") ||
     !serviceWorker.includes("url.pathname === '/crump-code-5.9.35.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-code-5.9.35.css'") ||
-    !serviceWorker.includes(`/crump-subscriptions-5.3.2.js?v=${planIntentDeliveryVersion}`) ||
+    !serviceWorker.includes(`/crump-billing-5.1.js?v=${planRendererVersion}`) ||
+    !serviceWorker.includes(`/crump-5.2.js?v=${planRendererVersion}`) ||
+    !serviceWorker.includes(`/crump-subscriptions-5.3.2.js?v=${planRendererVersion}`) ||
     !serviceWorker.includes('/crump-library-5.7.js') ||
     !serviceWorker.includes('/crump-library-5.7.css')) {
   console.error('New-body service-worker contract is incomplete.');

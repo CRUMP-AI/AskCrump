@@ -63,14 +63,14 @@ def test_recovery_summary_is_responsive_and_does_not_create_checkout():
 def test_contextual_recovery_assets_are_registered_for_web_pwa_and_native():
     context_version = "5.9.76-contextual-plan-recovery-1"
     image_recovery_version = "5.9.76-image-safety-recovery-1"
-    controller_version = "5.9.76-weekly-growth-attribution-1"
+    plan_renderer_version = "5.9.76-truthful-enterprise-positioning-1"
     runtime = read("public/runtime-body-v1.js")
     worker = read("public/sw.js")
     native = read("scripts/build-native.mjs")
 
     for asset in (
-        f"/crump-billing-5.1.js?v={controller_version}",
-        f"/crump-5.2.js?v={controller_version}",
+        f"/crump-billing-5.1.js?v={plan_renderer_version}",
+        f"/crump-5.2.js?v={plan_renderer_version}",
     ):
         assert asset in runtime
         assert asset in worker
@@ -83,4 +83,4 @@ def test_contextual_recovery_assets_are_registered_for_web_pwa_and_native():
     assert f"/chat-resilience.js?v={image_recovery_version}" in worker
     assert "/crump-product-5.3.js?v=5.9.76-visual-media-reliability-2" in runtime
     assert "/crump-product-5.3.js?v=5.9.76-visual-media-reliability-2" in worker
-    assert "ask-crump-new-body-v1-r176" in worker
+    assert "ask-crump-new-body-v1-r177" in worker

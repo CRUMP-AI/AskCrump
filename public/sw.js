@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r176';
+const CACHE_NAME = 'ask-crump-new-body-v1-r177';
 
 const CORE = [
   '/app',
@@ -34,7 +34,7 @@ const CORE = [
   '/crump-polish-5.6.js?v=5.9.76-video-destination-1',
   '/crump-library-5.7.css',
   '/crump-library-5.7.js?v=5.9.76-demand-hydration-1',
-  '/crump-subscriptions-5.3.2.js?v=5.9.76-plan-intent-delivery-3',
+  '/crump-subscriptions-5.3.2.js?v=5.9.76-truthful-enterprise-positioning-1',
   '/runtime-body-v1.js?v=5.9.76-continuity-action-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
@@ -65,9 +65,9 @@ const CORE = [
   '/crump-5.0.css?v=5.9.76-file-delivery-2',
   '/crump-5.0.js?v=5.9.76-file-delivery-2',
   '/crump-billing-5.1.css?v=5.9.76-contextual-plan-recovery-1',
-  '/crump-billing-5.1.js?v=5.9.76-weekly-growth-attribution-1',
+  '/crump-billing-5.1.js?v=5.9.76-truthful-enterprise-positioning-1',
   '/crump-5.2.css',
-  '/crump-5.2.js?v=5.9.76-weekly-growth-attribution-1',
+  '/crump-5.2.js?v=5.9.76-truthful-enterprise-positioning-1',
   '/crump-5.2.2.css',
   '/crump-5.2.2.js?v=5.9.76-image-scroll-stability-1',
   '/assets/brand/crump-shell-lockup-light.png',

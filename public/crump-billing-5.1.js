@@ -518,7 +518,7 @@
           id: 'enterprise',
           name: 'Enterprise',
           fallback: (window.CRUMP_CONFIG || {}).webEnterprisePriceLabel || '$50/month',
-          detail: 'For sustained, high-capacity individual or organization workflows.',
+          detail: 'For sustained work that needs the largest current individual limits.',
           benefits: [
             '5,000 included messages daily',
             '200 private Projects',

@@ -749,7 +749,7 @@
             </article>
             <article class="billing51-plan" data-crump-plan="enterprise">
               <div class="billing51-plan-top"><strong>Enterprise</strong><span>$50/month</span></div>
-              <p class="billing51-plan-summary">For sustained, high-capacity individual or organization workflows.</p>
+              <p class="billing51-plan-summary">For sustained work that needs the largest current individual limits.</p>
               <ul class="billing51-plan-benefits"><li>5,000 included messages daily</li><li>200 private Projects</li><li>50 research · 2 images · 100 visual analyses daily</li><li>Advanced Intelligence: Think Longer + Always Review</li><li>10-second Cinematic video access</li></ul>
               <p class="billing51-plan-meter-note">Premium video and other high-compute generations use Crump Credits.</p>
               <button class="billing51-plan-button" disabled>Loading plan…</button>
