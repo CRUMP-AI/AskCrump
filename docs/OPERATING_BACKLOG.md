@@ -524,7 +524,8 @@ any acquisition spend scales.
 Google is processing the property's first performance and indexing reports. Production 5.9.34
 introduced four high-intent capability pages at clean canonical URLs and linked them from the
 homepage and from each other. Production 5.9.76 adds the canonical Projects workspace page and
-reciprocal discovery links, bringing the live Ask Crump sitemap to seven public URLs. The protected growth and
+reciprocal discovery links; three evidence-led workflow guides bring the live Ask Crump sitemap to
+ten public URLs. The protected growth and
 artifact reports still show zero comparable external activity, so acquisition is the current
 evidence-backed bottleneck. A read-only Search Console inspection on 2026-08-27 showed that the
 homepage is indexed, while the presentation, document, résumé, and video pages are all unknown to
@@ -537,7 +538,12 @@ checks confirmed HTTP 200 delivery for `robots.txt`, `sitemap.xml`, the homepage
 page, with no response-level robots block. The public pages still expose unique canonicals,
 metadata, structured data, and crawlable internal links. No additional code defect was found; the
 remaining acquisition gate is the owner-confirmed Search Console submission. The Projects page has
-not yet accumulated a Search Console indexing observation.
+not yet accumulated a Search Console indexing observation. Commit `dc02d85` then closed the
+crawler/no-index contradiction for `/app`: crawlers may fetch the shell, while exact HTTP and
+rendered `noindex,nofollow` directives keep it out of search results. The release preserved
+public-page indexability, protected-route blocks, and the sitemap boundary; production evidence is
+recorded in `docs/SEO_CRAWL_HYGIENE_RELEASE_2026-09-01.md`. The apex redirect remains 307 and no
+Search Console action was performed.
 
 **Outcome:** verified domain ownership, one canonical sitemap submitted, valid canonical URLs,
 and indexed landing pages tied to privacy-safe account-creation attribution.

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "releaseId": "seo-crawl-hygiene-20260901",
+  "status": "released-code-only",
+  "baseCommit": "80ad5fa9768ca9ddbf01c4bb7500c37b67346501",
+  "codeCommit": "dc02d85a894e486656680b9b731f8d9760b957d7",
+  "deploymentId": "dpl_GrNYVNoACdRimxudZavnes6Y4uDz",
+  "allowedCodePaths": [
+    "public/robots.txt",
+    "tests/test_revenue_conversion.py",
+    "vercel.json"
+  ],
+  "contentHashes": {
+    "public/robots.txt": "cf26fe1c3a1f3c27d9aa32b1139da109816c49af4cc1586c58f47a600d191894",
+    "tests/test_revenue_conversion.py": "5e7bfe3faec3cb518c99d795cb29db505c18d4226767203b80666f92af8582d3",
+    "vercel.json": "1358a1d2313c6a8897d9c48528fdf5708d95b69f75876ccf6cd49a51812e2538"
+  },
+  "unchangedTrustBoundaries": {
+    "backend/routes/auth.py": "9b749b51a9cc7e388fdbbfb770fa9ae8be1cb3b9e323b1956095b52c5358e5f9",
+    "backend/routes/projects.py": "8dbeb78bf444e0be5b6b3814b163314b5e669a0df0e4a07bfb3c18d9ffb7a670",
+    "public/ai-document-generator.html": "de8df5e00c6b5f7d5cbb8ea164e02287e95c6f68fbf97233460451d80aee17cb",
+    "public/app.html": "1fb52ab6a236412a394b91c69767a43e0ace61befc23ce7166684bf79c1b86bd",
+    "public/ask-crump.html": "b118d10d1d0e6175ff86cde99de240c5d9bb7b488ee291bef9743ae0db863c05",
+    "public/auth-controller.js": "21e4d2a44a5460db7c3bb1f213da973dfd6898fe435a3da10134585ad646d7a4",
+    "public/clever-crump-robots.txt": "a721b588a83575cae64ca80360e8e5abc64ab6241822e7f4d4622157e3135ed0",
+    "public/landing.js": "9b5c7e939fea275bc2d478fb749ac9bcb1fe8425537de4c2a644c65f63e9a08b",
+    "public/sitemap.xml": "181abb0465a1da97552b07efd1d206e80a687756a466259f380a8428a0b07beb"
+  },
+  "domainStep": {
+    "domain": "askcrump.com",
+    "currentTarget": "https://www.askcrump.com",
+    "currentStatus": 307,
+    "proposedStatus": 308,
+    "executed": false
+  },
+  "searchConsoleActionExecuted": false
+}
