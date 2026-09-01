@@ -35,6 +35,9 @@ def test_identity_recovery_starts_before_optional_preference_loading():
     assert "email: '   '" in fixture
     assert "{id: 'fixture-guest', email: '   '}" in fixture
     assert "const displayedEmail = String(emailField.value || '').trim();" in app
+    assert "function scheduleSettingsIdentityPresentation()" in app
+    assert "window.addEventListener('crump:authenticated-ready'" in app
+    assert "field.placeholder = 'you@email.com';" in fixture
 
 
 def test_settings_save_action_tracks_real_edits_and_blocks_duplicate_submissions():

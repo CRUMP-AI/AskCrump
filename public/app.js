@@ -1105,6 +1105,7 @@ window.triggerWebSearch = function() {
 window.openSettings = function() {
     document.getElementById('settingsModal').style.display = 'flex';
     loadSettingsValues();
+    scheduleSettingsIdentityPresentation();
 };
 
 window.closeSettings = function() {
@@ -1149,6 +1150,24 @@ function wireSettingsSaveState() {
     modal.addEventListener('change', update);
 }
 
+function syncSettingsIdentityPresentation() {
+    const emailField = document.getElementById('settingsEmail');
+    if (!emailField) return;
+    const displayedEmail = String(emailField.value || '').trim();
+    emailField.value = displayedEmail;
+    emailField.readOnly = true;
+    emailField.placeholder = displayedEmail ? 'you@email.com' : 'Sign in to view account email';
+}
+
+function scheduleSettingsIdentityPresentation() {
+    [0, 250, 1000].forEach(delay => {
+        window.setTimeout(() => {
+            const modal = document.getElementById('settingsModal');
+            if (modal && getComputedStyle(modal).display !== 'none') syncSettingsIdentityPresentation();
+        }, delay);
+    });
+}
+
 async function restoreSettingsIdentity() {
     const emailField = document.getElementById('settingsEmail');
     if (!emailField || String(emailField.value || '').trim() || settingsIdentityRequest) return settingsIdentityRequest;
@@ -1171,14 +1190,7 @@ async function restoreSettingsIdentity() {
         .catch(() => {})
         .finally(() => {
             emailField.removeAttribute('aria-busy');
-            const displayedEmail = String(emailField.value || '').trim();
-            const knownEmail = String(
-                window.deviceAuth?.session?.user?.email || window.currentUser?.email || ''
-            ).trim();
-            emailField.value = displayedEmail;
-            emailField.placeholder = displayedEmail
-                ? 'you@email.com'
-                : knownEmail ? 'Account email unavailable' : 'Sign in to view account email';
+            syncSettingsIdentityPresentation();
             settingsIdentityRequest = null;
         });
     return settingsIdentityRequest;
@@ -1191,10 +1203,7 @@ function loadSettingsValues() {
     const settingsEmail = document.getElementById('settingsEmail');
     document.getElementById('settingsName').value = user.fullName || profile.name || '';
     settingsEmail.value = String(user.email || profile.email || '').trim();
-    settingsEmail.readOnly = true;
-    settingsEmail.placeholder = settingsEmail.value
-        ? 'you@email.com'
-        : 'Sign in to view account email';
+    syncSettingsIdentityPresentation();
     if (!String(settingsEmail.value || '').trim()) void restoreSettingsIdentity();
     document.getElementById('assistantName').value = SafeStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
 
@@ -1226,6 +1235,11 @@ function loadSettingsValues() {
     wireSettingsSaveState();
     resetSettingsSaveState();
 }
+
+window.addEventListener('crump:authenticated-ready', () => {
+    const modal = document.getElementById('settingsModal');
+    if (modal && getComputedStyle(modal).display !== 'none') scheduleSettingsIdentityPresentation();
+});
 
 window.saveSettings = async function() {
     const saveButton = document.getElementById('saveSettingsBtn');

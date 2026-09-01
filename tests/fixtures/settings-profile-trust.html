@@ -73,6 +73,13 @@
   <script>
     document.getElementById('openSettings').addEventListener('click', () => window.openSettings());
     document.getElementById('saveSettingsBtn').addEventListener('click', () => window.saveSettings());
+    if (fixtureGuest) {
+      window.setTimeout(() => {
+        const field = document.getElementById('settingsEmail');
+        field.value = '';
+        field.placeholder = 'you@email.com';
+      }, 120);
+    }
   </script>
 </body>
 </html>

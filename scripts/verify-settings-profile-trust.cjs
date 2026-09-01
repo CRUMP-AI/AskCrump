@@ -57,7 +57,7 @@ const baseUrl = process.env.ASKCRUMP_FIXTURE_ORIGIN || 'http://127.0.0.1:8765';
   guestPage.on('pageerror', error => guestErrors.push(error.message));
   await guestPage.goto(`${baseUrl}/tests/fixtures/settings-profile-trust.html?guest=1`, {waitUntil: 'networkidle'});
   await guestPage.getByRole('button', {name: 'Open settings'}).click();
-  await guestPage.waitForFunction(() => document.getElementById('settingsEmail')?.placeholder === 'Sign in to view account email');
+  await guestPage.waitForTimeout(500);
   const guest = await guestPage.evaluate(() => ({
     email: document.getElementById('settingsEmail')?.value || '',
     emailReadOnly: document.getElementById('settingsEmail')?.readOnly || false,
