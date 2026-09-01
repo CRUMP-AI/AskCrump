@@ -233,18 +233,33 @@ async def test_precision_edit_full_path_sends_provider_mask_and_stores_protected
         assert pixels.getpixel((500, 500)) == generated.getpixel((500, 500))
 
 
-def test_provider_invalid_image_rejection_is_specific_and_actionable() -> None:
+def test_provider_invalid_image_rejection_is_specific_actionable_and_categorical(caplog) -> None:
+    sensitive_provider_message = "Invalid private-family-photo.png supplied for prompt details"
     response = httpx.Response(
         400,
         request=httpx.Request("POST", "https://api.openai.com/v1/images/edits"),
-        json={"error": {"code": "invalid_image_file", "type": "image_generation_user_error"}},
+        headers={"x-request-id": "unique-invalid-image-request"},
+        json={
+            "error": {
+                "code": "invalid_image_file",
+                "type": "image_generation_user_error",
+                "message": sensitive_provider_message,
+            }
+        },
     )
 
-    error = MediaService._image_provider_exception(response)
+    with caplog.at_level("WARNING", logger="askcrump.media"):
+        error = MediaService._image_provider_exception(response)
 
     assert error.code == "INVALID_IMAGE_EDIT_SOURCE"
     assert error.status_code == 400
     assert "JPG, PNG, or WebP" in error.message
+    assert [record.getMessage() for record in caplog.records] == [
+        "Image provider rejected request category=invalid_reference status=400 "
+        "code=invalid_image_file type=image_generation_user_error"
+    ]
+    assert "unique-invalid-image-request" not in caplog.text
+    assert sensitive_provider_message not in caplog.text
 
 
 def test_moderation_block_uses_stable_code_and_content_free_diagnostics(caplog) -> None:
@@ -267,20 +282,111 @@ def test_moderation_block_uses_stable_code_and_content_free_diagnostics(caplog) 
         },
     )
 
-    with caplog.at_level("WARNING", logger="askcrump.media"):
+    with caplog.at_level("INFO", logger="askcrump.media"):
         error = MediaService._image_provider_exception(response)
 
     assert error.code == "IMAGE_SAFETY_REJECTED"
     assert error.status_code == 400
     assert error.retryable is False
     assert "Adjust the prompt or reference image" in error.message
+    log_messages = [record.getMessage() for record in caplog.records]
+    assert log_messages == [
+        "Image provider rejected request category=safety status=400 "
+        "code=moderation_blocked type=image_generation_user_error",
+        "Image provider safety classification stage=input categories=violence,graphic",
+    ]
     log_text = caplog.text
-    assert "moderation_stage=input" in log_text
-    assert "categories=violence,graphic" in log_text
-    assert "image-request-123" in log_text
+    assert "image-request-123" not in log_text
     assert sensitive_provider_message not in log_text
     assert "private prompt content" not in log_text
     assert "not safe for logs" not in log_text
+
+
+def test_repeated_provider_rejections_share_one_operational_signature(caplog) -> None:
+    responses = [
+        httpx.Response(
+            400,
+            request=httpx.Request("POST", "https://api.openai.com/v1/images/edits"),
+            headers={"x-request-id": f"unique-request-{index}"},
+            json={
+                "error": {
+                    "code": "invalid_image_file",
+                    "type": "image_generation_user_error",
+                    "message": f"private provider detail {index}",
+                }
+            },
+        )
+        for index in range(2)
+    ]
+
+    with caplog.at_level("WARNING", logger="askcrump.media"):
+        for response in responses:
+            MediaService._image_provider_exception(response)
+
+    messages = [record.getMessage() for record in caplog.records]
+    assert len(messages) == 2
+    assert len(set(messages)) == 1
+    assert messages[0] == (
+        "Image provider rejected request category=invalid_reference status=400 "
+        "code=invalid_image_file type=image_generation_user_error"
+    )
+    assert "unique-request" not in caplog.text
+    assert "private provider detail" not in caplog.text
+
+
+def test_upstream_provider_failure_is_error_categorical_and_content_free(caplog) -> None:
+    sensitive_provider_message = "Private upstream diagnostic with request content"
+    response = httpx.Response(
+        503,
+        request=httpx.Request("POST", "https://api.openai.com/v1/images/generations"),
+        headers={"x-request-id": "unique-upstream-request"},
+        json={
+            "error": {
+                "code": "server_error",
+                "type": "upstream_failure",
+                "message": sensitive_provider_message,
+            }
+        },
+    )
+
+    with caplog.at_level("ERROR", logger="askcrump.media"):
+        error = MediaService._image_provider_exception(response)
+
+    assert error.code == "IMAGE_UPSTREAM_ERROR"
+    assert error.retryable is True
+    assert [record.getMessage() for record in caplog.records] == [
+        "Image provider rejected request category=upstream status=503 "
+        "code=server_error type=upstream_failure"
+    ]
+    assert "unique-upstream-request" not in caplog.text
+    assert sensitive_provider_message not in caplog.text
+
+
+def test_provider_log_tokens_fail_closed_on_unstructured_values(caplog) -> None:
+    response = httpx.Response(
+        502,
+        request=httpx.Request("POST", "https://api.openai.com/v1/images/generations"),
+        json={
+            "error": {
+                "code": "private filename and prompt detail",
+                "type": "unstructured upstream detail",
+                "message": "another private provider diagnostic",
+            }
+        },
+    )
+
+    with caplog.at_level("ERROR", logger="askcrump.media"):
+        MediaService._image_provider_exception(response)
+
+    assert [record.getMessage() for record in caplog.records] == [
+        "Image provider rejected request category=upstream status=502 code=unknown type=unknown"
+    ]
+    for private_value in (
+        "private filename and prompt detail",
+        "unstructured upstream detail",
+        "another private provider diagnostic",
+    ):
+        assert private_value not in caplog.text
 
 
 def test_themed_edits_preserve_people_and_do_not_invent_brand_marks() -> None:

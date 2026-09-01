@@ -386,7 +386,7 @@ class MediaService:
 
     @staticmethod
     def _provider_error(response: httpx.Response) -> tuple[str, str, str]:
-        """Extract bounded diagnostics without ever logging credentials or prompts."""
+        """Extract bounded classification inputs; the provider message must never be logged."""
         provider_code = ''
         provider_type = ''
         provider_message = ''
@@ -400,6 +400,64 @@ class MediaService:
         except (TypeError, ValueError):
             provider_message = ' '.join(response.text.split())[:500]
         return provider_code, provider_type, provider_message
+
+    @staticmethod
+    def _provider_log_token(value: str) -> str:
+        """Return a stable content-free token suitable for operational logs."""
+        token = str(value or '').strip().lower()
+        return token if re.fullmatch(r'[a-z0-9][a-z0-9_.-]{0,79}', token) else 'unknown'
+
+    @staticmethod
+    def _image_provider_rejection_category(
+        response: httpx.Response,
+        provider_code: str,
+        provider_type: str,
+        provider_message: str,
+    ) -> str:
+        diagnostic = f'{provider_code} {provider_type} {provider_message}'.lower()
+        if provider_code.lower() == 'moderation_blocked' or 'content_policy' in diagnostic or 'safety' in diagnostic:
+            return 'safety'
+        if 'verification' in diagnostic or 'organization_verification' in diagnostic:
+            return 'verification_required'
+        if response.status_code == 401 or 'invalid_api_key' in diagnostic:
+            return 'authentication'
+        if 'insufficient_quota' in diagnostic or 'billing' in diagnostic or 'credit' in diagnostic:
+            return 'billing'
+        if 'invalid_image_file' in diagnostic:
+            return 'invalid_reference'
+        if response.status_code == 429:
+            return 'rate_limit'
+        if response.status_code in {400, 403} or 'image_generation_user_error' in diagnostic:
+            return 'request_rejected'
+        if response.status_code >= 500:
+            return 'upstream'
+        return 'unexpected'
+
+    @classmethod
+    def _log_image_provider_rejection(
+        cls,
+        response: httpx.Response,
+        provider_code: str,
+        provider_type: str,
+        category: str,
+    ) -> None:
+        """Emit one stable incident signature without request-specific provider data."""
+        log = logger.warning if category in {'safety', 'invalid_reference', 'rate_limit', 'request_rejected'} else logger.error
+        log(
+            'Image provider rejected request category=%s status=%s code=%s type=%s',
+            category,
+            response.status_code,
+            cls._provider_log_token(provider_code),
+            cls._provider_log_token(provider_type),
+        )
+        if category == 'safety':
+            moderation_stage, moderation_categories = cls._provider_moderation_details(response)
+            if moderation_stage != 'unknown' or moderation_categories:
+                logger.info(
+                    'Image provider safety classification stage=%s categories=%s',
+                    moderation_stage,
+                    ','.join(moderation_categories) or 'none',
+                )
 
     @staticmethod
     def _provider_moderation_details(response: httpx.Response) -> tuple[str, tuple[str, ...]]:
@@ -437,30 +495,9 @@ class MediaService:
     @classmethod
     def _image_provider_exception(cls, response: httpx.Response) -> AIServiceError:
         provider_code, provider_type, provider_message = cls._provider_error(response)
-        request_id = str(response.headers.get('x-request-id') or '')[:160]
-        diagnostic = f'{provider_code} {provider_type} {provider_message}'.lower()
-        safety_rejected = provider_code.lower() == 'moderation_blocked' or 'content_policy' in diagnostic or 'safety' in diagnostic
-        if safety_rejected:
-            moderation_stage, moderation_categories = cls._provider_moderation_details(response)
-            logger.warning(
-                'OpenAI image safety rejection status=%s code=%s type=%s request_id=%s moderation_stage=%s categories=%s',
-                response.status_code,
-                provider_code or '-',
-                provider_type or '-',
-                request_id or '-',
-                moderation_stage,
-                ','.join(moderation_categories) or '-',
-            )
-        else:
-            logger.error(
-                'OpenAI image request rejected status=%s code=%s type=%s request_id=%s message=%s',
-                response.status_code,
-                provider_code or '-',
-                provider_type or '-',
-                request_id or '-',
-                provider_message or '-',
-            )
-        if provider_code.lower() == 'moderation_blocked':
+        category = cls._image_provider_rejection_category(response, provider_code, provider_type, provider_message)
+        cls._log_image_provider_rejection(response, provider_code, provider_type, category)
+        if category == 'safety':
             return AIServiceError(
                 'That image request was blocked by a safety check. Adjust the prompt or reference image before sending it again.',
                 400,
@@ -468,7 +505,7 @@ class MediaService:
                 False,
                 0,
             )
-        if 'verification' in diagnostic or 'organization_verification' in diagnostic:
+        if category == 'verification_required':
             return AIServiceError(
                 'OpenAI requires organization verification before this image model can run.',
                 503,
@@ -476,7 +513,7 @@ class MediaService:
                 False,
                 0,
             )
-        if response.status_code == 401 or 'invalid_api_key' in diagnostic:
+        if category == 'authentication':
             return AIServiceError(
                 'The image provider key is invalid or expired.',
                 503,
@@ -484,7 +521,7 @@ class MediaService:
                 False,
                 0,
             )
-        if 'insufficient_quota' in diagnostic or 'billing' in diagnostic or 'credit' in diagnostic:
+        if category == 'billing':
             return AIServiceError(
                 'The image provider account has no available API budget.',
                 503,
@@ -492,15 +529,7 @@ class MediaService:
                 False,
                 0,
             )
-        if safety_rejected:
-            return AIServiceError(
-                'That image request was blocked by a safety check. Adjust the prompt or reference image before sending it again.',
-                400,
-                'IMAGE_SAFETY_REJECTED',
-                False,
-                0,
-            )
-        if 'invalid_image_file' in diagnostic:
+        if category == 'invalid_reference':
             return AIServiceError(
                 'The image provider could not accept that reference image. Re-save it as JPG, PNG, or WebP and upload it again.',
                 400,
@@ -508,7 +537,7 @@ class MediaService:
                 False,
                 0,
             )
-        if response.status_code == 429:
+        if category == 'rate_limit':
             return AIServiceError(
                 'The image provider is rate limited. Try again shortly.',
                 429,
@@ -516,7 +545,7 @@ class MediaService:
                 True,
                 30,
             )
-        if response.status_code in {400, 403} or 'image_generation_user_error' in diagnostic:
+        if category == 'request_rejected':
             return AIServiceError(
                 'The image provider could not process that request. Try one clear transformation at a time, without asking it to replace the person or recreate unsupported branded text.',
                 400 if response.status_code == 400 else 502,
@@ -558,10 +587,9 @@ class MediaService:
             if response.status_code < 500 or attempt + 1 >= IMAGE_MAX_ATTEMPTS:
                 return response
             logger.warning(
-                'OpenAI image request returned transient status=%s; retrying attempt=%s request_id=%s',
+                'Image provider transient response retry status=%s attempt=%s',
                 response.status_code,
                 attempt + 1,
-                str(response.headers.get('x-request-id') or '')[:160] or '-',
             )
             await asyncio.sleep(IMAGE_TRANSIENT_RETRY_DELAY_SECONDS)
         raise RuntimeError('Image request retry loop exited unexpectedly.')
