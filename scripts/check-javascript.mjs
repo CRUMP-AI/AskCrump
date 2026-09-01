@@ -175,6 +175,26 @@ if (validDestination.searchParams.get('campaign') !== 'presentation-proof-curren
   process.exit(1);
 }
 
+const profileLandingStore = new Map();
+const profileLanding = runLandingAttribution(
+  'https://askcrump.com/ai-project-workspace?acquisition=facebook&source=profile-link&campaign=real-product-continuity&intent=projects',
+  profileLandingStore,
+  '/app?signup=1&intent=projects',
+  '',
+  {click: false},
+);
+assertAttribution(storedAttribution(profileLandingStore), {
+  acquisition: 'facebook',
+  placement: 'profile-link',
+  campaign: 'real-product-continuity',
+  creative: null,
+  intent: 'projects',
+}, 'Creative-free profile campaign');
+assertMarketingLanding(profileLanding, {
+  touchpoint: 'facebook.profile-link.real-product-continuity',
+  intent: 'projects',
+}, 'Creative-free profile campaign');
+
 const referralLanding = runLandingAttribution(
   'https://askcrump.com/?acquisition=referral&source=response-share',
   new Map(),
@@ -188,6 +208,8 @@ assertMarketingLanding(referralLanding, {
 }, 'Exact response-share referral');
 
 const invalidMarketingUrls = [
+  'https://askcrump.com/ai-project-workspace?acquisition=facebook&source=profile-link&campaign=real-product-continuity&creative=not-allowed&intent=projects',
+  'https://askcrump.com/ai-project-workspace?acquisition=facebook&source=profile-link&campaign=not-registered&intent=projects',
   'https://askcrump.com/ai-project-workspace?acquisition=instagram&source=organic-social&campaign=not-registered&creative=continuity-feed',
   'https://askcrump.com/ai-project-workspace?acquisition=instagram&source=organic-social&campaign=real-product-continuity',
   'https://askcrump.com/ai-project-workspace?acquisition=instagram&source=organic-social&campaign=real-product-continuity&creative=presentation-feed',
@@ -272,8 +294,8 @@ runLandingAttribution(
   '',
   {analytics: 'throw', click: false},
 );
-if (failedAnalyticsStore.get('askcrump.marketing-landing-emitted') !== '1') {
-  console.error('Analytics failure did not preserve the once-per-tab marker.');
+if (failedAnalyticsStore.has('askcrump.marketing-landing-emitted')) {
+  console.error('Analytics failure incorrectly marked a landing event as queued.');
   process.exit(1);
 }
 
@@ -369,7 +391,7 @@ assertAttribution(storedAttribution(immutableStore), {
 const repoRoot = new URL('../', import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot), 'utf8'));
 const releaseVersion = String(packageJson.version || '');
-const landingVersion = `${releaseVersion}-marketing-landing-1`;
+const landingVersion = `${releaseVersion}-profile-landing-1`;
 const authControllerVersion = `${releaseVersion}-auth-entry-polish-1`;
 const planRendererVersion = `${releaseVersion}-credit-pack-accessibility-1`;
 const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
@@ -796,7 +818,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r205') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r206') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${precisionEditGuideLoaderVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||

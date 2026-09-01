@@ -64,7 +64,7 @@ def test_search_guides_have_self_referencing_editorial_metadata_and_one_matched_
         assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
         assert '<meta property="article:published_time" content="2026-08-30">' in page
         assert '<meta property="article:modified_time" content="2026-08-30">' in page
-        assert '<script defer src="/landing.js?v=5.9.76-marketing-landing-1"></script>' in page
+        assert '<script defer src="/landing.js?v=5.9.76-profile-landing-1"></script>' in page
         assert '<link rel="stylesheet" href="/guide.css?v=5.9.76-search-guides-1">' in page
         assert '/_vercel/insights/script.js' in page
         assert '/_vercel/speed-insights/script.js' in page

@@ -38,7 +38,7 @@ async function landingEvents(page) {
   const browser = await chromium.launch({ executablePath, headless: true });
   try {
     const first = await createPage(browser);
-    const valid = `${baseUrl}/ask-crump.html?acquisition=facebook&source=profile-link&campaign=real-product-continuity&creative=continuity-feed&intent=projects`;
+    const valid = `${baseUrl}/ask-crump.html?acquisition=facebook&source=organic-social&campaign=real-product-continuity&creative=continuity-feed&intent=projects`;
     await first.page.goto(valid, { waitUntil: 'networkidle' });
     await first.page.waitForFunction(() => window.__marketingEvents.some(event => event?.payload?.name === 'MarketingLanding'));
     const validEvents = await landingEvents(first.page);
@@ -48,7 +48,7 @@ async function landingEvents(page) {
       payload: {
         name: 'MarketingLanding',
         data: {
-          touchpoint: 'facebook.profile-link.real-product-continuity.continuity-feed',
+          touchpoint: 'facebook.organic-social.real-product-continuity.continuity-feed',
           intent: 'projects',
         },
       },
@@ -56,11 +56,23 @@ async function landingEvents(page) {
     const overflow = await first.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     assert(overflow <= 1, `mobile landing overflows by ${overflow}px`);
 
-    const second = `${baseUrl}/ask-crump.html?acquisition=instagram&source=profile-link&campaign=real-product-continuity&creative=continuity-story&intent=projects`;
+    const second = `${baseUrl}/ask-crump.html?acquisition=instagram&source=organic-social&campaign=real-product-continuity&creative=continuity-story&intent=projects`;
     await first.page.goto(second, { waitUntil: 'networkidle' });
     assert((await landingEvents(first.page)).length === 0, 'second campaign in the same tab must not emit');
     assert(first.errors.length === 0, `valid campaign browser errors: ${first.errors.join(' | ')}`);
     await first.context.close();
+
+    const profile = await createPage(browser);
+    await profile.page.goto(`${baseUrl}/ask-crump.html?acquisition=facebook&source=profile-link&campaign=real-product-continuity&intent=projects`, { waitUntil: 'networkidle' });
+    await profile.page.waitForFunction(() => window.__marketingEvents.some(event => event?.payload?.name === 'MarketingLanding'));
+    const profileEvents = await landingEvents(profile.page);
+    assert(profileEvents.length === 1, 'registered profile link must emit exactly once');
+    assert(JSON.stringify(profileEvents[0].payload.data) === JSON.stringify({
+      touchpoint: 'facebook.profile-link.real-product-continuity',
+      intent: 'projects',
+    }), 'profile link event must preserve a truthful creative-free touchpoint');
+    assert(profile.errors.length === 0, `profile-link browser errors: ${profile.errors.join(' | ')}`);
+    await profile.context.close();
 
     const referral = await createPage(browser);
     await referral.page.goto(`${baseUrl}/ask-crump.html?acquisition=referral&source=response-share`, { waitUntil: 'networkidle' });
@@ -81,7 +93,7 @@ async function landingEvents(page) {
     assert(invalid.errors.length === 0, `invalid campaign browser errors: ${invalid.errors.join(' | ')}`);
     await invalid.context.close();
 
-    console.log('Marketing landing browser proof passed: exact campaign, immutable same-tab first touch, referral, invalid tuple, and mobile layout.');
+    console.log('Marketing landing browser proof passed: exact campaign, truthful creative-free profile link, immutable same-tab first touch, referral, invalid tuple, and mobile layout.');
   } finally {
     await browser.close();
   }

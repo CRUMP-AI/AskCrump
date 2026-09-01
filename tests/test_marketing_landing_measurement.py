@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 LANDING = ROOT / "public" / "landing.js"
 TELEMETRY = ROOT / "public" / "telemetry-config.js"
+PRELOAD_VERIFIER = ROOT / "scripts" / "verify-marketing-landing-preload.cjs"
 
 
 def test_marketing_landing_event_is_content_free_and_once_per_tab():
@@ -15,7 +16,9 @@ def test_marketing_landing_event_is_content_free_and_once_per_tab():
 
     assert "const MARKETING_LANDING_KEY = 'askcrump.marketing-landing-emitted'" in source
     assert "sessionStorage.getItem(MARKETING_LANDING_KEY)" in event_block
-    assert "sessionStorage.setItem(MARKETING_LANDING_KEY, '1')" in event_block
+    assert event_block.index("window.va('event'") < event_block.index(
+        "sessionStorage.setItem(MARKETING_LANDING_KEY, '1')"
+    )
     assert "name: 'MarketingLanding'" in event_block
     assert "touchpoint," in event_block
     assert "intent: attribution.intent || 'unspecified'" in event_block
@@ -32,6 +35,10 @@ def test_marketing_landing_requires_an_exact_allowlisted_touchpoint():
     ]
 
     assert "marketingLandingKind === 'exact-referral'" in touchpoint_block
+    assert "marketingLandingKind === 'registered-profile'" in touchpoint_block
+    assert "attribution.placement !== 'profile-link'" in touchpoint_block
+    assert "attribution.creative" in touchpoint_block
+    assert "attribution.campaign," in touchpoint_block
     assert "marketingLandingKind !== 'registered-campaign'" in touchpoint_block
     assert "return 'referral.response-share'" in touchpoint_block
     assert "CAMPAIGN_REGISTRY[attribution.campaign]" in touchpoint_block
@@ -66,8 +73,13 @@ def test_referral_eligibility_preserves_parameter_presence_without_raw_values():
     assert "const explicitInputsValid = explicitAttributionInputsValid(params)" in current_block
     assert "!params.has('campaign')" in current_block
     assert "!params.has('creative')" in current_block
-    assert "explicitInputsValid && attribution.campaign && attribution.creative" in current_block
+    assert "const registeredCampaign = explicitInputsValid" in current_block
+    assert "&& attribution.campaign" in current_block
+    assert "&& attribution.creative" in current_block
     assert "exactReferral ? 'exact-referral' : 'rejected'" in current_block
+    assert "? 'registered-profile'" in current_block
+    assert "attribution.placement === 'profile-link'" in current_block
+    assert "!params.has('creative')" in current_block
     assert "marketingLandingKind: firstTouchMarketingKind" in first_touch_block
     assert "stored?.marketingLandingKind" in first_touch_block
     assert "params.get('campaign')" not in first_touch_block
@@ -101,3 +113,17 @@ def test_marketing_landing_never_enters_product_or_account_storage():
     assert "MarketingLanding" not in backend
     assert "marketinglanding" not in migrations.lower()
     assert "MarketingLanding" not in controller
+
+
+def test_marketing_landing_has_an_exact_deferred_order_runtime_verifier():
+    source = PRELOAD_VERIFIER.read_text(encoding="utf-8")
+
+    assert "https://www.askcrump.com/_vercel/insights/script.js" in source
+    assert "body.includes('window.vaq')" in source
+    assert "**/_vercel/insights/event*" in source
+    assert "askcrump.marketing-landing-emitted" in source
+    assert "facebook.organic-social.real-product-continuity.continuity-feed" in source
+    assert "profileState.firstTouch?.creative === null" in source
+    assert "profileState.marker === '1'" in source
+    assert "facebook.profile-link.real-product-continuity" in source
+    assert "profileEvents.length === 1" in source

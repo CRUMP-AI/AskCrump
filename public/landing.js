@@ -11,7 +11,7 @@
   const MARKETING_LANDING_KEY = 'askcrump.marketing-landing-emitted';
   const FIRST_TOUCH_TTL_MS = 24 * 60 * 60 * 1000;
   const MARKETING_LANDING_KINDS = new Set([
-    'exact-referral', 'registered-campaign', 'rejected',
+    'exact-referral', 'registered-campaign', 'registered-profile', 'rejected',
   ]);
   let firstTouchMarketingKind = 'rejected';
   const ACQUISITION_SOURCES = new Set([
@@ -227,9 +227,18 @@
       && attribution.placement === 'response-share'
       && !params.has('campaign')
       && !params.has('creative');
-    firstTouchMarketingKind = explicitInputsValid && attribution.campaign && attribution.creative
+    const registeredCampaign = explicitInputsValid
+      && attribution.campaign
+      && attribution.creative;
+    const registeredProfile = explicitInputsValid
+      && attribution.campaign
+      && attribution.placement === 'profile-link'
+      && !params.has('creative');
+    firstTouchMarketingKind = registeredCampaign
       ? 'registered-campaign'
-      : (exactReferral ? 'exact-referral' : 'rejected');
+      : (registeredProfile
+        ? 'registered-profile'
+        : (exactReferral ? 'exact-referral' : 'rejected'));
     return attribution;
   }
 
@@ -244,7 +253,9 @@
       const attribution = normalizeAttribution(stored);
       const fallbackKind = attribution.campaign && attribution.creative
         ? 'registered-campaign'
-        : 'rejected';
+        : (attribution.campaign && attribution.placement === 'profile-link'
+          ? 'registered-profile'
+          : 'rejected');
       const marketingLandingKind = MARKETING_LANDING_KINDS.has(stored?.marketingLandingKind)
         ? stored.marketingLandingKind
         : fallbackKind;
@@ -283,6 +294,23 @@
       && !attribution.creative
     ) return 'referral.response-share';
 
+    if (marketingLandingKind === 'registered-profile') {
+      const specification = CAMPAIGN_REGISTRY[attribution.campaign];
+      if (
+        !specification
+        || attribution.placement !== 'profile-link'
+        || attribution.creative
+        || !specification.acquisitions.has(attribution.acquisition)
+        || !specification.placements.has(attribution.placement)
+        || specification.intent !== attribution.intent
+      ) return '';
+      return [
+        attribution.acquisition,
+        attribution.placement,
+        attribution.campaign,
+      ].join('.');
+    }
+
     if (marketingLandingKind !== 'registered-campaign') return '';
 
     const specification = CAMPAIGN_REGISTRY[attribution.campaign];
@@ -309,7 +337,6 @@
 
     try {
       if (sessionStorage.getItem(MARKETING_LANDING_KEY)) return;
-      sessionStorage.setItem(MARKETING_LANDING_KEY, '1');
     } catch (_) {
       return;
     }
@@ -322,6 +349,7 @@
           intent: attribution.intent || 'unspecified',
         },
       });
+      sessionStorage.setItem(MARKETING_LANDING_KEY, '1');
     } catch (_) {}
   }
 
