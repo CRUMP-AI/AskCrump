@@ -76,4 +76,3 @@ unexpired first touch remains immutable when a second campaign is opened in the 
    conversion proof by themselves.
 3. Keep broad paid acquisition held until legitimate cohort volume and activated-user D7 evidence
    satisfy the existing decision contract.
-
