@@ -13,10 +13,10 @@ def test_product53_runtime_is_registered_last_and_cached():
     checker = read("scripts/check-javascript.mjs")
     assert "/crump-product-5.3.css" in runtime
     assert "/crump-product-5.3.js" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-video-project-destination-1" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-video-project-destination-1" in worker
+    assert "/crump-product-5.3.js?v=5.9.76-project-chat-boundary-1" in runtime
+    assert "/crump-product-5.3.js?v=5.9.76-project-chat-boundary-1" in worker
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r183" in worker
+    assert "ask-crump-new-body-v1-r184" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 

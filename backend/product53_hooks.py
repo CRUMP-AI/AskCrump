@@ -11,7 +11,7 @@ from typing import Any
 from .ai_service import AIService
 from .feature_service import FeatureService
 from .media_service import MediaService
-from .project_service import ProjectNotFoundError, ProjectService
+from .project_service import ProjectChatNotFoundError, ProjectNotFoundError, ProjectService
 
 
 def _append_context(payload: dict[str, Any], item: dict[str, Any]) -> None:
@@ -32,7 +32,17 @@ async def apply_project_context(
     file_rows: list[dict[str, Any]],
     projects: ProjectService,
 ) -> str | None:
+    project_context_checked = payload.pop("projectContextChecked", False) is True
     project_id = str(payload.get("projectId") or "").strip() or None
+    if not project_id and chat_id and not project_context_checked:
+        try:
+            linked_project = await projects.find_for_chat(
+                user_id=user_id,
+                chat_id=chat_id,
+            )
+        except ProjectChatNotFoundError:
+            linked_project = None
+        project_id = str((linked_project or {}).get("id") or "").strip() or None
     if not project_id:
         return None
 

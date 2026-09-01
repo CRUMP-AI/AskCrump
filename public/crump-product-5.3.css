@@ -88,6 +88,7 @@ body.crump-v1-body .crump53-active-project button {
   color: #777d80;
   cursor: pointer;
 }
+body.crump-v1-body .crump53-mobile-chat-project { display: none; }
 
 /* Shared product sheet. */
 body.crump-v1-body .crump53-overlay {
@@ -841,6 +842,55 @@ body.crump-v1-body .crump53-manuscript-handoff button {
 }
 
 @media (max-width: 820px) {
+  body.crump-v1-body.crump53-chat-project-active { --ac-dock: 146px; }
+  body.crump-v1-body .crump53-mobile-chat-project {
+    display: flex;
+    width: min(calc(100vw - 18px), var(--ac-composer));
+    box-sizing: border-box;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 7px;
+    padding: 8px 10px 8px 12px;
+    border: 1px solid rgba(217,191,132,.18);
+    border-radius: 14px;
+    background: rgba(18,23,29,.96);
+    box-shadow: 0 10px 28px rgba(0,0,0,.22);
+  }
+  body.crump-v1-body .crump53-mobile-chat-project > div {
+    display: grid;
+    min-width: 0;
+    gap: 1px;
+  }
+  body.crump-v1-body .crump53-mobile-chat-project span {
+    color: #a98f59;
+    font-size: 7px;
+    font-weight: 800;
+    letter-spacing: .13em;
+  }
+  body.crump-v1-body .crump53-mobile-chat-project strong {
+    overflow: hidden;
+    color: #e3d3aa;
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  body.crump-v1-body .crump53-mobile-chat-project small {
+    color: #7c8386;
+    font-size: 8px;
+  }
+  body.crump-v1-body .crump53-mobile-chat-project button {
+    min-width: 54px;
+    min-height: 32px;
+    padding: 0 10px;
+    border: 1px solid rgba(217,191,132,.18);
+    border-radius: 10px;
+    background: rgba(217,191,132,.055);
+    color: #d8c28b;
+    font-size: 9px;
+    font-weight: 700;
+    cursor: pointer;
+  }
   body.crump-v1-body .crump53-overlay {
     align-items: end;
     padding: 0;
@@ -881,7 +931,7 @@ body.crump-v1-body .crump53-manuscript-handoff button {
   }
   body.crump-v1-body .crump53-project-hero .crump53-button { width: 100%; }
   body.crump-v1-body .crump53-grid.crump53-compact-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  body.crump-v1-body .crump53-active-project { display: none; }
+  body.crump-v1-body .v1-workspace-context .crump53-active-project { display: none; }
   body.crump-v1-body .crump53-textarea.crump53-editor { min-height: 260px; }
   body.crump-v1-body .crump53-manuscript-handoff { grid-template-columns: 38px minmax(0,1fr); }
   body.crump-v1-body .crump53-manuscript-handoff button { grid-column: 1 / -1; width: 100%; }

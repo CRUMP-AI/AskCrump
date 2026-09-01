@@ -288,6 +288,15 @@ function saveChats({ sync = true } = {}) {
 }
 window.saveChats = saveChats;
 
+function announceConversationOpened(chatId, { fresh = false } = {}) {
+    window.dispatchEvent(new CustomEvent('crump:conversation-opened', {
+        detail: {
+            chatId: String(chatId || '').trim(),
+            fresh: Boolean(fresh),
+        },
+    }));
+}
+
 window.replaceChats = function replaceChats(nextChats) {
     const activeId = currentChatId;
     chats = (Array.isArray(nextChats) ? nextChats : []).map(normalizeLocalChat)
@@ -300,6 +309,7 @@ window.replaceChats = function replaceChats(nextChats) {
         window.currentChatId = null;
         SafeStorage.removeItem(STORAGE_KEYS.CURRENT_CHAT);
         window.renderMessages?.([]);
+        announceConversationOpened('', { fresh: true });
         return;
     }
     const preferred = chats.find(chat => chat.id === activeId) || chats[0];
@@ -308,11 +318,13 @@ window.replaceChats = function replaceChats(nextChats) {
         window.currentChatId = currentChatId;
         SafeStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, currentChatId);
         window.renderMessages?.(preferred.messages);
+        announceConversationOpened(currentChatId);
     } else {
         currentChatId = null;
         window.currentChatId = null;
         SafeStorage.removeItem(STORAGE_KEYS.CURRENT_CHAT);
         window.renderMessages?.([]);
+        announceConversationOpened('', { fresh: true });
     }
 };
 
@@ -337,6 +349,7 @@ function beginFreshConversation() {
     SafeStorage.removeItem(STORAGE_KEYS.CURRENT_CHAT);
     renderChatsList();
     window.renderMessages?.([]);
+    announceConversationOpened('', { fresh: true });
     closeConversationMenu();
     const input = document.getElementById('userInput');
     if (input) {
@@ -355,6 +368,7 @@ function ensureCurrentChat() {
     currentChatId = chat.id;
     window.currentChatId = chat.id;
     freshConversationRequested = false;
+    announceConversationOpened(chat.id, { fresh: true });
     return chat;
 }
 
@@ -378,6 +392,7 @@ function loadChat(chatId) {
     SafeStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, chatId);
     renderChatsList();
     window.renderMessages?.(chat.messages);
+    announceConversationOpened(chatId);
     closeConversationMenu();
 }
 

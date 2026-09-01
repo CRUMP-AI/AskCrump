@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r183';
+const CACHE_NAME = 'ask-crump-new-body-v1-r184';
 
 const CORE = [
   '/app',
@@ -26,8 +26,8 @@ const CORE = [
   '/crump-navigation-5.9.30.js?v=5.9.76-destination-background-guard-1',
   '/crump-code-5.9.35.css?v=5.9.76-intelligence-architecture-1',
   '/crump-code-5.9.35.js?v=5.9.76-intelligence-architecture-1',
-  '/crump-product-5.3.css?v=5.9.76-video-project-destination-1',
-  '/crump-product-5.3.js?v=5.9.76-video-project-destination-1',
+  '/crump-product-5.3.css?v=5.9.76-project-chat-boundary-1',
+  '/crump-product-5.3.js?v=5.9.76-project-chat-boundary-1',
   '/crump-product-5.3.1.css',
   '/crump-product-5.3.1.js?v=5.9.76-core-reliability-1',
   '/crump-polish-5.6.css',
@@ -53,7 +53,7 @@ const CORE = [
   '/sync-manager.js?v=5.9.76',
   '/chat-sync.js?v=5.9.76-sync-cadence-1',
   '/account-manager.js?v=5.9.76-account-deletion-billing-1',
-  '/app.js?v=5.9.76-core-reliability-1',
+  '/app.js?v=5.9.76-project-chat-boundary-1',
   '/product-analytics.js?v=5.9.76',
   '/lifecycle-share.js?v=5.9.76-lifecycle-activation-1',
   '/lifecycle-manager.js?v=5.9.76-continuity-action-1',

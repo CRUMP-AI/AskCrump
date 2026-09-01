@@ -60,7 +60,7 @@ const loader = String.raw`
 
   const enhancementStyles = Object.freeze([
     ['/crump-navigation-5.2.5.css', 'crumpnav525'],
-    ['/crump-product-5.3.css?v=5.9.76-video-project-destination-1', 'crumpproduct53'],
+    ['/crump-product-5.3.css?v=5.9.76-project-chat-boundary-1', 'crumpproduct53'],
     ['/crump-product-5.3.1.css', 'crumpproduct531'],
     ['/crump-polish-5.6.css', 'crumppolish56'],
     ['/crump-library-5.7.css', 'crumplibrary57'],
@@ -81,7 +81,7 @@ const loader = String.raw`
     ['/sync-manager.js?v=5.9.76', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-sync-cadence-1', 'workspacechatsync'],
     ['/account-manager.js?v=5.9.76-account-deletion-billing-1', 'workspaceaccount'],
-    ['/app.js?v=5.9.76-core-reliability-1', 'workspaceapp'],
+    ['/app.js?v=5.9.76-project-chat-boundary-1', 'workspaceapp'],
     ['/product-analytics.js?v=5.9.76', 'workspaceanalytics'],
   ]);
 
@@ -98,7 +98,7 @@ const loader = String.raw`
 
   const finalScripts = Object.freeze([
     ['/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1', 'crumpnav525'],
-    ['/crump-product-5.3.js?v=5.9.76-video-project-destination-1', 'crumpproduct53'],
+    ['/crump-product-5.3.js?v=5.9.76-project-chat-boundary-1', 'crumpproduct53'],
     ['/crump-product-5.3.1.js?v=5.9.76-core-reliability-1', 'crumpproduct531'],
     ['/crump-subscriptions-5.3.2.js?v=5.9.76-commerce-recovery-1', 'crumpsubscriptions532'],
     ['/crump-polish-5.6.js?v=5.9.76-video-destination-1', 'crumppolish56'],

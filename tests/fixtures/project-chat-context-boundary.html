@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Project chat context boundary fixture</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/public/crump-v1-body.css?v=project-chat-context-boundary-1">
+  <link rel="stylesheet" href="/public/crump-product-5.3.css?v=project-chat-context-boundary-1">
+</head>
+<body class="crump-v1-body">
+  <main class="v1-workspace">
+    <header class="v1-workspace-context"><span>WORKSPACE</span><strong>Conversation</strong></header>
+    <section class="v1-workspace-body">
+      <div id="chatContainer" class="chat-container" aria-label="Conversation"></div>
+    </section>
+    <section class="v1-command-dock" aria-label="Ask Crump composer">
+      <div class="input-area"><div class="input-container">
+        <textarea id="userInput" aria-label="Message Crump"></textarea>
+      </div></div>
+    </section>
+  </main>
+  <button id="newChatBtn" type="button" hidden>New conversation</button>
+  <button id="scrollToEndBtn" type="button" hidden>Newest</button>
+  <output id="fixtureErrors" aria-label="Browser errors">0</output>
+  <script>
+    const fixtureProject = {
+      id: '00000000-0000-4000-8000-000000000081',
+      name: 'Savannah Reading Series',
+      description: 'The reading program workspace.',
+      instructions: 'Keep the reading sequence consistent.',
+      updated_at: '2026-09-01T12:00:00Z',
+    };
+    const linkedChatId = '00000000-0000-4000-8000-000000000082';
+    const unrelatedChatId = '00000000-0000-4000-8000-000000000083';
+    const freshChatId = '00000000-0000-4000-8000-000000000084';
+    window.fixtureIds = {linkedChatId, unrelatedChatId, freshChatId};
+    window.currentUser = {id: 'fixture-user'};
+    window.currentChatId = '';
+    window.chats = [];
+    window.fixtureChatRequests = [];
+    window.showToast = () => {};
+    window.CrumpAnalytics = {track: () => Promise.resolve(true)};
+    window.CrumpBodyV1 = {command: () => {}};
+    const recordBrowserError = () => {
+      const output = document.getElementById('fixtureErrors');
+      output.textContent = String(Number(output.textContent || 0) + 1);
+    };
+    window.addEventListener('error', recordBrowserError);
+    window.addEventListener('unhandledrejection', recordBrowserError);
+    window.fetch = async (input, options = {}) => {
+      const url = new URL(typeof input === 'string' ? input : input.url, location.href);
+      const method = String(options.method || 'GET').toUpperCase();
+      let data = {success: true};
+      if (url.pathname === '/api/features') {
+        data = {success: true, projectLimit: 3, features: {}};
+      } else if (url.pathname === '/api/projects' && method === 'GET') {
+        data = {success: true, projects: [fixtureProject], limit: 3};
+      } else if (url.pathname === `/api/projects/${fixtureProject.id}`) {
+        data = {success: true, project: fixtureProject, context: {canon: []}};
+      } else if (url.pathname === `/api/projects/${fixtureProject.id}/chats`) {
+        data = {success: true, conversations: []};
+      } else if (url.pathname === `/api/projects/${fixtureProject.id}/manuscripts`) {
+        data = {success: true, manuscripts: []};
+      } else if (url.pathname.startsWith('/api/projects/for-chat/')) {
+        const chatId = decodeURIComponent(url.pathname.split('/').pop());
+        data = {
+          success: true,
+          project: chatId === linkedChatId
+            ? {id: fixtureProject.id, name: fixtureProject.name}
+            : null,
+        };
+      } else if (url.pathname === '/api/chat' && method === 'POST') {
+        const body = JSON.parse(String(options.body || '{}'));
+        window.fixtureChatRequests.push(body);
+        data = {success: true, received: body};
+      } else {
+        return new Response(JSON.stringify({success: false, error: `Unexpected fixture request: ${url.pathname}`}), {
+          status: 500,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+    window.fixtureOpenConversation = (chatId, fresh = false) => {
+      window.currentChatId = chatId;
+      window.dispatchEvent(new CustomEvent('crump:conversation-opened', {
+        detail: {chatId, fresh},
+      }));
+    };
+    window.fixtureSend = async chatId => {
+      await window.fetch('/api/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({chatId, message: 'Fixture message'}),
+      });
+      return window.fixtureChatRequests.at(-1);
+    };
+  </script>
+  <script src="/public/crump-product-5.3.js?v=project-chat-context-boundary-1"></script>
+  <script>
+    window.addEventListener('load', async () => {
+      await window.CrumpProduct53.openProject(fixtureProject.id);
+      document.getElementById('crump53Close')?.click();
+      document.documentElement.dataset.fixtureReady = 'true';
+    });
+  </script>
+</body>
+</html>

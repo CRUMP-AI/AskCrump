@@ -376,7 +376,7 @@ const accountDeletionBillingVersion = `${releaseVersion}-account-deletion-billin
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
 const coreReliabilityVersion = `${releaseVersion}-core-reliability-1`;
-const videoProjectDestinationVersion = `${releaseVersion}-video-project-destination-1`;
+const projectChatBoundaryVersion = `${releaseVersion}-project-chat-boundary-1`;
 const imageSafetyRecoveryVersion = `${releaseVersion}-image-safety-recovery-1`;
 const imageScrollStabilityVersion = `${releaseVersion}-image-scroll-stability-1`;
 const videoDestinationVersion = `${releaseVersion}-video-destination-1`;
@@ -581,7 +581,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/lifecycle-share.js?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-manager.js?v=${continuityActionVersion}`) ||
     !runtime.includes(`/product-analytics.js?v=${releaseVersion}`) ||
-    !runtime.includes(`/app.js?v=${coreReliabilityVersion}`) ||
+    !runtime.includes(`/app.js?v=${projectChatBoundaryVersion}`) ||
     !runtime.includes(`/crump-v1-body.js?v=${destinationBackgroundGuardVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${intelligenceArchitectureVersion}`) ||
     !runtime.includes(`/crump-5.0.css?v=${fileDeliveryVersion}`) ||
@@ -590,8 +590,8 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
     !runtime.includes(`/crump-4.4.js?v=${coreReliabilityVersion}`) ||
     !runtime.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !runtime.includes(`/crump-product-5.3.js?v=${videoProjectDestinationVersion}`) ||
-    !runtime.includes(`/crump-product-5.3.css?v=${videoProjectDestinationVersion}`) ||
+    !runtime.includes(`/crump-product-5.3.js?v=${projectChatBoundaryVersion}`) ||
+    !runtime.includes(`/crump-product-5.3.css?v=${projectChatBoundaryVersion}`) ||
     !runtime.includes(`/crump-product-5.3.1.js?v=${coreReliabilityVersion}`) || !runtime.includes('/crump-product-5.3.1.css') ||
     !runtime.includes('/crump-subscriptions-5.3.2.js') ||
     !runtime.includes(`/crump-polish-5.6.js?v=${videoDestinationVersion}`) || !runtime.includes('/crump-polish-5.6.css') ||
@@ -673,7 +673,7 @@ if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
     preloadedRuntimeScripts.length !== 31 ||
     loadedRuntimeScripts.length !== 31 ||
     !loadedRuntimeScripts.every(asset => preloadedRuntimeScripts.includes(asset)) ||
-    loadedRuntimeScripts.indexOf(`/app.js?v=${coreReliabilityVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
+    loadedRuntimeScripts.indexOf(`/app.js?v=${projectChatBoundaryVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
     loadedRuntimeScripts.at(-1) !== `/lifecycle-manager.js?v=${continuityActionVersion}`) {
   console.error('Authenticated workspace runtime load order or completion contract failed.');
   process.exit(1);
@@ -681,6 +681,7 @@ if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
 
 const crump43 = await readFile(new URL('public/crump-4.3.js', repoRoot), 'utf8');
 const v1Body = await readFile(new URL('public/crump-v1-body.js', repoRoot), 'utf8');
+const appRuntime = await readFile(new URL('public/app.js', repoRoot), 'utf8');
 const product53 = await readFile(new URL('public/crump-product-5.3.js', repoRoot), 'utf8');
 const studioSectionIsolation = product53.slice(
   product53.indexOf('function configureStudioSection'),
@@ -701,6 +702,20 @@ if (!crump43.includes('v1OwnsEmptyState') || !crump43.includes("classList.contai
 }
 if (!v1Body.includes('removeLegacyEmptyState(container)')) {
   console.error('V1 must remove stale legacy empty-state nodes.');
+  process.exit(1);
+}
+const projectChatInjection = product53.slice(
+  product53.indexOf('function injectProjectIntoChatRequests'),
+  product53.indexOf('function injectNavigation'),
+);
+if (!appRuntime.includes("function announceConversationOpened") ||
+    !appRuntime.includes("crump:conversation-opened") ||
+    !projectChatInjection.includes('state.chatProject') ||
+    projectChatInjection.includes('state.activeProject?.id') ||
+    !projectChatInjection.includes('projectContextChecked = true') ||
+    !product53.includes('crump53-mobile-chat-project') ||
+    !product53.includes('clearChatProject({optOut: true, announce: true})')) {
+  console.error('Project save destination and conversation context must remain explicit and isolated.');
   process.exit(1);
 }
 if (product53.includes('retireLegacyToolStrip') ||
@@ -727,7 +742,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r183') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r184') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${continuityActionVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
@@ -752,15 +767,15 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r183') ||
     !serviceWorker.includes(`/sync-manager.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/chat-sync.js?v=${releaseVersion}-sync-cadence-1`) ||
     !serviceWorker.includes(`/product-analytics.js?v=${releaseVersion}`) ||
-    !serviceWorker.includes(`/app.js?v=${coreReliabilityVersion}`) ||
+    !serviceWorker.includes(`/app.js?v=${projectChatBoundaryVersion}`) ||
     !serviceWorker.includes(`/auth-controller.js?v=${authControllerVersion}`) ||
     !serviceWorker.includes(`/crump-v1-body.css?v=${intelligenceArchitectureVersion}`) ||
     !serviceWorker.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
     !serviceWorker.includes(`/crump-4.4.js?v=${coreReliabilityVersion}`) ||
     !serviceWorker.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !serviceWorker.includes(`/crump-product-5.3.js?v=${videoProjectDestinationVersion}`) ||
+    !serviceWorker.includes(`/crump-product-5.3.js?v=${projectChatBoundaryVersion}`) ||
     !serviceWorker.includes(`/crump-product-5.3.1.js?v=${coreReliabilityVersion}`) ||
-    !serviceWorker.includes(`/crump-product-5.3.css?v=${videoProjectDestinationVersion}`) ||
+    !serviceWorker.includes(`/crump-product-5.3.css?v=${projectChatBoundaryVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${destinationBackgroundGuardVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.css?v=${mobileDrawerDestinationsVersion}`) ||
     !serviceWorker.includes(`/crump-code-5.9.35.js?v=${intelligenceArchitectureVersion}`) ||

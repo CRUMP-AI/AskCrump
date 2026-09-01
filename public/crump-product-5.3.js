@@ -5,6 +5,9 @@
     features: null,
     projects: [],
     activeProject: null,
+    chatProject: null,
+    chatProjectChatId: '',
+    chatProjectOptOuts: new Set(),
     rememberedProjectTarget: null,
     editingProject: null,
     projectView: 'index',
@@ -37,6 +40,7 @@
   const VIDEO_REQUEST_TTL_MS = 30 * 60 * 1000;
   const conversationProjectCache = new Map();
   const conversationProjectRequests = new Map();
+  let conversationContextSequence = 0;
   let storedProjectTargetPromise = null;
   let storedProjectTargetId = '';
   const FEATURE_ACCESS_CODES = new Set([
@@ -304,6 +308,87 @@
     list.replaceChildren(note, button);
   }
 
+  function currentChatId() {
+    return String(window.currentChatId || '').trim();
+  }
+
+  function normalizedProject(project) {
+    const id = String(project?.id || '').trim();
+    if (!id) return null;
+    return {
+      ...project,
+      id,
+      name: String(project?.name || 'Project').replace(/\s+/g, ' ').trim() || 'Project',
+    };
+  }
+
+  function setChatProject(project, {chatId = currentChatId(), targetChanged = false} = {}) {
+    const normalized = normalizedProject(project);
+    const normalizedChatId = String(chatId || '').trim();
+    state.chatProject = normalized;
+    state.chatProjectChatId = normalized ? normalizedChatId : '';
+    if (normalizedChatId) {
+      state.chatProjectOptOuts.delete(normalizedChatId);
+      rememberConversationProject(normalizedChatId, normalized);
+    }
+    renderProjectIndicator({targetChanged});
+    return normalized;
+  }
+
+  function clearChatProject({optOut = false, announce = false} = {}) {
+    const chatId = currentChatId();
+    const projectName = state.chatProject?.name || 'Project';
+    if (optOut && chatId) state.chatProjectOptOuts.add(chatId);
+    state.chatProject = null;
+    state.chatProjectChatId = '';
+    renderProjectIndicator();
+    if (announce) window.showToast?.(`${projectName} context is paused for this conversation.`, 'info');
+  }
+
+  async function handleConversationOpened(event) {
+    const chatId = String(event?.detail?.chatId || '').trim();
+    const fresh = event?.detail?.fresh === true;
+    const sequence = ++conversationContextSequence;
+
+    if (!chatId) {
+      clearChatProject();
+      return;
+    }
+
+    if (fresh) {
+      if (state.chatProject && !state.chatProjectChatId) {
+        state.chatProjectChatId = chatId;
+        state.chatProjectOptOuts.delete(chatId);
+        rememberConversationProject(chatId, state.chatProject);
+      } else if (state.chatProjectChatId !== chatId) {
+        state.chatProject = null;
+        state.chatProjectChatId = '';
+        rememberConversationProject(chatId, null);
+      }
+      renderProjectIndicator();
+      return;
+    }
+
+    if (state.chatProject && state.chatProjectChatId === chatId) {
+      renderProjectIndicator();
+      return;
+    }
+
+    state.chatProject = null;
+    state.chatProjectChatId = '';
+    renderProjectIndicator();
+    if (state.chatProjectOptOuts.has(chatId)) return;
+
+    try {
+      const project = await projectForConversation(chatId);
+      if (sequence !== conversationContextSequence || currentChatId() !== chatId) return;
+      if (project) setChatProject(project, {chatId});
+    } catch (_) {
+      // Sending remains available. The server performs the same owner-scoped
+      // relationship lookup when the browser could not confirm it.
+    }
+  }
+
   function injectProjectIntoChatRequests() {
     window.fetch = async (input, init = {}) => {
       let url;
@@ -315,11 +400,40 @@
       const method = String(init.method || (typeof input !== 'string' && input.method) || 'GET').toUpperCase();
       if (url.origin === window.location.origin && url.pathname === '/api/chat' && method === 'POST') {
         const body = init.body;
-        if (typeof body === 'string' && state.activeProject?.id) {
+        if (typeof body === 'string') {
           try {
             const parsed = JSON.parse(body);
             if (parsed && typeof parsed === 'object' && !parsed.projectId) {
-              parsed.projectId = state.activeProject.id;
+              const chatId = String(parsed.chatId || currentChatId()).trim();
+              let project = state.chatProject;
+              let relationshipChecked = false;
+
+              if (chatId && state.chatProjectOptOuts.has(chatId)) {
+                project = null;
+                relationshipChecked = true;
+              } else if (project && (!state.chatProjectChatId || state.chatProjectChatId === chatId)) {
+                if (chatId && !state.chatProjectChatId) {
+                  state.chatProjectChatId = chatId;
+                  rememberConversationProject(chatId, project);
+                  renderProjectIndicator();
+                }
+              } else if (chatId) {
+                try {
+                  project = await projectForConversation(chatId);
+                  relationshipChecked = true;
+                  if (project && currentChatId() === chatId) setChatProject(project, {chatId});
+                } catch (_) {
+                  // Leave the request unmarked so the server can recover the
+                  // owner-scoped Project relationship without blocking chat.
+                  project = null;
+                }
+              } else {
+                project = null;
+                relationshipChecked = true;
+              }
+
+              if (project?.id) parsed.projectId = project.id;
+              else if (relationshipChecked) parsed.projectContextChecked = true;
               init = {...init, body: JSON.stringify(parsed)};
             }
           } catch (_) { /* preserve the original request */ }
@@ -954,7 +1068,7 @@
         state.activeProject = state.projects.find(item => item.id === stored) || null;
         if (!state.activeProject && stored) storeProject('');
         renderProjectList(data.limit);
-        renderProjectIndicator();
+        renderProjectIndicator({targetChanged: true});
         renderManuscriptProjectState();
         const requestedProjectId = readProjectRoute();
         if (requestedProjectId) {
@@ -1120,6 +1234,7 @@
       state.editingProject = data.project;
       storeProject(data.project.id);
       rememberConversationProject(chatId, data.project);
+      setChatProject(data.project, {chatId, targetChanged: true});
       if (options.notify !== false) {
         window.showToast?.(`Saved to ${data.project.name}.`, 'success');
       }
@@ -1222,7 +1337,7 @@
       document.body.style.overflow = 'hidden';
       selectStudioPanel('projects');
     }
-    renderProjectIndicator();
+    renderProjectIndicator({targetChanged: true});
     setProjectView('detail', {focus: false});
     renderActiveProjectWorkspace({open: focus});
     return true;
@@ -1512,8 +1627,8 @@
       return;
     }
     storeProject(state.activeProject.id);
-    renderProjectIndicator();
-    setStatus('crump53ProjectStatus', 'New messages will use this project context.');
+    setChatProject(state.activeProject, {chatId: currentChatId()});
+    setStatus('crump53ProjectStatus', 'This conversation will use this Project context.');
   }
 
   function startProjectConversation() {
@@ -1521,12 +1636,13 @@
       setStatus('crump53ProjectStatus', 'Choose or save a Project first.', true);
       return;
     }
-    const name = String(state.activeProject.name || 'Project').replace(/\s+/g, ' ').trim() || 'Project';
-    storeProject(state.activeProject.id);
-    renderProjectIndicator();
+    const project = state.activeProject;
+    const name = String(project.name || 'Project').replace(/\s+/g, ' ').trim() || 'Project';
+    storeProject(project.id);
     closeStudio();
     if (window.CrumpBodyV1?.command) window.CrumpBodyV1.command('new');
     else byId('newChatBtn')?.click();
+    setChatProject(project, {chatId: ''});
     requestAnimationFrame(() => {
       const input = byId('userInput');
       if (!input) return;
@@ -1536,24 +1652,40 @@
     window.showToast?.(`${name} is open. Your next message starts a Project conversation.`, 'success');
   }
 
-  function renderProjectIndicator() {
+  function renderProjectIndicator({targetChanged = false} = {}) {
     document.querySelector('.crump53-active-project')?.remove();
+    document.querySelector('.crump53-mobile-chat-project')?.remove();
     document.querySelectorAll('.crump53-projects-button').forEach(node => {
       node.classList.toggle('is-active', Boolean(state.activeProject));
     });
-    notifyProjectTargetChanged();
-    renderVideoProjectDestination();
-    if (!state.activeProject) return;
+    if (targetChanged) {
+      notifyProjectTargetChanged();
+      renderVideoProjectDestination();
+    }
+    document.body.classList.toggle('crump53-chat-project-active', Boolean(state.chatProject));
+    if (!state.chatProject) return;
+    const projectName = state.chatProject.name || 'Project';
     const header = document.querySelector('.v1-workspace-context');
-    if (!header) return;
-    const chip = document.createElement('span');
-    chip.className = 'crump53-active-project';
-    chip.innerHTML = `<span>${escapeHtml(state.activeProject.name)}</span><button type="button" aria-label="Leave project">×</button>`;
-    chip.querySelector('button')?.addEventListener('click', event => {
-      event.stopPropagation();
-      clearActiveProject();
-    });
-    header.appendChild(chip);
+    if (header) {
+      const chip = document.createElement('span');
+      chip.className = 'crump53-active-project';
+      chip.innerHTML = `<span>IN PROJECT · ${escapeHtml(projectName)}</span><button type="button" aria-label="Stop using ${escapeHtml(projectName)} context in this conversation">×</button>`;
+      chip.querySelector('button')?.addEventListener('click', event => {
+        event.stopPropagation();
+        clearChatProject({optOut: true, announce: true});
+      });
+      header.appendChild(chip);
+    }
+    const dock = document.querySelector('.v1-command-dock');
+    if (dock) {
+      const mobile = document.createElement('div');
+      mobile.className = 'crump53-mobile-chat-project';
+      mobile.innerHTML = `<div><span>IN PROJECT</span><strong>${escapeHtml(projectName)}</strong><small>Context is applied to this conversation.</small></div><button type="button" aria-label="Stop using ${escapeHtml(projectName)} context in this conversation">Leave</button>`;
+      mobile.querySelector('button')?.addEventListener('click', () => {
+        clearChatProject({optOut: true, announce: true});
+      });
+      dock.prepend(mobile);
+    }
   }
 
   function renderVideoProjectDestination() {
@@ -1569,7 +1701,7 @@
     state.activeProject = null;
     state.editingProject = null;
     storeProject('');
-    renderProjectIndicator();
+    renderProjectIndicator({targetChanged: true});
     renderProjectList(state.features?.projectLimit);
     renderManuscriptProjectState();
     const contextCard = byId('crump53ProjectContextCard');
@@ -2740,6 +2872,7 @@
     injectNavigation();
     injectStudio();
     injectProjectIntoChatRequests();
+    window.addEventListener('crump:conversation-opened', event => { void handleConversationOpened(event); });
     wrapManuscriptRenderer();
     window.dispatchEvent(new Event('crump:project-service-ready'));
     resumePendingVideoJob();
@@ -2770,7 +2903,14 @@
     hydrateAuthenticatedState();
     setTimeout(() => {
       const chat = (Array.isArray(window.chats) ? window.chats : []).find(item => item.id === window.currentChatId);
-      if (chat) enhanceManuscriptHandoffs(chat.messages);
+      if (chat) {
+        enhanceManuscriptHandoffs(chat.messages);
+        void handleConversationOpened(new CustomEvent('crump:conversation-opened', {
+          detail: {chatId: currentChatId(), fresh: false},
+        }));
+      } else {
+        renderProjectIndicator();
+      }
     }, 900);
   }
 

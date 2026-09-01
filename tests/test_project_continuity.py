@@ -6,7 +6,7 @@ import pytest
 from backend import sync_service
 from backend.db import DatabaseError
 from backend.file_service import FileServiceError
-from backend.product53_hooks import attach_generated_outputs
+from backend.product53_hooks import apply_project_context, attach_generated_outputs
 from backend.project_service import ProjectChatNotFoundError, ProjectNotFoundError, ProjectService
 from backend.routes import projects as projects_routes
 
@@ -68,6 +68,97 @@ class JsonRequest:
 
     async def json(self):
         return self.payload
+
+
+class ProjectContextBoundary:
+    def __init__(self, linked_project=None):
+        self.linked_project = linked_project
+        self.calls = []
+
+    async def find_for_chat(self, **kwargs):
+        self.calls.append(("find_for_chat", kwargs))
+        return self.linked_project
+
+    async def hydrate_context(self, user_id, project_id):
+        self.calls.append(("hydrate_context", {"user_id": user_id, "project_id": project_id}))
+        return {
+            "project": {"id": project_id, "name": "Quarterly strategy"},
+            "canon": [],
+        }
+
+    async def attach_chat(self, **kwargs):
+        self.calls.append(("attach_chat", kwargs))
+
+    async def attach_file(self, **kwargs):
+        self.calls.append(("attach_file", kwargs))
+
+
+@pytest.mark.asyncio
+async def test_chat_context_recovers_existing_owner_scoped_project_relationship():
+    projects = ProjectContextBoundary({"id": PROJECT_ID, "name": "Quarterly strategy"})
+    payload = {"message": "Continue where we left off."}
+
+    project_id = await apply_project_context(
+        user_id=USER_ID,
+        payload=payload,
+        chat_id=CHAT_ID,
+        file_rows=[],
+        projects=projects,
+    )
+
+    assert project_id == PROJECT_ID
+    assert projects.calls[0] == (
+        "find_for_chat",
+        {"user_id": USER_ID, "chat_id": CHAT_ID},
+    )
+    assert any(kind == "hydrate_context" for kind, _ in projects.calls)
+    assert any(kind == "attach_chat" for kind, _ in projects.calls)
+    assert payload["relevantContext"][0]["source"] == "project_workspace"
+
+
+@pytest.mark.asyncio
+async def test_confirmed_unrelated_chat_skips_project_lookup_and_strips_client_marker():
+    projects = ProjectContextBoundary({"id": PROJECT_ID, "name": "Quarterly strategy"})
+    payload = {
+        "message": "Plan an unrelated dinner.",
+        "projectContextChecked": True,
+    }
+
+    project_id = await apply_project_context(
+        user_id=USER_ID,
+        payload=payload,
+        chat_id=CHAT_ID,
+        file_rows=[],
+        projects=projects,
+    )
+
+    assert project_id is None
+    assert projects.calls == []
+    assert "projectContextChecked" not in payload
+    assert "relevantContext" not in payload
+
+
+@pytest.mark.asyncio
+async def test_explicit_project_context_wins_without_relationship_lookup():
+    projects = ProjectContextBoundary({"id": "not-used"})
+    payload = {
+        "message": "Use the selected workspace.",
+        "projectId": PROJECT_ID,
+        "projectContextChecked": True,
+    }
+
+    project_id = await apply_project_context(
+        user_id=USER_ID,
+        payload=payload,
+        chat_id=CHAT_ID,
+        file_rows=[],
+        projects=projects,
+    )
+
+    assert project_id == PROJECT_ID
+    assert not any(kind == "find_for_chat" for kind, _ in projects.calls)
+    assert any(kind == "hydrate_context" for kind, _ in projects.calls)
+    assert "projectContextChecked" not in payload
 
 
 @pytest.mark.asyncio
@@ -757,6 +848,37 @@ def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_
     assert relationship_guard.index("button.disabled = true;") < relationship_guard.index("await resolver(chatId)")
     assert "if (button.dataset.saved !== 'true') syncOutcomeProjectAction(button);" in relationship_guard
     assert "button.disabled = wasDisabled;" in relationship_guard
+
+
+def test_project_chat_context_is_explicit_visible_and_relationship_scoped():
+    app = (ROOT / "public" / "app.js").read_text(encoding="utf-8")
+    product = (ROOT / "public" / "crump-product-5.3.js").read_text(encoding="utf-8")
+    styles = (ROOT / "public" / "crump-product-5.3.css").read_text(encoding="utf-8")
+    fixture = (ROOT / "tests" / "fixtures" / "project-chat-context-boundary.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert "function announceConversationOpened" in app
+    assert app.count("announceConversationOpened(") >= 7
+    assert "crump:conversation-opened" in app
+    injection = product[
+        product.index("function injectProjectIntoChatRequests"):
+        product.index("function injectNavigation")
+    ]
+    assert "state.chatProject" in injection
+    assert "state.activeProject?.id" not in injection
+    assert "projectContextChecked = true" in injection
+    assert "await projectForConversation(chatId)" in injection
+    assert "chatProjectOptOuts" in injection
+    assert "Stop using ${escapeHtml(projectName)} context in this conversation" in product
+    assert "Context is applied to this conversation." in product
+    assert "crump53-mobile-chat-project" in styles
+    assert "--ac-dock: 146px" in styles
+    assert "project-chat-context-boundary-1" in fixture
+    assert "/api/projects/for-chat/" in fixture
+    assert "/api/chat" in fixture
+    assert "fixtureChatRequests" in fixture
+    assert (ROOT / "scripts" / "verify-project-chat-context-boundary.cjs").exists()
 
 
 def test_generated_artifact_can_join_a_project_with_its_source_conversation():
