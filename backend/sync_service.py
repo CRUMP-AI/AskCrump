@@ -112,6 +112,9 @@ def sanitize_message(item: Any) -> dict[str, Any] | None:
         image_prompt = clean_text(item.get('imagePrompt') or item.get('image_prompt'), 4000)
         if image_prompt:
             message['imagePrompt'] = image_prompt
+        image_aspect = clean_text(item.get('imageAspect') or item.get('image_aspect'), 20).lower()
+        if image_aspect in {'square', 'portrait', 'landscape'}:
+            message['imageAspect'] = image_aspect
 
     delivery_status = clean_text(item.get('deliveryStatus') or item.get('delivery_status'), 30).lower()
     if role == 'user' and delivery_status in {'sending', 'queued', 'delivered', 'seen', 'failed'}:

@@ -696,7 +696,7 @@
       origin: 'reply',
       inReplyTo: userMessage.id,
     };
-    for (const key of ['imageUrl', 'imagePrompt', 'imageFile', 'artifact', 'artifactRecovery', 'projectAttachments', 'manuscriptWorkspace', 'creationHandoff']) {
+    for (const key of ['imageUrl', 'imagePrompt', 'imageAspect', 'imageFile', 'artifact', 'artifactRecovery', 'projectAttachments', 'manuscriptWorkspace', 'creationHandoff']) {
       if (assistant[key] == null && data[key] != null) assistant[key] = data[key];
     }
     const existingIndex = chat.messages.findIndex(item => item.role === 'assistant' && item.inReplyTo === userMessage.id);
@@ -765,6 +765,7 @@
       fresh.messages.push(userMessage);
       if (fresh.messages.length === 1 && text) fresh.title = text.slice(0, 50) + (text.length > 50 ? '…' : '');
       saveAndRender(fresh);
+      window.crumpScrollManager?.scrollToBottom?.({force: true});
       input.value = ''; input.style.height = 'auto';
       const body = buildRequestBody(currentChat() || fresh, userMessage, ready);
       state.attachments = [];

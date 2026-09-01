@@ -15,6 +15,7 @@
       lastAssistantId: null,
       suppressLegacyBottomUntil: 0,
       lastUserIntentAt: 0,
+      userReviewingHistory: false,
       activeReplyId: null,
       activeReplyUntil: 0,
       renderHooked: false,
@@ -196,6 +197,8 @@
     const container = state.scroll.container;
     if (!container) return;
     if (!force && Date.now() < state.scroll.suppressLegacyBottomUntil) return;
+    if (!force && state.scroll.userReviewingHistory) return;
+    state.scroll.userReviewingHistory = false;
     container.scrollTo({top: container.scrollHeight, behavior: 'auto'});
     updateDownButton();
   }
@@ -232,6 +235,12 @@
   function anchorNewReply(messageId) {
     const container = state.scroll.container;
     if (!container) return false;
+
+    if (state.scroll.userReviewingHistory) {
+      cancelActiveReplyAnchor();
+      updateDownButton();
+      return false;
+    }
 
     const recentlyInteracting = Date.now() - state.scroll.lastUserIntentAt < 2500;
     if (recentlyInteracting && distanceFromBottom() > 420) {
@@ -283,13 +292,17 @@
       },
       scrollToMessageTop: element => {
         state.scroll.suppressLegacyBottomUntil = Date.now() + 2200;
+        state.scroll.userReviewingHistory = true;
         anchorElementTop(element);
       },
       isNearBottom: () => distanceFromBottom() < 100,
       setUserScrolling: value => {
         if (value) {
           state.scroll.lastUserIntentAt = Date.now();
+          state.scroll.userReviewingHistory = distanceFromBottom() > 100;
           cancelActiveReplyAnchor();
+        } else {
+          state.scroll.userReviewingHistory = false;
         }
       },
     };
@@ -311,6 +324,7 @@
       if (chatId !== state.scroll.chatId) {
         state.scroll.chatId = chatId;
         state.scroll.lastAssistantId = nextAssistantId;
+        state.scroll.userReviewingHistory = false;
       } else if (nextAssistantId && nextAssistantId !== state.scroll.lastAssistantId) {
         shouldAnchor = true;
         state.scroll.lastAssistantId = nextAssistantId;
@@ -339,12 +353,18 @@
 
     const noteUserIntent = () => {
       state.scroll.lastUserIntentAt = Date.now();
+      state.scroll.userReviewingHistory = distanceFromBottom() > 100;
       cancelActiveReplyAnchor();
+    };
+    const handleScroll = () => {
+      if (distanceFromBottom() < 80) state.scroll.userReviewingHistory = false;
+      else if (Date.now() - state.scroll.lastUserIntentAt < 800) state.scroll.userReviewingHistory = true;
+      updateDownButton();
     };
     container.addEventListener('wheel', noteUserIntent, {passive: true});
     container.addEventListener('touchstart', noteUserIntent, {passive: true});
     container.addEventListener('pointerdown', noteUserIntent, {passive: true});
-    container.addEventListener('scroll', updateDownButton, {passive: true});
+    container.addEventListener('scroll', handleScroll, {passive: true});
 
     replaceScrollManager();
     hookRenderMessages();

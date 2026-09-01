@@ -772,7 +772,20 @@
     link.remove();
   }
 
-  function createImageBlock(url, alt = 'Generated image') {
+  function imageAspectForMessage(message, messages) {
+    const direct = String(message?.imageAspect || '').toLowerCase();
+    const source = Array.isArray(messages)
+      ? messages.find(item => item?.role === 'user' && String(item?.id || '') === String(message?.inReplyTo || ''))
+      : null;
+    const requested = direct || String(source?.requestMeta?.imageAspect || '').toLowerCase();
+    const storedSize = String(message?.imageFile?.metadata?.size || '').toLowerCase();
+    if (requested === 'portrait' || storedSize === '1024x1536') return {name: 'portrait', width: 1024, height: 1536};
+    if (requested === 'landscape' || storedSize === '1536x1024') return {name: 'landscape', width: 1536, height: 1024};
+    if (requested === 'square' || storedSize === '1024x1024') return {name: 'square', width: 1024, height: 1024};
+    return null;
+  }
+
+  function createImageBlock(url, alt = 'Generated image', aspect = null) {
     const safe = safeExternalUrl(url);
     if (!safe) return null;
     const wrapper = document.createElement('div');
@@ -782,6 +795,11 @@
     image.className = 'message-image';
     image.alt = alt;
     image.loading = 'lazy';
+    if (aspect?.width && aspect?.height) {
+      image.width = aspect.width;
+      image.height = aspect.height;
+      image.dataset.imageAspect = aspect.name;
+    }
     image.addEventListener('error', () => {
       wrapper.replaceChildren(Object.assign(document.createElement('div'), { className: 'image-error', textContent: 'Image failed to load.' }));
     });
@@ -924,7 +942,7 @@
       }
 
       if (message?.imageUrl) {
-        const imageBlock = createImageBlock(message.imageUrl);
+        const imageBlock = createImageBlock(message.imageUrl, 'Generated image', imageAspectForMessage(message, safeMessages));
         if (imageBlock) wrapper.appendChild(imageBlock);
       }
 

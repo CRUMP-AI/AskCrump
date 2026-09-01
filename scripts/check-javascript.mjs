@@ -375,6 +375,7 @@ const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architec
 const coreReliabilityVersion = `${releaseVersion}-core-reliability-1`;
 const visualMediaReliabilityVersion = `${releaseVersion}-visual-media-reliability-1`;
 const imageSafetyRecoveryVersion = `${releaseVersion}-image-safety-recovery-1`;
+const imageScrollStabilityVersion = `${releaseVersion}-image-scroll-stability-1`;
 const desktopChatsVersion = `${releaseVersion}-desktop-chats-default-1`;
 const requiredBodyFiles = [
   'public/crump-v1-body.css',
@@ -565,7 +566,7 @@ const runtime = await readFile(new URL('public/runtime-body-v1.js', repoRoot), '
 if (!runtime.includes('/billing.css') || !runtime.includes('/onboarding.css') ||
     !runtime.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
     !runtime.includes(`/chat-resilience.js?v=${imageSafetyRecoveryVersion}`) ||
-    !runtime.includes(`/ui-functions.js?v=${imageSafetyRecoveryVersion}`) ||
+    !runtime.includes(`/ui-functions.js?v=${imageScrollStabilityVersion}`) ||
     !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-share.js?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-manager.js?v=${releaseVersion}-lifecycle-activation-1`) ||
@@ -573,7 +574,8 @@ if (!runtime.includes('/billing.css') || !runtime.includes('/onboarding.css') ||
     !runtime.includes(`/app.js?v=${coreReliabilityVersion}`) ||
     !runtime.includes(`/crump-v1-body.js?v=${desktopChatsVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${intelligenceArchitectureVersion}`) ||
-    !runtime.includes(`/crump-5.0.js?v=${imageSafetyRecoveryVersion}`) ||
+    !runtime.includes(`/crump-5.0.js?v=${imageScrollStabilityVersion}`) ||
+    !runtime.includes(`/crump-5.2.2.js?v=${imageScrollStabilityVersion}`) ||
     !runtime.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
     !runtime.includes(`/crump-4.4.js?v=${coreReliabilityVersion}`) ||
     !runtime.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
@@ -701,13 +703,14 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r168') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r169') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${visualMediaReliabilityVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${imageSafetyRecoveryVersion}`) ||
-    !serviceWorker.includes(`/crump-5.0.js?v=${imageSafetyRecoveryVersion}`) ||
-    !serviceWorker.includes(`/ui-functions.js?v=${imageSafetyRecoveryVersion}`) ||
+    !serviceWorker.includes(`/crump-5.0.js?v=${imageScrollStabilityVersion}`) ||
+    !serviceWorker.includes(`/ui-functions.js?v=${imageScrollStabilityVersion}`) ||
+    !serviceWorker.includes(`/crump-5.2.2.js?v=${imageScrollStabilityVersion}`) ||
     !serviceWorker.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !serviceWorker.includes(`/lifecycle-share.js?v=${releaseVersion}-lifecycle-activation-1`) ||
     !serviceWorker.includes(`/lifecycle-manager.js?v=${releaseVersion}-lifecycle-activation-1`) ||
@@ -949,6 +952,14 @@ if (uiFunctions.includes("if (shouldStick || presence) requestAnimationFrame(() 
 if (!scroll522.includes('state.scroll.suppressLegacyBottomUntil = Date.now() + 3200') ||
     !scroll522.includes('if (!force && Date.now() < state.scroll.suppressLegacyBottomUntil) return;')) {
   console.error('5.2.2 new-reply reading lock is missing.');
+  process.exit(1);
+}
+if (!scroll522.includes('if (!force && state.scroll.userReviewingHistory) return;') ||
+    !scroll522.includes('state.scroll.userReviewingHistory = distanceFromBottom() > 100;') ||
+    !uiFunctions.includes('function imageAspectForMessage(message, messages)') ||
+    !uiFunctions.includes('image.width = aspect.width;') ||
+    !uiFunctions.includes('image.height = aspect.height;')) {
+  console.error('Generated-image scroll and layout stability contract is missing.');
   process.exit(1);
 }
 if (!scroll522.includes('activeReplyShouldHold') ||

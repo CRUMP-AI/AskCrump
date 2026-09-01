@@ -88,6 +88,13 @@ class MediaService:
         return size, quality, output_format
 
     @staticmethod
+    def image_aspect_for_size(size: str) -> str:
+        return {
+            '1024x1536': 'portrait',
+            '1536x1024': 'landscape',
+        }.get(str(size or '').lower(), 'square')
+
+    @staticmethod
     def _prepare_edit_image(data: bytes) -> tuple[bytes, str, str]:
         """Return a provider-safe, orientation-correct first frame.
 
@@ -437,11 +444,13 @@ class MediaService:
             metadata={'prompt': prompt[:4000], 'size': size, 'quality': quality, 'edited': editing},
         )
         public = self.files.public_file(stored)
+        image_aspect = self.image_aspect_for_size(size)
         return {
             'response': 'I edited the image you provided.' if editing else 'I created the image you requested.',
             'model': self.settings.openai_image_model,
             'imageUrl': public['url'],
             'imagePrompt': str(item.get('revised_prompt') or prompt),
+            'imageAspect': image_aspect,
             'imageFile': public,
         }
 

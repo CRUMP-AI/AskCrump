@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r168';
+const CACHE_NAME = 'ask-crump-new-body-v1-r169';
 
 const CORE = [
   '/app',
@@ -46,7 +46,7 @@ const CORE = [
   '/billing-manager.js',
   '/subscription-ui.js?v=5.9.76-truthful-plan-1',
   '/chat-resilience.js?v=5.9.76-image-safety-recovery-1',
-  '/ui-functions.js?v=5.9.76-image-safety-recovery-1',
+  '/ui-functions.js?v=5.9.76-image-scroll-stability-1',
   '/presence-manager.js?v=5.9.76',
   '/auth-resilience.js?v=5.9.76',
   '/device-auth.js?v=5.9.76',
@@ -63,13 +63,13 @@ const CORE = [
   '/crump-4.4.css',
   '/crump-4.4.js?v=5.9.76-core-reliability-1',
   '/crump-5.0.css',
-  '/crump-5.0.js?v=5.9.76-image-safety-recovery-1',
+  '/crump-5.0.js?v=5.9.76-image-scroll-stability-1',
   '/crump-billing-5.1.css?v=5.9.76-contextual-plan-recovery-1',
   '/crump-billing-5.1.js?v=5.9.76-weekly-growth-attribution-1',
   '/crump-5.2.css',
   '/crump-5.2.js?v=5.9.76-weekly-growth-attribution-1',
   '/crump-5.2.2.css',
-  '/crump-5.2.2.js?v=5.9.76-weekly-growth-attribution-1',
+  '/crump-5.2.2.js?v=5.9.76-image-scroll-stability-1',
   '/assets/brand/crump-shell-lockup-light.png',
 ];
 

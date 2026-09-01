@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ask Crump image scroll stability fixture</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/public/conversation.css?v=image-scroll-stability-fixture-1">
+  <link rel="stylesheet" href="/public/crump-5.0.css?v=image-scroll-stability-fixture-1">
+  <link rel="stylesheet" href="/public/crump-5.2.2.css?v=image-scroll-stability-fixture-1">
+  <style>
+    body { margin: 0; background: #090d12; color: #f2efe8; font-family: system-ui, sans-serif; }
+    #chatContainer { width: min(100%, 390px); height: 560px; overflow-y: auto; margin: 0 auto; padding: 12px; box-sizing: border-box; }
+    .message { min-height: 96px; padding: 12px 0; }
+    .message-wrapper { width: 100%; }
+    #scrollToEndBtn { position: fixed; right: 12px; bottom: 12px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div id="chatContainer" aria-label="Conversation"></div>
+    <button id="scrollToEndBtn" type="button" aria-label="Jump to newest message">↓</button>
+    <div id="conversationStatus" aria-live="polite"></div>
+    <output id="fixtureResult">waiting</output>
+  </main>
+  <script>
+    window.currentChatId = '33333333-3333-4333-8333-333333333333';
+    const messages = [];
+    for (let index = 0; index < 6; index += 1) {
+      messages.push({id: `user-${index}`, role: 'user', content: `Earlier request ${index}`});
+      messages.push({id: `answer-${index}`, role: 'assistant', content: `Earlier useful response ${index}. `.repeat(10)});
+    }
+    messages.push({
+      id: 'image-request',
+      role: 'user',
+      content: 'Create a portrait image.',
+      requestMeta: {creativeTool: 'image', imageAspect: 'portrait'},
+    });
+    messages.push({
+      id: 'image-answer',
+      role: 'assistant',
+      inReplyTo: 'image-request',
+      content: 'I created the image you requested.',
+      imageUrl: '/tests/fixtures/delayed-image.png',
+      imageAspect: 'portrait',
+    });
+    window.chats = [{id: window.currentChatId, messages}];
+    let presenceActive = false;
+    window.CrumpPresence = {
+      indicator: () => presenceActive ? {activity: 'creating', expanded: true, label: 'Crump is creating…'} : null,
+    };
+    window.__setPresence = value => { presenceActive = Boolean(value); };
+  </script>
+  <script src="/public/ui-functions.js?v=image-scroll-stability-fixture-1"></script>
+  <script>window.renderMessages(messages);</script>
+  <script src="/public/crump-5.2.2.js?v=image-scroll-stability-fixture-1"></script>
+</body>
+</html>

@@ -96,7 +96,7 @@ async def _durable_reply_for_job(*, user_id: str, message_id: str, job: dict) ->
         'assistantMessage': assistant,
     }
     for key in (
-        'imageUrl', 'imagePrompt', 'imageFile', 'artifact', 'artifactRecovery',
+        'imageUrl', 'imagePrompt', 'imageAspect', 'imageFile', 'artifact', 'artifactRecovery',
         'projectAttachments', 'manuscriptWorkspace', 'creationHandoff',
     ):
         if assistant.get(key) is not None:
@@ -1072,6 +1072,9 @@ async def chat(request: Request):
         if result.get('imageUrl'):
             assistant_message['imageUrl'] = result['imageUrl']
             assistant_message['imagePrompt'] = str(result.get('imagePrompt') or '')[:4_000]
+            image_aspect = str(result.get('imageAspect') or '').lower()
+            if image_aspect in {'square', 'portrait', 'landscape'}:
+                assistant_message['imageAspect'] = image_aspect
         if result.get('imageFile'):
             assistant_message['imageFile'] = result['imageFile']
         if result.get('artifact'):
