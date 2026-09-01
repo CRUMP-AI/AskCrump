@@ -114,11 +114,26 @@ def test_public_marketing_surface_is_indexable_while_the_private_app_is_not():
     legal = read("public/legal.html")
     robots = read("public/robots.txt")
     sitemap = read("public/sitemap.xml")
+    vercel = json.loads(read("vercel.json"))
 
     assert 'name="robots" content="index,follow' in page
     assert 'name="robots" content="noindex,nofollow"' in app
     assert "Sitemap: https://www.askcrump.com/sitemap.xml" in robots
-    assert "Disallow: /app" in robots and "Disallow: /api/" in robots
+    assert "Allow: /" in robots
+    assert "Disallow: /app" not in robots
+    assert "Disallow: /api/" in robots
+    assert "Disallow: /delete-account" in robots
+    x_robots_rules = [
+        rule
+        for rule in vercel["headers"]
+        if any(header["key"].lower() == "x-robots-tag" for header in rule["headers"])
+    ]
+    assert x_robots_rules == [
+        {
+            "source": "/app",
+            "headers": [{"key": "X-Robots-Tag", "value": "noindex, nofollow"}],
+        }
+    ]
     assert "<loc>https://www.askcrump.com/</loc>" in sitemap
     assert '<meta name="robots" content="index,follow,max-image-preview:large">' in legal
     assert '<link rel="canonical" href="https://www.askcrump.com/legal">' in legal
