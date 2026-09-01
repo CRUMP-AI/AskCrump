@@ -210,7 +210,7 @@ def test_browser_component_uses_only_reviewed_static_copy_and_is_nonblocking():
     assert "prefers-reduced-motion: reduce" in styles
     assert "/lifecycle-manager.js?v=5.9.76-lifecycle-activation-1" in runtime
     assert "/lifecycle.css?v=5.9.76-lifecycle-activation-1" in runtime
-    assert "ask-crump-new-body-v1-r167" in worker
+    assert "ask-crump-new-body-v1-r168" in worker
     assert "eventKey: `response-share:${day}`" in referral
     assert "workspace-referral:" not in referral
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r167';
+const CACHE_NAME = 'ask-crump-new-body-v1-r168';
 
 const CORE = [
   '/app',
@@ -8,7 +8,7 @@ const CORE = [
   '/manifest.json',
   '/landing-5.6.css?v=5.9.76-truthful-destinations-1',
   '/use-case.css?v=5.9.76',
-  '/landing.js?v=5.9.76-search-guides-1',
+  '/landing.js?v=5.9.76-marketing-landing-1',
   '/styles.css',
   '/billing.css',
   '/install-prompt.css?v=5.9.76',

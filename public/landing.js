@@ -8,7 +8,12 @@
   const ACQUISITION_KEY = 'askcrump.acquisition-source';
   const ACQUISITION_PLACEMENT_KEY = 'askcrump.acquisition-placement';
   const FIRST_TOUCH_KEY = 'askcrump.first-touch-attribution';
+  const MARKETING_LANDING_KEY = 'askcrump.marketing-landing-emitted';
   const FIRST_TOUCH_TTL_MS = 24 * 60 * 60 * 1000;
+  const MARKETING_LANDING_KINDS = new Set([
+    'exact-referral', 'registered-campaign', 'rejected',
+  ]);
+  let firstTouchMarketingKind = 'rejected';
   const ACQUISITION_SOURCES = new Set([
     'direct', 'instagram', 'facebook', 'facebook-pinned', 'linkedin', 'tiktok',
     'youtube', 'x', 'referral', 'organic', 'organic-search', 'clevercrump',
@@ -161,6 +166,26 @@
     return {acquisition, placement, campaign, creative, intent};
   }
 
+  function explicitAttributionInputsValid(params) {
+    for (const key of ['acquisition', 'utm_source']) {
+      if (params.has(key) && !ACQUISITION_SOURCES.has(tokenValue(params.get(key)))) {
+        return false;
+      }
+    }
+    if (params.has('source')) {
+      const source = tokenValue(params.get('source'));
+      if (!ACQUISITION_PLACEMENTS.has(source) && !LEGACY_ACQUISITION_SOURCES.has(source)) {
+        return false;
+      }
+    }
+    if (params.has('campaign') && !tokenValue(params.get('campaign'))) return false;
+    if (params.has('creative') && !tokenValue(params.get('creative'))) return false;
+    if (params.has('intent') && !CREATION_INTENTS.has(tokenValue(params.get('intent')))) {
+      return false;
+    }
+    return true;
+  }
+
   function currentAttribution() {
     const params = new URLSearchParams(location.search);
     const pageCampaign = PAGE_CAMPAIGN_DEFAULTS[location.pathname];
@@ -189,13 +214,23 @@
     const intent = CREATION_INTENTS.has(queryIntent)
       ? queryIntent
       : PAGE_INTENTS[location.pathname] || null;
-    return normalizeAttribution({
+    const attribution = normalizeAttribution({
       acquisition,
       placement,
       campaign: params.get('campaign') || (pageCampaignEligible ? pageCampaign.campaign : ''),
       creative: params.get('creative') || (pageCampaignEligible ? pageCampaign.creative : ''),
       intent,
     });
+    const explicitInputsValid = explicitAttributionInputsValid(params);
+    const exactReferral = explicitInputsValid
+      && attribution.acquisition === 'referral'
+      && attribution.placement === 'response-share'
+      && !params.has('campaign')
+      && !params.has('creative');
+    firstTouchMarketingKind = explicitInputsValid && attribution.campaign && attribution.creative
+      ? 'registered-campaign'
+      : (exactReferral ? 'exact-referral' : 'rejected');
+    return attribution;
   }
 
   function storedFirstTouch() {
@@ -206,7 +241,14 @@
         sessionStorage.removeItem(FIRST_TOUCH_KEY);
         return null;
       }
-      return {...normalizeAttribution(stored), capturedAt};
+      const attribution = normalizeAttribution(stored);
+      const fallbackKind = attribution.campaign && attribution.creative
+        ? 'registered-campaign'
+        : 'rejected';
+      const marketingLandingKind = MARKETING_LANDING_KINDS.has(stored?.marketingLandingKind)
+        ? stored.marketingLandingKind
+        : fallbackKind;
+      return {...attribution, capturedAt, marketingLandingKind};
     } catch (_) {
       return null;
     }
@@ -217,8 +259,13 @@
     const stored = storedFirstTouch();
     const capturedAt = stored?.capturedAt || Date.now();
     const attribution = stored ? normalizeAttribution(stored) : candidate;
+    firstTouchMarketingKind = stored?.marketingLandingKind || firstTouchMarketingKind;
     try {
-      sessionStorage.setItem(FIRST_TOUCH_KEY, JSON.stringify({...attribution, capturedAt}));
+      sessionStorage.setItem(FIRST_TOUCH_KEY, JSON.stringify({
+        ...attribution,
+        capturedAt,
+        marketingLandingKind: firstTouchMarketingKind,
+      }));
       sessionStorage.setItem(ACQUISITION_KEY, attribution.acquisition);
       if (attribution.placement) {
         sessionStorage.setItem(ACQUISITION_PLACEMENT_KEY, attribution.placement);
@@ -227,7 +274,59 @@
     return attribution;
   }
 
+  function marketingLandingTouchpoint(attribution, marketingLandingKind) {
+    if (
+      marketingLandingKind === 'exact-referral'
+      && attribution.acquisition === 'referral'
+      && attribution.placement === 'response-share'
+      && !attribution.campaign
+      && !attribution.creative
+    ) return 'referral.response-share';
+
+    if (marketingLandingKind !== 'registered-campaign') return '';
+
+    const specification = CAMPAIGN_REGISTRY[attribution.campaign];
+    if (
+      !specification
+      || !attribution.creative
+      || !specification.acquisitions.has(attribution.acquisition)
+      || !specification.placements.has(attribution.placement)
+      || !specification.creatives.has(attribution.creative)
+      || specification.intent !== attribution.intent
+    ) return '';
+
+    return [
+      attribution.acquisition,
+      attribution.placement,
+      attribution.campaign,
+      attribution.creative,
+    ].join('.');
+  }
+
+  function emitMarketingLanding(attribution, marketingLandingKind) {
+    const touchpoint = marketingLandingTouchpoint(attribution, marketingLandingKind);
+    if (!touchpoint) return;
+
+    try {
+      if (sessionStorage.getItem(MARKETING_LANDING_KEY)) return;
+      sessionStorage.setItem(MARKETING_LANDING_KEY, '1');
+    } catch (_) {
+      return;
+    }
+
+    try {
+      window.va('event', {
+        name: 'MarketingLanding',
+        data: {
+          touchpoint,
+          intent: attribution.intent || 'unspecified',
+        },
+      });
+    } catch (_) {}
+  }
+
   const attribution = firstTouchAttribution();
+  emitMarketingLanding(attribution, firstTouchMarketingKind);
   document.querySelectorAll('[data-cta]').forEach(link => {
     let analyticsEvent = 'MarketingCTA';
     let creationIntent = attribution.intent || 'unspecified';

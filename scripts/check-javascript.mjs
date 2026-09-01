@@ -46,7 +46,13 @@ for (const name of files) {
 
 const landingRuntimeSource = await readFile(new URL('landing.js', publicDirectory), 'utf8');
 
-function runLandingAttribution(url, storageValues, linkHref = '/app?signup=1&intent=projects', referrer = '') {
+function runLandingAttribution(
+  url,
+  storageValues,
+  linkHref = '/app?signup=1&intent=projects',
+  referrer = '',
+  options = {},
+) {
   const pageUrl = new URL(url);
   const listeners = new Map();
   const events = [];
@@ -75,9 +81,12 @@ function runLandingAttribution(url, storageValues, linkHref = '/app?signup=1&int
     search: pageUrl.search,
     hash: pageUrl.hash,
   };
-  const window = {
-    va(command, payload) { events.push({command, payload}); },
-  };
+  const window = {};
+  if (options.analytics !== 'queue') {
+    window.va = options.analytics === 'throw'
+      ? () => { throw new Error('Analytics unavailable'); }
+      : (command, payload) => { events.push({command, payload}); };
+  }
   runInContext(landingRuntimeSource, createContext({
     window,
     document,
@@ -87,19 +96,53 @@ function runLandingAttribution(url, storageValues, linkHref = '/app?signup=1&int
     URLSearchParams,
     Date,
   }));
-  listeners.get('click')?.();
-  return {link, events};
+  if (options.click !== false) listeners.get('click')?.();
+  const queuedEvents = (window.vaq || []).map(args => ({
+    command: args[0],
+    payload: args[1],
+  }));
+  return {link, events, queuedEvents};
 }
 
 function storedAttribution(storageValues) {
   const value = JSON.parse(storageValues.get('askcrump.first-touch-attribution') || 'null');
-  if (value) delete value.capturedAt;
+  if (value) {
+    delete value.capturedAt;
+    delete value.marketingLandingKind;
+  }
   return value;
 }
 
 function assertAttribution(actual, expected, label) {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     console.error(`${label} attribution mismatch.`, {actual, expected});
+    process.exit(1);
+  }
+}
+
+function marketingLandingEvents(result) {
+  return [...result.events, ...result.queuedEvents]
+    .filter(event => event.payload?.name === 'MarketingLanding');
+}
+
+function assertMarketingLanding(result, expected, label) {
+  const events = marketingLandingEvents(result);
+  const actual = events[0]?.payload?.data;
+  const keys = actual ? Object.keys(actual).sort() : [];
+  if (
+    events.length !== 1
+    || JSON.stringify(actual) !== JSON.stringify(expected)
+    || JSON.stringify(keys) !== JSON.stringify(['intent', 'touchpoint'])
+  ) {
+    console.error(`${label} MarketingLanding mismatch.`, {events, expected});
+    process.exit(1);
+  }
+}
+
+function assertNoMarketingLanding(result, label) {
+  const events = marketingLandingEvents(result);
+  if (events.length) {
+    console.error(`${label} unexpectedly emitted MarketingLanding.`, events);
     process.exit(1);
   }
 }
@@ -113,16 +156,123 @@ const presentationTouch = {
 };
 const validPathStore = new Map();
 const validPath = runLandingAttribution(
-  'https://askcrump.com/ai-presentation-maker?acquisition=instagram&source=profile-link&campaign=presentation-proof-current&creative=ig-feed',
+  'https://askcrump.com/ai-presentation-maker?acquisition=instagram&source=profile-link&campaign=presentation-proof-current&creative=ig-feed&intent=presentation',
   validPathStore,
   '/app?signup=1&intent=presentation',
 );
 assertAttribution(storedAttribution(validPathStore), presentationTouch, 'Valid campaign path');
+assertMarketingLanding(validPath, {
+  touchpoint: 'instagram.profile-link.presentation-proof-current.ig-feed',
+  intent: 'presentation',
+}, 'Valid campaign path');
 const validDestination = new URL(validPath.link.href, 'https://askcrump.com');
+const validCtaEvent = validPath.events.find(event => event.payload?.name === 'MarketingCTA');
 if (validDestination.searchParams.get('campaign') !== 'presentation-proof-current' ||
     validDestination.searchParams.get('creative') !== 'ig-feed' ||
-    validPath.events[0]?.payload?.data?.campaign !== 'presentation-proof-current') {
+    validCtaEvent?.payload?.data?.campaign !== 'presentation-proof-current') {
   console.error('Valid campaign path did not reach the CTA and anonymous event.');
+  process.exit(1);
+}
+
+const referralLanding = runLandingAttribution(
+  'https://askcrump.com/?acquisition=referral&source=response-share',
+  new Map(),
+  '/app?signup=1',
+  '',
+  {click: false},
+);
+assertMarketingLanding(referralLanding, {
+  touchpoint: 'referral.response-share',
+  intent: 'unspecified',
+}, 'Exact response-share referral');
+
+const invalidMarketingUrls = [
+  'https://askcrump.com/ai-project-workspace?acquisition=instagram&source=organic-social&campaign=not-registered&creative=continuity-feed',
+  'https://askcrump.com/ai-project-workspace?acquisition=instagram&source=organic-social&campaign=real-product-continuity',
+  'https://askcrump.com/ai-project-workspace?acquisition=instagram&source=organic-social&campaign=real-product-continuity&creative=presentation-feed',
+  `https://askcrump.com/ai-project-workspace?acquisition=instagram&source=organic-social&campaign=${'x'.repeat(33)}&creative=continuity-feed`,
+  'https://askcrump.com/?acquisition=referral&source=response-share&campaign=not-registered&creative=anything',
+  'https://askcrump.com/?acquisition=referral&source=response-share&campaign=real-product-continuity',
+  'https://askcrump.com/?acquisition=referral&source=response-share&creative=continuity-feed',
+  'https://askcrump.com/?acquisition=referral&source=response-share&campaign=real-product-continuity&creative=presentation-feed&intent=projects',
+  `https://askcrump.com/?acquisition=referral&source=response-share&campaign=${'x'.repeat(33)}&creative=${'y'.repeat(33)}`,
+  'https://askcrump.com/?acquisition=referral&source=response-share&campaign=&creative=',
+  'https://askcrump.com/?acquisition=referral&source=response-share&intent=not-allowed',
+  `https://askcrump.com/?acquisition=referral&source=response-share&intent=${'z'.repeat(33)}`,
+  'https://askcrump.com/?acquisition=referral&source=response-share&intent=',
+  'https://askcrump.com/ai-project-workspace?acquisition=instagram&source=organic-social&campaign=real-product-continuity&creative=continuity-feed&intent=not-allowed',
+  'https://askcrump.com/ai-project-workspace?acquisition=instagram&source=organic-social&campaign=real-product-continuity&creative=continuity-feed&intent=',
+  'https://askcrump.com/guides/rough-idea-six-week-launch-plan?acquisition=organic-search&source=not-allowed&campaign=rough-idea-launch-plan&creative=search-article',
+  'https://askcrump.com/guides/rough-idea-six-week-launch-plan?acquisition=organic-search&source=&campaign=rough-idea-launch-plan&creative=search-article',
+  'https://askcrump.com/guides/rough-idea-six-week-launch-plan?acquisition=&utm_source=organic-search&source=workflow-guide&campaign=rough-idea-launch-plan&creative=search-article',
+  'https://askcrump.com/guides/rough-idea-six-week-launch-plan?acquisition=organic-search&utm_source=&source=workflow-guide&campaign=rough-idea-launch-plan&creative=search-article',
+  'https://askcrump.com/guides/rough-idea-six-week-launch-plan?acquisition=organic-search&source=workflow-guide&campaign=&creative=',
+];
+for (const [index, url] of invalidMarketingUrls.entries()) {
+  const result = runLandingAttribution(url, new Map(), '/app?signup=1', '', {click: false});
+  assertNoMarketingLanding(result, `Invalid marketing tuple ${index + 1}`);
+}
+
+const directLanding = runLandingAttribution(
+  'https://askcrump.com/',
+  new Map(),
+  '/app?signup=1',
+  '',
+  {click: false},
+);
+assertNoMarketingLanding(directLanding, 'Direct landing');
+
+const oncePerTabStore = new Map();
+const firstLanding = runLandingAttribution(
+  'https://askcrump.com/ai-presentation-maker?acquisition=instagram&source=profile-link&campaign=presentation-proof-current&creative=ig-story',
+  oncePerTabStore,
+  '/app?signup=1&intent=presentation',
+  '',
+  {click: false},
+);
+assertMarketingLanding(firstLanding, {
+  touchpoint: 'instagram.profile-link.presentation-proof-current.ig-story',
+  intent: 'presentation',
+}, 'First marketing URL in tab');
+const secondLanding = runLandingAttribution(
+  'https://askcrump.com/ai-project-workspace?acquisition=instagram&source=organic-social&campaign=real-product-continuity&creative=continuity-story',
+  oncePerTabStore,
+  '/app?signup=1&intent=projects',
+  '',
+  {click: false},
+);
+assertNoMarketingLanding(secondLanding, 'Second marketing URL in same tab');
+const sameTabNavigation = runLandingAttribution(
+  'https://askcrump.com/ai-presentation-maker',
+  oncePerTabStore,
+  '/app?signup=1&intent=presentation',
+  '',
+  {click: false},
+);
+assertNoMarketingLanding(sameTabNavigation, 'Same-tab navigation');
+
+const queuedLanding = runLandingAttribution(
+  'https://askcrump.com/ai-project-workspace?acquisition=facebook&source=organic-social&campaign=real-product-continuity&creative=continuity-feed',
+  new Map(),
+  '/app?signup=1&intent=projects',
+  '',
+  {analytics: 'queue', click: false},
+);
+assertMarketingLanding(queuedLanding, {
+  touchpoint: 'facebook.organic-social.real-product-continuity.continuity-feed',
+  intent: 'projects',
+}, 'Queued analytics boundary');
+
+const failedAnalyticsStore = new Map();
+runLandingAttribution(
+  'https://askcrump.com/ai-project-workspace?acquisition=facebook&source=organic-social&campaign=real-product-continuity&creative=continuity-feed',
+  failedAnalyticsStore,
+  '/app?signup=1&intent=projects',
+  '',
+  {analytics: 'throw', click: false},
+);
+if (failedAnalyticsStore.get('askcrump.marketing-landing-emitted') !== '1') {
+  console.error('Analytics failure did not preserve the once-per-tab marker.');
   process.exit(1);
 }
 
@@ -218,7 +368,7 @@ assertAttribution(storedAttribution(immutableStore), {
 const repoRoot = new URL('../', import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot), 'utf8'));
 const releaseVersion = String(packageJson.version || '');
-const landingVersion = `${releaseVersion}-search-guides-1`;
+const landingVersion = `${releaseVersion}-marketing-landing-1`;
 const authControllerVersion = `${releaseVersion}-weekly-growth-attribution-1`;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
@@ -312,10 +462,19 @@ for (const queue of [telemetryWindow.vaq, telemetryWindow.siq]) {
     url: 'https://www.askcrump.com/app?token=secret&signup=1#recovery',
     route: '/app',
   });
+  const filteredCustomEvent = filter?.({
+    type: 'event',
+    name: 'MarketingLanding',
+    data: {touchpoint: 'referral.response-share', intent: 'unspecified'},
+    url: 'https://www.askcrump.com/?acquisition=referral&source=response-share#shared',
+  });
   if (queue?.length !== 1 ||
       queue[0][0] !== 'beforeSend' ||
       filteredEvent?.url !== 'https://www.askcrump.com/app' ||
       filteredEvent?.route !== '/app' ||
+      filteredCustomEvent?.url !== 'https://www.askcrump.com/' ||
+      filteredCustomEvent?.data?.touchpoint !== 'referral.response-share' ||
+      filteredCustomEvent?.data?.intent !== 'unspecified' ||
       filter?.({type: 'vital', url: 'not a url'}) !== null ||
       filter?.({type: 'vital'}) !== null) {
     console.error('Vercel telemetry must remove query strings and fragments before transmission.');
@@ -541,7 +700,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r167') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r168') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${visualMediaReliabilityVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
