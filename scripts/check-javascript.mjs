@@ -223,6 +223,7 @@ const authControllerVersion = `${releaseVersion}-weekly-growth-attribution-1`;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
 const coreReliabilityVersion = `${releaseVersion}-core-reliability-1`;
+const visualMediaReliabilityVersion = `${releaseVersion}-visual-media-reliability-1`;
 const desktopChatsVersion = `${releaseVersion}-desktop-chats-default-1`;
 const requiredBodyFiles = [
   'public/crump-v1-body.css',
@@ -412,12 +413,12 @@ if (!runtime.includes('/billing.css') || !runtime.includes('/onboarding.css') ||
     !runtime.includes(`/app.js?v=${coreReliabilityVersion}`) ||
     !runtime.includes(`/crump-v1-body.js?v=${desktopChatsVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${intelligenceArchitectureVersion}`) ||
-    !runtime.includes(`/crump-5.0.js?v=${coreReliabilityVersion}`) ||
+    !runtime.includes(`/crump-5.0.js?v=${visualMediaReliabilityVersion}`) ||
     !runtime.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
     !runtime.includes(`/crump-4.4.js?v=${coreReliabilityVersion}`) ||
     !runtime.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !runtime.includes(`/crump-product-5.3.js?v=${coreReliabilityVersion}`) ||
-    !runtime.includes(`/crump-product-5.3.css?v=${intelligenceArchitectureVersion}`) ||
+    !runtime.includes(`/crump-product-5.3.js?v=${visualMediaReliabilityVersion}`) ||
+    !runtime.includes(`/crump-product-5.3.css?v=${visualMediaReliabilityVersion}`) ||
     !runtime.includes(`/crump-product-5.3.1.js?v=${coreReliabilityVersion}`) || !runtime.includes('/crump-product-5.3.1.css') ||
     !runtime.includes('/crump-subscriptions-5.3.2.js') ||
     !runtime.includes('/crump-polish-5.6.js') || !runtime.includes('/crump-polish-5.6.css') ||
@@ -540,12 +541,12 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r166') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r167') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${coreReliabilityVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${visualMediaReliabilityVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${releaseVersion}`) ||
-    !serviceWorker.includes(`/crump-5.0.js?v=${coreReliabilityVersion}`) ||
+    !serviceWorker.includes(`/crump-5.0.js?v=${visualMediaReliabilityVersion}`) ||
     !serviceWorker.includes(`/ui-functions.js?v=${intelligenceReceiptVersion}`) ||
     !serviceWorker.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !serviceWorker.includes(`/lifecycle-share.js?v=${releaseVersion}-lifecycle-activation-1`) ||
@@ -563,9 +564,9 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r166') ||
     !serviceWorker.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
     !serviceWorker.includes(`/crump-4.4.js?v=${coreReliabilityVersion}`) ||
     !serviceWorker.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !serviceWorker.includes(`/crump-product-5.3.js?v=${coreReliabilityVersion}`) ||
+    !serviceWorker.includes(`/crump-product-5.3.js?v=${visualMediaReliabilityVersion}`) ||
     !serviceWorker.includes(`/crump-product-5.3.1.js?v=${coreReliabilityVersion}`) ||
-    !serviceWorker.includes(`/crump-product-5.3.css?v=${intelligenceArchitectureVersion}`) ||
+    !serviceWorker.includes(`/crump-product-5.3.css?v=${visualMediaReliabilityVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${intelligenceArchitectureVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.css?v=${intelligenceArchitectureVersion}`) ||
     !serviceWorker.includes(`/crump-code-5.9.35.js?v=${intelligenceArchitectureVersion}`) ||

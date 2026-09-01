@@ -28,7 +28,9 @@ def test_protected_product_modules_hydrate_only_after_an_intentional_open():
     assert 'if (authenticatedHydrationStarted || !window.currentUser) return;' in product
     assert 'if (!readProjectRoute()) return;' in product
     assert "openStudio('projects', {preserveProjectRoute: true});" in product
-    assert "window.addEventListener('crump:authenticated-ready', hydrateAuthenticatedState)" in product
+    assert "window.addEventListener('crump:authenticated-ready', () => {" in product
+    assert "hydrateAuthenticatedState();" in product
+    assert "resumePendingVideoJob();" in product
     assert "if (section === 'projects')" in product
     assert "else if (section === 'video')" in product
     assert 'void refreshFeatures();' in product

@@ -11,6 +11,7 @@ from typing import Any
 import httpx
 from docx import Document
 from openpyxl import load_workbook
+from PIL import Image, ImageOps, UnidentifiedImageError
 from pypdf import PdfReader
 from pptx import Presentation
 
@@ -31,6 +32,7 @@ logger = logging.getLogger('askcrump.media')
 IMAGE_REQUEST_TIMEOUT_SECONDS = 240.0
 IMAGE_TRANSIENT_RETRY_DELAY_SECONDS = 0.75
 IMAGE_MAX_ATTEMPTS = 2
+EDIT_IMAGE_MAX_EDGE = 4096
 
 
 class MediaService:
@@ -83,6 +85,76 @@ class MediaService:
         if output_format not in {'png', 'webp', 'jpeg'}:
             output_format = 'png'
         return size, quality, output_format
+
+    @staticmethod
+    def _prepare_edit_image(data: bytes) -> tuple[bytes, str, str]:
+        """Return a provider-safe, orientation-correct first frame.
+
+        Browser uploads and previously generated files can carry valid image
+        bytes in modes or containers the edit endpoint does not accept. Decode
+        them before provider spend and send one predictable PNG instead of
+        forwarding the user's original encoding unchanged.
+        """
+        try:
+            with Image.open(BytesIO(data)) as source:
+                source.seek(0)
+                image = ImageOps.exif_transpose(source)
+                image.load()
+                image = image.copy()
+        except (UnidentifiedImageError, OSError, ValueError) as exc:
+            raise AIServiceError(
+                'This image could not be prepared for editing. Use a JPG, PNG, or WebP image and try again.',
+                400,
+                'INVALID_IMAGE_EDIT_SOURCE',
+                False,
+                0,
+            ) from exc
+
+        longest_edge = max(image.size or (0, 0))
+        if longest_edge <= 0:
+            raise AIServiceError(
+                'This image has invalid dimensions and cannot be edited.',
+                400,
+                'INVALID_IMAGE_EDIT_SOURCE',
+                False,
+                0,
+            )
+        if longest_edge > EDIT_IMAGE_MAX_EDGE:
+            scale = EDIT_IMAGE_MAX_EDGE / longest_edge
+            image = image.resize(
+                (max(1, round(image.width * scale)), max(1, round(image.height * scale))),
+                Image.Resampling.LANCZOS,
+            )
+        if image.mode not in {'RGB', 'RGBA'}:
+            image = image.convert('RGBA' if 'A' in image.getbands() or 'transparency' in image.info else 'RGB')
+
+        prepared = BytesIO()
+        image.save(prepared, format='PNG', optimize=False)
+        return prepared.getvalue(), 'Crump_Edit_Source.png', 'image/png'
+
+    @staticmethod
+    def _edit_fidelity_prompt(prompt: str) -> str:
+        request = str(prompt or '').strip() or 'Create a polished image based on the attached reference.'
+        return (
+            f'{request}\n\n'
+            'Fidelity requirements: Edit the supplied image instead of replacing the person or subject. '
+            'Preserve identity, facial features, skin tone, ethnicity, hair texture and color, age, body proportions, '
+            'and other intrinsic traits unless the user explicitly requests a specific change to one of them. '
+            'For an infant or child, preserve those traits especially carefully. Treat a named character, fairy-tale, '
+            'or cultural theme as wardrobe, setting, props, lighting, and color palette—not as a different person or race. '
+            'Preserve an exact visible logo or readable mark only when it is clearly present in the reference; otherwise '
+            'do not invent or approximate branded text.'
+        )
+
+    @staticmethod
+    def _generation_fidelity_prompt(prompt: str) -> str:
+        request = str(prompt or '').strip() or 'Create a polished image.'
+        return (
+            f'{request}\n\n'
+            'Fidelity requirements: keep object counts, geometry, colors, anatomy, and spatial relationships coherent. '
+            'Do not invent or approximate real logos, wordmarks, labels, or readable branded text; when no exact visual '
+            'reference is supplied, keep such branding absent or out of frame.'
+        )
 
     @staticmethod
     def _provider_error(response: httpx.Response) -> tuple[str, str, str]:
@@ -140,9 +212,17 @@ class MediaService:
             )
         if 'content_policy' in diagnostic or 'safety' in diagnostic:
             return AIServiceError(
-                'The image provider could not generate that prompt under its safety rules.',
+                'The image provider safety filter declined that request. For an edit, describe one clear visual change and leave the person’s identity, age, and body unchanged.',
                 400,
                 'IMAGE_SAFETY_REJECTED',
+                False,
+                0,
+            )
+        if 'invalid_image_file' in diagnostic:
+            return AIServiceError(
+                'The image provider could not accept that reference image. Re-save it as JPG, PNG, or WebP and upload it again.',
+                400,
+                'INVALID_IMAGE_EDIT_SOURCE',
                 False,
                 0,
             )
@@ -156,8 +236,8 @@ class MediaService:
             )
         if response.status_code in {400, 403} or 'image_generation_user_error' in diagnostic:
             return AIServiceError(
-                'The image provider rejected this request or model access is not enabled.',
-                502,
+                'The image provider could not process that request. Try one clear transformation at a time, without asking it to replace the person or recreate unsupported branded text.',
+                400 if response.status_code == 400 else 502,
                 'IMAGE_PROVIDER_REJECTED',
                 False,
                 0,
@@ -217,8 +297,12 @@ class MediaService:
             raise AIServiceError('Image generation is not configured.', 503, 'IMAGE_NOT_CONFIGURED', False, 0)
         prompt = str(payload.get('message') or '').strip()
         editing = self.is_edit_request(prompt, file_rows) or bool(payload.get('imageUseReference') and any(row.get('mime_type') in IMAGE_TYPES for row in file_rows))
+        if editing:
+            provider_prompt = self._edit_fidelity_prompt(prompt)
+        else:
+            provider_prompt = self._generation_fidelity_prompt(prompt)
         if not prompt:
-            prompt = 'Create a polished image based on the attached reference.'
+            prompt = 'Create a polished image based on the attached reference.' if editing else 'Create a polished image.'
         size, quality, output_format = self._image_settings(payload)
         headers = {'Authorization': f'Bearer {self.settings.openai_api_key}'}
         endpoint = 'https://api.openai.com/v1/images/generations'
@@ -227,13 +311,14 @@ class MediaService:
                 if editing:
                     source = next(row for row in file_rows if row.get('mime_type') in IMAGE_TYPES)
                     image_bytes = await self.files.download_bytes(row=source, max_bytes=25 * 1024 * 1024)
+                    image_bytes, image_name, image_mime = self._prepare_edit_image(image_bytes)
                     endpoint = 'https://api.openai.com/v1/images/edits'
                     multipart = {
-                        'image[]': (source.get('file_name') or 'image.png', image_bytes, source.get('mime_type') or 'image/png'),
+                        'image[]': (image_name, image_bytes, image_mime),
                     }
                     form = {
                         'model': self.settings.openai_image_model,
-                        'prompt': prompt,
+                        'prompt': provider_prompt,
                         'size': size,
                         'quality': quality,
                         'output_format': output_format,
@@ -253,7 +338,7 @@ class MediaService:
                         headers={**headers, 'Content-Type': 'application/json'},
                         json={
                             'model': self.settings.openai_image_model,
-                            'prompt': prompt,
+                            'prompt': provider_prompt,
                             'size': size,
                             'quality': quality,
                             'output_format': output_format,

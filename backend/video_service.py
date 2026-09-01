@@ -1,14 +1,18 @@
 """Provider-agnostic asynchronous video generation for Ask Crump."""
 from __future__ import annotations
 
+import base64
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from io import BytesIO
 from typing import Any
 from uuid import uuid4
 
+from PIL import Image, ImageOps, UnidentifiedImageError
+
 from .config import Settings
 from .db import SupabaseDB, eq, gte
-from .file_service import FileService
+from .file_service import FileService, FileServiceError
 from .security import normalize_chat_id
 from .video_providers import GeminiVeoProvider, ProviderError, RunwayProvider
 
@@ -42,6 +46,8 @@ class VideoService:
     EXTENDABLE = "extendable"
     CINEMATIC = "cinematic"
     ENGINES = {QUICK, EXTENDABLE, CINEMATIC}
+    REFERENCE_IMAGE_MAX_BYTES = 20 * 1024 * 1024
+    REFERENCE_IMAGE_MAX_EDGE = 2048
 
     def __init__(self, settings: Settings, db: SupabaseDB, files: FileService) -> None:
         self.settings = settings
@@ -103,6 +109,133 @@ class VideoService:
         if len(prompt) > max_chars:
             raise VideoServiceError(f"Video prompts for this engine must be {max_chars:,} characters or fewer.", "PROMPT_TOO_LONG")
         return prompt
+
+    @staticmethod
+    def provider_prompt(prompt: str, *, max_chars: int, has_visual_reference: bool = False) -> str:
+        """Add bounded continuity/brand constraints without changing saved copy."""
+        brand_guard = (
+            'Use the supplied visual reference to preserve the subject, product, colors, proportions, and visible mark; '
+            'do not restyle the mark, add letters, or substitute symbols.'
+            if has_visual_reference
+            else 'Never invent or approximate a logo, wordmark, label, or branded text. If an exact mark is not supplied '
+                 'as visual input, keep branding absent or out of frame.'
+        )
+        guard = (
+            'Continuity requirements: keep subject identity, colors, geometry, object counts, anatomy, and spatial '
+            'relationships stable across every frame; avoid morphing, duplicates, substitutions, and unreadable details. '
+            f'{brand_guard}'
+        )
+        combined = f'{prompt}\n\n{guard}'
+        if len(combined) > max_chars:
+            user_limit = max(8, max_chars - len(guard) - 2)
+            raise VideoServiceError(
+                f'Keep this video prompt to {user_limit:,} characters or fewer so Crump can include its visual-fidelity instructions.',
+                'PROMPT_TOO_LONG',
+            )
+        return combined
+
+    @staticmethod
+    def reference_limit(engine: str) -> int:
+        return 3 if engine == VideoService.EXTENDABLE else 1
+
+    @classmethod
+    def _prepare_reference_image(cls, data: bytes) -> tuple[str, str]:
+        """Decode one private upload into a bounded provider-safe PNG payload."""
+        try:
+            with Image.open(BytesIO(data)) as source:
+                source.seek(0)
+                image = ImageOps.exif_transpose(source)
+                image.load()
+                image = image.copy()
+        except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as exc:
+            raise VideoServiceError(
+                "That reference could not be read as an image. Use a JPG, PNG, or WebP file.",
+                "INVALID_VIDEO_REFERENCE_IMAGE",
+            ) from exc
+
+        longest_edge = max(image.size or (0, 0))
+        if longest_edge <= 0:
+            raise VideoServiceError(
+                "That reference image has invalid dimensions.",
+                "INVALID_VIDEO_REFERENCE_IMAGE",
+            )
+        if longest_edge > cls.REFERENCE_IMAGE_MAX_EDGE:
+            scale = cls.REFERENCE_IMAGE_MAX_EDGE / longest_edge
+            image = image.resize(
+                (max(1, round(image.width * scale)), max(1, round(image.height * scale))),
+                Image.Resampling.LANCZOS,
+            )
+        if image.mode not in {"RGB", "RGBA"}:
+            image = image.convert("RGBA" if "A" in image.getbands() or "transparency" in image.info else "RGB")
+
+        prepared = BytesIO()
+        image.save(prepared, format="PNG", optimize=True)
+        normalized = prepared.getvalue()
+        if not normalized or len(normalized) > cls.REFERENCE_IMAGE_MAX_BYTES:
+            raise VideoServiceError(
+                "That reference image is too complex to prepare safely. Use a smaller JPG, PNG, or WebP file.",
+                "VIDEO_REFERENCE_IMAGE_TOO_LARGE",
+                413,
+            )
+        return "image/png", base64.b64encode(normalized).decode("ascii")
+
+    async def prepare_reference_images(
+        self,
+        *,
+        user_id: str,
+        file_ids: Any,
+        engine: str,
+    ) -> list[dict[str, str]]:
+        """Resolve owner-scoped Files before credits or provider spend."""
+        if file_ids is None or file_ids == "":
+            return []
+        if not isinstance(file_ids, list):
+            raise VideoServiceError(
+                "Video references must be selected from your private Files.",
+                "INVALID_VIDEO_REFERENCE",
+            )
+
+        normalized_engine = self.validate_engine(engine)
+        normalized_ids: list[str] = []
+        for value in file_ids:
+            try:
+                file_id = normalize_chat_id(str(value))
+            except Exception as exc:
+                raise VideoServiceError(
+                    "One video reference is invalid. Remove it and upload the image again.",
+                    "INVALID_VIDEO_REFERENCE",
+                ) from exc
+            if file_id not in normalized_ids:
+                normalized_ids.append(file_id)
+
+        limit = self.reference_limit(normalized_engine)
+        if len(normalized_ids) > limit:
+            label = "Extendable" if normalized_engine == self.EXTENDABLE else normalized_engine.title()
+            raise VideoServiceError(
+                f"{label} accepts up to {limit} reference image{'s' if limit != 1 else ''}.",
+                "TOO_MANY_VIDEO_REFERENCES",
+            )
+
+        prepared: list[dict[str, str]] = []
+        for file_id in normalized_ids:
+            try:
+                row = await self.files.get_owned(user_id=user_id, file_id=file_id)
+                if not str(row.get("mime_type") or "").lower().startswith("image/"):
+                    raise VideoServiceError(
+                        "Video references must be JPG, PNG, or WebP images.",
+                        "INVALID_VIDEO_REFERENCE_IMAGE",
+                    )
+                raw = await self.files.download_bytes(row=row, max_bytes=self.REFERENCE_IMAGE_MAX_BYTES)
+            except FileServiceError as exc:
+                raise VideoServiceError(
+                    "A selected video reference is unavailable. Remove it and upload the image again.",
+                    "VIDEO_REFERENCE_UNAVAILABLE",
+                    exc.status_code,
+                    exc.status_code >= 500,
+                ) from exc
+            mime_type, encoded = self._prepare_reference_image(raw)
+            prepared.append({"fileId": file_id, "mimeType": mime_type, "data": encoded})
+        return prepared
 
     @staticmethod
     def validate_aspect_ratio(value: Any) -> str:
@@ -324,13 +457,27 @@ class VideoService:
         project_id: str | None = None,
         idempotency_key: str | None = None,
         charge_receipt: dict[str, Any] | None = None,
+        reference_images: list[dict[str, str]] | None = None,
     ) -> dict[str, Any]:
         engine, resolution, duration_seconds = self.normalize_request(
             engine=engine,
             resolution=resolution,
             duration_seconds=duration_seconds,
         )
-        prompt = self.validate_prompt(prompt, max_chars=1000 if engine == self.CINEMATIC else 4000)
+        provider_prompt_limit = 1000 if engine == self.CINEMATIC else 4000
+        prompt = self.validate_prompt(prompt, max_chars=provider_prompt_limit)
+        references = list(reference_images or [])
+        limit = self.reference_limit(engine)
+        if len(references) > limit:
+            raise VideoServiceError(
+                f"This video engine accepts up to {limit} reference image{'s' if limit != 1 else ''}.",
+                "TOO_MANY_VIDEO_REFERENCES",
+            )
+        guarded_prompt = self.provider_prompt(
+            prompt,
+            max_chars=provider_prompt_limit,
+            has_visual_reference=bool(references),
+        )
         aspect_ratio = self.validate_aspect_ratio(aspect_ratio)
         project = normalize_chat_id(project_id) if project_id else None
         key = " ".join(str(idempotency_key or "").split()).strip()[:160] or None
@@ -379,7 +526,16 @@ class VideoService:
             "file_id": None,
             "error_message": None,
             "billing_receipt": charge_receipt or {},
-            "metadata": {"refundEligible": True, "providerAccepted": False},
+            "metadata": {
+                "refundEligible": True,
+                "providerAccepted": False,
+                "referenceFileIds": [str(reference.get("fileId") or "") for reference in references],
+                "referenceMode": (
+                    "asset" if references and engine == self.EXTENDABLE
+                    else "initial-frame" if references
+                    else None
+                ),
+            },
             "updated_at": _now(),
         }
         inserted = await self.db.insert("media_jobs", row)
@@ -389,17 +545,23 @@ class VideoService:
             if engine == self.CINEMATIC:
                 provider_job_id = await self.runway.start(
                     model=model,
-                    prompt=prompt,
+                    prompt=guarded_prompt,
                     aspect_ratio=aspect_ratio,
                     duration_seconds=duration_seconds,
+                    prompt_image=(
+                        f"data:{references[0]['mimeType']};base64,{references[0]['data']}"
+                        if references else None
+                    ),
                 )
             else:
                 provider_job_id = await self.gemini.start(
                     model=model,
-                    prompt=prompt,
+                    prompt=guarded_prompt,
                     aspect_ratio=aspect_ratio,
                     resolution=resolution,
                     duration_seconds=duration_seconds,
+                    initial_image=references[0] if references and engine == self.QUICK else None,
+                    reference_images=references if engine == self.EXTENDABLE else None,
                 )
         except ProviderError as exc:
             # No provider task was accepted. Preserve a diagnostic job row but
@@ -518,6 +680,7 @@ class VideoService:
         parent = await self.validate_continuation_parent(user_id=user_id, job_id=parent_job_id)
         await self._guard_concurrency(user_id=user_id)
         prompt = self.validate_prompt(prompt)
+        guarded_prompt = self.provider_prompt(prompt, max_chars=4000)
 
         model = self.settings.gemini_video_extend_model
         parent_duration = int(parent.get("duration_seconds") or 8)
@@ -563,7 +726,7 @@ class VideoService:
         try:
             provider_job_id = await self.gemini.start(
                 model=model,
-                prompt=prompt,
+                prompt=guarded_prompt,
                 aspect_ratio=str(parent.get("aspect_ratio") or "16:9"),
                 resolution="720p",
                 duration_seconds=8,

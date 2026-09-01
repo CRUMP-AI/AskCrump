@@ -362,41 +362,58 @@
   function renderAttachmentTray() {
     const tray = $('#filePreview');
     if (!tray) return;
-    tray.replaceChildren();
     tray.classList.add('crump50-attachment-tray');
     tray.hidden = !state.attachments.length;
     tray.style.display = state.attachments.length ? 'flex' : 'none';
-    state.attachments.forEach(item => {
-      const card = document.createElement('article');
-      card.className = `crump50-upload-card is-${item.status}`;
-      const visual = document.createElement('div');
-      visual.className = 'crump50-upload-visual';
-      if (item.previewUrl && String(item.type).startsWith('image/')) {
-        const img = document.createElement('img');
-        img.src = item.previewUrl;
-        img.alt = '';
-        visual.appendChild(img);
-      } else {
-        visual.innerHTML = iconFor(fileKind(item));
+    const liveIds = new Set(state.attachments.map(item => item.localId));
+    $$('[data-crump50-attachment-id]', tray).forEach(card => {
+      if (!liveIds.has(card.dataset.crump50AttachmentId)) card.remove();
+    });
+
+    state.attachments.forEach((item, index) => {
+      let card = $$('[data-crump50-attachment-id]', tray)
+        .find(node => node.dataset.crump50AttachmentId === item.localId);
+      if (!card) {
+        card = document.createElement('article');
+        card.dataset.crump50AttachmentId = item.localId;
+        const visual = document.createElement('div');
+        visual.className = 'crump50-upload-visual';
+        if (item.previewUrl && String(item.type).startsWith('image/')) {
+          const img = document.createElement('img');
+          img.src = item.previewUrl;
+          img.alt = '';
+          img.decoding = 'async';
+          visual.appendChild(img);
+        } else {
+          visual.innerHTML = iconFor(fileKind(item));
+        }
+        const copy = document.createElement('div');
+        copy.className = 'crump50-upload-copy';
+        const name = document.createElement('strong');
+        const meta = document.createElement('span');
+        meta.dataset.crump50UploadMeta = 'true';
+        const progress = document.createElement('i');
+        progress.className = 'crump50-upload-progress';
+        copy.append(name, meta, progress);
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'crump50-upload-remove';
+        remove.textContent = '×';
+        remove.addEventListener('click', () => removeAttachment(item.localId));
+        card.append(visual, copy, remove);
       }
-      const copy = document.createElement('div');
-      copy.className = 'crump50-upload-copy';
-      const name = document.createElement('strong');
-      name.textContent = item.name;
-      const meta = document.createElement('span');
-      meta.textContent = item.status === 'ready' ? formatBytes(item.size) : item.status === 'failed' ? 'Upload failed' : `${item.progress || 0}%`;
-      const progress = document.createElement('i');
-      progress.className = 'crump50-upload-progress';
-      progress.style.setProperty('--progress', `${item.progress || 0}%`);
-      copy.append(name, meta, progress);
-      const remove = document.createElement('button');
-      remove.type = 'button';
-      remove.className = 'crump50-upload-remove';
+      card.className = `crump50-upload-card is-${item.status}`;
+      $('strong', card).textContent = item.name;
+      $('[data-crump50-upload-meta]', card).textContent = item.status === 'ready'
+        ? formatBytes(item.size)
+        : item.status === 'failed'
+          ? 'Upload failed'
+          : `${item.progress || 0}%`;
+      $('.crump50-upload-progress', card).style.setProperty('--progress', `${item.progress || 0}%`);
+      const remove = $('.crump50-upload-remove', card);
       remove.setAttribute('aria-label', `Remove ${item.name}`);
-      remove.textContent = '×';
-      remove.addEventListener('click', () => removeAttachment(item.localId));
-      card.append(visual, copy, remove);
-      tray.appendChild(card);
+      const position = tray.children[index];
+      if (position !== card) tray.insertBefore(card, position || null);
     });
   }
 
@@ -1127,7 +1144,11 @@
       const issue = validateFile(normalized);
       if (issue) throw new Error(issue);
       const item = makeLocalAttachment(normalized);
-      return await uploadItem(item);
+      try {
+        return await uploadItem(item);
+      } finally {
+        if (item.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl);
+      }
     },
   });
   window.CrumpDocumentStudio = Object.freeze({

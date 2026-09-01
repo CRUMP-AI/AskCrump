@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Ask Crump image preview stability fixture</title>
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <main>
+    <div class="input-area">
+      <div id="filePreview"></div>
+      <div class="input-container">
+        <button id="attachBtn" type="button">Attach</button>
+        <textarea id="userInput"></textarea>
+        <button id="sendButton" type="button">Send</button>
+      </div>
+    </div>
+    <input id="fileInput" type="file" accept="image/*">
+    <output id="fixtureResult">waiting</output>
+  </main>
+  <script>
+    window.fetch = async path => {
+      const url = String(path || '');
+      if (url === '/api/files/sign-upload') {
+        return new Response(JSON.stringify({
+          file: {id: '11111111-1111-4111-8111-111111111111', name: 'fixture.png', type: 'image/png', size: 68},
+          uploadUrl: '/fixture-upload',
+        }), {status: 200, headers: {'Content-Type': 'application/json'}});
+      }
+      if (url.includes('/complete')) {
+        return new Response(JSON.stringify({
+          file: {id: '11111111-1111-4111-8111-111111111111', name: 'fixture.png', type: 'image/png', size: 68},
+        }), {status: 200, headers: {'Content-Type': 'application/json'}});
+      }
+      return new Response('{}', {status: 200, headers: {'Content-Type': 'application/json'}});
+    };
+
+    class FixtureXHR {
+      constructor() {
+        this.status = 200;
+        this.listeners = {};
+        this.uploadListeners = {};
+        this.upload = {addEventListener: (name, handler) => { this.uploadListeners[name] = handler; }};
+      }
+      open() {}
+      setRequestHeader() {}
+      getResponseHeader() { return null; }
+      addEventListener(name, handler) { this.listeners[name] = handler; }
+      abort() { this.listeners.abort?.(); }
+      send() {
+        [20, 45, 70, 95].forEach((loaded, index) => {
+          setTimeout(() => this.uploadListeners.progress?.({lengthComputable: true, loaded, total: 100}), 45 * (index + 1));
+        });
+        setTimeout(() => this.listeners.load?.(), 250);
+      }
+    }
+    window.XMLHttpRequest = FixtureXHR;
+
+    window.__previewImagesAdded = 0;
+    const observer = new MutationObserver(records => {
+      records.forEach(record => record.addedNodes.forEach(node => {
+        if (node.nodeType !== Node.ELEMENT_NODE) return;
+        if (node.matches?.('.crump50-upload-visual img')) window.__previewImagesAdded += 1;
+        window.__previewImagesAdded += node.querySelectorAll?.('.crump50-upload-visual img').length || 0;
+      }));
+    });
+    observer.observe(document.getElementById('filePreview'), {childList: true, subtree: true});
+  </script>
+  <script src="/public/crump-5.0.js"></script>
+</body>
+</html>

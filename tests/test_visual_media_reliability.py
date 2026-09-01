@@ -1,0 +1,186 @@
+import base64
+from io import BytesIO
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+import httpx
+from PIL import Image
+
+from backend.ai_service import AIServiceError
+from backend.media_service import EDIT_IMAGE_MAX_EDGE, MediaService
+from backend.video_service import VideoService, VideoServiceError
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def read(relative: str) -> str:
+    return (ROOT / relative).read_text(encoding="utf-8")
+
+
+def test_edit_source_is_orientation_safe_provider_png() -> None:
+    original = Image.new("CMYK", (5000, 2500), color=(0, 120, 120, 0))
+    raw = BytesIO()
+    original.save(raw, format="JPEG")
+
+    prepared, filename, mime = MediaService._prepare_edit_image(raw.getvalue())
+
+    assert filename == "Crump_Edit_Source.png"
+    assert mime == "image/png"
+    with Image.open(BytesIO(prepared)) as image:
+        assert image.format == "PNG"
+        assert image.mode in {"RGB", "RGBA"}
+        assert max(image.size) == EDIT_IMAGE_MAX_EDGE
+
+
+def test_invalid_edit_source_is_rejected_before_provider_spend() -> None:
+    with pytest.raises(AIServiceError) as caught:
+        MediaService._prepare_edit_image(b"not an image")
+
+    assert caught.value.status_code == 400
+    assert caught.value.code == "INVALID_IMAGE_EDIT_SOURCE"
+    assert caught.value.retryable is False
+
+
+def test_provider_invalid_image_rejection_is_specific_and_actionable() -> None:
+    response = httpx.Response(
+        400,
+        request=httpx.Request("POST", "https://api.openai.com/v1/images/edits"),
+        json={"error": {"code": "invalid_image_file", "type": "image_generation_user_error"}},
+    )
+
+    error = MediaService._image_provider_exception(response)
+
+    assert error.code == "INVALID_IMAGE_EDIT_SOURCE"
+    assert error.status_code == 400
+    assert "JPG, PNG, or WebP" in error.message
+
+
+def test_themed_edits_preserve_people_and_do_not_invent_brand_marks() -> None:
+    prompt = MediaService._edit_fidelity_prompt("Make this Snow White themed")
+
+    for requirement in (
+        "Preserve identity",
+        "skin tone",
+        "ethnicity",
+        "infant or child",
+        "not as a different person or race",
+        "do not invent or approximate branded text",
+    ):
+        assert requirement in prompt
+
+
+def test_generated_images_get_geometry_and_brand_fidelity_contract() -> None:
+    prompt = MediaService._generation_fidelity_prompt("Create a blue school bus")
+
+    assert "object counts" in prompt
+    assert "geometry" in prompt
+    assert "Do not invent or approximate real logos" in prompt
+
+
+def test_video_provider_prompt_adds_continuity_and_logo_constraints() -> None:
+    prompt = VideoService.provider_prompt("A blue school bus drives through town.", max_chars=1000)
+
+    assert "avoid morphing, duplicates, substitutions" in prompt
+    assert "Never invent or approximate a logo" in prompt
+    assert len(prompt) <= 1000
+
+
+def test_video_provider_prompt_uses_supplied_reference_without_claiming_perfection() -> None:
+    prompt = VideoService.provider_prompt(
+        "A blue school bus drives through town.",
+        max_chars=1000,
+        has_visual_reference=True,
+    )
+
+    assert "Use the supplied visual reference" in prompt
+    assert "do not restyle the mark" in prompt
+    assert "exact" not in prompt.lower()
+
+
+def test_video_provider_prompt_reserves_room_for_fidelity_contract() -> None:
+    with pytest.raises(VideoServiceError) as caught:
+        VideoService.provider_prompt("x" * 900, max_chars=1000)
+
+    assert caught.value.code == "PROMPT_TOO_LONG"
+    assert "visual-fidelity instructions" in caught.value.message
+
+
+def test_upload_preview_reconciles_cards_without_recreating_images() -> None:
+    script = read("public/crump-5.0.js")
+    block = script[script.index("function renderAttachmentTray()") : script.index("function activeToolLabel()")]
+
+    assert "tray.replaceChildren()" not in block
+    assert "data-crump50-attachment-id" in block
+    assert "if (!card)" in block
+    assert "tray.insertBefore(card" in block
+
+
+def test_video_job_survives_navigation_and_duplicate_submission() -> None:
+    script = read("public/crump-product-5.3.js")
+
+    for contract in (
+        "VIDEO_REQUEST_STORAGE_KEY",
+        "videoRequestFingerprint",
+        "if (state.videoStarting) return",
+        "Your current video is still generating",
+        "resumePendingVideoJob",
+        "document.addEventListener('visibilitychange'",
+        "window.addEventListener('online', resumePendingVideoJob)",
+        "event.key === VIDEO_JOB_STORAGE_KEY",
+    ):
+        assert contract in script
+
+    assert "Exact logos and readable brand marks can distort" in script
+
+
+class ReferenceFiles:
+    def __init__(self, raw: bytes) -> None:
+        self.raw = raw
+        self.lookups: list[tuple[str, str]] = []
+
+    async def get_owned(self, *, user_id: str, file_id: str):
+        self.lookups.append((user_id, file_id))
+        return {"id": file_id, "mime_type": "image/jpeg", "storage_path": "private/reference.jpg"}
+
+    async def download_bytes(self, *, row, max_bytes: int):
+        assert row["storage_path"] == "private/reference.jpg"
+        assert max_bytes == VideoService.REFERENCE_IMAGE_MAX_BYTES
+        return self.raw
+
+
+@pytest.mark.asyncio
+async def test_video_references_are_owner_scoped_and_normalized_before_provider_use() -> None:
+    source = Image.new("CMYK", (3000, 1500), color=(10, 20, 30, 0))
+    raw = BytesIO()
+    source.save(raw, format="JPEG")
+    files = ReferenceFiles(raw.getvalue())
+    service = VideoService(SimpleNamespace(), SimpleNamespace(), files)
+    file_id = "00000000-0000-0000-0000-000000000002"
+
+    references = await service.prepare_reference_images(
+        user_id="00000000-0000-0000-0000-000000000001",
+        file_ids=[file_id],
+        engine="extendable",
+    )
+
+    assert files.lookups == [("00000000-0000-0000-0000-000000000001", file_id)]
+    assert references[0]["fileId"] == file_id
+    assert references[0]["mimeType"] == "image/png"
+    decoded = base64.b64decode(references[0]["data"])
+    with Image.open(BytesIO(decoded)) as prepared:
+        assert prepared.mode in {"RGB", "RGBA"}
+        assert max(prepared.size) == VideoService.REFERENCE_IMAGE_MAX_EDGE
+
+
+@pytest.mark.asyncio
+async def test_video_reference_limits_match_real_provider_modes() -> None:
+    service = VideoService(SimpleNamespace(), SimpleNamespace(), ReferenceFiles(b"unused"))
+    ids = [f"00000000-0000-0000-0000-{index:012d}" for index in range(1, 4)]
+
+    with pytest.raises(VideoServiceError) as caught:
+        await service.prepare_reference_images(user_id=ids[0], file_ids=ids[:2], engine="quick")
+
+    assert caught.value.code == "TOO_MANY_VIDEO_REFERENCES"
+    assert VideoService.reference_limit("extendable") == 3

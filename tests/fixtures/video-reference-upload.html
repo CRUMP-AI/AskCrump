@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ask Crump video reference fixture</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/public/crump-product-5.3.css">
+</head>
+<body class="crump-v1-body">
+  <main><button type="button" id="openVideo">Open Video Studio</button></main>
+  <script>
+    window.currentUser = {id: '00000000-0000-0000-0000-000000000001'};
+    window.chats = [];
+    window.__videoRequest = null;
+    let uploadNumber = 0;
+    window.CrumpFileTools = {
+      upload: async file => {
+        uploadNumber += 1;
+        return {
+          id: `00000000-0000-0000-0000-${String(uploadNumber + 10).padStart(12, '0')}`,
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+        };
+      },
+    };
+    window.fetch = async (path, options = {}) => {
+      const url = String(path || '');
+      let body = {};
+      if (url === '/api/features') {
+        body = {
+          internalAccess: true,
+          creditBalance: 999,
+          features: {
+            video: {configured: true, entitled: true},
+            video_extendable: {configured: true, entitled: true},
+            video_cinematic_5: {configured: true, entitled: true},
+            video_cinematic_10: {configured: true, entitled: true},
+          },
+        };
+      } else if (url === '/api/projects') {
+        body = {projects: [], limit: 10};
+      } else if (url === '/api/media/video' && String(options.method || '').toUpperCase() === 'POST') {
+        window.__videoRequest = JSON.parse(options.body || '{}');
+        body = {success: true, job: {id: '00000000-0000-0000-0000-000000000099', status: 'processing'}};
+      } else if (url.includes('/api/media/video/')) {
+        body = {success: true, job: {id: '00000000-0000-0000-0000-000000000099', status: 'processing', provider: 'gemini'}};
+      }
+      return new Response(JSON.stringify(body), {status: 200, headers: {'Content-Type': 'application/json'}});
+    };
+  </script>
+  <script src="/public/crump-product-5.3.js"></script>
+  <script>
+    document.getElementById('openVideo').addEventListener('click', () => window.CrumpProduct53.open('video'));
+  </script>
+</body>
+</html>

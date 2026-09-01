@@ -499,6 +499,75 @@ body.crump-v1-body .crump53-video-preview {
   border-radius: 17px;
   background: #07090c;
 }
+body.crump-v1-body .crump53-video-reference {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,.085);
+  border-radius: 14px;
+  background: rgba(255,255,255,.018);
+}
+body.crump-v1-body .crump53-video-reference-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+body.crump-v1-body .crump53-video-reference-head > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+body.crump-v1-body .crump53-video-reference-head strong {
+  color: #d9d7d1;
+  font-size: 10px;
+}
+body.crump-v1-body .crump53-video-reference-head span {
+  color: #8f9697;
+  font-size: 8px;
+  line-height: 1.45;
+}
+body.crump-v1-body .crump53-video-reference-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+body.crump-v1-body .crump53-video-reference-grid:empty { display: none; }
+body.crump-v1-body .crump53-video-reference-card {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 7px;
+  border: 1px solid rgba(217,191,132,.13);
+  border-radius: 11px;
+  background: rgba(217,191,132,.028);
+}
+body.crump-v1-body .crump53-video-reference-card img {
+  grid-row: 1 / span 2;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  background: #07090c;
+  object-fit: cover;
+}
+body.crump-v1-body .crump53-video-reference-card span {
+  overflow: hidden;
+  color: #b8bbb8;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.crump-v1-body .crump53-video-reference-card button {
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #c6ad72;
+  font-size: 8px;
+  cursor: pointer;
+}
+body.crump-v1-body .crump53-video-reference-card button:disabled { opacity: .45; cursor: not-allowed; }
 body.crump-v1-body .crump53-lock {
   display: inline-flex;
   align-items: center;
@@ -872,6 +941,7 @@ body.crump-v1-body .crump53-provider-attribution {
   letter-spacing: .05em;
   text-decoration: none;
 }
+body.crump-v1-body .crump53-provider-attribution[hidden] { display: none; }
 body.crump-v1-body .crump53-provider-attribution:hover { color: #d7c38f; }
 body.crump-v1-body .crump53-video-result-meta {
   display: flex;

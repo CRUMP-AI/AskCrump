@@ -124,6 +124,15 @@ async def create_video(request: Request):
             "idempotentReplay": True,
         }
 
+    try:
+        reference_images = await video.prepare_reference_images(
+            user_id=auth.user["id"],
+            file_ids=payload.get("referenceFileIds"),
+            engine=engine,
+        )
+    except VideoServiceError as exc:
+        return _video_error(exc)
+
     estimated_cost = video.provider_cost_cents(
         engine=engine,
         resolution=resolution,
@@ -148,6 +157,7 @@ async def create_video(request: Request):
                 "engine": engine,
                 "resolution": resolution,
                 "durationSeconds": duration,
+                "referenceImageCount": len(reference_images),
             },
         )
     except FeatureAccessError as exc:
@@ -175,6 +185,7 @@ async def create_video(request: Request):
             project_id=project_id,
             idempotency_key=idempotency_key,
             charge_receipt=receipt,
+            reference_images=reference_images,
         )
         return {"success": True, "job": await video.public_job(user_id=auth.user["id"], row=row)}
     except VideoServiceError as exc:

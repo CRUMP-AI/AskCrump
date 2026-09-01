@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from backend.video_providers import RunwayProvider
+from backend.video_providers import GeminiVeoProvider, RunwayProvider
 from backend.video_service import VideoService, VideoServiceError
 
 
@@ -129,7 +129,8 @@ class FakeAsyncClient:
 
     async def post(self, url, *, headers, json):
         type(self).last_post = (url, headers, json)
-        return httpx.Response(200, request=httpx.Request("POST", url), json={"id": "task-123"})
+        body = {"name": "operations/gemini-123"} if "googleapis.com" in url else {"id": "task-123"}
+        return httpx.Response(200, request=httpx.Request("POST", url), json=body)
 
     async def get(self, url, *, headers):
         return httpx.Response(200, request=httpx.Request("GET", url), json=type(self).poll_body or {})
@@ -158,6 +159,63 @@ async def test_runway_adapter_keeps_secret_server_side_and_uses_versioned_gen45_
         "ratio": "1280:720",
         "duration": 5,
     }
+
+
+@pytest.mark.asyncio
+async def test_runway_reference_uses_private_data_uri_and_image_to_video_endpoint(monkeypatch):
+    import backend.video_providers as providers
+
+    monkeypatch.setattr(providers.httpx, "AsyncClient", FakeAsyncClient)
+    task_id = await RunwayProvider(settings()).start(
+        model="gen4.5",
+        prompt="Animate the supplied vehicle while preserving its appearance.",
+        aspect_ratio="9:16",
+        duration_seconds=5,
+        prompt_image="data:image/png;base64,cHJpdmF0ZS1pbWFnZQ==",
+    )
+
+    assert task_id == "task-123"
+    url, _, body = FakeAsyncClient.last_post
+    assert url.endswith("/v1/image_to_video")
+    assert body["promptImage"] == "data:image/png;base64,cHJpdmF0ZS1pbWFnZQ=="
+    assert body["ratio"] == "720:1280"
+
+
+@pytest.mark.asyncio
+async def test_gemini_reference_payloads_match_engine_capabilities(monkeypatch):
+    import backend.video_providers as providers
+
+    monkeypatch.setattr(providers.httpx, "AsyncClient", FakeAsyncClient)
+    provider = GeminiVeoProvider(settings())
+    reference = {"mimeType": "image/png", "data": "cmVmZXJlbmNl"}
+
+    await provider.start(
+        model="veo-3.1-fast-generate-preview",
+        prompt="Preserve this product.",
+        aspect_ratio="16:9",
+        resolution="720p",
+        reference_images=[reference, reference],
+    )
+    _, _, body = FakeAsyncClient.last_post
+    instance = body["instances"][0]
+    assert len(instance["referenceImages"]) == 2
+    assert instance["referenceImages"][0] == {
+        "image": {"inlineData": {"mimeType": "image/png", "data": "cmVmZXJlbmNl"}},
+        "referenceType": "asset",
+    }
+    assert "image" not in instance
+
+    await provider.start(
+        model="veo-3.1-lite-generate-preview",
+        prompt="Animate this opening frame.",
+        aspect_ratio="16:9",
+        resolution="720p",
+        initial_image=reference,
+    )
+    _, _, body = FakeAsyncClient.last_post
+    instance = body["instances"][0]
+    assert instance["image"] == {"inlineData": reference}
+    assert "referenceImages" not in instance
 
 
 @pytest.mark.asyncio
@@ -234,6 +292,10 @@ def test_video_ui_surfaces_engines_continue_flow_and_runway_attribution():
     assert "Powered by Runway" in ui
     assert "https://runwayml.com" in ui
     assert ".crump53-video-continuation" in css
+    assert "Optional appearance references · up to 3" in ui
+    assert "referenceFileIds" in ui
+    assert "window.CrumpFileTools.upload(file)" in ui
+    assert ".crump53-video-reference-card" in css
 
 
 def test_windows_javascript_validation_uses_file_url_to_path():
@@ -328,3 +390,13 @@ def test_media_routes_respect_nonrefundable_provider_boundary():
     source = read("backend/routes/media.py")
     assert source.count("if exc.refund_eligible:") >= 2
     assert "await features.refund" in source
+
+
+def test_reference_files_are_owner_checked_before_credits_or_provider_spend():
+    source = read("backend/routes/media.py")
+    prepare = source.index("reference_images = await video.prepare_reference_images")
+    charge = source.index("receipt = await features.consume", prepare)
+    start = source.index("row = await video.start", charge)
+
+    assert prepare < charge < start
+    assert '"referenceImageCount": len(reference_images)' in source

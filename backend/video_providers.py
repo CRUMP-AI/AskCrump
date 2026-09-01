@@ -130,6 +130,8 @@ class GeminiVeoProvider:
         resolution: str,
         duration_seconds: int = 8,
         video_reference: str | None = None,
+        initial_image: dict[str, str] | None = None,
+        reference_images: list[dict[str, str]] | None = None,
     ) -> str:
         if not self.enabled:
             raise ProviderError("Gemini video generation is not configured.", "VIDEO_NOT_CONFIGURED", 503)
@@ -146,6 +148,26 @@ class GeminiVeoProvider:
             # Extension inherently returns a single continued video.
             parameters["resolution"] = "720p"
             parameters["durationSeconds"] = 8
+        elif reference_images:
+            instance["referenceImages"] = [
+                {
+                    "image": {
+                        "inlineData": {
+                            "mimeType": str(reference.get("mimeType") or "image/png"),
+                            "data": str(reference.get("data") or ""),
+                        },
+                    },
+                    "referenceType": "asset",
+                }
+                for reference in reference_images[:3]
+            ]
+        elif initial_image:
+            instance["image"] = {
+                "inlineData": {
+                    "mimeType": str(initial_image.get("mimeType") or "image/png"),
+                    "data": str(initial_image.get("data") or ""),
+                },
+            }
 
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(45.0, connect=15.0)) as client:
@@ -287,6 +309,7 @@ class RunwayProvider:
         prompt: str,
         aspect_ratio: str,
         duration_seconds: int,
+        prompt_image: str | None = None,
     ) -> str:
         if not self.enabled:
             raise ProviderError("Runway video generation is not configured.", "VIDEO_NOT_CONFIGURED", 503)
@@ -297,9 +320,13 @@ class RunwayProvider:
             "ratio": ratio,
             "duration": duration_seconds,
         }
+        endpoint = "text_to_video"
+        if prompt_image:
+            payload["promptImage"] = prompt_image
+            endpoint = "image_to_video"
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(45.0, connect=15.0)) as client:
-                response = await client.post(f"{RUNWAY_BASE_URL}/text_to_video", headers=self.headers, json=payload)
+                response = await client.post(f"{RUNWAY_BASE_URL}/{endpoint}", headers=self.headers, json=payload)
         except httpx.HTTPError as exc:
             raise ProviderError("Could not start the Runway video job.", "VIDEO_PROVIDER_UNAVAILABLE", 503, True) from exc
         if response.status_code >= 400:
