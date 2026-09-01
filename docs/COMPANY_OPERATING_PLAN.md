@@ -86,6 +86,10 @@ next constraint.
   the save begins. `StarterIntentReached` remains reserved for launchpad task choice. Follow a
   completed save through later Project resume; keep every signal content-free, and do not call a
   click, completion, or observed-to-date rate activation or retention lift.
+- Keep signed-out runtime adoption safe and current: an untouched auth surface may refresh once for
+  a ready reliability update, while typed credentials, a deliberately checked control, or an
+  in-flight form must remain under the person's control. Default checkbox/radio values are not
+  user work and must never force the update overlay onto an otherwise untouched account screen.
 - Observe whether legitimate returning desktop users now find the permanent Chats control without
   instruction, whether mobile drawer actions remain dependable on repeated physical-device use,
   and whether either path leads to resumed useful work; retain content-free measurement and do not

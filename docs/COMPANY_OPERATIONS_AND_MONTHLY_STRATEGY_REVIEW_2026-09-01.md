@@ -205,10 +205,16 @@ generation, account, database object, or sensitive infrastructure changed.
 
 ## Exact next action
 
+Same-day follow-through closed one account-entry reliability defect without changing the strategy:
+commit `76da12a` and production deployment `dpl_CLCrBzFcQGKjiH54jjr5vjrnrQLp` corrected the runtime
+update guard that mistook an unchecked Terms control's default value for user-entered work. An
+untouched signed-out form now adopts the ready runtime once; typed or deliberately checked work is
+preserved behind an explicit choice. The external comparable cohort remains zero and no signup lift
+is claimed. Evidence: `docs/AUTH_RUNTIME_UPDATE_GUARD_RELEASE_2026-09-01.md`.
+
 At or after **2026-09-02 09:40 EDT**, inspect the complete post-release Vercel window for
 `invalid_image_file`, moderation-recovery, Precision Edit, and video-limit recurrence. If the window
 is clean, record it without claiming provider quality; if a current-deployment recurrence exists,
 fix the reproducible input/recovery failure before adding live appearance controls. In parallel,
 the first naturally occurring or consented tester session should be observed only through the
 content-free continuing-work stages above.
-
