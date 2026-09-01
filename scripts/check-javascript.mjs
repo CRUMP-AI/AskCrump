@@ -369,8 +369,8 @@ const repoRoot = new URL('../', import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot), 'utf8'));
 const releaseVersion = String(packageJson.version || '');
 const landingVersion = `${releaseVersion}-marketing-landing-1`;
-const authControllerVersion = `${releaseVersion}-plan-intent-delivery-2`;
-const planIntentDeliveryVersion = `${releaseVersion}-plan-intent-delivery-2`;
+const authControllerVersion = `${releaseVersion}-plan-intent-delivery-3`;
+const planIntentDeliveryVersion = `${releaseVersion}-plan-intent-delivery-3`;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
 const coreReliabilityVersion = `${releaseVersion}-core-reliability-1`;
@@ -710,7 +710,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r175') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r176') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${continuityActionVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||

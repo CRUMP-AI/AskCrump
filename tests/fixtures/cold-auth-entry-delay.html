@@ -163,6 +163,15 @@
       document.body.appendChild(modal);
       if (fixtureLegacyBillingOwner && !fixtureModernBillingOwner) {
         window.setTimeout(() => { fixtureModernBillingOwner = true; }, 120);
+        window.setTimeout(() => {
+          const host = modal.querySelector('.billing51-plans');
+          if (!host?.children.length) return;
+          host.replaceChildren(...[...host.children].map(card => {
+            const replacement = card.cloneNode(true);
+            replacement.classList.remove('is-intent');
+            return replacement;
+          }));
+        }, fixtureBillingDelay + 30);
       }
       return modal;
     };

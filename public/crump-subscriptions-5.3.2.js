@@ -231,12 +231,8 @@
   function applyPlanIntent(modal, plan) {
     if (!modal?.isConnected || !['professional', 'enterprise'].includes(plan)) return false;
     const host = modal.querySelector('.billing51-plans');
-    const card = host?.querySelector(`[data-crump-plan="${plan}"]`);
     const section = host?.closest('.billing51-section');
-    if (!host || !card || !section) return false;
-
-    host.querySelectorAll('[data-crump-plan]').forEach(node => node.classList.remove('is-intent'));
-    card.classList.add('is-intent');
+    if (!host || !section) return false;
 
     let notice = section.querySelector('.crump52-plan-intent');
     if (!notice) {
@@ -246,7 +242,12 @@
       section.insertBefore(notice, host);
     }
     const label = plan === 'enterprise' ? 'Enterprise' : 'Professional';
-    notice.textContent = `You chose ${label}. Review the details, then continue when you are ready.`;
+    const message = `You chose ${label}. Review the details, then continue when you are ready.`;
+    if (notice.textContent !== message) notice.textContent = message;
+    const card = host.querySelector(`[data-crump-plan="${plan}"]`);
+    if (!card) return false;
+    host.querySelectorAll('[data-crump-plan]').forEach(node => node.classList.remove('is-intent'));
+    card.classList.add('is-intent');
     return true;
   }
 
@@ -291,7 +292,7 @@
 
   function scan() {
     document.querySelectorAll('.billing51-modal').forEach(modal => {
-      void activatePlans(modal);
+      void activatePlans(modal).then(() => applyPlanIntent(modal, modal.dataset.crumpPlanIntent));
     });
   }
 

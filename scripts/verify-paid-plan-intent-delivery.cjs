@@ -6,9 +6,15 @@ const executablePath = process.env.CODEX_BROWSER_EXECUTABLE || undefined;
 const viewports = [
   {name: 'phone', width: 390, height: 844},
   {name: 'desktop', width: 1280, height: 720},
-];
-const plans = ['professional', 'enterprise'];
+].filter(viewport => !process.env.ASKCRUMP_PLAN_VIEWPORT || viewport.name === process.env.ASKCRUMP_PLAN_VIEWPORT);
+const plans = ['professional', 'enterprise'].filter(
+  plan => !process.env.ASKCRUMP_PLAN_NAME || plan === process.env.ASKCRUMP_PLAN_NAME,
+);
 const consumerDelays = [180, 260, 340, 420, 500, 580, 660, 740, 820, 900];
+const activeConsumerDelays = consumerDelays.slice(
+  0,
+  Math.max(1, Math.min(consumerDelays.length, Number(process.env.ASKCRUMP_PLAN_DELAY_RUNS || consumerDelays.length))),
+);
 
 (async () => {
   const browser = await chromium.launch({headless: true, ...(executablePath ? {executablePath} : {})});
@@ -16,7 +22,10 @@ const consumerDelays = [180, 260, 340, 420, 500, 580, 660, 740, 820, 900];
   try {
     for (const viewport of viewports) {
       for (const plan of plans) {
-        for (const consumerDelay of consumerDelays) {
+        for (const consumerDelay of activeConsumerDelays) {
+          if (process.env.ASKCRUMP_PLAN_DEBUG === '1') {
+            process.stderr.write(`starting ${viewport.name} ${plan} ${consumerDelay}\n`);
+          }
           const context = await browser.newContext({viewport});
           const page = await context.newPage();
           const browserErrors = [];
@@ -36,7 +45,17 @@ const consumerDelays = [180, 260, 340, 420, 500, 580, 660, 740, 820, 900];
 
           const label = plan === 'enterprise' ? 'Enterprise' : 'Professional';
           const notice = page.getByText(`You chose ${label}. Review the details, then continue when you are ready.`, {exact: true});
-          await notice.waitFor({state: 'visible', timeout: 4000});
+          try {
+            await notice.waitFor({state: 'visible', timeout: 4000});
+          } catch (error) {
+            const diagnostic = await page.evaluate(() => ({
+              fixture: window.__fixture,
+              modalClasses: [...document.querySelectorAll('.billing51-modal')].map(node => node.className),
+              modalHtml: document.querySelector('.billing51-modal')?.innerHTML.slice(0, 1200) || '',
+            }));
+            error.message += `\nPlan-delivery diagnostic: ${JSON.stringify(diagnostic)}`;
+            throw error;
+          }
           await page.waitForFunction(() => window.__fixture?.planConsumed === 1, null, {timeout: 4000});
           await page.waitForTimeout(80);
 
@@ -66,6 +85,9 @@ const consumerDelays = [180, 260, 340, 420, 500, 580, 660, 740, 820, 900];
           assert.deepEqual(browserErrors, []);
           assert.equal(new URL(page.url()).searchParams.get('plan'), plan);
           results.push({viewport: viewport.name, plan, consumerDelay});
+          if (process.env.ASKCRUMP_PLAN_DEBUG === '1') {
+            process.stderr.write(`passed ${viewport.name} ${plan} ${consumerDelay}\n`);
+          }
           await context.close();
         }
       }

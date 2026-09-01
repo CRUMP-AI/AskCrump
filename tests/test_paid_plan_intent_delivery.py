@@ -34,11 +34,18 @@ def test_paid_plan_intent_waits_for_matching_consumer_acknowledgement():
 
 def test_plan_review_consumer_is_idempotent_and_never_starts_checkout():
     subscriptions = read("public/crump-subscriptions-5.3.2.js")
+    intent_applier = subscriptions[
+        subscriptions.index("function applyPlanIntent") :
+        subscriptions.index("async function activatePlans")
+    ]
     listener = subscriptions[subscriptions.index("window.addEventListener('crump:plan-intent'") :]
 
     assert "const deliveryKey = `${plan}:${capturedAt}`;" in listener
     assert "modal.dataset.crumpPlanIntentReached !== deliveryKey" in listener
     assert "if (!applyPlanIntent(modal, plan)) return false;" in listener
+    assert "activatePlans(modal).then(() => applyPlanIntent(modal, modal.dataset.crumpPlanIntent))" in subscriptions
+    assert "if (notice.textContent !== message) notice.textContent = message;" in intent_applier
+    assert intent_applier.index("notice.textContent") < intent_applier.index("if (!card) return false;")
     assert "document.querySelector('.crump52-billing-modal')" in listener
     assert "|| document.querySelector('.billing51-modal')" in listener
     assert "detail: {plan, capturedAt}" in listener
@@ -58,7 +65,7 @@ def test_paid_plan_delivery_fixture_is_local_content_free_and_checks_checkout_bo
     assert "Fixture blocks checkout." in fixture
     assert "askcrump.com" not in fixture
     assert "consumerDelays = [180, 260, 340, 420, 500, 580, 660, 740, 820, 900]" in verifier
-    assert "const plans = ['professional', 'enterprise'];" in verifier
+    assert "const plans = ['professional', 'enterprise'].filter(" in verifier
     assert "{name: 'phone', width: 390, height: 844}" in verifier
     assert "{name: 'desktop', width: 1280, height: 720}" in verifier
     assert "assert.equal(state.checkoutRequests, 0);" in verifier
