@@ -28,9 +28,9 @@
       actionLabel: 'Open Create',
       eyebrow: 'CREATE',
       title: 'Choose the outcome you need.',
-      content: 'Create opens the right workspace for documents, presentations, images, and manuscripts. Nothing generates until you review the setup and send the request.',
+      content: 'Create opens the right workspace for documents, presentations, images, and manuscripts. For images, add a reference and use Precision Edit after a result to brush over only what may change. Nothing generates until you review the setup and send the request.',
       icon: '+',
-      features: ['Editable files', 'Images & references', 'Long-form manuscripts'],
+      features: ['Editable files', 'References & Precision Edit', 'Long-form manuscripts'],
     },
     {
       destination: 'Video',

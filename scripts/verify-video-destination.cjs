@@ -71,14 +71,26 @@ async function inspectTutorial(page) {
       destinations: [...document.querySelectorAll('.tutorial-destination-map span')].map(item => item.textContent),
       current: document.querySelector('.tutorial-destination-map .is-current')?.textContent || '',
       action: document.querySelector('.tutorial-open-destination')?.textContent || '',
+      description: document.getElementById('tutorialDescription')?.textContent || '',
+      features: [...document.querySelectorAll('.tutorial-feature')].map(item => item.textContent || ''),
     }));
-    assert.deepEqual(guide, {
+    assert.deepEqual({
+      progress: guide.progress,
+      title: guide.title,
+      destinations: guide.destinations,
+      current: guide.current,
+      action: guide.action,
+    }, {
       progress: `${index + 1} / 6`,
       title,
       destinations: ['Ask', 'Projects', 'Create', 'Video', 'Library', 'You'],
       current: destination,
       action: `Open ${destination} →`,
     });
+    if (destination === 'Create') {
+      assert.match(guide.description, /use Precision Edit after a result to brush over only what may change/i);
+      assert.deepEqual(guide.features, ['Editable files', 'References & Precision Edit', 'Long-form manuscripts']);
+    }
     await page.locator('.tutorial-open-destination').click();
     await page.waitForFunction(expected => document.getElementById('fixtureDestination')?.textContent === expected, destination.toLowerCase());
     assert.equal(await page.locator('#fixtureDestination').textContent(), destination.toLowerCase());

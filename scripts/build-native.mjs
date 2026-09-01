@@ -71,7 +71,7 @@ const loader = String.raw`
   ]);
 
   const workspaceScripts = Object.freeze([
-    ['/onboarding.js?v=5.9.76-video-destination-1', 'workspaceonboarding'],
+    ['/onboarding.js?v=5.9.76-precision-edit-guide-1', 'workspaceonboarding'],
     ['/scroll-manager.js?v=5.9.76-user-controlled-scroll-1', 'workspacescroll'],
     ['/profile-manager.js', 'workspaceprofile'],
     ['/billing-manager.js?v=5.9.76-commerce-recovery-1', 'workspacebilling'],

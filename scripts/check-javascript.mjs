@@ -379,7 +379,8 @@ const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
 const coreReliabilityVersion = `${releaseVersion}-core-reliability-1`;
 const settingsProfileTrustVersion = `${releaseVersion}-settings-profile-trust-8`;
-const precisionEditLoaderVersion = `${releaseVersion}-precision-edit-loader-1`;
+const precisionEditGuideLoaderVersion = `${releaseVersion}-precision-edit-guide-loader-1`;
+const precisionEditGuideVersion = `${releaseVersion}-precision-edit-guide-1`;
 const fileLibraryWindowVersion = `${releaseVersion}-file-library-window-1`;
 const imageSafetyRecoveryVersion = `${releaseVersion}-image-safety-recovery-1`;
 const userControlledScrollVersion = `${releaseVersion}-user-controlled-scroll-1`;
@@ -581,7 +582,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${precisionEditLoaderVersion}`,
+  `/runtime-body-v1.js?v=${precisionEditGuideLoaderVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
   `/auth-resilience.js?v=${releaseVersion}`,
@@ -621,7 +622,7 @@ if (appHtml.includes('<span>Saved</span>')) {
 const runtime = await readFile(new URL('public/runtime-body-v1.js', repoRoot), 'utf8');
 if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/onboarding.css?v=${videoDestinationVersion}`) ||
-    !runtime.includes(`/onboarding.js?v=${videoDestinationVersion}`) ||
+    !runtime.includes(`/onboarding.js?v=${precisionEditGuideVersion}`) ||
     !runtime.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
     !runtime.includes(`/chat-resilience.js?v=${imageSafetyRecoveryVersion}`) ||
     !runtime.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
@@ -797,7 +798,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
 if (!serviceWorker.includes('ask-crump-new-body-v1-r202') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${precisionEditLoaderVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${precisionEditGuideLoaderVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${imageSafetyRecoveryVersion}`) ||
     !serviceWorker.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
@@ -811,7 +812,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r202') ||
     !serviceWorker.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.js?v=${newResponseCueVersion}`) ||
     !serviceWorker.includes(`/onboarding.css?v=${videoDestinationVersion}`) ||
-    !serviceWorker.includes(`/onboarding.js?v=${videoDestinationVersion}`) ||
+    !serviceWorker.includes(`/onboarding.js?v=${precisionEditGuideVersion}`) ||
     !serviceWorker.includes(`/crump-polish-5.6.js?v=${videoDestinationVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.css?v=${mobileDrawerDestinationsVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${destinationBackgroundGuardVersion}`) ||

@@ -250,7 +250,7 @@ def test_plan_center_containment_assets_are_versioned_everywhere():
         assert versioned_billing_css in source
         assert versioned_credit_contract in source
     assert "ask-crump-new-body-v1-r202" in read_public("sw.js")
-    assert "/runtime-body-v1.js?v=5.9.76-precision-edit-loader-1" in read_public("app.html")
+    assert "/runtime-body-v1.js?v=5.9.76-precision-edit-guide-loader-1" in read_public("app.html")
 
 
 def test_browser_fixture_uses_the_production_plan_center_layers():

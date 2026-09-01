@@ -31,6 +31,8 @@ def test_tutorial_is_current_and_no_longer_bootstraps_legacy_runtime():
         assert f"destination: '{destination}'" in tutorial
     assert "Conversation history remains in Chats." in tutorial
     assert "Nothing generates until you review the setup and send the request." in tutorial
+    assert "use Precision Edit after a result to brush over only what may change" in tutorial
+    assert "References & Precision Edit" in tutorial
     assert "select a named Project to enter its dedicated workspace" in tutorial
     assert "Open a named Project" in tutorial
     assert "tutorial-open-destination" in tutorial and ".tutorial-open-destination" in styles
