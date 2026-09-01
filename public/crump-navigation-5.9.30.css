@@ -321,6 +321,15 @@ body.crump-v1-body .crump5930-create-sheet footer {
 }
 
 @media (max-width: 1100px) {
+  html[data-crump-navigation5930="ready"] body.crump-v1-body .v1-library {
+    bottom: calc(var(--crump5930-mobile-nav) + env(safe-area-inset-bottom)) !important;
+    height: calc(100dvh - var(--crump5930-mobile-nav) - env(safe-area-inset-bottom)) !important;
+  }
+
+  html[data-crump-navigation5930="ready"] body.crump-v1-body .sidebar-overlay {
+    bottom: calc(var(--crump5930-mobile-nav) + env(safe-area-inset-bottom)) !important;
+  }
+
   html[data-crump-navigation5930="ready"] body.crump-v1-body :is(
     .crump53-overlay,
     .crump5930-create-overlay,

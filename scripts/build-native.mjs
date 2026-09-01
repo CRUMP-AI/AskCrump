@@ -66,7 +66,7 @@ const loader = String.raw`
     ['/crump-library-5.7.css', 'crumplibrary57'],
     ['/crump-code-5.9.35.css?v=5.9.76-intelligence-architecture-1', 'crumpcode5935'],
     ['/crump-v1-stability.css', 'crumpv1stability'],
-    ['/crump-navigation-5.9.30.css?v=5.9.76-video-destination-1', 'crumpnav5930'],
+    ['/crump-navigation-5.9.30.css?v=5.9.76-mobile-drawer-destinations-1', 'crumpnav5930'],
   ]);
 
   const workspaceScripts = Object.freeze([

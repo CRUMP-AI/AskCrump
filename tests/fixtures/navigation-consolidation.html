@@ -6,7 +6,7 @@
   <title>Navigation consolidation fixture</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/public/crump-v1-body.css?v=5.9.76">
-  <link rel="stylesheet" href="/public/crump-navigation-5.9.30.css?v=5.9.76-video-destination-1">
+  <link rel="stylesheet" href="/public/crump-navigation-5.9.30.css?v=5.9.76-mobile-drawer-destinations-1">
   <style>
     body { margin: 0; background: #080b0f; color: #eee; font-family: system-ui, sans-serif; }
     .v1-shell { display: grid; min-height: 100vh; grid-template-columns: 94px 292px minmax(0,1fr); }
@@ -48,7 +48,7 @@
           <span>Account sync</span>
         </div>
       </aside>
-      <div id="sidebarOverlay"></div>
+      <div id="sidebarOverlay" class="sidebar-overlay"></div>
       <main class="main-content v1-workspace">
         <div class="fixture-card"><button id="menuBtn" type="button">Chats</button><span>WORKSPACE</span><h1>What are we moving forward?</h1><p id="result">ready</p></div>
       </main>
@@ -116,7 +116,11 @@
     };
     document.getElementById('upgradeBtnSidebar').addEventListener('click', window.showBillingCenter);
     document.getElementById('closeSettingsBtn').addEventListener('click', () => { document.getElementById('settingsModal').style.display = 'none'; });
-    document.getElementById('menuBtn').addEventListener('click', () => { document.getElementById('sidebar').classList.add('active'); });
+    document.getElementById('menuBtn').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.add('active');
+      document.getElementById('sidebarOverlay').classList.add('active');
+      document.getElementById('menuBtn').setAttribute('aria-expanded', 'true');
+    });
     window.CrumpBodyV1 = {syncConversationLibrary() {}, toggleConversationLibrary() {}};
     window.CrumpProduct53 = {
       open(section = 'projects') {
@@ -137,7 +141,11 @@
   <script>
     const mobileProof = new URLSearchParams(location.search).get('mobile');
     if (mobileProof === 'drawer') {
-      window.addEventListener('load', () => setTimeout(() => document.getElementById('sidebar').classList.add('active'), 100));
+      window.addEventListener('load', () => setTimeout(() => {
+        document.getElementById('sidebar').classList.add('active');
+        document.getElementById('sidebarOverlay').classList.add('active');
+        document.getElementById('menuBtn').setAttribute('aria-expanded', 'true');
+      }, 100));
     }
     if (mobileProof === 'plan') {
       window.addEventListener('load', () => setTimeout(() => {
