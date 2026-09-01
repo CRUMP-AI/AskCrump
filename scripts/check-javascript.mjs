@@ -405,6 +405,7 @@ const precisionEditGuideLoaderVersion = `${releaseVersion}-local-photo-studio-lo
 const precisionEditGuideVersion = `${releaseVersion}-local-photo-studio-guide-1`;
 const fileLibraryWindowVersion = `${releaseVersion}-file-library-window-1`;
 const imageReferenceRecoveryVersion = `${releaseVersion}-image-reference-recovery-1`;
+const projectSaveActivationVersion = `${releaseVersion}-project-save-activation-1`;
 const userControlledScrollVersion = `${releaseVersion}-user-controlled-scroll-1`;
 const newResponseCueVersion = `${releaseVersion}-new-response-cue-1`;
 const videoDestinationVersion = `${releaseVersion}-video-destination-1`;
@@ -648,7 +649,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/chat-resilience.js?v=${imageReferenceRecoveryVersion}`) ||
     !runtime.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
     !runtime.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
-    !runtime.includes(`/ui-functions.js?v=${imageReferenceRecoveryVersion}`) ||
+    !runtime.includes(`/ui-functions.js?v=${projectSaveActivationVersion}`) ||
     !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-share.js?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-manager.js?v=${continuityActionVersion}`) ||
@@ -817,7 +818,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r207') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r208') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${precisionEditGuideLoaderVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
@@ -828,7 +829,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r207') ||
     !serviceWorker.includes(`/crump-5.0.js?v=${imageReferenceRecoveryVersion}`) ||
     !serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     !serviceWorker.includes(`/crump-precision-image-edit.js?v=${precisionEditStudioVersion}`) ||
-    !serviceWorker.includes(`/ui-functions.js?v=${imageReferenceRecoveryVersion}`) ||
+    !serviceWorker.includes(`/ui-functions.js?v=${projectSaveActivationVersion}`) ||
     !serviceWorker.includes(`/app.js?v=${userControlledScrollVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.js?v=${newResponseCueVersion}`) ||
@@ -974,6 +975,20 @@ if (!projectRelationshipGuard.includes("button.dataset.projectLookup = 'pending'
     !projectRelationshipGuard.includes('button.disabled = wasDisabled;') ||
     projectRelationshipGuard.indexOf('button.disabled = true;') > projectRelationshipGuard.indexOf('await lookup(chatId)')) {
   console.error('A Project continuity action must stay unavailable until its owner-scoped relationship lookup settles.');
+  process.exit(1);
+}
+const projectSaveActivationGuard = uiFunctions.slice(
+  uiFunctions.indexOf('async function performOutcomeProjectAction'),
+  uiFunctions.indexOf('async function keepLatestOutcomeInProject'),
+);
+if (!projectSaveActivationGuard.includes("window.CrumpAnalytics?.track?.('StarterIntentReached'") ||
+    !projectSaveActivationGuard.includes("eventKey: 'project-save-intent'") ||
+    !projectSaveActivationGuard.includes("source: targetProjectId ? 'existing_project' : 'new_project'") ||
+    !projectSaveActivationGuard.includes("projectButton.textContent = 'Saving…';") ||
+    !projectSaveActivationGuard.includes("continuityPrompt.textContent = 'Saving this conversation privately…';") ||
+    !projectSaveActivationGuard.includes("continuityPrompt.textContent = 'Couldn’t save yet. Your conversation is still here.';") ||
+    !uiFunctions.includes('Saved privately to "${projectName}".')) {
+  console.error('Project save activation must expose pending, recovery, success, and content-free intent states.');
   process.exit(1);
 }
 const markdownWindow = {

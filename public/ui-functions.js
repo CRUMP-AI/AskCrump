@@ -593,7 +593,7 @@
     button.textContent = 'Open Project';
     button.setAttribute('aria-label', `Open Project \u201c${projectName}\u201d containing this conversation`);
     const prompt = button.closest('.outcome-feedback')?.querySelector('.outcome-continuity-prompt');
-    if (prompt) prompt.textContent = `Saved to "${projectName}".`;
+    if (prompt) prompt.textContent = `Saved privately to "${projectName}".`;
     return true;
   }
 
@@ -655,6 +655,11 @@
       }
     }
 
+    const targetProjectId = String(projectButton.dataset.projectId || '').trim();
+    void window.CrumpAnalytics?.track?.('StarterIntentReached', {
+      eventKey: 'project-save-intent',
+      source: targetProjectId ? 'existing_project' : 'new_project',
+    });
     const keepConversation = window.CrumpProduct53?.keepConversation;
     if (typeof keepConversation !== 'function') {
       window.showToast?.('Projects are still loading. Try again in a moment.', 'error');
@@ -662,13 +667,16 @@
     }
     projectButton.disabled = true;
     projectButton.setAttribute('aria-busy', 'true');
+    projectButton.textContent = 'Saving…';
+    if (continuityPrompt) continuityPrompt.textContent = 'Saving this conversation privately…';
     try {
-      const result = await keepConversation({projectId: projectButton.dataset.projectId || null});
+      const result = await keepConversation({projectId: targetProjectId || null});
       if (!result?.success) throw new Error('Projects are still loading. Try again in a moment.');
-      if (continuityPrompt) continuityPrompt.textContent = `Saved to "${result.project?.name || 'Project'}".`;
       showSavedOutcomeProject(projectButton, result.project);
       return true;
     } catch (_) {
+      if (continuityPrompt) continuityPrompt.textContent = 'Couldn’t save yet. Your conversation is still here.';
+      syncOutcomeProjectAction(projectButton);
       return false;
     } finally {
       projectButton.disabled = false;

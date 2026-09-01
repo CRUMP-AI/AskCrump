@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <title>Project continuity save-stall fixture</title>
+  <link rel="icon" href="data:,">
 </head>
 <body>
   <main>
@@ -33,6 +34,7 @@
       unexpectedRequests: 0,
       savedProject: null,
       toasts: [],
+      analytics: [],
     };
     const recordBrowserError = () => {
       const output = document.getElementById('fixtureErrors');
@@ -44,7 +46,12 @@
       window.__fixture.toasts.push({message, tone});
       document.getElementById('fixtureStatus').textContent = message;
     };
-    window.CrumpAnalytics = {track: () => Promise.resolve(true)};
+    window.CrumpAnalytics = {
+      track: (eventName, values) => {
+        window.__fixture.analytics.push({eventName, values});
+        return Promise.resolve(true);
+      },
+    };
     window.CrumpPresence = {indicator: () => null};
     window.syncChatsToServer = () => Promise.resolve({success: true});
     const nativeSetTimeout = window.setTimeout.bind(window);
@@ -68,6 +75,12 @@
       }
       if (url.pathname === '/api/features') {
         return new Response(JSON.stringify({success: true}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      if (url.pathname === `/api/projects/for-chat/${fixtureChatId}` && method === 'GET') {
+        return new Response(JSON.stringify({success: true, project: null}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });

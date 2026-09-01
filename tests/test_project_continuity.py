@@ -807,6 +807,12 @@ def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_
     assert "group.replaceChildren(continuityPrompt, projectButton, status)" in ui
     assert r'Open Project \u201c${projectName}\u201d containing this conversation' in ui
     assert "showSavedOutcomeProject(projectButton, result.project)" in ui
+    assert "eventKey: 'project-save-intent'" in ui
+    assert "source: targetProjectId ? 'existing_project' : 'new_project'" in ui
+    assert "projectButton.textContent = 'Saving…';" in ui
+    assert "Saving this conversation privately…" in ui
+    assert "Couldn’t save yet. Your conversation is still here." in ui
+    assert 'Saved privately to "${projectName}".' in ui
     assert "projectButton.dataset.chatId = String(window.currentChatId" in ui
     assert "hydrateOutcomeProjectAction(projectButton)" in ui
     assert "window.addEventListener?.('crump:project-service-ready'" in ui
@@ -830,7 +836,7 @@ def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_
     assert "return selectProject(normalizedProjectId)" in product
     assert "Object.prototype.hasOwnProperty.call(options, 'projectId')" in product
     assert "const targetProjectId" in product
-    assert "keepConversation({projectId: projectButton.dataset.projectId || null})" in ui
+    assert "keepConversation({projectId: targetProjectId || null})" in ui
     assert "await window.syncChatsToServer?.()" in product
     assert 'body: {chatId}' in product
     assert '@router.post("/{project_id}/chats")' in route
@@ -929,6 +935,7 @@ def test_project_save_timeout_fixture_uses_real_product_code_without_credentials
     assert "fixtureSuccessfulSave" in fixture
     assert "Project save request completed." in fixture
     assert "window.__fixture.savedProject" in fixture
+    assert "window.__fixture.analytics.push({eventName, values})" in fixture
     assert 'aria-label="Browser errors"' in fixture
     assert "unhandledrejection" in fixture
     assert "Project save request stalled." in fixture
@@ -939,6 +946,11 @@ def test_project_save_timeout_fixture_uses_real_product_code_without_credentials
     assert "const PROJECT_SAVE_TIMEOUT_MS = 15_000" in product
     assert "timeoutMs: PROJECT_SAVE_TIMEOUT_MS" in product
     assert "void refreshProjects()" in product
+    verifier = (ROOT / "scripts" / "verify-project-save-activation.cjs").read_text(encoding="utf-8")
+    assert "project-save-intent" in verifier
+    assert "Saving this conversation privately" in verifier
+    assert "Couldn’t save yet" in verifier
+    assert "Saved privately" in verifier
 
 
 def test_project_target_disclosure_fixture_covers_selected_and_new_destinations():
