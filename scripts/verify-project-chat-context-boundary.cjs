@@ -100,10 +100,12 @@ async function verify(browser, viewport) {
     activeElementId: document.activeElement?.id || '',
     chatId: window.currentChatId,
     projectActive: document.body.classList.contains('crump53-chat-project-active'),
+    destinations: [...window.fixtureDestinations],
   }));
   assert.equal(resumed.activeElementId, 'userInput', JSON.stringify(resumed));
   assert.equal(resumed.chatId, linkedChatId, JSON.stringify(resumed));
   assert.equal(resumed.projectActive, false, JSON.stringify(resumed));
+  assert.equal(resumed.destinations.at(-1), 'ask', JSON.stringify(resumed));
   assert.equal(freshState.browserErrors, 0);
   assert.deepEqual(errors, []);
 

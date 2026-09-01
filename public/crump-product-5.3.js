@@ -1525,7 +1525,11 @@
       eventKey: 'recent-work-resumed',
       source: 'project',
     });
-    closeStudio();
+    if (typeof window.CrumpNavigation5930?.open === 'function') {
+      window.CrumpNavigation5930.open('ask');
+    } else {
+      closeStudio();
+    }
     window.loadChat(normalized);
     requestAnimationFrame(() => {
       byId('userInput')?.focus({preventScroll: true});

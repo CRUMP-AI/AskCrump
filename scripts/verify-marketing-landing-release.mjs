@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const BASE = '8d836e5c4decb5a034314021c255520bbb371fd6';
 const LANDING_VERSION = '5.9.76-marketing-landing-1';
-const CACHE_NAME = 'ask-crump-new-body-v1-r185';
+const CACHE_NAME = 'ask-crump-new-body-v1-r186';
 
 const allowedPaths = new Set([
   'public/ai-document-generator.html',

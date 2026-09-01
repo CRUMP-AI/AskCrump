@@ -609,6 +609,7 @@ def test_project_workspace_surfaces_saved_conversations_and_a_private_resume_act
     assert "await window.syncChatsFromServer?.()" in product
     assert "window.loadChat(normalized)" in product
     resume = product[product.index("async function resumeProjectConversation"):product.index("async function saveProject")]
+    assert "window.CrumpNavigation5930.open('ask')" in resume
     assert "byId('userInput')?.focus({preventScroll: true})" in resume
     assert "chatId:" not in resume
     assert "title:" not in resume
@@ -880,6 +881,7 @@ def test_project_chat_context_is_explicit_visible_and_relationship_scoped():
     assert "/api/chat" in fixture
     assert "fixtureChatRequests" in fixture
     assert "window.loadChat = chatId => window.fixtureOpenConversation(chatId)" in fixture
+    assert "window.fixtureDestinations.push(destination)" in fixture
     verifier = (ROOT / "scripts" / "verify-project-chat-context-boundary.cjs").read_text(
         encoding="utf-8"
     )

@@ -43,9 +43,16 @@
       messages: [],
     }];
     window.fixtureChatRequests = [];
+    window.fixtureDestinations = [];
     window.showToast = () => {};
     window.CrumpAnalytics = {track: () => Promise.resolve(true)};
     window.CrumpBodyV1 = {command: () => {}};
+    window.CrumpNavigation5930 = {
+      open: destination => {
+        window.fixtureDestinations.push(destination);
+        document.getElementById('crump53Close')?.click();
+      },
+    };
     const recordBrowserError = () => {
       const output = document.getElementById('fixtureErrors');
       output.textContent = String(Number(output.textContent || 0) + 1);
