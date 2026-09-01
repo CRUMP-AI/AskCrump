@@ -1154,7 +1154,8 @@ async function restoreSettingsIdentity() {
     if (!emailField || emailField.value || settingsIdentityRequest) return settingsIdentityRequest;
     emailField.setAttribute('aria-busy', 'true');
     emailField.placeholder = 'Confirming account email…';
-    settingsIdentityRequest = Promise.resolve(window.deviceAuth?.checkSession?.())
+    settingsIdentityRequest = Promise.resolve()
+        .then(() => window.deviceAuth?.checkSession?.())
         .then(result => {
             const user = result?.authenticated ? result.data?.user : null;
             if (!user?.email) return;
@@ -1182,6 +1183,7 @@ function loadSettingsValues() {
     document.getElementById('settingsName').value = user.fullName || profile.name || '';
     document.getElementById('settingsEmail').value = user.email || profile.email || '';
     document.getElementById('settingsEmail').readOnly = true;
+    if (!document.getElementById('settingsEmail').value) void restoreSettingsIdentity();
     document.getElementById('assistantName').value = SafeStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
 
     const workStartSelect = document.getElementById('workStart');
@@ -1204,10 +1206,13 @@ function loadSettingsValues() {
     const updateVisibility = () => { workHoursGroup.style.display = workModeToggle.checked ? 'block' : 'none'; };
     updateVisibility();
     workModeToggle.onchange = updateVisibility;
-    window.CrumpPresence?.applyPreferencesToForm?.();
+    try {
+        window.CrumpPresence?.applyPreferencesToForm?.();
+    } catch (error) {
+        console.warn('[Settings] Optional presence preferences could not be loaded:', error);
+    }
     wireSettingsSaveState();
     resetSettingsSaveState();
-    if (!document.getElementById('settingsEmail').value) void restoreSettingsIdentity();
 }
 
 window.saveSettings = async function() {

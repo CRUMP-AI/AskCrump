@@ -58,7 +58,7 @@
       },
     };
     window.CrumpPresence = {
-      applyPreferencesToForm() {},
+      applyPreferencesToForm() { throw new Error('Fixture-only optional preference failure'); },
       async savePreferences() {},
     };
     window.SyncManager = {async push() { return {success: true}; }};

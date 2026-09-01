@@ -12,11 +12,25 @@ def test_settings_recovers_server_identity_without_exposing_it_to_logs():
     app = read("public/app.js")
 
     assert "async function restoreSettingsIdentity()" in app
-    assert "window.deviceAuth?.checkSession?.()" in app
+    assert ".then(() => window.deviceAuth?.checkSession?.())" in app
     assert "const user = result?.authenticated ? result.data?.user : null;" in app
     assert "window.currentUser = { ...(window.currentUser || {}), ...user };" in app
     assert "emailField.value = user.email;" in app
     assert "console.log" not in app[app.index("async function restoreSettingsIdentity()") : app.index("function loadSettingsValues()")]
+
+
+def test_identity_recovery_starts_before_optional_preference_loading():
+    app = read("public/app.js")
+    fixture = read("tests/fixtures/settings-profile-trust.html")
+    loader = app[app.index("function loadSettingsValues()") : app.index("window.saveSettings = async function()")]
+
+    recovery = "if (!document.getElementById('settingsEmail').value) void restoreSettingsIdentity();"
+    optional_preferences = "window.CrumpPresence?.applyPreferencesToForm?.();"
+    assert recovery in loader
+    assert optional_preferences in loader
+    assert loader.index(recovery) < loader.index(optional_preferences)
+    assert "[Settings] Optional presence preferences could not be loaded:" in loader
+    assert "Fixture-only optional preference failure" in fixture
 
 
 def test_settings_save_action_tracks_real_edits_and_blocks_duplicate_submissions():
