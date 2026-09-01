@@ -155,8 +155,8 @@ def test_store_metadata_source_is_structured_private_and_within_static_limits():
     assert len(apple['screenshotPlan']) >= 4
     assert len(google['screenshotPlan']) >= 4
     for description in (apple['description'], google['fullDescription']):
-        assert 'Ask, Projects, Create, Library, and You' in description
-    expected_frames = ('Ask —', 'Projects —', 'Create —', 'Research in Ask —', 'Library —', 'You —')
+        assert 'Ask, Projects, Create, Video, Library, and You' in description
+    expected_frames = ('Ask —', 'Projects —', 'Create —', 'Video —', 'Research in Ask —', 'Library —', 'You —')
     for plan in (apple['screenshotPlan'], google['screenshotPlan']):
         assert plan == metadata['apple']['screenshotPlan']
         for frame in expected_frames:

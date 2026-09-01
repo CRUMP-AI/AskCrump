@@ -81,7 +81,8 @@ def test_creation_intent_opens_the_exact_non_generating_workspace():
     assert "window.CrumpDocumentStudio?.select?.('pptx'" in handler
     assert "window.CrumpDocumentStudio?.select?.('docx'" in handler
     assert "job requirements you want to match…', 'resume')" in handler
-    assert "window.CrumpProduct53?.open?.(action === 'manuscript' ? 'manuscripts' : 'video')" in handler
+    assert "window.CrumpProduct53?.open?.('manuscripts')" in handler
+    assert "openVideo();" in handler
     assert "CreationIntentContinued" in handler
     assert "crump:creation-intent-consumed" in handler
     assert "fetch(" not in handler

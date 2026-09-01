@@ -16,7 +16,7 @@ def test_product53_runtime_is_registered_last_and_cached():
     assert "/crump-product-5.3.js?v=5.9.76-visual-media-reliability-1" in runtime
     assert "/crump-product-5.3.js?v=5.9.76-visual-media-reliability-1" in worker
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r169" in worker
+    assert "ask-crump-new-body-v1-r170" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 
@@ -191,7 +191,8 @@ def test_projects_manuscripts_and_video_are_isolated_destinations():
     assert "openStudio('projects')" in product
     assert "openStudio('video')" in product
     assert "section === 'projects'" in navigation
-    assert "section === 'manuscripts' || section === 'video'" in navigation
+    assert "if (section === 'video') return 'video';" in navigation
+    assert "if (section === 'manuscripts') return 'create';" in navigation
     assert "panel.setAttribute('role', 'region')" in polish
     assert "panel.setAttribute('aria-hidden', panel.hidden ? 'true' : 'false')" in polish
     assert "role', 'tab'" not in polish

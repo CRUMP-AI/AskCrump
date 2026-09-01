@@ -47,6 +47,11 @@
       icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/><path d="m17 5 .8 1.7L19.5 7.5l-1.7.8L17 10l-.8-1.7-1.7-.8 1.7-.8z"/></svg>',
     },
     {
+      id: 'video',
+      label: 'Video',
+      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="13" height="14" rx="2"/><path d="m16.5 10 4-2v8l-4-2zM8 9l5 3-5 3z"/></svg>',
+    },
+    {
       id: 'library',
       label: 'Library',
       icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"/><path d="M7 4v16M10 8h6"/></svg>',
@@ -458,9 +463,13 @@
       else window.CrumpBodyV1?.command?.('image');
       return true;
     }
-    if (action === 'manuscript' || action === 'video') {
+    if (action === 'video') {
+      openVideo();
+      return true;
+    }
+    if (action === 'manuscript') {
       rememberDestinationOpener('create');
-      window.CrumpProduct53?.open?.(action === 'manuscript' ? 'manuscripts' : 'video');
+      window.CrumpProduct53?.open?.('manuscripts');
       syncDestinationBackground();
       syncDestinationFocus();
       return true;
@@ -523,6 +532,19 @@
     syncDestinationFocus();
   }
 
+  function openVideo() {
+    rememberDestinationOpener('video');
+    closeSidebar();
+    closeSettings();
+    closeCodeWorkspace();
+    closeCreateHub();
+    closeToolSheet();
+    window.CrumpProduct53?.open?.('video');
+    syncDestinationBackground();
+    setActive('video');
+    syncDestinationFocus();
+  }
+
   function openYou() {
     rememberDestinationOpener('you');
     closeSidebar();
@@ -558,6 +580,7 @@
     if (destination === 'projects') openProjects();
     else if (destination === 'code') void openCode();
     else if (destination === 'create') openCreateHub();
+    else if (destination === 'video') openVideo();
     else if (destination === 'library') openLibrary();
     else if (destination === 'you') openYou();
     else openAsk();
@@ -582,7 +605,8 @@
     const section = byId('crump53Sheet')?.dataset.crump53Section;
     if (section === 'library') return 'library';
     if (section === 'projects') return 'projects';
-    if (section === 'manuscripts' || section === 'video') return 'create';
+    if (section === 'video') return 'video';
+    if (section === 'manuscripts') return 'create';
     return null;
   }
 

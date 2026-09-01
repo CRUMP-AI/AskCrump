@@ -92,7 +92,7 @@ def test_public_company_preview_matches_the_current_destination_contract():
     product_page = read("public/ask-crump.html")
     company_page = read("public/clever-crump.html")
 
-    for destination in ("Ask", "Projects", "Create", "Library", "You"):
+    for destination in ("Ask", "Projects", "Create", "Video", "Library", "You"):
         assert f"<small>{destination}</small>" in product_page
     assert "Projects → Files" in product_page
     assert "private, dedicated bookshelf" in product_page

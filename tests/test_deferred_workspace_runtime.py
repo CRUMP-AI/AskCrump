@@ -23,7 +23,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
     ]
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
-        '/runtime-body-v1.js?v=5.9.76-visual-media-reliability-1',
+        '/runtime-body-v1.js?v=5.9.76-video-destination-1',
         '/native-runtime.js',
         '/mobile-bridge.js',
         '/safe-storage.js',
@@ -43,9 +43,9 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
 
     deferred_assets = [
         '/billing.css',
-        '/onboarding.css?v=5.9.76-actionable-tour-1',
+        '/onboarding.css?v=5.9.76-video-destination-1',
         '/conversation.css?v=5.9.76-intelligence-receipt-1',
-        '/onboarding.js?v=5.9.76-books-library-2',
+        '/onboarding.js?v=5.9.76-video-destination-1',
         '/scroll-manager.js',
         '/profile-manager.js',
         '/billing-manager.js',

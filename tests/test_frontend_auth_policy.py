@@ -127,8 +127,8 @@ def test_registration_offer_matches_enforced_free_limits_and_canonical_product_m
         'We’ll email a secure verification link; no card required.'
     )
 
-    assert 'Ask, Projects, Create, Library, and You' in brand
-    for destination in ('Ask', 'Projects', 'Create', 'Library', 'You'):
+    assert 'Ask, Projects, Create, Video, Library, and You' in brand
+    for destination in ('Ask', 'Projects', 'Create', 'Video', 'Library', 'You'):
         assert f'<span>{destination}</span>' in brand
     assert '<span>Research</span>' not in brand
     assert '<span>Memory</span>' not in brand

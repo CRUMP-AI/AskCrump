@@ -28,9 +28,19 @@
       actionLabel: 'Open Create',
       eyebrow: 'CREATE',
       title: 'Choose the outcome you need.',
-      content: 'Create opens the right workspace for documents, presentations, images, manuscripts, and video. Nothing generates until you review the setup and send the request.',
+      content: 'Create opens the right workspace for documents, presentations, images, and manuscripts. Nothing generates until you review the setup and send the request.',
       icon: '+',
-      features: ['Editable files', 'Images & manuscripts', 'Video Studio'],
+      features: ['Editable files', 'Images & references', 'Long-form manuscripts'],
+    },
+    {
+      destination: 'Video',
+      action: 'video',
+      actionLabel: 'Open Video',
+      eyebrow: 'VIDEO',
+      title: 'Give motion its own studio.',
+      content: 'Video opens a dedicated studio for Quick, Extendable, and Cinematic generation. Add optional visual references, leave while a job runs, then return here to check its saved status and result.',
+      icon: '▶',
+      features: ['Three generation modes', 'Optional image references', 'Return to active jobs'],
     },
     {
       destination: 'Library',
@@ -54,7 +64,7 @@
     },
   ]);
 
-  const DESTINATIONS = Object.freeze(['Ask', 'Projects', 'Create', 'Library', 'You']);
+  const DESTINATIONS = Object.freeze(['Ask', 'Projects', 'Create', 'Video', 'Library', 'You']);
 
   class Tutorial {
     constructor() {
@@ -66,7 +76,7 @@
 
     storageKey() {
       const userId = String(window.currentUser?.id || 'guest').replace(/[^a-zA-Z0-9_-]/g, '');
-      return `crump_tutorial_completed_v7:${userId || 'guest'}`;
+      return `crump_tutorial_completed_v8:${userId || 'guest'}`;
     }
 
     isComplete() {
@@ -78,7 +88,7 @@
       const app = document.getElementById('appContainer');
       if (!app || getComputedStyle(app).display === 'none') return;
       // The authenticated launchpad is already a task-oriented first-run
-      // experience. Do not block a new user with five passive tour screens
+      // experience. Do not block a new user with passive tour screens
       // before they can ask their first question. The full tour remains
       // available from Settings and through restart().
       if (document.getElementById('v1Launchpad')) return;
@@ -293,7 +303,7 @@
 
     openDestination(destination) {
       const normalized = String(destination || '').trim().toLowerCase();
-      if (!['ask', 'projects', 'create', 'library', 'you'].includes(normalized)) return;
+      if (!['ask', 'projects', 'create', 'video', 'library', 'you'].includes(normalized)) return;
       localStorage.setItem(this.storageKey(), 'true');
       this.stop();
       requestAnimationFrame(() => {

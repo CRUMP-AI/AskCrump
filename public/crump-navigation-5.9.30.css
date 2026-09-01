@@ -1,4 +1,4 @@
-/* Ask Crump 5.9.30 — product navigation with a release-gated Code destination. */
+/* Ask Crump 5.9.30 — product navigation with first-class Video and a release-gated Code destination. */
 
 html[data-crump-navigation5930="ready"] {
   --ac-rail: 94px;
@@ -125,7 +125,7 @@ body.crump-v1-body .crump5930-destination.is-active {
   box-shadow: inset 3px 0 0 rgba(217,191,132,.72);
 }
 
-/* Chats is Ask's conversation drawer, not a sixth product destination. */
+/* Chats is Ask's conversation drawer, not a competing product destination. */
 body.crump-v1-body .crump5930-chats-toggle {
   min-height: 42px;
   margin: -2px 7px 12px;
@@ -353,7 +353,7 @@ body.crump-v1-body .crump5930-create-sheet footer {
     z-index: 490;
     display: grid;
     min-height: calc(var(--crump5930-mobile-nav) + env(safe-area-inset-bottom));
-    grid-template-columns: repeat(5,minmax(0,1fr));
+    grid-template-columns: repeat(6,minmax(0,1fr));
     align-items: start;
     padding: 5px max(5px,env(safe-area-inset-right)) env(safe-area-inset-bottom) max(5px,env(safe-area-inset-left));
     border-top: 1px solid rgba(255,255,255,.075);
@@ -364,7 +364,7 @@ body.crump-v1-body .crump5930-create-sheet footer {
   }
 
   html[data-crump-navigation5930="ready"] body.crump-v1-body.crump-code-configured .crump5930-mobile-nav {
-    grid-template-columns: repeat(6,minmax(0,1fr));
+    grid-template-columns: repeat(7,minmax(0,1fr));
   }
 
   body.crump-v1-body .crump5930-mobile-nav .crump5930-destination {

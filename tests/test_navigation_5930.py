@@ -8,7 +8,7 @@ def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
 
 
-def test_five_destination_navigation_is_final_runtime_layer_and_boot_critical():
+def test_six_destination_navigation_is_final_runtime_layer_and_boot_critical():
     runtime = read("public/runtime-body-v1.js")
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
@@ -20,21 +20,23 @@ def test_five_destination_navigation_is_final_runtime_layer_and_boot_critical():
         assert asset.lstrip("/") in checker
 
     assert runtime.index("/crump-library-5.7.js") < runtime.index("/crump-navigation-5.9.30.js")
-    assert "ask-crump-new-body-v1-r169" in worker
-    assert "/crump-navigation-5.9.30.css?v=5.9.76-intelligence-architecture-1" in runtime
-    assert "/crump-navigation-5.9.30.js?v=5.9.76-intelligence-architecture-1" in runtime
+    assert "ask-crump-new-body-v1-r170" in worker
+    assert "/crump-navigation-5.9.30.css?v=5.9.76-video-destination-1" in runtime
+    assert "/crump-navigation-5.9.30.js?v=5.9.76-video-destination-1" in runtime
 
 
 def test_navigation_exposes_exact_product_destinations_on_desktop_and_mobile():
     script = read("public/crump-navigation-5.9.30.js")
     styles = read("public/crump-navigation-5.9.30.css")
 
-    for destination in ("ask", "projects", "create", "library", "you"):
+    for destination in ("ask", "projects", "create", "video", "library", "you"):
         assert f"id: '{destination}'" in script
 
     assert "crump5930-rail-destinations" in script
     assert 'id = \'crump5930MobileNav\'' in script
-    assert "grid-template-columns: repeat(5,minmax(0,1fr))" in styles
+    assert "grid-template-columns: repeat(6,minmax(0,1fr))" in styles
+    assert "window.CrumpProduct53?.open?.('video')" in script
+    assert "if (section === 'video') return 'video';" in script
     assert "aria-current" in script
 
 
@@ -90,7 +92,8 @@ def test_navigation_reuses_existing_product_surfaces_without_data_migration():
 
     assert "window.CrumpProduct53?.open?.('projects')" in script
     assert "window.CrumpProduct53?.open?.('library')" in script
-    assert "window.CrumpProduct53?.open?.(action === 'manuscript' ? 'manuscripts' : 'video')" in script
+    assert "window.CrumpProduct53?.open?.('manuscripts')" in script
+    assert "window.CrumpProduct53?.open?.('video')" in script
     assert "window.CrumpDocumentStudio?.open?.()" in script
     assert "window.CrumpDocumentStudio?.select?.('pptx'" in script
     assert "window.CrumpImageStudio.open()" in script
@@ -166,7 +169,7 @@ def test_navigation_consolidation_fixture_uses_the_production_layers():
 
     assert '/public/crump-v1-body.js' in fixture
     assert '/public/crump-navigation-5.9.30.js' in fixture
-    assert '5.9.76-intelligence-architecture-1' in fixture
+    assert '5.9.76-video-destination-1' in fixture
     assert 'window.fixtureErrors = []' in fixture
     assert "dataset.fixtureErrorCount = '0'" in fixture
     assert 'id="v1OpenPlanBtn"' in fixture

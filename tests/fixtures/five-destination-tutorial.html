@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Five-destination tutorial fixture</title>
+  <title>Workspace destination tutorial fixture</title>
+  <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/public/onboarding.css?v=actionable-tour-fixture-1">
   <style>
     body { margin: 0; min-height: 100vh; background: #080b0f; color: #eee; font-family: system-ui, sans-serif; }
@@ -14,7 +15,7 @@
 </head>
 <body>
   <main class="fixture-shell">
-    <nav aria-label="Fixture destinations"><span>Ask</span><span>Projects</span><span>Create</span><span>Library</span><span>You</span></nav>
+    <nav aria-label="Fixture destinations"><span>Ask</span><span>Projects</span><span>Create</span><span>Video</span><span>Library</span><span>You</span></nav>
     <input id="userInput" aria-label="Message Crump">
     <output id="fixtureDestination" aria-label="Opened destination">none</output>
   </main>
@@ -25,7 +26,7 @@
       open: destination => { document.getElementById('fixtureDestination').textContent = destination; },
     };
   </script>
-  <script src="/public/onboarding.js?fixture=actionable-five-destinations"></script>
+  <script src="/public/onboarding.js?fixture=actionable-six-destinations"></script>
   <script>
     window.addEventListener('load', () => window.tutorial.start({force: true}), {once: true});
   </script>

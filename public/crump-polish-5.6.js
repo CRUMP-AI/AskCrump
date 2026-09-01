@@ -30,7 +30,7 @@
     button.innerHTML = `
       <div class="settings-row-text">
         <div class="settings-label">Replay workspace guide</div>
-        <div class="settings-help">Review Ask, Projects, Create, Library, and You.</div>
+        <div class="settings-help">Review Ask, Projects, Create, Video, Library, and You.</div>
       </div>
       <div class="settings-chevron" aria-hidden="true">›</div>`;
     button.addEventListener('click', () => {

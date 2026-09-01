@@ -25,11 +25,11 @@ def test_public_creation_pages_send_non_book_outputs_to_projects_files():
     assert "keep completed clips in your private Library" not in registration
 
 
-def test_homepage_preview_names_all_five_real_destinations_and_their_boundaries():
+def test_homepage_preview_names_all_six_real_destinations_and_their_boundaries():
     page = read("public/ask-crump.html")
     styles = read("public/landing-5.6.css")
 
-    for destination in ("Ask", "Projects", "Create", "Library", "You"):
+    for destination in ("Ask", "Projects", "Create", "Video", "Library", "You"):
         assert f"<small>{destination}</small>" in page
         assert f"<strong>{destination}</strong>" in page
     assert "Projects → Files" in page
@@ -52,7 +52,7 @@ def test_truthful_destination_assets_and_sitemaps_share_one_release_boundary():
         assert f'/landing-5.6.css?v={version}' in read(relative)
 
     worker = read("public/sw.js")
-    assert "ask-crump-new-body-v1-r169" in worker
+    assert "ask-crump-new-body-v1-r170" in worker
     assert f"/landing-5.6.css?v={version}" in worker
     assert read("public/sitemap.xml").count("<lastmod>2026-08-30</lastmod>") == 9
     assert "<lastmod>2026-08-30</lastmod>" in read("public/clever-crump-sitemap.xml")
