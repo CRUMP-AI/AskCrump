@@ -161,9 +161,43 @@ def test_image_safety_recovery_survives_sync_with_a_closed_allowlist():
     assert allowed['replyRecovery'] == {
         'action': 'revise_image_request',
         'usageRestored': True,
+        'changeRequired': 'prompt_or_reference',
     }
     assert 'replyErrorCode' not in rejected
     assert 'replyRecovery' not in rejected
+
+
+def test_invalid_reference_recovery_survives_sync_without_accepting_client_policy():
+    allowed = sanitize_message({
+        'id': '8f611900-68b0-41c1-b6db-62460fa6ea12',
+        'role': 'user',
+        'content': 'Edit this reference image.',
+        'replyErrorCode': 'invalid_image_edit_source',
+        'replyRecovery': {
+            'action': 'revise_image_request',
+            'usageRestored': True,
+            'changeRequired': 'reference',
+            'providerMessage': 'must not persist',
+        },
+    })
+    rejected_policy = sanitize_message({
+        'id': 'c8b2b91e-d284-4512-92dd-4ca199252a59',
+        'role': 'user',
+        'content': 'Edit this reference image.',
+        'replyErrorCode': 'INVALID_IMAGE_EDIT_SOURCE',
+        'replyRecovery': {
+            'action': 'revise_image_request',
+            'usageRestored': True,
+            'changeRequired': 'prompt_or_reference',
+        },
+    })
+
+    assert allowed['replyRecovery'] == {
+        'action': 'revise_image_request',
+        'usageRestored': True,
+        'changeRequired': 'reference',
+    }
+    assert 'replyRecovery' not in rejected_policy
 
 
 def test_resume_purpose_survives_sync_without_accepting_arbitrary_values():

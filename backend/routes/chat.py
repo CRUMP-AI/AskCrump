@@ -37,11 +37,17 @@ logger = logging.getLogger('askcrump.chat')
 
 
 def _ai_error_recovery(error_code: str) -> dict | None:
-    if error_code != 'IMAGE_SAFETY_REJECTED':
+    change_required = {
+        'IMAGE_SAFETY_REJECTED': 'prompt_or_reference',
+        'INVALID_IMAGE_EDIT_SOURCE': 'reference',
+        'IMAGE_EDIT_SOURCE_TOO_LARGE': 'reference',
+    }.get(str(error_code or '').upper())
+    if not change_required:
         return None
     return {
         'action': 'revise_image_request',
         'usageRestored': True,
+        'changeRequired': change_required,
     }
 
 

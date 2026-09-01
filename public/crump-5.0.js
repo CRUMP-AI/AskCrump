@@ -137,9 +137,20 @@
   }
 
   function safeImageRecovery(value) {
-    if (value?.action !== 'revise_image_request' || value?.usageRestored !== true) return null;
-    return {action: 'revise_image_request', usageRestored: true};
+    const changeRequired = String(value?.changeRequired || '');
+    if (
+      value?.action !== 'revise_image_request'
+      || value?.usageRestored !== true
+      || !['prompt_or_reference', 'reference'].includes(changeRequired)
+    ) return null;
+    return {action: 'revise_image_request', usageRestored: true, changeRequired};
   }
+
+  const IMAGE_REVISION_CODES = new Set([
+    'IMAGE_SAFETY_REJECTED',
+    'INVALID_IMAGE_EDIT_SOURCE',
+    'IMAGE_EDIT_SOURCE_TOO_LARGE',
+  ]);
 
   function sortedReferenceIds(files) {
     return (files || [])
@@ -152,8 +163,13 @@
   function unchangedRecoveredImageRequest(prompt, readyFiles) {
     const recovery = state.imageRecovery;
     if (!recovery || state.tool !== 'image') return false;
-    if (String(prompt || '').trim() !== recovery.prompt) return false;
     const currentIds = sortedReferenceIds(readyFiles);
+    if (recovery.changeRequired === 'reference') {
+      if (!currentIds.length) return true;
+      return currentIds.length === recovery.fileIds.length
+        && currentIds.every((value, index) => value === recovery.fileIds[index]);
+    }
+    if (String(prompt || '').trim() !== recovery.prompt) return false;
     return currentIds.length === recovery.fileIds.length
       && currentIds.every((value, index) => value === recovery.fileIds[index]);
   }
@@ -1029,7 +1045,12 @@
     try {
       const ready = await waitForUploads();
       if (unchangedRecoveredImageRequest(text, ready)) {
-        show('Change the wording or reference image before sending this request again.', 'info');
+        show(
+          state.imageRecovery?.changeRequired === 'reference'
+            ? 'Add a different JPG, PNG, or WebP reference before sending again.'
+            : 'Change the wording or reference image before sending this request again.',
+          'info',
+        );
         return;
       }
       await ensureUsage();
@@ -1089,8 +1110,8 @@
         target.deliveryStatus = error.quiet ? 'queued' : (target.deliveryStatus === 'sending' ? 'failed' : target.deliveryStatus);
         target.replyStatus = error.quiet ? 'pending' : 'failed';
         target.replyError = error.quiet ? null : (error.message || 'Reply failed.');
-        if (!error.quiet && error.code === 'IMAGE_SAFETY_REJECTED') {
-          target.replyErrorCode = 'IMAGE_SAFETY_REJECTED';
+        if (!error.quiet && IMAGE_REVISION_CODES.has(error.code)) {
+          target.replyErrorCode = error.code;
           const recovery = safeImageRecovery(error.recovery || error.data?.recovery);
           if (recovery) target.replyRecovery = recovery;
           else delete target.replyRecovery;
@@ -1114,7 +1135,7 @@
     let chat = currentChat();
     let message = chat?.messages?.find(item => item.id === id && item.role === 'user');
     if (!chat || !message) return;
-    if (message.replyErrorCode === 'IMAGE_SAFETY_REJECTED') {
+    if (IMAGE_REVISION_CODES.has(message.replyErrorCode)) {
       reviseImageMessage(id);
       return;
     }
@@ -1151,8 +1172,8 @@
       chat=currentChat() || chat; message=chat?.messages?.find(item => item.id===id) || message;
       if (message) {
         message.replyStatus='failed'; message.replyError=error.message || 'Reply failed.';
-        if (error.code === 'IMAGE_SAFETY_REJECTED') {
-          message.replyErrorCode = 'IMAGE_SAFETY_REJECTED';
+        if (IMAGE_REVISION_CODES.has(error.code)) {
+          message.replyErrorCode = error.code;
           const recovery = safeImageRecovery(error.recovery || error.data?.recovery);
           if (recovery) message.replyRecovery = recovery;
         }
@@ -1168,7 +1189,7 @@
     if (state.sending) return;
     const chat = currentChat();
     const message = chat?.messages?.find(item => item.id === id && item.role === 'user');
-    if (!message || message.replyErrorCode !== 'IMAGE_SAFETY_REJECTED') return;
+    if (!message || !IMAGE_REVISION_CODES.has(message.replyErrorCode)) return;
     const recovery = safeImageRecovery(message.replyRecovery);
     if (!recovery) {
       show('This request needs a changed prompt or reference image before it can be sent again.', 'warning');
@@ -1183,10 +1204,13 @@
       return;
     }
 
-    const references = (message.files || []).filter(file =>
+    const originalReferences = (message.files || []).filter(file =>
       file?.id && String(file.type || file.mime_type || '').toLowerCase().startsWith('image/')
     );
-    references.forEach(file => addRemoteReference(file, {imageReference: true}));
+    const replacingReference = recovery.changeRequired === 'reference';
+    if (!replacingReference) {
+      originalReferences.forEach(file => addRemoteReference(file, {imageReference: true}));
+    }
     const meta = message.requestMeta && typeof message.requestMeta === 'object' ? message.requestMeta : {};
     state.imageAspect = ['square', 'portrait', 'landscape'].includes(meta.imageAspect) ? meta.imageAspect : 'square';
     state.imageQuality = ['medium', 'high'].includes(meta.imageQuality) ? meta.imageQuality : 'medium';
@@ -1194,13 +1218,20 @@
     state.imageRecovery = {
       messageId: id,
       prompt: String(message.content || '').trim(),
-      fileIds: references.map(file => String(file.id)).sort(),
+      fileIds: originalReferences.map(file => String(file.id)).sort(),
+      changeRequired: recovery.changeRequired,
     };
     input.value = message.content || '';
     input.dispatchEvent(new Event('input', {bubbles: true}));
     renderToolChip();
     focusComposer('Revise the prompt or reference image before sending…');
-    show('The failed attempt was refunded. Change the wording or reference image before sending again.', 'info');
+    show(
+      replacingReference
+        ? 'The failed attempt was refunded. Choose a different JPG, PNG, or WebP reference.'
+        : 'The failed attempt was refunded. Change the wording or reference image before sending again.',
+      'info',
+    );
+    if (replacingReference) $('#fileInput')?.click();
   }
 
   function replaceLegacyControls() {

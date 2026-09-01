@@ -143,17 +143,33 @@ def sanitize_message(item: Any) -> dict[str, Any] | None:
     if role == 'user' and reply_error:
         message['replyError'] = reply_error
     reply_error_code = clean_text(item.get('replyErrorCode') or item.get('reply_error_code'), 80).upper()
-    if role == 'user' and reply_error_code == 'IMAGE_SAFETY_REJECTED':
+    if role == 'user' and reply_error_code in {
+        'IMAGE_SAFETY_REJECTED',
+        'INVALID_IMAGE_EDIT_SOURCE',
+        'IMAGE_EDIT_SOURCE_TOO_LARGE',
+    }:
         message['replyErrorCode'] = reply_error_code
         recovery = item.get('replyRecovery') or item.get('reply_recovery')
+        change_required = clean_text(recovery.get('changeRequired'), 30).lower() if isinstance(recovery, dict) else ''
+        expected_change = (
+            'prompt_or_reference'
+            if reply_error_code == 'IMAGE_SAFETY_REJECTED'
+            else 'reference'
+        )
+        if isinstance(recovery, dict) and not change_required:
+            # Preserve the last release's already-saved safety recovery records.
+            # The error code remains the server-owned source of truth.
+            change_required = expected_change
         if (
             isinstance(recovery, dict)
             and recovery.get('action') == 'revise_image_request'
             and recovery.get('usageRestored') is True
+            and change_required == expected_change
         ):
             message['replyRecovery'] = {
                 'action': 'revise_image_request',
                 'usageRestored': True,
+                'changeRequired': change_required,
             }
 
     if role == 'assistant':

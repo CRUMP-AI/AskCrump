@@ -37,6 +37,8 @@ IMAGE_REQUEST_TIMEOUT_SECONDS = 240.0
 IMAGE_TRANSIENT_RETRY_DELAY_SECONDS = 0.75
 IMAGE_MAX_ATTEMPTS = 2
 EDIT_IMAGE_MAX_EDGE = 4096
+EDIT_IMAGE_MAX_PIXELS = 8_388_608
+IMAGE_EDIT_PROVIDER_MAX_BYTES = 50 * 1024 * 1024
 PRECISION_IMAGE_MAX_EDGE = 3840
 PRECISION_IMAGE_MIN_PIXELS = 655_360
 PRECISION_IMAGE_MAX_PIXELS = 8_294_400
@@ -140,6 +142,20 @@ class MediaService:
         return prepared.getvalue()
 
     @staticmethod
+    def _provider_png_bytes(image: Image.Image) -> bytes:
+        """Encode one provider input and enforce the documented edit limit locally."""
+        prepared = MediaService._png_bytes(image)
+        if len(prepared) >= IMAGE_EDIT_PROVIDER_MAX_BYTES:
+            raise AIServiceError(
+                'This image is too large for editing after preparation. Resize it and try again.',
+                413,
+                'IMAGE_EDIT_SOURCE_TOO_LARGE',
+                False,
+                0,
+            )
+        return prepared
+
+    @staticmethod
     def _prepare_edit_image(data: bytes) -> tuple[bytes, str, str]:
         """Return a provider-safe, orientation-correct first frame.
 
@@ -159,16 +175,21 @@ class MediaService:
                 False,
                 0,
             )
-        if longest_edge > EDIT_IMAGE_MAX_EDGE:
-            scale = EDIT_IMAGE_MAX_EDGE / longest_edge
+        pixels = image.width * image.height
+        scale = min(
+            1.0,
+            EDIT_IMAGE_MAX_EDGE / longest_edge,
+            math.sqrt(EDIT_IMAGE_MAX_PIXELS / pixels),
+        )
+        if scale < 1:
             image = image.resize(
-                (max(1, round(image.width * scale)), max(1, round(image.height * scale))),
+                (max(1, math.floor(image.width * scale)), max(1, math.floor(image.height * scale))),
                 Image.Resampling.LANCZOS,
             )
         if image.mode not in {'RGB', 'RGBA'}:
             image = image.convert('RGBA' if 'A' in image.getbands() or 'transparency' in image.info else 'RGB')
 
-        return MediaService._png_bytes(image), 'Crump_Edit_Source.png', 'image/png'
+        return MediaService._provider_png_bytes(image), 'Crump_Edit_Source.png', 'image/png'
 
     @staticmethod
     def _precision_provider_size(width: int, height: int) -> tuple[int, int]:
@@ -327,8 +348,8 @@ class MediaService:
         provider_mask.putalpha(provider_alpha)
         size = f'{source.width}x{source.height}'
         return (
-            cls._png_bytes(source),
-            cls._png_bytes(provider_mask),
+            cls._provider_png_bytes(source),
+            cls._provider_png_bytes(provider_mask),
             source.copy(),
             selection.copy(),
             size,

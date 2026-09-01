@@ -404,7 +404,7 @@ const settingsProfileTrustVersion = `${releaseVersion}-settings-profile-trust-8`
 const precisionEditGuideLoaderVersion = `${releaseVersion}-local-photo-studio-loader-1`;
 const precisionEditGuideVersion = `${releaseVersion}-local-photo-studio-guide-1`;
 const fileLibraryWindowVersion = `${releaseVersion}-file-library-window-1`;
-const imageSafetyRecoveryVersion = `${releaseVersion}-image-safety-recovery-1`;
+const imageReferenceRecoveryVersion = `${releaseVersion}-image-reference-recovery-1`;
 const userControlledScrollVersion = `${releaseVersion}-user-controlled-scroll-1`;
 const newResponseCueVersion = `${releaseVersion}-new-response-cue-1`;
 const videoDestinationVersion = `${releaseVersion}-video-destination-1`;
@@ -412,7 +412,6 @@ const mobileDrawerDestinationsVersion = `${releaseVersion}-mobile-drawer-destina
 const destinationBackgroundGuardVersion = `${releaseVersion}-destination-background-guard-1`;
 const continuityActionVersion = `${releaseVersion}-continuity-action-1`;
 const precisionEditEntryVersion = `${releaseVersion}-precision-edit-entry-1`;
-const precisionEditHandoffVersion = `${releaseVersion}-precision-edit-handoff-2`;
 const precisionEditStudioVersion = `${releaseVersion}-lasso-invert-1`;
 const creationSheetContainmentVersion = `${releaseVersion}-creation-sheet-containment-1`;
 const requiredBodyFiles = [
@@ -646,10 +645,10 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/onboarding.css?v=${videoDestinationVersion}`) ||
     !runtime.includes(`/onboarding.js?v=${precisionEditGuideVersion}`) ||
     !runtime.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
-    !runtime.includes(`/chat-resilience.js?v=${imageSafetyRecoveryVersion}`) ||
+    !runtime.includes(`/chat-resilience.js?v=${imageReferenceRecoveryVersion}`) ||
     !runtime.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
     !runtime.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
-    !runtime.includes(`/ui-functions.js?v=${userControlledScrollVersion}`) ||
+    !runtime.includes(`/ui-functions.js?v=${imageReferenceRecoveryVersion}`) ||
     !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-share.js?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-manager.js?v=${continuityActionVersion}`) ||
@@ -658,7 +657,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-v1-body.js?v=${destinationBackgroundGuardVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${creditPackTruthVersion}`) ||
     !runtime.includes(`/crump-5.0.css?v=${precisionEditEntryVersion}`) ||
-    !runtime.includes(`/crump-5.0.js?v=${precisionEditHandoffVersion}`) ||
+    !runtime.includes(`/crump-5.0.js?v=${imageReferenceRecoveryVersion}`) ||
     !runtime.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     !runtime.includes(`/crump-precision-image-edit.js?v=${precisionEditStudioVersion}`) ||
     !runtime.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
@@ -818,18 +817,18 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r206') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r207') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${precisionEditGuideLoaderVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
-    !serviceWorker.includes(`/chat-resilience.js?v=${imageSafetyRecoveryVersion}`) ||
+    !serviceWorker.includes(`/chat-resilience.js?v=${imageReferenceRecoveryVersion}`) ||
     !serviceWorker.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.css?v=${precisionEditEntryVersion}`) ||
     !serviceWorker.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
-    !serviceWorker.includes(`/crump-5.0.js?v=${precisionEditHandoffVersion}`) ||
+    !serviceWorker.includes(`/crump-5.0.js?v=${imageReferenceRecoveryVersion}`) ||
     !serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     !serviceWorker.includes(`/crump-precision-image-edit.js?v=${precisionEditStudioVersion}`) ||
-    !serviceWorker.includes(`/ui-functions.js?v=${userControlledScrollVersion}`) ||
+    !serviceWorker.includes(`/ui-functions.js?v=${imageReferenceRecoveryVersion}`) ||
     !serviceWorker.includes(`/app.js?v=${userControlledScrollVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.js?v=${newResponseCueVersion}`) ||
@@ -1075,9 +1074,19 @@ if (await copiedShare.shareWindow.shareMessage(0) !== true ||
 const scroll522 = await readFile(new URL('public/crump-5.2.2.js', repoRoot), 'utf8');
 const baseScroll = await readFile(new URL('public/scroll-manager.js', repoRoot), 'utf8');
 const composer50 = await readFile(new URL('public/crump-5.0.js', repoRoot), 'utf8');
+const chatResilience = await readFile(new URL('public/chat-resilience.js', repoRoot), 'utf8');
 const scroll522Css = await readFile(new URL('public/crump-5.2.2.css', repoRoot), 'utf8');
 const billing52 = await readFile(new URL('public/crump-5.2.js', repoRoot), 'utf8');
 const billing52Css = await readFile(new URL('public/crump-5.2.css', repoRoot), 'utf8');
+if (!chatResilience.includes("!['prompt_or_reference', 'reference'].includes(changeRequired)") ||
+    !composer50.includes("'INVALID_IMAGE_EDIT_SOURCE'") ||
+    !composer50.includes("'IMAGE_EDIT_SOURCE_TOO_LARGE'") ||
+    !composer50.includes("if (recovery.changeRequired === 'reference')") ||
+    !composer50.includes("if (replacingReference) $('#fileInput')?.click();") ||
+    !uiFunctions.includes('Reference image needs replacement — Tap to replace')) {
+  console.error('Image reference rejection recovery must remain allowlisted, replacement-only, and actionable.');
+  process.exit(1);
+}
 if (!uiFunctions.includes('const preservedScrollTop = container.scrollTop;') ||
     !uiFunctions.includes('if (container.scrollTop !== preservedScrollTop) container.scrollTop = preservedScrollTop;') ||
     uiFunctions.includes("window.crumpScrollManager.scrollToBottom('auto')")) {

@@ -25,11 +25,13 @@
   }
 
   function safeImageRecovery(value) {
+    const changeRequired = String(value?.changeRequired || '');
     if (
       value?.action !== 'revise_image_request'
       || value?.usageRestored !== true
+      || !['prompt_or_reference', 'reference'].includes(changeRequired)
     ) return null;
-    return Object.freeze({action: 'revise_image_request', usageRestored: true});
+    return Object.freeze({action: 'revise_image_request', usageRestored: true, changeRequired});
   }
 
   function apiError(response, data, fallback) {

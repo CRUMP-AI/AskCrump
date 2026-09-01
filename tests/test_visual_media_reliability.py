@@ -8,7 +8,13 @@ import httpx
 from PIL import Image
 
 from backend.ai_service import AIServiceError
-from backend.media_service import EDIT_IMAGE_MAX_EDGE, MediaService
+from backend import media_service as media_module
+from backend.media_service import (
+    EDIT_IMAGE_MAX_EDGE,
+    EDIT_IMAGE_MAX_PIXELS,
+    IMAGE_EDIT_PROVIDER_MAX_BYTES,
+    MediaService,
+)
 from backend.routes import files as file_routes
 from backend.video_service import VideoService, VideoServiceError
 
@@ -33,6 +39,35 @@ def test_edit_source_is_orientation_safe_provider_png() -> None:
         assert image.format == "PNG"
         assert image.mode in {"RGB", "RGBA"}
         assert max(image.size) == EDIT_IMAGE_MAX_EDGE
+        assert image.width * image.height <= EDIT_IMAGE_MAX_PIXELS
+    assert len(prepared) < IMAGE_EDIT_PROVIDER_MAX_BYTES
+
+
+def test_edit_source_caps_total_pixels_before_provider_spend(monkeypatch) -> None:
+    monkeypatch.setattr(media_module, "EDIT_IMAGE_MAX_EDGE", 64)
+    monkeypatch.setattr(media_module, "EDIT_IMAGE_MAX_PIXELS", 1024)
+    original = Image.new("RGB", (64, 64), color=(20, 40, 60))
+    raw = BytesIO()
+    original.save(raw, format="PNG")
+
+    prepared, _, _ = MediaService._prepare_edit_image(raw.getvalue())
+
+    with Image.open(BytesIO(prepared)) as image:
+        assert image.size == (32, 32)
+
+
+def test_edit_source_rejects_an_encoded_provider_input_at_the_byte_limit(monkeypatch) -> None:
+    original = Image.new("RGB", (16, 16), color=(20, 40, 60))
+    raw = BytesIO()
+    original.save(raw, format="PNG")
+    monkeypatch.setattr(media_module, "IMAGE_EDIT_PROVIDER_MAX_BYTES", 10)
+
+    with pytest.raises(AIServiceError) as caught:
+        MediaService._prepare_edit_image(raw.getvalue())
+
+    assert caught.value.status_code == 413
+    assert caught.value.code == "IMAGE_EDIT_SOURCE_TOO_LARGE"
+    assert caught.value.retryable is False
 
 
 def test_invalid_edit_source_is_rejected_before_provider_spend() -> None:
@@ -842,12 +877,17 @@ def test_blocked_image_request_has_revision_instead_of_exact_retry_contract() ->
     ai_error_handler = route.split("except AIServiceError as exc:", 1)[1].split("except Exception:", 1)[0]
 
     assert "safeImageRecovery(data?.recovery)" in transport
-    assert "message.replyErrorCode === 'IMAGE_SAFETY_REJECTED'" in composer
+    assert "const IMAGE_REVISION_CODES = new Set([" in composer
+    assert "'IMAGE_SAFETY_REJECTED'" in composer
+    assert "'INVALID_IMAGE_EDIT_SOURCE'" in composer
+    assert "'IMAGE_EDIT_SOURCE_TOO_LARGE'" in composer
+    assert "IMAGE_REVISION_CODES.has(message.replyErrorCode)" in composer
     assert "reviseImageMessage(id);" in composer
     assert "unchangedRecoveredImageRequest(text, ready)" in composer
     assert "Change the wording or reference image before sending this request again." in composer
     assert "window.reviseImageMessage = reviseImageMessage" in composer
     assert "Image request needs changes — Tap to revise" in renderer
+    assert "Reference image needs replacement — Tap to replace" in renderer
     assert "window.reviseImageMessage?.(message.id)" in renderer
     assert "index === lastUserIndex || message?.replyStatus === 'failed'" in renderer
     assert "'action': 'revise_image_request'" in route
@@ -865,8 +905,12 @@ def test_image_rejection_browser_fixture_is_private_and_credential_free() -> Non
     assert '<script src="/public/crump-5.0.js?v=image-safety-recovery-fixture-1"></script>' in fixture
     assert "IMAGE_SAFETY_REJECTED" in fixture
     assert "revise_image_request" in fixture
+    assert "scenario') === 'invalid-reference'" in fixture
     assert "sendCalls" in verifier
     assert "ensureUsageCalls" in verifier
+    assert "replacementRestored.attachmentCount === 0" in verifier
+    assert "replacementRestored.fileInputClicks === 1" in verifier
+    assert "replacementBlocked.ensureUsageCalls === 0" in verifier
     assert "askcrump.com" not in fixture
     assert "password" not in fixture.lower()
 

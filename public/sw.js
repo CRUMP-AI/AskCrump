@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r206';
+const CACHE_NAME = 'ask-crump-new-body-v1-r207';
 
 const CORE = [
   '/app',
@@ -45,8 +45,8 @@ const CORE = [
   '/profile-manager.js',
   '/billing-manager.js?v=5.9.76-commerce-recovery-1',
   '/subscription-ui.js?v=5.9.76-commerce-recovery-1',
-  '/chat-resilience.js?v=5.9.76-image-safety-recovery-1',
-  '/ui-functions.js?v=5.9.76-user-controlled-scroll-1',
+  '/chat-resilience.js?v=5.9.76-image-reference-recovery-1',
+  '/ui-functions.js?v=5.9.76-image-reference-recovery-1',
   '/presence-manager.js?v=5.9.76',
   '/auth-resilience.js?v=5.9.76',
   '/device-auth.js?v=5.9.76',
@@ -63,7 +63,7 @@ const CORE = [
   '/crump-4.4.css',
   '/crump-4.4.js?v=5.9.76-core-reliability-1',
   '/crump-5.0.css?v=5.9.76-precision-edit-entry-1',
-  '/crump-5.0.js?v=5.9.76-precision-edit-handoff-2',
+  '/crump-5.0.js?v=5.9.76-image-reference-recovery-1',
   '/crump-precision-image-edit.css?v=5.9.76-lasso-invert-1',
   '/crump-precision-image-edit.js?v=5.9.76-lasso-invert-1',
   '/crump-billing-5.1.css?v=5.9.76-credit-pack-truth-1',

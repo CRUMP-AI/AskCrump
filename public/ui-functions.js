@@ -850,8 +850,18 @@
   }
 
   function deliveryLabel(message) {
-    if (message?.replyStatus === 'failed' && message?.replyErrorCode === 'IMAGE_SAFETY_REJECTED') {
-      return { label: 'Seen · Image request needs changes — Tap to revise', tone: 'failed', action: 'revise-image' };
+    if (
+      message?.replyStatus === 'failed'
+      && ['IMAGE_SAFETY_REJECTED', 'INVALID_IMAGE_EDIT_SOURCE', 'IMAGE_EDIT_SOURCE_TOO_LARGE'].includes(message?.replyErrorCode)
+    ) {
+      const replaceReference = message.replyRecovery?.changeRequired === 'reference';
+      return {
+        label: replaceReference
+          ? 'Seen · Reference image needs replacement — Tap to replace'
+          : 'Seen · Image request needs changes — Tap to revise',
+        tone: 'failed',
+        action: 'revise-image',
+      };
     }
     if (message?.replyStatus === 'failed') return { label: 'Seen · Reply failed — Tap to retry', tone: 'failed', retry: true };
     const status = message?.deliveryStatus || 'seen';

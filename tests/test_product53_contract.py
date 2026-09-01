@@ -16,7 +16,7 @@ def test_product53_runtime_is_registered_last_and_cached():
     assert "/crump-product-5.3.js?v=5.9.76-file-library-window-1" in runtime
     assert "/crump-product-5.3.js?v=5.9.76-file-library-window-1" in worker
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r206" in worker
+    assert "ask-crump-new-body-v1-r207" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 
