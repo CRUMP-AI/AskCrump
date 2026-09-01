@@ -378,10 +378,10 @@ const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
 const coreReliabilityVersion = `${releaseVersion}-core-reliability-1`;
 const settingsProfileTrustVersion = `${releaseVersion}-settings-profile-trust-8`;
-const creationSheetContainmentLoaderVersion = `${releaseVersion}-creation-sheet-containment-loader-1`;
+const userControlledScrollLoaderVersion = `${releaseVersion}-user-controlled-scroll-loader-1`;
 const fileLibraryWindowVersion = `${releaseVersion}-file-library-window-1`;
 const imageSafetyRecoveryVersion = `${releaseVersion}-image-safety-recovery-1`;
-const imageScrollStabilityVersion = `${releaseVersion}-credit-pack-accessibility-1`;
+const userControlledScrollVersion = `${releaseVersion}-user-controlled-scroll-1`;
 const videoDestinationVersion = `${releaseVersion}-video-destination-1`;
 const mobileDrawerDestinationsVersion = `${releaseVersion}-mobile-drawer-destinations-1`;
 const destinationBackgroundGuardVersion = `${releaseVersion}-destination-background-guard-1`;
@@ -575,7 +575,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${creationSheetContainmentLoaderVersion}`,
+  `/runtime-body-v1.js?v=${userControlledScrollLoaderVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
   `/auth-resilience.js?v=${releaseVersion}`,
@@ -619,17 +619,18 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
     !runtime.includes(`/chat-resilience.js?v=${imageSafetyRecoveryVersion}`) ||
     !runtime.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
-    !runtime.includes(`/ui-functions.js?v=${continuityActionVersion}`) ||
+    !runtime.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
+    !runtime.includes(`/ui-functions.js?v=${userControlledScrollVersion}`) ||
     !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-share.js?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-manager.js?v=${continuityActionVersion}`) ||
     !runtime.includes(`/product-analytics.js?v=${releaseVersion}`) ||
-    !runtime.includes(`/app.js?v=${settingsProfileTrustVersion}`) ||
+    !runtime.includes(`/app.js?v=${userControlledScrollVersion}`) ||
     !runtime.includes(`/crump-v1-body.js?v=${destinationBackgroundGuardVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${creditPackTruthVersion}`) ||
     !runtime.includes(`/crump-5.0.css?v=${imageReferenceEntryVersion}`) ||
-    !runtime.includes(`/crump-5.0.js?v=${creationSheetContainmentVersion}`) ||
-    !runtime.includes(`/crump-5.2.2.js?v=${imageScrollStabilityVersion}`) ||
+    !runtime.includes(`/crump-5.0.js?v=${userControlledScrollVersion}`) ||
+    !runtime.includes(`/crump-5.2.2.js?v=${userControlledScrollVersion}`) ||
     !runtime.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
     !runtime.includes(`/crump-4.4.js?v=${coreReliabilityVersion}`) ||
     !runtime.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
@@ -785,16 +786,18 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r200') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r201') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${creationSheetContainmentLoaderVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${userControlledScrollLoaderVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${imageSafetyRecoveryVersion}`) ||
     !serviceWorker.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.css?v=${imageReferenceEntryVersion}`) ||
-    !serviceWorker.includes(`/crump-5.0.js?v=${creationSheetContainmentVersion}`) ||
-    !serviceWorker.includes(`/ui-functions.js?v=${continuityActionVersion}`) ||
-    !serviceWorker.includes(`/crump-5.2.2.js?v=${imageScrollStabilityVersion}`) ||
+    !serviceWorker.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
+    !serviceWorker.includes(`/crump-5.0.js?v=${userControlledScrollVersion}`) ||
+    !serviceWorker.includes(`/ui-functions.js?v=${userControlledScrollVersion}`) ||
+    !serviceWorker.includes(`/app.js?v=${userControlledScrollVersion}`) ||
+    !serviceWorker.includes(`/crump-5.2.2.js?v=${userControlledScrollVersion}`) ||
     !serviceWorker.includes(`/onboarding.css?v=${videoDestinationVersion}`) ||
     !serviceWorker.includes(`/onboarding.js?v=${videoDestinationVersion}`) ||
     !serviceWorker.includes(`/crump-polish-5.6.js?v=${videoDestinationVersion}`) ||
@@ -810,7 +813,6 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r200') ||
     !serviceWorker.includes(`/sync-manager.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/chat-sync.js?v=${releaseVersion}-sync-cadence-1`) ||
     !serviceWorker.includes(`/product-analytics.js?v=${releaseVersion}`) ||
-    !serviceWorker.includes(`/app.js?v=${settingsProfileTrustVersion}`) ||
     !serviceWorker.includes(`/auth-controller.js?v=${authControllerVersion}`) ||
     !serviceWorker.includes(`/crump-v1-body.css?v=${creditPackTruthVersion}`) ||
     !serviceWorker.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
@@ -1034,40 +1036,51 @@ if (await copiedShare.shareWindow.shareMessage(0) !== true ||
   process.exit(1);
 }
 const scroll522 = await readFile(new URL('public/crump-5.2.2.js', repoRoot), 'utf8');
+const baseScroll = await readFile(new URL('public/scroll-manager.js', repoRoot), 'utf8');
+const composer50 = await readFile(new URL('public/crump-5.0.js', repoRoot), 'utf8');
 const scroll522Css = await readFile(new URL('public/crump-5.2.2.css', repoRoot), 'utf8');
 const billing52 = await readFile(new URL('public/crump-5.2.js', repoRoot), 'utf8');
 const billing52Css = await readFile(new URL('public/crump-5.2.css', repoRoot), 'utf8');
-if (!uiFunctions.includes("typeof window.crumpScrollManager?.scrollToBottom === 'function'") ||
-    !uiFunctions.includes("window.crumpScrollManager.scrollToBottom('auto')")) {
-  console.error('Conversation renderer must delegate automatic bottom movement to the scroll manager.');
+if (!uiFunctions.includes('const preservedScrollTop = container.scrollTop;') ||
+    !uiFunctions.includes('if (container.scrollTop !== preservedScrollTop) container.scrollTop = preservedScrollTop;') ||
+    uiFunctions.includes("window.crumpScrollManager.scrollToBottom('auto')")) {
+  console.error('Conversation rendering must preserve the user-selected viewport without automatic movement.');
   process.exit(1);
 }
-if (uiFunctions.includes("if (shouldStick || presence) requestAnimationFrame(() => { container.scrollTop = container.scrollHeight; });")) {
-  console.error('Legacy direct bottom-scroll bypass must not return.');
+if (!scroll522.includes('function jumpToNewest()') ||
+    !scroll522.includes("button.addEventListener('click'") ||
+    !scroll522.includes('scrollToBottom: () => undefined') ||
+    !scroll522.includes('autoScrollToBottom: () => undefined') ||
+    !scroll522.includes('scrollToMessageTop: () => undefined') ||
+    scroll522.includes('anchorNewReply') ||
+    scroll522.includes('activeReplyShouldHold') ||
+    (scroll522.match(/\.scrollTo\(/g) || []).length !== 1) {
+  console.error('Only the explicit newest-message control may move the enhanced conversation feed.');
   process.exit(1);
 }
-if (!scroll522.includes('state.scroll.suppressLegacyBottomUntil = Date.now() + 3200') ||
-    !scroll522.includes('if (!force && Date.now() < state.scroll.suppressLegacyBottomUntil) return;')) {
-  console.error('5.2.2 new-reply reading lock is missing.');
+if (!baseScroll.includes('function jumpToNewest(event)') ||
+    !baseScroll.includes('scrollToBottom: () => undefined') ||
+    !baseScroll.includes('autoScrollToBottom: () => undefined') ||
+    !baseScroll.includes('scrollToMessageTop: () => undefined') ||
+    (baseScroll.match(/\.scrollTo\(/g) || []).length !== 1) {
+  console.error('Only the explicit newest-message control may move the base conversation feed.');
   process.exit(1);
 }
-if (!scroll522.includes('if (!force && state.scroll.userReviewingHistory) return;') ||
-    !scroll522.includes('state.scroll.userReviewingHistory = distanceFromBottom() > 100;') ||
+if (composer50.includes('crumpScrollManager?.scrollToBottom') ||
+    appRuntime.includes('safeScrollToBottom') ||
     !uiFunctions.includes('function imageAspectForMessage(message, messages)') ||
     !uiFunctions.includes('image.width = aspect.width;') ||
     !uiFunctions.includes('image.height = aspect.height;')) {
-  console.error('Generated-image scroll and layout stability contract is missing.');
+  console.error('Generated-image user-controlled scroll and reserved-layout contract is missing.');
   process.exit(1);
 }
-if (!scroll522.includes('activeReplyShouldHold') ||
-    !scroll522.includes('cancelActiveReplyAnchor') ||
-    !scroll522.includes('shouldPreserveAnchor') ||
-    !scroll522.includes('if (row) anchorElementTop(row);')) {
-  console.error('5.2.2 must preserve the anchored new reply across same-message rerenders.');
+if (!scroll522.includes('const preservedScrollTop = container?.scrollTop ?? 0;') ||
+    !scroll522.includes('if (container && container.scrollTop !== preservedScrollTop) container.scrollTop = preservedScrollTop;')) {
+  console.error('5.2.2 must preserve the user-selected offset across same-message rerenders.');
   process.exit(1);
 }
 if (scroll522.includes('requestAnimationFrame(() => {\n      requestAnimationFrame(() => {')) {
-  console.error('New assistant replies must anchor synchronously before paint, not after two animation frames.');
+  console.error('Conversation rendering must not schedule delayed viewport movement.');
   process.exit(1);
 }
 if (!scroll522Css.includes('overflow-anchor: none !important;')) {

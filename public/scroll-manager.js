@@ -3,28 +3,24 @@
 
     let chatContainer = null;
     let scrollToEndButton = null;
-    let userIsReviewingHistory = false;
-    let reviewTimeout = null;
+    let initialized = false;
 
     function initialize() {
         chatContainer = document.getElementById('chatContainer');
         scrollToEndButton = document.getElementById('scrollToEndBtn');
-        if (!chatContainer || !scrollToEndButton) return;
+        if (!chatContainer || !scrollToEndButton || initialized) return;
 
         chatContainer.addEventListener('scroll', handleScroll, { passive: true });
-        scrollToEndButton.addEventListener('click', scrollToBottom);
+        scrollToEndButton.addEventListener('click', jumpToNewest);
+        initialized = true;
+        handleScroll();
     }
 
     function handleScroll() {
         const distance = distanceFromBottom();
         const showControl = distance > 200;
         scrollToEndButton?.classList.toggle('visible', showControl);
-        userIsReviewingHistory = showControl;
-
-        clearTimeout(reviewTimeout);
-        reviewTimeout = setTimeout(() => {
-            userIsReviewingHistory = distanceFromBottom() > 200;
-        }, 3000);
+        scrollToEndButton?.setAttribute('aria-hidden', showControl ? 'false' : 'true');
     }
 
     function distanceFromBottom() {
@@ -32,35 +28,22 @@
         return chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight;
     }
 
-    function scrollToBottom(behaviorOrEvent) {
+    function jumpToNewest(event) {
         if (!chatContainer) return;
-        const behavior = typeof behaviorOrEvent === 'string' ? behaviorOrEvent : 'smooth';
-        chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior });
+        event?.preventDefault?.();
+        chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
         scrollToEndButton?.classList.remove('visible');
-        userIsReviewingHistory = false;
-    }
-
-    function scrollToMessageTop(messageElement) {
-        if (!chatContainer || !messageElement || userIsReviewingHistory) return;
-
-        setTimeout(() => {
-            const containerTop = chatContainer.getBoundingClientRect().top;
-            const messageTop = messageElement.getBoundingClientRect().top;
-            const top = messageTop - containerTop + chatContainer.scrollTop - 20;
-            chatContainer.scrollTo({ top, behavior: 'smooth' });
-        }, 100);
-    }
-
-    function autoScrollToBottom() {
-        if (!userIsReviewingHistory) scrollToBottom('smooth');
+        scrollToEndButton?.setAttribute('aria-hidden', 'true');
     }
 
     window.crumpScrollManager = {
         init: initialize,
-        scrollToBottom,
-        scrollToMessageTop,
-        autoScrollToBottom,
+        // Compatibility no-ops: renders, streams, presence, images, and restored
+        // history never receive authority to move the conversation viewport.
+        scrollToBottom: () => undefined,
+        scrollToMessageTop: () => undefined,
+        autoScrollToBottom: () => undefined,
         isNearBottom: () => distanceFromBottom() < 100,
-        setUserScrolling: value => { userIsReviewingHistory = Boolean(value); }
+        setUserScrolling: () => handleScroll(),
     };
 }());

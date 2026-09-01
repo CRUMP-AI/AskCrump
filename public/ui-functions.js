@@ -932,8 +932,7 @@
   function renderMessages(messages) {
     const container = document.getElementById('chatContainer');
     if (!container) return;
-    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-    const shouldStick = distanceFromBottom < 180 || container.childElementCount === 0;
+    const preservedScrollTop = container.scrollTop;
     const fragment = document.createDocumentFragment();
     const safeMessages = Array.isArray(messages) ? messages : [];
     let lastUserIndex = -1;
@@ -1026,15 +1025,10 @@
     const presence = window.CrumpPresence?.indicator?.();
     if (presence) fragment.appendChild(createPresenceRow(presence));
     container.replaceChildren(fragment);
-    if (shouldStick || presence) {
-      requestAnimationFrame(() => {
-        if (typeof window.crumpScrollManager?.scrollToBottom === 'function') {
-          window.crumpScrollManager.scrollToBottom('auto');
-          return;
-        }
-        container.scrollTop = container.scrollHeight;
-      });
-    }
+    // Rendering may replace every message node, but it must never select a new
+    // viewport position for the user. Restore only if the browser clamped the
+    // existing numeric offset during the synchronous replacement.
+    if (container.scrollTop !== preservedScrollTop) container.scrollTop = preservedScrollTop;
   }
 
   window.renderMessages = renderMessages;

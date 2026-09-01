@@ -22,7 +22,7 @@ def test_vercel_build_runs_release_preflight_before_bundle():
 def test_subscription_runtime_is_part_of_javascript_contract():
     checker = read("scripts/check-javascript.mjs")
     assert "crump-subscriptions-5.3.2.js" in checker
-    assert "ask-crump-new-body-v1-r200" in checker
+    assert "ask-crump-new-body-v1-r201" in checker
     assert "crump-polish-5.6.js" in checker
 
 
@@ -46,23 +46,23 @@ def test_web_csp_allows_private_supabase_video_playback():
     assert "media-src 'self' blob: https://*.supabase.co https://*.storage.supabase.co" in vercel
     assert "connect-src 'self' https://askcrump.com https://www.askcrump.com https://*.supabase.co https://*.storage.supabase.co" in vercel
 
-def test_conversation_renderer_delegates_automatic_scroll_to_single_owner():
+def test_conversation_renderer_never_delegates_automatic_scroll():
     ui = read("public/ui-functions.js")
     scroll = read("public/crump-5.2.2.js")
 
-    assert "typeof window.crumpScrollManager?.scrollToBottom === 'function'" in ui
-    assert "window.crumpScrollManager.scrollToBottom('auto')" in ui
-    assert "if (shouldStick || presence) requestAnimationFrame(() => { container.scrollTop = container.scrollHeight; });" not in ui
-    assert "state.scroll.suppressLegacyBottomUntil = Date.now() + 3200" in scroll
-    assert "if (!force && Date.now() < state.scroll.suppressLegacyBottomUntil) return;" in scroll
+    assert "window.crumpScrollManager.scrollToBottom('auto')" not in ui
+    assert "const preservedScrollTop = container.scrollTop;" in ui
+    assert "if (container.scrollTop !== preservedScrollTop) container.scrollTop = preservedScrollTop;" in ui
+    assert "scrollToBottom: () => undefined" in scroll
+    assert "autoScrollToBottom: () => undefined" in scroll
 
-def test_new_reply_anchor_is_synchronous_and_survives_sync_rerenders():
+def test_new_reply_anchor_is_retired_and_only_explicit_jump_can_move_feed():
     scroll = read("public/crump-5.2.2.js")
     css = read("public/crump-5.2.2.css")
 
-    assert "activeReplyShouldHold" in scroll
-    assert "cancelActiveReplyAnchor" in scroll
-    assert "shouldPreserveAnchor" in scroll
-    assert "state.scroll.activeReplyUntil = state.scroll.suppressLegacyBottomUntil" in scroll
-    assert "requestAnimationFrame(() => {\n      requestAnimationFrame(() => {" not in scroll
+    assert "function jumpToNewest()" in scroll
+    assert "button.addEventListener('click'" in scroll
+    assert "jumpToNewest();" in scroll
+    assert "anchorElementTop" not in scroll
+    assert "anchorNewReply" not in scroll
     assert "overflow-anchor: none !important;" in css

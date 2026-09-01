@@ -30,15 +30,26 @@ def test_generated_image_aspect_is_content_free_and_allowlisted() -> None:
     assert 'imageAspect' not in rejected
 
 
-def test_image_scroll_contract_respects_reading_and_reserves_layout() -> None:
+def test_image_scroll_contract_is_user_controlled_and_reserves_layout() -> None:
     scroll = (ROOT / 'public' / 'crump-5.2.2.js').read_text(encoding='utf-8')
+    base_scroll = (ROOT / 'public' / 'scroll-manager.js').read_text(encoding='utf-8')
     renderer = (ROOT / 'public' / 'ui-functions.js').read_text(encoding='utf-8')
     composer = (ROOT / 'public' / 'crump-5.0.js').read_text(encoding='utf-8')
+    app = (ROOT / 'public' / 'app.js').read_text(encoding='utf-8')
 
-    assert 'state.scroll.userReviewingHistory' in scroll
-    assert 'if (!force && state.scroll.userReviewingHistory) return;' in scroll
-    assert 'if (state.scroll.userReviewingHistory)' in scroll
-    assert "window.crumpScrollManager?.scrollToBottom?.({force: true});" in composer
+    assert 'function jumpToNewest()' in scroll
+    assert 'scrollToBottom: () => undefined' in scroll
+    assert 'autoScrollToBottom: () => undefined' in scroll
+    assert 'scrollToMessageTop: () => undefined' in scroll
+    assert 'anchorNewReply' not in scroll
+    assert 'activeReplyShouldHold' not in scroll
+    assert 'function jumpToNewest(event)' in base_scroll
+    assert 'scrollToBottom: () => undefined' in base_scroll
+    assert 'crumpScrollManager?.scrollToBottom' not in composer
+    assert 'safeScrollToBottom' not in app
+    assert 'const preservedScrollTop = container.scrollTop;' in renderer
+    assert 'if (container.scrollTop !== preservedScrollTop) container.scrollTop = preservedScrollTop;' in renderer
+    assert "window.crumpScrollManager.scrollToBottom('auto')" not in renderer
     assert 'function imageAspectForMessage(message, messages)' in renderer
     assert 'image.width = aspect.width;' in renderer
     assert 'image.height = aspect.height;' in renderer

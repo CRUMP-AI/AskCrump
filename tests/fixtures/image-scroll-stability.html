@@ -51,8 +51,10 @@
     };
     window.__setPresence = value => { presenceActive = Boolean(value); };
   </script>
-  <script src="/public/ui-functions.js?v=image-scroll-stability-fixture-1"></script>
+  <script src="/public/scroll-manager.js?v=user-controlled-scroll-fixture-1"></script>
+  <script>window.crumpScrollManager.init();</script>
+  <script src="/public/ui-functions.js?v=user-controlled-scroll-fixture-1"></script>
   <script>window.renderMessages(messages);</script>
-  <script src="/public/crump-5.2.2.js?v=image-scroll-stability-fixture-1"></script>
+  <script src="/public/crump-5.2.2.js?v=user-controlled-scroll-fixture-1"></script>
 </body>
 </html>

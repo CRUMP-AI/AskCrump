@@ -94,9 +94,9 @@ def test_documents_mobile_hotfix_advances_shell_cache():
     v1_config = read("public/runtime-config-v1.js")
     native = read("scripts/build-native.mjs")
 
-    assert "ask-crump-new-body-v1-r200" in sw
+    assert "ask-crump-new-body-v1-r201" in sw
     assert "ask-crump-new-body-v1-r21" not in sw
-    assert "ask-crump-new-body-v1-r200" in checker
-    exact_asset = "/crump-5.0.js?v=5.9.76-creation-sheet-containment-1"
+    assert "ask-crump-new-body-v1-r201" in checker
+    exact_asset = "/crump-5.0.js?v=5.9.76-user-controlled-scroll-1"
     for source in (sw, runtime, legacy_config, v1_config, native):
         assert exact_asset in source

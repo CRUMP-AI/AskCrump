@@ -933,7 +933,6 @@
     window.CrumpPresence?.stop?.(); window.CrumpPresence?.haptic?.('success');
     runCompletedCreationHandoffInBackground(data);
     syncCompletedReplyInBackground();
-    setTimeout(() => window.crumpScrollManager?.scrollToBottom?.({behavior: 'smooth'}), 80);
   }
 
   async function applyCompletedReplySafely(chat, userMessage, data) {
@@ -989,7 +988,6 @@
       fresh.messages.push(userMessage);
       if (fresh.messages.length === 1 && text) fresh.title = text.slice(0, 50) + (text.length > 50 ? '…' : '');
       saveAndRender(fresh);
-      window.crumpScrollManager?.scrollToBottom?.({force: true});
       input.value = ''; input.style.height = 'auto';
       const body = buildRequestBody(currentChat() || fresh, userMessage, ready);
       state.attachments = [];

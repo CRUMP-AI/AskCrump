@@ -612,7 +612,6 @@ function completeUserMessage(chat, userMessage, data) {
     syncCompletedReplyInBackground();
     void recordFirstSuccessfulResponse();
     setTimeout(() => { void window.CrumpLifecycle?.evaluate?.({force: true}); }, 1200);
-    setTimeout(safeScrollToBottom, 80);
 }
 
 function applyCompletedReplySafely(chat, userMessage, data) {
@@ -1361,19 +1360,6 @@ function showWelcomeMessage() {
     }
 }
 
-// Utilities
-function getChatContainerEl() {
-    return document.getElementById('chatContainer');
-}
-
-function safeScrollToBottom() {
-    if (window.crumpScrollManager && typeof window.crumpScrollManager.scrollToBottom === 'function') {
-        window.crumpScrollManager.scrollToBottom('smooth');
-        return;
-    }
-    const c = getChatContainerEl();
-    if (c) c.scrollTop = c.scrollHeight;
-}
 window.addEventListener('beforeunload', clearPreviewObjectUrls);
 
 // Session Health Check
