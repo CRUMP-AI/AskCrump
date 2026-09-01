@@ -97,7 +97,7 @@ def test_private_monetization_report_keeps_old_metrics_and_adds_credit_and_recov
 def test_monetization_measurement_assets_are_registered_for_web_pwa_and_native():
     plan_version = "5.9.76-credit-pack-accessibility-1"
     commerce_recovery_version = "5.9.76-commerce-recovery-1"
-    loader_version = "5.9.76-settings-profile-trust-loader-2"
+    loader_version = "5.9.76-settings-profile-trust-loader-3"
     runtime = read("public/runtime-body-v1.js")
     worker = read("public/sw.js")
     native = read("scripts/build-native.mjs")
@@ -110,4 +110,4 @@ def test_monetization_measurement_assets_are_registered_for_web_pwa_and_native()
         assert asset in runtime
         assert asset in worker
         assert asset in native
-    assert "ask-crump-new-body-v1-r192" in worker
+    assert "ask-crump-new-body-v1-r193" in worker

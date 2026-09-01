@@ -1151,21 +1151,22 @@ function wireSettingsSaveState() {
 
 async function restoreSettingsIdentity() {
     const emailField = document.getElementById('settingsEmail');
-    if (!emailField || emailField.value || settingsIdentityRequest) return settingsIdentityRequest;
+    if (!emailField || String(emailField.value || '').trim() || settingsIdentityRequest) return settingsIdentityRequest;
     emailField.setAttribute('aria-busy', 'true');
     emailField.placeholder = 'Confirming account email…';
     settingsIdentityRequest = Promise.resolve()
         .then(() => window.deviceAuth?.checkSession?.())
         .then(result => {
             const user = result?.authenticated ? result.data?.user : null;
-            if (!user?.email) return;
+            const userEmail = String(user?.email || '').trim();
+            if (!userEmail) return;
             window.currentUser = { ...(window.currentUser || {}), ...user };
             window.configureUserStorage?.(user.id);
             currentProfile?.updateProfile?.({
                 ...(user.fullName ? { name: user.fullName } : {}),
-                email: user.email,
+                email: userEmail,
             });
-            emailField.value = user.email;
+            emailField.value = userEmail;
         })
         .catch(() => {})
         .finally(() => {
@@ -1181,9 +1182,9 @@ function loadSettingsValues() {
     const sessionUser = window.deviceAuth?.session?.user || {};
     const user = { ...sessionUser, ...(window.currentUser || {}) };
     document.getElementById('settingsName').value = user.fullName || profile.name || '';
-    document.getElementById('settingsEmail').value = user.email || profile.email || '';
+    document.getElementById('settingsEmail').value = String(user.email || profile.email || '').trim();
     document.getElementById('settingsEmail').readOnly = true;
-    if (!document.getElementById('settingsEmail').value) void restoreSettingsIdentity();
+    if (!String(document.getElementById('settingsEmail').value || '').trim()) void restoreSettingsIdentity();
     document.getElementById('assistantName').value = SafeStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
 
     const workStartSelect = document.getElementById('workStart');

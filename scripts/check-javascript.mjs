@@ -376,8 +376,8 @@ const accountDeletionBillingVersion = `${releaseVersion}-account-deletion-billin
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
 const coreReliabilityVersion = `${releaseVersion}-core-reliability-1`;
-const settingsProfileTrustVersion = `${releaseVersion}-settings-profile-trust-2`;
-const settingsProfileTrustLoaderVersion = `${releaseVersion}-settings-profile-trust-loader-2`;
+const settingsProfileTrustVersion = `${releaseVersion}-settings-profile-trust-3`;
+const settingsProfileTrustLoaderVersion = `${releaseVersion}-settings-profile-trust-loader-3`;
 const fileLibraryWindowVersion = `${releaseVersion}-file-library-window-1`;
 const imageSafetyRecoveryVersion = `${releaseVersion}-image-safety-recovery-1`;
 const imageScrollStabilityVersion = `${releaseVersion}-credit-pack-accessibility-1`;
@@ -784,7 +784,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r192') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r193') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${settingsProfileTrustLoaderVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
