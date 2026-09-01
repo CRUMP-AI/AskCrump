@@ -63,3 +63,13 @@ def test_settings_profile_trust_browser_fixture_uses_the_real_runtime():
     assert "result.behavior.horizontalOverflow" in verifier
     assert "Sign in to view account email" in verifier
     assert "guestFailed" in verifier
+
+
+def test_workspace_script_updates_bypass_stale_pwa_and_edge_caches():
+    worker = read("public/sw.js")
+    vercel = read("vercel.json")
+
+    assert "url.pathname === '/app.js'" in worker
+    assert '"source": "/app.js"' in vercel
+    app_header = vercel[vercel.index('"source": "/app.js"') :]
+    assert '"Cache-Control", "value": "no-cache, no-store, must-revalidate"' in app_header

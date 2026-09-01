@@ -39,11 +39,11 @@ def test_parallel_runtime_asset_is_versioned_for_web_pwa_and_native():
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
 
-    asset = "/runtime-body-v1.js?v=5.9.76-settings-profile-trust-loader-4"
+    asset = "/runtime-body-v1.js?v=5.9.76-settings-profile-trust-loader-5"
     assert asset in shell
     assert asset in worker
-    assert "ask-crump-new-body-v1-r194" in worker
-    assert "ask-crump-new-body-v1-r194" in checker
+    assert "ask-crump-new-body-v1-r195" in worker
+    assert "ask-crump-new-body-v1-r195" in checker
 
 
 def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
