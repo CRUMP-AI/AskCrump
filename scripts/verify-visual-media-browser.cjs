@@ -25,10 +25,20 @@ const { chromium } = require(playwrightModule);
     createWithoutReferenceVisible: await studio.getByRole('button', {name: 'Create without reference'}).isVisible(),
     squarePressed: await studio.getByRole('button', {name: 'Square'}).getAttribute('aria-pressed'),
     guidance: await studio.locator('.crump50-image-guidance').textContent(),
+    workspaceInert: await page.locator('#fixtureWorkspace').getAttribute('inert'),
+    workspaceAriaHidden: await page.locator('#fixtureWorkspace').getAttribute('aria-hidden'),
   };
+  await page.keyboard.press('Shift+Tab');
+  const reverseWrapFocus = await page.evaluate(() => document.activeElement?.textContent?.trim() || '');
+  await page.keyboard.press('Tab');
+  const forwardWrapFocus = await page.evaluate(() => document.activeElement?.getAttribute('aria-label') || '');
   await studio.getByRole('button', {name: 'Close Image Studio'}).click();
   await page.waitForFunction(() => document.activeElement?.id === 'openImageStudio');
-  const directCloseFocus = await page.evaluate(() => document.activeElement?.id || '');
+  const directCloseFocus = await page.evaluate(() => ({
+    activeId: document.activeElement?.id || '',
+    workspaceInert: document.getElementById('fixtureWorkspace')?.hasAttribute('inert') || false,
+    workspaceAriaHidden: document.getElementById('fixtureWorkspace')?.getAttribute('aria-hidden'),
+  }));
 
   await page.locator('#openImageStudioTransient').click();
   await studio.waitFor();
@@ -37,6 +47,8 @@ const { chromium } = require(playwrightModule);
   const transientCloseFocus = await page.evaluate(() => ({
     activeId: document.activeElement?.id || '',
     transientHidden: document.getElementById('transientImageEntry')?.hidden || false,
+    workspaceInert: document.getElementById('fixtureWorkspace')?.hasAttribute('inert') || false,
+    workspaceAriaHidden: document.getElementById('fixtureWorkspace')?.getAttribute('aria-hidden'),
   }));
 
   await page.locator('#openImageStudio').click();
@@ -91,9 +103,17 @@ const { chromium } = require(playwrightModule);
     || !initialStudio.createWithoutReferenceVisible
     || initialStudio.squarePressed !== 'true'
     || !initialStudio.guidance.includes('preserve identity and appearance')
-    || directCloseFocus !== 'openImageStudio'
+    || initialStudio.workspaceInert !== ''
+    || initialStudio.workspaceAriaHidden !== 'true'
+    || reverseWrapFocus !== 'Create without reference'
+    || forwardWrapFocus !== 'Close Image Studio'
+    || directCloseFocus.activeId !== 'openImageStudio'
+    || directCloseFocus.workspaceInert
+    || directCloseFocus.workspaceAriaHidden !== null
     || transientCloseFocus.activeId !== 'userInput'
     || !transientCloseFocus.transientHidden
+    || transientCloseFocus.workspaceInert
+    || transientCloseFocus.workspaceAriaHidden !== null
     || !readyStudio.referenceReadyVisible
     || !readyStudio.continueWithReferenceVisible
     || !readyStudio.referenceNameVisible
@@ -108,9 +128,9 @@ const { chromium } = require(playwrightModule);
     || result.editPlaceholder !== 'Describe what to keep and what to change…'
     || result.errorOverlay
   ) {
-    throw new Error(JSON.stringify({initialStudio, directCloseFocus, transientCloseFocus, readyStudio, invalidReplacement, result, consoleErrors}));
+    throw new Error(JSON.stringify({initialStudio, reverseWrapFocus, forwardWrapFocus, directCloseFocus, transientCloseFocus, readyStudio, invalidReplacement, result, consoleErrors}));
   }
-  process.stdout.write(`${JSON.stringify({initialStudio, directCloseFocus, transientCloseFocus, readyStudio, invalidReplacement, result, consoleErrors})}\n`);
+  process.stdout.write(`${JSON.stringify({initialStudio, reverseWrapFocus, forwardWrapFocus, directCloseFocus, transientCloseFocus, readyStudio, invalidReplacement, result, consoleErrors})}\n`);
 })().catch(error => {
   process.stderr.write(`${error.stack || error}\n`);
   process.exitCode = 1;

@@ -33,6 +33,7 @@ venv/
 # Node and generated native projects
 node_modules/
 dist/
+artifacts/
 ios/
 android/
 

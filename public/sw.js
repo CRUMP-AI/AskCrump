@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r199';
+const CACHE_NAME = 'ask-crump-new-body-v1-r200';
 
 const CORE = [
   '/app',
@@ -35,7 +35,7 @@ const CORE = [
   '/crump-library-5.7.css',
   '/crump-library-5.7.js?v=5.9.76-demand-hydration-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-commerce-recovery-1',
-  '/runtime-body-v1.js?v=5.9.76-settings-profile-trust-loader-8',
+  '/runtime-body-v1.js?v=5.9.76-creation-sheet-containment-loader-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
@@ -63,7 +63,7 @@ const CORE = [
   '/crump-4.4.css',
   '/crump-4.4.js?v=5.9.76-core-reliability-1',
   '/crump-5.0.css?v=5.9.76-image-reference-entry-1',
-  '/crump-5.0.js?v=5.9.76-image-studio-focus-return-1',
+  '/crump-5.0.js?v=5.9.76-creation-sheet-containment-1',
   '/crump-billing-5.1.css?v=5.9.76-credit-pack-truth-1',
   '/crump-billing-5.1.js?v=5.9.76-credit-pack-truth-1',
   '/crump-5.2.css',

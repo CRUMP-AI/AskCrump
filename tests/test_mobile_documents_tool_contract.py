@@ -42,6 +42,43 @@ def test_mobile_document_format_grid_remains_two_columns_and_complete():
     assert "state.documentFormat = value" in document_tool
 
 
+def test_document_and_attachment_sheets_are_contained_recoverable_dialogs():
+    script = read("public/crump-5.0.js")
+    verifier = read("scripts/verify-creation-sheet-containment.cjs")
+    fixture = read("tests/fixtures/creation-sheet-containment.html")
+    document_tool = script[
+        script.index("function showDocumentOptions()") : script.index("function openCamera()")
+    ]
+    attachment_tool = script[
+        script.index("function showAttachMenu()") : script.index("function segmented(")
+    ]
+
+    for contract in (
+        "sheet.setAttribute('role', 'dialog')",
+        "sheet.setAttribute('aria-modal', 'true')",
+        "sheet.tabIndex = -1",
+        "wireMenuKeyboard(sheet, dismiss)",
+        "mountMenu(sheet, close)",
+    ):
+        assert contract in document_tool
+        assert contract in attachment_tool
+    assert "aria-labelledby', 'crump50DocumentStudioTitle" in document_tool
+    assert "aria-label', 'Close Document Studio" in document_tool
+    assert "restoreMenuFocus(returnFocus)" in document_tool
+    assert "aria-label', 'Close Add to conversation" in attachment_tool
+    assert "isolateMenuBackground(sheet)" in script
+    assert "restoreMenuBackground()" in script
+    assert "containMenuFocus(event, sheet)" in script
+    assert "fixtureSidebar" in fixture
+    assert "fixtureWorkspace" in fixture
+    assert "fixtureNavigation" in fixture
+    assert "assertIsolated" in verifier
+    assert "assertRestored" in verifier
+    assert "Shift+Tab" in verifier
+    assert "Close Document Studio" in verifier
+    assert "Close Add to conversation" in verifier
+
+
 def test_intelligence_glasses_have_slightly_more_visual_presence():
     intelligence = read("public/crump-4.4.js")
 
@@ -52,7 +89,14 @@ def test_intelligence_glasses_have_slightly_more_visual_presence():
 def test_documents_mobile_hotfix_advances_shell_cache():
     sw = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
+    runtime = read("public/runtime-body-v1.js")
+    legacy_config = read("public/runtime-config.js")
+    v1_config = read("public/runtime-config-v1.js")
+    native = read("scripts/build-native.mjs")
 
-    assert "ask-crump-new-body-v1-r199" in sw
+    assert "ask-crump-new-body-v1-r200" in sw
     assert "ask-crump-new-body-v1-r21" not in sw
-    assert "ask-crump-new-body-v1-r199" in checker
+    assert "ask-crump-new-body-v1-r200" in checker
+    exact_asset = "/crump-5.0.js?v=5.9.76-creation-sheet-containment-1"
+    for source in (sw, runtime, legacy_config, v1_config, native):
+        assert exact_asset in source

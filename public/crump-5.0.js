@@ -18,6 +18,7 @@
     documentPurpose: null,
     sending: false,
     menu: null,
+    menuBackground: [],
     lightbox: null,
     lightboxReturnFocus: null,
     imageRecovery: null,
@@ -477,10 +478,110 @@
     host.appendChild(chip);
   }
 
+  const MENU_FOCUSABLE = [
+    'button:not([disabled])',
+    'a[href]',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])',
+  ].join(',');
+
+  function visibleMenuElement(element) {
+    return Boolean(element && (element.offsetWidth || element.offsetHeight || element.getClientRects().length));
+  }
+
+  function restoreMenuBackground() {
+    state.menuBackground.forEach(item => {
+      if (!item.element?.isConnected) return;
+      if (!item.inert) item.element.removeAttribute('inert');
+      if (item.ariaHidden === null) item.element.removeAttribute('aria-hidden');
+      else item.element.setAttribute('aria-hidden', item.ariaHidden);
+    });
+    state.menuBackground = [];
+  }
+
+  function isolateMenuBackground(sheet) {
+    restoreMenuBackground();
+    state.menuBackground = [...document.body.children]
+      .filter(element => element !== sheet)
+      .filter(element => !['SCRIPT', 'STYLE', 'LINK'].includes(element.tagName))
+      .filter(element => element.id !== 'toastContainer')
+      .filter(visibleMenuElement)
+      .map(element => ({
+        element,
+        inert: element.hasAttribute('inert'),
+        ariaHidden: element.getAttribute('aria-hidden'),
+      }));
+    state.menuBackground.forEach(item => {
+      item.element.setAttribute('inert', '');
+      item.element.setAttribute('aria-hidden', 'true');
+    });
+  }
+
+  function menuFocusable(sheet) {
+    return [...sheet.querySelectorAll(MENU_FOCUSABLE)].filter(element => {
+      if (element.closest('[hidden], [inert], [aria-hidden="true"]')) return false;
+      return visibleMenuElement(element);
+    });
+  }
+
+  function containMenuFocus(event, sheet) {
+    if (event.key !== 'Tab') return false;
+    const focusable = menuFocusable(sheet);
+    if (!focusable.length) {
+      event.preventDefault();
+      sheet.focus({preventScroll: true});
+      return true;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+    if (event.shiftKey && (active === first || !sheet.contains(active))) {
+      event.preventDefault();
+      last.focus({preventScroll: true});
+      return true;
+    }
+    if (!event.shiftKey && (active === last || !sheet.contains(active))) {
+      event.preventDefault();
+      first.focus({preventScroll: true});
+      return true;
+    }
+    return false;
+  }
+
+  function wireMenuKeyboard(sheet, dismiss) {
+    sheet.addEventListener('keydown', event => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        dismiss();
+        return;
+      }
+      containMenuFocus(event, sheet);
+    });
+  }
+
+  function mountMenu(sheet, initialFocus) {
+    document.body.appendChild(sheet);
+    state.menu = sheet;
+    document.body.classList.add('crump50-sheet-open');
+    initialFocus?.focus({preventScroll: true});
+    isolateMenuBackground(sheet);
+    requestAnimationFrame(() => sheet.classList.add('is-visible'));
+  }
+
+  function restoreMenuFocus(returnFocus) {
+    requestAnimationFrame(() => {
+      const target = usableFocusReturnTarget(returnFocus) || $('#userInput');
+      target?.focus({preventScroll: true});
+    });
+  }
+
   function closeMenu() {
     state.menu?.remove();
     state.menu = null;
     document.body.classList.remove('crump50-sheet-open');
+    restoreMenuBackground();
   }
 
   function usableFocusReturnTarget(target) {
@@ -499,16 +600,23 @@
   }
 
   function showAttachMenu() {
+    const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeMenu();
     const sheet = document.createElement('section');
     sheet.className = 'crump50-sheet crump50-attach-sheet';
     sheet.setAttribute('role', 'dialog');
+    sheet.setAttribute('aria-modal', 'true');
     sheet.setAttribute('aria-label', 'Add to conversation');
+    sheet.tabIndex = -1;
+    const dismiss = () => {
+      closeMenu();
+      restoreMenuFocus(returnFocus);
+    };
     const head = document.createElement('div');
     head.className = 'crump50-sheet-head';
     head.innerHTML = '<div><span>ADD TO CRUMP</span><strong>Bring anything into the conversation.</strong></div>';
     const close = document.createElement('button');
-    close.type = 'button'; close.className = 'crump50-sheet-close'; close.textContent = '×'; close.addEventListener('click', closeMenu);
+    close.type = 'button'; close.className = 'crump50-sheet-close'; close.textContent = '×'; close.setAttribute('aria-label', 'Close Add to conversation'); close.addEventListener('click', dismiss);
     head.appendChild(close);
     const rows = document.createElement('div');
     rows.className = 'crump50-menu-list';
@@ -521,10 +629,8 @@
       menuButton('<svg viewBox="0 0 24 24"><path d="m8.5 8-4 4 4 4M15.5 8l4 4-4 4M14 5l-4 14"/></svg>', 'Code', 'Debug, explain, design, or build software', () => { state.tool = 'code'; closeMenu(); renderToolChip(); focusComposer(); }),
     );
     sheet.append(head, rows);
-    document.body.appendChild(sheet);
-    state.menu = sheet;
-    document.body.classList.add('crump50-sheet-open');
-    requestAnimationFrame(() => sheet.classList.add('is-visible'));
+    wireMenuKeyboard(sheet, dismiss);
+    mountMenu(sheet, close);
   }
 
   function segmented(options, selected, onSelect, label = '') {
@@ -613,12 +719,10 @@
     sheet.setAttribute('role', 'dialog');
     sheet.setAttribute('aria-modal', 'true');
     sheet.setAttribute('aria-label', 'Image Studio');
+    sheet.tabIndex = -1;
     const dismiss = () => {
       closeMenu();
-      requestAnimationFrame(() => {
-        const target = usableFocusReturnTarget(returnFocus) || $('#userInput');
-        target?.focus({preventScroll: true});
-      });
+      restoreMenuFocus(returnFocus);
     };
     sheet.innerHTML = '<div class="crump50-sheet-head"><div><span>IMAGE STUDIO</span><strong>Build the frame before you describe it.</strong></div></div>';
     const close = document.createElement('button'); close.type = 'button'; close.className = 'crump50-sheet-close'; close.textContent = '×'; close.setAttribute('aria-label', 'Close Image Studio'); close.addEventListener('click', dismiss); $('.crump50-sheet-head', sheet).appendChild(close);
@@ -663,20 +767,26 @@
     const activate = document.createElement('button'); activate.type = 'button'; activate.className = 'crump50-primary-action'; activate.textContent = currentReference ? 'Continue with reference' : 'Create without reference';
     activate.addEventListener('click', () => { state.imageRecovery = null; state.tool = 'image'; closeMenu(); renderToolChip(); focusComposer(currentReference ? 'Describe what to keep and what to change…' : 'Describe the image you want…'); });
     body.append(aspectLabel, aspectControl, qualityLabel, qualityControl, referenceLabel, reference, guidance, activate);
-    sheet.addEventListener('keydown', event => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      dismiss();
-    });
-    sheet.appendChild(body); document.body.appendChild(sheet); state.menu = sheet; document.body.classList.add('crump50-sheet-open'); requestAnimationFrame(() => { sheet.classList.add('is-visible'); close.focus({preventScroll: true}); });
+    wireMenuKeyboard(sheet, dismiss);
+    sheet.appendChild(body);
+    mountMenu(sheet, close);
   }
 
   function showDocumentOptions() {
+    const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeMenu();
     const sheet = document.createElement('section');
     sheet.className = 'crump50-sheet crump50-options-sheet';
-    sheet.innerHTML = '<div class="crump50-sheet-head"><div><span>DOCUMENT STUDIO</span><strong>Start with the outcome. Crump will structure the file.</strong></div></div>';
-    const close = document.createElement('button'); close.type = 'button'; close.className = 'crump50-sheet-close'; close.textContent = '×'; close.addEventListener('click', closeMenu); $('.crump50-sheet-head', sheet).appendChild(close);
+    sheet.setAttribute('role', 'dialog');
+    sheet.setAttribute('aria-modal', 'true');
+    sheet.setAttribute('aria-labelledby', 'crump50DocumentStudioTitle');
+    sheet.tabIndex = -1;
+    const dismiss = () => {
+      closeMenu();
+      restoreMenuFocus(returnFocus);
+    };
+    sheet.innerHTML = '<div class="crump50-sheet-head"><div><span>DOCUMENT STUDIO</span><strong id="crump50DocumentStudioTitle">Start with the outcome. Crump will structure the file.</strong></div></div>';
+    const close = document.createElement('button'); close.type = 'button'; close.className = 'crump50-sheet-close'; close.textContent = '×'; close.setAttribute('aria-label', 'Close Document Studio'); close.addEventListener('click', dismiss); $('.crump50-sheet-head', sheet).appendChild(close);
     const outcomeLabel = document.createElement('div'); outcomeLabel.className = 'crump50-option-label'; outcomeLabel.textContent = 'What are you making?';
     const outcomes = document.createElement('div'); outcomes.className = 'crump50-outcome-grid';
     [
@@ -698,7 +808,9 @@
       b.addEventListener('click', () => { state.tool = 'document'; state.documentFormat = value; state.documentPurpose = null; closeMenu(); renderToolChip(); focusComposer(`Describe the ${label} document you want…`); });
       grid.appendChild(b);
     });
-    sheet.append(outcomeLabel, outcomes, formatLabel, grid); document.body.appendChild(sheet); state.menu = sheet; document.body.classList.add('crump50-sheet-open'); requestAnimationFrame(() => sheet.classList.add('is-visible'));
+    wireMenuKeyboard(sheet, dismiss);
+    sheet.append(outcomeLabel, outcomes, formatLabel, grid);
+    mountMenu(sheet, close);
   }
 
   function openCamera() {
