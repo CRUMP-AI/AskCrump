@@ -51,29 +51,41 @@ async function inspectTutorial(page) {
     contentType: 'image/png',
     body: readFileSync(join(process.cwd(), 'public', 'assets', 'brand', 'crump-mark.png')),
   }));
-  await page.goto('http://127.0.0.1:8765/tests/fixtures/five-destination-tutorial.html', {waitUntil: 'load'});
-  await page.locator('.tutorial-btn-primary').click();
-  await page.locator('.tutorial-btn-primary').click();
-  await page.locator('.tutorial-btn-primary').click();
-  const guide = await page.evaluate(() => ({
-    progress: document.querySelector('.tutorial-progress-label')?.textContent || '',
-    title: document.getElementById('tutorialTitle')?.textContent || '',
-    destinations: [...document.querySelectorAll('.tutorial-destination-map span')].map(item => item.textContent),
-    current: document.querySelector('.tutorial-destination-map .is-current')?.textContent || '',
-    action: document.querySelector('.tutorial-open-destination')?.textContent || '',
-  }));
-  assert.deepEqual(guide, {
-    progress: '4 / 6',
-    title: 'Give motion its own studio.',
-    destinations: ['Ask', 'Projects', 'Create', 'Video', 'Library', 'You'],
-    current: 'Video',
-    action: 'Open Video →',
-  });
-  await page.locator('.tutorial-open-destination').click();
-  await page.waitForFunction(() => document.getElementById('fixtureDestination')?.textContent === 'video');
-  assert.equal(await page.locator('#fixtureDestination').textContent(), 'video');
+  const expectedSteps = [
+    ['Ask', 'Start with the conversation.'],
+    ['Projects', 'Give continuing work a home.'],
+    ['Create', 'Choose the outcome you need.'],
+    ['Video', 'Give motion its own studio.'],
+    ['Library', 'Keep the things you create.'],
+    ['You', 'Your account has one clear home.'],
+  ];
+  const steps = [];
+  for (const [index, [destination, title]] of expectedSteps.entries()) {
+    await page.goto('http://127.0.0.1:8765/tests/fixtures/five-destination-tutorial.html', {waitUntil: 'load'});
+    for (let advance = 0; advance < index; advance += 1) {
+      await page.locator('.tutorial-btn-primary').click();
+    }
+    const guide = await page.evaluate(() => ({
+      progress: document.querySelector('.tutorial-progress-label')?.textContent || '',
+      title: document.getElementById('tutorialTitle')?.textContent || '',
+      destinations: [...document.querySelectorAll('.tutorial-destination-map span')].map(item => item.textContent),
+      current: document.querySelector('.tutorial-destination-map .is-current')?.textContent || '',
+      action: document.querySelector('.tutorial-open-destination')?.textContent || '',
+    }));
+    assert.deepEqual(guide, {
+      progress: `${index + 1} / 6`,
+      title,
+      destinations: ['Ask', 'Projects', 'Create', 'Video', 'Library', 'You'],
+      current: destination,
+      action: `Open ${destination} →`,
+    });
+    await page.locator('.tutorial-open-destination').click();
+    await page.waitForFunction(expected => document.getElementById('fixtureDestination')?.textContent === expected, destination.toLowerCase());
+    assert.equal(await page.locator('#fixtureDestination').textContent(), destination.toLowerCase());
+    steps.push({...guide, opened: destination.toLowerCase()});
+  }
   assert.deepEqual(errors, []);
-  return {guide, opened: 'video', errors};
+  return {steps, errors};
 }
 
 (async () => {

@@ -76,12 +76,27 @@ def test_authenticated_workspace_stays_behind_a_bounded_runtime_gate():
 
 def test_six_destination_tutorial_fixture_uses_production_assets():
     fixture = read("tests/fixtures/five-destination-tutorial.html")
+    verifier = read("scripts/verify-video-destination.cjs")
 
     assert "/public/onboarding.css?v=actionable-tour-fixture-1" in fixture
     assert "/public/onboarding.js?fixture=actionable-six-destinations" in fixture
     assert "window.tutorial.start({force: true})" in fixture
     assert 'id="fixtureDestination"' in fixture
     assert "window.CrumpNavigation5930" in fixture
+    assert "for (const [index, [destination, title]] of expectedSteps.entries())" in verifier
+    assert "action: `Open ${destination} →`" in verifier
+    assert "opened: destination.toLowerCase()" in verifier
+
+
+def test_navigation_tutorial_and_store_sources_share_one_exact_destination_contract():
+    checker = read("scripts/check-javascript.mjs")
+
+    assert "const destinationLabels = Object.freeze(['Ask', 'Projects', 'Create', 'Video', 'Library', 'You']);" in checker
+    assert "const internalNavigationLabels = Object.freeze(['Ask', 'Projects', 'Code', 'Create', 'Video', 'Library', 'You']);" in checker
+    assert "store/listing.en-US.json" in checker
+    assert "store/screenshots/README.md" in checker
+    assert "docs/STORE_LISTING_COPY.md" in checker
+    assert "Navigation, workspace guide, and store-release sources disagree" in checker
 
 
 def test_home_surface_exposes_projects_and_video_without_hiding_core_chat():

@@ -428,6 +428,45 @@ for (const relative of requiredBodyFiles) {
 const appHtml = await readFile(new URL('public/app.html', repoRoot), 'utf8');
 const landingHtml = await readFile(new URL('public/ask-crump.html', repoRoot), 'utf8');
 const authController = await readFile(new URL('public/auth-controller.js', repoRoot), 'utf8');
+const destinationLabels = Object.freeze(['Ask', 'Projects', 'Create', 'Video', 'Library', 'You']);
+const destinationIds = Object.freeze(destinationLabels.map(label => label.toLowerCase()));
+const internalNavigationLabels = Object.freeze(['Ask', 'Projects', 'Code', 'Create', 'Video', 'Library', 'You']);
+const onboardingSource = await readFile(new URL('public/onboarding.js', repoRoot), 'utf8');
+const navigationSource = await readFile(new URL('public/crump-navigation-5.9.30.js', repoRoot), 'utf8');
+const listingSource = JSON.parse(await readFile(new URL('store/listing.en-US.json', repoRoot), 'utf8'));
+const screenshotPlanSource = await readFile(new URL('store/screenshots/README.md', repoRoot), 'utf8');
+const listingCopySource = await readFile(new URL('docs/STORE_LISTING_COPY.md', repoRoot), 'utf8');
+const expectedScreenshotLabels = Object.freeze([
+  'Ask', 'Projects', 'Create', 'Video', 'Research in Ask', 'Editable work', 'Library', 'You',
+]);
+const navigationBlockStart = navigationSource.indexOf('const destinations = Object.freeze([');
+const navigationBlockEnd = navigationSource.indexOf(']);', navigationBlockStart);
+const navigationLabels = navigationBlockStart >= 0 && navigationBlockEnd > navigationBlockStart
+  ? [...navigationSource.slice(navigationBlockStart, navigationBlockEnd).matchAll(/label: '([^']+)'/g)].map(match => match[1])
+  : [];
+const tutorialDestinationMatch = onboardingSource.match(/const DESTINATIONS = Object\.freeze\(\[([^\]]+)\]\);/);
+const tutorialDestinations = tutorialDestinationMatch
+  ? [...tutorialDestinationMatch[1].matchAll(/'([^']+)'/g)].map(match => match[1])
+  : [];
+const screenshotLabels = plan => Array.isArray(plan)
+  ? plan.map(item => String(item || '').split(' —')[0].trim())
+  : [];
+const readmeScreenshotLabels = [...screenshotPlanSource.matchAll(/^\d+\.\s+([^\n—]+?)\s+—/gm)]
+  .map(match => match[1].trim());
+const destinationCsv = `${destinationLabels.slice(0, -1).join(', ')}, and ${destinationLabels.at(-1)}`;
+if (JSON.stringify(navigationLabels) !== JSON.stringify(internalNavigationLabels) ||
+    !navigationSource.includes("destination.id === 'code' ? ' data-crump-code-destination hidden' : ''") ||
+    JSON.stringify(tutorialDestinations) !== JSON.stringify(destinationLabels) ||
+    JSON.stringify(screenshotLabels(listingSource.apple?.screenshotPlan)) !== JSON.stringify(expectedScreenshotLabels) ||
+    JSON.stringify(screenshotLabels(listingSource.google?.screenshotPlan)) !== JSON.stringify(expectedScreenshotLabels) ||
+    JSON.stringify(readmeScreenshotLabels) !== JSON.stringify(expectedScreenshotLabels) ||
+    !listingSource.apple?.description?.includes(`six destinations: ${destinationCsv}`) ||
+    !listingSource.google?.fullDescription?.includes(`six clear destinations: ${destinationCsv}`) ||
+    !listingCopySource.includes(`Ask, Projects, Create, Video, Library, and You`) ||
+    !destinationIds.every(id => onboardingSource.includes(`action: '${id}'`))) {
+  console.error('Navigation, workspace guide, and store-release sources disagree on the current six-destination product.');
+  process.exit(1);
+}
 if (!releaseVersion || !landingHtml.includes(`/landing.js?v=${landingVersion}`)) {
   console.error('Ask Crump marketing page is missing its release-versioned script.');
   process.exit(1);
