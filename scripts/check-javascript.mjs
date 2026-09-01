@@ -414,7 +414,7 @@ const mobileDrawerDestinationsVersion = `${releaseVersion}-mobile-drawer-destina
 const destinationBackgroundGuardVersion = `${releaseVersion}-destination-background-guard-1`;
 const continuityActionVersion = `${releaseVersion}-continuity-action-1`;
 const precisionEditEntryVersion = `${releaseVersion}-precision-edit-entry-1`;
-const precisionEditStudioVersion = `${releaseVersion}-lasso-invert-1`;
+const precisionEditStudioVersion = `${releaseVersion}-precision-visible-1`;
 const creationSheetContainmentVersion = `${releaseVersion}-creation-sheet-containment-1`;
 const requiredBodyFiles = [
   'public/crump-v1-body.css',
@@ -819,7 +819,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r211') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r212') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${precisionEditGuideLoaderVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||

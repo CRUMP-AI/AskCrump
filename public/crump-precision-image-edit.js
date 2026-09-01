@@ -1220,6 +1220,8 @@
       const base = document.createElement('img');
       base.src = sourceUrl;
       base.alt = file?.name ? `Image to edit: ${file.name}` : 'Image to edit';
+      base.width = image.naturalWidth;
+      base.height = image.naturalHeight;
       const previewScale = Math.min(1, 1200 / Math.max(image.naturalWidth, image.naturalHeight));
       const preview = document.createElement('canvas');
       preview.className = 'crump-precision-preview';
@@ -1258,6 +1260,8 @@
       frame.append(base, preview, overlayCanvas, overlayGuide, canvas, lassoGuide);
       stage.replaceChildren(frame);
       stage.classList.remove('is-loading');
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      if (state.modal !== modal) return;
       state.canvas = canvas;
       state.context = canvas.getContext('2d', {alpha: true, willReadFrequently: true});
       state.frame = frame;
@@ -1270,11 +1274,24 @@
       state.overlayGuide = overlayGuide;
       state.lassoGuide = lassoGuide;
       state.lassoPolygon = lassoPolygon;
-      const fitted = frame.getBoundingClientRect();
-      state.fitWidth = fitted.width;
-      state.fitHeight = fitted.height;
-      frame.style.width = `${Math.round(fitted.width)}px`;
-      frame.style.height = `${Math.round(fitted.height)}px`;
+      const stageStyle = getComputedStyle(stage);
+      const stageWidth = Math.max(1,
+        stage.clientWidth - (parseFloat(stageStyle.paddingLeft) || 0) - (parseFloat(stageStyle.paddingRight) || 0));
+      const stageHeight = Math.max(1,
+        stage.clientHeight - (parseFloat(stageStyle.paddingTop) || 0) - (parseFloat(stageStyle.paddingBottom) || 0));
+      const baseMaxHeight = parseFloat(getComputedStyle(base).maxHeight);
+      const availableHeight = Number.isFinite(baseMaxHeight) && baseMaxHeight > 0
+        ? Math.min(stageHeight, baseMaxHeight)
+        : stageHeight;
+      const fitScale = Math.min(
+        1,
+        stageWidth / Math.max(1, image.naturalWidth),
+        availableHeight / Math.max(1, image.naturalHeight),
+      );
+      state.fitWidth = Math.max(1, Math.round(image.naturalWidth * fitScale));
+      state.fitHeight = Math.max(1, Math.round(image.naturalHeight * fitScale));
+      frame.style.width = `${state.fitWidth}px`;
+      frame.style.height = `${state.fitHeight}px`;
       zoomFit.disabled = false;
       wireCanvas(canvas);
       renderOverlays();

@@ -27,6 +27,15 @@ const {chromium} = require(playwrightModule);
     overflowX: await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth),
   };
   const canvas = editor.locator('.crump-precision-mask');
+  const baseImage = editor.locator('.crump-precision-canvas-frame img');
+  const visibleImage = {
+    naturalWidth: await baseImage.evaluate(node => node.naturalWidth),
+    naturalHeight: await baseImage.evaluate(node => node.naturalHeight),
+    width: await baseImage.evaluate(node => node.getBoundingClientRect().width),
+    height: await baseImage.evaluate(node => node.getBoundingClientRect().height),
+    canvasWidth: await canvas.evaluate(node => node.getBoundingClientRect().width),
+    canvasHeight: await canvas.evaluate(node => node.getBoundingClientRect().height),
+  };
   const fittedWidth = await canvas.evaluate(node => node.getBoundingClientRect().width);
   await editor.getByRole('button', {name: 'Zoom in'}).click();
   const zoomed = {
@@ -133,13 +142,25 @@ const {chromium} = require(playwrightModule);
   const localCanvas = editor.locator('.crump-precision-mask');
   const localBox = await localCanvas.boundingBox();
   if (!localBox) throw new Error('Precision local-edit canvas was not visible.');
-  await page.mouse.click(localBox.x + localBox.width * .5, localBox.y + localBox.height * .5);
+  await page.mouse.move(localBox.x + localBox.width * .48, localBox.y + localBox.height * .5);
+  await page.mouse.down();
+  await page.mouse.move(localBox.x + localBox.width * .52, localBox.y + localBox.height * .5, {steps: 3});
+  await page.mouse.up();
+  await page.waitForFunction(() => {
+    const mask = document.querySelector('.crump-precision-mask');
+    if (!mask) return false;
+    const x = Math.floor(mask.width / 2);
+    const y = Math.floor(mask.height / 2);
+    return mask.getContext('2d').getImageData(x, y, 1, 1).data[3] > 0;
+  });
   const warmth = editor.getByRole('slider', {name: 'Warmth adjustment'});
   await warmth.fill('18');
   await page.waitForFunction(() => {
     const preview = document.querySelector('.crump-precision-preview');
     if (!preview || preview.hidden) return false;
-    return preview.getContext('2d').getImageData(320, 240, 1, 1).data[3] > 0;
+    const x = Math.floor(preview.width / 2);
+    const y = Math.floor(preview.height / 2);
+    return preview.getContext('2d').getImageData(x, y, 1, 1).data[3] > 0;
   });
   const preview = {
     warmth: await warmth.inputValue(),
@@ -150,10 +171,12 @@ const {chromium} = require(playwrightModule);
       const maskCanvas = node.querySelector('.crump-precision-mask');
       const previewContext = previewCanvas.getContext('2d');
       const maskContext = maskCanvas.getContext('2d');
+      const centerX = Math.floor(previewCanvas.width / 2);
+      const centerY = Math.floor(previewCanvas.height / 2);
       return {
         outsideAlpha: previewContext.getImageData(5, 5, 1, 1).data[3],
-        selectedAlpha: previewContext.getImageData(320, 240, 1, 1).data[3],
-        maskSelectedAlpha: maskContext.getImageData(320, 240, 1, 1).data[3],
+        selectedAlpha: previewContext.getImageData(centerX, centerY, 1, 1).data[3],
+        maskSelectedAlpha: maskContext.getImageData(centerX, centerY, 1, 1).data[3],
       };
     }),
   };
@@ -244,6 +267,10 @@ const {chromium} = require(playwrightModule);
     saveVisible: await editor.getByRole('button', {name: 'Save local edit'}).isVisible(),
     aiVisible: await editor.getByRole('button', {name: 'Continue with AI edit'}).isVisible(),
     workspaceScrollable: await editor.locator('.crump-precision-workspace').evaluate(node => node.scrollHeight > node.clientHeight),
+    imageWidth: await editor.locator('.crump-precision-canvas-frame img').evaluate(node => node.getBoundingClientRect().width),
+    imageHeight: await editor.locator('.crump-precision-canvas-frame img').evaluate(node => node.getBoundingClientRect().height),
+    canvasWidth: await editor.locator('.crump-precision-mask').evaluate(node => node.getBoundingClientRect().width),
+    canvasHeight: await editor.locator('.crump-precision-mask').evaluate(node => node.getBoundingClientRect().height),
   };
   await page.screenshot({path: 'artifacts/precision-image-edit-mobile.png', fullPage: true});
   await page.keyboard.press('Escape');
@@ -263,6 +290,12 @@ const {chromium} = require(playwrightModule);
     || !desktop.guidedBoundary.includes('No person is identified or classified')
     || !desktop.localBoundary.includes('NO AI OR CREDITS')
     || !desktop.localBoundary.includes('deterministically')
+    || visibleImage.naturalWidth !== 640
+    || visibleImage.naturalHeight !== 480
+    || visibleImage.width <= 0
+    || visibleImage.height <= 0
+    || Math.abs(visibleImage.canvasWidth - visibleImage.width) > 2
+    || Math.abs(visibleImage.canvasHeight - visibleImage.height) > 2
     || zoomed.label !== '150%'
     || zoomed.width <= fittedWidth * 1.4
     || movePressed !== 'true'
@@ -327,12 +360,16 @@ const {chromium} = require(playwrightModule);
     || !mobile.localControlsVisible
     || !mobile.saveVisible
     || !mobile.aiVisible
+    || mobile.imageWidth <= 0
+    || mobile.imageHeight <= 0
+    || Math.abs(mobile.canvasWidth - mobile.imageWidth) > 2
+    || Math.abs(mobile.canvasHeight - mobile.imageHeight) > 2
     || !mobile.workspaceScrollable
     || !escaped
   ) {
-    throw new Error(JSON.stringify({desktop, zoomed, fittedWidth, movePressed, lassoProof, broadInvertGuard, redoEnabled, guidedInstruction, staged, preview, originalVisible, localSave, overlayPreview, overlaySave, mobile, escaped, errors}));
+    throw new Error(JSON.stringify({desktop, visibleImage, zoomed, fittedWidth, movePressed, lassoProof, broadInvertGuard, redoEnabled, guidedInstruction, staged, preview, originalVisible, localSave, overlayPreview, overlaySave, mobile, escaped, errors}));
   }
-  process.stdout.write(`${JSON.stringify({desktop, zoomed, fittedWidth, movePressed, lassoProof, broadInvertGuard, redoEnabled, guidedInstruction, staged, preview, originalVisible, localSave, overlayPreview, overlaySave, mobile, escaped, errors})}\n`);
+  process.stdout.write(`${JSON.stringify({desktop, visibleImage, zoomed, fittedWidth, movePressed, lassoProof, broadInvertGuard, redoEnabled, guidedInstruction, staged, preview, originalVisible, localSave, overlayPreview, overlaySave, mobile, escaped, errors})}\n`);
 })().catch(error => {
   process.stderr.write(`${error.stack || error}\n`);
   process.exitCode = 1;

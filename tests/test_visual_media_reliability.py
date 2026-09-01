@@ -827,8 +827,14 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
     assert "input.dispatchEvent(new Event('input', {bubbles: true}))" in composer
     assert "Edit area" in composer
     assert "Precision Edit area" in composer
-    exact_script = "/crump-precision-image-edit.js?v=5.9.76-lasso-invert-1"
-    exact_style = "/crump-precision-image-edit.css?v=5.9.76-lasso-invert-1"
+    assert "base.width = image.naturalWidth" in editor
+    assert "base.height = image.naturalHeight" in editor
+    assert "stage.clientWidth" in editor
+    assert "stage.clientHeight" in editor
+    assert "state.fitWidth = Math.max(1" in editor
+    assert "state.fitHeight = Math.max(1" in editor
+    exact_script = "/crump-precision-image-edit.js?v=5.9.76-precision-visible-1"
+    exact_style = "/crump-precision-image-edit.css?v=5.9.76-precision-visible-1"
     for asset in (exact_script, exact_style):
         assert asset in runtime
         assert asset in worker
