@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from backend.intelligence_service import IntelligenceService, PreparedRequest
+from backend.ai_service import AIService
 from backend.db import DatabaseError
 
 
@@ -74,6 +75,88 @@ def test_source_heavy_academic_requests_route_to_grounded_research():
         "Write a research paper with peer-reviewed citations and a bibliography.",
         {},
     ) == "web"
+
+
+def test_constrained_rewrite_contract_preserves_modality_and_explicit_audience():
+    request = """Reorganize this into a concise planning update that two volunteers can scan.
+Preserve every supplied fact and do not add details.
+The working budget is $1,200 and the workshop should happen within six weeks.
+This update needs to become easier for two volunteers to scan."""
+
+    contract = IntelligenceService._rewrite_fidelity_contract(request)
+
+    assert contract is not None
+    assert "should is not must" in contract
+    assert "workshop should happen within six weeks" in contract
+    assert "two volunteers" in contract
+    assert "Retain every explicit audience" in contract
+
+
+def test_unconstrained_conversation_does_not_create_a_rewrite_contract():
+    assert IntelligenceService._rewrite_fidelity_contract(
+        "Should we invite two volunteers to the workshop?"
+    ) is None
+
+
+def test_primary_model_prompt_receives_the_rewrite_fidelity_contract():
+    contract = IntelligenceService._rewrite_fidelity_contract(
+        "Reorganize this update for two volunteers. Preserve every fact. "
+        "The workshop should happen within six weeks."
+    )
+
+    prompt = AIService(SimpleNamespace())._system_prompt({
+        "assistantName": "Crump",
+        "currentDateTime": {},
+        "_rewriteFidelityContract": contract,
+    })
+
+    assert "CURRENT-TURN TRANSFORMATION FIDELITY — REQUIRED" in prompt
+    assert "should happen within six weeks" in prompt
+    assert "two volunteers" in prompt
+
+
+@pytest.mark.asyncio
+async def test_auto_verifier_repairs_strengthened_modality_and_missing_audience():
+    service = IntelligenceService(
+        db=SimpleNamespace(), ai=SimpleNamespace(), settings=SimpleNamespace()
+    )
+    contract = IntelligenceService._rewrite_fidelity_contract(
+        "Reorganize this update for two volunteers. Preserve every fact. "
+        "The workshop should happen within six weeks."
+    )
+    assert contract is not None
+    service._model_text = AsyncMock(return_value=(
+        "Audience: two volunteers.\n\n"
+        "The workshop should happen within six weeks."
+    ))
+    prepared = PreparedRequest(
+        payload={
+            "_rewriteFidelityContract": contract,
+            "user": {"id": "00000000-0000-0000-0000-000000000001"},
+        },
+        requested_mode="auto",
+        effective_mode="balanced",
+        verification_level="auto",
+        route="conversation",
+    )
+
+    updated, verifier_used = await service.verify_answer(
+        prepared=prepared,
+        question=(
+            "Reorganize this update for two volunteers. Preserve every fact. "
+            "The workshop should happen within six weeks."
+        ),
+        result={"response": "The workshop must happen within six weeks."},
+    )
+
+    assert verifier_used is True
+    assert updated["verified"] is True
+    assert "should happen within six weeks" in updated["response"]
+    assert "must happen within six weeks" not in updated["response"]
+    assert "two volunteers" in updated["response"]
+    call = service._model_text.await_args.kwargs
+    assert "should must remain\nshould" in call["system"]
+    assert "two volunteers" in call["prompt"]
 
 
 @pytest.mark.asyncio

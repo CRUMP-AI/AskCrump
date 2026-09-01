@@ -116,6 +116,15 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
         if relevant:
             prompt += f"\nRelevant prior context supplied by the client:\n{json.dumps(relevant, ensure_ascii=False)[:8000]}\n"
 
+        rewrite_fidelity_contract = str(
+            payload.get('_rewriteFidelityContract') or ''
+        ).strip()
+        if rewrite_fidelity_contract:
+            prompt += (
+                "\nCURRENT-TURN TRANSFORMATION FIDELITY — REQUIRED:\n"
+                f"{rewrite_fidelity_contract[:5000]}\n"
+            )
+
         creation_intent = payload.get('creationIntent')
         if isinstance(creation_intent, dict):
             stage = str(creation_intent.get('stage') or '')
