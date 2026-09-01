@@ -212,6 +212,14 @@ untouched signed-out form now adopts the ready runtime once; typed or deliberate
 preserved behind an explicit choice. The external comparable cohort remains zero and no signup lift
 is claimed. Evidence: `docs/AUTH_RUNTIME_UPDATE_GUARD_RELEASE_2026-09-01.md`.
 
+The next account-entry audit closed the cross-device creation-destination gap: commit `816f5fd` and
+production deployment `dpl_CWJycAeXUM3VroFaFUfpfAGvZ5tm` now carry only the allowlisted capability
+and optional plan-review labels through registration, resend, email verification, and first
+workspace entry. An empty-storage browser proof opened PowerPoint creation and Professional review
+once each, then removed both labels. No production account or email was manufactured, the comparable
+cohort remains zero, and no activation or revenue lift is claimed. Evidence:
+`docs/CROSS_DEVICE_VERIFICATION_DESTINATION_RELEASE_2026-09-01.md`.
+
 At or after **2026-09-02 09:40 EDT**, inspect the complete post-release Vercel window for
 `invalid_image_file`, moderation-recovery, Precision Edit, and video-limit recurrence. If the window
 is clean, record it without claiming provider quality; if a current-deployment recurrence exists,

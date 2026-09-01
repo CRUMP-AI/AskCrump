@@ -238,6 +238,13 @@ provider, privacy, cost, or security gate is incomplete.
   email, resend recovery, delivery/network feedback, and verified-to-sign-in action persist. The
   same state recovers an account created before initial email delivery failed. No auth policy,
   backend verification mechanic, production account, or synthetic event was introduced.
+- **Cross-device verification destination:** Production 5.9.76 now carries only the allowlisted
+  document, presentation, résumé, Video, Projects, and optional paid-plan review destinations in
+  the server-generated verification link. A different browser with empty local storage therefore
+  opens the exact workspace promised before registration, consumes the destination once, and
+  removes the query. Unknown labels are discarded; plan review creates no checkout or entitlement;
+  no customer content, database migration, or API dependency was introduced. A legitimate
+  acquisition-to-artifact-and-return journey remains unobserved, so no activation lift is claimed.
 - **Verification-link recovery:** Production 5.9.47 turns a failed, expired, already-used, or
   scanner-consumed verification return into an actionable signed-out state. It focuses the email
   field, exposes the existing generic resend action, and offers sign-in when verification may already
