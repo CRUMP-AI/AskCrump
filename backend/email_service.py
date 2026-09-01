@@ -8,6 +8,7 @@ from collections.abc import Awaitable, Callable
 import httpx
 
 from .config import Settings
+from .verification_handoff import verification_email_url
 
 
 class EmailDeliveryError(RuntimeError):
@@ -125,8 +126,21 @@ class EmailService:
 <tr><td style="padding:20px 32px;color:#9aa4ad;font-size:13px;border-top:1px solid #2b333c">Questions? {html.escape(self.settings.support_email)}</td></tr>
 </table></td></tr></table></body></html>"""
 
-    async def send_verification(self, email: str, name: str | None, token: str) -> bool:
-        url = f"{self.settings.app_url}/api/auth/verify-email?token={token}"
+    async def send_verification(
+        self,
+        email: str,
+        name: str | None,
+        token: str,
+        *,
+        intent: str | None = None,
+        plan: str | None = None,
+    ) -> bool:
+        url = verification_email_url(
+            self.settings.app_url,
+            token,
+            intent=intent,
+            plan=plan,
+        )
         safe_name = html.escape(name or 'there')
         content = f"""<p>Hi {safe_name},</p><p>Confirm your email and open your Ask Crump workspace.</p>
 <p><a href="{html.escape(url)}" style="display:inline-block;background:#c9b892;color:#101419;text-decoration:none;padding:13px 20px;border-radius:10px;font-weight:700">Verify &amp; open Ask Crump</a></p>

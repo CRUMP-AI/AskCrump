@@ -36,6 +36,12 @@
     window.addEventListener('error', recordError);
     window.addEventListener('unhandledrejection', recordError);
     window.addEventListener('crump:creation-intent-consumed', () => setTimeout(render, 0));
+    window.addEventListener('crump:plan-intent', event => {
+      const detail = event.detail || {};
+      window.__fixture.calls.push({tool:'plan', action:'open', plan:detail.plan});
+      window.dispatchEvent(new CustomEvent('crump:plan-intent-consumed', {detail}));
+      setTimeout(render, 0);
+    });
     window.addEventListener('load', () => setTimeout(render, 80));
 
     window.va = (command, payload) => window.__fixture.events.push({command, ...payload});

@@ -30,12 +30,18 @@ class RegisterRequest(APIModel):
     campaign: str | None = Field(default=None, max_length=32)
     creative: str | None = Field(default=None, max_length=32)
     intent: str | None = Field(default=None, max_length=32)
+    plan: Literal["professional", "enterprise"] | None = None
     termsAccepted: bool = False
     termsVersion: Literal["2026-08-01"] | None = None
 
 
 class EmailRequest(APIModel):
     email: EmailStr
+
+
+class ResendVerificationRequest(EmailRequest):
+    intent: Literal["document", "presentation", "resume", "video", "projects"] | None = None
+    plan: Literal["professional", "enterprise"] | None = None
 
 
 class ResetPasswordRequest(APIModel):

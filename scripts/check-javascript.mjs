@@ -392,7 +392,7 @@ const repoRoot = new URL('../', import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot), 'utf8'));
 const releaseVersion = String(packageJson.version || '');
 const landingVersion = `${releaseVersion}-profile-landing-1`;
-const authControllerVersion = `${releaseVersion}-auth-entry-polish-1`;
+const authControllerVersion = `${releaseVersion}-verification-handoff-1`;
 const planRendererVersion = `${releaseVersion}-credit-pack-accessibility-1`;
 const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
 const creditPackTruthVersion = `${releaseVersion}-credit-pack-truth-1`;
@@ -819,7 +819,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r210') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r211') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${precisionEditGuideLoaderVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||

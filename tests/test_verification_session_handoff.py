@@ -64,11 +64,24 @@ async def test_verification_issues_a_session_and_keeps_a_short_scanner_safe_repl
     )
     request = SimpleNamespace(headers={}, client=SimpleNamespace(host='127.0.0.1'))
 
-    first = await auth_routes.verify_email('verification-token', request)
-    replay = await auth_routes.verify_email('verification-token', request)
+    first = await auth_routes.verify_email(
+        'verification-token',
+        request,
+        intent='presentation',
+        plan='professional',
+    )
+    replay = await auth_routes.verify_email(
+        'verification-token',
+        request,
+        intent='presentation',
+        plan='professional',
+    )
 
     assert first.status_code == 303
-    assert first.headers['location'] == 'https://www.askcrump.com/app?verification=success'
+    assert first.headers['location'] == (
+        'https://www.askcrump.com/app?verification=success'
+        '&intent=presentation&plan=professional'
+    )
     assert replay.status_code == 303
     assert replay.headers['location'] == first.headers['location']
     assert database.updates[0]['is_verified'] is True
@@ -99,6 +112,35 @@ async def test_invalid_verification_link_never_issues_a_session(monkeypatch):
 
     assert response.status_code == 303
     assert response.headers['location'] == 'https://www.askcrump.com/app?verification=failed'
+
+
+@pytest.mark.asyncio
+async def test_successful_verification_discards_unknown_destination_values(monkeypatch):
+    database = VerificationDB({
+        'id': 'user-1',
+        'email': 'new-user@example.com',
+        'is_verified': True,
+        'verification_token_hash': token_hash('verification-token'),
+        'verification_token_expires': '2099-01-01T00:00:00+00:00',
+    })
+
+    async def fake_create_session(*_args, **_kwargs):
+        return 'session-token', {'id': 'session-1'}
+
+    monkeypatch.setattr(auth_routes, 'db', database)
+    monkeypatch.setattr(auth_routes, 'settings', SimpleNamespace(app_url='https://www.askcrump.com'))
+    monkeypatch.setattr(auth_routes, 'create_session', fake_create_session)
+    monkeypatch.setattr(auth_routes, 'set_session_cookie', lambda *_args, **_kwargs: None)
+    request = SimpleNamespace(headers={}, client=SimpleNamespace(host='127.0.0.1'))
+
+    response = await auth_routes.verify_email(
+        'verification-token',
+        request,
+        intent='private customer prompt',
+        plan='free',
+    )
+
+    assert response.headers['location'] == 'https://www.askcrump.com/app?verification=success'
 
 
 def test_verification_email_promises_the_one_click_workspace_handoff():

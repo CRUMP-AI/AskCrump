@@ -740,7 +740,11 @@
       const {response, data} = await authRequest('/api/auth/resend-verification', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({email}),
+        body: JSON.stringify({
+          email,
+          intent: pendingCreationIntent()?.kind || null,
+          plan: pendingPlanIntent()?.plan || null,
+        }),
       }, 'Sending the verification email took too long. Check your inbox before retrying.');
       const message = data.message || data.error || 'Request completed.';
       setText(response.ok ? successId : errorId, message);
@@ -1100,6 +1104,7 @@
       try {
         const email = byId('registerEmail').value.trim();
         const attribution = firstTouchAttribution();
+        const planIntent = pendingPlanIntent();
         const {response, data} = await authRequest('/api/auth/register', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1111,6 +1116,7 @@
             campaign: attribution.campaign,
             creative: attribution.creative,
             intent: attribution.intent,
+            plan: planIntent?.plan || null,
             termsAccepted: byId('registerTerms')?.checked === true,
             termsVersion: TERMS_VERSION,
           }),

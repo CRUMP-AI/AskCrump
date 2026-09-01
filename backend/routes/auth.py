@@ -29,9 +29,11 @@ from ..schemas import (
     EmailRequest,
     LoginRequest,
     RegisterRequest,
+    ResendVerificationRequest,
     ResetPasswordRequest,
     RevokeDeviceRequest,
 )
+from ..verification_handoff import verified_workspace_url
 from ..security import (
     expiry_iso,
     hash_password,
@@ -195,6 +197,8 @@ async def register(payload: RegisterRequest, request: Request):
             email,
             user.get('full_name'),
             verification_token,
+            intent=payload.intent,
+            plan=payload.plan,
         )
     except EmailDeliveryError as exc:
         return verification_delivery_failure(exc, account_created=True)
@@ -516,7 +520,7 @@ async def reset_password(payload: ResetPasswordRequest, request: Request):
 
 
 @router.post('/resend-verification')
-async def resend_verification(payload: EmailRequest, request: Request):
+async def resend_verification(payload: ResendVerificationRequest, request: Request):
     email = normalize_email(str(payload.email))
     await enforce_auth_rate_limit(
         db,
@@ -544,7 +548,13 @@ async def resend_verification(payload: EmailRequest, request: Request):
         filters={'id': eq(user['id'])},
     )
     try:
-        sent = await email_service.send_verification(email, user.get('full_name'), raw_token)
+        sent = await email_service.send_verification(
+            email,
+            user.get('full_name'),
+            raw_token,
+            intent=payload.intent,
+            plan=payload.plan,
+        )
     except EmailDeliveryError as exc:
         return verification_delivery_failure(exc, account_created=False)
     return {
@@ -554,7 +564,12 @@ async def resend_verification(payload: EmailRequest, request: Request):
 
 
 @router.get('/verify-email')
-async def verify_email(token: str, request: Request):
+async def verify_email(
+    token: str,
+    request: Request,
+    intent: str | None = None,
+    plan: str | None = None,
+):
     user = await db.select_one(
         'users',
         columns='*',
@@ -597,7 +612,7 @@ async def verify_email(token: str, request: Request):
         platform='web',
     )
     response = RedirectResponse(
-        f'{settings.app_url}/app?verification=success',
+        verified_workspace_url(settings.app_url, intent=intent, plan=plan),
         status_code=303,
     )
     set_session_cookie(response, raw_token, request)
