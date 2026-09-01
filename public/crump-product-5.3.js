@@ -1247,6 +1247,15 @@
   function openProjectFiles() {
     const studio = byId('crump53Studio');
     if (!studio) return false;
+    state.libraryQuery = '';
+    state.libraryFilter = 'all';
+    const search = byId('crump53LibrarySearch');
+    if (search) search.value = '';
+    document.querySelectorAll('[data-library-filter]').forEach(button => {
+      const active = (button.dataset.libraryFilter || 'all') === 'all';
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
     configureStudioSection('projects');
     studio.hidden = false;
     document.body.style.overflow = 'hidden';

@@ -13,8 +13,8 @@ def test_product53_runtime_is_registered_last_and_cached():
     checker = read("scripts/check-javascript.mjs")
     assert "/crump-product-5.3.css" in runtime
     assert "/crump-product-5.3.js" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-file-library-usability-1" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-file-library-usability-1" in worker
+    assert "/crump-product-5.3.js?v=5.9.76-file-library-usability-2" in runtime
+    assert "/crump-product-5.3.js?v=5.9.76-file-library-usability-2" in worker
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
     assert "ask-crump-new-body-v1-r181" in worker
     assert "/crump-product-5.3.js" in worker
@@ -120,6 +120,9 @@ def test_private_account_files_surface_saved_creations_under_projects():
     assert "configureStudioSection('projects');" in files_handoff
     assert "selectStudioPanel('projects');" in files_handoff
     assert "if (readProjectRoute()) writeProjectRoute('', {replace: true});" in files_handoff
+    assert "state.libraryQuery = '';" in files_handoff
+    assert "state.libraryFilter = 'all';" in files_handoff
+    assert "if (search) search.value = '';" in files_handoff
     assert "setProjectView('files');" in files_handoff
     assert "void refreshLibrary();" in files_handoff
     assert "return true;" in files_handoff

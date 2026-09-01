@@ -51,6 +51,17 @@ const { chromium } = require('playwright');
       'file-resume', 'file-pitch', 'file-video', 'file-image',
     ]);
 
+    await search.fill('pitch');
+    await imageFilter.click();
+    await dialog.getByRole('button', {name: 'Close'}).click();
+    await page.evaluate(() => window.CrumpProduct53.openFiles());
+    await dialog.waitFor({state: 'visible'});
+    assert.equal(await search.evaluate(element => element.value), '');
+    assert.equal(await dialog.locator('[data-library-filter="all"]').getAttribute('aria-pressed'), 'true');
+    assert.equal(await dialog.locator('[data-library-filter="image"]').getAttribute('aria-pressed'), 'false');
+    assert.equal(await sort.evaluate(element => element.value), 'oldest');
+    assert.equal(await dialog.locator('[data-library-file]').count(), 4);
+
     const layout = await page.evaluate(() => ({
       documentWidth: document.documentElement.scrollWidth,
       viewportWidth: window.innerWidth,
