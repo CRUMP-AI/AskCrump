@@ -20,11 +20,25 @@ const {chromium} = require(playwrightModule);
     boundary: await editor.locator('.crump-precision-boundary').textContent(),
     appearance: await editor.locator('.crump-precision-appearance').textContent(),
     brushPressed: await editor.getByRole('button', {name: 'Brush'}).getAttribute('aria-pressed'),
+    movePressed: await editor.getByRole('button', {name: 'Move'}).getAttribute('aria-pressed'),
+    zoom: await editor.locator('.crump-precision-zoom b').textContent(),
+    guidedBoundary: await editor.locator('.crump-precision-adjustment small').textContent(),
     overflowX: await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth),
   };
+  const canvas = editor.locator('canvas');
+  const fittedWidth = await canvas.evaluate(node => node.getBoundingClientRect().width);
+  await editor.getByRole('button', {name: 'Zoom in'}).click();
+  const zoomed = {
+    label: await editor.locator('.crump-precision-zoom b').textContent(),
+    width: await canvas.evaluate(node => node.getBoundingClientRect().width),
+  };
+  await editor.getByRole('button', {name: 'Move'}).click();
+  const movePressed = await editor.getByRole('button', {name: 'Move'}).getAttribute('aria-pressed');
+  await editor.getByRole('button', {name: 'Warmer', exact: true}).click();
+  const guidedInstruction = await editor.getByRole('textbox', {name: 'Edit instruction'}).inputValue();
+  await editor.getByRole('button', {name: 'Brush'}).click();
   await page.screenshot({path: 'artifacts/precision-image-edit-desktop.png', fullPage: true});
 
-  const canvas = editor.locator('canvas');
   const box = await canvas.boundingBox();
   if (!box) throw new Error('Precision canvas was not visible.');
   await page.mouse.move(box.x + box.width * .42, box.y + box.height * .42);
@@ -41,6 +55,7 @@ const {chromium} = require(playwrightModule);
     prefix: String(window.__precisionStaged?.maskDataUrl || '').slice(0, 22),
     width: window.__precisionStaged?.width,
     height: window.__precisionStaged?.height,
+    instruction: window.__precisionStaged?.instruction,
     modalOpen: Boolean(document.querySelector('.crump-precision-editor')),
     focused: document.activeElement?.id,
   }));
@@ -68,11 +83,19 @@ const {chromium} = require(playwrightModule);
     || !desktop.boundary.includes('restores protected pixels')
     || !desktop.appearance.includes('Skin tone is not a race label')
     || desktop.brushPressed !== 'true'
+    || desktop.movePressed !== 'false'
+    || desktop.zoom !== '100%'
+    || !desktop.guidedBoundary.includes('No person is identified or classified')
+    || zoomed.label !== '150%'
+    || zoomed.width <= fittedWidth * 1.4
+    || movePressed !== 'true'
+    || !guidedInstruction.includes('subtly warmer')
     || desktop.overflowX
     || staged.fileId !== '11111111-1111-4111-8111-111111111111'
     || staged.prefix !== 'data:image/png;base64,'
     || staged.width !== 640
     || staged.height !== 480
+    || !staged.instruction.includes('subtly warmer')
     || staged.modalOpen
     || staged.focused !== 'openPrecision'
     || mobile.overflowX
@@ -80,9 +103,9 @@ const {chromium} = require(playwrightModule);
     || !mobile.closeVisible
     || !escaped
   ) {
-    throw new Error(JSON.stringify({desktop, staged, mobile, escaped, errors}));
+    throw new Error(JSON.stringify({desktop, zoomed, fittedWidth, movePressed, guidedInstruction, staged, mobile, escaped, errors}));
   }
-  process.stdout.write(`${JSON.stringify({desktop, staged, mobile, escaped, errors})}\n`);
+  process.stdout.write(`${JSON.stringify({desktop, zoomed, fittedWidth, movePressed, guidedInstruction, staged, mobile, escaped, errors})}\n`);
 })().catch(error => {
   process.stderr.write(`${error.stack || error}\n`);
   process.exitCode = 1;

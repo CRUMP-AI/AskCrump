@@ -45,7 +45,7 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/billing.css',
         '/onboarding.css?v=5.9.76-video-destination-1',
         '/conversation.css?v=5.9.76-intelligence-receipt-1',
-        '/onboarding.js?v=5.9.76-precision-edit-guide-1',
+        '/onboarding.js?v=5.9.76-precision-edit-guide-2',
         '/scroll-manager.js?v=5.9.76-user-controlled-scroll-1',
         '/profile-manager.js',
         '/billing-manager.js?v=5.9.76-commerce-recovery-1',

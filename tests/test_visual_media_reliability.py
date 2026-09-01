@@ -357,7 +357,7 @@ def test_image_studio_exposes_an_optional_reference_and_honest_fidelity_guidance
         "Select the pixels yourself",
         "does not infer race or ethnicity",
         "placed as overlays for exact fidelity",
-        "Select a specific area",
+        "Edit one exact area",
         "aria-label', 'Image Studio",
         "aria-label', 'Close Image Studio",
         "aria-modal', 'true",
@@ -384,11 +384,18 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
         "Paint the area yourself",
         "Brush",
         "Erase",
+        "Move",
+        "Zoom in",
+        "Fit image to screen",
         "Undo",
         "Clear",
         "Outside-selection lock",
         "restores protected pixels",
         "Skin tone is not a race label",
+        "Natural retouch",
+        "Slightly deeper",
+        "Slightly lighter",
+        "No person is identified or classified",
         "selectionHasVisiblePixels",
         "maskDataUrl",
         "applyPrecisionSelection",
@@ -396,6 +403,8 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
     ):
         assert contract in editor
     assert "face-api" not in editor
+    assert "race detection" not in editor.lower()
+    assert "race selector" not in editor.lower()
     assert "race classification" not in editor.lower()
     assert "localStorage" not in editor
     assert "sessionStorage" not in editor
@@ -403,8 +412,13 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
     assert "state.precisionImageEdit = null" in composer
     assert "imageEditMask" not in composer[composer.index("requestMeta: {") : composer.index("state.imageRecovery = null;")]
     assert "crump-precision-open" in styles
-    exact_script = "/crump-precision-image-edit.js?v=5.9.76-precision-edit-studio-1"
-    exact_style = "/crump-precision-image-edit.css?v=5.9.76-precision-edit-studio-1"
+    assert "instruction: String(state.instruction?.value || '').trim()" in editor
+    assert "guidedInstruction" in composer
+    assert "input.dispatchEvent(new Event('input', {bubbles: true}))" in composer
+    assert "Edit area" in composer
+    assert "Precision Edit area" in composer
+    exact_script = "/crump-precision-image-edit.js?v=5.9.76-precision-edit-studio-2"
+    exact_style = "/crump-precision-image-edit.css?v=5.9.76-precision-edit-studio-2"
     for asset in (exact_script, exact_style):
         assert asset in runtime
         assert asset in worker

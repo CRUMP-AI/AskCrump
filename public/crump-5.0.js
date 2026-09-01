@@ -676,7 +676,7 @@
     renderAttachmentTray();
   }
 
-  function stagePrecisionImageEdit({file, maskDataUrl, width, height} = {}) {
+  function stagePrecisionImageEdit({file, maskDataUrl, width, height, instruction = ''} = {}) {
     if (!file?.id || !String(maskDataUrl || '').startsWith('data:image/png;base64,')) {
       throw new Error('The selected edit area could not be prepared.');
     }
@@ -690,8 +690,22 @@
     state.tool = 'image';
     closeMenu();
     renderToolChip();
+    const input = $('#userInput');
+    const guidedInstruction = String(instruction || '').trim();
+    if (input && guidedInstruction) {
+      const existing = String(input.value || '').trim();
+      input.value = existing && existing !== guidedInstruction
+        ? `${existing}\n\n${guidedInstruction}`
+        : guidedInstruction;
+      input.dispatchEvent(new Event('input', {bubbles: true}));
+    }
     focusComposer('Describe exactly what should change inside the highlighted area…');
-    show('Selection ready. Describe only the change you want inside it.', 'success');
+    show(
+      guidedInstruction
+        ? 'Selection and guided change ready. Review the instruction, then send.'
+        : 'Selection ready. Describe only the change you want inside it.',
+      'success',
+    );
   }
 
   function openPrecisionImageEdit(file, url) {
@@ -804,7 +818,7 @@
     precision.type = 'button';
     precision.className = 'crump50-precision-entry';
     precision.disabled = !currentReference?.server?.id;
-    precision.innerHTML = '<span aria-hidden="true">✦</span><span><strong>Select a specific area</strong><small>Brush over only the pixels Crump may change</small></span><b>Open</b>';
+    precision.innerHTML = '<span aria-hidden="true">✦</span><span><strong>Edit one exact area</strong><small>Zoom in and brush over only the pixels Crump may change</small></span><b>Open</b>';
     precision.addEventListener('click', () => {
       if (!currentReference?.server?.id) return;
       openPrecisionImageEdit(currentReference.server, currentReference.previewUrl || currentReference.server.url);
@@ -1573,7 +1587,7 @@
           if (!actions) {
             actions = document.createElement('div'); actions.className = 'crump50-image-actions';
             const view = document.createElement('button'); view.type='button'; view.textContent='View'; view.addEventListener('click', () => showLightbox(message.imageFile, message.imageUrl));
-            const edit = document.createElement('button'); edit.type='button'; edit.textContent='Edit'; edit.addEventListener('click', () => { state.imageRecovery=null; openPrecisionImageEdit(message.imageFile, message.imageUrl); });
+            const edit = document.createElement('button'); edit.type='button'; edit.textContent='Edit area'; edit.setAttribute('aria-label', 'Precision Edit area'); edit.addEventListener('click', () => { state.imageRecovery=null; openPrecisionImageEdit(message.imageFile, message.imageUrl); });
             const project = document.createElement('button'); project.type='button';
             const download = document.createElement('button'); download.type='button'; download.textContent='Download'; download.addEventListener('click', () => openFile(message.imageFile, true));
             wireOutputProjectAction(project, {
