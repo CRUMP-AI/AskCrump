@@ -1,8 +1,11 @@
 # Presentation attribution fixture receipt
 
-**Prepared:** 2026-09-01  
-**Product fixture commit:** `de60728a7c5843d68b9a475079f1ebc21dcc6861`  
-**Execution state:** clean tracked worktree immediately after the fixture commit  
+**Prepared:** 2026-09-01
+
+**Product fixture commit:** `de60728a7c5843d68b9a475079f1ebc21dcc6861`
+
+**Execution state:** clean tracked worktree immediately after the fixture commit
+
 **Classification:** isolated technical proof only; not a legitimate user, acquisition, activation, payer, revenue event, or campaign result
 
 ## Result
