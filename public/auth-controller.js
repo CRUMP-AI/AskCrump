@@ -3,6 +3,11 @@
   let appStarted = false;
   let activeUser = null;
   let planIntentDispatched = false;
+  let pagePlanIntent = null;
+  let planIntentDeliveryKey = '';
+  let planIntentDeliveryAttempts = 0;
+  let planIntentDeliveryTimer = 0;
+  let planIntentConsumedHandler = null;
   let authFlowRevision = 0;
   let signupIntentTracked = false;
   let workspaceRuntimeGateTimer = 0;
@@ -17,6 +22,8 @@
   const FREE_REGISTRATION_ASSURANCE = 'Free includes 25 messages each day and 2 private Projects. We’ll email a secure verification link; no card required.';
   const PAID_REGISTRATION_ASSURANCE = 'We’ll email a secure verification link. Creating your account does not start billing; checkout remains a separate confirmation.';
   const PLAN_INTENT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+  const PLAN_INTENT_DELIVERY_INTERVAL_MS = 500;
+  const PLAN_INTENT_DELIVERY_MAX_ATTEMPTS = 32;
   const CREATION_INTENT_TTL_MS = 24 * 60 * 60 * 1000;
   const FIRST_TOUCH_TTL_MS = 24 * 60 * 60 * 1000;
   const PAID_PLAN_INTENTS = new Set(['professional', 'enterprise']);
@@ -292,17 +299,19 @@
     const context = funnelContext();
     const params = new URLSearchParams(location.search);
     if (params.get('signup') === '1' && context.plan === 'free') {
+      pagePlanIntent = null;
       try { localStorage.removeItem(PLAN_INTENT_KEY); } catch (_) {}
       return;
     }
     if (!PAID_PLAN_INTENTS.has(context.plan)) return;
+    pagePlanIntent = {
+      plan: context.plan,
+      source: context.acquisition,
+      location: context.source,
+      capturedAt: Date.now(),
+    };
     try {
-      localStorage.setItem(PLAN_INTENT_KEY, JSON.stringify({
-        plan: context.plan,
-        source: context.acquisition,
-        location: context.source,
-        capturedAt: Date.now(),
-      }));
+      localStorage.setItem(PLAN_INTENT_KEY, JSON.stringify(pagePlanIntent));
     } catch (_) {}
   }
 
@@ -424,11 +433,9 @@
   }
 
   function pendingPlanIntent() {
-    try {
-      const intent = JSON.parse(localStorage.getItem(PLAN_INTENT_KEY) || 'null');
+    const normalize = intent => {
       const capturedAt = Number(intent?.capturedAt || 0);
       if (!PAID_PLAN_INTENTS.has(intent?.plan) || !capturedAt || Date.now() - capturedAt > PLAN_INTENT_TTL_MS) {
-        localStorage.removeItem(PLAN_INTENT_KEY);
         return null;
       }
       return {
@@ -437,6 +444,18 @@
         location: funnelValue(intent.location, 'unknown'),
         capturedAt,
       };
+    };
+    const pageIntent = normalize(pagePlanIntent);
+    if (pageIntent) return pageIntent;
+    pagePlanIntent = null;
+    try {
+      const intent = JSON.parse(localStorage.getItem(PLAN_INTENT_KEY) || 'null');
+      const normalized = normalize(intent);
+      if (!normalized) {
+        localStorage.removeItem(PLAN_INTENT_KEY);
+        return null;
+      }
+      return normalized;
     } catch (_) {
       try { localStorage.removeItem(PLAN_INTENT_KEY); } catch (_) {}
       return null;
@@ -447,21 +466,56 @@
     if (planIntentDispatched) return;
     const intent = pendingPlanIntent();
     if (!intent) return;
+    const deliveryKey = `${intent.plan}:${intent.capturedAt}`;
+
+    if (planIntentDeliveryKey && planIntentDeliveryKey !== deliveryKey) {
+      clearTimeout(planIntentDeliveryTimer);
+      planIntentDeliveryTimer = 0;
+      planIntentDeliveryAttempts = 0;
+      if (planIntentConsumedHandler) {
+        window.removeEventListener('crump:plan-intent-consumed', planIntentConsumedHandler);
+        planIntentConsumedHandler = null;
+      }
+    }
+    planIntentDeliveryKey = deliveryKey;
+
+    if (!planIntentConsumedHandler) {
+      planIntentConsumedHandler = event => {
+        if (event.detail?.plan !== intent.plan) return;
+        const consumedAt = Number(event.detail?.capturedAt || intent.capturedAt);
+        if (consumedAt !== intent.capturedAt) return;
+        planIntentDispatched = true;
+        pagePlanIntent = null;
+        clearTimeout(planIntentDeliveryTimer);
+        planIntentDeliveryTimer = 0;
+        planIntentDeliveryAttempts = 0;
+        planIntentDeliveryKey = '';
+        window.removeEventListener('crump:plan-intent-consumed', planIntentConsumedHandler);
+        planIntentConsumedHandler = null;
+        try { localStorage.removeItem(PLAN_INTENT_KEY); } catch (_) {}
+      };
+      window.addEventListener('crump:plan-intent-consumed', planIntentConsumedHandler);
+    }
 
     const deliver = () => {
       if (planIntentDispatched) return;
-      planIntentDispatched = true;
-      window.addEventListener('crump:plan-intent-consumed', event => {
-        if (event.detail?.plan !== intent.plan) return;
-        try { localStorage.removeItem(PLAN_INTENT_KEY); } catch (_) {}
-      }, {once: true});
+      planIntentDeliveryTimer = 0;
+      planIntentDeliveryAttempts += 1;
       window.dispatchEvent(new CustomEvent('crump:plan-intent', {detail: intent}));
+      if (!planIntentDispatched && planIntentDeliveryAttempts < PLAN_INTENT_DELIVERY_MAX_ATTEMPTS) {
+        planIntentDeliveryTimer = window.setTimeout(deliver, PLAN_INTENT_DELIVERY_INTERVAL_MS);
+      }
+    };
+
+    const beginDelivery = () => {
+      if (planIntentDispatched || planIntentDeliveryTimer || planIntentDeliveryAttempts) return;
+      queueMicrotask(deliver);
     };
 
     if (document.documentElement.dataset.crumpBodyRuntime === 'ready') {
-      queueMicrotask(deliver);
+      beginDelivery();
     } else {
-      window.addEventListener('crump:body-runtime-ready', deliver, {once: true});
+      window.addEventListener('crump:body-runtime-ready', beginDelivery, {once: true});
     }
   }
 

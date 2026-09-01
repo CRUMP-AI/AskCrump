@@ -229,11 +229,11 @@
   }
 
   function applyPlanIntent(modal, plan) {
-    if (!modal?.isConnected || !['professional', 'enterprise'].includes(plan)) return;
+    if (!modal?.isConnected || !['professional', 'enterprise'].includes(plan)) return false;
     const host = modal.querySelector('.billing51-plans');
     const card = host?.querySelector(`[data-crump-plan="${plan}"]`);
     const section = host?.closest('.billing51-section');
-    if (!host || !card || !section) return;
+    if (!host || !card || !section) return false;
 
     host.querySelectorAll('[data-crump-plan]').forEach(node => node.classList.remove('is-intent'));
     card.classList.add('is-intent');
@@ -247,6 +247,7 @@
     }
     const label = plan === 'enterprise' ? 'Enterprise' : 'Professional';
     notice.textContent = `You chose ${label}. Review the details, then continue when you are ready.`;
+    return true;
   }
 
   async function activatePlans(modal, force = false) {
@@ -303,25 +304,40 @@
       || window.showBillingCenter?.({plan});
     if (!modal) return;
     modal.dataset.crumpPlanIntent = plan;
-    void activatePlans(modal, true).then(() => {
-      if (modal.dataset.crumpSubscriptions532 !== 'ready') return;
-      applyPlanIntent(modal, plan);
-      window.va?.('event', {
-        name: 'PlanIntentReached',
-        data: {
+    const source = String(event.detail?.source || 'direct').slice(0, 32);
+    const capturedAt = Number(event.detail?.capturedAt || Date.now());
+    const deliveryKey = `${plan}:${capturedAt}`;
+    const completeHandoff = () => {
+      if (!applyPlanIntent(modal, plan)) return false;
+      if (modal.dataset.crumpPlanIntentReached !== deliveryKey) {
+        modal.dataset.crumpPlanIntentReached = deliveryKey;
+        window.va?.('event', {
+          name: 'PlanIntentReached',
+          data: {
+            plan,
+            source,
+            location: String(event.detail?.location || 'unknown').slice(0, 32),
+          },
+        });
+        void window.CrumpAnalytics?.track('PlanIntentReached', {
+          eventKey: `plan-intent:${plan}:${capturedAt}`,
           plan,
-          source: String(event.detail?.source || 'direct').slice(0, 32),
-          location: String(event.detail?.location || 'unknown').slice(0, 32),
-        },
+          source,
+        });
+      }
+      window.dispatchEvent(new CustomEvent('crump:plan-intent-consumed', {detail: {plan, capturedAt}}));
+      return true;
+    };
+
+    if (completeHandoff()) {
+      void activatePlans(modal).then(() => {
+        if (modal.dataset.crumpSubscriptions532 === 'ready') applyPlanIntent(modal, plan);
       });
-      const source = String(event.detail?.source || 'direct').slice(0, 32);
-      const capturedAt = Number(event.detail?.capturedAt || Date.now());
-      void window.CrumpAnalytics?.track('PlanIntentReached', {
-        eventKey: `plan-intent:${plan}:${capturedAt}`,
-        plan,
-        source,
-      });
-      window.dispatchEvent(new CustomEvent('crump:plan-intent-consumed', {detail: {plan}}));
+      return;
+    }
+    void activatePlans(modal).then(() => {
+      if (modal.dataset.crumpSubscriptions532 !== 'ready') return;
+      completeHandoff();
     });
   });
   scan();

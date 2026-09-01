@@ -41,7 +41,8 @@ def test_delayed_session_fixture_protects_both_cold_auth_entry_paths():
     fixture = (ROOT / "tests" / "fixtures" / "cold-auth-entry-delay.html").read_text(encoding="utf-8")
 
     assert '<script src="/public/auth-controller.js?v=fixture-cold-auth-delay-4"></script>' in fixture
-    assert "setTimeout(resolve, 3000)" in fixture
+    assert "Number(fixtureParams.get('sessionDelay') || 3000)" in fixture
+    assert "setTimeout(resolve, fixtureSessionDelay)" in fixture
     assert "sessionSettled: false" in fixture
     assert "get('authenticated') === '1'" in fixture
     assert "fixtureAppState" in fixture

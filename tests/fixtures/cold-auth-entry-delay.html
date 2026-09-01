@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <title>Cold authentication entry delay fixture</title>
+  <link rel="icon" href="data:,">
   <style>
     body { background:#0b0b0b; color:#f5f2ec; font:16px/1.5 system-ui,sans-serif; padding:32px; }
     form { display:grid; gap:12px; width:min(440px,100%); }
@@ -75,7 +76,16 @@
   <output id="fixtureSessionState">checking</output>
   <output id="fixtureAppState">not started</output>
   <output id="fixtureEvents">none</output>
+  <output id="fixtureBillingOpens">0</output>
+  <output id="fixtureBillingRequests">0</output>
+  <output id="fixturePlanEvents">0</output>
+  <output id="fixturePlanAnalytics">0</output>
+  <output id="fixturePlanConsumed">0</output>
+  <output id="fixtureCheckoutRequests">0</output>
   <script>
+    const fixtureParams = new URLSearchParams(location.search);
+    const fixtureSessionDelay = Number(fixtureParams.get('sessionDelay') || 3000);
+    const fixturePlanConsumerDelay = Number(fixtureParams.get('planConsumerDelay') || -1);
     const fixtureUser = {
       id: 'fixture-user',
       email: 'fixture@example.test',
@@ -83,7 +93,22 @@
       termsAcceptedAt: '2026-08-28T00:00:00Z',
       preferences: {},
     };
-    window.__fixture = {sessionSettled: false, loginCalls: 0, registerCalls: 0, appStarts: 0, startupEvents: [], events: []};
+    window.__fixture = {
+      sessionSettled: false,
+      loginCalls: 0,
+      registerCalls: 0,
+      appStarts: 0,
+      startupEvents: [],
+      events: [],
+      billingOpens: 0,
+      billingRequests: 0,
+      planEvents: 0,
+      planAnalytics: 0,
+      planConsumed: 0,
+      checkoutRequests: 0,
+      planConsumerLoaded: false,
+      browserErrors: [],
+    };
     if (new URLSearchParams(location.search).get('stale') === '1') {
       localStorage.setItem('askcrump.pending-plan-intent', JSON.stringify({plan:'professional', source:'direct', location:'pricing', capturedAt:Date.now()}));
       localStorage.setItem('askcrump.pending-creation-intent', JSON.stringify({kind:'resume', source:'resume-page', acquisition:'organic', capturedAt:Date.now()}));
@@ -91,6 +116,10 @@
     window.va = (command, payload) => {
       if (command !== 'event') return;
       window.__fixture.events.push(payload);
+      if (payload?.name === 'PlanIntentReached') {
+        window.__fixture.planEvents += 1;
+        document.getElementById('fixturePlanEvents').textContent = String(window.__fixture.planEvents);
+      }
       document.getElementById('fixtureEvents').textContent = JSON.stringify(window.__fixture.events);
     };
     document.getElementById('registrationExploreLink').addEventListener('click', event => event.preventDefault());
@@ -104,20 +133,76 @@
       },
     };
     window.CrumpAPI = {ready: Promise.resolve()};
-    window.CrumpAnalytics = {track: () => Promise.resolve(true)};
+    window.CrumpAnalytics = {
+      track(name) {
+        if (name === 'PlanIntentReached') {
+          window.__fixture.planAnalytics += 1;
+          document.getElementById('fixturePlanAnalytics').textContent = String(window.__fixture.planAnalytics);
+        }
+        return Promise.resolve(true);
+      },
+    };
     window.configureUserStorage = () => {};
     window.profileManager = {applyServerSubscription() {}, updateProfile() {}};
+    window.showBillingCenter = options => {
+      window.__fixture.billingOpens += 1;
+      document.getElementById('fixtureBillingOpens').textContent = String(window.__fixture.billingOpens);
+      const modal = document.createElement('div');
+      modal.className = 'billing51-modal crump52-billing-modal';
+      modal.setAttribute('role', 'dialog');
+      modal.setAttribute('aria-label', 'Plan & credits');
+      modal.dataset.openedFor = String(options?.plan || '');
+      modal.innerHTML =
+        '<section class="billing51-section">' +
+          '<div class="billing51-section-head"><p></p></div>' +
+          '<div class="billing51-plans"></div>' +
+        '</section>';
+      document.body.appendChild(modal);
+      return modal;
+    };
+    window.showUpgradePrompt = options => window.showBillingCenter(options);
+    window.fetch = async input => {
+      const path = new URL(typeof input === 'string' ? input : input.url, location.origin).pathname;
+      if (path === '/api/billing/status') {
+        window.__fixture.billingRequests += 1;
+        document.getElementById('fixtureBillingRequests').textContent = String(window.__fixture.billingRequests);
+        return new Response(JSON.stringify({success: true, tier: 'free', status: 'inactive', provider: null}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      window.__fixture.checkoutRequests += 1;
+      document.getElementById('fixtureCheckoutRequests').textContent = String(window.__fixture.checkoutRequests);
+      return new Response(JSON.stringify({success: false, error: 'Fixture blocks checkout.'}), {
+        status: 400,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+    window.addEventListener('crump:plan-intent-consumed', () => {
+      window.__fixture.planConsumed += 1;
+      document.getElementById('fixturePlanConsumed').textContent = String(window.__fixture.planConsumed);
+    });
+    const loadPlanConsumer = () => {
+      if (fixturePlanConsumerDelay < 0) return;
+      window.setTimeout(() => {
+        const script = document.createElement('script');
+        script.src = '/public/crump-subscriptions-5.3.2.js?v=fixture-plan-delivery';
+        script.addEventListener('load', () => { window.__fixture.planConsumerLoaded = true; });
+        document.body.appendChild(script);
+      }, fixturePlanConsumerDelay);
+    };
     window.initializeApp = () => {
       window.__fixture.appStarts += 1;
       window.__fixture.startupEvents.push('app-initialized');
       document.getElementById('fixtureAppState').textContent = 'started';
+      loadPlanConsumer();
     };
     window.initializeAuthenticatedApp = () => {
       window.__fixture.startupEvents.push('authenticated-initialized');
     };
     window.deviceAuth = {
       async checkSession() {
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await new Promise(resolve => setTimeout(resolve, fixtureSessionDelay));
         window.__fixture.sessionSettled = true;
         if (new URLSearchParams(location.search).get('authenticated') === '1') {
           document.getElementById('fixtureSessionState').textContent = 'signed in';
@@ -144,6 +229,12 @@
         };
       },
     };
+    window.addEventListener('error', event => {
+      window.__fixture.browserErrors.push(event.message || 'browser error');
+    });
+    window.addEventListener('unhandledrejection', event => {
+      window.__fixture.browserErrors.push(String(event.reason?.message || event.reason || 'unhandled rejection'));
+    });
   </script>
   <script src="/public/auth-controller.js?v=fixture-cold-auth-delay-4"></script>
 </body>
