@@ -29,8 +29,8 @@ window.CRUMP_CONFIG = Object.freeze({
     ['script', '/crump-billing-5.1.js?v=5.9.76-credit-pack-truth-1', 'billing51'],
     ['style', '/crump-5.2.css', 'crump52'],
     ['script', '/crump-5.2.js?v=5.9.76-credit-pack-truth-1', 'crump52'],
-    ['style', '/crump-5.2.2.css', 'crump522'],
-    ['script', '/crump-5.2.2.js?v=5.9.76-user-controlled-scroll-1', 'crump522'],
+    ['style', '/crump-5.2.2.css?v=5.9.76-new-response-cue-1', 'crump522'],
+    ['script', '/crump-5.2.2.js?v=5.9.76-new-response-cue-1', 'crump522'],
     ['style', '/crump-v1.css', 'crumpv1'],
     ['script', '/crump-v1.js', 'crumpv1'],
   ]);

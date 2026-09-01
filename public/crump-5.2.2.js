@@ -11,9 +11,13 @@
     lastPointerCheckoutAt: 0,
     scroll: {
       installed: false,
+      chatId: null,
+      lastCompletedAssistantId: null,
+      newResponsePending: false,
       renderHooked: false,
       button: null,
       container: null,
+      status: null,
     },
   };
 
@@ -174,10 +178,56 @@
     return Math.max(0, container.scrollHeight - container.scrollTop - container.clientHeight);
   }
 
+  function currentMessages() {
+    const chat = (window.chats || []).find(item => (item.id || item.chat_id) === window.currentChatId);
+    return Array.isArray(chat?.messages) ? chat.messages : [];
+  }
+
+  function latestCompletedAssistantId(messages = currentMessages()) {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const item = messages[index];
+      const hasOutcome = String(item?.content || '').trim() || item?.imageUrl || item?.artifact || item?.creationHandoff;
+      if (item?.role === 'assistant' && item?.id && hasOutcome) return String(item.id);
+    }
+    return null;
+  }
+
+  function ensureNewResponseStatus() {
+    const existing = document.getElementById('crump522NewResponseStatus');
+    if (existing) return existing;
+    const status = document.createElement('div');
+    status.id = 'crump522NewResponseStatus';
+    status.className = 'sr-only';
+    status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
+    status.setAttribute('aria-atomic', 'true');
+    state.scroll.button?.insertAdjacentElement('afterend', status);
+    return status;
+  }
+
+  function clearNewResponse() {
+    state.scroll.newResponsePending = false;
+    state.scroll.button?.removeAttribute('data-new-response');
+    state.scroll.button?.setAttribute('aria-label', 'Jump to newest message');
+    if (state.scroll.status) state.scroll.status.textContent = '';
+  }
+
+  function markNewResponse() {
+    if (distanceFromBottom() <= 12) return;
+    state.scroll.newResponsePending = true;
+    state.scroll.button?.setAttribute('data-new-response', 'true');
+    state.scroll.button?.setAttribute('aria-label', 'New response available. Jump to newest message');
+    if (state.scroll.status) {
+      state.scroll.status.textContent = 'New response available. Use Jump to newest message when you are ready.';
+    }
+  }
+
   function updateDownButton() {
     const button = state.scroll.button;
     if (!button) return;
-    const visible = distanceFromBottom() > 160;
+    const distance = distanceFromBottom();
+    if (distance <= 12 && state.scroll.newResponsePending) clearNewResponse();
+    const visible = distance > 160 || (state.scroll.newResponsePending && distance > 12);
     button.classList.toggle('visible', visible);
     button.setAttribute('aria-hidden', visible ? 'false' : 'true');
   }
@@ -185,6 +235,7 @@
   function jumpToNewest() {
     const container = state.scroll.container;
     if (!container) return;
+    clearNewResponse();
     container.scrollTo({top: container.scrollHeight, behavior: 'smooth'});
     updateDownButton();
   }
@@ -225,11 +276,25 @@
     state.scroll.renderHooked = true;
 
     const previous = window.renderMessages;
+    state.scroll.chatId = String(window.currentChatId || '');
+    state.scroll.lastCompletedAssistantId = latestCompletedAssistantId();
     window.renderMessages = function crump522RenderMessages(messages) {
       const container = state.scroll.container;
       const preservedScrollTop = container?.scrollTop ?? 0;
+      const chatId = String(window.currentChatId || '');
+      const nextAssistantId = latestCompletedAssistantId(Array.isArray(messages) ? messages : []);
+      let hasNewResponse = false;
+      if (chatId !== state.scroll.chatId) {
+        state.scroll.chatId = chatId;
+        state.scroll.lastCompletedAssistantId = nextAssistantId;
+        clearNewResponse();
+      } else if (nextAssistantId && nextAssistantId !== state.scroll.lastCompletedAssistantId) {
+        state.scroll.lastCompletedAssistantId = nextAssistantId;
+        hasNewResponse = true;
+      }
       const result = previous.apply(this, arguments);
       if (container && container.scrollTop !== preservedScrollTop) container.scrollTop = preservedScrollTop;
+      if (hasNewResponse) markNewResponse();
       requestAnimationFrame(updateDownButton);
       return result;
     };
@@ -241,6 +306,7 @@
 
     state.scroll.container = container;
     state.scroll.button = replaceDownButton();
+    state.scroll.status = ensureNewResponseStatus();
 
     container.addEventListener('scroll', updateDownButton, {passive: true});
 
@@ -258,6 +324,7 @@
       normalizeBillingCards();
       if (!document.getElementById('scrollToEndBtn')?.dataset.crump522) {
         state.scroll.button = replaceDownButton();
+        state.scroll.status = ensureNewResponseStatus();
         updateDownButton();
       }
       hookRenderMessages();

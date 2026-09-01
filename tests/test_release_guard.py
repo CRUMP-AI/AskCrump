@@ -22,7 +22,7 @@ def test_vercel_build_runs_release_preflight_before_bundle():
 def test_subscription_runtime_is_part_of_javascript_contract():
     checker = read("scripts/check-javascript.mjs")
     assert "crump-subscriptions-5.3.2.js" in checker
-    assert "ask-crump-new-body-v1-r201" in checker
+    assert "ask-crump-new-body-v1-r202" in checker
     assert "crump-polish-5.6.js" in checker
 
 
@@ -66,3 +66,16 @@ def test_new_reply_anchor_is_retired_and_only_explicit_jump_can_move_feed():
     assert "anchorElementTop" not in scroll
     assert "anchorNewReply" not in scroll
     assert "overflow-anchor: none !important;" in css
+
+def test_offscreen_response_cue_is_content_free_and_does_not_move_feed():
+    scroll = read("public/crump-5.2.2.js")
+    css = read("public/crump-5.2.2.css")
+
+    assert "New response available. Jump to newest message" in scroll
+    assert "New response available. Use Jump to newest message when you are ready." in scroll
+    assert "status.setAttribute('aria-live', 'polite')" in scroll
+    assert "status.setAttribute('aria-atomic', 'true')" in scroll
+    assert "latestCompletedAssistantId" in scroll
+    assert "data-new-response" in scroll
+    assert "[data-new-response='true']::after" in css
+    assert "message.content" not in scroll

@@ -30,6 +30,15 @@ const { chromium } = require('playwright');
   assert(reserved.renderedHeight > 400);
 
   await page.waitForFunction(() => document.querySelector('#scrollToEndBtn')?.dataset.crump522 === 'true');
+  const initialCue = await page.evaluate(() => ({
+    pending: document.getElementById('scrollToEndBtn')?.dataset.newResponse || '',
+    label: document.getElementById('scrollToEndBtn')?.getAttribute('aria-label') || '',
+    announcement: document.getElementById('crump522NewResponseStatus')?.textContent || '',
+  }));
+  assert.equal(initialCue.pending, '');
+  assert.equal(initialCue.label, 'Jump to newest message');
+  assert.equal(initialCue.announcement, '');
+
   const userControlledResult = await page.evaluate(async () => {
     const chat = document.getElementById('chatContainer');
     chat.scrollTop = Math.min(420, Math.max(1, chat.scrollHeight - chat.clientHeight - 320));
@@ -40,6 +49,7 @@ const { chromium } = require('playwright');
     window.renderMessages(window.chats[0].messages);
     await new Promise(resolve => setTimeout(resolve, 80));
     const afterPresence = Math.round(chat.scrollTop);
+    const presencePending = document.getElementById('scrollToEndBtn')?.dataset.newResponse || '';
 
     window.chats[0].messages.push({
       id: 'new-answer',
@@ -51,6 +61,11 @@ const { chromium } = require('playwright');
     window.renderMessages(window.chats[0].messages);
     await new Promise(resolve => setTimeout(resolve, 80));
     const afterReply = Math.round(chat.scrollTop);
+    const replyCue = {
+      pending: document.getElementById('scrollToEndBtn')?.dataset.newResponse || '',
+      label: document.getElementById('scrollToEndBtn')?.getAttribute('aria-label') || '',
+      announcement: document.getElementById('crump522NewResponseStatus')?.textContent || '',
+    };
 
     window.chats[0].messages.at(-1).content += ' Streaming text arrived.';
     window.renderMessages(window.chats[0].messages);
@@ -74,7 +89,9 @@ const { chromium } = require('playwright');
     return {
       before,
       afterPresence,
+      presencePending,
       afterReply,
+      replyCue,
       afterStream,
       afterLegacyCalls,
       afterHistoryRestore,
@@ -84,7 +101,14 @@ const { chromium } = require('playwright');
   });
   assert(userControlledResult.before > 0);
   assert.equal(userControlledResult.afterPresence, userControlledResult.before);
+  assert.equal(userControlledResult.presencePending, '');
   assert.equal(userControlledResult.afterReply, userControlledResult.before);
+  assert.equal(userControlledResult.replyCue.pending, 'true');
+  assert.equal(userControlledResult.replyCue.label, 'New response available. Jump to newest message');
+  assert.equal(
+    userControlledResult.replyCue.announcement,
+    'New response available. Use Jump to newest message when you are ready.',
+  );
   assert.equal(userControlledResult.afterStream, userControlledResult.before);
   assert.equal(userControlledResult.afterLegacyCalls, userControlledResult.before);
   assert.equal(userControlledResult.afterHistoryRestore, userControlledResult.before);
@@ -100,6 +124,14 @@ const { chromium } = require('playwright');
     Math.round(chat.scrollHeight - chat.scrollTop - chat.clientHeight)
   ));
   assert(explicitJumpDistance <= 1);
+  const clearedCue = await page.evaluate(() => ({
+    pending: document.getElementById('scrollToEndBtn')?.dataset.newResponse || '',
+    label: document.getElementById('scrollToEndBtn')?.getAttribute('aria-label') || '',
+    announcement: document.getElementById('crump522NewResponseStatus')?.textContent || '',
+  }));
+  assert.equal(clearedCue.pending, '');
+  assert.equal(clearedCue.label, 'Jump to newest message');
+  assert.equal(clearedCue.announcement, '');
 
   const manualScrollResult = await page.locator('#chatContainer').evaluate(async chat => {
     const target = Math.max(1, Math.round(chat.scrollTop / 2));
@@ -114,8 +146,10 @@ const { chromium } = require('playwright');
   await browser.close();
   process.stdout.write(JSON.stringify({
     reserved,
+    initialCue,
     userControlledResult,
     explicitJumpDistance,
+    clearedCue,
     manualScrollResult,
     errors,
   }));

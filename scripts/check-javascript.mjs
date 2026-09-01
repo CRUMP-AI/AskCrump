@@ -378,10 +378,11 @@ const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
 const coreReliabilityVersion = `${releaseVersion}-core-reliability-1`;
 const settingsProfileTrustVersion = `${releaseVersion}-settings-profile-trust-8`;
-const userControlledScrollLoaderVersion = `${releaseVersion}-user-controlled-scroll-loader-1`;
+const newResponseCueLoaderVersion = `${releaseVersion}-new-response-cue-loader-1`;
 const fileLibraryWindowVersion = `${releaseVersion}-file-library-window-1`;
 const imageSafetyRecoveryVersion = `${releaseVersion}-image-safety-recovery-1`;
 const userControlledScrollVersion = `${releaseVersion}-user-controlled-scroll-1`;
+const newResponseCueVersion = `${releaseVersion}-new-response-cue-1`;
 const videoDestinationVersion = `${releaseVersion}-video-destination-1`;
 const mobileDrawerDestinationsVersion = `${releaseVersion}-mobile-drawer-destinations-1`;
 const destinationBackgroundGuardVersion = `${releaseVersion}-destination-background-guard-1`;
@@ -575,7 +576,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${userControlledScrollLoaderVersion}`,
+  `/runtime-body-v1.js?v=${newResponseCueLoaderVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
   `/auth-resilience.js?v=${releaseVersion}`,
@@ -630,7 +631,8 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-v1-body.css?v=${creditPackTruthVersion}`) ||
     !runtime.includes(`/crump-5.0.css?v=${imageReferenceEntryVersion}`) ||
     !runtime.includes(`/crump-5.0.js?v=${userControlledScrollVersion}`) ||
-    !runtime.includes(`/crump-5.2.2.js?v=${userControlledScrollVersion}`) ||
+    !runtime.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
+    !runtime.includes(`/crump-5.2.2.js?v=${newResponseCueVersion}`) ||
     !runtime.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
     !runtime.includes(`/crump-4.4.js?v=${coreReliabilityVersion}`) ||
     !runtime.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
@@ -786,9 +788,9 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r201') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r202') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${userControlledScrollLoaderVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${newResponseCueLoaderVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${imageSafetyRecoveryVersion}`) ||
     !serviceWorker.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
@@ -797,7 +799,8 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r201') ||
     !serviceWorker.includes(`/crump-5.0.js?v=${userControlledScrollVersion}`) ||
     !serviceWorker.includes(`/ui-functions.js?v=${userControlledScrollVersion}`) ||
     !serviceWorker.includes(`/app.js?v=${userControlledScrollVersion}`) ||
-    !serviceWorker.includes(`/crump-5.2.2.js?v=${userControlledScrollVersion}`) ||
+    !serviceWorker.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
+    !serviceWorker.includes(`/crump-5.2.2.js?v=${newResponseCueVersion}`) ||
     !serviceWorker.includes(`/onboarding.css?v=${videoDestinationVersion}`) ||
     !serviceWorker.includes(`/onboarding.js?v=${videoDestinationVersion}`) ||
     !serviceWorker.includes(`/crump-polish-5.6.js?v=${videoDestinationVersion}`) ||
@@ -1077,6 +1080,15 @@ if (composer50.includes('crumpScrollManager?.scrollToBottom') ||
 if (!scroll522.includes('const preservedScrollTop = container?.scrollTop ?? 0;') ||
     !scroll522.includes('if (container && container.scrollTop !== preservedScrollTop) container.scrollTop = preservedScrollTop;')) {
   console.error('5.2.2 must preserve the user-selected offset across same-message rerenders.');
+  process.exit(1);
+}
+if (!scroll522.includes('latestCompletedAssistantId') ||
+    !scroll522.includes("state.scroll.button?.setAttribute('aria-label', 'New response available. Jump to newest message')") ||
+    !scroll522.includes("status.setAttribute('aria-live', 'polite')") ||
+    !scroll522.includes("status.setAttribute('aria-atomic', 'true')") ||
+    !scroll522.includes('if (chatId !== state.scroll.chatId)') ||
+    !scroll522Css.includes("[data-new-response='true']::after")) {
+  console.error('The non-moving, content-free new-response cue is missing or incomplete.');
   process.exit(1);
 }
 if (scroll522.includes('requestAnimationFrame(() => {\n      requestAnimationFrame(() => {')) {

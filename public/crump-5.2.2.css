@@ -31,6 +31,19 @@ body.crump-43 #scrollToEndBtn svg,
   stroke: currentColor !important;
 }
 
+#scrollToEndBtn[data-crump522='true'][data-new-response='true']::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid #0b1015;
+  border-radius: 50%;
+  background: #fff8e8;
+  box-shadow: 0 0 0 2px rgba(215, 197, 154, 0.42);
+}
+
 body.crump-43 #scrollToEndBtn:hover,
 body.crump-43 #scrollToEndBtn:focus-visible,
 #scrollToEndBtn[data-crump522='true']:hover,

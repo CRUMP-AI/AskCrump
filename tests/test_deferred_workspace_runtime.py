@@ -23,7 +23,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
     ]
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
-        '/runtime-body-v1.js?v=5.9.76-user-controlled-scroll-loader-1',
+        '/runtime-body-v1.js?v=5.9.76-new-response-cue-loader-1',
         '/native-runtime.js',
         '/mobile-bridge.js',
         '/safe-storage.js',

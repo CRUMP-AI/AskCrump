@@ -43,6 +43,12 @@ def test_image_scroll_contract_is_user_controlled_and_reserves_layout() -> None:
     assert 'scrollToMessageTop: () => undefined' in scroll
     assert 'anchorNewReply' not in scroll
     assert 'activeReplyShouldHold' not in scroll
+    assert "state.scroll.button?.setAttribute('aria-label', 'New response available. Jump to newest message')" in scroll
+    assert "status.setAttribute('aria-live', 'polite')" in scroll
+    assert "status.setAttribute('aria-atomic', 'true')" in scroll
+    assert "state.scroll.status.textContent = 'New response available. Use Jump to newest message when you are ready.'" in scroll
+    assert "if (chatId !== state.scroll.chatId)" in scroll
+    assert "clearNewResponse();" in scroll
     assert 'function jumpToNewest(event)' in base_scroll
     assert 'scrollToBottom: () => undefined' in base_scroll
     assert 'crumpScrollManager?.scrollToBottom' not in composer
