@@ -377,6 +377,8 @@ const visualMediaReliabilityVersion = `${releaseVersion}-visual-media-reliabilit
 const imageSafetyRecoveryVersion = `${releaseVersion}-image-safety-recovery-1`;
 const imageScrollStabilityVersion = `${releaseVersion}-image-scroll-stability-1`;
 const videoDestinationVersion = `${releaseVersion}-video-destination-1`;
+const continuityActionVersion = `${releaseVersion}-continuity-action-1`;
+const fileDeliveryVersion = `${releaseVersion}-file-delivery-1`;
 const desktopChatsVersion = `${releaseVersion}-desktop-chats-default-1`;
 const requiredBodyFiles = [
   'public/crump-v1-body.css',
@@ -526,7 +528,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${videoDestinationVersion}`,
+  `/runtime-body-v1.js?v=${continuityActionVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
   `/auth-resilience.js?v=${releaseVersion}`,
@@ -569,15 +571,16 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/onboarding.js?v=${videoDestinationVersion}`) ||
     !runtime.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
     !runtime.includes(`/chat-resilience.js?v=${imageSafetyRecoveryVersion}`) ||
-    !runtime.includes(`/ui-functions.js?v=${imageScrollStabilityVersion}`) ||
+    !runtime.includes(`/ui-functions.js?v=${continuityActionVersion}`) ||
     !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-share.js?v=${releaseVersion}-lifecycle-activation-1`) ||
-    !runtime.includes(`/lifecycle-manager.js?v=${releaseVersion}-lifecycle-activation-1`) ||
+    !runtime.includes(`/lifecycle-manager.js?v=${continuityActionVersion}`) ||
     !runtime.includes(`/product-analytics.js?v=${releaseVersion}`) ||
     !runtime.includes(`/app.js?v=${coreReliabilityVersion}`) ||
     !runtime.includes(`/crump-v1-body.js?v=${desktopChatsVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${intelligenceArchitectureVersion}`) ||
-    !runtime.includes(`/crump-5.0.js?v=${imageScrollStabilityVersion}`) ||
+    !runtime.includes(`/crump-5.0.css?v=${fileDeliveryVersion}`) ||
+    !runtime.includes(`/crump-5.0.js?v=${fileDeliveryVersion}`) ||
     !runtime.includes(`/crump-5.2.2.js?v=${imageScrollStabilityVersion}`) ||
     !runtime.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
     !runtime.includes(`/crump-4.4.js?v=${coreReliabilityVersion}`) ||
@@ -666,7 +669,7 @@ if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
     loadedRuntimeScripts.length !== 31 ||
     !loadedRuntimeScripts.every(asset => preloadedRuntimeScripts.includes(asset)) ||
     loadedRuntimeScripts.indexOf(`/app.js?v=${coreReliabilityVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
-    loadedRuntimeScripts.at(-1) !== `/lifecycle-manager.js?v=${releaseVersion}-lifecycle-activation-1`) {
+    loadedRuntimeScripts.at(-1) !== `/lifecycle-manager.js?v=${continuityActionVersion}`) {
   console.error('Authenticated workspace runtime load order or completion contract failed.');
   process.exit(1);
 }
@@ -706,13 +709,14 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r170') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r172') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${videoDestinationVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${continuityActionVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${imageSafetyRecoveryVersion}`) ||
-    !serviceWorker.includes(`/crump-5.0.js?v=${imageScrollStabilityVersion}`) ||
-    !serviceWorker.includes(`/ui-functions.js?v=${imageScrollStabilityVersion}`) ||
+    !serviceWorker.includes(`/crump-5.0.css?v=${fileDeliveryVersion}`) ||
+    !serviceWorker.includes(`/crump-5.0.js?v=${fileDeliveryVersion}`) ||
+    !serviceWorker.includes(`/ui-functions.js?v=${continuityActionVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.js?v=${imageScrollStabilityVersion}`) ||
     !serviceWorker.includes(`/onboarding.css?v=${videoDestinationVersion}`) ||
     !serviceWorker.includes(`/onboarding.js?v=${videoDestinationVersion}`) ||
@@ -721,7 +725,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r170') ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${videoDestinationVersion}`) ||
     !serviceWorker.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !serviceWorker.includes(`/lifecycle-share.js?v=${releaseVersion}-lifecycle-activation-1`) ||
-    !serviceWorker.includes(`/lifecycle-manager.js?v=${releaseVersion}-lifecycle-activation-1`) ||
+    !serviceWorker.includes(`/lifecycle-manager.js?v=${continuityActionVersion}`) ||
     !serviceWorker.includes(`/auth-resilience.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/install-prompt.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/install-prompt.css?v=${releaseVersion}`) ||
@@ -745,6 +749,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r170') ||
     !serviceWorker.includes("url.pathname === '/conversation.css'") ||
     !serviceWorker.includes("url.pathname === '/chat-resilience.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-5.0.js'") ||
+    !serviceWorker.includes("url.pathname === '/crump-5.0.css'") ||
     !serviceWorker.includes("url.pathname === '/ui-functions.js'") ||
     !serviceWorker.includes("url.pathname === '/lifecycle.css'") ||
     !serviceWorker.includes("url.pathname === '/lifecycle-share.js'") ||

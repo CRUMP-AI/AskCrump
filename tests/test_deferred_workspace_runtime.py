@@ -23,7 +23,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
     ]
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
-        '/runtime-body-v1.js?v=5.9.76-video-destination-1',
+        '/runtime-body-v1.js?v=5.9.76-continuity-action-1',
         '/native-runtime.js',
         '/mobile-bridge.js',
         '/safe-storage.js',
@@ -51,7 +51,7 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/billing-manager.js',
         '/subscription-ui.js?v=5.9.76-truthful-plan-1',
         '/chat-resilience.js?v=5.9.76-image-safety-recovery-1',
-        '/ui-functions.js?v=5.9.76-image-scroll-stability-1',
+        '/ui-functions.js?v=5.9.76-continuity-action-1',
         '/presence-manager.js?v=5.9.76',
         '/sync-manager.js?v=5.9.76',
         '/chat-sync.js?v=5.9.76-sync-cadence-1',

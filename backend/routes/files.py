@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 
 from ..auth_service import authenticate_request
 from ..db import eq
@@ -22,6 +22,7 @@ LISTABLE_KINDS = {
     'manuscript_export',
     'project_asset',
 }
+MAX_DIRECT_DOWNLOAD_BYTES = 4 * 1024 * 1024
 
 
 def failure(exc: FileServiceError) -> JSONResponse:
@@ -121,9 +122,29 @@ async def content(file_id: str, request: Request, download: int = 0):
     try:
         normalized = normalize_chat_id(file_id)
         row = await files.get_owned(user_id=auth.user['id'], file_id=normalized)
-        url = await files.signed_url(row=row, expires_in=600, download=bool(download))
-        if not url:
-            raise FileServiceError('Could not open the file.', 503, 'SIGNED_URL_FAILED')
+        mime_type = str(row.get('mime_type') or 'application/octet-stream').lower()
+        size_bytes = int(row.get('size_bytes') or 0)
+        if (
+            bool(download)
+            and not mime_type.startswith(('image/', 'video/'))
+            and 0 < size_bytes <= MAX_DIRECT_DOWNLOAD_BYTES
+        ):
+            data = await files.download_bytes(row=row)
+            filename = files.clean_filename(row.get('file_name') or 'download')
+            response = Response(
+                content=data,
+                media_type=mime_type,
+                headers={
+                    'Cache-Control': 'private, no-store',
+                    'Content-Disposition': f'attachment; filename="{filename}"',
+                    'X-Content-Type-Options': 'nosniff',
+                },
+            )
+        else:
+            url = await files.signed_url(row=row, expires_in=600, download=bool(download))
+            if not url:
+                raise FileServiceError('Could not open the file.', 503, 'SIGNED_URL_FAILED')
+            response = RedirectResponse(url=url, status_code=302)
         if bool(download) and str(row.get('kind') or '').lower() in {
             'generated_document',
             'manuscript_export',
@@ -138,7 +159,7 @@ async def content(file_id: str, request: Request, download: int = 0):
                 plan=tier_name(auth.user),
                 artifact_type=artifact_type_for_file(row),
             )
-        return RedirectResponse(url=url, status_code=302)
+        return response
     except FileServiceError as exc:
         return failure(exc)
 

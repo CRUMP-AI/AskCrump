@@ -41,7 +41,7 @@ def test_project_reference_ui_and_chat_rename_are_final_runtime_layers():
     assert runtime.index("/crump-product-5.3.js") < runtime.index("/crump-product-5.3.1.js")
     assert "/crump-product-5.3.1.js?v=5.9.76-core-reliability-1" in runtime
     assert "/crump-product-5.3.1.js?v=5.9.76-core-reliability-1" in worker
-    assert "ask-crump-new-body-v1-r170" in worker
+    assert "ask-crump-new-body-v1-r172" in worker
     assert "Reference files" in js
     assert "Project files" in js
     assert "conversationsCard.insertAdjacentElement('afterend', card)" in js
@@ -51,6 +51,12 @@ def test_project_reference_ui_and_chat_rename_are_final_runtime_layers():
     assert "window.CrumpFileTools" in files
     assert "upload: async file =>" in files
     assert "CrumpFileTools?.upload" in js
+    assert 'data-download-project-file="${escapeHtml(file.id)}"' in js
+    assert "window.CrumpFileTools?.open?.(file, false)" in js
+    assert "window.CrumpFileTools?.open?.(file, true)" in js
+    assert "window.open(`/api/files/" not in js
+    assert (ROOT / "tests" / "fixtures" / "file-delivery.html").exists()
+    assert (ROOT / "scripts" / "verify-file-delivery.cjs").exists()
     assert "window.addEventListener('crump:project-target-changed', hydrateVisibleProjectFiles)" in js
     assert "sheet?.dataset.projectView !== 'detail'" in js
     assert 'setTimeout(() => { void refreshProjectFiles(); }, 120);' not in js

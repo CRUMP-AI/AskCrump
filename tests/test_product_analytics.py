@@ -180,14 +180,15 @@ async def test_generated_document_download_records_only_content_free_artifact_st
                     "application/vnd.openxmlformats-officedocument."
                     "presentationml.presentation"
                 ),
+                "size_bytes": 1024,
                 "metadata": {"format": "pptx", "title": "Private client strategy"},
             }
 
-        async def signed_url(self, *, row, expires_in, download):
+        clean_filename = staticmethod(lambda value: value)
+
+        async def download_bytes(self, *, row):
             assert row["id"] == file_id
-            assert expires_in == 600
-            assert download is True
-            return "https://storage.example.test/signed"
+            return b"pptx-package"
 
     async def recorder(_database, **kwargs):
         calls.append(kwargs)
@@ -203,8 +204,11 @@ async def test_generated_document_download_records_only_content_free_artifact_st
         download=1,
     )
 
-    assert response.status_code == 302
-    assert response.headers["location"] == "https://storage.example.test/signed"
+    assert response.status_code == 200
+    assert response.body == b"pptx-package"
+    assert response.headers["content-disposition"] == 'attachment; filename="private-client-strategy.pptx"'
+    assert response.headers["cache-control"] == "private, no-store"
+    assert response.headers["x-content-type-options"] == "nosniff"
     assert len(calls) == 1
     assert calls[0]["event_name"] == "ArtifactDownloaded"
     assert calls[0]["event_key"] == f"artifact-downloaded:{message_id}"
@@ -239,10 +243,24 @@ async def test_inline_opens_and_ordinary_uploads_do_not_record_artifact_download
 
     class FakeFiles:
         async def get_owned(self, **_kwargs):
-            return {"id": file_id, "kind": kind, "file_name": "private.docx"}
+            return {
+                "id": file_id,
+                "kind": kind,
+                "file_name": "private.docx",
+                "mime_type": (
+                    "application/vnd.openxmlformats-officedocument."
+                    "wordprocessingml.document"
+                ),
+                "size_bytes": 1024,
+            }
 
         async def signed_url(self, **_kwargs):
             return "https://storage.example.test/signed"
+
+        async def download_bytes(self, **_kwargs):
+            return b"document"
+
+        clean_filename = staticmethod(lambda value: value)
 
     async def recorder(_database, **kwargs):
         calls.append(kwargs)
@@ -258,8 +276,47 @@ async def test_inline_opens_and_ordinary_uploads_do_not_record_artifact_download
         download=download,
     )
 
-    assert response.status_code == 302
+    assert response.status_code == (200 if download else 302)
     assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_large_document_download_uses_attachment_signed_url_without_function_proxy(monkeypatch):
+    file_id = "00000000-0000-0000-0000-000000000002"
+
+    async def authenticate(_request, _database, _settings):
+        return type("Auth", (), {"user": {"id": "user-1"}})()
+
+    class FakeFiles:
+        async def get_owned(self, **_kwargs):
+            return {
+                "id": file_id,
+                "kind": "upload",
+                "file_name": "large-deck.pptx",
+                "mime_type": (
+                    "application/vnd.openxmlformats-officedocument."
+                    "presentationml.presentation"
+                ),
+                "size_bytes": files_routes.MAX_DIRECT_DOWNLOAD_BYTES + 1,
+            }
+
+        async def signed_url(self, *, download, **_kwargs):
+            assert download is True
+            return "https://storage.example.test/signed?download=large-deck.pptx"
+
+        async def download_bytes(self, **_kwargs):
+            raise AssertionError("Large downloads must bypass the Function response body.")
+
+    monkeypatch.setattr(files_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(files_routes, "files", FakeFiles())
+    response = await files_routes.content(
+        file_id,
+        request_for("www.askcrump.com"),
+        download=1,
+    )
+
+    assert response.status_code == 302
+    assert response.headers["location"].endswith("download=large-deck.pptx")
 
 
 @pytest.mark.asyncio

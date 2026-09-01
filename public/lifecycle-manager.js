@@ -235,6 +235,10 @@
       return;
     }
     if (decision.messageKey === 'continuity-assist' || intent === 'projects') {
+      if (decision.messageKey === 'continuity-assist' && typeof window.CrumpOutcomeActions?.keepLatestInProject === 'function') {
+        await window.CrumpOutcomeActions.keepLatestInProject();
+        return;
+      }
       if (typeof navigation?.open !== 'function') {
         window.showToast?.(FALLBACKS.projects, 'error');
         return;

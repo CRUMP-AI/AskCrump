@@ -635,6 +635,71 @@
     });
   }
 
+  async function performOutcomeProjectAction(projectButton) {
+    if (!projectButton || projectButton.disabled) return false;
+    const continuityPrompt = projectButton.closest('.outcome-feedback')?.querySelector('.outcome-continuity-prompt');
+    if (projectButton.dataset.saved === 'true') {
+      const projectId = String(projectButton.dataset.projectId || '').trim();
+      const openProject = window.CrumpProduct53?.openProject;
+      projectButton.disabled = true;
+      projectButton.setAttribute('aria-busy', 'true');
+      try {
+        if (projectId && typeof openProject === 'function') {
+          if (await openProject(projectId)) return true;
+        }
+        window.CrumpProduct53?.open?.('projects');
+        return true;
+      } finally {
+        projectButton.disabled = false;
+        projectButton.removeAttribute('aria-busy');
+      }
+    }
+
+    const keepConversation = window.CrumpProduct53?.keepConversation;
+    if (typeof keepConversation !== 'function') {
+      window.showToast?.('Projects are still loading. Try again in a moment.', 'error');
+      return false;
+    }
+    projectButton.disabled = true;
+    projectButton.setAttribute('aria-busy', 'true');
+    try {
+      const result = await keepConversation({projectId: projectButton.dataset.projectId || null});
+      if (!result?.success) throw new Error('Projects are still loading. Try again in a moment.');
+      if (continuityPrompt) continuityPrompt.textContent = `Saved to "${result.project?.name || 'Project'}".`;
+      showSavedOutcomeProject(projectButton, result.project);
+      return true;
+    } catch (_) {
+      return false;
+    } finally {
+      projectButton.disabled = false;
+      projectButton.removeAttribute('aria-busy');
+    }
+  }
+
+  async function keepLatestOutcomeInProject() {
+    const buttons = Array.from(document.querySelectorAll('.outcome-project-btn'));
+    const projectButton = buttons.at(-1);
+    if (!projectButton) {
+      window.showToast?.('Finish a response before keeping it in a Project.', 'error');
+      return false;
+    }
+    if (projectButton.dataset.projectLookup === 'pending') {
+      const chatId = String(projectButton.dataset.chatId || '').trim();
+      const resolver = window.CrumpProduct53?.resolveOutcomeProject;
+      try {
+        const resolution = chatId && typeof resolver === 'function' ? await resolver(chatId) : null;
+        if (resolution?.saved) showSavedOutcomeProject(projectButton, resolution.project);
+        else syncOutcomeProjectAction(projectButton);
+      } catch (_) {
+        syncOutcomeProjectAction(projectButton);
+      }
+      delete projectButton.dataset.projectLookup;
+      projectButton.disabled = false;
+      projectButton.removeAttribute('aria-busy');
+    }
+    return performOutcomeProjectAction(projectButton);
+  }
+
   window.addEventListener?.('crump:project-target-changed', syncOutcomeProjectActions);
   window.addEventListener?.('crump:project-service-ready', syncOutcomeProjectActions);
 
@@ -653,41 +718,7 @@
     projectButton.className = 'outcome-feedback-btn outcome-project-btn';
     projectButton.dataset.chatId = String(window.currentChatId || '').trim();
     syncOutcomeProjectAction(projectButton);
-    projectButton.addEventListener('click', async () => {
-      if (projectButton.dataset.saved === 'true') {
-        const projectId = String(projectButton.dataset.projectId || '').trim();
-        const openProject = window.CrumpProduct53?.openProject;
-        if (projectId && typeof openProject === 'function') {
-          projectButton.disabled = true;
-          projectButton.setAttribute('aria-busy', 'true');
-          try {
-            if (await openProject(projectId)) return;
-          } finally {
-            projectButton.disabled = false;
-            projectButton.removeAttribute('aria-busy');
-          }
-        }
-        window.CrumpProduct53?.open?.('projects');
-        return;
-      }
-      projectButton.disabled = true;
-      const keepConversation = window.CrumpProduct53?.keepConversation;
-      if (typeof keepConversation !== 'function') {
-        projectButton.disabled = false;
-        window.showToast?.('Projects are still loading. Try again in a moment.', 'error');
-        return;
-      }
-      try {
-        const result = await keepConversation({projectId: projectButton.dataset.projectId || null});
-        if (!result?.success) throw new Error('Projects are still loading. Try again in a moment.');
-        continuityPrompt.textContent = `Saved to "${result.project?.name || 'Project'}".`;
-        showSavedOutcomeProject(projectButton, result.project);
-      } catch (_) {
-        projectButton.disabled = false;
-        return;
-      }
-      projectButton.disabled = false;
-    });
+    projectButton.addEventListener('click', () => { void performOutcomeProjectAction(projectButton); });
 
     const renderThanks = value => {
       const status = document.createElement('span');
@@ -1012,4 +1043,7 @@
   window.shareMessage = shareMessage;
   window.downloadImage = downloadImage;
   window.openImageInNewTab = openImage;
+  window.CrumpOutcomeActions = Object.freeze({
+    keepLatestInProject: () => keepLatestOutcomeInProject(),
+  });
 })();

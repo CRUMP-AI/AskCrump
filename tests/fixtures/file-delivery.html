@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ask Crump file delivery fixture</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/public/crump-5.0.css?v=file-delivery-fixture-1">
+</head>
+<body class="crump-50">
+  <main><div id="chatContainer"></div><textarea id="userInput"></textarea></main>
+  <script>
+    window.__fixture = {downloads: [], openedWindows: 0};
+    window.showToast = () => {};
+    window.open = () => { window.__fixture.openedWindows += 1; };
+    document.addEventListener('click', event => {
+      const link = event.target.closest('a[download]');
+      if (!link) return;
+      event.preventDefault();
+      window.__fixture.downloads.push({
+        href: link.getAttribute('href'),
+        target: link.getAttribute('target'),
+        download: link.getAttribute('download'),
+      });
+    });
+  </script>
+  <script src="/public/crump-5.0.js?v=file-delivery-fixture-1"></script>
+</body>
+</html>

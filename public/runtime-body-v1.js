@@ -24,7 +24,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/conversation.css?v=5.9.76-intelligence-receipt-1', 'workspaceconversation'],
     ['/crump-4.3.css', 'crump43'],
     ['/crump-4.4.css', 'crump44'],
-    ['/crump-5.0.css', 'crump50'],
+    ['/crump-5.0.css?v=5.9.76-file-delivery-1', 'crump50'],
     ['/crump-billing-5.1.css?v=5.9.76-contextual-plan-recovery-1', 'billing51'],
     ['/crump-5.2.css', 'crump52'],
     ['/crump-5.2.2.css', 'crump522'],
@@ -50,7 +50,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/billing-manager.js', 'workspacebilling'],
     ['/subscription-ui.js?v=5.9.76-truthful-plan-1', 'workspacesubscription'],
     ['/chat-resilience.js?v=5.9.76-image-safety-recovery-1', 'workspacechatresilience'],
-    ['/ui-functions.js?v=5.9.76-image-scroll-stability-1', 'workspaceui'],
+    ['/ui-functions.js?v=5.9.76-continuity-action-1', 'workspaceui'],
     ['/presence-manager.js?v=5.9.76', 'workspacepresence'],
     ['/sync-manager.js?v=5.9.76', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-sync-cadence-1', 'workspacechatsync'],
@@ -62,7 +62,7 @@ window.CRUMP_CONFIG = Object.freeze({
   const enhancementScripts = Object.freeze([
     ['/crump-4.3.js?v=5.9.76-intelligence-architecture-1', 'crump43'],
     ['/crump-4.4.js?v=5.9.76-core-reliability-1', 'crump44'],
-    ['/crump-5.0.js?v=5.9.76-image-scroll-stability-1', 'crump50'],
+    ['/crump-5.0.js?v=5.9.76-file-delivery-1', 'crump50'],
     ['/crump-billing-5.1.js?v=5.9.76-weekly-growth-attribution-1', 'billing51'],
     ['/crump-5.2.js?v=5.9.76-weekly-growth-attribution-1', 'crump52'],
     ['/crump-5.2.2.js?v=5.9.76-image-scroll-stability-1', 'crump522'],
@@ -80,7 +80,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-navigation-5.9.30.js?v=5.9.76-video-destination-1', 'crumpnav5930'],
     ['/crump-code-5.9.35.js?v=5.9.76-intelligence-architecture-1', 'crumpcode5935'],
     ['/lifecycle-share.js?v=5.9.76-lifecycle-activation-1', 'lifecycleshare'],
-    ['/lifecycle-manager.js?v=5.9.76-lifecycle-activation-1', 'lifecyclemanager'],
+    ['/lifecycle-manager.js?v=5.9.76-continuity-action-1', 'lifecyclemanager'],
   ]);
 
   const scriptPlan = Object.freeze([

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r170';
+const CACHE_NAME = 'ask-crump-new-body-v1-r172';
 
 const CORE = [
   '/app',
@@ -35,7 +35,7 @@ const CORE = [
   '/crump-library-5.7.css',
   '/crump-library-5.7.js?v=5.9.76-demand-hydration-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-intelligence-plan-handoff-1',
-  '/runtime-body-v1.js?v=5.9.76-video-destination-1',
+  '/runtime-body-v1.js?v=5.9.76-continuity-action-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
@@ -46,7 +46,7 @@ const CORE = [
   '/billing-manager.js',
   '/subscription-ui.js?v=5.9.76-truthful-plan-1',
   '/chat-resilience.js?v=5.9.76-image-safety-recovery-1',
-  '/ui-functions.js?v=5.9.76-image-scroll-stability-1',
+  '/ui-functions.js?v=5.9.76-continuity-action-1',
   '/presence-manager.js?v=5.9.76',
   '/auth-resilience.js?v=5.9.76',
   '/device-auth.js?v=5.9.76',
@@ -56,14 +56,14 @@ const CORE = [
   '/app.js?v=5.9.76-core-reliability-1',
   '/product-analytics.js?v=5.9.76',
   '/lifecycle-share.js?v=5.9.76-lifecycle-activation-1',
-  '/lifecycle-manager.js?v=5.9.76-lifecycle-activation-1',
+  '/lifecycle-manager.js?v=5.9.76-continuity-action-1',
   '/auth-controller.js?v=5.9.76-weekly-growth-attribution-1',
   '/crump-4.3.css',
   '/crump-4.3.js?v=5.9.76-intelligence-architecture-1',
   '/crump-4.4.css',
   '/crump-4.4.js?v=5.9.76-core-reliability-1',
-  '/crump-5.0.css',
-  '/crump-5.0.js?v=5.9.76-image-scroll-stability-1',
+  '/crump-5.0.css?v=5.9.76-file-delivery-1',
+  '/crump-5.0.js?v=5.9.76-file-delivery-1',
   '/crump-billing-5.1.css?v=5.9.76-contextual-plan-recovery-1',
   '/crump-billing-5.1.js?v=5.9.76-weekly-growth-attribution-1',
   '/crump-5.2.css',
@@ -127,6 +127,7 @@ function bootCritical(request, url) {
     url.pathname === '/conversation.css' ||
     url.pathname === '/chat-resilience.js' ||
     url.pathname === '/crump-5.0.js' ||
+    url.pathname === '/crump-5.0.css' ||
     url.pathname === '/ui-functions.js' ||
     url.pathname === '/auth-resilience.js' ||
     url.pathname === '/install-prompt.js' ||

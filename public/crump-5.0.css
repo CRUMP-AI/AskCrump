@@ -355,6 +355,17 @@ body.crump-50 .crump50-lightbox-bar > span { overflow: hidden; text-overflow: el
 body.crump-50 .crump50-lightbox-bar > div { display: flex; gap: 6px; }
 body.crump-50 .crump50-lightbox-bar button { min-height: 38px; padding: 0 13px; border: 1px solid var(--c50-line); border-radius: 11px; background: rgba(255,255,255,.04); color: var(--c50-text); font-size: 11px; }
 body.crump-50 .crump50-lightbox > img { width: 100%; height: 100%; object-fit: contain; min-height: 0; padding: 16px; }
+body.crump-50 .crump50-file-viewer-body { min-height: 0; display: grid; place-items: center; padding: 14px; }
+body.crump-50 .crump50-file-viewer-body > iframe,
+body.crump-50 .crump50-file-viewer-body > video { width: min(100%, 1120px); height: 100%; min-height: 0; border: 1px solid var(--c50-line); border-radius: 16px; background: #fff; }
+body.crump-50 .crump50-file-viewer-body > video { object-fit: contain; background: #05070a; }
+body.crump-50 .crump50-file-viewer-placeholder { width: min(100%, 520px); display: grid; justify-items: center; gap: 12px; padding: clamp(24px, 6vw, 54px); border: 1px solid rgba(209,191,150,.18); border-radius: 24px; background: linear-gradient(145deg, rgba(209,191,150,.08), rgba(255,255,255,.025)); text-align: center; }
+body.crump-50 .crump50-file-viewer-placeholder > span { width: 72px; height: 72px; display: grid; place-items: center; border-radius: 20px; background: var(--c50-gold-soft); color: var(--c50-gold); }
+body.crump-50 .crump50-file-viewer-placeholder svg { width: 34px; fill: none; stroke: currentColor; stroke-width: 1.4; }
+body.crump-50 .crump50-file-viewer-placeholder strong { font-size: clamp(18px, 4vw, 25px); }
+body.crump-50 .crump50-file-viewer-placeholder p { max-width: 440px; margin: 0; color: var(--c50-text-2); font-size: 13px; line-height: 1.65; }
+body.crump-50 .crump50-file-viewer-placeholder small { color: var(--c50-text-3); font-size: 10px; letter-spacing: .04em; }
+body.crump-50 .crump50-file-viewer-placeholder button { min-height: 44px; margin-top: 5px; padding: 0 18px; border: 1px solid rgba(209,191,150,.35); border-radius: 13px; background: var(--c50-gold-soft); color: var(--c50-gold); font-size: 11px; font-weight: 650; }
 
 /* Drag drop */
 body.crump-50 .crump50-drop-overlay { position: fixed; inset: 12px; z-index: 150; display: grid; place-items: center; border: 1px dashed rgba(209,191,150,.42); border-radius: 28px; background: rgba(12,16,21,.92); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }

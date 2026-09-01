@@ -186,6 +186,7 @@ def test_lifecycle_storage_schema_has_no_customer_content_fields():
 
 def test_browser_component_uses_only_reviewed_static_copy_and_is_nonblocking():
     manager = (PUBLIC / "lifecycle-manager.js").read_text(encoding="utf-8")
+    ui = (PUBLIC / "ui-functions.js").read_text(encoding="utf-8")
     styles = (PUBLIC / "lifecycle.css").read_text(encoding="utf-8")
     runtime = (PUBLIC / "runtime-body-v1.js").read_text(encoding="utf-8")
     worker = (PUBLIC / "sw.js").read_text(encoding="utf-8")
@@ -207,10 +208,18 @@ def test_browser_component_uses_only_reviewed_static_copy_and_is_nonblocking():
     assert "action('suppressed', 'active-work')" in manager
     assert "let volatileSessionId = '';" in manager
     assert "if (!volatileSessionId) volatileSessionId = crypto.randomUUID();" in manager
+    assert "window.CrumpOutcomeActions.keepLatestInProject()" in manager
+    assert "keepLatestInProject: () => keepLatestOutcomeInProject()" in ui
+    assert "return performOutcomeProjectAction(projectButton);" in ui
+    continuity = manager[manager.index("if (decision.messageKey === 'continuity-assist'"):]
+    continuity = continuity[:continuity.index("if (typeof navigation?.open !== 'function')")]
+    assert "navigation.open('projects')" not in continuity
     assert "prefers-reduced-motion: reduce" in styles
-    assert "/lifecycle-manager.js?v=5.9.76-lifecycle-activation-1" in runtime
+    assert "/lifecycle-manager.js?v=5.9.76-continuity-action-1" in runtime
     assert "/lifecycle.css?v=5.9.76-lifecycle-activation-1" in runtime
-    assert "ask-crump-new-body-v1-r170" in worker
+    assert "ask-crump-new-body-v1-r172" in worker
+    assert (ROOT / "tests" / "fixtures" / "lifecycle-project-continuity.html").exists()
+    assert (ROOT / "scripts" / "verify-lifecycle-project-continuity.cjs").exists()
     assert "eventKey: `response-share:${day}`" in referral
     assert "workspace-referral:" not in referral
 

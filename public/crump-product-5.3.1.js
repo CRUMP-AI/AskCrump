@@ -183,6 +183,7 @@
               <strong>${escapeHtml(file.name || 'File')}</strong>
               <small>${escapeHtml(file.projectRole || 'reference')} · ${formatBytes(file.size)}</small>
             </button>
+            <button type="button" class="crump531-use-file" data-download-project-file="${escapeHtml(file.id)}">Download</button>
             <button type="button" class="crump531-use-file" data-use-project-file="${escapeHtml(file.id)}">Use in chat</button>
           </div>
         `).join('')}
@@ -221,7 +222,14 @@
         button.addEventListener('click', () => {
           const file = byFileId.get(String(button.dataset.openProjectFile));
           if (!file?.id) return;
-          window.open(`/api/files/${encodeURIComponent(file.id)}/content`, '_blank', 'noopener');
+          window.CrumpFileTools?.open?.(file, false);
+        });
+      });
+      list.querySelectorAll('[data-download-project-file]').forEach(button => {
+        button.addEventListener('click', () => {
+          const file = byFileId.get(String(button.dataset.downloadProjectFile));
+          if (!file?.id) return;
+          window.CrumpFileTools?.open?.(file, true);
         });
       });
       list.querySelectorAll('[data-use-project-file]').forEach(button => {

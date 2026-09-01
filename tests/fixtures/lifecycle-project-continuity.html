@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ask Crump lifecycle Project continuity fixture</title>
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <main>
+    <div id="chatContainer" aria-label="Conversation"></div>
+    <textarea id="userInput"></textarea>
+    <button id="sendButton" type="button">Send</button>
+    <div id="conversationStatus" aria-live="polite"></div>
+  </main>
+  <script>
+    window.currentUser = {id: '11111111-1111-4111-8111-111111111111'};
+    window.currentChatId = '22222222-2222-4222-8222-222222222222';
+    window.chats = [{
+      id: window.currentChatId,
+      messages: [
+        {id: 'request-1', role: 'user', content: 'Help me plan the launch.'},
+        {id: 'answer-1', role: 'assistant', content: 'Here is a useful launch plan.'},
+      ],
+    }];
+    window.__fixture = {keepCalls: 0, genericProjectOpens: 0, actions: [], projectArgs: []};
+    window.showToast = () => {};
+    window.CrumpProduct53 = {
+      projectTarget: () => null,
+      resolveOutcomeProject: async () => {
+        await new Promise(resolve => setTimeout(resolve, 120));
+        return {project: null, saved: false};
+      },
+      keepConversation: async options => {
+        window.__fixture.keepCalls += 1;
+        window.__fixture.projectArgs.push(options);
+        return {success: true, project: {id: '33333333-3333-4333-8333-333333333333', name: 'Launch plan'}};
+      },
+      open: section => {
+        if (section === 'projects') window.__fixture.genericProjectOpens += 1;
+      },
+    };
+    window.CrumpNavigation5930 = {
+      open: section => {
+        if (section === 'projects') window.__fixture.genericProjectOpens += 1;
+      },
+    };
+    window.fetch = async (input, options = {}) => {
+      const path = new URL(String(input), location.origin).pathname;
+      if (path === '/api/lifecycle/decision') {
+        return new Response(JSON.stringify({
+          success: true,
+          eligible: true,
+          messageKey: 'continuity-assist',
+          intent: 'projects',
+          surface: 'post-response-inline',
+          decisionId: '44444444-4444-4444-8444-444444444444',
+        }), {status: 200, headers: {'Content-Type': 'application/json'}});
+      }
+      if (path === '/api/lifecycle/actions') {
+        const body = JSON.parse(options.body || '{}');
+        window.__fixture.actions.push(body.action);
+        return new Response(JSON.stringify({success: true, recorded: true}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      throw new Error(`Unexpected request: ${path}`);
+    };
+  </script>
+  <script src="/public/ui-functions.js?v=lifecycle-project-continuity-fixture-1"></script>
+  <script>window.renderMessages(window.chats[0].messages);</script>
+  <script src="/public/lifecycle-manager.js?v=lifecycle-project-continuity-fixture-1"></script>
+</body>
+</html>

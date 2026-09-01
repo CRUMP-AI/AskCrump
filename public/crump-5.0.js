@@ -977,6 +977,89 @@
     document.addEventListener('drop', event => { if (!overlay) return; event.preventDefault(); const files = event.dataTransfer?.files; remove(); addFiles(files); });
   }
 
+  function showFileViewer(file) {
+    const url = file?.id ? `/api/files/${encodeURIComponent(file.id)}/content` : String(file?.url || '');
+    if (!url) return false;
+    const type = String(file?.type || '').toLowerCase();
+    if (type.startsWith('image/')) {
+      showLightbox(file, url);
+      return true;
+    }
+
+    state.lightbox?.remove();
+    const box = document.createElement('section');
+    box.className = 'crump50-lightbox crump50-file-viewer';
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-modal', 'true');
+    box.setAttribute('aria-labelledby', 'crump50FileViewerTitle');
+    const top = document.createElement('div');
+    top.className = 'crump50-lightbox-bar';
+    const title = document.createElement('span');
+    title.id = 'crump50FileViewerTitle';
+    title.textContent = file?.name || 'File';
+    const actions = document.createElement('div');
+    const download = document.createElement('button');
+    download.type = 'button';
+    download.textContent = 'Download';
+    download.addEventListener('click', () => { void openFile(file, true); });
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.textContent = 'Done';
+    const dismiss = () => {
+      box.remove();
+      if (state.lightbox === box) state.lightbox = null;
+    };
+    close.addEventListener('click', dismiss);
+    actions.append(download, close);
+    top.append(title, actions);
+
+    const body = document.createElement('div');
+    body.className = 'crump50-file-viewer-body';
+    if (type.startsWith('video/')) {
+      const video = document.createElement('video');
+      video.controls = true;
+      video.playsInline = true;
+      video.preload = 'metadata';
+      video.src = url;
+      video.setAttribute('aria-label', `Play ${file?.name || 'video'}`);
+      body.appendChild(video);
+    } else if (type === 'application/pdf' || String(file?.name || '').toLowerCase().endsWith('.pdf')) {
+      const frame = document.createElement('iframe');
+      frame.src = url;
+      frame.title = `Preview ${file?.name || 'PDF'}`;
+      body.appendChild(frame);
+    } else {
+      const kind = fileKind(file);
+      const placeholder = document.createElement('div');
+      placeholder.className = 'crump50-file-viewer-placeholder';
+      const icon = document.createElement('span');
+      icon.innerHTML = iconFor(kind);
+      const heading = document.createElement('strong');
+      heading.textContent = kind === 'slides' ? 'Editable PowerPoint ready' : 'File ready to download';
+      const detail = document.createElement('p');
+      detail.textContent = kind === 'slides'
+        ? 'Download the PPTX here, then open it in PowerPoint, Keynote, or a compatible editor. Ask Crump keeps you on this screen instead of sending you to private storage.'
+        : 'This file type does not have a safe built-in preview yet. Download it here to open it with a compatible app on your device.';
+      const metadata = document.createElement('small');
+      metadata.textContent = `${String(file?.name || 'File').split('.').pop().toUpperCase()} · ${formatBytes(file?.size)}`;
+      const downloadHere = document.createElement('button');
+      downloadHere.type = 'button';
+      downloadHere.textContent = 'Download to this device';
+      downloadHere.addEventListener('click', () => { void openFile(file, true); });
+      placeholder.append(icon, heading, detail, metadata, downloadHere);
+      body.appendChild(placeholder);
+    }
+
+    box.append(top, body);
+    box.addEventListener('keydown', event => {
+      if (event.key === 'Escape') dismiss();
+    });
+    document.body.appendChild(box);
+    state.lightbox = box;
+    requestAnimationFrame(() => close.focus({preventScroll: true}));
+    return true;
+  }
+
   async function openFile(file, download = false) {
     if (!file?.id && !file?.url) return;
     const type = String(file?.type || '').toLowerCase();
@@ -988,10 +1071,12 @@
         console.warn('Ask Crump media save failed; using file download fallback.', error);
       }
     }
+    if (!download && showFileViewer(file)) return true;
     const url = file.id ? `/api/files/${encodeURIComponent(file.id)}/content${download ? '?download=1' : ''}` : file.url;
     const link = document.createElement('a'); link.href = url; link.target = download ? '_self' : '_blank'; link.rel = 'noopener';
     if (download) link.download = file.name || 'download';
     document.body.appendChild(link); link.click(); link.remove();
+    return true;
   }
 
   function showLightbox(file, url) {
@@ -1002,7 +1087,7 @@
     const title = document.createElement('span'); title.textContent = file?.name || 'Image';
     const actions = document.createElement('div');
     const download = document.createElement('button'); download.type = 'button'; download.textContent = 'Download'; download.addEventListener('click', () => openFile(file, true));
-    const close = document.createElement('button'); close.type = 'button'; close.textContent = 'Done'; close.addEventListener('click', () => box.remove());
+    const close = document.createElement('button'); close.type = 'button'; close.textContent = 'Done'; close.addEventListener('click', () => { box.remove(); if (state.lightbox === box) state.lightbox = null; });
     actions.append(download, close); top.append(title, actions); box.append(top, img); document.body.appendChild(box); state.lightbox = box;
   }
 
