@@ -81,7 +81,7 @@ const loader = String.raw`
     ['/sync-manager.js?v=5.9.76', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-sync-cadence-1', 'workspacechatsync'],
     ['/account-manager.js?v=5.9.76-account-deletion-billing-1', 'workspaceaccount'],
-    ['/app.js?v=5.9.76-settings-profile-trust-6', 'workspaceapp'],
+    ['/app.js?v=5.9.76-settings-profile-trust-7', 'workspaceapp'],
     ['/product-analytics.js?v=5.9.76', 'workspaceanalytics'],
   ]);
 

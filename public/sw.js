@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r196';
+const CACHE_NAME = 'ask-crump-new-body-v1-r197';
 
 const CORE = [
   '/app',
@@ -35,7 +35,7 @@ const CORE = [
   '/crump-library-5.7.css',
   '/crump-library-5.7.js?v=5.9.76-demand-hydration-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-commerce-recovery-1',
-  '/runtime-body-v1.js?v=5.9.76-settings-profile-trust-loader-6',
+  '/runtime-body-v1.js?v=5.9.76-settings-profile-trust-loader-7',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
@@ -53,7 +53,7 @@ const CORE = [
   '/sync-manager.js?v=5.9.76',
   '/chat-sync.js?v=5.9.76-sync-cadence-1',
   '/account-manager.js?v=5.9.76-account-deletion-billing-1',
-  '/app.js?v=5.9.76-settings-profile-trust-6',
+  '/app.js?v=5.9.76-settings-profile-trust-7',
   '/product-analytics.js?v=5.9.76',
   '/lifecycle-share.js?v=5.9.76-lifecycle-activation-1',
   '/lifecycle-manager.js?v=5.9.76-continuity-action-1',
@@ -146,7 +146,8 @@ function bootCritical(request, url) {
 async function networkFirst(request) {
   const cache = await caches.open(CACHE_NAME);
   try {
-    const response = await fetch(request);
+    const requestUrl = new URL(request.url);
+    const response = await fetch(request, requestUrl.pathname === '/app.js' ? { cache: 'no-store' } : undefined);
     if (response.ok) await cache.put(request, response.clone());
     return response;
   } catch (_) {

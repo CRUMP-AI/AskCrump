@@ -73,6 +73,7 @@ def test_workspace_script_updates_bypass_stale_pwa_and_edge_caches():
     vercel = read("vercel.json")
 
     assert "url.pathname === '/app.js'" in worker
+    assert "requestUrl.pathname === '/app.js' ? { cache: 'no-store' } : undefined" in worker
     assert '"source": "/app.js"' in vercel
     app_header = vercel[vercel.index('"source": "/app.js"') :]
     assert '"Cache-Control", "value": "no-cache, no-store, must-revalidate"' in app_header
