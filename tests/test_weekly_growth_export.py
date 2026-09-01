@@ -20,8 +20,13 @@ ROWS = [
         "workspace_opened": 8,
         "activation_eligible_24h": 10,
         "activation_reached_24h": 5,
+        "useful_feedback_reached_24h": 3,
         "durable_value_eligible_24h": 10,
         "durable_value_reached_24h": 4,
+        "decision_grade_value_reached_24h": 4,
+        "project_created_reached_24h": 2,
+        "project_file_reached_24h": 1,
+        "ready_file_reached_24h": 2,
         "d1_eligible": 8,
         "d1_returned": 3,
         "d7_eligible": 4,
@@ -83,11 +88,17 @@ def test_report_calculates_only_rates_with_explicit_denominators():
     assert report["derived_rates"] == {
         "landing_to_signup_pct": 10.0,
         "signup_to_activation_24h_pct": 50.0,
+        "signup_to_useful_feedback_24h_pct": 30.0,
         "signup_to_durable_value_24h_pct": 40.0,
+        "signup_to_decision_grade_value_24h_pct": 40.0,
+        "signup_to_project_24h_pct": 20.0,
+        "signup_to_project_file_24h_pct": 10.0,
+        "signup_to_ready_file_24h_pct": 20.0,
         "d1_retention_pct": 37.5,
         "d7_retention_pct": 25.0,
         "paid_conversion_pct": 20.0,
         "cost_per_activated_user_cents": 1000,
+        "cost_per_decision_grade_user_cents": 1250,
         "cost_per_d7_retained_user_cents": 5000,
     }
     assert report["authoritative_period_totals"]["net_recognized_revenue_cents"] == {
@@ -115,6 +126,10 @@ def test_subsecond_half_open_window_compares_instants_not_strings():
         [{"email": "private@example.com", "accounts_created": 1}],
         [{"prompt": "private content", "accounts_created": 1}],
         [{"artifact_url": "private", "accounts_created": 1}],
+        [{"project_id": "private", "accounts_created": 1}],
+        [{"file_id": "private", "accounts_created": 1}],
+        [{"payment_intent": "private", "accounts_created": 1}],
+        [{"metadata": {"private": True}, "accounts_created": 1}],
     ],
 )
 def test_export_rejects_any_unexpected_sensitive_field(rows):

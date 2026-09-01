@@ -13,8 +13,11 @@ from urllib import error, request
 
 
 SENSITIVE_KEYS = frozenset({
-    "user_id", "email", "prompt", "response", "filename", "project_id",
-    "artifact_url", "payment_method", "payment_object", "referrer", "url",
+    "user_id", "account_id", "email", "full_name", "prompt", "response",
+    "filename", "file_name", "project_id", "file_id", "chat_id", "message_id",
+    "artifact_url", "storage_path", "payment_method", "payment_object",
+    "payment_intent", "external_id", "referrer", "url", "ip_address",
+    "user_agent", "session_id", "device_id", "metadata",
 })
 
 
@@ -99,7 +102,12 @@ def build_report(
 
     accounts = sum_field(rows, "accounts_created")
     activation = sum_field(rows, "activation_reached_24h")
+    useful_feedback = sum_field(rows, "useful_feedback_reached_24h")
     durable_value = sum_field(rows, "durable_value_reached_24h")
+    decision_grade_value = sum_field(rows, "decision_grade_value_reached_24h")
+    project_value = sum_field(rows, "project_created_reached_24h")
+    project_file_value = sum_field(rows, "project_file_reached_24h")
+    ready_file_value = sum_field(rows, "ready_file_reached_24h")
     d1_eligible = sum_field(rows, "d1_eligible")
     d1_returned = sum_field(rows, "d1_returned")
     d7_eligible = sum_field(rows, "d7_eligible")
@@ -137,11 +145,23 @@ def build_report(
         "derived_rates": {
             "landing_to_signup_pct": percentage(accounts, landing_visitors or 0),
             "signup_to_activation_24h_pct": percentage(activation, accounts),
+            "signup_to_useful_feedback_24h_pct": percentage(useful_feedback, accounts),
             "signup_to_durable_value_24h_pct": percentage(durable_value, accounts),
+            "signup_to_decision_grade_value_24h_pct": percentage(
+                decision_grade_value,
+                accounts,
+            ),
+            "signup_to_project_24h_pct": percentage(project_value, accounts),
+            "signup_to_project_file_24h_pct": percentage(project_file_value, accounts),
+            "signup_to_ready_file_24h_pct": percentage(ready_file_value, accounts),
             "d1_retention_pct": percentage(d1_returned, d1_eligible),
             "d7_retention_pct": percentage(d7_returned, d7_eligible),
             "paid_conversion_pct": percentage(payers, payer_eligible),
             "cost_per_activated_user_cents": cents_per_account(ad_spend_cents, activation),
+            "cost_per_decision_grade_user_cents": cents_per_account(
+                ad_spend_cents,
+                decision_grade_value,
+            ),
             "cost_per_d7_retained_user_cents": cents_per_account(ad_spend_cents, d7_returned),
         },
         "reconciliation": {
@@ -150,7 +170,8 @@ def build_report(
                 "silently merged into server-authoritative account cohorts."
             ),
             "payer_boundary": (
-                "Checkout completion counts are payer evidence, never recognized revenue."
+                "Checkout events are diagnostics, not payers. Payer counts require an active "
+                "provider-backed subscription or provider-backed credit-purchase ledger row."
             ),
             "finance_boundary": (
                 "Revenue, refunds, variable cost, and spend remain not_provided until an "
