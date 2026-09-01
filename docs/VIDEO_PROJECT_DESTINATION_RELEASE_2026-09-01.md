@@ -1,7 +1,9 @@
 # Video Project destination release
 
-Date: 2026-09-01  
-Feature commit: `13a9e84c8f83770bae12e83fb36c78bc0492e21b`  
+Date: 2026-09-01
+
+Feature commit: `13a9e84c8f83770bae12e83fb36c78bc0492e21b`
+
 Production deployment: `dpl_GjQzW3BiVNfy1Ab3brdqpEQhdmxQ`
 
 ## User problem
