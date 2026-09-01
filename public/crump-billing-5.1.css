@@ -265,24 +265,6 @@
   border-radius: 17px;
   background: rgba(255,255,255,.021);
 }
-.billing51-pack.is-featured {
-  border-color: rgba(217,195,147,.28);
-  background: linear-gradient(180deg, rgba(217,195,147,.075), rgba(255,255,255,.018));
-}
-.billing51-badge {
-  position: absolute;
-  top: 13px;
-  right: 13px;
-  padding: 4px 7px;
-  border: 1px solid rgba(217,195,147,.20);
-  border-radius: 999px;
-  color: #cbb687;
-  background: rgba(217,195,147,.07);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
 .billing51-pack-amount {
   margin-top: 7px;
   color: #f4f0e8;
@@ -507,7 +489,6 @@
   .billing51-pack-label { grid-column: 1; }
   .billing51-pack-price { grid-column: 2; grid-row: 1; margin: 0; text-align: right; }
   .billing51-buy { grid-column: 1 / -1; margin-top: 11px; }
-  .billing51-badge { display: none; }
   .billing51-plans { grid-template-columns: 1fr; }
   .billing51-plan-benefits { min-height: 0; }
   .billing51-skeleton { min-height: 115px; }

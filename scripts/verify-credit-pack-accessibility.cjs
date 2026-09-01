@@ -31,6 +31,8 @@ const viewports = [
         return {
           cardCount: cards.length,
           nestedInteractiveCards: cards.filter(card => card.hasAttribute('role') || card.hasAttribute('tabindex')).length,
+          featuredPackCards: cards.filter(card => card.classList.contains('is-featured')).length,
+          unsupportedClaims: cards.filter(card => /popular|most popular|recommended|best|customer favorite/i.test(card.textContent || '')).length,
           buttonCount: buttons.filter(Boolean).length,
           labels: buttons.map(button => button?.getAttribute('aria-label') || ''),
           disabled: buttons.map(button => Boolean(button?.disabled)),
@@ -39,6 +41,8 @@ const viewports = [
       });
       assert.equal(state.cardCount, 3);
       assert.equal(state.nestedInteractiveCards, 0);
+      assert.equal(state.featuredPackCards, 0);
+      assert.equal(state.unsupportedClaims, 0);
       assert.equal(state.buttonCount, 3);
       assert.deepEqual(state.labels, [
         'Add 50 Crump Credits for $4.99',

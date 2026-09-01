@@ -611,14 +611,8 @@
 
   function creditPackCard(pack) {
     const article = document.createElement('article');
-    article.className = `billing51-pack ${Number(pack.credits) === 150 ? 'is-featured' : ''}`;
+    article.className = 'billing51-pack';
     article.dataset.crumpPack = String(pack.code || '');
-    if (Number(pack.credits) === 150) {
-      const badge = document.createElement('span');
-      badge.className = 'billing51-badge';
-      badge.textContent = 'Popular';
-      article.appendChild(badge);
-    }
     const amount = document.createElement('strong');
     amount.className = 'billing51-pack-amount';
     amount.textContent = String(pack.credits);
@@ -739,7 +733,7 @@
         <section class="billing51-section">
           <div class="billing51-section-head"><div><span>KEEP GOING</span><h3>Add Crump Credits</h3></div><p>1 request = 1 credit after included usage. Purchased credits never expire.</p></div>
           <div class="billing51-packs" id="billing52Packs">
-            ${[50,150,400].map((credits, index) => `<article class="billing51-pack ${credits === 150 ? 'is-featured' : ''}">${credits === 150 ? '<span class="billing51-badge">Popular</span>' : ''}<strong class="billing51-pack-amount">${credits}</strong><span class="billing51-pack-label">Crump Credits</span><div class="billing51-pack-price">${['$4.99','$9.99','$19.99'][index]}</div><button class="billing51-buy" aria-label="Loading availability for ${credits} Crump Credits" disabled>Loading…</button></article>`).join('')}
+            ${[50,150,400].map((credits, index) => `<article class="billing51-pack"><strong class="billing51-pack-amount">${credits}</strong><span class="billing51-pack-label">Crump Credits</span><div class="billing51-pack-price">${['$4.99','$9.99','$19.99'][index]}</div><button class="billing51-buy" aria-label="Loading availability for ${credits} Crump Credits" disabled>Loading…</button></article>`).join('')}
           </div>
         </section>
         <section class="billing51-section">

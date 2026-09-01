@@ -76,4 +76,4 @@ def test_intelligence_receipt_assets_are_cache_versioned_atomically():
         assert versioned in worker
     for source in (runtime, worker):
         assert "/app.js?v=5.9.76-settings-profile-trust-8" in source
-    assert "ask-crump-new-body-v1-r198" in worker
+    assert "ask-crump-new-body-v1-r199" in worker

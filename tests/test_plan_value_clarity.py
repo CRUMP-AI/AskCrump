@@ -134,6 +134,41 @@ def test_quick_upgrade_asset_is_versioned_for_web_pwa_and_native():
         assert versioned in source
 
 
+def test_credit_pack_merchandising_contains_no_unsupported_social_proof():
+    billing = read_public("crump-billing-5.1.js")
+    final_billing = read_public("crump-5.2.js")
+    billing_styles = read_public("crump-billing-5.1.css")
+    shell_styles = read_public("crump-v1-body.css")
+
+    for source in (billing, final_billing):
+        for unsupported in (
+            "Popular", "Most popular", "Recommended", "Best value", "Customer favorite",
+        ):
+            assert unsupported.lower() not in source.lower()
+        assert "billing51-badge" not in source
+        assert "credits === 150 ? 'is-featured'" not in source
+        assert "Number(pack.credits) === 150 ? 'is-featured'" not in source
+
+    for source in (billing_styles, shell_styles):
+        assert ".billing51-pack.is-featured" not in source
+    assert ".billing51-plan.is-featured" in billing_styles
+
+
+def test_credit_pack_truth_is_browser_verified_without_checkout_success():
+    verifier = (ROOT / "scripts" / "verify-credit-pack-accessibility.cjs").read_text(
+        encoding="utf-8"
+    )
+
+    assert "featuredPackCards" in verifier
+    assert "unsupportedClaims" in verifier
+    assert "assert.equal(state.featuredPackCards, 0);" in verifier
+    assert "assert.equal(state.unsupportedClaims, 0);" in verifier
+    fixture = (ROOT / "tests" / "fixtures" / "plan-center-clarity.html").read_text(
+        encoding="utf-8"
+    )
+    assert "Fixture blocks credit checkout." in fixture
+
+
 def test_plan_center_measurement_is_daily_content_free_and_fail_open():
     billing = read_public("crump-billing-5.1.js")
     analytics = read_public("product-analytics.js")
@@ -197,8 +232,9 @@ def test_both_plan_center_owners_contain_and_restore_modal_focus():
 
 
 def test_plan_center_containment_assets_are_versioned_everywhere():
-    versioned_billing = "/crump-billing-5.1.js?v=5.9.76-commerce-recovery-1"
-    versioned_final = "/crump-5.2.js?v=5.9.76-credit-pack-accessibility-1"
+    versioned_billing = "/crump-billing-5.1.js?v=5.9.76-credit-pack-truth-1"
+    versioned_final = "/crump-5.2.js?v=5.9.76-credit-pack-truth-1"
+    versioned_billing_css = "/crump-billing-5.1.css?v=5.9.76-credit-pack-truth-1"
     versioned_credit_contract = "/crump-5.2.2.js?v=5.9.76-credit-pack-accessibility-1"
     sources = (
         read_public("runtime-body-v1.js"),
@@ -211,8 +247,9 @@ def test_plan_center_containment_assets_are_versioned_everywhere():
     for source in sources:
         assert versioned_billing in source
         assert versioned_final in source
+        assert versioned_billing_css in source
         assert versioned_credit_contract in source
-    assert "ask-crump-new-body-v1-r198" in read_public("sw.js")
+    assert "ask-crump-new-body-v1-r199" in read_public("sw.js")
     assert "/runtime-body-v1.js?v=5.9.76-settings-profile-trust-loader-8" in read_public("app.html")
 
 

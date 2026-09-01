@@ -19,7 +19,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/styles.css',
         '/install-prompt.css?v=5.9.76',
         '/auth-styles.css',
-        '/crump-v1-body.css?v=5.9.76-intelligence-architecture-1',
+        '/crump-v1-body.css?v=5.9.76-credit-pack-truth-1',
     ]
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',

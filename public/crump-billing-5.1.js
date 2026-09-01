@@ -409,13 +409,7 @@
 
   function packCard(pack, nativeProduct) {
     const article = document.createElement('article');
-    article.className = `billing51-pack ${pack.credits === 150 ? 'is-featured' : ''}`;
-    if (pack.credits === 150) {
-      const badge = document.createElement('span');
-      badge.className = 'billing51-badge';
-      badge.textContent = 'Popular';
-      article.appendChild(badge);
-    }
+    article.className = 'billing51-pack';
     const amount = document.createElement('strong');
     amount.className = 'billing51-pack-amount';
     amount.textContent = String(pack.credits);

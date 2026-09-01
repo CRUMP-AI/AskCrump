@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r198';
+const CACHE_NAME = 'ask-crump-new-body-v1-r199';
 
 const CORE = [
   '/app',
@@ -15,7 +15,7 @@ const CORE = [
   '/onboarding.css?v=5.9.76-video-destination-1',
   '/conversation.css?v=5.9.76-intelligence-receipt-1',
   '/auth-styles.css',
-  '/crump-v1-body.css?v=5.9.76-intelligence-architecture-1',
+  '/crump-v1-body.css?v=5.9.76-credit-pack-truth-1',
   '/lifecycle.css?v=5.9.76-lifecycle-activation-1',
   '/crump-v1-body.js?v=5.9.76-destination-background-guard-1',
   '/crump-v1-stability.css',
@@ -64,10 +64,10 @@ const CORE = [
   '/crump-4.4.js?v=5.9.76-core-reliability-1',
   '/crump-5.0.css?v=5.9.76-image-reference-entry-1',
   '/crump-5.0.js?v=5.9.76-image-studio-focus-return-1',
-  '/crump-billing-5.1.css?v=5.9.76-contextual-plan-recovery-1',
-  '/crump-billing-5.1.js?v=5.9.76-commerce-recovery-1',
+  '/crump-billing-5.1.css?v=5.9.76-credit-pack-truth-1',
+  '/crump-billing-5.1.js?v=5.9.76-credit-pack-truth-1',
   '/crump-5.2.css',
-  '/crump-5.2.js?v=5.9.76-credit-pack-accessibility-1',
+  '/crump-5.2.js?v=5.9.76-credit-pack-truth-1',
   '/crump-5.2.2.css',
   '/crump-5.2.2.js?v=5.9.76-credit-pack-accessibility-1',
   '/assets/brand/crump-shell-lockup-light.png',

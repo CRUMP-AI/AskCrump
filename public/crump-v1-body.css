@@ -2152,10 +2152,6 @@ body.crump-v1-body .billing51-pack:hover {
   background: rgba(217,191,132,.028) !important;
   transform: translateY(-1px);
 }
-body.crump-v1-body .billing51-pack.is-featured {
-  border-color: rgba(217,191,132,.23) !important;
-  background: linear-gradient(180deg, rgba(217,191,132,.055), rgba(255,255,255,.012)) !important;
-}
 body.crump-v1-body .billing51-buy {
   background: linear-gradient(180deg, #ddc793, #b99d5f) !important;
   color: #090c10 !important;

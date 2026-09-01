@@ -51,10 +51,10 @@ const loader = String.raw`
     ['/crump-4.3.css', 'crump43'],
     ['/crump-4.4.css', 'crump44'],
     ['/crump-5.0.css?v=5.9.76-image-reference-entry-1', 'crump50'],
-    ['/crump-billing-5.1.css?v=5.9.76-contextual-plan-recovery-1', 'billing51'],
+    ['/crump-billing-5.1.css?v=5.9.76-credit-pack-truth-1', 'billing51'],
     ['/crump-5.2.css', 'crump52'],
     ['/crump-5.2.2.css', 'crump522'],
-    ['/crump-v1-body.css?v=5.9.76-intelligence-architecture-1', 'crumpbodyv1'],
+    ['/crump-v1-body.css?v=5.9.76-credit-pack-truth-1', 'crumpbodyv1'],
     ['/lifecycle.css?v=5.9.76-lifecycle-activation-1', 'lifecycleactivation'],
   ]);
 
@@ -89,8 +89,8 @@ const loader = String.raw`
     ['/crump-4.3.js?v=5.9.76-intelligence-architecture-1', 'crump43'],
     ['/crump-4.4.js?v=5.9.76-core-reliability-1', 'crump44'],
     ['/crump-5.0.js?v=5.9.76-image-studio-focus-return-1', 'crump50'],
-    ['/crump-billing-5.1.js?v=5.9.76-commerce-recovery-1', 'billing51'],
-    ['/crump-5.2.js?v=5.9.76-credit-pack-accessibility-1', 'crump52'],
+    ['/crump-billing-5.1.js?v=5.9.76-credit-pack-truth-1', 'billing51'],
+    ['/crump-5.2.js?v=5.9.76-credit-pack-truth-1', 'crump52'],
     ['/crump-5.2.2.js?v=5.9.76-credit-pack-accessibility-1', 'crump522'],
     ['/crump-v1-body.js?v=5.9.76-destination-background-guard-1', 'crumpbodyv1'],
     ['/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1', 'crumpv1stability'],
