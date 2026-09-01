@@ -13,10 +13,10 @@ def test_product53_runtime_is_registered_last_and_cached():
     checker = read("scripts/check-javascript.mjs")
     assert "/crump-product-5.3.css" in runtime
     assert "/crump-product-5.3.js" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-project-resume-focus-2" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-project-resume-focus-2" in worker
+    assert "/crump-product-5.3.js?v=5.9.76-file-library-window-1" in runtime
+    assert "/crump-product-5.3.js?v=5.9.76-file-library-window-1" in worker
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r188" in worker
+    assert "ask-crump-new-body-v1-r189" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 
@@ -112,7 +112,11 @@ def test_private_account_files_surface_saved_creations_under_projects():
     assert 'id="crump53LibrarySearch"' in product
     assert 'id="crump53LibrarySort"' in product
     assert "function visibleLibraryFiles()" in product
-    assert "function updateLibraryControls(visibleCount)" in product
+    assert "const LIBRARY_PAGE_SIZE = 12;" in product
+    assert 'id="crump53LibraryMore" hidden' in product
+    assert "function updateLibraryControls(matchingCount, renderedCount)" in product
+    assert "state.libraryVisibleLimit += LIBRARY_PAGE_SIZE;" in product
+    assert "matching.slice(0, Math.max(LIBRARY_PAGE_SIZE, state.libraryVisibleLimit))" in product
     assert "No files match your search." in product
     assert "aria-pressed" in product
     assert "Saved to Files" in product

@@ -672,6 +672,12 @@ body.crump-v1-body .crump53-library-grid {
   gap: 13px;
   margin-top: 10px;
 }
+body.crump-v1-body .crump53-library-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+body.crump-v1-body .crump53-library-more .crump53-button { min-width: min(260px, 100%); }
 body.crump-v1-body .crump53-library-item {
   display: grid;
   min-width: 0;

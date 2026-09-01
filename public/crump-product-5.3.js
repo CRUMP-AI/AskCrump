@@ -28,6 +28,7 @@
     libraryFilter: 'all',
     libraryQuery: '',
     librarySort: 'newest',
+    libraryVisibleLimit: 12,
     libraryVideoObserver: null,
   };
 
@@ -38,6 +39,7 @@
   const VIDEO_JOB_STORAGE_KEY = 'askcrump.videoJob53';
   const VIDEO_REQUEST_STORAGE_KEY = 'askcrump.videoRequest53';
   const VIDEO_REQUEST_TTL_MS = 30 * 60 * 1000;
+  const LIBRARY_PAGE_SIZE = 12;
   const conversationProjectCache = new Map();
   const conversationProjectRequests = new Map();
   let conversationContextSequence = 0;
@@ -565,6 +567,9 @@
               </div>
               <div id="crump53LibraryStatus" class="crump53-status" aria-live="polite"></div>
               <div id="crump53LibraryGrid" class="crump53-library-grid"></div>
+              <div class="crump53-library-more">
+                <button type="button" class="crump53-button" id="crump53LibraryMore" hidden>Show more files</button>
+              </div>
             </div>
             <div class="crump53-card" id="crump53ProjectConversationsCard" hidden style="margin-top:16px">
               <div class="crump53-section-head">
@@ -754,15 +759,22 @@
     byId('crump53RefreshLibrary')?.addEventListener('click', () => void refreshLibrary());
     byId('crump53LibrarySearch')?.addEventListener('input', event => {
       state.libraryQuery = String(event.currentTarget?.value || '');
+      state.libraryVisibleLimit = LIBRARY_PAGE_SIZE;
       renderLibrary();
     });
     byId('crump53LibrarySort')?.addEventListener('change', event => {
       state.librarySort = String(event.currentTarget?.value || 'newest');
+      state.libraryVisibleLimit = LIBRARY_PAGE_SIZE;
+      renderLibrary();
+    });
+    byId('crump53LibraryMore')?.addEventListener('click', () => {
+      state.libraryVisibleLimit += LIBRARY_PAGE_SIZE;
       renderLibrary();
     });
     overlay.querySelectorAll('[data-library-filter]').forEach(button => {
       button.addEventListener('click', () => {
         state.libraryFilter = button.dataset.libraryFilter || 'all';
+        state.libraryVisibleLimit = LIBRARY_PAGE_SIZE;
         overlay.querySelectorAll('[data-library-filter]').forEach(item => {
           item.classList.toggle('is-active', item === button);
           item.setAttribute('aria-pressed', item === button ? 'true' : 'false');
@@ -1388,6 +1400,7 @@
     if (!studio) return false;
     state.libraryQuery = '';
     state.libraryFilter = 'all';
+    state.libraryVisibleLimit = LIBRARY_PAGE_SIZE;
     const search = byId('crump53LibrarySearch');
     if (search) search.value = '';
     document.querySelectorAll('[data-library-filter]').forEach(button => {
@@ -2242,7 +2255,7 @@
       });
   }
 
-  function updateLibraryControls(visibleCount) {
+  function updateLibraryControls(matchingCount, renderedCount) {
     const counts = state.libraryFiles.reduce((current, file) => {
       const category = libraryCategory(file);
       current.all += 1;
@@ -2258,11 +2271,27 @@
     });
     const total = state.libraryFiles.length;
     const filtered = Boolean(normalizedLibraryText(state.libraryQuery).trim()) || (state.libraryFilter || 'all') !== 'all';
+    const remaining = Math.max(0, matchingCount - renderedCount);
+    const more = byId('crump53LibraryMore');
+    if (more) {
+      const nextCount = Math.min(LIBRARY_PAGE_SIZE, remaining);
+      more.hidden = remaining === 0;
+      more.textContent = remaining
+        ? `Show ${nextCount} more file${nextCount === 1 ? '' : 's'}`
+        : 'All matching files shown';
+      more.setAttribute('aria-label', remaining
+        ? `Show ${nextCount} more of ${remaining} remaining file${remaining === 1 ? '' : 's'}`
+        : 'All matching files shown');
+    }
     setStatus(
       'crump53LibraryStatus',
       filtered
-        ? `${visibleCount} of ${total} saved item${total === 1 ? '' : 's'} shown · private to your account.`
-        : `${total} saved item${total === 1 ? '' : 's'} · private to your account.`,
+        ? (matchingCount === renderedCount
+            ? `${matchingCount} of ${total} saved item${total === 1 ? '' : 's'} match · private to your account.`
+            : `Showing ${renderedCount} of ${matchingCount} matches · ${total} saved total.`)
+        : (total === renderedCount
+            ? `${total} saved item${total === 1 ? '' : 's'} · private to your account.`
+            : `Showing ${renderedCount} of ${total} saved items · private to your account.`),
     );
   }
 
@@ -2363,9 +2392,10 @@
   function renderLibrary() {
     const grid = byId('crump53LibraryGrid');
     if (!grid) return;
-    const visible = visibleLibraryFiles();
-    updateLibraryControls(visible.length);
-    if (!visible.length) {
+    const matching = visibleLibraryFiles();
+    const visible = matching.slice(0, Math.max(LIBRARY_PAGE_SIZE, state.libraryVisibleLimit));
+    updateLibraryControls(matching.length, visible.length);
+    if (!matching.length) {
       state.libraryVideoObserver?.disconnect?.();
       const searching = Boolean(normalizedLibraryText(state.libraryQuery).trim());
       grid.innerHTML = `<div class="crump53-library-empty">${searching ? 'No files match your search.' : 'No files in this category yet.'}</div>`;
@@ -2471,6 +2501,7 @@
   async function refreshLibrary() {
     const grid = byId('crump53LibraryGrid');
     if (!grid) return;
+    state.libraryVisibleLimit = LIBRARY_PAGE_SIZE;
     setStatus('crump53LibraryStatus', 'Loading your private files…');
     if (!state.libraryFiles.length) {
       grid.innerHTML = '<div class="crump53-library-empty">Loading saved files…</div>';

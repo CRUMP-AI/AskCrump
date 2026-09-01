@@ -21,15 +21,25 @@ const { chromium } = require('playwright');
     assert.equal(await search.isVisible(), true);
     assert.equal(await sort.isVisible(), true);
     assert.deepEqual(await dialog.locator('[data-library-filter]').allTextContents(), [
-      'All (4)', 'Videos (1)', 'Images (1)', 'Documents (2)',
+      'All (15)', 'Videos (1)', 'Images (1)', 'Documents (13)',
     ]);
     assert.deepEqual(await dialog.locator('[data-library-file]').evaluateAll(elements => elements.map(element => element.dataset.libraryFile)), [
       'file-image', 'file-video', 'file-pitch', 'file-resume',
+      'file-extra-01', 'file-extra-02', 'file-extra-03', 'file-extra-04',
+      'file-extra-05', 'file-extra-06', 'file-extra-07', 'file-extra-08',
     ]);
+    assert.match(await dialog.locator('#crump53LibraryStatus').textContent(), /Showing 12 of 15 saved items/);
+    const more = dialog.locator('#crump53LibraryMore');
+    assert.equal(await more.isVisible(), true);
+    assert.equal(await more.textContent(), 'Show 3 more files');
+    await more.click();
+    assert.equal(await dialog.locator('[data-library-file]').count(), 15);
+    assert.equal(await more.isVisible(), false);
 
     await search.fill('resume');
     assert.deepEqual(await dialog.locator('[data-library-file]').evaluateAll(elements => elements.map(element => element.dataset.libraryFile)), ['file-resume']);
-    assert.match(await dialog.locator('#crump53LibraryStatus').textContent(), /1 of 4 saved items shown/);
+    assert.match(await dialog.locator('#crump53LibraryStatus').textContent(), /1 of 15 saved items match/);
+    assert.equal(await more.isVisible(), false);
 
     await search.fill('no-such-file');
     assert.equal(await dialog.locator('.crump53-library-empty').textContent(), 'No files match your search.');
@@ -43,12 +53,12 @@ const { chromium } = require('playwright');
 
     await dialog.locator('[data-library-filter="all"]').click();
     await sort.selectOption('name');
-    assert.deepEqual(await dialog.locator('[data-library-file]').evaluateAll(elements => elements.map(element => element.dataset.libraryFile)), [
+    assert.deepEqual((await dialog.locator('[data-library-file]').evaluateAll(elements => elements.map(element => element.dataset.libraryFile))).slice(0, 4), [
       'file-image', 'file-video', 'file-pitch', 'file-resume',
     ]);
     await sort.selectOption('oldest');
-    assert.deepEqual(await dialog.locator('[data-library-file]').evaluateAll(elements => elements.map(element => element.dataset.libraryFile)), [
-      'file-resume', 'file-pitch', 'file-video', 'file-image',
+    assert.deepEqual((await dialog.locator('[data-library-file]').evaluateAll(elements => elements.map(element => element.dataset.libraryFile))).slice(0, 3), [
+      'file-extra-11', 'file-extra-10', 'file-extra-09',
     ]);
 
     await search.fill('pitch');
@@ -60,7 +70,8 @@ const { chromium } = require('playwright');
     assert.equal(await dialog.locator('[data-library-filter="all"]').getAttribute('aria-pressed'), 'true');
     assert.equal(await dialog.locator('[data-library-filter="image"]').getAttribute('aria-pressed'), 'false');
     assert.equal(await sort.evaluate(element => element.value), 'oldest');
-    assert.equal(await dialog.locator('[data-library-file]').count(), 4);
+    assert.equal(await dialog.locator('[data-library-file]').count(), 12);
+    assert.equal(await more.isVisible(), true);
 
     const layout = await page.evaluate(() => ({
       documentWidth: document.documentElement.scrollWidth,
