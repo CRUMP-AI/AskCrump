@@ -33,7 +33,8 @@ def test_identity_recovery_starts_before_optional_preference_loading():
     assert "[Settings] Optional presence preferences could not be loaded:" in loader
     assert "Fixture-only optional preference failure" in fixture
     assert "email: '   '" in fixture
-    assert "fixtureGuest ? null" in fixture
+    assert "{id: 'fixture-guest', email: '   '}" in fixture
+    assert "const displayedEmail = String(emailField.value || '').trim();" in app
 
 
 def test_settings_save_action_tracks_real_edits_and_blocks_duplicate_submissions():

@@ -1171,10 +1171,14 @@ async function restoreSettingsIdentity() {
         .catch(() => {})
         .finally(() => {
             emailField.removeAttribute('aria-busy');
-            const hasAccount = Boolean(window.deviceAuth?.session?.user?.id || window.currentUser?.id);
-            emailField.placeholder = emailField.value
+            const displayedEmail = String(emailField.value || '').trim();
+            const knownEmail = String(
+                window.deviceAuth?.session?.user?.email || window.currentUser?.email || ''
+            ).trim();
+            emailField.value = displayedEmail;
+            emailField.placeholder = displayedEmail
                 ? 'you@email.com'
-                : hasAccount ? 'Account email unavailable' : 'Sign in to view account email';
+                : knownEmail ? 'Account email unavailable' : 'Sign in to view account email';
             settingsIdentityRequest = null;
         });
     return settingsIdentityRequest;
@@ -1190,7 +1194,7 @@ function loadSettingsValues() {
     settingsEmail.readOnly = true;
     settingsEmail.placeholder = settingsEmail.value
         ? 'you@email.com'
-        : user.id ? 'Confirming account email…' : 'Sign in to view account email';
+        : 'Sign in to view account email';
     if (!String(settingsEmail.value || '').trim()) void restoreSettingsIdentity();
     document.getElementById('assistantName').value = SafeStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
 
