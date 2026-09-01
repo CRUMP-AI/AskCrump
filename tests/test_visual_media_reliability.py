@@ -153,6 +153,49 @@ def test_upload_preview_reconciles_cards_without_recreating_images() -> None:
     assert "tray.insertBefore(card" in block
 
 
+def test_image_studio_exposes_an_optional_reference_and_honest_fidelity_guidance() -> None:
+    script = read("public/crump-5.0.js")
+    styles = read("public/crump-5.0.css")
+    studio = script[script.index("function showImageOptions()") : script.index("function showDocumentOptions()")]
+
+    for contract in (
+        "Add an image to edit",
+        "Reference image ready",
+        "Create without reference",
+        "Continue with reference",
+        "Describe what to keep and what to change",
+        "preserve identity and appearance",
+        "Logos and readable text can still vary",
+        "aria-label', 'Image Studio",
+        "aria-label', 'Close Image Studio",
+        "aria-modal', 'true",
+        "close.focus({preventScroll: true})",
+        "if (returnFocus?.isConnected) returnFocus.focus({preventScroll: true})",
+        "event.key !== 'Escape'",
+    ):
+        assert contract in studio
+    assert "reference.innerHTML" not in studio
+    assert "referenceDescription.textContent = currentReference" in studio
+    assert "crump50-reference-action" in styles
+
+
+def test_image_reference_picker_is_single_image_private_state_and_replaces_only_images() -> None:
+    script = read("public/crump-5.0.js")
+    picker = script[script.index("function isImageAttachment") : script.index("function showImageOptions()")]
+
+    assert "selected.slice(0, 1)" in picker
+    assert "const issue = validateFile(selected[0]);" in picker
+    assert "!isSupportedImageFile(selected[0])" in picker
+    assert "if (!replace && state.attachments.length >= MAX_FILES)" in picker
+    assert picker.index("const issue = validateFile(selected[0]);") < picker.index("if (replace) clearImageAttachments();")
+    assert "if (replace) clearImageAttachments();" in picker
+    assert "state.attachments.filter(item => !isImageAttachment(item))" in picker
+    assert "localStorage" not in picker
+    assert "sessionStorage" not in picker
+    assert "fetch(" not in picker
+    assert "input.accept = 'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif'" in picker
+
+
 def test_blocked_image_request_has_revision_instead_of_exact_retry_contract() -> None:
     transport = read("public/chat-resilience.js")
     composer = read("public/crump-5.0.js")

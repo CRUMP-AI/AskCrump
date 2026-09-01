@@ -4,9 +4,11 @@
   <meta charset="utf-8">
   <title>Ask Crump image preview stability fixture</title>
   <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/public/crump-5.0.css?v=image-reference-entry-fixture-1">
 </head>
 <body>
   <main>
+    <button id="openImageStudio" type="button" onclick="window.CrumpImageStudio?.open()">Open Image Studio</button>
     <div class="input-area">
       <div id="filePreview"></div>
       <div class="input-container">
@@ -55,6 +57,8 @@
       }
     }
     window.XMLHttpRequest = FixtureXHR;
+    window.__lastToast = null;
+    window.showToast = (message, tone) => { window.__lastToast = {message, tone}; };
 
     window.__previewImagesAdded = 0;
     const observer = new MutationObserver(records => {
@@ -66,6 +70,6 @@
     });
     observer.observe(document.getElementById('filePreview'), {childList: true, subtree: true});
   </script>
-  <script src="/public/crump-5.0.js"></script>
+  <script src="/public/crump-5.0.js?v=image-reference-entry-fixture-1"></script>
 </body>
 </html>

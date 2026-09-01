@@ -521,43 +521,145 @@
     requestAnimationFrame(() => sheet.classList.add('is-visible'));
   }
 
-  function segmented(options, selected, onSelect) {
+  function segmented(options, selected, onSelect, label = '') {
     const wrap = document.createElement('div');
     wrap.className = 'crump50-segmented';
+    if (label) {
+      wrap.setAttribute('role', 'group');
+      wrap.setAttribute('aria-label', label);
+    }
     options.forEach(([value, label]) => {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = selected === value ? 'is-active' : '';
       button.textContent = label;
+      button.setAttribute('aria-pressed', String(selected === value));
       button.addEventListener('click', () => onSelect(value));
       wrap.appendChild(button);
     });
     return wrap;
   }
 
+  function isImageAttachment(item) {
+    return String(item?.type || item?.server?.type || item?.server?.mime_type || '').toLowerCase().startsWith('image/');
+  }
+
+  function isSupportedImageFile(file) {
+    const type = String(file?.type || '').toLowerCase();
+    const name = String(file?.name || '').toLowerCase();
+    return ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'].includes(type)
+      || /\.(jpe?g|png|webp|hei[cf])$/i.test(name);
+  }
+
+  function clearImageAttachments() {
+    state.attachments.filter(isImageAttachment).forEach(item => {
+      void item.promise?.catch?.(() => {});
+      item.controller?.abort?.();
+      if (item.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl);
+    });
+    state.attachments = state.attachments.filter(item => !isImageAttachment(item));
+    renderAttachmentTray();
+  }
+
+  function chooseImageReference({replace = false} = {}) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif';
+    input.hidden = true;
+    const cleanup = () => input.remove();
+    input.addEventListener('cancel', cleanup, {once: true});
+    input.addEventListener('change', async () => {
+      const selected = [...(input.files || [])];
+      if (!selected.length) {
+        cleanup();
+        return;
+      }
+      const issue = validateFile(selected[0]);
+      if (issue || !isSupportedImageFile(selected[0])) {
+        show(issue || 'Choose a JPG, PNG, WebP, HEIC, or HEIF image.', 'error');
+        cleanup();
+        return;
+      }
+      if (!replace && state.attachments.length >= MAX_FILES) {
+        show(`You can attach up to ${MAX_FILES} files to one message.`, 'warning');
+        cleanup();
+        return;
+      }
+      if (replace) clearImageAttachments();
+      state.imageRecovery = null;
+      state.tool = 'image';
+      await addFiles(selected.slice(0, 1));
+      closeMenu();
+      renderToolChip();
+      focusComposer('Describe what to keep and what to change…');
+      show('Reference image added. Describe what should stay the same and what should change.', 'info');
+      cleanup();
+    }, {once: true});
+    document.body.appendChild(input);
+    input.click();
+  }
+
   function showImageOptions() {
+    const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeMenu();
     const sheet = document.createElement('section');
     sheet.className = 'crump50-sheet crump50-options-sheet';
+    sheet.setAttribute('role', 'dialog');
+    sheet.setAttribute('aria-modal', 'true');
+    sheet.setAttribute('aria-label', 'Image Studio');
+    const dismiss = () => {
+      closeMenu();
+      if (returnFocus?.isConnected) returnFocus.focus({preventScroll: true});
+    };
     sheet.innerHTML = '<div class="crump50-sheet-head"><div><span>IMAGE STUDIO</span><strong>Build the frame before you describe it.</strong></div></div>';
-    const close = document.createElement('button'); close.type = 'button'; close.className = 'crump50-sheet-close'; close.textContent = '×'; close.addEventListener('click', closeMenu); $('.crump50-sheet-head', sheet).appendChild(close);
+    const close = document.createElement('button'); close.type = 'button'; close.className = 'crump50-sheet-close'; close.textContent = '×'; close.setAttribute('aria-label', 'Close Image Studio'); close.addEventListener('click', dismiss); $('.crump50-sheet-head', sheet).appendChild(close);
     const body = document.createElement('div'); body.className = 'crump50-options-body';
     const aspectLabel = document.createElement('label'); aspectLabel.textContent = 'Aspect ratio';
     let aspectControl;
     const rebuildAspect = () => {
-      aspectControl?.replaceWith(aspectControl = segmented([['square','Square'],['portrait','Portrait'],['landscape','Landscape']], state.imageAspect, value => { state.imageAspect = value; rebuildAspect(); }));
+      aspectControl?.replaceWith(aspectControl = segmented([['square','Square'],['portrait','Portrait'],['landscape','Landscape']], state.imageAspect, value => { state.imageAspect = value; rebuildAspect(); }, 'Aspect ratio'));
     };
-    aspectControl = segmented([['square','Square'],['portrait','Portrait'],['landscape','Landscape']], state.imageAspect, value => { state.imageAspect = value; rebuildAspect(); });
+    aspectControl = segmented([['square','Square'],['portrait','Portrait'],['landscape','Landscape']], state.imageAspect, value => { state.imageAspect = value; rebuildAspect(); }, 'Aspect ratio');
     const qualityLabel = document.createElement('label'); qualityLabel.textContent = 'Quality';
     let qualityControl;
     const rebuildQuality = () => {
-      qualityControl?.replaceWith(qualityControl = segmented([['medium','Balanced'],['high','Highest']], state.imageQuality, value => { state.imageQuality = value; rebuildQuality(); }));
+      qualityControl?.replaceWith(qualityControl = segmented([['medium','Balanced'],['high','Highest']], state.imageQuality, value => { state.imageQuality = value; rebuildQuality(); }, 'Image quality'));
     };
-    qualityControl = segmented([['medium','Balanced'],['high','Highest']], state.imageQuality, value => { state.imageQuality = value; rebuildQuality(); });
-    const activate = document.createElement('button'); activate.type = 'button'; activate.className = 'crump50-primary-action'; activate.textContent = 'Use Image Studio';
-    activate.addEventListener('click', () => { state.imageRecovery = null; state.tool = 'image'; closeMenu(); renderToolChip(); focusComposer('Describe the image you want…'); });
-    body.append(aspectLabel, aspectControl, qualityLabel, qualityControl, activate);
-    sheet.appendChild(body); document.body.appendChild(sheet); state.menu = sheet; document.body.classList.add('crump50-sheet-open'); requestAnimationFrame(() => sheet.classList.add('is-visible'));
+    qualityControl = segmented([['medium','Balanced'],['high','Highest']], state.imageQuality, value => { state.imageQuality = value; rebuildQuality(); }, 'Image quality');
+
+    const currentReference = state.attachments.find(isImageAttachment) || null;
+    const referenceLabel = document.createElement('label'); referenceLabel.textContent = 'Reference image · optional';
+    const reference = document.createElement('button');
+    reference.type = 'button';
+    reference.className = `crump50-reference-action${currentReference ? ' has-reference' : ''}`;
+    const referenceIcon = document.createElement('span');
+    referenceIcon.innerHTML = iconFor('image');
+    const referenceCopy = document.createElement('span');
+    const referenceTitle = document.createElement('strong');
+    referenceTitle.textContent = currentReference ? 'Reference image ready' : 'Add an image to edit';
+    const referenceDescription = document.createElement('small');
+    referenceDescription.textContent = currentReference
+      ? `${currentReference.name || 'Your image'} will be the starting point.`
+      : 'Use a photo or visual as the starting point.';
+    referenceCopy.append(referenceTitle, referenceDescription);
+    const referenceAction = document.createElement('b');
+    referenceAction.textContent = currentReference ? 'Change' : 'Choose';
+    reference.append(referenceIcon, referenceCopy, referenceAction);
+    reference.addEventListener('click', () => chooseImageReference({replace: Boolean(currentReference)}));
+
+    const guidance = document.createElement('p');
+    guidance.className = 'crump50-image-guidance';
+    guidance.textContent = 'Editing a person? Describe only what should change. Crump will ask the image model to preserve identity and appearance. Logos and readable text can still vary, so review the result.';
+
+    const activate = document.createElement('button'); activate.type = 'button'; activate.className = 'crump50-primary-action'; activate.textContent = currentReference ? 'Continue with reference' : 'Create without reference';
+    activate.addEventListener('click', () => { state.imageRecovery = null; state.tool = 'image'; closeMenu(); renderToolChip(); focusComposer(currentReference ? 'Describe what to keep and what to change…' : 'Describe the image you want…'); });
+    body.append(aspectLabel, aspectControl, qualityLabel, qualityControl, referenceLabel, reference, guidance, activate);
+    sheet.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      dismiss();
+    });
+    sheet.appendChild(body); document.body.appendChild(sheet); state.menu = sheet; document.body.classList.add('crump50-sheet-open'); requestAnimationFrame(() => { sheet.classList.add('is-visible'); close.focus({preventScroll: true}); });
   }
 
   function showDocumentOptions() {

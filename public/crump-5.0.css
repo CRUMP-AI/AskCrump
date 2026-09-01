@@ -317,6 +317,20 @@ body.crump-50 .crump50-outcome-grid b { grid-area: arrow; color: var(--c50-text-
 body.crump-50 .crump50-segmented { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 3px; border: 1px solid var(--c50-line); border-radius: 12px; background: #10151b; }
 body.crump-50 .crump50-segmented button { min-height: 38px; border: 0; border-radius: 9px; background: transparent; color: var(--c50-text-3); font-size: 11px; font-weight: 560; }
 body.crump-50 .crump50-segmented button.is-active { background: rgba(255,255,255,.07); color: var(--c50-text); box-shadow: inset 0 1px rgba(255,255,255,.035); }
+body.crump-50 .crump50-reference-action {
+  min-height: 66px; width: 100%; display: grid; grid-template-columns: 42px 1fr auto; align-items: center; gap: 11px;
+  padding: 9px 11px; border: 1px solid var(--c50-line); border-radius: 15px;
+  background: linear-gradient(135deg,rgba(209,191,150,.04),rgba(255,255,255,.018)); color: var(--c50-text); text-align: left;
+}
+body.crump-50 .crump50-reference-action:hover { border-color: rgba(209,191,150,.24); background: rgba(209,191,150,.065); }
+body.crump-50 .crump50-reference-action > span:first-child { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; background: rgba(255,255,255,.045); color: #b7bec7; }
+body.crump-50 .crump50-reference-action.has-reference > span:first-child { background: rgba(209,191,150,.11); color: var(--c50-gold); }
+body.crump-50 .crump50-reference-action svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+body.crump-50 .crump50-reference-action > span:nth-child(2) { min-width: 0; display: grid; gap: 3px; }
+body.crump-50 .crump50-reference-action strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 620; }
+body.crump-50 .crump50-reference-action small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--c50-text-3); font-size: 9.5px; }
+body.crump-50 .crump50-reference-action b { color: var(--c50-gold); font-size: 9px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+body.crump-50 .crump50-image-guidance { margin: 1px 2px 0; color: var(--c50-text-3); font-size: 9.5px; line-height: 1.55; }
 body.crump-50 .crump50-primary-action { min-height: 48px; margin-top: 7px; border: 0; border-radius: 14px; background: #e7e2d7; color: #11151a; font-size: 12px; font-weight: 650; }
 body.crump-50 .crump50-format-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 7px; padding: 2px 7px 8px; }
 body.crump-50 .crump50-format-grid button { min-height: 76px; display: grid; justify-items: start; align-content: center; gap: 7px; padding: 13px; border: 1px solid var(--c50-line); border-radius: 15px; background: rgba(255,255,255,.025); color: var(--c50-text); text-align: left; }
