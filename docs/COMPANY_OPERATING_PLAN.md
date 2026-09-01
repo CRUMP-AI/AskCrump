@@ -81,6 +81,9 @@ next constraint.
 - Keep the 5.9.61 exact-destination conversation-to-Project action primary after a useful result;
   observe legitimate Project creation/reuse and return behavior while referral sharing stays
   secondary to retention.
+- Use the 5.9.76 Project-save intent milestone alongside the server-authoritative completed-Project
+  event to identify whether the durable-work loss occurs before a user chooses to save or after the
+  save begins. Keep the signal content-free, and do not call a click activation or retention.
 - Observe whether legitimate returning desktop users now find the permanent Chats control without
   instruction, whether mobile drawer actions remain dependable on repeated physical-device use,
   and whether either path leads to resumed useful work; retain content-free measurement and do not
