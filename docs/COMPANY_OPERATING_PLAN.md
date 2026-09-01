@@ -1,6 +1,6 @@
 # Ask Crump company operating plan
 
-Last updated: 2026-08-30
+Last updated: 2026-09-01
 Owner and final authority: Greg Crump
 
 Current monthly decision record: `docs/COMPANY_OPERATIONS_AND_MONTHLY_STRATEGY_REVIEW_2026-09-01.md`.
@@ -156,6 +156,15 @@ provider, privacy, cost, or security gate is incomplete.
 
 ## Current decisions and handoff
 
+- **Image Studio reliability and differentiation:** Production commit `f8feca8` closes the remaining
+  rejected-reference loop. Regular and precision edit inputs are normalized and bounded before
+  provider spend; malformed or oversized references preserve the prompt and refunded usage while
+  requiring a different file. The credential-free mobile fixture proved that replacement opens the
+  chooser and blocks a no-file resend before usage. Precision Edit already provides user-painted or
+  lassoed pixel selection, protected unselected pixels, live local warmth/exposure/saturation, exact
+  overlays, and guided visible-complexion adjustments. Keep this as a user-directed photo studio:
+  do not infer, identify, classify, or relabel a person's race or ethnicity. Evidence:
+  `docs/IMAGE_REFERENCE_REJECTION_RECOVERY_RELEASE_2026-09-01.md`.
 - **Decision:** prioritize durable continuing work and return behavior over traffic volume.
 - **Workspace hierarchy:** Production commit **b65fb73** removes the redundant Tools menu. Ask is the
   default workspace; Intelligence owns research/current information and answer quality; Create owns
