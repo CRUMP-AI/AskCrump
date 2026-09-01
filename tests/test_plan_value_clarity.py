@@ -198,7 +198,8 @@ def test_both_plan_center_owners_contain_and_restore_modal_focus():
 
 def test_plan_center_containment_assets_are_versioned_everywhere():
     versioned_billing = "/crump-billing-5.1.js?v=5.9.76-commerce-recovery-1"
-    versioned_final = "/crump-5.2.js?v=5.9.76-truthful-enterprise-positioning-1"
+    versioned_final = "/crump-5.2.js?v=5.9.76-credit-pack-accessibility-1"
+    versioned_credit_contract = "/crump-5.2.2.js?v=5.9.76-credit-pack-accessibility-1"
     sources = (
         read_public("runtime-body-v1.js"),
         read_public("sw.js"),
@@ -210,7 +211,8 @@ def test_plan_center_containment_assets_are_versioned_everywhere():
     for source in sources:
         assert versioned_billing in source
         assert versioned_final in source
-    assert "ask-crump-new-body-v1-r186" in read_public("sw.js")
+        assert versioned_credit_contract in source
+    assert "ask-crump-new-body-v1-r187" in read_public("sw.js")
     assert "/runtime-body-v1.js?v=5.9.76-continuity-action-1" in read_public("app.html")
 
 
@@ -222,6 +224,7 @@ def test_browser_fixture_uses_the_production_plan_center_layers():
     assert "/public/crump-billing-5.1.css" in fixture
     assert "/public/crump-billing-5.1.js" in fixture
     assert "/public/crump-5.2.js" in fixture
+    assert "/public/crump-5.2.2.js" in fixture
     assert "billing-modal-containment-fixture-1" in fixture
     assert "/public/crump-subscriptions-5.3.2.js" in fixture
     assert "window.__planCenterEvents" in fixture
@@ -236,3 +239,32 @@ def test_browser_fixture_uses_the_production_plan_center_layers():
     assert "Fixture blocks checkout." in fixture
     assert "checkout.stripe.com" not in fixture
     assert "askcrump.com" not in fixture
+
+
+def test_credit_packs_expose_one_named_purchase_control_without_nested_button_roles():
+    billing = read_public("crump-billing-5.1.js")
+    final_billing = read_public("crump-5.2.js")
+    final_contract = read_public("crump-5.2.2.js")
+    stylesheet = read_public("crump-5.2.css")
+    verifier = (ROOT / "scripts" / "verify-credit-pack-accessibility.cjs").read_text(
+        encoding="utf-8"
+    )
+    fixture = (
+        ROOT / "tests" / "fixtures" / "plan-center-clarity.html"
+    ).read_text(encoding="utf-8")
+
+    assert "article.setAttribute('role', 'button')" not in final_billing
+    assert "article.tabIndex" not in final_billing
+    assert "card.setAttribute('role', 'button')" not in final_contract
+    assert "card.tabIndex = 0" not in final_contract
+    assert "card.removeAttribute('role')" in final_contract
+    assert "card.removeAttribute('tabindex')" in final_contract
+    assert "button.setAttribute('aria-label', accessibleLabel)" in final_contract
+    assert "closest('.billing51-buy[data-crump-pack]')" in final_contract
+    assert "Add ${Number(pack.credits) || 0} Crump Credits for" in final_billing
+    assert "Add ${pack.credits} Crump Credits for ${displayPrice}" in billing
+    assert ":focus-within" in stylesheet
+    assert ":focus-visible" not in stylesheet
+    assert "nestedInteractiveCards" in verifier
+    assert "Add 50 Crump Credits for $4.99" in verifier
+    assert "Fixture blocks credit checkout." in fixture

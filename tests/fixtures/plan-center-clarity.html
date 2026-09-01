@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
   <title>Plan center clarity fixture</title>
   <link rel="stylesheet" href="/public/crump-billing-5.1.css">
 </head>
@@ -58,6 +59,14 @@
           headers: {'Content-Type': 'application/json'},
         });
       }
+      if (pathname === '/api/billing/credits/checkout') {
+        const output = document.getElementById('billingFixtureCheckouts');
+        output.textContent = String(Number(output.textContent || 0) + 1);
+        return new Response(JSON.stringify({success: false, error: 'Fixture blocks credit checkout.'}), {
+          status: 409,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
       if (pathname === '/api/stripe/customer-portal') {
         const output = document.getElementById('billingFixturePortals');
         output.textContent = String(Number(output.textContent || 0) + 1);
@@ -67,7 +76,15 @@
         });
       }
       const responses = {
-        '/api/billing/credits/status': {credits: {balance: 12}, catalog: [], history: []},
+        '/api/billing/credits/status': {
+          credits: {balance: 12},
+          catalog: [
+            {code: 'credits_50', credits: 50, price: '$4.99', available: true},
+            {code: 'credits_150', credits: 150, price: '$9.99', available: true},
+            {code: 'credits_400', credits: 400, price: '$19.99', available: true},
+          ],
+          history: [],
+        },
         '/api/usage/check': {daily: {limit: 25, used: 3, remaining: 22}},
         '/api/billing/status': fixtureNeedsBillingRecovery
           ? {tier: 'free', status: 'past_due', provider: 'stripe', manageable: true}
@@ -81,6 +98,7 @@
   </script>
   <script src="/public/crump-billing-5.1.js?v=billing-modal-containment-fixture-1"></script>
   <script src="/public/crump-5.2.js?v=billing-modal-containment-fixture-1"></script>
+  <script src="/public/crump-5.2.2.js?v=credit-pack-accessibility-fixture-1"></script>
   <script src="/public/crump-subscriptions-5.3.2.js?v=commerce-recovery-fixture-1"></script>
 </body>
 </html>

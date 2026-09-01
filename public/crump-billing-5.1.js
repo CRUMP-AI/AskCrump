@@ -424,13 +424,20 @@
     label.textContent = 'Crump Credits';
     const price = document.createElement('div');
     price.className = 'billing51-pack-price';
-    price.textContent = moneySafe(nativeProduct?.price, pack.price);
+    const displayPrice = moneySafe(nativeProduct?.price, pack.price);
+    price.textContent = displayPrice;
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'billing51-buy';
     const available = native() ? Boolean(nativeProduct?.package) : pack.available !== false;
     button.disabled = !available;
     button.textContent = available ? 'Add credits' : 'Not configured';
+    button.setAttribute(
+      'aria-label',
+      available
+        ? `Add ${pack.credits} Crump Credits for ${displayPrice}`
+        : `${pack.credits} Crump Credits are not available`,
+    );
     button.addEventListener('click', () => buyCredits(pack, button));
     article.append(amount, label, price, button);
     return article;

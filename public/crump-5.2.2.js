@@ -62,14 +62,19 @@
     root.querySelectorAll?.('.billing51-pack[data-crump-pack]').forEach(card => {
       const code = String(card.dataset.crumpPack || '');
       if (!PACK_CODES.has(code)) return;
-      card.tabIndex = 0;
-      card.setAttribute('role', 'button');
+      card.removeAttribute('tabindex');
+      card.removeAttribute('role');
       card.removeAttribute('aria-disabled');
       const button = card.querySelector('.billing51-buy');
       if (button && !state.checkoutOpening) {
+        const credits = String(card.querySelector('.billing51-pack-amount')?.textContent || '').trim();
+        const price = String(card.querySelector('.billing51-pack-price')?.textContent || '').trim();
+        const accessibleLabel = `Add ${credits} Crump Credits${price ? ` for ${price}` : ''}`;
         button.disabled = false;
         button.removeAttribute('aria-disabled');
         if (!button.dataset.crump522Label) button.dataset.crump522Label = 'Add credits';
+        button.dataset.crump522AriaLabel = accessibleLabel;
+        button.setAttribute('aria-label', accessibleLabel);
         if (/not configured/i.test(button.textContent || '')) button.textContent = 'Add credits';
       }
     });
@@ -93,10 +98,12 @@
     state.checkoutOpening = true;
 
     const original = button?.textContent || 'Add credits';
+    const originalAccessibleLabel = button?.getAttribute?.('aria-label') || original;
     card?.setAttribute('aria-busy', 'true');
     if (button) {
       button.disabled = true;
       button.textContent = 'Opening checkout…';
+      button.setAttribute('aria-label', `Opening secure checkout. ${originalAccessibleLabel}`);
     }
 
     try {
@@ -115,6 +122,7 @@
       if (button) {
         button.disabled = false;
         button.textContent = original === 'Opening checkout…' ? 'Add credits' : original;
+        button.setAttribute('aria-label', originalAccessibleLabel);
       }
       show(error?.message || 'Could not open secure checkout.', 'error');
     }
@@ -140,6 +148,7 @@
 
   function activateBillingKeyboard(event) {
     if (event.key !== 'Enter' && event.key !== ' ') return;
+    if (!asElement(event.target)?.closest('.billing51-buy[data-crump-pack]')) return;
     const activation = billingActivationTarget(event);
     if (!activation) return;
     event.preventDefault();

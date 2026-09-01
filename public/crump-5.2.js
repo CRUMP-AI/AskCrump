@@ -585,9 +585,11 @@
     state.checkoutOpening = true;
     const button = trigger?.closest?.('.billing51-buy') || trigger;
     const prior = button?.textContent || 'Add credits';
+    const priorAccessibleLabel = button?.getAttribute?.('aria-label') || prior;
     if (button) {
       button.disabled = true;
       button.textContent = 'Opening checkout…';
+      button.setAttribute('aria-label', `Opening secure checkout. ${priorAccessibleLabel}`);
     }
     try {
       const result = await jsonFetch('/api/billing/credits/checkout', {
@@ -601,6 +603,7 @@
       if (button) {
         button.disabled = false;
         button.textContent = prior;
+        button.setAttribute('aria-label', priorAccessibleLabel);
       }
       window.showToast?.(error.message || 'Could not open secure checkout.', 'error');
     }
@@ -610,8 +613,6 @@
     const article = document.createElement('article');
     article.className = `billing51-pack ${Number(pack.credits) === 150 ? 'is-featured' : ''}`;
     article.dataset.crumpPack = String(pack.code || '');
-    article.tabIndex = pack.available === false ? -1 : 0;
-    if (pack.available !== false) article.setAttribute('role', 'button');
     if (Number(pack.credits) === 150) {
       const badge = document.createElement('span');
       badge.className = 'billing51-badge';
@@ -633,6 +634,10 @@
     buy.dataset.crumpPack = String(pack.code || '');
     buy.disabled = pack.available === false;
     buy.textContent = pack.available === false ? 'Not configured' : 'Add credits';
+    const accessibleLabel = pack.available === false
+      ? `${Number(pack.credits) || 0} Crump Credits are not available`
+      : `Add ${Number(pack.credits) || 0} Crump Credits for ${String(pack.price || '').trim()}`;
+    buy.setAttribute('aria-label', accessibleLabel);
     article.append(amount, label, price, buy);
     return article;
   }
@@ -734,7 +739,7 @@
         <section class="billing51-section">
           <div class="billing51-section-head"><div><span>KEEP GOING</span><h3>Add Crump Credits</h3></div><p>1 request = 1 credit after included usage. Purchased credits never expire.</p></div>
           <div class="billing51-packs" id="billing52Packs">
-            ${[50,150,400].map((credits, index) => `<article class="billing51-pack ${credits === 150 ? 'is-featured' : ''}">${credits === 150 ? '<span class="billing51-badge">Popular</span>' : ''}<strong class="billing51-pack-amount">${credits}</strong><span class="billing51-pack-label">Crump Credits</span><div class="billing51-pack-price">${['$4.99','$9.99','$19.99'][index]}</div><button class="billing51-buy" disabled>Loading…</button></article>`).join('')}
+            ${[50,150,400].map((credits, index) => `<article class="billing51-pack ${credits === 150 ? 'is-featured' : ''}">${credits === 150 ? '<span class="billing51-badge">Popular</span>' : ''}<strong class="billing51-pack-amount">${credits}</strong><span class="billing51-pack-label">Crump Credits</span><div class="billing51-pack-price">${['$4.99','$9.99','$19.99'][index]}</div><button class="billing51-buy" aria-label="Loading availability for ${credits} Crump Credits" disabled>Loading…</button></article>`).join('')}
           </div>
         </section>
         <section class="billing51-section">
@@ -793,7 +798,8 @@
       }
       if (containBillingFocus52(event, modal)) return;
       if (event.key !== 'Enter' && event.key !== ' ') return;
-      const card = event.target.closest?.('.billing51-pack[data-crump-pack]');
+      const control = event.target.closest?.('.billing51-buy[data-crump-pack]');
+      const card = control?.closest?.('.billing51-pack[data-crump-pack]');
       if (!card) return;
       event.preventDefault();
       const button = card.querySelector('.billing51-buy');

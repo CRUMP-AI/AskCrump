@@ -370,7 +370,7 @@ const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot),
 const releaseVersion = String(packageJson.version || '');
 const landingVersion = `${releaseVersion}-marketing-landing-1`;
 const authControllerVersion = `${releaseVersion}-auth-entry-polish-1`;
-const planRendererVersion = `${releaseVersion}-truthful-enterprise-positioning-1`;
+const planRendererVersion = `${releaseVersion}-credit-pack-accessibility-1`;
 const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
 const accountDeletionBillingVersion = `${releaseVersion}-account-deletion-billing-1`;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
@@ -379,7 +379,7 @@ const coreReliabilityVersion = `${releaseVersion}-core-reliability-1`;
 const projectChatBoundaryVersion = `${releaseVersion}-project-chat-boundary-1`;
 const projectResumeFocusVersion = `${releaseVersion}-project-resume-focus-2`;
 const imageSafetyRecoveryVersion = `${releaseVersion}-image-safety-recovery-1`;
-const imageScrollStabilityVersion = `${releaseVersion}-image-scroll-stability-1`;
+const imageScrollStabilityVersion = `${releaseVersion}-credit-pack-accessibility-1`;
 const videoDestinationVersion = `${releaseVersion}-video-destination-1`;
 const mobileDrawerDestinationsVersion = `${releaseVersion}-mobile-drawer-destinations-1`;
 const destinationBackgroundGuardVersion = `${releaseVersion}-destination-background-guard-1`;
@@ -782,7 +782,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r186') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r187') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${continuityActionVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
@@ -1031,6 +1031,8 @@ if (await copiedShare.shareWindow.shareMessage(0) !== true ||
 }
 const scroll522 = await readFile(new URL('public/crump-5.2.2.js', repoRoot), 'utf8');
 const scroll522Css = await readFile(new URL('public/crump-5.2.2.css', repoRoot), 'utf8');
+const billing52 = await readFile(new URL('public/crump-5.2.js', repoRoot), 'utf8');
+const billing52Css = await readFile(new URL('public/crump-5.2.css', repoRoot), 'utf8');
 if (!uiFunctions.includes("typeof window.crumpScrollManager?.scrollToBottom === 'function'") ||
     !uiFunctions.includes("window.crumpScrollManager.scrollToBottom('auto')")) {
   console.error('Conversation renderer must delegate automatic bottom movement to the scroll manager.');
@@ -1066,6 +1068,22 @@ if (scroll522.includes('requestAnimationFrame(() => {\n      requestAnimationFra
 }
 if (!scroll522Css.includes('overflow-anchor: none !important;')) {
   console.error('Conversation viewport must disable browser-native scroll anchoring.');
+  process.exit(1);
+}
+if (billing52.includes("article.setAttribute('role', 'button')") ||
+    billing52.includes('article.tabIndex') ||
+    scroll522.includes("card.setAttribute('role', 'button')") ||
+    scroll522.includes('card.tabIndex = 0')) {
+  console.error('Credit packs must not expose a nested card-and-button interaction model.');
+  process.exit(1);
+}
+if (!scroll522.includes("card.removeAttribute('role')") ||
+    !scroll522.includes("card.removeAttribute('tabindex')") ||
+    !scroll522.includes("button.setAttribute('aria-label', accessibleLabel)") ||
+    !scroll522.includes("closest('.billing51-buy[data-crump-pack]')") ||
+    !billing52.includes('Add ${Number(pack.credits) || 0} Crump Credits for') ||
+    !billing52Css.includes('.billing51-pack[data-crump-pack]:focus-within')) {
+  console.error('Each credit pack must expose one uniquely named, keyboard-owned purchase control.');
   process.exit(1);
 }
 

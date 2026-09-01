@@ -227,7 +227,7 @@
   }
 }
 
-/* 5.2.1 — the whole web credit pack is an intentional tap target. */
+/* The pack stays pointer-friendly; its named button owns keyboard semantics. */
 .billing51-pack[data-crump-pack] { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .billing51-pack[data-crump-pack]:active { transform: translateY(1px); }
-.billing51-pack[data-crump-pack]:focus-visible { outline: 2px solid rgba(217,195,147,.55); outline-offset: 3px; }
+.billing51-pack[data-crump-pack]:focus-within { outline: 2px solid rgba(217,195,147,.55); outline-offset: 3px; }
