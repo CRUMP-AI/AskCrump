@@ -10,9 +10,12 @@
   <main id="billingFixtureBackground">
     <button id="upgradeBtnSidebar" type="button"><span>Plan &amp; credits</span></button>
     <output id="billingFixtureErrors" aria-label="Browser errors">0</output>
+    <output id="billingFixtureCheckouts" aria-label="Checkout requests">0</output>
+    <output id="billingFixturePortals" aria-label="Portal requests">0</output>
   </main>
   <script>
     window.currentUser = {id: 'fixture-user'};
+    const fixtureNeedsBillingRecovery = new URLSearchParams(location.search).get('status') === 'past_due';
     window.CRUMP_CONFIG = {
       webProfessionalPriceLabel: '$20/month',
       webEnterprisePriceLabel: '$50/month',
@@ -22,6 +25,10 @@
       isNative: () => false,
       getProducts: async () => ({}),
       getCreditProducts: async () => ({}),
+      manageSubscription: async () => {
+        const output = document.getElementById('billingFixturePortals');
+        output.textContent = String(Number(output.textContent || 0) + 1);
+      },
     };
     window.showToast = () => {};
     const recordBrowserError = () => {
@@ -43,10 +50,28 @@
           headers: {'Content-Type': 'application/json'},
         });
       }
+      if (pathname === '/api/stripe/create-checkout-session') {
+        const output = document.getElementById('billingFixtureCheckouts');
+        output.textContent = String(Number(output.textContent || 0) + 1);
+        return new Response(JSON.stringify({success: false, error: 'Fixture blocks checkout.'}), {
+          status: 409,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      if (pathname === '/api/stripe/customer-portal') {
+        const output = document.getElementById('billingFixturePortals');
+        output.textContent = String(Number(output.textContent || 0) + 1);
+        return new Response(JSON.stringify({success: false, error: 'Fixture recorded portal.'}), {
+          status: 409,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
       const responses = {
         '/api/billing/credits/status': {credits: {balance: 12}, catalog: [], history: []},
         '/api/usage/check': {daily: {limit: 25, used: 3, remaining: 22}},
-        '/api/billing/status': {tier: 'free', status: 'inactive', provider: null},
+        '/api/billing/status': fixtureNeedsBillingRecovery
+          ? {tier: 'free', status: 'past_due', provider: 'stripe', manageable: true}
+          : {tier: 'free', status: 'inactive', provider: null, manageable: false},
       };
       return new Response(JSON.stringify(responses[pathname] || {}), {
         status: 200,
@@ -56,6 +81,6 @@
   </script>
   <script src="/public/crump-billing-5.1.js?v=billing-modal-containment-fixture-1"></script>
   <script src="/public/crump-5.2.js?v=billing-modal-containment-fixture-1"></script>
-  <script src="/public/crump-subscriptions-5.3.2.js"></script>
+  <script src="/public/crump-subscriptions-5.3.2.js?v=commerce-recovery-fixture-1"></script>
 </body>
 </html>

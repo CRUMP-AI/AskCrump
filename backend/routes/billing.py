@@ -70,17 +70,25 @@ class StripeAPIError(RuntimeError):
         return self.code == 'resource_missing' and self.param == 'customer'
 
 
-async def stripe_post(path: str, data: dict[str, str]) -> dict[str, Any]:
+async def stripe_post(
+    path: str,
+    data: dict[str, str],
+    *,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
     if not settings.stripe_secret_key:
         raise StripeAPIError('Stripe is not configured.')
     import httpx
 
     try:
         async with httpx.AsyncClient(timeout=25) as client:
+            headers = {'Stripe-Version': STRIPE_API_VERSION}
+            if idempotency_key:
+                headers['Idempotency-Key'] = idempotency_key
             response = await client.post(
                 f'https://api.stripe.com/v1/{path}',
                 auth=(settings.stripe_secret_key, ''),
-                headers={'Stripe-Version': STRIPE_API_VERSION},
+                headers=headers,
                 data=data,
             )
     except httpx.HTTPError as exc:
@@ -166,8 +174,17 @@ async def create_stripe_customer(user: dict[str, Any]) -> str:
     return customer_id
 
 
-def checkout_payload(customer_id: str, user_id: str, tier: str, price_id: str) -> dict[str, str]:
-    integration_suffix = ''.join(secrets.choice(string.ascii_lowercase) for _ in range(8))
+def checkout_payload(
+    customer_id: str,
+    user_id: str,
+    tier: str,
+    price_id: str,
+    *,
+    integration_suffix: str | None = None,
+) -> dict[str, str]:
+    integration_suffix = integration_suffix or ''.join(
+        secrets.choice(string.ascii_lowercase) for _ in range(8)
+    )
     return {
         'mode': 'subscription',
         'customer': customer_id,
@@ -185,6 +202,20 @@ def checkout_payload(customer_id: str, user_id: str, tier: str, price_id: str) -
         'allow_promotion_codes': 'true',
         'integration_identifier': f'askcrump_subscription_{integration_suffix}',
     }
+
+
+def checkout_idempotency_key(user_id: str, tier: str, attempt_id: str, *, recovery: bool = False) -> str:
+    """Return a content-free Stripe retry key scoped to one checkout attempt."""
+    material = f'{user_id}:{tier}:{attempt_id}:{"recovery" if recovery else "initial"}'
+    digest = hashlib.sha256(material.encode('utf-8')).hexdigest()
+    return f'askcrump_subscription_{digest}'
+
+
+def checkout_integration_suffix(attempt_id: str) -> str:
+    """Derive stable lowercase letters so Stripe retries keep identical parameters."""
+    digest = hashlib.sha256(attempt_id.encode('utf-8')).digest()
+    return ''.join(string.ascii_lowercase[value % 26] for value in digest[:8])
+
 
 async def ensure_customer_portal_configuration() -> str:
     global _portal_configuration_id
@@ -290,9 +321,19 @@ async def create_checkout(payload: CheckoutRequest, request: Request):
     existing_tier = str(auth.user.get('subscription_tier') or 'free').lower()
     existing_status = str(auth.user.get('subscription_status') or 'inactive').lower()
     existing_provider = str(auth.user.get('subscription_provider') or '').lower() or None
+    existing_subscription_id = str(auth.user.get('stripe_subscription_id') or '')
+    has_open_stripe_subscription = (
+        existing_provider in {None, 'stripe'}
+        and bool(auth.user.get('stripe_customer_id'))
+        and existing_subscription_id.startswith('sub_')
+        and existing_status not in {'inactive', 'canceled', 'expired', 'incomplete_expired'}
+    )
     if (
-        existing_tier in {'professional', 'enterprise'}
-        and existing_status not in {'inactive', 'canceled', 'expired'}
+        has_open_stripe_subscription
+        or (
+            existing_tier in {'professional', 'enterprise'}
+            and existing_status not in {'inactive', 'canceled', 'expired', 'incomplete_expired'}
+        )
     ):
         return JSONResponse(
             status_code=409,
@@ -305,6 +346,13 @@ async def create_checkout(payload: CheckoutRequest, request: Request):
         )
 
     customer_id = auth.user.get('stripe_customer_id')
+    attempt_id = payload.attemptId or secrets.token_urlsafe(24)
+    integration_suffix = checkout_integration_suffix(attempt_id)
+    initial_idempotency_key = checkout_idempotency_key(
+        str(auth.user['id']),
+        tier,
+        attempt_id,
+    )
     try:
         if not customer_id:
             customer_id = await create_stripe_customer(auth.user)
@@ -312,7 +360,14 @@ async def create_checkout(payload: CheckoutRequest, request: Request):
         try:
             checkout = await stripe_post(
                 'checkout/sessions',
-                checkout_payload(customer_id, auth.user['id'], tier, price_id),
+                checkout_payload(
+                    customer_id,
+                    auth.user['id'],
+                    tier,
+                    price_id,
+                    integration_suffix=integration_suffix,
+                ),
+                idempotency_key=initial_idempotency_key,
             )
         except StripeAPIError as exc:
             if not exc.missing_customer:
@@ -322,12 +377,28 @@ async def create_checkout(payload: CheckoutRequest, request: Request):
             customer_id = await create_stripe_customer(auth.user)
             checkout = await stripe_post(
                 'checkout/sessions',
-                checkout_payload(customer_id, auth.user['id'], tier, price_id),
+                checkout_payload(
+                    customer_id,
+                    auth.user['id'],
+                    tier,
+                    price_id,
+                    integration_suffix=integration_suffix,
+                ),
+                idempotency_key=checkout_idempotency_key(
+                    str(auth.user['id']),
+                    tier,
+                    attempt_id,
+                    recovery=True,
+                ),
             )
     except StripeAPIError:
         return billing_provider_failure()
 
     checkout_id = str(checkout.get('id') or '')
+    checkout_url = str(checkout.get('url') or '')
+    if not checkout_id.startswith('cs_') or not checkout_url.startswith('https://checkout.stripe.com/'):
+        logger.error('Stripe returned an invalid subscription checkout destination.')
+        return billing_provider_failure()
     if checkout_id:
         await record_product_event(
             db,
@@ -339,8 +410,8 @@ async def create_checkout(payload: CheckoutRequest, request: Request):
         )
     return {
         'success': True,
-        'url': checkout.get('url'),
-        'sessionId': checkout.get('id'),
+        'url': checkout_url,
+        'sessionId': checkout_id,
     }
 
 
@@ -431,15 +502,20 @@ def verify_stripe_signature(body: bytes, header: str) -> bool:
     return any(hmac.compare_digest(expected, signature) for signature in signatures)
 
 
-def stripe_entitlement_tier(status: str, price_id: str | None) -> str:
-    """Return the paid tier only when Stripe says the subscription is entitled."""
-    if status not in STRIPE_ENTITLED_STATUSES:
-        return 'free'
+def stripe_catalog_tier(price_id: str | None) -> str:
+    """Return the catalog plan represented by a recognized Stripe Price."""
     if price_id == subscription_price_id('enterprise'):
         return 'enterprise'
     if price_id == subscription_price_id('professional'):
         return 'professional'
     return 'free'
+
+
+def stripe_entitlement_tier(status: str, price_id: str | None) -> str:
+    """Return the paid tier only when Stripe says the subscription is entitled."""
+    if status not in STRIPE_ENTITLED_STATUSES:
+        return 'free'
+    return stripe_catalog_tier(price_id)
 
 
 def stripe_subscription_period_end(subscription: dict[str, Any]) -> str | None:
@@ -458,6 +534,83 @@ def stripe_subscription_price_id(subscription: dict[str, Any]) -> str | None:
         return None
     price = (items[0].get('price') or {}) if isinstance(items[0], dict) else {}
     return str(price.get('id') or '') or None
+
+
+def stripe_subscription_values(subscription: dict[str, Any]) -> dict[str, Any]:
+    status = str(subscription.get('status') or 'inactive').lower()
+    tier = stripe_catalog_tier(stripe_subscription_price_id(subscription))
+    return {
+        'stripe_subscription_id': str(subscription.get('id') or '') or None,
+        'subscription_tier': tier,
+        'subscription_status': status,
+        'subscription_provider': 'stripe',
+        'subscription_current_period_end': stripe_subscription_period_end(subscription),
+        'updated_at': iso_now(),
+    }
+
+
+async def reconcile_stripe_subscription_event(
+    *,
+    event_object: dict[str, Any],
+    event_id: str,
+    event_type: str,
+    request: Request,
+) -> bool:
+    """Apply the provider's latest state without allowing stale events to roll it back."""
+    subscription_id = str(event_object.get('id') or '')
+    customer_id = str(event_object.get('customer') or '')
+    if not subscription_id.startswith('sub_') or not customer_id:
+        logger.warning('Ignoring malformed Stripe subscription event id=%s', event_id)
+        return False
+
+    user = await db.select_one(
+        'users',
+        columns='*',
+        filters={'stripe_customer_id': eq(customer_id)},
+    )
+    if not user:
+        return False
+
+    stored_subscription_id = str(user.get('stripe_subscription_id') or '')
+    if stored_subscription_id and stored_subscription_id != subscription_id:
+        logger.info(
+            'Ignoring stale Stripe event for superseded subscription event=%s subscription=%s',
+            event_id,
+            subscription_id,
+        )
+        return False
+
+    try:
+        subscription = await stripe_get(f'subscriptions/{quote(subscription_id, safe="")}')
+    except StripeAPIError as exc:
+        if event_type != 'customer.subscription.deleted' or exc.code != 'resource_missing':
+            raise
+        # A terminal deletion can disappear from provider retrieval. The signed
+        # event remains authoritative for this still-current subscription ID.
+        subscription = event_object
+
+    if (
+        str(subscription.get('id') or '') != subscription_id
+        or str(subscription.get('customer') or '') != customer_id
+    ):
+        logger.warning('Ignoring mismatched Stripe subscription lookup event=%s', event_id)
+        return False
+
+    values = stripe_subscription_values(subscription)
+    if event_type == 'customer.subscription.deleted':
+        values['subscription_status'] = 'canceled'
+        values['subscription_tier'] = 'free'
+    await db.update('users', values, filters={'id': eq(user['id'])})
+    if event_id:
+        await record_product_event(
+            db,
+            user_id=user['id'],
+            event_name='SubscriptionStatusChanged',
+            event_key=event_id,
+            request=request,
+            plan=str(values['subscription_tier']),
+        )
+    return True
 
 
 async def reconcile_stripe_checkout_session(
@@ -495,23 +648,20 @@ async def reconcile_stripe_checkout_session(
     if str(subscription.get('customer') or '') != customer_id:
         raise PermissionError('The subscription belongs to another billing profile.')
 
-    status = str(subscription.get('status') or 'inactive').lower()
-    price_id = stripe_subscription_price_id(subscription)
-    tier = stripe_entitlement_tier(status, price_id)
     values = {
         'stripe_customer_id': customer_id,
-        'stripe_subscription_id': subscription_id,
-        'subscription_tier': tier,
-        'subscription_status': status,
-        'subscription_provider': 'stripe',
-        'subscription_current_period_end': stripe_subscription_period_end(subscription),
-        'updated_at': iso_now(),
+        **stripe_subscription_values(subscription),
     }
     await db.update('users', values, filters={'id': eq(user_id)})
     user.update(values)
 
     session_id = str(session.get('id') or '')
-    entitled = tier in {'professional', 'enterprise'}
+    tier = str(values['subscription_tier'])
+    status = str(values['subscription_status'])
+    entitled = (
+        status in STRIPE_ENTITLED_STATUSES
+        and tier in {'professional', 'enterprise'}
+    )
     if entitled and session_id:
         # The Checkout Session is the conversion identity. Both the browser
         # return and webhook use it, so whichever arrives second is a no-op.
@@ -636,44 +786,16 @@ async def stripe_webhook(request: Request):
             # access. Later subscription events can reconcile a valid state.
             logger.warning('Ignoring unentitled Stripe checkout: %s', exc)
     elif event_type in {'customer.subscription.updated', 'customer.subscription.deleted'} and customer_id:
-        status = (
-            'canceled'
-            if event_type == 'customer.subscription.deleted'
-            else str(obj.get('status') or 'inactive').lower()
-        )
-        price_id = (
-            (((obj.get('items') or {}).get('data') or [{}])[0].get('price') or {}).get('id')
-        )
-        tier = stripe_entitlement_tier(status, price_id)
-        updated = await db.update(
-            'users',
-            {
-                'stripe_subscription_id': obj.get('id'),
-                'subscription_tier': tier,
-                'subscription_status': status,
-                'subscription_provider': 'stripe',
-                'subscription_current_period_end': (
-                    datetime.fromtimestamp(
-                        obj.get('current_period_end'),
-                        timezone.utc,
-                    ).isoformat()
-                    if obj.get('current_period_end')
-                    else None
-                ),
-                'updated_at': iso_now(),
-            },
-            filters={'stripe_customer_id': eq(customer_id)},
-        )
-        updated_user = updated[0] if isinstance(updated, list) and updated else None
-        if updated_user and event_id:
-            await record_product_event(
-                db,
-                user_id=updated_user['id'],
-                event_name='SubscriptionStatusChanged',
-                event_key=event_id,
+        try:
+            await reconcile_stripe_subscription_event(
+                event_object=obj,
+                event_id=event_id,
+                event_type=str(event_type),
                 request=request,
-                plan=tier,
             )
+        except StripeAPIError:
+            logger.exception('Stripe subscription event reconciliation failed')
+            return JSONResponse(status_code=503, content={'success': False})
     return {'received': True}
 
 
@@ -773,12 +895,32 @@ async def revenuecat_sync(request: Request):
 async def billing_status(request: Request):
     auth = await authenticate_request(request, db, settings)
     internal_access = bool(auth.user.get('internal_tier'))
+    provider = (
+        'internal'
+        if internal_access
+        else auth.user.get('subscription_provider')
+        or ('stripe' if auth.user.get('stripe_customer_id') else None)
+    )
+    manageable = bool(
+        (
+            provider == 'stripe'
+            and auth.user.get('stripe_customer_id')
+            and auth.user.get('stripe_subscription_id')
+        )
+        or (provider == 'revenuecat' and auth.user.get('store_product_id'))
+    )
     return {
         'success': True,
         'tier': tier_name(auth.user),
+        'plan': (
+            str(auth.user.get('subscription_tier') or '').lower()
+            if str(auth.user.get('subscription_tier') or '').lower()
+            in {'professional', 'enterprise'}
+            else None
+        ),
         'status': 'internal' if internal_access else auth.user.get('subscription_status') or 'inactive',
-        'provider': 'internal' if internal_access else auth.user.get('subscription_provider')
-        or ('stripe' if auth.user.get('stripe_customer_id') else None),
+        'provider': provider,
+        'manageable': manageable,
         'user': public_user(auth.user),
     }
 

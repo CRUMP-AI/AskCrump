@@ -31,15 +31,15 @@ def test_billing_timeout_assets_are_versioned_across_web_pwa_and_native():
     native = (ROOT / "scripts" / "build-native.mjs").read_text(encoding="utf-8")
 
     assets = (
-        "/crump-billing-5.1.js?v=5.9.76-truthful-enterprise-positioning-1",
+        "/crump-billing-5.1.js?v=5.9.76-commerce-recovery-1",
         "/crump-5.2.2.js?v=5.9.76-image-scroll-stability-1",
-        "/crump-subscriptions-5.3.2.js?v=5.9.76-truthful-enterprise-positioning-1",
+        "/crump-subscriptions-5.3.2.js?v=5.9.76-commerce-recovery-1",
     )
     for asset in assets:
         assert asset in runtime
         assert asset in worker
         assert asset in native
-    assert "ask-crump-new-body-v1-r177" in worker
+    assert "ask-crump-new-body-v1-r178" in worker
 
 
 def test_billing_stall_fixture_uses_real_layers_without_credentials_or_production():

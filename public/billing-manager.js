@@ -212,6 +212,32 @@
     return data;
   }
 
+  function subscriptionCheckoutAttempt(tier) {
+    const normalizedTier = ['professional', 'enterprise'].includes(String(tier || '').toLowerCase())
+      ? String(tier).toLowerCase()
+      : 'professional';
+    const storageKey = `crump:subscription-checkout-attempt:${normalizedTier}`;
+    try {
+      const stored = sessionStorage.getItem(storageKey);
+      if (/^[A-Za-z0-9][A-Za-z0-9:._-]{15,99}$/.test(stored || '')) return stored;
+    } catch (_) {}
+    const randomId = globalThis.crypto?.randomUUID?.()
+      || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+    const attemptId = `web:${randomId}`;
+    try { sessionStorage.setItem(storageKey, attemptId); } catch (_) {}
+    return attemptId;
+  }
+
+  function completeSubscriptionCheckoutAttempt(tier, attemptId) {
+    const normalizedTier = ['professional', 'enterprise'].includes(String(tier || '').toLowerCase())
+      ? String(tier).toLowerCase()
+      : 'professional';
+    const storageKey = `crump:subscription-checkout-attempt:${normalizedTier}`;
+    try {
+      if (sessionStorage.getItem(storageKey) === attemptId) sessionStorage.removeItem(storageKey);
+    } catch (_) {}
+  }
+
   async function refreshStatus() {
     const response = await fetch('/api/billing/status');
     const data = await response.json().catch(() => ({}));
@@ -239,6 +265,8 @@
     purchaseCredits,
     restore,
     manageSubscription,
+    subscriptionCheckoutAttempt,
+    completeSubscriptionCheckoutAttempt,
     refreshStatus,
     refreshCredits,
     synchronizeServerCredits,

@@ -77,6 +77,11 @@
     delete button.dataset.previousLabel;
   }
 
+  function needsBillingAttention(status) {
+    return ['past_due', 'unpaid', 'incomplete', 'paused', 'billing_issue']
+      .includes(String(status || '').toLowerCase());
+  }
+
   async function openPortal(button, provider = null) {
     if (provider === 'revenuecat' && !native()) {
       window.showToast?.(
@@ -117,12 +122,14 @@
         return;
       }
 
+      const attemptId = window.BillingManager?.subscriptionCheckoutAttempt?.(tier);
       const result = await jsonFetch('/api/stripe/create-checkout-session', {
         method: 'POST',
-        body: JSON.stringify({tier}),
+        body: JSON.stringify({tier, attemptId}),
       });
       if (!result.url) throw new Error('Secure checkout did not return a destination.');
       window.location.assign(result.url);
+      window.BillingManager?.completeSubscriptionCheckoutAttempt?.(tier, attemptId);
     } catch (error) {
       if (error.code === 'SUBSCRIPTION_ALREADY_ACTIVE') {
         setBusy(button, false);
@@ -228,6 +235,26 @@
     return article;
   }
 
+  function billingAttentionCard(billingStatus) {
+    const article = document.createElement('article');
+    article.className = 'billing51-plan is-featured crump52-billing-attention';
+    const title = document.createElement('strong');
+    title.textContent = 'Your subscription needs attention';
+    const detail = document.createElement('p');
+    detail.className = 'billing51-plan-summary';
+    detail.textContent = 'Open billing to update the payment method or review the provider status. Your current subscription remains the one Ask Crump will manage.';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'billing51-plan-button';
+    const provider = String(billingStatus?.provider || '').toLowerCase() || null;
+    button.textContent = provider === 'revenuecat' && !native()
+      ? 'Fix in mobile store'
+      : 'Fix billing';
+    button.addEventListener('click', () => openPortal(button, provider));
+    article.append(title, detail, button);
+    return article;
+  }
+
   function applyPlanIntent(modal, plan) {
     if (!modal?.isConnected || !['professional', 'enterprise'].includes(plan)) return false;
     const host = modal.querySelector('.billing51-plans');
@@ -267,7 +294,7 @@
         'Choose monthly access for more included usage. You can manage or cancel a web subscription at any time.';
     }
 
-    let billingStatus = {tier: 'free', status: 'inactive', provider: null};
+    let billingStatus = {tier: 'free', plan: null, status: 'inactive', provider: null, manageable: false};
     try {
       billingStatus = await jsonFetch('/api/billing/status');
     } catch (error) {
@@ -282,10 +309,21 @@
     }
 
     if (!modal.isConnected) return;
-    host.replaceChildren(
-      planCard(planDefinition('professional'), billingStatus),
-      planCard(planDefinition('enterprise'), billingStatus)
-    );
+    const recoveryRequired = Boolean(billingStatus?.manageable)
+      && needsBillingAttention(billingStatus?.status);
+    host.replaceChildren(...(
+      recoveryRequired
+        ? [billingAttentionCard(billingStatus)]
+        : [
+            planCard(planDefinition('professional'), billingStatus),
+            planCard(planDefinition('enterprise'), billingStatus),
+          ]
+    ));
+    const manageButton = modal.querySelector('#billing51Manage');
+    if (manageButton && recoveryRequired) {
+      manageButton.hidden = true;
+      manageButton.disabled = true;
+    }
     modal.dataset.crumpSubscriptions532 = 'ready';
     applyPlanIntent(modal, modal.dataset.crumpPlanIntent);
   }

@@ -79,6 +79,12 @@ class RevokeDeviceRequest(APIModel):
 
 class CheckoutRequest(APIModel):
     tier: str = Field(default="professional", max_length=30)
+    attemptId: str | None = Field(
+        default=None,
+        min_length=16,
+        max_length=100,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9:._-]{15,99}$",
+    )
 
 
 class ProductEventRequest(APIModel):

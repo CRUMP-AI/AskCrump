@@ -284,6 +284,15 @@ class WebhookDB:
     def __init__(self) -> None:
         self.updates = []
 
+    async def select_one(self, table, *, columns='*', filters=None):
+        assert table == 'users'
+        assert filters == {'stripe_customer_id': 'eq.cus_123'}
+        return {
+            'id': 'user-123',
+            'stripe_customer_id': 'cus_123',
+            'stripe_subscription_id': 'sub_123',
+        }
+
     async def update(self, table, payload, *, filters):
         self.updates.append((table, dict(payload), dict(filters)))
         return [dict(payload)]
@@ -316,6 +325,12 @@ async def test_deleted_enterprise_webhook_persists_free_tier(monkeypatch):
             }
         },
     }
+
+    async def stripe_get(path):
+        assert path == 'subscriptions/sub_123'
+        return event['data']['object']
+
+    monkeypatch.setattr(billing_routes, 'stripe_get', stripe_get)
     request = SimpleNamespace(
         headers={'stripe-signature': 'test'},
         body=lambda: None,
@@ -333,4 +348,4 @@ async def test_deleted_enterprise_webhook_persists_free_tier(monkeypatch):
     assert table == 'users'
     assert values['subscription_tier'] == 'free'
     assert values['subscription_status'] == 'canceled'
-    assert filters['stripe_customer_id'] == 'eq.cus_123'
+    assert filters['id'] == 'eq.user-123'

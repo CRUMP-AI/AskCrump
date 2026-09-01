@@ -318,12 +318,14 @@
         await hydrate(state.modal);
         return;
       }
+      const attemptId = window.BillingManager?.subscriptionCheckoutAttempt?.(tier);
       const response = await jsonFetch('/api/stripe/create-checkout-session', {
         method: 'POST',
-        body: JSON.stringify({tier}),
+        body: JSON.stringify({tier, attemptId}),
       });
       if (!response.url) throw new Error('Secure checkout did not return a destination.');
       window.location.assign(response.url);
+      window.BillingManager?.completeSubscriptionCheckoutAttempt?.(tier, attemptId);
     } catch (error) {
       window.showToast?.(error.message || 'Subscription checkout could not be opened.', 'error');
       setBusy(button, false);
@@ -434,7 +436,7 @@
     return article;
   }
 
-  function planCard(plan, product, currentTier, currentStatus) {
+  function planCard(plan, product, billingStatus) {
     const article = document.createElement('article');
     article.className = `billing51-plan ${plan.id === 'professional' ? 'is-featured' : ''}`;
     article.dataset.crumpPlan = plan.id;
@@ -461,15 +463,23 @@
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'billing51-plan-button';
-    const isCurrent = currentTier === plan.id && ['active', 'trialing', 'canceling', 'billing_issue'].includes(String(currentStatus || ''));
-    button.textContent = isCurrent ? 'Current plan' : `Choose ${plan.name}`;
-    if (isCurrent) {
+    const currentTier = String(billingStatus?.tier || 'free').toLowerCase();
+    const currentStatus = String(billingStatus?.status || 'inactive').toLowerCase();
+    const needsBillingAttention = ['past_due', 'unpaid', 'incomplete', 'paused', 'billing_issue']
+      .includes(currentStatus);
+    const isCurrent = currentTier === plan.id && ['active', 'trialing', 'canceling', 'billing_issue'].includes(currentStatus);
+    button.textContent = needsBillingAttention
+      ? 'Resolve billing to change plans'
+      : isCurrent ? 'Current plan' : `Choose ${plan.name}`;
+    if (isCurrent || needsBillingAttention) {
       button.disabled = true;
     } else if (native() && !product?.package && !product?.productId) {
       button.disabled = true;
       button.textContent = 'Not configured';
     }
-    button.addEventListener('click', () => { if (!isCurrent) buyPlan(plan.id, button); });
+    button.addEventListener('click', () => {
+      if (!isCurrent && !needsBillingAttention) buyPlan(plan.id, button);
+    });
     article.append(top, detail, benefits, meterNote, button);
     return article;
   }
@@ -484,7 +494,7 @@
         jsonFetch('/api/usage/check'),
         Promise.resolve(window.BillingManager?.getProducts?.() || {}).catch(() => ({})),
         Promise.resolve(window.BillingManager?.getCreditProducts?.() || {}).catch(() => ({})),
-        jsonFetch('/api/billing/status').catch(() => ({tier:'free', status:'inactive', provider:null})),
+        jsonFetch('/api/billing/status').catch(() => ({tier:'free', plan:null, status:'inactive', provider:null, manageable:false})),
       ]);
 
       applyBalance(creditData.credits?.balance);
@@ -532,14 +542,15 @@
       const plansHost = $('#billing51Plans', modal);
       plansHost?.replaceChildren();
       plans.forEach(plan => plansHost?.appendChild(
-        planCard(plan, subscriptions?.[plan.id], billingStatus?.tier, billingStatus?.status)
+        planCard(plan, subscriptions?.[plan.id], billingStatus)
       ));
 
       const manageButton = $('#billing51Manage', modal);
       if (manageButton) {
-        const canManage = Boolean(billingStatus?.provider) && billingStatus?.tier !== 'free';
+        const canManage = Boolean(billingStatus?.manageable);
         manageButton.hidden = !canManage;
         manageButton.disabled = !canManage;
+        manageButton.textContent = 'Manage subscription';
       }
 
       renderHistory(creditData.history || []);

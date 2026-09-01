@@ -64,12 +64,13 @@ def test_contextual_recovery_assets_are_registered_for_web_pwa_and_native():
     context_version = "5.9.76-contextual-plan-recovery-1"
     image_recovery_version = "5.9.76-image-safety-recovery-1"
     plan_renderer_version = "5.9.76-truthful-enterprise-positioning-1"
+    commerce_recovery_version = "5.9.76-commerce-recovery-1"
     runtime = read("public/runtime-body-v1.js")
     worker = read("public/sw.js")
     native = read("scripts/build-native.mjs")
 
     for asset in (
-        f"/crump-billing-5.1.js?v={plan_renderer_version}",
+        f"/crump-billing-5.1.js?v={commerce_recovery_version}",
         f"/crump-5.2.js?v={plan_renderer_version}",
     ):
         assert asset in runtime
@@ -83,4 +84,4 @@ def test_contextual_recovery_assets_are_registered_for_web_pwa_and_native():
     assert f"/chat-resilience.js?v={image_recovery_version}" in worker
     assert "/crump-product-5.3.js?v=5.9.76-visual-media-reliability-2" in runtime
     assert "/crump-product-5.3.js?v=5.9.76-visual-media-reliability-2" in worker
-    assert "ask-crump-new-body-v1-r177" in worker
+    assert "ask-crump-new-body-v1-r178" in worker

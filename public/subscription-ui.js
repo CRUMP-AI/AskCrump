@@ -19,14 +19,16 @@
         closeUpgradePrompt();
         return;
       }
+      const attemptId = window.BillingManager?.subscriptionCheckoutAttempt?.(tier);
       const response = await fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tier }),
+        body: JSON.stringify({ tier, attemptId }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.url) throw new Error(data.error || 'Unable to open checkout.');
       window.location.assign(data.url);
+      window.BillingManager?.completeSubscriptionCheckoutAttempt?.(tier, attemptId);
     } catch (error) {
       window.showToast?.(error.message || 'Billing could not be opened.', 'error');
       if (button) { button.disabled = false; button.textContent = 'Choose plan'; }
