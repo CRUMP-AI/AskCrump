@@ -88,8 +88,9 @@ async function inspectTutorial(page) {
       action: `Open ${destination} →`,
     });
     if (destination === 'Create') {
-      assert.match(guide.description, /use Precision Edit after a result to brush over only what may change/i);
-      assert.deepEqual(guide.features, ['Editable files', 'References & Precision Edit', 'Long-form manuscripts']);
+      assert.match(guide.description, /choose Edit area after a result/i);
+      assert.match(guide.description, /Choose Apply changes to return to the conversation with the edited image/i);
+      assert.deepEqual(guide.features, ['Editable files', 'Local image adjustments', 'Long-form manuscripts']);
     }
     await page.locator('.tutorial-open-destination').click();
     await page.waitForFunction(expected => document.getElementById('fixtureDestination')?.textContent === expected, destination.toLowerCase());

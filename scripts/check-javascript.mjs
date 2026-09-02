@@ -402,7 +402,7 @@ const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architec
 const coreReliabilityVersion = `${releaseVersion}-core-reliability-1`;
 const settingsProfileTrustVersion = `${releaseVersion}-settings-profile-trust-8`;
 const precisionEditGuideLoaderVersion = `${releaseVersion}-live-image-preview-loader-1`;
-const precisionEditGuideVersion = `${releaseVersion}-local-photo-studio-guide-1`;
+const precisionEditGuideVersion = `${releaseVersion}-button-integrity-1`;
 const fileLibraryWindowVersion = `${releaseVersion}-file-library-window-1`;
 const imageReferenceRecoveryVersion = `${releaseVersion}-image-reference-recovery-1`;
 const liveImagePreviewVersion = `${releaseVersion}-live-image-preview-1`;
@@ -821,7 +821,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r213') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r214') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${precisionEditGuideLoaderVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
