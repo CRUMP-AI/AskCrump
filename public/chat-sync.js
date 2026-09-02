@@ -110,18 +110,16 @@
       .map(entry => entry.message);
   }
 
+  function stableValue(value) {
+    if (Array.isArray(value)) return value.map(stableValue);
+    if (!value || typeof value !== 'object') return value;
+    return Object.fromEntries(
+      Object.keys(value).sort().map(key => [key, stableValue(value[key])]),
+    );
+  }
+
   function stableMessageSignature(messages = []) {
-    return JSON.stringify(messages.map(message => ({
-      id: message?.id || null,
-      role: message?.role || null,
-      content: message?.content || '',
-      timestamp: message?.timestamp || null,
-      imageUrl: message?.imageUrl || message?.image_url || null,
-      deliveryStatus: message?.deliveryStatus || message?.delivery_status || null,
-      replyStatus: message?.replyStatus || message?.reply_status || null,
-      inReplyTo: message?.inReplyTo || message?.in_reply_to || null,
-      origin: message?.origin || null,
-    })));
+    return JSON.stringify(stableValue(messages));
   }
 
   function serverWins(server, local) {
@@ -215,10 +213,23 @@
     let local = [];
     try { local = JSON.parse(SafeStorage.getItem(STORAGE_KEYS.CHATS) || '[]'); } catch (_) {}
 
+    const previous = Array.isArray(window.chats) ? window.chats : local;
+    const activeId = String(window.currentChatId || '');
+    const previousActive = previous.find(chat => String(chat?.id || chat?.chat_id || '') === activeId);
     const merged = mergeServerState(result.data.chats, local);
+    const nextActive = merged.find(chat => String(chat?.id || chat?.chat_id || '') === activeId);
+    const preserveActiveRender = Boolean(
+      activeId
+      && previousActive
+      && nextActive
+      && String(previousActive.title || '') === String(nextActive.title || '')
+      && stableMessageSignature(previousActive.messages) === stableMessageSignature(nextActive.messages)
+    );
     window.chats = merged;
 
-    if (typeof window.replaceChats === 'function') window.replaceChats(merged);
+    if (typeof window.replaceChats === 'function') {
+      window.replaceChats(merged, {preserveActiveRender});
+    }
     else SafeStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(merged));
 
     if (typeof window.renderChatsList === 'function') window.renderChatsList();

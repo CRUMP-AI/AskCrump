@@ -54,17 +54,17 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/ui-functions.js?v=5.9.76-project-save-measurement-1', 'workspaceui'],
     ['/presence-manager.js?v=5.9.76', 'workspacepresence'],
     ['/sync-manager.js?v=5.9.76', 'workspacesync'],
-    ['/chat-sync.js?v=5.9.76-sync-cadence-1', 'workspacechatsync'],
+    ['/chat-sync.js?v=5.9.76-image-stability-1', 'workspacechatsync'],
     ['/account-manager.js?v=5.9.76-account-deletion-billing-1', 'workspaceaccount'],
-    ['/app.js?v=5.9.76-user-controlled-scroll-1', 'workspaceapp'],
+    ['/app.js?v=5.9.76-image-stability-1', 'workspaceapp'],
     ['/product-analytics.js?v=5.9.76-project-save-measurement-1', 'workspaceanalytics'],
   ]);
 
   const enhancementScripts = Object.freeze([
     ['/crump-4.3.js?v=5.9.76-intelligence-architecture-1', 'crump43'],
     ['/crump-4.4.js?v=5.9.76-core-reliability-1', 'crump44'],
-    ['/crump-5.0.js?v=5.9.76-image-reference-recovery-1', 'crump50'],
-    ['/crump-precision-image-edit.js?v=5.9.76-precision-visible-1', 'crumpprecisionimage'],
+    ['/crump-5.0.js?v=5.9.76-live-image-preview-1', 'crump50'],
+    ['/crump-precision-image-edit.js?v=5.9.76-live-image-preview-1', 'crumpprecisionimage'],
     ['/crump-billing-5.1.js?v=5.9.76-credit-pack-truth-1', 'billing51'],
     ['/crump-5.2.js?v=5.9.76-credit-pack-truth-1', 'crump52'],
     ['/crump-5.2.2.js?v=5.9.76-new-response-cue-1', 'crump522'],

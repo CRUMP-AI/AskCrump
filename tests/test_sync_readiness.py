@@ -32,9 +32,9 @@ def test_changed_sync_manager_is_release_versioned_and_network_first():
     assert '<script defer src="/presence-manager.js?v=5.9.76"></script>' not in shell
     assert "['/presence-manager.js?v=5.9.76', 'workspacepresence']" in runtime
     assert "'/presence-manager.js?v=5.9.76'" in worker
-    assert '<script defer src="/chat-sync.js?v=5.9.76-sync-cadence-1"></script>' not in shell
-    assert "['/chat-sync.js?v=5.9.76-sync-cadence-1', 'workspacechatsync']" in runtime
-    assert "'/chat-sync.js?v=5.9.76-sync-cadence-1'" in worker
+    assert '<script defer src="/chat-sync.js?v=5.9.76-image-stability-1"></script>' not in shell
+    assert "['/chat-sync.js?v=5.9.76-image-stability-1', 'workspacechatsync']" in runtime
+    assert "'/chat-sync.js?v=5.9.76-image-stability-1'" in worker
     assert "url.pathname === '/sync-manager.js'" in worker
 
 
@@ -67,6 +67,17 @@ def test_idle_sync_is_incremental_visible_only_and_never_blindly_pushes_state():
     assert "window.__crumpSyncData = null" in sync
     assert "initialReconciliationPending" in sync
     assert "full: true, reconcileLocal" in sync
+    assert "stableMessageSignature(previousActive.messages)" in sync
+    assert "window.replaceChats(merged, {preserveActiveRender})" in sync
+
+
+def test_unchanged_active_chat_does_not_rebuild_visible_images() -> None:
+    app = (PUBLIC / "app.js").read_text(encoding="utf-8")
+    replace = app[app.index("window.replaceChats =") : app.index("function newChatRecord")]
+
+    assert "{ preserveActiveRender = false }" in replace
+    assert "if (!preserveActiveRender || preferred.id !== activeId)" in replace
+    assert "window.renderMessages?.(preferred.messages)" in replace
 
 
 def test_offline_changes_queue_before_the_network_flush_and_flush_is_single_flight():
@@ -140,6 +151,9 @@ def test_idle_sync_fixture_uses_real_clients_and_stays_local():
     assert "window.__fixture.intervalCallback()" in fixture
     assert "window.syncChatsToServer()" in fixture
     assert "window.dispatchEvent(new Event('online'))" in fixture
+    assert "fixtureActiveRenders" in fixture
+    assert "fixtureImageStable" in fixture
+    assert "window.__fixture.originalImage === document.getElementById('fixtureImage')" in fixture
     assert "fixture-user" in fixture
     assert "password" not in fixture.lower()
     assert "askcrump.com" not in fixture

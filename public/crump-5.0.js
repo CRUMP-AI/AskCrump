@@ -724,9 +724,36 @@
     );
   }
 
-  function openPrecisionImageEdit(file, url) {
+  function reflectAppliedImage(savedFile, {messageId = ''} = {}) {
+    if (!savedFile?.id) return false;
+    const resolvedUrl = String(savedFile.url || `/api/files/${encodeURIComponent(savedFile.id)}/content`);
+    if (messageId) {
+      const chat = currentChat();
+      const message = chat?.messages?.find(item => String(item?.id || '') === String(messageId));
+      if (message) {
+        message.imageFile = {...savedFile, url: resolvedUrl};
+        message.imageUrl = resolvedUrl;
+        saveAndRender(chat);
+        return true;
+      }
+    }
+
+    clearImageAttachments();
+    addRemoteReference({...savedFile, url: resolvedUrl}, {imageReference: true});
+    state.tool = 'image';
+    state.imageRecovery = null;
+    renderToolChip();
+    focusComposer('Describe another change, or send this edited image…');
+    return true;
+  }
+
+  function openPrecisionImageEdit(file, url, options = {}) {
     if (window.CrumpPrecisionImageEditor?.open) {
-      void window.CrumpPrecisionImageEditor.open({file, url}).catch(error => {
+      void window.CrumpPrecisionImageEditor.open({
+        file,
+        url,
+        onApplied: ({file: savedFile}) => reflectAppliedImage(savedFile, options),
+      }).catch(error => {
         show(error?.message || 'Precision Edit could not open this image.', 'error');
       });
       return;
@@ -1618,7 +1645,7 @@
           if (!actions) {
             actions = document.createElement('div'); actions.className = 'crump50-image-actions';
             const view = document.createElement('button'); view.type='button'; view.textContent='View'; view.addEventListener('click', () => showLightbox(message.imageFile, message.imageUrl));
-            const edit = document.createElement('button'); edit.type='button'; edit.textContent='Edit area'; edit.setAttribute('aria-label', 'Precision Edit area'); edit.addEventListener('click', () => { state.imageRecovery=null; openPrecisionImageEdit(message.imageFile, message.imageUrl); });
+            const edit = document.createElement('button'); edit.type='button'; edit.textContent='Edit area'; edit.setAttribute('aria-label', 'Precision Edit area'); edit.addEventListener('click', () => { state.imageRecovery=null; openPrecisionImageEdit(message.imageFile, message.imageUrl, {messageId: message.id}); });
             const project = document.createElement('button'); project.type='button';
             const download = document.createElement('button'); download.type='button'; download.textContent='Download'; download.addEventListener('click', () => openFile(message.imageFile, true));
             wireOutputProjectAction(project, {

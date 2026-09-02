@@ -162,6 +162,26 @@ def test_local_image_adjustments_change_only_the_manual_selection() -> None:
         assert adjusted[0] > adjusted[2]
 
 
+def test_local_image_adjustments_support_a_whole_image_mask() -> None:
+    source = Image.new("RGBA", (120, 100), color=(100, 110, 120, 255))
+    source_bytes = BytesIO()
+    source.save(source_bytes, format="PNG")
+    full_mask = Image.new("RGBA", source.size, color=(255, 255, 255, 255))
+
+    result_bytes, values, size = MediaService._apply_local_image_adjustments(
+        source_bytes.getvalue(),
+        _png_data_url(full_mask),
+        {"warmth": 18, "exposure": 16, "saturation": -14},
+    )
+
+    assert values == {"warmth": 18.0, "exposure": 16.0, "saturation": -14.0}
+    assert size == "120x100"
+    with Image.open(BytesIO(result_bytes)) as result:
+        pixels = result.convert("RGBA")
+        for point in ((0, 0), (60, 50), (119, 99)):
+            assert pixels.getpixel(point) != source.getpixel(point)
+
+
 def test_exact_local_overlay_preserves_every_pixel_outside_supplied_artwork() -> None:
     source = Image.new("RGBA", (120, 100), color=(30, 40, 50, 255))
     source_bytes = BytesIO()
@@ -780,11 +800,12 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
         "['exposure', 'Exposure']",
         "['saturation', 'Saturation']",
         "`${label} adjustment`",
-        "Save local edit",
+        "Apply changes",
         "Show original",
         "Continue with AI edit",
         "image-adjust",
         "selectionHasVisiblePixels",
+        "localAdjustmentMaskDataUrl",
         "maskDataUrl",
         "overlayDataUrl",
         "overlayCanvas.toBlob",
@@ -827,13 +848,15 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
     assert "input.dispatchEvent(new Event('input', {bubbles: true}))" in composer
     assert "Edit area" in composer
     assert "Precision Edit area" in composer
+    assert "reflectAppliedImage" in composer
+    assert "onApplied: ({file: savedFile})" in composer
     assert "base.width = image.naturalWidth" in editor
     assert "base.height = image.naturalHeight" in editor
     assert "stage.clientWidth" in editor
     assert "stage.clientHeight" in editor
     assert "state.fitWidth = Math.max(1" in editor
     assert "state.fitHeight = Math.max(1" in editor
-    exact_script = "/crump-precision-image-edit.js?v=5.9.76-precision-visible-1"
+    exact_script = "/crump-precision-image-edit.js?v=5.9.76-live-image-preview-1"
     exact_style = "/crump-precision-image-edit.css?v=5.9.76-precision-visible-1"
     for asset in (exact_script, exact_style):
         assert asset in runtime

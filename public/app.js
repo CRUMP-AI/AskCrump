@@ -317,7 +317,7 @@ function announceConversationOpened(chatId, { fresh = false } = {}) {
     }));
 }
 
-window.replaceChats = function replaceChats(nextChats) {
+window.replaceChats = function replaceChats(nextChats, { preserveActiveRender = false } = {}) {
     const activeId = currentChatId;
     chats = (Array.isArray(nextChats) ? nextChats : []).map(normalizeLocalChat)
         .sort((a, b) => asTimestamp(b.updatedAt) - asTimestamp(a.updatedAt));
@@ -337,8 +337,10 @@ window.replaceChats = function replaceChats(nextChats) {
         currentChatId = preferred.id;
         window.currentChatId = currentChatId;
         SafeStorage.setItem(STORAGE_KEYS.CURRENT_CHAT, currentChatId);
-        window.renderMessages?.(preferred.messages);
-        announceConversationOpened(currentChatId);
+        if (!preserveActiveRender || preferred.id !== activeId) {
+            window.renderMessages?.(preferred.messages);
+            announceConversationOpened(currentChatId);
+        }
     } else {
         currentChatId = null;
         window.currentChatId = null;

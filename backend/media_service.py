@@ -243,7 +243,7 @@ class MediaService:
         return target_width, target_height
 
     @staticmethod
-    def _decode_precision_mask(data_url: str) -> Image.Image:
+    def _decode_precision_mask(data_url: str, *, allow_broad: bool = False) -> Image.Image:
         value = str(data_url or '').strip()
         prefix = 'data:image/png;base64,'
         if not value.startswith(prefix):
@@ -307,7 +307,7 @@ class MediaService:
                 False,
                 0,
             )
-        if coverage > PRECISION_MASK_MAX_COVERAGE:
+        if not allow_broad and coverage > PRECISION_MASK_MAX_COVERAGE:
             raise AIServiceError(
                 'Precision Edit protects the rest of the image. Select a smaller area, or use a regular image edit for a full-frame change.',
                 400,
@@ -515,7 +515,7 @@ class MediaService:
         result = protected_source.copy()
         has_adjustments = any(values.values())
         if has_adjustments:
-            selection = cls._decode_precision_mask(mask_data_url)
+            selection = cls._decode_precision_mask(mask_data_url, allow_broad=True)
             if selection.size != source.size:
                 raise AIServiceError(
                     'The selected area no longer matches this image. Reopen Precision Edit and paint it again.',

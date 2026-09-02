@@ -13,6 +13,7 @@
     modal: null,
     returnFocus: null,
     file: null,
+    onApplied: null,
     sourceUrl: '',
     canvas: null,
     context: null,
@@ -91,6 +92,7 @@
     else modal.remove();
     state.modal = null;
     state.file = null;
+    state.onApplied = null;
     state.sourceUrl = '';
     state.canvas = null;
     state.context = null;
@@ -294,7 +296,7 @@
   }
 
   function localAdjustmentReady() {
-    return hasLocalAdjustments() && selectionHasVisiblePixels();
+    return hasLocalAdjustments() && Boolean(state.previewCanvas && state.canvas);
   }
 
   function hasSavableLocalEdit() {
@@ -320,7 +322,7 @@
     const mask = state.previewMask;
     if (!canvas || !context || !source || !mask || !state.canvas) return;
     context.clearRect(0, 0, canvas.width, canvas.height);
-    const active = hasLocalAdjustments() && selectionHasVisiblePixels();
+    const active = hasLocalAdjustments();
     state.frame?.classList.toggle('has-local-preview', active || hasDeterministicOverlay());
     if (!active) {
       canvas.hidden = true;
@@ -329,7 +331,12 @@
     }
     const maskContext = mask.getContext('2d', {alpha: true, willReadFrequently: true});
     maskContext.clearRect(0, 0, mask.width, mask.height);
-    maskContext.drawImage(state.canvas, 0, 0, mask.width, mask.height);
+    if (selectionHasVisiblePixels()) {
+      maskContext.drawImage(state.canvas, 0, 0, mask.width, mask.height);
+    } else {
+      maskContext.fillStyle = '#fff';
+      maskContext.fillRect(0, 0, mask.width, mask.height);
+    }
     const maskPixels = maskContext.getImageData(0, 0, mask.width, mask.height).data;
     const output = context.createImageData(canvas.width, canvas.height);
     const sourcePixels = source.data;
@@ -750,10 +757,14 @@
   }
 
   function maskDataUrl() {
+    return canvasDataUrl(state.canvas, 'The selected area could not be prepared.');
+  }
+
+  function canvasDataUrl(canvas, errorMessage) {
     return new Promise((resolve, reject) => {
-      state.canvas.toBlob(blob => {
+      canvas.toBlob(blob => {
         if (!blob) {
-          reject(new Error('The selected area could not be prepared.'));
+          reject(new Error(errorMessage));
           return;
         }
         const reader = new FileReader();
@@ -765,10 +776,21 @@
           }
           resolve(value);
         }, {once: true});
-        reader.addEventListener('error', () => reject(new Error('The selected area could not be prepared.')), {once: true});
+        reader.addEventListener('error', () => reject(new Error(errorMessage)), {once: true});
         reader.readAsDataURL(blob);
       }, 'image/png');
     });
+  }
+
+  function localAdjustmentMaskDataUrl() {
+    if (selectionHasVisiblePixels()) return maskDataUrl();
+    const fullMask = document.createElement('canvas');
+    fullMask.width = state.canvas.width;
+    fullMask.height = state.canvas.height;
+    const context = fullMask.getContext('2d', {alpha: true});
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, fullMask.width, fullMask.height);
+    return canvasDataUrl(fullMask, 'The whole-image adjustment could not be prepared.');
   }
 
   function selectionHasVisiblePixels() {
@@ -812,11 +834,12 @@
     }
   }
 
-  async function open({file, url = ''} = {}) {
+  async function open({file, url = '', onApplied = null} = {}) {
     if (!file?.id && !url) throw new Error('This image is not available for Precision Edit.');
     close();
     state.returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     state.file = file;
+    state.onApplied = typeof onApplied === 'function' ? onApplied : null;
     state.strokes = [];
     state.redoStrokes = [];
     state.selectionDirty = true;
@@ -949,7 +972,7 @@
     localLabel.id = 'crumpPrecisionLocalLabel';
     localLabel.textContent = 'LOCAL ADJUSTMENTS · NO AI OR CREDITS';
     const localCopy = document.createElement('small');
-    localCopy.textContent = 'Preview and save warmth, exposure, or saturation only inside your manual selection. The saved file is generated deterministically from your private original.';
+    localCopy.textContent = 'Adjust the whole image with a live preview, or brush/outline first to limit the sliders to one area. The applied file is generated deterministically from your private original.';
     const sliders = document.createElement('div');
     sliders.className = 'crump-precision-sliders';
     const sliderDefinitions = [
@@ -963,6 +986,7 @@
       const value = document.createElement('b'); value.textContent = '0';
       const input = document.createElement('input');
       input.type = 'range'; input.min = '-30'; input.max = '30'; input.step = '1'; input.value = '0';
+      input.disabled = true;
       input.setAttribute('aria-label', `${label} adjustment`);
       input.addEventListener('input', () => {
         state.adjustments[key] = Number(input.value);
@@ -970,6 +994,11 @@
         setComparingOriginal(false);
         scheduleLocalPreview();
         updateLocalControls();
+        setStatus(
+          selectionHasVisiblePixels()
+            ? `${label} preview applied inside your selection.`
+            : `${label} preview applied to the whole image.`,
+        );
       });
       state.adjustmentInputs[key] = {input, value};
       row.append(copy, value, input);
@@ -1138,7 +1167,7 @@
 
     const footer = document.createElement('footer');
     const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'crump-precision-cancel'; cancel.textContent = 'Cancel'; cancel.addEventListener('click', close);
-    const saveLocal = document.createElement('button'); saveLocal.type = 'button'; saveLocal.className = 'crump-precision-save-local'; saveLocal.textContent = 'Save local edit'; saveLocal.disabled = true;
+    const saveLocal = document.createElement('button'); saveLocal.type = 'button'; saveLocal.className = 'crump-precision-save-local'; saveLocal.textContent = 'Apply changes'; saveLocal.disabled = true;
     state.saveLocal = saveLocal;
     saveLocal.addEventListener('click', async () => {
       if (!hasSavableLocalEdit()) {
@@ -1147,9 +1176,9 @@
       }
       saveLocal.disabled = true;
       saveLocal.setAttribute('aria-busy', 'true');
-      setStatus('Saving a private, provider-free image version…');
+      setStatus('Applying a private, provider-free image version…');
       try {
-        const preparedMask = localAdjustmentReady() ? await maskDataUrl() : '';
+        const preparedMask = localAdjustmentReady() ? await localAdjustmentMaskDataUrl() : '';
         const preparedOverlay = await overlayDataUrl();
         const response = await fetch(`/api/files/${encodeURIComponent(state.file.id)}/image-adjust`, {
           method: 'POST',
@@ -1165,9 +1194,24 @@
         const data = await response.json().catch(() => ({}));
         if (!response.ok || !data.file?.id) throw new Error(data.error || 'The local image edit could not be saved.');
         const savedFile = data.file;
+        let applyResult = false;
+        if (state.onApplied) {
+          try {
+            applyResult = await Promise.resolve(state.onApplied({file: savedFile, sourceFile: state.file}));
+          } catch (_) {
+            applyResult = false;
+          }
+        }
         close();
-        show('Local edit saved to Files. No AI provider or Crump Credits were used.', 'success');
-        requestAnimationFrame(() => window.CrumpFileTools?.open?.(savedFile, false));
+        window.dispatchEvent(new CustomEvent('crump:local-image-edit-applied', {
+          detail: {file: savedFile, reflectedInChat: Boolean(applyResult)},
+        }));
+        show(
+          applyResult
+            ? 'Changes applied in this conversation. No AI provider or Crump Credits were used.'
+            : 'Changes applied and saved to Files. No AI provider or Crump Credits were used.',
+          'success',
+        );
       } catch (error) {
         setStatus(error?.message || 'The local image edit could not be saved.', 'error');
         saveLocal.disabled = false;
@@ -1293,8 +1337,10 @@
       frame.style.width = `${state.fitWidth}px`;
       frame.style.height = `${state.fitHeight}px`;
       zoomFit.disabled = false;
+      Object.values(state.adjustmentInputs).forEach(({input}) => { input.disabled = false; });
       wireCanvas(canvas);
       renderOverlays();
+      scheduleLocalPreview();
       updateZoomControls();
       use.disabled = false;
       updateLocalControls();
