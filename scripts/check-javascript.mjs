@@ -943,7 +943,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r219') ||
     !serviceWorker.includes(`/auth-resilience.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/install-prompt.js?v=${authUpdateGuardVersion}`) ||
     !serviceWorker.includes(`/install-prompt.css?v=${releaseVersion}`) ||
-    !serviceWorker.includes(`/device-auth.js?v=${releaseVersion}`) ||
+    !serviceWorker.includes(`/device-auth.js?v=${nativeBillingIdentityVersion}`) ||
     !serviceWorker.includes(`/sync-manager.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/chat-sync.js?v=${imageStabilityVersion}`) ||
     !serviceWorker.includes(`/product-analytics.js?v=${projectSaveMeasurementVersion}`) ||
@@ -1037,7 +1037,7 @@ async function exerciseNativeBillingIdentity({rejectSecondLogin = false} = {}) {
   if (rejectSecondLogin) return {calls, rejectedMessage};
   await windowMock.BillingManager.getProducts();
   windowMock.currentUser = null;
-  await windowMock.BillingManager.configure();
+  await windowMock.BillingManager.disconnect();
   windowMock.currentUser = {id: 'account-c'};
   await windowMock.BillingManager.getProducts();
   return {calls, rejectedMessage};
@@ -1062,6 +1062,55 @@ if (rejectedNativeBillingIdentity.rejectedMessage !== 'Store billing could not c
     rejectedNativeBillingIdentity.calls.filter(([name]) => name === 'login').length !== 1 ||
     rejectedNativeBillingIdentity.calls.filter(([name]) => name === 'offerings').length !== 2) {
   console.error('Native billing must fail closed before loading products when store identity alignment fails.');
+  process.exit(1);
+}
+
+async function exercisePersistedNativeBillingIdentity() {
+  const calls = [];
+  const plugin = {
+    async isConfigured() { calls.push(['is-configured']); return {isConfigured: true}; },
+    async getAppUserID() { calls.push(['get-user']); return {appUserID: 'account-a'}; },
+    async isAnonymous() { calls.push(['is-anonymous']); return {isAnonymous: false}; },
+    async configure() { calls.push(['unexpected-configure']); },
+    async logIn(payload) { calls.push(['login', payload.appUserID]); },
+    async getOfferings() {
+      calls.push(['offerings']);
+      return {current: {availablePackages: []}};
+    },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {revenueCatGoogleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'android'}, Purchases: plugin},
+    currentUser: {id: 'account-b'},
+  };
+  runInContext(billingManagerSource, createContext({window: windowMock}));
+  await windowMock.BillingManager.getProducts();
+  return calls;
+}
+
+const persistedNativeBillingIdentity = await exercisePersistedNativeBillingIdentity();
+const expectedPersistedNativeBillingIdentity = [
+  ['is-configured'],
+  ['get-user'],
+  ['is-anonymous'],
+  ['login', 'account-b'],
+  ['offerings'],
+];
+if (JSON.stringify(persistedNativeBillingIdentity) !== JSON.stringify(expectedPersistedNativeBillingIdentity)) {
+  console.error('Native billing must adopt a persisted SDK identity without configuring the singleton twice.');
+  process.exit(1);
+}
+
+const deviceAuthSource = await readFile(new URL('public/device-auth.js', repoRoot), 'utf8');
+const nativeLogoutSource = deviceAuthSource.slice(
+  deviceAuthSource.indexOf('  async logout('),
+  deviceAuthSource.indexOf('\n  clearLocalState()', deviceAuthSource.indexOf('  async logout(')),
+);
+if (!nativeLogoutSource.includes('await window.BillingManager?.disconnect?.().catch(() => {});') ||
+    nativeLogoutSource.indexOf('this.clearLocalState();') >
+      nativeLogoutSource.indexOf('await window.BillingManager?.disconnect?.().catch(() => {});')) {
+  console.error('Native sign-out must clear local auth before disconnecting the persisted billing identity.');
   process.exit(1);
 }
 

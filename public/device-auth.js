@@ -194,6 +194,7 @@ class DeviceAuth {
     } finally {
       await window.CrumpAPI?.clearSessionToken?.();
       this.clearLocalState();
+      await window.BillingManager?.disconnect?.().catch(() => {});
     }
   }
 

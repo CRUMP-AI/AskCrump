@@ -16,8 +16,30 @@
     return userId || null;
   }
 
-  async function performAppUserAlignment(plugin) {
-    const nextUserId = activeAppUserId();
+  async function readConfiguredAppUser(plugin) {
+    if (typeof plugin.getAppUserID !== 'function') {
+      throw new Error('Store billing identity is unavailable.');
+    }
+    const result = await plugin.getAppUserID();
+    const appUserId = String(result?.appUserID || '').trim();
+    let anonymous = appUserId.startsWith('$RCAnonymousID:');
+    if (typeof plugin.isAnonymous === 'function') {
+      const status = await plugin.isAnonymous();
+      anonymous = Boolean(status?.isAnonymous);
+    }
+    return anonymous ? null : (appUserId || null);
+  }
+
+  async function adoptNativeConfiguration(plugin) {
+    if (configured || typeof plugin.isConfigured !== 'function') return configured;
+    const status = await plugin.isConfigured();
+    if (!status?.isConfigured) return false;
+    configuredUserId = await readConfiguredAppUser(plugin);
+    configured = true;
+    return true;
+  }
+
+  async function performAppUserAlignment(plugin, nextUserId) {
     if (nextUserId === configuredUserId) return;
 
     try {
@@ -37,10 +59,12 @@
     }
   }
 
-  async function alignAppUser(plugin) {
-    while (activeAppUserId() !== configuredUserId) {
+  async function alignAppUser(plugin, requestedUserId = undefined) {
+    const followsCurrentSession = requestedUserId === undefined;
+    const desiredUserId = () => followsCurrentSession ? activeAppUserId() : requestedUserId;
+    while (desiredUserId() !== configuredUserId) {
       if (!identityPromise) {
-        identityPromise = performAppUserAlignment(plugin).finally(() => {
+        identityPromise = performAppUserAlignment(plugin, desiredUserId()).finally(() => {
           identityPromise = null;
         });
       }
@@ -60,6 +84,7 @@
       if (!configurationPromise) {
         const appUserID = activeAppUserId();
         configurationPromise = (async () => {
+          if (await adoptNativeConfiguration(plugin)) return;
           await plugin.configure({apiKey: key, ...(appUserID ? {appUserID} : {})});
           configured = true;
           configuredUserId = appUserID;
@@ -71,6 +96,25 @@
     }
 
     await alignAppUser(plugin);
+    return true;
+  }
+
+  async function disconnect() {
+    if (!native()) return false;
+    await window.CrumpAPI?.ready;
+    const plugin = purchases();
+    if (!plugin) return false;
+
+    if (!configured) {
+      if (!configurationPromise) {
+        configurationPromise = adoptNativeConfiguration(plugin).finally(() => {
+          configurationPromise = null;
+        });
+      }
+      await configurationPromise;
+    }
+    if (!configured) return true;
+    await alignAppUser(plugin, null);
     return true;
   }
 
@@ -320,6 +364,7 @@
     refreshStatus,
     refreshCredits,
     synchronizeServerCredits,
+    disconnect,
     isNative: native,
   };
 })();

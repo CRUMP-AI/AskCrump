@@ -60,7 +60,7 @@ def test_auth_transport_is_release_versioned_and_network_first():
 
     assert '<script defer src="/auth-resilience.js?v=5.9.76"></script>' in shell
     assert shell.index("/auth-resilience.js?v=5.9.76") < shell.index(
-        "/device-auth.js?v=5.9.76"
+        "/device-auth.js?v=5.9.76-native-billing-identity-1"
     )
     assert "'/auth-resilience.js?v=5.9.76'" in worker
     assert "url.pathname === '/auth-resilience.js'" in worker

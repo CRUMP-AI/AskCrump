@@ -514,7 +514,7 @@ def test_changed_activation_assets_are_release_versioned():
 
     for asset in (
         "/crump-v1-body.css?v=5.9.76-credit-truth-1",
-        "/device-auth.js?v=5.9.76",
+        "/device-auth.js?v=5.9.76-native-billing-identity-1",
         "/auth-controller.js?v=5.9.76-attribution-registry-1",
     ):
         assert asset in shell
