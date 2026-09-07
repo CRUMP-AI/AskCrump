@@ -42,6 +42,26 @@ for (const name of files) {
     process.exit(1);
   }
 
+  // A later function declaration at the same lexical indentation silently
+  // wins through hoisting. That made the Projects request wrapper shadow its
+  // low-level transport while still passing syntax and handler-ownership
+  // checks. Keep helper declarations unambiguous inside every browser asset.
+  const namedFunctions = new Map();
+  for (const match of source.matchAll(/^([ \t]*)(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/gm)) {
+    const indentation = match[1].replaceAll('\t', '  ').length;
+    const functionName = match[2];
+    const key = `${indentation}:${functionName}`;
+    const line = source.slice(0, match.index).split('\n').length;
+    if (namedFunctions.has(key)) {
+      console.error(
+        `${name} redeclares function ${functionName} at the same lexical indentation `
+        + `(lines ${namedFunctions.get(key)} and ${line}).`,
+      );
+      process.exit(1);
+    }
+    namedFunctions.set(key, line);
+  }
+
   const result = spawnSync(process.execPath, ['--check', fileURLToPath(path)], { stdio: 'inherit' });
   if (result.status !== 0) process.exit(result.status ?? 1);
 }

@@ -1,4 +1,9 @@
+import os
+import shutil
+import subprocess
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -24,6 +29,43 @@ def test_subscription_runtime_is_part_of_javascript_contract():
     assert "crump-subscriptions-5.3.2.js" in checker
     assert "ask-crump-new-body-v1-r217" in checker
     assert "crump-polish-5.6.js" in checker
+
+
+def test_javascript_contract_rejects_shadowed_same_scope_action_functions(tmp_path):
+    checker = read("scripts/check-javascript.mjs")
+
+    assert "const namedFunctions = new Map();" in checker
+    assert "redeclares function ${functionName} at the same lexical indentation" in checker
+    assert "namedFunctions.has(key)" in checker
+
+    scripts = tmp_path / "scripts"
+    public = tmp_path / "public"
+    scripts.mkdir()
+    public.mkdir()
+    shutil.copy2(ROOT / "scripts" / "check-javascript.mjs", scripts)
+    for source in (ROOT / "public").glob("*.js"):
+        shutil.copy2(source, public)
+    target = public / "account-manager.js"
+    target.write_text(
+        target.read_text(encoding="utf-8")
+        + "\nfunction duplicatedReleaseAction() {}"
+        + "\nfunction duplicatedReleaseAction() {}\n",
+        encoding="utf-8",
+    )
+
+    node = os.environ.get("ASKCRUMP_NODE_EXECUTABLE") or shutil.which("node")
+    if not node:
+        pytest.skip("Node.js is required to execute the JavaScript release guard.")
+
+    result = subprocess.run(
+        [node, str(scripts / "check-javascript.mjs")],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1
+    assert "account-manager.js redeclares function duplicatedReleaseAction" in result.stderr
 
 
 def test_navigation_repair_is_precached_and_network_first():
