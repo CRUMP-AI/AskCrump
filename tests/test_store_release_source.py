@@ -43,6 +43,15 @@ def test_ios_cloud_verification_cannot_sign_or_upload():
     workflow = read('.github/workflows/ios-store-verify.yml')
 
     assert 'runs-on: macos-15' in workflow
+    for source in (
+        'public/**',
+        'backend/revenuecat_catalog.json',
+        'store/**',
+        'scripts/check-javascript.mjs',
+        'scripts/production-build-preflight.mjs',
+        'scripts/revenuecat-catalog.mjs',
+    ):
+        assert source in workflow
     assert 'npm run store:prepare:ios' in workflow
     assert 'CODE_SIGNING_ALLOWED=NO' in workflow
     assert 'CODE_SIGNING_REQUIRED=NO' in workflow
@@ -58,6 +67,15 @@ def test_android_cloud_verification_builds_a_bundle_without_signing_or_upload():
     workflow = read('.github/workflows/android-store-verify.yml')
 
     assert 'runs-on: ubuntu-latest' in workflow
+    for source in (
+        'public/**',
+        'backend/revenuecat_catalog.json',
+        'store/**',
+        'scripts/check-javascript.mjs',
+        'scripts/production-build-preflight.mjs',
+        'scripts/revenuecat-catalog.mjs',
+    ):
+        assert source in workflow
     assert 'actions/setup-java@v5' in workflow
     assert 'java-version: "21"' in workflow
     assert 'npm run store:prepare:android' in workflow

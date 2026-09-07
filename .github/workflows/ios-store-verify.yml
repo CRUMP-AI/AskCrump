@@ -9,9 +9,17 @@ on:
       - package.json
       - package-lock.json
       - capacitor.config.ts
+      - public/**
+      - backend/revenuecat_catalog.json
+      - store/**
+      - docs/STORE_LISTING_COPY.md
+      - docs/BILLING_5_1.md
       - scripts/build-native.mjs
+      - scripts/check-javascript.mjs
       - scripts/configure-native.mjs
       - scripts/prepare-store-release.mjs
+      - scripts/production-build-preflight.mjs
+      - scripts/revenuecat-catalog.mjs
       - scripts/verify-native-release.mjs
       - scripts/verify-store-metadata.mjs
       - resources/PrivacyInfo.xcprivacy
