@@ -48,8 +48,22 @@ affect this web/PWA release; no store-readiness claim is made here.
 
 ## Production acceptance
 
-Production acceptance requires the READY deployment to serve the exact versioned
-`crump-5.0.js` and `crump-5.2.js` bytes, the health endpoint to remain ready, and fresh
-desktop and phone-width checks to prove both creation routes and composer reset behavior
-without console errors. Deployment identifiers and live proof are appended only after
-that acceptance is complete.
+Commit `42c4472` deployed as `dpl_8YF4LFiLvmED2J9ifrtvpqW5yyWH`. Vercel reported the
+deployment READY with all six production aliases and no alias error. All four public
+domains returned health version `5.9.76` and served the exact committed bytes for both
+corrected assets:
+
+- `crump-5.0.js` — SHA-256
+  `249760a3db6f0910463c60461f3225279493caaf00942eba385dfee7c45f6d3f`
+- `crump-5.2.js` — SHA-256
+  `b9c0d9c4d203391727aa8f383e178f188e5a178575c7336f5d6f38db6cd5ad93`
+
+A fresh isolated signed-in production tab then proved Add → Create image, Add → Create
+document, DOCX-mode entry, chip removal, neutral placeholder restoration, and composer
+focus on desktop. At 390 by 844 it proved both studios visible with their close controls
+focused. The existing owner tab and its unsaved image-editor state were not reloaded or
+changed. No prompt was sent, no file was uploaded or generated, and no account, Project,
+conversation, payment, credit, provider job, or customer content was mutated for proof.
+
+The first 30-minute post-deployment runtime-error query returned no clusters; the
+deployment-scoped warning/error/fatal log query returned no entries.
