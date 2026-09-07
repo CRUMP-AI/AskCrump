@@ -469,6 +469,29 @@
     return null;
   }
 
+  function defaultComposerPlaceholder() {
+    const assistant = String(window.getAssistantName?.() || 'Crump').trim() || 'Crump';
+    const projectContext = $('.crump53-active-project > span')?.textContent || '';
+    const projectName = projectContext.replace(/^IN PROJECT\s*[·:]\s*/i, '').trim();
+    return projectName ? `Message ${assistant} in ${projectName}…` : `Message ${assistant}`;
+  }
+
+  function restoreComposerPlaceholder({focus = false} = {}) {
+    const input = $('#userInput');
+    if (!input) return;
+    input.placeholder = defaultComposerPlaceholder();
+    if (focus) input.focus({preventScroll: true});
+  }
+
+  function clearToolMode({focus = false} = {}) {
+    if (state.tool === 'image') state.imageRecovery = null;
+    state.tool = null;
+    state.documentFormat = null;
+    state.documentPurpose = null;
+    renderToolChip();
+    restoreComposerPlaceholder({focus});
+  }
+
   function renderToolChip() {
     let host = $('#crump50ToolChipHost');
     const area = $('.input-area');
@@ -486,13 +509,7 @@
     chip.type = 'button';
     chip.className = 'crump50-tool-chip';
     chip.innerHTML = `<span>${label}</span><i aria-hidden="true">×</i>`;
-    chip.addEventListener('click', () => {
-      if (state.tool === 'image') state.imageRecovery = null;
-      state.tool = null;
-      state.documentFormat = null;
-      state.documentPurpose = null;
-      renderToolChip();
-    });
+    chip.addEventListener('click', () => clearToolMode({focus: true}));
     host.appendChild(chip);
   }
 
@@ -1106,7 +1123,7 @@
       state.precisionImageEdit = null;
       renderAttachmentTray();
       const sentTool = state.tool;
-      state.tool = null; state.documentFormat = null; state.documentPurpose = null; renderToolChip();
+      clearToolMode();
 
       const sync = await window.syncChatsToServer?.();
       if (sync && sync.success === false) throw Object.assign(new Error('This message is waiting to sync.'), {quiet: true});
@@ -1286,7 +1303,7 @@
     }
     const input = $('#userInput');
     if (input) {
-      input.placeholder = `Message ${window.getAssistantName?.() || 'Crump'}`;
+      restoreComposerPlaceholder();
       input.maxLength = 20000;
     }
     window.sendMessage = studioSendMessage;
@@ -1733,6 +1750,14 @@
     open: showImageOptions,
     applyPrecisionSelection: stagePrecisionImageEdit,
   });
+  function scheduleComposerPlaceholderSync() {
+    const sync = () => {
+      if (!state.tool) restoreComposerPlaceholder();
+    };
+    requestAnimationFrame(sync);
+    window.setTimeout(sync, 700);
+  }
+  window.addEventListener('crump:conversation-opened', scheduleComposerPlaceholderSync);
   function boot() {
     if (document.documentElement.dataset.crump50Booted === 'true') return;
     document.documentElement.dataset.crump50Booted = 'true';

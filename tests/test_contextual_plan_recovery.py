@@ -62,6 +62,7 @@ def test_recovery_summary_is_responsive_and_does_not_create_checkout():
 
 def test_contextual_recovery_assets_are_registered_for_web_pwa_and_native():
     credit_truth_version = "5.9.76-credit-truth-1"
+    attach_creation_version = "5.9.76-attach-creation-routing-1"
     confirmation_version = "5.9.76-credit-confirmation-1"
     project_wrapper_version = "5.9.76-output-project-action-1"
     runtime = read("public/runtime-body-v1.js")
@@ -70,7 +71,7 @@ def test_contextual_recovery_assets_are_registered_for_web_pwa_and_native():
 
     for asset in (
         f"/crump-billing-5.1.js?v={credit_truth_version}",
-        f"/crump-5.2.js?v={credit_truth_version}",
+        f"/crump-5.2.js?v={attach_creation_version}",
     ):
         assert asset in runtime
         assert asset in worker

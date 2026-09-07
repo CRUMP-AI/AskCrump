@@ -449,22 +449,19 @@
       attachChoice('◉', 'Camera', 'Take a new photo', () => launchExistingPicker('image/*', { multiple: false, capture: 'environment' })),
       attachChoice('✦', 'Create image', 'Generate or edit an image with Crump', () => {
         closeAttachMenu();
-        const input = $('#userInput');
-        if (input) {
-          input.placeholder = 'Describe the image you want Crump to create…';
-          input.focus();
-          document.documentElement.dataset.crump52CreativeTool = 'image';
+        if (typeof window.CrumpImageStudio?.open === 'function') {
+          window.CrumpImageStudio.open();
+          return;
         }
-        window.showToast?.('Image creation mode ready', 'info');
+        window.showToast?.('Image Studio is still loading. Try again in a moment.', 'info');
       }),
       attachChoice('▥', 'Create document', 'DOCX, PDF, slides, spreadsheet, text', () => {
         closeAttachMenu();
-        const input = $('#userInput');
-        if (input) {
-          input.placeholder = 'Describe the document you want Crump to create…';
-          input.focus();
+        if (typeof window.CrumpDocumentStudio?.open === 'function') {
+          window.CrumpDocumentStudio.open();
+          return;
         }
-        window.showToast?.('Tell Crump what document you want and name the format.', 'info');
+        window.showToast?.('Document Studio is still loading. Try again in a moment.', 'info');
       })
     );
 

@@ -483,8 +483,10 @@ const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
 const nativeBillingIdentityVersion = `${releaseVersion}-native-billing-identity-1`;
 const creditPackTruthVersion = `${releaseVersion}-credit-pack-truth-1`;
 const creditTruthVersion = `${releaseVersion}-credit-truth-1`;
+const attachCreationRoutingVersion = `${releaseVersion}-attach-creation-routing-1`;
 const creditConfirmationVersion = `${releaseVersion}-credit-confirmation-1`;
 const outputProjectActionVersion = `${releaseVersion}-output-project-action-1`;
+const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
 const accountDeletionBillingVersion = `${releaseVersion}-account-deletion-billing-1`;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
@@ -754,9 +756,10 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-v1-body.js?v=${destinationBackgroundGuardVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${creditTruthVersion}`) ||
     !runtime.includes(`/crump-5.0.css?v=${precisionEditEntryVersion}`) ||
-    !runtime.includes(`/crump-5.0.js?v=${outputProjectActionVersion}`) ||
+    !runtime.includes(`/crump-5.0.js?v=${composerModeResetVersion}`) ||
     !runtime.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     !runtime.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
+    !runtime.includes(`/crump-5.2.js?v=${attachCreationRoutingVersion}`) ||
     !runtime.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
     !runtime.includes(`/crump-5.2.2.js?v=${newResponseCueVersion}`) ||
     !runtime.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
@@ -925,7 +928,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r219') ||
     !serviceWorker.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.css?v=${precisionEditEntryVersion}`) ||
     !serviceWorker.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
-    !serviceWorker.includes(`/crump-5.0.js?v=${outputProjectActionVersion}`) ||
+    !serviceWorker.includes(`/crump-5.0.js?v=${composerModeResetVersion}`) ||
     !serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     !serviceWorker.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
     !serviceWorker.includes(`/ui-functions.js?v=${projectSaveMeasurementVersion}`) ||
@@ -988,7 +991,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r219') ||
     !serviceWorker.includes(`/subscription-ui.js?v=${commerceRecoveryVersion}`) ||
     !serviceWorker.includes(`/crump-billing-5.1.css?v=${creditTruthVersion}`) ||
     !serviceWorker.includes(`/crump-billing-5.1.js?v=${creditTruthVersion}`) ||
-    !serviceWorker.includes(`/crump-5.2.js?v=${creditTruthVersion}`) ||
+    !serviceWorker.includes(`/crump-5.2.js?v=${attachCreationRoutingVersion}`) ||
     !serviceWorker.includes(`/crump-subscriptions-5.3.2.js?v=${commerceRecoveryVersion}`) ||
     !serviceWorker.includes('/crump-library-5.7.js') ||
     !serviceWorker.includes('/crump-library-5.7.css')) {

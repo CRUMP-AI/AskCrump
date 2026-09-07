@@ -100,6 +100,16 @@ def test_dynamic_button_systems_use_direct_or_delegated_click_owners() -> None:
         assert f"byId('{button_id}')?.addEventListener('click'" in library
 
 
+def test_add_menu_creation_buttons_open_the_authoritative_studios() -> None:
+    attachment = (PUBLIC / "crump-5.2.js").read_text(encoding="utf-8")
+    menu = attachment[attachment.index("function showAttachMenu52"):attachment.index("function ownAttachButton")]
+
+    assert "window.CrumpImageStudio.open();" in menu
+    assert "window.CrumpDocumentStudio.open();" in menu
+    assert "document.documentElement.dataset.crump52CreativeTool = 'image'" not in menu
+    assert "input.placeholder = 'Describe the document you want Crump to create…'" not in menu
+
+
 def test_generated_output_project_button_has_visible_pending_and_recovery_states() -> None:
     composer = (PUBLIC / "crump-5.0.js").read_text(encoding="utf-8")
     action = composer[
@@ -125,6 +135,44 @@ def test_tutorial_names_the_current_image_apply_button() -> None:
     assert phrase in tutorial
     assert "saveLocal.textContent = 'Apply changes'" in editor
     assert "Save local edit" not in tutorial
+
+
+def test_creation_mode_chip_restores_the_normal_contextual_composer() -> None:
+    composer = (PUBLIC / "crump-5.0.js").read_text(encoding="utf-8")
+
+    assert "function defaultComposerPlaceholder()" in composer
+    assert "function restoreComposerPlaceholder({focus = false} = {})" in composer
+    assert "function clearToolMode({focus = false} = {})" in composer
+    assert "chip.addEventListener('click', () => clearToolMode({focus: true}))" in composer
+    assert "input.placeholder = defaultComposerPlaceholder();" in composer
+    assert "Message ${assistant} in ${projectName}…" in composer
+    assert "window.addEventListener('crump:conversation-opened', scheduleComposerPlaceholderSync)" in composer
+
+
+def test_button_state_browser_fixture_is_private_and_credential_free() -> None:
+    fixture = (ROOT / "tests" / "fixtures" / "creation-sheet-containment.html").read_text(encoding="utf-8")
+    verifier = (ROOT / "scripts" / "verify-button-state-integrity.cjs").read_text(encoding="utf-8")
+
+    assert "Simulate Project conversation" in fixture
+    assert "IN PROJECT · Button QA" in fixture
+    assert "Create DOCX" in verifier
+    assert "Create PPTX" in verifier
+    assert "contextualAfterTool" in verifier
+    assert "password" not in fixture.lower()
+    assert "askcrump.com" not in fixture
+
+
+def test_add_menu_browser_fixture_exercises_both_authoritative_studios() -> None:
+    fixture = (ROOT / "tests" / "fixtures" / "attach-creation-routing.html").read_text(encoding="utf-8")
+    verifier = (ROOT / "scripts" / "verify-attach-creation-routing.cjs").read_text(encoding="utf-8")
+
+    assert '<script src="/public/crump-5.0.js?v=attach-creation-routing-fixture-1"></script>' in fixture
+    assert '<script src="/public/crump-5.2.js?v=attach-creation-routing-fixture-1"></script>' in fixture
+    assert "Create image Generate or edit an image" in verifier
+    assert "Create document DOCX" in verifier
+    assert "dataset.crump52CreativeTool" in verifier
+    assert "password" not in fixture.lower()
+    assert "askcrump.com" not in fixture
 
 
 def test_library_new_button_opens_the_visible_manuscript_workspace_first() -> None:

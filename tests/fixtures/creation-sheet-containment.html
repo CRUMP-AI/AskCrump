@@ -25,6 +25,7 @@
     <section id="transientDocumentEntry">
       <button id="openDocumentStudioTransient" type="button" onclick="this.parentElement.hidden = true; window.CrumpDocumentStudio?.open()">Open Document Studio from a transient chooser</button>
     </section>
+    <button id="simulateProjectConversation" type="button">Simulate Project conversation</button>
     <div class="input-area">
       <div id="filePreview"></div>
       <div class="input-container">
@@ -42,6 +43,14 @@
   <script>
     window.fetch = async () => new Response('{}', {status:200, headers:{'Content-Type':'application/json'}});
     window.showToast = () => {};
+    document.getElementById('simulateProjectConversation').addEventListener('click', () => {
+      document.querySelector('.crump53-active-project')?.remove();
+      const context = document.createElement('div');
+      context.className = 'crump53-active-project';
+      context.innerHTML = '<span>IN PROJECT · Button QA</span>';
+      document.getElementById('fixtureWorkspace').prepend(context);
+      window.dispatchEvent(new CustomEvent('crump:conversation-opened', {detail:{chatId:'fixture-project'}}));
+    });
   </script>
   <script src="/public/crump-5.0.js?v=creation-sheet-containment-fixture-1"></script>
 </body>

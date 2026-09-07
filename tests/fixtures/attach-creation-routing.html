@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ask Crump Add-menu creation routing fixture</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/public/crump-5.0.css?v=attach-creation-routing-fixture-1">
+  <link rel="stylesheet" href="/public/crump-5.2.css?v=attach-creation-routing-fixture-1">
+  <style>
+    body { margin:0; min-height:100vh; background:#090c10; color:#f7f3e9; font:16px/1.5 system-ui,sans-serif; }
+    main { min-height:100vh; display:grid; place-items:center; }
+    .input-area, .input-container { display:grid; gap:12px; }
+    button, textarea { font:inherit; }
+    textarea { width:min(620px,82vw); min-height:90px; }
+  </style>
+</head>
+<body>
+  <main id="fixtureWorkspace">
+    <div class="input-area">
+      <div id="filePreview"></div>
+      <div class="input-container">
+        <button id="attachBtn" type="button" aria-label="Add to conversation">Add</button>
+        <textarea id="userInput" aria-label="Message Crump" placeholder="Message Crump"></textarea>
+        <button id="sendButton" type="button" aria-label="Send message">Send</button>
+      </div>
+    </div>
+    <input id="fileInput" type="file" hidden>
+  </main>
+  <div id="toastContainer" aria-live="polite"></div>
+  <script>
+    window.fetch = async () => new Response('{}', {status:200, headers:{'Content-Type':'application/json'}});
+    window.showToast = () => {};
+  </script>
+  <script src="/public/crump-5.0.js?v=attach-creation-routing-fixture-1"></script>
+  <script src="/public/crump-5.2.js?v=attach-creation-routing-fixture-1"></script>
+</body>
+</html>
