@@ -785,13 +785,20 @@ begin a ground-up rewrite or major architecture change from visual preference al
 **Evidence:** the 2026-09-01 release sequence now includes manual Brush/Erase/Lasso/Move/Place,
 bounded invert selection, 100–400% zoom/pan, Undo/Redo, before/after comparison, bounded live
 warmth/exposure/saturation previews, owner-scoped saved PNG versions, exact deterministic
-logo/image/text overlays, and protected-pixel restoration after paid generative output. It still
-does not include feathering, crop/rotate, or an explicit version-history browser. A legitimate
-rights-cleared save and provider edit plus signed physical-device proof also remain acceptance work.
+logo/image/text overlays, and protected-pixel restoration after paid generative output. Commit
+**e8c6729** and deployment **dpl_8CXBoL1QxtzdNuUu1sjhnDff9HXe** now add a bounded 0–3% feather,
+manual and preset crop, 90-degree rotation with reset, and an owner-scoped connected version
+browser. Geometry is deterministically replayed before mask/overlay validation, every application
+creates an immutable retry-stable private PNG, and unsaved geometry becomes a free matching source
+before AI handoff. The live assets matched committed bytes and the full desktop/mobile interaction
+fixture plus all 845 collected Python tests, 49 JavaScript validations, CI, Android, and iOS
+workflows passed. Evidence:
+**docs/PRECISION_EDIT_COMPLETE_WORKFLOW_RELEASE_2026-09-07.md**. A legitimate rights-cleared save
+and provider edit plus signed physical-device proof remain acceptance work.
 
-**Outcome:** complete the remaining high-value workflow with feathering, crop/rotate, an explicit
-immutable source/version-history surface, and an exact server-authoritative quote before a paid
-generative render. Never infer, classify, label, or expose a person's race, and do not present a
+**Outcome:** the remaining high-value browser workflow is shipped with feathering, crop/rotate, an
+explicit immutable source/version-history surface, and the existing exact server-authoritative
+quote before a paid generative render. Never infer, classify, label, or expose a person's race, and do not present a
 **detect/change race** control. Treat rights-cleared images of minors as a stricter benign-edit
 boundary. Keep exact logos and readable text on the shipped non-generative compositing path instead
 of asking a model to redraw them.
@@ -823,6 +830,12 @@ stage, with branding added in post to prevent generated-logo distortion.
 aspect ratios, one measurable CTA, and controlled tests against activation—not view count alone.
 
 ## Next operating decision
+
+The 2026-09-07 privacy-safe comparable-cohort refresh from 2026-09-01 through the observation time
+returned no grouped production row and zero account, activation, durable-value, Project, artifact,
+retention, or payer counts. Refund, recognized-revenue, and variable-cost fields therefore remain
+unavailable rather than zero. There is still no honest cohort signal to justify funnel or pricing
+changes; gather real acquisition and activation evidence before interpreting conversion.
 
 The 2026-09-01 production measurement refresh showed **95** anonymous visitors over the selected
 seven-day window, **16** `SignupIntent` visitors, **2** `SignupStarted` visitors, and no
