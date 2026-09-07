@@ -14,6 +14,7 @@ on:
       - store/**
       - docs/STORE_LISTING_COPY.md
       - docs/BILLING_5_1.md
+      - docs/DATA_SAFETY.md
       - scripts/build-native.mjs
       - scripts/check-javascript.mjs
       - scripts/configure-native.mjs
@@ -21,6 +22,7 @@ on:
       - scripts/production-build-preflight.mjs
       - scripts/revenuecat-catalog.mjs
       - scripts/verify-native-release.mjs
+      - scripts/verify-native-privacy.mjs
       - scripts/verify-store-metadata.mjs
       - resources/PrivacyInfo.xcprivacy
       - resources/icon.png
@@ -71,6 +73,17 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             build
+      - name: Verify compiled privacy-manifest inventory
+        run: |
+          app_bundle="$(find "$RUNNER_TEMP/AskCrumpDerivedData/Build/Products/Release-iphoneos" -maxdepth 1 -type d -name '*.app' -print -quit)"
+          if [[ -z "$app_bundle" ]]; then
+            echo 'Compiled iOS app bundle was not found.' >&2
+            exit 1
+          fi
+          while IFS= read -r manifest; do
+            plutil -lint "$manifest"
+          done < <(find "$app_bundle" -type f -name 'PrivacyInfo.xcprivacy' -print)
+          node scripts/verify-native-privacy.mjs ios-bundle "$app_bundle"
       - name: Record verification boundary
         run: |
           {
@@ -79,5 +92,6 @@ jobs:
             echo '- Generated from the reviewed Node 22 lockfile.'
             echo '- Native source verifier passed.'
             echo '- Xcode compiled the Release configuration without signing.'
+            echo '- The compiled app and Capacitor bundles contain valid, reconciled privacy manifests.'
             echo '- No certificate, provisioning profile, App Store credential, upload, or submission was used.'
           } >> "$GITHUB_STEP_SUMMARY"

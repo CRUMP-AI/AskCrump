@@ -20,11 +20,30 @@ Use this engineering inventory to complete Apple App Privacy and Google Play Dat
 | Approximate IP/network information | Yes | security, rate limiting, abuse prevention | Yes | application/database logs and session records |
 | Usage events | Yes | limits, cost control, abuse prevention | Yes | Supabase |
 | AI response safety reports | When a user taps Report | moderation, policy enforcement, safeguard improvement | Yes | Supabase; reviewed by authorized Clever Crump staff |
-| Subscription status | Yes | entitlement | Yes | Stripe or Apple/Google/RevenueCat; status mirrored in Supabase |
+| Subscription status and purchase history | Yes | entitlement, fraud prevention, purchase reconciliation, and aggregate subscription and credit analytics | Yes | Stripe or Apple/Google/RevenueCat; status mirrored in Supabase |
 | Full card number | No | — | — | handled by Stripe or the platform store |
 | Precise location | No | — | — | geolocation permission disabled |
 | Contacts | No | — | — | no contacts integration |
 | Advertising data | No in this build | — | — | no advertising SDK |
+
+## Native SDK inventory
+
+Every runtime native package is pinned in `package-lock.json` and named here so a dependency change
+cannot bypass Apple App Privacy or Google Play Data Safety review. The store privacy verifier fails
+closed when this inventory and the runtime dependency set diverge.
+
+| Package | Native capability | Disclosure boundary |
+|---|---|---|
+| `@capacitor/core` | Web/native bridge | Framework plumbing; its bundled Apple privacy manifest is required in the compiled app. |
+| `@capacitor/app` | App lifecycle and deep links | Handles app state and public verification/deep-link destinations; no advertising or tracking. |
+| `@capacitor/haptics` | Optional tactile feedback | On-device only; no data is transmitted by this feature. |
+| `@capacitor/keyboard` | Keyboard layout events | On-device interface layout only; message text is not sent through this plugin. |
+| `@capacitor/network` | Connection-state recovery | Reads online/offline state for recovery; no location permission or network name is requested. |
+| `@capacitor/push-notifications` | Optional check-in notifications | Sends an account-linked push token only after the user enables notifications. |
+| `@capacitor/status-bar` | Native chrome styling | On-device interface styling only. |
+| `@aparajita/capacitor-secure-storage` | Session credential storage | Keeps the private native session credential on device; it does not add an analytics channel. |
+| `@capacitor-community/media` | Explicit media selection and saving | Access occurs only for a user-selected image/video action; submitted content follows the attachment/media rows above. |
+| `@revenuecat/purchases-capacitor` | Store products, purchase, restore, and entitlement sync | Sends the account-scoped app user ID and purchase history for app functionality, fraud prevention, purchase reconciliation, and aggregate subscription and credit analytics; no ad attribution collection is enabled. |
 
 ## User controls
 

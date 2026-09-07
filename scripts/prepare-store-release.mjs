@@ -43,6 +43,7 @@ function run(command, args) {
 }
 
 run(process.execPath, ['scripts/verify-store-metadata.mjs']);
+run(process.execPath, ['scripts/verify-native-privacy.mjs', 'source']);
 if (!(await exists(new URL('package-lock.json', root)))) {
   console.error('package-lock.json is required for reproducible store preparation. Generate and review it with the approved Node 22/npm toolchain before continuing.');
   process.exit(1);
