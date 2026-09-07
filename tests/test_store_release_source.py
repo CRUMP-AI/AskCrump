@@ -33,6 +33,9 @@ def test_store_prepare_commands_are_platform_specific():
     assert "new URL('package-lock.json', root)" in prepare
     assert 'required for reproducible store preparation' in prepare
 
+    ci = read('.github/workflows/ci.yml')
+    assert 'npm run store:verify:metadata && npm run store:verify:privacy' in ci
+
 
 def test_reproducible_node22_lockfile_is_committed_and_aligned():
     package = json.loads(read('package.json'))
@@ -198,21 +201,12 @@ def test_native_privacy_verifier_tracks_runtime_sdks_and_compiled_outputs():
     assert 'android.permission.ACCESS_FINE_LOCATION' in verifier
 
 
-def test_native_privacy_verifier_executes_source_and_compiled_boundaries(tmp_path):
+def test_native_privacy_verifier_executes_compiled_boundaries(tmp_path):
     node = os.environ.get('ASKCRUMP_NODE_EXECUTABLE') or shutil.which('node')
     if not node:
         pytest.skip('Node.js is required to execute the native privacy verifier.')
 
     verifier = ROOT / 'scripts' / 'verify-native-privacy.mjs'
-
-    source_result = subprocess.run(
-        [node, str(verifier), 'source'],
-        cwd=ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert source_result.returncode == 0, source_result.stderr
 
     android_manifest = tmp_path / 'AndroidManifest.xml'
     android_manifest.write_text(
