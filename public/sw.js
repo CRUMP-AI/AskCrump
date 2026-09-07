@@ -128,6 +128,8 @@ function bootCritical(request, url) {
     url.pathname === '/crump-library-5.7.js' ||
     url.pathname === '/crump-library-5.7.css' ||
     url.pathname === '/conversation.css' ||
+    url.pathname === '/credit-confirmation.css' ||
+    url.pathname === '/credit-confirmation.js' ||
     url.pathname === '/chat-resilience.js' ||
     url.pathname === '/crump-5.0.js' ||
     url.pathname === '/crump-5.0.css' ||

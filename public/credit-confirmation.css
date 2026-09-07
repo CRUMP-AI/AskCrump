@@ -1,0 +1,130 @@
+.crump-credit-confirmation {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: grid;
+  place-items: center;
+  padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+}
+.crump-credit-confirmation__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(3, 5, 8, .76);
+  backdrop-filter: blur(18px);
+}
+.crump-credit-confirmation__sheet {
+  position: relative;
+  width: min(100%, 520px);
+  max-height: min(760px, calc(100dvh - 36px));
+  overflow: auto;
+  border: 1px solid rgba(224, 198, 137, .24);
+  border-radius: 26px;
+  padding: 30px;
+  color: #f7f3e9;
+  background: linear-gradient(155deg, rgba(27, 29, 33, .99), rgba(11, 13, 17, .99));
+  box-shadow: 0 34px 100px rgba(0, 0, 0, .56);
+}
+.crump-credit-confirmation__close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  color: #d9d2c4;
+  background: rgba(255, 255, 255, .07);
+  cursor: pointer;
+}
+.crump-credit-confirmation__eyebrow {
+  display: block;
+  margin-bottom: 10px;
+  color: #d8bb78;
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: .15em;
+}
+.crump-credit-confirmation h2 {
+  margin: 0 40px 12px 0;
+  font-size: clamp(24px, 5vw, 34px);
+  line-height: 1.05;
+}
+.crump-credit-confirmation p {
+  color: #bdb7aa;
+  line-height: 1.62;
+}
+.crump-credit-confirmation p strong { color: #fff8e8; }
+.crump-credit-confirmation__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin: 20px 0 12px;
+}
+.crump-credit-confirmation__facts div,
+.crump-credit-confirmation__balance {
+  padding: 13px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .035);
+}
+.crump-credit-confirmation__facts dt,
+.crump-credit-confirmation__balance span {
+  color: #8f8a80;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.crump-credit-confirmation__facts dd {
+  margin: 5px 0 0;
+  color: #f6efe0;
+  font-weight: 680;
+}
+.crump-credit-confirmation__stop { margin: 8px 0 18px; font-size: 13px; }
+.crump-credit-confirmation__balance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+.crump-credit-confirmation__balance strong { color: #f5deb0; }
+.crump-credit-confirmation__actions {
+  display: grid;
+  grid-template-columns: 1fr 1.35fr;
+  gap: 10px;
+  margin-top: 20px;
+}
+.crump-credit-confirmation__actions button {
+  min-height: 48px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  font: inherit;
+  font-weight: 720;
+  cursor: pointer;
+}
+.crump-credit-confirmation__cancel {
+  color: #d9d4c9;
+  background: rgba(255, 255, 255, .04);
+}
+.crump-credit-confirmation__confirm {
+  color: #15120b;
+  border-color: #e2c27d !important;
+  background: linear-gradient(135deg, #f0d89f, #c89d49);
+}
+@media (max-width: 520px) {
+  .crump-credit-confirmation { align-items: end; padding: 0; }
+  .crump-credit-confirmation__sheet {
+    width: 100%;
+    max-height: 88dvh;
+    border-radius: 26px 26px 0 0;
+    padding: 25px 20px max(22px, env(safe-area-inset-bottom));
+  }
+  .crump-credit-confirmation__facts { grid-template-columns: 1fr 1fr; }
+  .crump-credit-confirmation__actions { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .crump-credit-confirmation__sheet { animation: crump-credit-in .18s ease-out both; }
+  @keyframes crump-credit-in {
+    from { opacity: 0; transform: translateY(12px) scale(.985); }
+  }
+}
+

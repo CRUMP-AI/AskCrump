@@ -39,6 +39,7 @@ def _feature_error(exc: FeatureAccessError) -> JSONResponse:
             "requiredTier": exc.required_tier,
             "creditsRequired": exc.credit_cost,
             "creditBalance": exc.credit_balance,
+            "creditQuote": exc.quote,
         },
     )
 
@@ -145,6 +146,13 @@ async def run_code_task(task_id: str, request: Request):
             auth.user,
             "code_workspace",
             {"route": "code_task", "mode": task.get("mode")},
+            confirmation=payload.get("creditConfirmation"),
+            instance_key=str(task.get("id") or task_id),
+            scope={
+                "route": "code_task",
+                "taskId": str(task.get("id") or task_id),
+                "mode": task.get("mode"),
+            },
         )
     except FeatureAccessError as exc:
         return _feature_error(exc)

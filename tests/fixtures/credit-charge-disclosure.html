@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Credit charge disclosure fixture</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/public/credit-confirmation.css?v=credit-fixture-1">
+  <style>
+    :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; }
+    body { margin: 0; background: #090c10; color: #f4f0e8; }
+    main { width: min(900px, calc(100% - 32px)); margin: 40px auto; }
+    h1 { font-size: clamp(26px, 5vw, 46px); margin-bottom: 8px; }
+    p { color: #aaa59c; line-height: 1.55; }
+    .cases { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 24px 0; }
+    .cases button { min-height: 52px; border: 1px solid rgba(217,195,147,.2); border-radius: 14px; background: rgba(255,255,255,.035); color: #f4f0e8; font: inherit; cursor: pointer; }
+    output { display: block; min-height: 88px; padding: 18px; border: 1px solid rgba(255,255,255,.08); border-radius: 16px; background: rgba(255,255,255,.025); white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <main>
+    <span>PRIVATE LOCAL FIXTURE</span>
+    <h1>Credit-charge states</h1>
+    <p>No account, provider, analytics service, or credit ledger is connected. Each case uses fixed synthetic state.</p>
+    <div class="cases">
+      <button type="button" data-case="included">Included now · 0 credits</button>
+      <button type="button" data-case="positive">Positive · 6 credits</button>
+      <button type="button" data-case="insufficient">Insufficient · needs 10</button>
+      <button type="button" data-case="stale">Stale higher · 6 → 10</button>
+      <button type="button" data-case="duplicate">Duplicate accepted action</button>
+      <button type="button" data-case="ceiling">Manuscript ceiling · 24</button>
+    </div>
+    <output id="fixtureStatus" aria-live="polite">Choose a synthetic case.</output>
+  </main>
+  <script src="/public/credit-confirmation.js?v=credit-fixture-1"></script>
+  <script>
+    const status = document.getElementById('fixtureStatus');
+    const quote = (credits, overrides = {}) => ({
+      token: `fixture-token-${credits}`,
+      creditsRequired: credits,
+      creditBalance: 50,
+      balanceAfter: 50 - credits,
+      sufficientBalance: 50 >= credits,
+      ...overrides,
+    });
+    const required = value => {
+      const error = new Error('Synthetic confirmation required.');
+      error.data = {
+        code: 'CREDIT_CONFIRMATION_REQUIRED',
+        creditQuote: value,
+      };
+      return error;
+    };
+    window.__creditFixture = {
+      executions: 0,
+      deductions: 0,
+      analyticsAvailable: false,
+    };
+
+    async function runIncluded() {
+      const result = await window.CrumpCreditConfirmation.run(async confirmation => {
+        if (confirmation) throw new Error('Included work must not request confirmation.');
+        window.__creditFixture.executions += 1;
+        return {includedNow: true, creditsSpent: 0, balance: 50};
+      });
+      status.textContent = `PASS · Included now · 0 credits · balance ${result.balance} · no modal or deduction.`;
+    }
+
+    async function runPositive() {
+      let attempt = 0;
+      const result = await window.CrumpCreditConfirmation.run(async confirmation => {
+        attempt += 1;
+        if (!confirmation) throw required(quote(6));
+        if (confirmation.confirmedCredits !== 6) throw new Error('Wrong confirmation.');
+        window.__creditFixture.executions += 1;
+        window.__creditFixture.deductions += 1;
+        return {creditsSpent: 6, balance: 44};
+      });
+      status.textContent = `PASS · Used ${result.creditsSpent} credits · balance ${result.balance} · attempts ${attempt}.`;
+    }
+
+    function runInsufficient() {
+      const state = quote(10, {
+        creditBalance: 9,
+        balanceAfter: 0,
+        sufficientBalance: false,
+      });
+      status.textContent = `PASS · This action needs ${state.creditsRequired} Crump Credits. Current balance: ${state.creditBalance}. No execution or deduction. Exit remains available.`;
+    }
+
+    async function runStale() {
+      let attempt = 0;
+      const result = await window.CrumpCreditConfirmation.run(async confirmation => {
+        attempt += 1;
+        if (!confirmation) throw required(quote(6));
+        if (confirmation.confirmedCredits === 6) throw required(quote(10));
+        if (confirmation.confirmedCredits !== 10) throw new Error('Wrong refreshed confirmation.');
+        window.__creditFixture.executions += 1;
+        window.__creditFixture.deductions += 1;
+        return {creditsSpent: 10, balance: 40};
+      });
+      status.textContent = `PASS · Higher current charge required a new confirmation · used ${result.creditsSpent} · attempts ${attempt}.`;
+    }
+
+    function runDuplicate() {
+      const acceptedAction = 'fixture-action:fixture-component';
+      const ledger = new Set();
+      for (let retry = 0; retry < 2; retry += 1) {
+        if (!ledger.has(acceptedAction)) {
+          ledger.add(acceptedAction);
+          window.__creditFixture.deductions += 1;
+        }
+        window.__creditFixture.executions += 1;
+      }
+      status.textContent = `PASS · 2 accepted submissions · ${ledger.size} deduction · same action/component key.`;
+    }
+
+    async function runCeiling() {
+      const maximum = quote(24, {
+        multiStep: {
+          plannedSteps: 5,
+          chargeableSteps: 3,
+          perStepCredits: 8,
+          maximumCredits: 24,
+          stoppingRule: 'The run stops before it can exceed the approved maximum.',
+        },
+      });
+      const result = await window.CrumpCreditConfirmation.run(async confirmation => {
+        if (!confirmation) throw required(maximum);
+        if (confirmation.confirmedCredits !== 24) throw new Error('Wrong ceiling.');
+        return {approvedMaximum: 24, stoppingRuleEnforced: true};
+      });
+      status.textContent = `PASS · Maximum ${result.approvedMaximum} credits · stop-before-exceeding rule enforced.`;
+    }
+
+    const runners = {
+      included: runIncluded,
+      positive: runPositive,
+      insufficient: runInsufficient,
+      stale: runStale,
+      duplicate: runDuplicate,
+      ceiling: runCeiling,
+    };
+    document.querySelectorAll('[data-case]').forEach(button => {
+      button.addEventListener('click', async () => {
+        status.textContent = 'Running synthetic case…';
+        try {
+          await runners[button.dataset.case]();
+        } catch (error) {
+          status.textContent = `FAIL · ${error.message}`;
+        }
+      });
+    });
+  </script>
+</body>
+</html>
+

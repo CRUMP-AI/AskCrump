@@ -39,6 +39,39 @@ class FakeAI:
         return {'response': 'ok', 'model': 'test-model', 'usage': {}}
 
 
+class FakeFeatures:
+    def entitled(self, *_args):
+        return False
+
+    async def require_tier(self, *_args):
+        return None
+
+    async def authorize(self, _user, components, *_args, **_kwargs):
+        return SimpleNamespace(
+            action_key='test-action',
+            max_by_code={str(code): 0 for code in components},
+        )
+
+    async def consume_message(self, *_args, **_kwargs):
+        return {
+            'eventId': 'event-1',
+            'used': 1,
+            'limit': 100,
+            'remaining': 99,
+            'creditsSpent': 0,
+        }
+
+    async def consume(self, *_args, **_kwargs):
+        return {'eventId': 'feature-1', 'creditsSpent': 0}
+
+    async def refund(self, *_args, **_kwargs):
+        return None
+
+    @staticmethod
+    def project_limit(_user):
+        return 2
+
+
 def test_chat_identity_and_settings_are_server_authoritative(monkeypatch):
     fake_db = FakeDB()
     fake_ai = FakeAI()
@@ -50,13 +83,10 @@ def test_chat_identity_and_settings_are_server_authoritative(monkeypatch):
             token='token',
         )
 
-    async def fake_consume(*_args, **_kwargs):
-        return {'eventId': 'event-1', 'used': 1, 'limit': 100, 'remaining': 99}
-
     monkeypatch.setattr(chat_routes, 'db', fake_db)
     monkeypatch.setattr(chat_routes, 'ai', fake_ai)
+    monkeypatch.setattr(chat_routes, 'features', FakeFeatures())
     monkeypatch.setattr(chat_routes, 'authenticate_request', fake_authenticate)
-    monkeypatch.setattr(chat_routes, 'consume_usage', fake_consume)
 
     response = client.post('/api/chat', json={
         'message': 'hello',
@@ -89,9 +119,6 @@ def test_chat_packages_contextual_download_follow_up_when_semantic_router_is_una
             token='token',
         )
 
-    async def fake_consume(*_args, **_kwargs):
-        return {'eventId': 'event-1', 'used': 1, 'limit': 100, 'remaining': 99}
-
     async def fake_prepare(_user_id, payload, **_kwargs):
         return PreparedRequest(
             payload=dict(payload),
@@ -116,10 +143,7 @@ def test_chat_packages_contextual_download_follow_up_when_semantic_router_is_una
         learn_explicit=AsyncMock(return_value=0),
         record_trace=AsyncMock(return_value=None),
     )
-    fake_features = SimpleNamespace(
-        entitled=lambda *_args: False,
-        refund=AsyncMock(return_value=None),
-    )
+    fake_features = FakeFeatures()
     fake_files = SimpleNamespace(
         resolve_many=AsyncMock(return_value=[]),
         public_file=lambda row: row,
@@ -137,8 +161,11 @@ def test_chat_packages_contextual_download_follow_up_when_semantic_router_is_una
     monkeypatch.setattr(chat_routes, 'files', fake_files)
     monkeypatch.setattr(chat_routes, 'media', fake_media)
     monkeypatch.setattr(chat_routes, 'authenticate_request', fake_authenticate)
-    monkeypatch.setattr(chat_routes, 'consume_usage', fake_consume)
-    monkeypatch.setattr(chat_routes, 'consume_feature_for_request', AsyncMock(return_value=None))
+    monkeypatch.setattr(
+        chat_routes,
+        'feature_for_request',
+        lambda **_kwargs: (None, {}),
+    )
     monkeypatch.setattr(chat_routes, 'apply_project_context', AsyncMock(return_value=None))
     monkeypatch.setattr(chat_routes, 'mark_check_in_responded', AsyncMock(return_value=None))
     monkeypatch.setattr(chat_routes, 'record_product_event', fake_record_event)

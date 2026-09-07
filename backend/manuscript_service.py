@@ -616,6 +616,16 @@ User brief:
             "errorCode": row.get("last_error_code"),
             "error": row.get("last_error_message"),
             "providerUsage": row.get("provider_usage") or {},
+            "approvedCreditLimit": int(row.get("approved_credit_limit") or 0),
+            "creditsSpent": int(row.get("credits_spent") or 0),
+            "plannedSteps": int(row.get("planned_steps") or 0),
+            "plannedChargeableSteps": int(
+                row.get("planned_chargeable_steps") or 0
+            ),
+            "creditPerStep": int(row.get("credit_per_step") or 8),
+            "creditStoppingRule": (
+                "Stops before exceeding the approved credit maximum."
+            ),
             "createdAt": row.get("created_at"),
             "updatedAt": row.get("updated_at"),
             "startedAt": row.get("started_at"),
@@ -658,6 +668,10 @@ User brief:
         chat_id: str | None,
         mode: str,
         blueprint_receipt: dict[str, Any] | None,
+        approved_credit_limit: int = 0,
+        planned_steps: int = 0,
+        planned_chargeable_steps: int = 0,
+        credit_action_key: str = "",
         stage: str = "blueprint",
         total_sections: int = 0,
         metadata: dict[str, Any] | None = None,
@@ -679,6 +693,14 @@ User brief:
             "total_sections": max(0, int(total_sections)),
             "not_before": _now(),
             "blueprint_receipt": blueprint_receipt or {},
+            "approved_credit_limit": max(0, int(approved_credit_limit)),
+            "credits_spent": 0,
+            "planned_steps": max(0, int(planned_steps)),
+            "planned_chargeable_steps": max(
+                0, int(planned_chargeable_steps)
+            ),
+            "credit_per_step": 8,
+            "credit_action_key": str(credit_action_key or "")[:160],
             "metadata": metadata or {},
             "updated_at": _now(),
         }
@@ -696,6 +718,10 @@ User brief:
         preferred_format: str = "docx",
         mode: str = "autopilot",
         blueprint_receipt: dict[str, Any] | None = None,
+        approved_credit_limit: int = 0,
+        planned_steps: int = 0,
+        planned_chargeable_steps: int = 0,
+        credit_action_key: str = "",
     ) -> dict[str, Any]:
         manuscript = await self.get(user_id=user["id"], manuscript_id=manuscript_id)
         active = await self.db.select_one(
@@ -731,6 +757,10 @@ User brief:
             chat_id=None,
             mode=mode,
             blueprint_receipt=blueprint_receipt if stage == "blueprint" else {},
+            approved_credit_limit=approved_credit_limit,
+            planned_steps=planned_steps,
+            planned_chargeable_steps=planned_chargeable_steps,
+            credit_action_key=credit_action_key,
             stage=stage,
             total_sections=len(sections),
             metadata={"source": "manuscript_workspace"},
@@ -749,6 +779,13 @@ User brief:
 
     async def resume_run(self, *, user_id: str, run_id: str) -> dict[str, Any]:
         row = await self.get_run(user_id=user_id, run_id=run_id)
+        if row.get("last_error_code") == "CREDIT_BUDGET_EXHAUSTED":
+            raise ManuscriptError(
+                "This run reached its approved credit maximum. Start a new "
+                "confirmed run for any remaining chapters.",
+                "CREDIT_BUDGET_EXHAUSTED",
+                409,
+            )
         if row.get("status") not in {"paused", "awaiting_credits"}:
             return row
         updated = await self.db.update(
@@ -765,6 +802,70 @@ User brief:
             filters={"id": eq(row["id"]), "user_id": eq(user_id)},
         )
         return (updated or [{**row, "status": "queued"}])[0]
+
+    async def reauthorize_run(
+        self,
+        *,
+        user_id: str,
+        run_id: str,
+        approved_additional_limit: int,
+        remaining_steps: int,
+        remaining_chargeable_steps: int,
+        credit_action_key: str,
+    ) -> dict[str, Any]:
+        row = await self.get_run(user_id=user_id, run_id=run_id)
+        if row.get("status") not in {"paused", "awaiting_credits"}:
+            return row
+        if row.get("last_error_code") not in {
+            "CREDIT_BUDGET_EXHAUSTED",
+            "CREDIT_BUDGET_CONFIRMATION_REQUIRED",
+        }:
+            return await self.resume_run(user_id=user_id, run_id=run_id)
+        credits_spent = max(0, int(row.get("credits_spent") or 0))
+        approved_limit = credits_spent + max(
+            0, int(approved_additional_limit)
+        )
+        completed_steps = max(0, int(row.get("completed_sections") or 0))
+        updated = await self.db.update(
+            "manuscript_runs",
+            {
+                "status": "queued",
+                "not_before": _now(),
+                "lease_token": None,
+                "lease_expires_at": None,
+                "last_error_code": None,
+                "last_error_message": None,
+                "approved_credit_limit": approved_limit,
+                "planned_steps": completed_steps
+                + max(0, int(remaining_steps)),
+                "planned_chargeable_steps": max(
+                    0, int(remaining_chargeable_steps)
+                ),
+                "credit_action_key": str(credit_action_key or row["id"]),
+                "updated_at": _now(),
+            },
+            filters={"id": eq(row["id"]), "user_id": eq(user_id)},
+        )
+        return (
+            updated
+            or [
+                {
+                    **row,
+                    "status": "queued",
+                    "approved_credit_limit": approved_limit,
+                    "planned_steps": completed_steps
+                    + max(0, int(remaining_steps)),
+                    "planned_chargeable_steps": max(
+                        0, int(remaining_chargeable_steps)
+                    ),
+                    "credit_action_key": str(
+                        credit_action_key or row["id"]
+                    ),
+                    "last_error_code": None,
+                    "last_error_message": None,
+                }
+            ]
+        )[0]
 
     async def cancel_run(self, *, user_id: str, run_id: str) -> dict[str, Any]:
         row = await self.get_run(user_id=user_id, run_id=run_id)
@@ -808,6 +909,9 @@ User brief:
         preferred_format: str = "docx",
         project_limit: int = 2,
         blueprint_receipt: dict[str, Any] | None = None,
+        approved_credit_limit: int = 0,
+        planned_chargeable_steps: int = 0,
+        credit_action_key: str = "",
     ) -> dict[str, Any]:
         clean_brief = str(brief or "").strip()[:12000]
         if not clean_brief:
@@ -877,6 +981,10 @@ User brief:
             chat_id=chat_id,
             mode="autopilot",
             blueprint_receipt=blueprint_receipt,
+            approved_credit_limit=approved_credit_limit,
+            planned_steps=chapter_count,
+            planned_chargeable_steps=planned_chargeable_steps,
+            credit_action_key=credit_action_key,
             metadata={"source": "chat_long_form_handoff"},
         )
         public_run = self.public_run(run)
@@ -1119,6 +1227,21 @@ User brief:
 
                 receipt = run.get("current_receipt") if isinstance(run.get("current_receipt"), dict) else {}
                 if not receipt or current_id != str(target["id"]):
+                    approved_limit = max(
+                        0, int(run.get("approved_credit_limit") or 0)
+                    )
+                    credits_spent = max(
+                        0, int(run.get("credits_spent") or 0)
+                    )
+                    authorization = self.features.durable_authorization(
+                        str(user["id"]),
+                        action_key=str(
+                            run.get("credit_action_key") or run["id"]
+                        ),
+                        code="manuscript_draft",
+                        approved_limit=approved_limit,
+                        already_spent=credits_spent,
+                    )
                     receipt = await self.features.consume(
                         user,
                         "manuscript_draft",
@@ -1127,10 +1250,19 @@ User brief:
                             "sectionId": target["id"],
                             "runId": run["id"],
                         },
+                        authorization=authorization,
+                        instance_key=str(target["id"]),
+                    )
+                    next_credits_spent = credits_spent + int(
+                        receipt.get("creditsSpent") or 0
                     )
                     persisted = await self._lease_update(
                         run,
-                        {"current_section_id": target["id"], "current_receipt": receipt},
+                        {
+                            "current_section_id": target["id"],
+                            "current_receipt": receipt,
+                            "credits_spent": next_credits_spent,
+                        },
                     )
                     if not persisted:
                         await self.features.refund(str(user["id"]), receipt)
@@ -1220,10 +1352,15 @@ User brief:
             return {"claimed": True, "runId": run["id"], "status": "completed"}
 
         except FeatureAccessError as exc:
+            stopped_status = (
+                "paused"
+                if exc.code == "CREDIT_BUDGET_EXHAUSTED"
+                else "awaiting_credits"
+            )
             await self._lease_update(
                 run,
                 {
-                    "status": "awaiting_credits",
+                    "status": stopped_status,
                     "lease_token": None,
                     "lease_expires_at": None,
                     "last_error_code": exc.code,
@@ -1238,7 +1375,7 @@ User brief:
             return {
                 "claimed": True,
                 "runId": run["id"],
-                "status": "awaiting_credits",
+                "status": stopped_status,
                 "errorCode": exc.code,
             }
         except Exception as exc:

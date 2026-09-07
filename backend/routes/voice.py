@@ -24,6 +24,7 @@ def _feature_error(exc: FeatureAccessError) -> JSONResponse:
             "requiredTier": exc.required_tier,
             "creditsRequired": exc.credit_cost,
             "creditBalance": exc.credit_balance,
+            "creditQuote": exc.quote,
         },
         headers={"Cache-Control": "private, no-store"},
     )
@@ -66,6 +67,16 @@ async def synthesize(request: Request):
             auth.user,
             "premium_voice",
             {"characters": len(text), "model": settings.elevenlabs_model_id},
+            confirmation=payload.get("creditConfirmation"),
+            instance_key=str(payload.get("idempotencyKey") or "")[:120] or None,
+            scope={
+                "route": "premium_voice",
+                "text": text,
+                "model": settings.elevenlabs_model_id,
+                "idempotencyKey": str(
+                    payload.get("idempotencyKey") or ""
+                )[:120],
+            },
         )
     except FeatureAccessError as exc:
         return _feature_error(exc)

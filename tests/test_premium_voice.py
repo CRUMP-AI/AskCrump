@@ -135,8 +135,8 @@ async def test_voice_route_returns_private_ephemeral_audio_and_usage_receipt(mon
             return b"ID3private-audio"
 
     class FakeFeatures:
-        async def consume(self, user, code, metadata):
-            calls.append(("consume", user["id"], code, metadata))
+        async def consume(self, user, code, metadata, **options):
+            calls.append(("consume", user["id"], code, metadata, options))
             return {"paymentSource": "included", "creditsSpent": 0}
 
         async def refund(self, _user_id, _receipt):
@@ -166,6 +166,16 @@ async def test_voice_route_returns_private_ephemeral_audio_and_usage_receipt(mon
         "00000000-0000-0000-0000-000000000001",
         "premium_voice",
         {"characters": 19, "model": "eleven_flash_v2_5"},
+        {
+            "confirmation": None,
+            "instance_key": None,
+            "scope": {
+                "route": "premium_voice",
+                "text": "Read this response.",
+                "model": "eleven_flash_v2_5",
+                "idempotencyKey": "",
+            },
+        },
     )
 
 
@@ -191,7 +201,7 @@ async def test_voice_route_refunds_usage_when_provider_fails(monkeypatch):
             raise VoiceServiceError("Provider failed.", 502, "VOICE_PROVIDER_FAILED")
 
     class FakeFeatures:
-        async def consume(self, _user, _code, _metadata):
+        async def consume(self, _user, _code, _metadata, **_options):
             return {"paymentSource": "included", "eventId": "event-1"}
 
         async def refund(self, user_id, receipt):

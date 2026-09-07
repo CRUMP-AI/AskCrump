@@ -1620,12 +1620,6 @@ body.crump-v1 .billing51-pack:hover {
   background: rgba(216,191,134,.035) !important;
 }
 
-body.crump-v1 .billing51-pack.is-featured {
-  border-color: rgba(216,191,134,.24) !important;
-  background:
-    linear-gradient(180deg, rgba(216,191,134,.065), rgba(255,255,255,.014)) !important;
-}
-
 body.crump-v1 :is(.billing51-buy, .billing51-plan-button) {
   min-height: 46px !important;
   border-radius: 13px !important;

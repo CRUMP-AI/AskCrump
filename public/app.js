@@ -1040,19 +1040,35 @@ window.speakText = async function(text) {
         return;
     }
     showToast('Creating Crump Voice...', 'info');
+    const idempotencyKey = crypto.randomUUID?.() || `${Date.now()}-${requestId}`;
     try {
-        const response = await fetch('/api/voice/synthesize', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({text: readable}),
-        });
-        if (!response.ok) {
-            if ([401, 403, 503].includes(response.status)) {
-                premiumVoiceCapability = {available: false, checkedAt: Date.now()};
+        const execute = async creditConfirmation => {
+            const response = await fetch('/api/voice/synthesize', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    text: readable,
+                    idempotencyKey,
+                    ...(creditConfirmation ? {creditConfirmation} : {}),
+                }),
+            });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                if ([401, 403, 503].includes(response.status)) {
+                    premiumVoiceCapability = {available: false, checkedAt: Date.now()};
+                }
+                const error = new Error(data.error || `Premium voice unavailable (${response.status})`);
+                error.code = data.code;
+                error.data = data;
+                error.status = response.status;
+                throw error;
             }
-            throw new Error(`Premium voice unavailable (${response.status})`);
-        }
+            return response;
+        };
+        const response = window.CrumpCreditConfirmation?.run
+            ? await window.CrumpCreditConfirmation.run(execute)
+            : await execute(null);
         const audioBlob = await response.blob();
         if (requestId !== voiceRequestSequence || !audioBlob.size) return;
         activeVoiceObjectUrl = URL.createObjectURL(audioBlob);

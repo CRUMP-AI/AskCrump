@@ -81,15 +81,13 @@ async def apply_project_context(
     return normalized_project_id
 
 
-async def consume_feature_for_request(
+def feature_for_request(
     *,
-    user: dict[str, Any],
     payload: dict[str, Any],
     file_rows: list[dict[str, Any]],
     media: MediaService,
     ai: AIService,
-    features: FeatureService,
-) -> dict[str, Any] | None:
+) -> tuple[str | None, dict[str, Any]]:
     message = str(payload.get("message") or "")
     creative_tool = str(payload.get("creativeTool") or "") or None
     editing = media.is_edit_request(message, file_rows)
@@ -113,15 +111,47 @@ async def consume_feature_for_request(
     elif research_requested:
         code = "research"
 
+    return code, {
+        "route": "chat",
+        "creativeTool": creative_tool,
+        "projectId": payload.get("projectId"),
+    }
+
+
+async def consume_feature_for_request(
+    *,
+    user: dict[str, Any],
+    payload: dict[str, Any],
+    file_rows: list[dict[str, Any]],
+    media: MediaService,
+    ai: AIService,
+    features: FeatureService,
+) -> dict[str, Any] | None:
+    code, metadata = feature_for_request(
+        payload=payload,
+        file_rows=file_rows,
+        media=media,
+        ai=ai,
+    )
     if not code:
         return None
     return await features.consume(
         user,
         code,
-        {
-            "route": "chat",
-            "creativeTool": creative_tool,
-            "projectId": payload.get("projectId"),
+        metadata,
+        confirmation=(
+            payload.get("creditConfirmation")
+            if isinstance(payload.get("creditConfirmation"), dict)
+            else None
+        ),
+        instance_key=str(payload.get("messageId") or "")[:120] or None,
+        scope={
+            "route": "product53_request",
+            "payload": {
+                key: value
+                for key, value in payload.items()
+                if key != "creditConfirmation"
+            },
         },
     )
 

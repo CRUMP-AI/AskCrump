@@ -586,7 +586,7 @@
           <div>
             <span>YOUR BALANCE</span>
             <strong><b id="billing51Balance">—</b> <small>credits</small></strong>
-            <p>Credits take over only after your included allowance runs out.</p>
+            <p>Some premium or overflow actions use credits. The exact charge appears before you confirm.</p>
           </div>
           <div id="billing51Allowance">${progressMarkup({limit:0,used:0,remaining:0})}</div>
         </div>
@@ -594,8 +594,9 @@
         <section class="billing51-section">
           <div class="billing51-section-head">
             <div><span>KEEP GOING</span><h3>Add Crump Credits</h3></div>
-            <p>1 request = 1 credit after included usage. Purchased credits never expire.</p>
+            <p>Credit use varies by feature. Ask Crump shows the exact charge before a paid action. Purchased credits never expire.</p>
           </div>
+          <p class="billing51-rate-note"><strong>Current overflow rates, after any included allowance:</strong> messages 1; live research 1; Crump Voice or visual analysis 2; manuscript planning 4; image generation 6; manuscript chapter 8; image editing 10; Crump Code 12; video generation 60, extend or continue 80, HD 90, or 10-second cinematic 120 credits. The exact total always appears before a paid action.</p>
           <div class="billing51-packs" id="billing51Packs">
             <div class="billing51-skeleton"></div><div class="billing51-skeleton"></div><div class="billing51-skeleton"></div>
           </div>

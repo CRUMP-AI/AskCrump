@@ -249,6 +249,17 @@
   line-height: 1.45;
   text-align: right;
 }
+.billing51-rate-note {
+  margin: -2px 0 16px;
+  padding: 12px 14px;
+  border: 1px solid rgba(217,195,147,.14);
+  border-radius: 12px;
+  background: rgba(217,195,147,.035);
+  color: #aaa59c;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.billing51-rate-note strong { color: #ded8cb; }
 
 .billing51-packs {
   display: grid;

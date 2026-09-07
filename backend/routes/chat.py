@@ -15,11 +15,11 @@ from ..checkin_service import mark_check_in_responded
 from ..db import eq
 from ..feature_service import FeatureAccessError
 from ..file_service import FileServiceError
-from ..manuscript_service import ManuscriptError
+from ..manuscript_service import ManuscriptError, chapter_count_from_prompt
 from ..product53_hooks import (
     apply_project_context,
     attach_generated_outputs,
-    consume_feature_for_request,
+    feature_for_request,
 )
 from ..project_service import ProjectNotFoundError
 from ..product_analytics import (
@@ -30,7 +30,7 @@ from ..product_analytics import (
 from ..runtime import ai, artifacts, db, features, files, intelligence, manuscripts, media, projects, settings
 from ..schemas import ChatAckRequest
 from ..security import iso_now, normalize_chat_id
-from ..usage_service import UsageLimitError, consume_usage, refund_usage, tier_name
+from ..usage_service import limit_for, refund_usage, tier_name
 
 router = APIRouter(prefix='/api/chat', tags=['chat'])
 logger = logging.getLogger('askcrump.chat')
@@ -533,6 +533,7 @@ async def chat(request: Request):
     message_id = normalize_chat_id(raw_message_id) if raw_message_id else None
     prepared = None
     verifier_used = False
+    usage: dict = {"eventId": None}
 
     if chat_id and message_id:
         claim_result = await db.rpc(
@@ -555,32 +556,6 @@ async def chat(request: Request):
                     'retryAfter': 3,
                 },
             )
-
-    try:
-        usage = await consume_usage(
-            db,
-            auth.user,
-            settings,
-            'messages',
-            {'route': 'chat', 'messageId': message_id},
-        )
-    except UsageLimitError as exc:
-        if message_id:
-            await db.update(
-                'chat_jobs',
-                {'status': 'failed', 'error_code': 'USAGE_LIMIT', 'updated_at': iso_now()},
-                filters={'user_id': eq(auth.user['id']), 'message_id': eq(message_id)},
-            )
-        return JSONResponse(
-            status_code=403,
-            content={
-                'success': False,
-                'error': 'Daily message limit reached.',
-                'code': 'USAGE_LIMIT',
-                'upgradeRequired': True,
-                'usage': {'used': exc.used, 'limit': exc.limit, 'remaining': 0},
-            },
-        )
 
     try:
         current_file_rows = await files.resolve_many(user_id=auth.user['id'], file_ids=_file_ids(request_payload), limit=10)
@@ -780,30 +755,84 @@ async def chat(request: Request):
                 current = [{'source': 'uploaded_files', 'content': extracted}]
             request_payload['relevantContext'] = current
 
-    await mark_check_in_responded(
-        db,
-        auth.user['id'],
-        str(request_payload.get('replyToCheckInId') or '') or None,
-    )
-
     feature_usage = None
+    draft_credit_limit = 0
+    draft_planned_steps = 0
     semantic_chat_only = bool(semantic_creation and (creation_stage != 'execute' or creation_kind == 'video'))
     try:
+        message_limit = limit_for(
+            settings,
+            effective_user_tier,
+            'messages',
+        )
+        components = {'messages': 1}
+        feature_code = None
+        feature_metadata: dict = {}
         if long_form_request:
-            feature_usage = await features.consume(
-                auth.user,
-                'manuscript_blueprint',
-                {'route': 'chat', 'messageId': message_id, 'projectId': project_id},
-            )
+            feature_code = 'manuscript_blueprint'
+            feature_metadata = {
+                'route': 'chat',
+                'messageId': message_id,
+                'projectId': project_id,
+            }
+            draft_planned_steps = chapter_count_from_prompt(execution_brief)
+            components['manuscript_blueprint'] = 1
+            components['manuscript_draft'] = draft_planned_steps
         elif not semantic_chat_only:
-            feature_usage = await consume_feature_for_request(
-                user=auth.user,
+            feature_code, feature_metadata = feature_for_request(
                 payload=request_payload,
                 file_rows=file_rows,
                 media=media,
                 ai=ai,
-                features=features,
             )
+            if feature_code:
+                components[feature_code] = 1
+
+        confirmation = (
+            request_payload.get('creditConfirmation')
+            if isinstance(request_payload.get('creditConfirmation'), dict)
+            else None
+        )
+        authorization_scope = {
+            'route': 'chat',
+            'payload': {
+                key: value
+                for key, value in request_payload.items()
+                if key != 'creditConfirmation'
+            },
+        }
+        authorization = await features.authorize(
+            auth.user,
+            components,
+            confirmation,
+            message_limit=message_limit,
+            scope=authorization_scope,
+        )
+        usage = await features.consume_message(
+            auth.user,
+            message_limit=message_limit,
+            metadata={'route': 'chat', 'messageId': message_id},
+            authorization=authorization,
+            instance_key=str(message_id or request_id),
+            scope=authorization_scope,
+        )
+        if feature_code:
+            feature_usage = await features.consume(
+                auth.user,
+                feature_code,
+                feature_metadata,
+                authorization=authorization,
+                instance_key=f"{message_id or request_id}:{feature_code}",
+                scope=authorization_scope,
+            )
+        draft_credit_limit = int(
+            authorization.max_by_code.get('manuscript_draft', 0)
+        )
+        await mark_check_in_responded(
+            db,
+            auth.user['id'],
+            str(request_payload.get('replyToCheckInId') or '') or None,
+        )
     except FeatureAccessError as exc:
         await refund_usage(db, auth.user['id'], usage.get('eventId'))
         if message_id:
@@ -823,6 +852,7 @@ async def chat(request: Request):
                 'requiredTier': exc.required_tier,
                 'creditsRequired': exc.credit_cost,
                 'creditBalance': exc.credit_balance,
+                'creditQuote': exc.quote,
             },
         )
 
@@ -855,6 +885,9 @@ async def chat(request: Request):
                 preferred_format=manuscript_format,
                 project_limit=features.project_limit(auth.user),
                 blueprint_receipt=feature_usage,
+                approved_credit_limit=draft_credit_limit,
+                planned_chargeable_steps=draft_credit_limit // 8,
+                credit_action_key=authorization.action_key,
             )
             project_id = str(result.get('projectId') or project_id or '') or None
         elif semantic_creation and creation_kind == 'video' and creation_stage == 'execute':

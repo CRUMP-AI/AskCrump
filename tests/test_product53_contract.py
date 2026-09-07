@@ -42,7 +42,9 @@ def test_projects_media_manuscripts_and_cost_controls_are_registered():
     assert "ProjectService" in runtime
     assert "VideoService" in runtime
     assert "ManuscriptService" in runtime
-    assert "consume_feature_for_request" in chat
+    assert "feature_for_request" in chat
+    assert "features.authorize(" in chat
+    assert chat.index("features.authorize(") < chat.index("ai.chat(")
     assert "apply_project_context" in chat
     assert "GEMINI_API_KEY" in read(".env.example")
     assert "video_generation_enabled" in config

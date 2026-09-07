@@ -29,6 +29,7 @@ def _feature_error(exc: FeatureAccessError) -> JSONResponse:
             "requiredTier": exc.required_tier,
             "creditsRequired": exc.credit_cost,
             "creditBalance": exc.credit_balance,
+            "creditQuote": exc.quote,
         },
     )
 
@@ -159,6 +160,16 @@ async def create_video(request: Request):
                 "durationSeconds": duration,
                 "referenceImageCount": len(reference_images),
             },
+            confirmation=payload.get("creditConfirmation"),
+            instance_key=idempotency_key,
+            scope={
+                "route": "media_video",
+                "payload": {
+                    key: value
+                    for key, value in payload.items()
+                    if key != "creditConfirmation"
+                },
+            },
         )
     except FeatureAccessError as exc:
         return _feature_error(exc)
@@ -238,6 +249,17 @@ async def continue_video(job_id: str, request: Request):
             auth.user,
             "video_continue",
             {"route": "media_video_continue", "parentJobId": job_id},
+            confirmation=payload.get("creditConfirmation"),
+            instance_key=idempotency_key,
+            scope={
+                "route": "media_video_continue",
+                "parentJobId": job_id,
+                "payload": {
+                    key: value
+                    for key, value in payload.items()
+                    if key != "creditConfirmation"
+                },
+            },
         )
     except FeatureAccessError as exc:
         return _feature_error(exc)

@@ -2,11 +2,30 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 
 from ..auth_service import authenticate_request
+from ..feature_service import FeatureAccessError
 from ..runtime import db, features, settings, video, voice
 
 router = APIRouter(prefix="/api/features", tags=["features"])
+
+
+def _feature_error(exc: FeatureAccessError) -> JSONResponse:
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "success": False,
+            "error": exc.message,
+            "code": exc.code,
+            "upgradeRequired": exc.code == "SUBSCRIPTION_REQUIRED",
+            "requiredTier": exc.required_tier,
+            "creditsRequired": exc.credit_cost,
+            "creditBalance": exc.credit_balance,
+            "creditQuote": exc.quote,
+        },
+        headers={"Cache-Control": "private, no-store"},
+    )
 
 
 @router.get("")
@@ -89,3 +108,44 @@ async def feature_status(request: Request):
     }
     status["videoEngines"] = engines
     return {"success": True, **status}
+
+
+@router.post("/quote")
+async def feature_quote(request: Request):
+    auth = await authenticate_request(request, db, settings)
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    payload = payload if isinstance(payload, dict) else {}
+    try:
+        raw = payload.get("components")
+        if isinstance(raw, list):
+            components = {
+                str(item.get("code") or ""): int(item.get("quantity") or 1)
+                for item in raw
+                if isinstance(item, dict)
+            }
+        else:
+            components = {
+                str(payload.get("code") or ""): int(payload.get("quantity") or 1)
+            }
+        quote = await features.quote(
+            auth.user,
+            components,
+            scope={"route": "feature_quote", "components": components},
+        )
+        quote.pop("token", None)
+        quote.pop("actionKey", None)
+        return {"success": True, "quote": quote}
+    except (TypeError, ValueError):
+        return JSONResponse(
+            status_code=400,
+            content={
+                "success": False,
+                "error": "Invalid quote request.",
+                "code": "INVALID_CREDIT_QUOTE",
+            },
+        )
+    except FeatureAccessError as exc:
+        return _feature_error(exc)

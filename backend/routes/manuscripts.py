@@ -29,6 +29,7 @@ def _feature_error(exc: FeatureAccessError) -> JSONResponse:
             "requiredTier": exc.required_tier,
             "creditsRequired": exc.credit_cost,
             "creditBalance": exc.credit_balance,
+            "creditQuote": exc.quote,
         },
     )
 
@@ -159,12 +160,56 @@ async def start_manuscript_run(manuscript_id: str, request: Request):
                 "idempotentReplay": True,
             }
         sections = await manuscripts.list_sections(user_id=auth.user["id"], manuscript_id=manuscript_id)
+        mode = str(payload.get("mode") or "autopilot").lower()
+        draft_steps = 0
+        if mode == "autopilot":
+            draft_steps = (
+                sum(
+                    1
+                    for item in sections
+                    if not str(item.get("content") or "").strip()
+                )
+                if sections
+                else chapter_count_from_prompt(
+                    str(payload.get("brief") or ""),
+                    payload.get("chapterCount") or 28,
+                )
+            )
+        components: dict[str, int] = {}
+        if not sections:
+            components["manuscript_blueprint"] = 1
+        if draft_steps:
+            components["manuscript_draft"] = draft_steps
+        if not components:
+            components["kdp_export"] = 1
+        authorization_scope = {
+            "route": "manuscript_run",
+            "manuscriptId": manuscript_id,
+            "payload": {
+                key: value
+                for key, value in payload.items()
+                if key != "creditConfirmation"
+            },
+        }
+        authorization = await features.authorize(
+            auth.user,
+            components,
+            (
+                payload.get("creditConfirmation")
+                if isinstance(payload.get("creditConfirmation"), dict)
+                else None
+            ),
+            scope=authorization_scope,
+        )
         receipt = None
         if not sections:
             receipt = await features.consume(
                 auth.user,
                 "manuscript_blueprint",
                 {"manuscriptId": manuscript_id, "mode": "durable_run"},
+                authorization=authorization,
+                instance_key=f"{manuscript_id}:blueprint",
+                scope=authorization_scope,
             )
         run = await manuscripts.queue_run(
             user=auth.user,
@@ -175,6 +220,15 @@ async def start_manuscript_run(manuscript_id: str, request: Request):
             preferred_format=str(payload.get("format") or "docx"),
             mode=str(payload.get("mode") or "autopilot"),
             blueprint_receipt=receipt,
+            approved_credit_limit=int(
+                authorization.max_by_code.get("manuscript_draft", 0)
+            ),
+            planned_steps=draft_steps,
+            planned_chargeable_steps=(
+                int(authorization.max_by_code.get("manuscript_draft", 0))
+                // 8
+            ),
+            credit_action_key=authorization.action_key,
         )
         return {"success": True, "run": await _public_run(auth.user["id"], run)}
     except FeatureAccessError as exc:
@@ -220,8 +274,68 @@ async def pause_manuscript_run(run_id: str, request: Request):
 async def resume_manuscript_run(run_id: str, request: Request):
     auth = await authenticate_request(request, db, settings)
     try:
-        row = await manuscripts.resume_run(user_id=auth.user["id"], run_id=run_id)
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    payload = payload if isinstance(payload, dict) else {}
+    try:
+        row = await manuscripts.get_run(
+            user_id=auth.user["id"], run_id=run_id
+        )
+        if row.get("last_error_code") in {
+            "CREDIT_BUDGET_EXHAUSTED",
+            "CREDIT_BUDGET_CONFIRMATION_REQUIRED",
+        }:
+            sections = await manuscripts.list_sections(
+                user_id=auth.user["id"],
+                manuscript_id=str(row["manuscript_id"]),
+            )
+            remaining_steps = sum(
+                1
+                for item in sections
+                if not str(item.get("content") or "").strip()
+            )
+            components = (
+                {"manuscript_draft": remaining_steps}
+                if remaining_steps
+                else {"kdp_export": 1}
+            )
+            authorization = await features.authorize(
+                auth.user,
+                components,
+                (
+                    payload.get("creditConfirmation")
+                    if isinstance(
+                        payload.get("creditConfirmation"), dict
+                    )
+                    else None
+                ),
+                scope={
+                    "route": "manuscript_run_resume",
+                    "runId": run_id,
+                    "remainingSteps": remaining_steps,
+                },
+            )
+            approved_additional_limit = int(
+                authorization.max_by_code.get("manuscript_draft", 0)
+            )
+            row = await manuscripts.reauthorize_run(
+                user_id=auth.user["id"],
+                run_id=run_id,
+                approved_additional_limit=approved_additional_limit,
+                remaining_steps=remaining_steps,
+                remaining_chargeable_steps=(
+                    approved_additional_limit // 8
+                ),
+                credit_action_key=authorization.action_key,
+            )
+        else:
+            row = await manuscripts.resume_run(
+                user_id=auth.user["id"], run_id=run_id
+            )
         return {"success": True, "run": await _public_run(auth.user["id"], row)}
+    except FeatureAccessError as exc:
+        return _feature_error(exc)
     except ManuscriptError as exc:
         return _manuscript_error(exc)
 
@@ -271,6 +385,17 @@ async def blueprint_manuscript(manuscript_id: str, request: Request):
             auth.user,
             "manuscript_blueprint",
             {"manuscriptId": manuscript_id},
+            confirmation=payload.get("creditConfirmation"),
+            instance_key=manuscript_id,
+            scope={
+                "route": "manuscript_blueprint",
+                "manuscriptId": manuscript_id,
+                "payload": {
+                    key: value
+                    for key, value in payload.items()
+                    if key != "creditConfirmation"
+                },
+            },
         )
     except FeatureAccessError as exc:
         return _feature_error(exc)
@@ -354,11 +479,24 @@ async def draft_section(manuscript_id: str, section_id: str, request: Request):
             },
         )
     payload = await request.json()
+    payload = payload if isinstance(payload, dict) else {}
     try:
         receipt = await features.consume(
             auth.user,
             "manuscript_draft",
             {"manuscriptId": manuscript_id, "sectionId": section_id},
+            confirmation=payload.get("creditConfirmation"),
+            instance_key=section_id,
+            scope={
+                "route": "manuscript_section_draft",
+                "manuscriptId": manuscript_id,
+                "sectionId": section_id,
+                "payload": {
+                    key: value
+                    for key, value in payload.items()
+                    if key != "creditConfirmation"
+                },
+            },
         )
     except FeatureAccessError as exc:
         return _feature_error(exc)
@@ -407,6 +545,17 @@ async def draft_next_section(manuscript_id: str, request: Request):
             auth.user,
             "manuscript_draft",
             {"manuscriptId": manuscript_id, "mode": "next"},
+            confirmation=payload.get("creditConfirmation"),
+            instance_key=str(payload.get("idempotencyKey") or "")[:120] or manuscript_id,
+            scope={
+                "route": "manuscript_draft_next",
+                "manuscriptId": manuscript_id,
+                "payload": {
+                    key: value
+                    for key, value in payload.items()
+                    if key != "creditConfirmation"
+                },
+            },
         )
     except FeatureAccessError as exc:
         return _feature_error(exc)
@@ -452,8 +601,28 @@ async def export_manuscript(manuscript_id: str, request: Request):
             },
         )
     payload = await request.json()
+    payload = payload if isinstance(payload, dict) else {}
     try:
-        receipt = await features.consume(auth.user, "kdp_export", {"manuscriptId": manuscript_id})
+        receipt = await features.consume(
+            auth.user,
+            "kdp_export",
+            {"manuscriptId": manuscript_id},
+            confirmation=(
+                payload.get("creditConfirmation")
+                if isinstance(payload, dict)
+                else None
+            ),
+            instance_key=manuscript_id,
+            scope={
+                "route": "manuscript_export",
+                "manuscriptId": manuscript_id,
+                "payload": {
+                    key: value
+                    for key, value in payload.items()
+                    if key != "creditConfirmation"
+                },
+            },
+        )
     except FeatureAccessError as exc:
         return _feature_error(exc)
     try:

@@ -182,7 +182,7 @@
     throw error;
   }
 
-  async function send(requestBody) {
+  async function sendWithRetries(requestBody) {
     let lastError = null;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       let response;
@@ -221,6 +221,15 @@
       await wait(retryAfter * 1000);
     }
     throw lastError || new Error('Crump could not complete that request.');
+  }
+
+  async function send(requestBody) {
+    const controller = window.CrumpCreditConfirmation;
+    if (!controller?.run) return sendWithRetries(requestBody);
+    return controller.run(confirmation => sendWithRetries({
+      ...requestBody,
+      ...(confirmation ? {creditConfirmation: confirmation} : {}),
+    }));
   }
 
   window.CrumpChatTransport = Object.freeze({acknowledge, ensureUsage, recover, send});

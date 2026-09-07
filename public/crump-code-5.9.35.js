@@ -31,7 +31,7 @@
     cancelled: 'Cancelled',
   });
 
-  async function api(path, options = {}) {
+  async function apiOnce(path, options = {}) {
     const request = {
       credentials: 'same-origin',
       method: options.method || 'GET',
@@ -47,9 +47,22 @@
       const error = new Error(data.error || 'Crump Code could not complete that request.');
       error.code = data.code || 'CODE_REQUEST_FAILED';
       error.details = data;
+      error.data = data;
       throw error;
     }
     return data;
+  }
+
+  async function api(path, options = {}) {
+    const controller = window.CrumpCreditConfirmation;
+    if (!controller?.run) return apiOnce(path, options);
+    return controller.run(confirmation => {
+      const next = {...options};
+      if (confirmation && next.body && typeof next.body === 'object') {
+        next.body = {...next.body, creditConfirmation: confirmation};
+      }
+      return apiOnce(path, next);
+    });
   }
 
   function statusLabel(value, failureCode = '') {
@@ -89,10 +102,10 @@
     const included = Number(state.feature?.includedDaily);
     const credits = Number(state.feature?.standardOverflowCredits ?? state.feature?.overflowCredits ?? 0);
     if (included > 0 && credits > 0) {
-      return `${included} included run${included === 1 ? '' : 's'} per day on this plan; additional runs may use ${credits} Crump Credits.`;
+      return `${included} included run${included === 1 ? '' : 's'} per day on this plan. Ask Crump checks the next run and asks before any credit charge.`;
     }
-    if (credits > 0) return `This run may use ${credits} Crump Credits.`;
-    return 'The exact charge, if any, is recorded before the task begins.';
+    if (credits > 0) return 'Ask Crump shows the exact credit charge before this run can start.';
+    return 'Ask Crump checks and records the payment source before the task begins.';
   }
 
   function createStaticShell() {

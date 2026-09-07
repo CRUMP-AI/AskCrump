@@ -237,6 +237,18 @@
     }
   }
 
+  async function api(path, options = {}) {
+    const controller = window.CrumpCreditConfirmation;
+    if (!controller?.run) return apiOnce(path, options);
+    return controller.run(confirmation => {
+      const next = {...options};
+      if (confirmation && next.body && typeof next.body === 'object') {
+        next.body = {...next.body, creditConfirmation: confirmation};
+      }
+      return apiOnce(path, next);
+    });
+  }
+
   function setStatus(id, message, isError = false) {
     const node = byId(id);
     if (!node) return;
@@ -1895,6 +1907,16 @@
     const creditRecovery = run.status === 'awaiting_credits'
       ? '<button type="button" class="crump53-button" id="crump53ManuscriptCredits">Add credits or compare plans</button>'
       : '';
+    const approvedLimit = Math.max(0, Number(run.approvedCreditLimit || 0));
+    const creditsSpent = Math.max(0, Number(run.creditsSpent || 0));
+    const creditGuard = run.mode === 'autopilot'
+      ? `<br><span>Paid-credit ceiling: up to ${approvedLimit.toLocaleString()} credits · ${creditsSpent.toLocaleString()} used. This run stops before it can exceed that approval.</span>`
+      : '';
+    if (resume && ['CREDIT_BUDGET_EXHAUSTED', 'CREDIT_BUDGET_CONFIRMATION_REQUIRED'].includes(run.errorCode)) {
+      resume.textContent = 'Review remaining credit maximum';
+    } else if (resume) {
+      resume.textContent = 'Resume';
+    }
     node.hidden = false;
     node.innerHTML = `<strong>${escapeHtml(stageLabels[run.stage] || 'Manuscript run')} · ${escapeHtml(run.status || '')}</strong><br><span>${completed} of ${total} chapters drafted. This job is saved and can resume after a timeout or browser close.</span>${error}${outputRecoveryNotice}${output || creditRecovery || outputRecoveryAction ? `<div class="crump53-actions" style="margin-top:8px">${creditRecovery}${outputRecoveryAction}${output}</div>` : ''}`;
     byId('crump53ManuscriptCredits')?.addEventListener('click', () => openFeatureAccessRecovery({
@@ -1986,7 +2008,10 @@
     const runId = state.manuscriptRun?.id;
     if (!runId || !['pause', 'resume', 'cancel'].includes(action)) return;
     try {
-      const data = await api(`/api/manuscript-runs/${runId}/${action}`, {method: 'POST'});
+      const data = await api(`/api/manuscript-runs/${runId}/${action}`, {
+        method: 'POST',
+        body: {},
+      });
       state.manuscriptRun = data.run;
       renderManuscriptRun();
       scheduleManuscriptPoll();

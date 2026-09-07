@@ -175,8 +175,8 @@ async def consume_usage(
             'creditBalance': credits['balance'],
         }
 
-    # Once the included allowance is exhausted, one durable Crump Credit buys
-    # one request. This stays intentionally simple and predictable for users.
+    # Message overflow is one credit after the included message allowance.
+    # Feature-specific charges are quoted and confirmed by FeatureService.
     credit_result = await db.rpc(
         'spend_credits',
         {

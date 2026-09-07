@@ -10,6 +10,7 @@ const expectedFiles = new Set([
   'crump-5.2.js', 'crump-5.2.2.js', 'crump-5.2.4.js', 'crump-navigation-5.2.5.js',
   'crump-navigation-5.9.30.js',
   'crump-code-5.9.35.js',
+  'credit-confirmation.js',
   'crump-v1.js', 'crump-v1-body.js', 'crump-v1-stability.js', 'crump-product-5.3.js',
   'crump-product-5.3.1.js', 'crump-subscriptions-5.3.2.js', 'crump-polish-5.6.js',
   'crump-library-5.7.js',
@@ -864,6 +865,8 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r215') ||
     !serviceWorker.includes(`/crump-code-5.9.35.js?v=${intelligenceArchitectureVersion}`) ||
     !serviceWorker.includes(`/crump-code-5.9.35.css?v=${intelligenceArchitectureVersion}`) ||
     !serviceWorker.includes("url.pathname === '/conversation.css'") ||
+    !serviceWorker.includes("url.pathname === '/credit-confirmation.css'") ||
+    !serviceWorker.includes("url.pathname === '/credit-confirmation.js'") ||
     !serviceWorker.includes("url.pathname === '/chat-resilience.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-5.0.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-5.0.css'") ||

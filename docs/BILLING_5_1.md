@@ -5,7 +5,7 @@
 Ask Crump has two complementary ways to keep using the service:
 
 1. **Subscriptions** increase the included daily allowance.
-2. **Crump Credits** are a durable overflow balance. One request consumes one credit only after the included allowance is exhausted.
+2. **Crump Credits** are a durable balance for premium or overflow actions. Credit use varies by feature; the product shows the exact charge before a paid action, and purchased credits never expire.
 
 Purchased credits do not expire. The wallet is server-authoritative and follows the signed-in Ask Crump account across devices.
 
@@ -85,7 +85,7 @@ Remove the grant block before applying the migration if that behavior is not des
 
 In App Review notes, explain:
 - Ask Crump subscriptions provide ongoing AI usage.
-- Crump Credits are consumable digital credits used only after included usage is exhausted.
+- Crump Credits are consumable digital credits used for some premium or overflow actions.
 - Native credit purchases use Apple/Google in-app purchase through RevenueCat.
 - Purchased credits never expire.
 - Restore Purchases restores subscriptions; already-delivered consumable credits remain attached to the Ask Crump account.

@@ -21,7 +21,7 @@ def test_code_workspace_is_loaded_but_hidden_until_server_configuration_and_enti
     assert "state.available = state.configured && state.entitled" in script
     assert "destination.hidden = !state.configured" in script
     assert "showBillingCenter?.({plan: 'professional'})" in script
-    versioned_script = "/crump-code-5.9.35.js?v=5.9.76-intelligence-architecture-1"
+    versioned_script = "/crump-code-5.9.35.js?v=5.9.76-credit-confirmation-1"
     assert versioned_script in runtime
     assert versioned_script in native
     assert versioned_script in worker
