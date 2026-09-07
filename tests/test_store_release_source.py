@@ -195,8 +195,10 @@ def test_native_privacy_verifier_tracks_runtime_sdks_and_compiled_outputs():
         assert f'`{package_name}`' in data_safety
     assert 'NSPrivacyCollectedDataTypePurchaseHistory' in verifier
     assert 'NSPrivacyCollectedDataTypePurposeAnalytics' in verifier
-    assert 'Capacitor.bundle/PrivacyInfo.xcprivacy' in verifier
-    assert 'CapacitorCordova.bundle/PrivacyInfo.xcprivacy' in verifier
+    assert 'Frameworks/Capacitor.framework/PrivacyInfo.xcprivacy' in verifier
+    assert 'Frameworks/Cordova.framework/PrivacyInfo.xcprivacy' in verifier
+    assert 'RevenueCat_RevenueCat.bundle/PrivacyInfo.xcprivacy' in verifier
+    assert 'SDWebImage_SDWebImage.bundle/PrivacyInfo.xcprivacy' in verifier
     assert 'com.google.android.gms.permission.AD_ID' in verifier
     assert 'android.permission.ACCESS_FINE_LOCATION' in verifier
 
@@ -246,18 +248,15 @@ def test_native_privacy_verifier_executes_compiled_boundaries(tmp_path):
     app_bundle = tmp_path / 'App.app'
     app_bundle.mkdir()
     shutil.copy2(ROOT / 'resources' / 'PrivacyInfo.xcprivacy', app_bundle)
-    capacitor = app_bundle / 'Frameworks' / 'Capacitor.bundle'
-    cordova = app_bundle / 'Frameworks' / 'CapacitorCordova.bundle'
-    capacitor.mkdir(parents=True)
-    cordova.mkdir(parents=True)
-    shutil.copy2(
-        ROOT / 'node_modules' / '@capacitor' / 'ios' / 'Capacitor' / 'Capacitor' / 'PrivacyInfo.xcprivacy',
-        capacitor,
+    required_manifests = (
+        app_bundle / 'Frameworks' / 'Capacitor.framework' / 'PrivacyInfo.xcprivacy',
+        app_bundle / 'Frameworks' / 'Cordova.framework' / 'PrivacyInfo.xcprivacy',
+        app_bundle / 'RevenueCat_RevenueCat.bundle' / 'PrivacyInfo.xcprivacy',
+        app_bundle / 'SDWebImage_SDWebImage.bundle' / 'PrivacyInfo.xcprivacy',
     )
-    shutil.copy2(
-        ROOT / 'node_modules' / '@capacitor' / 'ios' / 'CapacitorCordova' / 'CapacitorCordova' / 'PrivacyInfo.xcprivacy',
-        cordova,
-    )
+    for manifest in required_manifests:
+        manifest.parent.mkdir(parents=True)
+        shutil.copy2(ROOT / 'resources' / 'PrivacyInfo.xcprivacy', manifest)
     ios_result = subprocess.run(
         [node, str(verifier), 'ios-bundle', str(app_bundle)],
         cwd=ROOT,
@@ -267,7 +266,7 @@ def test_native_privacy_verifier_executes_compiled_boundaries(tmp_path):
     )
     assert ios_result.returncode == 0, ios_result.stderr
 
-    (cordova / 'PrivacyInfo.xcprivacy').unlink()
+    required_manifests[1].unlink()
     missing_result = subprocess.run(
         [node, str(verifier), 'ios-bundle', str(app_bundle)],
         cwd=ROOT,
@@ -276,7 +275,7 @@ def test_native_privacy_verifier_executes_compiled_boundaries(tmp_path):
         text=True,
     )
     assert missing_result.returncode == 1
-    assert 'missing CapacitorCordova.bundle/PrivacyInfo.xcprivacy' in missing_result.stderr
+    assert 'missing Frameworks/Cordova.framework/PrivacyInfo.xcprivacy' in missing_result.stderr
 
 
 def test_moderation_queue_is_server_only_and_account_scoped():

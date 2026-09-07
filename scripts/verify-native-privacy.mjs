@@ -166,9 +166,14 @@ async function verifyIosBundle() {
   }
 
   const normalized = manifests.map(path => relative(suppliedPath, path).split(sep).join('/'));
-  for (const requiredBundle of ['Capacitor.bundle/PrivacyInfo.xcprivacy', 'CapacitorCordova.bundle/PrivacyInfo.xcprivacy']) {
-    if (!normalized.some(path => path.endsWith(requiredBundle))) {
-      fail(`The compiled iOS app is missing ${requiredBundle}.`);
+  for (const requiredManifest of [
+    'Frameworks/Capacitor.framework/PrivacyInfo.xcprivacy',
+    'Frameworks/Cordova.framework/PrivacyInfo.xcprivacy',
+    'RevenueCat_RevenueCat.bundle/PrivacyInfo.xcprivacy',
+    'SDWebImage_SDWebImage.bundle/PrivacyInfo.xcprivacy',
+  ]) {
+    if (!normalized.some(path => path.endsWith(requiredManifest))) {
+      fail(`The compiled iOS app is missing ${requiredManifest}.`);
     }
   }
   console.log(`Compiled iOS privacy manifests (${normalized.length}): ${normalized.sort().join(', ')}`);
