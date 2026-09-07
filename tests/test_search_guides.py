@@ -16,6 +16,8 @@ GUIDES = {
         "intent": "projects",
         "destination": "/ai-project-workspace",
         "adjacent": "/guides/what-ai-project-should-remember",
+        "modified": "2026-09-07",
+        "updated": "September 7, 2026",
     },
     "what-ai-project-should-remember": {
         "title": "What Should an AI Project Remember? | Ask Crump",
@@ -24,6 +26,8 @@ GUIDES = {
         "intent": "projects",
         "destination": "/ai-project-workspace",
         "adjacent": "/guides/rough-idea-six-week-launch-plan",
+        "modified": "2026-09-07",
+        "updated": "September 7, 2026",
     },
     "editable-ai-powerpoint-review": {
         "title": "Editable AI PowerPoint: A Seven-Pass Review Checklist | Ask Crump",
@@ -32,14 +36,16 @@ GUIDES = {
         "intent": "presentation",
         "destination": "/ai-presentation-maker",
         "adjacent": "/ai-presentation-maker",
+        "modified": "2026-08-30",
+        "updated": "August 30, 2026",
     },
 }
 
 
 ASSET_HASHES = {
-    "rough-idea-prompt.png": "4CBE40A33DB0CB6D261F22D2038134329D95052C01C7BCCA6B160AC7DFBD663F",
-    "rough-idea-response.png": "ED93FCD6C9615A7C34550FF76BDCD2861692ED4E430FAA5774FD0F8DBA4D1D63",
-    "savannah-project.png": "A84FC3B9CD385431511537DE1524C968ABE6C956E3DD82BB2D264B4565CFBDBF",
+    "rough-idea-prompt.png": "927E28F77990866218970EFA9E1BA5C4E4B90BDEDD004220FBF402400C870DF5",
+    "rough-idea-response.png": "9D3C78858C63640AA3ACE169F4A93E8F04652519AACA48301D418FB259508224",
+    "savannah-project.png": "557FA9B8A30664EA8C9CB4C038C62814D460C3B26BA703FEC08B92B431EB31D4",
     "presentation-proof-page.png": "BD3584F508CC82F06AFFEF4AA2713AA59BA58229FFF133588247F5D8D33CCB3A",
     "presentation-title.png": "1AF47A76AC86951B4E244EA2ACF0B168E2CFDC8F1F3AE909F6B5D549775AB85D",
     "presentation-chart.png": "CD806EE318A086181CCCABD51407A8CB5CF0B63B45B79AAB6659FC7E81F07C24",
@@ -63,7 +69,7 @@ def test_search_guides_have_self_referencing_editorial_metadata_and_one_matched_
         assert '<meta property="og:type" content="article">' in page
         assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
         assert '<meta property="article:published_time" content="2026-08-30">' in page
-        assert '<meta property="article:modified_time" content="2026-08-30">' in page
+        assert f'<meta property="article:modified_time" content="{expected["modified"]}">' in page
         assert '<script defer src="/landing.js?v=5.9.76-attribution-registry-1"></script>' in page
         assert '<link rel="stylesheet" href="/guide.css?v=5.9.76-search-guides-1">' in page
         assert '/_vercel/insights/script.js' in page
@@ -72,7 +78,7 @@ def test_search_guides_have_self_referencing_editorial_metadata_and_one_matched_
         assert page.count('class="button primary"') == 1
         assert "By <strong>Clever Crump</strong>" in page
         assert "Created <strong>August 30, 2026</strong>" in page
-        assert "Updated <strong>August 30, 2026</strong>" in page
+        assert f'Updated <strong>{expected["updated"]}</strong>' in page
         assert "Evidence and method" in page
         assert "Human-review limit" in page
         assert "customer" in page.lower()
@@ -91,6 +97,7 @@ def test_search_guides_have_self_referencing_editorial_metadata_and_one_matched_
         assert structured["mainEntityOfPage"] == canonical
         assert structured["author"]["name"] == "Clever Crump"
         assert structured["datePublished"] == "2026-08-30"
+        assert structured["dateModified"] == expected["modified"]
 
 
 def test_search_guide_assets_are_the_approved_authentic_evidence():
