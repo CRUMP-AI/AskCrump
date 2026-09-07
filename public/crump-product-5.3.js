@@ -1298,7 +1298,7 @@
       if (!projectId) throw new Error('Choose a Project before adding this file.');
       const data = await api(`/api/projects/${encodeURIComponent(projectId)}/files`, {
         method: 'POST',
-        body: {fileId, role},
+        body: {fileId, role, continuitySource: 'result_action'},
         timeoutMs: PROJECT_SAVE_TIMEOUT_MS,
       });
       window.showToast?.(`Added to ${kept.project.name}.`, 'success');

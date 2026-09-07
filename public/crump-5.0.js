@@ -1492,12 +1492,12 @@
     } else {
       button.textContent = receipt?.status === 'failed'
         ? 'Retry Project save'
-        : (receipt?.status === 'missing' ? 'Add to another Project' : 'Add to Project');
+        : (receipt?.status === 'missing' ? 'Keep in another Project' : 'Keep in a Project');
       button.setAttribute(
         'aria-label',
         receipt?.status === 'failed'
           ? `Retry adding ${label} to its Project`
-          : `Add ${label} and its source conversation to a Project`,
+          : `Keep ${label} and its source conversation together in a private Project`,
       );
       if (statusNode && receipt?.status === 'failed') {
         statusNode.textContent = 'Created by Crump · Safe in Files · Project link needs retry';
@@ -1518,11 +1518,23 @@
         show('Projects are still loading. Try again in a moment.', 'error');
         return;
       }
+      const selectedProjectId = targetProjectId
+        || String(window.CrumpProduct53?.projectTarget?.()?.id || '').trim();
+      void window.CrumpAnalytics?.track?.('ProjectSaveIntentReached', {
+        eventKey: 'project-save-intent',
+        source: selectedProjectId ? 'existing_project' : 'new_project',
+      });
+      const previousLabel = button.textContent;
+      const previousAriaLabel = button.getAttribute('aria-label');
+      const previousStatus = statusNode?.textContent || '';
       button.disabled = true;
       button.setAttribute('aria-busy', 'true');
+      button.textContent = 'Saving…';
+      button.setAttribute('aria-label', `Saving ${label} and its source conversation to a private Project`);
+      if (statusNode) statusNode.textContent = 'Saving file and conversation privately…';
       try {
         const options = {role};
-        if (targetProjectId) options.projectId = targetProjectId;
+        if (selectedProjectId) options.projectId = selectedProjectId;
         const result = await keepArtifact(file, options);
         const projectId = String(result?.project?.id || '').trim();
         if (!result?.success || !projectId) throw new Error('The file could not be added to a Project.');
@@ -1533,12 +1545,12 @@
         const chat = currentChat();
         if (chat) saveAndRender(chat);
       } catch (error) {
-        if (targetProjectId && Number(error?.status) === 404) {
+        if (selectedProjectId && Number(error?.status) === 404) {
           message.projectAttachments = {
             ...(message.projectAttachments || {}),
             [kind]: {
               status: 'missing',
-              projectId: targetProjectId,
+              projectId: selectedProjectId,
               role,
               shouldRetry: false,
               message: 'The file is safe in Files, but its original Project is no longer available.',
@@ -1549,6 +1561,9 @@
           window.showToast?.('Original Project is no longer available. Choose another Project.', 'info');
           return;
         }
+        button.textContent = previousLabel;
+        if (previousAriaLabel) button.setAttribute('aria-label', previousAriaLabel);
+        if (statusNode) statusNode.textContent = previousStatus;
         button.disabled = false;
       } finally {
         button.removeAttribute('aria-busy');

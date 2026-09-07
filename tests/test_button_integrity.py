@@ -100,6 +100,23 @@ def test_dynamic_button_systems_use_direct_or_delegated_click_owners() -> None:
         assert f"byId('{button_id}')?.addEventListener('click'" in library
 
 
+def test_generated_output_project_button_has_visible_pending_and_recovery_states() -> None:
+    composer = (PUBLIC / "crump-5.0.js").read_text(encoding="utf-8")
+    action = composer[
+        composer.index("function wireOutputProjectAction"):
+        composer.index("function enhanceRenderedMessages")
+    ]
+
+    assert "Keep in a Project" in action
+    assert "button.textContent = 'Saving…';" in action
+    assert "Saving file and conversation privately…" in action
+    assert "const previousLabel = button.textContent;" in action
+    assert "button.textContent = previousLabel;" in action
+    assert "window.CrumpAnalytics?.track?.('ProjectSaveIntentReached'" in action
+    assert "source: selectedProjectId ? 'existing_project' : 'new_project'" in action
+    assert "if (selectedProjectId) options.projectId = selectedProjectId;" in action
+
+
 def test_tutorial_names_the_current_image_apply_button() -> None:
     tutorial = (PUBLIC / "onboarding.js").read_text(encoding="utf-8")
     editor = (PUBLIC / "crump-precision-image-edit.js").read_text(encoding="utf-8")

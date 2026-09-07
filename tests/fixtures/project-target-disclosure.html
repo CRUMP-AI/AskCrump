@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Project target disclosure fixture</title>
+  <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/public/styles.css">
   <link rel="stylesheet" href="/public/conversation.css">
   <link rel="stylesheet" href="/public/crump-5.0.css">
@@ -41,6 +42,7 @@
     const fixtureUsesStoredProject = fixtureParams.get('target') !== 'new';
     const fixtureConversationAlreadySaved = fixtureParams.get('saved') === '1';
     const fixtureSlowLookup = fixtureParams.get('lookup') === 'slow';
+    const fixtureSlowFileSave = fixtureParams.get('file') === 'slow';
     const fixtureStoredLookup = fixtureParams.get('stored') || 'ready';
     if (fixtureUsesStoredProject) {
       localStorage.setItem('askcrump.activeProject53', fixtureProject.id);
@@ -73,6 +75,7 @@
       unexpectedRequests: 0,
       projectLookups: 0,
       targetLookups: 0,
+      analytics: [],
     };
     const recordBrowserError = () => {
       const output = document.getElementById('fixtureErrors');
@@ -81,7 +84,12 @@
     window.addEventListener('error', recordBrowserError);
     window.addEventListener('unhandledrejection', recordBrowserError);
     window.showToast = (message, tone) => window.__fixture.toasts.push({message, tone});
-    window.CrumpAnalytics = {track: () => Promise.resolve(true)};
+    window.CrumpAnalytics = {
+      track: (eventName, values) => {
+        window.__fixture.analytics.push({eventName, values});
+        return Promise.resolve(true);
+      },
+    };
     window.CrumpPresence = {indicator: () => null};
     window.syncChatsToServer = () => Promise.resolve({success: true});
     const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
@@ -159,6 +167,7 @@
         });
       }
       if (url.pathname === `/api/projects/${fixtureProject.id}/files` && method === 'POST') {
+        if (fixtureSlowFileSave) await wait(220);
         const body = JSON.parse(options.body);
         window.__fixture.requests.push({destination: `${fixtureProject.id}:file`, body});
         document.getElementById('fixtureFileRequest').textContent = `Added ${body.fileId} as ${body.role}`;
@@ -177,6 +186,7 @@
         });
       }
       if (url.pathname === '/api/projects/00000000-0000-4000-8000-000000000063/files' && method === 'POST') {
+        if (fixtureSlowFileSave) await wait(220);
         const body = JSON.parse(options.body);
         window.__fixture.requests.push({destination: 'new:file', body});
         document.getElementById('fixtureFileRequest').textContent = `Added ${body.fileId} as ${body.role}`;

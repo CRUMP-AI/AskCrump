@@ -230,8 +230,8 @@ def test_missing_output_project_can_be_retargeted_instead_of_retrying_the_dead_i
     assert "receipt.status === 'missing'" in ui
     assert "const targetProjectId = receipt?.status === 'failed' ? receipt.projectId : '';" in ui
     assert "Safe in Files · Original Project is no longer available · Choose another Project" in ui
-    assert "receipt?.status === 'missing' ? 'Add to another Project'" in ui
-    assert "targetProjectId && Number(error?.status) === 404" in ui
+    assert "receipt?.status === 'missing' ? 'Keep in another Project'" in ui
+    assert "selectedProjectId && Number(error?.status) === 404" in ui
     assert "Original Project is no longer available. Choose another Project." in ui
 
 
@@ -1025,7 +1025,7 @@ def test_generated_artifact_can_join_a_project_with_its_source_conversation():
     )
 
     assert "data-artifact-project" in ui
-    assert "Add to Project" in ui
+    assert "Keep in a Project" in ui
     assert "Open Project" in ui
     assert "Retry Project save" in ui
     assert "Safe in Files · Project link needs retry" in ui
@@ -1037,11 +1037,92 @@ def test_generated_artifact_can_join_a_project_with_its_source_conversation():
     assert "notify: false" in product
     assert "refresh: false" in product
     assert "const role = options.role === 'generated_image' ? 'generated_image' : 'generated_document'" in product
-    assert "body: {fileId, role}" in product
+    assert "body: {fileId, role, continuitySource: 'result_action'}" in product
     assert "keepArtifact: (file, options) => keepArtifact(file, options)" in product
     assert "/public/crump-5.0.js?v=artifact-project-handoff-1" in fixture
     assert "fixtureFileRequest" in fixture
     assert "body.role" in fixture
+    assert "window.__fixture.analytics.push({eventName, values})" in fixture
+    verifier = (ROOT / "scripts" / "verify-project-output-action.cjs").read_text(encoding="utf-8")
+    assert "completed.requests[0].destination" in verifier
+    assert "completed.requests[1].body.continuitySource" in verifier
+
+
+@pytest.mark.asyncio
+async def test_generated_output_project_save_is_measured_only_after_file_attach(monkeypatch):
+    file_id = "00000000-0000-0000-0000-000000000099"
+    analytics = []
+
+    async def authenticate(*_args, **_kwargs):
+        return type("Auth", (), {"user": {"id": USER_ID}})()
+
+    class Projects:
+        async def get(self, _user_id, _project_id):
+            return {"id": PROJECT_ID}
+
+        async def attach_file(self, **kwargs):
+            assert kwargs["file_id"] == file_id
+            assert kwargs["role"] == "generated_document"
+
+    class Files:
+        async def get_owned(self, *, user_id, file_id):
+            assert user_id == USER_ID
+            return {"id": file_id, "file_name": "launch-plan.docx"}
+
+        def public_file(self, row):
+            return {"id": row["id"], "name": row["file_name"]}
+
+    async def record(_database, **kwargs):
+        analytics.append(kwargs)
+        return True
+
+    monkeypatch.setattr(projects_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(projects_routes, "projects", Projects())
+    monkeypatch.setattr(projects_routes, "files", Files())
+    monkeypatch.setattr(projects_routes, "record_product_event", record)
+
+    result = await projects_routes.attach_project_file(
+        PROJECT_ID,
+        JsonRequest({
+            "fileId": file_id,
+            "role": "generated_document",
+            "continuitySource": "result_action",
+        }),
+    )
+
+    assert result == {
+        "success": True,
+        "file": {"id": file_id, "name": "launch-plan.docx", "projectRole": "generated_document"},
+    }
+    assert len(analytics) == 1
+    assert analytics[0]["event_name"] == "ProjectSaveCompleted"
+    assert analytics[0]["event_key"] == "result-artifact-save"
+    assert analytics[0]["source"] == "generated_document"
+    assert "file_id" not in analytics[0]
+    assert "project_id" not in analytics[0]
+
+
+@pytest.mark.asyncio
+async def test_generated_output_project_save_rejects_an_invented_source(monkeypatch):
+    async def authenticate(*_args, **_kwargs):
+        return type("Auth", (), {"user": {"id": USER_ID}})()
+
+    monkeypatch.setattr(projects_routes, "authenticate_request", authenticate)
+    response = await projects_routes.attach_project_file(
+        PROJECT_ID,
+        JsonRequest({
+            "fileId": "00000000-0000-0000-0000-000000000099",
+            "role": "generated_document",
+            "continuitySource": "customer-file-name",
+        }),
+    )
+
+    assert response.status_code == 400
+    assert json.loads(response.body) == {
+        "success": False,
+        "error": "Invalid Project save source.",
+        "code": "INVALID_PROJECT_SAVE_SOURCE",
+    }
 
 
 def test_project_save_timeout_fixture_uses_real_product_code_without_credentials():

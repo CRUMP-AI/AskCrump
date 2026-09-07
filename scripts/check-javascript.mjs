@@ -419,7 +419,7 @@ const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
 const creditPackTruthVersion = `${releaseVersion}-credit-pack-truth-1`;
 const creditTruthVersion = `${releaseVersion}-credit-truth-1`;
 const creditConfirmationVersion = `${releaseVersion}-credit-confirmation-1`;
-const projectApiWrapperVersion = `${releaseVersion}-project-api-wrapper-1`;
+const outputProjectActionVersion = `${releaseVersion}-output-project-action-1`;
 const accountDeletionBillingVersion = `${releaseVersion}-account-deletion-billing-1`;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
@@ -633,7 +633,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${projectApiWrapperVersion}`,
+  `/runtime-body-v1.js?v=${outputProjectActionVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
   `/auth-resilience.js?v=${releaseVersion}`,
@@ -689,7 +689,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-v1-body.js?v=${destinationBackgroundGuardVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${creditTruthVersion}`) ||
     !runtime.includes(`/crump-5.0.css?v=${precisionEditEntryVersion}`) ||
-    !runtime.includes(`/crump-5.0.js?v=${liveImagePreviewVersion}`) ||
+    !runtime.includes(`/crump-5.0.js?v=${outputProjectActionVersion}`) ||
     !runtime.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     !runtime.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
     !runtime.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
@@ -697,7 +697,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
     !runtime.includes(`/crump-4.4.js?v=${coreReliabilityVersion}`) ||
     !runtime.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !runtime.includes(`/crump-product-5.3.js?v=${projectApiWrapperVersion}`) ||
+    !runtime.includes(`/crump-product-5.3.js?v=${outputProjectActionVersion}`) ||
     !runtime.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
     !runtime.includes(`/crump-product-5.3.1.js?v=${coreReliabilityVersion}`) || !runtime.includes('/crump-product-5.3.1.css') ||
     !runtime.includes('/crump-subscriptions-5.3.2.js') ||
@@ -850,9 +850,9 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r217') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r218') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${projectApiWrapperVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${outputProjectActionVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
@@ -860,7 +860,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r217') ||
     !serviceWorker.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.css?v=${precisionEditEntryVersion}`) ||
     !serviceWorker.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
-    !serviceWorker.includes(`/crump-5.0.js?v=${liveImagePreviewVersion}`) ||
+    !serviceWorker.includes(`/crump-5.0.js?v=${outputProjectActionVersion}`) ||
     !serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     !serviceWorker.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
     !serviceWorker.includes(`/ui-functions.js?v=${projectSaveMeasurementVersion}`) ||
@@ -887,7 +887,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r217') ||
     !serviceWorker.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
     !serviceWorker.includes(`/crump-4.4.js?v=${coreReliabilityVersion}`) ||
     !serviceWorker.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !serviceWorker.includes(`/crump-product-5.3.js?v=${projectApiWrapperVersion}`) ||
+    !serviceWorker.includes(`/crump-product-5.3.js?v=${outputProjectActionVersion}`) ||
     !serviceWorker.includes(`/crump-product-5.3.1.js?v=${coreReliabilityVersion}`) ||
     !serviceWorker.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${destinationBackgroundGuardVersion}`) ||
@@ -1037,6 +1037,21 @@ if (!projectSaveActivationGuard.includes("window.CrumpAnalytics?.track?.('Projec
   console.error('Project save activation must expose pending, recovery, success, and content-free intent states.');
   process.exit(1);
 }
+const composer50 = await readFile(new URL('public/crump-5.0.js', repoRoot), 'utf8');
+const outputProjectActionGuard = composer50.slice(
+  composer50.indexOf('function wireOutputProjectAction'),
+  composer50.indexOf('function enhanceRenderedMessages'),
+);
+if (!outputProjectActionGuard.includes("button.textContent = 'Saving…';") ||
+    !outputProjectActionGuard.includes('Saving file and conversation privately…') ||
+    !outputProjectActionGuard.includes("window.CrumpAnalytics?.track?.('ProjectSaveIntentReached'") ||
+    !outputProjectActionGuard.includes("source: selectedProjectId ? 'existing_project' : 'new_project'") ||
+    !outputProjectActionGuard.includes('if (selectedProjectId) options.projectId = selectedProjectId;') ||
+    !outputProjectActionGuard.includes('button.textContent = previousLabel;') ||
+    !product53.includes("body: {fileId, role, continuitySource: 'result_action'}")) {
+  console.error('Generated-output Project controls must expose pending/recovery states and measured private continuity.');
+  process.exit(1);
+}
 const markdownWindow = {
   crypto: { randomUUID: () => 'markdown-contract' },
   location: { origin: 'https://www.askcrump.com' },
@@ -1134,7 +1149,6 @@ if (await copiedShare.shareWindow.shareMessage(0) !== true ||
 }
 const scroll522 = await readFile(new URL('public/crump-5.2.2.js', repoRoot), 'utf8');
 const baseScroll = await readFile(new URL('public/scroll-manager.js', repoRoot), 'utf8');
-const composer50 = await readFile(new URL('public/crump-5.0.js', repoRoot), 'utf8');
 const chatResilience = await readFile(new URL('public/chat-resilience.js', repoRoot), 'utf8');
 const scroll522Css = await readFile(new URL('public/crump-5.2.2.css', repoRoot), 'utf8');
 const billing52 = await readFile(new URL('public/crump-5.2.js', repoRoot), 'utf8');

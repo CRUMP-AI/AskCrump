@@ -91,7 +91,7 @@ const loader = String.raw`
   const enhancementScripts = Object.freeze([
     ['/crump-4.3.js?v=5.9.76-intelligence-architecture-1', 'crump43'],
     ['/crump-4.4.js?v=5.9.76-core-reliability-1', 'crump44'],
-    ['/crump-5.0.js?v=5.9.76-live-image-preview-1', 'crump50'],
+    ['/crump-5.0.js?v=5.9.76-output-project-action-1', 'crump50'],
     ['/crump-precision-image-edit.js?v=5.9.76-live-image-preview-1', 'crumpprecisionimage'],
     ['/crump-billing-5.1.js?v=5.9.76-credit-truth-1', 'billing51'],
     ['/crump-5.2.js?v=5.9.76-credit-truth-1', 'crump52'],
@@ -102,7 +102,7 @@ const loader = String.raw`
 
   const finalScripts = Object.freeze([
     ['/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1', 'crumpnav525'],
-    ['/crump-product-5.3.js?v=5.9.76-project-api-wrapper-1', 'crumpproduct53'],
+    ['/crump-product-5.3.js?v=5.9.76-output-project-action-1', 'crumpproduct53'],
     ['/crump-product-5.3.1.js?v=5.9.76-core-reliability-1', 'crumpproduct531'],
     ['/crump-subscriptions-5.3.2.js?v=5.9.76-commerce-recovery-1', 'crumpsubscriptions532'],
     ['/crump-polish-5.6.js?v=5.9.76-video-destination-1', 'crumppolish56'],

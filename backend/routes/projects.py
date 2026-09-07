@@ -305,6 +305,9 @@ async def attach_project_file(project_id: str, request: Request):
         return _error("Invalid file request.", "INVALID_PROJECT_FILE", 400)
     file_id = str(payload.get("fileId") or "").strip()
     role = str(payload.get("role") or "reference").strip().lower()
+    continuity_source = str(payload.get("continuitySource") or "").strip()
+    if continuity_source not in {"", RESULT_ACTION_SOURCE}:
+        return _error("Invalid Project save source.", "INVALID_PROJECT_SAVE_SOURCE", 400)
     allowed_roles = {
         "reference", "source", "canon", "inspiration", "asset",
         "conversation_asset", "generated_image", "generated_document",
@@ -323,6 +326,18 @@ async def attach_project_file(project_id: str, request: Request):
             file_id=str(row["id"]),
             role=role,
         )
+        if continuity_source == RESULT_ACTION_SOURCE and role in {
+            "generated_image", "generated_document",
+        }:
+            await record_product_event(
+                db,
+                user_id=auth.user["id"],
+                event_name="ProjectSaveCompleted",
+                event_key="result-artifact-save",
+                request=request,
+                source=role,
+                plan=tier_name(auth.user),
+            )
         public = files.public_file(row)
         public["projectRole"] = role
         return {"success": True, "file": public}

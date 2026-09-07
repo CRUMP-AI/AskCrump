@@ -24,7 +24,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['style', '/crump-4.4.css', 'crump44'],
     ['script', '/crump-4.4.js', 'crump44'],
     ['style', '/crump-5.0.css?v=5.9.76-precision-edit-entry-1', 'crump50'],
-    ['script', '/crump-5.0.js?v=5.9.76-live-image-preview-1', 'crump50'],
+    ['script', '/crump-5.0.js?v=5.9.76-output-project-action-1', 'crump50'],
     ['style', '/crump-precision-image-edit.css?v=5.9.76-precision-visible-1', 'crumpprecisionimage'],
     ['script', '/crump-precision-image-edit.js?v=5.9.76-live-image-preview-1', 'crumpprecisionimage'],
     ['style', '/crump-billing-5.1.css?v=5.9.76-credit-truth-1', 'billing51'],
