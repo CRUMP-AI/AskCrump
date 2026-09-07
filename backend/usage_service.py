@@ -175,39 +175,11 @@ async def consume_usage(
             'creditBalance': credits['balance'],
         }
 
-    # Message overflow is one credit after the included message allowance.
-    # Feature-specific charges are quoted and confirmed by FeatureService.
-    credit_result = await db.rpc(
-        'spend_credits',
-        {
-            'p_user_id': user['id'],
-            'p_amount': 1,
-            'p_reason': f'{usage_type}_overflow',
-            'p_metadata': details,
-        },
-    )
-    credit_row = (
-        credit_result[0]
-        if isinstance(credit_result, list) and credit_result
-        else (credit_result or {})
-    )
-    credit_balance = max(0, int(credit_row.get('balance') or 0))
-    if not credit_row.get('allowed'):
-        raise UsageLimitError(used, limit, usage_type, credit_balance)
-
-    ledger_id = credit_row.get('ledger_id')
-    return {
-        # Keep backward compatibility with callers that refund by eventId.
-        # refund_usage recognizes the "credit:" prefix and restores the spend.
-        'eventId': f'credit:{ledger_id}' if ledger_id else None,
-        'tier': tier,
-        'used': used,
-        'limit': limit,
-        'remaining': 0,
-        'paymentSource': 'credits',
-        'creditBalance': credit_balance,
-        'creditsSpent': 1,
-    }
+    # This compatibility helper is allowance-only. Paid message overflow is
+    # handled by FeatureService, which issues and verifies the exact quote
+    # before it can call the confirmed-spend RPC.
+    credits = await credit_status(db, user['id'])
+    raise UsageLimitError(used, limit, usage_type, credits['balance'])
 
 
 async def refund_usage(db: SupabaseDB, user_id: str, event_id: str | None) -> None:

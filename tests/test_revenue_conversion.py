@@ -501,7 +501,7 @@ def test_release_version_and_cache_advance_together():
 
     assert '"version": "5.9.76"' in package
     assert "__version__ = '5.9.76'" in backend
-    assert "ask-crump-new-body-v1-r215" in worker
+    assert "ask-crump-new-body-v1-r216" in worker
     assert "/landing-5.6.css?v=5.9.76-truthful-destinations-1" in worker
     assert "/use-case.css?v=5.9.76" in worker
     assert "/landing.js?v=5.9.76-profile-landing-1" in worker
@@ -513,7 +513,7 @@ def test_changed_activation_assets_are_release_versioned():
     worker = read("public/sw.js")
 
     for asset in (
-        "/crump-v1-body.css?v=5.9.76-credit-pack-truth-1",
+        "/crump-v1-body.css?v=5.9.76-credit-truth-1",
         "/device-auth.js?v=5.9.76",
         "/auth-controller.js?v=5.9.76-verification-handoff-1",
     ):
@@ -524,7 +524,7 @@ def test_changed_activation_assets_are_release_versioned():
         "/conversation.css?v=5.9.76-intelligence-receipt-1",
         "/ui-functions.js?v=5.9.76-project-save-measurement-1",
         "/product-analytics.js?v=5.9.76-project-save-measurement-1",
-        "/app.js?v=5.9.76-image-stability-1",
+        "/app.js?v=5.9.76-credit-confirmation-1",
     ):
         assert asset not in shell
         assert asset in runtime

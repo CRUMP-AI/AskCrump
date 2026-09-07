@@ -110,6 +110,21 @@ begin
     from public.credit_accounts as account
     where account.user_id = p_user_id;
 
+    -- A refunded provider attempt must not make its old approval reusable.
+    -- The refund RPC takes the same per-account advisory lock, so this check
+    -- is serialized with both deductions and refunds.
+    if exists (
+      select 1
+      from public.credit_ledger as refund
+      where refund.user_id = p_user_id
+        and refund.related_ledger_id = existing.id
+        and refund.reason = 'refund'
+    ) then
+      return query
+        select null::uuid, coalesce(current_balance, 0), false, false, true;
+      return;
+    end if;
+
     return query
       select existing.id, coalesce(current_balance, 0), true, true, false;
     return;

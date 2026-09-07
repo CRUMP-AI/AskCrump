@@ -61,8 +61,8 @@ def test_recovery_summary_is_responsive_and_does_not_create_checkout():
 
 
 def test_contextual_recovery_assets_are_registered_for_web_pwa_and_native():
-    credit_truth_version = "5.9.76-credit-pack-truth-1"
-    image_recovery_version = "5.9.76-image-reference-recovery-1"
+    credit_truth_version = "5.9.76-credit-truth-1"
+    confirmation_version = "5.9.76-credit-confirmation-1"
     runtime = read("public/runtime-body-v1.js")
     worker = read("public/sw.js")
     native = read("scripts/build-native.mjs")
@@ -78,8 +78,8 @@ def test_contextual_recovery_assets_are_registered_for_web_pwa_and_native():
     assert css in runtime
     assert css in worker
     assert css in native
-    assert f"/chat-resilience.js?v={image_recovery_version}" in runtime
-    assert f"/chat-resilience.js?v={image_recovery_version}" in worker
-    assert "/crump-product-5.3.js?v=5.9.76-project-save-measurement-1" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-project-save-measurement-1" in worker
-    assert "ask-crump-new-body-v1-r215" in worker
+    assert f"/chat-resilience.js?v={confirmation_version}" in runtime
+    assert f"/chat-resilience.js?v={confirmation_version}" in worker
+    assert f"/crump-product-5.3.js?v={confirmation_version}" in runtime
+    assert f"/crump-product-5.3.js?v={confirmation_version}" in worker
+    assert "ask-crump-new-body-v1-r216" in worker

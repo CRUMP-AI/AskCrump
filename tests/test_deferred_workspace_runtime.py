@@ -19,11 +19,11 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/styles.css',
         '/install-prompt.css?v=5.9.76',
         '/auth-styles.css',
-        '/crump-v1-body.css?v=5.9.76-credit-pack-truth-1',
+        '/crump-v1-body.css?v=5.9.76-credit-truth-1',
     ]
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
-        '/runtime-body-v1.js?v=5.9.76-live-image-preview-loader-1',
+        '/runtime-body-v1.js?v=5.9.76-credit-confirmation-1',
         '/native-runtime.js',
         '/mobile-bridge.js',
         '/safe-storage.js',
@@ -50,13 +50,14 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/profile-manager.js',
         '/billing-manager.js?v=5.9.76-commerce-recovery-1',
         '/subscription-ui.js?v=5.9.76-commerce-recovery-1',
-        '/chat-resilience.js?v=5.9.76-image-reference-recovery-1',
+        '/credit-confirmation.js?v=5.9.76-credit-confirmation-1',
+        '/chat-resilience.js?v=5.9.76-credit-confirmation-1',
         '/ui-functions.js?v=5.9.76-project-save-measurement-1',
         '/presence-manager.js?v=5.9.76',
         '/sync-manager.js?v=5.9.76',
         '/chat-sync.js?v=5.9.76-image-stability-1',
         '/account-manager.js?v=5.9.76-account-deletion-billing-1',
-        '/app.js?v=5.9.76-image-stability-1',
+        '/app.js?v=5.9.76-credit-confirmation-1',
         '/product-analytics.js?v=5.9.76-project-save-measurement-1',
     ]
     for asset in deferred_assets:

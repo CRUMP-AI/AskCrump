@@ -77,6 +77,14 @@ class CreditDB:
             )
             existing = self.ledger.get(key)
             if existing:
+                if existing["refunded"]:
+                    return [{
+                        "allowed": False,
+                        "duplicate": False,
+                        "limit_exceeded": True,
+                        "ledger_id": None,
+                        "balance": self.balance,
+                    }]
                 return [{
                     "allowed": True,
                     "duplicate": True,
@@ -90,7 +98,6 @@ class CreditDB:
                 int(row["amount"])
                 for (action, _component), row in self.ledger.items()
                 if action == str(params["p_action_key"])
-                and not row["refunded"]
             )
             if action_spent + amount > confirmed_max:
                 return [{
@@ -363,6 +370,17 @@ async def test_provider_refund_and_analytics_independence_preserve_balance():
     # from its durable receipt even when no product-event writer is available.
     await service.refund(USER_ID, receipt)
     assert db.balance == 1000
+
+    with pytest.raises(FeatureAccessError) as replay:
+        await service.consume(
+            account,
+            "image_edit",
+            authorization=authorization,
+            instance_key="provider-attempt",
+        )
+    assert replay.value.code == "CREDIT_QUOTE_INVALID"
+    assert db.balance == 1000
+    assert len(db.ledger) == 1
 
 
 @pytest.mark.asyncio
@@ -661,6 +679,7 @@ def test_confirmed_spend_migration_is_private_idempotent_and_pauses_legacy_runs(
     assert "provider = 'feature-spend'" in normalized
     assert "external_id = external_key" in normalized
     assert "return query select existing.id" in normalized
+    assert "refund.related_ledger_id = existing.id" in normalized
     assert "p_confirmed_max integer" in normalized
     assert "limit_exceeded boolean" in normalized
     assert "action_spent + p_amount > p_confirmed_max" in normalized
@@ -697,10 +716,9 @@ def test_credit_release_record_requires_fresh_action_time_migration_identity():
 def test_application_has_no_caller_for_legacy_unconfirmed_spend():
     callers = []
     for path in (ROOT / "backend").rglob("*.py"):
-        if path.name == "usage_service.py":
-            continue
         source = path.read_text(encoding="utf-8")
-        if "consume_usage(" in source or '"spend_credits"' in source:
+        callers_only = source.replace("async def consume_usage(", "")
+        if "consume_usage(" in callers_only or '"spend_credits"' in source:
             callers.append(str(path.relative_to(ROOT)))
     assert callers == []
 
@@ -721,3 +739,4 @@ def test_private_browser_fixture_covers_safe_credit_states():
     assert "No account, provider, analytics service, or credit ledger is connected." in fixture
     assert "askcrump.com" not in fixture
     assert "password" not in fixture.lower()
+    assert (ROOT / "scripts/verify-credit-charge-disclosure-browser.cjs").exists()

@@ -216,9 +216,6 @@ def test_durable_document_reply_survives_chat_job_cache_finalization_failure(mon
     fake_ai = FakeAI()
     refunds = AsyncMock(return_value=None)
 
-    async def fake_consume(*_args, **_kwargs):
-        return {'eventId': 'event-1', 'used': 1, 'limit': 100, 'remaining': 99}
-
     async def fake_authenticate(*_args, **_kwargs):
         return SimpleNamespace(
             user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner'},
@@ -264,10 +261,7 @@ def test_durable_document_reply_survives_chat_job_cache_finalization_failure(mon
         is_image_request=lambda *_args: False,
         is_edit_request=lambda *_args: False,
     )
-    fake_features = SimpleNamespace(
-        entitled=lambda *_args: False,
-        refund=AsyncMock(return_value=None),
-    )
+    fake_features = FakeFeatures()
 
     monkeypatch.setattr(chat_routes, 'db', fake_db)
     monkeypatch.setattr(chat_routes, 'ai', fake_ai)
@@ -277,8 +271,6 @@ def test_durable_document_reply_survives_chat_job_cache_finalization_failure(mon
     monkeypatch.setattr(chat_routes, 'media', fake_media)
     monkeypatch.setattr(chat_routes, 'projects', SimpleNamespace(reference_files=AsyncMock(return_value=[])))
     monkeypatch.setattr(chat_routes, 'authenticate_request', fake_authenticate)
-    monkeypatch.setattr(chat_routes, 'consume_usage', fake_consume)
-    monkeypatch.setattr(chat_routes, 'consume_feature_for_request', AsyncMock(return_value=None))
     monkeypatch.setattr(chat_routes, 'apply_project_context', AsyncMock(return_value=None))
     monkeypatch.setattr(chat_routes, 'mark_check_in_responded', AsyncMock(return_value=None))
     monkeypatch.setattr(chat_routes, 'record_product_event', ignore_event)

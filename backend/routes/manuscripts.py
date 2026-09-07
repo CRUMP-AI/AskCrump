@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from ..auth_service import authenticate_request
 from ..feature_service import FeatureAccessError
 from ..file_service import FileServiceError
-from ..manuscript_service import ManuscriptError
+from ..manuscript_service import ManuscriptError, chapter_count_from_prompt
 from ..project_service import ProjectNotFoundError
 from ..runtime import code_worker, db, features, files, manuscripts, projects, settings
 
