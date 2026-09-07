@@ -592,6 +592,17 @@ def test_ui_copy_routes_and_fixed_rate_table_match_server_policy():
         assert "scope=" in source
 
 
+def test_project_credit_wrapper_keeps_one_low_level_transport():
+    product = read("public/crump-product-5.3.js")
+    assert product.count("async function apiOnce(") == 1
+    assert product.count("async function api(") == 1
+    assert product.index("async function apiOnce(") < product.index(
+        "async function api("
+    )
+    assert "return apiOnce(path, options);" in product
+    assert "return apiOnce(path, next);" in product
+
+
 def test_false_one_request_one_credit_claim_is_absent():
     for root_name in ("public", "docs", "backend"):
         for path in (ROOT / root_name).rglob("*"):

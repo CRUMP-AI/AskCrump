@@ -179,7 +179,7 @@
     });
   }
 
-  async function api(path, options = {}) {
+  async function apiOnce(path, options = {}) {
     const {
       timeoutMs: requestedTimeout = 0,
       signal: callerSignal,
