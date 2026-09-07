@@ -70,6 +70,12 @@
       placements: new Set(['profile-link', 'organic-social']),
       creatives: new Set(['continuity-feed', 'continuity-story']),
     },
+    'rough-to-useful-v2': {
+      intent: 'projects',
+      acquisitions: new Set(['facebook']),
+      placements: new Set(['organic-social']),
+      creatives: new Set(['rough-to-useful-current-feed']),
+    },
     'rough-idea-launch-plan': {
       intent: 'projects',
       acquisitions: new Set(['organic-search']),

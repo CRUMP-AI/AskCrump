@@ -99,6 +99,12 @@ ATTRIBUTION_CAMPAIGNS = {
         "placements": frozenset({"profile-link", "organic-social"}),
         "creatives": frozenset({"continuity-feed", "continuity-story"}),
     },
+    "rough-to-useful-v2": {
+        "intent": "projects",
+        "acquisitions": frozenset({"facebook"}),
+        "placements": frozenset({"organic-social"}),
+        "creatives": frozenset({"rough-to-useful-current-feed"}),
+    },
     "rough-idea-launch-plan": {
         "intent": "projects",
         "acquisitions": frozenset({"organic-search"}),

@@ -17,6 +17,7 @@ from backend.schemas import RegisterRequest
 
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATION = ROOT / "migrations" / "20260830171056_weekly_growth_attribution_export.sql"
+REGISTRY_MIGRATION = ROOT / "migrations" / "20260907184049_rough_to_useful_attribution.sql"
 EXPECTED_REGISTRY = {
     "presentation-proof-current": {
         "intent": "presentation",
@@ -29,6 +30,12 @@ EXPECTED_REGISTRY = {
         "acquisitions": {"facebook", "instagram"},
         "placements": {"profile-link", "organic-social"},
         "creatives": {"continuity-feed", "continuity-story"},
+    },
+    "rough-to-useful-v2": {
+        "intent": "projects",
+        "acquisitions": {"facebook"},
+        "placements": {"organic-social"},
+        "creatives": {"rough-to-useful-current-feed"},
     },
     "rough-idea-launch-plan": {
         "intent": "projects",
@@ -176,7 +183,7 @@ class RPCDB:
 def test_campaign_registry_has_exact_frontend_server_and_database_parity():
     landing = (ROOT / "public" / "landing.js").read_text(encoding="utf-8")
     controller = (ROOT / "public" / "auth-controller.js").read_text(encoding="utf-8")
-    sql = MIGRATION.read_text(encoding="utf-8")
+    sql = REGISTRY_MIGRATION.read_text(encoding="utf-8")
     python_registry = {
         campaign: {
             "intent": values["intent"],
@@ -220,6 +227,20 @@ def test_registered_campaign_tuple_is_preserved_exactly():
         "placement": "organic-social",
         "campaign": "real-product-continuity",
         "creative": "continuity-feed",
+        "intent": "projects",
+    }
+
+    assert normalize_attribution(
+        acquisition="facebook",
+        placement="organic-social",
+        campaign="rough-to-useful-v2",
+        creative="rough-to-useful-current-feed",
+        intent="projects",
+    ) == {
+        "acquisition": "facebook",
+        "placement": "organic-social",
+        "campaign": "rough-to-useful-v2",
+        "creative": "rough-to-useful-current-feed",
         "intent": "projects",
     }
 
@@ -273,6 +294,38 @@ def test_registered_campaign_tuple_is_preserved_exactly():
                 "campaign": None,
                 "creative": None,
                 "intent": "presentation",
+            },
+        ),
+        (
+            {
+                "acquisition": "facebook",
+                "placement": "organic-social",
+                "campaign": "rough-to-useful-v2",
+                "creative": "rough-to-useful-current-story",
+                "intent": "projects",
+            },
+            {
+                "acquisition": "facebook",
+                "placement": "organic-social",
+                "campaign": "rough-to-useful-v2",
+                "creative": None,
+                "intent": "projects",
+            },
+        ),
+        (
+            {
+                "acquisition": "instagram",
+                "placement": "organic-social",
+                "campaign": "rough-to-useful-v2",
+                "creative": "rough-to-useful-current-feed",
+                "intent": "projects",
+            },
+            {
+                "acquisition": "instagram",
+                "placement": "organic-social",
+                "campaign": None,
+                "creative": None,
+                "intent": "projects",
             },
         ),
     ],
