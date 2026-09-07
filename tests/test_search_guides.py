@@ -67,6 +67,9 @@ RECOVERED_ASSET_DIMENSIONS = {
 }
 
 
+RECOVERED_ASSET_VERSION = "20260907-guide-current-1"
+
+
 def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
 
@@ -139,10 +142,21 @@ def test_recovered_guide_asset_dimensions_match_html_and_social_metadata():
         assert '<meta property="og:image:height" content="720">' in page
 
     for name in RECOVERED_ASSET_DIMENSIONS:
-        assert f'src="/assets/guides/{name}" width="1280" height="720"' in rough_guide or (
-            name == "savannah-project.png"
-            and f'src="/assets/guides/{name}" width="1280" height="720"' in project_guide
+        versioned_source = (
+            f'src="/assets/guides/{name}?v={RECOVERED_ASSET_VERSION}" '
+            'width="1280" height="720"'
         )
+        assert versioned_source in rough_guide or (
+            name == "savannah-project.png"
+            and versioned_source in project_guide
+        )
+
+        unversioned_source = f'src="/assets/guides/{name}"'
+        assert unversioned_source not in rough_guide
+        assert unversioned_source not in project_guide
+
+    assert rough_guide.count(f"?v={RECOVERED_ASSET_VERSION}") == 6
+    assert project_guide.count(f"?v={RECOVERED_ASSET_VERSION}") == 4
 
     assert (
         'alt="The live Ask Crump response showing budget items and six weekly milestones '
