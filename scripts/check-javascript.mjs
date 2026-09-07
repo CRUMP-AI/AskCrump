@@ -480,6 +480,7 @@ const landingVersion = `${releaseVersion}-attribution-registry-1`;
 const authControllerVersion = `${releaseVersion}-attribution-registry-1`;
 const planRendererVersion = `${releaseVersion}-credit-pack-accessibility-1`;
 const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
+const nativeBillingIdentityVersion = `${releaseVersion}-native-billing-identity-1`;
 const creditPackTruthVersion = `${releaseVersion}-credit-pack-truth-1`;
 const creditTruthVersion = `${releaseVersion}-credit-truth-1`;
 const creditConfirmationVersion = `${releaseVersion}-credit-confirmation-1`;
@@ -983,7 +984,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r219') ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.9.30.css'") ||
     !serviceWorker.includes("url.pathname === '/crump-code-5.9.35.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-code-5.9.35.css'") ||
-    !serviceWorker.includes(`/billing-manager.js?v=${commerceRecoveryVersion}`) ||
+    !serviceWorker.includes(`/billing-manager.js?v=${nativeBillingIdentityVersion}`) ||
     !serviceWorker.includes(`/subscription-ui.js?v=${commerceRecoveryVersion}`) ||
     !serviceWorker.includes(`/crump-billing-5.1.css?v=${creditTruthVersion}`) ||
     !serviceWorker.includes(`/crump-billing-5.1.js?v=${creditTruthVersion}`) ||
@@ -992,6 +993,75 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r219') ||
     !serviceWorker.includes('/crump-library-5.7.js') ||
     !serviceWorker.includes('/crump-library-5.7.css')) {
   console.error('New-body service-worker contract is incomplete.');
+  process.exit(1);
+}
+
+const billingManagerSource = await readFile(new URL('public/billing-manager.js', repoRoot), 'utf8');
+async function exerciseNativeBillingIdentity({rejectSecondLogin = false} = {}) {
+  const calls = [];
+  let loginAttempts = 0;
+  const plugin = {
+    async configure(payload) { calls.push(['configure', payload.appUserID || null]); },
+    async logIn(payload) {
+      loginAttempts += 1;
+      calls.push(['login', payload.appUserID]);
+      if (rejectSecondLogin && loginAttempts === 1) throw new Error('fixture identity failure');
+    },
+    async logOut() { calls.push(['logout']); },
+    async getOfferings() {
+      calls.push(['offerings']);
+      return {current: {availablePackages: []}};
+    },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {revenueCatAppleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'account-a'},
+  };
+  runInContext(billingManagerSource, createContext({window: windowMock}));
+  await Promise.all([
+    windowMock.BillingManager.getProducts(),
+    windowMock.BillingManager.getCreditProducts(),
+  ]);
+  windowMock.currentUser = {id: 'account-b'};
+  let rejectedMessage = '';
+  try {
+    await Promise.all([
+      windowMock.BillingManager.getProducts(),
+      windowMock.BillingManager.getCreditProducts(),
+    ]);
+  } catch (error) {
+    rejectedMessage = error?.message || '';
+  }
+  if (rejectSecondLogin) return {calls, rejectedMessage};
+  await windowMock.BillingManager.getProducts();
+  windowMock.currentUser = null;
+  await windowMock.BillingManager.configure();
+  windowMock.currentUser = {id: 'account-c'};
+  await windowMock.BillingManager.getProducts();
+  return {calls, rejectedMessage};
+}
+
+const nativeBillingIdentity = await exerciseNativeBillingIdentity();
+const expectedNativeBillingIdentityCalls = [
+  ['configure', 'account-a'],
+  ['login', 'account-b'],
+  ['logout'],
+  ['login', 'account-c'],
+];
+const nativeBillingIdentityCalls = nativeBillingIdentity.calls.filter(([name]) => name !== 'offerings');
+if (JSON.stringify(nativeBillingIdentityCalls) !== JSON.stringify(expectedNativeBillingIdentityCalls) ||
+    nativeBillingIdentity.calls.filter(([name]) => name === 'offerings').length !== 6) {
+  console.error('Native billing must realign exactly once whenever the signed-in account changes.');
+  process.exit(1);
+}
+const rejectedNativeBillingIdentity = await exerciseNativeBillingIdentity({rejectSecondLogin: true});
+if (rejectedNativeBillingIdentity.rejectedMessage !== 'Store billing could not confirm the signed-in account. Try again.' ||
+    rejectedNativeBillingIdentity.calls.filter(([name]) => name === 'configure').length !== 1 ||
+    rejectedNativeBillingIdentity.calls.filter(([name]) => name === 'login').length !== 1 ||
+    rejectedNativeBillingIdentity.calls.filter(([name]) => name === 'offerings').length !== 2) {
+  console.error('Native billing must fail closed before loading products when store identity alignment fails.');
   process.exit(1);
 }
 

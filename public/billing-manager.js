@@ -2,25 +2,75 @@
   'use strict';
 
   let configured = false;
+  let configuredUserId = null;
+  let configurationPromise = null;
+  let identityPromise = null;
 
   const native = () => Boolean(window.CrumpAPI?.isNative);
   const platform = () => window.CrumpNative?.Capacitor?.getPlatform?.() || window.Capacitor?.getPlatform?.() || 'web';
   const purchases = () => window.CrumpNative?.Purchases;
   const config = () => window.CRUMP_CONFIG || {};
 
+  function activeAppUserId() {
+    const userId = String(window.currentUser?.id || '').trim();
+    return userId || null;
+  }
+
+  async function performAppUserAlignment(plugin) {
+    const nextUserId = activeAppUserId();
+    if (nextUserId === configuredUserId) return;
+
+    try {
+      if (nextUserId) {
+        if (typeof plugin.logIn !== 'function') throw new Error('RevenueCat login is unavailable.');
+        await plugin.logIn({appUserID: nextUserId});
+        configuredUserId = nextUserId;
+        return;
+      }
+      if (configuredUserId) {
+        if (typeof plugin.logOut !== 'function') throw new Error('RevenueCat logout is unavailable.');
+        await plugin.logOut();
+      }
+      configuredUserId = null;
+    } catch (_) {
+      throw new Error('Store billing could not confirm the signed-in account. Try again.');
+    }
+  }
+
+  async function alignAppUser(plugin) {
+    while (activeAppUserId() !== configuredUserId) {
+      if (!identityPromise) {
+        identityPromise = performAppUserAlignment(plugin).finally(() => {
+          identityPromise = null;
+        });
+      }
+      await identityPromise;
+    }
+  }
+
   async function configure() {
     if (!native()) return false;
     await window.CrumpAPI?.ready;
-    if (configured) return true;
     const plugin = purchases();
     const values = config();
     const key = platform() === 'ios' ? values.revenueCatAppleApiKey : values.revenueCatGoogleApiKey;
     if (!plugin || !key) return false;
-    await plugin.configure({ apiKey: key, appUserID: window.currentUser?.id || null });
-    if (window.currentUser?.id && plugin.logIn) {
-      await plugin.logIn({ appUserID: window.currentUser.id }).catch(() => {});
+
+    if (!configured) {
+      if (!configurationPromise) {
+        const appUserID = activeAppUserId();
+        configurationPromise = (async () => {
+          await plugin.configure({apiKey: key, ...(appUserID ? {appUserID} : {})});
+          configured = true;
+          configuredUserId = appUserID;
+        })().finally(() => {
+          configurationPromise = null;
+        });
+      }
+      await configurationPromise;
     }
-    configured = true;
+
+    await alignAppUser(plugin);
     return true;
   }
 

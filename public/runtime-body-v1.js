@@ -49,7 +49,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/onboarding.js?v=5.9.76-button-integrity-1', 'workspaceonboarding'],
     ['/scroll-manager.js?v=5.9.76-user-controlled-scroll-1', 'workspacescroll'],
     ['/profile-manager.js', 'workspaceprofile'],
-    ['/billing-manager.js?v=5.9.76-commerce-recovery-1', 'workspacebilling'],
+    ['/billing-manager.js?v=5.9.76-native-billing-identity-1', 'workspacebilling'],
     ['/subscription-ui.js?v=5.9.76-commerce-recovery-1', 'workspacesubscription'],
     ['/credit-confirmation.js?v=5.9.76-credit-confirmation-1', 'workspacecreditconfirmation'],
     ['/chat-resilience.js?v=5.9.76-credit-confirmation-1', 'workspacechatresilience'],
