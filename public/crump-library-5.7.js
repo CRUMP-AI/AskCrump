@@ -307,7 +307,7 @@
 
   function layoutButtonMarkup(layout, label) {
     const disabled = layout === 'book' && !state.books.some(book => book.frontCover?.id);
-    return `<button type="button" class="crump57-layout-button ${state.layout === layout ? 'is-active' : ''}" data-crump57-layout="${layout}" ${disabled ? 'disabled title="Add a front cover to unlock Book View"' : ''}>${label}</button>`;
+    return `<button type="button" class="crump57-layout-button ${state.layout === layout ? 'is-active' : ''}" data-crump57-layout="${layout}" aria-pressed="${state.layout === layout ? 'true' : 'false'}" ${disabled ? 'disabled title="Add a front cover to unlock Book View"' : ''}>${label}</button>`;
   }
 
   function updateLayoutControls() {
@@ -1290,7 +1290,15 @@
       if (sort) sort.value = state.sort;
 
       byId('crump57Import')?.addEventListener('click', () => void openImportModal());
-      byId('crump57New')?.addEventListener('click', () => byId('crump53NewManuscript')?.click());
+      byId('crump57New')?.addEventListener('click', () => {
+        const openProduct = window.CrumpProduct53?.open;
+        if (typeof openProduct !== 'function') {
+          show('The manuscript workspace is still loading. Try again in a moment.', 'error');
+          return;
+        }
+        openProduct('manuscripts');
+        window.requestAnimationFrame(() => byId('crump53NewManuscript')?.click());
+      });
       byId('crump57Deleted')?.addEventListener('click', () => void openRecentlyDeleted());
       byId('crump57Search')?.addEventListener('input', event => { state.search = event.target.value || ''; renderBooks(); });
       byId('crump57Filter')?.addEventListener('change', event => { state.status = event.target.value || 'all'; renderBooks(); });

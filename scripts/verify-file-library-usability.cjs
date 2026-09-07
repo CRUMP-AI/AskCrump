@@ -66,6 +66,7 @@ const { chromium } = require('playwright');
     await dialog.getByRole('button', {name: 'Close'}).click();
     await page.evaluate(() => window.CrumpProduct53.openFiles());
     await dialog.waitFor({state: 'visible'});
+    await page.waitForFunction(() => document.querySelectorAll('[data-library-file]').length === 12);
     assert.equal(await search.evaluate(element => element.value), '');
     assert.equal(await dialog.locator('[data-library-filter="all"]').getAttribute('aria-pressed'), 'true');
     assert.equal(await dialog.locator('[data-library-filter="image"]').getAttribute('aria-pressed'), 'false');

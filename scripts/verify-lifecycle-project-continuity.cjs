@@ -27,10 +27,10 @@ const { chromium } = require('playwright');
   }));
   assert.equal(result.keepCalls, 1);
   assert.equal(result.genericProjectOpens, 0);
-  assert.deepEqual(result.projectArgs, [{projectId: null}]);
+  assert.deepEqual(result.projectArgs, [{projectId: null, continuitySource: 'result_action'}]);
   assert.equal(result.projectButtonText, 'Open Project');
   assert.equal(result.projectButtonSaved, 'true');
-  assert.equal(result.continuityText, 'Saved to "Launch plan".');
+  assert.equal(result.continuityText, 'Saved privately to "Launch plan".');
   assert.deepEqual(result.actions, ['shown', 'acted']);
   assert.deepEqual(errors, []);
 

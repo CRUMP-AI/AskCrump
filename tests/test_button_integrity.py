@@ -108,3 +108,27 @@ def test_tutorial_names_the_current_image_apply_button() -> None:
     assert phrase in tutorial
     assert "saveLocal.textContent = 'Apply changes'" in editor
     assert "Save local edit" not in tutorial
+
+
+def test_library_new_button_opens_the_visible_manuscript_workspace_first() -> None:
+    library = (PUBLIC / "crump-library-5.7.js").read_text(encoding="utf-8")
+
+    handler = library[library.index("byId('crump57New')?.addEventListener"):]
+    handler = handler[:handler.index("byId('crump57Deleted')")]
+    assert "openProduct('manuscripts')" in handler
+    assert "byId('crump53NewManuscript')?.click()" in handler
+    assert handler.index("openProduct('manuscripts')") < handler.index("byId('crump53NewManuscript')?.click()")
+    assert "The manuscript workspace is still loading. Try again in a moment." in handler
+
+
+def test_library_layout_buttons_expose_their_selected_state() -> None:
+    library = (PUBLIC / "crump-library-5.7.js").read_text(encoding="utf-8")
+
+    assert 'aria-pressed="${state.layout === layout ? \'true\' : \'false\'}"' in library
+
+
+def test_library_new_button_release_is_cache_addressable_everywhere() -> None:
+    asset = "/crump-library-5.7.js?v=5.9.76-library-new-routing-1"
+
+    for relative in ("public/runtime-body-v1.js", "public/sw.js", "scripts/build-native.mjs"):
+        assert asset in (ROOT / relative).read_text(encoding="utf-8")
