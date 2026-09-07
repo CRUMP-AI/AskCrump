@@ -22,3 +22,13 @@ def test_requirements_txt_matches_pyproject_runtime_dependencies():
         f'Missing from requirements.txt: {sorted(canonical - requirements)}; '
         f'extra in requirements.txt: {sorted(requirements - canonical)}'
     )
+
+
+def test_pyjwt_security_baseline_is_synced_across_tracked_manifests():
+    expected = 'PyJWT[crypto]==2.13.0'
+    root = tomllib.loads((ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
+    legacy = tomllib.loads((ROOT / 'repo' / 'pyproject.toml').read_text(encoding='utf-8'))
+
+    assert expected in root['project']['dependencies']
+    assert expected in legacy['project']['dependencies']
+    assert expected in normalized_requirements(ROOT / 'requirements.txt')
