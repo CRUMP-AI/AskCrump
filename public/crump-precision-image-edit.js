@@ -62,6 +62,18 @@
     overlayRemove: null,
     lassoGuide: null,
     lassoPolygon: null,
+    sourceImage: null,
+    baseImage: null,
+    transformOperations: [],
+    cropGuide: null,
+    cropDraft: null,
+    cropStart: null,
+    cropAspect: 0,
+    applyCrop: null,
+    resetGeometry: null,
+    featherPercent: 0,
+    featherValue: null,
+    versionsList: null,
   };
 
   const focusableSelector = 'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -135,12 +147,29 @@
     state.overlays = [];
     state.activeOverlayId = '';
     state.overlayDrag = null;
+    state.transformOperations = [];
+    state.cropDraft = null;
+    state.cropStart = null;
+    state.cropAspect = 0;
+    state.featherPercent = 0;
     state.overlaySize = null;
     state.overlayOpacity = null;
     state.overlayColor = null;
     state.overlayRemove = null;
     state.lassoGuide = null;
     state.lassoPolygon = null;
+    state.sourceImage = null;
+    state.baseImage = null;
+    state.transformOperations = [];
+    state.cropGuide = null;
+    state.cropDraft = null;
+    state.cropStart = null;
+    state.cropAspect = 0;
+    state.applyCrop = null;
+    state.resetGeometry = null;
+    state.featherPercent = 0;
+    state.featherValue = null;
+    state.versionsList = null;
     document.body.classList.remove('crump-precision-open');
     const target = state.returnFocus;
     state.returnFocus = null;
@@ -164,6 +193,69 @@
     throw new Error('This image is not available for editing.');
   }
 
+  function versionLabel(version) {
+    if (version.isOriginal) return 'Original';
+    if (version.editKind === 'ai') return 'AI edit';
+    if (version.editKind === 'geometry') return 'Crop or rotation';
+    return 'Local edit';
+  }
+
+  function renderVersions(versions = []) {
+    const list = state.versionsList;
+    if (!list) return;
+    list.replaceChildren();
+    const safe = Array.isArray(versions) && versions.length ? versions.slice(-20) : [{...state.file, isCurrent: true, isOriginal: true, editKind: 'original'}];
+    safe.forEach(version => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'crump-precision-version';
+      button.classList.toggle('is-current', Boolean(version.isCurrent));
+      button.setAttribute('aria-current', version.isCurrent ? 'true' : 'false');
+      const preview = document.createElement('img');
+      preview.src = String(version.url || `/api/files/${encodeURIComponent(version.id)}/content`);
+      preview.alt = '';
+      preview.loading = 'lazy';
+      const copy = document.createElement('span');
+      const strong = document.createElement('strong'); strong.textContent = versionLabel(version);
+      const small = document.createElement('small');
+      const timestamp = Date.parse(version.createdAt || version.updatedAt || '');
+      small.textContent = version.isCurrent
+        ? 'Current version'
+        : Number.isFinite(timestamp)
+          ? new Intl.DateTimeFormat(undefined, {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'}).format(timestamp)
+          : 'Private saved version';
+      copy.append(strong, small);
+      button.append(preview, copy);
+      button.disabled = Boolean(version.isCurrent);
+      button.addEventListener('click', () => {
+        const onApplied = state.onApplied;
+        void open({file: version, url: version.url || '', onApplied}).catch(error => {
+          show(error?.message || 'That image version could not be opened.', 'error');
+        });
+      });
+      list.appendChild(button);
+    });
+  }
+
+  async function loadVersions(fileId) {
+    if (!fileId) {
+      renderVersions();
+      return;
+    }
+    try {
+      const response = await fetch(`/api/files/${encodeURIComponent(fileId)}/versions`, {
+        credentials: 'same-origin',
+        headers: {'Accept': 'application/json'},
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !Array.isArray(data.versions)) throw new Error(data.error || 'Version history unavailable.');
+      if (state.file?.id !== fileId) return;
+      renderVersions(data.versions);
+    } catch (_) {
+      if (state.file?.id === fileId) renderVersions();
+    }
+  }
+
   function loadImage(url) {
     return new Promise((resolve, reject) => {
       const image = new Image();
@@ -173,6 +265,188 @@
       image.addEventListener('error', () => reject(new Error('This image could not be decoded for Precision Edit.')), {once: true});
       image.src = url;
     });
+  }
+
+  function renderWorkingImage(source, operations = state.transformOperations) {
+    let current = document.createElement('canvas');
+    current.width = source.naturalWidth;
+    current.height = source.naturalHeight;
+    current.getContext('2d', {alpha: true}).drawImage(source, 0, 0);
+    operations.forEach(operation => {
+      const next = document.createElement('canvas');
+      if (operation.type === 'rotate') {
+        const degrees = Number(operation.degrees || 0);
+        const quarterTurn = Math.abs(degrees) === 90;
+        next.width = quarterTurn ? current.height : current.width;
+        next.height = quarterTurn ? current.width : current.height;
+        const context = next.getContext('2d', {alpha: true});
+        if (degrees === 90) {
+          context.translate(next.width, 0);
+          context.rotate(Math.PI / 2);
+        } else if (degrees === -90) {
+          context.translate(0, next.height);
+          context.rotate(-Math.PI / 2);
+        } else {
+          context.translate(next.width, next.height);
+          context.rotate(Math.PI);
+        }
+        context.drawImage(current, 0, 0);
+      } else {
+        const left = Math.max(0, Math.min(current.width - 1, Math.round(Number(operation.x) * current.width)));
+        const top = Math.max(0, Math.min(current.height - 1, Math.round(Number(operation.y) * current.height)));
+        const right = Math.max(left + 1, Math.min(current.width, Math.round((Number(operation.x) + Number(operation.width)) * current.width)));
+        const bottom = Math.max(top + 1, Math.min(current.height, Math.round((Number(operation.y) + Number(operation.height)) * current.height)));
+        next.width = right - left;
+        next.height = bottom - top;
+        next.getContext('2d', {alpha: true}).drawImage(current, left, top, next.width, next.height, 0, 0, next.width, next.height);
+      }
+      current = next;
+    });
+    return current;
+  }
+
+  function fitSurface() {
+    if (!state.stage || !state.frame || !state.baseImage) return;
+    const stageStyle = getComputedStyle(state.stage);
+    const stageWidth = Math.max(1,
+      state.stage.clientWidth - (parseFloat(stageStyle.paddingLeft) || 0) - (parseFloat(stageStyle.paddingRight) || 0));
+    const stageHeight = Math.max(1,
+      state.stage.clientHeight - (parseFloat(stageStyle.paddingTop) || 0) - (parseFloat(stageStyle.paddingBottom) || 0));
+    const baseMaxHeight = parseFloat(getComputedStyle(state.baseImage).maxHeight);
+    const availableHeight = Number.isFinite(baseMaxHeight) && baseMaxHeight > 0
+      ? Math.min(stageHeight, baseMaxHeight)
+      : stageHeight;
+    const fitScale = Math.min(
+      1,
+      stageWidth / Math.max(1, state.canvas.width),
+      availableHeight / Math.max(1, state.canvas.height),
+    );
+    state.fitWidth = Math.max(1, Math.round(state.canvas.width * fitScale));
+    state.fitHeight = Math.max(1, Math.round(state.canvas.height * fitScale));
+    state.zoom = 1;
+    state.frame.style.width = `${state.fitWidth}px`;
+    state.frame.style.height = `${state.fitHeight}px`;
+    state.frame.classList.remove('is-zoomed');
+    updateZoomControls();
+  }
+
+  function hasGeometryEdit() {
+    return state.transformOperations.length > 0;
+  }
+
+  function geometryCanChange() {
+    return !selectionHasVisiblePixels() && !hasLocalAdjustments() && !hasDeterministicOverlay();
+  }
+
+  function updateCropGuide() {
+    const guide = state.cropGuide;
+    const crop = state.cropDraft;
+    if (!guide || !crop || state.mode !== 'crop' || state.comparingOriginal) {
+      if (guide) guide.hidden = true;
+      if (state.applyCrop) state.applyCrop.disabled = true;
+      return;
+    }
+    guide.hidden = false;
+    guide.style.left = `${crop.x * 100}%`;
+    guide.style.top = `${crop.y * 100}%`;
+    guide.style.width = `${crop.width * 100}%`;
+    guide.style.height = `${crop.height * 100}%`;
+    if (state.applyCrop) state.applyCrop.disabled = crop.width * state.canvas.width < 32 || crop.height * state.canvas.height < 32;
+  }
+
+  function centeredCrop(aspect = 0) {
+    if (!state.canvas) return;
+    const margin = .09;
+    let width = 1 - (margin * 2);
+    let height = width;
+    if (aspect > 0) {
+      const imageRatio = state.canvas.width / state.canvas.height;
+      height = width * imageRatio / aspect;
+      if (height > 1 - (margin * 2)) {
+        height = 1 - (margin * 2);
+        width = height * aspect / imageRatio;
+      }
+    }
+    state.cropDraft = {x: (1 - width) / 2, y: (1 - height) / 2, width, height};
+    updateCropGuide();
+  }
+
+  function cropFromPoints(start, end) {
+    let width = Math.abs(end.x - start.x);
+    let height = Math.abs(end.y - start.y);
+    if (state.cropAspect > 0 && state.canvas) {
+      const desiredHeight = width * state.canvas.width / (state.cropAspect * state.canvas.height);
+      height = desiredHeight;
+    }
+    const directionX = end.x >= start.x ? 1 : -1;
+    const directionY = end.y >= start.y ? 1 : -1;
+    const x = directionX > 0 ? start.x : start.x - width;
+    const y = directionY > 0 ? start.y : start.y - height;
+    const left = Math.max(0, Math.min(1, x));
+    const top = Math.max(0, Math.min(1, y));
+    return {
+      x: left,
+      y: top,
+      width: Math.max(0, Math.min(width, 1 - left)),
+      height: Math.max(0, Math.min(height, 1 - top)),
+    };
+  }
+
+  async function rebuildWorkingSurface() {
+    if (!state.sourceImage || !state.baseImage || !state.canvas) return;
+    const working = renderWorkingImage(state.sourceImage);
+    state.baseImage.src = working.toDataURL('image/png');
+    state.baseImage.width = working.width;
+    state.baseImage.height = working.height;
+    state.canvas.width = working.width;
+    state.canvas.height = working.height;
+    state.context = state.canvas.getContext('2d', {alpha: true, willReadFrequently: true});
+    const previewScale = Math.min(1, 1200 / Math.max(working.width, working.height));
+    state.previewCanvas.width = Math.max(1, Math.round(working.width * previewScale));
+    state.previewCanvas.height = Math.max(1, Math.round(working.height * previewScale));
+    const source = document.createElement('canvas');
+    source.width = state.previewCanvas.width;
+    source.height = state.previewCanvas.height;
+    const sourceContext = source.getContext('2d', {alpha: true, willReadFrequently: true});
+    sourceContext.drawImage(working, 0, 0, source.width, source.height);
+    state.previewSource = sourceContext.getImageData(0, 0, source.width, source.height);
+    state.previewMask.width = source.width;
+    state.previewMask.height = source.height;
+    state.overlayCanvas.width = working.width;
+    state.overlayCanvas.height = working.height;
+    state.strokes = [];
+    state.redoStrokes = [];
+    state.selectionDirty = true;
+    state.hasSelection = false;
+    state.cropDraft = null;
+    state.cropStart = null;
+    state.previewCanvas.hidden = true;
+    state.overlayCanvas.hidden = true;
+    fitSurface();
+    redraw();
+    renderOverlays();
+    updateCropGuide();
+  }
+
+  async function applyGeometry(operation, label) {
+    if (!geometryCanChange()) {
+      setStatus('Crop and rotate must happen before selections, appearance adjustments, or overlays. Reset those edits first.', 'error');
+      return;
+    }
+    if (state.transformOperations.length >= 8) {
+      setStatus('Apply this version before making more geometry changes.', 'error');
+      return;
+    }
+    state.transformOperations.push(operation);
+    try {
+      await rebuildWorkingSurface();
+      setComparingOriginal(false);
+      updateLocalControls();
+      setStatus(`${label} ready. Apply changes to save it as a new immutable version.`);
+    } catch (_) {
+      state.transformOperations.pop();
+      setStatus('That geometry change could not be previewed. Your source is unchanged.', 'error');
+    }
   }
 
   function pointFor(event) {
@@ -300,18 +574,32 @@
   }
 
   function hasSavableLocalEdit() {
-    return localAdjustmentReady() || hasDeterministicOverlay();
+    return localAdjustmentReady() || hasDeterministicOverlay() || hasGeometryEdit();
   }
 
   function updateLocalControls() {
     if (state.saveLocal) {
       state.saveLocal.disabled = !state.file?.id || !hasSavableLocalEdit();
     }
-    if (state.compare) state.compare.disabled = !hasSavableLocalEdit();
+    if (state.compare) state.compare.disabled = !localAdjustmentReady() && !hasDeterministicOverlay();
+    if (state.resetGeometry) state.resetGeometry.disabled = !hasGeometryEdit();
   }
 
   function clampChannel(value) {
     return Math.max(0, Math.min(255, Math.round(value)));
+  }
+
+  function preparedSelectionCanvas() {
+    if (!state.canvas || !selectionHasVisiblePixels() || state.featherPercent <= 0) return state.canvas;
+    const prepared = document.createElement('canvas');
+    prepared.width = state.canvas.width;
+    prepared.height = state.canvas.height;
+    const context = prepared.getContext('2d', {alpha: true});
+    const blurPixels = Math.max(1, Math.round(Math.min(prepared.width, prepared.height) * state.featherPercent / 100));
+    context.filter = `blur(${blurPixels}px)`;
+    context.drawImage(state.canvas, 0, 0);
+    context.filter = 'none';
+    return prepared;
   }
 
   function renderLocalPreview() {
@@ -332,7 +620,7 @@
     const maskContext = mask.getContext('2d', {alpha: true, willReadFrequently: true});
     maskContext.clearRect(0, 0, mask.width, mask.height);
     if (selectionHasVisiblePixels()) {
-      maskContext.drawImage(state.canvas, 0, 0, mask.width, mask.height);
+      maskContext.drawImage(preparedSelectionCanvas(), 0, 0, mask.width, mask.height);
     } else {
       maskContext.fillStyle = '#fff';
       maskContext.fillRect(0, 0, mask.width, mask.height);
@@ -380,7 +668,7 @@
     if (state.previewCanvas) state.previewCanvas.hidden = state.comparingOriginal || !hasLocalAdjustments();
     if (state.overlayCanvas) state.overlayCanvas.hidden = state.comparingOriginal || !hasDeterministicOverlay();
     updateOverlayGuide();
-    setStatus(state.comparingOriginal ? 'Showing the untouched original.' : 'Showing the local adjustment preview.');
+    setStatus(state.comparingOriginal ? 'Showing the source for this edit.' : 'Showing the current edit preview.');
   }
 
   function resetLocalAdjustments() {
@@ -594,7 +882,7 @@
   }
 
   function setMode(mode, buttons) {
-    state.mode = ['paint', 'erase', 'lasso', 'move', 'place'].includes(mode) ? mode : 'paint';
+    state.mode = ['paint', 'erase', 'lasso', 'move', 'place', 'crop'].includes(mode) ? mode : 'paint';
     Object.entries(buttons).forEach(([value, button]) => {
       button.classList.toggle('is-active', state.mode === value);
       button.setAttribute('aria-pressed', String(state.mode === value));
@@ -606,7 +894,9 @@
       lasso: 'Draw a closed outline around what may change.',
       move: 'Drag the enlarged image to reach a tiny detail.',
       place: 'Drag the selected exact overlay into place.',
+      crop: 'Drag a crop box, or choose an aspect ratio below.',
     }[state.mode]);
+    updateCropGuide();
   }
 
   function updateZoomControls() {
@@ -636,6 +926,16 @@
       if (event.button !== undefined && event.button !== 0) return;
       event.preventDefault();
       canvas.setPointerCapture?.(event.pointerId);
+      if (state.mode === 'crop') {
+        if (!geometryCanChange()) {
+          setStatus('Crop and rotate must happen before selections, appearance adjustments, or overlays. Reset those edits first.', 'error');
+          return;
+        }
+        state.cropStart = pointFor(event);
+        state.cropDraft = {x: state.cropStart.x, y: state.cropStart.y, width: 0, height: 0};
+        updateCropGuide();
+        return;
+      }
       if (state.mode === 'place') {
         const point = pointFor(event);
         const item = overlayAt(point);
@@ -673,6 +973,12 @@
       updateHistoryControls();
     });
     canvas.addEventListener('pointermove', event => {
+      if (state.cropStart) {
+        event.preventDefault();
+        state.cropDraft = cropFromPoints(state.cropStart, pointFor(event));
+        updateCropGuide();
+        return;
+      }
       if (state.overlayDrag) {
         event.preventDefault();
         const item = state.overlays.find(candidate => candidate.id === state.overlayDrag.id);
@@ -707,6 +1013,19 @@
       state.selectionDirty = true;
     });
     const finish = event => {
+      if (state.cropStart) {
+        event?.preventDefault?.();
+        if (event?.pointerId !== undefined) canvas.releasePointerCapture?.(event.pointerId);
+        state.cropStart = null;
+        updateCropGuide();
+        setStatus(
+          state.applyCrop?.disabled
+            ? 'Draw a crop at least 32 pixels wide and tall.'
+            : 'Crop framed. Choose Apply crop to keep it.',
+          state.applyCrop?.disabled ? 'error' : '',
+        );
+        return;
+      }
       if (state.overlayDrag) {
         event?.preventDefault?.();
         if (event?.pointerId !== undefined) canvas.releasePointerCapture?.(event.pointerId);
@@ -757,7 +1076,7 @@
   }
 
   function maskDataUrl() {
-    return canvasDataUrl(state.canvas, 'The selected area could not be prepared.');
+    return canvasDataUrl(preparedSelectionCanvas(), 'The selected area could not be prepared.');
   }
 
   function canvasDataUrl(canvas, errorMessage) {
@@ -834,6 +1153,35 @@
     }
   }
 
+  async function saveLocalVersion({reflect = true} = {}) {
+    const preparedMask = localAdjustmentReady() ? await localAdjustmentMaskDataUrl() : '';
+    const preparedOverlay = await overlayDataUrl();
+    const response = await fetch(`/api/files/${encodeURIComponent(state.file.id)}/image-adjust`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        maskDataUrl: preparedMask,
+        adjustments: state.adjustments,
+        overlayDataUrl: preparedOverlay,
+        transform: {operations: state.transformOperations},
+        chatId: window.currentChatId || null,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.file?.id) throw new Error(data.error || 'The local image edit could not be saved.');
+    const savedFile = data.file;
+    let applyResult = false;
+    if (reflect && state.onApplied) {
+      try {
+        applyResult = await Promise.resolve(state.onApplied({file: savedFile, sourceFile: state.file}));
+      } catch (_) {
+        applyResult = false;
+      }
+    }
+    return {savedFile, applyResult};
+  }
+
   async function open({file, url = '', onApplied = null} = {}) {
     if (!file?.id && !url) throw new Error('This image is not available for Precision Edit.');
     close();
@@ -894,14 +1242,19 @@
     const lasso = document.createElement('button'); lasso.type = 'button'; lasso.textContent = 'Lasso'; lasso.setAttribute('aria-pressed', 'false');
     const move = document.createElement('button'); move.type = 'button'; move.textContent = 'Move'; move.setAttribute('aria-pressed', 'false');
     const place = document.createElement('button'); place.type = 'button'; place.textContent = 'Place'; place.setAttribute('aria-pressed', 'false');
-    const modeButtons = {paint, erase, lasso, move, place};
+    const crop = document.createElement('button'); crop.type = 'button'; crop.textContent = 'Crop'; crop.setAttribute('aria-pressed', 'false');
+    const modeButtons = {paint, erase, lasso, move, place, crop};
     state.modeButtons = modeButtons;
     paint.addEventListener('click', () => setMode('paint', modeButtons));
     erase.addEventListener('click', () => setMode('erase', modeButtons));
     lasso.addEventListener('click', () => setMode('lasso', modeButtons));
     move.addEventListener('click', () => setMode('move', modeButtons));
     place.addEventListener('click', () => setMode('place', modeButtons));
-    modeGroup.append(paint, erase, lasso, move, place);
+    crop.addEventListener('click', () => {
+      setMode('crop', modeButtons);
+      if (!state.cropDraft) centeredCrop(state.cropAspect);
+    });
+    modeGroup.append(paint, erase, lasso, move, place, crop);
 
     const zoom = document.createElement('div');
     zoom.className = 'crump-precision-zoom';
@@ -926,6 +1279,68 @@
     const size = document.createElement('input'); size.type = 'range'; size.min = '1'; size.max = '14'; size.step = '1'; size.value = '4'; size.setAttribute('aria-label', 'Brush size');
     size.addEventListener('input', () => { state.brushPercent = Number(size.value); sizeValue.textContent = `${size.value}%`; });
     sizeLabel.append(sizeCopy, sizeValue, size);
+
+    const featherLabel = document.createElement('label');
+    featherLabel.className = 'crump-precision-size crump-precision-feather';
+    const featherCopy = document.createElement('span'); featherCopy.textContent = 'Edge feather';
+    const featherValue = document.createElement('b'); featherValue.textContent = '0%';
+    const feather = document.createElement('input'); feather.type = 'range'; feather.min = '0'; feather.max = '3'; feather.step = '.25'; feather.value = '0'; feather.setAttribute('aria-label', 'Selection edge feather');
+    feather.addEventListener('input', () => {
+      state.featherPercent = Number(feather.value);
+      featherValue.textContent = `${Number(feather.value).toFixed(Number(feather.value) % 1 ? 2 : 0)}%`;
+      scheduleLocalPreview();
+      setStatus(state.featherPercent ? 'Selection edge softened in the live preview.' : 'Selection edge is precise with no feathering.');
+    });
+    state.featherValue = featherValue;
+    featherLabel.append(featherCopy, featherValue, feather);
+
+    const geometry = document.createElement('section');
+    geometry.className = 'crump-precision-geometry';
+    const geometryLabel = document.createElement('span'); geometryLabel.textContent = 'CROP & ROTATE · NO AI OR CREDITS';
+    const geometryCopy = document.createElement('small'); geometryCopy.textContent = 'Set the frame before painting or adding overlays. Geometry is saved as a new version; your source is never overwritten.';
+    const geometryActions = document.createElement('div'); geometryActions.className = 'crump-precision-geometry-actions';
+    const rotateLeft = document.createElement('button'); rotateLeft.type = 'button'; rotateLeft.textContent = 'Rotate left'; rotateLeft.setAttribute('aria-label', 'Rotate image left 90 degrees');
+    const rotateRight = document.createElement('button'); rotateRight.type = 'button'; rotateRight.textContent = 'Rotate right'; rotateRight.setAttribute('aria-label', 'Rotate image right 90 degrees');
+    const resetGeometry = document.createElement('button'); resetGeometry.type = 'button'; resetGeometry.textContent = 'Reset frame'; resetGeometry.disabled = true;
+    rotateLeft.addEventListener('click', () => { void applyGeometry({type: 'rotate', degrees: -90}, 'Left rotation'); });
+    rotateRight.addEventListener('click', () => { void applyGeometry({type: 'rotate', degrees: 90}, 'Right rotation'); });
+    resetGeometry.addEventListener('click', () => {
+      if (!geometryCanChange()) {
+        setStatus('Reset selections, appearance adjustments, and overlays before resetting the frame.', 'error');
+        return;
+      }
+      state.transformOperations = [];
+      void rebuildWorkingSurface()
+        .then(() => {
+          updateLocalControls();
+          setStatus('Crop and rotation reset. Your immutable source was never changed.');
+        })
+        .catch(() => setStatus('The frame could not be reset. Close and reopen the source version.', 'error'));
+    });
+    state.resetGeometry = resetGeometry;
+    geometryActions.append(rotateLeft, rotateRight, resetGeometry);
+    const cropAspects = document.createElement('div'); cropAspects.className = 'crump-precision-crop-aspects'; cropAspects.setAttribute('role', 'group'); cropAspects.setAttribute('aria-label', 'Crop aspect ratio');
+    [
+      ['Free', 0], ['1:1', 1], ['4:5', .8], ['16:9', 16 / 9],
+    ].forEach(([label, aspect]) => {
+      const button = document.createElement('button'); button.type = 'button'; button.textContent = label; button.setAttribute('aria-pressed', String(aspect === 0));
+      button.addEventListener('click', () => {
+        state.cropAspect = Number(aspect);
+        [...cropAspects.children].forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+        setMode('crop', modeButtons);
+        centeredCrop(state.cropAspect);
+        setStatus(`${label} crop framed. Drag on the image to refine it, then apply the crop.`);
+      });
+      cropAspects.appendChild(button);
+    });
+    const applyCrop = document.createElement('button'); applyCrop.type = 'button'; applyCrop.className = 'crump-precision-apply-crop'; applyCrop.textContent = 'Apply crop'; applyCrop.disabled = true;
+    applyCrop.addEventListener('click', () => {
+      if (!state.cropDraft || applyCrop.disabled) return;
+      const operation = {type: 'crop', ...state.cropDraft};
+      void applyGeometry(operation, 'Crop');
+    });
+    state.applyCrop = applyCrop;
+    geometry.append(geometryLabel, geometryCopy, geometryActions, cropAspects, applyCrop);
 
     const history = document.createElement('div');
     history.className = 'crump-precision-history';
@@ -1162,7 +1577,15 @@
     status.setAttribute('aria-live', 'polite');
     status.textContent = 'Brush over the smallest area that should change.';
     state.status = status;
-    controls.append(modeGroup, zoom, sizeLabel, history, boundary, appearance, local, exactOverlay, adjustment, status);
+    const versions = document.createElement('section');
+    versions.className = 'crump-precision-versions';
+    const versionsLabel = document.createElement('span'); versionsLabel.textContent = 'VERSIONS';
+    const versionsCopy = document.createElement('small'); versionsCopy.textContent = 'Every applied edit is a new private file. Open any earlier version without changing it.';
+    const versionsList = document.createElement('div'); versionsList.className = 'crump-precision-version-list'; versionsList.setAttribute('aria-live', 'polite');
+    versionsList.innerHTML = '<p>Loading private versions…</p>';
+    state.versionsList = versionsList;
+    versions.append(versionsLabel, versionsCopy, versionsList);
+    controls.append(modeGroup, zoom, sizeLabel, featherLabel, history, geometry, boundary, appearance, local, exactOverlay, versions, adjustment, status);
     workspace.append(stage, controls);
 
     const footer = document.createElement('footer');
@@ -1178,30 +1601,7 @@
       saveLocal.setAttribute('aria-busy', 'true');
       setStatus('Applying a private, provider-free image version…');
       try {
-        const preparedMask = localAdjustmentReady() ? await localAdjustmentMaskDataUrl() : '';
-        const preparedOverlay = await overlayDataUrl();
-        const response = await fetch(`/api/files/${encodeURIComponent(state.file.id)}/image-adjust`, {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            maskDataUrl: preparedMask,
-            adjustments: state.adjustments,
-            overlayDataUrl: preparedOverlay,
-            chatId: window.currentChatId || null,
-          }),
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok || !data.file?.id) throw new Error(data.error || 'The local image edit could not be saved.');
-        const savedFile = data.file;
-        let applyResult = false;
-        if (state.onApplied) {
-          try {
-            applyResult = await Promise.resolve(state.onApplied({file: savedFile, sourceFile: state.file}));
-          } catch (_) {
-            applyResult = false;
-          }
-        }
+        const {savedFile, applyResult} = await saveLocalVersion({reflect: true});
         close();
         window.dispatchEvent(new CustomEvent('crump:local-image-edit-applied', {
           detail: {file: savedFile, reflectedInChat: Boolean(applyResult)},
@@ -1229,8 +1629,14 @@
       setStatus('Preparing the protected edit boundary…');
       try {
         const dataUrl = await maskDataUrl();
+        let sourceFile = state.file;
+        if (hasGeometryEdit()) {
+          setStatus('Saving the cropped or rotated source before the AI edit…');
+          const prepared = await saveLocalVersion({reflect: false});
+          sourceFile = prepared.savedFile;
+        }
         window.CrumpImageStudio?.applyPrecisionSelection?.({
-          file: state.file,
+          file: sourceFile,
           maskDataUrl: dataUrl,
           width: state.canvas.width,
           height: state.canvas.height,
@@ -1291,6 +1697,10 @@
       overlayGuide.className = 'crump-precision-overlay-guide';
       overlayGuide.hidden = true;
       overlayGuide.setAttribute('aria-hidden', 'true');
+      const cropGuide = document.createElement('div');
+      cropGuide.className = 'crump-precision-crop-guide';
+      cropGuide.hidden = true;
+      cropGuide.setAttribute('aria-hidden', 'true');
       const lassoGuide = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       lassoGuide.classList.add('crump-precision-lasso-guide');
       lassoGuide.setAttribute('viewBox', '0 0 1 1');
@@ -1301,7 +1711,7 @@
       lassoGuide.appendChild(lassoPolygon);
       const frame = document.createElement('div');
       frame.className = 'crump-precision-canvas-frame';
-      frame.append(base, preview, overlayCanvas, overlayGuide, canvas, lassoGuide);
+      frame.append(base, preview, overlayCanvas, overlayGuide, canvas, lassoGuide, cropGuide);
       stage.replaceChildren(frame);
       stage.classList.remove('is-loading');
       await new Promise(resolve => requestAnimationFrame(resolve));
@@ -1316,26 +1726,12 @@
       state.overlayCanvas = overlayCanvas;
       state.overlayContext = overlayCanvas.getContext('2d', {alpha: true});
       state.overlayGuide = overlayGuide;
+      state.cropGuide = cropGuide;
       state.lassoGuide = lassoGuide;
       state.lassoPolygon = lassoPolygon;
-      const stageStyle = getComputedStyle(stage);
-      const stageWidth = Math.max(1,
-        stage.clientWidth - (parseFloat(stageStyle.paddingLeft) || 0) - (parseFloat(stageStyle.paddingRight) || 0));
-      const stageHeight = Math.max(1,
-        stage.clientHeight - (parseFloat(stageStyle.paddingTop) || 0) - (parseFloat(stageStyle.paddingBottom) || 0));
-      const baseMaxHeight = parseFloat(getComputedStyle(base).maxHeight);
-      const availableHeight = Number.isFinite(baseMaxHeight) && baseMaxHeight > 0
-        ? Math.min(stageHeight, baseMaxHeight)
-        : stageHeight;
-      const fitScale = Math.min(
-        1,
-        stageWidth / Math.max(1, image.naturalWidth),
-        availableHeight / Math.max(1, image.naturalHeight),
-      );
-      state.fitWidth = Math.max(1, Math.round(image.naturalWidth * fitScale));
-      state.fitHeight = Math.max(1, Math.round(image.naturalHeight * fitScale));
-      frame.style.width = `${state.fitWidth}px`;
-      frame.style.height = `${state.fitHeight}px`;
+      state.sourceImage = image;
+      state.baseImage = base;
+      fitSurface();
       zoomFit.disabled = false;
       Object.values(state.adjustmentInputs).forEach(({input}) => { input.disabled = false; });
       wireCanvas(canvas);
@@ -1345,6 +1741,7 @@
       use.disabled = false;
       updateLocalControls();
       setStatus('Brush or outline the smallest area that should change.');
+      void loadVersions(file?.id);
     } catch (error) {
       if (state.modal !== modal) return;
       stage.classList.remove('is-loading');

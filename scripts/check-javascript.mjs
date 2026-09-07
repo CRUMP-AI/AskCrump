@@ -494,7 +494,7 @@ const precisionEditGuideLoaderVersion = `${releaseVersion}-live-image-preview-lo
 const precisionEditGuideVersion = `${releaseVersion}-button-integrity-1`;
 const fileLibraryWindowVersion = `${releaseVersion}-file-library-window-1`;
 const imageReferenceRecoveryVersion = `${releaseVersion}-image-reference-recovery-1`;
-const liveImagePreviewVersion = `${releaseVersion}-live-image-preview-1`;
+const liveImagePreviewVersion = `${releaseVersion}-precision-studio-1`;
 const imageStabilityVersion = `${releaseVersion}-image-stability-1`;
 const projectSaveMeasurementVersion = `${releaseVersion}-project-save-measurement-1`;
 const authUpdateGuardVersion = `${releaseVersion}-auth-update-guard-1`;
@@ -505,7 +505,7 @@ const mobileDrawerDestinationsVersion = `${releaseVersion}-mobile-drawer-destina
 const destinationBackgroundGuardVersion = `${releaseVersion}-destination-background-guard-1`;
 const continuityActionVersion = `${releaseVersion}-continuity-action-1`;
 const precisionEditEntryVersion = `${releaseVersion}-precision-edit-entry-1`;
-const precisionEditStudioVersion = `${releaseVersion}-precision-visible-1`;
+const precisionEditStudioVersion = `${releaseVersion}-precision-studio-1`;
 const creationSheetContainmentVersion = `${releaseVersion}-creation-sheet-containment-1`;
 const requiredBodyFiles = [
   'public/crump-v1-body.css',

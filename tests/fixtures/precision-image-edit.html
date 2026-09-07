@@ -22,11 +22,29 @@
     window.__localSaveRequest = null;
     window.__appliedLocalFile = null;
     window.__lastToast = null;
+    window.__versionRequest = null;
     window.currentChatId = '22222222-2222-4222-8222-222222222222';
     window.showToast = (message, tone) => { window.__lastToast = {message, tone}; };
     const nativeFetch = window.fetch.bind(window);
     window.fetch = async (input, init = {}) => {
       const url = String(input || '');
+      if (url.includes('/versions')) {
+        window.__versionRequest = url;
+        return new Response(JSON.stringify({
+          success: true,
+          currentId: '11111111-1111-4111-8111-111111111111',
+          versions: [
+            {
+              id: '00000000-0000-4000-8000-000000000000', name: 'Original.png', type: 'image/png',
+              url: source, isOriginal: true, isCurrent: false, editKind: 'original', createdAt: '2026-09-07T18:00:00Z',
+            },
+            {
+              id: '11111111-1111-4111-8111-111111111111', name: 'private-photo.png', type: 'image/png',
+              url: source, isOriginal: false, isCurrent: true, editKind: 'local', createdAt: '2026-09-07T19:00:00Z',
+            },
+          ],
+        }), {status: 200, headers: {'Content-Type': 'application/json'}});
+      }
       if (url.includes('/image-adjust')) {
         window.__localSaveRequest = {url, body: JSON.parse(String(init.body || '{}'))};
         return new Response(JSON.stringify({

@@ -189,7 +189,7 @@ def test_exact_local_overlay_preserves_every_pixel_outside_supplied_artwork() ->
     overlay = Image.new("RGBA", source.size, color=(0, 0, 0, 0))
     overlay.paste((220, 30, 40, 255), (42, 34, 78, 66))
 
-    result_bytes, values, size, has_overlay = MediaService._apply_local_image_composition(
+    result_bytes, values, size, has_overlay, operations = MediaService._apply_local_image_composition(
         source_bytes.getvalue(),
         "",
         {"warmth": 0, "exposure": 0, "saturation": 0},
@@ -199,6 +199,7 @@ def test_exact_local_overlay_preserves_every_pixel_outside_supplied_artwork() ->
     assert values == {"warmth": 0.0, "exposure": 0.0, "saturation": 0.0}
     assert size == "120x100"
     assert has_overlay is True
+    assert operations == []
     with Image.open(BytesIO(result_bytes)) as result:
         pixels = result.convert("RGBA")
         assert pixels.getpixel((60, 50)) == (220, 30, 40, 255)
@@ -227,6 +228,65 @@ def test_exact_local_overlay_rejects_empty_or_mismatched_pixels(overlay, code) -
         )
 
     assert caught.value.code == code
+
+
+def test_local_crop_and_rotate_are_bounded_deterministic_and_preserve_orientation() -> None:
+    source = Image.new("RGBA", (120, 80), color=(10, 20, 30, 255))
+    source.paste((220, 30, 40, 255), (0, 0, 40, 40))
+    source_bytes = BytesIO()
+    source.save(source_bytes, format="PNG")
+
+    result_bytes, values, size, has_overlay, operations = MediaService._apply_local_image_composition(
+        source_bytes.getvalue(),
+        "",
+        {"warmth": 0, "exposure": 0, "saturation": 0},
+        "",
+        {
+            "operations": [
+                {"type": "rotate", "degrees": 90},
+                {"type": "crop", "x": 0.5, "y": 0, "width": 0.5, "height": 1},
+            ]
+        },
+    )
+
+    assert values == {"warmth": 0.0, "exposure": 0.0, "saturation": 0.0}
+    assert has_overlay is False
+    assert operations == [
+        {"type": "rotate", "degrees": 90},
+        {"type": "crop", "x": 0.5, "y": 0.0, "width": 0.5, "height": 1.0},
+    ]
+    assert size == "40x120"
+    with Image.open(BytesIO(result_bytes)) as result:
+        pixels = result.convert("RGBA")
+        assert pixels.size == (40, 120)
+        assert pixels.getpixel((20, 20)) == (220, 30, 40, 255)
+        assert pixels.getpixel((20, 100)) == (10, 20, 30, 255)
+
+
+@pytest.mark.parametrize(
+    "transform",
+    [
+        {"operations": [{"type": "rotate", "degrees": 45}]},
+        {"operations": [{"type": "crop", "x": -0.1, "y": 0, "width": 1, "height": 1}]},
+        {"operations": [{"type": "crop", "x": 0, "y": 0, "width": 0.01, "height": 1}]},
+        {"operations": [{"type": "unknown"}]},
+    ],
+)
+def test_local_geometry_rejects_unbounded_or_unsupported_operations(transform) -> None:
+    source = Image.new("RGB", (120, 80), color=(10, 20, 30))
+    source_bytes = BytesIO()
+    source.save(source_bytes, format="PNG")
+
+    with pytest.raises(AIServiceError) as caught:
+        MediaService._apply_local_image_composition(
+            source_bytes.getvalue(),
+            "",
+            {"warmth": 0, "exposure": 0, "saturation": 0},
+            "",
+            transform,
+        )
+
+    assert caught.value.code in {"INVALID_LOCAL_IMAGE_TRANSFORM", "LOCAL_IMAGE_CROP_TOO_SMALL"}
 
 
 @pytest.mark.parametrize(
@@ -384,6 +444,7 @@ async def test_precision_edit_full_path_sends_provider_mask_and_stores_protected
     assert result["response"] == "I edited only the area you selected."
     assert files.stored is not None
     assert files.stored["metadata"]["precisionEdit"] is True
+    assert files.stored["metadata"]["sourceFileId"] == "source-image"
     assert "mask" not in files.stored["metadata"]
     with Image.open(BytesIO(files.stored["data"])) as stored:
         pixels = stored.convert("RGBA")
@@ -426,8 +487,10 @@ async def test_local_image_adjustment_save_is_provider_free_private_and_retry_st
         "precisionEdit": True,
         "localAdjustment": True,
         "deterministicOverlay": False,
+        "geometricEdit": False,
         "sourceFileId": "source-image",
         "size": "120x100",
+        "transformOperations": [],
         "warmth": 12.0,
         "exposure": 0.0,
         "saturation": 0.0,
@@ -480,6 +543,7 @@ async def test_local_image_adjustment_route_uses_authenticated_owner_and_zero_pr
                 "maskDataUrl": "data:image/png;base64,fixture",
                 "adjustments": {"warmth": 8, "exposure": 0, "saturation": 0},
                 "overlayDataUrl": "data:image/png;base64,overlay",
+                "transform": {"operations": []},
                 "chatId": "22222222-2222-4222-8222-222222222222",
             }
 
@@ -509,8 +573,57 @@ async def test_local_image_adjustment_route_uses_authenticated_owner_and_zero_pr
         "mask_data_url": "data:image/png;base64,fixture",
         "adjustments": {"warmth": 8, "exposure": 0, "saturation": 0},
         "overlay_data_url": "data:image/png;base64,overlay",
+        "transform": {"operations": []},
         "chat_id": "22222222-2222-4222-8222-222222222222",
     }
+
+
+@pytest.mark.asyncio
+async def test_image_version_history_is_owner_scoped_connected_and_content_free(monkeypatch) -> None:
+    root_id = "00000000-0000-4000-8000-000000000000"
+    current_id = "11111111-1111-4111-8111-111111111111"
+    next_id = "33333333-3333-4333-8333-333333333333"
+    rows = [
+        {"id": root_id, "user_id": "user-one", "mime_type": "image/png", "file_name": "Source.png", "status": "ready", "metadata": {}, "created_at": "2026-09-07T18:00:00Z"},
+        {"id": current_id, "user_id": "user-one", "mime_type": "image/png", "file_name": "Edit.png", "status": "ready", "metadata": {"sourceFileId": root_id, "precisionEdit": True, "localAdjustment": True}, "created_at": "2026-09-07T19:00:00Z"},
+        {"id": next_id, "user_id": "user-one", "mime_type": "image/png", "file_name": "Crop.png", "status": "ready", "metadata": {"sourceFileId": current_id, "precisionEdit": True, "geometricEdit": True}, "created_at": "2026-09-07T20:00:00Z"},
+        {"id": "44444444-4444-4444-8444-444444444444", "user_id": "user-one", "mime_type": "image/png", "file_name": "Unrelated.png", "status": "ready", "metadata": {}, "created_at": "2026-09-07T20:00:00Z"},
+    ]
+    captured: dict = {}
+
+    class VersionFiles:
+        async def get_owned(self, *, user_id, file_id):
+            assert user_id == "user-one"
+            return next(row for row in rows if row["id"] == file_id)
+
+        @staticmethod
+        def public_file(row):
+            return {
+                "id": row["id"], "name": row["file_name"], "type": row["mime_type"],
+                "metadata": row["metadata"], "createdAt": row["created_at"],
+                "url": f"/api/files/{row['id']}/content",
+            }
+
+    class VersionDB:
+        async def select(self, table, **kwargs):
+            captured.update({"table": table, **kwargs})
+            return rows
+
+    async def authenticate(_request, _db, _settings):
+        return SimpleNamespace(user={"id": "user-one"})
+
+    monkeypatch.setattr(file_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(file_routes, "files", VersionFiles())
+    monkeypatch.setattr(file_routes, "db", VersionDB())
+    result = await file_routes.image_versions(current_id, object())
+
+    assert captured["table"] == "user_files"
+    assert captured["filters"] == {"user_id": "eq.user-one", "status": "eq.ready", "deleted_at": "is.null"}
+    assert result["rootId"] == root_id
+    assert result["currentId"] == current_id
+    assert [item["id"] for item in result["versions"]] == [root_id, current_id, next_id]
+    assert [item["editKind"] for item in result["versions"]] == ["original", "local", "geometry"]
+    assert all("storage_path" not in item for item in result["versions"])
 
 
 def test_provider_invalid_image_rejection_is_specific_actionable_and_categorical(caplog) -> None:
@@ -775,6 +888,15 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
         "Invert",
         "Zoom in",
         "Fit image to screen",
+        "Selection edge feather",
+        "CROP & ROTATE · NO AI OR CREDITS",
+        "Rotate image left 90 degrees",
+        "Rotate image right 90 degrees",
+        "Crop aspect ratio",
+        "Apply crop",
+        "VERSIONS",
+        "Current version",
+        "/versions",
         "Undo",
         "Redo",
         "Clear",
@@ -816,6 +938,9 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
         "function polygonArea",
         "function selectionCoverage",
         "function invertSelection",
+        "function preparedSelectionCanvas",
+        "function renderWorkingImage",
+        "function rebuildWorkingSurface",
         "crump-precision-lasso-guide",
         "applyPrecisionSelection",
         "aria-modal",
@@ -832,6 +957,8 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
     assert "rgba(226, 196, 126, 1)" in editor
     assert "image_adjust" in read("backend/routes/files.py")
     assert "payload.get('overlayDataUrl')" in read("backend/routes/files.py")
+    assert "payload.get('transform')" in read("backend/routes/files.py")
+    assert "async def image_versions" in read("backend/routes/files.py")
     assert "providerUsed': False" in read("backend/routes/files.py")
     assert "creditsUsed': 0" in read("backend/routes/files.py")
     backend = read("backend/media_service.py")
@@ -839,6 +966,8 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
     assert "Image.alpha_composite" in backend
     assert "'deterministicOverlay': has_overlay" in backend
     assert "'sourceFileId': source_file_id" in backend
+    assert "_local_transform_operations" in backend
+    assert "'transformOperations': operations" in backend
     assert "imageEditMask = precision.maskDataUrl" in composer
     assert "state.precisionImageEdit = null" in composer
     assert "imageEditMask" not in composer[composer.index("requestMeta: {") : composer.index("state.imageRecovery = null;")]
@@ -856,8 +985,8 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
     assert "stage.clientHeight" in editor
     assert "state.fitWidth = Math.max(1" in editor
     assert "state.fitHeight = Math.max(1" in editor
-    exact_script = "/crump-precision-image-edit.js?v=5.9.76-live-image-preview-1"
-    exact_style = "/crump-precision-image-edit.css?v=5.9.76-precision-visible-1"
+    exact_script = "/crump-precision-image-edit.js?v=5.9.76-precision-studio-1"
+    exact_style = "/crump-precision-image-edit.css?v=5.9.76-precision-studio-1"
     for asset in (exact_script, exact_style):
         assert asset in runtime
         assert asset in worker

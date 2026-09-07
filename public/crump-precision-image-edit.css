@@ -60,6 +60,15 @@ body.crump-precision-open { overflow: hidden !important; }
 .crump-precision-lasso-guide { position: absolute; inset: 0; z-index: 5; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
 .crump-precision-lasso-guide polygon { fill: rgba(226,196,126,.34); stroke: #f1d491; stroke-width: 2px; vector-effect: non-scaling-stroke; stroke-dasharray: 7px 5px; }
 .crump-precision-lasso-guide[hidden] { display: none; }
+.crump-precision-crop-guide {
+  position: absolute; z-index: 6; pointer-events: none; box-sizing: border-box;
+  border: 2px solid #f1d491; border-radius: 5px;
+  box-shadow: 0 0 0 9999px rgba(2,4,7,.64), 0 0 0 1px rgba(0,0,0,.65), inset 0 0 0 1px rgba(255,255,255,.35);
+}
+.crump-precision-crop-guide::before,
+.crump-precision-crop-guide::after { content: ''; position: absolute; inset: 33.333% 0 auto; border-top: 1px solid rgba(255,255,255,.4); }
+.crump-precision-crop-guide::after { inset: 66.666% 0 auto; }
+.crump-precision-crop-guide[hidden] { display: none; }
 .crump-precision-canvas-frame.has-local-preview .crump-precision-mask { opacity: .3; }
 .crump-precision-canvas-frame.is-comparing-original .crump-precision-mask,
 .crump-precision-canvas-frame.is-comparing-original .crump-precision-preview,
@@ -69,6 +78,7 @@ body.crump-precision-open { overflow: hidden !important; }
 .crump-precision-canvas-frame .crump-precision-mask[data-mode="erase"] { cursor: cell; }
 .crump-precision-canvas-frame .crump-precision-mask[data-mode="move"] { cursor: grab; }
 .crump-precision-canvas-frame .crump-precision-mask[data-mode="place"] { cursor: move; }
+.crump-precision-canvas-frame .crump-precision-mask[data-mode="crop"] { cursor: crosshair; }
 .crump-precision-canvas-frame .crump-precision-mask.is-panning { cursor: grabbing; }
 .crump-precision-canvas-frame .crump-precision-mask.is-placing { cursor: grabbing; }
 
@@ -79,7 +89,7 @@ body.crump-precision-open { overflow: hidden !important; }
 .crump-precision-control-head { display: grid; gap: 5px; }
 .crump-precision-control-head span { color: #d5bd87; font-size: 8px; font-weight: 700; letter-spacing: .13em; }
 .crump-precision-control-head strong { color: #e3e5e6; font-size: 13px; line-height: 1.35; }
-.crump-precision-modes { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; padding: 3px; border: 1px solid rgba(255,255,255,.075); border-radius: 12px; background: #0d1319; }
+.crump-precision-modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 3px; border: 1px solid rgba(255,255,255,.075); border-radius: 12px; background: #0d1319; }
 .crump-precision-modes button { min-height: 38px; border: 0; border-radius: 9px; background: transparent; color: #7f8995; font-size: 11px; font-weight: 600; }
 .crump-precision-modes button.is-active { background: rgba(209,191,150,.13); color: #ead9b3; }
 .crump-precision-zoom { display: grid; grid-template-columns: 38px 1fr 38px 48px; align-items: center; gap: 5px; }
@@ -92,6 +102,28 @@ body.crump-precision-open { overflow: hidden !important; }
 .crump-precision-history { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
 .crump-precision-history button { min-height: 38px; border: 1px solid rgba(255,255,255,.075); border-radius: 11px; background: rgba(255,255,255,.03); color: #c4cad0; font-size: 10px; }
 .crump-precision-history button:disabled { opacity: .35; }
+.crump-precision-geometry,
+.crump-precision-versions { display: grid; gap: 8px; padding: 12px; border: 1px solid rgba(255,255,255,.075); border-radius: 14px; background: #0d1319; }
+.crump-precision-geometry > span,
+.crump-precision-versions > span { color: #d5bd87; font-size: 8px; font-weight: 700; letter-spacing: .12em; }
+.crump-precision-geometry > small,
+.crump-precision-versions > small { color: #7f8995; font-size: 8.5px; line-height: 1.45; }
+.crump-precision-geometry-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.crump-precision-geometry button,
+.crump-precision-version { min-height: 34px; border: 1px solid rgba(255,255,255,.075); border-radius: 10px; background: rgba(255,255,255,.03); color: #b9c0c7; font-size: 9px; }
+.crump-precision-crop-aspects { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+.crump-precision-crop-aspects button[aria-pressed="true"] { border-color: rgba(209,191,150,.38); background: rgba(209,191,150,.11); color: #ead9b3; }
+.crump-precision-apply-crop { width: 100%; }
+.crump-precision-geometry button:disabled { opacity: .35; }
+.crump-precision-version-list { display: grid; gap: 5px; max-height: 196px; overflow: auto; }
+.crump-precision-version-list > p { margin: 0; color: #737e89; font-size: 8.5px; }
+.crump-precision-version { width: 100%; display: grid; grid-template-columns: 38px 1fr; align-items: center; gap: 8px; padding: 5px; text-align: left; }
+.crump-precision-version img { width: 38px; height: 34px; border-radius: 7px; object-fit: cover; background: #070a0e; }
+.crump-precision-version span { min-width: 0; display: grid; gap: 2px; }
+.crump-precision-version strong { overflow: hidden; color: #c9cfd5; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.crump-precision-version small { color: #737e89; font-size: 7.5px; }
+.crump-precision-version.is-current { border-color: rgba(209,191,150,.32); background: rgba(209,191,150,.08); }
+.crump-precision-version:disabled { opacity: 1; cursor: default; }
 .crump-precision-boundary { display: grid; grid-template-columns: 30px 1fr; gap: 10px; padding: 12px; border: 1px solid rgba(209,191,150,.16); border-radius: 14px; background: rgba(209,191,150,.055); }
 .crump-precision-boundary > span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; background: rgba(209,191,150,.12); color: #dbc48f; font-size: 12px; }
 .crump-precision-boundary p { margin: 0; display: grid; gap: 4px; }

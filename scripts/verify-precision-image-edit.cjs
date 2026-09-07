@@ -36,6 +36,39 @@ const {chromium} = require(playwrightModule);
     canvasWidth: await canvas.evaluate(node => node.getBoundingClientRect().width),
     canvasHeight: await canvas.evaluate(node => node.getBoundingClientRect().height),
   };
+  await page.waitForFunction(() => Boolean(window.__versionRequest));
+  const versions = {
+    count: await editor.locator('.crump-precision-version').count(),
+    copy: await editor.locator('.crump-precision-versions').textContent(),
+    current: await editor.locator('.crump-precision-version[aria-current="true"]').count(),
+  };
+  await editor.getByRole('button', {name: 'Rotate image right 90 degrees'}).click();
+  await page.waitForFunction(() => document.querySelector('.crump-precision-mask')?.width === 480);
+  const resetFrameEnabled = await editor.getByRole('button', {name: 'Reset frame'}).isEnabled();
+  await editor.getByRole('button', {name: 'Reset frame'}).click();
+  await page.waitForFunction(() => document.querySelector('.crump-precision-mask')?.width === 640);
+  await editor.getByRole('button', {name: 'Rotate image right 90 degrees'}).click();
+  await page.waitForFunction(() => document.querySelector('.crump-precision-mask')?.width === 480);
+  await editor.getByRole('button', {name: '4:5', exact: true}).click();
+  const cropGuideVisible = await editor.locator('.crump-precision-crop-guide').isVisible();
+  await editor.getByRole('button', {name: 'Apply crop'}).click();
+  await page.waitForFunction(() => document.querySelector('.crump-precision-mask')?.width < 480);
+  const transformedSize = await canvas.evaluate(node => ({width: node.width, height: node.height}));
+  await editor.getByRole('button', {name: 'Apply changes'}).click();
+  await page.waitForFunction(() => Boolean(window.__localSaveRequest && window.__appliedLocalFile));
+  const geometrySave = await page.evaluate(() => ({
+    operations: window.__localSaveRequest?.body?.transform?.operations,
+    mask: window.__localSaveRequest?.body?.maskDataUrl,
+    overlay: window.__localSaveRequest?.body?.overlayDataUrl,
+    fileId: window.__appliedLocalFile?.id,
+  }));
+  await page.evaluate(() => {
+    window.__localSaveRequest = null;
+    window.__appliedLocalFile = null;
+    window.__lastToast = null;
+  });
+  await open.click();
+  await editor.waitFor();
   const fittedWidth = await canvas.evaluate(node => node.getBoundingClientRect().width);
   await editor.getByRole('button', {name: 'Zoom in'}).click();
   const zoomed = {
@@ -124,6 +157,8 @@ const {chromium} = require(playwrightModule);
   await editor.getByRole('button', {name: 'Undo'}).click();
   const redoEnabled = await editor.getByRole('button', {name: 'Redo'}).isEnabled();
   await editor.getByRole('button', {name: 'Redo'}).click();
+  await editor.getByRole('slider', {name: 'Selection edge feather'}).fill('1');
+  const feather = await editor.getByRole('slider', {name: 'Selection edge feather'}).inputValue();
   await editor.getByRole('button', {name: 'Continue with AI edit'}).click();
   await page.waitForFunction(() => Boolean(window.__precisionStaged));
   await page.waitForFunction(() => document.activeElement?.id === 'openPrecision');
@@ -308,6 +343,20 @@ const {chromium} = require(playwrightModule);
     || visibleImage.height <= 0
     || Math.abs(visibleImage.canvasWidth - visibleImage.width) > 2
     || Math.abs(visibleImage.canvasHeight - visibleImage.height) > 2
+    || versions.count !== 2
+    || versions.current !== 1
+    || !versions.copy.includes('Original')
+    || !versions.copy.includes('Current version')
+    || !cropGuideVisible
+    || !resetFrameEnabled
+    || transformedSize.width >= 480
+    || transformedSize.height >= 640
+    || geometrySave.operations?.length !== 2
+    || geometrySave.operations?.[0]?.type !== 'rotate'
+    || geometrySave.operations?.[1]?.type !== 'crop'
+    || geometrySave.mask !== ''
+    || geometrySave.overlay !== ''
+    || geometrySave.fileId !== '33333333-3333-4333-8333-333333333333'
     || zoomed.label !== '150%'
     || zoomed.width <= fittedWidth * 1.4
     || movePressed !== 'true'
@@ -325,6 +374,7 @@ const {chromium} = require(playwrightModule);
     || broadInvertGuard.pixels.center === 0
     || broadInvertGuard.pixels.corner !== 0
     || !redoEnabled
+    || feather !== '1'
     || !guidedInstruction.includes('subtly warmer')
     || desktop.overflowX
     || staged.fileId !== '11111111-1111-4111-8111-111111111111'
@@ -383,9 +433,9 @@ const {chromium} = require(playwrightModule);
     || !mobile.workspaceScrollable
     || !escaped
   ) {
-    throw new Error(JSON.stringify({desktop, visibleImage, zoomed, fittedWidth, movePressed, lassoProof, broadInvertGuard, redoEnabled, guidedInstruction, staged, preview, originalVisible, localSave, overlayPreview, overlaySave, mobile, escaped, errors}));
+    throw new Error(JSON.stringify({desktop, visibleImage, versions, cropGuideVisible, resetFrameEnabled, transformedSize, geometrySave, zoomed, fittedWidth, movePressed, lassoProof, broadInvertGuard, redoEnabled, feather, guidedInstruction, staged, preview, originalVisible, localSave, overlayPreview, overlaySave, mobile, escaped, errors}));
   }
-  process.stdout.write(`${JSON.stringify({desktop, visibleImage, zoomed, fittedWidth, movePressed, lassoProof, broadInvertGuard, redoEnabled, guidedInstruction, staged, preview, originalVisible, localSave, overlayPreview, overlaySave, mobile, escaped, errors})}\n`);
+  process.stdout.write(`${JSON.stringify({desktop, visibleImage, versions, cropGuideVisible, resetFrameEnabled, transformedSize, geometrySave, zoomed, fittedWidth, movePressed, lassoProof, broadInvertGuard, redoEnabled, feather, guidedInstruction, staged, preview, originalVisible, localSave, overlayPreview, overlaySave, mobile, escaped, errors})}\n`);
 })().catch(error => {
   process.stderr.write(`${error.stack || error}\n`);
   process.exitCode = 1;

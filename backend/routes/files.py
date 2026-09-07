@@ -95,7 +95,7 @@ async def complete(file_id: str, request: Request):
 
 @router.post('/{file_id}/image-adjust')
 async def image_adjust(file_id: str, request: Request):
-    """Save a deterministic, provider-free image version inside an owner-drawn mask."""
+    """Save a deterministic, provider-free image version without overwriting its source."""
     auth = await authenticate_request(request, db, settings)
     payload = await request.json()
     if not isinstance(payload, dict):
@@ -113,6 +113,7 @@ async def image_adjust(file_id: str, request: Request):
             mask_data_url=str(payload.get('maskDataUrl') or ''),
             adjustments=payload.get('adjustments'),
             overlay_data_url=str(payload.get('overlayDataUrl') or ''),
+            transform=payload.get('transform'),
             chat_id=chat_id,
         )
         return {
@@ -122,6 +123,75 @@ async def image_adjust(file_id: str, request: Request):
             'creditsUsed': 0,
         }
     except (FileServiceError, AIServiceError) as exc:
+        return failure(exc)
+
+
+@router.get('/{file_id}/versions')
+async def image_versions(file_id: str, request: Request):
+    """Return an owner-scoped, content-free lineage for one image version."""
+    auth = await authenticate_request(request, db, settings)
+    try:
+        normalized = normalize_chat_id(file_id)
+        current = await files.get_owned(user_id=auth.user['id'], file_id=normalized)
+        if not str(current.get('mime_type') or '').lower().startswith('image/'):
+            raise FileServiceError('Version history is available for image files.', 415, 'IMAGE_VERSION_SOURCE_REQUIRED')
+        rows = await db.select(
+            'user_files',
+            filters={
+                'user_id': eq(auth.user['id']),
+                'status': eq('ready'),
+                'deleted_at': 'is.null',
+            },
+            order='created_at.asc',
+            limit=200,
+        )
+        by_id = {str(row.get('id') or ''): row for row in rows if str(row.get('mime_type') or '').lower().startswith('image/')}
+        by_id[str(current.get('id'))] = current
+        root_id = normalized
+        seen: set[str] = set()
+        while root_id not in seen and len(seen) < 25:
+            seen.add(root_id)
+            parent_id = str((by_id.get(root_id, {}).get('metadata') or {}).get('sourceFileId') or '').strip()
+            if not parent_id:
+                break
+            if parent_id not in by_id:
+                try:
+                    parent = await files.get_owned(user_id=auth.user['id'], file_id=parent_id)
+                except FileServiceError:
+                    break
+                if not str(parent.get('mime_type') or '').lower().startswith('image/'):
+                    break
+                by_id[parent_id] = parent
+            root_id = parent_id
+        connected = {root_id}
+        changed = True
+        while changed:
+            changed = False
+            for row_id, row in by_id.items():
+                parent_id = str((row.get('metadata') or {}).get('sourceFileId') or '').strip()
+                if parent_id in connected and row_id not in connected:
+                    connected.add(row_id)
+                    changed = True
+        versions = []
+        for row_id, row in by_id.items():
+            if row_id not in connected:
+                continue
+            public = files.public_file(row)
+            metadata = row.get('metadata') or {}
+            public.pop('metadata', None)
+            public['parentId'] = str(metadata.get('sourceFileId') or '') or None
+            public['isOriginal'] = row_id == root_id
+            public['isCurrent'] = row_id == normalized
+            public['editKind'] = (
+                'original' if row_id == root_id
+                else 'ai' if metadata.get('precisionEdit') and not metadata.get('localAdjustment') and not metadata.get('geometricEdit') and not metadata.get('deterministicOverlay')
+                else 'geometry' if metadata.get('geometricEdit') and not metadata.get('localAdjustment') and not metadata.get('deterministicOverlay')
+                else 'local'
+            )
+            versions.append(public)
+        bounded = versions if len(versions) <= 50 else [versions[0], *versions[-49:]]
+        return {'success': True, 'rootId': root_id, 'currentId': normalized, 'versions': bounded}
+    except FileServiceError as exc:
         return failure(exc)
 
 

@@ -47,6 +47,8 @@ PRECISION_MASK_MAX_COVERAGE = 0.90
 LOCAL_ADJUSTMENT_LIMIT = 30.0
 LOCAL_ADJUSTMENT_MAX_PIXELS = 16_777_216
 LOCAL_OVERLAY_MAX_BYTES = 2 * 1024 * 1024
+LOCAL_TRANSFORM_MAX_OPERATIONS = 8
+LOCAL_TRANSFORM_MIN_EDGE = 32
 
 
 class MediaService:
@@ -417,6 +419,119 @@ class MediaService:
         return normalized
 
     @staticmethod
+    def _local_transform_operations(payload: Any) -> list[dict[str, float | int | str]]:
+        """Validate the bounded, content-free geometry instructions from Precision Edit."""
+        if payload in (None, '', {}):
+            return []
+        operations = payload.get('operations') if isinstance(payload, dict) else None
+        if not isinstance(operations, list) or len(operations) > LOCAL_TRANSFORM_MAX_OPERATIONS:
+            raise AIServiceError(
+                'Image geometry must use the Precision Edit crop and rotate controls.',
+                400,
+                'INVALID_LOCAL_IMAGE_TRANSFORM',
+                False,
+                0,
+            )
+        normalized: list[dict[str, float | int | str]] = []
+        for operation in operations:
+            if not isinstance(operation, dict):
+                operation = {}
+            kind = str(operation.get('type') or '').strip().lower()
+            if kind == 'rotate':
+                try:
+                    degrees = int(operation.get('degrees') or 0)
+                except (TypeError, ValueError) as exc:
+                    raise AIServiceError(
+                        'Rotation must use the 90-degree Precision Edit controls.',
+                        400,
+                        'INVALID_LOCAL_IMAGE_TRANSFORM',
+                        False,
+                        0,
+                    ) from exc
+                if degrees not in {-90, 90, 180}:
+                    raise AIServiceError(
+                        'Rotation must use the 90-degree Precision Edit controls.',
+                        400,
+                        'INVALID_LOCAL_IMAGE_TRANSFORM',
+                        False,
+                        0,
+                    )
+                normalized.append({'type': 'rotate', 'degrees': degrees})
+                continue
+            if kind == 'crop':
+                values: dict[str, float] = {}
+                try:
+                    for key in ('x', 'y', 'width', 'height'):
+                        value = float(operation.get(key))
+                        if not math.isfinite(value):
+                            raise ValueError(key)
+                        values[key] = round(value, 6)
+                except (TypeError, ValueError) as exc:
+                    raise AIServiceError(
+                        'Crop bounds must come from the Precision Edit crop control.',
+                        400,
+                        'INVALID_LOCAL_IMAGE_TRANSFORM',
+                        False,
+                        0,
+                    ) from exc
+                if (
+                    values['x'] < 0 or values['y'] < 0
+                    or values['width'] <= 0 or values['height'] <= 0
+                    or values['x'] + values['width'] > 1.000001
+                    or values['y'] + values['height'] > 1.000001
+                ):
+                    raise AIServiceError(
+                        'Crop bounds must stay inside the image.',
+                        400,
+                        'INVALID_LOCAL_IMAGE_TRANSFORM',
+                        False,
+                        0,
+                    )
+                normalized.append({'type': 'crop', **values})
+                continue
+            raise AIServiceError(
+                'Image geometry must use the Precision Edit crop and rotate controls.',
+                400,
+                'INVALID_LOCAL_IMAGE_TRANSFORM',
+                False,
+                0,
+            )
+        return normalized
+
+    @classmethod
+    def _apply_local_image_transform(
+        cls,
+        source: Image.Image,
+        payload: Any,
+    ) -> tuple[Image.Image, list[dict[str, float | int | str]]]:
+        operations = cls._local_transform_operations(payload)
+        result = source.convert('RGBA')
+        for operation in operations:
+            if operation['type'] == 'rotate':
+                degrees = int(operation['degrees'])
+                transpose = {
+                    90: Image.Transpose.ROTATE_270,
+                    -90: Image.Transpose.ROTATE_90,
+                    180: Image.Transpose.ROTATE_180,
+                }[degrees]
+                result = result.transpose(transpose)
+                continue
+            left = max(0, min(result.width - 1, round(float(operation['x']) * result.width)))
+            top = max(0, min(result.height - 1, round(float(operation['y']) * result.height)))
+            right = max(left + 1, min(result.width, round((float(operation['x']) + float(operation['width'])) * result.width)))
+            bottom = max(top + 1, min(result.height, round((float(operation['y']) + float(operation['height'])) * result.height)))
+            if right - left < LOCAL_TRANSFORM_MIN_EDGE or bottom - top < LOCAL_TRANSFORM_MIN_EDGE:
+                raise AIServiceError(
+                    'Keep the crop at least 32 pixels wide and tall.',
+                    400,
+                    'LOCAL_IMAGE_CROP_TOO_SMALL',
+                    False,
+                    0,
+                )
+            result = result.crop((left, top, right, bottom))
+        return result, operations
+
+    @staticmethod
     def _decode_local_overlay(value: str, *, expected_size: tuple[int, int]) -> Image.Image:
         """Decode one browser-rasterized transparent overlay at source resolution."""
         encoded = str(value or '').strip()
@@ -498,10 +613,11 @@ class MediaService:
         mask_data_url: str,
         adjustments: Any,
         overlay_data_url: str = '',
-    ) -> tuple[bytes, dict[str, float], str, bool]:
+        transform: Any = None,
+    ) -> tuple[bytes, dict[str, float], str, bool, list[dict[str, float | int | str]]]:
         """Apply bounded adjustments and an exact raster overlay without a model."""
         values = cls._local_adjustment_values(adjustments, allow_empty=True)
-        source = cls._load_edit_image(source_data)
+        source, operations = cls._apply_local_image_transform(cls._load_edit_image(source_data), transform)
         if source.width * source.height > LOCAL_ADJUSTMENT_MAX_PIXELS:
             raise AIServiceError(
                 'This image is too large for local edits. Resize it below 16 megapixels and try again.',
@@ -549,7 +665,7 @@ class MediaService:
                 expected_size=protected_source.size,
             )
             result = Image.alpha_composite(result.convert('RGBA'), overlay)
-        if not has_adjustments and not has_overlay:
+        if not has_adjustments and not has_overlay and not operations:
             raise AIServiceError(
                 'Move a local adjustment or add an exact overlay before saving.',
                 400,
@@ -557,7 +673,7 @@ class MediaService:
                 False,
                 0,
             )
-        return cls._png_bytes(result), values, f'{source.width}x{source.height}', has_overlay
+        return cls._png_bytes(result), values, f'{source.width}x{source.height}', has_overlay, operations
 
     @classmethod
     def _apply_local_image_adjustments(
@@ -568,7 +684,7 @@ class MediaService:
     ) -> tuple[bytes, dict[str, float], str]:
         """Apply bounded, deterministic appearance adjustments inside a manual mask."""
         cls._local_adjustment_values(adjustments)
-        result, values, size, _ = cls._apply_local_image_composition(
+        result, values, size, _, _ = cls._apply_local_image_composition(
             source_data,
             mask_data_url,
             adjustments,
@@ -583,6 +699,7 @@ class MediaService:
         mask_data_url: str,
         adjustments: Any,
         overlay_data_url: str = '',
+        transform: Any = None,
         chat_id: str | None = None,
     ) -> dict[str, Any]:
         """Create one owner-scoped, provider-free image version with retry-safe identity."""
@@ -596,14 +713,15 @@ class MediaService:
                 0,
             )
         source_data = await self.files.download_bytes(row=source_row, max_bytes=25 * 1024 * 1024)
-        result, values, size, has_overlay = self._apply_local_image_composition(
+        result, values, size, has_overlay, operations = self._apply_local_image_composition(
             source_data,
             mask_data_url,
             adjustments,
             overlay_data_url,
+            transform,
         )
         signature_hasher = hashlib.sha256()
-        for part in (source_file_id, mask_data_url, repr(values), overlay_data_url):
+        for part in (source_file_id, mask_data_url, repr(values), overlay_data_url, repr(operations)):
             encoded_part = str(part or '').encode('utf-8')
             signature_hasher.update(len(encoded_part).to_bytes(8, 'big'))
             signature_hasher.update(encoded_part)
@@ -621,8 +739,10 @@ class MediaService:
                 'precisionEdit': True,
                 'localAdjustment': any(values.values()),
                 'deterministicOverlay': has_overlay,
+                'geometricEdit': bool(operations),
                 'sourceFileId': source_file_id,
                 'size': size,
+                'transformOperations': operations,
                 **values,
             },
             file_id=stable_file_id,
@@ -1017,6 +1137,7 @@ class MediaService:
                 'quality': quality,
                 'edited': editing,
                 'precisionEdit': precision_editing,
+                'sourceFileId': str(file_rows[0].get('id') or '') if editing and file_rows else None,
             },
         )
         public = self.files.public_file(stored)
