@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+import struct
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,6 +19,8 @@ GUIDES = {
         "adjacent": "/guides/what-ai-project-should-remember",
         "modified": "2026-09-07",
         "updated": "September 7, 2026",
+        "og_width": 1280,
+        "og_height": 720,
     },
     "what-ai-project-should-remember": {
         "title": "What Should an AI Project Remember? | Ask Crump",
@@ -28,6 +31,8 @@ GUIDES = {
         "adjacent": "/guides/rough-idea-six-week-launch-plan",
         "modified": "2026-09-07",
         "updated": "September 7, 2026",
+        "og_width": 1280,
+        "og_height": 720,
     },
     "editable-ai-powerpoint-review": {
         "title": "Editable AI PowerPoint: A Seven-Pass Review Checklist | Ask Crump",
@@ -38,6 +43,8 @@ GUIDES = {
         "adjacent": "/ai-presentation-maker",
         "modified": "2026-08-30",
         "updated": "August 30, 2026",
+        "og_width": 1265,
+        "og_height": 712,
     },
 }
 
@@ -50,6 +57,13 @@ ASSET_HASHES = {
     "presentation-title.png": "1AF47A76AC86951B4E244EA2ACF0B168E2CFDC8F1F3AE909F6B5D549775AB85D",
     "presentation-chart.png": "CD806EE318A086181CCCABD51407A8CB5CF0B63B45B79AAB6659FC7E81F07C24",
     "presentation-story.png": "E88EE037D5DFA20CD8C3E2B4A8DD035F1A68548FF45905A839CE5A9D91D3C8E8",
+}
+
+
+RECOVERED_ASSET_DIMENSIONS = {
+    "rough-idea-prompt.png": (1280, 720),
+    "rough-idea-response.png": (1280, 720),
+    "savannah-project.png": (1280, 720),
 }
 
 
@@ -67,6 +81,8 @@ def test_search_guides_have_self_referencing_editorial_metadata_and_one_matched_
         assert f'<link rel="canonical" href="{canonical}">' in page
         assert f'<meta property="og:url" content="{canonical}">' in page
         assert '<meta property="og:type" content="article">' in page
+        assert f'<meta property="og:image:width" content="{expected["og_width"]}">' in page
+        assert f'<meta property="og:image:height" content="{expected["og_height"]}">' in page
         assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
         assert '<meta property="article:published_time" content="2026-08-30">' in page
         assert f'<meta property="article:modified_time" content="{expected["modified"]}">' in page
@@ -106,6 +122,33 @@ def test_search_guide_assets_are_the_approved_authentic_evidence():
         asset = asset_root / name
         assert asset.is_file() and asset.stat().st_size > 0
         assert hashlib.sha256(asset.read_bytes()).hexdigest().upper() == expected_hash
+
+
+def test_recovered_guide_asset_dimensions_match_html_and_social_metadata():
+    asset_root = ROOT / "public" / "assets" / "guides"
+    rough_guide = read("public/guides/rough-idea-six-week-launch-plan.html")
+    project_guide = read("public/guides/what-ai-project-should-remember.html")
+
+    for name, expected_dimensions in RECOVERED_ASSET_DIMENSIONS.items():
+        payload = (asset_root / name).read_bytes()
+        assert payload[:8] == b"\x89PNG\r\n\x1a\n"
+        assert struct.unpack(">II", payload[16:24]) == expected_dimensions
+
+    for page in (rough_guide, project_guide):
+        assert '<meta property="og:image:width" content="1280">' in page
+        assert '<meta property="og:image:height" content="720">' in page
+
+    for name in RECOVERED_ASSET_DIMENSIONS:
+        assert f'src="/assets/guides/{name}" width="1280" height="720"' in rough_guide or (
+            name == "savannah-project.png"
+            and f'src="/assets/guides/{name}" width="1280" height="720"' in project_guide
+        )
+
+    assert (
+        'alt="The live Ask Crump response showing budget items and six weekly milestones '
+        'for the fictional launch plan"'
+    ) in rough_guide
+    assert "one-sentence strategy and opening launch-plan details" not in rough_guide
 
 
 def test_search_guides_are_discoverable_and_have_one_canonical_domain():
