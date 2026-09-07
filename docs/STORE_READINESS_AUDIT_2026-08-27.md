@@ -19,6 +19,14 @@ mobile workflows now follow the complete native payload rather than a narrow han
 list. This is verified in source and unsigned candidates; signed-device sandbox commerce remains
 pending.
 
+The store candidates now also have a compiled privacy evidence gate. The app-level Apple manifest
+declares account-linked purchase history for both app functionality and RevenueCat-backed
+analytics, every runtime native package is explicit in the engineering Data Safety inventory, and
+the iOS build verifies the app, Capacitor, Cordova, RevenueCat, and SDWebImage manifests actually
+packaged in the candidate. Android verifies the final merged permission set and rejects unapproved
+location, contacts, account-list, call-log, SMS, and advertising-ID permissions. Exact signed-build
+privacy reports and console declarations remain pending.
+
 No store upload, public listing, developer-account enrollment, purchase, or pricing change was made
 during this audit.
 
@@ -37,7 +45,8 @@ during this audit.
 | Native billing identity | `backend/revenuecat_catalog.json` is the shared non-secret entitlement/product source for native builds and server reconciliation. Exact matching fails closed for unknown entitlements/products, and release verification rejects malformed, duplicate, or stale identifiers. | Verified in source and automated negative test |
 | Store copy | `store/listing.en-US.json` is machine-checked against Apple/Google field limits and the reviewed Markdown draft. Its support, marketing, privacy, privacy-choice, and account-deletion fields now use the canonical `www` routes verified to return HTTP 200 directly; the legal page contains the promised `contact` and `privacy` anchors, and the deletion page contains the account-deletion instructions. | Verified in source and production |
 | Reproducible dependencies | The tracked npm v3 lockfile was generated with Node 22.22.0/npm 11.6.0 in an isolated worktree. Clean `npm ci`, `npm ls --all`, a zero-vulnerability `npm audit`, production build, and deterministic Android preparation passed. | Verified |
-| Privacy inventory | `docs/DATA_SAFETY.md`, the public privacy notice, and the iOS base privacy manifest enumerate account, content, device, usage, purchase, reporting, push, and provider flows. | Source ready; final SDK/archive reconciliation pending |
+| Privacy inventory | `docs/DATA_SAFETY.md`, the public privacy notice, and the iOS base privacy manifest enumerate account, content, device, usage, purchase, reporting, push, and provider flows. | Source and unsigned outputs reconciled; signed archive and console forms pending |
+| Compiled privacy evidence | The app manifest semantically verifies linked/non-tracking declarations and both functionality/analytics purposes for purchase history and product interaction. GitHub iOS run [34159190241](https://github.com/CRUMP-AI/AskCrump/actions/runs/34159190241) compiled and validated five packaged manifests: app, Capacitor, Cordova, RevenueCat, and SDWebImage. Android run [34159190266](https://github.com/CRUMP-AI/AskCrump/actions/runs/34159190266) inspected the final merged manifest and found only the eight approved network, notification, vibration/wake, billing, app-internal receiver, and FCM permissions. Dependency or disclosure drift now fails closed. | Verified unsigned candidates; repeat on exact signed candidates and reconcile console forms |
 | iOS generation | The deterministic scripts set the bundle ID/version, push callbacks, Photos explanations, and bundled privacy manifest. GitHub run [34156623394](https://github.com/CRUMP-AI/AskCrump/actions/runs/34156623394) regenerated 5.9.76/build 50976 and compiled its Release configuration on hosted macOS against the exact billing-catalog, persisted native billing identity, sign-out, and direct-200 store URL verifiers. | Verified unsigned Release compile |
 | iOS cloud boundary | `.github/workflows/ios-store-verify.yml` uses a standard GitHub macOS runner with signing disabled and no upload credentials. The first run exposed a workspace/project assumption; the corrected workflow accepts the generated Xcode project and the second run passed. | Verified no-secret/no-upload boundary |
 | Android cloud boundary | `.github/workflows/android-store-verify.yml` prepares source with Node 22, selects Temurin Java 21, compiles a Release App Bundle, and requires the `.aab` to be non-empty. The refreshed 5.9.76/build 50976 [run 34156623389](https://github.com/CRUMP-AI/AskCrump/actions/runs/34156623389) passed every source, exact billing-catalog, persisted native billing identity, sign-out, direct-200 store URL, signing-control, Gradle, and bundle-output step. | Verified unsigned `.aab` compile |
