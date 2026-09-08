@@ -144,6 +144,8 @@ def test_generated_output_project_button_has_visible_pending_and_recovery_states
     assert "window.CrumpAnalytics?.track?.('ProjectSaveIntentReached'" in action
     assert "source: selectedProjectId ? 'existing_project' : 'new_project'" in action
     assert "if (selectedProjectId) options.projectId = selectedProjectId;" in action
+    assert "const savedProjectId = String(button.dataset.projectId || '').trim();" in action
+    assert "window.CrumpProduct53?.openProject?.(savedProjectId)" in action
 
 
 def test_tutorial_names_the_current_image_apply_button() -> None:
@@ -177,6 +179,25 @@ def test_button_state_browser_fixture_is_private_and_credential_free() -> None:
     assert "Create DOCX" in verifier
     assert "Create PPTX" in verifier
     assert "contextualAfterTool" in verifier
+    assert "password" not in fixture.lower()
+    assert "askcrump.com" not in fixture
+
+
+def test_continuous_workflow_proof_uses_real_controls_without_customer_or_provider_data() -> None:
+    fixture = (ROOT / "tests" / "fixtures" / "marketing-workflow-proof.html").read_text(encoding="utf-8")
+    recorder = (ROOT / "scripts" / "record-marketing-workflow-proof.cjs").read_text(encoding="utf-8")
+
+    for asset in (
+        "/public/ui-functions.js",
+        "/public/crump-5.0.js",
+        "/public/crump-product-5.3.js",
+        "/public/crump-product-5.3.1.js",
+    ):
+        assert asset in fixture
+    for action in ("Send message", "Keep in a Project", "Open Project", "Editable PowerPoint ready"):
+        assert action in recorder
+    assert "recordVideo" in recorder
+    assert "unexpectedRequests" in recorder
     assert "password" not in fixture.lower()
     assert "askcrump.com" not in fixture
 

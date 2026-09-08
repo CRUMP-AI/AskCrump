@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Ask Crump continuity proof</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/public/styles.css">
+  <link rel="stylesheet" href="/public/conversation.css">
+  <link rel="stylesheet" href="/public/crump-5.0.css">
+  <link rel="stylesheet" href="/public/crump-v1-body.css">
+  <link rel="stylesheet" href="/public/crump-product-5.3.css">
+  <link rel="stylesheet" href="/public/crump-product-5.3.1.css">
+  <style>
+    html, body { min-height: 100%; background: #080a0d; }
+    body { margin: 0; color: #f7f3ea; overflow: hidden; }
+    .proof-shell { min-height: 100dvh; display: flex; flex-direction: column; background: radial-gradient(circle at 50% -8%, rgba(190,150,70,.12), transparent 34%), #080a0d; }
+    .proof-header { height: 70px; flex: 0 0 70px; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: env(safe-area-inset-top, 0) 18px 0; border-bottom: 1px solid rgba(255,255,255,.07); background: rgba(8,10,13,.94); }
+    .proof-header img { width: 142px; height: auto; display: block; }
+    .proof-context { min-width: 0; text-align: right; font-family: Inter, system-ui, sans-serif; }
+    .proof-context span { display: block; color: #b99856; font-size: 9px; font-weight: 800; letter-spacing: .18em; }
+    .proof-context strong { display: block; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+    .proof-workspace { min-height: 0; flex: 1; display: flex; flex-direction: column; }
+    .proof-scroll { min-height: 0; flex: 1; overflow: auto; padding: 26px 14px 132px; overscroll-behavior: contain; }
+    .proof-welcome { max-width: 690px; margin: 12vh auto 0; text-align: center; font-family: Inter, system-ui, sans-serif; }
+    .proof-welcome img { width: 58px; height: 65px; object-fit: contain; }
+    .proof-welcome span { display: block; margin-top: 18px; color: #b99856; font-size: 10px; font-weight: 800; letter-spacing: .2em; }
+    .proof-welcome h1 { margin: 10px 0 9px; font: 500 clamp(30px,8vw,46px)/1.04 Georgia,serif; }
+    .proof-welcome p { margin: 0 auto; max-width: 520px; color: #a8a7a3; font: 14px/1.55 Inter,system-ui,sans-serif; }
+    #chatContainer { width: min(760px,100%); margin: 0 auto; }
+    .proof-dock { position: fixed; z-index: 80; left: 0; right: 0; bottom: 0; padding: 12px 12px calc(14px + env(safe-area-inset-bottom, 0)); background: linear-gradient(180deg, transparent, rgba(8,10,13,.98) 24%); }
+    .proof-composer { width: min(760px,100%); margin: 0 auto; display: flex; align-items: flex-end; gap: 8px; padding: 9px 9px 9px 15px; border: 1px solid rgba(212,178,103,.34); border-radius: 24px; background: #12161b; box-shadow: 0 18px 42px rgba(0,0,0,.35); }
+    .proof-composer textarea { flex: 1; min-height: 25px; max-height: 110px; resize: none; border: 0; outline: 0; padding: 6px 0; color: #f7f3ea; background: transparent; font: 15px/1.45 Inter,system-ui,sans-serif; }
+    .proof-composer button { width: 40px; height: 40px; flex: 0 0 40px; border: 0; border-radius: 50%; background: linear-gradient(145deg,#e4c273,#a6792d); color: #0b0d10; font-size: 21px; cursor: pointer; }
+    .proof-composer button:disabled { opacity: .45; }
+    .proof-toast { position: fixed; z-index: 140000; left: 50%; top: 82px; transform: translateX(-50%); max-width: calc(100% - 32px); padding: 10px 14px; border: 1px solid rgba(212,178,103,.28); border-radius: 999px; background: #171b20; color: #f4ead2; font: 12px/1.3 Inter,system-ui,sans-serif; box-shadow: 0 12px 30px rgba(0,0,0,.34); }
+    @media (min-width: 700px) {
+      .proof-header { padding-inline: 28px; }
+      .proof-header img { width: 172px; }
+      .proof-scroll { padding-inline: 28px; }
+      .proof-dock { padding-inline: 28px; }
+    }
+  </style>
+</head>
+<body class="crump-v1 crump-v1-body crump-50">
+  <div id="appContainer" class="app-container" style="display:flex">
+    <main class="proof-shell" aria-label="Ask Crump workspace">
+      <header class="proof-header">
+        <img src="/public/assets/brand/crump-shell-lockup-light.png" width="1200" height="300" alt="Ask Crump — An AI workspace for work that continues">
+        <div class="proof-context"><span>WORKSPACE</span><strong id="proofTitle">New conversation</strong></div>
+      </header>
+      <section class="proof-workspace">
+        <div id="proofScroll" class="proof-scroll">
+          <section id="proofWelcome" class="proof-welcome">
+            <img src="/public/assets/brand/crump-mark.png" width="640" height="714" alt="">
+            <span>ASK CRUMP</span>
+            <h1>What are we moving forward?</h1>
+            <p>Start with the rough version. Keep the useful result with the Project when the work should continue.</p>
+          </section>
+          <div id="chatContainer" class="chat-container" aria-label="Conversation"></div>
+        </div>
+      </section>
+      <section class="proof-dock" aria-label="Ask Crump composer">
+        <div class="proof-composer">
+          <textarea id="proofInput" rows="1" maxlength="20000" aria-label="Message Crump" placeholder="Message Crump"></textarea>
+          <button id="proofSend" type="button" aria-label="Send message">↑</button>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script>
+    const fixtureChatId = '00000000-0000-4000-8000-000000000071';
+    const fixtureProject = {
+      id: '00000000-0000-4000-8000-000000000072',
+      name: 'Launch planning',
+      description: 'A private workspace for the launch plan.',
+      instructions: 'Keep recommendations recommendations practical, concise, and evidence-led.',
+      updated_at: '2026-09-08T18:00:00Z',
+    };
+    const fixtureFile = {
+      id: '00000000-0000-4000-8000-000000000073',
+      name: 'six-week-launch-plan.pptx',
+      title: 'Six-week launch plan',
+      type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      kind: 'generated_document',
+      projectRole: 'generated_document',
+      size: 286720,
+      createdAt: '2026-09-08T18:04:00Z',
+      metadata: {title: 'Six-week launch plan', documentTitle: 'Six-week launch plan'},
+    };
+    localStorage.setItem('askcrump.activeProject53', fixtureProject.id);
+    window.currentUser = {id: 'fixture-user', fullName: 'Demo'};
+    window.currentChatId = fixtureChatId;
+    window.chats = [{id: fixtureChatId, chat_id: fixtureChatId, title: 'New conversation', messages: []}];
+    window.__fixture = {saved: false, requests: [], analytics: [], unexpectedRequests: [], errors: []};
+    window.addEventListener('error', event => window.__fixture.errors.push(event.message || 'page error'));
+    window.addEventListener('unhandledrejection', event => window.__fixture.errors.push(String(event.reason || 'rejection')));
+    window.CrumpAnalytics = {track: (eventName, values) => { window.__fixture.analytics.push({eventName, values}); return Promise.resolve(true); }};
+    window.CrumpPresence = {indicator: () => null};
+    window.syncChatsToServer = () => Promise.resolve({success: true});
+    window.saveChats = () => {};
+    window.renderChatsList = () => {};
+    window.showToast = message => {
+      document.querySelector('.proof-toast')?.remove();
+      const toast = document.createElement('div');
+      toast.className = 'proof-toast';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 1600);
+    };
+    const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}});
+    window.fetch = async (input, options = {}) => {
+      const url = new URL(String(input), location.href);
+      const method = String(options.method || 'GET').toUpperCase();
+      const path = url.pathname;
+      if (path === '/api/features') return jsonResponse({success: true});
+      if (path === '/api/projects' && method === 'GET') return jsonResponse({success: true, projects: [fixtureProject], limit: 3});
+      if (path === `/api/projects/for-chat/${fixtureChatId}` && method === 'GET') return jsonResponse({success: true, project: window.__fixture.saved ? fixtureProject : null});
+      if (path === `/api/projects/target/${fixtureProject.id}` && method === 'GET') return jsonResponse({success: true, project: fixtureProject});
+      if (path === `/api/projects/${fixtureProject.id}` && method === 'GET') return jsonResponse({success: true, project: fixtureProject, context: {canon: []}});
+      if (path === `/api/projects/${fixtureProject.id}/chats` && method === 'GET') return jsonResponse({success: true, conversations: window.__fixture.saved ? [{chatId: fixtureChatId, title: 'Launch plan'}] : []});
+      if (path === `/api/projects/${fixtureProject.id}/chats` && method === 'POST') {
+        window.__fixture.saved = true;
+        window.__fixture.requests.push({path, method, body: JSON.parse(String(options.body || '{}'))});
+        return jsonResponse({success: true, project: fixtureProject});
+      }
+      if (path === `/api/projects/${fixtureProject.id}/files` && method === 'POST') {
+        window.__fixture.saved = true;
+        window.__fixture.requests.push({path, method, body: JSON.parse(String(options.body || '{}'))});
+        return jsonResponse({success: true, file: fixtureFile});
+      }
+      if (path === `/api/projects/${fixtureProject.id}/files` && method === 'GET') return jsonResponse({success: true, files: window.__fixture.saved ? [fixtureFile] : []});
+      if (path === '/api/files?limit=200' || (path === '/api/files' && method === 'GET')) return jsonResponse({success: true, files: window.__fixture.saved ? [fixtureFile] : []});
+      window.__fixture.unexpectedRequests.push({path, method});
+      return jsonResponse({success: false, error: 'Unexpected fixture request.'}, 500);
+    };
+  </script>
+  <script src="/public/ui-functions.js?v=marketing-proof-1"></script>
+  <script src="/public/crump-5.0.js?v=marketing-proof-1"></script>
+  <script src="/public/crump-product-5.3.js?v=marketing-proof-1"></script>
+  <script src="/public/crump-product-5.3.1.js?v=marketing-proof-1"></script>
+  <script>
+    const proofInput = document.getElementById('proofInput');
+    const proofSend = document.getElementById('proofSend');
+    const proofScroll = document.getElementById('proofScroll');
+    const proofWelcome = document.getElementById('proofWelcome');
+    const proofChat = window.chats[0];
+    proofSend.addEventListener('click', () => {
+      const prompt = String(proofInput.value || '').trim();
+      if (!prompt || proofSend.disabled) return;
+      proofSend.disabled = true;
+      proofWelcome.hidden = true;
+      proofChat.title = 'Launch plan';
+      document.getElementById('proofTitle').textContent = proofChat.title;
+      proofChat.messages = [{id: 'proof-user', role: 'user', content: prompt}];
+      window.renderMessages(proofChat.messages);
+      proofInput.value = '';
+      proofScroll.scrollTop = proofScroll.scrollHeight;
+      setTimeout(() => {
+        proofChat.messages.push({
+          id: 'proof-response',
+          role: 'assistant',
+          content: 'I organized the rough notes into a six-week launch plan with clear milestones, owners, risks, and review points. The editable PowerPoint is ready below, and the work can stay with a Project for the next return.',
+          artifact: {
+            id: fixtureFile.id,
+            format: 'pptx',
+            name: fixtureFile.name,
+            title: fixtureFile.title,
+            size: fixtureFile.size,
+          },
+        });
+        window.renderMessages(proofChat.messages);
+        proofSend.disabled = false;
+        proofScroll.scrollTop = proofScroll.scrollHeight;
+      }, 650);
+    });
+  </script>
+</body>
+</html>

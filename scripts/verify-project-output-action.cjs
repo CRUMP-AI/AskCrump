@@ -86,7 +86,35 @@ const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE
       assert.equal(completed.fixtureErrors, 0);
       assert.deepEqual(browserErrors, []);
 
-      results.push({viewport: viewport.name, destination, pending, completed, browserErrors});
+      await button.click();
+      await page.locator('#crump53Studio').waitFor({state: 'visible'});
+      const opened = await page.evaluate(() => {
+        const dialog = document.querySelector('#crump53Sheet');
+        const studio = document.querySelector('#crump53Studio');
+        return {
+          studioHidden: studio?.hidden ?? null,
+          dialogLabel: dialog?.getAttribute('aria-label') || '',
+          heading: document.querySelector('#crump53ProjectWorkspaceName')?.textContent || '',
+          opened: document.querySelector('#fixtureOpened')?.textContent || '',
+        };
+      });
+      assert.equal(opened.studioHidden, false);
+      assert.equal(
+        opened.dialogLabel,
+        destination === 'new'
+          ? 'Ask Crump Project: Website launch checklist'
+          : 'Ask Crump Project: Q3 Finance Forecast',
+      );
+      assert.equal(
+        opened.heading,
+        destination === 'new' ? 'Website launch checklist' : 'Q3 Finance Forecast',
+      );
+      await page.waitForFunction(() => document.querySelector('#fixtureOpened')?.textContent.startsWith('Opened '));
+      assert.equal(await page.locator('#fixtureErrors').textContent(), '0');
+      assert.equal((await page.evaluate(() => window.__fixture.unexpectedRequests)), 0);
+      assert.deepEqual(browserErrors, []);
+
+      results.push({viewport: viewport.name, destination, pending, completed, opened, browserErrors});
       await page.close();
     }
   }

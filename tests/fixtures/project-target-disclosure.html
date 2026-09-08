@@ -38,6 +38,11 @@
       name: 'Q3 Finance Forecast',
       updated_at: '2026-08-28T12:00:00Z',
     };
+    const fixtureNewProject = {
+      id: '00000000-0000-4000-8000-000000000063',
+      name: 'Website launch checklist',
+      updated_at: '2026-08-28T12:05:00Z',
+    };
     const fixtureParams = new URLSearchParams(location.search);
     const fixtureUsesStoredProject = fixtureParams.get('target') !== 'new';
     const fixtureConversationAlreadySaved = fixtureParams.get('saved') === '1';
@@ -158,6 +163,23 @@
           headers: {'Content-Type': 'application/json'},
         });
       }
+      if (url.pathname === `/api/projects/${fixtureNewProject.id}` && method === 'GET') {
+        document.getElementById('fixtureOpened').textContent = `Opened ${fixtureNewProject.name}`;
+        return new Response(JSON.stringify({
+          success: true,
+          project: fixtureNewProject,
+          context: {canon: []},
+        }), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      if (url.pathname === `/api/projects/${fixtureNewProject.id}/chats` && method === 'GET') {
+        return new Response(JSON.stringify({success: true, conversations: []}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
       if (url.pathname === `/api/projects/${fixtureProject.id}/chats` && method === 'POST') {
         window.__fixture.requests.push({destination: fixtureProject.id, body: JSON.parse(options.body)});
         document.getElementById('fixtureRequest').textContent = `Saved to ${fixtureProject.name}`;
@@ -177,10 +199,9 @@
         });
       }
       if (url.pathname === '/api/projects' && method === 'POST') {
-        const project = {id: '00000000-0000-4000-8000-000000000063', name: 'Website launch checklist'};
         window.__fixture.requests.push({destination: 'new', body: JSON.parse(options.body)});
         document.getElementById('fixtureRequest').textContent = 'Started Website launch checklist';
-        return new Response(JSON.stringify({success: true, project}), {
+        return new Response(JSON.stringify({success: true, project: fixtureNewProject}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
