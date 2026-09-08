@@ -59,7 +59,7 @@ const CORE = [
   '/product-analytics.js?v=5.9.76-project-save-measurement-1',
   '/lifecycle-share.js?v=5.9.76-lifecycle-activation-1',
   '/lifecycle-manager.js?v=5.9.76-continuity-action-1',
-  '/auth-controller.js?v=5.9.76-attribution-registry-1',
+  '/auth-controller.js?v=5.9.76-login-failure-categories-1',
   '/crump-4.3.css',
   '/crump-4.3.js?v=5.9.76-intelligence-architecture-1',
   '/crump-4.4.css',

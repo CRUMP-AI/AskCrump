@@ -94,16 +94,30 @@
 
   <script>
     window.__fixture = {events: []};
+    Object.assign(window.__fixture, {
+      eventPayloads: [],
+      loginResult: {success:false, error:'Invalid email or password.', code:'INVALID_CREDENTIALS'},
+      loginError: null,
+    });
     window.va = (command, payload) => {
       if (command !== 'event') return;
       window.__fixture.events.push(payload.name);
+      window.__fixture.eventPayloads.push(payload);
       document.getElementById('fixtureEvents').textContent = window.__fixture.events.join(',');
     };
     window.CrumpWorkspaceRuntime = {load: async () => {}};
     window.CrumpAPI = {ready: Promise.resolve()};
     window.deviceAuth = {
       async checkSession() { return {success:true, authenticated:false}; },
-      async login() { return {success:false}; },
+      async login() {
+        if (window.__fixture.loginError) {
+          throw Object.assign(
+            new Error(window.__fixture.loginError.message || 'Login request failed.'),
+            {code: window.__fixture.loginError.code || ''},
+          );
+        }
+        return window.__fixture.loginResult;
+      },
       async logout() {},
     };
     window.configureUserStorage = () => {};

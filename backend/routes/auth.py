@@ -234,7 +234,11 @@ async def login(payload: LoginRequest, request: Request, response: Response):
         )
         return JSONResponse(
             status_code=401,
-            content={'success': False, 'error': 'Invalid email or password.'},
+            content={
+                'success': False,
+                'error': 'Invalid email or password.',
+                'code': 'INVALID_CREDENTIALS',
+            },
         )
     if not user.get('is_verified'):
         logger.info(
@@ -246,6 +250,7 @@ async def login(payload: LoginRequest, request: Request, response: Response):
             content={
                 'success': False,
                 'error': 'Verify your email before signing in.',
+                'code': 'EMAIL_VERIFICATION_REQUIRED',
                 'needsVerification': True,
                 'email': email,
             },

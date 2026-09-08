@@ -911,6 +911,18 @@
     return null;
   }
 
+  function loginFailureReason(error) {
+    const result = error?.result || {};
+    const code = String(result.code || error?.code || '').trim().toUpperCase();
+    if (result.needsVerification || code === 'EMAIL_VERIFICATION_REQUIRED') return 'verification_required';
+    if (code === 'INVALID_CREDENTIALS') return 'credentials_rejected';
+    if (code === 'RATE_LIMITED') return 'rate_limited';
+    if (code === 'SESSION_ESTABLISHMENT_FAILED') return 'session_establishment';
+    if (code === 'AUTH_REQUEST_TIMEOUT') return 'timeout';
+    if (navigator.onLine === false) return 'offline';
+    return 'request_failed';
+  }
+
   function updateRegistrationPasswordGuidance({ touched = false } = {}) {
     const input = byId('registerPassword');
     const hint = byId('registerPasswordHint');
@@ -1035,7 +1047,7 @@
       } catch (error) {
         setText('loginError', error.message || 'Network error. Try again.');
         trackFunnel('LoginFailed', {
-          reason: error.result?.needsVerification ? 'verification_required' : 'request_failed',
+          reason: loginFailureReason(error),
         });
         if (error.result?.needsVerification) show('verificationNeeded');
       } finally {
