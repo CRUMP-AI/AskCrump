@@ -67,6 +67,36 @@ def passing_artifact(manifest: dict) -> dict:
     }
 
 
+def add_runner_syntax_receipts(manifest: dict, artifact: dict) -> None:
+    for case in manifest["cases"]:
+        if case["mode"] != "implement":
+            continue
+        run = next(item for item in artifact["runs"] if item["case_id"] == case["id"])
+        changed = case["required_paths"]
+        python_paths = [path for path in changed if path.endswith(".py")]
+        javascript_paths = [
+            path for path in changed if Path(path).suffix.lower() in {".js", ".mjs", ".cjs"}
+        ]
+        if python_paths:
+            run["verification"].append(
+                {
+                    "command": "python3 -m py_compile " + " ".join(python_paths),
+                    "returnCode": 0,
+                    "stdout": "",
+                    "stderr": "",
+                }
+            )
+        for path in javascript_paths:
+            run["verification"].append(
+                {
+                    "command": f"node --check {path}",
+                    "returnCode": 0,
+                    "stdout": "",
+                    "stderr": "",
+                }
+            )
+
+
 def test_fixed_manifest_is_valid_pinned_and_excluded_from_deployment():
     manifest = validate_manifest(load_manifest())
     assert manifest["source"]["revision"] == PINNED_REVISION
@@ -93,6 +123,53 @@ def test_all_passing_receipts_score_the_fixed_suite_without_echoing_content():
     assert "private-but-not-secret-marker" not in encoded
     assert "result_summary" not in encoded
     assert "result_patch" not in encoded
+
+
+def test_current_runner_automatic_syntax_receipts_do_not_break_valid_runs():
+    manifest = load_manifest()
+    artifact = passing_artifact(manifest)
+    add_runner_syntax_receipts(manifest, artifact)
+    report = evaluate_benchmark(manifest, artifact)
+    assert report["passed"] is True
+    assert report["passed_case_count"] == len(manifest["cases"])
+    assert all(item["failures"] == [] for item in report["cases"])
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "node --check public/landing.js",
+        "node --check benchmarks/crump_code/fixtures/python_boundary/range_utils.py",
+        "python3 -m py_compile backend/code_runner.py",
+    ],
+)
+def test_automatic_syntax_receipts_are_bound_to_changed_paths(command: str):
+    manifest = load_manifest()
+    artifact = passing_artifact(manifest)
+    run = artifact["runs"][0]
+    run["verification"].append(
+        {"command": command, "returnCode": 0, "stdout": "", "stderr": ""}
+    )
+    result = evaluate_benchmark(manifest, artifact)["cases"][0]
+    assert result["passed"] is False
+    assert {
+        "verification_command_invalid",
+        "verification_unexpected",
+    } & set(result["failures"])
+
+
+def test_failed_runner_syntax_receipt_still_fails_the_case():
+    manifest = load_manifest()
+    artifact = passing_artifact(manifest)
+    add_runner_syntax_receipts(manifest, artifact)
+    run = artifact["runs"][0]
+    syntax = next(
+        receipt for receipt in run["verification"] if "py_compile" in receipt["command"]
+    )
+    syntax["returnCode"] = 1
+    result = evaluate_benchmark(manifest, artifact)["cases"][0]
+    assert result["passed"] is False
+    assert "verification_failed" in result["failures"]
 
 
 def test_scope_and_sensitive_output_fail_categorically_without_echoing_values():

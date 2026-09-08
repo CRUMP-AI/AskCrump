@@ -14,10 +14,12 @@ files are immutable.
 
 The evaluator never executes candidate code. It consumes the durable task result and verification
 receipts produced inside the deny-all, no-secret Sandbox. Required commands must match the same
-verification allowlist used by Crump Code. A result fails if it changes an acceptance file, leaves
-its allowed scope, omits a required path or passing receipt, reports a failed verification,
-contains a sensitive-token pattern, exceeds its patch/duration/attempt envelope, or drifts from the
-pinned source revision.
+verification allowlist used by Crump Code. The evaluator also recognizes only the runner's exact
+automatic syntax receipts (`python3 -m py_compile` or `node --check`) when every referenced path is
+part of that run's validated patch and uses the matching language suffix. A result fails if it
+changes an acceptance file, leaves its allowed scope, omits a required path or passing receipt,
+reports a failed verification, adds any other receipt, contains a sensitive-token pattern, exceeds
+its patch/duration/attempt envelope, or drifts from the pinned source revision.
 
 Reports contain only case IDs, numeric scores, and categorical failure codes. They never echo
 summaries, patches, verification output, repository content, identifiers, or secrets.

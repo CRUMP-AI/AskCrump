@@ -285,7 +285,27 @@ def patch_paths(patch: str) -> set[str]:
     return paths
 
 
-def _verification_failures(case: dict[str, Any], value: Any) -> list[str]:
+def _automatic_syntax_verification(command: str, paths: set[str]) -> bool:
+    """Accept only the exact syntax receipts the current runner adds itself."""
+    try:
+        pieces = shlex.split(command, posix=True)
+    except ValueError:
+        return False
+    if len(pieces) == 3 and pieces[:2] == ["node", "--check"]:
+        path = pieces[2]
+        return path in paths and PurePosixPath(path).suffix.lower() in {".js", ".mjs", ".cjs"}
+    if len(pieces) >= 4 and pieces[:3] == ["python3", "-m", "py_compile"]:
+        syntax_paths = pieces[3:]
+        return (
+            len(syntax_paths) == len(set(syntax_paths))
+            and all(path in paths and path.endswith(".py") for path in syntax_paths)
+        )
+    return False
+
+
+def _verification_failures(
+    case: dict[str, Any], value: Any, paths: set[str]
+) -> list[str]:
     if not isinstance(value, list) or len(value) > 20:
         return ["verification_shape_invalid"]
     receipts: dict[str, int] = {}
@@ -299,18 +319,20 @@ def _verification_failures(case: dict[str, Any], value: Any) -> list[str]:
         return_code = receipt.get("returnCode")
         if not command or not isinstance(return_code, int) or isinstance(return_code, bool):
             return ["verification_shape_invalid"]
-        try:
-            pieces = shlex.split(command, posix=True)
-            executable, args = validate_verification_command(pieces[0], pieces[1:])
-            canonical = " ".join([executable, *args])
-        except (IndexError, ValueError):
-            failures.append("verification_command_invalid")
-            continue
-        if canonical != command:
-            failures.append("verification_command_invalid")
-            continue
-        if command not in case["required_verifications"]:
-            failures.append("verification_unexpected")
+        automatic_syntax = _automatic_syntax_verification(command, paths)
+        if not automatic_syntax:
+            try:
+                pieces = shlex.split(command, posix=True)
+                executable, args = validate_verification_command(pieces[0], pieces[1:])
+                canonical = " ".join([executable, *args])
+            except (IndexError, ValueError):
+                failures.append("verification_command_invalid")
+                continue
+            if canonical != command:
+                failures.append("verification_command_invalid")
+                continue
+            if command not in case["required_verifications"]:
+                failures.append("verification_unexpected")
         if command in receipts:
             failures.append("verification_duplicate")
         receipts[command] = return_code
@@ -376,7 +398,7 @@ def _run_result(case: dict[str, Any], run: dict[str, Any], revision: str) -> dic
         if paths & set(case["forbidden_paths"]):
             failures.append("forbidden_path_changed")
 
-    failures.extend(_verification_failures(case, run.get("verification")))
+    failures.extend(_verification_failures(case, run.get("verification"), paths))
 
     sensitive_values: list[Any] = [summary, patch]
     verification = run.get("verification")
