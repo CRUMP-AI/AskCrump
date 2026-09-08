@@ -67,6 +67,25 @@ const viewports = [
         'Add 150 Crump Credits for $9.99',
       );
       assert.equal(Number(await page.locator('#billingFixtureCheckouts').textContent()), 1);
+      await page.locator('[data-crump-pack="credits_150"] .billing51-pack-amount').click();
+      await page.waitForFunction(() => Number(document.getElementById('billingFixtureCheckouts')?.textContent || 0) === 2);
+      await page.waitForFunction(() => !document.querySelector('[data-crump-pack="credits_150"] .billing51-buy')?.disabled);
+      const retryEvidence = await page.evaluate(() => ({
+        bodies: window.__creditCheckoutBodies,
+        distinctAttempts: Number(document.getElementById('billingFixtureAttempts')?.textContent || 0),
+      }));
+      assert.equal(retryEvidence.bodies.length, 2);
+      assert.equal(retryEvidence.distinctAttempts, 1);
+      assert.equal(retryEvidence.bodies[0].pack, 'credits_150');
+      assert.equal(retryEvidence.bodies[0].attemptId, retryEvidence.bodies[1].attemptId);
+      assert.match(retryEvidence.bodies[0].attemptId, /^[A-Za-z0-9][A-Za-z0-9:._-]{15,99}$/);
+      await page.evaluate(({pack, attemptId}) => {
+        window.BillingManager.completeCreditCheckoutAttempt(pack, attemptId);
+      }, {pack: retryEvidence.bodies[0].pack, attemptId: retryEvidence.bodies[0].attemptId});
+      assert.equal(
+        await page.evaluate(() => sessionStorage.getItem('crump:credit-checkout-attempt:credits_150')),
+        null,
+      );
       assert.equal(Number(await page.locator('#billingFixtureErrors').textContent()), 0);
       assert.deepEqual(browserErrors, []);
       results.push({viewport: viewport.name, ...state});

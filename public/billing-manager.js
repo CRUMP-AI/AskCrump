@@ -332,6 +332,32 @@
     } catch (_) {}
   }
 
+  function creditCheckoutAttempt(packCode) {
+    const normalizedPack = ['credits_50', 'credits_150', 'credits_400'].includes(
+      String(packCode || '').toLowerCase(),
+    ) ? String(packCode).toLowerCase() : 'credits_50';
+    const storageKey = `crump:credit-checkout-attempt:${normalizedPack}`;
+    try {
+      const stored = sessionStorage.getItem(storageKey);
+      if (/^[A-Za-z0-9][A-Za-z0-9:._-]{15,99}$/.test(stored || '')) return stored;
+    } catch (_) {}
+    const randomId = globalThis.crypto?.randomUUID?.()
+      || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+    const attemptId = `web:${randomId}`;
+    try { sessionStorage.setItem(storageKey, attemptId); } catch (_) {}
+    return attemptId;
+  }
+
+  function completeCreditCheckoutAttempt(packCode, attemptId) {
+    const normalizedPack = ['credits_50', 'credits_150', 'credits_400'].includes(
+      String(packCode || '').toLowerCase(),
+    ) ? String(packCode).toLowerCase() : 'credits_50';
+    const storageKey = `crump:credit-checkout-attempt:${normalizedPack}`;
+    try {
+      if (sessionStorage.getItem(storageKey) === attemptId) sessionStorage.removeItem(storageKey);
+    } catch (_) {}
+  }
+
   async function refreshStatus() {
     const response = await fetch('/api/billing/status');
     const data = await response.json().catch(() => ({}));
@@ -361,6 +387,8 @@
     manageSubscription,
     subscriptionCheckoutAttempt,
     completeSubscriptionCheckoutAttempt,
+    creditCheckoutAttempt,
+    completeCreditCheckoutAttempt,
     refreshStatus,
     refreshCredits,
     synchronizeServerCredits,

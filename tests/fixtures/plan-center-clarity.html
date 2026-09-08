@@ -13,6 +13,7 @@
     <output id="billingFixtureErrors" aria-label="Browser errors">0</output>
     <output id="billingFixtureCheckouts" aria-label="Checkout requests">0</output>
     <output id="billingFixturePortals" aria-label="Portal requests">0</output>
+    <output id="billingFixtureAttempts" aria-label="Checkout retry identities">0</output>
   </main>
   <script>
     window.currentUser = {id: 'fixture-user'};
@@ -22,15 +23,7 @@
       webEnterprisePriceLabel: '$50/month',
     };
     window.__planCenterEvents = [];
-    window.BillingManager = {
-      isNative: () => false,
-      getProducts: async () => ({}),
-      getCreditProducts: async () => ({}),
-      manageSubscription: async () => {
-        const output = document.getElementById('billingFixturePortals');
-        output.textContent = String(Number(output.textContent || 0) + 1);
-      },
-    };
+    window.__creditCheckoutBodies = [];
     window.showToast = () => {};
     const recordBrowserError = () => {
       const output = document.getElementById('billingFixtureErrors');
@@ -62,6 +55,10 @@
       if (pathname === '/api/billing/credits/checkout') {
         const output = document.getElementById('billingFixtureCheckouts');
         output.textContent = String(Number(output.textContent || 0) + 1);
+        window.__creditCheckoutBodies.push(JSON.parse(String(options.body || '{}')));
+        document.getElementById('billingFixtureAttempts').textContent = String(
+          new Set(window.__creditCheckoutBodies.map(item => item.attemptId)).size,
+        );
         return new Response(JSON.stringify({success: false, error: 'Fixture blocks credit checkout.'}), {
           status: 409,
           headers: {'Content-Type': 'application/json'},
@@ -95,6 +92,11 @@
         headers: {'Content-Type': 'application/json'},
       });
     };
+  </script>
+  <script src="/public/billing-manager.js?v=credit-checkout-idempotency-fixture-1"></script>
+  <script>
+    window.BillingManager.getProducts = async () => ({});
+    window.BillingManager.getCreditProducts = async () => ({});
   </script>
   <script src="/public/crump-billing-5.1.js?v=billing-modal-containment-fixture-1"></script>
   <script src="/public/crump-5.2.js?v=billing-modal-containment-fixture-1"></script>

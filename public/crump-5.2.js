@@ -618,11 +618,13 @@
       button.setAttribute('aria-label', `Opening secure checkout. ${priorAccessibleLabel}`);
     }
     try {
+      const attemptId = window.BillingManager?.creditCheckoutAttempt?.(packCode);
       const result = await jsonFetch('/api/billing/credits/checkout', {
         method: 'POST',
-        body: JSON.stringify({pack: packCode}),
+        body: JSON.stringify({pack: packCode, attemptId}),
       });
       if (!result.url) throw new Error('Stripe did not return a checkout destination.');
+      window.BillingManager?.completeCreditCheckoutAttempt?.(packCode, attemptId);
       window.location.href = result.url;
     } catch (error) {
       state.checkoutOpening = false;

@@ -12,6 +12,9 @@ import hmac
 import json
 import logging
 import os
+import re
+import secrets
+import string
 from typing import Any
 from urllib.parse import quote
 
@@ -29,6 +32,8 @@ from ..usage_service import credit_status
 
 router = APIRouter(prefix='/api/billing/credits', tags=['billing'])
 logger = logging.getLogger('askcrump.credits')
+STRIPE_API_VERSION = '2026-07-29.dahlia'
+CHECKOUT_ATTEMPT_PATTERN = re.compile(r'^[A-Za-z0-9][A-Za-z0-9:._-]{15,99}$')
 
 
 class StripeRequestError(RuntimeError):
@@ -68,32 +73,70 @@ def _stripe_error(response: httpx.Response, fallback: str) -> StripeRequestError
     )
 
 
-async def _stripe_post(path: str, data: dict[str, str]) -> dict[str, Any]:
+async def _stripe_post(
+    path: str,
+    data: dict[str, str],
+    *,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
     if not settings.stripe_secret_key:
         raise RuntimeError('Stripe is not configured.')
-    async with httpx.AsyncClient(timeout=25) as client:
-        response = await client.post(
-            f'https://api.stripe.com/v1/{path}',
-            auth=(settings.stripe_secret_key, ''),
-            data=data,
-        )
+    try:
+        async with httpx.AsyncClient(timeout=25) as client:
+            headers = {'Stripe-Version': STRIPE_API_VERSION}
+            if idempotency_key:
+                headers['Idempotency-Key'] = idempotency_key
+            response = await client.post(
+                f'https://api.stripe.com/v1/{path}',
+                auth=(settings.stripe_secret_key, ''),
+                headers=headers,
+                data=data,
+            )
+    except httpx.HTTPError as exc:
+        logger.exception('Stripe credits network request failed path=%s', path)
+        raise StripeRequestError(
+            'Stripe is temporarily unavailable.',
+            status_code=502,
+        ) from exc
     if response.status_code >= 400:
-        logger.error('Stripe credits error %s: %s', response.status_code, response.text[:500])
-        raise _stripe_error(response, 'Stripe rejected the credit purchase request.')
+        error = _stripe_error(response, 'Stripe rejected the credit purchase request.')
+        logger.error(
+            'Stripe credits request rejected path=%s status=%s code=%s param=%s',
+            path,
+            response.status_code,
+            error.code,
+            error.param,
+        )
+        raise error
     return response.json()
 
 
 async def _stripe_get(path: str) -> dict[str, Any]:
     if not settings.stripe_secret_key:
         raise RuntimeError('Stripe is not configured.')
-    async with httpx.AsyncClient(timeout=25) as client:
-        response = await client.get(
-            f'https://api.stripe.com/v1/{path}',
-            auth=(settings.stripe_secret_key, ''),
-        )
+    try:
+        async with httpx.AsyncClient(timeout=25) as client:
+            response = await client.get(
+                f'https://api.stripe.com/v1/{path}',
+                auth=(settings.stripe_secret_key, ''),
+                headers={'Stripe-Version': STRIPE_API_VERSION},
+            )
+    except httpx.HTTPError as exc:
+        logger.exception('Stripe credits lookup network failure path=%s', path)
+        raise StripeRequestError(
+            'Stripe is temporarily unavailable.',
+            status_code=502,
+        ) from exc
     if response.status_code >= 400:
-        logger.error('Stripe credits lookup error %s: %s', response.status_code, response.text[:500])
-        raise _stripe_error(response, 'Stripe could not verify the purchase.')
+        error = _stripe_error(response, 'Stripe could not verify the purchase.')
+        logger.error(
+            'Stripe credits lookup rejected path=%s status=%s code=%s param=%s',
+            path,
+            response.status_code,
+            error.code,
+            error.param,
+        )
+        raise error
     return response.json()
 
 
@@ -261,7 +304,45 @@ async def status(request: Request):
     }
 
 
-def _checkout_payload(*, user_id: str, customer_id: str, pack) -> dict[str, str]:
+def checkout_idempotency_key(
+    user_id: str,
+    pack_code: str,
+    attempt_id: str,
+    *,
+    recovery: bool = False,
+) -> str:
+    """Bind a provider retry identity to one account, pack, and user action."""
+    material = f'{user_id}:{pack_code}:{attempt_id}:{"recovery" if recovery else "initial"}'
+    digest = hashlib.sha256(material.encode('utf-8')).hexdigest()
+    return f'askcrump_credit_{digest}'
+
+
+def checkout_integration_suffix(attempt_id: str) -> str:
+    """Derive the stable lowercase suffix required by Stripe integration labels."""
+    digest = hashlib.sha256(attempt_id.encode('utf-8')).digest()
+    return ''.join(string.ascii_lowercase[value % 26] for value in digest[:8])
+
+
+def checkout_attempt_id(value: Any) -> str:
+    """Accept only bounded content-free client retry identities."""
+    candidate = str(value or '').strip()
+    if not candidate:
+        return secrets.token_urlsafe(24)
+    if not CHECKOUT_ATTEMPT_PATTERN.fullmatch(candidate):
+        raise ValueError('Invalid checkout attempt.')
+    return candidate
+
+
+def _checkout_payload(
+    *,
+    user_id: str,
+    customer_id: str,
+    pack,
+    integration_suffix: str | None = None,
+) -> dict[str, str]:
+    integration_suffix = integration_suffix or ''.join(
+        secrets.choice(string.ascii_lowercase) for _ in range(8)
+    )
     return {
         'mode': 'payment',
         'customer': customer_id,
@@ -278,6 +359,7 @@ def _checkout_payload(*, user_id: str, customer_id: str, pack) -> dict[str, str]
         'metadata[pack]': pack.code,
         'metadata[credits]': str(pack.credits),
         'allow_promotion_codes': 'true',
+        'integration_identifier': f'askcrump_credits_{integration_suffix}',
     }
 
 
@@ -314,15 +396,38 @@ async def checkout(request: Request):
         )
 
     try:
+        attempt_id = checkout_attempt_id(payload.get('attemptId'))
+    except ValueError:
+        return JSONResponse(
+            status_code=400,
+            content={
+                'success': False,
+                'error': 'Invalid checkout attempt.',
+                'code': 'INVALID_CHECKOUT_ATTEMPT',
+            },
+        )
+    integration_suffix = checkout_integration_suffix(attempt_id)
+    initial_idempotency_key = checkout_idempotency_key(
+        str(auth.user['id']),
+        pack.code,
+        attempt_id,
+    )
+
+    try:
         customer_id = await _ensure_stripe_customer(auth.user)
         checkout_data = _checkout_payload(
             user_id=str(auth.user['id']),
             customer_id=customer_id,
             pack=pack,
+            integration_suffix=integration_suffix,
         )
 
         try:
-            session = await _stripe_post('checkout/sessions', checkout_data)
+            session = await _stripe_post(
+                'checkout/sessions',
+                checkout_data,
+                idempotency_key=initial_idempotency_key,
+            )
         except StripeRequestError as exc:
             # Customer IDs are scoped to a Stripe account. If Ask Crump switches
             # Stripe accounts, a previously stored customer reference becomes
@@ -331,7 +436,16 @@ async def checkout(request: Request):
                 logger.warning('Replacing a stale Stripe customer reference.')
                 customer_id = await _create_stripe_customer(auth.user)
                 checkout_data['customer'] = customer_id
-                session = await _stripe_post('checkout/sessions', checkout_data)
+                session = await _stripe_post(
+                    'checkout/sessions',
+                    checkout_data,
+                    idempotency_key=checkout_idempotency_key(
+                        str(auth.user['id']),
+                        pack.code,
+                        attempt_id,
+                        recovery=True,
+                    ),
+                )
             else:
                 raise
 
@@ -355,18 +469,30 @@ async def checkout(request: Request):
         )
 
     session_id = str(session.get('id') or '')
-    if session_id:
-        await record_product_event(
-            db,
-            user_id=auth.user['id'],
-            event_name='CreditCheckoutOpened',
-            event_key=session_id,
-            request=request,
-            source=pack.code,
+    checkout_url = str(session.get('url') or '')
+    if not session_id.startswith('cs_') or not checkout_url.startswith(
+        'https://checkout.stripe.com/'
+    ):
+        logger.error('Stripe returned an invalid credit checkout destination.')
+        return JSONResponse(
+            status_code=502,
+            content={
+                'success': False,
+                'error': 'Secure checkout could not be started. Please try again in a moment.',
+                'code': 'STRIPE_CHECKOUT_INVALID',
+            },
         )
+    await record_product_event(
+        db,
+        user_id=auth.user['id'],
+        event_name='CreditCheckoutOpened',
+        event_key=session_id,
+        request=request,
+        source=pack.code,
+    )
     return {
         'success': True,
-        'url': session.get('url'),
+        'url': checkout_url,
         'sessionId': session_id,
         'pack': pack.code,
         'credits': pack.credits,

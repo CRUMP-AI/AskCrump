@@ -309,11 +309,13 @@
         await hydrate(state.modal);
         return;
       }
+      const attemptId = window.BillingManager?.creditCheckoutAttempt?.(pack.code);
       const result = await jsonFetch('/api/billing/credits/checkout', {
         method: 'POST',
-        body: JSON.stringify({pack: pack.code}),
+        body: JSON.stringify({pack: pack.code, attemptId}),
       });
       if (!result.url) throw new Error('Secure checkout did not return a destination.');
+      window.BillingManager?.completeCreditCheckoutAttempt?.(pack.code, attemptId);
       window.location.assign(result.url);
     } catch (error) {
       window.showToast?.(error.message || 'Credit purchase could not be opened.', 'error');

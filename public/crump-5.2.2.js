@@ -104,14 +104,16 @@
     }
 
     try {
+      const attemptId = window.BillingManager?.creditCheckoutAttempt?.(code);
       const data = await jsonFetch('/api/billing/credits/checkout', {
         method: 'POST',
-        body: JSON.stringify({pack: code}),
+        body: JSON.stringify({pack: code, attemptId}),
       });
       const url = String(data.url || '');
       if (!/^https:\/\/checkout\.stripe\.com\//i.test(url)) {
         throw new Error('Stripe did not return a secure checkout destination.');
       }
+      window.BillingManager?.completeCreditCheckoutAttempt?.(code, attemptId);
       window.location.assign(url);
     } catch (error) {
       state.checkoutOpening = false;
