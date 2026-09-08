@@ -231,7 +231,7 @@
     const navigation = window.CrumpNavigation5930;
     if (decision.messageKey === 'referral-ask') {
       const shared = await window.shareAskCrumpWorkspace?.();
-      if (!shared) window.showToast?.(FALLBACKS.share, 'error');
+      if (shared === false) window.showToast?.(FALLBACKS.share, 'error');
       return;
     }
     if (decision.messageKey === 'continuity-assist' || intent === 'projects') {

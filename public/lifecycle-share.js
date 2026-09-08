@@ -40,7 +40,7 @@
         window.showToast?.('Shared', 'success');
         return true;
       } catch (error) {
-        if (error?.name === 'AbortError') return false;
+        if (error?.name === 'AbortError') return null;
       }
     }
     if (!await copy(`${SHARE_TEXT} ${SHARE_URL}`)) return false;

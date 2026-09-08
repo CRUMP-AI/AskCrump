@@ -109,8 +109,8 @@ const loader = String.raw`
     ['/crump-library-5.7.js?v=5.9.76-library-new-routing-1', 'crumplibrary57'],
     ['/crump-navigation-5.9.30.js?v=5.9.76-destination-background-guard-1', 'crumpnav5930'],
     ['/crump-code-5.9.35.js?v=5.9.76-credit-confirmation-1', 'crumpcode5935'],
-    ['/lifecycle-share.js?v=5.9.76-lifecycle-activation-1', 'lifecycleshare'],
-    ['/lifecycle-manager.js?v=5.9.76-continuity-action-1', 'lifecyclemanager'],
+    ['/lifecycle-share.js?v=5.9.76-referral-cancel-recovery-1', 'lifecycleshare'],
+    ['/lifecycle-manager.js?v=5.9.76-referral-cancel-recovery-1', 'lifecyclemanager'],
   ]);
 
   const scriptPlan = Object.freeze([

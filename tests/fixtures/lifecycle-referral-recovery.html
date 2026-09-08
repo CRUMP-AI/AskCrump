@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ask Crump lifecycle referral recovery fixture</title>
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <main>
+    <div id="chatContainer" aria-label="Conversation"></div>
+    <textarea id="userInput"></textarea>
+    <button id="sendButton" type="button">Send</button>
+    <div id="conversationStatus" aria-live="polite"></div>
+  </main>
+  <script>
+    const mode = new URLSearchParams(location.search).get('mode') || 'cancel';
+    window.currentUser = {id: '11111111-1111-4111-8111-111111111111'};
+    window.__fixture = {
+      actions: [],
+      analytics: [],
+      clipboardCalls: 0,
+      clipboardValue: '',
+      shareCalls: 0,
+      toasts: [],
+    };
+    window.showToast = (message, tone) => window.__fixture.toasts.push([message, tone]);
+    window.CrumpAnalytics = {
+      track: async (eventName, payload) => {
+        window.__fixture.analytics.push({eventName, payload});
+        return true;
+      },
+    };
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: async () => {
+        window.__fixture.shareCalls += 1;
+        if (mode === 'cancel') throw new DOMException('Share canceled', 'AbortError');
+        throw new Error('Native sharing unavailable');
+      },
+    });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async value => {
+          window.__fixture.clipboardCalls += 1;
+          window.__fixture.clipboardValue = value;
+          if (mode !== 'clipboard') throw new Error('Clipboard unavailable');
+        },
+      },
+    });
+    document.execCommand = () => false;
+    window.fetch = async (input, options = {}) => {
+      const path = new URL(String(input), location.origin).pathname;
+      if (path === '/api/lifecycle/decision') {
+        return new Response(JSON.stringify({
+          success: true,
+          eligible: true,
+          messageKey: 'referral-ask',
+          intent: null,
+          surface: 'post-response-inline',
+          decisionId: '44444444-4444-4444-8444-444444444444',
+        }), {status: 200, headers: {'Content-Type': 'application/json'}});
+      }
+      if (path === '/api/lifecycle/actions') {
+        const body = JSON.parse(options.body || '{}');
+        window.__fixture.actions.push(body.action);
+        return new Response(JSON.stringify({success: true, recorded: true}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      throw new Error(`Unexpected request: ${path}`);
+    };
+  </script>
+  <script src="/public/lifecycle-share.js?v=lifecycle-referral-recovery-fixture-1"></script>
+  <script src="/public/lifecycle-manager.js?v=lifecycle-referral-recovery-fixture-1"></script>
+</body>
+</html>
