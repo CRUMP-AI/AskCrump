@@ -1,8 +1,11 @@
 # Durable growth measurement release
 
-Released: 2026-09-08  
-Product commit: `4690062`  
-Supabase migration: `20260908134343`  
+Released: 2026-09-08
+
+Product commit: `4690062`
+
+Supabase migration: `20260908134343`
+
 Production deployment: `dpl_As2odzPQZibmBRfT24PzBeju9Mbd`
 
 ## Outcome
