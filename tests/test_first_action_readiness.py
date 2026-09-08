@@ -54,3 +54,41 @@ def test_browser_fixture_exercises_projects_and_video_without_credentials_or_net
     assert "window.__openedProductTabs.push(tab)" in fixture
     assert "fetch(" not in fixture
     assert "password" not in fixture.lower()
+
+
+def test_launchpad_actions_have_clean_names_and_described_purpose():
+    shell = read("app.html")
+
+    actions = (
+        ("Focus", "Think with Crump"),
+        ("Research", "Research something"),
+        ("File", "Analyze a file"),
+        ("Image", "Create an image"),
+        ("Projects", "Start or open a Project"),
+        ("Video", "Create a video"),
+    )
+    for suffix, label in actions:
+        assert f'aria-labelledby="v1Launch{suffix}Title"' in shell
+        assert f'aria-describedby="v1Launch{suffix}Description"' in shell
+        assert f'id="v1Launch{suffix}Title">{label}</strong>' in shell
+
+    launchpad = shell[shell.index('<div class="v1-launchpad-grid">'):shell.index('<div class="v1-launchpad-foot"')]
+    assert launchpad.count('<b aria-hidden="true">↗</b>') == 6
+    assert '<span class="v1-launch-icon">✦</span>' not in launchpad
+
+
+def test_first_action_browser_proof_is_credential_free_and_covers_all_six_choices():
+    verifier = (ROOT / "scripts" / "verify-first-action-browser.cjs").read_text(encoding="utf-8")
+
+    for label in (
+        "Think with Crump",
+        "Research something",
+        "Analyze a file",
+        "Create an image",
+        "Start or open a Project",
+        "Create a video",
+    ):
+        assert label in verifier
+    assert "first-starter-intent" in verifier
+    assert "password" not in verifier.lower()
+    assert "fetch(" not in verifier

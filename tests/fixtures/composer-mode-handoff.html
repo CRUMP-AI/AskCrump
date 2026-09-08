@@ -3,14 +3,15 @@
 <head>
   <meta charset="utf-8">
   <title>Composer mode handoff fixture</title>
+  <link rel="icon" href="data:,">
 </head>
 <body>
   <div id="appContainer" style="display:flex">
     <section id="v1Launchpad">
-      <button id="focusStarter" type="button" data-v1-command="focus">Think with Crump</button>
-      <button id="researchStarter" type="button" data-v1-command="research">Research something</button>
-      <button id="imageStarter" type="button" data-v1-command="image">Create an image</button>
-      <button id="fileStarter" type="button" data-v1-command="file">Analyze a file</button>
+      <button id="focusStarter" type="button" data-v1-command="focus" aria-labelledby="focusTitle" aria-describedby="focusDescription"><strong id="focusTitle">Think with Crump</strong><small id="focusDescription">Talk through an idea, decision, or problem.</small><b aria-hidden="true">↗</b></button>
+      <button id="researchStarter" type="button" data-v1-command="research" aria-labelledby="researchTitle" aria-describedby="researchDescription"><strong id="researchTitle">Research something</strong><small id="researchDescription">Work with current information and sources.</small><b aria-hidden="true">↗</b></button>
+      <button id="imageStarter" type="button" data-v1-command="image" aria-labelledby="imageTitle" aria-describedby="imageDescription"><strong id="imageTitle">Create an image</strong><small id="imageDescription">Generate, edit, or build a visual concept.</small><b aria-hidden="true">↗</b></button>
+      <button id="fileStarter" type="button" data-v1-command="file" aria-labelledby="fileTitle" aria-describedby="fileDescription"><strong id="fileTitle">Analyze a file</strong><small id="fileDescription">PDFs, documents, images, spreadsheets, and more.</small><b aria-hidden="true">↗</b></button>
     </section>
     <div id="chatContainer"></div>
     <div id="chatsList"></div>
@@ -28,8 +29,14 @@
     };
     window.__filePickerClicks = 0;
     window.__imageStudioOpens = 0;
+    window.__starterEvents = [];
     window.__lastToast = null;
-    window.CrumpAnalytics = { track() { return Promise.resolve(true); } };
+    window.CrumpAnalytics = {
+      track(name, detail) {
+        window.__starterEvents.push({name, detail});
+        return Promise.resolve(true);
+      },
+    };
     window.showToast = (message, tone) => { window.__lastToast = { message, tone }; };
     window.CrumpImageStudio = { open() { window.__imageStudioOpens += 1; } };
   </script>
