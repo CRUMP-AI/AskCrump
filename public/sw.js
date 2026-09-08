@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r220';
+const CACHE_NAME = 'ask-crump-new-body-v1-r221';
 
 const CORE = [
   '/app',
@@ -28,7 +28,7 @@ const CORE = [
   '/crump-code-5.9.35.css?v=5.9.76-intelligence-architecture-1',
   '/crump-code-5.9.35.js?v=5.9.76-credit-confirmation-1',
   '/crump-product-5.3.css?v=5.9.76-file-library-window-1',
-  '/crump-product-5.3.js?v=5.9.76-output-project-action-1',
+  '/crump-product-5.3.js?v=5.9.76-project-limit-plan-dormant-1',
   '/crump-product-5.3.1.css',
   '/crump-product-5.3.1.js?v=5.9.76-core-reliability-1',
   '/crump-polish-5.6.css',
@@ -36,7 +36,7 @@ const CORE = [
   '/crump-library-5.7.css',
   '/crump-library-5.7.js?v=5.9.76-library-new-routing-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-commerce-recovery-1',
-  '/runtime-body-v1.js?v=5.9.76-output-project-action-1',
+  '/runtime-body-v1.js?v=5.9.76-project-limit-plan-dormant-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
@@ -69,9 +69,9 @@ const CORE = [
   '/crump-precision-image-edit.css?v=5.9.76-precision-studio-1',
   '/crump-precision-image-edit.js?v=5.9.76-precision-studio-1',
   '/crump-billing-5.1.css?v=5.9.76-credit-truth-1',
-  '/crump-billing-5.1.js?v=5.9.76-credit-truth-1',
+  '/crump-billing-5.1.js?v=5.9.76-project-limit-plan-dormant-1',
   '/crump-5.2.css',
-  '/crump-5.2.js?v=5.9.76-explicit-button-types-1',
+  '/crump-5.2.js?v=5.9.76-project-limit-plan-dormant-1',
   '/crump-5.2.2.css?v=5.9.76-new-response-cue-1',
   '/crump-5.2.2.js?v=5.9.76-new-response-cue-1',
   '/assets/brand/crump-shell-lockup-light.png',

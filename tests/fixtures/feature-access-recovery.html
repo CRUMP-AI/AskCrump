@@ -25,6 +25,7 @@
       <div class="fixture-actions">
         <button type="button" id="fixtureChat">Test chat boundary</button>
         <button type="button" id="fixtureVideo">Test video boundary</button>
+        <button type="button" id="fixtureProject">Test Project-limit treatment</button>
       </div>
       <output id="fixtureChatResult" aria-label="Chat result">Not tested</output>
       <output id="fixtureRecoveryResult" aria-label="Recovery result">No recovery opened</output>
@@ -83,6 +84,34 @@
           creditBalance:0,
         }), {status:402, headers:{'Content-Type':'application/json'}});
       }
+      if (path === '/api/projects' && method === 'POST') {
+        return new Response(JSON.stringify({
+          success:false,
+          error:'Your current plan supports up to 2 active projects.',
+          code:'PROJECT_LIMIT_REACHED',
+          projectLimitPlan:{
+            eligible:true,
+            experiment:'project-limit-plan-copy',
+            decisionId:'3c36e8bf-c631-46d6-b82d-af4eb08f06d4',
+            variant:'value-specific',
+          },
+        }), {status:403, headers:{'Content-Type':'application/json'}});
+      }
+      if (path === '/api/projects/limit-plan-message/shown' && method === 'POST') {
+        return new Response(JSON.stringify({
+          success:true,
+          recorded:true,
+          eligible:true,
+          experiment:'project-limit-plan-copy',
+          eventName:'ProjectLimitPlanMessageShown',
+          eventKey:'project-limit-plan-message-shown',
+          decisionId:'3c36e8bf-c631-46d6-b82d-af4eb08f06d4',
+          variant:'value-specific',
+          detail:'Your two Free Projects stay available. Professional raises the active Project limit to 25 for $20/month. You can keep using Free or review the plan before deciding.',
+          source:'recovery_project',
+          plan:'professional',
+        }), {status:200, headers:{'Content-Type':'application/json'}});
+      }
       return new Response(JSON.stringify({success:true, projects:[], files:[]}), {
         status:200,
         headers:{'Content-Type':'application/json'},
@@ -105,6 +134,13 @@
       await new Promise(resolve => setTimeout(resolve, 40));
       document.getElementById('crump53VideoPrompt').value = 'A restrained product film with precise camera movement.';
       document.getElementById('crump53VideoForm').requestSubmit();
+    });
+    document.getElementById('fixtureProject').addEventListener('click', async () => {
+      window.CrumpProduct53.open('projects');
+      await new Promise(resolve => setTimeout(resolve, 40));
+      document.getElementById('crump53CreateProject').click();
+      document.getElementById('crump53ProjectName').value = 'Third Project';
+      document.getElementById('crump53ProjectForm').requestSubmit();
     });
   </script>
 </body>

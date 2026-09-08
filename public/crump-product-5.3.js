@@ -260,6 +260,14 @@
     return String(error?.data?.code || error?.code || '').toUpperCase();
   }
 
+  function competingPromptVisible() {
+    return [...document.querySelectorAll('[role="dialog"], .billing51-modal, .auth-modal')].some(node => {
+      if (node.closest('#crump53Studio')) return false;
+      if (node.hidden || node.getAttribute('aria-hidden') === 'true') return false;
+      return Boolean(node.offsetWidth || node.offsetHeight || node.getClientRects().length);
+    });
+  }
+
   function openFeatureAccessRecovery(error) {
     const open = window.showUpgradePrompt || window.showBillingCenter;
     if (typeof open !== 'function') {
@@ -270,13 +278,31 @@
     const requiredTier = error?.data?.requiredTier;
     const creditsRequired = error?.data?.creditsRequired == null ? null : Number(error.data.creditsRequired);
     const creditBalance = error?.data?.creditBalance == null ? null : Number(error.data.creditBalance);
-    open({
+    const projectLimitPlan = error?.data?.projectLimitPlan;
+    const options = {
       accessCode: code,
       ...(code === 'SUBSCRIPTION_REQUIRED' && requiredTier ? {plan: requiredTier} : {}),
       ...(Number.isFinite(creditsRequired) ? {creditsRequired: Math.max(0, Math.floor(creditsRequired))} : {}),
       ...(Number.isFinite(creditBalance) ? {creditBalance: Math.max(0, Math.floor(creditBalance))} : {}),
       source: 'feature_recovery',
-    });
+    };
+    const decisionId = String(projectLimitPlan?.decisionId || '').trim();
+    if (code === 'PROJECT_LIMIT_REACHED' && projectLimitPlan?.eligible === true && decisionId) {
+      if (competingPromptVisible()) {
+        window.showToast?.('Finish or close the current window before reviewing plans.', 'info');
+        return false;
+      }
+      void api('/api/projects/limit-plan-message/shown', {
+        method: 'POST',
+        body: {decisionId},
+        timeoutMs: PROJECT_READ_TIMEOUT_MS,
+      }).then(exposure => {
+        if (competingPromptVisible()) return;
+        open({...options, ...(exposure?.recorded === true ? {projectLimitPlan: exposure} : {})});
+      }).catch(() => open(options));
+      return true;
+    }
+    open(options);
     return true;
   }
 

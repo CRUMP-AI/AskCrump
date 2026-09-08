@@ -71,6 +71,7 @@ CONTENT_GROUPS: dict[str, tuple[str, ...]] = {
         "lifecycle_prompt_state",
         "lifecycle_prompt_events",
     ),
+    "experiments": ("project_limit_plan_state", "project_limit_plan_events"),
 }
 
 ACCOUNT_COLUMNS = ",".join(

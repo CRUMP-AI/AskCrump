@@ -16,6 +16,9 @@
 
   const BALANCE_STALE_MS = 5 * 60 * 1000;
   const BILLING_REQUEST_TIMEOUT_MS = 15_000;
+  const PROJECT_LIMIT_EXPERIMENT = 'project-limit-plan-copy';
+  const PROJECT_LIMIT_CONTROL_DETAIL = 'Compare monthly plans below before creating another Project. Nothing changes until you choose and confirm.';
+  const PROJECT_LIMIT_TREATMENT_DETAIL = 'Your two Free Projects stay available. Professional raises the active Project limit to 25 for $20/month. You can keep using Free or review the plan before deciding.';
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const native = () => Boolean(window.BillingManager?.isNative?.());
@@ -99,11 +102,20 @@
       };
     }
     if (code === 'PROJECT_LIMIT_REACHED') {
+      const experiment = options?.projectLimitPlan;
+      const variant = String(experiment?.variant || '').toLowerCase();
+      const treatment = experiment?.eligible === true
+        && experiment?.experiment === PROJECT_LIMIT_EXPERIMENT
+        && experiment?.eventName === 'ProjectLimitPlanMessageShown'
+        && experiment?.eventKey === 'project-limit-plan-message-shown'
+        && experiment?.source === 'recovery_project'
+        && experiment?.plan === 'professional'
+        && variant === 'value-specific';
       return {
         code,
         kind: 'plan',
         title: 'Your active Project limit has been reached.',
-        detail: 'Compare monthly plans below before creating another Project. Nothing changes until you choose and confirm.',
+        detail: treatment ? PROJECT_LIMIT_TREATMENT_DETAIL : PROJECT_LIMIT_CONTROL_DETAIL,
       };
     }
     if (code === 'USAGE_LIMIT') {

@@ -78,6 +78,7 @@ class Settings:
     video_generation_enabled: bool
     manuscript_generation_enabled: bool
     code_workspace_enabled: bool
+    project_limit_plan_experiment_enabled: bool
     code_max_duration_seconds: int
     code_max_agent_steps: int
     elevenlabs_api_key: str | None
@@ -253,6 +254,12 @@ def get_settings() -> Settings:
         # Crump Code is an explicit release gate because each run combines a
         # paid coding model with isolated Vercel Sandbox compute.
         code_workspace_enabled=_bool(os.getenv('CRUMP_ENABLE_CODE_WORKSPACE'), False),
+        # Prepared monetization experiment. Keep dormant unless an operator
+        # deliberately enables the server path after every release gate passes.
+        project_limit_plan_experiment_enabled=_bool(
+            os.getenv('CRUMP_ENABLE_PROJECT_LIMIT_PLAN_EXPERIMENT'),
+            False,
+        ),
         code_max_duration_seconds=int(os.getenv('CODE_MAX_DURATION_SECONDS', '180')),
         code_max_agent_steps=int(os.getenv('CODE_MAX_AGENT_STEPS', '8')),
         # ElevenLabs is opt-in and server-side only. A voice ID is required so

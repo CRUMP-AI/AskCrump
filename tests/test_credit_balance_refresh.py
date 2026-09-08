@@ -35,11 +35,11 @@ def test_usage_responses_update_the_balance_without_an_extra_status_request():
 def test_credit_refresh_release_is_cache_addressable():
     runtime = read_public("runtime-body-v1.js")
     worker = read_public("sw.js")
-    asset = "/crump-billing-5.1.js?v=5.9.76-credit-truth-1"
+    asset = "/crump-billing-5.1.js?v=5.9.76-project-limit-plan-dormant-1"
 
     assert asset in runtime
     assert asset in worker
-    assert "ask-crump-new-body-v1-r220" in worker
+    assert "ask-crump-new-body-v1-r221" in worker
 
 
 def test_credit_refresh_fixture_uses_only_local_mocked_responses():

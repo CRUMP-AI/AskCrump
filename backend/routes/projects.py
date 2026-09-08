@@ -8,8 +8,13 @@ from ..auth_service import authenticate_request
 from ..db import DatabaseError, eq
 from ..file_service import FileServiceError
 from ..product_analytics import record_product_event
+from ..project_limit_plan_experiment import (
+    claim_project_limit_plan_message,
+    record_project_limit_plan_message_shown,
+)
 from ..project_service import ProjectChatNotFoundError, ProjectNotFoundError
 from ..runtime import db, features, files, projects, settings
+from ..schemas import ProjectLimitPlanShownRequest
 from ..usage_service import tier_name
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
@@ -67,11 +72,21 @@ async def create_project(request: Request):
             except ProjectChatNotFoundError:
                 existing = None
         if not existing:
-            return _error(
-                f"Your current plan supports up to {limit} active projects.",
-                "PROJECT_LIMIT_REACHED",
-                403,
+            recovery = await claim_project_limit_plan_message(
+                db,
+                user_id=auth.user["id"],
+                auth_session_id=auth.session.get("id"),
+                request=request,
+                enabled=getattr(settings, "project_limit_plan_experiment_enabled", False),
             )
+            content = {
+                "success": False,
+                "error": f"Your current plan supports up to {limit} active projects.",
+                "code": "PROJECT_LIMIT_REACHED",
+            }
+            if recovery:
+                content["projectLimitPlan"] = recovery
+            return JSONResponse(status_code=403, content=content)
     try:
         common = {
             "user_id": auth.user["id"],
@@ -112,6 +127,23 @@ async def create_project(request: Request):
         return _error(str(exc), "PROJECT_CHAT_NOT_READY", 409)
     except ValueError as exc:
         return _error(str(exc), "INVALID_PROJECT", 400)
+
+
+@router.post("/limit-plan-message/shown")
+async def project_limit_plan_message_shown(
+    payload: ProjectLimitPlanShownRequest,
+    request: Request,
+):
+    auth = await authenticate_request(request, db, settings)
+    result = await record_project_limit_plan_message_shown(
+        db,
+        user_id=auth.user["id"],
+        auth_session_id=auth.session.get("id"),
+        decision_id=payload.decisionId,
+        request=request,
+        enabled=getattr(settings, "project_limit_plan_experiment_enabled", False),
+    )
+    return {"success": True, "recorded": bool(result), **(result or {})}
 
 
 @router.post("/{project_id}/chats")

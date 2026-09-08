@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Project limit plan default-off proof</title>
+  <link rel="stylesheet" href="/public/crump-billing-5.1.css?v=project-limit-plan-default-off-1">
+</head>
+<body>
+  <button id="upgradeBtnSidebar" type="button">Plan &amp; credits</button>
+  <button id="attachBtn" type="button">Attach</button>
+  <script>
+    window.__fixture = {fetches: []};
+    window.currentUser = {id: 'fixture-user'};
+    window.CRUMP_CONFIG = {
+      webProfessionalPriceLabel: '$20/month',
+      webEnterprisePriceLabel: '$50/month'
+    };
+    window.fetch = async (url) => {
+      window.__fixture.fetches.push(String(url));
+      const path = String(url);
+      const body = path.includes('/credits/status')
+        ? {success:true, credits:{balance:0}, catalog:[], history:[]}
+        : path.includes('/usage/check')
+          ? {success:true, daily:{limit:25, used:0, remaining:25}}
+          : path.includes('/billing/status')
+            ? {success:true, tier:'free', status:'inactive', manageable:false}
+            : {success:true};
+      return {ok:true, json:async () => body};
+    };
+    window.BillingManager = {
+      isNative: () => false,
+      getProducts: async () => ({}),
+      getCreditProducts: async () => ({})
+    };
+    const runtime = new URLSearchParams(location.search).get('runtime') === '51'
+      ? '/public/crump-billing-5.1.js?v=project-limit-plan-default-off-1'
+      : '/public/crump-5.2.js?v=project-limit-plan-default-off-1';
+    const script = document.createElement('script');
+    script.src = runtime;
+    document.body.appendChild(script);
+  </script>
+</body>
+</html>

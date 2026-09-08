@@ -169,3 +169,11 @@ class LifecycleActionRequest(APIModel):
     recoverySurface: bool = False
     currentSurface: str = Field(default="other", max_length=20)
     suppressionReason: str | None = Field(default=None, max_length=32)
+
+
+class ProjectLimitPlanShownRequest(APIModel):
+    decisionId: str = Field(
+        min_length=36,
+        max_length=36,
+        pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+    )
