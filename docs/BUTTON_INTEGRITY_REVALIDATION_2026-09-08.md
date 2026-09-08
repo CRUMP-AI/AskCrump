@@ -32,6 +32,18 @@ failures represent the interaction under test.
 - JavaScript integration contract: **49 files** and **6/6** rough-to-useful runtime cases passed.
 - Production preflight, native web build, Python compilation, and diff integrity passed.
 
+## Release identity
+
+- Commit: `4ea6cc5eebfddb121eae7f483632ec9d98249bf1`
+- Main CI: `34258846758` — success.
+- Automatic production deployment: `dpl_Fuzp37zmnHze6t6oa53dAbsqZT2n` — READY on all six
+  aliases with no alias error.
+- Canonical `/api/health`: HTTP 200 at version `5.9.76`.
+- Initial 30-minute runtime-error aggregate: empty.
+
+The commit changes only credential-free fixtures, their regression assertion, and release
+documentation. Production application bytes and behavior are unchanged.
+
 ## Non-mutating production acceptance
 
 The signed-in production pass opened and closed only reversible/read-only controls:
