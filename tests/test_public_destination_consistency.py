@@ -106,7 +106,7 @@ def test_homepage_video_button_opens_video_studio_after_account_entry():
 
 
 def test_truthful_destination_assets_and_sitemaps_share_one_release_boundary():
-    version = "5.9.76-truthful-destinations-1"
+    version = "5.9.76-referral-context-1"
     for relative in (
         "public/ask-crump.html",
         "public/ai-project-workspace.html",
@@ -118,7 +118,7 @@ def test_truthful_destination_assets_and_sitemaps_share_one_release_boundary():
         assert f'/landing-5.6.css?v={version}' in read(relative)
 
     worker = read("public/sw.js")
-    assert "ask-crump-new-body-v1-r221" in worker
+    assert "ask-crump-new-body-v1-r222" in worker
     assert f"/landing-5.6.css?v={version}" in worker
     sitemap = read("public/sitemap.xml")
     assert sitemap.count("<lastmod>2026-08-30</lastmod>") == 6

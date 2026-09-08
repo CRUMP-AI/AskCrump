@@ -476,7 +476,7 @@ assertAttribution(storedAttribution(immutableStore), {
 const repoRoot = new URL('../', import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot), 'utf8'));
 const releaseVersion = String(packageJson.version || '');
-const landingVersion = `${releaseVersion}-attribution-registry-1`;
+const landingVersion = `${releaseVersion}-referral-context-1`;
 const authControllerVersion = `${releaseVersion}-login-failure-categories-1`;
 const planRendererVersion = `${releaseVersion}-credit-pack-accessibility-1`;
 const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
@@ -919,7 +919,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r221') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r222') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${projectLimitPlanCandidateVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||

@@ -68,6 +68,25 @@ main { overflow: hidden; }
   pointer-events: none;
 }
 .hero-inner { width: min(1120px,100%); position: relative; text-align: center; }
+.referral-context {
+  width: min(640px,100%);
+  margin: 0 auto 20px;
+  padding: 13px 16px;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: #d9dde0;
+  background: rgba(216,181,92,.08);
+  border: 1px solid rgba(216,181,92,.28);
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.referral-context[hidden] { display: none; }
+.referral-context strong { color: #ead187; font-weight: 700; }
+.referral-context span { color: #aeb4b9; }
 .release-pill {
   display: inline-flex;
   align-items: center;

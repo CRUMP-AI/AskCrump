@@ -92,7 +92,7 @@ def test_search_guides_have_self_referencing_editorial_metadata_and_one_matched_
         assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
         assert '<meta property="article:published_time" content="2026-08-30">' in page
         assert f'<meta property="article:modified_time" content="{expected["modified"]}">' in page
-        assert '<script defer src="/landing.js?v=5.9.76-attribution-registry-1"></script>' in page
+        assert '<script defer src="/landing.js?v=5.9.76-referral-context-1"></script>' in page
         assert f'<link rel="stylesheet" href="/guide.css?v={expected["guide_css"]}">' in page
         assert '/_vercel/insights/script.js' in page
         assert '/_vercel/speed-insights/script.js' in page

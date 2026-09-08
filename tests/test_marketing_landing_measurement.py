@@ -86,6 +86,18 @@ def test_referral_eligibility_preserves_parameter_presence_without_raw_values():
     assert "params.get('creative')" not in first_touch_block
 
 
+def test_exact_referral_explains_the_content_free_recipient_boundary():
+    landing = LANDING.read_text(encoding="utf-8")
+    page = (ROOT / "public" / "ask-crump.html").read_text(encoding="utf-8")
+
+    assert "currentPageIsExactReferral = exactReferral" in landing
+    assert "showReferralContext(currentPageIsExactReferral)" in landing
+    assert "[data-referral-context]" in landing
+    assert 'data-referral-context hidden aria-hidden="true"' in page
+    assert "Someone shared Ask Crump with you." in page
+    assert "This link shares the product—not their conversation, files, or private content." in page
+
+
 def test_pageview_redaction_remains_enabled_before_landing_runtime():
     telemetry = TELEMETRY.read_text(encoding="utf-8")
     assert "url.search = '';" in telemetry

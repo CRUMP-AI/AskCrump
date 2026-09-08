@@ -55,10 +55,17 @@ async function landingEvents(page) {
     }), 'valid campaign event must contain only the exact content-free payload');
     const overflow = await first.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     assert(overflow <= 1, `mobile landing overflows by ${overflow}px`);
+    assert(!(await first.page.locator('[data-referral-context]').isVisible()), 'campaign landings must not show referral context');
 
     const second = `${baseUrl}/ask-crump.html?acquisition=instagram&source=organic-social&campaign=real-product-continuity&creative=continuity-story&intent=projects`;
     await first.page.goto(second, { waitUntil: 'networkidle' });
     assert((await landingEvents(first.page)).length === 0, 'second campaign in the same tab must not emit');
+    await first.page.goto(`${baseUrl}/ask-crump.html?acquisition=referral&source=response-share`, { waitUntil: 'networkidle' });
+    assert(await first.page.locator('[data-referral-context]').isVisible(), 'an exact shared link must explain itself even when first-touch attribution is already immutable');
+    const preservedHref = await first.page.locator('[data-cta="hero"]').getAttribute('href');
+    assert(preservedHref.includes('acquisition=facebook'), 'shared-link context must not overwrite an earlier first-touch acquisition');
+    assert(preservedHref.includes('campaign=real-product-continuity'), 'shared-link context must preserve the earlier first-touch campaign');
+    assert((await landingEvents(first.page)).length === 0, 'shared-link context must not emit a second landing event in the same tab');
     assert(first.errors.length === 0, `valid campaign browser errors: ${first.errors.join(' | ')}`);
     await first.context.close();
 
@@ -83,6 +90,14 @@ async function landingEvents(page) {
       touchpoint: 'referral.response-share',
       intent: 'unspecified',
     }), 'referral event payload must stay content-free');
+    const referralContext = referral.page.locator('[data-referral-context]');
+    assert(await referralContext.isVisible(), 'exact response-share referral must show recipient context');
+    assert((await referralContext.innerText()) === [
+      'Someone shared Ask Crump with you.',
+      'This link shares the product—not their conversation, files, or private content.',
+    ].join('\n'), 'referral context must explain the content-free privacy boundary');
+    const referralOverflow = await referral.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    assert(referralOverflow <= 1, `referral landing overflows by ${referralOverflow}px`);
     assert(referral.errors.length === 0, `referral browser errors: ${referral.errors.join(' | ')}`);
     await referral.context.close();
 
@@ -90,10 +105,11 @@ async function landingEvents(page) {
     const crossCombined = `${baseUrl}/ask-crump.html?acquisition=facebook&source=profile-link&campaign=real-product-continuity&creative=continuity-story&intent=research`;
     await invalid.page.goto(crossCombined, { waitUntil: 'networkidle' });
     assert((await landingEvents(invalid.page)).length === 0, 'invalid cross-combined tuple must fail closed');
+    assert(!(await invalid.page.locator('[data-referral-context]').isVisible()), 'invalid attribution must not show referral context');
     assert(invalid.errors.length === 0, `invalid campaign browser errors: ${invalid.errors.join(' | ')}`);
     await invalid.context.close();
 
-    console.log('Marketing landing browser proof passed: exact campaign, truthful creative-free profile link, immutable same-tab first touch, referral, invalid tuple, and mobile layout.');
+    console.log('Marketing landing browser proof passed: exact campaign, truthful creative-free profile link, immutable same-tab first touch, referral context, invalid tuple, and mobile layout.');
   } finally {
     await browser.close();
   }

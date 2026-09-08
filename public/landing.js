@@ -14,6 +14,7 @@
     'exact-referral', 'registered-campaign', 'registered-profile', 'rejected',
   ]);
   let firstTouchMarketingKind = 'rejected';
+  let currentPageIsExactReferral = false;
   const ACQUISITION_SOURCES = new Set([
     'direct', 'instagram', 'facebook', 'facebook-pinned', 'linkedin', 'tiktok',
     'youtube', 'x', 'referral', 'organic', 'organic-search', 'clevercrump',
@@ -233,6 +234,7 @@
       && attribution.placement === 'response-share'
       && !params.has('campaign')
       && !params.has('creative');
+    currentPageIsExactReferral = exactReferral;
     const registeredCampaign = explicitInputsValid
       && attribution.campaign
       && attribution.creative;
@@ -359,7 +361,15 @@
     } catch (_) {}
   }
 
+  function showReferralContext(isExactReferral) {
+    const context = document.querySelector('[data-referral-context]');
+    if (!context) return;
+    context.hidden = !isExactReferral;
+    context.setAttribute('aria-hidden', isExactReferral ? 'false' : 'true');
+  }
+
   const attribution = firstTouchAttribution();
+  showReferralContext(currentPageIsExactReferral);
   emitMarketingLanding(attribution, firstTouchMarketingKind);
   document.querySelectorAll('[data-cta]').forEach(link => {
     let analyticsEvent = 'MarketingCTA';
