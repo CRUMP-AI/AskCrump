@@ -10,6 +10,8 @@
     let updateCheckStartedAt = 0;
     let runtimeUpdateHandled = false;
     let runtimeUpdatePending = false;
+    let runtimeUpdateWasDeferred = false;
+    let updateNoticeDismissed = false;
     let reloadStarted = false;
     let registrationStarted = false;
 
@@ -32,8 +34,40 @@
         return hasValue || hasBusyForm;
     }
 
+    function visibleElementHasWork(element) {
+        if (!element || element.disabled || element.hidden) return false;
+        if (!element.getClientRects().length) return false;
+        return authInputHasWork(element);
+    }
+
+    function runtimeWorkRequiresDeferral() {
+        if (authFormHasWork()) return true;
+        if (document.body.classList.contains('crump-precision-open')) return true;
+        if (document.body.classList.contains('crump50-sending')) return true;
+        if (document.querySelector('.crump-precision-backdrop')) return true;
+        if (visibleElementHasWork(document.getElementById('userInput'))) return true;
+
+        const filePreview = document.getElementById('filePreview');
+        if (filePreview && !filePreview.hidden && filePreview.getClientRects().length && filePreview.childElementCount) {
+            return true;
+        }
+
+        return Array.from(document.querySelectorAll('#appContainer [aria-busy="true"]'))
+            .some(element => element.getClientRects().length > 0);
+    }
+
+    function hideRuntimeUpdateNotice() {
+        updateNotice?.remove();
+        updateNotice = null;
+    }
+
     function reloadForRuntimeUpdate() {
         if (reloadStarted) return;
+        if (runtimeWorkRequiresDeferral()) {
+            runtimeUpdateWasDeferred = true;
+            hideRuntimeUpdateNotice();
+            return;
+        }
         reloadStarted = true;
         try {
             const lastReload = Number(window.sessionStorage.getItem(reloadGuardKey) || 0);
@@ -48,7 +82,12 @@
     }
 
     function showRuntimeUpdateNotice() {
-        if (updateNotice) return;
+        if (updateNotice || updateNoticeDismissed) return;
+        if (runtimeWorkRequiresDeferral()) {
+            runtimeUpdateWasDeferred = true;
+            hideRuntimeUpdateNotice();
+            return;
+        }
         updateNotice = document.createElement('section');
         updateNotice.className = 'runtime-update-notice';
         updateNotice.setAttribute('role', 'status');
@@ -56,29 +95,64 @@
         updateNotice.innerHTML = `
             <div>
                 <strong>Ask Crump is ready to update.</strong>
-                <span>Reload to use the latest sign-in and reliability fixes.</span>
+                <span>Reload when you’re ready to use the latest reliability fixes.</span>
             </div>
             <button type="button" class="runtime-update-action">Reload now</button>
             <button type="button" class="runtime-update-later" aria-label="Dismiss update notice">Later</button>
         `;
         updateNotice.querySelector('.runtime-update-action')?.addEventListener('click', reloadForRuntimeUpdate);
         updateNotice.querySelector('.runtime-update-later')?.addEventListener('click', () => {
-            updateNotice?.remove();
-            updateNotice = null;
+            updateNoticeDismissed = true;
+            hideRuntimeUpdateNotice();
         });
         document.body.appendChild(updateNotice);
         requestAnimationFrame(() => updateNotice?.classList.add('visible'));
+    }
+
+    function settleRuntimeUpdate() {
+        if (!runtimeUpdatePending || reloadStarted || updateNoticeDismissed) return;
+        if (runtimeWorkRequiresDeferral()) {
+            runtimeUpdateWasDeferred = true;
+            hideRuntimeUpdateNotice();
+            return;
+        }
+        if (!window.currentUser && !runtimeUpdateWasDeferred) reloadForRuntimeUpdate();
+        else showRuntimeUpdateNotice();
+    }
+
+    function observeRuntimeWork() {
+        const bodyObserver = new MutationObserver(settleRuntimeUpdate);
+        bodyObserver.observe(document.body, {attributes: true, attributeFilter: ['class']});
+
+        for (const element of [
+            document.getElementById('authContainer'),
+            document.getElementById('filePreview'),
+            document.getElementById('settingsModal'),
+        ]) {
+            if (!element) continue;
+            const observer = new MutationObserver(settleRuntimeUpdate);
+            observer.observe(element, {
+                attributes: true,
+                attributeFilter: ['class', 'hidden', 'style', 'aria-busy'],
+                childList: true,
+                subtree: true,
+            });
+        }
+
+        document.addEventListener('input', settleRuntimeUpdate);
+        document.addEventListener('change', settleRuntimeUpdate);
+        document.addEventListener('click', () => window.setTimeout(settleRuntimeUpdate, 0));
     }
 
     function handleRuntimeUpdate() {
         if (runtimeUpdateHandled) return;
         runtimeUpdateHandled = true;
         runtimeUpdatePending = true;
+        updateNoticeDismissed = false;
         window.setTimeout(() => {
             // A signed-out page with no entered credentials is safe to refresh. Keep
-            // drafts and in-flight authentication input under the user's control.
-            if (!window.currentUser && !authFormHasWork()) reloadForRuntimeUpdate();
-            else showRuntimeUpdateNotice();
+            // drafts, editors, uploads, and in-flight work under the user's control.
+            settleRuntimeUpdate();
         }, 250);
     }
 
@@ -202,6 +276,7 @@
     }
 
     function initialize() {
+        observeRuntimeWork();
         if (isInstalled()) return;
 
         window.addEventListener('beforeinstallprompt', event => {
@@ -237,11 +312,11 @@
 
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) return;
-            if (runtimeUpdatePending && !updateNotice) showRuntimeUpdateNotice();
+            settleRuntimeUpdate();
             void checkForRuntimeUpdate();
         });
         window.addEventListener('pageshow', () => {
-            if (runtimeUpdatePending && !updateNotice) showRuntimeUpdateNotice();
+            settleRuntimeUpdate();
             void checkForRuntimeUpdate();
         });
         window.addEventListener('online', () => { void checkForRuntimeUpdate({force: true}); });

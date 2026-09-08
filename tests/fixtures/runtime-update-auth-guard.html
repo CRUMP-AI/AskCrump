@@ -19,6 +19,11 @@
       <button type="button">Continue</button>
     </form>
   </div>
+  <main id="appContainer">
+    <label for="userInput">Message Crump</label>
+    <textarea id="userInput"></textarea>
+    <div id="filePreview" hidden style="display:none"></div>
+  </main>
   <output id="fixtureStatus" role="status">booting</output>
   <script>
     (() => {
@@ -30,8 +35,12 @@
       const status = document.getElementById('fixtureStatus');
       const email = document.getElementById('fixtureEmail');
       const terms = document.getElementById('fixtureTerms');
+      const composer = document.getElementById('userInput');
+      const filePreview = document.getElementById('filePreview');
 
-      window.currentUser = null;
+      window.currentUser = ['draft', 'file', 'precision', 'sending', 'signedin'].includes(mode)
+        ? {id: 'fixture-user'}
+        : null;
       window.__fixture = {controllerChange: null, mode, startedKey, reloadGuardKey};
 
       if (sessionStorage.getItem(startedKey)) {
@@ -43,6 +52,20 @@
       sessionStorage.removeItem(reloadGuardKey);
       if (mode === 'typed') email.value = 'draft@example.test';
       if (mode === 'checked') terms.checked = true;
+      if (mode === 'draft') composer.value = 'unfinished thought';
+      if (mode === 'file') {
+        filePreview.hidden = false;
+        filePreview.style.display = 'grid';
+        filePreview.innerHTML = '<span>reference.png ready to send</span>';
+      }
+      if (mode === 'precision') {
+        document.body.classList.add('crump-precision-open');
+        const editor = document.createElement('section');
+        editor.className = 'crump-precision-backdrop';
+        editor.textContent = 'Unsaved image edit';
+        document.body.appendChild(editor);
+      }
+      if (mode === 'sending') document.body.classList.add('crump50-sending');
 
       const serviceWorker = {
         controller: {},
@@ -67,11 +90,23 @@
         const notice = document.querySelector('.runtime-update-notice.visible');
         const email = document.getElementById('fixtureEmail');
         const terms = document.getElementById('fixtureTerms');
-        if (!notice) return;
-        const preserved = window.__fixture.mode === 'typed'
-          ? email.value === 'draft@example.test'
-          : terms.checked === true;
-        document.getElementById('fixtureStatus').textContent = preserved ? 'preserved' : 'lost';
+        const composer = document.getElementById('userInput');
+        const filePreview = document.getElementById('filePreview');
+        const workPreserved = {
+          typed: email.value === 'draft@example.test',
+          checked: terms.checked === true,
+          draft: composer.value === 'unfinished thought',
+          file: filePreview.childElementCount === 1,
+          precision: document.body.classList.contains('crump-precision-open'),
+          sending: document.body.classList.contains('crump50-sending'),
+          signedin: true,
+        }[window.__fixture.mode];
+        if (window.__fixture.mode === 'signedin') {
+          document.getElementById('fixtureStatus').textContent = notice ? 'notice' : 'lost';
+          return;
+        }
+        if (workPreserved === undefined) return;
+        document.getElementById('fixtureStatus').textContent = workPreserved && !notice ? 'deferred' : 'lost';
       }, 500);
     }, {once: true});
   </script>

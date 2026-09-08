@@ -499,7 +499,7 @@ const imageReferenceRecoveryVersion = `${releaseVersion}-image-reference-recover
 const liveImagePreviewVersion = `${releaseVersion}-precision-studio-1`;
 const imageStabilityVersion = `${releaseVersion}-image-stability-1`;
 const projectSaveMeasurementVersion = `${releaseVersion}-project-save-measurement-1`;
-const authUpdateGuardVersion = `${releaseVersion}-auth-update-guard-1`;
+const authUpdateGuardVersion = `${releaseVersion}-update-work-guard-1`;
 const userControlledScrollVersion = `${releaseVersion}-user-controlled-scroll-1`;
 const newResponseCueVersion = `${releaseVersion}-new-response-cue-1`;
 const videoDestinationVersion = `${releaseVersion}-video-destination-1`;
@@ -918,7 +918,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r219') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r220') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${outputProjectActionVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
