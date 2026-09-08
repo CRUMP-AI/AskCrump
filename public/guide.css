@@ -62,6 +62,16 @@
   font-size: clamp(17px, 2vw, 20px);
   line-height: 1.65;
 }
+.guide-hero-actions {
+  justify-content: flex-start;
+  margin: 0 0 14px;
+}
+.guide-hero-foot {
+  margin: 0 0 26px;
+  color: #7b8388;
+  font-size: 12px;
+  line-height: 1.5;
+}
 .guide-meta {
   display: flex;
   flex-wrap: wrap;

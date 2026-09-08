@@ -17,8 +17,9 @@ GUIDES = {
         "intent": "projects",
         "destination": "/ai-project-workspace",
         "adjacent": "/guides/what-ai-project-should-remember",
-        "modified": "2026-09-07",
-        "updated": "September 7, 2026",
+        "modified": "2026-09-08",
+        "updated": "September 8, 2026",
+        "guide_css": "5.9.76-guide-proof-to-start-1",
         "og_width": 1280,
         "og_height": 720,
     },
@@ -31,6 +32,7 @@ GUIDES = {
         "adjacent": "/guides/rough-idea-six-week-launch-plan",
         "modified": "2026-09-07",
         "updated": "September 7, 2026",
+        "guide_css": "5.9.76-search-guides-1",
         "og_width": 1280,
         "og_height": 720,
     },
@@ -43,6 +45,7 @@ GUIDES = {
         "adjacent": "/ai-presentation-maker",
         "modified": "2026-08-30",
         "updated": "August 30, 2026",
+        "guide_css": "5.9.76-search-guides-1",
         "og_width": 1265,
         "og_height": 712,
     },
@@ -90,11 +93,12 @@ def test_search_guides_have_self_referencing_editorial_metadata_and_one_matched_
         assert '<meta property="article:published_time" content="2026-08-30">' in page
         assert f'<meta property="article:modified_time" content="{expected["modified"]}">' in page
         assert '<script defer src="/landing.js?v=5.9.76-attribution-registry-1"></script>' in page
-        assert '<link rel="stylesheet" href="/guide.css?v=5.9.76-search-guides-1">' in page
+        assert f'<link rel="stylesheet" href="/guide.css?v={expected["guide_css"]}">' in page
         assert '/_vercel/insights/script.js' in page
         assert '/_vercel/speed-insights/script.js' in page
         assert page.count("<h1>") == 1
-        assert page.count('class="button primary"') == 1
+        expected_primary_ctas = 2 if slug == "rough-idea-six-week-launch-plan" else 1
+        assert page.count('class="button primary"') == expected_primary_ctas
         assert "By <strong>Clever Crump</strong>" in page
         assert "Created <strong>August 30, 2026</strong>" in page
         assert f'Updated <strong>{expected["updated"]}</strong>' in page
@@ -117,6 +121,43 @@ def test_search_guides_have_self_referencing_editorial_metadata_and_one_matched_
         assert structured["author"]["name"] == "Clever Crump"
         assert structured["datePublished"] == "2026-08-30"
         assert structured["dateModified"] == expected["modified"]
+
+
+def test_rough_idea_guide_exposes_an_early_attribution_preserving_start():
+    page = read("public/guides/rough-idea-six-week-launch-plan.html")
+    hero = page.split('<header class="guide-hero">', 1)[1].split("</header>", 1)[0]
+    nav = page.split('<nav class="navbar"', 1)[1].split("</nav>", 1)[0]
+    cta = (
+        '<a class="button primary" data-cta="rough-idea-hero" data-plan="free" '
+        'href="/app?signup=1&amp;source=rough-idea-hero&amp;plan=free&amp;intent=projects&amp;acquisition=direct">'
+        'Start free with your rough idea</a>'
+    )
+
+    assert cta in hero
+    assert (
+        'class="nav-cta" data-cta="rough-idea-nav" data-plan="free" '
+        'href="/app?signup=1&amp;source=rough-idea-nav&amp;plan=free&amp;intent=projects&amp;acquisition=direct">'
+        'Start free</a>'
+    ) in nav
+    assert "Start free with 2 private Projects · No card required" in hero
+    assert hero.index(cta) < hero.index('class="guide-meta"')
+    assert "campaign=" not in cta and "creative=" not in cta
+    assert page.count('data-cta="rough-idea-hero"') == 1
+    assert page.count('data-cta="rough-idea-nav"') == 1
+
+    landing = read("public/landing.js")
+    for marker in (
+        "document.querySelectorAll('[data-cta]')",
+        "destination.searchParams.set('acquisition', attribution.acquisition)",
+        "destination.searchParams.set('campaign', attribution.campaign)",
+        "destination.searchParams.set('creative', attribution.creative)",
+    ):
+        assert marker in landing
+
+    css = read("public/guide.css")
+    assert ".guide-hero-actions" in css
+    assert "justify-content: flex-start" in css
+    assert ".guide-hero-foot" in css
 
 
 def test_search_guide_assets_are_the_approved_authentic_evidence():
