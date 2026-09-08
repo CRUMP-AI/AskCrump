@@ -82,7 +82,14 @@ def test_marketing_ctas_are_first_party_analytics_events():
     assert "sessionStorage.setItem(ACQUISITION_KEY" in script
     assert "document.referrer" in script
     assert "referrer URL" not in script
-    assert 'data-explore="product-preview"' in page
+    assert (
+        '<a class="button secondary" data-explore="real-workflow-guide" '
+        'href="/guides/rough-idea-six-week-launch-plan">See a real workflow</a>'
+    ) in page
+    assert (
+        '<a class="button primary" data-cta="hero" data-plan="free" '
+        'href="/app?signup=1&amp;source=hero&amp;plan=free">Start free</a>'
+    ) in page
     assert "MarketingExplore" in script
     assert "link.dataset.explore" in script
     assert "window.location.replace('/app')" not in script
