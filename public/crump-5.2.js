@@ -250,6 +250,15 @@
     return `${String(file?.name || '').trim().toLowerCase()}|${String(file?.type || '').trim().toLowerCase()}`;
   }
 
+  function attachmentSignature(files) {
+    return JSON.stringify((Array.isArray(files) ? files : []).map(file => ({
+      reference: String(file?.id || fileUrl(file) || ''),
+      name: String(file?.name || ''),
+      type: String(file?.type || ''),
+      size: Number(file?.size || 0),
+    })));
+  }
+
   async function hydrateLegacyFileRefs(messages = currentMessages()) {
     const chatId = String(window.currentChatId || '');
     if (!chatId || !Array.isArray(messages)) return;
@@ -292,17 +301,25 @@
 
   function enhanceMessageAttachments(messages = currentMessages()) {
     for (const message of Array.isArray(messages) ? messages : []) {
-      if (!message?.id || !Array.isArray(message.files) || !message.files.length) continue;
+      if (!message?.id || !Array.isArray(message.files)) continue;
       const row = document.querySelector(`[data-message-id="${cssEscape(message.id)}"]`);
       if (!row) continue;
       const wrapper = $('.message-wrapper', row);
       if (!wrapper) continue;
 
-      $('.crump52-rich-attachments', wrapper)?.remove();
+      const signature = attachmentSignature(message.files);
+      const existing = $('.crump52-rich-attachments', wrapper);
       wrapper.querySelectorAll('.message-attachment, .crump50-message-files').forEach(node => node.remove());
+      if (!message.files.length) {
+        existing?.remove();
+        continue;
+      }
+      if (existing?.dataset.attachmentSignature === signature) continue;
+      existing?.remove();
 
       const host = document.createElement('div');
       host.className = 'crump52-rich-attachments';
+      host.dataset.attachmentSignature = signature;
       const images = message.files.filter(isImage);
       const documents = message.files.filter(file => !isImage(file));
 

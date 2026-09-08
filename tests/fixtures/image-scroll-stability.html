@@ -7,6 +7,7 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/public/conversation.css?v=image-scroll-stability-fixture-1">
   <link rel="stylesheet" href="/public/crump-5.0.css?v=image-scroll-stability-fixture-1">
+  <link rel="stylesheet" href="/public/crump-5.2.css?v=image-scroll-stability-fixture-1">
   <link rel="stylesheet" href="/public/crump-5.2.2.css?v=image-scroll-stability-fixture-1">
   <style>
     body { margin: 0; background: #090d12; color: #f2efe8; font-family: system-ui, sans-serif; }
@@ -27,7 +28,17 @@
     window.currentChatId = '33333333-3333-4333-8333-333333333333';
     const messages = [];
     for (let index = 0; index < 6; index += 1) {
-      messages.push({id: `user-${index}`, role: 'user', content: `Earlier request ${index}`});
+      messages.push(index === 2 ? {
+        id: `user-${index}`,
+        role: 'user',
+        content: `Earlier request ${index}`,
+        files: [{
+          id: '11111111-1111-4111-8111-111111111111',
+          name: 'reference-photo.png',
+          type: 'image/png',
+          size: 2048,
+        }],
+      } : {id: `user-${index}`, role: 'user', content: `Earlier request ${index}`});
       messages.push({id: `answer-${index}`, role: 'assistant', content: `Earlier useful response ${index}. `.repeat(10)});
     }
     messages.push({
@@ -55,6 +66,7 @@
   <script>window.crumpScrollManager.init();</script>
   <script src="/public/ui-functions.js?v=user-controlled-scroll-fixture-1"></script>
   <script>window.renderMessages(messages);</script>
+  <script src="/public/crump-5.2.js?v=uploaded-image-node-stability-fixture-1"></script>
   <script src="/public/crump-5.2.2.js?v=user-controlled-scroll-fixture-1"></script>
 </body>
 </html>

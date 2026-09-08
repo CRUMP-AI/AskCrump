@@ -58,6 +58,6 @@ def test_mobile_header_controls_share_the_same_safe_area_centerline():
 def test_mobile_zoom_policy_advances_shell_cache():
     sw = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
-    assert "ask-crump-new-body-v1-r222" in sw
+    assert "ask-crump-new-body-v1-r223" in sw
     assert "ask-crump-new-body-v1-r219" not in sw
-    assert "ask-crump-new-body-v1-r222" in checker
+    assert "ask-crump-new-body-v1-r223" in checker

@@ -34,6 +34,7 @@ def test_image_scroll_contract_is_user_controlled_and_reserves_layout() -> None:
     scroll = (ROOT / 'public' / 'crump-5.2.2.js').read_text(encoding='utf-8')
     base_scroll = (ROOT / 'public' / 'scroll-manager.js').read_text(encoding='utf-8')
     renderer = (ROOT / 'public' / 'ui-functions.js').read_text(encoding='utf-8')
+    attachments = (ROOT / 'public' / 'crump-5.2.js').read_text(encoding='utf-8')
     composer = (ROOT / 'public' / 'crump-5.0.js').read_text(encoding='utf-8')
     app = (ROOT / 'public' / 'app.js').read_text(encoding='utf-8')
 
@@ -57,5 +58,13 @@ def test_image_scroll_contract_is_user_controlled_and_reserves_layout() -> None:
     assert 'if (container.scrollTop !== preservedScrollTop) container.scrollTop = preservedScrollTop;' in renderer
     assert "window.crumpScrollManager.scrollToBottom('auto')" not in renderer
     assert 'function imageAspectForMessage(message, messages)' in renderer
+    assert 'const reusableImages = new Map();' in renderer
+    assert 'const reusableAttachments = new Map();' in renderer
+    assert "row.querySelector('.crump52-rich-attachments')" in renderer
+    assert 'wrapper.appendChild(reusableAttachmentBlock);' in renderer
+    assert "reusableImage?.getAttribute('src') === safe" in renderer
+    assert 'function attachmentSignature(files)' in attachments
+    assert 'existing?.dataset.attachmentSignature === signature' in attachments
+    assert 'host.dataset.attachmentSignature = signature;' in attachments
     assert 'image.width = aspect.width;' in renderer
     assert 'image.height = aspect.height;' in renderer

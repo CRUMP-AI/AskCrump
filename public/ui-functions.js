@@ -827,9 +827,27 @@
     return null;
   }
 
-  function createImageBlock(url, alt = 'Generated image', aspect = null) {
+  function applyImageGeometry(image, aspect) {
+    if (aspect?.width && aspect?.height) {
+      image.width = aspect.width;
+      image.height = aspect.height;
+      image.dataset.imageAspect = aspect.name;
+      return;
+    }
+    image.removeAttribute('width');
+    image.removeAttribute('height');
+    delete image.dataset.imageAspect;
+  }
+
+  function createImageBlock(url, alt = 'Generated image', aspect = null, reusable = null) {
     const safe = safeExternalUrl(url);
     if (!safe) return null;
+    const reusableImage = reusable?.querySelector?.('img.message-image');
+    if (reusableImage?.getAttribute('src') === safe) {
+      reusableImage.alt = alt;
+      applyImageGeometry(reusableImage, aspect);
+      return reusable;
+    }
     const wrapper = document.createElement('div');
     wrapper.className = 'generated-image-wrapper';
     const image = document.createElement('img');
@@ -837,11 +855,7 @@
     image.className = 'message-image';
     image.alt = alt;
     image.loading = 'lazy';
-    if (aspect?.width && aspect?.height) {
-      image.width = aspect.width;
-      image.height = aspect.height;
-      image.dataset.imageAspect = aspect.name;
-    }
+    applyImageGeometry(image, aspect);
     image.addEventListener('error', () => {
       wrapper.replaceChildren(Object.assign(document.createElement('div'), { className: 'image-error', textContent: 'Image failed to load.' }));
     });
@@ -956,6 +970,15 @@
     const preservedScrollTop = container.scrollTop;
     const fragment = document.createDocumentFragment();
     const safeMessages = Array.isArray(messages) ? messages : [];
+    const reusableImages = new Map();
+    const reusableAttachments = new Map();
+    for (const row of container.querySelectorAll('.message[data-message-id]')) {
+      const messageId = String(row.dataset.messageId || '');
+      const imageBlock = row.querySelector('.generated-image-wrapper');
+      if (messageId && imageBlock) reusableImages.set(messageId, imageBlock);
+      const attachmentBlock = row.querySelector('.crump52-rich-attachments');
+      if (messageId && attachmentBlock) reusableAttachments.set(messageId, attachmentBlock);
+    }
     let lastUserIndex = -1;
     let lastAssistantIndex = -1;
     safeMessages.forEach((message, index) => { if (message?.role === 'user') lastUserIndex = index; });
@@ -976,24 +999,37 @@
       else content.innerHTML = renderSafeMarkdown(message?.content || '');
       wrapper.appendChild(content);
 
-      for (const file of Array.isArray(message?.files) ? message.files : []) {
-        const attachment = document.createElement('div');
-        attachment.className = 'message-attachment';
-        const info = document.createElement('div');
-        info.className = 'file-info';
-        const name = document.createElement('div');
-        name.className = 'file-name';
-        name.textContent = file?.name || 'Attachment';
-        const type = document.createElement('div');
-        type.className = 'file-meta';
-        type.textContent = file?.type || 'File';
-        info.append(name, type);
-        attachment.appendChild(info);
-        wrapper.appendChild(attachment);
+      const messageFiles = Array.isArray(message?.files) ? message.files : [];
+      const reusableAttachmentBlock = messageFiles.length
+        ? reusableAttachments.get(String(message?.id || '')) || null
+        : null;
+      if (reusableAttachmentBlock) {
+        wrapper.appendChild(reusableAttachmentBlock);
+      } else {
+        for (const file of messageFiles) {
+          const attachment = document.createElement('div');
+          attachment.className = 'message-attachment';
+          const info = document.createElement('div');
+          info.className = 'file-info';
+          const name = document.createElement('div');
+          name.className = 'file-name';
+          name.textContent = file?.name || 'Attachment';
+          const type = document.createElement('div');
+          type.className = 'file-meta';
+          type.textContent = file?.type || 'File';
+          info.append(name, type);
+          attachment.appendChild(info);
+          wrapper.appendChild(attachment);
+        }
       }
 
       if (message?.imageUrl) {
-        const imageBlock = createImageBlock(message.imageUrl, 'Generated image', imageAspectForMessage(message, safeMessages));
+        const imageBlock = createImageBlock(
+          message.imageUrl,
+          'Generated image',
+          imageAspectForMessage(message, safeMessages),
+          reusableImages.get(String(message?.id || '')) || null,
+        );
         if (imageBlock) wrapper.appendChild(imageBlock);
       }
 

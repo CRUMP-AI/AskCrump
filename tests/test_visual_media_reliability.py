@@ -842,6 +842,16 @@ def test_upload_preview_reconciles_cards_without_recreating_images() -> None:
     assert "tray.insertBefore(card" in block
 
 
+def test_conversation_rerender_preserves_an_unchanged_loaded_image_node() -> None:
+    script = read("public/ui-functions.js")
+
+    assert "const reusableImages = new Map();" in script
+    assert "container.querySelectorAll('.message[data-message-id]')" in script
+    assert "reusableImage?.getAttribute('src') === safe" in script
+    assert "return reusable;" in script
+    assert "reusableImages.get(String(message?.id || '')) || null" in script
+
+
 def test_image_studio_exposes_an_optional_reference_and_honest_fidelity_guidance() -> None:
     script = read("public/crump-5.0.js")
     styles = read("public/crump-5.0.css")

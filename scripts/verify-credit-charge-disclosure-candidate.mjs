@@ -219,7 +219,7 @@ for (const marker of [
   '/crump-code-5.9.35.js?v=5.9.76-credit-confirmation-1',
   '/crump-billing-5.1.css?v=5.9.76-credit-truth-1',
   '/crump-billing-5.1.js?v=5.9.76-project-limit-plan-dormant-1',
-  '/crump-5.2.js?v=5.9.76-project-limit-plan-dormant-1',
+  '/crump-5.2.js?v=5.9.76-uploaded-image-node-stability-1',
   '/crump-v1-body.css?v=5.9.76-credit-truth-1',
 ]) {
   if (!runtime.includes(marker)) fail('web runtime marker is missing: ' + marker);

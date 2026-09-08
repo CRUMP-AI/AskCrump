@@ -499,6 +499,8 @@ const fileLibraryWindowVersion = `${releaseVersion}-file-library-window-1`;
 const imageReferenceRecoveryVersion = `${releaseVersion}-image-reference-recovery-1`;
 const liveImagePreviewVersion = `${releaseVersion}-precision-studio-1`;
 const imageStabilityVersion = `${releaseVersion}-image-stability-1`;
+const imageNodeStabilityVersion = `${releaseVersion}-image-node-stability-1`;
+const uploadedImageNodeStabilityVersion = `${releaseVersion}-uploaded-image-node-stability-1`;
 const projectSaveMeasurementVersion = `${releaseVersion}-project-save-measurement-1`;
 const authUpdateGuardVersion = `${releaseVersion}-update-work-guard-1`;
 const userControlledScrollVersion = `${releaseVersion}-user-controlled-scroll-1`;
@@ -748,7 +750,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
     !runtime.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
-    !runtime.includes(`/ui-functions.js?v=${projectSaveMeasurementVersion}`) ||
+    !runtime.includes(`/ui-functions.js?v=${imageNodeStabilityVersion}`) ||
     !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-share.js?v=${referralCancelRecoveryVersion}`) ||
     !runtime.includes(`/lifecycle-manager.js?v=${referralCancelRecoveryVersion}`) ||
@@ -760,7 +762,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-5.0.js?v=${composerModeResetVersion}`) ||
     !runtime.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     !runtime.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
-    !runtime.includes(`/crump-5.2.js?v=${projectLimitPlanCandidateVersion}`) ||
+    !runtime.includes(`/crump-5.2.js?v=${uploadedImageNodeStabilityVersion}`) ||
     !runtime.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
     !runtime.includes(`/crump-5.2.2.js?v=${newResponseCueVersion}`) ||
     !runtime.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
@@ -919,7 +921,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r222') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r223') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${projectLimitPlanCandidateVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
@@ -932,7 +934,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r222') ||
     !serviceWorker.includes(`/crump-5.0.js?v=${composerModeResetVersion}`) ||
     !serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     !serviceWorker.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
-    !serviceWorker.includes(`/ui-functions.js?v=${projectSaveMeasurementVersion}`) ||
+    !serviceWorker.includes(`/ui-functions.js?v=${imageNodeStabilityVersion}`) ||
     !serviceWorker.includes(`/app.js?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.js?v=${newResponseCueVersion}`) ||
@@ -992,7 +994,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r222') ||
     !serviceWorker.includes(`/subscription-ui.js?v=${commerceRecoveryVersion}`) ||
     !serviceWorker.includes(`/crump-billing-5.1.css?v=${creditTruthVersion}`) ||
     !serviceWorker.includes(`/crump-billing-5.1.js?v=${projectLimitPlanCandidateVersion}`) ||
-    !serviceWorker.includes(`/crump-5.2.js?v=${projectLimitPlanCandidateVersion}`) ||
+    !serviceWorker.includes(`/crump-5.2.js?v=${uploadedImageNodeStabilityVersion}`) ||
     !serviceWorker.includes(`/crump-subscriptions-5.3.2.js?v=${commerceRecoveryVersion}`) ||
     !serviceWorker.includes('/crump-library-5.7.js') ||
     !serviceWorker.includes('/crump-library-5.7.css')) {
@@ -1377,6 +1379,14 @@ if (!baseScroll.includes('function jumpToNewest(event)') ||
 if (composer50.includes('crumpScrollManager?.scrollToBottom') ||
     appRuntime.includes('safeScrollToBottom') ||
     !uiFunctions.includes('function imageAspectForMessage(message, messages)') ||
+    !uiFunctions.includes('const reusableImages = new Map();') ||
+    !uiFunctions.includes('const reusableAttachments = new Map();') ||
+    !uiFunctions.includes("row.querySelector('.crump52-rich-attachments')") ||
+    !uiFunctions.includes('wrapper.appendChild(reusableAttachmentBlock);') ||
+    !uiFunctions.includes("reusableImage?.getAttribute('src') === safe") ||
+    !billing52.includes('function attachmentSignature(files)') ||
+    !billing52.includes('existing?.dataset.attachmentSignature === signature') ||
+    !billing52.includes('host.dataset.attachmentSignature = signature;') ||
     !uiFunctions.includes('image.width = aspect.width;') ||
     !uiFunctions.includes('image.height = aspect.height;')) {
   console.error('Generated-image user-controlled scroll and reserved-layout contract is missing.');
