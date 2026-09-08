@@ -15,7 +15,7 @@ public HTML or JavaScript markup omits an explicit `type`.
 
 ## Verification
 
-- All **892 Python tests** were collected: **890 passed** and two environment-dependent tests were
+- All **873 Python tests** were collected: **871 passed** and two environment-dependent tests were
   skipped.
 - All **49 JavaScript files** and all six attribution runtime cases passed.
 - Ruff, Python compilation, production preflight, native web-bundle generation, and diff integrity

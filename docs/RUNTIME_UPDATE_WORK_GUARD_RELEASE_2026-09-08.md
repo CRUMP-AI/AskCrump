@@ -33,7 +33,7 @@ The implementation is client-only. It adds no database migration, API shape, sto
 
 ## Automated and browser verification
 
-- Full Python suite: 892 collected; 890 passed and two environment-dependent tests skipped.
+- Full Python suite: 873 collected; 871 passed and two environment-dependent tests skipped.
 - JavaScript release contract: 49 files passed, including all six attribution runtime cases.
 - Ruff: passed.
 - Python compileall: passed.

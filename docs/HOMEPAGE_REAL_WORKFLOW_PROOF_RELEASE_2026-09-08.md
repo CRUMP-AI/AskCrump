@@ -31,7 +31,7 @@ truthful product evidence without weakening the primary account-entry path.
 - The local and production guide rendered its title, live-product proof statement, fictional
   example boundary, and **What still needs human judgment** section.
 - Canonical production returned HTTP 200 for `/`, the guide route, and `/api/health`.
-- All **892 Python tests** were collected: **890 passed** and two environment-dependent tests were
+- All **873 Python tests** were collected: **871 passed** and two environment-dependent tests were
   skipped.
 - All **49 JavaScript files** and all six attribution runtime cases passed.
 - Ruff, Python compilation, production preflight, native web-bundle generation, and diff integrity
