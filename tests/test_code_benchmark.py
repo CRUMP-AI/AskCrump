@@ -106,6 +106,8 @@ def test_fixed_manifest_is_valid_pinned_and_excluded_from_deployment():
     ))
     vercel = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
     assert "benchmarks/**" in vercel["functions"]["api/index.py"]["excludeFiles"]
+    gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+    assert "output/crump-code-benchmark/" in gitignore
 
 
 def test_all_passing_receipts_score_the_fixed_suite_without_echoing_content():
