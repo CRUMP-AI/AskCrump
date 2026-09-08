@@ -181,6 +181,16 @@ def test_button_state_browser_fixture_is_private_and_credential_free() -> None:
     assert "askcrump.com" not in fixture
 
 
+def test_browser_error_sensitive_button_fixtures_suppress_favicon_noise() -> None:
+    for relative in (
+        "auth-navigation-focus.html",
+        "feature-access-recovery.html",
+        "project-limit-plan-default-off.html",
+    ):
+        fixture = (ROOT / "tests" / "fixtures" / relative).read_text(encoding="utf-8")
+        assert '<link rel="icon" href="data:,">' in fixture
+
+
 def test_add_menu_browser_fixture_exercises_both_authoritative_studios() -> None:
     fixture = (ROOT / "tests" / "fixtures" / "attach-creation-routing.html").read_text(encoding="utf-8")
     verifier = (ROOT / "scripts" / "verify-attach-creation-routing.cjs").read_text(encoding="utf-8")
