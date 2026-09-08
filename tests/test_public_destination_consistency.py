@@ -120,7 +120,9 @@ def test_truthful_destination_assets_and_sitemaps_share_one_release_boundary():
     worker = read("public/sw.js")
     assert "ask-crump-new-body-v1-r221" in worker
     assert f"/landing-5.6.css?v={version}" in worker
-    assert read("public/sitemap.xml").count("<lastmod>2026-08-30</lastmod>") == 9
+    sitemap = read("public/sitemap.xml")
+    assert sitemap.count("<lastmod>2026-08-30</lastmod>") == 6
+    assert sitemap.count("<lastmod>2026-09-08</lastmod>") == 3
     assert "<lastmod>2026-08-30</lastmod>" in read("public/clever-crump-sitemap.xml")
 
 
