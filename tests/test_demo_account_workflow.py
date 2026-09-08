@@ -22,6 +22,8 @@ from scripts.manage_demo_account import (
     inspect_demo_account,
     is_replaceable_demo_identity,
     read_new_password,
+    require_operator_environment,
+    require_recording_ready,
     replace_demo_account,
     validate_operator_credentials,
     validate_receipt_destination,
@@ -131,6 +133,21 @@ def test_operator_credentials_accept_only_backend_keys():
             validate_operator_credentials("https://example.supabase.co", key)
     with pytest.raises(DemoAccountError, match="HTTPS"):
         validate_operator_credentials("http://example.supabase.co", "sb_secret_backend")
+
+
+def test_operator_environment_reports_names_only(monkeypatch):
+    monkeypatch.delenv("SUPABASE_URL", raising=False)
+    monkeypatch.delenv("SUPABASE_SERVICE_KEY", raising=False)
+    with pytest.raises(DemoAccountError, match="SUPABASE_URL, SUPABASE_SERVICE_KEY"):
+        require_operator_environment()
+
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    with pytest.raises(DemoAccountError, match="SUPABASE_SERVICE_KEY") as failure:
+        require_operator_environment()
+    assert "https://example.supabase.co" not in str(failure.value)
+
+    monkeypatch.setenv("SUPABASE_SERVICE_KEY", "private-value-must-not-leak")
+    require_operator_environment()
 
 
 def test_payload_is_internal_preview_verified_and_has_no_billing_identity():
@@ -327,6 +344,19 @@ def test_receipt_requires_recording_ready_state():
             generated_at="2026-09-01T12:00:00+00:00",
             operation="inspection",
         )
+
+
+def test_require_ready_fails_closed_without_exposing_account_details():
+    require_recording_ready({"ready_for_recording": True})
+
+    with pytest.raises(DemoAccountError, match="not changed") as failure:
+        require_recording_ready(
+            {
+                "ready_for_recording": False,
+                "private_detail": "must-not-leak",
+            }
+        )
+    assert "must-not-leak" not in str(failure.value)
 
 
 def test_every_migration_declared_user_table_is_covered_by_clean_state_inspection():

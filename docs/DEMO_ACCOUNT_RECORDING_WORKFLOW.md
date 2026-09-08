@@ -35,6 +35,17 @@ Use a Supabase secret key (`sb_secret_...`) or the legacy service-role JWT. A pu
 python scripts/manage_demo_account.py
 ```
 
+For automation or a release gate, require the same read-only inspection to exit
+unsuccessfully unless the protected account is already recording-ready:
+
+```powershell
+python scripts/manage_demo_account.py --require-ready
+```
+
+By itself, this flag never resets the account, chooses a password, or writes a
+receipt. Pair it with `--receipt` only when the inspection is expected to pass and a new,
+content-free evidence file is required.
+
 The output contains only fixed identity status, profile-default status, recording readiness, and category-level presence. It does not display account IDs, filenames, project names, prompts, messages, or other content.
 
 ## Reset immediately before a recording session

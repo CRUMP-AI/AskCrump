@@ -14,6 +14,7 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 import getpass
 import json
+import os
 from pathlib import Path
 import sys
 from typing import Any
@@ -122,6 +123,16 @@ def validate_operator_credentials(supabase_url: str, service_key: str) -> None:
         raise DemoAccountError("A backend-only Supabase service key is required.")
     if not normalized_key.startswith("sb_secret_") and _jwt_role(normalized_key) != "service_role":
         raise DemoAccountError("A backend-only Supabase service key is required.")
+
+
+def require_operator_environment() -> None:
+    """Name missing operator variables without ever reading their values aloud."""
+    required = ("SUPABASE_URL", "SUPABASE_SERVICE_KEY")
+    missing = [name for name in required if not str(os.getenv(name) or "").strip()]
+    if missing:
+        raise DemoAccountError(
+            f"Missing required operator environment variables: {', '.join(missing)}."
+        )
 
 
 def demo_user_payload(*, password_hash: str, now: str, user_id: str) -> dict[str, Any]:
@@ -390,6 +401,14 @@ def format_inspection(inspection: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def require_recording_ready(inspection: dict[str, Any]) -> None:
+    """Fail closed after a read-only inspection when recording is not safe."""
+    if not inspection.get("ready_for_recording"):
+        raise DemoAccountError(
+            "Recording readiness check failed; the demo account was not changed."
+        )
+
+
 def confirmation_is_exact(value: str) -> bool:
     return value == REPLACE_ACKNOWLEDGEMENT
 
@@ -417,12 +436,23 @@ def parser() -> argparse.ArgumentParser:
         type=Path,
         help="write a new content-free JSON clean-state receipt to this path",
     )
+    cli.add_argument(
+        "--require-ready",
+        action="store_true",
+        help="exit unsuccessfully after read-only inspection unless recording-ready",
+    )
     return cli
 
 
-async def run(*, replace: bool, receipt_path: Path | None = None) -> int:
+async def run(
+    *,
+    replace: bool,
+    receipt_path: Path | None = None,
+    require_ready: bool = False,
+) -> int:
     if receipt_path is not None:
         validate_receipt_destination(receipt_path)
+    require_operator_environment()
     settings = get_settings()
     validate_operator_credentials(settings.supabase_url, settings.supabase_service_key)
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -431,6 +461,8 @@ async def run(*, replace: bool, receipt_path: Path | None = None) -> int:
         inspection = await inspect_demo_account(db)
         print(format_inspection(inspection))
         if not replace:
+            if require_ready:
+                require_recording_ready(inspection)
             if receipt_path is not None:
                 receipt = build_clean_state_receipt(
                     inspection,
@@ -471,7 +503,13 @@ async def run(*, replace: bool, receipt_path: Path | None = None) -> int:
 def main() -> int:
     args = parser().parse_args()
     try:
-        return asyncio.run(run(replace=args.replace, receipt_path=args.receipt))
+        return asyncio.run(
+            run(
+                replace=args.replace,
+                receipt_path=args.receipt,
+                require_ready=args.require_ready,
+            )
+        )
     except (DemoAccountError, EOFError, KeyboardInterrupt) as exc:
         message = str(exc).strip() or "Operation cancelled."
         print(message, file=sys.stderr)
