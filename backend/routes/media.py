@@ -34,7 +34,34 @@ def _feature_error(exc: FeatureAccessError) -> JSONResponse:
     )
 
 
-def _video_error(exc: VideoServiceError) -> JSONResponse:
+_VIDEO_ERROR_STAGES = frozenset({
+    "request",
+    "references",
+    "budget",
+    "generation",
+    "continuation_parent",
+    "continuation_budget",
+    "continuation_generation",
+    "status",
+})
+
+
+def _video_error(exc: VideoServiceError, *, stage: str) -> JSONResponse:
+    safe_stage = stage if stage in _VIDEO_ERROR_STAGES else "unknown"
+    safe_code = (
+        exc.code
+        if 1 <= len(exc.code) <= 64 and exc.code.isascii() and exc.code.replace("_", "").isalnum()
+        else "VIDEO_ERROR"
+    )
+    log_level = logging.ERROR if exc.status_code >= 500 else logging.WARNING
+    logger.log(
+        log_level,
+        "Video request rejected stage=%s status=%s code=%s retryable=%s",
+        safe_stage,
+        exc.status_code,
+        safe_code,
+        exc.retryable,
+    )
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -101,9 +128,9 @@ async def create_video(request: Request):
     auth = await authenticate_request(request, db, settings)
     payload = await request.json()
     if not isinstance(payload, dict):
-        return JSONResponse(
-            status_code=400,
-            content={"success": False, "error": "Invalid video request.", "code": "INVALID_VIDEO_REQUEST"},
+        return _video_error(
+            VideoServiceError("Invalid video request.", "INVALID_VIDEO_REQUEST"),
+            stage="request",
         )
 
     try:
@@ -114,7 +141,7 @@ async def create_video(request: Request):
         )
         feature_code = video.feature_code(engine=engine, resolution=resolution, duration_seconds=duration)
     except VideoServiceError as exc:
-        return _video_error(exc)
+        return _video_error(exc, stage="request")
 
     idempotency_key = _idempotency_key(request, payload)
     existing = await _existing_job(auth.user["id"], idempotency_key)
@@ -132,7 +159,7 @@ async def create_video(request: Request):
             engine=engine,
         )
     except VideoServiceError as exc:
-        return _video_error(exc)
+        return _video_error(exc, stage="references")
 
     estimated_cost = video.provider_cost_cents(
         engine=engine,
@@ -147,7 +174,7 @@ async def create_video(request: Request):
             bypass_user_limit=has_internal_access(auth.user),
         )
     except VideoServiceError as exc:
-        return _video_error(exc)
+        return _video_error(exc, stage="budget")
 
     try:
         receipt = await features.consume(
@@ -202,7 +229,7 @@ async def create_video(request: Request):
     except VideoServiceError as exc:
         if exc.refund_eligible:
             await features.refund(auth.user["id"], receipt)
-        return _video_error(exc)
+        return _video_error(exc, stage="generation")
 
 
 @router.post("/video/{job_id}/continue")
@@ -210,9 +237,9 @@ async def continue_video(job_id: str, request: Request):
     auth = await authenticate_request(request, db, settings)
     payload = await request.json()
     if not isinstance(payload, dict):
-        return JSONResponse(
-            status_code=400,
-            content={"success": False, "error": "Invalid continuation request.", "code": "INVALID_VIDEO_REQUEST"},
+        return _video_error(
+            VideoServiceError("Invalid continuation request.", "INVALID_VIDEO_REQUEST"),
+            stage="request",
         )
     idempotency_key = _idempotency_key(request, payload)
     existing = await _existing_job(auth.user["id"], idempotency_key)
@@ -226,7 +253,7 @@ async def continue_video(job_id: str, request: Request):
     try:
         await video.validate_continuation_parent(user_id=auth.user["id"], job_id=job_id)
     except VideoServiceError as exc:
-        return _video_error(exc)
+        return _video_error(exc, stage="continuation_parent")
 
     estimated_cost = video.provider_cost_cents(
         engine=video.EXTENDABLE,
@@ -242,7 +269,7 @@ async def continue_video(job_id: str, request: Request):
             bypass_user_limit=has_internal_access(auth.user),
         )
     except VideoServiceError as exc:
-        return _video_error(exc)
+        return _video_error(exc, stage="continuation_budget")
 
     try:
         receipt = await features.consume(
@@ -276,7 +303,7 @@ async def continue_video(job_id: str, request: Request):
     except VideoServiceError as exc:
         if exc.refund_eligible:
             await features.refund(auth.user["id"], receipt)
-        return _video_error(exc)
+        return _video_error(exc, stage="continuation_generation")
 
 
 @router.get("/video/{job_id}")
@@ -303,4 +330,4 @@ async def video_status(job_id: str, request: Request):
             public_job["projectAttachment"] = project_attachment
         return {"success": True, "job": public_job}
     except VideoServiceError as exc:
-        return _video_error(exc)
+        return _video_error(exc, stage="status")
