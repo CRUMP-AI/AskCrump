@@ -64,3 +64,15 @@ not be represented as proof that a live model generated the sample response or P
 This work is product evidence only. It does not authorize social publication, paid acquisition, or
 an unsupported performance or conversion claim. A human-owned sanitized demo account remains the
 right path for recording authentic provider output.
+
+## Release identity
+
+- Evidence and regression commit: `cea422229eed3cba5da3cc6dbe5ce05f40a43cd8`.
+- Main CI: `34284434266` — success.
+- Automatic production deployment: `dpl_Bogw4VNvYydfhoBLAE3kvfLCBVaH` — READY on all six aliases,
+  with no alias error.
+- Initial one-hour runtime-error aggregate: empty.
+- Deployment-scoped 5xx query: empty.
+
+The committed release changes only tests, credential-free fixtures, the recording harness, and
+documentation. Customer-facing production assets and behavior are unchanged.
