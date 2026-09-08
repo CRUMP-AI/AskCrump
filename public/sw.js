@@ -71,7 +71,7 @@ const CORE = [
   '/crump-billing-5.1.css?v=5.9.76-credit-truth-1',
   '/crump-billing-5.1.js?v=5.9.76-credit-truth-1',
   '/crump-5.2.css',
-  '/crump-5.2.js?v=5.9.76-attach-creation-routing-1',
+  '/crump-5.2.js?v=5.9.76-explicit-button-types-1',
   '/crump-5.2.2.css?v=5.9.76-new-response-cue-1',
   '/crump-5.2.2.js?v=5.9.76-new-response-cue-1',
   '/assets/brand/crump-shell-lockup-light.png',

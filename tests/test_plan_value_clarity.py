@@ -233,7 +233,7 @@ def test_both_plan_center_owners_contain_and_restore_modal_focus():
 
 def test_plan_center_containment_assets_are_versioned_everywhere():
     versioned_billing = "/crump-billing-5.1.js?v=5.9.76-credit-truth-1"
-    versioned_final = "/crump-5.2.js?v=5.9.76-attach-creation-routing-1"
+    versioned_final = "/crump-5.2.js?v=5.9.76-explicit-button-types-1"
     versioned_billing_css = "/crump-billing-5.1.css?v=5.9.76-credit-truth-1"
     versioned_credit_contract = "/crump-5.2.2.js?v=5.9.76-new-response-cue-1"
     sources = (

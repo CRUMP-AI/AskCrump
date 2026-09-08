@@ -731,7 +731,7 @@
           <div class="billing51-section-head"><div><span>KEEP GOING</span><h3>Add Crump Credits</h3></div><p>Credit use varies by feature. Ask Crump shows the exact charge before a paid action. Purchased credits never expire.</p></div>
           <p class="billing51-rate-note"><strong>Current overflow rates, after any included allowance:</strong> messages 1; live research 1; Crump Voice or visual analysis 2; manuscript planning 4; image generation 6; manuscript chapter 8; image editing 10; Crump Code 12; video generation 60, extend or continue 80, HD 90, or 10-second cinematic 120 credits. The exact total always appears before a paid action.</p>
           <div class="billing51-packs" id="billing52Packs">
-            ${[50,150,400].map((credits, index) => `<article class="billing51-pack"><strong class="billing51-pack-amount">${credits}</strong><span class="billing51-pack-label">Crump Credits</span><div class="billing51-pack-price">${['$4.99','$9.99','$19.99'][index]}</div><button class="billing51-buy" aria-label="Loading availability for ${credits} Crump Credits" disabled>Loading…</button></article>`).join('')}
+            ${[50,150,400].map((credits, index) => `<article class="billing51-pack"><strong class="billing51-pack-amount">${credits}</strong><span class="billing51-pack-label">Crump Credits</span><div class="billing51-pack-price">${['$4.99','$9.99','$19.99'][index]}</div><button type="button" class="billing51-buy" aria-label="Loading availability for ${credits} Crump Credits" disabled>Loading…</button></article>`).join('')}
           </div>
         </section>
         <section class="billing51-section">
@@ -742,14 +742,14 @@
               <p class="billing51-plan-summary">For independent work you return to every day.</p>
               <ul class="billing51-plan-benefits"><li>500 included messages daily</li><li>25 private Projects</li><li>20 research · 1 image · 20 visual analyses daily</li><li>Advanced Intelligence: Think Longer + Always Review</li><li>Premium creation access</li></ul>
               <p class="billing51-plan-meter-note">Premium video and other high-compute generations use Crump Credits.</p>
-              <button class="billing51-plan-button" disabled>Loading plan…</button>
+              <button type="button" class="billing51-plan-button" disabled>Loading plan…</button>
             </article>
             <article class="billing51-plan" data-crump-plan="enterprise">
               <div class="billing51-plan-top"><strong>Enterprise</strong><span>$50/month</span></div>
               <p class="billing51-plan-summary">For sustained work that needs the largest current individual limits.</p>
               <ul class="billing51-plan-benefits"><li>5,000 included messages daily</li><li>200 private Projects</li><li>50 research · 2 images · 100 visual analyses daily</li><li>Advanced Intelligence: Think Longer + Always Review</li><li>10-second Cinematic video access</li></ul>
               <p class="billing51-plan-meter-note">Premium video and other high-compute generations use Crump Credits.</p>
-              <button class="billing51-plan-button" disabled>Loading plan…</button>
+              <button type="button" class="billing51-plan-button" disabled>Loading plan…</button>
             </article>
           </div>
         </section>

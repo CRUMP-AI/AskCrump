@@ -56,6 +56,25 @@ def test_every_static_button_has_a_form_or_runtime_action() -> None:
     assert not missing, f"Static buttons without an actionable runtime owner: {missing}"
 
 
+def test_every_markup_button_declares_its_behavior_type() -> None:
+    missing: list[str] = []
+    button_pattern = re.compile(r"<button\b[^>]*>", re.IGNORECASE)
+    type_pattern = re.compile(r"\btype\s*=\s*([\"'])(?:button|submit|reset)\1", re.IGNORECASE)
+
+    for path in sorted([*PUBLIC.rglob("*.html"), *PUBLIC.glob("*.js")]):
+        text = path.read_text(encoding="utf-8")
+        for match in button_pattern.finditer(text):
+            if type_pattern.search(match.group(0)):
+                continue
+            line = text.count("\n", 0, match.start()) + 1
+            missing.append(f"{path.relative_to(ROOT)}:{line}")
+
+    assert not missing, (
+        "Buttons must explicitly declare type=button, submit, or reset so a later form "
+        f"composition cannot change their action: {missing}"
+    )
+
+
 def test_primary_destination_and_creation_buttons_have_complete_handlers() -> None:
     navigation = (PUBLIC / "crump-navigation-5.9.30.js").read_text(encoding="utf-8")
     body = (PUBLIC / "crump-v1-body.js").read_text(encoding="utf-8")
