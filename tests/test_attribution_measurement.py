@@ -20,12 +20,12 @@ MIGRATION = ROOT / "migrations" / "20260830171056_weekly_growth_attribution_expo
 REGISTRY_MIGRATION = (
     ROOT
     / "migrations"
-    / "20260909201432_reject_blank_presentation_creative.sql"
+    / "20260909201749_reject_blank_presentation_creative.sql"
 )
 STANDALONE_ALLOWLIST_MIGRATION = (
     ROOT
     / "migrations"
-    / "20260909195019_narrow_presentation_attribution_touchpoints.sql"
+    / "20260909200726_narrow_presentation_attribution_touchpoints.sql"
 )
 EXPECTED_REGISTRY = {
     "presentation-proof-current": {
