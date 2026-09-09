@@ -46,6 +46,22 @@ one old generic `LoginFailed`, and one `LoginCompleted`. The 30-day service-role
 zero comparable current registrations. This is a small, mixed sample that may include founder/test
 traffic; it establishes a measurement and acquisition-volume boundary, not a conversion rate.
 
+The 2026-09-09 recheck narrows that boundary further. Vercel recorded **zero**
+`/api/auth/register` requests during the trailing seven days, while a credential-free production
+browser replay passed every public account-entry handoff across all five creation surfaces at phone
+width. The campaign/profile/referral/invalid-tuple landing verifier also passed against production.
+There is therefore no observed server-side registration attempt or public-button failure to repair
+in that window; do not invent a signup conversion defect from an absent denominator.
+
+Supabase recorded 48 production product events since 2026-09-01, all from accounts with an internal
+tier. The same internal cohort created **2 Projects**, attached **19 Project files**, linked **3
+Project conversations**, and recorded **5** recent-work resumes. That is useful directional evidence
+that the shipped continuity mechanics are being exercised, but it is not external activation or
+retention proof. The three legacy external accounts produced no September login. Keep the current
+Project and registration paths stable, support qualified acquisition and moderated external cohort
+formation, and withhold another speculative signup or continuity redesign until a real attempt or
+failure supplies a denominator.
+
 ## Verified releases
 
 | Outcome | Evidence | State |
