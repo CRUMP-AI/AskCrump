@@ -48,6 +48,25 @@ content-free evidence file is required.
 
 The output contains only fixed identity status, profile-default status, recording readiness, and category-level presence. It does not display account IDs, filenames, project names, prompts, messages, or other content.
 
+## Verify the completed continuous journey
+
+After the real sanitized workflow is recorded, run the separate read-only proof gate:
+
+```powershell
+python scripts/manage_demo_account.py --require-proof
+```
+
+The service-role function checks that the protected identity has exactly one active Project, one
+complete request/response conversation saved into that Project, a later production
+`RecentWorkResumed` signal, and a ready editable Word or PowerPoint file created and attached to
+that Project after the resume. The database evaluates message roles and relationships privately.
+The operator receives only seven fixed booleans—never an account ID, prompt, response, Project
+name, filename, Storage path, URL, or arbitrary metadata.
+
+`--replace`, `--require-ready`, and `--require-proof` are mutually exclusive. `--receipt` records
+the clean state before recording and cannot be combined with `--require-proof`. Preserve the
+proof command's fixed yes/no result with the capture QA evidence.
+
 ## Reset immediately before a recording session
 
 ```powershell
@@ -82,5 +101,6 @@ For a read-only evidence refresh after the account is already clean, omit `--rep
 3. Leave the workspace, reopen that Project, and show continuity.
 4. Generate an editable document or PowerPoint artifact and inspect the real output.
 5. End on the live product surface; add campaign logos or captions only in post-production.
+6. Run `--require-proof`; retain only its fixed boolean result with the recording QA evidence.
 
 This workflow prepares product evidence. It does not authorize publication, paid spend, profile edits, or campaign launch.

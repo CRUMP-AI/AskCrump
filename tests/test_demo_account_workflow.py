@@ -13,17 +13,23 @@ from scripts.manage_demo_account import (
     DEMO_NAME,
     DEMO_RECEIPT_SCHEMA,
     DEMO_SETTINGS,
+    PROOF_FIELDS,
     REPLACE_ACKNOWLEDGEMENT,
     DemoAccountError,
     build_clean_state_receipt,
     confirmation_is_exact,
     demo_user_payload,
+    format_recording_proof,
     has_default_demo_profile,
     inspect_demo_account,
+    inspect_demo_recording_proof,
     is_replaceable_demo_identity,
     read_new_password,
+    require_recording_proof,
     require_operator_environment,
     require_recording_ready,
+    run,
+    parser,
     replace_demo_account,
     validate_operator_credentials,
     validate_receipt_destination,
@@ -63,12 +69,14 @@ class FakeDB:
         user: dict | None = None,
         rows: dict[str, list[dict]] | None = None,
         settings: dict | None = None,
+        proof: dict | None = None,
     ):
         self.user = user
         self.rows = rows or {}
         self.settings = dict(settings) if settings is not None else (
             {"user_id": user["id"], **DEMO_SETTINGS} if user else None
         )
+        self.proof = dict(proof or {})
         self.operations: list[tuple] = []
 
     async def select_one(self, table, *, columns="*", filters=None):
@@ -87,6 +95,8 @@ class FakeDB:
 
     async def rpc(self, function_name, payload, *, retry_transient=False):
         self.operations.append(("rpc", function_name, dict(payload)))
+        if function_name == "demo_recording_proof_snapshot":
+            return [{**self.proof, "private_extra": "must-not-leak"}]
         assert function_name == "delete_user_account"
         self.user = None
         self.settings = None
@@ -357,6 +367,79 @@ def test_require_ready_fails_closed_without_exposing_account_details():
             }
         )
     assert "must-not-leak" not in str(failure.value)
+
+
+@pytest.mark.asyncio
+async def test_recording_proof_returns_only_fixed_content_free_booleans():
+    complete = {field: True for field in PROOF_FIELDS}
+    result = await inspect_demo_recording_proof(FakeDB(proof=complete))
+
+    assert result == complete
+    rendered = format_recording_proof(result)
+    assert "private_extra" not in rendered
+    assert "must-not-leak" not in rendered
+    assert rendered.count(": yes") == 7
+    require_recording_proof(result)
+
+
+def test_recording_proof_fails_closed_for_missing_or_non_boolean_fields():
+    complete = {field: True for field in PROOF_FIELDS}
+    for field in PROOF_FIELDS:
+        incomplete = dict(complete)
+        incomplete.pop(field)
+        with pytest.raises(DemoAccountError, match="not changed"):
+            require_recording_proof(incomplete)
+
+        non_boolean = dict(complete)
+        non_boolean[field] = 1
+        with pytest.raises(DemoAccountError, match="not changed"):
+            require_recording_proof(non_boolean)
+
+
+def test_demo_operator_modes_are_mutually_exclusive():
+    for left, right in (
+        ("--replace", "--require-ready"),
+        ("--replace", "--require-proof"),
+        ("--require-ready", "--require-proof"),
+    ):
+        with pytest.raises(SystemExit):
+            parser().parse_args([left, right])
+
+
+@pytest.mark.asyncio
+async def test_proof_mode_rejects_clean_state_receipt_before_remote_work(tmp_path: Path):
+    with pytest.raises(DemoAccountError, match="cannot be combined"):
+        await run(
+            replace=False,
+            receipt_path=tmp_path / "unused.json",
+            require_proof=True,
+        )
+
+
+def test_recording_proof_migration_is_fixed_service_only_and_boolean_only():
+    sql = (
+        Path(__file__).resolve().parents[1]
+        / "migrations"
+        / "20260909190500_demo_recording_proof_snapshot.sql"
+    ).read_text(encoding="utf-8")
+    return_contract = sql.split("returns table (", 1)[1].split(")", 1)[0]
+    normalized = re.sub(r"\s+", " ", sql.lower())
+
+    assert "demo@askcrump.com" in sql
+    assert "having count(*) = 1" in sql
+    assert "e.event_name = 'RecentWorkResumed'" in sql
+    assert "e.source = 'project'" in sql
+    assert "e.environment = 'production'" in sql
+    assert "pf.role = 'generated_document'" in sql
+    assert "pf.created_at >= r.resumed_at" in sql
+    assert "f.created_at >= r.resumed_at" in sql
+    assert "security invoker" in sql
+    assert "set search_path = ''" in sql
+    assert "from public, anon, authenticated" in normalized
+    assert "to service_role" in normalized
+    assert " text" not in return_contract
+    assert " uuid" not in return_contract
+    assert return_contract.count(" boolean") == 7
 
 
 def test_every_migration_declared_user_table_is_covered_by_clean_state_inspection():

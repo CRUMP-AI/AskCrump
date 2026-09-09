@@ -38,6 +38,15 @@ DEMO_EMAIL = "demo@askcrump.com"
 DEMO_NAME = "Ask Crump Demo"
 REPLACE_ACKNOWLEDGEMENT = f"REPLACE {DEMO_EMAIL}"
 DEMO_RECEIPT_SCHEMA = "ask-crump-demo-clean-state/v1"
+PROOF_FIELDS = (
+    "configured",
+    "protected_identity",
+    "complete_exchange",
+    "project_saved",
+    "project_reopened",
+    "editable_artifact_ready",
+    "proof_ready",
+)
 DEMO_SETTINGS: dict[str, Any] = {
     "assistant_name": "Crump",
     "work_mode": False,
@@ -253,6 +262,16 @@ async def inspect_demo_account(db: SupabaseDB) -> dict[str, Any]:
     }
 
 
+async def inspect_demo_recording_proof(db: SupabaseDB) -> dict[str, bool]:
+    """Return only the fixed booleans from the service-role proof function."""
+    result = await db.rpc("demo_recording_proof_snapshot", {})
+    if isinstance(result, list):
+        row = result[0] if result and isinstance(result[0], dict) else {}
+    else:
+        row = result if isinstance(result, dict) else {}
+    return {field: row.get(field) is True for field in PROOF_FIELDS}
+
+
 async def _remove_private_file_objects(
     db: SupabaseDB,
     files: FileService,
@@ -410,6 +429,31 @@ def require_recording_ready(inspection: dict[str, Any]) -> None:
         )
 
 
+def format_recording_proof(proof: dict[str, Any]) -> str:
+    """Render fixed labels without passing through arbitrary database fields."""
+    labels = (
+        ("configured", "Configured protected demo identity"),
+        ("protected_identity", "Protected identity contract"),
+        ("complete_exchange", "Complete request and response"),
+        ("project_saved", "Conversation saved in the only active Project"),
+        ("project_reopened", "Production Project resume after save"),
+        ("editable_artifact_ready", "Editable Word or PowerPoint ready after resume"),
+        ("proof_ready", "Recording proof gate"),
+    )
+    return "\n".join(
+        f"{label}: {'yes' if proof.get(field) is True else 'no'}"
+        for field, label in labels
+    )
+
+
+def require_recording_proof(proof: dict[str, Any]) -> None:
+    """Fail unless every fixed proof field is the boolean value true."""
+    if not all(proof.get(field) is True for field in PROOF_FIELDS):
+        raise DemoAccountError(
+            "Recording proof check failed; the demo account was not changed."
+        )
+
+
 def confirmation_is_exact(value: str) -> bool:
     return value == REPLACE_ACKNOWLEDGEMENT
 
@@ -427,7 +471,8 @@ def read_new_password(password_reader: Callable[[str], str] = getpass.getpass) -
 
 def parser() -> argparse.ArgumentParser:
     cli = argparse.ArgumentParser(description=__doc__)
-    cli.add_argument(
+    mode = cli.add_mutually_exclusive_group()
+    mode.add_argument(
         "--replace",
         action="store_true",
         help="destructively reset the fixed demo identity after interactive confirmation",
@@ -437,10 +482,15 @@ def parser() -> argparse.ArgumentParser:
         type=Path,
         help="write a new content-free JSON clean-state receipt to this path",
     )
-    cli.add_argument(
+    mode.add_argument(
         "--require-ready",
         action="store_true",
         help="exit unsuccessfully after read-only inspection unless recording-ready",
+    )
+    mode.add_argument(
+        "--require-proof",
+        action="store_true",
+        help="read only; exit unsuccessfully unless the sanitized workflow proof passes",
     )
     return cli
 
@@ -450,7 +500,12 @@ async def run(
     replace: bool,
     receipt_path: Path | None = None,
     require_ready: bool = False,
+    require_proof: bool = False,
 ) -> int:
+    if require_proof and receipt_path is not None:
+        raise DemoAccountError(
+            "--receipt records clean-state evidence and cannot be combined with --require-proof."
+        )
     if receipt_path is not None:
         validate_receipt_destination(receipt_path)
     require_operator_environment()
@@ -462,6 +517,12 @@ async def run(
         inspection = await inspect_demo_account(db)
         print(format_inspection(inspection))
         if not replace:
+            if require_proof:
+                proof = await inspect_demo_recording_proof(db)
+                print(format_recording_proof(proof))
+                require_recording_proof(proof)
+                print("Read-only proof inspection complete; no changes were made.")
+                return 0
             if require_ready:
                 require_recording_ready(inspection)
             if receipt_path is not None:
@@ -509,6 +570,7 @@ def main() -> int:
                 replace=args.replace,
                 receipt_path=args.receipt,
                 require_ready=args.require_ready,
+                require_proof=args.require_proof,
             )
         )
     except (DemoAccountError, EOFError, KeyboardInterrupt) as exc:
