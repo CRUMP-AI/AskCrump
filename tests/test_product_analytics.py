@@ -1089,6 +1089,11 @@ def test_needs_work_follow_up_is_fixed_category_optional_and_content_free():
     assert "message?.content" not in follow_up
     assert "textarea" not in tracker.lower()
     assert "textarea" not in follow_up.lower()
+    assert "Refine this result" in tracker
+    assert "nothing is sent automatically" in tracker
+    assert "input.focus({preventScroll: true})" in tracker
+    assert "input.value =" not in tracker
+    assert "sendMessage" not in tracker
     assert "OutcomeIssueCategorized" in analytics
     assert "product_events_outcome_issue_category_check" in migration
     assert "product_outcome_issue_snapshot" in migration

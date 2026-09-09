@@ -37,10 +37,19 @@ const baseUrl = process.env.ASKCRUMP_FIXTURE_ORIGIN || 'http://127.0.0.1:8765';
   await page.getByRole('button', {name: 'Feedback category: Missed request'}).click();
   await page.getByText('Thanks — that helps us improve.').waitFor();
   assert.equal(await page.locator('.outcome-issue-btn').count(), 0);
+  const refineButtonName = 'Refine this result by writing a follow-up; nothing is sent automatically';
+  assert.equal(await page.getByRole('button', {name: refineButtonName}).count(), 1);
+  await page.getByRole('button', {name: refineButtonName}).click();
+  await page.getByText('Tell Crump what to change below — nothing was sent.').waitFor();
+  assert.deepEqual(await page.evaluate(() => ({
+    activeId: document.activeElement?.id || '',
+    draft: document.getElementById('userInput')?.value || '',
+  })), {activeId: 'userInput', draft: 'Keep this unfinished draft'});
 
   await page.evaluate(() => window.renderMessages(window.__fixtureMessages));
   await page.getByText('Thanks — that helps us improve.').waitFor();
   assert.equal(await page.locator('.outcome-issue-btn').count(), 0);
+  assert.equal(await page.getByRole('button', {name: refineButtonName}).count(), 1);
 
   const result = await page.evaluate(() => ({
     analytics: window.__fixture.analytics,

@@ -531,7 +531,7 @@ def test_changed_activation_assets_are_release_versioned():
 
     for asset in (
         "/conversation.css?v=5.9.76-intelligence-receipt-1",
-        "/ui-functions.js?v=5.9.76-outcome-issue-categories-1",
+        "/ui-functions.js?v=5.9.76-outcome-refinement-recovery-1",
         "/product-analytics.js?v=5.9.76-outcome-issue-categories-1",
         "/app.js?v=5.9.76-settings-save-isolation-1",
     ):

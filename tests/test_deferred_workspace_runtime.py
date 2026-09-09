@@ -52,7 +52,7 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/subscription-ui.js?v=5.9.76-commerce-recovery-1',
         '/credit-confirmation.js?v=5.9.76-credit-confirmation-1',
         '/chat-resilience.js?v=5.9.76-credit-confirmation-1',
-        '/ui-functions.js?v=5.9.76-outcome-issue-categories-1',
+        '/ui-functions.js?v=5.9.76-outcome-refinement-recovery-1',
         '/presence-manager.js?v=5.9.76',
         '/sync-manager.js?v=5.9.76-sync-cursor-1',
         '/chat-sync.js?v=5.9.76-settings-sync-1',

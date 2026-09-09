@@ -592,6 +592,27 @@
     } catch (_) {}
   }
 
+  function appendOutcomeRefinement(group, status) {
+    const refineButton = document.createElement('button');
+    refineButton.type = 'button';
+    refineButton.className = 'outcome-feedback-btn outcome-refine-btn';
+    refineButton.textContent = 'Refine this result';
+    refineButton.setAttribute(
+      'aria-label',
+      'Refine this result by writing a follow-up; nothing is sent automatically',
+    );
+    refineButton.addEventListener('click', () => {
+      const input = document.getElementById('userInput');
+      if (!input) {
+        window.showToast?.('The message box is not ready yet. Try again in a moment.', 'error');
+        return;
+      }
+      status.textContent = 'Tell Crump what to change below — nothing was sent.';
+      input.focus({preventScroll: true});
+    });
+    group.append(refineButton);
+  }
+
   function currentProjectTarget() {
     const target = window.CrumpProduct53?.projectTarget?.();
     const id = String(target?.id || '').trim();
@@ -770,6 +791,7 @@
         const issueKey = outcomeIssueKey(eventKey);
         if (savedOutcomeIssue(issueKey)) {
           status.textContent = 'Thanks — that helps us improve.';
+          appendOutcomeRefinement(group, status);
           return;
         }
         status.textContent = 'Thanks — what missed the mark? Optional.';
@@ -794,6 +816,7 @@
             saveOutcomeIssue(issueKey, category);
             status.textContent = 'Thanks — that helps us improve.';
             issueButtons.forEach(item => item.remove());
+            appendOutcomeRefinement(group, status);
           });
           issueButtons.push(issueButton);
         }

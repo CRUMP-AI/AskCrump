@@ -577,6 +577,7 @@ const imageNodeStabilityVersion = `${releaseVersion}-image-node-stability-1`;
 const uploadedImageNodeStabilityVersion = `${releaseVersion}-uploaded-image-node-stability-1`;
 const projectSaveMeasurementVersion = `${releaseVersion}-project-save-measurement-1`;
 const outcomeIssueCategoriesVersion = `${releaseVersion}-outcome-issue-categories-1`;
+const outcomeRefinementRecoveryVersion = `${releaseVersion}-outcome-refinement-recovery-1`;
 const authUpdateGuardVersion = `${releaseVersion}-update-work-guard-1`;
 const userControlledScrollVersion = `${releaseVersion}-user-controlled-scroll-1`;
 const newResponseCueVersion = `${releaseVersion}-new-response-cue-1`;
@@ -826,7 +827,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
     !runtime.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
-    !runtime.includes(`/ui-functions.js?v=${outcomeIssueCategoriesVersion}`) ||
+    !runtime.includes(`/ui-functions.js?v=${outcomeRefinementRecoveryVersion}`) ||
     !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-share.js?v=${referralCancelRecoveryVersion}`) ||
     !runtime.includes(`/lifecycle-manager.js?v=${referralCancelRecoveryVersion}`) ||
@@ -1012,7 +1013,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r226') ||
     !serviceWorker.includes(`/crump-5.0.js?v=${composerModeResetVersion}`) ||
     !serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     !serviceWorker.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
-    !serviceWorker.includes(`/ui-functions.js?v=${outcomeIssueCategoriesVersion}`) ||
+    !serviceWorker.includes(`/ui-functions.js?v=${outcomeRefinementRecoveryVersion}`) ||
     !serviceWorker.includes(`/app.js?v=${settingsSaveIsolationVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.js?v=${creditCheckoutIdempotencyVersion}`) ||
