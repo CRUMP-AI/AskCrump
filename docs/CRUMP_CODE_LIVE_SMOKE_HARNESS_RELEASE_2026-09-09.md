@@ -60,6 +60,11 @@ arbitrary exception message.
   **36/36** workflow verifiers. Ruff, Python compilation, production preflight, native web-bundle
   construction, store metadata, native privacy, mobile signing-source controls, and diff integrity
   also passed.
+- Commit **7607cbd** passed CI run **34414256968**. Production deployment
+  **dpl_9t9qSD2FQoKTnR8Ro1czuTG1RjTh** reached READY on all six aliases with no alias error. All four
+  custom-domain health checks returned 200 at version 5.9.76; unauthenticated `/api/features`
+  remained fail-closed at 401. Initial project runtime-error, deployment 5xx, and `crump_code` log
+  queries were empty.
 
 ## Remaining gate and rollback
 
