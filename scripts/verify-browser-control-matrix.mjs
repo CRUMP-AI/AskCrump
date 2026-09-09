@@ -1,5 +1,6 @@
 import {spawn} from 'node:child_process';
 import {readdir} from 'node:fs/promises';
+import {connect} from 'node:net';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 
@@ -68,6 +69,34 @@ function assertExactInventory(actual) {
   throw new Error(`Browser verifier inventory drifted. Missing: ${missing.join(', ') || 'none'}. Unexpected: ${unexpected.join(', ') || 'none'}.`);
 }
 
+function portIsListening(port) {
+  return new Promise(resolve => {
+    const socket = connect({host: '127.0.0.1', port});
+    const finish = listening => {
+      socket.removeAllListeners();
+      socket.destroy();
+      resolve(listening);
+    };
+    socket.setTimeout(500);
+    socket.once('connect', () => finish(true));
+    socket.once('timeout', () => finish(false));
+    socket.once('error', () => finish(false));
+  });
+}
+
+async function assertPortsAvailable() {
+  const occupied = [];
+  for (const {port} of serverPlan) {
+    if (await portIsListening(port)) occupied.push(port);
+  }
+  if (occupied.length) {
+    throw new Error(
+      `Browser verifier ports are already occupied: ${occupied.join(', ')}. `
+      + 'Stop the stale fixture servers before running the fail-closed matrix.',
+    );
+  }
+}
+
 async function waitForServer(port, processHandle) {
   const deadline = Date.now() + 15_000;
   while (Date.now() < deadline) {
@@ -82,6 +111,7 @@ async function waitForServer(port, processHandle) {
 }
 
 async function startServers() {
+  await assertPortsAvailable();
   const servers = serverPlan.map(({port, directory}) => ({
     port,
     process: spawn(
@@ -97,6 +127,18 @@ async function startServers() {
     for (const server of servers) server.process.kill();
     throw error;
   }
+}
+
+async function stopServers(servers) {
+  await Promise.all(servers.map(({process: processHandle}) => new Promise(resolve => {
+    if (processHandle.exitCode !== null || processHandle.signalCode !== null) {
+      resolve();
+      return;
+    }
+    processHandle.once('exit', resolve);
+    processHandle.kill();
+    setTimeout(resolve, 2_000).unref();
+  })));
 }
 
 function runVerifier(name, environment) {
@@ -156,5 +198,5 @@ try {
   }
   process.stdout.write(`Browser control matrix passed ${results.length}/${expectedVerifiers.length} verifiers.\n`);
 } finally {
-  for (const server of servers) server.process.kill();
+  await stopServers(servers);
 }

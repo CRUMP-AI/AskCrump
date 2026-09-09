@@ -462,6 +462,9 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     for name in verifier_names:
         assert f"'{name}'" in runner
     assert "Browser verifier inventory drifted." in runner
+    assert "Browser verifier ports are already occupied" in runner
+    assert "await assertPortsAvailable();" in runner
+    assert "await stopServers(servers);" in runner
     assert "ASKCRUMP_PLAN_DELAY_RUNS" in runner
     for port in (4173, 8765, 8766, 8767, 8770):
         assert f"port: {port}" in runner
