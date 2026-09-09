@@ -105,13 +105,17 @@ def test_server_settings_are_applied_without_overwriting_an_open_local_draft() -
     assert "if (!hasLocalDraft) loadSettingsValues();" in listener
 
 
-def test_failed_settings_flush_uses_the_existing_queued_sync_warning() -> None:
+def test_settings_save_attempts_each_owner_and_preserves_unsaved_preferences() -> None:
     app = (PUBLIC / "app.js").read_text(encoding="utf-8")
     save = app[app.index("window.saveSettings =") : app.index("// UI helpers")]
 
-    assert "const syncResult = await window.SyncManager?.push" in save
+    assert "const syncResult = await window.SyncManager.push" in save
     assert "if (syncResult?.success === false)" in save
-    assert "Settings saved on this device; server sync will retry." in save
+    assert save.index("window.SyncManager.push") < save.index("window.CrumpPresence.savePreferences")
+    assert "presenceError = error;" in save
+    assert save.rstrip().endswith("syncSettingsSaveState();\n};")
+    assert "Your unsaved changes remain here—try again." in save
+    assert "Settings saved on this device; cross-device sync is still pending." in save
 
 
 def test_offline_changes_queue_before_the_network_flush_and_flush_is_single_flight():

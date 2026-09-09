@@ -57,7 +57,7 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/sync-manager.js?v=5.9.76-sync-cursor-1',
         '/chat-sync.js?v=5.9.76-settings-sync-1',
         '/account-manager.js?v=5.9.76-account-deletion-billing-1',
-        '/app.js?v=5.9.76-credit-confirmation-1',
+        '/app.js?v=5.9.76-settings-save-isolation-1',
         '/product-analytics.js?v=5.9.76-project-save-measurement-1',
     ]
     for asset in deferred_assets:

@@ -129,8 +129,8 @@ def test_reload_opens_a_clean_conversation_without_discarding_history():
     assert "chats = []" not in fresh_start
     assert "recordChatDeletion" not in fresh_start
     assert 'src="/app.js?v=5.9.76-intelligence-receipt-1"' not in shell
-    assert "['/app.js?v=5.9.76-credit-confirmation-1', 'workspaceapp']" in runtime
-    assert "'/app.js?v=5.9.76-credit-confirmation-1'" in worker
+    assert "['/app.js?v=5.9.76-settings-save-isolation-1', 'workspaceapp']" in runtime
+    assert "'/app.js?v=5.9.76-settings-save-isolation-1'" in worker
 
 def test_runtime_document_extraction_patch_accepts_project_pdf_keyword():
     compatibility = read("backend/crump52_patches.py")

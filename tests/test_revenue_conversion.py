@@ -533,7 +533,7 @@ def test_changed_activation_assets_are_release_versioned():
         "/conversation.css?v=5.9.76-intelligence-receipt-1",
         "/ui-functions.js?v=5.9.76-image-node-stability-1",
         "/product-analytics.js?v=5.9.76-project-save-measurement-1",
-        "/app.js?v=5.9.76-credit-confirmation-1",
+        "/app.js?v=5.9.76-settings-save-isolation-1",
     ):
         assert asset not in shell
         assert asset in runtime

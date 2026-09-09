@@ -44,7 +44,12 @@
   </div>
   <script>
     const fixtureGuest = new URLSearchParams(location.search).get('guest') === '1';
+    const fixtureSaveCase = new URLSearchParams(location.search).get('save_case') || '';
     window.fixtureErrors = [];
+    window.fixtureToasts = [];
+    window.fixtureSyncAttempts = 0;
+    window.fixturePresenceAttempts = 0;
+    window.fixtureProfileAttempts = 0;
     window.addEventListener('error', event => window.fixtureErrors.push(event.message || 'error'));
     window.addEventListener('unhandledrejection', event => window.fixtureErrors.push(String(event.reason || 'rejection')));
     window.currentUser = fixtureGuest
@@ -61,12 +66,35 @@
         };
       },
     };
+    const fixtureFetch = window.fetch.bind(window);
+    window.fetch = async (url, options = {}) => {
+      if (url === '/api/account/profile' && options.method === 'PATCH') {
+        window.fixtureProfileAttempts += 1;
+        if (fixtureSaveCase === 'profile') {
+          return new Response(JSON.stringify({success: false, error: 'Fixture-only profile failure'}), {
+            status: 503,
+            headers: {'Content-Type': 'application/json'},
+          });
+        }
+      }
+      return fixtureFetch(url, options);
+    };
     window.CrumpPresence = {
       applyPreferencesToForm() { throw new Error('Fixture-only optional preference failure'); },
-      async savePreferences() {},
+      async savePreferences() {
+        window.fixturePresenceAttempts += 1;
+        if (fixtureSaveCase === 'presence') throw new Error('Fixture-only presence failure');
+      },
     };
-    window.SyncManager = {async push() { return {success: true}; }};
-    window.showToast = () => {};
+    window.SyncManager = {
+      async push() {
+        window.fixtureSyncAttempts += 1;
+        return fixtureSaveCase === 'sync'
+          ? {success: false, retryable: true, error: 'Fixture-only sync failure'}
+          : {success: true};
+      },
+    };
+    window.showToast = (message, type) => window.fixtureToasts.push({message, type});
   </script>
   <script src="/public/safe-storage.js"></script>
   <script src="/public/app.js?v=settings-profile-trust-fixture-1"></script>

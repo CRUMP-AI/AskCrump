@@ -69,6 +69,34 @@ const baseUrl = process.env.ASKCRUMP_FIXTURE_ORIGIN || 'http://127.0.0.1:8765';
     fixtureErrors: window.fixtureErrors,
   }));
   await guestPage.close();
+
+  const saveCases = {};
+  for (const saveCase of ['sync', 'presence', 'profile']) {
+    const page = await browser.newPage({viewport: {width: 390, height: 844}});
+    const errors = [];
+    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    page.on('pageerror', error => errors.push(error.message));
+    await page.goto(`${baseUrl}/tests/fixtures/settings-profile-trust.html?save_case=${saveCase}`, {waitUntil: 'networkidle'});
+    await page.getByRole('button', {name: 'Open settings'}).click();
+    await page.waitForFunction(() => document.getElementById('settingsEmail')?.value === 'demo@example.com');
+    await page.getByRole('textbox', {name: 'Assistant name'}).fill(`Echo ${saveCase}`);
+    if (saveCase === 'profile') await page.getByRole('textbox', {name: 'Your name'}).fill('Updated Demo');
+    await page.getByRole('checkbox', {name: 'Check-ins'}).check();
+    await page.getByRole('button', {name: 'Save changes'}).click();
+    await page.waitForFunction(() => document.getElementById('saveSettingsBtn')?.dataset.settingsSaving !== 'true');
+    saveCases[saveCase] = await page.evaluate(() => ({
+      syncAttempts: window.fixtureSyncAttempts,
+      presenceAttempts: window.fixturePresenceAttempts,
+      profileAttempts: window.fixtureProfileAttempts,
+      modalVisible: getComputedStyle(document.getElementById('settingsModal')).display !== 'none',
+      saveDisabled: document.getElementById('saveSettingsBtn')?.disabled || false,
+      saveAriaDisabled: document.getElementById('saveSettingsBtn')?.getAttribute('aria-disabled'),
+      toasts: window.fixtureToasts,
+      fixtureErrors: window.fixtureErrors,
+    }));
+    saveCases[saveCase].errors = errors;
+    await page.close();
+  }
   await browser.close();
 
   const failed = results.some(result => (
@@ -98,8 +126,39 @@ const baseUrl = process.env.ASKCRUMP_FIXTURE_ORIGIN || 'http://127.0.0.1:8765';
     || guest.horizontalOverflow
     || guest.fixtureErrors.length
     || guestErrors.length;
-  if (failed || guestFailed) throw new Error(JSON.stringify({results, guest, guestErrors}));
-  process.stdout.write(`${JSON.stringify({results, guest})}\n`);
+  const syncCase = saveCases.sync;
+  const presenceCase = saveCases.presence;
+  const profileCase = saveCases.profile;
+  const saveCaseFailed = syncCase.syncAttempts !== 1
+    || syncCase.presenceAttempts !== 1
+    || syncCase.modalVisible
+    || !syncCase.saveDisabled
+    || syncCase.saveAriaDisabled !== 'true'
+    || syncCase.toasts.at(-1)?.type !== 'warning'
+    || !syncCase.toasts.at(-1)?.message.includes('cross-device sync is still pending')
+    || syncCase.fixtureErrors.length
+    || syncCase.errors.length
+    || presenceCase.syncAttempts !== 1
+    || presenceCase.presenceAttempts !== 1
+    || !presenceCase.modalVisible
+    || presenceCase.saveDisabled
+    || presenceCase.saveAriaDisabled !== 'false'
+    || presenceCase.toasts.at(-1)?.type !== 'error'
+    || !presenceCase.toasts.at(-1)?.message.includes('unsaved changes remain here')
+    || presenceCase.fixtureErrors.length
+    || presenceCase.errors.length
+    || profileCase.profileAttempts !== 1
+    || profileCase.syncAttempts !== 1
+    || profileCase.presenceAttempts !== 1
+    || !profileCase.modalVisible
+    || profileCase.saveDisabled
+    || profileCase.saveAriaDisabled !== 'false'
+    || profileCase.toasts.at(-1)?.type !== 'error'
+    || !profileCase.toasts.at(-1)?.message.includes('Your name could not be saved')
+    || profileCase.fixtureErrors.length
+    || profileCase.errors.length;
+  if (failed || guestFailed || saveCaseFailed) throw new Error(JSON.stringify({results, guest, guestErrors, saveCases}));
+  process.stdout.write(`${JSON.stringify({results, guest, saveCases})}\n`);
 })().catch(error => {
   process.stderr.write(`${error.stack || error}\n`);
   process.exitCode = 1;

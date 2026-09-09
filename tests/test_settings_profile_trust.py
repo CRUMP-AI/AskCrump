@@ -69,6 +69,16 @@ def test_settings_profile_trust_browser_fixture_uses_the_real_runtime():
     assert "result.behavior.horizontalOverflow" in verifier
     assert "Sign in to view account email" in verifier
     assert "guestFailed" in verifier
+    assert "for (const saveCase of ['sync', 'presence', 'profile'])" in verifier
+    assert "syncCase.presenceAttempts !== 1" in verifier
+    assert "presenceCase.syncAttempts !== 1" in verifier
+    assert "!presenceCase.modalVisible" in verifier
+    assert "presenceCase.saveDisabled" in verifier
+    assert "profileCase.syncAttempts !== 1" in verifier
+    assert "profileCase.presenceAttempts !== 1" in verifier
+    assert "cross-device sync is still pending" in verifier
+    assert "unsaved changes remain here" in verifier
+    assert "askcrump.com" not in fixture
 
 
 def test_workspace_script_updates_bypass_stale_pwa_and_edge_caches():

@@ -46,7 +46,9 @@ def test_settings_profile_save_is_truthful_and_refreshes_the_optional_nudge():
     assert "throw new Error(data.error || 'Your name could not be saved. Try again.')" in app
     assert "window.currentUser = data.user" in app
     assert "window.dispatchEvent(new CustomEvent('crump:profile-updated'))" in app
-    assert "showToast(error.message || 'Your name could not be saved. Try again.', 'error')" in app
+    assert "profileError = error" in app
+    assert "if (profileError) unsavedAreas.push('Your name')" in app
+    assert "Your unsaved changes remain here—try again." in app
 
 
 def test_terms_remain_a_required_server_saved_fallback_gate_before_workspace_entry():

@@ -1282,6 +1282,9 @@ window.saveSettings = async function() {
     SafeStorage.setItem(STORAGE_KEYS.WORK_MODE, String(workMode));
     SafeStorage.setItem(STORAGE_KEYS.WORK_START, workStart);
     SafeStorage.setItem(STORAGE_KEYS.WORK_END, workEnd);
+    let profileError = null;
+    let syncError = null;
+    let presenceError = null;
     try {
         if (window.currentUser && name && name !== window.currentUser.fullName) {
             const response = await fetch('/api/account/profile', {
@@ -1297,13 +1300,13 @@ window.saveSettings = async function() {
         if (name) window.dispatchEvent(new CustomEvent('crump:profile-updated'));
     } catch (error) {
         console.warn('[Profile settings]', error);
-        showToast(error.message || 'Your name could not be saved. Try again.', 'error');
-        finishSaveAttempt();
-        syncSettingsSaveState();
-        return;
+        profileError = error;
     }
     try {
-        const syncResult = await window.SyncManager?.push(null, {
+        if (typeof window.SyncManager?.push !== 'function') {
+            throw new Error('Cross-device settings sync is unavailable.');
+        }
+        const syncResult = await window.SyncManager.push(null, {
             chats: [],
             settings: {
                 assistant_name: assistantName,
@@ -1313,22 +1316,40 @@ window.saveSettings = async function() {
             },
         });
         if (syncResult?.success === false) {
-            throw new Error(syncResult.error || 'Server sync will retry.');
+            throw new Error(syncResult.error || 'Cross-device settings sync is pending.');
         }
-        await window.CrumpPresence?.savePreferences?.();
-        updateAssistantNameDisplay();
-        updateUserAvatar();
-        resetSettingsSaveState();
-        closeSettings();
-        showToast('Settings saved', 'success');
     } catch (error) {
-        console.warn('[Settings]', error);
-        resetSettingsSaveState();
-        showToast('Settings saved on this device; server sync will retry.', 'warning');
-        closeSettings();
-    } finally {
-        finishSaveAttempt();
+        console.warn('[Settings sync]', error);
+        syncError = error;
     }
+    try {
+        if (typeof window.CrumpPresence?.savePreferences !== 'function') {
+            throw new Error('Check-in preferences are unavailable.');
+        }
+        await window.CrumpPresence.savePreferences();
+    } catch (error) {
+        console.warn('[Presence settings]', error);
+        presenceError = error;
+    }
+
+    updateAssistantNameDisplay();
+    updateUserAvatar();
+    const unsavedAreas = [];
+    if (profileError) unsavedAreas.push('Your name');
+    if (presenceError) unsavedAreas.push('Check-in preferences');
+    if (unsavedAreas.length) {
+        const subject = unsavedAreas.join(' and ');
+        showToast(`${subject} could not be saved. Your unsaved changes remain here—try again.`, 'error');
+    } else {
+        resetSettingsSaveState();
+        closeSettings();
+        showToast(
+            syncError ? 'Settings saved on this device; cross-device sync is still pending.' : 'Settings saved',
+            syncError ? 'warning' : 'success',
+        );
+    }
+    finishSaveAttempt();
+    syncSettingsSaveState();
 };
 
 // UI helpers
