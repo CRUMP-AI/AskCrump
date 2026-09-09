@@ -10,7 +10,7 @@
   transform: translateY(-160%);
 }
 .skip-link:focus { transform: translateY(0); }
-.guide-evidence code { overflow-wrap: anywhere; font-size: .92em; }.guide-main {
+.guide-evidence code { overflow-wrap: anywhere; word-break: break-all; font-size: .92em; }.guide-main {
   overflow: hidden;
   background:
     radial-gradient(circle at 88% 8%, rgba(207, 172, 91, .11), transparent 24%),

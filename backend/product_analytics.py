@@ -148,6 +148,15 @@ ATTRIBUTION_CAMPAIGNS = {
             "search-article", "presentation-feed", "presentation-story",
         }),
     },
+    "word-or-pdf-decision": {
+        "intent": "document",
+        "acquisitions": frozenset({"organic-search"}),
+        "placements": frozenset({"workflow-guide"}),
+        "creatives": frozenset({"search-article"}),
+        "touchpoints": frozenset({
+            ("organic-search", "workflow-guide", "search-article"),
+        }),
+    },
     "creator-cohort-01": {
         "intent": "projects",
         "acquisitions": frozenset({"founder-outreach"}),

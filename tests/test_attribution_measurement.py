@@ -19,11 +19,7 @@ from backend.schemas import RegisterRequest
 
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATION = ROOT / "migrations" / "20260830171056_weekly_growth_attribution_export.sql"
-REGISTRY_MIGRATION = (
-    ROOT
-    / "migrations"
-    / "20260909220127_paid_rough_to_useful_attribution.sql"
-)
+REGISTRY_MIGRATION = ROOT / "staging" / "add_word_pdf_guide_attribution.sql"
 NULL_SAFETY_MIGRATION = (
     ROOT
     / "migrations"
@@ -71,6 +67,12 @@ EXPECTED_REGISTRY = {
         "placements": {"workflow-guide", "organic-social"},
         "creatives": {"search-article", "presentation-feed", "presentation-story"},
     },
+    "word-or-pdf-decision": {
+        "intent": "document",
+        "acquisitions": {"organic-search"},
+        "placements": {"workflow-guide"},
+        "creatives": {"search-article"},
+    },
     "creator-cohort-01": {
         "intent": "projects",
         "acquisitions": {"founder-outreach"},
@@ -88,6 +90,9 @@ EXPECTED_EXACT_TOUCHPOINTS = {
     "rough-to-useful-v2": {
         ("facebook", "organic-social", "rough-to-useful-current-feed"),
         ("paid-social", "facebook-paid", "rough-to-useful-current-feed"),
+    },
+    "word-or-pdf-decision": {
+        ("organic-search", "workflow-guide", "search-article"),
     },
 }
 EXPECTED_ACQUISITIONS = {

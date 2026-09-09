@@ -40,8 +40,14 @@
     '/guides/rough-idea-six-week-launch-plan': 'projects',
     '/guides/what-ai-project-should-remember': 'projects',
     '/guides/editable-ai-powerpoint-review': 'presentation',
+    '/guides/word-or-pdf-ai-document-output': 'document',
   });
   const PAGE_CAMPAIGN_DEFAULTS = Object.freeze({
+    '/guides/word-or-pdf-ai-document-output': {
+      placement: 'workflow-guide',
+      campaign: 'word-or-pdf-decision',
+      creative: 'search-article',
+    },
     '/guides/rough-idea-six-week-launch-plan': {
       placement: 'workflow-guide',
       campaign: 'rough-idea-launch-plan',
@@ -104,6 +110,15 @@
       acquisitions: new Set(['organic-search', 'facebook', 'instagram']),
       placements: new Set(['workflow-guide', 'organic-social']),
       creatives: new Set(['search-article', 'presentation-feed', 'presentation-story']),
+    },
+    'word-or-pdf-decision': {
+      intent: 'document',
+      acquisitions: new Set(['organic-search']),
+      placements: new Set(['workflow-guide']),
+      creatives: new Set(['search-article']),
+      touchpoints: new Set([
+        'organic-search|workflow-guide|search-article',
+      ]),
     },
     'creator-cohort-01': {
       intent: 'projects',

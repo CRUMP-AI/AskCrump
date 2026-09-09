@@ -291,3 +291,111 @@ def test_search_guide_layout_has_bounded_phone_width_media():
     assert ".guide-media-frame img" in css
     assert "width: 100%" in css and "height: auto" in css
     assert "overflow-wrap: anywhere" in css
+
+
+STAGED_WORD_PDF_ASSETS = {
+    "word-or-pdf-guide-hero-1600x1000.png": (
+        "E08EC5FFBA0937B0A377E0618F0631A16B4EECC2ACD79FF34636C323B0BB8713",
+        (1600, 1000),
+    ),
+    "word-or-pdf-og-1200x630.png": (
+        "E80F011EDE33B54404BA44F1F72C46DA140C11F21133081449B8FE1DCC9BFFDC",
+        (1200, 630),
+    ),
+    "word-or-pdf-word-page-2.png": (
+        "4C38D01E3243CEDDBB3B2C991FD301D8591BBA64A38299A8D5D6E0C37038D51D",
+        (1224, 1584),
+    ),
+    "word-or-pdf-pdf-page-2.png": (
+        "2A8E161C5AEA004A1C7D7ED0CA41E6D66A5F3A6988BE594CFF2C7A33E58A7570",
+        (1224, 1584),
+    ),
+}
+
+
+def test_staged_word_pdf_guide_has_exact_review_only_contract():
+    slug = "word-or-pdf-ai-document-output"
+    page = read(f"public/guides/{slug}.html")
+    canonical = f"https://www.askcrump.com/guides/{slug}"
+    description = (
+        "See a real Ask Crump Word and PDF output pair. Learn when to keep an editable DOCX, "
+        "deliver a fixed-layout PDF, and use a seven-point handoff review."
+    )
+
+    assert "<title>Word or PDF? Choose the Right AI Document Output | Ask Crump</title>" in page
+    assert f'<meta name="description" content="{description}">' in page
+    assert f'<link rel="canonical" href="{canonical}">' in page
+    assert f'<meta property="og:url" content="{canonical}">' in page
+    assert '<meta name="robots" content="noindex,nofollow">' in page
+    assert '<script defer src="/landing.js?v=5.9.76-marketing-landing-1"></script>' in page
+    assert '<link rel="stylesheet" href="/guide.css?v=5.9.76-word-pdf-guide-1">' in page
+    assert page.count("<h1>") == 1
+    assert page.count('class="button primary"') == 1
+    assert (
+        'href="/ai-document-generator?acquisition=organic-search&amp;source=workflow-guide&amp;'
+        'campaign=word-or-pdf-decision&amp;creative=search-article"'
+    ) in page
+    assert 'href="/guides/editable-ai-powerpoint-review"' in page
+    assert 'class="guide-page-grid"' in page
+    assert "every person, date, figure, threshold, and operating detail are invented" in page
+    assert "this accepted file is not tagged for accessibility" in page
+    assert "Export success is not final acceptance" in page
+    assert "No customer content or testimonial is used" in page
+    assert "AI VIRTUAL ASSISTANT" not in page
+    assert "FAQPage" not in page and '"@type": "HowTo"' not in page
+    assert '"@type": "Review"' not in page and "aggregateRating" not in page
+    assert "article:published_time" not in page and "article:modified_time" not in page
+
+    structured_block = page.split(
+        '<script type="application/ld+json">', 1
+    )[1].split("</script>", 1)[0]
+    structured = json.loads(structured_block)
+    assert structured["@type"] == "Article"
+    assert structured["description"] == description
+    assert structured["url"] == canonical
+    assert structured["mainEntityOfPage"] == canonical
+    assert structured["author"]["name"] == "Clever Crump"
+    assert "datePublished" not in structured and "dateModified" not in structured
+
+
+def test_staged_word_pdf_guide_uses_only_accepted_authentic_assets():
+    asset_root = ROOT / "public" / "assets" / "guides"
+    for name, (expected_hash, expected_dimensions) in STAGED_WORD_PDF_ASSETS.items():
+        data = (asset_root / name).read_bytes()
+        assert data.startswith(b"\x89PNG\r\n\x1a\n")
+        dimensions = (
+            int.from_bytes(data[16:20], "big"),
+            int.from_bytes(data[20:24], "big"),
+        )
+        assert dimensions == expected_dimensions
+        assert hashlib.sha256(data).hexdigest().upper() == expected_hash
+
+
+def test_staged_word_pdf_guide_is_not_discoverable_before_authorized_release():
+    slug = "word-or-pdf-ai-document-output"
+    route = f"/guides/{slug}"
+    assert route not in read("public/sitemap.xml")
+
+    staged_page = ROOT / "public" / "guides" / f"{slug}.html"
+    for page_path in (ROOT / "public").rglob("*.html"):
+        if page_path != staged_page:
+            assert f'href="{route}"' not in page_path.read_text(encoding="utf-8")
+
+
+def test_staged_word_pdf_guide_runtime_contract_covers_search_social_and_precedence():
+    landing = read("public/landing.js")
+    checker = read("scripts/check-javascript.mjs")
+
+    assert "'/guides/word-or-pdf-ai-document-output': 'document'" in landing
+    assert "campaign: 'word-or-pdf-decision'" in landing
+    assert "'word-or-pdf-social'" in landing
+    assert "creatives: new Set(['word-pdf-feed', 'word-pdf-story'])" in landing
+    for label in (
+        "Word/PDF canonical organic-search guide entry",
+        "Word/PDF search second campaign in the same tab",
+        "Word/PDF social second campaign in the same tab",
+    ):
+        assert label in checker
+    assert "for (const acquisition of ['facebook', 'instagram'])" in checker
+    assert "for (const creative of ['word-pdf-feed', 'word-pdf-story'])" in checker
+    assert "`Word/PDF social ${acquisition} ${creative}`" in checker

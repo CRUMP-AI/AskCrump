@@ -1,4 +1,4 @@
--- STAGING ONLY: the remote ledger later advanced to 20260830213000. Regenerate this
+-- STAGING ONLY: the remote ledger is applied through 20260909165000. Regenerate this
 -- migration identity from the fresh remote ledger before any authorized apply or commit.
 -- Register the staged Word/PDF guide as distinct search and social first-touch tuples.
 -- This migration widens no role privileges and stores no URL, referrer, search term,
@@ -12,17 +12,47 @@ alter table public.product_events
     campaign is null or campaign in (
       'presentation-proof-current',
       'real-product-continuity',
+      'rough-to-useful-v2',
       'rough-idea-launch-plan',
       'project-memory-boundaries',
       'editable-powerpoint-review',
       'word-or-pdf-decision',
       'word-or-pdf-social',
-      'creator-cohort-01'
+      'creator-cohort-01',
+      'draft-to-clearer',
+      'research-to-decision'
     )
   ) not valid;
 
 alter table public.product_events
   validate constraint product_events_campaign_check;
+
+alter table public.product_events
+  drop constraint if exists product_events_creative_check;
+
+alter table public.product_events
+  add constraint product_events_creative_check check (
+    creative is null or creative in (
+      'fb-static',
+      'ig-feed',
+      'ig-story',
+      'search-article',
+      'continuity-feed',
+      'continuity-story',
+      'rough-to-useful-current-feed',
+      'project-memory-feed',
+      'project-memory-story',
+      'presentation-feed',
+      'presentation-story',
+      'word-pdf-feed',
+      'word-pdf-story',
+      'personal-invite',
+      'draft-review-feed'
+    )
+  ) not valid;
+
+alter table public.product_events
+  validate constraint product_events_creative_check;
 
 alter table public.product_events
   drop constraint if exists product_events_campaign_registry_check;
@@ -46,6 +76,13 @@ alter table public.product_events
         creative is null
         or creative in ('continuity-feed', 'continuity-story')
       )
+    )
+    or (
+      campaign = 'rough-to-useful-v2'
+      and source = 'facebook'
+      and placement = 'organic-social'
+      and intent = 'projects'
+      and (creative is null or creative = 'rough-to-useful-current-feed')
     )
     or (
       campaign = 'rough-idea-launch-plan'
@@ -82,17 +119,17 @@ alter table public.product_events
       campaign = 'word-or-pdf-decision'
       and source = 'organic-search'
       and placement = 'workflow-guide'
+      and creative = 'search-article'
       and intent = 'document'
-      and (creative is null or creative = 'search-article')
     )
     or (
       campaign = 'word-or-pdf-social'
-      and source in ('facebook', 'instagram')
-      and placement = 'organic-social'
       and intent = 'document'
       and (
-        creative is null
-        or creative in ('word-pdf-feed', 'word-pdf-story')
+        (source = 'facebook' and placement = 'organic-social' and creative = 'word-pdf-feed')
+        or (source = 'facebook' and placement = 'organic-social' and creative = 'word-pdf-story')
+        or (source = 'instagram' and placement = 'organic-social' and creative = 'word-pdf-feed')
+        or (source = 'instagram' and placement = 'organic-social' and creative = 'word-pdf-story')
       )
     )
     or (
@@ -101,6 +138,21 @@ alter table public.product_events
       and placement = 'creator-cohort'
       and intent = 'projects'
       and (creative is null or creative = 'personal-invite')
+    )
+    or (
+      campaign = 'draft-to-clearer'
+      and intent = 'projects'
+      and (
+        (source = 'facebook' and placement = 'organic-social' and creative = 'draft-review-feed')
+        or (source = 'organic-search' and placement = 'workflow-guide' and creative = 'search-article')
+      )
+    )
+    or (
+      campaign = 'research-to-decision'
+      and source = 'organic-search'
+      and placement = 'workflow-guide'
+      and creative = 'search-article'
+      and intent = 'projects'
     )
   ) not valid;
 
@@ -165,6 +217,12 @@ begin
       and v_intent = 'projects'
     )
     or (
+      v_campaign = 'rough-to-useful-v2'
+      and v_acquisition = 'facebook'
+      and v_placement = 'organic-social'
+      and v_intent = 'projects'
+    )
+    or (
       v_campaign = 'rough-idea-launch-plan'
       and v_acquisition = 'organic-search'
       and v_placement = 'workflow-guide'
@@ -186,18 +244,38 @@ begin
       v_campaign = 'word-or-pdf-decision'
       and v_acquisition = 'organic-search'
       and v_placement = 'workflow-guide'
+      and v_creative = 'search-article'
       and v_intent = 'document'
     )
     or (
       v_campaign = 'word-or-pdf-social'
-      and v_acquisition in ('facebook', 'instagram')
-      and v_placement = 'organic-social'
       and v_intent = 'document'
+      and (
+        (v_acquisition = 'facebook' and v_placement = 'organic-social' and v_creative = 'word-pdf-feed')
+        or (v_acquisition = 'facebook' and v_placement = 'organic-social' and v_creative = 'word-pdf-story')
+        or (v_acquisition = 'instagram' and v_placement = 'organic-social' and v_creative = 'word-pdf-feed')
+        or (v_acquisition = 'instagram' and v_placement = 'organic-social' and v_creative = 'word-pdf-story')
+      )
     )
     or (
       v_campaign = 'creator-cohort-01'
       and v_acquisition = 'founder-outreach'
       and v_placement = 'creator-cohort'
+      and v_intent = 'projects'
+    )
+    or (
+      v_campaign = 'draft-to-clearer'
+      and v_intent = 'projects'
+      and (
+        (v_acquisition = 'facebook' and v_placement = 'organic-social' and v_creative = 'draft-review-feed')
+        or (v_acquisition = 'organic-search' and v_placement = 'workflow-guide' and v_creative = 'search-article')
+      )
+    )
+    or (
+      v_campaign = 'research-to-decision'
+      and v_acquisition = 'organic-search'
+      and v_placement = 'workflow-guide'
+      and v_creative = 'search-article'
       and v_intent = 'projects'
     )
   ) then
@@ -207,12 +285,34 @@ begin
   if v_campaign is null or not (
     (v_campaign = 'presentation-proof-current' and v_creative in ('fb-static', 'ig-feed', 'ig-story'))
     or (v_campaign = 'real-product-continuity' and v_creative in ('continuity-feed', 'continuity-story'))
+    or (v_campaign = 'rough-to-useful-v2' and v_creative = 'rough-to-useful-current-feed')
     or (v_campaign = 'rough-idea-launch-plan' and v_creative = 'search-article')
     or (v_campaign = 'project-memory-boundaries' and v_creative in ('search-article', 'project-memory-feed', 'project-memory-story'))
     or (v_campaign = 'editable-powerpoint-review' and v_creative in ('search-article', 'presentation-feed', 'presentation-story'))
     or (v_campaign = 'word-or-pdf-decision' and v_creative = 'search-article')
-    or (v_campaign = 'word-or-pdf-social' and v_creative in ('word-pdf-feed', 'word-pdf-story'))
+    or (
+      v_campaign = 'word-or-pdf-social'
+      and (
+        (v_acquisition = 'facebook' and v_placement = 'organic-social' and v_creative = 'word-pdf-feed')
+        or (v_acquisition = 'facebook' and v_placement = 'organic-social' and v_creative = 'word-pdf-story')
+        or (v_acquisition = 'instagram' and v_placement = 'organic-social' and v_creative = 'word-pdf-feed')
+        or (v_acquisition = 'instagram' and v_placement = 'organic-social' and v_creative = 'word-pdf-story')
+      )
+    )
     or (v_campaign = 'creator-cohort-01' and v_creative = 'personal-invite')
+    or (
+      v_campaign = 'draft-to-clearer'
+      and (
+        (v_acquisition = 'facebook' and v_placement = 'organic-social' and v_creative = 'draft-review-feed')
+        or (v_acquisition = 'organic-search' and v_placement = 'workflow-guide' and v_creative = 'search-article')
+      )
+    )
+    or (
+      v_campaign = 'research-to-decision'
+      and v_acquisition = 'organic-search'
+      and v_placement = 'workflow-guide'
+      and v_creative = 'search-article'
+    )
   ) then
     v_creative := null;
   end if;

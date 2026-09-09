@@ -130,6 +130,15 @@
       placements: new Set(['workflow-guide', 'organic-social']),
       creatives: new Set(['search-article', 'presentation-feed', 'presentation-story']),
     },
+    'word-or-pdf-decision': {
+      intent: 'document',
+      acquisitions: new Set(['organic-search']),
+      placements: new Set(['workflow-guide']),
+      creatives: new Set(['search-article']),
+      touchpoints: new Set([
+        'organic-search|workflow-guide|search-article',
+      ]),
+    },
     'creator-cohort-01': {
       intent: 'projects',
       acquisitions: new Set(['founder-outreach']),

@@ -646,6 +646,112 @@ if (roughToUsefulRuntimeCases !== 21) {
   process.exit(1);
 }
 
+const wordPdfSearchTouch = {
+  acquisition: 'organic-search',
+  placement: 'workflow-guide',
+  campaign: 'word-or-pdf-decision',
+  creative: 'search-article',
+  intent: 'document',
+};
+let wordPdfRuntimeCases = 0;
+const wordPdfSearchStore = new Map();
+const wordPdfSearch = runLandingAttribution(
+  'https://askcrump.com/guides/word-or-pdf-ai-document-output',
+  wordPdfSearchStore,
+  '/ai-document-generator?acquisition=organic-search&source=workflow-guide&campaign=word-or-pdf-decision&creative=search-article',
+  'https://www.google.com/search?q=word+or+pdf+ai+document',
+  {click: false},
+);
+assertAttribution(storedAttribution(wordPdfSearchStore), wordPdfSearchTouch, 'Word/PDF canonical organic-search guide entry');
+assertMarketingLanding(wordPdfSearch, {
+  touchpoint: 'organic-search.workflow-guide.word-or-pdf-decision.search-article',
+  intent: 'document',
+}, 'Word/PDF canonical organic-search guide entry');
+const wordPdfGuideDestination = new URL(wordPdfSearch.link.href, 'https://askcrump.com');
+if (wordPdfGuideDestination.pathname !== '/ai-document-generator' ||
+    wordPdfGuideDestination.searchParams.get('acquisition') !== 'organic-search' ||
+    wordPdfGuideDestination.searchParams.get('source') !== 'workflow-guide' ||
+    wordPdfGuideDestination.searchParams.get('campaign') !== 'word-or-pdf-decision' ||
+    wordPdfGuideDestination.searchParams.get('creative') !== 'search-article') {
+  console.error('Word/PDF guide CTA did not preserve the exact search tuple.');
+  process.exit(1);
+}
+wordPdfRuntimeCases += 1;
+
+const wordPdfSearchCapability = runLandingAttribution(
+  'https://askcrump.com/ai-document-generator',
+  wordPdfSearchStore,
+  '/app?signup=1&intent=document',
+  '',
+  {click: false},
+);
+if (!wordPdfSearchCapability.link.href.includes('campaign=word-or-pdf-decision')) {
+  console.error('Word/PDF search attribution did not survive the document-generator handoff.');
+  process.exit(1);
+}
+wordPdfRuntimeCases += 1;
+
+for (const [label, url, expected] of [
+  [
+    'Word/PDF search Facebook rejection',
+    'https://askcrump.com/guides/word-or-pdf-ai-document-output?acquisition=facebook&source=workflow-guide&campaign=word-or-pdf-decision&creative=search-article&intent=document',
+    {acquisition: 'facebook', placement: 'workflow-guide', campaign: null, creative: null, intent: 'document'},
+  ],
+  [
+    'Word/PDF search organic-social rejection',
+    'https://askcrump.com/guides/word-or-pdf-ai-document-output?acquisition=organic-search&source=organic-social&campaign=word-or-pdf-decision&creative=search-article&intent=document',
+    {acquisition: 'organic-search', placement: 'organic-social', campaign: null, creative: null, intent: 'document'},
+  ],
+  [
+    'Word/PDF search social-campaign rejection',
+    'https://askcrump.com/guides/word-or-pdf-ai-document-output?acquisition=organic-search&source=workflow-guide&campaign=word-or-pdf-social&creative=search-article&intent=document',
+    {acquisition: 'organic-search', placement: 'workflow-guide', campaign: null, creative: null, intent: 'document'},
+  ],
+  [
+    'Word/PDF search wrong-creative rejection',
+    'https://askcrump.com/guides/word-or-pdf-ai-document-output?acquisition=organic-search&source=workflow-guide&campaign=word-or-pdf-decision&creative=word-pdf-feed&intent=document',
+    {acquisition: 'organic-search', placement: 'workflow-guide', campaign: null, creative: null, intent: 'document'},
+  ],
+  [
+    'Word/PDF search wrong-intent rejection',
+    'https://askcrump.com/guides/word-or-pdf-ai-document-output?acquisition=organic-search&source=workflow-guide&campaign=word-or-pdf-decision&creative=search-article&intent=presentation',
+    {acquisition: 'organic-search', placement: 'workflow-guide', campaign: null, creative: null, intent: 'presentation'},
+  ],
+]) {
+  const rejectedStore = new Map();
+  const rejected = runLandingAttribution(url, rejectedStore, '/app?signup=1&intent=document', '', {click: false});
+  assertAttribution(storedAttribution(rejectedStore), expected, label);
+  assertNoMarketingLanding(rejected, label);
+  wordPdfRuntimeCases += 1;
+}
+
+runLandingAttribution(
+  'https://askcrump.com/guides/editable-ai-powerpoint-review?acquisition=instagram&source=organic-social&campaign=editable-powerpoint-review&creative=presentation-story&intent=presentation',
+  wordPdfSearchStore,
+  '/app?signup=1&intent=presentation',
+  '',
+  {click: false},
+);
+assertAttribution(storedAttribution(wordPdfSearchStore), wordPdfSearchTouch, 'Word/PDF search second campaign in the same tab');
+wordPdfRuntimeCases += 1;
+runLandingAttribution('https://askcrump.com/app?verified=1', wordPdfSearchStore, '/app', '', {click: false});
+assertAttribution(storedAttribution(wordPdfSearchStore), wordPdfSearchTouch, 'Word/PDF search verification return');
+wordPdfRuntimeCases += 1;
+runLandingAttribution(
+  'https://askcrump.com/app?signin=1&acquisition=organic-search&source=workflow-guide&campaign=word-or-pdf-decision&creative=search-article&intent=document',
+  wordPdfSearchStore,
+  '/app',
+  '',
+  {click: false},
+);
+assertAttribution(storedAttribution(wordPdfSearchStore), wordPdfSearchTouch, 'Word/PDF search existing-account sign-in');
+wordPdfRuntimeCases += 1;
+
+if (wordPdfRuntimeCases !== 10) {
+  console.error(`Expected ten Word/PDF attribution runtime cases, got ${wordPdfRuntimeCases}.`);
+  process.exit(1);
+}
+
 const immutableStore = new Map();
 runLandingAttribution(
   'https://askcrump.com/ai-presentation-maker?acquisition=instagram&source=profile-link&campaign=presentation-proof-current',
@@ -1643,4 +1749,5 @@ if (!scroll522.includes("card.removeAttribute('role')") ||
 
 console.log('Ask Crump V1 new-body integration contract validated.');
 console.log(`Validated ${roughToUsefulRuntimeCases}/21 rough-to-useful attribution runtime cases.`);
+console.log(`Validated ${wordPdfRuntimeCases}/10 Word/PDF attribution runtime cases.`);
 console.log(`Validated ${files.length} JavaScript files.`);
