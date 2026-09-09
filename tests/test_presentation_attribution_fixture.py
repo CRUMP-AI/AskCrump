@@ -18,6 +18,13 @@ EXPECTED_TUPLE = {
     "creative": None,
     "intent": "presentation",
 }
+PAID_EXPECTED_TUPLE = {
+    "acquisition": "paid-social",
+    "placement": "facebook-paid",
+    "campaign": "rough-to-useful-v2",
+    "creative": "rough-to-useful-current-feed",
+    "intent": "projects",
+}
 
 
 def fixture_request() -> Request:
@@ -180,7 +187,8 @@ class FixtureEmail:
 
 
 @pytest.mark.asyncio
-async def test_exact_presentation_first_touch_is_idempotent_exportable_and_cleanable(monkeypatch):
+@pytest.mark.parametrize("expected", [EXPECTED_TUPLE, PAID_EXPECTED_TUPLE])
+async def test_exact_first_touch_is_idempotent_exportable_and_cleanable(monkeypatch, expected):
     database = IsolatedAttributionDB()
     fixture_email = FixtureEmail()
     request = fixture_request()
@@ -204,13 +212,13 @@ async def test_exact_presentation_first_touch_is_idempotent_exportable_and_clean
 
     registration = await auth_routes.register(
         RegisterRequest(
-            email="presentation-fixture@example.com",
+            email=f"fixture+{expected['campaign']}@example.com",
             password="FixturePass1234",
-            source=EXPECTED_TUPLE["acquisition"],
-            placement=EXPECTED_TUPLE["placement"],
-            campaign=EXPECTED_TUPLE["campaign"],
-            creative=EXPECTED_TUPLE["creative"],
-            intent=EXPECTED_TUPLE["intent"],
+            source=expected["acquisition"],
+            placement=expected["placement"],
+            campaign=expected["campaign"],
+            creative=expected["creative"],
+            intent=expected["intent"],
             termsAccepted=True,
             termsVersion=CURRENT_TERMS_VERSION,
         ),
@@ -230,7 +238,7 @@ async def test_exact_presentation_first_touch_is_idempotent_exportable_and_clean
         "campaign": events[0]["campaign"],
         "creative": events[0]["creative"],
         "intent": events[0]["intent"],
-    } == EXPECTED_TUPLE
+    } == expected
 
     first_export = await database.rpc("product_weekly_attribution_export", {
         "p_since": "2026-09-01T00:00:00Z",
@@ -238,27 +246,27 @@ async def test_exact_presentation_first_touch_is_idempotent_exportable_and_clean
         "p_environment": "development",
         "p_include_internal": False,
     })
-    assert first_export == [{**EXPECTED_TUPLE, "accounts_created": 1, "account_event_recorded": 1}]
+    assert first_export == [{**expected, "accounts_created": 1, "account_event_recorded": 1}]
 
     replay_recorded = await record_account_created_event(
         database,
         user_id=fixture_user["id"],
         request=request,
-        **EXPECTED_TUPLE,
+        **expected,
     )
     assert replay_recorded is False
     assert len(database.account_events(environment="development")) == 1
 
     pending_registration = await auth_routes.register(
         RegisterRequest(
-            email="presentation-fixture@example.com",
+            email=f"fixture+{expected['campaign']}@example.com",
             password="FixturePass1234",
             **{
-                "source": EXPECTED_TUPLE["acquisition"],
-                "placement": EXPECTED_TUPLE["placement"],
-                "campaign": EXPECTED_TUPLE["campaign"],
-                "creative": EXPECTED_TUPLE["creative"],
-                "intent": EXPECTED_TUPLE["intent"],
+                "source": expected["acquisition"],
+                "placement": expected["placement"],
+                "campaign": expected["campaign"],
+                "creative": expected["creative"],
+                "intent": expected["intent"],
             },
         ),
         request,
@@ -286,6 +294,9 @@ def test_fixture_receipt_inputs_are_content_free_and_version_pinned():
 
     assert "presentation-proof-current" in combined
     assert "real-product-continuity" in combined
+    assert "paid-social" in combined
+    assert "facebook-paid" in combined
+    assert "rough-to-useful-v2" in combined
     assert "Fixture stopped before network account creation." in combined
     assert "https://www.askcrump.com" not in combined
     assert "@gmail.com" not in combined

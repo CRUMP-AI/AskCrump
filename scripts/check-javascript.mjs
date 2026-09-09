@@ -509,8 +509,140 @@ runLandingAttribution(
 );
 assertAttribution(storedAttribution(roughToUsefulStore), roughToUsefulTouch, 'Rough-to-useful existing-account sign-in');
 roughToUsefulRuntimeCases += 1;
-if (roughToUsefulRuntimeCases !== 6) {
-  console.error(`Expected six rough-to-useful runtime cases, got ${roughToUsefulRuntimeCases}.`);
+
+const paidRoughToUsefulTouch = {
+  acquisition: 'paid-social',
+  placement: 'facebook-paid',
+  campaign: 'rough-to-useful-v2',
+  creative: 'rough-to-useful-current-feed',
+  intent: 'projects',
+};
+const paidRoughToUsefulStore = new Map();
+const paidRoughToUsefulGuide = runLandingAttribution(
+  'https://askcrump.com/guides/rough-idea-six-week-launch-plan?acquisition=paid-social&source=facebook-paid&campaign=rough-to-useful-v2&creative=rough-to-useful-current-feed',
+  paidRoughToUsefulStore,
+  '/ai-project-workspace',
+  '',
+  {click: false},
+);
+assertAttribution(
+  storedAttribution(paidRoughToUsefulStore),
+  paidRoughToUsefulTouch,
+  'Paid rough-to-useful guide',
+);
+assertMarketingLanding(paidRoughToUsefulGuide, {
+  touchpoint: 'paid-social.facebook-paid.rough-to-useful-v2.rough-to-useful-current-feed',
+  intent: 'projects',
+}, 'Paid rough-to-useful guide');
+roughToUsefulRuntimeCases += 1;
+
+const paidGuideDestination = new URL(paidRoughToUsefulGuide.link.href, 'https://askcrump.com');
+const paidRoughToUsefulCapability = runLandingAttribution(
+  paidGuideDestination.href,
+  paidRoughToUsefulStore,
+  '/app?signup=1&intent=projects',
+  '',
+  {click: false},
+);
+assertAttribution(
+  storedAttribution(paidRoughToUsefulStore),
+  paidRoughToUsefulTouch,
+  'Paid rough-to-useful capability',
+);
+if (!paidRoughToUsefulCapability.link.href.includes('campaign=rough-to-useful-v2')) {
+  console.error('Paid rough-to-useful attribution did not survive the capability handoff.');
+  process.exit(1);
+}
+roughToUsefulRuntimeCases += 1;
+
+for (const [label, invalidUrl] of [
+  [
+    'Paid acquisition with organic placement',
+    'https://askcrump.com/guides/rough-idea-six-week-launch-plan?acquisition=paid-social&source=organic-social&campaign=rough-to-useful-v2&creative=rough-to-useful-current-feed',
+  ],
+  [
+    'Organic acquisition with paid placement',
+    'https://askcrump.com/guides/rough-idea-six-week-launch-plan?acquisition=facebook&source=facebook-paid&campaign=rough-to-useful-v2&creative=rough-to-useful-current-feed',
+  ],
+  [
+    'Paid Story creative',
+    'https://askcrump.com/guides/rough-idea-six-week-launch-plan?acquisition=paid-social&source=facebook-paid&campaign=rough-to-useful-v2&creative=rough-to-useful-current-story',
+  ],
+  [
+    'Paid Reel creative',
+    'https://askcrump.com/guides/rough-idea-six-week-launch-plan?acquisition=paid-social&source=facebook-paid&campaign=rough-to-useful-v2&creative=rough-to-useful-current-reel',
+  ],
+  [
+    'Instagram paid cross-product',
+    'https://askcrump.com/guides/rough-idea-six-week-launch-plan?acquisition=instagram&source=facebook-paid&campaign=rough-to-useful-v2&creative=rough-to-useful-current-feed',
+  ],
+  [
+    'Paid profile placement',
+    'https://askcrump.com/guides/rough-idea-six-week-launch-plan?acquisition=paid-social&source=profile-link&campaign=rough-to-useful-v2&creative=rough-to-useful-current-feed',
+  ],
+  [
+    'Paid workflow placement',
+    'https://askcrump.com/guides/rough-idea-six-week-launch-plan?acquisition=paid-social&source=workflow-guide&campaign=rough-to-useful-v2&creative=rough-to-useful-current-feed',
+  ],
+  [
+    'Paid missing creative',
+    'https://askcrump.com/guides/rough-idea-six-week-launch-plan?acquisition=paid-social&source=facebook-paid&campaign=rough-to-useful-v2',
+  ],
+  [
+    'Paid wrong campaign',
+    'https://askcrump.com/guides/rough-idea-six-week-launch-plan?acquisition=paid-social&source=facebook-paid&campaign=presentation-proof-current&creative=rough-to-useful-current-feed',
+  ],
+  [
+    'Paid wrong intent',
+    'https://askcrump.com/ai-presentation-maker?acquisition=paid-social&source=facebook-paid&campaign=rough-to-useful-v2&creative=rough-to-useful-current-feed&intent=presentation',
+  ],
+]) {
+  const rejected = runLandingAttribution(
+    invalidUrl,
+    new Map(),
+    '/app?signup=1&intent=projects',
+    '',
+    {click: false},
+  );
+  assertNoMarketingLanding(rejected, label);
+  roughToUsefulRuntimeCases += 1;
+}
+
+runLandingAttribution(
+  'https://askcrump.com/ai-presentation-maker?acquisition=instagram&source=organic-social&campaign=presentation-proof-current&creative=ig-story',
+  paidRoughToUsefulStore,
+  '/app?signup=1&intent=presentation',
+  '',
+  {click: false},
+);
+assertAttribution(
+  storedAttribution(paidRoughToUsefulStore),
+  paidRoughToUsefulTouch,
+  'Paid rough-to-useful second campaign',
+);
+roughToUsefulRuntimeCases += 1;
+runLandingAttribution('https://askcrump.com/app?verified=1', paidRoughToUsefulStore, '/app', '', {click: false});
+assertAttribution(
+  storedAttribution(paidRoughToUsefulStore),
+  paidRoughToUsefulTouch,
+  'Paid rough-to-useful verification return',
+);
+roughToUsefulRuntimeCases += 1;
+runLandingAttribution(
+  'https://askcrump.com/app?signin=1&acquisition=facebook&source=organic-social&campaign=real-product-continuity&creative=continuity-feed&intent=projects',
+  paidRoughToUsefulStore,
+  '/app',
+  '',
+  {click: false},
+);
+assertAttribution(
+  storedAttribution(paidRoughToUsefulStore),
+  paidRoughToUsefulTouch,
+  'Paid rough-to-useful existing-account sign-in',
+);
+roughToUsefulRuntimeCases += 1;
+if (roughToUsefulRuntimeCases !== 21) {
+  console.error(`Expected 21 rough-to-useful runtime cases, got ${roughToUsefulRuntimeCases}.`);
   process.exit(1);
 }
 
@@ -544,7 +676,8 @@ assertAttribution(storedAttribution(immutableStore), {
 const repoRoot = new URL('../', import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot), 'utf8'));
 const releaseVersion = String(packageJson.version || '');
-const landingVersion = `${releaseVersion}-referral-context-1`;
+const landingVersion = `${releaseVersion}-paid-attribution-1`;
+const attributionVersion = `${releaseVersion}-paid-attribution-1`;
 const planRendererVersion = `${releaseVersion}-credit-pack-accessibility-1`;
 const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
 const nativeBillingIdentityVersion = `${releaseVersion}-native-billing-identity-1`;
@@ -1030,7 +1163,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r227') ||
     !serviceWorker.includes(`/sync-manager.js?v=${syncCursorVersion}`) ||
     !serviceWorker.includes(`/chat-sync.js?v=${settingsSyncVersion}`) ||
     !serviceWorker.includes(`/product-analytics.js?v=${outcomeIssueCategoriesVersion}`) ||
-    !serviceWorker.includes(`/auth-controller.js?v=${checkoutSessionRecoveryVersion}`) ||
+    !serviceWorker.includes(`/auth-controller.js?v=${attributionVersion}`) ||
     !serviceWorker.includes(`/crump-v1-body.css?v=${creditTruthVersion}`) ||
     !serviceWorker.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
     !serviceWorker.includes(`/crump-4.4.js?v=${coreReliabilityVersion}`) ||
@@ -1509,5 +1642,5 @@ if (!scroll522.includes("card.removeAttribute('role')") ||
 }
 
 console.log('Ask Crump V1 new-body integration contract validated.');
-console.log(`Validated ${roughToUsefulRuntimeCases}/6 rough-to-useful attribution runtime cases.`);
+console.log(`Validated ${roughToUsefulRuntimeCases}/21 rough-to-useful attribution runtime cases.`);
 console.log(`Validated ${files.length} JavaScript files.`);

@@ -70,7 +70,7 @@
   <script>
     // Present a second valid campaign in the same tab before registration. The
     // already-captured unexpired first touch must remain immutable.
-    history.replaceState({}, '', '/tests/fixtures/presentation-attribution-registration.html?signup=1&acquisition=instagram&source=profile-link&campaign=real-product-continuity&creative=continuity-feed&intent=projects');
+    history.replaceState({}, '', '/tests/fixtures/presentation-attribution-registration.html?signup=1&acquisition=instagram&source=organic-social&campaign=real-product-continuity&creative=continuity-story&intent=projects');
 
     window.CrumpWorkspaceRuntime = {load: async () => {}};
     window.CrumpAPI = {ready: Promise.resolve()};

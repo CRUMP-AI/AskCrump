@@ -88,11 +88,11 @@ ATTRIBUTION_TOKEN_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
 ATTRIBUTION_ACQUISITIONS = frozenset({
     "direct", "instagram", "facebook", "facebook-pinned", "linkedin",
     "tiktok", "youtube", "x", "referral", "organic", "organic-search",
-    "clevercrump", "founder-outreach",
+    "clevercrump", "founder-outreach", "paid-social",
 })
 ATTRIBUTION_PLACEMENTS = frozenset({
     "response-share", "profile-link", "workflow-guide", "organic-social",
-    "creator-cohort",
+    "creator-cohort", "facebook-paid",
 })
 ATTRIBUTION_INTENTS = frozenset({
     "document", "presentation", "resume", "video", "projects",
@@ -118,9 +118,13 @@ ATTRIBUTION_CAMPAIGNS = {
     },
     "rough-to-useful-v2": {
         "intent": "projects",
-        "acquisitions": frozenset({"facebook"}),
-        "placements": frozenset({"organic-social"}),
+        "acquisitions": frozenset({"facebook", "paid-social"}),
+        "placements": frozenset({"organic-social", "facebook-paid"}),
         "creatives": frozenset({"rough-to-useful-current-feed"}),
+        "touchpoints": frozenset({
+            ("facebook", "organic-social", "rough-to-useful-current-feed"),
+            ("paid-social", "facebook-paid", "rough-to-useful-current-feed"),
+        }),
     },
     "rough-idea-launch-plan": {
         "intent": "projects",

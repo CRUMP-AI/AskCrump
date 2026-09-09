@@ -18,7 +18,7 @@
   const ACQUISITION_SOURCES = new Set([
     'direct', 'instagram', 'facebook', 'facebook-pinned', 'linkedin', 'tiktok',
     'youtube', 'x', 'referral', 'organic', 'organic-search', 'clevercrump',
-    'founder-outreach',
+    'founder-outreach', 'paid-social',
   ]);
   const LEGACY_ACQUISITION_SOURCES = new Set([
     'instagram', 'facebook', 'facebook-pinned', 'linkedin', 'tiktok',
@@ -26,7 +26,7 @@
   ]);
   const ACQUISITION_PLACEMENTS = new Set([
     'response-share', 'profile-link', 'workflow-guide', 'organic-social',
-    'creator-cohort',
+    'creator-cohort', 'facebook-paid',
   ]);
   const CREATION_INTENTS = new Set([
     'document', 'presentation', 'resume', 'video', 'projects',
@@ -79,9 +79,13 @@
     },
     'rough-to-useful-v2': {
       intent: 'projects',
-      acquisitions: new Set(['facebook']),
-      placements: new Set(['organic-social']),
+      acquisitions: new Set(['facebook', 'paid-social']),
+      placements: new Set(['organic-social', 'facebook-paid']),
       creatives: new Set(['rough-to-useful-current-feed']),
+      touchpoints: new Set([
+        'facebook|organic-social|rough-to-useful-current-feed',
+        'paid-social|facebook-paid|rough-to-useful-current-feed',
+      ]),
     },
     'rough-idea-launch-plan': {
       intent: 'projects',

@@ -7,7 +7,9 @@ from fastapi import Request
 from pydantic import ValidationError
 
 from backend.product_analytics import (
+    ATTRIBUTION_ACQUISITIONS,
     ATTRIBUTION_CAMPAIGNS,
+    ATTRIBUTION_PLACEMENTS,
     normalize_attribution,
     record_account_created_event,
 )
@@ -20,7 +22,12 @@ MIGRATION = ROOT / "migrations" / "20260830171056_weekly_growth_attribution_expo
 REGISTRY_MIGRATION = (
     ROOT
     / "migrations"
-    / "20260909201749_reject_blank_presentation_creative.sql"
+    / "20260909220127_paid_rough_to_useful_attribution.sql"
+)
+NULL_SAFETY_MIGRATION = (
+    ROOT
+    / "migrations"
+    / "20260909220929_reject_null_paid_attribution_cross_products.sql"
 )
 STANDALONE_ALLOWLIST_MIGRATION = (
     ROOT
@@ -42,8 +49,8 @@ EXPECTED_REGISTRY = {
     },
     "rough-to-useful-v2": {
         "intent": "projects",
-        "acquisitions": {"facebook"},
-        "placements": {"organic-social"},
+        "acquisitions": {"facebook", "paid-social"},
+        "placements": {"organic-social", "facebook-paid"},
         "creatives": {"rough-to-useful-current-feed"},
     },
     "rough-idea-launch-plan": {
@@ -78,6 +85,19 @@ EXPECTED_EXACT_TOUCHPOINTS = {
         ("facebook", "organic-social", "fb-static"),
         ("instagram", "organic-social", "ig-story"),
     },
+    "rough-to-useful-v2": {
+        ("facebook", "organic-social", "rough-to-useful-current-feed"),
+        ("paid-social", "facebook-paid", "rough-to-useful-current-feed"),
+    },
+}
+EXPECTED_ACQUISITIONS = {
+    "direct", "instagram", "facebook", "facebook-pinned", "linkedin",
+    "tiktok", "youtube", "x", "referral", "organic", "organic-search",
+    "clevercrump", "founder-outreach", "paid-social",
+}
+EXPECTED_PLACEMENTS = {
+    "response-share", "profile-link", "workflow-guide", "organic-social",
+    "creator-cohort", "facebook-paid",
 }
 EXPECTED_CAMPAIGNS = set(EXPECTED_REGISTRY)
 EXPECTED_CREATIVES = {
@@ -129,6 +149,16 @@ def _parse_js_registry(source: str) -> dict[str, dict[str, object]]:
         for campaign, intent, acquisitions, placements, creatives
         in entry_pattern.findall(block_match.group(1))
     }
+
+
+def _parse_js_set(source: str, name: str) -> set[str]:
+    match = re.search(
+        rf"const {name} = new Set\(\[([^\]]*)\]\s*\);",
+        source,
+        re.DOTALL,
+    )
+    assert match, name
+    return set(re.findall(r"'([^']+)'", match.group(1)))
 
 
 def _parse_js_exact_touchpoints(source: str) -> dict[str, set[tuple[str, str, str]]]:
@@ -303,6 +333,18 @@ def test_campaign_registry_has_exact_frontend_server_and_database_parity():
     }
 
     assert python_registry == EXPECTED_REGISTRY
+    assert set(ATTRIBUTION_ACQUISITIONS) == EXPECTED_ACQUISITIONS
+    assert set(ATTRIBUTION_PLACEMENTS) == EXPECTED_PLACEMENTS
+    assert _parse_js_set(landing, "ACQUISITION_SOURCES") == EXPECTED_ACQUISITIONS
+    assert _parse_js_set(controller, "ACQUISITION_SOURCES") == EXPECTED_ACQUISITIONS
+    assert _parse_js_set(landing, "ACQUISITION_PLACEMENTS") == EXPECTED_PLACEMENTS
+    assert _parse_js_set(controller, "ACQUISITION_PLACEMENTS") == EXPECTED_PLACEMENTS
+    assert _parse_sql_standalone_allowlist(
+        sql, "product_events_account_acquisition_check", "source"
+    ) == EXPECTED_ACQUISITIONS
+    assert _parse_sql_standalone_allowlist(
+        sql, "product_events_placement_check", "placement"
+    ) == EXPECTED_PLACEMENTS
     assert _parse_js_registry(landing) == EXPECTED_REGISTRY
     assert _parse_js_registry(controller) == EXPECTED_REGISTRY
     assert _parse_sql_constraint_registry(sql) == EXPECTED_REGISTRY
@@ -335,6 +377,33 @@ def test_campaign_registry_has_exact_frontend_server_and_database_parity():
     assert normalized_sql.count(
         "v_creative = 'ig-story' and v_creative is not null"
     ) == 2
+    assert normalized_sql.count(
+        "source = 'paid-social' and placement = 'facebook-paid' "
+        "and creative = 'rough-to-useful-current-feed' and creative is not null"
+    ) == 1
+    assert normalized_sql.count(
+        "v_acquisition = 'paid-social' and v_placement = 'facebook-paid' "
+        "and v_creative = 'rough-to-useful-current-feed' and v_creative is not null"
+    ) == 2
+
+
+def test_database_campaign_validation_rejects_null_cross_product_bypasses():
+    sql = " ".join(NULL_SAFETY_MIGRATION.read_text(encoding="utf-8").split())
+
+    assert ") is true) not valid;" in sql
+    assert sql.count(") is not true then") == 2
+    assert "if not (" not in sql
+    assert "security invoker" in sql
+    assert (
+        "revoke execute on function public.record_account_created_event( "
+        "uuid, text, text, text, text, text, text, text, text "
+        ") from public, anon, authenticated;"
+    ) in sql
+    assert (
+        "grant execute on function public.record_account_created_event( "
+        "uuid, text, text, text, text, text, text, text, text "
+        ") to service_role;"
+    ) in sql
 
 
 def test_registered_campaign_tuple_is_preserved_exactly():
@@ -407,6 +476,51 @@ def test_registered_campaign_tuple_is_preserved_exactly():
         "creative": "rough-to-useful-current-feed",
         "intent": "projects",
     }
+
+    assert normalize_attribution(
+        acquisition="paid-social",
+        placement="facebook-paid",
+        campaign="rough-to-useful-v2",
+        creative="rough-to-useful-current-feed",
+        intent="projects",
+    ) == {
+        "acquisition": "paid-social",
+        "placement": "facebook-paid",
+        "campaign": "rough-to-useful-v2",
+        "creative": "rough-to-useful-current-feed",
+        "intent": "projects",
+    }
+
+
+@pytest.mark.parametrize(
+    "acquisition, placement, campaign, creative, intent",
+    [
+        ("paid-social", "organic-social", "rough-to-useful-v2", "rough-to-useful-current-feed", "projects"),
+        ("facebook", "facebook-paid", "rough-to-useful-v2", "rough-to-useful-current-feed", "projects"),
+        ("paid-social", "facebook-paid", "rough-to-useful-v2", "rough-to-useful-current-story", "projects"),
+        ("paid-social", "facebook-paid", "rough-to-useful-v2", "rough-to-useful-current-reel", "projects"),
+        ("instagram", "facebook-paid", "rough-to-useful-v2", "rough-to-useful-current-feed", "projects"),
+        ("paid-social", "profile-link", "rough-to-useful-v2", "rough-to-useful-current-feed", "projects"),
+        ("paid-social", "workflow-guide", "rough-to-useful-v2", "rough-to-useful-current-feed", "projects"),
+        ("paid-social", "facebook-paid", "rough-to-useful-v2", None, "projects"),
+        ("paid-social", "facebook-paid", "rough-to-useful-v2", "", "projects"),
+        ("paid-social", "facebook-paid", "presentation-proof-current", "rough-to-useful-current-feed", "projects"),
+        ("paid-social", "facebook-paid", "rough-to-useful-v2", "rough-to-useful-current-feed", "presentation"),
+        ("unknown-paid", "unknown-placement", "unknown-campaign", "unknown-creative", "projects"),
+    ],
+)
+def test_paid_rough_to_useful_cross_products_fail_closed(
+    acquisition, placement, campaign, creative, intent,
+):
+    normalized = normalize_attribution(
+        acquisition=acquisition,
+        placement=placement,
+        campaign=campaign,
+        creative=creative,
+        intent=intent,
+    )
+    assert normalized["campaign"] is None
+    assert normalized["creative"] is None
 
 
 @pytest.mark.parametrize(
@@ -519,7 +633,7 @@ def test_registered_campaign_tuple_is_preserved_exactly():
             {
                 "acquisition": "facebook",
                 "placement": "organic-social",
-                "campaign": "rough-to-useful-v2",
+                "campaign": None,
                 "creative": None,
                 "intent": "projects",
             },

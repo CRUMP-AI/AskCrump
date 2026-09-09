@@ -12,17 +12,28 @@ const touches = [
   {name: 'instagram-profile', acquisition: 'instagram', placement: 'profile-link', campaign: 'presentation-proof-current', creative: null, intent: 'presentation'},
   {name: 'facebook-feed', acquisition: 'facebook', placement: 'organic-social', campaign: 'presentation-proof-current', creative: 'fb-static', intent: 'presentation'},
   {name: 'instagram-story', acquisition: 'instagram', placement: 'organic-social', campaign: 'presentation-proof-current', creative: 'ig-story', intent: 'presentation'},
+  {name: 'paid-facebook-feed', acquisition: 'paid-social', placement: 'facebook-paid', campaign: 'rough-to-useful-v2', creative: 'rough-to-useful-current-feed', intent: 'projects'},
 ];
 const rejections = [
-  {name: 'facebook-story-cross-pair', acquisition: 'facebook', placement: 'organic-social', creative: 'ig-story', intent: 'presentation'},
-  {name: 'instagram-feed-cross-pair', acquisition: 'instagram', placement: 'organic-social', creative: 'fb-static', intent: 'presentation'},
-  {name: 'profile-creative', acquisition: 'instagram', placement: 'profile-link', creative: 'ig-feed', intent: 'presentation'},
-  {name: 'facebook-profile-creative', acquisition: 'facebook', placement: 'profile-link', creative: 'fb-static', intent: 'presentation'},
-  {name: 'retired-ig-feed', acquisition: 'instagram', placement: 'organic-social', creative: 'ig-feed', intent: 'presentation'},
-  {name: 'blank-feed-creative', acquisition: 'facebook', placement: 'organic-social', creative: '', intent: 'presentation'},
-  {name: 'wrong-placement', acquisition: 'facebook', placement: 'workflow-guide', creative: 'fb-static', intent: 'presentation'},
-  {name: 'wrong-intent', acquisition: 'facebook', placement: 'organic-social', creative: 'fb-static', intent: 'document'},
-  {name: 'unlisted-acquisition', acquisition: 'linkedin', placement: 'organic-social', creative: 'fb-static', intent: 'presentation'},
+  {name: 'facebook-story-cross-pair', acquisition: 'facebook', placement: 'organic-social', campaign: 'presentation-proof-current', creative: 'ig-story', intent: 'presentation'},
+  {name: 'instagram-feed-cross-pair', acquisition: 'instagram', placement: 'organic-social', campaign: 'presentation-proof-current', creative: 'fb-static', intent: 'presentation'},
+  {name: 'profile-creative', acquisition: 'instagram', placement: 'profile-link', campaign: 'presentation-proof-current', creative: 'ig-feed', intent: 'presentation'},
+  {name: 'facebook-profile-creative', acquisition: 'facebook', placement: 'profile-link', campaign: 'presentation-proof-current', creative: 'fb-static', intent: 'presentation'},
+  {name: 'retired-ig-feed', acquisition: 'instagram', placement: 'organic-social', campaign: 'presentation-proof-current', creative: 'ig-feed', intent: 'presentation'},
+  {name: 'blank-feed-creative', acquisition: 'facebook', placement: 'organic-social', campaign: 'presentation-proof-current', creative: '', intent: 'presentation'},
+  {name: 'wrong-placement', acquisition: 'facebook', placement: 'workflow-guide', campaign: 'presentation-proof-current', creative: 'fb-static', intent: 'presentation'},
+  {name: 'wrong-intent', acquisition: 'facebook', placement: 'organic-social', campaign: 'presentation-proof-current', creative: 'fb-static', intent: 'document'},
+  {name: 'unlisted-acquisition', acquisition: 'linkedin', placement: 'organic-social', campaign: 'presentation-proof-current', creative: 'fb-static', intent: 'presentation'},
+  {name: 'paid-organic-placement', acquisition: 'paid-social', placement: 'organic-social', campaign: 'rough-to-useful-v2', creative: 'rough-to-useful-current-feed', intent: 'projects'},
+  {name: 'organic-paid-placement', acquisition: 'facebook', placement: 'facebook-paid', campaign: 'rough-to-useful-v2', creative: 'rough-to-useful-current-feed', intent: 'projects'},
+  {name: 'paid-story', acquisition: 'paid-social', placement: 'facebook-paid', campaign: 'rough-to-useful-v2', creative: 'rough-to-useful-current-story', intent: 'projects'},
+  {name: 'paid-reel', acquisition: 'paid-social', placement: 'facebook-paid', campaign: 'rough-to-useful-v2', creative: 'rough-to-useful-current-reel', intent: 'projects'},
+  {name: 'instagram-paid', acquisition: 'instagram', placement: 'facebook-paid', campaign: 'rough-to-useful-v2', creative: 'rough-to-useful-current-feed', intent: 'projects'},
+  {name: 'paid-profile', acquisition: 'paid-social', placement: 'profile-link', campaign: 'rough-to-useful-v2', creative: 'rough-to-useful-current-feed', intent: 'projects'},
+  {name: 'paid-workflow', acquisition: 'paid-social', placement: 'workflow-guide', campaign: 'rough-to-useful-v2', creative: 'rough-to-useful-current-feed', intent: 'projects'},
+  {name: 'paid-missing-creative', acquisition: 'paid-social', placement: 'facebook-paid', campaign: 'rough-to-useful-v2', creative: null, intent: 'projects'},
+  {name: 'paid-wrong-campaign', acquisition: 'paid-social', placement: 'facebook-paid', campaign: 'presentation-proof-current', creative: 'rough-to-useful-current-feed', intent: 'projects'},
+  {name: 'paid-wrong-intent', acquisition: 'paid-social', placement: 'facebook-paid', campaign: 'rough-to-useful-v2', creative: 'rough-to-useful-current-feed', intent: 'presentation'},
 ];
 
 function attributionQuery(touch, {signup = false} = {}) {
@@ -30,7 +41,7 @@ function attributionQuery(touch, {signup = false} = {}) {
     ...(signup ? {signup: '1'} : {}),
     acquisition: touch.acquisition,
     source: touch.placement,
-    campaign: 'presentation-proof-current',
+    campaign: touch.campaign,
     intent: touch.intent,
   });
   if (touch.creative !== null) query.set('creative', touch.creative);
