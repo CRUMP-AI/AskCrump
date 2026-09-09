@@ -32,9 +32,9 @@ def test_changed_sync_manager_is_release_versioned_and_network_first():
     assert '<script defer src="/presence-manager.js?v=5.9.76"></script>' not in shell
     assert "['/presence-manager.js?v=5.9.76', 'workspacepresence']" in runtime
     assert "'/presence-manager.js?v=5.9.76'" in worker
-    assert '<script defer src="/chat-sync.js?v=5.9.76-image-stability-1"></script>' not in shell
-    assert "['/chat-sync.js?v=5.9.76-image-stability-1', 'workspacechatsync']" in runtime
-    assert "'/chat-sync.js?v=5.9.76-image-stability-1'" in worker
+    assert '<script defer src="/chat-sync.js?v=5.9.76-settings-sync-1"></script>' not in shell
+    assert "['/chat-sync.js?v=5.9.76-settings-sync-1', 'workspacechatsync']" in runtime
+    assert "'/chat-sync.js?v=5.9.76-settings-sync-1'" in worker
     assert "url.pathname === '/sync-manager.js'" in worker
 
 
@@ -78,6 +78,40 @@ def test_unchanged_active_chat_does_not_rebuild_visible_images() -> None:
     assert "{ preserveActiveRender = false }" in replace
     assert "if (!preserveActiveRender || preferred.id !== activeId)" in replace
     assert "window.renderMessages?.(preferred.messages)" in replace
+
+
+def test_server_settings_are_applied_without_overwriting_an_open_local_draft() -> None:
+    sync = (PUBLIC / "chat-sync.js").read_text(encoding="utf-8")
+    app = (PUBLIC / "app.js").read_text(encoding="utf-8")
+
+    apply_settings = sync[
+        sync.index("function applySynchronizedSettings") : sync.index("function serverWins")
+    ]
+    pull = sync[sync.index("async function pullAndMerge") : sync.index("async function pushLocal")]
+    listener = app[
+        app.index("window.addEventListener('crump:server-settings-applied'")
+        : app.index("window.getAssistantName")
+    ]
+
+    for field in ("assistant_name", "work_mode", "work_start", "work_end"):
+        assert field in apply_settings
+    assert "SafeStorage.setItem(key, value)" in apply_settings
+    assert "crump:server-settings-applied" in apply_settings
+    assert pull.index("applySynchronizedSettings(result.data?.settings)") < pull.index(
+        "if (!Array.isArray(result.data?.chats))"
+    )
+    assert "updateAssistantNameDisplay();" in listener
+    assert "settingsFormSignature() !== settingsBaselineSignature" in listener
+    assert "if (!hasLocalDraft) loadSettingsValues();" in listener
+
+
+def test_failed_settings_flush_uses_the_existing_queued_sync_warning() -> None:
+    app = (PUBLIC / "app.js").read_text(encoding="utf-8")
+    save = app[app.index("window.saveSettings =") : app.index("// UI helpers")]
+
+    assert "const syncResult = await window.SyncManager?.push" in save
+    assert "if (syncResult?.success === false)" in save
+    assert "Settings saved on this device; server sync will retry." in save
 
 
 def test_offline_changes_queue_before_the_network_flush_and_flush_is_single_flight():
@@ -173,6 +207,9 @@ def test_idle_sync_fixture_uses_real_clients_and_stays_local():
     assert "fixtureActiveRenders" in fixture
     assert "fixtureImageStable" in fixture
     assert "window.__fixture.originalImage === document.getElementById('fixtureImage')" in fixture
+    assert "fixtureSettingsApplied" in fixture
+    assert "fixtureSettingsEvents" in fixture
+    assert "assistant_name: 'Echo'" in fixture
     assert "fixture-user" in fixture
     assert "password" not in fixture.lower()
     assert "askcrump.com" not in fixture

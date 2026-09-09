@@ -122,6 +122,26 @@
     return JSON.stringify(stableValue(messages));
   }
 
+  function applySynchronizedSettings(settings) {
+    if (!settings || typeof settings !== 'object') return false;
+    const mappings = [
+      ['assistant_name', STORAGE_KEYS.ASSISTANT_NAME],
+      ['work_mode', STORAGE_KEYS.WORK_MODE],
+      ['work_start', STORAGE_KEYS.WORK_START],
+      ['work_end', STORAGE_KEYS.WORK_END],
+    ];
+    let changed = false;
+    for (const [field, key] of mappings) {
+      if (!key || settings[field] === undefined || settings[field] === null) continue;
+      const value = String(settings[field]);
+      if (SafeStorage.getItem(key) === value) continue;
+      SafeStorage.setItem(key, value);
+      changed = true;
+    }
+    if (changed) window.dispatchEvent(new Event('crump:server-settings-applied'));
+    return changed;
+  }
+
   function serverWins(server, local) {
     if (!local) return true;
     const serverTime = toTime(server.updatedAt);
@@ -208,7 +228,9 @@
       ? { success: true, data: prefetched }
       : await window.SyncManager.pull(null, { full });
 
-    if (!result?.success || !Array.isArray(result.data?.chats)) return result;
+    if (!result?.success) return result;
+    applySynchronizedSettings(result.data?.settings);
+    if (!Array.isArray(result.data?.chats)) return result;
 
     let local = [];
     try { local = JSON.parse(SafeStorage.getItem(STORAGE_KEYS.CHATS) || '[]'); } catch (_) {}

@@ -1303,7 +1303,7 @@ window.saveSettings = async function() {
         return;
     }
     try {
-        await window.SyncManager?.push(null, {
+        const syncResult = await window.SyncManager?.push(null, {
             chats: [],
             settings: {
                 assistant_name: assistantName,
@@ -1312,6 +1312,9 @@ window.saveSettings = async function() {
                 work_end: Number(workEnd),
             },
         });
+        if (syncResult?.success === false) {
+            throw new Error(syncResult.error || 'Server sync will retry.');
+        }
         await window.CrumpPresence?.savePreferences?.();
         updateAssistantNameDisplay();
         updateUserAvatar();
@@ -1341,6 +1344,14 @@ function updateAssistantNameDisplay() {
     }
     window.dispatchEvent(new CustomEvent('crump:assistant-name-changed', { detail: { name } }));
 }
+window.addEventListener('crump:server-settings-applied', () => {
+    updateAssistantNameDisplay();
+    const modal = document.getElementById('settingsModal');
+    if (!modal || getComputedStyle(modal).display === 'none') return;
+    const hasLocalDraft = Boolean(settingsBaselineSignature)
+        && settingsFormSignature() !== settingsBaselineSignature;
+    if (!hasLocalDraft) loadSettingsValues();
+});
 window.getAssistantName = () => SafeStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';
 
 function updateUserAvatar() {

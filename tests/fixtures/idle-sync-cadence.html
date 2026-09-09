@@ -14,6 +14,8 @@
     <output id="fixtureRemainingQueue" aria-label="Remaining queued writes">pending</output>
     <output id="fixtureActiveRenders" aria-label="Unchanged active conversation renders">pending</output>
     <output id="fixtureImageStable" aria-label="Unchanged image node stable">pending</output>
+    <output id="fixtureSettingsApplied" aria-label="Server settings applied">pending</output>
+    <output id="fixtureSettingsEvents" aria-label="Settings change events">pending</output>
     <output id="fixtureErrors" aria-label="Browser errors">0</output>
     <img id="fixtureImage" alt="Fictional fixture image" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Crect width='16' height='16' fill='%23c7a76a'/%3E%3C/svg%3E">
   </main>
@@ -23,7 +25,13 @@
     }
     window.currentUser = {id: 'fixture-user'};
     window.currentChatId = 'fixture-chat';
-    window.STORAGE_KEYS = {CHATS: 'fixture_chats'};
+    window.STORAGE_KEYS = {
+      CHATS: 'fixture_chats',
+      ASSISTANT_NAME: 'fixture_assistant_name',
+      WORK_MODE: 'fixture_work_mode',
+      WORK_START: 'fixture_work_start',
+      WORK_END: 'fixture_work_end',
+    };
     window.SafeStorage = {
       getItem: key => localStorage.getItem(key),
       setItem: (key, value) => localStorage.setItem(key, value),
@@ -44,7 +52,11 @@
       activeRenders: 0,
       preserveActiveRender: false,
       originalImage: document.getElementById('fixtureImage'),
+      settingsEvents: 0,
     };
+    window.addEventListener('crump:server-settings-applied', () => {
+      window.__fixture.settingsEvents += 1;
+    });
     window.replaceChats = (nextChats, {preserveActiveRender = false} = {}) => {
       window.chats = nextChats;
       window.__fixture.preserveActiveRender = preserveActiveRender;
@@ -71,7 +83,14 @@
           headers: {'Content-Type': 'application/json'},
         });
       }
-      return new Response(JSON.stringify({success: true, serverTime: '2026-08-29T12:01:00.000Z', data: {chats: []}}), {
+      return new Response(JSON.stringify({
+        success: true,
+        serverTime: '2026-08-29T12:01:00.000Z',
+        data: {
+          chats: [],
+          settings: {assistant_name: 'Echo', work_mode: true, work_start: 8, work_end: 18},
+        },
+      }), {
         status: 200,
         headers: {'Content-Type': 'application/json'},
       });
@@ -111,6 +130,13 @@
         window.__fixture.preserveActiveRender
         && window.__fixture.originalImage === document.getElementById('fixtureImage'),
       );
+      document.getElementById('fixtureSettingsApplied').textContent = String(
+        localStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) === 'Echo'
+        && localStorage.getItem(STORAGE_KEYS.WORK_MODE) === 'true'
+        && localStorage.getItem(STORAGE_KEYS.WORK_START) === '8'
+        && localStorage.getItem(STORAGE_KEYS.WORK_END) === '18',
+      );
+      document.getElementById('fixtureSettingsEvents').textContent = String(window.__fixture.settingsEvents);
 
       setOnline(false);
       await window.syncChatsToServer();

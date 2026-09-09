@@ -570,7 +570,7 @@ const precisionEditGuideVersion = `${releaseVersion}-button-integrity-1`;
 const fileLibraryWindowVersion = `${releaseVersion}-file-library-window-1`;
 const imageReferenceRecoveryVersion = `${releaseVersion}-image-reference-recovery-1`;
 const liveImagePreviewVersion = `${releaseVersion}-precision-studio-1`;
-const imageStabilityVersion = `${releaseVersion}-image-stability-1`;
+const settingsSyncVersion = `${releaseVersion}-settings-sync-1`;
 const syncCursorVersion = `${releaseVersion}-sync-cursor-1`;
 const imageNodeStabilityVersion = `${releaseVersion}-image-node-stability-1`;
 const uploadedImageNodeStabilityVersion = `${releaseVersion}-uploaded-image-node-stability-1`;
@@ -828,6 +828,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-share.js?v=${referralCancelRecoveryVersion}`) ||
     !runtime.includes(`/lifecycle-manager.js?v=${referralCancelRecoveryVersion}`) ||
+    !runtime.includes(`/chat-sync.js?v=${settingsSyncVersion}`) ||
     !runtime.includes(`/product-analytics.js?v=${projectSaveMeasurementVersion}`) ||
     !runtime.includes(`/app.js?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/crump-v1-body.js?v=${destinationBackgroundGuardVersion}`) ||
@@ -1026,7 +1027,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r226') ||
     !serviceWorker.includes(`/install-prompt.css?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/device-auth.js?v=${nativeBillingIdentityVersion}`) ||
     !serviceWorker.includes(`/sync-manager.js?v=${syncCursorVersion}`) ||
-    !serviceWorker.includes(`/chat-sync.js?v=${imageStabilityVersion}`) ||
+    !serviceWorker.includes(`/chat-sync.js?v=${settingsSyncVersion}`) ||
     !serviceWorker.includes(`/product-analytics.js?v=${projectSaveMeasurementVersion}`) ||
     !serviceWorker.includes(`/auth-controller.js?v=${authControllerVersion}`) ||
     !serviceWorker.includes(`/crump-v1-body.css?v=${creditTruthVersion}`) ||
