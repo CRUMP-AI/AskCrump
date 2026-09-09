@@ -62,6 +62,16 @@ Project and registration paths stable, support qualified acquisition and moderat
 formation, and withhold another speculative signup or continuity redesign until a real attempt or
 failure supplies a denominator.
 
+A separate seven-day production control/dependency review on 2026-09-09 recorded **1,781 HTTP 200**
+serverless responses, **28 expected HTTP 302** file-content handoffs, **8 HTTP 401** responses from
+unauthenticated protected-route probes, **2 HTTP 404** responses for non-current paths, **zero HTTP
+5xx** responses, and no grouped runtime error. Every 302 came from the owner-checked private-file
+content route whose contract intentionally exchanges an authenticated app request for a short-lived
+signed storage URL; no customer identifier or filename is included in this evidence. This supports
+the released button-control matrix at the real dependency boundary without claiming that every
+signed physical-device, permission, provider, or payment outcome has occurred. Keep the current
+controls stable and investigate only a reproducible failure or a newly observed non-success path.
+
 ## Verified releases
 
 | Outcome | Evidence | State |
