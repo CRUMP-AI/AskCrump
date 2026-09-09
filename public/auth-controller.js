@@ -88,7 +88,13 @@
       intent: 'presentation',
       acquisitions: new Set(['facebook', 'instagram']),
       placements: new Set(['profile-link', 'organic-social']),
-      creatives: new Set(['fb-static', 'ig-feed', 'ig-story']),
+      creatives: new Set(['fb-static', 'ig-story']),
+      touchpoints: new Set([
+        'facebook|profile-link|',
+        'instagram|profile-link|',
+        'facebook|organic-social|fb-static',
+        'instagram|organic-social|ig-story',
+      ]),
     },
     'real-product-continuity': {
       intent: 'projects',
@@ -164,15 +170,17 @@
     const placement = ACQUISITION_PLACEMENTS.has(placementToken) ? placementToken : null;
     const intentToken = attributionToken(candidate?.intent);
     const intent = CREATION_INTENTS.has(intentToken) ? intentToken : null;
+    const creativeToken = attributionToken(candidate?.creative);
     const campaignToken = attributionToken(candidate?.campaign);
     const specification = CAMPAIGN_REGISTRY[campaignToken];
+    const touchpoint = `${acquisition}|${placement || ''}|${creativeToken}`;
     const campaign = specification
       && specification.acquisitions.has(acquisition)
       && specification.placements.has(placement)
       && specification.intent === intent
+      && (!specification.touchpoints || specification.touchpoints.has(touchpoint))
       ? campaignToken
       : null;
-    const creativeToken = attributionToken(candidate?.creative);
     const creative = campaign && specification.creatives.has(creativeToken)
       ? creativeToken
       : null;

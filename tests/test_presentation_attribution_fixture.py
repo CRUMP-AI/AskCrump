@@ -15,7 +15,7 @@ EXPECTED_TUPLE = {
     "acquisition": "instagram",
     "placement": "profile-link",
     "campaign": "presentation-proof-current",
-    "creative": "ig-feed",
+    "creative": None,
     "intent": "presentation",
 }
 

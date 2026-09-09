@@ -102,7 +102,13 @@ ATTRIBUTION_CAMPAIGNS = {
         "intent": "presentation",
         "acquisitions": frozenset({"facebook", "instagram"}),
         "placements": frozenset({"profile-link", "organic-social"}),
-        "creatives": frozenset({"fb-static", "ig-feed", "ig-story"}),
+        "creatives": frozenset({"fb-static", "ig-story"}),
+        "touchpoints": frozenset({
+            ("facebook", "profile-link", None),
+            ("instagram", "profile-link", None),
+            ("facebook", "organic-social", "fb-static"),
+            ("instagram", "organic-social", "ig-story"),
+        }),
     },
     "real-product-continuity": {
         "intent": "projects",
@@ -204,17 +210,22 @@ def normalize_attribution(
     if safe_intent not in ATTRIBUTION_INTENTS:
         safe_intent = None
 
+    safe_creative = _attribution_token(creative)
     safe_campaign = _attribution_token(campaign)
     specification = ATTRIBUTION_CAMPAIGNS.get(safe_campaign or "")
+    touchpoint = (safe_acquisition, safe_placement, safe_creative)
     if not specification or (
         safe_acquisition not in specification["acquisitions"]
         or safe_placement not in specification["placements"]
         or safe_intent != specification["intent"]
+        or (
+            specification.get("touchpoints") is not None
+            and touchpoint not in specification["touchpoints"]
+        )
     ):
         safe_campaign = None
         specification = None
 
-    safe_creative = _attribution_token(creative)
     if not specification or safe_creative not in specification["creatives"]:
         safe_creative = None
 

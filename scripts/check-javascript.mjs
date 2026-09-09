@@ -244,24 +244,24 @@ const presentationTouch = {
   acquisition: 'instagram',
   placement: 'profile-link',
   campaign: 'presentation-proof-current',
-  creative: 'ig-feed',
+  creative: null,
   intent: 'presentation',
 };
 const validPathStore = new Map();
 const validPath = runLandingAttribution(
-  'https://askcrump.com/ai-presentation-maker?acquisition=instagram&source=profile-link&campaign=presentation-proof-current&creative=ig-feed&intent=presentation',
+  'https://askcrump.com/ai-presentation-maker?acquisition=instagram&source=profile-link&campaign=presentation-proof-current&intent=presentation',
   validPathStore,
   '/app?signup=1&intent=presentation',
 );
 assertAttribution(storedAttribution(validPathStore), presentationTouch, 'Valid campaign path');
 assertMarketingLanding(validPath, {
-  touchpoint: 'instagram.profile-link.presentation-proof-current.ig-feed',
+  touchpoint: 'instagram.profile-link.presentation-proof-current',
   intent: 'presentation',
 }, 'Valid campaign path');
 const validDestination = new URL(validPath.link.href, 'https://askcrump.com');
 const validCtaEvent = validPath.events.find(event => event.payload?.name === 'MarketingCTA');
 if (validDestination.searchParams.get('campaign') !== 'presentation-proof-current' ||
-    validDestination.searchParams.get('creative') !== 'ig-feed' ||
+    validDestination.searchParams.has('creative') ||
     validCtaEvent?.payload?.data?.campaign !== 'presentation-proof-current') {
   console.error('Valid campaign path did not reach the CTA and anonymous event.');
   process.exit(1);
@@ -339,14 +339,14 @@ assertNoMarketingLanding(directLanding, 'Direct landing');
 
 const oncePerTabStore = new Map();
 const firstLanding = runLandingAttribution(
-  'https://askcrump.com/ai-presentation-maker?acquisition=instagram&source=profile-link&campaign=presentation-proof-current&creative=ig-story',
+  'https://askcrump.com/ai-presentation-maker?acquisition=instagram&source=organic-social&campaign=presentation-proof-current&creative=ig-story',
   oncePerTabStore,
   '/app?signup=1&intent=presentation',
   '',
   {click: false},
 );
 assertMarketingLanding(firstLanding, {
-  touchpoint: 'instagram.profile-link.presentation-proof-current.ig-story',
+  touchpoint: 'instagram.organic-social.presentation-proof-current.ig-story',
   intent: 'presentation',
 }, 'First marketing URL in tab');
 const secondLanding = runLandingAttribution(
@@ -393,7 +393,7 @@ if (failedAnalyticsStore.has('askcrump.marketing-landing-emitted')) {
 
 const profileChainStore = new Map();
 runLandingAttribution(
-  'https://askcrump.com/?acquisition=facebook&source=profile-link&campaign=presentation-proof-current&creative=fb-static&intent=presentation',
+  'https://askcrump.com/?acquisition=facebook&source=profile-link&campaign=presentation-proof-current&intent=presentation',
   profileChainStore,
   '/app?signup=1&intent=presentation',
 );
@@ -406,7 +406,7 @@ assertAttribution(storedAttribution(profileChainStore), {
   acquisition: 'facebook',
   placement: 'profile-link',
   campaign: 'presentation-proof-current',
-  creative: 'fb-static',
+  creative: null,
   intent: 'presentation',
 }, 'Profile link to capability');
 if (!profileCapability.link.href.includes('campaign=presentation-proof-current')) {
@@ -489,7 +489,7 @@ for (const [label, invalidUrl] of [
 }
 
 runLandingAttribution(
-  'https://askcrump.com/ai-presentation-maker?acquisition=instagram&source=profile-link&campaign=presentation-proof-current&creative=ig-story',
+  'https://askcrump.com/ai-presentation-maker?acquisition=instagram&source=organic-social&campaign=presentation-proof-current&creative=ig-story',
   roughToUsefulStore,
   '/app?signup=1&intent=presentation',
   '',
@@ -516,7 +516,7 @@ if (roughToUsefulRuntimeCases !== 6) {
 
 const immutableStore = new Map();
 runLandingAttribution(
-  'https://askcrump.com/ai-presentation-maker?acquisition=instagram&source=profile-link&campaign=presentation-proof-current&creative=ig-story',
+  'https://askcrump.com/ai-presentation-maker?acquisition=instagram&source=profile-link&campaign=presentation-proof-current',
   immutableStore,
   '/app?signup=1&intent=presentation',
 );
@@ -526,13 +526,11 @@ runLandingAttribution(
 );
 assertAttribution(storedAttribution(immutableStore), {
   ...presentationTouch,
-  creative: 'ig-story',
 }, 'Second campaign in the same tab');
 
 runLandingAttribution('https://askcrump.com/app?verified=1', immutableStore);
 assertAttribution(storedAttribution(immutableStore), {
   ...presentationTouch,
-  creative: 'ig-story',
 }, 'Verification return');
 
 runLandingAttribution(
@@ -541,7 +539,6 @@ runLandingAttribution(
 );
 assertAttribution(storedAttribution(immutableStore), {
   ...presentationTouch,
-  creative: 'ig-story',
 }, 'Existing-account sign-in');
 
 const repoRoot = new URL('../', import.meta.url);

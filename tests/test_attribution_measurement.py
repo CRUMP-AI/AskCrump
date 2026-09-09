@@ -17,13 +17,17 @@ from backend.schemas import RegisterRequest
 
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATION = ROOT / "migrations" / "20260830171056_weekly_growth_attribution_export.sql"
-REGISTRY_MIGRATION = ROOT / "migrations" / "20260907184049_rough_to_useful_attribution.sql"
+REGISTRY_MIGRATION = (
+    ROOT
+    / "migrations"
+    / "20260909195019_narrow_presentation_attribution_touchpoints.sql"
+)
 EXPECTED_REGISTRY = {
     "presentation-proof-current": {
         "intent": "presentation",
         "acquisitions": {"facebook", "instagram"},
         "placements": {"profile-link", "organic-social"},
-        "creatives": {"fb-static", "ig-feed", "ig-story"},
+        "creatives": {"fb-static", "ig-story"},
     },
     "real-product-continuity": {
         "intent": "projects",
@@ -62,6 +66,20 @@ EXPECTED_REGISTRY = {
         "creatives": {"personal-invite"},
     },
 }
+EXPECTED_EXACT_TOUCHPOINTS = {
+    "presentation-proof-current": {
+        ("facebook", "profile-link", ""),
+        ("instagram", "profile-link", ""),
+        ("facebook", "organic-social", "fb-static"),
+        ("instagram", "organic-social", "ig-story"),
+    },
+}
+EXPECTED_CAMPAIGNS = set(EXPECTED_REGISTRY)
+EXPECTED_CREATIVES = {
+    creative
+    for specification in EXPECTED_REGISTRY.values()
+    for creative in specification["creatives"]
+}
 
 
 def request_for(host: str, platform: str = "web") -> Request:
@@ -88,7 +106,8 @@ def _parse_js_registry(source: str) -> dict[str, dict[str, object]]:
         r"intent: '([^']+)',\s*"
         r"acquisitions: new Set\(\[([^\]]*)\]\),\s*"
         r"placements: new Set\(\[([^\]]*)\]\),\s*"
-        r"creatives: new Set\(\[([^\]]*)\]\),\s*\}",
+        r"creatives: new Set\(\[([^\]]*)\]\),\s*"
+        r"(?:touchpoints: new Set\(\[[^\]]*\]\),\s*)?\}",
         re.DOTALL,
     )
 
@@ -105,6 +124,58 @@ def _parse_js_registry(source: str) -> dict[str, dict[str, object]]:
         for campaign, intent, acquisitions, placements, creatives
         in entry_pattern.findall(block_match.group(1))
     }
+
+
+def _parse_js_exact_touchpoints(source: str) -> dict[str, set[tuple[str, str, str]]]:
+    block_match = re.search(
+        r"const CAMPAIGN_REGISTRY = Object\.freeze\(\{(.*?)\n  \}\);",
+        source,
+        re.DOTALL,
+    )
+    assert block_match
+    campaign_windows = re.finditer(
+        r"(?ms)^    '([^']+)': \{(.*?)^    \},",
+        block_match.group(1),
+    )
+    parsed: dict[str, set[tuple[str, str, str]]] = {}
+    for window in campaign_windows:
+        touchpoints = re.search(
+            r"touchpoints: new Set\(\[([^\]]*)\]\)",
+            window.group(2),
+            re.DOTALL,
+        )
+        if not touchpoints:
+            continue
+        parsed[window.group(1)] = {
+            tuple(value.split("|"))
+            for value in re.findall(r"'([^']+)'", touchpoints.group(1))
+        }
+    return parsed
+
+
+def _parse_sql_exact_touchpoints(sql: str, *, rpc: bool) -> dict[str, set[tuple[str, str, str]]]:
+    prefix = "v_" if rpc else ""
+    pattern = re.compile(
+        rf"{prefix}(?:source|acquisition) = '([^']+)'\s+"
+        rf"and {prefix}placement = '([^']+)'\s+"
+        rf"and {prefix}creative (?:= '([^']+)'|is null)",
+        re.DOTALL,
+    )
+    section_end = (
+        sql.index(") then\n    v_campaign := null;")
+        if rpc
+        else sql.index("create or replace function public.record_account_created_event")
+    )
+    parsed: dict[str, set[tuple[str, str, str]]] = {}
+    starts = {
+        campaign: sql.index(f"{prefix}campaign = '{campaign}'")
+        for campaign in EXPECTED_EXACT_TOUCHPOINTS
+    }
+    for campaign, start in starts.items():
+        later_starts = [candidate for candidate in starts.values() if candidate > start]
+        end = min(later_starts, default=section_end)
+        parsed[campaign] = set(pattern.findall(sql[start:end]))
+    return parsed
 
 
 def _sql_values(branch: str, field: str) -> set[str]:
@@ -132,7 +203,23 @@ def _parse_sql_constraint_registry(sql: str) -> dict[str, dict[str, object]]:
             "placements": _sql_values(branch, "placement"),
             "creatives": _sql_values(branch, "creative"),
         }
+    for campaign, touchpoints in EXPECTED_EXACT_TOUCHPOINTS.items():
+        parsed[campaign] = {
+            "intent": EXPECTED_REGISTRY[campaign]["intent"],
+            "acquisitions": {row[0] for row in touchpoints},
+            "placements": {row[1] for row in touchpoints},
+            "creatives": {row[2] for row in touchpoints if row[2]},
+        }
     return parsed
+
+
+def _parse_sql_standalone_allowlist(sql: str, constraint: str, field: str) -> set[str]:
+    start = sql.index(f"add constraint {constraint} check")
+    end = sql.index(";", start)
+    block = sql[start:end]
+    match = re.search(rf"\b{field}\s+in\s+\(([^)]*)\)", block, re.DOTALL)
+    assert match, (constraint, field)
+    return set(re.findall(r"'([^']+)'", match.group(1)))
 
 
 def _parse_sql_rpc_registry(sql: str) -> dict[str, dict[str, object]]:
@@ -164,6 +251,13 @@ def _parse_sql_rpc_registry(sql: str) -> dict[str, dict[str, object]]:
         parsed[campaign]["creatives"] = (
             set(re.findall(r"'([^']+)'", multiple)) if multiple else {single}
         )
+    for campaign, touchpoints in EXPECTED_EXACT_TOUCHPOINTS.items():
+        parsed[campaign] = {
+            "intent": EXPECTED_REGISTRY[campaign]["intent"],
+            "acquisitions": {row[0] for row in touchpoints},
+            "placements": {row[1] for row in touchpoints},
+            "creatives": {row[2] for row in touchpoints if row[2]},
+        }
     return parsed
 
 
@@ -193,12 +287,35 @@ def test_campaign_registry_has_exact_frontend_server_and_database_parity():
         }
         for campaign, values in ATTRIBUTION_CAMPAIGNS.items()
     }
+    python_touchpoints = {
+        campaign: {
+            tuple(value or "" for value in touchpoint)
+            for touchpoint in values["touchpoints"]
+        }
+        for campaign, values in ATTRIBUTION_CAMPAIGNS.items()
+        if values.get("touchpoints") is not None
+    }
 
     assert python_registry == EXPECTED_REGISTRY
     assert _parse_js_registry(landing) == EXPECTED_REGISTRY
     assert _parse_js_registry(controller) == EXPECTED_REGISTRY
     assert _parse_sql_constraint_registry(sql) == EXPECTED_REGISTRY
     assert _parse_sql_rpc_registry(sql) == EXPECTED_REGISTRY
+    assert _parse_sql_standalone_allowlist(
+        sql, "product_events_campaign_check", "campaign"
+    ) == EXPECTED_CAMPAIGNS
+    assert _parse_sql_standalone_allowlist(
+        sql, "product_events_creative_check", "creative"
+    ) == EXPECTED_CREATIVES
+    assert python_touchpoints == EXPECTED_EXACT_TOUCHPOINTS
+    assert _parse_js_exact_touchpoints(landing) == EXPECTED_EXACT_TOUCHPOINTS
+    assert _parse_js_exact_touchpoints(controller) == EXPECTED_EXACT_TOUCHPOINTS
+    assert _parse_sql_exact_touchpoints(sql, rpc=False) == EXPECTED_EXACT_TOUCHPOINTS
+    assert _parse_sql_exact_touchpoints(sql, rpc=True) == EXPECTED_EXACT_TOUCHPOINTS
+    assert (
+        "v_creative text := nullif(lower(btrim(coalesce(p_creative, ''))), '');"
+        in sql
+    )
 
 
 def test_registered_campaign_tuple_is_preserved_exactly():
@@ -206,13 +323,41 @@ def test_registered_campaign_tuple_is_preserved_exactly():
         acquisition="Instagram",
         placement="profile-link",
         campaign="presentation-proof-current",
-        creative="ig-feed",
+        creative=None,
         intent="presentation",
     ) == {
         "acquisition": "instagram",
         "placement": "profile-link",
         "campaign": "presentation-proof-current",
-        "creative": "ig-feed",
+        "creative": None,
+        "intent": "presentation",
+    }
+
+    assert normalize_attribution(
+        acquisition="facebook",
+        placement="organic-social",
+        campaign="presentation-proof-current",
+        creative="fb-static",
+        intent="presentation",
+    ) == {
+        "acquisition": "facebook",
+        "placement": "organic-social",
+        "campaign": "presentation-proof-current",
+        "creative": "fb-static",
+        "intent": "presentation",
+    }
+
+    assert normalize_attribution(
+        acquisition="instagram",
+        placement="organic-social",
+        campaign="presentation-proof-current",
+        creative="ig-story",
+        intent="presentation",
+    ) == {
+        "acquisition": "instagram",
+        "placement": "organic-social",
+        "campaign": "presentation-proof-current",
+        "creative": "ig-story",
         "intent": "presentation",
     }
 
@@ -275,7 +420,55 @@ def test_registered_campaign_tuple_is_preserved_exactly():
             {
                 "acquisition": "facebook",
                 "placement": "profile-link",
+                "campaign": None,
+                "creative": None,
+                "intent": "presentation",
+            },
+        ),
+        (
+            {
+                "acquisition": "instagram",
+                "placement": "profile-link",
                 "campaign": "presentation-proof-current",
+                "creative": "ig-feed",
+                "intent": "presentation",
+            },
+            {
+                "acquisition": "instagram",
+                "placement": "profile-link",
+                "campaign": None,
+                "creative": None,
+                "intent": "presentation",
+            },
+        ),
+        (
+            {
+                "acquisition": "facebook",
+                "placement": "organic-social",
+                "campaign": "presentation-proof-current",
+                "creative": "ig-story",
+                "intent": "presentation",
+            },
+            {
+                "acquisition": "facebook",
+                "placement": "organic-social",
+                "campaign": None,
+                "creative": None,
+                "intent": "presentation",
+            },
+        ),
+        (
+            {
+                "acquisition": "instagram",
+                "placement": "organic-social",
+                "campaign": "presentation-proof-current",
+                "creative": "fb-static",
+                "intent": "presentation",
+            },
+            {
+                "acquisition": "instagram",
+                "placement": "organic-social",
+                "campaign": None,
                 "creative": None,
                 "intent": "presentation",
             },
@@ -344,7 +537,7 @@ async def test_account_created_writer_sends_only_the_allowlisted_tuple():
         acquisition="instagram",
         placement="profile-link",
         campaign="presentation-proof-current",
-        creative="ig-feed",
+        creative=None,
         intent="presentation",
     )
 
@@ -359,7 +552,7 @@ async def test_account_created_writer_sends_only_the_allowlisted_tuple():
             "p_acquisition": "instagram",
             "p_placement": "profile-link",
             "p_campaign": "presentation-proof-current",
-            "p_creative": "ig-feed",
+            "p_creative": None,
             "p_intent": "presentation",
         },
     )]
@@ -424,7 +617,7 @@ async def test_registration_records_first_touch_once_on_the_authoritative_event(
             source="instagram",
             placement="profile-link",
             campaign="presentation-proof-current",
-            creative="ig-feed",
+            creative=None,
             intent="presentation",
         ),
         request_for("www.askcrump.com"),
@@ -439,7 +632,7 @@ async def test_registration_records_first_touch_once_on_the_authoritative_event(
         "acquisition": "instagram",
         "placement": "profile-link",
         "campaign": "presentation-proof-current",
-        "creative": "ig-feed",
+        "creative": None,
         "intent": "presentation",
     }
 
