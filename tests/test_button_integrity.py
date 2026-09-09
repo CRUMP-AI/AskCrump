@@ -118,39 +118,86 @@ def _dataset_name(attribute: str) -> str:
     return parts[0] + "".join(part.capitalize() for part in parts[1:])
 
 
-def _runtime_owner_source() -> str:
-    """Return executable JS text without the button markup that it renders."""
-    return "\n".join(
-        BUTTON_TAG_PATTERN.sub("", path.read_text(encoding="utf-8"))
+CLICK_OWNER_PATTERN = re.compile(
+    r"addEventListener\(\s*([\"'])click\1|\.onclick\s*=",
+    re.IGNORECASE,
+)
+OWNER_CONTEXT_RADIUS = 2_500
+GENERIC_BUTTON_CLASSES = {
+    "btn",
+    "button",
+    "is-active",
+    "is-danger",
+    "is-primary",
+    "primary",
+    "secondary",
+}
+
+
+def _runtime_owner_sources() -> dict[str, str]:
+    """Return each executable JS owner without the button markup it renders."""
+    return {
+        path.relative_to(ROOT).as_posix(): BUTTON_TAG_PATTERN.sub(
+            "", path.read_text(encoding="utf-8")
+        )
         for path in sorted(PUBLIC.glob("*.js"))
-    )
+    }
 
 
-def _button_has_runtime_owner(button: dict[str, str], scripts: str) -> bool:
-    if button.get("type", "").lower() == "submit" or button.get("onclick"):
-        return True
-
+def _button_owner_anchors(
+    button: dict[str, str],
+    scripts: dict[str, str],
+) -> list[str]:
     button_id = button.get("id", "")
-    if button_id and re.search(
-        rf"(?<![\w-]){re.escape(button_id)}(?![\w-])",
-        scripts,
+    if button_id and any(
+        re.search(rf"(?<![\w-]){re.escape(button_id)}(?![\w-])", source)
+        for source in scripts.values()
     ):
-        return True
+        return [button_id]
 
     data_attributes = [name for name in button if name.startswith("data-")]
-    if any(
-        f"[{attribute}" in scripts
-        or f"dataset.{_dataset_name(attribute)}" in scripts
-        or f"getAttribute('{attribute}')" in scripts
-        or f'getAttribute("{attribute}")' in scripts
+    referenced_data_attributes = [
+        attribute
         for attribute in data_attributes
-    ):
-        return True
+        if any(
+            attribute in source or _dataset_name(attribute) in source
+            for source in scripts.values()
+        )
+    ]
+    if referenced_data_attributes:
+        return referenced_data_attributes
 
-    classes = button.get("class", "").split()
+    return [
+        class_name
+        for class_name in button.get("class", "").split()
+        if class_name not in GENERIC_BUTTON_CLASSES
+        and "${" not in class_name
+        and any(
+            re.search(rf"(?<![\w-]){re.escape(class_name)}(?![\w-])", source)
+            for source in scripts.values()
+        )
+    ]
+
+
+def _anchor_has_bounded_click_owner(anchor: str, source: str) -> bool:
+    for match in re.finditer(rf"(?<![\w-]){re.escape(anchor)}(?![\w-])", source):
+        start = max(0, match.start() - OWNER_CONTEXT_RADIUS)
+        end = min(len(source), match.end() + OWNER_CONTEXT_RADIUS)
+        if CLICK_OWNER_PATTERN.search(source[start:end]):
+            return True
+    return False
+
+
+def _button_has_runtime_owner(
+    button: dict[str, str],
+    scripts: dict[str, str],
+) -> bool:
+    if button.get("type", "").lower() == "submit" or button.get("onclick"):
+        return True
     return any(
-        re.search(rf"(?<![\w-]){re.escape(class_name)}(?![\w-])", scripts)
-        for class_name in classes
+        _anchor_has_bounded_click_owner(anchor, source)
+        for anchor in _button_owner_anchors(button, scripts)
+        for source in scripts.values()
     )
 
 
@@ -272,7 +319,7 @@ def test_dynamic_button_owner_guard_rejects_an_unowned_control() -> None:
 
 
 def test_every_rendered_button_has_a_form_or_runtime_owner() -> None:
-    scripts = _runtime_owner_source()
+    scripts = _runtime_owner_sources()
     missing: list[str] = []
 
     for page in sorted([*PUBLIC.rglob("*.html"), *PUBLIC.glob("*.js")]):
@@ -289,12 +336,33 @@ def test_every_rendered_button_has_a_form_or_runtime_owner() -> None:
 
 def test_button_owner_guard_does_not_accept_markup_self_references() -> None:
     rendered_markup = '<button type="button" id="futureDeadButton">Future action</button>'
-    scripts = BUTTON_TAG_PATTERN.sub("", rendered_markup)
+    scripts = {"future.js": BUTTON_TAG_PATTERN.sub("", rendered_markup)}
 
     assert not _button_has_runtime_owner(
         {"type": "button", "id": "futureDeadButton"},
         scripts,
     )
+
+
+def test_rendered_button_owner_guard_rejects_lookup_only_and_distant_clicks() -> None:
+    button = {"type": "button", "id": "futureDeadButton"}
+    lookup_only = {"future.js": "const future = byId('futureDeadButton');"}
+    distant_unrelated = {
+        "future.js": (
+            "const future = byId('futureDeadButton');"
+            + ("." * (OWNER_CONTEXT_RADIUS * 2 + 1))
+            + "other.addEventListener('click', runOtherAction);"
+        )
+    }
+    exact_owner = {
+        "future.js": (
+            "byId('futureDeadButton')?.addEventListener('click', runFutureAction);"
+        )
+    }
+
+    assert not _button_has_runtime_owner(button, lookup_only)
+    assert not _button_has_runtime_owner(button, distant_unrelated)
+    assert _button_has_runtime_owner(button, exact_owner)
 
 
 def test_every_markup_button_declares_its_behavior_type() -> None:
