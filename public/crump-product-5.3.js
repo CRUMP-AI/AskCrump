@@ -1731,8 +1731,8 @@
     if (header) {
       const chip = document.createElement('span');
       chip.className = 'crump53-active-project';
-      chip.innerHTML = `<span>IN PROJECT · ${escapeHtml(projectName)}</span><button type="button" aria-label="Stop using ${escapeHtml(projectName)} context in this conversation">×</button>`;
-      chip.querySelector('button')?.addEventListener('click', event => {
+      chip.innerHTML = `<span>IN PROJECT · ${escapeHtml(projectName)}</span><button type="button" data-project-context-leave aria-label="Stop using ${escapeHtml(projectName)} context in this conversation">×</button>`;
+      chip.querySelector('[data-project-context-leave]')?.addEventListener('click', event => {
         event.stopPropagation();
         clearChatProject({optOut: true, announce: true});
       });
@@ -1742,8 +1742,8 @@
     if (dock) {
       const mobile = document.createElement('div');
       mobile.className = 'crump53-mobile-chat-project';
-      mobile.innerHTML = `<div><span>IN PROJECT</span><strong>${escapeHtml(projectName)}</strong><small>Context is applied to this conversation.</small></div><button type="button" aria-label="Stop using ${escapeHtml(projectName)} context in this conversation">Leave</button>`;
-      mobile.querySelector('button')?.addEventListener('click', () => {
+      mobile.innerHTML = `<div><span>IN PROJECT</span><strong>${escapeHtml(projectName)}</strong><small>Context is applied to this conversation.</small></div><button type="button" data-project-context-leave aria-label="Stop using ${escapeHtml(projectName)} context in this conversation">Leave</button>`;
+      mobile.querySelector('[data-project-context-leave]')?.addEventListener('click', () => {
         clearChatProject({optOut: true, announce: true});
       });
       dock.prepend(mobile);
@@ -2907,8 +2907,8 @@
         card.innerHTML = `
           <div class="crump53-handoff-mark">M</div>
           <div><small>YOUR MANUSCRIPT · ${escapeHtml(workspace.runStatus || 'saved')}</small><strong>${escapeHtml(workspace.title || 'Untitled manuscript')}</strong><span>${Number(workspace.chapterCount || 0)} planned chapters · ${Number(workspace.targetWords || 0).toLocaleString()}-word target · built from this conversation</span></div>
-          <button type="button">Open Workshop</button>`;
-        card.querySelector('button')?.addEventListener('click', () => void openManuscriptWorkspace(workspace));
+          <button type="button" data-manuscript-workspace-open>Open Workshop</button>`;
+        card.querySelector('[data-manuscript-workspace-open]')?.addEventListener('click', () => void openManuscriptWorkspace(workspace));
         wrapper.appendChild(card);
       }
 
@@ -2919,8 +2919,8 @@
         card.innerHTML = `
           <div class="crump53-handoff-mark">V</div>
           <div><small>VIDEO STUDIO</small><strong>Scene ready to create</strong><span>${escapeHtml(String(creation.brief || 'Your video direction').slice(0, 180))}</span></div>
-          <button type="button">Open Video Studio</button>`;
-        card.querySelector('button')?.addEventListener('click', () => void openVideoCreationHandoff(creation));
+          <button type="button" data-video-studio-open>Open Video Studio</button>`;
+        card.querySelector('[data-video-studio-open]')?.addEventListener('click', () => void openVideoCreationHandoff(creation));
         wrapper.appendChild(card);
       }
     });

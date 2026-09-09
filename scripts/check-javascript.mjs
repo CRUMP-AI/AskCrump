@@ -487,7 +487,7 @@ const creditTruthVersion = `${releaseVersion}-credit-truth-1`;
 const attachCreationRoutingVersion = `${releaseVersion}-explicit-button-types-1`;
 const creditConfirmationVersion = `${releaseVersion}-credit-confirmation-1`;
 const outputProjectActionVersion = `${releaseVersion}-output-project-action-1`;
-const projectLimitPlanCandidateVersion = `${releaseVersion}-project-limit-plan-dormant-1`;
+const productButtonOwnershipVersion = `${releaseVersion}-button-ownership-1`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
 const accountDeletionBillingVersion = `${releaseVersion}-account-deletion-billing-1`;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
@@ -771,7 +771,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
     !runtime.includes(`/crump-4.4.js?v=${coreReliabilityVersion}`) ||
     !runtime.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !runtime.includes(`/crump-product-5.3.js?v=${projectLimitPlanCandidateVersion}`) ||
+    !runtime.includes(`/crump-product-5.3.js?v=${productButtonOwnershipVersion}`) ||
     !runtime.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
     !runtime.includes(`/crump-product-5.3.1.js?v=${coreReliabilityVersion}`) || !runtime.includes('/crump-product-5.3.1.css') ||
     !runtime.includes('/crump-subscriptions-5.3.2.js') ||
@@ -924,7 +924,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r224') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r225') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${creditCheckoutIdempotencyVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
@@ -961,7 +961,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r224') ||
     !serviceWorker.includes(`/crump-4.3.js?v=${intelligenceArchitectureVersion}`) ||
     !serviceWorker.includes(`/crump-4.4.js?v=${coreReliabilityVersion}`) ||
     !serviceWorker.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !serviceWorker.includes(`/crump-product-5.3.js?v=${projectLimitPlanCandidateVersion}`) ||
+    !serviceWorker.includes(`/crump-product-5.3.js?v=${productButtonOwnershipVersion}`) ||
     !serviceWorker.includes(`/crump-product-5.3.1.js?v=${coreReliabilityVersion}`) ||
     !serviceWorker.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${destinationBackgroundGuardVersion}`) ||

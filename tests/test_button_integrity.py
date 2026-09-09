@@ -7,6 +7,22 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "public"
+BUTTON_TAG_PATTERN = re.compile(r"<button\b[^>]*>", re.IGNORECASE)
+EXPECTED_BUTTON_INVENTORY = {
+    "public/app.html": 47,
+    "public/credit-confirmation.js": 3,
+    "public/crump-5.0.js": 3,
+    "public/crump-5.2.js": 5,
+    "public/crump-billing-5.1.js": 3,
+    "public/crump-code-5.9.35.js": 4,
+    "public/crump-library-5.7.js": 41,
+    "public/crump-navigation-5.9.30.js": 4,
+    "public/crump-product-5.3.1.js": 10,
+    "public/crump-product-5.3.js": 54,
+    "public/install-prompt.js": 2,
+    "public/lifecycle-manager.js": 2,
+    "public/subscription-ui.js": 3,
+}
 
 
 class ButtonParser(HTMLParser):
@@ -25,35 +41,78 @@ def _dataset_name(attribute: str) -> str:
     return parts[0] + "".join(part.capitalize() for part in parts[1:])
 
 
-def test_every_static_button_has_a_form_or_runtime_action() -> None:
-    scripts = "\n".join(
-        path.read_text(encoding="utf-8") for path in sorted(PUBLIC.glob("*.js"))
+def _runtime_owner_source() -> str:
+    """Return executable JS text without the button markup that it renders."""
+    return "\n".join(
+        BUTTON_TAG_PATTERN.sub("", path.read_text(encoding="utf-8"))
+        for path in sorted(PUBLIC.glob("*.js"))
     )
+
+
+def _button_has_runtime_owner(button: dict[str, str], scripts: str) -> bool:
+    if button.get("type", "").lower() == "submit" or button.get("onclick"):
+        return True
+
+    button_id = button.get("id", "")
+    if button_id and re.search(
+        rf"(?<![\w-]){re.escape(button_id)}(?![\w-])",
+        scripts,
+    ):
+        return True
+
+    data_attributes = [name for name in button if name.startswith("data-")]
+    if any(
+        f"[{attribute}" in scripts
+        or f"dataset.{_dataset_name(attribute)}" in scripts
+        or f"getAttribute('{attribute}')" in scripts
+        or f'getAttribute("{attribute}")' in scripts
+        for attribute in data_attributes
+    ):
+        return True
+
+    classes = button.get("class", "").split()
+    return any(
+        re.search(rf"(?<![\w-]){re.escape(class_name)}(?![\w-])", scripts)
+        for class_name in classes
+    )
+
+
+def test_rendered_button_inventory_requires_explicit_review() -> None:
+    inventory: dict[str, int] = {}
+    for page in sorted([*PUBLIC.rglob("*.html"), *PUBLIC.glob("*.js")]):
+        parser = ButtonParser()
+        parser.feed(page.read_text(encoding="utf-8"))
+        if parser.buttons:
+            inventory[page.relative_to(ROOT).as_posix()] = len(parser.buttons)
+
+    assert inventory == EXPECTED_BUTTON_INVENTORY
+    assert sum(inventory.values()) == 181
+
+
+def test_every_rendered_button_has_a_form_or_runtime_owner() -> None:
+    scripts = _runtime_owner_source()
     missing: list[str] = []
 
-    for page in sorted(PUBLIC.rglob("*.html")):
+    for page in sorted([*PUBLIC.rglob("*.html"), *PUBLIC.glob("*.js")]):
         parser = ButtonParser()
         parser.feed(page.read_text(encoding="utf-8"))
         for index, button in enumerate(parser.buttons, start=1):
-            if button.get("type", "").lower() == "submit" or button.get("onclick"):
+            if _button_has_runtime_owner(button, scripts):
                 continue
-            button_id = button.get("id", "")
-            if button_id and re.search(rf"[\"']{re.escape(button_id)}[\"']", scripts):
-                continue
-            data_attributes = [name for name in button if name.startswith("data-")]
-            wired = any(
-                f"[{attribute}]" in scripts
-                or f"dataset.{_dataset_name(attribute)}" in scripts
-                or f"getAttribute('{attribute}')" in scripts
-                or f'getAttribute("{attribute}")' in scripts
-                for attribute in data_attributes
-            )
-            if wired:
-                continue
-            identity = button_id or button.get("class") or f"button-{index}"
+            identity = button.get("id") or button.get("class") or f"button-{index}"
             missing.append(f"{page.relative_to(ROOT)}::{identity}")
 
-    assert not missing, f"Static buttons without an actionable runtime owner: {missing}"
+    assert not missing, f"Rendered buttons without a form or runtime owner: {missing}"
+
+
+def test_button_owner_guard_does_not_accept_markup_self_references() -> None:
+    rendered_markup = '<button type="button" id="futureDeadButton">Future action</button>'
+    scripts = BUTTON_TAG_PATTERN.sub("", rendered_markup)
+
+    assert not _button_has_runtime_owner(
+        {"type": "button", "id": "futureDeadButton"},
+        scripts,
+    )
 
 
 def test_every_markup_button_declares_its_behavior_type() -> None:
