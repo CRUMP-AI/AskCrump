@@ -66,6 +66,77 @@ for (const name of files) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
+const syncManagerRuntimeSource = await readFile(new URL('sync-manager.js', publicDirectory), 'utf8');
+
+async function exerciseSyncCursorRace() {
+  const values = new Map();
+  const requests = [];
+  const localStorage = {
+    getItem(key) { return values.has(key) ? values.get(key) : null; },
+    setItem(key, value) { values.set(key, String(value)); },
+  };
+  const syncWindow = {
+    currentUser: {id: 'fixture-user'},
+    addEventListener() {},
+    setTimeout,
+    clearTimeout,
+  };
+  const fixtureFetch = async (input, options = {}) => {
+    const url = new URL(String(input), 'https://fixture.invalid');
+    const method = String(options.method || 'GET').toUpperCase();
+    requests.push({method, url});
+    if (method === 'POST') {
+      return new Response(JSON.stringify({
+        success: true,
+        serverTime: '2026-09-09T12:00:02.000Z',
+        accepted: ['local-chat'],
+        ignored: [],
+      }), {status: 200, headers: {'Content-Type': 'application/json'}});
+    }
+    const hasUnsafePushCursor = url.searchParams.has('since');
+    return new Response(JSON.stringify({
+      success: true,
+      serverTime: '2026-09-09T12:00:03.000Z',
+      data: {
+        chats: hasUnsafePushCursor ? [] : [{chat_id: 'concurrent-chat'}],
+      },
+    }), {status: 200, headers: {'Content-Type': 'application/json'}});
+  };
+  runInContext(syncManagerRuntimeSource, createContext({
+    AbortController,
+    Date,
+    JSON,
+    Math,
+    Promise,
+    Response,
+    URL,
+    crypto: {randomUUID: () => 'fixture-queue-entry'},
+    fetch: fixtureFetch,
+    localStorage,
+    navigator: {onLine: true},
+    window: syncWindow,
+  }));
+
+  await syncWindow.SyncManager.push(null, {
+    chats: [{chat_id: 'local-chat'}],
+    deletedChats: [],
+  });
+  const firstPull = await syncWindow.SyncManager.pull(null, {full: false});
+  const firstGet = requests.find(request => request.method === 'GET');
+  if (!firstGet || firstGet.url.searchParams.has('since') ||
+      firstPull.data?.chats?.[0]?.chat_id !== 'concurrent-chat') {
+    throw new Error('A push advanced the unread sync cursor and skipped a concurrent chat.');
+  }
+
+  await syncWindow.SyncManager.pull(null, {full: false});
+  const gets = requests.filter(request => request.method === 'GET');
+  if (gets[1]?.url.searchParams.get('since') !== '2026-09-09T12:00:03.000Z') {
+    throw new Error('A completed pull did not advance the incremental sync cursor.');
+  }
+}
+
+await exerciseSyncCursorRace();
+
 const landingRuntimeSource = await readFile(new URL('landing.js', publicDirectory), 'utf8');
 
 function runLandingAttribution(
@@ -500,6 +571,7 @@ const fileLibraryWindowVersion = `${releaseVersion}-file-library-window-1`;
 const imageReferenceRecoveryVersion = `${releaseVersion}-image-reference-recovery-1`;
 const liveImagePreviewVersion = `${releaseVersion}-precision-studio-1`;
 const imageStabilityVersion = `${releaseVersion}-image-stability-1`;
+const syncCursorVersion = `${releaseVersion}-sync-cursor-1`;
 const imageNodeStabilityVersion = `${releaseVersion}-image-node-stability-1`;
 const uploadedImageNodeStabilityVersion = `${releaseVersion}-uploaded-image-node-stability-1`;
 const projectSaveMeasurementVersion = `${releaseVersion}-project-save-measurement-1`;
@@ -953,7 +1025,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r226') ||
     !serviceWorker.includes(`/install-prompt.js?v=${authUpdateGuardVersion}`) ||
     !serviceWorker.includes(`/install-prompt.css?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/device-auth.js?v=${nativeBillingIdentityVersion}`) ||
-    !serviceWorker.includes(`/sync-manager.js?v=${releaseVersion}`) ||
+    !serviceWorker.includes(`/sync-manager.js?v=${syncCursorVersion}`) ||
     !serviceWorker.includes(`/chat-sync.js?v=${imageStabilityVersion}`) ||
     !serviceWorker.includes(`/product-analytics.js?v=${projectSaveMeasurementVersion}`) ||
     !serviceWorker.includes(`/auth-controller.js?v=${authControllerVersion}`) ||

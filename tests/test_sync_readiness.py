@@ -26,9 +26,9 @@ def test_changed_sync_manager_is_release_versioned_and_network_first():
     worker = (PUBLIC / "sw.js").read_text(encoding="utf-8")
 
     assert '"version": "5.9.76"' in package
-    assert '<script defer src="/sync-manager.js?v=5.9.76"></script>' not in shell
-    assert "['/sync-manager.js?v=5.9.76', 'workspacesync']" in runtime
-    assert "'/sync-manager.js?v=5.9.76'" in worker
+    assert '<script defer src="/sync-manager.js?v=5.9.76-sync-cursor-1"></script>' not in shell
+    assert "['/sync-manager.js?v=5.9.76-sync-cursor-1', 'workspacesync']" in runtime
+    assert "'/sync-manager.js?v=5.9.76-sync-cursor-1'" in worker
     assert '<script defer src="/presence-manager.js?v=5.9.76"></script>' not in shell
     assert "['/presence-manager.js?v=5.9.76', 'workspacepresence']" in runtime
     assert "'/presence-manager.js?v=5.9.76'" in worker
@@ -93,6 +93,25 @@ def test_offline_changes_queue_before_the_network_flush_and_flush_is_single_flig
     assert push.index("write(key, queue.slice(-100))") < push.index("return flush()")
     assert "navigator.onLine" not in push_local
     assert "window.SyncManager.push(null, payload)" in push_local
+
+
+def test_only_a_completed_pull_advances_the_incremental_read_watermark():
+    manager = (PUBLIC / "sync-manager.js").read_text(encoding="utf-8")
+
+    pull = manager[manager.index("async function pull") : manager.index("function mergeQueue")]
+    flush = manager[manager.index("async function flushQueued") : manager.index("async function flush()")]
+
+    assert "write(userKey(SYNC_KEY), data.serverTime" in pull
+    assert "write(userKey(SYNC_KEY), data.serverTime" not in flush
+
+
+def test_pull_route_captures_its_safe_watermark_before_the_database_read():
+    route = (ROOT / "backend" / "routes" / "sync.py").read_text(encoding="utf-8")
+    pull_route = route[route.index("async def sync_pull") : route.index("@router.post('/sync/push')")]
+
+    assert "server_time = iso_now()" in pull_route
+    assert pull_route.index("server_time = iso_now()") < pull_route.index("data = await pull_sync")
+    assert "'serverTime': server_time" in pull_route
 
 
 def test_startup_draft_does_not_persist_or_schedule_a_blind_push():

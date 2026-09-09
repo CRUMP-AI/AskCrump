@@ -16,8 +16,12 @@ router = APIRouter(prefix="/api", tags=["synchronization"])
 @router.get('/sync/pull')
 async def sync_pull(request: Request, since: str | None = None):
     auth = await authenticate_request(request, db, settings)
+    # Capture the read watermark before querying. A write that lands while the
+    # query is in flight must remain newer than this cursor so the next
+    # incremental pull cannot skip it.
+    server_time = iso_now()
     data = await pull_sync(db, auth.user['id'], since)
-    return {'success': True, 'serverTime': iso_now(), 'data': data}
+    return {'success': True, 'serverTime': server_time, 'data': data}
 
 
 @router.post('/sync/push')

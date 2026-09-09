@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from backend.routes import sync as sync_routes
 from backend.sync_service import (
     parse_datetime,
     push_sync,
@@ -9,6 +10,34 @@ from backend.sync_service import (
     sanitize_message,
     sanitize_settings,
 )
+
+
+@pytest.mark.asyncio
+async def test_pull_cursor_is_captured_before_the_database_read(monkeypatch):
+    events = []
+
+    async def fake_authenticate_request(_request, _db, _settings):
+        return type('AuthResult', (), {'user': {'id': 'user-1'}})()
+
+    async def fake_pull_sync(_db, user_id, since):
+        events.append(('read', user_id, since))
+        return {'chats': [], 'settings': None}
+
+    def fake_iso_now():
+        events.append(('watermark',))
+        return '2026-09-09T12:00:00.000Z'
+
+    monkeypatch.setattr(sync_routes, 'authenticate_request', fake_authenticate_request)
+    monkeypatch.setattr(sync_routes, 'pull_sync', fake_pull_sync)
+    monkeypatch.setattr(sync_routes, 'iso_now', fake_iso_now)
+
+    result = await sync_routes.sync_pull(object(), since='2026-09-09T11:59:00.000Z')
+
+    assert events == [
+        ('watermark',),
+        ('read', 'user-1', '2026-09-09T11:59:00.000Z'),
+    ]
+    assert result['serverTime'] == '2026-09-09T12:00:00.000Z'
 
 
 class FakeDB:

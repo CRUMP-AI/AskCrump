@@ -109,7 +109,9 @@
 
       const remaining = read(key, []).filter((entry, index) => !batchIds.has(queueEntryId(entry, index)));
       write(key, remaining);
-      write(userKey(SYNC_KEY), data.serverTime || new Date().toISOString());
+      // A push confirms only that our write was accepted. It does not prove
+      // that this device read concurrent changes, so it must never advance the
+      // incremental-pull watermark.
       flushed = true;
       lastResult = data;
     }
