@@ -477,7 +477,7 @@ const repoRoot = new URL('../', import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot), 'utf8'));
 const releaseVersion = String(packageJson.version || '');
 const landingVersion = `${releaseVersion}-referral-context-1`;
-const authControllerVersion = `${releaseVersion}-login-failure-categories-1`;
+const authControllerVersion = `${releaseVersion}-returning-signup-gate-1`;
 const planRendererVersion = `${releaseVersion}-credit-pack-accessibility-1`;
 const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
 const nativeBillingIdentityVersion = `${releaseVersion}-native-billing-identity-1`;
@@ -924,7 +924,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r225') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r226') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${creditCheckoutIdempotencyVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||

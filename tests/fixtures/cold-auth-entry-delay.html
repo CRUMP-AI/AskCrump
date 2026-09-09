@@ -218,6 +218,9 @@
       window.__fixture.startupEvents.push('authenticated-initialized');
     };
     window.deviceAuth = {
+      cachedUser() {
+        return fixtureParams.get('cached') === '1' ? fixtureUser : null;
+      },
       async checkSession() {
         await new Promise(resolve => setTimeout(resolve, fixtureSessionDelay));
         window.__fixture.sessionSettled = true;
@@ -253,6 +256,6 @@
       window.__fixture.browserErrors.push(String(event.reason?.message || event.reason || 'unhandled rejection'));
     });
   </script>
-  <script src="/public/auth-controller.js?v=fixture-cold-auth-delay-4"></script>
+  <script src="/public/auth-controller.js?v=fixture-cold-auth-delay-5"></script>
 </body>
 </html>

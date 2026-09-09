@@ -610,6 +610,14 @@
     show('appContainer', 'flex');
   }
 
+  function hasReturningDeviceHint() {
+    try {
+      return Boolean(window.deviceAuth?.cachedUser?.());
+    } catch (_) {
+      return false;
+    }
+  }
+
   async function prepareAuthenticatedWorkspace() {
     const runtime = window.CrumpWorkspaceRuntime;
     if (!runtime || typeof runtime.load !== 'function') {
@@ -782,6 +790,7 @@
     configureRegistrationHandoff();
     const params = new URLSearchParams(location.search);
     const signupRequested = params.get('signup') === '1';
+    const returningDeviceHint = hasReturningDeviceHint();
     const resetToken = params.get('token');
     if (resetToken) {
       showAuth('reset');
@@ -795,7 +804,7 @@
       history.replaceState({}, document.title, location.pathname);
     }
 
-    if (signupRequested) {
+    if (signupRequested && !returningDeviceHint) {
       showAuth('register');
     } else {
       showReturningVisitorGate();
@@ -806,7 +815,7 @@
     const session = await window.deviceAuth.checkSession();
     if (authFlowRevision !== bootstrapAuthFlowRevision) return;
     if (session.unavailable) {
-      if (!signupRequested) {
+      if (!signupRequested || returningDeviceHint) {
         showAuth('login');
         setText(
           'loginError',
@@ -817,8 +826,12 @@
       return;
     }
     if (!session.authenticated || !session.data?.user) {
-      if (!signupRequested) showAuth('login');
-      if (signupRequested) trackSignupIntent('deep-link');
+      if (signupRequested) {
+        showAuth('register');
+        trackSignupIntent('deep-link');
+      } else {
+        showAuth('login');
+      }
       if (verification) showVerificationResult(verification);
       return;
     }

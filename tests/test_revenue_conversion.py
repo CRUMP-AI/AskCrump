@@ -430,7 +430,8 @@ def test_signup_deep_link_opens_registration_and_tracks_the_funnel():
 
     assert '/_vercel/insights/script.js' in app
     assert "params.get('signup') === '1'" in controller
-    assert "if (signupRequested) {\n      showAuth('register');" in controller
+    assert "if (signupRequested && !returningDeviceHint) {\n      showAuth('register');" in controller
+    assert "if (signupRequested) {\n        showAuth('register');" in controller
     assert controller.index("showAuth('register');", controller.index("async function bootstrap")) < controller.index("await window.CrumpAPI?.ready")
     assert "function trackSignupIntent(locationName)" in controller
     assert "trackSignupIntent('deep-link')" in controller
@@ -509,7 +510,7 @@ def test_release_version_and_cache_advance_together():
 
     assert '"version": "5.9.76"' in package
     assert "__version__ = '5.9.76'" in backend
-    assert "ask-crump-new-body-v1-r225" in worker
+    assert "ask-crump-new-body-v1-r226" in worker
     assert "/landing-5.6.css?v=5.9.76-referral-context-1" in worker
     assert "/use-case.css?v=5.9.76" in worker
     assert "/landing.js?v=5.9.76-referral-context-1" in worker
@@ -523,7 +524,7 @@ def test_changed_activation_assets_are_release_versioned():
     for asset in (
         "/crump-v1-body.css?v=5.9.76-credit-truth-1",
         "/device-auth.js?v=5.9.76-native-billing-identity-1",
-        "/auth-controller.js?v=5.9.76-login-failure-categories-1",
+        "/auth-controller.js?v=5.9.76-returning-signup-gate-1",
     ):
         assert asset in shell
         assert asset in worker

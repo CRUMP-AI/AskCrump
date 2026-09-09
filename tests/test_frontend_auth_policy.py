@@ -209,7 +209,7 @@ def test_cold_signup_explore_fixture_uses_real_runtime_without_production_writes
     assert 'id="fixtureEvents"' in fixture
     assert "window.__fixture.events.push(payload);" in fixture
     assert "addEventListener('click', event => event.preventDefault())" in fixture
-    assert '/public/auth-controller.js?v=fixture-cold-auth-delay-4' in fixture
+    assert '/public/auth-controller.js?v=fixture-cold-auth-delay-5' in fixture
     assert 'https://' not in fixture
     assert 'askcrump.com' not in fixture
 

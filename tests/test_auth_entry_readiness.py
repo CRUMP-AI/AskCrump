@@ -40,11 +40,12 @@ def test_browser_fixture_reproduces_a_never_settling_sync_without_real_credentia
 def test_delayed_session_fixture_protects_both_cold_auth_entry_paths():
     fixture = (ROOT / "tests" / "fixtures" / "cold-auth-entry-delay.html").read_text(encoding="utf-8")
 
-    assert '<script src="/public/auth-controller.js?v=fixture-cold-auth-delay-4"></script>' in fixture
+    assert '<script src="/public/auth-controller.js?v=fixture-cold-auth-delay-5"></script>' in fixture
     assert "Number(fixtureParams.get('sessionDelay') || 3000)" in fixture
     assert "setTimeout(resolve, fixtureSessionDelay)" in fixture
     assert "sessionSettled: false" in fixture
     assert "get('authenticated') === '1'" in fixture
+    assert "get('cached') === '1'" in fixture
     assert "fixtureAppState" in fixture
     assert "startupEvents.push('runtime-ready')" in fixture
     assert "startupEvents.push('app-initialized')" in fixture
@@ -60,9 +61,21 @@ def test_bootstrap_exposes_a_truthful_surface_before_the_bounded_session_probe()
     bootstrap = controller[controller.index("async function bootstrap()") : controller.index("function wireNavigation()")]
 
     assert "function showReturningVisitorGate()" in controller
+    assert "function hasReturningDeviceHint()" in controller
+    assert "const returningDeviceHint = hasReturningDeviceHint();" in bootstrap
     assert "const bootstrapAuthFlowRevision = authFlowRevision;" in bootstrap
+    assert "if (signupRequested && !returningDeviceHint)" in bootstrap
     assert bootstrap.index("showAuth('register')") < bootstrap.index("await window.CrumpAPI?.ready")
     assert bootstrap.index("showReturningVisitorGate()") < bootstrap.index("await window.CrumpAPI?.ready")
     assert bootstrap.index("await window.CrumpAPI?.ready") < bootstrap.index("window.deviceAuth.checkSession()")
     assert "if (authFlowRevision !== bootstrapAuthFlowRevision) return;" in bootstrap
     assert "authFlowRevision += 1;" in controller
+
+
+def test_returning_signup_gate_resolves_to_registration_after_definitive_logout():
+    controller = (PUBLIC / "auth-controller.js").read_text(encoding="utf-8")
+    bootstrap = controller[controller.index("async function bootstrap()") : controller.index("function wireNavigation()")]
+
+    signed_out = bootstrap[bootstrap.index("if (!session.authenticated || !session.data?.user)") :]
+    assert "if (signupRequested)" in signed_out
+    assert signed_out.index("showAuth('register')") < signed_out.index("trackSignupIntent('deep-link')")
