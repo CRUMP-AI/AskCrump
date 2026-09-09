@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Outcome issue category fixture</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/public/styles.css">
+  <link rel="stylesheet" href="/public/conversation.css">
+</head>
+<body>
+  <main id="chatContainer" class="chat-container" aria-label="Conversation"></main>
+  <script>
+    window.currentChatId = '00000000-0000-4000-8000-000000000091';
+    window.chats = [{id: window.currentChatId, messages: []}];
+    window.__fixture = {analytics: [], errors: [], failNextCategory: false, toasts: []};
+    window.addEventListener('error', event => window.__fixture.errors.push(event.message || 'page error'));
+    window.addEventListener('unhandledrejection', event => window.__fixture.errors.push(String(event.reason || 'rejection')));
+    window.CrumpAnalytics = {
+      track(eventName, values) {
+        window.__fixture.analytics.push({eventName, values});
+        if (eventName === 'OutcomeIssueCategorized' && window.__fixture.failNextCategory) {
+          window.__fixture.failNextCategory = false;
+          return Promise.resolve(false);
+        }
+        return Promise.resolve(true);
+      },
+    };
+    window.CrumpPresence = {indicator: () => null};
+    window.showToast = message => window.__fixture.toasts.push(message);
+  </script>
+  <script src="/public/ui-functions.js?v=outcome-issue-category-fixture-1"></script>
+  <script>
+    window.showToast = message => window.__fixture.toasts.push(message);
+    window.__fixtureMessages = [{
+      id: 'response-issue-fixture',
+      role: 'assistant',
+      content: 'A fictional result used only to verify fixed-category feedback controls.',
+    }];
+    window.renderMessages(window.__fixtureMessages);
+  </script>
+</body>
+</html>

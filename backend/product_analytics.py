@@ -21,6 +21,7 @@ EVENT_NAMES = frozenset({
     "ActivationReached",
     "AhaReached",
     "OutcomeFeedbackSubmitted",
+    "OutcomeIssueCategorized",
     "RecentWorkResumed",
     "PlanCenterViewed",
     "PlanIntentReached",
@@ -42,12 +43,22 @@ CLIENT_EVENT_NAMES = frozenset({
     "ProjectSaveIntentReached",
     "ActivationReached",
     "OutcomeFeedbackSubmitted",
+    "OutcomeIssueCategorized",
     "RecentWorkResumed",
     "PlanCenterViewed",
     "PlanIntentReached",
     "ResponseShared",
 })
 OUTCOME_FEEDBACK_SOURCES = frozenset({"useful", "needs_work"})
+OUTCOME_ISSUE_SOURCES = frozenset({
+    "accuracy",
+    "instructions",
+    "format",
+    "media_quality",
+    "reliability",
+    "safety",
+    "other",
+})
 RESPONSE_SHARE_SOURCES = frozenset({
     "native_share",
     "clipboard",

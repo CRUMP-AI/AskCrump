@@ -79,13 +79,13 @@ const loader = String.raw`
     ['/subscription-ui.js?v=5.9.76-commerce-recovery-1', 'workspacesubscription'],
     ['/credit-confirmation.js?v=5.9.76-credit-confirmation-1', 'workspacecreditconfirmation'],
     ['/chat-resilience.js?v=5.9.76-credit-confirmation-1', 'workspacechatresilience'],
-    ['/ui-functions.js?v=5.9.76-image-node-stability-1', 'workspaceui'],
+    ['/ui-functions.js?v=5.9.76-outcome-issue-categories-1', 'workspaceui'],
     ['/presence-manager.js?v=5.9.76', 'workspacepresence'],
     ['/sync-manager.js?v=5.9.76', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-image-stability-1', 'workspacechatsync'],
     ['/account-manager.js?v=5.9.76-account-deletion-billing-1', 'workspaceaccount'],
     ['/app.js?v=5.9.76-settings-save-isolation-1', 'workspaceapp'],
-    ['/product-analytics.js?v=5.9.76-project-save-measurement-1', 'workspaceanalytics'],
+    ['/product-analytics.js?v=5.9.76-outcome-issue-categories-1', 'workspaceanalytics'],
   ]);
 
   const enhancementScripts = Object.freeze([

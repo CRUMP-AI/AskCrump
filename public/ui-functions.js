@@ -541,6 +541,16 @@
   }
 
   const OUTCOME_FEEDBACK_STORAGE_PREFIX = 'askcrump.outcome-feedback.';
+  const OUTCOME_ISSUE_STORAGE_PREFIX = 'askcrump.outcome-issue.';
+  const OUTCOME_ISSUE_CATEGORIES = Object.freeze([
+    ['Wrong facts', 'accuracy'],
+    ['Missed request', 'instructions'],
+    ['Format or clarity', 'format'],
+    ['Image or video quality', 'media_quality'],
+    ['Slow or failed', 'reliability'],
+    ['Safety or rejection', 'safety'],
+    ['Something else', 'other'],
+  ]);
 
   function responseOutcomeKey(message, index) {
     const raw = String(message?.id || `${window.currentChatId || 'chat'}-${index}`);
@@ -560,6 +570,25 @@
   function saveOutcomeFeedback(eventKey, value) {
     try {
       window.sessionStorage.setItem(`${OUTCOME_FEEDBACK_STORAGE_PREFIX}${eventKey}`, value);
+    } catch (_) {}
+  }
+
+  function outcomeIssueKey(eventKey) {
+    return String(eventKey || '').replace(/^outcome-feedback:/, 'outcome-issue:');
+  }
+
+  function savedOutcomeIssue(eventKey) {
+    try {
+      const value = window.sessionStorage.getItem(`${OUTCOME_ISSUE_STORAGE_PREFIX}${eventKey}`);
+      return OUTCOME_ISSUE_CATEGORIES.some(([, category]) => category === value) ? value : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function saveOutcomeIssue(eventKey, value) {
+    try {
+      window.sessionStorage.setItem(`${OUTCOME_ISSUE_STORAGE_PREFIX}${eventKey}`, value);
     } catch (_) {}
   }
 
@@ -737,6 +766,40 @@
       status.setAttribute('role', 'status');
       status.textContent = 'Thanks — feedback saved.';
       group.replaceChildren(continuityPrompt, projectButton, status);
+      if (value === 'needs_work') {
+        const issueKey = outcomeIssueKey(eventKey);
+        if (savedOutcomeIssue(issueKey)) {
+          status.textContent = 'Thanks — that helps us improve.';
+          return;
+        }
+        status.textContent = 'Thanks — what missed the mark? Optional.';
+        const issueButtons = [];
+        for (const [label, category] of OUTCOME_ISSUE_CATEGORIES) {
+          const issueButton = document.createElement('button');
+          issueButton.type = 'button';
+          issueButton.className = 'outcome-feedback-btn outcome-issue-btn';
+          issueButton.textContent = label;
+          issueButton.setAttribute('aria-label', `Feedback category: ${label}`);
+          issueButton.addEventListener('click', async () => {
+            issueButtons.forEach(item => { item.disabled = true; });
+            const recorded = await window.CrumpAnalytics?.track?.('OutcomeIssueCategorized', {
+              eventKey: issueKey,
+              source: category,
+            });
+            if (!recorded) {
+              issueButtons.forEach(item => { item.disabled = false; });
+              window.showToast?.('Feedback category could not be saved. Try again.', 'error');
+              return;
+            }
+            saveOutcomeIssue(issueKey, category);
+            status.textContent = 'Thanks — that helps us improve.';
+            issueButtons.forEach(item => item.remove());
+          });
+          issueButtons.push(issueButton);
+        }
+        group.append(...issueButtons);
+        return;
+      }
       if (value !== 'useful') return;
 
       const referralPrompt = document.createElement('span');

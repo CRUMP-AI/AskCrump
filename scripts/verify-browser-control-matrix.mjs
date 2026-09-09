@@ -25,6 +25,7 @@ const expectedVerifiers = Object.freeze([
   'verify-marketing-landing-browser.cjs',
   'verify-marketing-landing-preload.cjs',
   'verify-mobile-drawer-destinations.cjs',
+  'verify-outcome-issue-categories.cjs',
   'verify-paid-plan-intent-delivery.cjs',
   'verify-precision-image-edit.cjs',
   'verify-presentation-attribution-browser.cjs',

@@ -385,6 +385,65 @@ async def test_outcome_feedback_route_rejects_non_contract_values(event_key, sou
 
 
 @pytest.mark.asyncio
+async def test_outcome_issue_category_route_accepts_only_fixed_content_free_signal(monkeypatch):
+    calls = []
+
+    async def authenticate(_request, _database, _settings):
+        return type("Auth", (), {"user": {"id": "00000000-0000-0000-0000-000000000001"}})()
+
+    async def rate_limit(*_args, **_kwargs):
+        return None
+
+    async def recorder(_database, **kwargs):
+        calls.append(kwargs)
+        return True
+
+    monkeypatch.setattr(analytics_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(analytics_routes, "enforce_user_rate_limit", rate_limit)
+    monkeypatch.setattr(analytics_routes, "record_product_event", recorder)
+
+    result = await analytics_routes.create_product_event(
+        ProductEventRequest(
+            eventName="OutcomeIssueCategorized",
+            eventKey="outcome-issue:response-123",
+            source="instructions",
+        ),
+        request_for("www.askcrump.com"),
+    )
+
+    assert result == {"success": True, "recorded": True}
+    assert calls[0]["event_name"] == "OutcomeIssueCategorized"
+    assert calls[0]["event_key"] == "outcome-issue:response-123"
+    assert calls[0]["source"] == "instructions"
+    assert calls[0]["plan"] is None
+    assert set(calls[0]) == {"user_id", "event_name", "event_key", "request", "source", "plan"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("event_key", "source", "plan"),
+    [
+        ("outcome-issue:response-123", "free_text_reason", None),
+        ("outcome-feedback:response-123", "accuracy", None),
+        ("outcome-issue:response-123", "accuracy", "professional"),
+    ],
+)
+async def test_outcome_issue_category_route_rejects_non_contract_values(event_key, source, plan):
+    with pytest.raises(HTTPException) as error:
+        await analytics_routes.create_product_event(
+            ProductEventRequest(
+                eventName="OutcomeIssueCategorized",
+                eventKey=event_key,
+                source=source,
+                plan=plan,
+            ),
+            request_for("www.askcrump.com"),
+        )
+
+    assert error.value.status_code == 422
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("event_key", "source"),
     [
@@ -936,7 +995,7 @@ def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
     assert runtime.index('/app.js') < runtime.index('/product-analytics.js')
     assert (
         "new Set(['WorkspaceOpened', 'StarterIntentReached', 'ProjectSaveIntentReached', 'ActivationReached', "
-        "'OutcomeFeedbackSubmitted', 'RecentWorkResumed', 'PlanCenterViewed', 'PlanIntentReached', "
+        "'OutcomeFeedbackSubmitted', 'OutcomeIssueCategorized', 'RecentWorkResumed', 'PlanCenterViewed', 'PlanIntentReached', "
         "'ResponseShared'])"
     ) in client
     assert "prompt" not in client.lower()
@@ -994,6 +1053,49 @@ def test_latest_result_offers_binary_outcome_feedback_without_content_capture():
     assert "message?.content" not in tracker
     assert "filename" not in tracker.lower()
     assert "lastAssistantIndex" in ui
+
+
+def test_needs_work_follow_up_is_fixed_category_optional_and_content_free():
+    ui = (ROOT / "public" / "ui-functions.js").read_text(encoding="utf-8")
+    tracker = ui[
+        ui.index("const OUTCOME_FEEDBACK_STORAGE_PREFIX"):
+        ui.index("function currentProjectTarget")
+    ]
+    follow_up = ui[
+        ui.index("const renderThanks"):
+        ui.index("const savedFeedback")
+    ]
+    analytics = (ROOT / "public" / "product-analytics.js").read_text(encoding="utf-8")
+    migration = (
+        ROOT / "migrations" / "20260909165000_outcome_issue_categories.sql"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(migration.lower().split())
+
+    for category in (
+        "accuracy",
+        "instructions",
+        "format",
+        "media_quality",
+        "reliability",
+        "safety",
+        "other",
+    ):
+        assert f"'{category}'" in tracker
+        assert f"'{category}'" in normalized
+    assert "what missed the mark? Optional." in follow_up
+    assert "OutcomeIssueCategorized" in follow_up
+    assert "outcome-issue:" in tracker
+    assert "message?.content" not in tracker
+    assert "message?.content" not in follow_up
+    assert "textarea" not in tracker.lower()
+    assert "textarea" not in follow_up.lower()
+    assert "OutcomeIssueCategorized" in analytics
+    assert "product_events_outcome_issue_category_check" in migration
+    assert "product_outcome_issue_snapshot" in migration
+    assert "security invoker" in normalized
+    assert "grant execute on function public.product_outcome_issue_snapshot" in normalized
+    assert "to service_role" in normalized
+    assert "from public, anon, authenticated" in normalized
 
 
 def test_useful_outcome_offers_an_optional_content_free_referral():

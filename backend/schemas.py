@@ -100,6 +100,7 @@ class ProductEventRequest(APIModel):
         "ProjectSaveIntentReached",
         "ActivationReached",
         "OutcomeFeedbackSubmitted",
+        "OutcomeIssueCategorized",
         "RecentWorkResumed",
         "PlanCenterViewed",
         "PlanIntentReached",

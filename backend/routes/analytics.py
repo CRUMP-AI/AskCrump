@@ -8,6 +8,7 @@ from ..auth_service import authenticate_request
 from ..product_analytics import (
     CLIENT_EVENT_NAMES,
     OUTCOME_FEEDBACK_SOURCES,
+    OUTCOME_ISSUE_SOURCES,
     PLAN_CENTER_SOURCES,
     PROJECT_SAVE_SOURCES,
     RECENT_WORK_SOURCES,
@@ -30,6 +31,12 @@ async def create_product_event(payload: ProductEventRequest, request: Request):
         or not payload.eventKey.startswith("outcome-feedback:")
     ):
         raise HTTPException(status_code=422, detail="Invalid outcome feedback event.")
+    if payload.eventName == "OutcomeIssueCategorized" and (
+        payload.source not in OUTCOME_ISSUE_SOURCES
+        or not payload.eventKey.startswith("outcome-issue:")
+        or payload.plan is not None
+    ):
+        raise HTTPException(status_code=422, detail="Invalid outcome issue category event.")
     if payload.eventName == "ResponseShared" and (
         payload.source not in RESPONSE_SHARE_SOURCES
         or not payload.eventKey.startswith("response-share:")
