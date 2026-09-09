@@ -1,6 +1,6 @@
 # Crump Code operations runbook
 
-Last reviewed: 2026-08-30
+Last reviewed: 2026-09-09
 
 ## Current operating state
 
@@ -98,6 +98,25 @@ destruction are the in-flight containment controls.
   metadata, and diff-integrity checks before promoting a repair.
 
 ## Remaining activation evidence
+
+The release-safe preparation harness is:
+
+```powershell
+python scripts/run_crump_code_sandbox_smoke.py --dry-run
+```
+
+It provisions nothing. Do not run its live mode without separate action-time approval for exactly
+one cent and the fixed public, no-secret fixture. The short-lived `VERCEL_OIDC_TOKEN` must be passed
+only through the process environment and must resolve to the exact Ask Crump project and team; the
+public feature flag must remain false. Once those conditions are approved, the only permitted live
+shape is:
+
+```powershell
+python scripts/run_crump_code_sandbox_smoke.py --live --confirm-max-cost-cents 1 --confirm-source public-no-secret-fixture
+```
+
+Evidence and privacy boundaries are recorded in
+`docs/CRUMP_CODE_LIVE_SMOKE_HARNESS_RELEASE_2026-09-09.md`.
 
 Before public activation, record one owner-approved end-to-end drill that proves OIDC identity,
 deny-all networking, empty Sandbox environment, destruction, cancellation, expiry, refund,

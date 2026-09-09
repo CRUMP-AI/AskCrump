@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 import json
 from pathlib import PurePosixPath
 import re
+from types import SimpleNamespace
 from typing import Any
 
 import httpx
@@ -182,6 +184,91 @@ class CodeRunnerError(RuntimeError):
     def __init__(self, message: str, code: str = "CODE_RUN_FAILED") -> None:
         super().__init__(message)
         self.code = code
+
+
+def decode_sandbox_identity(token: str) -> tuple[str, str]:
+    try:
+        from vercel.oidc import decode_oidc_payload
+
+        payload = decode_oidc_payload(token)
+        project_id = str(payload.get("project_id") or "")
+        team_id = str(payload.get("owner_id") or "")
+    except Exception as exc:
+        raise CodeRunnerError(
+            "Sandbox authentication is invalid.", "SANDBOX_AUTH_INVALID"
+        ) from exc
+    if not project_id or not team_id:
+        raise CodeRunnerError(
+            "Sandbox project identity is unavailable.", "SANDBOX_AUTH_INVALID"
+        )
+    return project_id, team_id
+
+
+def _load_sandbox_runtime() -> Any:
+    try:
+        from vercel.api import session
+        from vercel.sandbox import (
+            GitSource,
+            NetworkPolicy,
+            SandboxCredentials,
+            SandboxResources,
+            SandboxServiceOptions,
+            create_sandbox,
+        )
+    except ImportError as exc:
+        raise CodeRunnerError(
+            "The Sandbox runtime is not installed.", "SANDBOX_NOT_INSTALLED"
+        ) from exc
+    return SimpleNamespace(
+        GitSource=GitSource,
+        NetworkPolicy=NetworkPolicy,
+        SandboxCredentials=SandboxCredentials,
+        SandboxResources=SandboxResources,
+        SandboxServiceOptions=SandboxServiceOptions,
+        create_sandbox=create_sandbox,
+        session=session,
+    )
+
+
+@asynccontextmanager
+async def provision_code_sandbox(
+    task: dict[str, Any],
+    *,
+    oidc_token: str,
+    runtime: Any | None = None,
+):
+    """Provision the exact ephemeral runtime shared by Code tasks and live smoke proof."""
+    project_id, team_id = decode_sandbox_identity(oidc_token)
+    sandbox_runtime = runtime or _load_sandbox_runtime()
+
+    async def credentials() -> Any:
+        return sandbox_runtime.SandboxCredentials(
+            token=oidc_token,
+            team_id=team_id,
+            project_id=project_id,
+        )
+
+    options = sandbox_runtime.SandboxServiceOptions(credentials_factory=credentials)
+    revision = str(task.get("source_ref") or "").strip() or None
+    source = sandbox_runtime.GitSource(
+        url=str(task["source_repo_url"]),
+        depth=1,
+        revision=revision,
+    )
+    duration = max(30, min(240, int(task.get("max_duration_seconds") or 180)))
+    async with sandbox_runtime.session(service_options=[options]):
+        async with sandbox_runtime.create_sandbox(
+            project_id=project_id,
+            source=source,
+            execution_time_limit=duration,
+            resources=sandbox_runtime.SandboxResources(vcpus=2, memory=4096),
+            persistent=False,
+            network_policy=sandbox_runtime.NetworkPolicy.deny_all(),
+            env={},
+            tags={"feature": "crump-code", "task": str(task["id"])},
+            destroy=True,
+        ) as sandbox:
+            yield sandbox
 
 
 def _now() -> str:
@@ -503,17 +590,7 @@ class CrumpCodeRunner:
 
     @staticmethod
     def _oidc_identity(token: str) -> tuple[str, str]:
-        try:
-            from vercel.oidc import decode_oidc_payload
-
-            payload = decode_oidc_payload(token)
-            project_id = str(payload.get("project_id") or "")
-            team_id = str(payload.get("owner_id") or "")
-        except Exception as exc:
-            raise CodeRunnerError("Sandbox authentication is invalid.", "SANDBOX_AUTH_INVALID") from exc
-        if not project_id or not team_id:
-            raise CodeRunnerError("Sandbox project identity is unavailable.", "SANDBOX_AUTH_INVALID")
-        return project_id, team_id
+        return decode_sandbox_identity(token)
 
     async def _anthropic_turn(
         self,
@@ -743,56 +820,20 @@ class CrumpCodeRunner:
 
     async def run(self, task: dict[str, Any], *, oidc_token: str) -> dict[str, Any]:
         await self._ensure_not_cancelled(task)
-        project_id, team_id = self._oidc_identity(oidc_token)
-        try:
-            from vercel.api import session
-            from vercel.sandbox import (
-                GitSource,
-                NetworkPolicy,
-                SandboxCredentials,
-                SandboxResources,
-                SandboxServiceOptions,
-                create_sandbox,
+        async with provision_code_sandbox(task, oidc_token=oidc_token) as sandbox:
+            await self._ensure_not_cancelled(task)
+            task = await self.service.update_fields(
+                task,
+                {
+                    "sandbox_name": str(sandbox.name)[:200],
+                    "sandbox_session_id": str(sandbox.current_session_id)[:200],
+                },
             )
-        except ImportError as exc:
-            raise CodeRunnerError("The Sandbox runtime is not installed.", "SANDBOX_NOT_INSTALLED") from exc
-
-        async def credentials() -> Any:
-            return SandboxCredentials(token=oidc_token, team_id=team_id, project_id=project_id)
-
-        options = SandboxServiceOptions(credentials_factory=credentials)
-        revision = str(task.get("source_ref") or "").strip() or None
-        source = GitSource(
-            url=str(task["source_repo_url"]),
-            depth=1,
-            revision=revision,
-        )
-        duration = max(30, min(240, int(task.get("max_duration_seconds") or 180)))
-        async with session(service_options=[options]):
-            async with create_sandbox(
-                project_id=project_id,
-                source=source,
-                execution_time_limit=duration,
-                resources=SandboxResources(vcpus=2, memory=4096),
-                persistent=False,
-                network_policy=NetworkPolicy.deny_all(),
-                env={},
-                tags={"feature": "crump-code", "task": str(task["id"])},
-                destroy=True,
-            ) as sandbox:
-                await self._ensure_not_cancelled(task)
-                task = await self.service.update_fields(
-                    task,
-                    {
-                        "sandbox_name": str(sandbox.name)[:200],
-                        "sandbox_session_id": str(sandbox.current_session_id)[:200],
-                    },
-                )
-                await self.service.append_event(
-                    task, "sandbox.provisioned", {"status": "running"}
-                )
-                workspace = SandboxWorkspace(sandbox)
-                return await self._run_in_workspace(task, workspace)
+            await self.service.append_event(
+                task, "sandbox.provisioned", {"status": "running"}
+            )
+            workspace = SandboxWorkspace(sandbox)
+            return await self._run_in_workspace(task, workspace)
 
 
 async def run_with_deadline(
