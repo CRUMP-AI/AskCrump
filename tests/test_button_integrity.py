@@ -8,6 +8,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "public"
 BUTTON_TAG_PATTERN = re.compile(r"<button\b[^>]*>", re.IGNORECASE)
+DYNAMIC_BUTTON_PATTERN = re.compile(
+    r"(?P<name>[A-Za-z_$][\w$]*)\s*=\s*"
+    r"(?:[^;\n?]+\?\s*)?"
+    r"(?:document\.)?createElement\(\s*([\"'])button\2\s*\)",
+    re.IGNORECASE,
+)
 EXPECTED_BUTTON_INVENTORY = {
     "public/app.html": 47,
     "public/credit-confirmation.js": 3,
@@ -22,6 +28,77 @@ EXPECTED_BUTTON_INVENTORY = {
     "public/install-prompt.js": 2,
     "public/lifecycle-manager.js": 2,
     "public/subscription-ui.js": 3,
+}
+DYNAMIC_BUTTON_INVENTORY = {
+    "public/account-manager.js": 1,
+    "public/app.js": 2,
+    "public/crump-4.3.js": 1,
+    "public/crump-4.4.js": 3,
+    "public/crump-5.0.js": 22,
+    "public/crump-5.2.js": 3,
+    "public/crump-billing-5.1.js": 2,
+    "public/crump-code-5.9.35.js": 5,
+    "public/crump-polish-5.6.js": 1,
+    "public/crump-precision-image-edit.js": 29,
+    "public/crump-product-5.3.1.js": 1,
+    "public/crump-product-5.3.js": 4,
+    "public/crump-subscriptions-5.3.2.js": 2,
+    "public/install-prompt.js": 1,
+    "public/onboarding.js": 1,
+    "public/ui-functions.js": 14,
+}
+INDIRECT_DYNAMIC_BUTTON_OWNERS = {
+    "public/crump-5.0.js:1400:close": (
+        "mountLightbox(box, close);",
+        "closeButton.addEventListener('click', dismiss)",
+    ),
+    "public/crump-5.0.js:1477:close": (
+        "mountLightbox(box, close);",
+        "closeButton.addEventListener('click', dismiss)",
+    ),
+    "public/crump-5.0.js:1681:project": (
+        "wireOutputProjectAction(project, {",
+        "button.addEventListener('click', async () => {",
+    ),
+    "public/crump-5.2.js:653:buy": (
+        "buy.dataset.crumpPack =",
+        "modal.addEventListener('click', event => {",
+        "event.target.closest?.('[data-crump-pack]')",
+    ),
+    "public/crump-code-5.9.35.js:316:button": (
+        "button.dataset.crumpCodeTask =",
+        "byId('crumpCodeTaskList')?.addEventListener('click'",
+        "event.target.closest?.('[data-crump-code-task]')",
+    ),
+    "public/crump-code-5.9.35.js:360:button": (
+        "button.dataset.codeApproval =",
+        "byId('crumpCodeDetail')?.addEventListener('click'",
+        "event.target.closest?.('[data-code-approval]')",
+    ),
+    "public/crump-code-5.9.35.js:474:download": (
+        "download.dataset.codeAction = 'download'",
+        "byId('crumpCodeDetail')?.addEventListener('click'",
+        "button.dataset.codeAction === 'download'",
+    ),
+    "public/crump-code-5.9.35.js:504:run": (
+        "run.dataset.codeAction = 'run'",
+        "byId('crumpCodeDetail')?.addEventListener('click'",
+        "button.dataset.codeAction === 'run'",
+    ),
+    "public/crump-code-5.9.35.js:522:cancel": (
+        "cancel.dataset.codeAction = 'cancel'",
+        "byId('crumpCodeDetail')?.addEventListener('click'",
+        "button.dataset.codeAction === 'cancel'",
+    ),
+    "public/crump-product-5.3.1.js:457:button": (
+        "button.className = 'crump531-chat-menu-button'",
+        "document.addEventListener('click', event => {",
+        "event.target.closest?.('.crump531-chat-menu-button')",
+    ),
+    "public/ui-functions.js:358:submit": (
+        "submit.type = 'submit'",
+        "form.addEventListener('submit', async event => {",
+    ),
 }
 
 
@@ -77,6 +154,54 @@ def _button_has_runtime_owner(button: dict[str, str], scripts: str) -> bool:
     )
 
 
+def _dynamic_button_tail(source: str, match: re.Match[str]) -> str:
+    """Bound one created button to its own declaration lifetime."""
+    name = re.escape(match.group("name"))
+    remainder = source[match.end():]
+    next_declaration = re.search(
+        rf"(?<![\w$]){name}\s*=\s*(?:[^;\n?]+\?\s*)?"
+        rf"(?:document\.)?createElement\(\s*([\"'])button\1\s*\)",
+        remainder,
+        re.IGNORECASE,
+    )
+    if next_declaration:
+        remainder = remainder[:next_declaration.start()]
+    return remainder[:12_000]
+
+
+def _dynamic_button_declares_type(name: str, tail: str) -> bool:
+    escaped = re.escape(name)
+    return bool(
+        re.search(
+            rf"(?<![\w$]){escaped}\.type\s*=\s*([\"'])(?:button|submit|reset)\1",
+            tail,
+            re.IGNORECASE,
+        )
+        or re.search(
+            rf"(?<![\w$]){escaped}\.setAttribute\(\s*([\"'])type\1\s*,\s*"
+            r"([\"'])(?:button|submit|reset)\2\s*\)",
+            tail,
+            re.IGNORECASE,
+        )
+    )
+
+
+def _dynamic_button_has_direct_owner(name: str, tail: str) -> bool:
+    escaped = re.escape(name)
+    return bool(
+        re.search(
+            rf"(?<![\w$]){escaped}\.addEventListener\(\s*([\"'])click\1",
+            tail,
+            re.IGNORECASE,
+        )
+        or re.search(
+            rf"(?<![\w$]){escaped}\.onclick\s*=",
+            tail,
+            re.IGNORECASE,
+        )
+    )
+
+
 def test_rendered_button_inventory_requires_explicit_review() -> None:
     inventory: dict[str, int] = {}
     for page in sorted([*PUBLIC.rglob("*.html"), *PUBLIC.glob("*.js")]):
@@ -87,6 +212,63 @@ def test_rendered_button_inventory_requires_explicit_review() -> None:
 
     assert inventory == EXPECTED_BUTTON_INVENTORY
     assert sum(inventory.values()) == 181
+
+
+def test_programmatically_created_button_inventory_requires_explicit_review() -> None:
+    inventory: dict[str, int] = {}
+    for path in sorted(PUBLIC.glob("*.js")):
+        count = len(list(DYNAMIC_BUTTON_PATTERN.finditer(path.read_text(encoding="utf-8"))))
+        if count:
+            inventory[path.relative_to(ROOT).as_posix()] = count
+
+    assert inventory == DYNAMIC_BUTTON_INVENTORY
+    assert sum(inventory.values()) == 92
+    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 273
+
+
+def test_programmatically_created_buttons_declare_type_and_runtime_owner() -> None:
+    missing_type: list[str] = []
+    missing_owner: list[str] = []
+    indirect_owners_used: set[str] = set()
+
+    for path in sorted(PUBLIC.glob("*.js")):
+        source = path.read_text(encoding="utf-8")
+        for match in DYNAMIC_BUTTON_PATTERN.finditer(source):
+            name = match.group("name")
+            tail = _dynamic_button_tail(source, match)
+            identity = (
+                f"{path.relative_to(ROOT).as_posix()}:"
+                f"{source.count(chr(10), 0, match.start()) + 1}:{name}"
+            )
+            if not _dynamic_button_declares_type(name, tail):
+                missing_type.append(identity)
+            indirect_evidence = INDIRECT_DYNAMIC_BUTTON_OWNERS.get(identity, ())
+            indirect_owner = bool(indirect_evidence) and all(
+                evidence in source for evidence in indirect_evidence
+            )
+            direct_owner = _dynamic_button_has_direct_owner(name, tail)
+            if not direct_owner and indirect_owner:
+                indirect_owners_used.add(identity)
+            if not direct_owner and not indirect_owner:
+                missing_owner.append(identity)
+
+    assert not missing_type, f"Programmatic buttons without an explicit type: {missing_type}"
+    assert not missing_owner, f"Programmatic buttons without a runtime click owner: {missing_owner}"
+    assert indirect_owners_used == set(INDIRECT_DYNAMIC_BUTTON_OWNERS)
+
+
+def test_dynamic_button_owner_guard_rejects_an_unowned_control() -> None:
+    source = (
+        "const futureDeadButton = document.createElement('button');\n"
+        "futureDeadButton.type = 'button';\n"
+        "futureDeadButton.textContent = 'Future action';\n"
+        "host.appendChild(futureDeadButton);\n"
+    )
+    match = next(DYNAMIC_BUTTON_PATTERN.finditer(source))
+    tail = _dynamic_button_tail(source, match)
+
+    assert _dynamic_button_declares_type("futureDeadButton", tail)
+    assert not _dynamic_button_has_direct_owner("futureDeadButton", tail)
 
 
 def test_every_rendered_button_has_a_form_or_runtime_owner() -> None:
