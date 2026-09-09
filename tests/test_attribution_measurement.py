@@ -20,6 +20,11 @@ MIGRATION = ROOT / "migrations" / "20260830171056_weekly_growth_attribution_expo
 REGISTRY_MIGRATION = (
     ROOT
     / "migrations"
+    / "20260909201432_reject_blank_presentation_creative.sql"
+)
+STANDALONE_ALLOWLIST_MIGRATION = (
+    ROOT
+    / "migrations"
     / "20260909195019_narrow_presentation_attribution_touchpoints.sql"
 )
 EXPECTED_REGISTRY = {
@@ -278,6 +283,7 @@ def test_campaign_registry_has_exact_frontend_server_and_database_parity():
     landing = (ROOT / "public" / "landing.js").read_text(encoding="utf-8")
     controller = (ROOT / "public" / "auth-controller.js").read_text(encoding="utf-8")
     sql = REGISTRY_MIGRATION.read_text(encoding="utf-8")
+    allowlist_sql = STANDALONE_ALLOWLIST_MIGRATION.read_text(encoding="utf-8")
     python_registry = {
         campaign: {
             "intent": values["intent"],
@@ -302,10 +308,10 @@ def test_campaign_registry_has_exact_frontend_server_and_database_parity():
     assert _parse_sql_constraint_registry(sql) == EXPECTED_REGISTRY
     assert _parse_sql_rpc_registry(sql) == EXPECTED_REGISTRY
     assert _parse_sql_standalone_allowlist(
-        sql, "product_events_campaign_check", "campaign"
+        allowlist_sql, "product_events_campaign_check", "campaign"
     ) == EXPECTED_CAMPAIGNS
     assert _parse_sql_standalone_allowlist(
-        sql, "product_events_creative_check", "creative"
+        allowlist_sql, "product_events_creative_check", "creative"
     ) == EXPECTED_CREATIVES
     assert python_touchpoints == EXPECTED_EXACT_TOUCHPOINTS
     assert _parse_js_exact_touchpoints(landing) == EXPECTED_EXACT_TOUCHPOINTS
@@ -316,6 +322,19 @@ def test_campaign_registry_has_exact_frontend_server_and_database_parity():
         "v_creative text := nullif(lower(btrim(coalesce(p_creative, ''))), '');"
         in sql
     )
+    normalized_sql = " ".join(sql.split())
+    assert normalized_sql.count(
+        "creative = 'fb-static' and creative is not null"
+    ) == 1
+    assert normalized_sql.count(
+        "creative = 'ig-story' and creative is not null"
+    ) == 1
+    assert normalized_sql.count(
+        "v_creative = 'fb-static' and v_creative is not null"
+    ) == 2
+    assert normalized_sql.count(
+        "v_creative = 'ig-story' and v_creative is not null"
+    ) == 2
 
 
 def test_registered_campaign_tuple_is_preserved_exactly():
