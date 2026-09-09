@@ -70,7 +70,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-billing-5.1.js?v=5.9.76-credit-checkout-idempotency-1', 'billing51'],
     ['/crump-5.2.js?v=5.9.76-credit-checkout-idempotency-1', 'crump52'],
     ['/crump-5.2.2.js?v=5.9.76-credit-checkout-idempotency-1', 'crump522'],
-    ['/crump-v1-body.js?v=5.9.76-destination-background-guard-1', 'crumpbodyv1'],
+    ['/crump-v1-body.js?v=5.9.76-control-focus-integrity-1', 'crumpbodyv1'],
     ['/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1', 'crumpv1stability'],
   ]);
 

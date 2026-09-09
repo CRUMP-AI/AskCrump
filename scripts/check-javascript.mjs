@@ -584,6 +584,7 @@ const newResponseCueVersion = `${releaseVersion}-new-response-cue-1`;
 const videoDestinationVersion = `${releaseVersion}-video-destination-1`;
 const mobileDrawerDestinationsVersion = `${releaseVersion}-mobile-drawer-destinations-1`;
 const destinationBackgroundGuardVersion = `${releaseVersion}-destination-background-guard-1`;
+const controlFocusIntegrityVersion = `${releaseVersion}-control-focus-integrity-1`;
 const referralCancelRecoveryVersion = `${releaseVersion}-referral-cancel-recovery-1`;
 const precisionEditEntryVersion = `${releaseVersion}-precision-edit-entry-1`;
 const precisionEditStudioVersion = `${releaseVersion}-precision-studio-1`;
@@ -834,7 +835,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/chat-sync.js?v=${settingsSyncVersion}`) ||
     !runtime.includes(`/product-analytics.js?v=${outcomeIssueCategoriesVersion}`) ||
     !runtime.includes(`/app.js?v=${settingsSaveIsolationVersion}`) ||
-    !runtime.includes(`/crump-v1-body.js?v=${destinationBackgroundGuardVersion}`) ||
+    !runtime.includes(`/crump-v1-body.js?v=${controlFocusIntegrityVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${creditTruthVersion}`) ||
     !runtime.includes(`/crump-5.0.css?v=${precisionEditEntryVersion}`) ||
     !runtime.includes(`/crump-5.0.js?v=${composerModeResetVersion}`) ||
@@ -1061,7 +1062,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r226') ||
     !serviceWorker.includes("url.pathname === '/install-prompt.css'") ||
     !serviceWorker.includes("url.pathname === '/sync-manager.js'") ||
     !serviceWorker.includes("url.pathname === '/auth-controller.js'") ||
-    !serviceWorker.includes(`/crump-v1-body.js?v=${destinationBackgroundGuardVersion}`) ||
+    !serviceWorker.includes(`/crump-v1-body.js?v=${controlFocusIntegrityVersion}`) ||
     !serviceWorker.includes('/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1') ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.2.5.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.2.5.css'") ||

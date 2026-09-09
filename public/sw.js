@@ -18,7 +18,7 @@ const CORE = [
   '/crump-v1-body.css?v=5.9.76-credit-truth-1',
   '/credit-confirmation.css?v=5.9.76-credit-confirmation-1',
   '/lifecycle.css?v=5.9.76-lifecycle-activation-1',
-  '/crump-v1-body.js?v=5.9.76-destination-background-guard-1',
+  '/crump-v1-body.js?v=5.9.76-control-focus-integrity-1',
   '/crump-v1-stability.css',
   '/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1',
   '/crump-navigation-5.2.5.css',

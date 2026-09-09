@@ -348,7 +348,11 @@
         break;
       case 'focus':
       default:
-        requestAnimationFrame(() => focusComposer('Message Crump'));
+        // A pointer click already completed by the time this handler runs.
+        // Focus synchronously so the browser cannot restore focus to the
+        // launch card on the next frame. preventScroll keeps this a purely
+        // user-controlled focus change without moving the conversation.
+        focusComposer('Message Crump');
         break;
     }
   }

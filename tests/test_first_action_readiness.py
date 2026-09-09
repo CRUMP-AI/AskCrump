@@ -92,3 +92,13 @@ def test_first_action_browser_proof_is_credential_free_and_covers_all_six_choice
     assert "first-starter-intent" in verifier
     assert "password" not in verifier.lower()
     assert "fetch(" not in verifier
+
+
+def test_think_starter_focuses_the_composer_synchronously_without_scrolling():
+    body = read("crump-v1-body.js")
+    start = body.index("case 'focus':")
+    focus_case = body[start:body.index("break;", start)]
+
+    assert "focusComposer('Message Crump');" in focus_case
+    assert "requestAnimationFrame" not in focus_case
+    assert "input.focus({preventScroll: true});" in body
