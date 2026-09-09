@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r226';
+const CACHE_NAME = 'ask-crump-new-body-v1-r227';
 
 const CORE = [
   '/app',
@@ -35,8 +35,8 @@ const CORE = [
   '/crump-polish-5.6.js?v=5.9.76-video-destination-1',
   '/crump-library-5.7.css',
   '/crump-library-5.7.js?v=5.9.76-library-new-routing-1',
-  '/crump-subscriptions-5.3.2.js?v=5.9.76-commerce-recovery-1',
-  '/runtime-body-v1.js?v=5.9.76-credit-checkout-idempotency-1',
+  '/crump-subscriptions-5.3.2.js?v=5.9.76-checkout-session-recovery-1',
+  '/runtime-body-v1.js?v=5.9.76-checkout-session-recovery-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
@@ -44,7 +44,7 @@ const CORE = [
   '/onboarding.js?v=5.9.76-button-integrity-1',
   '/scroll-manager.js?v=5.9.76-user-controlled-scroll-1',
   '/profile-manager.js',
-  '/billing-manager.js?v=5.9.76-credit-checkout-idempotency-1',
+  '/billing-manager.js?v=5.9.76-checkout-session-recovery-1',
   '/subscription-ui.js?v=5.9.76-commerce-recovery-1',
   '/credit-confirmation.js?v=5.9.76-credit-confirmation-1',
   '/chat-resilience.js?v=5.9.76-credit-confirmation-1',
@@ -59,7 +59,7 @@ const CORE = [
   '/product-analytics.js?v=5.9.76-outcome-issue-categories-1',
   '/lifecycle-share.js?v=5.9.76-referral-cancel-recovery-1',
   '/lifecycle-manager.js?v=5.9.76-referral-cancel-recovery-1',
-  '/auth-controller.js?v=5.9.76-returning-signup-gate-1',
+  '/auth-controller.js?v=5.9.76-checkout-session-recovery-1',
   '/crump-4.3.css',
   '/crump-4.3.js?v=5.9.76-intelligence-architecture-1',
   '/crump-4.4.css',
@@ -73,7 +73,7 @@ const CORE = [
   '/crump-5.2.css',
   '/crump-5.2.js?v=5.9.76-credit-checkout-idempotency-1',
   '/crump-5.2.2.css?v=5.9.76-new-response-cue-1',
-  '/crump-5.2.2.js?v=5.9.76-credit-checkout-idempotency-1',
+  '/crump-5.2.2.js?v=5.9.76-checkout-session-recovery-1',
   '/assets/brand/crump-shell-lockup-light.png',
 ];
 

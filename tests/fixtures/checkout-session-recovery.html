@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Checkout session recovery fixture</title>
+  <link rel="stylesheet" href="/public/crump-billing-5.1.css">
+</head>
+<body style="margin:0;background:#0f1419;color:#f4f1eb;font-family:Arial,sans-serif">
+  <div id="authContainer" style="display:none">
+    <div id="loginForm">
+      <h1>Sign in</h1>
+      <form id="loginFormElement">
+        <label for="loginEmail">Email</label>
+        <input id="loginEmail" type="email" required>
+        <label for="loginPassword">Password</label>
+        <input id="loginPassword" type="password" required>
+        <button type="submit">Sign In</button>
+      </form>
+      <div id="loginError" role="alert" style="display:none"></div>
+      <div id="loginSuccess" role="status" style="display:none"></div>
+      <div id="verificationNeeded" style="display:none"></div>
+    </div>
+    <div id="registerForm" style="display:none"></div>
+    <div id="forgotPasswordForm" style="display:none"></div>
+    <div id="resetPasswordForm" style="display:none"></div>
+  </div>
+  <div id="tosModal" style="display:none"></div>
+  <div id="onboardingModal" style="display:none"></div>
+  <div id="appContainer" style="display:none">
+    <main id="checkoutFixtureBackground">
+      <button id="upgradeBtnSidebar" type="button"><span>Plan &amp; credits</span></button>
+      <output id="checkoutFixtureRequests" aria-label="Checkout requests">0</output>
+      <output id="checkoutFixtureClearCalls" aria-label="Cleared local sessions">0</output>
+      <output id="checkoutFixtureErrors" aria-label="Browser errors">0</output>
+    </main>
+  </div>
+  <script>
+    const fixtureUser = {
+      id:'fixture-user',
+      email:'fixture@example.test',
+      fullName:'Fixture User',
+      termsAcceptedAt:'2026-09-09T00:00:00Z',
+    };
+    window.__fixtureToasts = [];
+    window.__fixtureCheckoutBodies = [];
+    window.__fixtureClearComplete = true;
+    window.CRUMP_CONFIG = {
+      webProfessionalPriceLabel:'$20/month',
+      webEnterprisePriceLabel:'$50/month',
+    };
+    window.va = () => {};
+    window.showToast = (message, tone) => window.__fixtureToasts.push({message, tone});
+    window.CrumpWorkspaceRuntime = {load:async () => {}};
+    window.CrumpAPI = {ready:Promise.resolve(), isNative:false, installationId:() => 'fixture'};
+    window.configureUserStorage = () => {};
+    window.profileManager = {applyServerSubscription() {}, updateProfile() {}};
+    window.CrumpAnalytics = {track:() => Promise.resolve(true)};
+    window.SyncManager = {pull:() => Promise.resolve()};
+    window.initializeApp = () => {};
+    window.initializeAuthenticatedApp = () => {};
+    window.deviceAuth = {
+      cachedUser:() => fixtureUser,
+      checkSession:async () => ({authenticated:true, data:{user:fixtureUser, settings:{}}}),
+      login:async () => window.__fixtureClearComplete
+        ? ({success:true, data:{user:fixtureUser, settings:{}}})
+        : ({success:false, error:'Fixture login raced session cleanup.'}),
+      clearLocalState:async () => {
+        window.__fixtureClearComplete = false;
+        await new Promise(resolve => setTimeout(resolve, 60));
+        const output = document.getElementById('checkoutFixtureClearCalls');
+        output.textContent = String(Number(output.textContent || 0) + 1);
+        window.__fixtureClearComplete = true;
+      },
+      logout:async () => ({success:true}),
+    };
+
+    const recordBrowserError = () => {
+      const output = document.getElementById('checkoutFixtureErrors');
+      output.textContent = String(Number(output.textContent || 0) + 1);
+    };
+    window.addEventListener('error', recordBrowserError);
+    window.addEventListener('unhandledrejection', recordBrowserError);
+
+    window.fetch = async (url, options = {}) => {
+      const pathname = new URL(String(url), location.href).pathname;
+      if (pathname === '/api/billing/credits/checkout' || pathname === '/api/stripe/create-checkout-session') {
+        const output = document.getElementById('checkoutFixtureRequests');
+        output.textContent = String(Number(output.textContent || 0) + 1);
+        window.__fixtureCheckoutBodies.push({pathname, body:JSON.parse(String(options.body || '{}'))});
+        return new Response(JSON.stringify({
+          success:false,
+          authenticated:false,
+          code:'AUTH_REQUIRED',
+          error:'Your session has expired. Please sign in again.',
+        }), {status:401, headers:{'Content-Type':'application/json'}});
+      }
+      const responses = {
+        '/api/billing/credits/status': {
+          success:true,
+          credits:{balance:12},
+          catalog:[
+            {code:'credits_50', credits:50, price:'$4.99', available:true},
+            {code:'credits_150', credits:150, price:'$9.99', available:true},
+            {code:'credits_400', credits:400, price:'$19.99', available:true},
+          ],
+          history:[],
+        },
+        '/api/usage/check': {success:true, daily:{limit:25, used:3, remaining:22}},
+        '/api/billing/status': {success:true, tier:'free', status:'inactive', provider:null, manageable:false},
+        '/api/analytics/events': {success:true, recorded:true},
+      };
+      return new Response(JSON.stringify(responses[pathname] || {success:true}), {
+        status:200,
+        headers:{'Content-Type':'application/json'},
+      });
+    };
+  </script>
+  <script src="/public/billing-manager.js?v=checkout-session-recovery-fixture-1"></script>
+  <script>
+    window.BillingManager.getProducts = async () => ({});
+    window.BillingManager.getCreditProducts = async () => ({});
+  </script>
+  <script src="/public/crump-billing-5.1.js?v=checkout-session-recovery-fixture-1"></script>
+  <script src="/public/crump-5.2.js?v=checkout-session-recovery-fixture-1"></script>
+  <script src="/public/crump-subscriptions-5.3.2.js?v=checkout-session-recovery-fixture-1"></script>
+  <script src="/public/crump-5.2.2.js?v=checkout-session-recovery-fixture-1"></script>
+  <script src="/public/auth-controller.js?v=checkout-session-recovery-fixture-1"></script>
+</body>
+</html>

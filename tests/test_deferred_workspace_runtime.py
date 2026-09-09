@@ -23,14 +23,14 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
     ]
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
-        '/runtime-body-v1.js?v=5.9.76-credit-checkout-idempotency-1',
+        '/runtime-body-v1.js?v=5.9.76-checkout-session-recovery-1',
         '/native-runtime.js',
         '/mobile-bridge.js',
         '/safe-storage.js',
         '/install-prompt.js?v=5.9.76-update-work-guard-1',
         '/auth-resilience.js?v=5.9.76',
         '/device-auth.js?v=5.9.76-native-billing-identity-1',
-        '/auth-controller.js?v=5.9.76-returning-signup-gate-1',
+        '/auth-controller.js?v=5.9.76-checkout-session-recovery-1',
         '/_vercel/insights/script.js',
         '/_vercel/speed-insights/script.js',
     ]
@@ -48,7 +48,7 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/onboarding.js?v=5.9.76-button-integrity-1',
         '/scroll-manager.js?v=5.9.76-user-controlled-scroll-1',
         '/profile-manager.js',
-        '/billing-manager.js?v=5.9.76-credit-checkout-idempotency-1',
+        '/billing-manager.js?v=5.9.76-checkout-session-recovery-1',
         '/subscription-ui.js?v=5.9.76-commerce-recovery-1',
         '/credit-confirmation.js?v=5.9.76-credit-confirmation-1',
         '/chat-resilience.js?v=5.9.76-credit-confirmation-1',

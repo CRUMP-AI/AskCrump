@@ -29,7 +29,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['style', '/crump-5.2.css', 'crump52'],
     ['script', '/crump-5.2.js?v=5.9.76-credit-checkout-idempotency-1', 'crump52'],
     ['style', '/crump-5.2.2.css?v=5.9.76-new-response-cue-1', 'crump522'],
-    ['script', '/crump-5.2.2.js?v=5.9.76-credit-checkout-idempotency-1', 'crump522'],
+    ['script', '/crump-5.2.2.js?v=5.9.76-checkout-session-recovery-1', 'crump522'],
     ['style', '/credit-confirmation.css?v=5.9.76-credit-confirmation-1', 'creditconfirmation'],
     ['script', '/credit-confirmation.js?v=5.9.76-credit-confirmation-1', 'creditconfirmation'],
     ['style', '/crump-5.2.4.css', 'crump524'],

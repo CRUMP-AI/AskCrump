@@ -13,6 +13,7 @@ const expectedVerifiers = Object.freeze([
   'verify-creation-sheet-containment.cjs',
   'verify-credit-charge-disclosure-browser.cjs',
   'verify-credit-pack-accessibility.cjs',
+  'verify-checkout-session-recovery.cjs',
   'verify-cross-device-verification-handoff.cjs',
   'verify-file-delivery.cjs',
   'verify-file-library-usability.cjs',

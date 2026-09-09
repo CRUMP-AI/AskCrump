@@ -235,7 +235,7 @@ def test_plan_center_containment_assets_are_versioned_everywhere():
     versioned_billing = "/crump-billing-5.1.js?v=5.9.76-credit-checkout-idempotency-1"
     versioned_final = "/crump-5.2.js?v=5.9.76-credit-checkout-idempotency-1"
     versioned_billing_css = "/crump-billing-5.1.css?v=5.9.76-credit-truth-1"
-    versioned_credit_contract = "/crump-5.2.2.js?v=5.9.76-credit-checkout-idempotency-1"
+    versioned_credit_contract = "/crump-5.2.2.js?v=5.9.76-checkout-session-recovery-1"
     sources = (
         read_public("runtime-body-v1.js"),
         read_public("sw.js"),
@@ -249,8 +249,8 @@ def test_plan_center_containment_assets_are_versioned_everywhere():
         assert versioned_final in source
         assert versioned_billing_css in source
         assert versioned_credit_contract in source
-    assert "ask-crump-new-body-v1-r226" in read_public("sw.js")
-    assert "/runtime-body-v1.js?v=5.9.76-credit-checkout-idempotency-1" in read_public("app.html")
+    assert "ask-crump-new-body-v1-r227" in read_public("sw.js")
+    assert "/runtime-body-v1.js?v=5.9.76-checkout-session-recovery-1" in read_public("app.html")
 
 
 def test_browser_fixture_uses_the_production_plan_center_layers():

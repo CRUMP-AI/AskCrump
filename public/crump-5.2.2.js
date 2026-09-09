@@ -42,7 +42,9 @@
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || data.success === false) {
-        throw new Error(data.error || data.message || `Checkout could not start (${response.status}).`);
+        const error = new Error(data.error || data.message || `Checkout could not start (${response.status}).`);
+        error.code = data.code;
+        throw error;
       }
       return data;
     } catch (error) {
@@ -123,8 +125,47 @@
         button.textContent = original === 'Opening checkout…' ? 'Add credits' : original;
         button.setAttribute('aria-label', originalAccessibleLabel);
       }
+      if (error?.code === 'AUTH_REQUIRED') {
+        const modal = card?.closest?.('.billing51-modal');
+        modal?.querySelector?.('[data-close], [data-billing-close]')?.click?.();
+        const handedOff = window.BillingManager?.requestCheckoutReauthentication?.('credit', code);
+        if (handedOff) return;
+      }
       show(error?.message || 'Could not open secure checkout.', 'error');
     }
+  }
+
+  function focusRecoveredCheckout(recovery, modal, attempt = 0) {
+    if (!modal?.isConnected || attempt > 50) return;
+    const selector = recovery.kind === 'credit'
+      ? `.billing51-pack[data-crump-pack="${recovery.selection}"] .billing51-buy:not([disabled])`
+      : `.billing51-plan[data-crump-plan="${recovery.selection}"] button:not([disabled])`;
+    const control = modal.querySelector(selector);
+    if (!control) {
+      window.setTimeout(() => focusRecoveredCheckout(recovery, modal, attempt + 1), 100);
+      return;
+    }
+    const consumed = window.BillingManager?.consumeCheckoutRecovery?.(recovery);
+    if (!consumed) return;
+    control.focus({preventScroll: true});
+    show(
+      recovery.kind === 'credit'
+        ? 'Signed in. Your selected credit pack is ready to review. Nothing has been purchased.'
+        : 'Signed in. Your selected plan is ready to review. Nothing has been purchased.',
+      'info',
+    );
+  }
+
+  function resumeCheckoutAfterAuthentication() {
+    const recovery = window.BillingManager?.pendingCheckoutRecovery?.();
+    if (!recovery) return;
+    const options = recovery.kind === 'plan'
+      ? {source: 'plan_intent', plan: recovery.selection}
+      : {source: 'settings'};
+    const modal = window.showBillingCenter?.(options);
+    if (!modal) return;
+    if (recovery.kind === 'plan') modal.dataset.crumpPlanIntent = recovery.selection;
+    focusRecoveredCheckout(recovery, modal);
   }
 
   function activateBilling(event) {
@@ -321,6 +362,7 @@
   function boot() {
     installBillingContract();
     installScrollContract();
+    window.addEventListener('crump:authenticated-ready', resumeCheckoutAfterAuthentication);
 
     const observer = new MutationObserver(() => {
       normalizeBillingCards();

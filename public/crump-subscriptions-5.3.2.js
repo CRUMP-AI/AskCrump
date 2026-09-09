@@ -136,6 +136,13 @@
         await openPortal(button, error.provider || null);
         return;
       }
+      if (error.code === 'AUTH_REQUIRED') {
+        setBusy(button, false);
+        const modal = button?.closest?.('.billing51-modal');
+        modal?.querySelector?.('[data-close], [data-billing-close]')?.click?.();
+        const handedOff = window.BillingManager?.requestCheckoutReauthentication?.('plan', tier);
+        if (handedOff) return;
+      }
       window.showToast?.(
         error.message || 'Subscription checkout could not be opened.',
         'error'

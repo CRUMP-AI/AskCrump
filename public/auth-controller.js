@@ -13,6 +13,7 @@
   let workspaceRuntimeGateTimer = 0;
   let workspaceRuntimeGateWaiting = false;
   let workspaceRuntimeGateRevealFrame = 0;
+  let reauthenticationPreparation = Promise.resolve();
   const TERMS_VERSION = '2026-08-01';
   const PLAN_INTENT_KEY = 'askcrump.pending-plan-intent';
   const CREATION_INTENT_KEY = 'askcrump.pending-creation-intent';
@@ -719,6 +720,19 @@
     focusAuthView(normalizedView);
   }
 
+  function handleAuthenticationRequired(event) {
+    if (String(event.detail?.reason || '') !== 'checkout') return;
+    authFlowRevision += 1;
+    activeUser = null;
+    window.currentUser = null;
+    reauthenticationPreparation = Promise.resolve(window.deviceAuth?.clearLocalState?.()).catch(() => {});
+    showAuth('login');
+    setText(
+      'loginError',
+      'Your session expired. Sign in again to return to your selected purchase. Nothing has been charged.',
+    );
+  }
+
   function resetRegistrationView() {
     hide('registrationPending');
     show('registerEntry');
@@ -1047,6 +1061,7 @@
       trackFunnel('LoginSubmitted');
       const restore = setBusy(event.currentTarget, true, 'Signing in…');
       try {
+        await reauthenticationPreparation;
         const result = await window.deviceAuth.login(byId('loginEmail').value.trim(), byId('loginPassword').value);
         if (!result.success || !result.data?.user) throw Object.assign(new Error(result.error || 'Sign in failed.'), { result });
         await prepareAuthenticatedWorkspace();
@@ -1317,6 +1332,7 @@
     wireLogin();
     wireRegistration();
     wireRecovery();
+    window.addEventListener('crump:authentication-required', handleAuthenticationRequired);
     bootstrap().catch(error => { console.error('[Bootstrap]', error); showAuth(); });
   });
 })();

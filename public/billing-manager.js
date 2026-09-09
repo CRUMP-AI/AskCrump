@@ -5,11 +5,66 @@
   let configuredUserId = null;
   let configurationPromise = null;
   let identityPromise = null;
+  const CHECKOUT_RECOVERY_KEY = 'askcrump.pending-checkout-recovery';
+  const CHECKOUT_RECOVERY_TTL_MS = 15 * 60 * 1000;
+  const CREDIT_PACKS = new Set(['credits_50', 'credits_150', 'credits_400']);
+  const PAID_PLANS = new Set(['professional', 'enterprise']);
 
   const native = () => Boolean(window.CrumpAPI?.isNative);
   const platform = () => window.CrumpNative?.Capacitor?.getPlatform?.() || window.Capacitor?.getPlatform?.() || 'web';
   const purchases = () => window.CrumpNative?.Purchases;
   const config = () => window.CRUMP_CONFIG || {};
+
+  function normalizeCheckoutRecovery(value) {
+    const kind = String(value?.kind || '').toLowerCase();
+    const selection = String(value?.selection || '').toLowerCase();
+    const capturedAt = Number(value?.capturedAt || 0);
+    const age = Date.now() - capturedAt;
+    const validSelection = kind === 'credit'
+      ? CREDIT_PACKS.has(selection)
+      : kind === 'plan' && PAID_PLANS.has(selection);
+    if (!validSelection || !capturedAt || age < 0 || age > CHECKOUT_RECOVERY_TTL_MS) {
+      return null;
+    }
+    return {kind, selection, capturedAt};
+  }
+
+  function pendingCheckoutRecovery() {
+    try {
+      const recovery = normalizeCheckoutRecovery(
+        JSON.parse(sessionStorage.getItem(CHECKOUT_RECOVERY_KEY) || 'null'),
+      );
+      if (!recovery) sessionStorage.removeItem(CHECKOUT_RECOVERY_KEY);
+      return recovery;
+    } catch (_) {
+      try { sessionStorage.removeItem(CHECKOUT_RECOVERY_KEY); } catch (_) {}
+      return null;
+    }
+  }
+
+  function requestCheckoutReauthentication(kind, selection) {
+    const recovery = normalizeCheckoutRecovery({kind, selection, capturedAt: Date.now()});
+    if (!recovery) return false;
+    try {
+      sessionStorage.setItem(CHECKOUT_RECOVERY_KEY, JSON.stringify(recovery));
+    } catch (_) {
+      return false;
+    }
+    window.dispatchEvent(new CustomEvent('crump:authentication-required', {
+      detail: {reason: 'checkout'},
+    }));
+    return true;
+  }
+
+  function consumeCheckoutRecovery(expected) {
+    const recovery = pendingCheckoutRecovery();
+    if (!recovery) return null;
+    if (expected && (recovery.kind !== expected.kind || recovery.selection !== expected.selection)) {
+      return null;
+    }
+    try { sessionStorage.removeItem(CHECKOUT_RECOVERY_KEY); } catch (_) {}
+    return recovery;
+  }
 
   function activeAppUserId() {
     const userId = String(window.currentUser?.id || '').trim();
@@ -389,6 +444,9 @@
     completeSubscriptionCheckoutAttempt,
     creditCheckoutAttempt,
     completeCreditCheckoutAttempt,
+    requestCheckoutReauthentication,
+    pendingCheckoutRecovery,
+    consumeCheckoutRecovery,
     refreshStatus,
     refreshCredits,
     synchronizeServerCredits,
