@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import asyncio
 
 import pytest
 
@@ -12,6 +13,7 @@ from scripts.evaluate_crump_code_benchmark import (
     evaluate_benchmark,
     validate_manifest,
 )
+from scripts.run_crump_code_offline_benchmark import run_offline_benchmark
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -253,3 +255,28 @@ def test_evaluator_does_not_execute_candidate_code():
     )
     assert "import subprocess" not in source
     assert "subprocess." not in source
+
+
+def test_offline_suite_exercises_real_runner_orchestration_and_scores_every_case():
+    artifact, report = asyncio.run(run_offline_benchmark())
+
+    assert report["passed"] is True
+    assert report["passed_case_count"] == 4
+    assert report["mean_score"] == 100
+    assert {run["case_id"] for run in artifact["runs"]} == {
+        "python-boundary-001",
+        "javascript-slug-001",
+        "security-headers-001",
+        "atomic-plan-001",
+    }
+    assert all(run["status"] == "completed" for run in artifact["runs"])
+    assert all(run["attempt_count"] == 1 for run in artifact["runs"])
+    implement_runs = [run for run in artifact["runs"] if run["mode"] == "implement"]
+    assert all(run["result_patch"].startswith("diff --git") for run in implement_runs)
+    assert all(
+        any(receipt["returnCode"] == 0 for receipt in run["verification"])
+        for run in implement_runs
+    )
+    plan_run = next(run for run in artifact["runs"] if run["mode"] == "plan")
+    assert plan_run["result_patch"] == ""
+    assert plan_run["verification"] == []

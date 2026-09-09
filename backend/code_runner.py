@@ -682,6 +682,65 @@ class CrumpCodeRunner:
             messages.append({"role": "user", "content": tool_results})
         raise CodeRunnerError("The coding agent reached its safe step limit.", "CODE_STEP_LIMIT")
 
+    async def _run_in_workspace(
+        self,
+        task: dict[str, Any],
+        workspace: SandboxWorkspace,
+    ) -> dict[str, Any]:
+        """Run the production agent lifecycle against an already isolated workspace.
+
+        Keeping orchestration separate from provider provisioning lets the fixed offline
+        benchmark exercise the same tool loop, transitions, verification, and artifact
+        packaging without acquiring credentials or paid infrastructure.
+        """
+        await self._ensure_not_cancelled(task)
+        base_revision = await workspace.base_revision()
+        task = await self.service.transition(
+            task,
+            "running",
+            changes={"base_revision": base_revision},
+            event_type="agent.started",
+            event_payload={"status": "running"},
+        )
+        inventory = await workspace.list_files("")
+        summary = await self._agent_loop(task=task, workspace=workspace, inventory=inventory)
+        await self._ensure_not_cancelled(task)
+        task = await self.service.transition(
+            task,
+            "verifying",
+            event_type="verification.started",
+            event_payload={"status": "verifying"},
+        )
+        changed = await workspace.changed_paths()
+        if task.get("mode") == "implement" and changed:
+            await self._ensure_not_cancelled(task)
+            await workspace.syntax_verify(changed)
+        if task.get("mode") == "implement":
+            await self._ensure_not_cancelled(task)
+            patch = await workspace.patch()
+        else:
+            patch = ""
+        await self.service.append_event(
+            task,
+            "verification.completed",
+            {
+                "changedFiles": changed,
+                "verificationCount": len(workspace.verification),
+            },
+        )
+        return await self.service.transition(
+            task,
+            "completed",
+            changes={
+                "result_summary": summary or "Crump Code completed the repository review.",
+                "result_patch": patch,
+                "verification": workspace.verification,
+                "completed_at": _now(),
+            },
+            event_type="task.completed",
+            event_payload={"changedFiles": changed, "status": "completed"},
+        )
+
     async def run(self, task: dict[str, Any], *, oidc_token: str) -> dict[str, Any]:
         await self._ensure_not_cancelled(task)
         project_id, team_id = self._oidc_identity(oidc_token)
@@ -733,52 +792,7 @@ class CrumpCodeRunner:
                     task, "sandbox.provisioned", {"status": "running"}
                 )
                 workspace = SandboxWorkspace(sandbox)
-                base_revision = await workspace.base_revision()
-                task = await self.service.transition(
-                    task,
-                    "running",
-                    changes={"base_revision": base_revision},
-                    event_type="agent.started",
-                    event_payload={"status": "running"},
-                )
-                inventory = await workspace.list_files("")
-                summary = await self._agent_loop(task=task, workspace=workspace, inventory=inventory)
-                await self._ensure_not_cancelled(task)
-                task = await self.service.transition(
-                    task,
-                    "verifying",
-                    event_type="verification.started",
-                    event_payload={"status": "verifying"},
-                )
-                changed = await workspace.changed_paths()
-                if task.get("mode") == "implement" and changed:
-                    await self._ensure_not_cancelled(task)
-                    await workspace.syntax_verify(changed)
-                if task.get("mode") == "implement":
-                    await self._ensure_not_cancelled(task)
-                    patch = await workspace.patch()
-                else:
-                    patch = ""
-                await self.service.append_event(
-                    task,
-                    "verification.completed",
-                    {
-                        "changedFiles": changed,
-                        "verificationCount": len(workspace.verification),
-                    },
-                )
-                return await self.service.transition(
-                    task,
-                    "completed",
-                    changes={
-                        "result_summary": summary or "Crump Code completed the repository review.",
-                        "result_patch": patch,
-                        "verification": workspace.verification,
-                        "completed_at": _now(),
-                    },
-                    event_type="task.completed",
-                    event_payload={"changedFiles": changed, "status": "completed"},
-                )
+                return await self._run_in_workspace(task, workspace)
 
 
 async def run_with_deadline(
