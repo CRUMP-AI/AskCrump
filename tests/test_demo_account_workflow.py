@@ -420,7 +420,7 @@ def test_recording_proof_migration_is_fixed_service_only_and_boolean_only():
     sql = (
         Path(__file__).resolve().parents[1]
         / "migrations"
-        / "20260909190500_demo_recording_proof_snapshot.sql"
+        / "20260909190741_demo_recording_proof_snapshot.sql"
     ).read_text(encoding="utf-8")
     return_contract = sql.split("returns table (", 1)[1].split(")", 1)[0]
     normalized = re.sub(r"\s+", " ", sql.lower())
