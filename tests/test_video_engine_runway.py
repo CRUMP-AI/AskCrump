@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from backend.video_providers import GeminiVeoProvider, RunwayProvider
+from backend.video_providers import GeminiVeoProvider, ProviderError, RunwayProvider
 from backend.video_service import VideoService, VideoServiceError
 
 
@@ -386,10 +386,99 @@ async def test_provider_acceptance_tracking_failure_is_not_auto_refundable():
     assert exc.value.refund_eligible is False
 
 
+@pytest.mark.asyncio
+async def test_pre_acceptance_rejection_identifies_the_reserved_job_for_refund_reconciliation():
+    db = ReservationDB()
+    service = VideoService(settings(), db, SimpleNamespace())
+
+    async def reject_before_acceptance(**_kwargs):
+        raise ProviderError(
+            "The video provider rejected the generation request.",
+            "VIDEO_PROVIDER_REJECTED",
+            502,
+            False,
+            "INVALID_ARGUMENT",
+            True,
+        )
+
+    service.runway.start = reject_before_acceptance
+    with pytest.raises(VideoServiceError) as exc:
+        await service.start(
+            user_id=USER_ID,
+            prompt="A carefully composed cinematic crane shot over a futuristic coastal city.",
+            engine="cinematic",
+            aspect_ratio="16:9",
+            resolution="720p",
+            duration_seconds=5,
+            charge_receipt={"eventId": "credit:test"},
+        )
+
+    assert exc.value.code == "VIDEO_PROVIDER_REJECTED"
+    assert exc.value.failed_job_id in db.rows
+    failed = db.rows[exc.value.failed_job_id]
+    assert failed["status"] == "failed"
+    assert failed["estimated_provider_cost_cents"] == 0
+    assert failed["metadata"]["providerAccepted"] is False
+    assert failed["metadata"]["providerFailureCode"] == "INVALID_ARGUMENT"
+
+
+@pytest.mark.asyncio
+async def test_continuation_rejection_identifies_its_reserved_job_for_refund_reconciliation():
+    parent_id = "00000000-0000-0000-0000-000000000002"
+
+    class ContinuationDB(ReservationDB):
+        async def select_one(self, table, *, filters=None, **kwargs):
+            if table == "media_jobs" and (filters or {}).get("id") == f"eq.{parent_id}":
+                return {
+                    "id": parent_id,
+                    "status": "ready",
+                    "engine": "extendable",
+                    "provider": "gemini",
+                    "resolution": "720p",
+                    "aspect_ratio": "16:9",
+                    "provider_asset_reference": "https://generativelanguage.googleapis.com/v1beta/files/example",
+                    "provider_asset_expires_at": "2999-01-01T00:00:00+00:00",
+                    "sequence_index": 0,
+                    "duration_seconds": 8,
+                    "metadata": {"storedBytes": 1024},
+                }
+            return None
+
+    db = ContinuationDB()
+    service = VideoService(settings(), db, SimpleNamespace())
+
+    async def reject_before_acceptance(**_kwargs):
+        raise ProviderError(
+            "The video provider rejected the continuation request.",
+            "VIDEO_PROVIDER_REJECTED",
+            502,
+            False,
+            "INVALID_ARGUMENT",
+            True,
+        )
+
+    service.gemini.start = reject_before_acceptance
+    with pytest.raises(VideoServiceError) as exc:
+        await service.continue_video(
+            user_id=USER_ID,
+            parent_job_id=parent_id,
+            prompt="Continue the same scene while preserving every visible detail.",
+            idempotency_key="continue-fixture",
+            charge_receipt={"eventId": "credit:test"},
+        )
+
+    assert exc.value.failed_job_id in db.rows
+    failed = db.rows[exc.value.failed_job_id]
+    assert failed["operation_type"] == "extend"
+    assert failed["status"] == "failed"
+    assert failed["estimated_provider_cost_cents"] == 0
+    assert failed["metadata"]["providerFailureCode"] == "INVALID_ARGUMENT"
+
+
 def test_media_routes_respect_nonrefundable_provider_boundary():
     source = read("backend/routes/media.py")
     assert source.count("if exc.refund_eligible:") >= 2
-    assert "await features.refund" in source
+    assert source.count("await _refund_failed_video_charge(") == 2
 
 
 def test_reference_files_are_owner_checked_before_credits_or_provider_spend():

@@ -36,6 +36,7 @@ class VideoServiceError(RuntimeError):
     status_code: int = 400
     retryable: bool = False
     refund_eligible: bool = True
+    failed_job_id: str | None = None
 
     def __post_init__(self) -> None:
         RuntimeError.__init__(self, self.message)
@@ -585,7 +586,9 @@ class VideoService:
                 )
             except Exception:
                 pass
-            raise self._map_provider_error(exc) from exc
+            mapped = self._map_provider_error(exc)
+            mapped.failed_job_id = job_id
+            raise mapped from exc
 
         try:
             updated = await self.db.update(
@@ -752,7 +755,9 @@ class VideoService:
                 )
             except Exception:
                 pass
-            raise self._map_provider_error(exc) from exc
+            mapped = self._map_provider_error(exc)
+            mapped.failed_job_id = job_id
+            raise mapped from exc
 
         try:
             updated = await self.db.update(

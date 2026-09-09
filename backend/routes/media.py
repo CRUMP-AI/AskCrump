@@ -88,6 +88,28 @@ async def _existing_job(user_id: str, key: str | None):
     )
 
 
+async def _refund_failed_video_charge(
+    *,
+    user_id: str,
+    receipt: dict | None,
+    job_id: str | None,
+) -> None:
+    """Return a failed pre-acceptance charge and reconcile its private job row."""
+    await features.refund(user_id, receipt)
+    if not job_id:
+        return
+    try:
+        await db.update(
+            "media_jobs",
+            {"billing_refunded": True},
+            filters={"id": eq(job_id), "user_id": eq(user_id)},
+        )
+    except Exception:
+        # The credit refund is idempotent. Leaving the flag false lets the
+        # existing status route safely reconcile it again if storage recovers.
+        logger.warning("Video refund state update needs a retry.")
+
+
 async def _attach_ready_video_to_project(*, user_id: str, row: dict) -> dict | None:
     if row.get("status") != "ready" or not row.get("project_id") or not row.get("file_id"):
         return None
@@ -228,7 +250,11 @@ async def create_video(request: Request):
         return {"success": True, "job": await video.public_job(user_id=auth.user["id"], row=row)}
     except VideoServiceError as exc:
         if exc.refund_eligible:
-            await features.refund(auth.user["id"], receipt)
+            await _refund_failed_video_charge(
+                user_id=auth.user["id"],
+                receipt=receipt,
+                job_id=exc.failed_job_id,
+            )
         return _video_error(exc, stage="generation")
 
 
@@ -302,7 +328,11 @@ async def continue_video(job_id: str, request: Request):
         return {"success": True, "job": await video.public_job(user_id=auth.user["id"], row=row)}
     except VideoServiceError as exc:
         if exc.refund_eligible:
-            await features.refund(auth.user["id"], receipt)
+            await _refund_failed_video_charge(
+                user_id=auth.user["id"],
+                receipt=receipt,
+                job_id=exc.failed_job_id,
+            )
         return _video_error(exc, stage="continuation_generation")
 
 
