@@ -65,27 +65,27 @@ INDIRECT_DYNAMIC_BUTTON_OWNERS = {
         "modal.addEventListener('click', event => {",
         "event.target.closest?.('[data-crump-pack]')",
     ),
-    "public/crump-code-5.9.35.js:316:button": (
+    "public/crump-code-5.9.35.js:315:button": (
         "button.dataset.crumpCodeTask =",
         "byId('crumpCodeTaskList')?.addEventListener('click'",
         "event.target.closest?.('[data-crump-code-task]')",
     ),
-    "public/crump-code-5.9.35.js:360:button": (
+    "public/crump-code-5.9.35.js:359:button": (
         "button.dataset.codeApproval =",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "event.target.closest?.('[data-code-approval]')",
     ),
-    "public/crump-code-5.9.35.js:474:download": (
+    "public/crump-code-5.9.35.js:473:download": (
         "download.dataset.codeAction = 'download'",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'download'",
     ),
-    "public/crump-code-5.9.35.js:504:run": (
+    "public/crump-code-5.9.35.js:503:run": (
         "run.dataset.codeAction = 'run'",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'run'",
     ),
-    "public/crump-code-5.9.35.js:522:cancel": (
+    "public/crump-code-5.9.35.js:521:cancel": (
         "cancel.dataset.codeAction = 'cancel'",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'cancel'",
@@ -580,7 +580,7 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
 
-    assert len(verifier_names) == 40
+    assert len(verifier_names) == 41
     for name in verifier_names:
         assert f"'{name}'" in runner
     assert "Browser verifier inventory drifted." in runner

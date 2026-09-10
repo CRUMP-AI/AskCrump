@@ -236,24 +236,15 @@
     }
   }
 
-  async function refreshAvailability() {
-    try {
-      const data = await api('/api/features');
-      const feature = data.features?.code_workspace || null;
-      const provider = data.providers?.code || null;
-      state.featureStatus = data;
-      state.feature = feature;
-      state.provider = provider;
-      state.configured = Boolean(feature?.configured && provider?.configured);
-      state.entitled = feature?.entitled === true;
-      state.available = state.configured && state.entitled;
-    } catch (_) {
-      state.available = false;
-      state.configured = false;
-      state.entitled = false;
-      state.feature = null;
-      state.provider = null;
-    }
+  function hydrateAvailability(data) {
+    const feature = data?.features?.code_workspace || null;
+    const provider = data?.providers?.code || null;
+    state.featureStatus = data || null;
+    state.feature = feature;
+    state.provider = provider;
+    state.configured = Boolean(feature?.configured && provider?.configured);
+    state.entitled = feature?.entitled === true;
+    state.available = state.configured && state.entitled;
     document.querySelectorAll('[data-crump-code-destination]').forEach(destination => {
       destination.hidden = !state.configured;
       destination.classList.toggle('is-locked', state.configured && !state.entitled);
@@ -265,6 +256,14 @@
     document.body.classList.toggle('crump-code-configured', state.configured);
     if (!state.available && !byId('crumpCodeWorkspace')?.hidden) close();
     return state.available;
+  }
+
+  async function refreshAvailability() {
+    try {
+      return hydrateAvailability(await api('/api/features'));
+    } catch (_) {
+      return hydrateAvailability(null);
+    }
   }
 
   function renderProjects() {
@@ -769,16 +768,23 @@
     state.restoreFocus = null;
   }
 
-  window.CrumpCodeWorkspace = Object.freeze({open, close, refresh, refreshAvailability});
+  window.CrumpCodeWorkspace = Object.freeze({open, close, refresh, refreshAvailability, hydrateAvailability});
+
+  const bootstrapStatus = window.__crumpCodeBootstrapStatus || null;
+  delete window.__crumpCodeBootstrapStatus;
+
+  function initialize() {
+    createStaticShell();
+    // The lazy loader applies its server-confirmed status only after both the
+    // script and stylesheet are ready, so a newly revealed destination cannot
+    // open an unstyled workspace.
+    if (!bootstrapStatus && window.currentUser) void refreshAvailability();
+  }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      createStaticShell();
-      if (window.currentUser) void refreshAvailability();
-    }, {once: true});
-  } else {
-    createStaticShell();
-    if (window.currentUser) void refreshAvailability();
-  }
-  window.addEventListener('crump:authenticated-ready', () => void refreshAvailability());
+    document.addEventListener('DOMContentLoaded', initialize, {once: true});
+  } else initialize();
+  window.addEventListener('crump:authenticated-ready', () => {
+    if (!window.CrumpCodeLoader) void refreshAvailability();
+  });
 })();

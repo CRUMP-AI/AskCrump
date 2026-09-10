@@ -9,7 +9,7 @@ const expectedFiles = new Set([
   'crump-precision-image-edit.js',
   'crump-5.2.js', 'crump-5.2.2.js', 'crump-5.2.4.js', 'crump-navigation-5.2.5.js',
   'crump-navigation-5.9.30.js',
-  'crump-code-5.9.35.js',
+  'crump-code-5.9.35.js', 'crump-code-loader.js',
   'credit-confirmation.js',
   'crump-v1.js', 'crump-v1-body.js', 'crump-v1-stability.js', 'crump-product-5.3.js',
   'crump-product-5.3.1.js', 'crump-subscriptions-5.3.2.js', 'crump-polish-5.6.js',
@@ -984,6 +984,7 @@ const newResponseCueVersion = `${releaseVersion}-new-response-cue-1`;
 const videoDestinationVersion = `${releaseVersion}-video-destination-1`;
 const mobileDrawerDestinationsVersion = `${releaseVersion}-mobile-drawer-destinations-1`;
 const destinationBackgroundGuardVersion = `${releaseVersion}-destination-background-guard-1`;
+const codeLazyLoadVersion = `${releaseVersion}-code-lazy-load-1`;
 const controlFocusIntegrityVersion = `${releaseVersion}-control-focus-integrity-1`;
 const referralCancelRecoveryVersion = `${releaseVersion}-referral-cancel-recovery-1`;
 const settingsInviteVersion = `${releaseVersion}-settings-invite-1`;
@@ -1010,6 +1011,7 @@ const requiredBodyFiles = [
   'public/credit-confirmation.js',
   'public/crump-code-5.9.35.css',
   'public/crump-code-5.9.35.js',
+  'public/crump-code-loader.js',
   'public/runtime-body-v1.js',
   'public/lifecycle.css',
   'public/lifecycle-manager.js',
@@ -1182,7 +1184,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${checkoutSessionRecoveryVersion}`,
+  `/runtime-body-v1.js?v=${codeLazyLoadVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
   `/auth-resilience.js?v=${releaseVersion}`,
@@ -1256,10 +1258,11 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes('/crump-subscriptions-5.3.2.js') ||
     !runtime.includes(`/crump-polish-5.6.js?v=${videoDestinationVersion}`) || !runtime.includes('/crump-polish-5.6.css') ||
     !runtime.includes('/crump-library-5.7.js') || !runtime.includes('/crump-library-5.7.css') ||
-    !runtime.includes(`/crump-navigation-5.9.30.js?v=${destinationBackgroundGuardVersion}`) ||
+    !runtime.includes(`/crump-navigation-5.9.30.js?v=${codeLazyLoadVersion}`) ||
     !runtime.includes(`/crump-navigation-5.9.30.css?v=${mobileDrawerDestinationsVersion}`) ||
-    !runtime.includes(`/crump-code-5.9.35.js?v=${creditConfirmationVersion}`) ||
-    !runtime.includes(`/crump-code-5.9.35.css?v=${intelligenceArchitectureVersion}`)) {
+    !runtime.includes(`/crump-code-loader.js?v=${codeLazyLoadVersion}`) ||
+    runtime.includes(`/crump-code-5.9.35.js?v=${creditConfirmationVersion}`) ||
+    runtime.includes(`/crump-code-5.9.35.css?v=${intelligenceArchitectureVersion}`)) {
   console.error('New-body runtime is missing the canonical shell.');
   process.exit(1);
 }
@@ -1329,7 +1332,7 @@ await runtimeWindow.CrumpWorkspaceRuntime.load();
 if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
     dispatchedRuntimeEvents.filter(type => type === 'crump:body-runtime-ready').length !== 1 ||
     appendedRuntimeAssets.length !== loadedRuntimeAssetCount ||
-    loadedRuntimeStyles.length !== 21 ||
+    loadedRuntimeStyles.length !== 20 ||
     preloadedRuntimeScripts.length !== 33 ||
     loadedRuntimeScripts.length !== 33 ||
     !loadedRuntimeScripts.every(asset => preloadedRuntimeScripts.includes(asset)) ||
@@ -1403,9 +1406,9 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r228') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r229') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${checkoutSessionRecoveryVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${codeLazyLoadVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
@@ -1424,7 +1427,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r228') ||
     !serviceWorker.includes(`/onboarding.js?v=${precisionEditGuideVersion}`) ||
     !serviceWorker.includes(`/crump-polish-5.6.js?v=${videoDestinationVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.css?v=${mobileDrawerDestinationsVersion}`) ||
-    !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${destinationBackgroundGuardVersion}`) ||
+    !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${codeLazyLoadVersion}`) ||
     !serviceWorker.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !serviceWorker.includes(`/lifecycle-share.js?v=${settingsInviteVersion}`) ||
     !serviceWorker.includes(`/lifecycle-manager.js?v=${referralCancelRecoveryVersion}`) ||
@@ -1443,10 +1446,11 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r228') ||
     !serviceWorker.includes(`/crump-product-5.3.js?v=${productButtonOwnershipVersion}`) ||
     !serviceWorker.includes(`/crump-product-5.3.1.js?v=${coreReliabilityVersion}`) ||
     !serviceWorker.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
-    !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${destinationBackgroundGuardVersion}`) ||
+    !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${codeLazyLoadVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.css?v=${mobileDrawerDestinationsVersion}`) ||
-    !serviceWorker.includes(`/crump-code-5.9.35.js?v=${creditConfirmationVersion}`) ||
-    !serviceWorker.includes(`/crump-code-5.9.35.css?v=${intelligenceArchitectureVersion}`) ||
+    !serviceWorker.includes(`/crump-code-loader.js?v=${codeLazyLoadVersion}`) ||
+    serviceWorker.includes(`/crump-code-5.9.35.js?v=${creditConfirmationVersion}`) ||
+    serviceWorker.includes(`/crump-code-5.9.35.css?v=${intelligenceArchitectureVersion}`) ||
     !serviceWorker.includes("url.pathname === '/conversation.css'") ||
     !serviceWorker.includes("url.pathname === '/credit-confirmation.css'") ||
     !serviceWorker.includes("url.pathname === '/credit-confirmation.js'") ||
@@ -1470,8 +1474,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r228') ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.2.5.css'") ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.9.30.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.9.30.css'") ||
-    !serviceWorker.includes("url.pathname === '/crump-code-5.9.35.js'") ||
-    !serviceWorker.includes("url.pathname === '/crump-code-5.9.35.css'") ||
+    !serviceWorker.includes("url.pathname === '/crump-code-loader.js'") ||
     !serviceWorker.includes(`/billing-manager.js?v=${checkoutSessionRecoveryVersion}`) ||
     !serviceWorker.includes(`/subscription-ui.js?v=${commerceRecoveryVersion}`) ||
     !serviceWorker.includes(`/crump-billing-5.1.css?v=${creditTruthVersion}`) ||

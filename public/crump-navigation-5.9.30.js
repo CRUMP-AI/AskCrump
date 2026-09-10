@@ -379,7 +379,7 @@
     document.body.classList.add('crump5930-create-open');
     setDestinationBackgroundInert(true);
     setActive('create');
-    void window.CrumpCodeWorkspace?.refreshAvailability?.();
+    void (window.CrumpCodeWorkspace?.refreshAvailability?.() || window.CrumpCodeLoader?.refreshAvailability?.());
     requestAnimationFrame(() => byId('crump5930CreateClose')?.focus({preventScroll: true}));
   }
 
@@ -510,7 +510,9 @@
     closeSettings();
     closeCreateHub();
     closeToolSheet();
-    const opened = await window.CrumpCodeWorkspace?.open?.();
+    const opened = window.CrumpCodeWorkspace?.open
+      ? await window.CrumpCodeWorkspace.open()
+      : await window.CrumpCodeLoader?.open?.();
     if (!opened) {
       setActive('ask');
       return;

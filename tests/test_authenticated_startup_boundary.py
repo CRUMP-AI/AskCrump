@@ -22,6 +22,7 @@ def test_auth_controller_announces_server_confirmed_workspace_readiness():
 def test_protected_product_modules_hydrate_only_after_an_intentional_open():
     product = read('crump-product-5.3.js')
     code = read('crump-code-5.9.35.js')
+    code_loader = read('crump-code-loader.js')
     library = read('crump-library-5.7.js')
     billing = read('crump-billing-5.1.js')
 
@@ -38,9 +39,11 @@ def test_protected_product_modules_hydrate_only_after_an_intentional_open():
     assert 'if (window.currentUser) void refreshBooks();' not in library
     assert "window.addEventListener('crump:authenticated-ready'" in library
     assert 'if (!state.installed) installWhenReady();' in library
-    assert "window.addEventListener('crump:authenticated-ready', () => void refreshAvailability())" in code
-    auth_listener = code.index("window.addEventListener('crump:authenticated-ready'")
-    assert "loadProjects()" not in code[auth_listener:]
+    assert "window.addEventListener('crump:authenticated-ready'" in code_loader
+    auth_listener = code_loader.index("window.addEventListener('crump:authenticated-ready'")
+    assert "loadProjects()" not in code_loader[auth_listener:]
+    assert "if (!configured(data))" in code_loader
+    assert "await loadWorkspace(data);" in code_loader
     assert 'if (!(await refreshAvailability()))' in code
     assert 'if (window.currentUser) refreshBalance();' in billing
     assert "window.addEventListener('crump:authenticated-ready', () => refreshBalance())" in billing

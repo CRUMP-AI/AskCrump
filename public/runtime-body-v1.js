@@ -40,7 +40,6 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-product-5.3.1.css', 'crumpproduct531'],
     ['/crump-polish-5.6.css', 'crumppolish56'],
     ['/crump-library-5.7.css', 'crumplibrary57'],
-    ['/crump-code-5.9.35.css?v=5.9.76-intelligence-architecture-1', 'crumpcode5935'],
     ['/crump-v1-stability.css', 'crumpv1stability'],
     ['/crump-navigation-5.9.30.css?v=5.9.76-mobile-drawer-destinations-1', 'crumpnav5930'],
   ]);
@@ -81,8 +80,8 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-subscriptions-5.3.2.js?v=5.9.76-checkout-session-recovery-1', 'crumpsubscriptions532'],
     ['/crump-polish-5.6.js?v=5.9.76-video-destination-1', 'crumppolish56'],
     ['/crump-library-5.7.js?v=5.9.76-library-new-routing-1', 'crumplibrary57'],
-    ['/crump-navigation-5.9.30.js?v=5.9.76-destination-background-guard-1', 'crumpnav5930'],
-    ['/crump-code-5.9.35.js?v=5.9.76-credit-confirmation-1', 'crumpcode5935'],
+    ['/crump-navigation-5.9.30.js?v=5.9.76-code-lazy-load-1', 'crumpnav5930'],
+    ['/crump-code-loader.js?v=5.9.76-code-lazy-load-1', 'crumpcodeloader'],
     ['/lifecycle-share.js?v=5.9.76-settings-invite-1', 'lifecycleshare'],
     ['/lifecycle-manager.js?v=5.9.76-referral-cancel-recovery-1', 'lifecyclemanager'],
   ]);

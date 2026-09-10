@@ -8,8 +8,9 @@ def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
 
 
-def test_code_workspace_is_loaded_but_hidden_until_server_configuration_and_entitlement():
+def test_code_workspace_is_lazy_loaded_only_after_server_configuration_and_entitlement():
     script = read("public/crump-code-5.9.35.js")
+    loader = read("public/crump-code-loader.js")
     navigation = read("public/crump-navigation-5.9.30.js")
     runtime = read("public/runtime-body-v1.js")
     native = read("scripts/build-native.mjs")
@@ -21,14 +22,39 @@ def test_code_workspace_is_loaded_but_hidden_until_server_configuration_and_enti
     assert "state.available = state.configured && state.entitled" in script
     assert "destination.hidden = !state.configured" in script
     assert "showBillingCenter?.({plan: 'professional'})" in script
+    assert "function hydrateAvailability(data)" in script
+    assert "__crumpCodeBootstrapStatus" in script
+    assert "window.CrumpCodeWorkspace = Object.freeze({open, close, refresh, refreshAvailability, hydrateAvailability})" in script
     versioned_script = "/crump-code-5.9.35.js?v=5.9.76-credit-confirmation-1"
-    assert versioned_script in runtime
-    assert versioned_script in native
-    assert versioned_script in worker
-    for asset in ("/crump-code-5.9.35.css", "/crump-code-5.9.35.js"):
-        assert asset in runtime
-        assert asset in native
-        assert asset in worker
+    versioned_style = "/crump-code-5.9.35.css?v=5.9.76-intelligence-architecture-1"
+    versioned_loader = "/crump-code-loader.js?v=5.9.76-code-lazy-load-1"
+    for source in (runtime, native, worker):
+        assert versioned_loader in source
+        assert versioned_script not in source
+        assert versioned_style not in source
+    assert versioned_script in loader
+    assert versioned_style in loader
+    assert "if (!configured(data))" in loader
+    assert "await loadWorkspace(data);" in loader
+    assert "window.CrumpCodeLoader = Object.freeze" in loader
+    assert "window.CrumpCodeLoader?.open?.()" in navigation
+    assert "url.pathname === '/crump-code-loader.js'" in worker
+    assert "url.pathname === '/crump-code-5.9.35.js'" not in worker
+    assert "url.pathname === '/crump-code-5.9.35.css'" not in worker
+
+
+def test_code_lazy_load_has_real_browser_disabled_locked_and_entitled_proof():
+    verifier = read("scripts/verify-code-lazy-load.cjs")
+    matrix = read("scripts/verify-browser-control-matrix.mjs")
+
+    assert "verify-code-lazy-load.cjs" in matrix
+    assert "disabled:${assetPaths.script}" in verifier
+    assert "disabled:${assetPaths.style}" in verifier
+    assert "counts.get('disabled:/api/features'), 1" in verifier
+    assert "Code — Professional plan" in verifier
+    assert "bootstrapStatusRetained" in verifier
+    assert "askcrump.com" not in verifier.lower()
+    assert "password" not in verifier.lower()
 
 
 def test_code_workspace_separates_preparation_from_confirmed_metered_execution():

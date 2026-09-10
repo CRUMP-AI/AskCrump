@@ -38,8 +38,8 @@ const assert = require('node:assert/strict');
     });
 
     assert.equal(evidence.runtimeState, 'ready');
-    assert.equal(evidence.styleCount, 21);
-    assert.equal(evidence.maxStyles, 21);
+    assert.equal(evidence.styleCount, 20);
+    assert.equal(evidence.maxStyles, 20);
     assert.equal(evidence.preloadCount, 33);
     assert.equal(evidence.scriptCount, 33);
     assert.equal(evidence.firstScript, '/onboarding.js?v=5.9.76-button-integrity-1');
