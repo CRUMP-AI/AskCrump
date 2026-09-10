@@ -1,8 +1,10 @@
 # Ask Crump daily operating review — 2026-09-10
 
-Review time: 16:12 UTC  
+Review time: 16:12 UTC
+
 Scope: production reliability, account/activation evidence, durable work, and
-revenue-boundary reconciliation  
+revenue-boundary reconciliation
+
 Privacy boundary: aggregate counts only; no prompt, response, filename, email,
 referrer URL, or customer content was read
 
