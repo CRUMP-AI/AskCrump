@@ -18,6 +18,13 @@ button must declare its behavior type, every rendered control must have a bounde
 owner, and every dynamic control must have a direct or explicitly reviewed delegated click owner.
 Adding or removing a button changes the locked inventory and requires review.
 
+Release `3d1286a` also closes the final composer-state mismatch found during the live audit. Send
+now has an authoritative browser `disabled` state, not only an accessibility label: it is disabled
+for an empty composer, enabled by text or a visible attachment, disabled again when either is
+removed, and reset immediately after a sent draft is cleared. The initial HTML is fail-closed while
+the workspace scripts load. The browser fixture proves all five state transitions without sending a
+message, uploading a file, starting generation, or touching production data.
+
 ## Live signed-in verification
 
 A non-destructive production pass verified the visible outcomes for:
@@ -39,12 +46,18 @@ and no account, campaign, or external communication was created.
 
 ## Automated evidence
 
-- `tests/test_button_integrity.py`: all 23 tests passed.
-- Full Python suite: passed.
+- `tests/test_button_integrity.py`: all 25 tests passed.
+- Full Python suite: 995/995 passed.
 - JavaScript validation: 49 files passed, including 22/22 rough-to-useful attribution cases,
   10/10 Word/PDF cases, 10/10 resume cases, and the 14/14 store-packet self-test.
 - Browser control matrix: 38/38 flows passed.
 - `git diff --check`: passed.
+
+GitHub CI run `34513572466`, Android source-verification run `34513572482`, and iOS
+source-verification run `34513572465` all passed for `3d1286a`. Production deployment
+`dpl_GoofjTHHJNQKcCy6ZymwcU6RTTrJ` is READY and current. A signed-in canonical replay loaded
+`/crump-4.3.js?v=5.9.76-composer-actionability-1`, proved empty → typed → cleared state parity,
+left the composer empty, and produced no browser-console error.
 
 ## Boundary
 
