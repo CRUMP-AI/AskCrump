@@ -104,11 +104,12 @@
     },
     'rough-to-useful-v2': {
       intent: 'projects',
-      acquisitions: new Set(['facebook', 'paid-social']),
+      acquisitions: new Set(['facebook', 'instagram', 'paid-social']),
       placements: new Set(['organic-social', 'facebook-paid']),
       creatives: new Set(['rough-to-useful-current-feed']),
       touchpoints: new Set([
         'facebook|organic-social|rough-to-useful-current-feed',
+        'instagram|organic-social|rough-to-useful-current-feed',
         'paid-social|facebook-paid|rough-to-useful-current-feed',
       ]),
     },

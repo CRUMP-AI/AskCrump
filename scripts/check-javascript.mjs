@@ -473,14 +473,32 @@ assertMarketingLanding(roughToUsefulValid, {
 }, 'Rough-to-useful Facebook feed');
 roughToUsefulRuntimeCases += 1;
 
+const roughToUsefulInstagramStore = new Map();
+const roughToUsefulInstagramValid = runLandingAttribution(
+  'https://askcrump.com/guides/rough-idea-six-week-launch-plan?acquisition=instagram&source=organic-social&campaign=rough-to-useful-v2&creative=rough-to-useful-current-feed',
+  roughToUsefulInstagramStore,
+  '/app?signup=1&intent=projects',
+  '',
+  {click: false},
+);
+assertAttribution(storedAttribution(roughToUsefulInstagramStore), {
+  ...roughToUsefulTouch,
+  acquisition: 'instagram',
+}, 'Rough-to-useful Instagram feed');
+assertMarketingLanding(roughToUsefulInstagramValid, {
+  touchpoint: 'instagram.organic-social.rough-to-useful-v2.rough-to-useful-current-feed',
+  intent: 'projects',
+}, 'Rough-to-useful Instagram feed');
+roughToUsefulRuntimeCases += 1;
+
 for (const [label, invalidUrl] of [
   [
     'Rough-to-useful Facebook Story',
     'https://askcrump.com/guides/rough-idea-six-week-launch-plan?acquisition=facebook&source=organic-social&campaign=rough-to-useful-v2&creative=rough-to-useful-current-story',
   ],
   [
-    'Rough-to-useful Instagram cross-product',
-    'https://askcrump.com/guides/rough-idea-six-week-launch-plan?acquisition=instagram&source=organic-social&campaign=rough-to-useful-v2&creative=rough-to-useful-current-feed',
+    'Rough-to-useful Instagram Story',
+    'https://askcrump.com/guides/rough-idea-six-week-launch-plan?acquisition=instagram&source=organic-social&campaign=rough-to-useful-v2&creative=rough-to-useful-current-story',
   ],
 ]) {
   const rejected = runLandingAttribution(invalidUrl, new Map(), '/app?signup=1&intent=projects', '', {click: false});
@@ -641,8 +659,8 @@ assertAttribution(
   'Paid rough-to-useful existing-account sign-in',
 );
 roughToUsefulRuntimeCases += 1;
-if (roughToUsefulRuntimeCases !== 21) {
-  console.error(`Expected 21 rough-to-useful runtime cases, got ${roughToUsefulRuntimeCases}.`);
+if (roughToUsefulRuntimeCases !== 22) {
+  console.error(`Expected 22 rough-to-useful runtime cases, got ${roughToUsefulRuntimeCases}.`);
   process.exit(1);
 }
 
@@ -927,8 +945,8 @@ assertAttribution(storedAttribution(immutableStore), {
 const repoRoot = new URL('../', import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot), 'utf8'));
 const releaseVersion = String(packageJson.version || '');
-const landingVersion = `${releaseVersion}-paid-attribution-1`;
-const attributionVersion = `${releaseVersion}-paid-attribution-1`;
+const landingVersion = `${releaseVersion}-organic-feed-attribution-1`;
+const attributionVersion = `${releaseVersion}-organic-feed-attribution-1`;
 const planRendererVersion = `${releaseVersion}-credit-pack-accessibility-1`;
 const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
 const nativeBillingIdentityVersion = `${releaseVersion}-native-billing-identity-1`;
@@ -1895,7 +1913,7 @@ if (!scroll522.includes("card.removeAttribute('role')") ||
 }
 
 console.log('Ask Crump V1 new-body integration contract validated.');
-console.log(`Validated ${roughToUsefulRuntimeCases}/21 rough-to-useful attribution runtime cases.`);
+console.log(`Validated ${roughToUsefulRuntimeCases}/22 rough-to-useful attribution runtime cases.`);
 console.log(`Validated ${wordPdfRuntimeCases}/10 Word/PDF attribution runtime cases.`);
 console.log(`Validated ${resumeAuditRuntimeCases}/10 résumé audit attribution runtime cases.`);
 console.log(`Validated ${files.length} JavaScript files.`);

@@ -118,11 +118,12 @@ ATTRIBUTION_CAMPAIGNS = {
     },
     "rough-to-useful-v2": {
         "intent": "projects",
-        "acquisitions": frozenset({"facebook", "paid-social"}),
+        "acquisitions": frozenset({"facebook", "instagram", "paid-social"}),
         "placements": frozenset({"organic-social", "facebook-paid"}),
         "creatives": frozenset({"rough-to-useful-current-feed"}),
         "touchpoints": frozenset({
             ("facebook", "organic-social", "rough-to-useful-current-feed"),
+            ("instagram", "organic-social", "rough-to-useful-current-feed"),
             ("paid-social", "facebook-paid", "rough-to-useful-current-feed"),
         }),
     },

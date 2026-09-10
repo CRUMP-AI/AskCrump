@@ -22,7 +22,7 @@ MIGRATION = ROOT / "migrations" / "20260830171056_weekly_growth_attribution_expo
 REGISTRY_MIGRATION = (
     ROOT
     / "migrations"
-    / "20260910155004_release_resume_bullet_search_attribution.sql"
+    / "20260910165757_release_rough_to_useful_organic_feed_attribution.sql"
 )
 NULL_SAFETY_MIGRATION = (
     ROOT
@@ -55,7 +55,7 @@ EXPECTED_REGISTRY = {
     },
     "rough-to-useful-v2": {
         "intent": "projects",
-        "acquisitions": {"facebook", "paid-social"},
+        "acquisitions": {"facebook", "instagram", "paid-social"},
         "placements": {"organic-social", "facebook-paid"},
         "creatives": {"rough-to-useful-current-feed"},
     },
@@ -105,6 +105,7 @@ EXPECTED_EXACT_TOUCHPOINTS = {
     },
     "rough-to-useful-v2": {
         ("facebook", "organic-social", "rough-to-useful-current-feed"),
+        ("instagram", "organic-social", "rough-to-useful-current-feed"),
         ("paid-social", "facebook-paid", "rough-to-useful-current-feed"),
     },
     "word-or-pdf-decision": {
@@ -492,6 +493,20 @@ def test_registered_campaign_tuple_is_preserved_exactly():
     }
 
     assert normalize_attribution(
+        acquisition="instagram",
+        placement="organic-social",
+        campaign="rough-to-useful-v2",
+        creative="rough-to-useful-current-feed",
+        intent="projects",
+    ) == {
+        "acquisition": "instagram",
+        "placement": "organic-social",
+        "campaign": "rough-to-useful-v2",
+        "creative": "rough-to-useful-current-feed",
+        "intent": "projects",
+    }
+
+    assert normalize_attribution(
         acquisition="facebook",
         placement="organic-social",
         campaign="rough-to-useful-v2",
@@ -525,6 +540,10 @@ def test_registered_campaign_tuple_is_preserved_exactly():
     [
         ("paid-social", "organic-social", "rough-to-useful-v2", "rough-to-useful-current-feed", "projects"),
         ("facebook", "facebook-paid", "rough-to-useful-v2", "rough-to-useful-current-feed", "projects"),
+        ("facebook", "profile-link", "rough-to-useful-v2", "rough-to-useful-current-feed", "projects"),
+        ("instagram", "profile-link", "rough-to-useful-v2", "rough-to-useful-current-feed", "projects"),
+        ("instagram", "organic-social", "rough-to-useful-v2", "rough-to-useful-current-story", "projects"),
+        ("instagram", "organic-social", "rough-to-useful-v2", "rough-to-useful-current-reel", "projects"),
         ("paid-social", "facebook-paid", "rough-to-useful-v2", "rough-to-useful-current-story", "projects"),
         ("paid-social", "facebook-paid", "rough-to-useful-v2", "rough-to-useful-current-reel", "projects"),
         ("instagram", "facebook-paid", "rough-to-useful-v2", "rough-to-useful-current-feed", "projects"),
@@ -660,22 +679,6 @@ def test_paid_rough_to_useful_cross_products_fail_closed(
             },
             {
                 "acquisition": "facebook",
-                "placement": "organic-social",
-                "campaign": None,
-                "creative": None,
-                "intent": "projects",
-            },
-        ),
-        (
-            {
-                "acquisition": "instagram",
-                "placement": "organic-social",
-                "campaign": "rough-to-useful-v2",
-                "creative": "rough-to-useful-current-feed",
-                "intent": "projects",
-            },
-            {
-                "acquisition": "instagram",
                 "placement": "organic-social",
                 "campaign": None,
                 "creative": None,
