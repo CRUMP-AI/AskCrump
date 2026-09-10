@@ -165,6 +165,14 @@ provider, privacy, cost, or security gate is incomplete.
 
 ## Current decisions and handoff
 
+- **Rough-to-useful organic feed attribution:** Production commit `c0d4e93` and migration
+  `20260910165757` now accept exactly Facebook organic feed, Instagram organic feed, and the
+  previously approved paid Facebook feed for `rough-to-useful-v2`. Story, Reel, profile-link,
+  cross-product, unknown, and blank-creative variants fail closed; first touch remains immutable.
+  The database proof rolled back with zero residue, live browser assets match committed hashes,
+  the 989-test suite and complete 38/38 browser-control matrix passed, and marketing's independent
+  exact-set live gate is green. No tagged route, synthetic account/event, publication, or spend
+  occurred. Evidence: `docs/ROUGH_TO_USEFUL_ORGANIC_FEED_ATTRIBUTION_RELEASE_2026-09-10.md`.
 - **September 10 operating reconciliation:** The latest privacy-safe production
   check still shows 3 external accounts, 2 verified, zero comparable September
   accounts, zero external active paid accounts, and no comparable activation,
