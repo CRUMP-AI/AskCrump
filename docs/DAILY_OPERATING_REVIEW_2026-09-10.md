@@ -25,6 +25,15 @@ The next product change should be triggered by one of two authoritative signals:
 Until one of those signals exists, preserve the current release and keep the
 product team focused on reliability and evidence rather than feature volume.
 
+The safe delivery improvement completed after this review preserves every
+Projects, Files, Manuscripts, Video, Library, and continuity action while moving
+the full Product Studio off a clean authenticated startup. A clean workspace now
+avoids 170,040 raw source bytes and one stylesheet until that capability is
+needed. The cache-safe production release passed 1,003 product tests, 54
+JavaScript validations, and all 45 browser-control verifiers; the signed-in live
+replay opened Projects on first use and Video on reuse. This is deterministic
+delivery evidence, not a field-speed or customer-outcome claim.
+
 ## Production health
 
 The latest 24-hour Vercel production aggregation reported:
