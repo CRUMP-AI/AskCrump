@@ -110,6 +110,24 @@ finance export is available.
 
 ## Actions and non-actions
 
+- Extended the whole-product control boundary through its first-party API handoff
+  in commit `d47e1ce`. CI now inventories 97 raw browser API references across
+  27 public source files, normalizes 84 request-path shapes, and requires every
+  destination to match the real FastAPI route table. The dynamic manuscript-run
+  action remains exactly Pause/Resume/Cancel. The new contract passed 2/2; the
+  complete suite passed 1001/1001, JavaScript 53/53, the browser matrix 44/44,
+  and CI `34533414320`. Test-only deployment
+  `dpl_HJfjonWvDKAAJCeH2mzcSaCBaGeD` is Ready. No public app byte, database,
+  account, provider, payment, credential, or customer-content state changed.
+- Rechecked the only last-day non-success requests. `/api/version` produced one
+  404 but has no first-party caller or product dependency; `/api/features` exists
+  and produced one expected unauthenticated 401. Neither justifies a product route
+  or authentication change.
+- Received the API team's isolated v0.127.0 source-candidate handoff at commit
+  `98da9c9c6230bcbb8d38388a5552c44ba6cdd1ae`. It remains experimental and
+  undeployed; Ask Crump's production API pin remains v0.49.1. No candidate route,
+  SDK, realtime-voice behavior, provider credential, shared table, or claim was
+  integrated into the app from that handoff.
 - Made conversation actions specific and keyboard-safe in product commits `5939014`
   and `6d76a2c`. Rows, three-dot triggers, menus, Rename, and Delete now identify
   the exact conversation; the trigger exposes expanded state; focus enters Rename;
