@@ -95,6 +95,19 @@ finance export is available.
 
 ## Actions and non-actions
 
+- Made conversation actions specific and keyboard-safe in product commits `5939014`
+  and `6d76a2c`. Rows, three-dot triggers, menus, Rename, and Delete now identify
+  the exact conversation; the trigger exposes expanded state; focus enters Rename;
+  and Escape closes only the action menu, restores its trigger, and leaves Chats
+  open. The fail-closed inventory remains 276 controls. The complete suite passed
+  999/999, JavaScript 53/53, and the required browser matrix 44/44; CI
+  `34530272347`, Android `34530272376`, and iOS `34530272346` all passed.
+  Production deployment `dpl_Fa9KwgWHh75T27maHNJoWKRRgfiV` is Ready with four
+  exact-byte checks, signed-in focus/state/sidebar proof, HTTP 200 release traffic,
+  and zero warning/error/fatal entries. No conversation was renamed or deleted.
+- Received the API team's isolated v0.126.0 candidate handoff and preserved Ask
+  Crump's stable production API pin at v0.49.1. No API integration, provider,
+  credential, shared-table, or production API change was made in this release.
 - Completed the whole-product control gate and removed unused Library startup work
   in product commit `73c3829`. The fail-closed inventory covers 182 rendered plus
   94 programmatic controls, and the complete real-browser matrix passed 43/43.
