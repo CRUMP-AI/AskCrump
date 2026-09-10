@@ -95,6 +95,20 @@ finance export is available.
 
 ## Actions and non-actions
 
+- Completed the whole-product control gate and removed unused Library startup work
+  in product commit `73c3829`. The fail-closed inventory covers 182 rendered plus
+  94 programmatic controls, and the complete real-browser matrix passed 43/43.
+  The authenticated plan now loads a 6,376-byte media-save module and 4,312-byte
+  Library loader instead of the prior 65,362-byte Library script plus 37,386-byte
+  stylesheet, avoiding 92,060 raw bytes and one startup style until Library is
+  chosen. All 998 Python tests, 53 JavaScript files, production/native/credential
+  gates, and all three GitHub workflows passed. Production deployment
+  `dpl_GumgE795YnTj7saXj31JwewG7DUy` is Ready; six exact-byte checks passed,
+  signed-in first Library entry loaded the bookshelf once and restored its controls,
+  Grid/Book/List and all six main destinations responded, and the inspected release
+  log contained only HTTP 200 responses with zero warning/error/fatal entries.
+  Paid, destructive, provider, permission, upload, download, external-message, and
+  physical-device outcomes retain their separate action-time gates.
 - Revalidated the complete shipped control boundary and removed unused Precision
   Edit startup work in product commit `1345449`. The authenticated plan now loads
   a 3,379-byte on-demand gate instead of the 78,537-byte editor script plus
