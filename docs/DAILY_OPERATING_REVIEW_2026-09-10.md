@@ -72,8 +72,12 @@ The 21:19 UTC service-role refresh returned all 18 comparable growth stages at
 zero and empty weekly-attribution, artifact-journey, and Project-continuity exports.
 The three legacy external accounts still include two verified accounts, zero
 September logins, and zero active provider-backed payers. The fixed sanitized demo
-identity does not exist, and the optional workflow-proof function is not installed;
-those remain explicit product-proof readiness gates rather than customer metrics.
+identity does not exist. A corrected live lookup confirmed that
+`demo_recording_proof_snapshot()` is installed, stable, security-invoker, empty
+search-path, denied to public/anonymous/authenticated roles, and executable by
+service role. Its seven fixed proof booleans are all false because no completed
+sanitized demo journey exists. Account provisioning and the real recorded journey
+remain explicit operator gates rather than customer metrics.
 
 Internal production testing since September 1 recorded one activation, one aha
 signal, two artifact downloads, six recent-work resumes across two internal

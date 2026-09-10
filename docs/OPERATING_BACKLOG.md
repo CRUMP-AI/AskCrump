@@ -92,6 +92,13 @@ error, or fatal entry. Preserve the verified entry and control paths: the next p
 requires a reproducible customer failure or a legitimate measured journey, while qualified
 acquisition remains the company bottleneck.
 
+The same live database review confirmed that the service-role-only
+`demo_recording_proof_snapshot()` function remains installed with its stable,
+security-invoker, empty-search-path boundary. Public, anonymous, and authenticated roles cannot
+execute it; service role can. All seven proof flags are false because the fixed sanitized demo
+identity is absent. The product-side proof mechanism is therefore ready; creating/resetting the
+account and performing the rights-cleared recorded journey remain separate operator actions.
+
 ## Verified releases
 
 | Outcome | Evidence | State |
