@@ -3,9 +3,9 @@ const { chromium } = require('playwright');
 
 const projectId = '00000000-0000-4000-8000-000000000071';
 const sections = [
-  {name: 'video', title: 'Video Studio', label: 'Ask Crump Video Studio'},
-  {name: 'library', title: 'Library', label: 'Ask Crump Library'},
-  {name: 'manuscripts', title: 'Manuscripts', label: 'Ask Crump Manuscripts'},
+  {name: 'video', title: 'Video Studio', label: 'Ask Crump Video Studio', closeLabel: 'Close Video Studio'},
+  {name: 'library', title: 'Library', label: 'Ask Crump Library', closeLabel: 'Close Library'},
+  {name: 'manuscripts', title: 'Manuscripts', label: 'Ask Crump Manuscripts', closeLabel: 'Close Manuscripts'},
 ];
 
 async function inspect(page, viewport) {
@@ -34,6 +34,10 @@ async function inspect(page, viewport) {
       && document.getElementById('crump53Sheet')?.dataset.projectView === 'detail'
       && !document.getElementById('crump53ProjectBack')?.hidden
     ), projectId);
+    assert.equal(
+      await page.locator('#crump53Close').getAttribute('aria-label'),
+      'Close Project: Launch Operations',
+    );
 
     await page.evaluate(name => window.CrumpProduct53.open(name), section.name);
     await page.waitForFunction(name => (
@@ -48,6 +52,7 @@ async function inspect(page, viewport) {
         section: sheet?.dataset.crump53Section || '',
         title: document.getElementById('crump53WorkspaceTitle')?.textContent || '',
         label: sheet?.getAttribute('aria-label') || '',
+        closeLabel: document.getElementById('crump53Close')?.getAttribute('aria-label') || '',
         projectBackHidden: Boolean(document.getElementById('crump53ProjectBack')?.hidden),
         projectView: sheet?.dataset.projectView || '',
         projectPanelOpen: Boolean(projectsPanel?.classList.contains('is-project-open')),
@@ -60,6 +65,7 @@ async function inspect(page, viewport) {
       section: section.name,
       title: section.title,
       label: section.label,
+      closeLabel: section.closeLabel,
       projectBackHidden: true,
       projectView: 'index',
       projectPanelOpen: false,
@@ -85,9 +91,40 @@ async function inspect(page, viewport) {
     transitions.push(actual);
   }
 
+  await page.evaluate(() => window.CrumpProduct53.open('projects'));
+  await page.waitForFunction(() => document.getElementById('crump53Sheet')?.dataset.projectView === 'index');
+  assert.equal(await page.locator('#crump53Close').getAttribute('aria-label'), 'Close Projects');
+
+  await page.locator('#crump53OpenFiles').click();
+  await page.waitForFunction(() => document.getElementById('crump53Sheet')?.dataset.projectView === 'files');
+  assert.equal(await page.locator('#crump53Close').getAttribute('aria-label'), 'Close Files');
+  assert.equal(await page.locator('#crump53RefreshLibrary').getAttribute('aria-label'), 'Refresh private Files');
+
+  await page.evaluate(() => window.CrumpProduct53.open('projects'));
+  await page.locator('#crump53CreateProject').click();
+  await page.waitForFunction(() => document.getElementById('crump53Sheet')?.dataset.projectView === 'new');
+  assert.equal(await page.locator('#crump53Close').getAttribute('aria-label'), 'Close new Project');
+
+  const staticActionLabels = await page.evaluate(() => ({
+    pause: document.getElementById('crump53PauseFullDraft')?.getAttribute('aria-label') || '',
+    resume: document.getElementById('crump53ResumeFullDraft')?.getAttribute('aria-label') || '',
+    cancel: document.getElementById('crump53CancelFullDraft')?.getAttribute('aria-label') || '',
+    save: document.getElementById('crump53SaveSection')?.getAttribute('aria-label') || '',
+    draft: document.getElementById('crump53DraftSection')?.getAttribute('aria-label') || '',
+    addVideoReference: document.getElementById('crump53AddVideoReference')?.getAttribute('aria-label') || '',
+  }));
+  assert.deepEqual(staticActionLabels, {
+    pause: 'Pause full manuscript draft',
+    resume: 'Resume full manuscript draft',
+    cancel: 'Cancel full manuscript draft',
+    save: 'Save manuscript section',
+    draft: 'Draft manuscript section with Crump',
+    addVideoReference: 'Add video reference image',
+  });
+
   assert.deepEqual(errors, []);
   assert.equal(await page.locator('#fixtureErrors').textContent(), '0');
-  return {viewport, transitions, errors};
+  return {viewport, transitions, staticActionLabels, errors};
 }
 
 (async () => {

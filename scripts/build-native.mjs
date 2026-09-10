@@ -99,7 +99,7 @@ const loader = String.raw`
 
   const finalScripts = Object.freeze([
     ['/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1', 'crumpnav525'],
-    ['/crump-product-5.3.js?v=5.9.76-button-ownership-1', 'crumpproduct53'],
+    ['/crump-product-5.3.js?v=5.9.76-studio-action-labels-1', 'crumpproduct53'],
     ['/crump-product-5.3.1.js?v=5.9.76-conversation-action-labels-2', 'crumpproduct531'],
     ['/crump-subscriptions-5.3.2.js?v=5.9.76-checkout-session-recovery-1', 'crumpsubscriptions532'],
     ['/crump-polish-5.6.js?v=5.9.76-video-destination-1', 'crumppolish56'],

@@ -526,7 +526,7 @@
             <button type="button" class="crump53-project-back" id="crump53ProjectBack" hidden aria-label="Back to all Projects">‹ <span>Projects</span></button>
             <div><div class="crump53-kicker" id="crump53WorkspaceKicker">WORKSPACE</div><strong id="crump53WorkspaceTitle" tabindex="-1">Projects</strong></div>
           </div>
-          <button type="button" class="crump53-close" id="crump53Close" aria-label="Close">×</button>
+          <button type="button" class="crump53-close" id="crump53Close" aria-label="Close Projects">×</button>
         </header>
         <div class="crump53-sheet-body">
           <section class="crump53-panel" data-crump53-panel="projects">
@@ -581,7 +581,7 @@
                   <h3>Your files</h3>
                   <p>Documents, images, video, exports, and uploads stay private and available across devices. Books and manuscripts live separately in Library.</p>
                 </div>
-                <button type="button" class="crump53-button" id="crump53RefreshLibrary">Refresh</button>
+                <button type="button" class="crump53-button" id="crump53RefreshLibrary" aria-label="Refresh private Files">Refresh</button>
               </div>
               <div class="crump53-library-filters" role="group" aria-label="Filter saved files">
                 <button type="button" class="crump53-library-filter is-active" data-library-filter="all" data-library-label="All" aria-pressed="true">All</button>
@@ -668,9 +668,9 @@
                     <div class="crump53-actions" style="margin-bottom:10px">
                       <select id="crump53FullDraftFormat" class="crump53-select" aria-label="Automatic export format"><option value="docx">Full draft + DOCX</option><option value="pdf">Full draft + PDF</option><option value="epub">Full draft + EPUB</option></select>
                       <button type="button" class="crump53-button is-primary" id="crump53StartFullDraft">Write full manuscript</button>
-                      <button type="button" class="crump53-button" id="crump53PauseFullDraft" hidden>Pause</button>
-                      <button type="button" class="crump53-button" id="crump53ResumeFullDraft" hidden>Resume</button>
-                      <button type="button" class="crump53-button" id="crump53CancelFullDraft" hidden>Cancel</button>
+                      <button type="button" class="crump53-button" id="crump53PauseFullDraft" aria-label="Pause full manuscript draft" hidden>Pause</button>
+                      <button type="button" class="crump53-button" id="crump53ResumeFullDraft" aria-label="Resume full manuscript draft" hidden>Resume</button>
+                      <button type="button" class="crump53-button" id="crump53CancelFullDraft" aria-label="Cancel full manuscript draft" hidden>Cancel</button>
                     </div>
                     <div id="crump53BlueprintPanel" class="crump53-blueprint-panel">
                       <label class="crump53-label">Manuscript brief<textarea id="crump53BlueprintBrief" class="crump53-textarea" maxlength="12000" placeholder="Describe the complete work Crump should plan..."></textarea></label>
@@ -693,8 +693,8 @@
                       <label class="crump53-label">Manuscript text<textarea id="crump53SectionContent" class="crump53-textarea crump53-editor"></textarea></label>
                       <label class="crump53-label">Direction for Crump <textarea id="crump53DraftInstruction" class="crump53-textarea" maxlength="5000" placeholder="Optional: pacing, scene goals, POV, length, continuity notes, or what should happen next..."></textarea></label>
                       <div class="crump53-actions">
-                        <button type="button" class="crump53-button is-primary" id="crump53SaveSection">Save</button>
-                        <button type="button" class="crump53-button" id="crump53DraftSection">Draft with Crump</button>
+                        <button type="button" class="crump53-button is-primary" id="crump53SaveSection" aria-label="Save manuscript section">Save</button>
+                        <button type="button" class="crump53-button" id="crump53DraftSection" aria-label="Draft manuscript section with Crump">Draft with Crump</button>
                       </div>
                     </div>
                     <div id="crump53ManuscriptStatus" class="crump53-status" aria-live="polite"></div>
@@ -737,7 +737,7 @@
                 <div class="crump53-video-reference">
                   <div class="crump53-video-reference-head">
                     <div><strong id="crump53VideoReferenceLabel">Optional starting image</strong><span id="crump53VideoReferenceHelp">Quick animates one image as the opening frame.</span></div>
-                    <button class="crump53-button" type="button" id="crump53AddVideoReference">Add image</button>
+                    <button class="crump53-button" type="button" id="crump53AddVideoReference" aria-label="Add video reference image">Add image</button>
                     <input id="crump53VideoReferenceInput" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden>
                   </div>
                   <div class="crump53-video-reference-grid" id="crump53VideoReferenceGrid" aria-live="polite"></div>
@@ -823,10 +823,10 @@
   }
 
   const STUDIO_SECTION_META = Object.freeze({
-    projects: {kicker: 'WORKSPACE', title: 'Projects', label: 'Ask Crump Projects'},
-    manuscripts: {kicker: 'LONG-FORM', title: 'Manuscripts', label: 'Ask Crump Manuscripts'},
-    video: {kicker: 'MOTION', title: 'Video Studio', label: 'Ask Crump Video Studio'},
-    library: {kicker: 'PRIVATE LIBRARY', title: 'Library', label: 'Ask Crump Library'},
+    projects: {kicker: 'WORKSPACE', title: 'Projects', label: 'Ask Crump Projects', closeLabel: 'Close Projects'},
+    manuscripts: {kicker: 'LONG-FORM', title: 'Manuscripts', label: 'Ask Crump Manuscripts', closeLabel: 'Close Manuscripts'},
+    video: {kicker: 'MOTION', title: 'Video Studio', label: 'Ask Crump Video Studio', closeLabel: 'Close Video Studio'},
+    library: {kicker: 'PRIVATE LIBRARY', title: 'Library', label: 'Ask Crump Library', closeLabel: 'Close Library'},
   });
 
   function configureStudioSection(tab) {
@@ -837,6 +837,7 @@
     const projectsPanel = document.querySelector('[data-crump53-panel="projects"]');
     const kicker = byId('crump53WorkspaceKicker');
     const title = byId('crump53WorkspaceTitle');
+    const close = byId('crump53Close');
     if (section !== 'projects') {
       state.projectView = 'index';
       if (projectBack) projectBack.hidden = true;
@@ -850,6 +851,7 @@
     }
     if (kicker) kicker.textContent = meta.kicker;
     if (title) title.textContent = meta.title;
+    if (close) close.setAttribute('aria-label', meta.closeLabel);
     return section;
   }
 
@@ -1405,6 +1407,7 @@
     const back = byId('crump53ProjectBack');
     const kicker = byId('crump53WorkspaceKicker');
     const title = byId('crump53WorkspaceTitle');
+    const close = byId('crump53Close');
     const isOpen = normalized !== 'index';
     panel?.classList.toggle('is-project-open', isOpen);
     if (sheet) sheet.dataset.projectView = normalized;
@@ -1413,18 +1416,23 @@
       if (kicker) kicker.textContent = 'PROJECTS';
       if (title) title.textContent = 'Files';
       sheet?.setAttribute('aria-label', 'Ask Crump Files');
+      close?.setAttribute('aria-label', 'Close Files');
     } else if (normalized === 'detail' && state.activeProject) {
+      const projectName = state.activeProject.name || 'Project';
       if (kicker) kicker.textContent = 'PROJECT';
-      if (title) title.textContent = state.activeProject.name || 'Project';
-      sheet?.setAttribute('aria-label', `Ask Crump Project: ${state.activeProject.name || 'Project'}`);
+      if (title) title.textContent = projectName;
+      sheet?.setAttribute('aria-label', `Ask Crump Project: ${projectName}`);
+      close?.setAttribute('aria-label', `Close Project: ${projectName}`);
     } else if (normalized === 'new') {
       if (kicker) kicker.textContent = 'PROJECTS';
       if (title) title.textContent = 'New Project';
       sheet?.setAttribute('aria-label', 'Create an Ask Crump Project');
+      close?.setAttribute('aria-label', 'Close new Project');
     } else {
       if (kicker) kicker.textContent = STUDIO_SECTION_META.projects.kicker;
       if (title) title.textContent = STUDIO_SECTION_META.projects.title;
       sheet?.setAttribute('aria-label', STUDIO_SECTION_META.projects.label);
+      close?.setAttribute('aria-label', STUDIO_SECTION_META.projects.closeLabel);
     }
     const body = sheet?.querySelector('.crump53-sheet-body');
     if (body) body.scrollTop = 0;
@@ -1903,6 +1911,11 @@
     const pause = byId('crump53PauseFullDraft');
     const resume = byId('crump53ResumeFullDraft');
     const cancel = byId('crump53CancelFullDraft');
+    const manuscriptTitle = String(state.activeManuscript?.title || 'manuscript')
+      .replace(/\s+/g, ' ').trim().slice(0, 120) || 'manuscript';
+    pause?.setAttribute('aria-label', `Pause full manuscript draft: ${manuscriptTitle}`);
+    resume?.setAttribute('aria-label', `Resume full manuscript draft: ${manuscriptTitle}`);
+    cancel?.setAttribute('aria-label', `Cancel full manuscript draft: ${manuscriptTitle}`);
     const active = Boolean(run && ['queued', 'running', 'paused', 'awaiting_credits'].includes(run.status));
     if (start) start.hidden = active;
     if (pause) pause.hidden = !run || !['queued', 'running'].includes(run.status);
@@ -2133,6 +2146,9 @@
     byId('crump53SectionEditor').hidden = false;
     byId('crump53SectionTitle').value = section.title || '';
     byId('crump53SectionContent').value = section.content || '';
+    const sectionTitle = String(section.title || 'section').replace(/\s+/g, ' ').trim().slice(0, 120) || 'section';
+    byId('crump53SaveSection')?.setAttribute('aria-label', `Save manuscript section: ${sectionTitle}`);
+    byId('crump53DraftSection')?.setAttribute('aria-label', `Draft manuscript section with Crump: ${sectionTitle}`);
     renderSections();
   }
 

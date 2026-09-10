@@ -13,10 +13,10 @@ def test_product53_runtime_is_registered_last_and_cached():
     checker = read("scripts/check-javascript.mjs")
     assert "/crump-product-5.3.css" in runtime
     assert "/crump-product-5.3.js" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-button-ownership-1" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-button-ownership-1" in worker
+    assert "/crump-product-5.3.js?v=5.9.76-studio-action-labels-1" in runtime
+    assert "/crump-product-5.3.js?v=5.9.76-studio-action-labels-1" in worker
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r233" in worker
+    assert "ask-crump-new-body-v1-r234" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 
@@ -155,8 +155,8 @@ def test_library_is_one_dedicated_destination_instead_of_a_workspace_tab():
     assert 'id="crump53WorkspaceTabs"' not in product
     assert 'data-crump53-tab=' not in product
     assert "const STUDIO_SECTION_META = Object.freeze" in product
-    assert "projects: {kicker: 'WORKSPACE', title: 'Projects', label: 'Ask Crump Projects'}" in product
-    assert "library: {kicker: 'PRIVATE LIBRARY', title: 'Library', label: 'Ask Crump Library'}" in product
+    assert "projects: {kicker: 'WORKSPACE', title: 'Projects', label: 'Ask Crump Projects', closeLabel: 'Close Projects'}" in product
+    assert "library: {kicker: 'PRIVATE LIBRARY', title: 'Library', label: 'Ask Crump Library', closeLabel: 'Close Library'}" in product
     assert "filesPill.addEventListener" not in product
     assert 'id="attachBtn"' in shell
     assert "forwardClick('attachBtn')" in body
@@ -201,8 +201,8 @@ def test_projects_manuscripts_and_video_are_isolated_destinations():
     navigation = read("public/crump-navigation-5.9.30.js")
     polish = read("public/crump-polish-5.6.js")
 
-    assert "manuscripts: {kicker: 'LONG-FORM', title: 'Manuscripts', label: 'Ask Crump Manuscripts'}" in product
-    assert "video: {kicker: 'MOTION', title: 'Video Studio', label: 'Ask Crump Video Studio'}" in product
+    assert "manuscripts: {kicker: 'LONG-FORM', title: 'Manuscripts', label: 'Ask Crump Manuscripts', closeLabel: 'Close Manuscripts'}" in product
+    assert "video: {kicker: 'MOTION', title: 'Video Studio', label: 'Ask Crump Video Studio', closeLabel: 'Close Video Studio'}" in product
     assert "selectStudioPanel(section)" in product
     assert 'id="crump53OpenProjectsFromManuscript"' in product
     assert "openStudio('projects')" in product
@@ -213,6 +213,40 @@ def test_projects_manuscripts_and_video_are_isolated_destinations():
     assert "panel.setAttribute('role', 'region')" in polish
     assert "panel.setAttribute('aria-hidden', panel.hidden ? 'true' : 'false')" in polish
     assert "role', 'tab'" not in polish
+
+
+def test_studio_actions_have_specific_accessible_names_and_context():
+    product = read("public/crump-product-5.3.js")
+    verifier = read("scripts/verify-studio-section-isolation.cjs")
+
+    for label in (
+        'aria-label="Close Projects"',
+        'aria-label="Refresh private Files"',
+        'aria-label="Pause full manuscript draft"',
+        'aria-label="Resume full manuscript draft"',
+        'aria-label="Cancel full manuscript draft"',
+        'aria-label="Save manuscript section"',
+        'aria-label="Draft manuscript section with Crump"',
+        'aria-label="Add video reference image"',
+    ):
+        assert label in product
+
+    for dynamic_label in (
+        "`Close Project: ${projectName}`",
+        "'Close Files'",
+        "'Close new Project'",
+        "`Pause full manuscript draft: ${manuscriptTitle}`",
+        "`Resume full manuscript draft: ${manuscriptTitle}`",
+        "`Cancel full manuscript draft: ${manuscriptTitle}`",
+        "`Save manuscript section: ${sectionTitle}`",
+        "`Draft manuscript section with Crump: ${sectionTitle}`",
+    ):
+        assert dynamic_label in product
+
+    assert "'Close Project: Launch Operations'" in verifier
+    assert "'Close Files'" in verifier
+    assert "'Close new Project'" in verifier
+    assert "'Add video reference image'" in verifier
 
 
 def test_private_video_library_uses_owner_checked_inline_playback():
