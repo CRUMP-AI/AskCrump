@@ -119,6 +119,23 @@ def test_mobile_sidebar_browser_fixture_uses_the_production_navigation_layers():
     assert 'aria-label="Conversation options"' not in fixture
 
 
+def test_conversation_rows_and_actions_have_specific_accessible_names_and_menu_state():
+    product = read_public("crump-product-5.3.1.js")
+    verifier = (ROOT / "scripts" / "verify-chat-action-accessibility.cjs").read_text(encoding="utf-8")
+
+    assert "Open conversation: ${label}" in product
+    assert "Conversation options for ${label}" in product
+    assert "Conversation actions for ${label}" in product
+    assert "Rename ${label}" in product
+    assert "Delete ${label}" in product
+    assert "button.setAttribute('aria-haspopup', 'menu')" in product
+    assert "button.setAttribute('aria-expanded', 'false')" in product
+    assert "state.menuTrigger?.setAttribute('aria-expanded', 'false')" in product
+    assert "button.focus({preventScroll: true})" in product
+    assert "Conversation options for Updated plan" in verifier
+    assert "document.activeElement?.classList.contains('crump531-chat-menu-button')" in verifier
+
+
 def test_runtime_and_native_shell_load_the_chats_language_revision():
     runtime = (ROOT / "public" / "runtime-body-v1.js").read_text(encoding="utf-8")
     native = (ROOT / "scripts" / "build-native.mjs").read_text(encoding="utf-8")

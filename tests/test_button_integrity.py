@@ -90,7 +90,7 @@ INDIRECT_DYNAMIC_BUTTON_OWNERS = {
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'cancel'",
     ),
-    "public/crump-product-5.3.1.js:457:button": (
+    "public/crump-product-5.3.1.js:490:button": (
         "button.className = 'crump531-chat-menu-button'",
         "document.addEventListener('click', event => {",
         "event.target.closest?.('.crump531-chat-menu-button')",
@@ -568,6 +568,7 @@ def test_browser_error_sensitive_button_fixtures_suppress_favicon_noise() -> Non
     for relative in (
         "auth-navigation-focus.html",
         "feature-access-recovery.html",
+        "mobile-sidebar-actions.html",
         "project-limit-plan-default-off.html",
     ):
         fixture = (ROOT / "tests" / "fixtures" / relative).read_text(encoding="utf-8")
@@ -580,7 +581,7 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
 
-    assert len(verifier_names) == 43
+    assert len(verifier_names) == 44
     for name in verifier_names:
         assert f"'{name}'" in runner
     assert "Browser verifier inventory drifted." in runner

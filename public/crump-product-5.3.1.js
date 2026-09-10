@@ -14,6 +14,7 @@
   const state = {
     queue: [],
     menu: null,
+    menuTrigger: null,
     renameSheet: null,
     uploading: false,
   };
@@ -349,8 +350,18 @@
   }
 
   function closeChatMenu() {
+    state.menuTrigger?.setAttribute('aria-expanded', 'false');
     state.menu?.remove();
     state.menu = null;
+    state.menuTrigger = null;
+  }
+
+  function conversationLabel(item) {
+    const title = String(item?.querySelector?.('.chat-title')?.textContent || '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 120);
+    return title || 'Untitled conversation';
   }
 
   function renameChat(chatId) {
@@ -408,22 +419,38 @@
 
   function openChatMenu(button, chatId) {
     closeChatMenu();
+    const label = conversationLabel(button.closest('.chat-item[data-chat-id]'));
     const menu = document.createElement('div');
     menu.className = 'crump531-chat-menu-popover';
+    menu.setAttribute('role', 'menu');
+    menu.setAttribute('aria-label', `Conversation actions for ${label}`);
     menu.innerHTML = `
-      <button type="button" data-crump531-action="rename">Rename</button>
-      <button type="button" data-crump531-action="delete" class="is-danger">Delete</button>
+      <button type="button" role="menuitem" data-crump531-action="rename">Rename</button>
+      <button type="button" role="menuitem" data-crump531-action="delete" class="is-danger">Delete</button>
     `;
     document.body.appendChild(menu);
     state.menu = menu;
+    state.menuTrigger = button;
+    button.setAttribute('aria-expanded', 'true');
     const rect = button.getBoundingClientRect();
     menu.style.top = `${Math.min(window.innerHeight - 120, rect.bottom + 6)}px`;
     menu.style.left = `${Math.max(12, Math.min(window.innerWidth - 170, rect.right - 160))}px`;
-    menu.querySelector('[data-crump531-action="rename"]').addEventListener('click', () => renameChat(chatId));
-    menu.querySelector('[data-crump531-action="delete"]').addEventListener('click', () => {
+    const rename = menu.querySelector('[data-crump531-action="rename"]');
+    const remove = menu.querySelector('[data-crump531-action="delete"]');
+    rename.setAttribute('aria-label', `Rename ${label}`);
+    remove.setAttribute('aria-label', `Delete ${label}`);
+    rename.addEventListener('click', () => renameChat(chatId));
+    remove.addEventListener('click', () => {
       closeChatMenu();
       window.deleteChat?.(chatId);
     });
+    menu.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      closeChatMenu();
+      button.focus({preventScroll: true});
+    });
+    rename.focus({preventScroll: true});
     setTimeout(() => {
       document.addEventListener('pointerdown', event => {
         if (menu.contains(event.target) || event.target === button) return;
@@ -451,13 +478,21 @@
 
   function enhanceChatList() {
     document.querySelectorAll('#chatsList .chat-item[data-chat-id]').forEach(item => {
-      if (item.dataset.crump531Actions === 'true') return;
+      const label = conversationLabel(item);
+      item.setAttribute('aria-label', `Open conversation: ${label}`);
+      const existing = item.querySelector('.crump531-chat-menu-button');
+      if (existing) {
+        existing.setAttribute('aria-label', `Conversation options for ${label}`);
+        return;
+      }
       item.dataset.crump531Actions = 'true';
       item.classList.add('crump531-chat-actions-ready');
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'crump531-chat-menu-button';
-      button.setAttribute('aria-label', 'Conversation options');
+      button.setAttribute('aria-label', `Conversation options for ${label}`);
+      button.setAttribute('aria-haspopup', 'menu');
+      button.setAttribute('aria-expanded', 'false');
       button.textContent = '•••';
       item.appendChild(button);
     });

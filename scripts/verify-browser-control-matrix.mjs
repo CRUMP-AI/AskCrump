@@ -14,6 +14,7 @@ const publicDirectory = path.join(root, 'public');
 const expectedVerifiers = Object.freeze([
   'verify-attach-creation-routing.cjs',
   'verify-button-state-integrity.cjs',
+  'verify-chat-action-accessibility.cjs',
   'verify-create-destination-handoff.cjs',
   'verify-creation-sheet-containment.cjs',
   'verify-credit-charge-disclosure-browser.cjs',

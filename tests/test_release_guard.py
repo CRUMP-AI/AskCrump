@@ -46,7 +46,7 @@ def test_client_artifact_secret_scan_is_a_fail_closed_build_gate():
 def test_subscription_runtime_is_part_of_javascript_contract():
     checker = read("scripts/check-javascript.mjs")
     assert "crump-subscriptions-5.3.2.js" in checker
-    assert "ask-crump-new-body-v1-r231" in checker
+    assert "ask-crump-new-body-v1-r232" in checker
     assert "crump-polish-5.6.js" in checker
 
 

@@ -21,7 +21,7 @@ def test_six_destination_navigation_is_final_runtime_layer_and_boot_critical():
 
     assert runtime.index("/crump-library-loader.js") < runtime.index("/crump-navigation-5.9.30.js")
     assert "/crump-library-5.7.js" not in runtime
-    assert "ask-crump-new-body-v1-r231" in worker
+    assert "ask-crump-new-body-v1-r232" in worker
     assert "/crump-navigation-5.9.30.css?v=5.9.76-mobile-drawer-destinations-1" in runtime
     assert "/crump-navigation-5.9.30.js?v=5.9.76-code-lazy-load-1" in runtime
 
