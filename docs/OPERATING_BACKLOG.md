@@ -947,6 +947,14 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
+The 2026-09-10 22:54 UTC post-release check found 195 HTTP 200 responses and
+seven expected HTTP 302 private-file handoffs in the latest one-hour production
+status grouping, no grouped runtime error over 24 hours, and no unresolved
+product-feedback thread. The service-role September growth report still returned
+zero accounts at every stage, with no comparable attribution, artifact, or
+Project-continuity row. Preserve the cache-safe Product Studio release; another
+product mutation requires a reproducible defect or legitimate measured journey.
+
 The 2026-09-10 production refresh confirms that acquisition volume remains the binding constraint,
 not a newly observed product failure. The privacy-safe 2026-09-01-to-review-time growth snapshot
 contains zero accounts at all 18 stages; the weekly-attribution, artifact-journey,
