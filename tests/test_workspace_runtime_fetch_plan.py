@@ -83,7 +83,7 @@ def test_returning_workspace_uses_precache_without_staling_the_shell():
     assert "url.pathname === '/app.js'" in worker
     assert "async function cacheFirst(request)" in worker
     assert "bootCritical(request, url)\n      ? cacheFirst(request)" in worker
-    assert "originRuntimeRequests" in verifier
+    assert "originAssetRequests" in verifier
     assert "assert.equal(counts.get(fixturePath), 1" in verifier
     assert "verify-service-worker-returning-load.cjs" in matrix
     assert "askcrump.com" not in verifier.lower()

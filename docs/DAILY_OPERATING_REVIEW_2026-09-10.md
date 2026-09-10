@@ -1,6 +1,6 @@
 # Ask Crump daily operating review — 2026-09-10
 
-Review time: 16:39 UTC
+Review time: 19:27 UTC
 
 Scope: production reliability, account/activation evidence, durable work, and
 revenue-boundary reconciliation
@@ -95,6 +95,18 @@ finance export is available.
 
 ## Actions and non-actions
 
+- Corrected a deterministic returning-load performance defect in product commit
+  `753cc65`. Production response headers require revalidation for representative
+  workspace JS/CSS, but the previous service worker also routed all 43
+  boot-critical path classes through network-first after pre-caching them. Cache
+  revision `r228` now keeps the shell and main app controller fresh while serving
+  the remaining installed boot files cache-first. A new real-browser gate proves
+  zero second-load origin requests for representative runtime JS and CSS while
+  the shell still revalidates exactly once. The complete suite passed 997/997,
+  the browser matrix 40/40, all three GitHub workflows passed, and production
+  deployment `dpl_81jjQfD1J4zfZaXHavLrqamRW2eX` is READY with exact-byte service
+  worker parity and no release-window runtime error or severe log. This is a
+  delivery fix, not yet a claimed field-score improvement.
 - Added a fail-closed public-reference guard in product commit `225cecd`.
   It inventories 447 static first-party link/asset references across 15 public
   HTML surfaces, verifies their local route/file/fragment targets, and requires

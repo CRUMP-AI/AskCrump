@@ -5,8 +5,10 @@ const path = require('node:path');
 const {chromium} = require('playwright');
 
 const publicDirectory = path.resolve(process.cwd(), 'public');
-const runtimePath = '/runtime-body-v1.js';
-const runtimeUrl = `${runtimePath}?v=5.9.76-checkout-session-recovery-1`;
+const cachedTargets = Object.freeze([
+  ['/runtime-body-v1.js', '/runtime-body-v1.js?v=5.9.76-checkout-session-recovery-1'],
+  ['/crump-v1-body.css', '/crump-v1-body.css?v=5.9.76-credit-truth-1'],
+]);
 const fixturePath = '/__returning-load.html';
 const contentTypes = Object.freeze({
   '.css': 'text/css; charset=utf-8',
@@ -23,11 +25,12 @@ function fixtureHtml() {
 <head>
   <meta charset="utf-8">
   <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="${cachedTargets[1][1]}">
   <title>Returning workspace load proof</title>
 </head>
 <body>
   <main>Returning workspace load proof</main>
-  <script src="${runtimeUrl}"></script>
+  <script src="${cachedTargets[0][1]}"></script>
   <script>
     navigator.serviceWorker.register('/sw.js', {scope: '/'}).catch(error => {
       document.documentElement.dataset.registrationError = error.message;
@@ -108,15 +111,15 @@ async function startServer() {
     await page.reload({waitUntil: 'load'});
     await page.waitForFunction(() => Boolean(window.CrumpWorkspaceRuntime));
 
-    const originRuntimeRequests = counts.get(runtimePath) || 0;
-    assert.equal(
-      originRuntimeRequests,
-      0,
-      `returning controlled load re-requested ${runtimePath} from the origin`,
+    const originAssetRequests = Object.fromEntries(
+      cachedTargets.map(([pathname]) => [pathname, counts.get(pathname) || 0]),
     );
+    for (const [pathname, count] of Object.entries(originAssetRequests)) {
+      assert.equal(count, 0, `returning controlled load re-requested ${pathname} from the origin`);
+    }
     assert.equal(counts.get(fixturePath), 1, 'the HTML shell should still revalidate on return');
     assert.deepEqual(errors, []);
-    process.stdout.write(JSON.stringify({originRuntimeRequests, shellRequests: counts.get(fixturePath), errors}));
+    process.stdout.write(JSON.stringify({originAssetRequests, shellRequests: counts.get(fixturePath), errors}));
   } finally {
     await browser.close();
     await new Promise(resolve => server.close(resolve));
