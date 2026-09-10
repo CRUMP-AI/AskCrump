@@ -88,6 +88,15 @@ finance export is available.
 
 ## Actions and non-actions
 
+- Added a fail-closed public-reference guard in product commit `225cecd`.
+  It inventories 447 static first-party link/asset references across 15 public
+  HTML surfaces, verifies their local route/file/fragment targets, and requires
+  explicit review when the inventory changes. A separate read-only production
+  sweep resolved all 67 unique first-party destinations with HTTP 200 and no
+  failed destination. The complete suite passed 986/986; CI run `34502052022`
+  passed; deployment `dpl_BvuzsiqAgeLWNTDV65hK7ZEB3ydN` is READY on all six
+  expected aliases. No public product byte changed because the release adds a
+  regression guard only.
 - Preserved the current landing and product hierarchy.
 - Kept paid acquisition at `$0` from the product decision boundary.
 - Made no account, checkout, price, quota, billing, provider, campaign,

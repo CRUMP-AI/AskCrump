@@ -175,7 +175,10 @@ provider, privacy, cost, or security gate is incomplete.
   reconciliation is unavailable until the connector is reauthenticated, so the
   older `$0` baseline is not restated as a current balance. Preserve the stable
   product; let the first legitimate journey or reproducible defect choose the
-  next product change. Evidence: `docs/DAILY_OPERATING_REVIEW_2026-09-10.md`.
+  next product change. Commit `225cecd` also makes all 447 static first-party
+  references across 15 public surfaces fail closed in CI; a live read-only
+  sweep returned HTTP 200 for all 67 unique destinations. Evidence:
+  `docs/DAILY_OPERATING_REVIEW_2026-09-10.md`.
 - **Button integrity and résumé truth-audit:** Production commit `9ea418f`
   inventory-locks all 276 current rendered/programmatic button sites, adds
   separate real-browser proof for all five link-styled authentication actions,
