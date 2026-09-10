@@ -6,7 +6,7 @@ const executablePath = process.env.ASK_CRUMP_BROWSER_PATH
   || process.env.CODEX_BROWSER_EXECUTABLE
   || 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 
-async function run(browser, mode) {
+async function run(browser, mode, trigger = 'lifecycle') {
   const page = await browser.newPage({viewport: {width: 390, height: 844}});
   const errors = [];
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
@@ -14,12 +14,18 @@ async function run(browser, mode) {
   await page.goto(`${baseUrl}/tests/fixtures/lifecycle-referral-recovery.html?mode=${mode}`, {
     waitUntil: 'domcontentloaded',
   });
-  await page.evaluate(() => window.CrumpLifecycle.evaluate({force: true}));
-  const primary = page.locator('.crump-lifecycle-primary');
-  await primary.waitFor({state: 'visible'});
-  assert.equal(await primary.textContent(), 'Share Ask Crump');
-  await primary.click();
-  await page.waitForFunction(() => window.__fixture.actions.includes('acted'));
+  if (trigger === 'settings') {
+    const settingsInvite = page.locator('#shareAskCrumpBtn');
+    await settingsInvite.click();
+    await page.waitForFunction(() => !document.getElementById('shareAskCrumpBtn').disabled);
+  } else {
+    await page.evaluate(() => window.CrumpLifecycle.evaluate({force: true}));
+    const primary = page.locator('.crump-lifecycle-primary');
+    await primary.waitFor({state: 'visible'});
+    assert.equal(await primary.textContent(), 'Share Ask Crump');
+    await primary.click();
+    await page.waitForFunction(() => window.__fixture.actions.includes('acted'));
+  }
   await page.waitForTimeout(100);
   const result = await page.evaluate(() => window.__fixture);
   await page.close();
@@ -59,7 +65,37 @@ async function run(browser, mode) {
     assert.deepEqual(clipboard.result.toasts, [['Ask Crump link copied', 'success']]);
     assert.deepEqual(clipboard.errors, []);
 
-    console.log('Lifecycle referral recovery proof passed: cancel stays quiet, true failure is explicit, and clipboard success records only after delivery.');
+    const settingsCanceled = await run(browser, 'cancel', 'settings');
+    assert.deepEqual(settingsCanceled.result.actions, []);
+    assert.equal(settingsCanceled.result.shareCalls, 1);
+    assert.equal(settingsCanceled.result.clipboardCalls, 0);
+    assert.deepEqual(settingsCanceled.result.analytics, []);
+    assert.deepEqual(settingsCanceled.result.toasts, []);
+    assert.deepEqual(settingsCanceled.errors, []);
+
+    const settingsUnavailable = await run(browser, 'unavailable', 'settings');
+    assert.deepEqual(settingsUnavailable.result.actions, []);
+    assert.equal(settingsUnavailable.result.shareCalls, 1);
+    assert.equal(settingsUnavailable.result.clipboardCalls, 1);
+    assert.deepEqual(settingsUnavailable.result.analytics, []);
+    assert.deepEqual(settingsUnavailable.result.toasts, [[
+      'Sharing is unavailable right now. Nothing was posted or sent.',
+      'error',
+    ]]);
+    assert.deepEqual(settingsUnavailable.errors, []);
+
+    const settingsClipboard = await run(browser, 'clipboard', 'settings');
+    assert.deepEqual(settingsClipboard.result.actions, []);
+    assert.equal(settingsClipboard.result.shareCalls, 1);
+    assert.equal(settingsClipboard.result.clipboardCalls, 1);
+    assert.match(settingsClipboard.result.clipboardValue, /acquisition=referral&source=response-share/);
+    assert.equal(settingsClipboard.result.analytics.length, 1);
+    assert.equal(settingsClipboard.result.analytics[0].eventName, 'ResponseShared');
+    assert.equal(settingsClipboard.result.analytics[0].payload.source, 'useful_prompt_clipboard');
+    assert.deepEqual(settingsClipboard.result.toasts, [['Ask Crump link copied', 'success']]);
+    assert.deepEqual(settingsClipboard.errors, []);
+
+    console.log('Lifecycle referral recovery proof passed for lifecycle and Settings: cancel stays quiet, true failure is explicit, and clipboard success records only after delivery.');
   } finally {
     await browser.close();
   }

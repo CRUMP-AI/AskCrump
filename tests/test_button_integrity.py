@@ -15,7 +15,7 @@ DYNAMIC_BUTTON_PATTERN = re.compile(
     re.IGNORECASE,
 )
 EXPECTED_BUTTON_INVENTORY = {
-    "public/app.html": 47,
+    "public/app.html": 48,
     "public/credit-confirmation.js": 3,
     "public/crump-5.0.js": 3,
     "public/crump-5.2.js": 5,
@@ -258,7 +258,7 @@ def test_rendered_button_inventory_requires_explicit_review() -> None:
             inventory[page.relative_to(ROOT).as_posix()] = len(parser.buttons)
 
     assert inventory == EXPECTED_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 181
+    assert sum(inventory.values()) == 182
 
 
 def test_programmatically_created_button_inventory_requires_explicit_review() -> None:
@@ -270,7 +270,7 @@ def test_programmatically_created_button_inventory_requires_explicit_review() ->
 
     assert inventory == DYNAMIC_BUTTON_INVENTORY
     assert sum(inventory.values()) == 94
-    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 275
+    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 276
 
 
 def test_programmatically_created_buttons_declare_type_and_runtime_owner() -> None:

@@ -50,4 +50,18 @@
   }
 
   window.shareAskCrumpWorkspace = shareAskCrumpWorkspace;
+
+  const settingsButton = document.getElementById('shareAskCrumpBtn');
+  settingsButton?.addEventListener('click', async () => {
+    if (settingsButton.disabled) return;
+    settingsButton.disabled = true;
+    try {
+      const shared = await shareAskCrumpWorkspace();
+      if (shared === false) {
+        window.showToast?.('Sharing is unavailable right now. Nothing was posted or sent.', 'error');
+      }
+    } finally {
+      settingsButton.disabled = false;
+    }
+  });
 })();

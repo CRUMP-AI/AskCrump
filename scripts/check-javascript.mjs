@@ -841,6 +841,7 @@ const mobileDrawerDestinationsVersion = `${releaseVersion}-mobile-drawer-destina
 const destinationBackgroundGuardVersion = `${releaseVersion}-destination-background-guard-1`;
 const controlFocusIntegrityVersion = `${releaseVersion}-control-focus-integrity-1`;
 const referralCancelRecoveryVersion = `${releaseVersion}-referral-cancel-recovery-1`;
+const settingsInviteVersion = `${releaseVersion}-settings-invite-1`;
 const precisionEditEntryVersion = `${releaseVersion}-precision-edit-entry-1`;
 const precisionEditStudioVersion = `${releaseVersion}-precision-studio-1`;
 const creationSheetContainmentVersion = `${releaseVersion}-creation-sheet-containment-1`;
@@ -1085,7 +1086,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
     !runtime.includes(`/ui-functions.js?v=${outcomeRefinementRecoveryVersion}`) ||
     !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
-    !runtime.includes(`/lifecycle-share.js?v=${referralCancelRecoveryVersion}`) ||
+    !runtime.includes(`/lifecycle-share.js?v=${settingsInviteVersion}`) ||
     !runtime.includes(`/lifecycle-manager.js?v=${referralCancelRecoveryVersion}`) ||
     !runtime.includes(`/chat-sync.js?v=${settingsSyncVersion}`) ||
     !runtime.includes(`/product-analytics.js?v=${outcomeIssueCategoriesVersion}`) ||
@@ -1279,7 +1280,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r227') ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.css?v=${mobileDrawerDestinationsVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${destinationBackgroundGuardVersion}`) ||
     !serviceWorker.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
-    !serviceWorker.includes(`/lifecycle-share.js?v=${referralCancelRecoveryVersion}`) ||
+    !serviceWorker.includes(`/lifecycle-share.js?v=${settingsInviteVersion}`) ||
     !serviceWorker.includes(`/lifecycle-manager.js?v=${referralCancelRecoveryVersion}`) ||
     !serviceWorker.includes(`/auth-resilience.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/install-prompt.js?v=${authUpdateGuardVersion}`) ||

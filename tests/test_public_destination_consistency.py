@@ -131,7 +131,8 @@ def test_you_exposes_the_monitored_product_support_address():
     config = read("backend/config.py")
     email_service = read("backend/email_service.py")
 
-    assert 'Product guidance, support, legal information' in app
+    assert 'Invite someone, get product support, review legal information' in app
+    assert 'Invite someone to Ask Crump' in app
     assert 'href="mailto:askcrump@gmail.com?subject=Ask%20Crump%20support"' in app
     assert '<div class="settings-label settings-link-label">Product support</div>' in app
     assert '<div class="settings-help">Email askcrump@gmail.com</div>' in app

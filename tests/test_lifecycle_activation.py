@@ -215,7 +215,7 @@ def test_browser_component_uses_only_reviewed_static_copy_and_is_nonblocking():
     continuity = continuity[:continuity.index("if (typeof navigation?.open !== 'function')")]
     assert "navigation.open('projects')" not in continuity
     assert "prefers-reduced-motion: reduce" in styles
-    assert "/lifecycle-share.js?v=5.9.76-referral-cancel-recovery-1" in runtime
+    assert "/lifecycle-share.js?v=5.9.76-settings-invite-1" in runtime
     assert "/lifecycle-manager.js?v=5.9.76-referral-cancel-recovery-1" in runtime
     assert "/lifecycle.css?v=5.9.76-lifecycle-activation-1" in runtime
     assert "ask-crump-new-body-v1-r227" in worker
@@ -228,6 +228,10 @@ def test_browser_component_uses_only_reviewed_static_copy_and_is_nonblocking():
     assert "error?.name === 'AbortError') return null" in referral
     assert "eventKey: `response-share:${day}`" in referral
     assert "workspace-referral:" not in referral
+    assert 'id="shareAskCrumpBtn"' in (PUBLIC / "app.html").read_text(encoding="utf-8")
+    assert "document.getElementById('shareAskCrumpBtn')" in referral
+    assert "settingsButton.disabled = true" in referral
+    assert "settingsButton.disabled = false" in referral
 
 
 def test_terms_consent_does_not_enable_lifecycle_email_or_push():
