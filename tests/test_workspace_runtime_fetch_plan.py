@@ -42,8 +42,8 @@ def test_parallel_runtime_asset_is_versioned_for_web_pwa_and_native():
     asset = "/runtime-body-v1.js?v=5.9.76-checkout-session-recovery-1"
     assert asset in shell
     assert asset in worker
-    assert "ask-crump-new-body-v1-r227" in worker
-    assert "ask-crump-new-body-v1-r227" in checker
+    assert "ask-crump-new-body-v1-r228" in worker
+    assert "ask-crump-new-body-v1-r228" in checker
 
 
 def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
@@ -70,3 +70,21 @@ def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
     assert "evidence.runtimeMs > 0 && evidence.runtimeMs < 1_000" in verifier
     assert "password" not in verifier.lower()
     assert "askcrump.com" not in verifier.lower()
+
+
+def test_returning_workspace_uses_precache_without_staling_the_shell():
+    worker = read("public/sw.js")
+    verifier = read("scripts/verify-service-worker-returning-load.cjs")
+    matrix = read("scripts/verify-browser-control-matrix.mjs")
+
+    assert "function mustRevalidate(request, url)" in worker
+    assert "request.mode === 'navigate'" in worker
+    assert "url.pathname === '/app.html'" in worker
+    assert "url.pathname === '/app.js'" in worker
+    assert "async function cacheFirst(request)" in worker
+    assert "bootCritical(request, url)\n      ? cacheFirst(request)" in worker
+    assert "originRuntimeRequests" in verifier
+    assert "assert.equal(counts.get(fixturePath), 1" in verifier
+    assert "verify-service-worker-returning-load.cjs" in matrix
+    assert "askcrump.com" not in verifier.lower()
+    assert "password" not in verifier.lower()

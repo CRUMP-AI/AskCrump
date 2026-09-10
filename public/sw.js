@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r227';
+const CACHE_NAME = 'ask-crump-new-body-v1-r228';
 
 const CORE = [
   '/app',
@@ -151,6 +151,26 @@ function bootCritical(request, url) {
     url.pathname === '/crump-4.3.js';
 }
 
+function mustRevalidate(request, url) {
+  return request.mode === 'navigate' ||
+    url.pathname === '/app.html' ||
+    url.pathname === '/app.js';
+}
+
+async function cacheFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+
+  try {
+    const response = await fetch(request);
+    if (response.ok) await cache.put(request, response.clone());
+    return response;
+  } catch (_) {
+    return Response.error();
+  }
+}
+
 async function networkFirst(request) {
   const cache = await caches.open(CACHE_NAME);
   try {
@@ -196,7 +216,9 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  event.respondWith(bootCritical(request, url)
+  event.respondWith(mustRevalidate(request, url)
     ? networkFirst(request)
-    : staleWhileRevalidate(request));
+    : bootCritical(request, url)
+      ? cacheFirst(request)
+      : staleWhileRevalidate(request));
 });

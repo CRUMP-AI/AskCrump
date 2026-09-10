@@ -70,4 +70,4 @@ def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
         assert versioned in worker
         assert versioned in native
     assert f"/auth-controller.js?v={attribution_version}" in worker
-    assert "ask-crump-new-body-v1-r227" in worker
+    assert "ask-crump-new-body-v1-r228" in worker
