@@ -130,6 +130,7 @@ async function state(page) {
     projectDisabled: document.getElementById('projects')?.disabled,
     videoBusy: document.getElementById('video')?.getAttribute('aria-busy'),
     opens: window.productOpens.slice(),
+    toasts: window.toasts.slice(),
     loader: Boolean(window.CrumpProductLoader?.load),
     facade: Boolean(window.CrumpProduct53?.open),
     full: Boolean(window.__fixtureProductLoaded),
@@ -159,6 +160,7 @@ async function state(page) {
     assert.equal(initial.styleNodes, 0);
     assert.equal(initial.scriptNodes, 0);
     assert.deepEqual(initial.opens, []);
+    assert.deepEqual(initial.toasts, []);
     assert.equal(counts.get(`normal:${assetPaths.script}`) || 0, 0);
     assert.equal(counts.get(`normal:${assetPaths.style}`) || 0, 0);
 
@@ -170,13 +172,16 @@ async function state(page) {
     assert.equal(opened.projectDisabled, false);
     assert.equal(opened.videoBusy, null);
     assert.deepEqual(opened.opens, ['projects']);
+    assert.deepEqual(opened.toasts, [{message: 'Opening Projects…', type: 'info'}]);
     assert.equal(opened.full, true);
     assert.equal(opened.loadedStyleNodes, 1);
     assert.equal(opened.loadedScriptNodes, 1);
     assert.deepEqual(opened.target, {id: 'fixture-project', name: 'Launch Operations'});
     await page.click('#video');
     await page.waitForFunction(() => window.productOpens.length === 2);
-    assert.deepEqual((await state(page)).opens, ['projects', 'video']);
+    const reused = await state(page);
+    assert.deepEqual(reused.opens, ['projects', 'video']);
+    assert.deepEqual(reused.toasts, [{message: 'Opening Projects…', type: 'info'}]);
     assert.equal(counts.get(`normal:${assetPaths.script}`), 1);
     assert.equal(counts.get(`normal:${assetPaths.style}`), 1);
     await context.close();

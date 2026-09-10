@@ -10,6 +10,12 @@
   const VIDEO_JOB_KEY = 'askcrump.videoJob53';
   const VIDEO_REQUEST_KEY = 'askcrump.videoRequest53';
   const DESTINATIONS = new Set(['projects', 'manuscripts', 'video', 'library']);
+  const DESTINATION_LABELS = Object.freeze({
+    projects: 'Projects',
+    manuscripts: 'Manuscripts',
+    video: 'Video Studio',
+    library: 'Library',
+  });
   let loadPromise = null;
   let facade = null;
   let loadedApi = null;
@@ -128,8 +134,11 @@
   }
 
   function invoke(method, args = [], {destination = '', announce = false} = {}) {
-    setBusy(destination, true);
-    if (announce) window.showToast?.(`Opening ${destination === 'video' ? 'Video Studio' : destination || 'workspace'}…`, 'info');
+    const loading = !realApi() || !styleReady();
+    if (loading) setBusy(destination, true);
+    if (loading && announce) {
+      window.showToast?.(`Opening ${DESTINATION_LABELS[destination] || 'workspace'}…`, 'info');
+    }
     return load()
       .catch(error => {
         window.showToast?.(error?.message || 'That workspace could not open. Try again.', 'error');
@@ -141,7 +150,9 @@
         if (typeof action !== 'function') throw new Error('That workspace action is unavailable');
         return action(...args);
       })
-      .finally(() => setBusy(destination, false));
+      .finally(() => {
+        if (loading) setBusy(destination, false);
+      });
   }
 
   function cachedProjectTarget() {
