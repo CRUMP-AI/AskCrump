@@ -548,6 +548,7 @@ def test_browser_error_sensitive_button_fixtures_suppress_favicon_noise() -> Non
 def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     runner = (ROOT / "scripts" / "verify-browser-control-matrix.mjs").read_text(encoding="utf-8")
     package = (ROOT / "package.json").read_text(encoding="utf-8")
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
 
     assert len(verifier_names) == 38
@@ -561,6 +562,9 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     for port in (4173, 8765, 8766, 8767, 8770):
         assert f"port: {port}" in runner
     assert '"test:browser-controls": "node scripts/verify-browser-control-matrix.mjs"' in package
+    assert '"playwright": "1.62.1"' in package
+    assert "npx playwright install --with-deps chromium" in workflow
+    assert "npm run test:browser-controls" in workflow
 
 
 def test_add_menu_browser_fixture_exercises_both_authoritative_studios() -> None:
