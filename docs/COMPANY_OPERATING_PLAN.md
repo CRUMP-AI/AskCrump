@@ -1,6 +1,6 @@
 # Ask Crump company operating plan
 
-Last updated: 2026-09-01
+Last updated: 2026-09-10
 Owner and final authority: Greg Crump
 
 Current monthly decision record: `docs/COMPANY_OPERATIONS_AND_MONTHLY_STRATEGY_REVIEW_2026-09-01.md`.
@@ -169,9 +169,11 @@ provider, privacy, cost, or security gate is incomplete.
   check still shows 3 external accounts, 2 verified, zero comparable September
   accounts, zero external active paid accounts, and no comparable activation,
   durable-value, return, artifact, attribution, or lifecycle row. The observed
-  24-hour runtime window contains 2,180 HTTP 200 responses, 20 normal redirects,
+  24-hour runtime window contains 2,241 HTTP 200 responses, 20 normal redirects,
   one unauthenticated `/api/features` response, one unused `/api/version` 404,
-  and no 429, 5xx, warning, error, or fatal signal. Stripe's direct live
+  and no 429, 5xx, or grouped runtime-error signal. The complete seven-day Web
+  Analytics view contains 18 visitors and 94 page views, with intent activity
+  but no signup event in the full event list. Stripe's direct live
   reconciliation is unavailable until the connector is reauthenticated, so the
   older `$0` baseline is not restated as a current balance. Preserve the stable
   product; let the first legitimate journey or reproducible defect choose the
@@ -179,6 +181,13 @@ provider, privacy, cost, or security gate is incomplete.
   references across 15 public surfaces fail closed in CI; a live read-only
   sweep returned HTTP 200 for all 67 unique destinations. Evidence:
   `docs/DAILY_OPERATING_REVIEW_2026-09-10.md`.
+- **Writing/refinement proof boundary:** The frozen fictional writing run is
+  complete as internal evidence: all 14 controlling facts survived, no material
+  unsupported addition was found, and the real output passed the 20/20
+  verifier. Public creative remains held because the dedicated protected demo
+  identity does not currently exist and therefore has no content-free clean-state
+  receipt. Do not substitute founder-account captures, silently create an
+  inaccessible password, or weaken the sanitized-account gate.
 - **Button integrity and résumé truth-audit:** Production commit `9ea418f`
   inventory-locks all 276 current rendered/programmatic button sites, adds
   separate real-browser proof for all five link-styled authentication actions,

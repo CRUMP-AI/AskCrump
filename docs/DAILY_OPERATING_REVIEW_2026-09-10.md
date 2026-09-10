@@ -1,6 +1,6 @@
 # Ask Crump daily operating review — 2026-09-10
 
-Review time: 16:12 UTC
+Review time: 16:39 UTC
 
 Scope: production reliability, account/activation evidence, durable work, and
 revenue-boundary reconciliation
@@ -31,15 +31,22 @@ The latest 24-hour Vercel production aggregation reported:
 
 | Status | Requests | Interpretation |
 | --- | ---: | --- |
-| HTTP 200 | 2,180 | Successful application/API responses |
+| HTTP 200 | 2,241 | Successful application/API responses |
 | HTTP 302 | 20 | Normal redirects; no error classification |
 | HTTP 401 | 1 | One `/api/features` request without an authenticated session |
 | HTTP 404 | 1 | One `/api/version` request; no application route depends on it |
 | HTTP 429 | 0 | No observed capacity/rate-limit response |
 | HTTP 5xx | 0 | No observed server/provider failure response |
 
-The same window contained no warning, error, or fatal runtime log. This proves a
-clean observed window, not provider quality or future uptime.
+The same window contained no grouped runtime error, HTTP 429, or HTTP 5xx signal.
+This proves a clean observed window, not provider quality or future uptime.
+
+The complete seven-day production Web Analytics view reported 18 visitors, 94
+page views, and 28% bounce. Its full event list contained three `MarketingCTA`
+visitors, two `CreationIntentContinued`, two `MarketingExplore`, one
+`MarketingLanding`, and one `PlanIntentReached`. No signup event appeared in the
+complete list. These anonymous counts can include internal or automated traffic;
+they diagnose discovery and intent only and are not an account conversion rate.
 
 ## Product and journey evidence
 
@@ -82,7 +89,7 @@ finance export is available.
 | --- | --- | --- |
 | P0 | Observe the first comparable account journey | Legitimate content-free AccountCreated through activation, durable value, and eligible return |
 | P0 | Repair any first-user blocker | Reproducible customer/tester defect with browser/API evidence and regression coverage |
-| P1 | Validate writing/refinement fidelity | Marketing's frozen fictional fixture plus exact human fact-by-fact acceptance contract; no customer content |
+| P1 | Produce sanitized writing/refinement capture | Internal fidelity already passed 14/14 facts and 20/20 verification; public proof still requires the protected demo identity and content-free readiness receipt |
 | P1 | Reconcile first payer end to end | Checkout, entitlement/credits, Stripe receipt, refund state, and variable cost agree |
 | P2 | Advance Crump Code/private voice only behind existing gates | Sandbox, cancellation, monitoring, policy, cost, disclosure, and benchmark evidence |
 
@@ -97,6 +104,15 @@ finance export is available.
   passed; deployment `dpl_BvuzsiqAgeLWNTDV65hK7ZEB3ydN` is READY on all six
   expected aliases. No public product byte changed because the release adds a
   regression guard only.
+- Reconciled the protected recording identity without reading or returning any
+  customer content. `demo@askcrump.com` does not currently exist, so it neither
+  contaminates customer metrics nor satisfies the sanitized public-proof gate.
+  The existing founder-account writing result remains valid internal evidence
+  only; it cannot be used as public creative.
+- Confirmed that the protected September production funnel and artifact snapshot
+  still contain zero external accounts and zero external artifact rows. This
+  keeps qualified acquisition—not another speculative interface change—as the
+  binding company constraint.
 - Preserved the current landing and product hierarchy.
 - Kept paid acquisition at `$0` from the product decision boundary.
 - Made no account, checkout, price, quota, billing, provider, campaign,
