@@ -8,13 +8,14 @@
     "node": "22.x"
   },
   "scripts": {
-    "build": "node scripts/production-build-preflight.mjs && node scripts/build-native.mjs",
+    "build": "node scripts/production-build-preflight.mjs && node scripts/build-native.mjs && npm run test:client-secrets",
     "cap:add:ios": "npx cap add ios",
     "cap:add:android": "npx cap add android",
     "cap:sync": "npm run build && npx cap sync",
     "cap:open:ios": "npx cap open ios",
     "cap:open:android": "npx cap open android",
     "test:js": "node scripts/check-javascript.mjs",
+    "test:client-secrets": "node scripts/check-client-secrets.mjs",
     "test:browser-controls": "node scripts/verify-browser-control-matrix.mjs",
     "test": "npm run test:js",
     "native:configure": "node scripts/configure-native.mjs",

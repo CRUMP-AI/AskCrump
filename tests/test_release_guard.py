@@ -17,11 +17,30 @@ def test_vercel_build_runs_release_preflight_before_bundle():
     preflight = read("scripts/production-build-preflight.mjs")
     assert (
         '"build": "node scripts/production-build-preflight.mjs '
-        '&& node scripts/build-native.mjs"'
+        '&& node scripts/build-native.mjs && npm run test:client-secrets"'
     ) in package
     assert "scripts/check-javascript.mjs" in preflight
     assert "'-m', 'compileall', '-q', 'app.py', 'backend'" in preflight
     assert "process.env.VERCEL" in preflight
+
+
+def test_client_artifact_secret_scan_is_a_fail_closed_build_gate():
+    package = read("package.json")
+    scanner = read("scripts/check-client-secrets.mjs")
+    workflow = read(".github/workflows/ci.yml")
+
+    assert '"test:client-secrets": "node scripts/check-client-secrets.mjs"' in package
+    assert "scanClientRoots()" in scanner
+    assert "const clientRoots = Object.freeze(['public', 'dist'])" in scanner
+    assert "Required client artifact root is missing" in scanner
+    assert "Supabase service-role JWT" in scanner
+    assert "OPENAI_API_KEY" in scanner
+    assert "STRIPE_WEBHOOK_SECRET" in scanner
+    assert "ELEVENLABS_API_KEY" in scanner
+    assert "Private key material" in scanner
+    assert "console.error(`- ${finding.kind}: ${finding.path}`)" in scanner
+    assert "finding.value" not in scanner
+    assert "npm run build" in workflow
 
 
 def test_subscription_runtime_is_part_of_javascript_contract():
