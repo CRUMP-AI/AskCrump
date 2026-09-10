@@ -6,7 +6,7 @@ Scope: authenticated web/PWA controls and the credential-free browser fixture ma
 ## Outcome
 
 Ask Crump's complete browser-control matrix is now a required CI step instead of an optional local
-command. A change cannot pass the JavaScript job if any of the 38 exact browser flows fails.
+command. A change cannot pass the JavaScript job if any of the 39 exact browser flows fails.
 Playwright is pinned in the development dependency lock, and CI installs the matching Chromium
 runtime before exercising the matrix. The runner accepts an explicit browser only when that
 executable exists on the current host; otherwise it uses Playwright's installed Chromium, so a
@@ -50,7 +50,9 @@ and no account, campaign, or external communication was created.
 - Full Python suite: 995/995 passed.
 - JavaScript validation: 49 files passed, including 22/22 rough-to-useful attribution cases,
   10/10 Word/PDF cases, 10/10 resume cases, and the 14/14 store-packet self-test.
-- Browser control matrix: 38/38 flows passed.
+- Browser control matrix: 39/39 flows passed. The additional flow executes the complete workspace
+  runtime fetch plan and guards its parallelism, preload count, execution order, readiness budget,
+  and zero-error boundary.
 - `git diff --check`: passed.
 
 GitHub CI run `34513572466`, Android source-verification run `34513572482`, and iOS
