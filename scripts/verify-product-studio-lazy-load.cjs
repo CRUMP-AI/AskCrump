@@ -32,7 +32,7 @@ function fixtureHtml(mode) {
       document.getElementById('status').textContent = type === 'error' ? 'retry' : message;
     };
   </script>
-  <script src="${assetPaths.loader}?v=5.9.76-product-studio-lazy-load-1"></script>
+  <script src="${assetPaths.loader}?v=5.9.76-product-studio-lazy-load-2"></script>
   <script>
     document.getElementById('projects').addEventListener('click', () => {
       void window.CrumpProduct53.open('projects');

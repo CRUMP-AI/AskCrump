@@ -959,7 +959,7 @@ const creditConfirmationVersion = `${releaseVersion}-credit-confirmation-1`;
 const settingsSaveIsolationVersion = `${releaseVersion}-settings-save-isolation-1`;
 const outputProjectActionVersion = `${releaseVersion}-output-project-action-1`;
 const studioActionLabelsVersion = `${releaseVersion}-studio-action-labels-1`;
-const productStudioLazyLoadVersion = `${releaseVersion}-product-studio-lazy-load-1`;
+const productStudioLazyLoadVersion = `${releaseVersion}-product-studio-lazy-load-2`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
 const accountDeletionBillingVersion = `${releaseVersion}-account-deletion-billing-1`;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
@@ -1418,7 +1418,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r235') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r236') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${productStudioLazyLoadVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||

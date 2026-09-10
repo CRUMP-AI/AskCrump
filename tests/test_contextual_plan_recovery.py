@@ -87,4 +87,4 @@ def test_contextual_recovery_assets_are_registered_for_web_pwa_and_native():
     assert f"/crump-product-5.3.js?v={project_wrapper_version}" in loader
     assert f"/crump-product-5.3.js?v={project_wrapper_version}" not in runtime
     assert f"/crump-product-5.3.js?v={project_wrapper_version}" not in worker
-    assert "ask-crump-new-body-v1-r235" in worker
+    assert "ask-crump-new-body-v1-r236" in worker
