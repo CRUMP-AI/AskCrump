@@ -6,7 +6,7 @@ import {fileURLToPath} from 'node:url';
 
 const repoRoot = fileURLToPath(new URL('../', import.meta.url));
 const guidePath = 'public/guides/word-or-pdf-ai-document-output.html';
-const migrationPath = 'migrations/20260910095400_release_word_pdf_search_attribution.sql';
+const migrationPath = 'migrations/20260910141831_release_word_pdf_search_attribution.sql';
 const route = '/guides/word-or-pdf-ai-document-output';
 const canonical = `https://www.askcrump.com${route}`;
 const exactHref = '/ai-document-generator?signup=1&amp;plan=free&amp;acquisition=organic-search&amp;source=workflow-guide&amp;campaign=word-or-pdf-decision&amp;creative=search-article&amp;intent=document';

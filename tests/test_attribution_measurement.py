@@ -22,7 +22,7 @@ MIGRATION = ROOT / "migrations" / "20260830171056_weekly_growth_attribution_expo
 REGISTRY_MIGRATION = (
     ROOT
     / "migrations"
-    / "20260910095400_release_word_pdf_search_attribution.sql"
+    / "20260910141831_release_word_pdf_search_attribution.sql"
 )
 NULL_SAFETY_MIGRATION = (
     ROOT
