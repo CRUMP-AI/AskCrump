@@ -1318,56 +1318,6 @@
     return true;
   }
 
-  function relabelMediaActions(root = document) {
-    const imageLabel = window.CrumpAPI?.isNative ? 'Save to Photos' : 'Save';
-    const videoLabel = window.CrumpAPI?.isNative ? 'Save to Photos' : 'Save video';
-    root.querySelectorAll?.('.crump50-image-actions button').forEach(button => {
-      if (['Download', 'Save'].includes(button.textContent?.trim())) button.textContent = imageLabel;
-    });
-    root.querySelectorAll?.('.crump50-lightbox-bar button').forEach(button => {
-      if (['Download', 'Save'].includes(button.textContent?.trim())) button.textContent = imageLabel;
-    });
-    root.querySelectorAll?.('.crump53-video-result-actions a[download]').forEach(link => { link.textContent = videoLabel; });
-  }
-
-  function mediaFileFromHref(href, fallbackName = 'Ask-Crump-video.mp4') {
-    try {
-      const url = new URL(href, location.href);
-      const match = url.pathname.match(/\/api\/files\/([0-9a-f-]{36})\/content$/i);
-      if (!match) return null;
-      return {id: match[1], name: fallbackName, type: 'video/mp4', url: url.pathname};
-    } catch (_) {
-      return null;
-    }
-  }
-
-  function installMediaInterception() {
-    document.addEventListener('click', event => {
-      if (!event.target.closest?.('.crump57-more')) closeOtherMenus(null);
-      const link = event.target.closest?.('.crump53-video-result-actions a[download]');
-      if (!link) return;
-      const file = mediaFileFromHref(link.href, 'Ask-Crump-video.mp4');
-      if (!file) return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      void (async () => {
-        const handled = await saveMedia(file);
-        if (!handled) window.location.assign(`${file.url}?download=1`);
-      })();
-    }, true);
-
-    const observer = new MutationObserver(records => {
-      for (const record of records) {
-        for (const node of record.addedNodes) {
-          if (node.nodeType === Node.ELEMENT_NODE) relabelMediaActions(node);
-        }
-      }
-      if (!state.installed) installLibraryPanel();
-    });
-    observer.observe(document.documentElement, {subtree: true, childList: true});
-    relabelMediaActions();
-  }
-
   function installWhenReady() {
     if (installLibraryPanel()) return;
     let attempts = 0;
@@ -1387,7 +1337,9 @@
   window.addEventListener('crump:authenticated-ready', () => {
     if (!state.installed) installWhenReady();
   });
-  installMediaInterception();
+  document.addEventListener('click', event => {
+    if (!event.target.closest?.('.crump57-more')) closeOtherMenus(null);
+  }, true);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installWhenReady, {once: true});
   else installWhenReady();
 })();

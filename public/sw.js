@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r230';
+const CACHE_NAME = 'ask-crump-new-body-v1-r231';
 
 const CORE = [
   '/app',
@@ -32,10 +32,10 @@ const CORE = [
   '/crump-product-5.3.1.js?v=5.9.76-core-reliability-1',
   '/crump-polish-5.6.css',
   '/crump-polish-5.6.js?v=5.9.76-video-destination-1',
-  '/crump-library-5.7.css',
-  '/crump-library-5.7.js?v=5.9.76-library-new-routing-1',
+  '/crump-media-save.js?v=5.9.76-library-lazy-load-1',
+  '/crump-library-loader.js?v=5.9.76-library-lazy-load-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-checkout-session-recovery-1',
-  '/runtime-body-v1.js?v=5.9.76-precision-lazy-load-1',
+  '/runtime-body-v1.js?v=5.9.76-library-lazy-load-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
@@ -124,8 +124,8 @@ function bootCritical(request, url) {
     url.pathname === '/crump-product-5.3.1.css' ||
     url.pathname === '/crump-polish-5.6.js' ||
     url.pathname === '/crump-polish-5.6.css' ||
-    url.pathname === '/crump-library-5.7.js' ||
-    url.pathname === '/crump-library-5.7.css' ||
+    url.pathname === '/crump-media-save.js' ||
+    url.pathname === '/crump-library-loader.js' ||
     url.pathname === '/conversation.css' ||
     url.pathname === '/credit-confirmation.css' ||
     url.pathname === '/credit-confirmation.js' ||

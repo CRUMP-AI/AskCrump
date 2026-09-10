@@ -64,7 +64,6 @@ const loader = String.raw`
     ['/crump-product-5.3.css?v=5.9.76-file-library-window-1', 'crumpproduct53'],
     ['/crump-product-5.3.1.css', 'crumpproduct531'],
     ['/crump-polish-5.6.css', 'crumppolish56'],
-    ['/crump-library-5.7.css', 'crumplibrary57'],
     ['/crump-v1-stability.css', 'crumpv1stability'],
     ['/crump-navigation-5.9.30.css?v=5.9.76-mobile-drawer-destinations-1', 'crumpnav5930'],
   ]);
@@ -104,7 +103,8 @@ const loader = String.raw`
     ['/crump-product-5.3.1.js?v=5.9.76-core-reliability-1', 'crumpproduct531'],
     ['/crump-subscriptions-5.3.2.js?v=5.9.76-checkout-session-recovery-1', 'crumpsubscriptions532'],
     ['/crump-polish-5.6.js?v=5.9.76-video-destination-1', 'crumppolish56'],
-    ['/crump-library-5.7.js?v=5.9.76-library-new-routing-1', 'crumplibrary57'],
+    ['/crump-media-save.js?v=5.9.76-library-lazy-load-1', 'crumpmediasave'],
+    ['/crump-library-loader.js?v=5.9.76-library-lazy-load-1', 'crumplibraryloader'],
     ['/crump-navigation-5.9.30.js?v=5.9.76-code-lazy-load-1', 'crumpnav5930'],
     ['/crump-code-loader.js?v=5.9.76-code-lazy-load-1', 'crumpcodeloader'],
     ['/lifecycle-share.js?v=5.9.76-settings-invite-1', 'lifecycleshare'],

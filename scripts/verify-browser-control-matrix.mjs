@@ -26,6 +26,7 @@ const expectedVerifiers = Object.freeze([
   'verify-first-action-browser.cjs',
   'verify-image-safety-recovery-browser.cjs',
   'verify-image-scroll-stability.cjs',
+  'verify-library-lazy-load.cjs',
   'verify-lifecycle-project-continuity.cjs',
   'verify-lifecycle-referral-recovery.cjs',
   'verify-login-failure-classification.cjs',

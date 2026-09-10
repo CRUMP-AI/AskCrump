@@ -580,7 +580,7 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
 
-    assert len(verifier_names) == 42
+    assert len(verifier_names) == 43
     for name in verifier_names:
         assert f"'{name}'" in runner
     assert "Browser verifier inventory drifted." in runner
@@ -628,8 +628,10 @@ def test_library_layout_buttons_expose_their_selected_state() -> None:
     assert 'aria-pressed="${state.layout === layout ? \'true\' : \'false\'}"' in library
 
 
-def test_library_new_button_release_is_cache_addressable_everywhere() -> None:
+def test_library_new_button_release_is_loaded_only_on_library_entry() -> None:
     asset = "/crump-library-5.7.js?v=5.9.76-library-new-routing-1"
+    loader = (PUBLIC / "crump-library-loader.js").read_text(encoding="utf-8")
 
+    assert asset in loader
     for relative in ("public/runtime-body-v1.js", "public/sw.js", "scripts/build-native.mjs"):
-        assert asset in (ROOT / relative).read_text(encoding="utf-8")
+        assert asset not in (ROOT / relative).read_text(encoding="utf-8")

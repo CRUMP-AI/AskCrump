@@ -10,8 +10,11 @@ def read(relative: str) -> str:
 def test_library57_frontend_and_runtime_contract():
     library_js = read("public/crump-library-5.7.js")
     library_css = read("public/crump-library-5.7.css")
+    loader = read("public/crump-library-loader.js")
+    media_save = read("public/crump-media-save.js")
     runtime = read("public/runtime-body-v1.js")
     build_native = read("scripts/build-native.mjs")
+    worker = read("public/sw.js")
     native_entry = read("public/native-entry.js")
 
     assert "/api/library/books/import" in library_js
@@ -20,9 +23,22 @@ def test_library57_frontend_and_runtime_contract():
     assert "Back cover" in library_js
     assert "saveMedia" in library_js
     assert ".crump57-bookshelf" in library_css
-    assert "/crump-library-5.7.js" in runtime
-    assert "/crump-library-5.7.css" in runtime
-    assert "/crump-library-5.7.js" in build_native
+    assert "/crump-library-5.7.js" not in runtime
+    assert "/crump-library-5.7.css" not in runtime
+    assert "/crump-library-5.7.js" not in build_native
+    assert "/crump-library-5.7.css" not in build_native
+    assert "/crump-library-5.7.js" not in worker
+    assert "/crump-library-5.7.css" not in worker
+    for shell in (runtime, build_native, worker):
+        assert "/crump-media-save.js?v=5.9.76-library-lazy-load-1" in shell
+        assert "/crump-library-loader.js?v=5.9.76-library-lazy-load-1" in shell
+    assert "/crump-library-5.7.js?v=5.9.76-library-new-routing-1" in loader
+    assert "/crump-library-5.7.css?v=5.9.76-library-new-routing-1" in loader
+    assert "data-crump5930-destination=\"library\"" in loader
+    assert "Opening Library…" in loader
+    assert "button.click()" in loader
+    assert "window.CrumpMediaSave" in media_save
+    assert "installMediaInterception" not in library_js
     assert "@capacitor-community/media" in native_entry
 
 

@@ -37,11 +37,11 @@ def test_every_mobile_editor_meets_the_ios_no_focus_zoom_threshold():
     assert "body.crump-v1-body select" in css
     assert 'body.crump-v1-body [contenteditable="true"]' in css
     assert "font-size: 16px !important;" in css
-    library_style = "['/crump-library-5.7.css', 'crumplibrary57']"
+    library_loader = read("public/crump-library-loader.js")
     stability_style = "['/crump-v1-stability.css', 'crumpv1stability']"
-    assert library_style in runtime
+    assert "/crump-library-5.7.css" not in runtime
+    assert "/crump-library-5.7.css?v=5.9.76-library-new-routing-1" in library_loader
     assert stability_style in runtime
-    assert runtime.index(library_style) < runtime.index(stability_style)
     assert runtime.index("/crump-v1-stability.css") < runtime.index("/crump-navigation-5.9.30.css")
     assert 'id="crump53VideoPrompt" class="crump53-textarea"' in product
     assert 'id="crump53ContinuePrompt" class="crump53-textarea"' in product
@@ -58,6 +58,6 @@ def test_mobile_header_controls_share_the_same_safe_area_centerline():
 def test_mobile_zoom_policy_advances_shell_cache():
     sw = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
-    assert "ask-crump-new-body-v1-r230" in sw
+    assert "ask-crump-new-body-v1-r231" in sw
     assert "ask-crump-new-body-v1-r219" not in sw
-    assert "ask-crump-new-body-v1-r230" in checker
+    assert "ask-crump-new-body-v1-r231" in checker

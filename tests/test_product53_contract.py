@@ -16,7 +16,7 @@ def test_product53_runtime_is_registered_last_and_cached():
     assert "/crump-product-5.3.js?v=5.9.76-button-ownership-1" in runtime
     assert "/crump-product-5.3.js?v=5.9.76-button-ownership-1" in worker
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r230" in worker
+    assert "ask-crump-new-body-v1-r231" in worker
     assert "/crump-product-5.3.js" in worker
     assert "crump-product-5.3.js" in checker
 
@@ -275,7 +275,8 @@ def test_native_bundle_loads_the_same_product_layers_as_the_web_runtime():
     ):
         assert asset in native
     assert native.index("/crump-navigation-5.2.5.js") < native.index("/crump-product-5.3.js")
-    assert native.index("/crump-library-5.7.js") < native.index("/crump-navigation-5.9.30.js")
+    assert native.index("/crump-library-loader.js") < native.index("/crump-navigation-5.9.30.js")
+    assert "/crump-library-5.7.js" not in native
 
 
 def test_manuscript_ui_exposes_planning_progress_and_chat_handoff():
