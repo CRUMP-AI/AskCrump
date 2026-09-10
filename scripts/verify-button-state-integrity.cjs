@@ -10,10 +10,36 @@ const {chromium} = require(playwrightModule);
   page.on('pageerror', error => errors.push(error.message));
 
   await page.goto('http://127.0.0.1:8765/tests/fixtures/creation-sheet-containment.html', {waitUntil: 'networkidle'});
+  await page.locator('#sendButton[data-crump50="true"]').waitFor();
+  const input = page.getByRole('textbox', {name: 'Message Crump'});
+  const send = page.getByRole('button', {name: 'Send message'});
+  const composerState = async () => ({
+    disabled: await send.isDisabled(),
+    ariaDisabled: await send.getAttribute('aria-disabled'),
+    readyClass: await send.evaluate(node => node.classList.contains('is-ready')),
+  });
+  const emptyComposer = await composerState();
+  await input.fill('Button state check');
+  const textComposer = await composerState();
+  await input.fill('');
+  const clearedComposer = await composerState();
+  await page.locator('#filePreview').evaluate(tray => {
+    tray.hidden = false;
+    tray.style.display = 'flex';
+    tray.appendChild(document.createElement('span'));
+  });
+  await page.waitForFunction(() => document.getElementById('sendButton')?.disabled === false);
+  const attachmentComposer = await composerState();
+  await page.locator('#filePreview').evaluate(tray => {
+    tray.replaceChildren();
+    tray.hidden = true;
+    tray.style.display = 'none';
+  });
+  await page.waitForFunction(() => document.getElementById('sendButton')?.disabled === true);
+  const removedAttachmentComposer = await composerState();
   await page.getByRole('button', {name: 'Open Document Studio', exact: true}).click();
   await page.getByRole('button', {name: /Academic & professional writing/}).click();
 
-  const input = page.getByRole('textbox', {name: 'Message Crump'});
   const specializedPlaceholder = await input.getAttribute('placeholder');
   await page.getByRole('button', {name: 'Create DOCX'}).click();
   const neutral = {
@@ -41,6 +67,11 @@ const {chromium} = require(playwrightModule);
     contextualBeforeTool,
     projectSpecializedPlaceholder,
     contextualAfterTool,
+    emptyComposer,
+    textComposer,
+    clearedComposer,
+    attachmentComposer,
+    removedAttachmentComposer,
     errors,
   };
 
@@ -59,6 +90,11 @@ const {chromium} = require(playwrightModule);
     || contextualAfterTool.placeholder !== expected.contextual
     || !contextualAfterTool.focused
     || contextualAfterTool.toolChips !== 0
+    || JSON.stringify(emptyComposer) !== JSON.stringify({disabled:true, ariaDisabled:'true', readyClass:false})
+    || JSON.stringify(textComposer) !== JSON.stringify({disabled:false, ariaDisabled:'false', readyClass:true})
+    || JSON.stringify(clearedComposer) !== JSON.stringify({disabled:true, ariaDisabled:'true', readyClass:false})
+    || JSON.stringify(attachmentComposer) !== JSON.stringify({disabled:false, ariaDisabled:'false', readyClass:true})
+    || JSON.stringify(removedAttachmentComposer) !== JSON.stringify({disabled:true, ariaDisabled:'true', readyClass:false})
     || errors.length
   ) {
     throw new Error(`Button state integrity failed: ${JSON.stringify(evidence)}`);

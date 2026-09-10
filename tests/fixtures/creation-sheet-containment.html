@@ -31,7 +31,7 @@
       <div class="input-container">
         <button id="attachBtn" type="button">Attach</button>
         <textarea id="userInput" aria-label="Message Crump"></textarea>
-        <button id="sendButton" type="button">Send</button>
+        <button id="sendButton" type="button" aria-disabled="true" disabled>Send</button>
       </div>
     </div>
     <input id="fileInput" type="file">
@@ -52,6 +52,7 @@
       window.dispatchEvent(new CustomEvent('crump:conversation-opened', {detail:{chatId:'fixture-project'}}));
     });
   </script>
+  <script src="/public/crump-4.3.js?v=creation-sheet-containment-fixture-1"></script>
   <script src="/public/crump-5.0.js?v=creation-sheet-containment-fixture-1"></script>
 </body>
 </html>

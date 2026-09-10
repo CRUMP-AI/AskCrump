@@ -48,15 +48,15 @@ DYNAMIC_BUTTON_INVENTORY = {
     "public/ui-functions.js": 16,
 }
 INDIRECT_DYNAMIC_BUTTON_OWNERS = {
-    "public/crump-5.0.js:1400:close": (
+    "public/crump-5.0.js:1401:close": (
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:1477:close": (
+    "public/crump-5.0.js:1478:close": (
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:1681:project": (
+    "public/crump-5.0.js:1682:project": (
         "wireOutputProjectAction(project, {",
         "button.addEventListener('click', async () => {",
     ),
@@ -501,6 +501,35 @@ def test_creation_mode_chip_restores_the_normal_contextual_composer() -> None:
     assert "input.placeholder = defaultComposerPlaceholder();" in composer
     assert "Message ${assistant} in ${projectName}…" in composer
     assert "window.addEventListener('crump:conversation-opened', scheduleComposerPlaceholderSync)" in composer
+
+
+def test_send_button_is_really_disabled_until_the_composer_has_content() -> None:
+    app = (PUBLIC / "app.html").read_text(encoding="utf-8")
+    shell = (PUBLIC / "crump-4.3.js").read_text(encoding="utf-8")
+    composer = (PUBLIC / "crump-5.0.js").read_text(encoding="utf-8")
+    fixture = (ROOT / "tests" / "fixtures" / "creation-sheet-containment.html").read_text(encoding="utf-8")
+    verifier = (ROOT / "scripts" / "verify-button-state-integrity.cjs").read_text(encoding="utf-8")
+
+    assert 'id="sendButton" type="button" aria-label="Send message" aria-disabled="true" disabled' in app
+    assert "send.disabled = !ready;" in shell
+    assert "send.setAttribute('aria-disabled', String(!ready));" in shell
+    assert "input.dispatchEvent(new Event('input', {bubbles: true}));" in composer
+    assert '<script src="/public/crump-4.3.js?v=creation-sheet-containment-fixture-1"></script>' in fixture
+    for state in (
+        "emptyComposer",
+        "textComposer",
+        "clearedComposer",
+        "attachmentComposer",
+        "removedAttachmentComposer",
+    ):
+        assert state in verifier
+
+
+def test_send_button_actionability_release_is_cache_addressable_everywhere() -> None:
+    asset = "/crump-4.3.js?v=5.9.76-composer-actionability-1"
+
+    for relative in ("public/runtime-body-v1.js", "public/sw.js", "scripts/build-native.mjs"):
+        assert asset in (ROOT / relative).read_text(encoding="utf-8")
 
 
 def test_button_state_browser_fixture_is_private_and_credential_free() -> None:

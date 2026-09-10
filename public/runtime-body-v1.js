@@ -63,7 +63,7 @@ window.CRUMP_CONFIG = Object.freeze({
   ]);
 
   const enhancementScripts = Object.freeze([
-    ['/crump-4.3.js?v=5.9.76-intelligence-architecture-1', 'crump43'],
+    ['/crump-4.3.js?v=5.9.76-composer-actionability-1', 'crump43'],
     ['/crump-4.4.js?v=5.9.76-core-reliability-1', 'crump44'],
     ['/crump-5.0.js?v=5.9.76-composer-mode-reset-1', 'crump50'],
     ['/crump-precision-image-edit.js?v=5.9.76-precision-studio-1', 'crumpprecisionimage'],

@@ -81,12 +81,14 @@
 
     const hasText = input.value.trim().length > 0;
     const hasFile = !!filePreview && !filePreview.hidden && getComputedStyle(filePreview).display !== 'none' && !!filePreview.children.length;
-    document.body.classList.toggle('crump-composer-active', hasText || hasFile);
-    $('.input-container')?.classList.toggle('has-content', hasText || hasFile);
+    const ready = hasText || hasFile;
+    document.body.classList.toggle('crump-composer-active', ready);
+    $('.input-container')?.classList.toggle('has-content', ready);
 
     if (send) {
-      send.classList.toggle('is-ready', hasText || hasFile);
-      send.setAttribute('aria-disabled', String(!(hasText || hasFile)));
+      send.classList.toggle('is-ready', ready);
+      send.disabled = !ready;
+      send.setAttribute('aria-disabled', String(!ready));
     }
   }
 

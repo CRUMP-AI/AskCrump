@@ -1118,6 +1118,7 @@
       if (fresh.messages.length === 1 && text) fresh.title = text.slice(0, 50) + (text.length > 50 ? '…' : '');
       saveAndRender(fresh);
       input.value = ''; input.style.height = 'auto';
+      input.dispatchEvent(new Event('input', {bubbles: true}));
       const body = buildRequestBody(currentChat() || fresh, userMessage, ready);
       state.attachments = [];
       state.precisionImageEdit = null;

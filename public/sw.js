@@ -61,7 +61,7 @@ const CORE = [
   '/lifecycle-manager.js?v=5.9.76-referral-cancel-recovery-1',
   '/auth-controller.js?v=5.9.76-organic-feed-attribution-1',
   '/crump-4.3.css',
-  '/crump-4.3.js?v=5.9.76-intelligence-architecture-1',
+  '/crump-4.3.js?v=5.9.76-composer-actionability-1',
   '/crump-4.4.css',
   '/crump-4.4.js?v=5.9.76-core-reliability-1',
   '/crump-5.0.css?v=5.9.76-precision-edit-entry-1',
