@@ -81,6 +81,17 @@ the released button-control matrix at the real dependency boundary without claim
 signed physical-device, permission, provider, or payment outcome has occurred. Keep the current
 controls stable and investigate only a reproducible failure or a newly observed non-success path.
 
+The 2026-09-10 21:19 UTC continuation review found **20 visitors**, **109 page views**, and
+**30% bounce** in the complete seven-day Web Analytics view. The full event list showed three
+`MarketingCTA`, two `CreationIntentContinued`, two `MarketingExplore`, two `MarketingLanding`,
+and one `PlanIntentReached` visitors, with no signup event. The service-role September production
+refresh returned zero accounts at every growth stage and empty attribution, artifact, and Project
+continuity exports; the three legacy external accounts still had zero September login and zero
+active payer. A release-window log sample contained 50 visible HTTP 200 responses and no warning,
+error, or fatal entry. Preserve the verified entry and control paths: the next product change still
+requires a reproducible customer failure or a legitimate measured journey, while qualified
+acquisition remains the company bottleneck.
+
 ## Verified releases
 
 | Outcome | Evidence | State |

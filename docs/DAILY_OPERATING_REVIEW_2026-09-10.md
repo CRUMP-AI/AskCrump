@@ -1,6 +1,6 @@
 # Ask Crump daily operating review — 2026-09-10
 
-Review time: 20:15 UTC
+Review time: 21:19 UTC
 
 Scope: production reliability, account/activation evidence, durable work, and
 revenue-boundary reconciliation
@@ -41,12 +41,16 @@ The latest 24-hour Vercel production aggregation reported:
 The same window contained no grouped runtime error, HTTP 429, or HTTP 5xx signal.
 This proves a clean observed window, not provider quality or future uptime.
 
-The complete seven-day production Web Analytics view reported 18 visitors, 94
-page views, and 28% bounce. Its full event list contained three `MarketingCTA`
-visitors, two `CreationIntentContinued`, two `MarketingExplore`, one
+The complete seven-day production Web Analytics view reported 20 visitors, 109
+page views, and 30% bounce. Its full event list contained three `MarketingCTA`
+visitors, two `CreationIntentContinued`, two `MarketingExplore`, two
 `MarketingLanding`, and one `PlanIntentReached`. No signup event appeared in the
 complete list. These anonymous counts can include internal or automated traffic;
 they diagnose discovery and intent only and are not an account conversion rate.
+
+A fresh release-window log sample contained 50 visible requests, all HTTP 200,
+with zero warning, error, or fatal entries. This narrower read validates the latest
+control release; it does not replace the 24-hour aggregation above.
 
 ## Product and journey evidence
 
@@ -63,6 +67,13 @@ The current database reconciliation reports:
 | Comparable return accounts | 0 |
 | Comparable artifact journeys | 0 |
 | Comparable lifecycle rows | 0 |
+
+The 21:19 UTC service-role refresh returned all 18 comparable growth stages at
+zero and empty weekly-attribution, artifact-journey, and Project-continuity exports.
+The three legacy external accounts still include two verified accounts, zero
+September logins, and zero active provider-backed payers. The fixed sanitized demo
+identity does not exist, and the optional workflow-proof function is not installed;
+those remain explicit product-proof readiness gates rather than customer metrics.
 
 Internal production testing since September 1 recorded one activation, one aha
 signal, two artifact downloads, six recent-work resumes across two internal
