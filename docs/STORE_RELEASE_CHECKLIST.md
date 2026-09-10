@@ -76,7 +76,9 @@ See `docs/STORE_READINESS_AUDIT_2026-08-27.md` for evidence, blockers, and offic
 - [ ] Store products and entitlements exactly match production environment IDs
 - [ ] Purchase, restore, renewal, cancellation, expiration, billing issue, and transfer tested
 - [ ] RevenueCat webhook authentication configured
-- [ ] Vercel `CRON_SECRET` configured and protected hourly check-in invocation verified
+- [x] Vercel `CRON_SECRET` and protected hourly check-in route verified in production: exactly 24
+      scheduled calls completed in the trailing 24-hour window with no route-level 4xx/5xx or
+      runtime error (`docs/CHECK_IN_CRON_PRODUCTION_READINESS_2026-09-10.md`)
 - [ ] Internal accounts confirm no check-in during quiet hours, no repeated unanswered check-in, and correct notification routing
 
 ## Reviewer notes

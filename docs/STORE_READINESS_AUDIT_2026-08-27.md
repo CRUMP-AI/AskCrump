@@ -1,6 +1,6 @@
 # Ask Crump store-readiness audit — 2026-08-27
 
-Last updated: 2026-09-07
+Last updated: 2026-09-10
 
 ## Outcome
 
@@ -51,6 +51,7 @@ during this audit.
 | iOS cloud boundary | `.github/workflows/ios-store-verify.yml` uses a standard GitHub macOS runner with signing disabled and no upload credentials. The first run exposed a workspace/project assumption; the corrected workflow accepts the generated Xcode project and the second run passed. | Verified no-secret/no-upload boundary |
 | Android cloud boundary | `.github/workflows/android-store-verify.yml` prepares source with Node 22, selects Temurin Java 21, compiles a Release App Bundle, and requires the `.aab` to be non-empty. The refreshed 5.9.76/build 50976 [run 34156623389](https://github.com/CRUMP-AI/AskCrump/actions/runs/34156623389) passed every source, exact billing-catalog, persisted native billing identity, sign-out, direct-200 store URL, signing-control, Gradle, and bundle-output step. | Verified unsigned `.aab` compile |
 | Signing controls | Mobile signing verification found no tracked keys, certificates, provisioning profiles, service-account files, or passwords. | Verified |
+| Protected check-in schedule | A trailing 24-hour production aggregation on September 10 found exactly 24 `/api/cron/check-ins` calls, matching the hourly schedule. The route appeared in neither the complete 4xx route set nor any 5xx/runtime-error set. Since the handler returns 401 when `CRON_SECRET` is absent or mismatched, the natural successful schedule verifies the configured protected credential path without a manual invocation or user-data read. Evidence: `docs/CHECK_IN_CRON_PRODUCTION_READINESS_2026-09-10.md`. | Production scheduler/secret path verified; signed-device push behavior pending |
 
 ## Current blockers
 

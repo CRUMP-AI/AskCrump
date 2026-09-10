@@ -173,6 +173,13 @@ provider, privacy, cost, or security gate is incomplete.
   the 989-test suite and complete 38/38 browser-control matrix passed, and marketing's independent
   exact-set live gate is green. No tagged route, synthetic account/event, publication, or spend
   occurred. Evidence: `docs/ROUGH_TO_USEFUL_ORGANIC_FEED_ATTRIBUTION_RELEASE_2026-09-10.md`.
+- **Native distribution gate:** The existing hourly check-in scheduler now has current production
+  evidence: exactly 24 natural `/api/cron/check-ins` executions in the trailing 24 hours, none in
+  the complete 4xx/5xx or runtime-error sets. Because the route fails closed when `CRON_SECRET` is
+  absent or mismatched, this closes the Vercel schedule/secret portion of store readiness without
+  manually invoking it or sending a check-in. Signed-device push, store billing, signing, reviewer,
+  screenshot, console, and submission gates remain open. Evidence:
+  `docs/CHECK_IN_CRON_PRODUCTION_READINESS_2026-09-10.md`.
 - **September 10 operating reconciliation:** The latest privacy-safe production
   check still shows 3 external accounts, 2 verified, zero comparable September
   accounts, zero external active paid accounts, and no comparable activation,
