@@ -1,6 +1,6 @@
 # Ask Crump daily operating review — 2026-09-10
 
-Review time: 19:27 UTC
+Review time: 19:53 UTC
 
 Scope: production reliability, account/activation evidence, durable work, and
 revenue-boundary reconciliation
@@ -95,6 +95,16 @@ finance export is available.
 
 ## Actions and non-actions
 
+- Removed deterministic startup work from the disabled Crump Code preview in
+  product commit `03ca7f0`. The signed-in runtime now loads a 4,573-byte gate
+  instead of the full 33,121-byte script plus 13,177-byte stylesheet. A real
+  browser proved zero full-asset requests while disabled and exact one-time
+  loading for configured locked and entitled states. The complete suite passed
+  998/998, JavaScript 50/50, the browser matrix 41/41, and all three GitHub
+  workflows. Production deployment `dpl_CzFUbzsH8Rx5kG2KBYumwGb7DjuT` is READY
+  with five exact-byte checks, live signed-in disabled-state proof, healthy API,
+  and no release-window runtime error or severe log. Crump Code remains disabled;
+  this is a startup-delivery improvement, not a feature-readiness claim.
 - Corrected a deterministic returning-load performance defect in product commit
   `753cc65`. Production response headers require revalidation for representative
   workspace JS/CSS, but the previous service worker also routed all 43
