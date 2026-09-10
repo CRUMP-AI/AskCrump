@@ -110,6 +110,17 @@ finance export is available.
 
 ## Actions and non-actions
 
+- Closed the remaining vague-action gap across Projects, Files, Manuscripts,
+  Video, and Library in commit `f86fad8`. The shared close control now identifies
+  the visible destination or named Project, Files refresh and Video reference are
+  explicit, and manuscript-run and section controls include their active title.
+  The complete suite passed 1002/1002, JavaScript 53/53, browser matrix 44/44,
+  CI `34535247208`, Android `34535247232`, and iOS `34535247234`. Production
+  deployment `dpl_8pNsm1VvmB7ztyms1Mipcyac31k4` is Ready; four live release
+  files returned HTTP 200 with their expected markers, signed-in replay proved
+  Projects, Files, new Project, Video, Manuscripts, and Library without saving or
+  generating, and the filtered release window contained zero warning/error/fatal
+  entries. No customer content or identifier was recorded.
 - Extended the whole-product control boundary through its first-party API handoff
   in commit `d47e1ce`. CI now inventories 97 raw browser API references across
   27 public source files, normalizes 84 request-path shapes, and requires every
