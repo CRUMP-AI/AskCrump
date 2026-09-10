@@ -19,13 +19,23 @@ from backend.schemas import RegisterRequest
 
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATION = ROOT / "migrations" / "20260830171056_weekly_growth_attribution_export.sql"
-REGISTRY_MIGRATION = ROOT / "staging" / "add_word_pdf_guide_attribution.sql"
+REGISTRY_MIGRATION = (
+    ROOT
+    / "migrations"
+    / "20260910095400_release_word_pdf_search_attribution.sql"
+)
 NULL_SAFETY_MIGRATION = (
     ROOT
     / "migrations"
     / "20260909220929_reject_null_paid_attribution_cross_products.sql"
 )
-STANDALONE_ALLOWLIST_MIGRATION = (
+SOURCE_PLACEMENT_ALLOWLIST_MIGRATION = (
+    ROOT
+    / "migrations"
+    / "20260909220127_paid_rough_to_useful_attribution.sql"
+)
+CAMPAIGN_ALLOWLIST_MIGRATION = REGISTRY_MIGRATION
+CREATIVE_ALLOWLIST_MIGRATION = (
     ROOT
     / "migrations"
     / "20260909200726_narrow_presentation_attribution_touchpoints.sql"
@@ -202,7 +212,7 @@ def _parse_sql_exact_touchpoints(sql: str, *, rpc: bool) -> dict[str, set[tuple[
         re.DOTALL,
     )
     section_end = (
-        sql.index(") then\n    v_campaign := null;")
+        sql.index(") is not true then\n    v_campaign := null;")
         if rpc
         else sql.index("create or replace function public.record_account_created_event")
     )
@@ -264,7 +274,9 @@ def _parse_sql_standalone_allowlist(sql: str, constraint: str, field: str) -> se
 
 def _parse_sql_rpc_registry(sql: str) -> dict[str, dict[str, object]]:
     function_start = sql.index("create or replace function public.record_account_created_event")
-    validation_start = sql.index("if not (", function_start)
+    validation_match = re.search(r"if \(\s*\(\s*v_campaign =", sql[function_start:])
+    assert validation_match
+    validation_start = function_start + validation_match.start()
     validation_end = sql.index("v_campaign := null;", validation_start)
     block = sql[validation_start:validation_end]
     matches = list(re.finditer(r"(?m)^\s+v_campaign = '([^']+)'", block))
@@ -279,7 +291,7 @@ def _parse_sql_rpc_registry(sql: str) -> dict[str, dict[str, object]]:
             "creatives": set(),
         }
 
-    creative_start = sql.index("if v_campaign is null or not (", validation_end)
+    creative_start = sql.index("if v_campaign is null or (", validation_end)
     creative_end = sql.index("v_creative := null;", creative_start)
     creative_block = sql[creative_start:creative_end]
     creative_matches = re.findall(
@@ -318,7 +330,9 @@ def test_campaign_registry_has_exact_frontend_server_and_database_parity():
     landing = (ROOT / "public" / "landing.js").read_text(encoding="utf-8")
     controller = (ROOT / "public" / "auth-controller.js").read_text(encoding="utf-8")
     sql = REGISTRY_MIGRATION.read_text(encoding="utf-8")
-    allowlist_sql = STANDALONE_ALLOWLIST_MIGRATION.read_text(encoding="utf-8")
+    source_placement_sql = SOURCE_PLACEMENT_ALLOWLIST_MIGRATION.read_text(encoding="utf-8")
+    campaign_sql = CAMPAIGN_ALLOWLIST_MIGRATION.read_text(encoding="utf-8")
+    creative_sql = CREATIVE_ALLOWLIST_MIGRATION.read_text(encoding="utf-8")
     python_registry = {
         campaign: {
             "intent": values["intent"],
@@ -345,20 +359,20 @@ def test_campaign_registry_has_exact_frontend_server_and_database_parity():
     assert _parse_js_set(landing, "ACQUISITION_PLACEMENTS") == EXPECTED_PLACEMENTS
     assert _parse_js_set(controller, "ACQUISITION_PLACEMENTS") == EXPECTED_PLACEMENTS
     assert _parse_sql_standalone_allowlist(
-        sql, "product_events_account_acquisition_check", "source"
+        source_placement_sql, "product_events_account_acquisition_check", "source"
     ) == EXPECTED_ACQUISITIONS
     assert _parse_sql_standalone_allowlist(
-        sql, "product_events_placement_check", "placement"
+        source_placement_sql, "product_events_placement_check", "placement"
     ) == EXPECTED_PLACEMENTS
     assert _parse_js_registry(landing) == EXPECTED_REGISTRY
     assert _parse_js_registry(controller) == EXPECTED_REGISTRY
     assert _parse_sql_constraint_registry(sql) == EXPECTED_REGISTRY
     assert _parse_sql_rpc_registry(sql) == EXPECTED_REGISTRY
     assert _parse_sql_standalone_allowlist(
-        allowlist_sql, "product_events_campaign_check", "campaign"
+        campaign_sql, "product_events_campaign_check", "campaign"
     ) == EXPECTED_CAMPAIGNS
     assert _parse_sql_standalone_allowlist(
-        allowlist_sql, "product_events_creative_check", "creative"
+        creative_sql, "product_events_creative_check", "creative"
     ) == EXPECTED_CREATIVES
     assert python_touchpoints == EXPECTED_EXACT_TOUCHPOINTS
     assert _parse_js_exact_touchpoints(landing) == EXPECTED_EXACT_TOUCHPOINTS

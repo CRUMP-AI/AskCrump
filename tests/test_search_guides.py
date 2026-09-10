@@ -293,7 +293,7 @@ def test_search_guide_layout_has_bounded_phone_width_media():
     assert "overflow-wrap: anywhere" in css
 
 
-STAGED_WORD_PDF_ASSETS = {
+WORD_PDF_ASSETS = {
     "word-or-pdf-guide-hero-1600x1000.png": (
         "E08EC5FFBA0937B0A377E0618F0631A16B4EECC2ACD79FF34636C323B0BB8713",
         (1600, 1000),
@@ -313,7 +313,7 @@ STAGED_WORD_PDF_ASSETS = {
 }
 
 
-def test_staged_word_pdf_guide_has_exact_review_only_contract():
+def test_public_word_pdf_guide_has_exact_search_release_contract():
     slug = "word-or-pdf-ai-document-output"
     page = read(f"public/guides/{slug}.html")
     canonical = f"https://www.askcrump.com/guides/{slug}"
@@ -326,15 +326,20 @@ def test_staged_word_pdf_guide_has_exact_review_only_contract():
     assert f'<meta name="description" content="{description}">' in page
     assert f'<link rel="canonical" href="{canonical}">' in page
     assert f'<meta property="og:url" content="{canonical}">' in page
-    assert '<meta name="robots" content="noindex,nofollow">' in page
+    assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
+    assert '<meta property="article:published_time" content="2026-08-30">' in page
+    assert '<meta property="article:modified_time" content="2026-09-10">' in page
     assert '<script defer src="/landing.js?v=5.9.76-marketing-landing-1"></script>' in page
     assert '<link rel="stylesheet" href="/guide.css?v=5.9.76-word-pdf-guide-1">' in page
     assert page.count("<h1>") == 1
     assert page.count('class="button primary"') == 1
     assert (
-        'href="/ai-document-generator?acquisition=organic-search&amp;source=workflow-guide&amp;'
-        'campaign=word-or-pdf-decision&amp;creative=search-article"'
+        'href="/ai-document-generator?signup=1&amp;plan=free&amp;acquisition=organic-search&amp;'
+        'source=workflow-guide&amp;campaign=word-or-pdf-decision&amp;creative=search-article&amp;'
+        'intent=document"'
     ) in page
+    assert "Start free with a Word or PDF document" in page
+    assert "staged for review" not in page.lower()
     assert 'href="/guides/editable-ai-powerpoint-review"' in page
     assert 'class="guide-page-grid"' in page
     assert "every person, date, figure, threshold, and operating detail are invented" in page
@@ -344,7 +349,6 @@ def test_staged_word_pdf_guide_has_exact_review_only_contract():
     assert "AI VIRTUAL ASSISTANT" not in page
     assert "FAQPage" not in page and '"@type": "HowTo"' not in page
     assert '"@type": "Review"' not in page and "aggregateRating" not in page
-    assert "article:published_time" not in page and "article:modified_time" not in page
 
     structured_block = page.split(
         '<script type="application/ld+json">', 1
@@ -355,12 +359,13 @@ def test_staged_word_pdf_guide_has_exact_review_only_contract():
     assert structured["url"] == canonical
     assert structured["mainEntityOfPage"] == canonical
     assert structured["author"]["name"] == "Clever Crump"
-    assert "datePublished" not in structured and "dateModified" not in structured
+    assert structured["datePublished"] == "2026-08-30"
+    assert structured["dateModified"] == "2026-09-10"
 
 
-def test_staged_word_pdf_guide_uses_only_accepted_authentic_assets():
+def test_public_word_pdf_guide_uses_only_accepted_authentic_assets():
     asset_root = ROOT / "public" / "assets" / "guides"
-    for name, (expected_hash, expected_dimensions) in STAGED_WORD_PDF_ASSETS.items():
+    for name, (expected_hash, expected_dimensions) in WORD_PDF_ASSETS.items():
         data = (asset_root / name).read_bytes()
         assert data.startswith(b"\x89PNG\r\n\x1a\n")
         dimensions = (
@@ -371,31 +376,30 @@ def test_staged_word_pdf_guide_uses_only_accepted_authentic_assets():
         assert hashlib.sha256(data).hexdigest().upper() == expected_hash
 
 
-def test_staged_word_pdf_guide_is_not_discoverable_before_authorized_release():
+def test_public_word_pdf_guide_is_discoverable_once_with_an_honest_inlink():
     slug = "word-or-pdf-ai-document-output"
     route = f"/guides/{slug}"
-    assert route not in read("public/sitemap.xml")
+    sitemap = read("public/sitemap.xml")
+    assert sitemap.count(f"<loc>https://www.askcrump.com{route}</loc>") == 1
+    entry = sitemap.split(f"<loc>https://www.askcrump.com{route}</loc>", 1)[1].split("</url>", 1)[0]
+    assert "<lastmod>2026-09-10</lastmod>" in entry
+    document_page = read("public/ai-document-generator.html")
+    assert f'href="{route}">Compare Word and PDF output</a>' in document_page
 
-    staged_page = ROOT / "public" / "guides" / f"{slug}.html"
-    for page_path in (ROOT / "public").rglob("*.html"):
-        if page_path != staged_page:
-            assert f'href="{route}"' not in page_path.read_text(encoding="utf-8")
 
-
-def test_staged_word_pdf_guide_runtime_contract_covers_search_social_and_precedence():
+def test_public_word_pdf_guide_runtime_contract_is_organic_only_and_immutable():
     landing = read("public/landing.js")
     checker = read("scripts/check-javascript.mjs")
 
     assert "'/guides/word-or-pdf-ai-document-output': 'document'" in landing
     assert "campaign: 'word-or-pdf-decision'" in landing
-    assert "'word-or-pdf-social'" in landing
-    assert "creatives: new Set(['word-pdf-feed', 'word-pdf-story'])" in landing
+    assert "'word-or-pdf-social'" not in landing
+    assert "'word-or-pdf-social'" not in read("public/auth-controller.js")
+    assert '"word-or-pdf-social"' not in read("backend/product_analytics.py")
     for label in (
         "Word/PDF canonical organic-search guide entry",
         "Word/PDF search second campaign in the same tab",
-        "Word/PDF social second campaign in the same tab",
     ):
         assert label in checker
-    assert "for (const acquisition of ['facebook', 'instagram'])" in checker
-    assert "for (const creative of ['word-pdf-feed', 'word-pdf-story'])" in checker
-    assert "`Word/PDF social ${acquisition} ${creative}`" in checker
+    assert "Validated ${wordPdfRuntimeCases}/10 Word/PDF attribution runtime cases." in checker
+    assert "const attribution = stored ? normalizeAttribution(stored) : candidate" in landing

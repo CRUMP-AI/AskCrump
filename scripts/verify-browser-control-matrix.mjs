@@ -44,6 +44,7 @@ const expectedVerifiers = Object.freeze([
   'verify-video-destination.cjs',
   'verify-video-reference-browser.cjs',
   'verify-visual-media-browser.cjs',
+  'verify-word-pdf-guide-render.cjs',
 ]);
 
 const serverPlan = Object.freeze([

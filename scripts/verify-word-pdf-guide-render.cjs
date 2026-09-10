@@ -2,9 +2,9 @@ const path = require('node:path');
 const os = require('node:os');
 const {chromium} = require('playwright');
 
-const baseUrl = process.argv[2] || 'http://127.0.0.1:8792';
+const baseUrl = process.argv[2] || 'http://127.0.0.1:8766';
 const route = '/guides/word-or-pdf-ai-document-output.html';
-const expectedHref = '/ai-document-generator?acquisition=organic-search&source=workflow-guide&campaign=word-or-pdf-decision&creative=search-article';
+const expectedHref = '/ai-document-generator?signup=1&plan=free&acquisition=organic-search&source=workflow-guide&campaign=word-or-pdf-decision&creative=search-article&intent=document';
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -61,7 +61,7 @@ async function inspect(page, viewport, screenshotName) {
   }));
   assert(state.title === 'Word or PDF? Choose the Right AI Document Output | Ask Crump', 'title drifted');
   assert(state.h1 === 'Word or PDF? Start with what happens next.', 'H1 drifted');
-  assert(state.robots === 'noindex,nofollow', 'staged robots boundary drifted');
+  assert(state.robots === 'index,follow,max-image-preview:large', 'public robots contract drifted');
   assert(
     state.bodyWidth <= state.viewportWidth,
     `horizontal overflow ${state.bodyWidth}/${state.viewportWidth}: ${JSON.stringify(state.overflowers)}`,

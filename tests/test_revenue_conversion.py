@@ -154,6 +154,7 @@ def test_public_marketing_surface_is_indexable_while_the_private_app_is_not():
     assert "<loc>https://www.askcrump.com/ai-project-workspace</loc>" in sitemap
     assert sitemap.count("<lastmod>2026-08-30</lastmod>") == 6
     assert sitemap.count("<lastmod>2026-09-08</lastmod>") == 3
+    assert sitemap.count("<lastmod>2026-09-10</lastmod>") == 1
     assert sitemap.count("<lastmod>2026-08-24</lastmod>") == 1
 
     namespace = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
@@ -172,6 +173,7 @@ def test_public_marketing_surface_is_indexable_while_the_private_app_is_not():
         "https://www.askcrump.com/guides/rough-idea-six-week-launch-plan": "2026-09-08",
         "https://www.askcrump.com/guides/what-ai-project-should-remember": "2026-09-08",
         "https://www.askcrump.com/guides/editable-ai-powerpoint-review": "2026-09-08",
+        "https://www.askcrump.com/guides/word-or-pdf-ai-document-output": "2026-09-10",
         "https://www.askcrump.com/legal": "2026-08-24",
     }
 
