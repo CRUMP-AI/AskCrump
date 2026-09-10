@@ -39,6 +39,7 @@ const {chromium} = require('playwright');
   await page.waitForFunction(() => !document.querySelector('.crump531-chat-menu-popover'));
   assert.equal(await options.getAttribute('aria-expanded'), 'false');
   assert.equal(await page.evaluate(() => document.activeElement?.classList.contains('crump531-chat-menu-button')), true);
+  assert.equal(await page.locator('#sidebar').evaluate(node => node.classList.contains('active')), true);
 
   await page.evaluate(() => { document.querySelector('.chat-title').textContent = 'Updated plan'; });
   await page.waitForFunction(() => (

@@ -987,7 +987,7 @@ const destinationBackgroundGuardVersion = `${releaseVersion}-destination-backgro
 const codeLazyLoadVersion = `${releaseVersion}-code-lazy-load-1`;
 const precisionLazyLoadVersion = `${releaseVersion}-precision-lazy-load-1`;
 const libraryLazyLoadVersion = `${releaseVersion}-library-lazy-load-1`;
-const conversationActionLabelsVersion = `${releaseVersion}-conversation-action-labels-1`;
+const conversationActionLabelsVersion = `${releaseVersion}-conversation-action-labels-2`;
 const controlFocusIntegrityVersion = `${releaseVersion}-control-focus-integrity-1`;
 const referralCancelRecoveryVersion = `${releaseVersion}-referral-cancel-recovery-1`;
 const settingsInviteVersion = `${releaseVersion}-settings-invite-1`;
@@ -1415,7 +1415,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r232') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r233') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${conversationActionLabelsVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||

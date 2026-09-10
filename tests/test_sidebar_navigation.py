@@ -131,6 +131,7 @@ def test_conversation_rows_and_actions_have_specific_accessible_names_and_menu_s
     assert "button.setAttribute('aria-haspopup', 'menu')" in product
     assert "button.setAttribute('aria-expanded', 'false')" in product
     assert "state.menuTrigger?.setAttribute('aria-expanded', 'false')" in product
+    assert "event.stopPropagation();\n      closeChatMenu();" in product
     assert "button.focus({preventScroll: true})" in product
     assert "Conversation options for Updated plan" in verifier
     assert "document.activeElement?.classList.contains('crump531-chat-menu-button')" in verifier

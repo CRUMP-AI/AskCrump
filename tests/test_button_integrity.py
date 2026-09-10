@@ -90,7 +90,7 @@ INDIRECT_DYNAMIC_BUTTON_OWNERS = {
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'cancel'",
     ),
-    "public/crump-product-5.3.1.js:490:button": (
+    "public/crump-product-5.3.1.js:491:button": (
         "button.className = 'crump531-chat-menu-button'",
         "document.addEventListener('click', event => {",
         "event.target.closest?.('.crump531-chat-menu-button')",

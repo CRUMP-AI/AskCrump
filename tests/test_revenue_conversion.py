@@ -513,7 +513,7 @@ def test_release_version_and_cache_advance_together():
 
     assert '"version": "5.9.76"' in package
     assert "__version__ = '5.9.76'" in backend
-    assert "ask-crump-new-body-v1-r232" in worker
+    assert "ask-crump-new-body-v1-r233" in worker
     assert "/landing-5.6.css?v=5.9.76-referral-context-1" in worker
     assert "/use-case.css?v=5.9.76" in worker
     assert "/landing.js?v=5.9.76-organic-feed-attribution-1" in worker

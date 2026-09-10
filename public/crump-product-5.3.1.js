@@ -447,6 +447,7 @@
     menu.addEventListener('keydown', event => {
       if (event.key !== 'Escape') return;
       event.preventDefault();
+      event.stopPropagation();
       closeChatMenu();
       button.focus({preventScroll: true});
     });
