@@ -1,6 +1,6 @@
 # Ask Crump daily operating review — 2026-09-10
 
-Review time: 19:53 UTC
+Review time: 20:15 UTC
 
 Scope: production reliability, account/activation evidence, durable work, and
 revenue-boundary reconciliation
@@ -95,6 +95,18 @@ finance export is available.
 
 ## Actions and non-actions
 
+- Revalidated the complete shipped control boundary and removed unused Precision
+  Edit startup work in product commit `1345449`. The authenticated plan now loads
+  a 3,379-byte on-demand gate instead of the 78,537-byte editor script plus
+  17,650-byte stylesheet, avoiding 92,808 raw source bytes and one startup style.
+  The complete suite passed 998/998, JavaScript 51/51, the expanded browser matrix
+  42/42, and all three GitHub workflows. Production deployment
+  `dpl_5EG2rm1YxGXR9tfNXHLf5ioTq9XA` is READY on six aliases with five exact-byte
+  checks, stable signed-in activation of cache `r230`, safe live movement through
+  all six main destinations, only the small Precision loader present before use,
+  and no release-window runtime error, 5xx, or severe log. Paid, destructive,
+  provider, download, permission, external-message, and physical-device outcomes
+  retain their separate action-time gates.
 - Removed deterministic startup work from the disabled Crump Code preview in
   product commit `03ca7f0`. The signed-in runtime now loads a 4,573-byte gate
   instead of the full 33,121-byte script plus 13,177-byte stylesheet. A real
