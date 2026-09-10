@@ -914,6 +914,19 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
+The 2026-09-10 production refresh confirms that acquisition volume remains the binding constraint,
+not a newly observed product failure. The privacy-safe 2026-09-01-to-review-time growth snapshot
+contains zero accounts at all 18 stages; the weekly-attribution, artifact-journey,
+Project-continuity, and outcome-issue aggregates contain no rows. Vercel reports no grouped runtime
+error over seven days and no production 5xx request path over 24 hours. The protected sanitized-demo
+proof also remains seven false booleans because `demo@askcrump.com` is not configured. The Vercel
+production environment contains the required variable names, but its sensitive values cannot be
+pulled into this trusted local process; do not weaken that protection or invent/expose a demo
+password. Provision the fixed demo identity only through the existing hidden-password workflow,
+then record and prove the continuous real request → useful response → Project save/reopen → editable
+artifact journey. Until legitimate traffic or that consented demo path exists, preserve the stable
+product, do not infer conversion, and direct the next growth action toward qualified acquisition.
+
 The 2026-09-09 production review found no runtime-error cluster over either 24 hours or
 seven days and no 5xx response in the trailing 24 hours. The protected Sep 1–review-time
 growth, weekly-attribution, artifact-journey, and Project-continuity reports still contain
