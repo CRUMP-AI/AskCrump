@@ -4,7 +4,7 @@ const {chromium} = require('playwright');
 
 const baseUrl = process.argv[2] || 'http://127.0.0.1:8766';
 const route = '/guides/word-or-pdf-ai-document-output.html';
-const expectedHref = '/ai-document-generator?signup=1&plan=free&acquisition=organic-search&source=workflow-guide&campaign=word-or-pdf-decision&creative=search-article&intent=document';
+const expectedHref = '/app?signup=1&source=word-pdf-start&plan=free&intent=document&acquisition=direct';
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -67,7 +67,7 @@ async function inspect(page, viewport, screenshotName) {
     `horizontal overflow ${state.bodyWidth}/${state.viewportWidth}: ${JSON.stringify(state.overflowers)}`,
   );
   assert(state.primaryCount === 1, `expected one primary CTA, found ${state.primaryCount}`);
-  assert(state.primaryHref === expectedHref, 'primary CTA tuple drifted');
+  assert(state.primaryHref === expectedHref, 'direct-safe primary CTA drifted');
   assert(state.imageStates.length === 4, `expected four authentic images, found ${state.imageStates.length}`);
   for (const image of state.imageStates) {
     assert(

@@ -9,7 +9,7 @@ const guidePath = 'public/guides/word-or-pdf-ai-document-output.html';
 const migrationPath = 'migrations/20260910141831_release_word_pdf_search_attribution.sql';
 const route = '/guides/word-or-pdf-ai-document-output';
 const canonical = `https://www.askcrump.com${route}`;
-const exactHref = '/ai-document-generator?signup=1&amp;plan=free&amp;acquisition=organic-search&amp;source=workflow-guide&amp;campaign=word-or-pdf-decision&amp;creative=search-article&amp;intent=document';
+const exactHref = '/app?signup=1&amp;source=word-pdf-start&amp;plan=free&amp;intent=document&amp;acquisition=direct';
 
 function fail(message) {
   console.error(`Word/PDF public release invalid: ${message}`);
@@ -37,6 +37,7 @@ for (const marker of [
   '"datePublished": "2026-08-30"',
   '"dateModified": "2026-09-10"',
   exactHref,
+  'data-cta="word-pdf-start"',
   'Start free with a Word or PDF document',
   'every person, date, figure, threshold, and operating detail are invented',
   'this accepted file is not tagged for accessibility',

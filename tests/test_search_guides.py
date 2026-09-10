@@ -334,9 +334,9 @@ def test_public_word_pdf_guide_has_exact_search_release_contract():
     assert page.count("<h1>") == 1
     assert page.count('class="button primary"') == 1
     assert (
-        'href="/ai-document-generator?signup=1&amp;plan=free&amp;acquisition=organic-search&amp;'
-        'source=workflow-guide&amp;campaign=word-or-pdf-decision&amp;creative=search-article&amp;'
-        'intent=document"'
+        'data-cta="word-pdf-start" data-plan="free" '
+        'href="/app?signup=1&amp;source=word-pdf-start&amp;plan=free&amp;'
+        'intent=document&amp;acquisition=direct"'
     ) in page
     assert "Start free with a Word or PDF document" in page
     assert "staged for review" not in page.lower()

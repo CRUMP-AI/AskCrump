@@ -654,11 +654,41 @@ const wordPdfSearchTouch = {
   intent: 'document',
 };
 let wordPdfRuntimeCases = 0;
+const wordPdfDirectStore = new Map();
+const wordPdfDirect = runLandingAttribution(
+  'https://askcrump.com/guides/word-or-pdf-ai-document-output',
+  wordPdfDirectStore,
+  '/app?signup=1&source=word-pdf-start&plan=free&intent=document&acquisition=direct',
+  '',
+  {click: false},
+);
+assertAttribution(storedAttribution(wordPdfDirectStore), {
+  acquisition: 'direct',
+  placement: null,
+  campaign: null,
+  creative: null,
+  intent: 'document',
+}, 'Word/PDF direct guide entry');
+assertNoMarketingLanding(wordPdfDirect, 'Word/PDF direct guide entry');
+const wordPdfDirectDestination = new URL(wordPdfDirect.link.href, 'https://askcrump.com');
+if (wordPdfDirectDestination.pathname !== '/app' ||
+    wordPdfDirectDestination.searchParams.get('signup') !== '1' ||
+    wordPdfDirectDestination.searchParams.get('plan') !== 'free' ||
+    wordPdfDirectDestination.searchParams.get('source') !== 'word-pdf-start' ||
+    wordPdfDirectDestination.searchParams.get('intent') !== 'document' ||
+    wordPdfDirectDestination.searchParams.get('acquisition') !== 'direct' ||
+    wordPdfDirectDestination.searchParams.has('campaign') ||
+    wordPdfDirectDestination.searchParams.has('creative')) {
+  console.error('Word/PDF direct CTA did not remain campaign-free.');
+  process.exit(1);
+}
+wordPdfRuntimeCases += 1;
+
 const wordPdfSearchStore = new Map();
 const wordPdfSearch = runLandingAttribution(
   'https://askcrump.com/guides/word-or-pdf-ai-document-output',
   wordPdfSearchStore,
-  '/ai-document-generator?acquisition=organic-search&source=workflow-guide&campaign=word-or-pdf-decision&creative=search-article',
+  '/app?signup=1&source=word-pdf-start&plan=free&intent=document&acquisition=direct',
   'https://www.google.com/search?q=word+or+pdf+ai+document',
   {click: false},
 );
@@ -668,25 +698,14 @@ assertMarketingLanding(wordPdfSearch, {
   intent: 'document',
 }, 'Word/PDF canonical organic-search guide entry');
 const wordPdfGuideDestination = new URL(wordPdfSearch.link.href, 'https://askcrump.com');
-if (wordPdfGuideDestination.pathname !== '/ai-document-generator' ||
+if (wordPdfGuideDestination.pathname !== '/app' ||
+    wordPdfGuideDestination.searchParams.get('signup') !== '1' ||
+    wordPdfGuideDestination.searchParams.get('plan') !== 'free' ||
     wordPdfGuideDestination.searchParams.get('acquisition') !== 'organic-search' ||
     wordPdfGuideDestination.searchParams.get('source') !== 'workflow-guide' ||
     wordPdfGuideDestination.searchParams.get('campaign') !== 'word-or-pdf-decision' ||
     wordPdfGuideDestination.searchParams.get('creative') !== 'search-article') {
   console.error('Word/PDF guide CTA did not preserve the exact search tuple.');
-  process.exit(1);
-}
-wordPdfRuntimeCases += 1;
-
-const wordPdfSearchCapability = runLandingAttribution(
-  'https://askcrump.com/ai-document-generator',
-  wordPdfSearchStore,
-  '/app?signup=1&intent=document',
-  '',
-  {click: false},
-);
-if (!wordPdfSearchCapability.link.href.includes('campaign=word-or-pdf-decision')) {
-  console.error('Word/PDF search attribution did not survive the document-generator handoff.');
   process.exit(1);
 }
 wordPdfRuntimeCases += 1;
