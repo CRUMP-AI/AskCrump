@@ -218,7 +218,7 @@ def test_browser_component_uses_only_reviewed_static_copy_and_is_nonblocking():
     assert "/lifecycle-share.js?v=5.9.76-settings-invite-1" in runtime
     assert "/lifecycle-manager.js?v=5.9.76-referral-cancel-recovery-1" in runtime
     assert "/lifecycle.css?v=5.9.76-lifecycle-activation-1" in runtime
-    assert "ask-crump-new-body-v1-r234" in worker
+    assert "ask-crump-new-body-v1-r235" in worker
     assert (ROOT / "tests" / "fixtures" / "lifecycle-project-continuity.html").exists()
     assert (ROOT / "scripts" / "verify-lifecycle-project-continuity.cjs").exists()
     assert (ROOT / "tests" / "fixtures" / "lifecycle-referral-recovery.html").exists()

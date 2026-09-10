@@ -581,7 +581,7 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
 
-    assert len(verifier_names) == 44
+    assert len(verifier_names) == 45
     for name in verifier_names:
         assert f"'{name}'" in runner
     assert "Browser verifier inventory drifted." in runner

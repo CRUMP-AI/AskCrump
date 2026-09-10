@@ -7,18 +7,59 @@ def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
 
 
-def test_product53_runtime_is_registered_last_and_cached():
+def test_product53_runtime_is_lazy_loaded_and_cache_addressable():
     runtime = read("public/runtime-body-v1.js")
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
-    assert "/crump-product-5.3.css" in runtime
-    assert "/crump-product-5.3.js" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-studio-action-labels-1" in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-studio-action-labels-1" in worker
-    assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-5.3.js")
-    assert "ask-crump-new-body-v1-r234" in worker
-    assert "/crump-product-5.3.js" in worker
+    loader = read("public/crump-product-loader.js")
+    assert "/crump-product-loader.js?v=5.9.76-product-studio-lazy-load-1" in runtime
+    assert "/crump-product-loader.js?v=5.9.76-product-studio-lazy-load-1" in worker
+    assert "/crump-product-5.3.css?v=5.9.76-file-library-window-1" not in runtime
+    assert "/crump-product-5.3.js?v=5.9.76-studio-action-labels-1" not in runtime
+    assert "/crump-product-5.3.css?v=5.9.76-file-library-window-1" not in worker
+    assert "/crump-product-5.3.js?v=5.9.76-studio-action-labels-1" not in worker
+    assert "/crump-product-5.3.css?v=5.9.76-file-library-window-1" in loader
+    assert "/crump-product-5.3.js?v=5.9.76-studio-action-labels-1" in loader
+    assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-loader.js")
+    assert "ask-crump-new-body-v1-r235" in worker
     assert "crump-product-5.3.js" in checker
+    assert "crump-product-loader.js" in checker
+
+
+def test_product_studio_loader_preserves_every_public_action_and_resume_boundary():
+    loader = read("public/crump-product-loader.js")
+    matrix = read("scripts/verify-browser-control-matrix.mjs")
+    verifier = read("scripts/verify-product-studio-lazy-load.cjs")
+
+    for action in (
+        "open:",
+        "openProject:",
+        "openFiles:",
+        "projectTarget:",
+        "projectForConversation:",
+        "resolveOutcomeProject:",
+        "keepConversation:",
+        "keepArtifact:",
+        "openManuscript:",
+        "handleCreationHandoff:",
+    ):
+        assert action in loader
+    assert "let loadPromise = null;" in loader
+    assert "if (loadPromise) return loadPromise;" in loader
+    assert "removeIncompleteAssets();" in loader
+    assert "window.CrumpProduct53 = facade;" in loader
+    assert "askcrump.activeProject53" in loader
+    assert "askcrump.videoJob53" in loader
+    assert "askcrump.videoRequest53" in loader
+    assert "crump:authenticated-ready" in loader
+    assert "crump:conversation-opened" in loader
+    assert "aria-busy" in loader
+    assert "verify-product-studio-lazy-load.cjs" in matrix
+    assert "fixture-project" in verifier
+    assert "mode=retry" in verifier
+    assert "mode=persisted" in verifier
+    assert "password" not in verifier.lower()
+    assert "askcrump.com" not in verifier.lower()
 
 
 def test_mobile_polish_matches_approved_scope():
@@ -297,8 +338,7 @@ def test_native_bundle_loads_the_same_product_layers_as_the_web_runtime():
         "/crump-v1-stability.js",
         "/crump-navigation-5.2.5.css",
         "/crump-navigation-5.2.5.js",
-        "/crump-product-5.3.css",
-        "/crump-product-5.3.js",
+        "/crump-product-loader.js",
         "/crump-product-5.3.1.css",
         "/crump-product-5.3.1.js",
         "/crump-subscriptions-5.3.2.js",
@@ -308,7 +348,9 @@ def test_native_bundle_loads_the_same_product_layers_as_the_web_runtime():
         "/crump-navigation-5.9.30.js",
     ):
         assert asset in native
-    assert native.index("/crump-navigation-5.2.5.js") < native.index("/crump-product-5.3.js")
+    assert "/crump-product-5.3.css" not in native
+    assert "/crump-product-5.3.js" not in native
+    assert native.index("/crump-navigation-5.2.5.js") < native.index("/crump-product-loader.js")
     assert native.index("/crump-library-loader.js") < native.index("/crump-navigation-5.9.30.js")
     assert "/crump-library-5.7.js" not in native
 

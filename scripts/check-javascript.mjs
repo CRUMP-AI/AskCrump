@@ -11,7 +11,7 @@ const expectedFiles = new Set([
   'crump-navigation-5.9.30.js',
   'crump-code-5.9.35.js', 'crump-code-loader.js',
   'credit-confirmation.js',
-  'crump-v1.js', 'crump-v1-body.js', 'crump-v1-stability.js', 'crump-product-5.3.js',
+  'crump-v1.js', 'crump-v1-body.js', 'crump-v1-stability.js', 'crump-product-5.3.js', 'crump-product-loader.js',
   'crump-product-5.3.1.js', 'crump-subscriptions-5.3.2.js', 'crump-polish-5.6.js',
   'crump-library-5.7.js', 'crump-library-loader.js', 'crump-media-save.js',
   'device-auth.js', 'install-prompt.js', 'landing.js', 'mobile-bridge.js', 'native-entry.js',
@@ -959,6 +959,7 @@ const creditConfirmationVersion = `${releaseVersion}-credit-confirmation-1`;
 const settingsSaveIsolationVersion = `${releaseVersion}-settings-save-isolation-1`;
 const outputProjectActionVersion = `${releaseVersion}-output-project-action-1`;
 const studioActionLabelsVersion = `${releaseVersion}-studio-action-labels-1`;
+const productStudioLazyLoadVersion = `${releaseVersion}-product-studio-lazy-load-1`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
 const accountDeletionBillingVersion = `${releaseVersion}-account-deletion-billing-1`;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
@@ -999,6 +1000,7 @@ const requiredBodyFiles = [
   'public/crump-v1-body.js',
   'public/crump-product-5.3.css',
   'public/crump-product-5.3.js',
+  'public/crump-product-loader.js',
   'public/crump-product-5.3.1.css',
   'public/crump-product-5.3.1.js',
   'public/crump-subscriptions-5.3.2.js',
@@ -1190,7 +1192,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${studioActionLabelsVersion}`,
+  `/runtime-body-v1.js?v=${productStudioLazyLoadVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
   `/auth-resilience.js?v=${releaseVersion}`,
@@ -1259,8 +1261,9 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-4.3.js?v=${composerActionabilityVersion}`) ||
     !runtime.includes(`/crump-4.4.js?v=${coreReliabilityVersion}`) ||
     !runtime.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !runtime.includes(`/crump-product-5.3.js?v=${studioActionLabelsVersion}`) ||
-    !runtime.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
+    !runtime.includes(`/crump-product-loader.js?v=${productStudioLazyLoadVersion}`) ||
+    runtime.includes(`/crump-product-5.3.js?v=${studioActionLabelsVersion}`) ||
+    runtime.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
     !runtime.includes(`/crump-product-5.3.1.js?v=${conversationActionLabelsVersion}`) || !runtime.includes('/crump-product-5.3.1.css') ||
     !runtime.includes('/crump-subscriptions-5.3.2.js') ||
     !runtime.includes(`/crump-polish-5.6.js?v=${videoDestinationVersion}`) || !runtime.includes('/crump-polish-5.6.css') ||
@@ -1341,7 +1344,7 @@ await runtimeWindow.CrumpWorkspaceRuntime.load();
 if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
     dispatchedRuntimeEvents.filter(type => type === 'crump:body-runtime-ready').length !== 1 ||
     appendedRuntimeAssets.length !== loadedRuntimeAssetCount ||
-    loadedRuntimeStyles.length !== 18 ||
+    loadedRuntimeStyles.length !== 17 ||
     preloadedRuntimeScripts.length !== 34 ||
     loadedRuntimeScripts.length !== 34 ||
     !loadedRuntimeScripts.every(asset => preloadedRuntimeScripts.includes(asset)) ||
@@ -1415,9 +1418,9 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r234') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r235') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${studioActionLabelsVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${productStudioLazyLoadVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
@@ -1453,9 +1456,10 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r234') ||
     !serviceWorker.includes(`/crump-4.3.js?v=${composerActionabilityVersion}`) ||
     !serviceWorker.includes(`/crump-4.4.js?v=${coreReliabilityVersion}`) ||
     !serviceWorker.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !serviceWorker.includes(`/crump-product-5.3.js?v=${studioActionLabelsVersion}`) ||
+    !serviceWorker.includes(`/crump-product-loader.js?v=${productStudioLazyLoadVersion}`) ||
     !serviceWorker.includes(`/crump-product-5.3.1.js?v=${conversationActionLabelsVersion}`) ||
-    !serviceWorker.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
+    serviceWorker.includes(`/crump-product-5.3.js?v=${studioActionLabelsVersion}`) ||
+    serviceWorker.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${codeLazyLoadVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.css?v=${mobileDrawerDestinationsVersion}`) ||
     !serviceWorker.includes(`/crump-code-loader.js?v=${codeLazyLoadVersion}`) ||
@@ -1486,6 +1490,9 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r234') ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.9.30.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.9.30.css'") ||
     !serviceWorker.includes("url.pathname === '/crump-code-loader.js'") ||
+    !serviceWorker.includes("url.pathname === '/crump-product-loader.js'") ||
+    serviceWorker.includes("url.pathname === '/crump-product-5.3.js'") ||
+    serviceWorker.includes("url.pathname === '/crump-product-5.3.css'") ||
     !serviceWorker.includes(`/billing-manager.js?v=${checkoutSessionRecoveryVersion}`) ||
     !serviceWorker.includes(`/subscription-ui.js?v=${commerceRecoveryVersion}`) ||
     !serviceWorker.includes(`/crump-billing-5.1.css?v=${creditTruthVersion}`) ||
