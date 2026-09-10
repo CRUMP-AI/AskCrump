@@ -48,6 +48,8 @@ def test_parallel_runtime_asset_is_versioned_for_web_pwa_and_native():
 
 def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
     fixture = read("tests/fixtures/workspace-runtime-fetch-plan.html")
+    verifier = read("scripts/verify-workspace-runtime-fetch-plan.cjs")
+    matrix = read("scripts/verify-browser-control-matrix.mjs")
 
     assert "/public/runtime-body-v1.js?v=workspace-fetch-plan-fixture-2" in fixture
     assert 'aria-label="Maximum concurrent styles"' in fixture
@@ -57,5 +59,14 @@ def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
     assert 'aria-label="Simulated runtime milliseconds"' in fixture
     assert 'aria-label="Browser errors"' in fixture
     assert "simulatedFetchMs = 120" in fixture
+    assert '<link rel="icon" href="data:,">' in fixture
     assert "password" not in fixture.lower()
     assert "askcrump.com" not in fixture.lower()
+    assert "verify-workspace-runtime-fetch-plan.cjs" in matrix
+    assert "evidence.styleCount, 21" in verifier
+    assert "evidence.maxStyles, 21" in verifier
+    assert "evidence.preloadCount, 33" in verifier
+    assert "evidence.scriptCount, 33" in verifier
+    assert "evidence.runtimeMs > 0 && evidence.runtimeMs < 1_000" in verifier
+    assert "password" not in verifier.lower()
+    assert "askcrump.com" not in verifier.lower()
