@@ -25,7 +25,6 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-4.3.css', 'crump43'],
     ['/crump-4.4.css', 'crump44'],
     ['/crump-5.0.css?v=5.9.76-precision-edit-entry-1', 'crump50'],
-    ['/crump-precision-image-edit.css?v=5.9.76-precision-studio-1', 'crumpprecisionimage'],
     ['/crump-billing-5.1.css?v=5.9.76-credit-truth-1', 'billing51'],
     ['/crump-5.2.css', 'crump52'],
     ['/crump-5.2.2.css?v=5.9.76-new-response-cue-1', 'crump522'],
@@ -64,8 +63,8 @@ window.CRUMP_CONFIG = Object.freeze({
   const enhancementScripts = Object.freeze([
     ['/crump-4.3.js?v=5.9.76-composer-actionability-1', 'crump43'],
     ['/crump-4.4.js?v=5.9.76-core-reliability-1', 'crump44'],
-    ['/crump-5.0.js?v=5.9.76-composer-mode-reset-1', 'crump50'],
-    ['/crump-precision-image-edit.js?v=5.9.76-precision-studio-1', 'crumpprecisionimage'],
+    ['/crump-5.0.js?v=5.9.76-precision-lazy-load-1', 'crump50'],
+    ['/crump-precision-image-edit-loader.js?v=5.9.76-precision-lazy-load-1', 'crumpprecisionloader'],
     ['/crump-billing-5.1.js?v=5.9.76-credit-checkout-idempotency-1', 'billing51'],
     ['/crump-5.2.js?v=5.9.76-credit-checkout-idempotency-1', 'crump52'],
     ['/crump-5.2.2.js?v=5.9.76-checkout-session-recovery-1', 'crump522'],

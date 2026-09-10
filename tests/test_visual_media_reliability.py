@@ -883,10 +883,12 @@ def test_image_studio_exposes_an_optional_reference_and_honest_fidelity_guidance
 
 def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
     editor = read("public/crump-precision-image-edit.js")
+    loader = read("public/crump-precision-image-edit-loader.js")
     styles = read("public/crump-precision-image-edit.css")
     composer = read("public/crump-5.0.js")
     runtime = read("public/runtime-body-v1.js")
     worker = read("public/sw.js")
+    native = read("scripts/build-native.mjs")
 
     for contract in (
         "Choose exactly what may change",
@@ -998,8 +1000,18 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
     exact_script = "/crump-precision-image-edit.js?v=5.9.76-precision-studio-1"
     exact_style = "/crump-precision-image-edit.css?v=5.9.76-precision-studio-1"
     for asset in (exact_script, exact_style):
-        assert asset in runtime
-        assert asset in worker
+        assert asset in loader
+        assert asset not in runtime
+        assert asset not in worker
+        assert asset not in native
+    exact_loader = "/crump-precision-image-edit-loader.js?v=5.9.76-precision-lazy-load-1"
+    for source in (runtime, worker, native):
+        assert exact_loader in source
+    assert "CrumpPrecisionImageEditLoader?.load" in composer
+    assert "precision.setAttribute('aria-busy', 'true')" in composer
+    assert "Opening…" in composer
+    assert "loadPromise = Promise.all([loadStyle(), loadScript()])" in loader
+    assert "removeIncompleteAssets();" in loader
 
 
 def test_image_studio_close_restores_a_visible_opener_or_the_composer() -> None:

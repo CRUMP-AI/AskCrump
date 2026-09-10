@@ -764,16 +764,24 @@
     return true;
   }
 
-  function openPrecisionImageEdit(file, url, options = {}) {
-    if (window.CrumpPrecisionImageEditor?.open) {
-      void window.CrumpPrecisionImageEditor.open({
-        file,
-        url,
-        onApplied: ({file: savedFile}) => reflectAppliedImage(savedFile, options),
-      }).catch(error => {
-        show(error?.message || 'Precision Edit could not open this image.', 'error');
-      });
-      return;
+  async function openPrecisionImageEdit(file, url, options = {}) {
+    let editor = window.CrumpPrecisionImageEditor;
+    try {
+      if (!editor && window.CrumpPrecisionImageEditLoader?.load) {
+        show('Opening Precision Edit…', 'info');
+        editor = await window.CrumpPrecisionImageEditLoader.load();
+      }
+      if (editor?.open) {
+        await editor.open({
+          file,
+          url,
+          onApplied: ({file: savedFile}) => reflectAppliedImage(savedFile, options),
+        });
+        return true;
+      }
+    } catch (error) {
+      show(error?.message || 'Precision Edit could not open this image. Your original is safe.', 'error');
+      return false;
     }
     state.precisionImageEdit = null;
     addRemoteReference(file, {imageReference: true});
@@ -781,6 +789,7 @@
     renderToolChip();
     focusComposer('Tell Crump what to change…');
     show('Precision selection is still loading. You can describe a full-image edit now.', 'info');
+    return false;
   }
 
   function chooseImageReference({replace = false} = {}) {
@@ -879,9 +888,19 @@
     precision.className = 'crump50-precision-entry';
     precision.disabled = !currentReference?.server?.id;
     precision.innerHTML = '<span aria-hidden="true">✦</span><span><strong>Edit one exact area</strong><small>Zoom in and brush over only the pixels Crump may change</small></span><b>Open</b>';
-    precision.addEventListener('click', () => {
+    precision.addEventListener('click', async () => {
       if (!currentReference?.server?.id) return;
-      openPrecisionImageEdit(currentReference.server, currentReference.previewUrl || currentReference.server.url);
+      const action = precision.querySelector('b');
+      precision.disabled = true;
+      precision.setAttribute('aria-busy', 'true');
+      if (action) action.textContent = 'Opening…';
+      try {
+        await openPrecisionImageEdit(currentReference.server, currentReference.previewUrl || currentReference.server.url);
+      } finally {
+        precision.removeAttribute('aria-busy');
+        if (action) action.textContent = 'Open';
+        if (precision.isConnected) precision.disabled = false;
+      }
     });
 
     const activate = document.createElement('button'); activate.type = 'button'; activate.className = 'crump50-primary-action'; activate.textContent = currentReference ? 'Continue with reference' : 'Create without reference';
@@ -1678,7 +1697,7 @@
           if (!actions) {
             actions = document.createElement('div'); actions.className = 'crump50-image-actions';
             const view = document.createElement('button'); view.type='button'; view.textContent='View'; view.addEventListener('click', () => showLightbox(message.imageFile, message.imageUrl));
-            const edit = document.createElement('button'); edit.type='button'; edit.textContent='Edit area'; edit.setAttribute('aria-label', 'Precision Edit area'); edit.addEventListener('click', () => { state.imageRecovery=null; openPrecisionImageEdit(message.imageFile, message.imageUrl, {messageId: message.id}); });
+            const edit = document.createElement('button'); edit.type='button'; edit.textContent='Edit area'; edit.setAttribute('aria-label', 'Precision Edit area'); edit.addEventListener('click', () => { state.imageRecovery=null; void openPrecisionImageEdit(message.imageFile, message.imageUrl, {messageId: message.id}); });
             const project = document.createElement('button'); project.type='button';
             const download = document.createElement('button'); download.type='button'; download.textContent='Download'; download.addEventListener('click', () => openFile(message.imageFile, true));
             wireOutputProjectAction(project, {

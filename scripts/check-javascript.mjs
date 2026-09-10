@@ -6,7 +6,7 @@ import { createContext, runInContext } from 'node:vm';
 const expectedFiles = new Set([
   'account-manager.js', 'app.js', 'auth-controller.js', 'auth-resilience.js', 'billing-manager.js', 'chat-resilience.js', 'chat-sync.js',
   'crump-4.3.js', 'crump-4.4.js', 'crump-5.0.js', 'crump-billing-5.1.js',
-  'crump-precision-image-edit.js',
+  'crump-precision-image-edit.js', 'crump-precision-image-edit-loader.js',
   'crump-5.2.js', 'crump-5.2.2.js', 'crump-5.2.4.js', 'crump-navigation-5.2.5.js',
   'crump-navigation-5.9.30.js',
   'crump-code-5.9.35.js', 'crump-code-loader.js',
@@ -985,6 +985,7 @@ const videoDestinationVersion = `${releaseVersion}-video-destination-1`;
 const mobileDrawerDestinationsVersion = `${releaseVersion}-mobile-drawer-destinations-1`;
 const destinationBackgroundGuardVersion = `${releaseVersion}-destination-background-guard-1`;
 const codeLazyLoadVersion = `${releaseVersion}-code-lazy-load-1`;
+const precisionLazyLoadVersion = `${releaseVersion}-precision-lazy-load-1`;
 const controlFocusIntegrityVersion = `${releaseVersion}-control-focus-integrity-1`;
 const referralCancelRecoveryVersion = `${releaseVersion}-referral-cancel-recovery-1`;
 const settingsInviteVersion = `${releaseVersion}-settings-invite-1`;
@@ -1007,6 +1008,7 @@ const requiredBodyFiles = [
   'public/crump-navigation-5.9.30.js',
   'public/crump-precision-image-edit.css',
   'public/crump-precision-image-edit.js',
+  'public/crump-precision-image-edit-loader.js',
   'public/credit-confirmation.css',
   'public/credit-confirmation.js',
   'public/crump-code-5.9.35.css',
@@ -1184,7 +1186,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${codeLazyLoadVersion}`,
+  `/runtime-body-v1.js?v=${precisionLazyLoadVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
   `/auth-resilience.js?v=${releaseVersion}`,
@@ -1242,9 +1244,10 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-v1-body.js?v=${controlFocusIntegrityVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${creditTruthVersion}`) ||
     !runtime.includes(`/crump-5.0.css?v=${precisionEditEntryVersion}`) ||
-    !runtime.includes(`/crump-5.0.js?v=${composerModeResetVersion}`) ||
-    !runtime.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
-    !runtime.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
+    !runtime.includes(`/crump-5.0.js?v=${precisionLazyLoadVersion}`) ||
+    !runtime.includes(`/crump-precision-image-edit-loader.js?v=${precisionLazyLoadVersion}`) ||
+    runtime.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
+    runtime.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
     !runtime.includes(`/crump-billing-5.1.js?v=${creditCheckoutIdempotencyVersion}`) ||
     !runtime.includes(`/crump-5.2.js?v=${creditCheckoutIdempotencyVersion}`) ||
     !runtime.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
@@ -1332,7 +1335,7 @@ await runtimeWindow.CrumpWorkspaceRuntime.load();
 if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
     dispatchedRuntimeEvents.filter(type => type === 'crump:body-runtime-ready').length !== 1 ||
     appendedRuntimeAssets.length !== loadedRuntimeAssetCount ||
-    loadedRuntimeStyles.length !== 20 ||
+    loadedRuntimeStyles.length !== 19 ||
     preloadedRuntimeScripts.length !== 33 ||
     loadedRuntimeScripts.length !== 33 ||
     !loadedRuntimeScripts.every(asset => preloadedRuntimeScripts.includes(asset)) ||
@@ -1406,9 +1409,9 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r229') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r230') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${codeLazyLoadVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${precisionLazyLoadVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
@@ -1416,9 +1419,10 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r229') ||
     !serviceWorker.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.css?v=${precisionEditEntryVersion}`) ||
     !serviceWorker.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
-    !serviceWorker.includes(`/crump-5.0.js?v=${composerModeResetVersion}`) ||
-    !serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
-    !serviceWorker.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
+    !serviceWorker.includes(`/crump-5.0.js?v=${precisionLazyLoadVersion}`) ||
+    !serviceWorker.includes(`/crump-precision-image-edit-loader.js?v=${precisionLazyLoadVersion}`) ||
+    serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
+    serviceWorker.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
     !serviceWorker.includes(`/ui-functions.js?v=${outcomeRefinementRecoveryVersion}`) ||
     !serviceWorker.includes(`/app.js?v=${settingsSaveIsolationVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
@@ -1457,8 +1461,9 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r229') ||
     !serviceWorker.includes("url.pathname === '/chat-resilience.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-5.0.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-5.0.css'") ||
-    !serviceWorker.includes("url.pathname === '/crump-precision-image-edit.js'") ||
-    !serviceWorker.includes("url.pathname === '/crump-precision-image-edit.css'") ||
+    !serviceWorker.includes("url.pathname === '/crump-precision-image-edit-loader.js'") ||
+    serviceWorker.includes("url.pathname === '/crump-precision-image-edit.js'") ||
+    serviceWorker.includes("url.pathname === '/crump-precision-image-edit.css'") ||
     !serviceWorker.includes("url.pathname === '/ui-functions.js'") ||
     !serviceWorker.includes("url.pathname === '/lifecycle.css'") ||
     !serviceWorker.includes("url.pathname === '/lifecycle-share.js'") ||
