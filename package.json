@@ -24,6 +24,7 @@
     "store:prepare:ios": "node scripts/prepare-store-release.mjs ios",
     "store:verify:metadata": "node scripts/verify-store-metadata.mjs",
     "store:verify:privacy": "node scripts/verify-native-privacy.mjs source",
+    "store:verify:submission": "node scripts/verify-store-submission-packet.mjs",
     "store:signing:check": "node scripts/verify-mobile-signing.mjs",
     "store:signing:check:android": "node scripts/verify-mobile-signing.mjs --require-android-signing"
   },

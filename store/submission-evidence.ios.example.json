@@ -1,0 +1,34 @@
+{
+  "schema": "ask-crump-store-submission-evidence/v1",
+  "platform": "ios",
+  "appVersion": "5.9.76",
+  "buildNumber": 50976,
+  "observedAt": "REPLACE_WITH_UTC_TIMESTAMP",
+  "artifact": {
+    "file": "REPLACE_WITH_SIGNED_IPA_FILENAME",
+    "sha256": "REPLACE_WITH_SIGNED_ARTIFACT_SHA256"
+  },
+  "screenshots": [
+    {
+      "file": "01-ask.png",
+      "sha256": "REPLACE_WITH_SCREENSHOT_SHA256"
+    }
+  ],
+  "checks": {
+    "accessibilityVerified": false,
+    "accountDeletionVerified": false,
+    "aiReportingVerified": false,
+    "appStoreConnectDeclarationsReconciled": false,
+    "appStoreProductsAndRevenueCatVerified": false,
+    "compiledPrivacyReportReviewed": false,
+    "offlineReconnectVerified": false,
+    "physicalDeviceCoreJourneyVerified": false,
+    "privacyFormsReconciled": false,
+    "purchaseAndRestoreVerified": false,
+    "pushForegroundBackgroundTerminatedVerified": false,
+    "reviewerPathVerified": false,
+    "sessionPersistenceVerified": false,
+    "signedArchiveVerified": false,
+    "storeConsoleScreenshotsAccepted": false
+  }
+}

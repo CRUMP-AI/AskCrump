@@ -41,6 +41,9 @@
 - [x] Apple/Google listing copy, reviewer path, and screenshot sequence match the released Ask,
       Projects, Create, Library, and You information architecture; Research remains inside Ask
 - [ ] Exact signed builds pass the physical-device, billing, privacy, and console gates
+- [x] Final packet has a fail-closed local completeness gate for exact signed artifact hash, fresh
+      device/console evidence, complete screenshots, and untracked reviewer access; it performs no
+      signing, upload, or submission (`docs/STORE_SUBMISSION_PACKET_GATE_2026-09-10.md`)
 
 See `docs/STORE_READINESS_AUDIT_2026-08-27.md` for evidence, blockers, and official references.
 

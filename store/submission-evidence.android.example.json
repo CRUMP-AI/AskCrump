@@ -1,0 +1,46 @@
+{
+  "schema": "ask-crump-store-submission-evidence/v1",
+  "platform": "android",
+  "appVersion": "5.9.76",
+  "buildNumber": 50976,
+  "observedAt": "REPLACE_WITH_UTC_TIMESTAMP",
+  "artifact": {
+    "file": "REPLACE_WITH_SIGNED_AAB_FILENAME",
+    "sha256": "REPLACE_WITH_SIGNED_ARTIFACT_SHA256"
+  },
+  "screenshots": [
+    {
+      "file": "01-ask.png",
+      "sha256": "REPLACE_WITH_SCREENSHOT_SHA256"
+    },
+    {
+      "file": "02-projects.png",
+      "sha256": "REPLACE_WITH_SCREENSHOT_SHA256"
+    },
+    {
+      "file": "03-create.png",
+      "sha256": "REPLACE_WITH_SCREENSHOT_SHA256"
+    },
+    {
+      "file": "04-video.png",
+      "sha256": "REPLACE_WITH_SCREENSHOT_SHA256"
+    }
+  ],
+  "checks": {
+    "accessibilityVerified": false,
+    "accountDeletionVerified": false,
+    "aiReportingVerified": false,
+    "notificationPermissionAndDeliveryVerified": false,
+    "offlineReconnectVerified": false,
+    "physicalDeviceCoreJourneyVerified": false,
+    "playConsoleDeclarationsReconciled": false,
+    "playPreLaunchReportReviewed": false,
+    "playProductsAndRevenueCatVerified": false,
+    "privacyFormsReconciled": false,
+    "purchaseAndRestoreVerified": false,
+    "reviewerPathVerified": false,
+    "sessionPersistenceVerified": false,
+    "signedBundleVerified": false,
+    "storeConsoleScreenshotsAccepted": false
+  }
+}

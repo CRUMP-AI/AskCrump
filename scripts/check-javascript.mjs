@@ -1917,3 +1917,14 @@ console.log(`Validated ${roughToUsefulRuntimeCases}/22 rough-to-useful attributi
 console.log(`Validated ${wordPdfRuntimeCases}/10 Word/PDF attribution runtime cases.`);
 console.log(`Validated ${resumeAuditRuntimeCases}/10 résumé audit attribution runtime cases.`);
 console.log(`Validated ${files.length} JavaScript files.`);
+
+const storeSubmissionGate = spawnSync(
+  process.execPath,
+  [fileURLToPath(new URL('verify-store-submission-packet.mjs', import.meta.url)), '--self-test'],
+  { encoding: 'utf8', shell: false },
+);
+if (storeSubmissionGate.status !== 0) {
+  process.stderr.write(storeSubmissionGate.stderr || storeSubmissionGate.stdout || 'Store submission packet gate self-test failed.\n');
+  process.exit(storeSubmissionGate.status ?? 1);
+}
+process.stdout.write(storeSubmissionGate.stdout);

@@ -149,7 +149,16 @@ Run these on current physical iPhone and Android devices:
 - Complete generative-AI/content questions, age/content ratings, app access, encryption/export compliance, ads, and account-deletion fields.
 - Use `docs/STORE_LISTING_COPY.md` as reviewed draft copy, then upload screenshots captured from the exact release build.
 
-## 8. Every future release
+## 8. Final packet completeness gate
+
+After the exact signed build, physical-device matrix, store products, privacy declarations,
+screenshots, and reviewer access are complete, run the non-publishing packet verifier documented in
+`docs/STORE_SUBMISSION_PACKET_GATE_2026-09-10.md`. It binds the evidence to the exact artifact and
+screenshot hashes and fails on stale, incomplete, placeholder, or unknown fields. Passing it does
+not authorize or perform upload/submission; Greg's explicit platform-specific approval remains the
+last gate.
+
+## 9. Every future release
 
 1. Increment `package.json` version using `major.minor.patch`.
 2. Choose a new `STORE_BUILD_NUMBER` greater than every prior Apple build and Android version code.

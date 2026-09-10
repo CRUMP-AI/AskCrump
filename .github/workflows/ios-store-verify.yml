@@ -24,9 +24,12 @@ on:
       - scripts/verify-native-release.mjs
       - scripts/verify-native-privacy.mjs
       - scripts/verify-store-metadata.mjs
+      - scripts/verify-store-submission-packet.mjs
       - resources/PrivacyInfo.xcprivacy
       - resources/icon.png
       - resources/splash.png
+      - store/submission-evidence.android.example.json
+      - store/submission-evidence.ios.example.json
 
 concurrency:
   group: ios-store-source-${{ github.ref }}

@@ -165,6 +165,13 @@ provider, privacy, cost, or security gate is incomplete.
 
 ## Current decisions and handoff
 
+- **Final native submission integrity:** Ask Crump now has a non-publishing, fail-closed final
+  packet gate for both stores. It binds a fresh fixed-schema device/console checklist and complete
+  screenshot hashes to the exact signed `.ipa` or `.aab`, current version/build identity, and
+  ignored non-placeholder reviewer access. It rejects partial, stale, unknown, or mismatched
+  evidence and cannot sign, upload, or submit. The actual store accounts, products, credentials,
+  signed builds, device checks, screenshots, console declarations, and owner approval remain open.
+  Evidence: `docs/STORE_SUBMISSION_PACKET_GATE_2026-09-10.md`.
 - **Rough-to-useful organic feed attribution:** Production commit `c0d4e93` and migration
   `20260910165757` now accept exactly Facebook organic feed, Instagram organic feed, and the
   previously approved paid Facebook feed for `rough-to-useful-v2`. Story, Reel, profile-link,
