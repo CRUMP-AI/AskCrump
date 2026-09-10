@@ -176,6 +176,57 @@
   font-size: clamp(20px, 2.6vw, 27px);
   line-height: 1.5;
 }
+
+.guide-table-wrap {
+  margin: 28px 0;
+  overflow-x: auto;
+  border: 1px solid rgba(214, 180, 106, .22);
+  border-radius: 18px;
+  background: rgba(15, 20, 25, .72);
+}
+
+.guide-audit-table {
+  width: 100%;
+  min-width: 780px;
+  border-collapse: collapse;
+  color: #d9dddf;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.guide-audit-table th,
+.guide-audit-table td {
+  padding: 16px 18px;
+  text-align: left;
+  vertical-align: top;
+  border-right: 1px solid rgba(255, 255, 255, .07);
+  border-bottom: 1px solid rgba(255, 255, 255, .07);
+}
+
+.guide-audit-table th:last-child,
+.guide-audit-table td:last-child { border-right: 0; }
+.guide-audit-table tbody tr:last-child td { border-bottom: 0; }
+.guide-audit-table th {
+  color: #f1d28b;
+  background: rgba(214, 180, 106, .08);
+  font-size: 12px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.guide-prompt {
+  margin: 24px 0 32px;
+  padding: 24px;
+  overflow-x: auto;
+  border: 1px solid rgba(214, 180, 106, .22);
+  border-radius: 18px;
+  background: #0b0f13;
+  color: #d9dddf;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.7;
+}
 .guide-article .guide-figure { margin: 40px 0 52px; }
 .guide-proof-note,
 .guide-limit-note {

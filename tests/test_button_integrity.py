@@ -334,6 +334,30 @@ def test_every_rendered_button_has_a_form_or_runtime_owner() -> None:
     assert not missing, f"Rendered buttons without a form or runtime owner: {missing}"
 
 
+def test_hash_only_auth_actions_have_explicit_runtime_owners_and_browser_proof() -> None:
+    app = (PUBLIC / "app.html").read_text(encoding="utf-8")
+    auth = (PUBLIC / "auth-controller.js").read_text(encoding="utf-8")
+    verifier = (ROOT / "scripts" / "verify-public-account-entry-buttons.cjs").read_text(
+        encoding="utf-8"
+    )
+    action_ids = re.findall(
+        r'<a\b[^>]*href=["\']#["\'][^>]*\bid=["\']([^"\']+)["\']',
+        app,
+        re.IGNORECASE,
+    )
+
+    assert action_ids == [
+        "showRegisterLink",
+        "showForgotPasswordLink",
+        "showLoginLink",
+        "showLoginFromForgot",
+        "showLoginFromReset",
+    ]
+    for action_id in action_ids:
+        assert f"byId('{action_id}')?.addEventListener('click'" in auth
+        assert f"page.locator('#{action_id}').click()" in verifier
+
+
 def test_button_owner_guard_does_not_accept_markup_self_references() -> None:
     rendered_markup = '<button type="button" id="futureDeadButton">Future action</button>'
     scripts = {"future.js": BUTTON_TAG_PATTERN.sub("", rendered_markup)}
@@ -526,7 +550,7 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     package = (ROOT / "package.json").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
 
-    assert len(verifier_names) == 37
+    assert len(verifier_names) == 38
     for name in verifier_names:
         assert f"'{name}'" in runner
     assert "Browser verifier inventory drifted." in runner

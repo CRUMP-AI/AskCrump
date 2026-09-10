@@ -139,6 +139,15 @@
         'organic-search|workflow-guide|search-article',
       ]),
     },
+    'resume-bullet-truth-audit': {
+      intent: 'resume',
+      acquisitions: new Set(['organic-search']),
+      placements: new Set(['workflow-guide']),
+      creatives: new Set(['search-article']),
+      touchpoints: new Set([
+        'organic-search|workflow-guide|search-article',
+      ]),
+    },
     'creator-cohort-01': {
       intent: 'projects',
       acquisitions: new Set(['founder-outreach']),

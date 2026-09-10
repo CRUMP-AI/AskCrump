@@ -403,3 +403,120 @@ def test_public_word_pdf_guide_runtime_contract_is_organic_only_and_immutable():
         assert label in checker
     assert "Validated ${wordPdfRuntimeCases}/10 Word/PDF attribution runtime cases." in checker
     assert "const attribution = stored ? normalizeAttribution(stored) : candidate" in landing
+
+
+def test_public_resume_bullet_guide_has_exact_search_release_contract():
+    slug = "audit-ai-resume-bullets"
+    page = read(f"public/guides/{slug}.html")
+    canonical = f"https://www.askcrump.com/guides/{slug}"
+    title = "Fact-Check AI Résumé Bullets: A Five-Part Proof Test | Ask Crump"
+    description = (
+        "Audit verbs, scope, metrics, causation, and interview defensibility using a real "
+        "Ask Crump Word-exporter résumé example."
+    )
+
+    assert f"<title>{title}</title>" in page
+    assert f'<meta name="description" content="{description}">' in page
+    assert f'<link rel="canonical" href="{canonical}">' in page
+    assert f'<meta property="og:url" content="{canonical}">' in page
+    assert '<meta property="og:image" content="https://www.askcrump.com/assets/social/ask-crump-resumes.png">' in page
+    assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
+    assert '<meta property="article:published_time" content="2026-09-10">' in page
+    assert '<meta property="article:modified_time" content="2026-09-10">' in page
+    assert '<script defer src="/landing.js?v=5.9.76-resume-bullet-attribution-1"></script>' in page
+    assert '<link rel="stylesheet" href="/guide.css?v=5.9.76-resume-bullet-guide-1">' in page
+    assert page.count("<h1>") == 1
+    assert page.count('class="button primary"') == 1
+    assert (
+        'data-cta="resume-audit-start" data-plan="free" '
+        'href="/app?signup=1&amp;source=resume-audit-start&amp;plan=free&amp;'
+        'intent=resume&amp;acquisition=direct"'
+    ) in page
+    assert page.count("Start free with your verified experience") == 1
+    assert "frozen internal quality fixture" in page
+    assert "No applicant or customer is represented" in page
+    assert "does not claim that a live Ask Crump conversation generated" in page
+    assert "No wording guarantees ranking, recruiter approval, an interview, or a job" in page
+    assert ".docx" in page and "applicant tracking system" in page
+    assert 'class="guide-audit-table"' in page
+    assert page.count("<tbody>") == 1 and page.count("<tr>") == 7
+    assert "checkout" not in page.lower() and "paid plan" not in page.lower()
+    assert "AI VIRTUAL ASSISTANT" not in page
+    assert "FAQPage" not in page and '"@type": "HowTo"' not in page
+
+    structured_block = page.split(
+        '<script type="application/ld+json">', 1
+    )[1].split("</script>", 1)[0]
+    structured = json.loads(structured_block)
+    assert structured["@type"] == "Article"
+    assert structured["description"] == description
+    assert structured["url"] == canonical
+    assert structured["mainEntityOfPage"] == canonical
+    assert structured["author"]["name"] == "Clever Crump"
+    assert structured["datePublished"] == "2026-09-10"
+    assert structured["dateModified"] == "2026-09-10"
+
+
+def test_public_resume_bullet_guide_uses_only_accepted_authentic_assets():
+    expected = {
+        "public/assets/examples/resume-product-operations.png": (
+            "380DEBEDDC271D085BD80D593F01CDF8DA79AAF426CC3E3B3613D90E3AABFDF4",
+            (1275, 1650),
+        ),
+        "public/assets/social/ask-crump-resumes.png": (
+            "9863A385A143FF1C2F30F2464743F466AFC82A73577C438BA4989F60478DC631",
+            (1200, 630),
+        ),
+    }
+    for relative, (expected_hash, expected_dimensions) in expected.items():
+        data = (ROOT / relative).read_bytes()
+        assert data.startswith(b"\x89PNG\r\n\x1a\n")
+        dimensions = (
+            int.from_bytes(data[16:20], "big"),
+            int.from_bytes(data[20:24], "big"),
+        )
+        assert dimensions == expected_dimensions
+        assert hashlib.sha256(data).hexdigest().upper() == expected_hash
+
+
+def test_public_resume_bullet_guide_is_discoverable_once_with_an_honest_inlink():
+    route = "/guides/audit-ai-resume-bullets"
+    sitemap = read("public/sitemap.xml")
+    assert sitemap.count(f"<loc>https://www.askcrump.com{route}</loc>") == 1
+    entry = sitemap.split(f"<loc>https://www.askcrump.com{route}</loc>", 1)[1].split("</url>", 1)[0]
+    assert "<lastmod>2026-09-10</lastmod>" in entry
+    resume_page = read("public/ai-resume-builder.html")
+    assert f'href="{route}">Fact-check AI résumé bullets with the five-part proof test</a>' in resume_page
+    assert "nofollow" not in resume_page.split(f'href="{route}"', 1)[0].split("<a", 1)[-1]
+
+
+def test_public_resume_bullet_guide_runtime_contract_is_organic_only_and_immutable():
+    landing = read("public/landing.js")
+    controller = read("public/auth-controller.js")
+    python = read("backend/product_analytics.py")
+    checker = read("scripts/check-javascript.mjs")
+
+    assert "'/guides/audit-ai-resume-bullets': 'resume'" in landing
+    assert "campaign: 'resume-bullet-truth-audit'" in landing
+    assert "'resume-bullet-truth-audit'" in controller
+    assert '"resume-bullet-truth-audit"' in python
+    for source in (landing, controller, python):
+        assert "resume-bullet-truth-audit-social" not in source
+    for label in (
+        "Résumé audit canonical organic-search guide entry",
+        "Résumé audit second campaign in the same tab",
+    ):
+        assert label in checker
+    assert "Validated ${resumeAuditRuntimeCases}/10 résumé audit attribution runtime cases." in checker
+    assert "const attribution = stored ? normalizeAttribution(stored) : candidate" in landing
+
+
+def test_resume_bullet_guide_has_a_desktop_and_mobile_browser_proof():
+    runner = read("scripts/verify-resume-bullet-guide.cjs")
+    matrix = read("scripts/verify-browser-control-matrix.mjs")
+
+    assert "{width: 390, height: 844}" in runner
+    assert "{width: 1440, height: 1000}" in runner
+    assert "expected one primary CTA" in runner
+    assert "authentic résumé evidence count drifted" in runner
+    assert "verify-resume-bullet-guide.cjs" in matrix

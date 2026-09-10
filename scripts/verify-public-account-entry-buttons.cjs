@@ -78,10 +78,26 @@ function pageErrors(page) {
     assert(await page.locator('#registrationSubmitBtn').textContent() === 'Create account & review Professional', 'paid plan remains unclear before account creation');
     assert(await page.locator('#registerEmail').evaluate(node => node === document.activeElement), 'Video registration does not focus the email field');
 
+    await page.locator('#showLoginLink').click();
+    assert(await page.locator('#loginForm').isVisible(), 'registration Sign in link does not open login');
+    await page.locator('#showRegisterLink').click();
+    assert(await page.locator('#registerForm').isVisible(), 'login Create account link does not open registration');
+    await page.locator('#showLoginLink').click();
+    await page.locator('#showForgotPasswordLink').click();
+    assert(await page.locator('#forgotPasswordForm').isVisible(), 'Forgot password link does not open recovery');
+    await page.locator('#showLoginFromForgot').click();
+    assert(await page.locator('#loginForm').isVisible(), 'recovery Sign in link does not return to login');
+
+    await page.goto(`${baseUrl}/app.html?token=button-proof`, { waitUntil: 'networkidle' });
+    assert(await page.locator('#resetPasswordForm').isVisible(), 'reset token does not open the reset form');
+    await page.locator('#showLoginFromReset').click();
+    assert(await page.locator('#loginForm').isVisible(), 'reset Back to sign in link does not return to login');
+    assert(!(new URL(page.url())).searchParams.has('token'), 'reset Back to sign in leaves the reset token in the URL');
+
     const bodyWidth = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     assert(bodyWidth <= 1, `Video registration overflows the phone viewport by ${bodyWidth}px`);
     assert(errors.length === 0, `browser errors: ${errors.join(' | ')}`);
-    console.log('Public account-entry button proof passed: five creation surfaces preserve their destination, and the homepage Video action opens the exact Video + Professional handoff on phone width.');
+    console.log('Public account-entry button proof passed: five creation surfaces preserve their destination, the homepage Video action opens the exact Video + Professional handoff, and all five auth navigation actions work on phone width.');
   } finally {
     await browser.close();
   }

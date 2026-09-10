@@ -37,6 +37,7 @@ const expectedVerifiers = Object.freeze([
   'verify-project-output-action.cjs',
   'verify-project-save-activation.cjs',
   'verify-public-account-entry-buttons.cjs',
+  'verify-resume-bullet-guide.cjs',
   'verify-runtime-update-auth-guard.cjs',
   'verify-search-guide-start-paths.cjs',
   'verify-settings-profile-trust.cjs',

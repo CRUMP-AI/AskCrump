@@ -157,6 +157,15 @@ ATTRIBUTION_CAMPAIGNS = {
             ("organic-search", "workflow-guide", "search-article"),
         }),
     },
+    "resume-bullet-truth-audit": {
+        "intent": "resume",
+        "acquisitions": frozenset({"organic-search"}),
+        "placements": frozenset({"workflow-guide"}),
+        "creatives": frozenset({"search-article"}),
+        "touchpoints": frozenset({
+            ("organic-search", "workflow-guide", "search-article"),
+        }),
+    },
     "creator-cohort-01": {
         "intent": "projects",
         "acquisitions": frozenset({"founder-outreach"}),

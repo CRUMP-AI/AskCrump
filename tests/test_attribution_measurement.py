@@ -22,7 +22,7 @@ MIGRATION = ROOT / "migrations" / "20260830171056_weekly_growth_attribution_expo
 REGISTRY_MIGRATION = (
     ROOT
     / "migrations"
-    / "20260910141831_release_word_pdf_search_attribution.sql"
+    / "20260910155004_release_resume_bullet_search_attribution.sql"
 )
 NULL_SAFETY_MIGRATION = (
     ROOT
@@ -83,6 +83,12 @@ EXPECTED_REGISTRY = {
         "placements": {"workflow-guide"},
         "creatives": {"search-article"},
     },
+    "resume-bullet-truth-audit": {
+        "intent": "resume",
+        "acquisitions": {"organic-search"},
+        "placements": {"workflow-guide"},
+        "creatives": {"search-article"},
+    },
     "creator-cohort-01": {
         "intent": "projects",
         "acquisitions": {"founder-outreach"},
@@ -102,6 +108,9 @@ EXPECTED_EXACT_TOUCHPOINTS = {
         ("paid-social", "facebook-paid", "rough-to-useful-current-feed"),
     },
     "word-or-pdf-decision": {
+        ("organic-search", "workflow-guide", "search-article"),
+    },
+    "resume-bullet-truth-audit": {
         ("organic-search", "workflow-guide", "search-article"),
     },
 }

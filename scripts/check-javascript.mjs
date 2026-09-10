@@ -771,6 +771,132 @@ if (wordPdfRuntimeCases !== 10) {
   process.exit(1);
 }
 
+const resumeAuditSearchTouch = {
+  acquisition: 'organic-search',
+  placement: 'workflow-guide',
+  campaign: 'resume-bullet-truth-audit',
+  creative: 'search-article',
+  intent: 'resume',
+};
+let resumeAuditRuntimeCases = 0;
+const resumeAuditDirectStore = new Map();
+const resumeAuditDirect = runLandingAttribution(
+  'https://askcrump.com/guides/audit-ai-resume-bullets',
+  resumeAuditDirectStore,
+  '/app?signup=1&source=resume-audit-start&plan=free&intent=resume&acquisition=direct',
+  '',
+  {click: false},
+);
+assertAttribution(storedAttribution(resumeAuditDirectStore), {
+  acquisition: 'direct',
+  placement: null,
+  campaign: null,
+  creative: null,
+  intent: 'resume',
+}, 'Résumé audit direct guide entry');
+assertNoMarketingLanding(resumeAuditDirect, 'Résumé audit direct guide entry');
+const resumeAuditDirectDestination = new URL(resumeAuditDirect.link.href, 'https://askcrump.com');
+if (resumeAuditDirectDestination.pathname !== '/app' ||
+    resumeAuditDirectDestination.searchParams.get('signup') !== '1' ||
+    resumeAuditDirectDestination.searchParams.get('plan') !== 'free' ||
+    resumeAuditDirectDestination.searchParams.get('source') !== 'resume-audit-start' ||
+    resumeAuditDirectDestination.searchParams.get('intent') !== 'resume' ||
+    resumeAuditDirectDestination.searchParams.get('acquisition') !== 'direct' ||
+    resumeAuditDirectDestination.searchParams.has('campaign') ||
+    resumeAuditDirectDestination.searchParams.has('creative')) {
+  console.error('Résumé audit direct CTA did not remain campaign-free.');
+  process.exit(1);
+}
+resumeAuditRuntimeCases += 1;
+
+const resumeAuditSearchStore = new Map();
+const resumeAuditSearch = runLandingAttribution(
+  'https://askcrump.com/guides/audit-ai-resume-bullets',
+  resumeAuditSearchStore,
+  '/app?signup=1&source=resume-audit-start&plan=free&intent=resume&acquisition=direct',
+  'https://www.google.com/search?q=fact+check+ai+resume+bullets',
+  {click: false},
+);
+assertAttribution(storedAttribution(resumeAuditSearchStore), resumeAuditSearchTouch, 'Résumé audit canonical organic-search guide entry');
+assertMarketingLanding(resumeAuditSearch, {
+  touchpoint: 'organic-search.workflow-guide.resume-bullet-truth-audit.search-article',
+  intent: 'resume',
+}, 'Résumé audit canonical organic-search guide entry');
+const resumeAuditGuideDestination = new URL(resumeAuditSearch.link.href, 'https://askcrump.com');
+if (resumeAuditGuideDestination.pathname !== '/app' ||
+    resumeAuditGuideDestination.searchParams.get('signup') !== '1' ||
+    resumeAuditGuideDestination.searchParams.get('plan') !== 'free' ||
+    resumeAuditGuideDestination.searchParams.get('acquisition') !== 'organic-search' ||
+    resumeAuditGuideDestination.searchParams.get('source') !== 'workflow-guide' ||
+    resumeAuditGuideDestination.searchParams.get('campaign') !== 'resume-bullet-truth-audit' ||
+    resumeAuditGuideDestination.searchParams.get('creative') !== 'search-article' ||
+    resumeAuditGuideDestination.searchParams.get('intent') !== 'resume') {
+  console.error('Résumé audit guide CTA did not preserve the exact search tuple.');
+  process.exit(1);
+}
+resumeAuditRuntimeCases += 1;
+
+for (const [label, url, expected] of [
+  [
+    'Résumé audit Facebook rejection',
+    'https://askcrump.com/guides/audit-ai-resume-bullets?acquisition=facebook&source=workflow-guide&campaign=resume-bullet-truth-audit&creative=search-article&intent=resume',
+    {acquisition: 'facebook', placement: 'workflow-guide', campaign: null, creative: null, intent: 'resume'},
+  ],
+  [
+    'Résumé audit organic-social rejection',
+    'https://askcrump.com/guides/audit-ai-resume-bullets?acquisition=organic-search&source=organic-social&campaign=resume-bullet-truth-audit&creative=search-article&intent=resume',
+    {acquisition: 'organic-search', placement: 'organic-social', campaign: null, creative: null, intent: 'resume'},
+  ],
+  [
+    'Résumé audit social-campaign rejection',
+    'https://askcrump.com/guides/audit-ai-resume-bullets?acquisition=organic-search&source=workflow-guide&campaign=resume-bullet-truth-audit-social&creative=search-article&intent=resume',
+    {acquisition: 'organic-search', placement: 'workflow-guide', campaign: null, creative: null, intent: 'resume'},
+  ],
+  [
+    'Résumé audit wrong-creative rejection',
+    'https://askcrump.com/guides/audit-ai-resume-bullets?acquisition=organic-search&source=workflow-guide&campaign=resume-bullet-truth-audit&creative=resume-feed&intent=resume',
+    {acquisition: 'organic-search', placement: 'workflow-guide', campaign: null, creative: null, intent: 'resume'},
+  ],
+  [
+    'Résumé audit wrong-intent rejection',
+    'https://askcrump.com/guides/audit-ai-resume-bullets?acquisition=organic-search&source=workflow-guide&campaign=resume-bullet-truth-audit&creative=search-article&intent=document',
+    {acquisition: 'organic-search', placement: 'workflow-guide', campaign: null, creative: null, intent: 'document'},
+  ],
+]) {
+  const rejectedStore = new Map();
+  const rejected = runLandingAttribution(url, rejectedStore, '/app?signup=1&intent=resume', '', {click: false});
+  assertAttribution(storedAttribution(rejectedStore), expected, label);
+  assertNoMarketingLanding(rejected, label);
+  resumeAuditRuntimeCases += 1;
+}
+
+runLandingAttribution(
+  'https://askcrump.com/guides/word-or-pdf-ai-document-output?acquisition=organic-search&source=workflow-guide&campaign=word-or-pdf-decision&creative=search-article&intent=document',
+  resumeAuditSearchStore,
+  '/app?signup=1&intent=document',
+  '',
+  {click: false},
+);
+assertAttribution(storedAttribution(resumeAuditSearchStore), resumeAuditSearchTouch, 'Résumé audit second campaign in the same tab');
+resumeAuditRuntimeCases += 1;
+runLandingAttribution('https://askcrump.com/app?verified=1', resumeAuditSearchStore, '/app', '', {click: false});
+assertAttribution(storedAttribution(resumeAuditSearchStore), resumeAuditSearchTouch, 'Résumé audit verification return');
+resumeAuditRuntimeCases += 1;
+runLandingAttribution(
+  'https://askcrump.com/app?signin=1&acquisition=organic-search&source=workflow-guide&campaign=resume-bullet-truth-audit&creative=search-article&intent=resume',
+  resumeAuditSearchStore,
+  '/app',
+  '',
+  {click: false},
+);
+assertAttribution(storedAttribution(resumeAuditSearchStore), resumeAuditSearchTouch, 'Résumé audit existing-account sign-in');
+resumeAuditRuntimeCases += 1;
+
+if (resumeAuditRuntimeCases !== 10) {
+  console.error(`Expected ten résumé audit attribution runtime cases, got ${resumeAuditRuntimeCases}.`);
+  process.exit(1);
+}
+
 const immutableStore = new Map();
 runLandingAttribution(
   'https://askcrump.com/ai-presentation-maker?acquisition=instagram&source=profile-link&campaign=presentation-proof-current',
@@ -946,6 +1072,7 @@ const speedInsightPages = [
   ['public/guides/rough-idea-six-week-launch-plan.html', '/guides/rough-idea-six-week-launch-plan'],
   ['public/guides/what-ai-project-should-remember.html', '/guides/what-ai-project-should-remember'],
   ['public/guides/editable-ai-powerpoint-review.html', '/guides/editable-ai-powerpoint-review'],
+  ['public/guides/audit-ai-resume-bullets.html', '/guides/audit-ai-resume-bullets'],
   ['public/app.html', '/app'],
   ['public/clever-crump.html', '/clever-crump'],
 ];
@@ -1770,4 +1897,5 @@ if (!scroll522.includes("card.removeAttribute('role')") ||
 console.log('Ask Crump V1 new-body integration contract validated.');
 console.log(`Validated ${roughToUsefulRuntimeCases}/21 rough-to-useful attribution runtime cases.`);
 console.log(`Validated ${wordPdfRuntimeCases}/10 Word/PDF attribution runtime cases.`);
+console.log(`Validated ${resumeAuditRuntimeCases}/10 résumé audit attribution runtime cases.`);
 console.log(`Validated ${files.length} JavaScript files.`);
