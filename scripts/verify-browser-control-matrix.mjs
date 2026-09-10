@@ -1,9 +1,13 @@
 import {spawn} from 'node:child_process';
+import {existsSync} from 'node:fs';
 import {readdir} from 'node:fs/promises';
+import {createRequire} from 'node:module';
 import {connect} from 'node:net';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 
+const require = createRequire(import.meta.url);
+const {chromium} = require('playwright');
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const scriptsDirectory = path.join(root, 'scripts');
 const publicDirectory = path.join(root, 'public');
@@ -175,18 +179,19 @@ const discovered = (await readdir(scriptsDirectory))
   .filter(name => /^verify-.*\.cjs$/i.test(name));
 assertExactInventory(discovered);
 
-const browserExecutable = process.env.ASKCRUMP_BROWSER_EXECUTABLE
+const requestedBrowserExecutable = process.env.ASKCRUMP_BROWSER_EXECUTABLE
   || process.env.ASK_CRUMP_BROWSER_PATH
   || process.env.CODEX_BROWSER_EXECUTABLE
   || '';
+const browserExecutable = requestedBrowserExecutable && existsSync(requestedBrowserExecutable)
+  ? requestedBrowserExecutable
+  : chromium.executablePath();
 const environment = {
   ...process.env,
   ASKCRUMP_PLAN_DELAY_RUNS: process.env.ASKCRUMP_PLAN_DELAY_RUNS || '1',
-  ...(browserExecutable ? {
-    ASKCRUMP_BROWSER_EXECUTABLE: browserExecutable,
-    ASK_CRUMP_BROWSER_PATH: browserExecutable,
-    CODEX_BROWSER_EXECUTABLE: browserExecutable,
-  } : {}),
+  ASKCRUMP_BROWSER_EXECUTABLE: browserExecutable,
+  ASK_CRUMP_BROWSER_PATH: browserExecutable,
+  CODEX_BROWSER_EXECUTABLE: browserExecutable,
 };
 
 let servers = [];

@@ -8,7 +8,9 @@ Scope: authenticated web/PWA controls and the credential-free browser fixture ma
 Ask Crump's complete browser-control matrix is now a required CI step instead of an optional local
 command. A change cannot pass the JavaScript job if any of the 38 exact browser flows fails.
 Playwright is pinned in the development dependency lock, and CI installs the matching Chromium
-runtime before exercising the matrix.
+runtime before exercising the matrix. The runner accepts an explicit browser only when that
+executable exists on the current host; otherwise it uses Playwright's installed Chromium, so a
+stale Windows browser path cannot break the Linux release gate.
 
 The existing fail-closed source guard separately inventories every shipped button construction
 site: 182 rendered buttons plus 94 programmatically created buttons, for 276 total. Every markup
