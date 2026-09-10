@@ -165,6 +165,16 @@ provider, privacy, cost, or security gate is incomplete.
 
 ## Current decisions and handoff
 
+- **Button integrity and résumé truth-audit:** Production commit `9ea418f`
+  inventory-locks all 276 current rendered/programmatic button sites, adds
+  separate real-browser proof for all five link-styled authentication actions,
+  and passes the fail-closed 38-flow desktop/mobile matrix. Destructive,
+  billable, and provider-spend outcomes remain isolated to safe confirmation,
+  cancel, and recovery fixtures. The same release publishes the authentic,
+  direct-safe résumé-bullet proof guide with one tightly allowlisted organic
+  attribution tuple. No dead control was found; the next product decision must
+  come from legitimate observed behavior rather than adding redundant buttons.
+  Evidence: `docs/RESUME_TRUTH_AUDIT_AND_BUTTON_PROOF_RELEASE_2026-09-10.md`.
 - **Image Studio reliability and differentiation:** Production commit `f8feca8` closes the remaining
   rejected-reference loop. Regular and precision edit inputs are normalized and bounded before
   provider spend; malformed or oversized references preserve the prompt and refunded usage while
