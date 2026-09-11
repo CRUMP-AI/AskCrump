@@ -43,7 +43,7 @@
   },
   "devDependencies": {
     "@capacitor/android": "8.4.2",
-    "@capacitor/cli": "8.4.2",
+    "@capacitor/cli": "8.5.1",
     "@capacitor/ios": "8.4.2",
     "esbuild": "0.25.0",
     "playwright": "1.62.1",
