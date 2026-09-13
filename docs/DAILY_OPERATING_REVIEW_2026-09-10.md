@@ -78,6 +78,30 @@ resume implementation when a reproducible failure or legitimate measured
 journey provides a concrete drop-off. Qualified acquisition and the separately
 authorized sanitized-demo journey remain the next evidence-producing actions.
 
+### Workspace control reliability follow-up — 2026-09-13 17:43 UTC
+
+A source audit found that the authenticated loader resolved stylesheet and
+script error events as if the required file had loaded. That could produce a
+partial workspace with missing control owners while still declaring the app
+ready. Production commit `8595a44` now retries each failed asset once, fails
+closed after a second failure, preserves sign-in with a clear reload message,
+and permits a later recovery attempt without repeating successful styles.
+
+The deterministic browser proof covered normal load, a transient style failure,
+a transient script failure, a persistent failure with zero ready events and zero
+workspace script execution, and later recovery. The complete release passed all
+1,003 Python tests, 54 JavaScript validations, and 45/45 browser-control
+verifiers. CI `34772071740`, Android `34772071737`, and iOS `34772071742` are
+green; Vercel deployment `dpl_GNSqduDXjmh8LsnhWoPxHPQTauNr` is Ready; four live
+release files match committed SHA-256 bytes; and `/api/health` returned 200.
+
+Signed-in production replay opened Chats, Projects, Files, a file preview above
+Files, Video Studio, Library, Create, account Settings, and Intelligence, then
+closed the tested layers without changing user data or triggering a provider,
+download, payment, deletion, or other gated action. This closes the reproducible
+loader/control risk. Continue to let legitimate journeys or a new reproducible
+defect—not speculative interface expansion—choose the next product mutation.
+
 ## Product and journey evidence
 
 The current database reconciliation reports:

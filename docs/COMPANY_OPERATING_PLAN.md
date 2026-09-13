@@ -1,6 +1,6 @@
 # Ask Crump company operating plan
 
-Last updated: 2026-09-10
+Last updated: 2026-09-13
 Owner and final authority: Greg Crump
 
 Current monthly decision record: `docs/COMPANY_OPERATIONS_AND_MONTHLY_STRATEGY_REVIEW_2026-09-01.md`.
@@ -74,6 +74,13 @@ next constraint.
 
 ### Product and reliability
 
+- Keep the 5.9.76 authenticated workspace fail-closed: retry a required interface
+  asset once, never mark a partial workspace ready, preserve successful assets,
+  and allow a later recovery attempt without signing the person out. The full
+  45-journey browser gate and signed-in production replay cover the visible
+  Chats, Projects, Files, preview, Video, Library, Create, Settings, and
+  Intelligence paths. Treat this as deterministic control evidence, not proof
+  against every future network, device, provider, or physical-touch failure.
 - Keep conversational document delivery, the 5.9.58 presentation visual-rhythm correction, and
   the 5.9.60 through 5.9.64 navigation/destination repairs under production observation.
 - Observe the first legitimate 5.9.58 presentation through request, packaging, download, and a
@@ -165,6 +172,18 @@ provider, privacy, cost, or security gate is incomplete.
 
 ## Current decisions and handoff
 
+- **Workspace control loading integrity:** Production commit `8595a44` no longer
+  treats a missing required stylesheet or script as success. Each asset retries
+  once; a second failure leaves the workspace closed, preserves sign-in, exposes
+  a clear reload path, and can recover on a later attempt without reloading
+  successful styles. All 1,003 Python tests, 54 JavaScript validations, and 45
+  browser-control journeys passed; CI `34772071740`, Android `34772071737`, and
+  iOS `34772071742` are green; deployment
+  `dpl_GNSqduDXjmh8LsnhWoPxHPQTauNr` is Ready. Four live release files match
+  committed SHA-256 bytes, `/api/health` is 200, and signed-in production replay
+  opened Chats, Projects, Files, preview, Video, Library, Create, Settings, and
+  Intelligence without mutating user state. Evidence:
+  `docs/WORKSPACE_RUNTIME_RECOVERY_RELEASE_2026-09-13.md`.
 - **Final native submission integrity:** Ask Crump now has a non-publishing, fail-closed final
   packet gate for both stores. It binds a fresh fixed-schema device/console checklist and complete
   screenshot hashes to the exact signed `.ipa` or `.aab`, current version/build identity, and
