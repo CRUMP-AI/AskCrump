@@ -3,6 +3,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATION = ROOT / "migrations" / "20260908134343_durable_growth_measurement.sql"
+PROFILE_METRIC_MIGRATION = (
+    ROOT / "migrations" / "20260913192512_clarify_optional_profile_growth_metric.sql"
+)
 
 
 def normalized_sql() -> str:
@@ -108,3 +111,18 @@ def test_retention_denominators_are_anchored_to_effective_activation():
     assert sql.count("= (d.activation_at at time zone 'utc')::date + 7") == 1
     assert sql.count("= (f.activation_at at time zone 'utc')::date + 1") == 1
     assert sql.count("= (f.activation_at at time zone 'utc')::date + 7") == 1
+
+
+def test_optional_profile_is_not_labeled_as_required_onboarding():
+    sql = " ".join(
+        PROFILE_METRIC_MIGRATION.read_text(encoding="utf-8").lower().split()
+    )
+
+    assert "pg_get_functiondef" in sql
+    assert "v_old_count <> 1" in sql
+    assert "unexpected product growth metric definition" in sql
+    assert "execute replace(" in sql
+    assert "onboarding_completed" in sql
+    assert "optional_profile_completed" in sql
+    assert "stage 4 is optional profile-name completion" in sql
+    assert "not required onboarding or activation" in sql

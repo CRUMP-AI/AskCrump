@@ -28,7 +28,7 @@ deleted accounts and does not inspect customer content.
 | --- | ---: | --- |
 | External registered accounts | 4 | Too small for statistical conclusions |
 | Verified external accounts | 3 | The first comparable September account is verified |
-| External profiles completed | 3 of 4 | The new comparable account has not recorded onboarding completion |
+| Optional profiles completed | 3 of 4 | The new comparable account has not supplied a display name; this is not required onboarding |
 | External accounts with successful AI jobs | 3 of 4 | The new comparable account completed three real chat jobs |
 | Completed external AI jobs | 17 of 17 | No failed external AI jobs are present in the aggregate |
 | Active Professional accounts | 0 | No current subscription revenue in the account aggregate |

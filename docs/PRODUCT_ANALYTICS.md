@@ -64,7 +64,7 @@ snapshot.
 | Event | Authority | Meaning |
 | --- | --- | --- |
 | `AccountCreated` | Server | A new account row was created. |
-| `OnboardingCompleted` | Server | The account supplied its initial display name. |
+| `OnboardingCompleted` | Server | The account supplied its initial optional display name. The event name is retained for compatibility; the current growth snapshot reports this as `optional_profile_completed`, not as required onboarding or activation. |
 | `WorkspaceOpened` | Authenticated client | The workspace opened; at most one row per UTC day. |
 | `StarterIntentReached` | Authenticated client | The account selected its first task category from the launchpad. Only one allowlisted category such as `research`, `file`, or `projects` is stored in `source`; no prompt or content is stored. |
 | `ProjectSaveIntentReached` | Authenticated client | The user selected the one-click result-to-Project action. The server accepts only the fixed `project-save-intent` key and `new_project` or `existing_project` source; plan and customer content are forbidden. |
@@ -156,7 +156,7 @@ account-creation window bounded by the first observed production event. It retur
 eligible populations, and conversion rates for:
 
 - accounts created and matching `AccountCreated` event coverage;
-- current verification and onboarding;
+- current verification and optional profile-name completion;
 - workspace use, first launchpad intent, activation, durable value, and recent-work continuation;
 - explicit useful-result and needs-work feedback among activated accounts;
 - response sharing, plan intent, Checkout open/completion, and current paid status;

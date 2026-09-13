@@ -709,7 +709,10 @@ chat jobs without failure. It has no Project-save intent, Project, file, artifac
 rating, checkout, or paid state. At the 2026-09-13 18:51 UTC refresh its full 24-hour value window
 had not elapsed, so activation-within-24-hours, durable-value-within-24-hours, D1, and D7 eligible
 denominators all remained zero. Across all four external accounts, three have completed 17
-successful AI jobs and none has a Project or retained file.
+successful AI jobs and none has a Project or retained file. Migration `20260913192512` corrects the
+misleading stage-four growth label from required-sounding `onboarding_completed` to
+`optional_profile_completed`: the first comparable account's missing display name is optional
+personalization, not failed onboarding, because verified workspace entry and activation succeeded.
 
 **Outcome:** observe a new, legitimate post-instrumentation cohort complete verification, start
 useful work, keep it in a private Project or file, and return. Use moderated sessions to identify

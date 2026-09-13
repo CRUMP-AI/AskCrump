@@ -227,6 +227,13 @@ finance export is available.
 | P1 | Reconcile first payer end to end | Checkout, entitlement/credits, Stripe receipt, refund state, and variable cost agree |
 | P2 | Advance Crump Code/private voice only behind existing gates | Sandbox, cancellation, monitoring, policy, cost, disclosure, and benchmark evidence |
 
+The 2026-09-13 protected cohort refresh also exposed a reporting-semantic defect: the first
+comparable account activated and completed three chat jobs without supplying the intentionally
+optional display name, while stage 4 was labeled `onboarding_completed`. Migration
+`20260913192512` now reports `optional_profile_completed` instead. No event, count, denominator, or
+user flow changed; the correction prevents a valid activation from being misdiagnosed as failed
+onboarding. Evidence: `docs/OPTIONAL_PROFILE_GROWTH_METRIC_RELEASE_2026-09-13.md`.
+
 ## Actions and non-actions
 
 - Closed the remaining vague-action gap across Projects, Files, Manuscripts,
