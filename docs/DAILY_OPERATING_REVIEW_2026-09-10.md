@@ -124,6 +124,24 @@ Preserve the current product through this account's 24-hour value window. The
 full content-free evidence is recorded in
 `docs/FIRST_COMPARABLE_ACCOUNT_OBSERVATION_2026-09-13.md`.
 
+### Database read recovery follow-up — 2026-09-13 18:09 UTC
+
+The observed scheduler timeout pattern now has a bounded production repair.
+Commit `76a0b20` adds one final three-second backoff to safe database reads,
+extending the recovery window from 2.5 to 5.5 seconds. Non-idempotent writes
+still run once, and the change does not replay a whole notification, manuscript,
+Code, provider, or payment workflow.
+
+A deterministic HTTP 504 fixture proves four failed reads followed by success on
+the fifth with the exact retry headers and delays. Transport exhaustion remains
+content-free and retryable, while the existing write fixture proves no retry.
+Focused coverage passed 34/34; the complete suite passed 1,004/1,004; 54
+JavaScript checks, Ruff, compilation, production preflight, and the client-secret
+boundary passed. CI `34773670836` is green, deployment
+`dpl_NKR33UX1Kznp2WbYXGUmi1nmHN3W` is Ready, production health returned 200, and
+the initial 15-minute deployment window contained no runtime error or severe
+log. Evidence: `docs/DATABASE_READ_RECOVERY_RELEASE_2026-09-13.md`.
+
 ## Product and journey evidence
 
 The current database reconciliation reports:

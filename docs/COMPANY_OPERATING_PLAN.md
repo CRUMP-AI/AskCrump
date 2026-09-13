@@ -79,6 +79,13 @@ next constraint.
 
 ### Product and reliability
 
+- Keep safe database reads on the 5.5-second bounded recovery window released
+  in commit `76a0b20`: a fifth attempt may recover a transient gateway timeout,
+  while non-idempotent writes still run once and scheduler/provider work is
+  never replayed wholesale. Production deployment
+  `dpl_NKR33UX1Kznp2WbYXGUmi1nmHN3W` is Ready, CI `34773670836` is green, and
+  the initial release window is clean. Continue observing the real scheduled
+  routes before widening retries again.
 - Keep the 5.9.76 authenticated workspace fail-closed: retry a required interface
   asset once, never mark a partial workspace ready, preserve successful assets,
   and allow a later recovery attempt without signing the person out. The full
