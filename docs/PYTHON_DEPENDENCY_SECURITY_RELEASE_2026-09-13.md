@@ -1,4 +1,4 @@
-# Python dependency security release — 2026-09-13
+# Application dependency security release — 2026-09-13
 
 ## Outcome
 
@@ -17,6 +17,13 @@ production requirements now return `No known vulnerabilities found` from
 pip-audit 2.10.1. CI installs the same pinned audit tool and evaluates
 `requirements.txt` on every main-branch push and pull request, so a later
 dependency regression fails the release pipeline.
+
+The exact committed npm lockfile was also audited with the registry-published,
+integrity-verified npm 12.0.2 client. Both the complete dependency tree and the
+production-only tree reported zero informational, low, moderate, high, or
+critical vulnerabilities. CI now runs an explicit lockfile audit at the
+moderate threshold after deterministic installation; the existing `--no-audit`
+install flag remains only to avoid duplicating the scan during installation.
 
 FastAPI's current package metadata supports Starlette 1.x. Starlette 1.3.1 was
 selected as the conservative fixed boundary because it enforces form field and
@@ -44,6 +51,8 @@ inventory rather than weakening or deleting the checks.
   environment.
 - The exact revised `requirements.txt` passed pip-audit 2.10.1 with no known
   vulnerabilities.
+- The complete and production-only npm lockfile audits each reported zero
+  vulnerabilities at every severity.
 - JavaScript validation passed 54/54.
 - Ruff, production preflight, native-web bundling, and the client-credential
   boundary passed.
