@@ -5,6 +5,12 @@ from functools import lru_cache
 import os
 
 
+# Crump Code cannot be exposed by an environment-variable mistake. This source
+# lock stays false until the live Sandbox, OIDC, destruction, cancellation,
+# refund, monitoring, rollback, quality, and cost gates have a reviewed release.
+CODE_WORKSPACE_PUBLIC_RELEASED = False
+
+
 def _csv(value: str | None, default: tuple[str, ...] = ()) -> tuple[str, ...]:
     if not value:
         return default
@@ -251,9 +257,12 @@ def get_settings() -> Settings:
         # explicitly set this false as an emergency cost/safety switch.
         video_generation_enabled=_bool(os.getenv('CRUMP_ENABLE_VIDEO_GENERATION'), True),
         manuscript_generation_enabled=_bool(os.getenv('CRUMP_ENABLE_MANUSCRIPTS'), True),
-        # Crump Code is an explicit release gate because each run combines a
-        # paid coding model with isolated Vercel Sandbox compute.
-        code_workspace_enabled=_bool(os.getenv('CRUMP_ENABLE_CODE_WORKSPACE'), False),
+        # Crump Code requires both the operator switch and a reviewed source
+        # release because each run combines a paid model with isolated compute.
+        code_workspace_enabled=(
+            CODE_WORKSPACE_PUBLIC_RELEASED
+            and _bool(os.getenv('CRUMP_ENABLE_CODE_WORKSPACE'), False)
+        ),
         # Prepared monetization experiment. Keep dormant unless an operator
         # deliberately enables the server path after every release gate passes.
         project_limit_plan_experiment_enabled=_bool(

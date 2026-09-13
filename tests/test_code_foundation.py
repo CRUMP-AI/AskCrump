@@ -365,5 +365,35 @@ def test_crump_code_is_professional_and_cost_guarded():
     assert '"professional"' in policy
     assert '12,' in policy
     assert "code_workspace_enabled" in config
+    assert "CODE_WORKSPACE_PUBLIC_RELEASED = False" in config
+    assert "CODE_WORKSPACE_PUBLIC_RELEASED\n            and _bool" in config
     assert "CODE_MAX_DURATION_SECONDS" in config
     assert "vercel==0.10.0" in requirements
+
+
+def test_environment_switch_cannot_bypass_the_code_source_release_lock(monkeypatch):
+    from backend import config
+
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setenv("CRUMP_ENABLE_CODE_WORKSPACE", "true")
+    config.get_settings.cache_clear()
+    try:
+        settings = config.get_settings()
+        assert config.CODE_WORKSPACE_PUBLIC_RELEASED is False
+        assert settings.code_workspace_enabled is False
+    finally:
+        config.get_settings.cache_clear()
+
+
+def test_every_code_entry_point_uses_the_authoritative_settings_lock():
+    entry_points = (
+        "backend/routes/code.py",
+        "backend/routes/features.py",
+        "backend/code_worker.py",
+    )
+
+    for path in entry_points:
+        source = read(path)
+        assert "settings.code_workspace_enabled" in source
+        assert "CRUMP_ENABLE_CODE_WORKSPACE" not in source
+        assert "CODE_WORKSPACE_PUBLIC_RELEASED" not in source

@@ -4,11 +4,13 @@ Last reviewed: 2026-09-09
 
 ## Current operating state
 
-Crump Code remains disabled in production. **CRUMP_ENABLE_CODE_WORKSPACE=false** is the
-authoritative compute stop: customer feature status reports Code as unconfigured, task creation and
-run requests fail closed, and the shared worker does not claim new Code tasks. The worker may still
-reconcile an already-terminal refund before returning to manuscript work; that path never
-provisions a Sandbox or calls a model.
+Crump Code remains disabled in production. The source-controlled
+`CODE_WORKSPACE_PUBLIC_RELEASED=false` lock and the production
+`CRUMP_ENABLE_CODE_WORKSPACE=false` switch are independent compute stops: both must be deliberately
+opened before customer feature status can report Code as configured. While either is closed, task
+creation and run requests fail closed and the shared worker does not claim new Code tasks. The
+worker may still reconcile an already-terminal refund before returning to manuscript work; that
+path never provisions a Sandbox or calls a model.
 
 This runbook documents the release-safe controls and signals. It does not claim the remaining live
 OIDC, Sandbox-destruction, cancellation, alert-routing, rollback-drill, or benchmark activation
@@ -62,8 +64,9 @@ pre-agreed sub-cent budget.
 ## Emergency stop
 
 1. Set the production **CRUMP_ENABLE_CODE_WORKSPACE** value to **false** and deploy that exact
-   configuration. If a Code incident is active, immediately promote the most recent known-good
-   disabled deployment while making the environment change durable for the next build.
+   configuration. Confirm the repaired source also restores
+   `CODE_WORKSPACE_PUBLIC_RELEASED=false`. If a Code incident is active, immediately promote the
+   most recent known-good disabled deployment while making both stops durable for the next build.
 2. Confirm an authenticated **/api/features** response reports
    **code_workspace.configured=false**. An unauthenticated response is expected to remain 401 and
    is not sufficient proof.
@@ -90,7 +93,8 @@ destruction are the in-flight containment controls.
 
 - Roll back the application to the latest known-good disabled deployment. Keep the additive private
   database columns, indexes, and functions dormant; do not remove them during an incident.
-- Keep **CRUMP_ENABLE_CODE_WORKSPACE=false** throughout recovery.
+- Keep **CRUMP_ENABLE_CODE_WORKSPACE=false** and
+  `CODE_WORKSPACE_PUBLIC_RELEASED=false` throughout recovery.
 - Verify the four customer-facing domains and health endpoint, the authenticated feature response,
   the protected cron boundary, continued manuscript processing, refund reconciliation, and the
   absence of a new runtime-error cluster.
@@ -121,5 +125,7 @@ Evidence and privacy boundaries are recorded in
 Before public activation, record one owner-approved end-to-end drill that proves OIDC identity,
 deny-all networking, empty Sandbox environment, destruction, cancellation, expiry, refund,
 operational signal visibility, and rollback timing. Then complete the fixed quality, latency, and
-unit-cost benchmark. Crump Code remains unadvertised and disabled until those gates and explicit
-enablement approval are complete.
+unit-cost benchmark. Only after those gates and explicit enablement approval may a reviewed code
+release change `CODE_WORKSPACE_PUBLIC_RELEASED`; the environment switch remains a separate
+operator control. Crump Code stays unadvertised and disabled until both controls are deliberately
+open.
