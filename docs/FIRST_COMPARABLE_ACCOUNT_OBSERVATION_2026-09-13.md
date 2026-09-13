@@ -79,3 +79,18 @@ At or after the account's full 24-hour observation window:
 4. preserve zero-denominator and small-sample labels; and
 5. change the product only from a reproducible break or repeated cohort signal.
 
+## Pre-eligibility follow-up — 18:51 UTC
+
+The protected production reports were refreshed after the result-to-Project
+handoff release. The same single `clevercrump` acquisition cohort remains
+present through account event coverage, current verification, workspace open,
+starter intent, and activation. It still has no Project-save intent or
+completion, artifact journey, payer, or eligible 24-hour/D1/D7 denominator.
+This is a still-maturing observation, not a second account or a diagnosed
+drop-off.
+
+The latest one-hour Vercel view contained 126 HTTP 200 responses and no 3xx,
+4xx, or 5xx entry. The grouped runtime-error report was empty. No product
+mutation is justified before the full 24-hour value window; the next protected
+refresh should distinguish absent intent from attempted-save failure before any
+further continuity change.

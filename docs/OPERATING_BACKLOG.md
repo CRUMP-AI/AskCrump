@@ -11,7 +11,7 @@ retention, and referral behavior. No acquisition spend should scale on impressio
 Every item below needs four things before it is called shipped: an accountable product
 outcome, privacy and safety constraints, automated coverage, and production evidence.
 
-## Current operating evidence — 2026-09-08
+## Current operating evidence — 2026-09-13
 
 The 2026-09-13 service-role refresh changes the operating baseline: Ask Crump now
 has its first legitimate comparable September production account. The account is
@@ -639,28 +639,28 @@ verification. Rollback is to restore the prior apex URLs, although Stripe would 
 
 ### P0 — Convert useful answers into continuing Project work
 
-**Evidence:** two external accounts completed 14 successful AI jobs with no recorded failures, but
-the external aggregate contains zero Projects and zero files, and no external activity occurred
-after 2026-08-23. Release 5.9.22 exposed the durable-work action directly. Release 5.9.28 now names
-the exact conversation on the most prominent return card instead of asking mobile users to resume
-unknown work. Release 5.9.76 adds the missing acquisition boundary: a canonical public Projects page
-and a fixed content-free signup/sign-in intent that opens the authenticated Projects destination
-without creating a Project or starting generation. Commit `08aae8d` closes the remaining local
-handoff mismatch: once a conversation is saved, **Open Project** now enters that exact named
-workspace rather than making the user find it again in the index. Delivery is verified; a legitimate external
-durable-value transition and later return remain pending.
+**Evidence:** three external accounts have now completed 17 successful AI jobs with no recorded
+failure, but the four-account external aggregate still contains zero Projects and zero files. The
+first comparable September account reached account creation, verification, workspace entry,
+starter intent, and activation, then completed three chat jobs. Commit `aaff2ad` addresses the
+repeated result-to-durable-work signal without changing the proven backend: it separates the
+continuation action from response feedback, explains the private Project destination, and makes
+**Keep in a new Project** a full-width 44-pixel phone action. A selected Project remains the exact
+target, and a completed save still becomes **Open Project** for that named workspace. Delivery and
+recovery are verified; a legitimate external durable-value transition and later return remain
+pending.
 
 **Outcome:** expose private Project continuity directly on the latest result as a one-click next
 action. Synchronize and ownership-check the conversation, attach it to the selected Project or
 create one, and record only a content-free durable-value milestone. Keep feedback optional and
 referral sharing secondary.
 
-**Release gate:** automated ownership, mapping, direct-action ordering, content-free analytics, full
-release verification, production health, desktop/mobile UI checks, named resume, bounded
-queue-preserving persistence, and recoverable primary first-message/reply delivery passed through 5.9.44. The
-exact post-save destination handoff and its browser regression passed in commit `08aae8d`. The remaining
-outcome gate is at least one legitimate external conversation-to-Project transition and
-a later return. Do not infer a retention rate from a single user.
+**Release gate:** automated ownership, mapping, direct-action ordering, content-free analytics,
+desktop/mobile hierarchy, named resume, bounded persistence, timeout recovery, production parity,
+and signed-in rendering pass through 5.9.76. The complete suite passed 1,004/1,004, JavaScript
+54/54, and the browser matrix 45/45 for commit `aaff2ad`. The remaining outcome gate is at least one
+legitimate external conversation-to-Project transition and a later return. Do not infer adoption
+or retention lift from the control proof or from a single user.
 
 ### P0 — Review the first complete artifact journey cohort
 
@@ -700,12 +700,13 @@ quality and safety.
 
 ### P0 — Prove the first comparable continuing-work journey
 
-**Evidence:** the 30-day external cohort contains three accounts and two verified accounts. Two
-accounts completed 14 successful AI jobs, proving historical first-use activity, but external
-activity ended before the first observed product-event traffic and did not resume afterward.
-The external aggregate contains no Projects, files, shares, checkout, or paid events. The current
-event recorder works for an internal production tester, so historical zero-event rows are a cohort
-boundary—not proof that the old users never activated.
+**Evidence:** Ask Crump now has one legitimate comparable September production account. It is
+verified, opened the workspace, selected a starter intent, reached activation, and completed three
+chat jobs without failure. It has no Project-save intent, Project, file, artifact, explicit outcome
+rating, checkout, or paid state. At the 2026-09-13 18:51 UTC refresh its full 24-hour value window
+had not elapsed, so activation-within-24-hours, durable-value-within-24-hours, D1, and D7 eligible
+denominators all remained zero. Across all four external accounts, three have completed 17
+successful AI jobs and none has a Project or retained file.
 
 **Outcome:** observe a new, legitimate post-instrumentation cohort complete verification, start
 useful work, keep it in a private Project or file, and return. Use moderated sessions to identify
@@ -959,6 +960,17 @@ stage, with branding added in post to prevent generated-logo distortion.
 aspect ratios, one measurable CTA, and controlled tests against activation—not view count alone.
 
 ## Next operating decision
+
+The 2026-09-13 18:51 UTC privacy-safe refresh still contains one comparable
+`clevercrump` acquisition account through activation, with no Project-save
+intent/completion, artifact journey, payer, or eligible 24-hour/D1/D7
+denominator. This is the same still-maturing account observed at 17:56 UTC, not
+a new failure. The latest one-hour production log view contains 126 HTTP 200
+responses and no 3xx, 4xx, or 5xx entry; the grouped runtime-error report is
+empty. Preserve the result-to-Project release through the account's complete
+24-hour value window. At or after that boundary, refresh the protected reports
+and distinguish no durable-value intent from an attempted save failure before
+changing the interface again.
 
 The 2026-09-10 22:54 UTC post-release check found 195 HTTP 200 responses and
 seven expected HTTP 302 private-file handoffs in the latest one-hour production
