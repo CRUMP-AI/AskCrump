@@ -79,6 +79,12 @@ next constraint.
 
 ### Product and reliability
 
+- Keep the 5.9.76 result-to-Project handoff distinct and user-controlled: the
+  continuation card explains the private Project destination, uses a full-width
+  44-pixel action on phones, preserves exact selected-Project naming, and keeps
+  feedback secondary. The 45/45 browser matrix and signed-in production replay
+  prove the controls and recovery states; only legitimate intent, completion,
+  resume, and elapsed D1/D7 evidence can prove adoption or retention lift.
 - Keep safe database reads on the 5.5-second bounded recovery window released
   in commit `76a0b20`: a fifth attempt may recover a transient gateway timeout,
   while non-idempotent writes still run once and scheduler/provider work is

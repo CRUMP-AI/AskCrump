@@ -144,6 +144,30 @@ log. The first nine real manuscript-worker schedules after release also returned
 HTTP 200 across the product and evidence deployments. Evidence:
 `docs/DATABASE_READ_RECOVERY_RELEASE_2026-09-13.md`.
 
+### Result-to-Project control follow-up — 2026-09-13 18:44 UTC
+
+Three external accounts have completed 17 successful AI jobs without creating a
+Project or retaining a file. Deterministic checks showed that the existing save
+action functioned, but signed-in production inspection confirmed it competed
+visually with the Yes/Not yet feedback controls. Commit `aaff2ad` now presents a
+separate **Continue this work later** card, explains the private Project boundary,
+and uses **Keep in a new Project** when no target is selected. The action remains
+manual, exact-target aware, recoverable after timeout, and **Open Project** only
+after server success.
+
+The complete Python suite passed 1,004/1,004, JavaScript passed 54/54, and the
+browser matrix passed 45/45. Deployment `dpl_8RYr19eastRvuaDNHUt2zD4foNHB` is
+Ready; CI `34775266061`, Android verification `34775266130`, and iOS source
+verification `34775266095` are green; five live files match committed SHA-256
+bytes; health returned 200; and the first 30-minute runtime-error query was
+empty. Signed-in production displayed the new card after its update prompt
+without creating a Project or altering customer data. Evidence:
+`docs/PROJECT_CONTINUITY_HANDOFF_RELEASE_2026-09-13.md`.
+
+This is control and hierarchy evidence, not adoption lift. Preserve the release
+until legitimate intent, completion, later Project resume, or eligible return
+data identifies the next boundary.
+
 ## Product and journey evidence
 
 The current database reconciliation reports:
