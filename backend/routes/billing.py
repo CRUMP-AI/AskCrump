@@ -34,6 +34,12 @@ logger = logging.getLogger("askcrump.billing")
 
 STRIPE_ENTITLED_STATUSES = {'active', 'trialing'}
 STRIPE_API_VERSION = '2026-07-29.dahlia'
+REVENUECAT_PROVIDER_STATE_EVENTS = {
+    'PURCHASE_REDEEMED',
+    'REFUND',
+    'REFUND_REVERSED',
+    'SUBSCRIPTION_EXTENDED',
+}
 
 # Stripe Price IDs are public identifiers, not credentials. Environment variables
 # remain authoritative; these production fallbacks prevent a missing deployment
@@ -855,8 +861,24 @@ async def sync_revenuecat_customer(user_id: str) -> dict[str, Any] | None:
         )
         return None
 
-    subscriber = (response.json().get('subscriber') or {})
-    entitlements = subscriber.get('entitlements') or {}
+    try:
+        payload = response.json()
+    except (TypeError, ValueError):
+        logger.error('RevenueCat customer lookup returned invalid JSON.')
+        return None
+    if not isinstance(payload, dict):
+        logger.error('RevenueCat customer lookup returned an invalid payload.')
+        return None
+    subscriber = payload.get('subscriber')
+    if not isinstance(subscriber, dict):
+        logger.error('RevenueCat customer lookup omitted the subscriber object.')
+        return None
+    entitlements = subscriber.get('entitlements')
+    if entitlements is None:
+        entitlements = {}
+    elif not isinstance(entitlements, dict):
+        logger.error('RevenueCat customer lookup returned invalid entitlements.')
+        return None
     now = datetime.now(timezone.utc)
     active: list[tuple[str, dict[str, Any], datetime | None]] = []
     for entitlement_id, entitlement in entitlements.items():
@@ -963,30 +985,88 @@ async def revenuecat_webhook(request: Request):
     supplied = request.headers.get('authorization', '')
     if not configured or not hmac.compare_digest(configured, supplied):
         return JSONResponse(status_code=401, content={'success': False})
-    payload = await request.json()
-    event = payload.get('event') or {}
+    try:
+        payload = await request.json()
+    except (TypeError, ValueError):
+        return JSONResponse(
+            status_code=400,
+            content={'success': False, 'error': 'Invalid webhook payload.'},
+        )
+    if not isinstance(payload, dict) or not isinstance(payload.get('event'), dict):
+        return JSONResponse(
+            status_code=400,
+            content={'success': False, 'error': 'Invalid webhook payload.'},
+        )
+    event = payload['event']
     event_type = str(event.get('type') or '').upper()
 
     if event_type == 'TRANSFER':
+        transferred_from = event.get('transferred_from')
+        transferred_to = event.get('transferred_to')
+        if transferred_from is None:
+            transferred_from = []
+        if transferred_to is None:
+            transferred_to = []
+        if (
+            not isinstance(transferred_from, list)
+            or not isinstance(transferred_to, list)
+            or any(not isinstance(item, str) for item in transferred_from + transferred_to)
+        ):
+            return JSONResponse(
+                status_code=400,
+                content={'success': False, 'error': 'Invalid webhook payload.'},
+            )
         affected = {
-            str(item)
-            for item in (event.get('transferred_from') or []) + (event.get('transferred_to') or [])
-            if item
+            item.strip()
+            for item in transferred_from + transferred_to
+            if item.strip()
         }
-        for affected_user_id in affected:
-            await sync_revenuecat_customer(affected_user_id)
+        reconciliation_failed = False
+        for affected_user_id in sorted(affected):
+            if await sync_revenuecat_customer(affected_user_id) is None:
+                reconciliation_failed = True
+        if reconciliation_failed:
+            return JSONResponse(status_code=503, content={'success': False})
         return {'success': True}
 
     user_id = event.get('app_user_id')
     if not user_id:
         return {'success': True}
+    if not isinstance(user_id, str):
+        return JSONResponse(
+            status_code=400,
+            content={'success': False, 'error': 'Invalid webhook payload.'},
+        )
+    user_id = user_id.strip()
+    if not user_id:
+        return {'success': True}
 
-    reconciled = await sync_revenuecat_customer(str(user_id))
+    reconciled = await sync_revenuecat_customer(user_id)
     if reconciled is not None:
         return {'success': True}
 
-    entitlement_ids = event.get('entitlement_ids') or []
-    product_id = str(event.get('new_product_id') or event.get('product_id') or '').strip()
+    if event_type in REVENUECAT_PROVIDER_STATE_EVENTS:
+        # These events cannot be safely inferred from one delivery. Ask
+        # RevenueCat to retry until its current subscriber state can be read.
+        return JSONResponse(status_code=503, content={'success': False})
+
+    entitlement_ids = event.get('entitlement_ids')
+    if entitlement_ids is None:
+        entitlement_ids = []
+    elif not isinstance(entitlement_ids, list) or any(
+        not isinstance(item, str) for item in entitlement_ids
+    ):
+        return JSONResponse(
+            status_code=400,
+            content={'success': False, 'error': 'Invalid webhook payload.'},
+        )
+    raw_product_id = event.get('new_product_id') or event.get('product_id')
+    if raw_product_id is not None and not isinstance(raw_product_id, str):
+        return JSONResponse(
+            status_code=400,
+            content={'success': False, 'error': 'Invalid webhook payload.'},
+        )
+    product_id = str(raw_product_id or '').strip()
     active_types = {
         'INITIAL_PURCHASE',
         'RENEWAL',
@@ -1017,6 +1097,17 @@ async def revenuecat_webhook(request: Request):
     else:
         tier, status, provider = purchased_tier, 'active', 'revenuecat'
     expiration_ms = event.get('expiration_at_ms')
+    try:
+        period_end = (
+            datetime.fromtimestamp(int(expiration_ms) / 1000, timezone.utc).isoformat()
+            if expiration_ms is not None
+            else None
+        )
+    except (TypeError, ValueError, OSError, OverflowError):
+        return JSONResponse(
+            status_code=400,
+            content={'success': False, 'error': 'Invalid webhook payload.'},
+        )
     await db.update(
         'users',
         {
@@ -1024,14 +1115,7 @@ async def revenuecat_webhook(request: Request):
             'subscription_status': status,
             'subscription_provider': provider,
             'store_product_id': event.get('new_product_id') or event.get('product_id'),
-            'subscription_current_period_end': (
-                datetime.fromtimestamp(
-                    int(expiration_ms) / 1000,
-                    timezone.utc,
-                ).isoformat()
-                if expiration_ms
-                else None
-            ),
+            'subscription_current_period_end': period_end,
             'updated_at': iso_now(),
         },
         filters={'id': eq(user_id)},

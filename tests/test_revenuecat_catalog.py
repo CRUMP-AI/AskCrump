@@ -120,3 +120,187 @@ async def test_unknown_active_revenuecat_entitlement_fails_fully_closed(monkeypa
     assert result['subscription_status'] == 'inactive'
     assert result['subscription_provider'] is None
     assert fake_db.payload == result
+
+
+class RevenueCatRequest:
+    def __init__(self, payload):
+        self.headers = {'authorization': 'Bearer webhook-secret'}
+        self.payload = payload
+
+    async def json(self):
+        if isinstance(self.payload, Exception):
+            raise self.payload
+        return self.payload
+
+
+class RevenueCatDB:
+    def __init__(self):
+        self.updates = []
+
+    async def update(self, table, payload, *, filters):
+        self.updates.append((table, dict(payload), dict(filters)))
+        return [dict(payload)]
+
+
+def revenuecat_webhook_settings():
+    return SimpleNamespace(revenuecat_webhook_auth='Bearer webhook-secret')
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('payload', [ValueError('broken'), [], {'event': []}])
+async def test_revenuecat_webhook_rejects_authenticated_non_event_payloads(
+    monkeypatch,
+    payload,
+):
+    monkeypatch.setattr(billing_routes, 'settings', revenuecat_webhook_settings())
+
+    response = await billing_routes.revenuecat_webhook(RevenueCatRequest(payload))
+
+    assert response.status_code == 400
+    assert b'Invalid webhook payload.' in response.body
+
+
+@pytest.mark.asyncio
+async def test_revenuecat_transfer_retries_when_any_current_state_lookup_fails(monkeypatch):
+    calls = []
+
+    async def sync(user_id):
+        calls.append(user_id)
+        return None if user_id == 'user-b' else {'subscription_tier': 'free'}
+
+    monkeypatch.setattr(billing_routes, 'settings', revenuecat_webhook_settings())
+    monkeypatch.setattr(billing_routes, 'sync_revenuecat_customer', sync)
+    response = await billing_routes.revenuecat_webhook(
+        RevenueCatRequest(
+            {
+                'event': {
+                    'type': 'TRANSFER',
+                    'transferred_from': ['user-a', 'user-a'],
+                    'transferred_to': ['user-b'],
+                },
+            },
+        ),
+    )
+
+    assert response.status_code == 503
+    assert calls == ['user-a', 'user-b']
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    'event_type',
+    ['REFUND', 'REFUND_REVERSED', 'SUBSCRIPTION_EXTENDED', 'PURCHASE_REDEEMED'],
+)
+async def test_revenuecat_provider_state_events_retry_instead_of_being_lost(
+    monkeypatch,
+    event_type,
+):
+    async def unavailable(_user_id):
+        return None
+
+    monkeypatch.setattr(billing_routes, 'settings', revenuecat_webhook_settings())
+    monkeypatch.setattr(billing_routes, 'sync_revenuecat_customer', unavailable)
+    response = await billing_routes.revenuecat_webhook(
+        RevenueCatRequest({'event': {'type': event_type, 'app_user_id': 'user-a'}}),
+    )
+
+    assert response.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_revenuecat_cancellation_has_safe_signed_event_fallback(monkeypatch):
+    async def unavailable(_user_id):
+        return None
+
+    fake_db = RevenueCatDB()
+    monkeypatch.setattr(billing_routes, 'settings', revenuecat_webhook_settings())
+    monkeypatch.setattr(billing_routes, 'sync_revenuecat_customer', unavailable)
+    monkeypatch.setattr(billing_routes, 'db', fake_db)
+    result = await billing_routes.revenuecat_webhook(
+        RevenueCatRequest(
+            {
+                'event': {
+                    'type': 'CANCELLATION',
+                    'app_user_id': 'user-a',
+                    'entitlement_ids': ['professional'],
+                    'product_id': subscription_product_id('professional'),
+                    'expiration_at_ms': 1_800_000_000_000,
+                },
+            },
+        ),
+    )
+
+    assert result == {'success': True}
+    assert fake_db.updates[0][1]['subscription_status'] == 'canceling'
+    assert fake_db.updates[0][1]['subscription_tier'] == 'professional'
+    assert fake_db.updates[0][2] == {'id': 'eq.user-a'}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    'event',
+    [
+        {'type': 'TRANSFER', 'transferred_from': {}, 'transferred_to': []},
+        {
+            'type': 'INITIAL_PURCHASE',
+            'app_user_id': 'user-a',
+            'entitlement_ids': {},
+        },
+        {'type': 'INITIAL_PURCHASE', 'app_user_id': ['user-a']},
+        {
+            'type': 'INITIAL_PURCHASE',
+            'app_user_id': 'user-a',
+            'entitlement_ids': [],
+            'product_id': [],
+        },
+    ],
+)
+async def test_revenuecat_webhook_rejects_malformed_event_fields(monkeypatch, event):
+    async def unavailable(_user_id):
+        return None
+
+    monkeypatch.setattr(billing_routes, 'settings', revenuecat_webhook_settings())
+    monkeypatch.setattr(billing_routes, 'sync_revenuecat_customer', unavailable)
+    response = await billing_routes.revenuecat_webhook(
+        RevenueCatRequest({'event': event}),
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('provider_payload', [ValueError('broken'), [], {'subscriber': []}])
+async def test_revenuecat_customer_sync_rejects_invalid_provider_payload(
+    monkeypatch,
+    provider_payload,
+):
+    class Response:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            if isinstance(provider_payload, Exception):
+                raise provider_payload
+            return provider_payload
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, *_args, **_kwargs):
+            return Response()
+
+    fake_db = RevenueCatDB()
+    monkeypatch.setattr(httpx, 'AsyncClient', lambda **_kwargs: Client())
+    monkeypatch.setattr(billing_routes, 'db', fake_db)
+    monkeypatch.setattr(
+        billing_routes,
+        'settings',
+        SimpleNamespace(revenuecat_secret_api_key='secret'),
+    )
+
+    assert await billing_routes.sync_revenuecat_customer('user-a') is None
+    assert fake_db.updates == []
