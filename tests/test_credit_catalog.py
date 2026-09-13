@@ -85,6 +85,23 @@ class CreditRequest:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('body', [b'{broken', b'[]', b'"event"', b'\xff'])
+async def test_credit_webhook_rejects_signed_non_event_payloads(monkeypatch, body):
+    monkeypatch.setattr(credit_routes, '_verify_stripe_signature', lambda *_args: True)
+
+    class Request:
+        headers = {'stripe-signature': 'verified'}
+
+        async def body(self):
+            return body
+
+    response = await credit_routes.stripe_webhook(Request())
+
+    assert response.status_code == 400
+    assert b'Invalid webhook payload.' in response.body
+
+
+@pytest.mark.asyncio
 async def test_credit_checkout_records_only_the_server_session_and_fixed_pack(monkeypatch):
     events = []
     calls = []

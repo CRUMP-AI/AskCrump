@@ -2,12 +2,22 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 from urllib.parse import urlsplit
 
 
 STRIPE_CHECKOUT_HOST = "checkout.stripe.com"
 STRIPE_PORTAL_HOST = "billing.stripe.com"
+
+
+def stripe_webhook_event(body: bytes) -> dict[str, Any] | None:
+    """Decode a signed Stripe payload without trusting its JSON shape."""
+    try:
+        event = json.loads(body)
+    except (UnicodeDecodeError, json.JSONDecodeError, TypeError):
+        return None
+    return event if isinstance(event, dict) else None
 
 
 def stripe_https_destination(value: Any, *, host: str) -> str | None:

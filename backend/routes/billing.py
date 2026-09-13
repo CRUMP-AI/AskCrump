@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import hashlib
 import hmac
-import json
 import logging
 import secrets
 import string
@@ -22,7 +21,11 @@ from ..revenuecat_catalog import event_subscription_tier, subscription_tier
 from ..runtime import db, settings
 from ..schemas import CheckoutRequest
 from ..security import iso_now
-from ..stripe_security import stripe_checkout_destination, stripe_portal_destination
+from ..stripe_security import (
+    stripe_checkout_destination,
+    stripe_portal_destination,
+    stripe_webhook_event,
+)
 from ..usage_service import tier_name
 
 router = APIRouter(tags=["billing"])
@@ -756,7 +759,12 @@ async def stripe_webhook(request: Request):
             status_code=400,
             content={'success': False, 'error': 'Invalid webhook signature.'},
         )
-    event = json.loads(body)
+    event = stripe_webhook_event(body)
+    if event is None:
+        return JSONResponse(
+            status_code=400,
+            content={'success': False, 'error': 'Invalid webhook payload.'},
+        )
     event_id = str(event.get('id') or '')
     event_type = event.get('type')
     obj = ((event.get('data') or {}).get('object') or {})

@@ -46,6 +46,23 @@ def settings_stub():
     )
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize('body', [b'{broken', b'[]', b'"event"', b'\xff'])
+async def test_subscription_webhook_rejects_signed_non_event_payloads(monkeypatch, body):
+    monkeypatch.setattr(billing_routes, 'verify_stripe_signature', lambda *_args: True)
+
+    class Request:
+        headers = {'stripe-signature': 'verified'}
+
+        async def body(self):
+            return body
+
+    response = await billing_routes.stripe_webhook(Request())
+
+    assert response.status_code == 400
+    assert b'Invalid webhook payload.' in response.body
+
+
 def checkout_session(**overrides):
     session = {
         'id': 'cs_live_reconcile',

@@ -9,7 +9,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import hashlib
 import hmac
-import json
 import logging
 import os
 import re
@@ -28,7 +27,7 @@ from ..db import eq
 from ..product_analytics import record_product_event
 from ..runtime import db, settings
 from ..security import iso_now
-from ..stripe_security import stripe_checkout_destination
+from ..stripe_security import stripe_checkout_destination, stripe_webhook_event
 from ..usage_service import credit_status
 
 router = APIRouter(prefix='/api/billing/credits', tags=['billing'])
@@ -527,7 +526,12 @@ async def stripe_webhook(request: Request):
     body = await request.body()
     if not _verify_stripe_signature(body, request.headers.get('stripe-signature', '')):
         return JSONResponse(status_code=400, content={'success': False, 'error': 'Invalid webhook signature.'})
-    event = json.loads(body)
+    event = stripe_webhook_event(body)
+    if event is None:
+        return JSONResponse(
+            status_code=400,
+            content={'success': False, 'error': 'Invalid webhook payload.'},
+        )
     if str(event.get('type') or '') != 'checkout.session.completed':
         return {'received': True}
     session = ((event.get('data') or {}).get('object') or {})
