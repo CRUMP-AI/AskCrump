@@ -35,9 +35,11 @@
       release-build path is verified, while local Android Studio still needs a compatible JDK
 - [ ] iOS source generated, signed, and archived on macOS
 - [x] No-upload GitHub macOS source/Release compile verification passed for 5.9.76/build 50976 before signing
-      credentials were added ([run 34787538228](https://github.com/CRUMP-AI/AskCrump/actions/runs/34787538228), 2026-09-13)
+      credentials were added, including the explicit iPhone+iPad family and screenshot-packet gate
+      ([run 34790149321](https://github.com/CRUMP-AI/AskCrump/actions/runs/34790149321), 2026-09-13)
 - [x] No-upload GitHub Java 21 Android App Bundle verification passed before signing credentials
-      were added for 5.9.76/build 50976 ([run 34787538207](https://github.com/CRUMP-AI/AskCrump/actions/runs/34787538207), 2026-09-13)
+      were added for 5.9.76/build 50976, including the screenshot-packet gate
+      ([run 34790149297](https://github.com/CRUMP-AI/AskCrump/actions/runs/34790149297), 2026-09-13)
 - [x] Apple/Google listing copy, reviewer path, and screenshot sequence match the released Ask,
       Projects, Create, Video, Library, and You information architecture; Research remains inside Ask
 - [ ] Exact signed builds pass the physical-device, billing, privacy, and console gates
