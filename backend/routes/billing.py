@@ -25,6 +25,7 @@ from ..stripe_security import (
     stripe_checkout_destination,
     stripe_portal_destination,
     stripe_webhook_event,
+    stripe_webhook_object,
 )
 from ..usage_service import tier_name
 
@@ -767,11 +768,29 @@ async def stripe_webhook(request: Request):
         )
     event_id = str(event.get('id') or '')
     event_type = event.get('type')
-    obj = ((event.get('data') or {}).get('object') or {})
+    if event_type not in {
+        'checkout.session.completed',
+        'customer.subscription.updated',
+        'customer.subscription.deleted',
+    }:
+        return {'received': True}
+    obj = stripe_webhook_object(event)
+    if obj is None:
+        return JSONResponse(
+            status_code=400,
+            content={'success': False, 'error': 'Invalid webhook payload.'},
+        )
     customer_id = obj.get('customer')
 
     if event_type == 'checkout.session.completed':
-        metadata = obj.get('metadata') or {}
+        metadata = obj.get('metadata')
+        if metadata is None:
+            metadata = {}
+        elif not isinstance(metadata, dict):
+            return JSONResponse(
+                status_code=400,
+                content={'success': False, 'error': 'Invalid webhook payload.'},
+            )
         # Credit purchases have their own verified/idempotent webhook. Never let
         # a one-time credit Checkout session mutate subscription entitlements.
         if str(metadata.get('purchase_type') or '') != 'subscription':

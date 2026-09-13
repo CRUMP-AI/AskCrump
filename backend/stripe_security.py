@@ -20,6 +20,15 @@ def stripe_webhook_event(body: bytes) -> dict[str, Any] | None:
     return event if isinstance(event, dict) else None
 
 
+def stripe_webhook_object(event: dict[str, Any]) -> dict[str, Any] | None:
+    """Return the event object only when Stripe's nested envelope is intact."""
+    data = event.get("data")
+    if not isinstance(data, dict):
+        return None
+    obj = data.get("object")
+    return obj if isinstance(obj, dict) else None
+
+
 def stripe_https_destination(value: Any, *, host: str) -> str | None:
     """Return a normalized Stripe URL only when its origin is exactly approved."""
     candidate = str(value or "").strip()

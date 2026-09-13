@@ -27,7 +27,11 @@ from ..db import eq
 from ..product_analytics import record_product_event
 from ..runtime import db, settings
 from ..security import iso_now
-from ..stripe_security import stripe_checkout_destination, stripe_webhook_event
+from ..stripe_security import (
+    stripe_checkout_destination,
+    stripe_webhook_event,
+    stripe_webhook_object,
+)
 from ..usage_service import credit_status
 
 router = APIRouter(prefix='/api/billing/credits', tags=['billing'])
@@ -534,8 +538,20 @@ async def stripe_webhook(request: Request):
         )
     if str(event.get('type') or '') != 'checkout.session.completed':
         return {'received': True}
-    session = ((event.get('data') or {}).get('object') or {})
-    metadata = session.get('metadata') or {}
+    session = stripe_webhook_object(event)
+    if session is None:
+        return JSONResponse(
+            status_code=400,
+            content={'success': False, 'error': 'Invalid webhook payload.'},
+        )
+    metadata = session.get('metadata')
+    if metadata is None:
+        metadata = {}
+    elif not isinstance(metadata, dict):
+        return JSONResponse(
+            status_code=400,
+            content={'success': False, 'error': 'Invalid webhook payload.'},
+        )
     if str(metadata.get('purchase_type') or '') != 'credits':
         return {'received': True}
     user_id = str(metadata.get('user_id') or session.get('client_reference_id') or '')

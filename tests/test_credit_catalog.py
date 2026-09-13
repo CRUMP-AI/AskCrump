@@ -102,6 +102,35 @@ async def test_credit_webhook_rejects_signed_non_event_payloads(monkeypatch, bod
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    'event',
+    [
+        {'type': 'checkout.session.completed', 'data': []},
+        {'type': 'checkout.session.completed', 'data': {'object': []}},
+        {
+            'type': 'checkout.session.completed',
+            'data': {'object': {'metadata': []}},
+        },
+    ],
+)
+async def test_credit_webhook_rejects_malformed_completed_event_envelopes(monkeypatch, event):
+    monkeypatch.setattr(credit_routes, '_verify_stripe_signature', lambda *_args: True)
+
+    class Request:
+        headers = {'stripe-signature': 'verified'}
+
+        async def body(self):
+            import json
+
+            return json.dumps(event).encode('utf-8')
+
+    response = await credit_routes.stripe_webhook(Request())
+
+    assert response.status_code == 400
+    assert b'Invalid webhook payload.' in response.body
+
+
+@pytest.mark.asyncio
 async def test_credit_checkout_records_only_the_server_session_and_fixed_pack(monkeypatch):
     events = []
     calls = []

@@ -63,6 +63,37 @@ async def test_subscription_webhook_rejects_signed_non_event_payloads(monkeypatc
     assert b'Invalid webhook payload.' in response.body
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    'event',
+    [
+        {'type': 'checkout.session.completed', 'data': []},
+        {'type': 'checkout.session.completed', 'data': {'object': []}},
+        {
+            'type': 'checkout.session.completed',
+            'data': {'object': {'metadata': []}},
+        },
+        {'type': 'customer.subscription.updated', 'data': {'object': []}},
+    ],
+)
+async def test_subscription_webhook_rejects_malformed_supported_event_envelopes(
+    monkeypatch,
+    event,
+):
+    monkeypatch.setattr(billing_routes, 'verify_stripe_signature', lambda *_args: True)
+
+    class Request:
+        headers = {'stripe-signature': 'verified'}
+
+        async def body(self):
+            return json.dumps(event).encode('utf-8')
+
+    response = await billing_routes.stripe_webhook(Request())
+
+    assert response.status_code == 400
+    assert b'Invalid webhook payload.' in response.body
+
+
 def checkout_session(**overrides):
     session = {
         'id': 'cs_live_reconcile',
