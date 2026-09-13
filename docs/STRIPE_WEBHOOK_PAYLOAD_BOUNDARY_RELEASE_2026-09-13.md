@@ -48,8 +48,13 @@ No checkout, purchase, refund, dispute, subscription, catalog, tax, credential, 
 provider event selection, database row, or customer data was changed during verification. A real
 signed Stripe delivery remains provider-owned evidence. Credit refund/dispute recovery remains a
 separate commerce-lifecycle gate because the currently verified credit webhook path is scoped to
-Checkout completion; it must not be claimed complete until the required Stripe events, an
-idempotent ledger reversal policy, and a legitimate end-to-end provider exercise are all in place.
+Checkout completion. The existing database supports idempotent refunds of failed internal credit
+spends, but it has no purchase-grant reversal function and enforces a non-negative wallet balance.
+That leaves a genuine policy decision when a refunded pack has already been partly consumed: debt,
+future-grant offset, or a bounded write-off have materially different customer and accounting
+effects. Recovery must not be claimed complete until that rule is approved, the required Stripe
+events and idempotent ledger operation are implemented, and a legitimate end-to-end provider
+exercise passes.
 
 Stripe Tax remains intentionally disabled until the business has confirmed applicable tax
 registrations; this release does not change that decision.

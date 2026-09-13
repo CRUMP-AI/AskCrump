@@ -979,6 +979,25 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
+The 2026-09-13 20:44 UTC service-role refresh still contains exactly one
+comparable production account: `clevercrump` acquisition, verified, workspace
+opened, starter intent reached, and technically activated. It still has no
+explicit useful/not-yet outcome, Project, retained file, plan intent, checkout,
+or payer state, and it remains ineligible for the complete 24-hour value and D1
+denominators. This confirms the existing hold rather than creating a new product
+failure: preserve the released result-to-Project path until the value window
+elapses, then distinguish no save intent from an attempted save failure.
+
+The same 2026-09-13 commerce audit confirms that automatic credit-purchase
+refund/dispute recovery is not safely defined yet. The production wallet enforces
+a non-negative balance; `refund_credit_spend` reverses a failed internal usage
+debit, not a Stripe purchase grant; and the credit webhook is intentionally
+limited to Checkout completion. A refunded pack may already be partly consumed,
+so implementing reversal requires an explicit debt, future-grant-offset, or
+bounded-write-off policy plus the matching provider events and legitimate
+end-to-end test. Preserve current credit truth and do not silently choose that
+financial/customer policy in application code.
+
 The 2026-09-13 19:21 UTC privacy-safe refresh still contains one comparable
 `clevercrump` acquisition account through activation, with no Project-save
 intent/completion, artifact journey, payer, or eligible 24-hour/D1/D7
