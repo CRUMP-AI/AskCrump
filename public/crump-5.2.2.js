@@ -111,10 +111,8 @@
         method: 'POST',
         body: JSON.stringify({pack: code, attemptId}),
       });
-      const url = String(data.url || '');
-      if (!/^https:\/\/checkout\.stripe\.com\//i.test(url)) {
-        throw new Error('Stripe did not return a secure checkout destination.');
-      }
+      const url = window.BillingManager?.requireStripeDestination?.(data.url, 'checkout');
+      if (!url) throw new Error('Stripe did not return a secure checkout destination.');
       window.BillingManager?.completeCreditCheckoutAttempt?.(code, attemptId);
       window.location.assign(url);
     } catch (error) {

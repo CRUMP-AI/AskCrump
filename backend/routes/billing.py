@@ -22,6 +22,7 @@ from ..revenuecat_catalog import event_subscription_tier, subscription_tier
 from ..runtime import db, settings
 from ..schemas import CheckoutRequest
 from ..security import iso_now
+from ..stripe_security import stripe_checkout_destination, stripe_portal_destination
 from ..usage_service import tier_name
 
 router = APIRouter(tags=["billing"])
@@ -395,8 +396,8 @@ async def create_checkout(payload: CheckoutRequest, request: Request):
         return billing_provider_failure()
 
     checkout_id = str(checkout.get('id') or '')
-    checkout_url = str(checkout.get('url') or '')
-    if not checkout_id.startswith('cs_') or not checkout_url.startswith('https://checkout.stripe.com/'):
+    checkout_url = stripe_checkout_destination(checkout.get('url'))
+    if not checkout_id.startswith('cs_') or not checkout_url:
         logger.error('Stripe returned an invalid subscription checkout destination.')
         return billing_provider_failure()
     if checkout_id:
@@ -464,6 +465,10 @@ async def customer_portal(request: Request):
             )
         return billing_provider_failure()
     portal_id = str(portal.get('id') or '')
+    portal_url = stripe_portal_destination(portal.get('url'))
+    if not portal_url:
+        logger.error('Stripe returned an invalid customer portal destination.')
+        return billing_provider_failure()
     if portal_id:
         await record_product_event(
             db,
@@ -473,7 +478,7 @@ async def customer_portal(request: Request):
             request=request,
             plan=str(auth.user.get('subscription_tier') or ''),
         )
-    return {'success': True, 'url': portal.get('url')}
+    return {'success': True, 'url': portal_url}
 
 
 def verify_stripe_signature(body: bytes, header: str) -> bool:

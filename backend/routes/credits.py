@@ -28,6 +28,7 @@ from ..db import eq
 from ..product_analytics import record_product_event
 from ..runtime import db, settings
 from ..security import iso_now
+from ..stripe_security import stripe_checkout_destination
 from ..usage_service import credit_status
 
 router = APIRouter(prefix='/api/billing/credits', tags=['billing'])
@@ -469,10 +470,8 @@ async def checkout(request: Request):
         )
 
     session_id = str(session.get('id') or '')
-    checkout_url = str(session.get('url') or '')
-    if not session_id.startswith('cs_') or not checkout_url.startswith(
-        'https://checkout.stripe.com/'
-    ):
+    checkout_url = stripe_checkout_destination(session.get('url'))
+    if not session_id.startswith('cs_') or not checkout_url:
         logger.error('Stripe returned an invalid credit checkout destination.')
         return JSONResponse(
             status_code=502,

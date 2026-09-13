@@ -237,7 +237,10 @@ async def test_credit_checkout_rejects_invalid_provider_destination_without_even
 
     async def stripe_post(_path, _payload, *, idempotency_key=None):
         assert idempotency_key
-        return {'id': 'not-a-session', 'url': 'https://untrusted.example/leave'}
+        return {
+            'id': 'cs_valid_shape',
+            'url': 'https://checkout.stripe.com.evil.test/c/pay/cs_valid_shape',
+        }
 
     async def record_event(*_args, **_kwargs):
         events.append(_kwargs)

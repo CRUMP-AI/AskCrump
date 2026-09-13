@@ -92,13 +92,59 @@ async function signIn(page) {
         {pathname:'/api/stripe/create-checkout-session', selection:'professional'},
       ],
     );
+
+    const destinationContract = await page.evaluate(() => ({
+      checkout: window.BillingManager.stripeDestination(
+        'https://checkout.stripe.com/c/pay/cs_fixture',
+        'checkout',
+      ),
+      portal: window.BillingManager.stripeDestination(
+        'https://billing.stripe.com/p/session/bps_fixture',
+        'portal',
+      ),
+      deceptiveCheckout: window.BillingManager.stripeDestination(
+        'https://checkout.stripe.com.evil.test/c/pay/cs_fixture',
+        'checkout',
+      ),
+      deceptivePortal: window.BillingManager.stripeDestination(
+        'https://billing.stripe.com@evil.test/p/session/bps_fixture',
+        'portal',
+      ),
+    }));
+    assert.equal(destinationContract.checkout, 'https://checkout.stripe.com/c/pay/cs_fixture');
+    assert.equal(destinationContract.portal, 'https://billing.stripe.com/p/session/bps_fixture');
+    assert.equal(destinationContract.deceptiveCheckout, null);
+    assert.equal(destinationContract.deceptivePortal, null);
+
+    await page.evaluate(() => { window.__fixtureCheckoutMode = 'invalid'; });
+    await page.getByRole('button', {name:'Close', exact:true}).click();
+    await page.getByRole('button', {name:'Plan & credits'}).click();
+    const unsafeCredit = page.getByRole('button', {name:'Add 50 Crump Credits for $4.99', exact:true});
+    await unsafeCredit.click();
+    await page.waitForFunction(() => /secure checkout destination/i.test(
+      window.__fixtureToasts.at(-1)?.message || '',
+    ));
+    assert.equal(await unsafeCredit.isEnabled(), true);
+    assert.match(page.url(), /checkout-session-recovery\.html$/);
+
+    await page.getByRole('button', {name:'Close', exact:true}).click();
+    await page.getByRole('button', {name:'Plan & credits'}).click();
+    const unsafePlan = page.getByRole('button', {name:'Choose Enterprise', exact:true});
+    await unsafePlan.click();
+    await page.waitForFunction(() => /secure checkout destination/i.test(
+      window.__fixtureToasts.at(-1)?.message || '',
+    ));
+    assert.equal(await unsafePlan.isEnabled(), true);
+    assert.match(page.url(), /checkout-session-recovery\.html$/);
+    assert.equal(Number(await page.locator('#checkoutFixtureRequests').textContent()), 4);
     assert.equal(Number(await page.locator('#checkoutFixtureErrors').textContent()), 0);
     assert.deepEqual(browserErrors, []);
     process.stdout.write(JSON.stringify({
-      checkoutRequests:2,
+      checkoutRequests:4,
       reauthenticationHandoffs:2,
       automaticCheckoutRequests:0,
       recovered:['credits_150', 'professional'],
+      rejectedDestinations:['credit', 'subscription'],
     }));
   } finally {
     await browser.close();

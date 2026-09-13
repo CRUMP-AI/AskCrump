@@ -98,8 +98,9 @@
         return;
       }
       const result = await jsonFetch('/api/stripe/customer-portal', {method: 'POST'});
-      if (!result.url) throw new Error('Subscription management did not return a destination.');
-      window.location.assign(result.url);
+      const url = window.BillingManager?.requireStripeDestination?.(result.url, 'portal');
+      if (!url) throw new Error('Subscription management did not return a secure destination.');
+      window.location.assign(url);
     } catch (error) {
       window.showToast?.(
         error.message || 'Subscription management could not be opened.',
@@ -127,9 +128,10 @@
         method: 'POST',
         body: JSON.stringify({tier, attemptId}),
       });
-      if (!result.url) throw new Error('Secure checkout did not return a destination.');
-      window.location.assign(result.url);
+      const url = window.BillingManager?.requireStripeDestination?.(result.url, 'checkout');
+      if (!url) throw new Error('Stripe did not return a secure checkout destination.');
       window.BillingManager?.completeSubscriptionCheckoutAttempt?.(tier, attemptId);
+      window.location.assign(url);
     } catch (error) {
       if (error.code === 'SUBSCRIPTION_ALREADY_ACTIVE') {
         setBusy(button, false);

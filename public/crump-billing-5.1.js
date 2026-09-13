@@ -314,9 +314,10 @@
         method: 'POST',
         body: JSON.stringify({pack: pack.code, attemptId}),
       });
-      if (!result.url) throw new Error('Secure checkout did not return a destination.');
+      const url = window.BillingManager?.requireStripeDestination?.(result.url, 'checkout');
+      if (!url) throw new Error('Stripe did not return a secure checkout destination.');
       window.BillingManager?.completeCreditCheckoutAttempt?.(pack.code, attemptId);
-      window.location.assign(result.url);
+      window.location.assign(url);
     } catch (error) {
       window.showToast?.(error.message || 'Credit purchase could not be opened.', 'error');
       setBusy(button, false);
@@ -337,9 +338,10 @@
         method: 'POST',
         body: JSON.stringify({tier, attemptId}),
       });
-      if (!response.url) throw new Error('Secure checkout did not return a destination.');
-      window.location.assign(response.url);
+      const url = window.BillingManager?.requireStripeDestination?.(response.url, 'checkout');
+      if (!url) throw new Error('Stripe did not return a secure checkout destination.');
       window.BillingManager?.completeSubscriptionCheckoutAttempt?.(tier, attemptId);
+      window.location.assign(url);
     } catch (error) {
       window.showToast?.(error.message || 'Subscription checkout could not be opened.', 'error');
       setBusy(button, false);

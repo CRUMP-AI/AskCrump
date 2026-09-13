@@ -18,6 +18,9 @@ def test_checkout_session_recovery_is_bounded_and_never_auto_purchases():
     assert "const CHECKOUT_RECOVERY_TTL_MS = 15 * 60 * 1000;" in manager
     assert "new Set(['credits_50', 'credits_150', 'credits_400'])" in manager
     assert "new Set(['professional', 'enterprise'])" in manager
+    assert "checkout: 'checkout.stripe.com'" in manager
+    assert "portal: 'billing.stripe.com'" in manager
+    assert "url.hostname !== expectedHost" in manager
     assert "detail: {reason: 'checkout'}" in manager
     assert "crump:authentication-required" in auth
     assert "Nothing has been charged." in auth
@@ -27,6 +30,13 @@ def test_checkout_session_recovery_is_bounded_and_never_auto_purchases():
     assert "crump:authenticated-ready" in credits
     assert "consumeCheckoutRecovery?.(recovery)" in credits
     assert "Nothing has been purchased." in credits
+    for source in (
+        credits,
+        plans,
+        read_public("crump-billing-5.1.js"),
+        read_public("crump-5.2.js"),
+    ):
+        assert "requireStripeDestination?.(" in source
     resume = credits[credits.index("function resumeCheckoutAfterAuthentication()") :]
     assert "/api/billing/credits/checkout" not in resume
     assert "/api/stripe/create-checkout-session" not in resume
@@ -43,7 +53,8 @@ def test_checkout_recovery_fixture_is_local_and_content_free():
     assert "/public/auth-controller.js" in fixture
     assert "/public/crump-5.2.2.js" in fixture
     assert "code:'AUTH_REQUIRED'" in fixture
-    assert "checkout.stripe.com" not in fixture
+    assert "checkout.stripe.com.evil.test" in fixture
+    assert "https://checkout.stripe.com/c/pay/" not in fixture
     assert "askcrump.com" not in fixture
     assert "supabase" not in fixture.lower()
     assert "credit" in verifier
@@ -51,7 +62,7 @@ def test_checkout_recovery_fixture_is_local_and_content_free():
 
 
 def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
-    version = "5.9.76-checkout-session-recovery-1"
+    version = "5.9.76-stripe-destination-integrity-1"
     runtime_version = "5.9.76-continuity-handoff-1"
     auth_version = "5.9.76-workspace-runtime-recovery-1"
     shell = read_public("app.html")

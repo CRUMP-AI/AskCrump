@@ -46,6 +46,7 @@
     window.__fixtureToasts = [];
     window.__fixtureCheckoutBodies = [];
     window.__fixtureClearComplete = true;
+    window.__fixtureCheckoutMode = 'auth';
     window.CRUMP_CONFIG = {
       webProfessionalPriceLabel:'$20/month',
       webEnterprisePriceLabel:'$50/month',
@@ -89,6 +90,12 @@
         const output = document.getElementById('checkoutFixtureRequests');
         output.textContent = String(Number(output.textContent || 0) + 1);
         window.__fixtureCheckoutBodies.push({pathname, body:JSON.parse(String(options.body || '{}'))});
+        if (window.__fixtureCheckoutMode === 'invalid') {
+          return new Response(JSON.stringify({
+            success:true,
+            url:'https://checkout.stripe.com.evil.test/c/pay/deceptive',
+          }), {status:200, headers:{'Content-Type':'application/json'}});
+        }
         return new Response(JSON.stringify({
           success:false,
           authenticated:false,

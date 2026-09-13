@@ -9,11 +9,45 @@
   const CHECKOUT_RECOVERY_TTL_MS = 15 * 60 * 1000;
   const CREDIT_PACKS = new Set(['credits_50', 'credits_150', 'credits_400']);
   const PAID_PLANS = new Set(['professional', 'enterprise']);
+  const STRIPE_DESTINATION_HOSTS = Object.freeze({
+    checkout: 'checkout.stripe.com',
+    portal: 'billing.stripe.com',
+  });
 
   const native = () => Boolean(window.CrumpAPI?.isNative);
   const platform = () => window.CrumpNative?.Capacitor?.getPlatform?.() || window.Capacitor?.getPlatform?.() || 'web';
   const purchases = () => window.CrumpNative?.Purchases;
   const config = () => window.CRUMP_CONFIG || {};
+
+  function stripeDestination(value, kind = 'checkout') {
+    const expectedHost = STRIPE_DESTINATION_HOSTS[kind];
+    if (!expectedHost) return null;
+    try {
+      const url = new URL(String(value || ''));
+      if (
+        url.protocol !== 'https:'
+        || url.hostname !== expectedHost
+        || url.username
+        || url.password
+        || url.port
+      ) return null;
+      return url.href;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function requireStripeDestination(value, kind = 'checkout') {
+    const url = stripeDestination(value, kind);
+    if (!url) {
+      throw new Error(
+        kind === 'portal'
+          ? 'Subscription management did not return a secure destination.'
+          : 'Stripe did not return a secure checkout destination.',
+      );
+    }
+    return url;
+  }
 
   function normalizeCheckoutRecovery(value) {
     const kind = String(value?.kind || '').toLowerCase();
@@ -357,8 +391,9 @@
     const response = await fetch('/api/stripe/customer-portal', {method: 'POST'});
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.url) throw new Error(data.error || 'Subscription management could not be opened.');
-    window.location.assign(data.url);
-    return data;
+    const url = requireStripeDestination(data.url, 'portal');
+    window.location.assign(url);
+    return {...data, url};
   }
 
   function subscriptionCheckoutAttempt(tier) {
@@ -450,6 +485,8 @@
     refreshStatus,
     refreshCredits,
     synchronizeServerCredits,
+    stripeDestination,
+    requireStripeDestination,
     disconnect,
     isNative: native,
   };

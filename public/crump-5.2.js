@@ -623,9 +623,10 @@
         method: 'POST',
         body: JSON.stringify({pack: packCode, attemptId}),
       });
-      if (!result.url) throw new Error('Stripe did not return a checkout destination.');
+      const url = window.BillingManager?.requireStripeDestination?.(result.url, 'checkout');
+      if (!url) throw new Error('Stripe did not return a secure checkout destination.');
       window.BillingManager?.completeCreditCheckoutAttempt?.(packCode, attemptId);
-      window.location.href = result.url;
+      window.location.assign(url);
     } catch (error) {
       state.checkoutOpening = false;
       if (button) {

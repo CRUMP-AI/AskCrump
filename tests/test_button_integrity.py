@@ -60,7 +60,7 @@ INDIRECT_DYNAMIC_BUTTON_OWNERS = {
         "wireOutputProjectAction(project, {",
         "button.addEventListener('click', async () => {",
     ),
-    "public/crump-5.2.js:653:buy": (
+    "public/crump-5.2.js:654:buy": (
         "buy.dataset.crumpPack =",
         "modal.addEventListener('click', event => {",
         "event.target.closest?.('[data-crump-pack]')",
