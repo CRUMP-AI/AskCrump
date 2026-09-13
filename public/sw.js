@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r237';
+const CACHE_NAME = 'ask-crump-new-body-v1-r238';
 
 const CORE = [
   '/app',
@@ -13,7 +13,7 @@ const CORE = [
   '/billing.css',
   '/install-prompt.css?v=5.9.76',
   '/onboarding.css?v=5.9.76-video-destination-1',
-  '/conversation.css?v=5.9.76-intelligence-receipt-1',
+  '/conversation.css?v=5.9.76-continuity-handoff-1',
   '/auth-styles.css',
   '/crump-v1-body.css?v=5.9.76-credit-truth-1',
   '/credit-confirmation.css?v=5.9.76-credit-confirmation-1',
@@ -34,7 +34,7 @@ const CORE = [
   '/crump-media-save.js?v=5.9.76-library-lazy-load-1',
   '/crump-library-loader.js?v=5.9.76-library-lazy-load-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-checkout-session-recovery-1',
-  '/runtime-body-v1.js?v=5.9.76-workspace-runtime-recovery-1',
+  '/runtime-body-v1.js?v=5.9.76-continuity-handoff-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
@@ -46,7 +46,7 @@ const CORE = [
   '/subscription-ui.js?v=5.9.76-commerce-recovery-1',
   '/credit-confirmation.js?v=5.9.76-credit-confirmation-1',
   '/chat-resilience.js?v=5.9.76-credit-confirmation-1',
-  '/ui-functions.js?v=5.9.76-outcome-refinement-recovery-1',
+  '/ui-functions.js?v=5.9.76-continuity-handoff-1',
   '/presence-manager.js?v=5.9.76',
   '/auth-resilience.js?v=5.9.76',
   '/device-auth.js?v=5.9.76-native-billing-identity-1',

@@ -625,7 +625,7 @@
     if (!button || button.dataset.saved === 'true') return;
     const target = currentProjectTarget();
     button.dataset.projectId = target?.id || '';
-    button.textContent = target ? `Keep in \u201c${target.displayName}\u201d` : 'Start a Project';
+    button.textContent = target ? `Keep in \u201c${target.displayName}\u201d` : 'Keep in a new Project';
     button.setAttribute(
       'aria-label',
       target
@@ -771,22 +771,31 @@
     group.setAttribute('role', 'group');
     group.setAttribute('aria-label', 'Keep this result and share feedback');
 
+    const continuity = document.createElement('div');
+    continuity.className = 'outcome-continuity';
+    const continuityCopy = document.createElement('div');
+    continuityCopy.className = 'outcome-continuity-copy';
     const continuityPrompt = document.createElement('span');
     continuityPrompt.className = 'outcome-continuity-prompt';
-    continuityPrompt.textContent = 'Keep this work moving?';
+    continuityPrompt.textContent = 'Continue this work later';
+    const continuityDetail = document.createElement('span');
+    continuityDetail.className = 'outcome-continuity-detail';
+    continuityDetail.textContent = 'Keep this conversation in a private Project.';
+    continuityCopy.append(continuityPrompt, continuityDetail);
     const projectButton = document.createElement('button');
     projectButton.type = 'button';
     projectButton.className = 'outcome-feedback-btn outcome-project-btn';
     projectButton.dataset.chatId = String(window.currentChatId || '').trim();
     syncOutcomeProjectAction(projectButton);
     projectButton.addEventListener('click', () => { void performOutcomeProjectAction(projectButton); });
+    continuity.append(continuityCopy, projectButton);
 
     const renderThanks = value => {
       const status = document.createElement('span');
       status.className = 'outcome-feedback-status';
       status.setAttribute('role', 'status');
       status.textContent = 'Thanks — feedback saved.';
-      group.replaceChildren(continuityPrompt, projectButton, status);
+      group.replaceChildren(continuity, status);
       if (value === 'needs_work') {
         const issueKey = outcomeIssueKey(eventKey);
         if (savedOutcomeIssue(issueKey)) {
@@ -795,6 +804,8 @@
           return;
         }
         status.textContent = 'Thanks — what missed the mark? Optional.';
+        const issueActions = document.createElement('div');
+        issueActions.className = 'outcome-feedback-actions';
         const issueButtons = [];
         for (const [label, category] of OUTCOME_ISSUE_CATEGORIES) {
           const issueButton = document.createElement('button');
@@ -815,12 +826,13 @@
             }
             saveOutcomeIssue(issueKey, category);
             status.textContent = 'Thanks — that helps us improve.';
-            issueButtons.forEach(item => item.remove());
+            issueActions.remove();
             appendOutcomeRefinement(group, status);
           });
           issueButtons.push(issueButton);
         }
-        group.append(...issueButtons);
+        issueActions.append(...issueButtons);
+        group.append(issueActions);
         return;
       }
       if (value !== 'useful') return;
@@ -841,7 +853,10 @@
           referralButton.disabled = false;
         }
       });
-      group.append(referralPrompt, referralButton);
+      const referralActions = document.createElement('div');
+      referralActions.className = 'outcome-referral-actions';
+      referralActions.append(referralPrompt, referralButton);
+      group.append(referralActions);
     };
 
     const savedFeedback = savedOutcomeFeedback(eventKey);
@@ -855,6 +870,8 @@
     prompt.className = 'outcome-feedback-prompt';
     prompt.textContent = 'Did this move your work forward?';
     const buttons = [];
+    const feedbackQuestion = document.createElement('div');
+    feedbackQuestion.className = 'outcome-feedback-question';
 
     for (const [label, value] of [['Yes', 'useful'], ['Not yet', 'needs_work']]) {
       const button = document.createElement('button');
@@ -878,7 +895,8 @@
       buttons.push(button);
     }
 
-    group.append(continuityPrompt, projectButton, prompt, ...buttons);
+    feedbackQuestion.append(prompt, ...buttons);
+    group.append(continuity, feedbackQuestion);
     void hydrateOutcomeProjectAction(projectButton);
     return group;
   }

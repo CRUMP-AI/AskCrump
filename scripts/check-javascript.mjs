@@ -961,6 +961,7 @@ const studioActionLabelsVersion = `${releaseVersion}-studio-action-labels-1`;
 const productStudioLazyLoadVersion = `${releaseVersion}-product-studio-lazy-load-2`;
 const workspaceRuntimeRecoveryVersion = `${releaseVersion}-workspace-runtime-recovery-1`;
 const authControllerVersion = workspaceRuntimeRecoveryVersion;
+const continuityHandoffVersion = `${releaseVersion}-continuity-handoff-1`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
 const accountDeletionBillingVersion = `${releaseVersion}-account-deletion-billing-1`;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
@@ -1193,7 +1194,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${workspaceRuntimeRecoveryVersion}`,
+  `/runtime-body-v1.js?v=${continuityHandoffVersion}`,
   `/auth-controller.js?v=${authControllerVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
@@ -1236,13 +1237,13 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/billing-manager.js?v=${checkoutSessionRecoveryVersion}`) ||
     !runtime.includes(`/onboarding.css?v=${videoDestinationVersion}`) ||
     !runtime.includes(`/onboarding.js?v=${precisionEditGuideVersion}`) ||
-    !runtime.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
+    !runtime.includes(`/conversation.css?v=${continuityHandoffVersion}`) ||
     !runtime.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
     !runtime.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
-    !runtime.includes(`/ui-functions.js?v=${outcomeRefinementRecoveryVersion}`) ||
+    !runtime.includes(`/ui-functions.js?v=${continuityHandoffVersion}`) ||
     !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-share.js?v=${settingsInviteVersion}`) ||
     !runtime.includes(`/lifecycle-manager.js?v=${referralCancelRecoveryVersion}`) ||
@@ -1420,10 +1421,10 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r237') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r238') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${workspaceRuntimeRecoveryVersion}`) ||
-    !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${continuityHandoffVersion}`) ||
+    !serviceWorker.includes(`/conversation.css?v=${continuityHandoffVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
@@ -1434,7 +1435,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r237') ||
     !serviceWorker.includes(`/crump-precision-image-edit-loader.js?v=${precisionLazyLoadVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
-    !serviceWorker.includes(`/ui-functions.js?v=${outcomeRefinementRecoveryVersion}`) ||
+    !serviceWorker.includes(`/ui-functions.js?v=${continuityHandoffVersion}`) ||
     !serviceWorker.includes(`/app.js?v=${settingsSaveIsolationVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.js?v=${checkoutSessionRecoveryVersion}`) ||

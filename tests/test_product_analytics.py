@@ -1120,7 +1120,7 @@ def test_useful_outcome_offers_an_optional_content_free_referral():
     assert "useful_prompt_clipboard" in referral
     assert "message?.content" not in referral
     assert "if (value !== 'useful') return" in feedback
-    assert "Start a Project" in ui
+    assert "Keep in a new Project" in ui
     assert r"Keep in \u201c${target.displayName}\u201d" in ui
     assert "Or help someone else:" in feedback
     assert feedback.index("syncOutcomeProjectAction(projectButton)") < feedback.index("Or help someone else:")

@@ -916,11 +916,13 @@ def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_
     product = (ROOT / "public" / "crump-product-5.3.js").read_text(encoding="utf-8")
     route = (ROOT / "backend" / "routes" / "projects.py").read_text(encoding="utf-8")
 
-    assert "Start a Project" in ui
+    assert "Keep in a new Project" in ui
+    assert "Continue this work later" in ui
+    assert "Keep this conversation in a private Project." in ui
     assert r"Keep in \u201c${target.displayName}\u201d" in ui
     assert ui.index("syncOutcomeProjectAction(projectButton)") < ui.index("Or help someone else:")
-    assert "group.append(continuityPrompt, projectButton, prompt, ...buttons)" in ui
-    assert "group.replaceChildren(continuityPrompt, projectButton, status)" in ui
+    assert "group.append(continuity, feedbackQuestion)" in ui
+    assert "group.replaceChildren(continuity, status)" in ui
     assert r'Open Project \u201c${projectName}\u201d containing this conversation' in ui
     assert "showSavedOutcomeProject(projectButton, result.project)" in ui
     assert "'ProjectSaveIntentReached'" in ui
@@ -1131,7 +1133,8 @@ def test_project_save_timeout_fixture_uses_real_product_code_without_credentials
     )
     product = (ROOT / "public" / "crump-product-5.3.js").read_text(encoding="utf-8")
 
-    assert '<script src="/public/ui-functions.js?v=project-save-fixture-5"></script>' in fixture
+    assert '<link rel="stylesheet" href="/public/conversation.css?v=project-continuity-fixture-1">' in fixture
+    assert '<script src="/public/ui-functions.js?v=project-save-fixture-6"></script>' in fixture
     assert '<script src="/public/crump-product-5.3.js?v=project-save-fixture-4"></script>' in fixture
     assert "fixtureSuccessfulSave" in fixture
     assert "Project save request completed." in fixture

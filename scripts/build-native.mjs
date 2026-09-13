@@ -47,7 +47,7 @@ const loader = String.raw`
   const workspaceStyles = Object.freeze([
     ['/billing.css', 'workspacebilling'],
     ['/onboarding.css?v=5.9.76-video-destination-1', 'workspaceonboarding'],
-    ['/conversation.css?v=5.9.76-intelligence-receipt-1', 'workspaceconversation'],
+    ['/conversation.css?v=5.9.76-continuity-handoff-1', 'workspaceconversation'],
     ['/crump-4.3.css', 'crump43'],
     ['/crump-4.4.css', 'crump44'],
     ['/crump-5.0.css?v=5.9.76-precision-edit-entry-1', 'crump50'],
@@ -75,7 +75,7 @@ const loader = String.raw`
     ['/subscription-ui.js?v=5.9.76-commerce-recovery-1', 'workspacesubscription'],
     ['/credit-confirmation.js?v=5.9.76-credit-confirmation-1', 'workspacecreditconfirmation'],
     ['/chat-resilience.js?v=5.9.76-credit-confirmation-1', 'workspacechatresilience'],
-    ['/ui-functions.js?v=5.9.76-outcome-refinement-recovery-1', 'workspaceui'],
+    ['/ui-functions.js?v=5.9.76-continuity-handoff-1', 'workspaceui'],
     ['/presence-manager.js?v=5.9.76', 'workspacepresence'],
     ['/sync-manager.js?v=5.9.76', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-image-stability-1', 'workspacechatsync'],

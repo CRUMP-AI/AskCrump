@@ -6,8 +6,8 @@ const { chromium } = require(playwrightModule);
   const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE || undefined;
   const browser = await chromium.launch({headless: true, ...(executablePath ? {executablePath} : {})});
   const consoleErrors = [];
-  const openFixture = async query => {
-    const page = await browser.newPage({viewport: {width: 390, height: 844}});
+  const openFixture = async (query, viewport = {width: 390, height: 844}) => {
+    const page = await browser.newPage({viewport});
     page.on('console', message => {
       if (message.type() === 'error') consoleErrors.push(message.text());
     });
@@ -17,12 +17,31 @@ const { chromium } = require(playwrightModule);
     });
     await page.waitForFunction(() => {
       const button = document.querySelector('.outcome-project-btn');
-      return button && !button.disabled && button.textContent.includes('Start a Project');
+      return button && !button.disabled && button.textContent.includes('Keep in a new Project');
     });
     return page;
   };
 
+  const inspectHierarchy = page => page.evaluate(() => {
+    const group = document.querySelector('.outcome-feedback');
+    const continuity = document.querySelector('.outcome-continuity');
+    const button = document.querySelector('.outcome-project-btn');
+    const buttonBox = button?.getBoundingClientRect();
+    const continuityBox = continuity?.getBoundingClientRect();
+    return {
+      children: Array.from(group?.children || []).map(node => node.className),
+      title: document.querySelector('.outcome-continuity-prompt')?.textContent || '',
+      detail: document.querySelector('.outcome-continuity-detail')?.textContent || '',
+      question: document.querySelector('.outcome-feedback-question')?.textContent || '',
+      buttonWidth: Math.round(buttonBox?.width || 0),
+      buttonHeight: Math.round(buttonBox?.height || 0),
+      continuityWidth: Math.round(continuityBox?.width || 0),
+      overflow: document.documentElement.scrollWidth > window.innerWidth,
+    };
+  });
+
   const stalledPage = await openFixture('');
+  const mobileHierarchy = await inspectHierarchy(stalledPage);
   await stalledPage.locator('.outcome-project-btn').click();
   await stalledPage.waitForFunction(() => window.__fixture.projectRequests === 1);
   const pending = await stalledPage.evaluate(() => ({
@@ -55,6 +74,10 @@ const { chromium } = require(playwrightModule);
   }));
   await successPage.screenshot({path: 'artifacts/project-save-success.png', fullPage: true});
 
+  const desktopPage = await openFixture('?layout=desktop', {width: 1440, height: 900});
+  const desktopHierarchy = await inspectHierarchy(desktopPage);
+  await desktopPage.screenshot({path: 'artifacts/project-save-desktop.png', fullPage: true});
+
   const expectedIntent = [{
     eventName: 'ProjectSaveIntentReached',
     values: {eventKey: 'project-save-intent', source: 'new_project'},
@@ -62,7 +85,18 @@ const { chromium } = require(playwrightModule);
   assert.equal(pending.button, 'Saving…');
   assert.equal(pending.busy, 'true');
   assert.match(pending.prompt, /Saving this conversation privately/);
-  assert.equal(recovered.button, 'Start a Project');
+  assert.deepEqual(mobileHierarchy.children, ['outcome-continuity', 'outcome-feedback-question']);
+  assert.equal(mobileHierarchy.title, 'Continue this work later');
+  assert.equal(mobileHierarchy.detail, 'Keep this conversation in a private Project.');
+  assert.match(mobileHierarchy.question, /Did this move your work forward\?YesNot yet/);
+  assert.ok(mobileHierarchy.buttonHeight >= 44);
+  assert.ok(mobileHierarchy.buttonWidth >= mobileHierarchy.continuityWidth - 26);
+  assert.equal(mobileHierarchy.overflow, false);
+  assert.equal(desktopHierarchy.title, mobileHierarchy.title);
+  assert.equal(desktopHierarchy.detail, mobileHierarchy.detail);
+  assert.ok(desktopHierarchy.buttonWidth < desktopHierarchy.continuityWidth / 2);
+  assert.equal(desktopHierarchy.overflow, false);
+  assert.equal(recovered.button, 'Keep in a new Project');
   assert.match(recovered.prompt, /Couldn’t save yet/);
   assert.deepEqual(recovered.analytics, expectedIntent);
   assert.equal(recovered.projectBodies[0]?.continuitySource, 'result_action');
@@ -77,7 +111,7 @@ const { chromium } = require(playwrightModule);
   assert.deepEqual(consoleErrors, []);
 
   await browser.close();
-  process.stdout.write(`${JSON.stringify({pending, recovered, saved, consoleErrors})}\n`);
+  process.stdout.write(`${JSON.stringify({mobileHierarchy, desktopHierarchy, pending, recovered, saved, consoleErrors})}\n`);
 })().catch(error => {
   process.stderr.write(`${error.stack || error}\n`);
   process.exitCode = 1;

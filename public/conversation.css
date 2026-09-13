@@ -424,13 +424,41 @@ button.message-status {
 
 .outcome-feedback {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: min(100%, 640px);
+  min-height: 32px;
+  margin-top: 10px;
+  color: var(--color-text-tertiary);
+  font-size: 0.72rem;
+}
+
+.outcome-continuity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(209, 191, 150, 0.24);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(209, 191, 150, 0.09), rgba(255, 255, 255, 0.025));
+}
+
+.outcome-continuity-copy {
+  display: grid;
+  flex: 1 1 220px;
+  gap: 2px;
+  min-width: 0;
+}
+
+.outcome-feedback-question,
+.outcome-feedback-actions,
+.outcome-referral-actions {
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 7px;
-  min-height: 32px;
-  margin-top: 2px;
-  color: var(--color-text-tertiary);
-  font-size: 0.7rem;
 }
 
 .outcome-feedback-prompt {
@@ -464,18 +492,25 @@ button.message-status {
 }
 
 .outcome-continuity-prompt {
-  margin-left: 3px;
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.outcome-continuity-detail {
+  color: var(--color-text-tertiary);
+  line-height: 1.4;
 }
 
 .outcome-project-btn {
+  min-height: 38px;
+  margin-left: auto;
+  padding: 7px 12px;
   border-color: rgba(209, 191, 150, 0.56);
   background: linear-gradient(135deg, rgba(209, 191, 150, 0.22), rgba(166, 132, 69, 0.12));
   color: rgba(248, 239, 216, 0.96);
 }
 
 .outcome-referral-prompt {
-  margin-left: 3px;
   color: var(--color-text-tertiary);
 }
 
@@ -1098,6 +1133,16 @@ body {
     bottom: 120px;
     width: 44px;
     height: 44px;
+  }
+
+  .outcome-continuity-copy {
+    flex-basis: 100%;
+  }
+
+  .outcome-project-btn {
+    width: 100%;
+    min-height: 44px;
+    margin-left: 0;
   }
 }
 
