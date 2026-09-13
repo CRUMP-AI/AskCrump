@@ -81,7 +81,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-navigation-5.9.30.js?v=5.9.76-code-lazy-load-1', 'crumpnav5930'],
     ['/crump-code-loader.js?v=5.9.76-code-lazy-load-1', 'crumpcodeloader'],
     ['/lifecycle-share.js?v=5.9.76-settings-invite-1', 'lifecycleshare'],
-    ['/lifecycle-manager.js?v=5.9.76-referral-cancel-recovery-1', 'lifecyclemanager'],
+    ['/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1', 'lifecyclemanager'],
   ]);
 
   const scriptPlan = Object.freeze([

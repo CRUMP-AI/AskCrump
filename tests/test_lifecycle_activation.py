@@ -204,6 +204,10 @@ def test_browser_component_uses_only_reviewed_static_copy_and_is_nonblocking():
     assert "role', 'region'" in manager
     assert "focus({preventScroll: true})" in manager
     assert "activeWork() || recoverySurface()" in manager
+    assert "document.getElementById('sendButton')?.disabled" not in manager
+    assert "String(input?.value || '').trim()" in manager
+    assert "window.CrumpPresence?.indicator?.()" in manager
+    assert "preview && isVisible(preview)" in manager
     assert "action('shown')" in manager
     assert "action('suppressed', 'active-work')" in manager
     assert "let volatileSessionId = '';" in manager
@@ -216,10 +220,17 @@ def test_browser_component_uses_only_reviewed_static_copy_and_is_nonblocking():
     assert "navigation.open('projects')" not in continuity
     assert "prefers-reduced-motion: reduce" in styles
     assert "/lifecycle-share.js?v=5.9.76-settings-invite-1" in runtime
-    assert "/lifecycle-manager.js?v=5.9.76-referral-cancel-recovery-1" in runtime
+    assert "/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1" in runtime
     assert "/lifecycle.css?v=5.9.76-lifecycle-activation-1" in runtime
-    assert "ask-crump-new-body-v1-r239" in worker
+    assert "ask-crump-new-body-v1-r240" in worker
     assert (ROOT / "tests" / "fixtures" / "lifecycle-project-continuity.html").exists()
+    continuity_fixture = (ROOT / "tests" / "fixtures" / "lifecycle-project-continuity.html").read_text(encoding="utf-8")
+    assert 'id="sendButton" type="button" disabled aria-disabled="true"' in continuity_fixture
+    assert "window.__fixture.decisionCalls += 1" in continuity_fixture
+    continuity_verifier = (ROOT / "scripts" / "verify-lifecycle-project-continuity.cjs").read_text(encoding="utf-8")
+    assert "A draft the user has not sent" in continuity_verifier
+    assert "document.getElementById('filePreview').hidden = false" in continuity_verifier
+    assert "window.__fixture.presenceActive = true" in continuity_verifier
     assert (ROOT / "scripts" / "verify-lifecycle-project-continuity.cjs").exists()
     assert (ROOT / "tests" / "fixtures" / "lifecycle-referral-recovery.html").exists()
     verifier = (ROOT / "scripts" / "verify-lifecycle-referral-recovery.cjs").read_text(encoding="utf-8")

@@ -5,12 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ask Crump lifecycle Project continuity fixture</title>
   <link rel="icon" href="data:,">
+  <style>#filePreview[hidden] { display: none; }</style>
 </head>
 <body>
   <main>
     <div id="chatContainer" aria-label="Conversation"></div>
     <textarea id="userInput"></textarea>
-    <button id="sendButton" type="button">Send</button>
+    <button id="sendButton" type="button" disabled aria-disabled="true">Send</button>
+    <div id="filePreview" hidden>Reference image ready</div>
     <div id="conversationStatus" aria-live="polite"></div>
   </main>
   <script>
@@ -23,8 +25,18 @@
         {id: 'answer-1', role: 'assistant', content: 'Here is a useful launch plan.'},
       ],
     }];
-    window.__fixture = {keepCalls: 0, genericProjectOpens: 0, actions: [], projectArgs: []};
+    window.__fixture = {
+      keepCalls: 0,
+      genericProjectOpens: 0,
+      decisionCalls: 0,
+      presenceActive: false,
+      actions: [],
+      projectArgs: [],
+    };
     window.showToast = () => {};
+    window.CrumpPresence = {
+      indicator: () => window.__fixture.presenceActive ? {kind: 'thinking'} : null,
+    };
     window.CrumpProduct53 = {
       projectTarget: () => null,
       resolveOutcomeProject: async () => {
@@ -48,6 +60,7 @@
     window.fetch = async (input, options = {}) => {
       const path = new URL(String(input), location.origin).pathname;
       if (path === '/api/lifecycle/decision') {
+        window.__fixture.decisionCalls += 1;
         return new Response(JSON.stringify({
           success: true,
           eligible: true,

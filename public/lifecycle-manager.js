@@ -136,7 +136,6 @@
     return Boolean(
       String(input?.value || '').trim()
       || window.CrumpPresence?.indicator?.()
-      || document.getElementById('sendButton')?.disabled
       || (preview && isVisible(preview))
     );
   }

@@ -991,7 +991,7 @@ const precisionLazyLoadVersion = `${releaseVersion}-precision-lazy-load-1`;
 const libraryLazyLoadVersion = `${releaseVersion}-library-lazy-load-1`;
 const conversationActionLabelsVersion = `${releaseVersion}-conversation-action-labels-2`;
 const controlFocusIntegrityVersion = `${releaseVersion}-control-focus-integrity-1`;
-const referralCancelRecoveryVersion = `${releaseVersion}-referral-cancel-recovery-1`;
+const lifecycleIdleSendVersion = `${releaseVersion}-lifecycle-idle-send-1`;
 const settingsInviteVersion = `${releaseVersion}-settings-invite-1`;
 const precisionEditEntryVersion = `${releaseVersion}-precision-edit-entry-1`;
 const precisionEditStudioVersion = `${releaseVersion}-precision-studio-1`;
@@ -1245,7 +1245,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/ui-functions.js?v=${continuityHandoffVersion}`) ||
     !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-share.js?v=${settingsInviteVersion}`) ||
-    !runtime.includes(`/lifecycle-manager.js?v=${referralCancelRecoveryVersion}`) ||
+    !runtime.includes(`/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) ||
     !runtime.includes(`/chat-sync.js?v=${settingsSyncVersion}`) ||
     !runtime.includes(`/product-analytics.js?v=${outcomeIssueCategoriesVersion}`) ||
     !runtime.includes(`/app.js?v=${settingsSaveIsolationVersion}`) ||
@@ -1352,7 +1352,7 @@ if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
     !loadedRuntimeScripts.every(asset => preloadedRuntimeScripts.includes(asset)) ||
     loadedRuntimeScripts.indexOf(`/credit-confirmation.js?v=${creditConfirmationVersion}`) > loadedRuntimeScripts.indexOf(`/app.js?v=${settingsSaveIsolationVersion}`) ||
     loadedRuntimeScripts.indexOf(`/app.js?v=${settingsSaveIsolationVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${composerActionabilityVersion}`) ||
-    loadedRuntimeScripts.at(-1) !== `/lifecycle-manager.js?v=${referralCancelRecoveryVersion}`) {
+    loadedRuntimeScripts.at(-1) !== `/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) {
   console.error('Authenticated workspace runtime load order or completion contract failed.');
   process.exit(1);
 }
@@ -1420,7 +1420,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r239') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r240') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${continuityHandoffVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${continuityHandoffVersion}`) ||
@@ -1445,7 +1445,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r239') ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${codeLazyLoadVersion}`) ||
     !serviceWorker.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !serviceWorker.includes(`/lifecycle-share.js?v=${settingsInviteVersion}`) ||
-    !serviceWorker.includes(`/lifecycle-manager.js?v=${referralCancelRecoveryVersion}`) ||
+    !serviceWorker.includes(`/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) ||
     !serviceWorker.includes(`/auth-resilience.js?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/install-prompt.js?v=${authUpdateGuardVersion}`) ||
     !serviceWorker.includes(`/install-prompt.css?v=${releaseVersion}`) ||
