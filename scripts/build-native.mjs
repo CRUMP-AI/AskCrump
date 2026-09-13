@@ -116,39 +116,68 @@ const loader = String.raw`
     ...finalScripts,
   ]);
 
-  function loadStyle(url, key) {
+  function loadStyleOnce(url, key) {
     const keyed = document.querySelector('link[data-' + key + ']');
     if (keyed) return Promise.resolve();
 
     const existing = document.querySelector('link[href="' + url + '"]');
     if (existing) {
-      existing.dataset[key] = 'true';
-      document.head.appendChild(existing);
-      return Promise.resolve();
+      return new Promise((resolve,reject) => {
+        const node = existing.cloneNode();
+        node.dataset[key] = 'true';
+        node.addEventListener('load', resolve, {once:true});
+        node.addEventListener('error', () => {
+          node.remove();
+          reject(new Error('Workspace style unavailable.'));
+        }, {once:true});
+        document.head.appendChild(node);
+      });
     }
 
-    return new Promise(resolve => {
+    return new Promise((resolve,reject) => {
       const node = document.createElement('link');
       node.rel = 'stylesheet';
       node.href = url;
       node.dataset[key] = 'true';
       node.addEventListener('load', resolve, {once:true});
-      node.addEventListener('error', resolve, {once:true});
+      node.addEventListener('error', () => {
+        node.remove();
+        reject(new Error('Workspace style unavailable.'));
+      }, {once:true});
       document.head.appendChild(node);
     });
   }
 
-  function loadScript(url, key) {
+  async function loadStyle(url, key) {
+    try {
+      await loadStyleOnce(url,key);
+    } catch (_) {
+      await loadStyleOnce(url,key);
+    }
+  }
+
+  function loadScriptOnce(url, key) {
     if (document.querySelector('script[data-' + key + ']')) return Promise.resolve();
-    return new Promise(resolve => {
+    return new Promise((resolve,reject) => {
       const node = document.createElement('script');
       node.src = url;
       node.async = false;
       node.dataset[key] = 'true';
       node.addEventListener('load', resolve, {once:true});
-      node.addEventListener('error', resolve, {once:true});
+      node.addEventListener('error', () => {
+        node.remove();
+        reject(new Error('Workspace script unavailable.'));
+      }, {once:true});
       document.head.appendChild(node);
     });
+  }
+
+  async function loadScript(url, key) {
+    try {
+      await loadScriptOnce(url,key);
+    } catch (_) {
+      await loadScriptOnce(url,key);
+    }
   }
 
   function primeScript(url, key) {
@@ -188,14 +217,17 @@ const loader = String.raw`
     if (runtimePromise) return runtimePromise;
     runtimePromise = boot().catch(error => {
       runtimePromise = null;
-      delete document.documentElement.dataset.crumpBodyRuntime;
-      throw error;
+      document.documentElement.dataset.crumpBodyRuntime = 'failed';
+      throw new Error(
+        'Ask Crump could not finish loading your workspace. Your sign-in is safe—check your connection and reload to try again.',
+        {cause:error},
+      );
     });
     return runtimePromise;
   }
 
   window.CrumpWorkspaceRuntime = Object.freeze({load});
-  window.addEventListener('crump:workspace-runtime-requested', () => { void load(); });
+  window.addEventListener('crump:workspace-runtime-requested', () => { void load().catch(() => {}); });
 })();
 `;
 

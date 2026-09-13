@@ -946,7 +946,6 @@ const repoRoot = new URL('../', import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot), 'utf8'));
 const releaseVersion = String(packageJson.version || '');
 const landingVersion = `${releaseVersion}-organic-feed-attribution-1`;
-const attributionVersion = `${releaseVersion}-organic-feed-attribution-1`;
 const planRendererVersion = `${releaseVersion}-credit-pack-accessibility-1`;
 const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
 const nativeBillingIdentityVersion = `${releaseVersion}-native-billing-identity-1`;
@@ -960,6 +959,8 @@ const settingsSaveIsolationVersion = `${releaseVersion}-settings-save-isolation-
 const outputProjectActionVersion = `${releaseVersion}-output-project-action-1`;
 const studioActionLabelsVersion = `${releaseVersion}-studio-action-labels-1`;
 const productStudioLazyLoadVersion = `${releaseVersion}-product-studio-lazy-load-2`;
+const workspaceRuntimeRecoveryVersion = `${releaseVersion}-workspace-runtime-recovery-1`;
+const authControllerVersion = workspaceRuntimeRecoveryVersion;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
 const accountDeletionBillingVersion = `${releaseVersion}-account-deletion-billing-1`;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
@@ -1192,7 +1193,8 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${productStudioLazyLoadVersion}`,
+  `/runtime-body-v1.js?v=${workspaceRuntimeRecoveryVersion}`,
+  `/auth-controller.js?v=${authControllerVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
   `/auth-resilience.js?v=${releaseVersion}`,
@@ -1418,9 +1420,9 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r236') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r237') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${productStudioLazyLoadVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${workspaceRuntimeRecoveryVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${intelligenceReceiptVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
@@ -1451,7 +1453,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r236') ||
     !serviceWorker.includes(`/sync-manager.js?v=${syncCursorVersion}`) ||
     !serviceWorker.includes(`/chat-sync.js?v=${settingsSyncVersion}`) ||
     !serviceWorker.includes(`/product-analytics.js?v=${outcomeIssueCategoriesVersion}`) ||
-    !serviceWorker.includes(`/auth-controller.js?v=${attributionVersion}`) ||
+    !serviceWorker.includes(`/auth-controller.js?v=${authControllerVersion}`) ||
     !serviceWorker.includes(`/crump-v1-body.css?v=${creditTruthVersion}`) ||
     !serviceWorker.includes(`/crump-4.3.js?v=${composerActionabilityVersion}`) ||
     !serviceWorker.includes(`/crump-4.4.js?v=${coreReliabilityVersion}`) ||

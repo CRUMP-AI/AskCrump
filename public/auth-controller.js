@@ -1364,6 +1364,13 @@
     wireRegistration();
     wireRecovery();
     window.addEventListener('crump:authentication-required', handleAuthenticationRequired);
-    bootstrap().catch(error => { console.error('[Bootstrap]', error); showAuth(); });
+    bootstrap().catch(error => {
+      console.error('[Bootstrap]', error);
+      showAuth('login');
+      setText(
+        'loginError',
+        error?.message || 'Ask Crump could not finish loading your workspace. Your sign-in is safe—reload to try again.',
+      );
+    });
   });
 })();

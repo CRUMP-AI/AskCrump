@@ -23,14 +23,14 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
     ]
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
-        '/runtime-body-v1.js?v=5.9.76-product-studio-lazy-load-2',
+        '/runtime-body-v1.js?v=5.9.76-workspace-runtime-recovery-1',
         '/native-runtime.js',
         '/mobile-bridge.js',
         '/safe-storage.js',
         '/install-prompt.js?v=5.9.76-update-work-guard-1',
         '/auth-resilience.js?v=5.9.76',
         '/device-auth.js?v=5.9.76-native-billing-identity-1',
-        '/auth-controller.js?v=5.9.76-organic-feed-attribution-1',
+        '/auth-controller.js?v=5.9.76-workspace-runtime-recovery-1',
         '/_vercel/insights/script.js',
         '/_vercel/speed-insights/script.js',
     ]
@@ -67,6 +67,9 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
     assert 'let runtimePromise = null;' in runtime
     assert 'if (runtimePromise) return runtimePromise;' in runtime
     assert 'window.CrumpWorkspaceRuntime = Object.freeze({load});' in runtime
+    assert "document.documentElement.dataset.crumpBodyRuntime = 'failed';" in runtime
+    assert "Your sign-in is safe—check your connection and reload to try again." in runtime
+    assert "void load().catch(() => {});" in runtime
     assert "document.addEventListener('DOMContentLoaded', () => { void boot();" not in runtime
 
     assert 'async function prepareAuthenticatedWorkspace()' in controller
@@ -75,6 +78,10 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
     assert bootstrap.index('await prepareAuthenticatedWorkspace();') < bootstrap.index('activeUser = session.data.user;')
     login = controller[controller.index('  function wireLogin()'):controller.index('  function wireRegistration()')]
     assert login.index('await prepareAuthenticatedWorkspace();') < login.index('activeUser = result.data.user;')
+    bootstrap_catch = controller[controller.rindex("bootstrap().catch(error =>") :]
+    assert "showAuth('login');" in bootstrap_catch
+    assert "error?.message" in bootstrap_catch
+    assert "Your sign-in is safe" in bootstrap_catch
 
 
 def test_new_visitors_wait_for_authentication_before_service_worker_registration():

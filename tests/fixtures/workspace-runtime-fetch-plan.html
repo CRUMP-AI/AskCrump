@@ -16,9 +16,13 @@
     <output id="firstScript" aria-label="First executed script">none</output>
     <output id="lastScript" aria-label="Last executed script">none</output>
     <output id="runtimeMs" aria-label="Simulated runtime milliseconds">0</output>
+    <output id="styleAttempts" aria-label="First style attempts">0</output>
+    <output id="scriptAttempts" aria-label="First script attempts">0</output>
+    <output id="readyEvents" aria-label="Runtime ready events">0</output>
+    <output id="failureMessage" aria-label="Runtime failure message">none</output>
     <output id="browserErrors" aria-label="Browser errors">0</output>
   </main>
-  <script src="/public/runtime-body-v1.js?v=workspace-fetch-plan-fixture-2"></script>
+  <script src="/public/runtime-body-v1.js?v=workspace-fetch-plan-fixture-3"></script>
   <script>
     const nativeAppendChild = document.head.appendChild.bind(document.head);
     const simulatedFetchMs = 120;
@@ -30,6 +34,12 @@
     let stylesRequested = 0;
     let preloadsBeforeExecution = 0;
     let executionStarted = false;
+    let firstStyleAttempts = 0;
+    let firstScriptAttempts = 0;
+    const fixtureMode = new URLSearchParams(location.search).get('mode') || 'normal';
+    window.__fixtureAllowAssetSuccess = fixtureMode !== 'style-fail';
+    let readyEvents = 0;
+    window.addEventListener('crump:body-runtime-ready', () => { readyEvents += 1; });
 
     const assetName = value => {
       const url = new URL(String(value || ''), location.href);
@@ -47,11 +57,25 @@
 
     document.head.appendChild = node => {
       if (node.tagName === 'LINK' && node.rel === 'stylesheet') {
+        const asset = assetName(node.href);
+        if (asset === '/billing.css') firstStyleAttempts += 1;
         stylesRequested += 1;
         activeStyles += 1;
         maximumStyles = Math.max(maximumStyles, activeStyles);
         window.setTimeout(() => {
           activeStyles -= 1;
+          const shouldFail = asset === '/billing.css' && (
+            (fixtureMode === 'style-retry' && firstStyleAttempts === 1)
+            || (fixtureMode === 'style-fail' && !window.__fixtureAllowAssetSuccess)
+          );
+          if (shouldFail) {
+            node.dispatchEvent(new Event('error'));
+            return;
+          }
+          // Keep successful keyed links discoverable for the recovery run without
+          // asking the fixture server for the app's real stylesheet assets.
+          node.href = 'data:text/css,';
+          nativeAppendChild(node);
           node.dispatchEvent(new Event('load'));
         }, simulatedFetchMs);
         return node;
@@ -67,11 +91,18 @@
       if (node.tagName === 'SCRIPT') {
         executionStarted = true;
         const asset = assetName(node.src);
+        if (asset === '/onboarding.js?v=5.9.76-button-integrity-1') firstScriptAttempts += 1;
         executedScripts.push(asset);
         const readyAt = scriptReadyAt.get(asset) || performance.now() + simulatedFetchMs;
         const remainingFetchMs = Math.max(0, readyAt - performance.now());
         window.setTimeout(
-          () => node.dispatchEvent(new Event('load')),
+          () => node.dispatchEvent(new Event(
+            fixtureMode === 'script-retry'
+              && asset === '/onboarding.js?v=5.9.76-button-integrity-1'
+              && firstScriptAttempts === 1
+              ? 'error'
+              : 'load',
+          )),
           remainingFetchMs + simulatedExecuteMs,
         );
         return node;
@@ -80,8 +111,8 @@
       return nativeAppendChild(node);
     };
 
-    const startedAt = performance.now();
-    window.CrumpWorkspaceRuntime.load().then(() => {
+    let startedAt = performance.now();
+    const reportReady = () => {
       setOutput('runtimeState', document.documentElement.dataset.crumpBodyRuntime || 'missing');
       setOutput('styleCount', stylesRequested);
       setOutput('maxStyles', maximumStyles);
@@ -90,10 +121,29 @@
       setOutput('firstScript', executedScripts[0] || 'none');
       setOutput('lastScript', executedScripts.at(-1) || 'none');
       setOutput('runtimeMs', Math.round(performance.now() - startedAt));
-    }).catch(error => {
-      recordBrowserError();
-      setOutput('runtimeState', error?.message || 'failed');
-    });
+      setOutput('styleAttempts', firstStyleAttempts);
+      setOutput('scriptAttempts', firstScriptAttempts);
+      setOutput('readyEvents', readyEvents);
+      setOutput('failureMessage', 'none');
+    };
+    const reportFailure = error => {
+      if (fixtureMode !== 'style-fail') recordBrowserError();
+      setOutput('runtimeState', document.documentElement.dataset.crumpBodyRuntime || 'missing');
+      setOutput('styleCount', stylesRequested);
+      setOutput('scriptCount', executedScripts.length);
+      setOutput('styleAttempts', firstStyleAttempts);
+      setOutput('scriptAttempts', firstScriptAttempts);
+      setOutput('readyEvents', readyEvents);
+      setOutput('failureMessage', error?.message || 'unknown');
+    };
+    window.__fixtureRunRuntime = () => {
+      startedAt = performance.now();
+      return window.CrumpWorkspaceRuntime.load().then(reportReady).catch(error => {
+        reportFailure(error);
+        throw error;
+      });
+    };
+    window.__fixtureRunRuntime().catch(() => {});
   </script>
 </body>
 </html>

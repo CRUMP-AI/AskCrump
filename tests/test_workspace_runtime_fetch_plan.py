@@ -21,6 +21,17 @@ def test_web_and_native_runtime_fetch_assets_in_parallel_without_reordering_exec
         assert "primeScripts(scriptPlan);" in source
         assert "const stylesReady = Promise.all(" in source
         assert "[...workspaceStyles, ...enhancementStyles].map" in source
+        assert "async function loadStyle(url, key)" in source
+        assert "async function loadScript(url, key)" in source
+        assert "await loadStyleOnce(url" in source
+        assert "await loadScriptOnce(url" in source
+        assert "Workspace style unavailable." in source
+        assert "Workspace script unavailable." in source
+        assert "node.remove();" in source
+        assert "const node = existing.cloneNode();" in source
+        assert "document.head.appendChild(existing)" not in source
+        assert "document.documentElement.dataset.crumpBodyRuntime = 'failed';" in source
+        assert "Your sign-in is safe" in source
         assert "for (const [url, key] of scriptPlan)" in source or "for (const [url,key] of scriptPlan)" in source
 
         styles_start = source.index("const stylesReady = Promise.all(")
@@ -39,11 +50,11 @@ def test_parallel_runtime_asset_is_versioned_for_web_pwa_and_native():
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
 
-    asset = "/runtime-body-v1.js?v=5.9.76-product-studio-lazy-load-2"
+    asset = "/runtime-body-v1.js?v=5.9.76-workspace-runtime-recovery-1"
     assert asset in shell
     assert asset in worker
-    assert "ask-crump-new-body-v1-r236" in worker
-    assert "ask-crump-new-body-v1-r236" in checker
+    assert "ask-crump-new-body-v1-r237" in worker
+    assert "ask-crump-new-body-v1-r237" in checker
 
 
 def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
@@ -51,22 +62,34 @@ def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
     verifier = read("scripts/verify-workspace-runtime-fetch-plan.cjs")
     matrix = read("scripts/verify-browser-control-matrix.mjs")
 
-    assert "/public/runtime-body-v1.js?v=workspace-fetch-plan-fixture-2" in fixture
+    assert "/public/runtime-body-v1.js?v=workspace-fetch-plan-fixture-3" in fixture
     assert 'aria-label="Maximum concurrent styles"' in fixture
     assert 'aria-label="Scripts preloaded before execution"' in fixture
     assert 'aria-label="First executed script"' in fixture
     assert 'aria-label="Last executed script"' in fixture
     assert 'aria-label="Simulated runtime milliseconds"' in fixture
     assert 'aria-label="Browser errors"' in fixture
+    assert 'aria-label="First style attempts"' in fixture
+    assert 'aria-label="First script attempts"' in fixture
+    assert 'aria-label="Runtime ready events"' in fixture
+    assert 'aria-label="Runtime failure message"' in fixture
     assert "simulatedFetchMs = 120" in fixture
+    assert "style-retry" in fixture
+    assert "script-retry" in fixture
+    assert "style-fail" in fixture
+    assert "__fixtureAllowAssetSuccess" in fixture
     assert '<link rel="icon" href="data:,">' in fixture
     assert "password" not in fixture.lower()
     assert "askcrump.com" not in fixture.lower()
     assert "verify-workspace-runtime-fetch-plan.cjs" in matrix
-    assert "evidence.styleCount, 17" in verifier
     assert "evidence.maxStyles, 17" in verifier
     assert "evidence.preloadCount, 34" in verifier
-    assert "evidence.scriptCount, 34" in verifier
+    assert "mode === 'style-retry' ? 18 : 17" in verifier
+    assert "mode === 'script-retry' ? 35 : 34" in verifier
+    assert "evidence.styleAttempts, mode === 'style-retry' ? 2 : 1" in verifier
+    assert "evidence.scriptAttempts, mode === 'script-retry' ? 2 : 1" in verifier
+    assert "failureMessage: 'Ask Crump could not finish loading your workspace." in verifier
+    assert "results['style-fail-recovery']" in verifier
     assert "evidence.runtimeMs > 0 && evidence.runtimeMs < 1_000" in verifier
     assert "password" not in verifier.lower()
     assert "askcrump.com" not in verifier.lower()
