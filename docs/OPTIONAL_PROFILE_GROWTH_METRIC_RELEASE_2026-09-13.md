@@ -17,6 +17,11 @@ service-role-only privacy contract.
 
 ## Verification
 
+- Product/evidence commit `6aa8d824bc0231f2d1284b29f3c1da630403f1d1` is on `main`.
+- Production deployment `dpl_CLdNhFFrar8sd3AASz7eun71pJ3m` is Ready on all six aliases.
+- GitHub CI run `34777787315` completed successfully for both Python and JavaScript jobs.
+- Production health returned HTTP 200 on version 5.9.76, and the post-release runtime-error view was
+  empty.
 - A transaction-rolled-back rehearsal returned stage 4 as `optional_profile_completed` before the
   production migration was applied.
 - The live production aggregate returns the corrected label with the existing 0 of 1 result.

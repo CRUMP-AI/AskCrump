@@ -967,16 +967,16 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
-The 2026-09-13 18:51 UTC privacy-safe refresh still contains one comparable
+The 2026-09-13 19:21 UTC privacy-safe refresh still contains one comparable
 `clevercrump` acquisition account through activation, with no Project-save
 intent/completion, artifact journey, payer, or eligible 24-hour/D1/D7
 denominator. This is the same still-maturing account observed at 17:56 UTC, not
-a new failure. The latest one-hour production log view contains 126 HTTP 200
-responses and no 3xx, 4xx, or 5xx entry; the grouped runtime-error report is
-empty. Preserve the result-to-Project release through the account's complete
-24-hour value window. At or after that boundary, refresh the protected reports
-and distinguish no durable-value intent from an attempted save failure before
-changing the interface again.
+a new failure. Stage 4 now truthfully reports zero optional-profile completions
+instead of implying required onboarding failed. Production health remained 200
+and the post-release runtime-error view was empty. Preserve the result-to-Project
+release through the account's complete 24-hour value window. At or after that
+boundary, refresh the protected reports and distinguish no durable-value intent
+from an attempted save failure before changing the interface again.
 
 The 2026-09-10 22:54 UTC post-release check found 195 HTTP 200 responses and
 seven expected HTTP 302 private-file handoffs in the latest one-hour production
