@@ -102,26 +102,51 @@ download, payment, deletion, or other gated action. This closes the reproducible
 loader/control risk. Continue to let legitimate journeys or a new reproducible
 defect—not speculative interface expansion—choose the next product mutation.
 
+### First comparable account observation — 2026-09-13 17:56 UTC
+
+The first legitimate September production account is now inside the comparable
+measurement boundary. It is verified, opened the workspace, selected a starter
+intent, reached server-authoritative activation, and completed three chat jobs
+without a failed job. No Project-save intent, Project, file, artifact, media job,
+or explicit outcome rating is present. The account was only about 2.3 hours old,
+so D1 and D7 eligibility are both zero and the absence of durable value or return
+must not be labeled a customer failure.
+
+The trailing six-hour production view contained 476 HTTP 200 responses, five
+HTTP 302 responses, one HTTP 303 response, and two HTTP 503 responses. Both 503s
+were check-in scheduler calls that exhausted database retries after transient
+upstream 504s; later 16:00 and 17:00 UTC runs returned 200. A separate 08:00
+manuscript scheduler call showed the same transient dependency behavior. No
+customer-facing runtime-error cluster was present, and the new account's three
+chat jobs completed.
+
+Preserve the current product through this account's 24-hour value window. The
+full content-free evidence is recorded in
+`docs/FIRST_COMPARABLE_ACCOUNT_OBSERVATION_2026-09-13.md`.
+
 ## Product and journey evidence
 
 The current database reconciliation reports:
 
 | Measure | Verified count |
 | --- | ---: |
-| External accounts | 3 |
-| Verified external accounts | 2 |
-| Comparable September production accounts | 0 |
+| External accounts | 4 |
+| Verified external accounts | 3 |
+| Comparable September production accounts | 1 |
 | External active paid accounts | 0 |
-| Comparable activation accounts | 0 |
+| Comparable activation accounts | 1 |
 | Comparable durable-value accounts | 0 |
 | Comparable return accounts | 0 |
 | Comparable artifact journeys | 0 |
 | Comparable lifecycle rows | 0 |
 
-The 21:19 UTC service-role refresh returned all 18 comparable growth stages at
-zero and empty weekly-attribution, artifact-journey, and Project-continuity exports.
-The three legacy external accounts still include two verified accounts, zero
-September logins, and zero active provider-backed payers. The fixed sanitized demo
+The original 21:19 UTC service-role refresh returned all 18 comparable growth stages at
+zero. The 2026-09-13 refresh supersedes that account snapshot: weekly attribution
+now contains one `clevercrump` acquisition row through activation, while artifact
+journey remains empty and Project continuity reports no save action. The three
+legacy external accounts and the new comparable account together include three
+verified accounts, 17 completed chat jobs, zero failed chat jobs, and zero active
+provider-backed payers. The fixed sanitized demo
 identity does not exist. A corrected live lookup confirmed that
 `demo_recording_proof_snapshot()` is installed, stable, security-invoker, empty
 search-path, denied to public/anonymous/authenticated roles, and executable by

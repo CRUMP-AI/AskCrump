@@ -1,6 +1,6 @@
 # Ask Crump operating backlog
 
-Last updated: 2026-09-10
+Last updated: 2026-09-13
 
 ## Operating standard
 
@@ -12,6 +12,17 @@ Every item below needs four things before it is called shipped: an accountable p
 outcome, privacy and safety constraints, automated coverage, and production evidence.
 
 ## Current operating evidence — 2026-09-08
+
+The 2026-09-13 service-role refresh changes the operating baseline: Ask Crump now
+has its first legitimate comparable September production account. The account is
+verified, opened the workspace, selected a starter intent, reached activation,
+and completed three chat jobs with no failed chat job. No Project-save intent,
+Project, file, artifact, media job, or explicit outcome rating is present. At
+observation the account was only about 2.3 hours old, leaving both D1 and D7
+denominators at zero. Preserve the current experience through the 24-hour value
+window; do not turn an immature single-account observation into a redesign or a
+retention claim. Evidence:
+`docs/FIRST_COMPARABLE_ACCOUNT_OBSERVATION_2026-09-13.md`.
 
 The service-role, content-free production review shows **7 current accounts**, **6 verified
 accounts**, and **0 comparable production registrations**. This is internally consistent: every

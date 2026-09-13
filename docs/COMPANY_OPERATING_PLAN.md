@@ -26,11 +26,11 @@ deleted accounts and does not inspect customer content.
 
 | Measure | Verified value | Interpretation |
 | --- | ---: | --- |
-| External registered accounts | 3 | Too small for statistical conclusions |
-| Verified external accounts | 2 | Two accounts completed verified first-use activity |
-| External profiles completed | 3 of 3 | Basic profile setup is not the largest observed loss |
-| External accounts with successful AI jobs | 2 of 3 | First-use value occurred before comparable event instrumentation |
-| Completed external AI jobs | 14 of 14 | No failed external AI jobs are present in the aggregate |
+| External registered accounts | 4 | Too small for statistical conclusions |
+| Verified external accounts | 3 | The first comparable September account is verified |
+| External profiles completed | 3 of 4 | The new comparable account has not recorded onboarding completion |
+| External accounts with successful AI jobs | 3 of 4 | The new comparable account completed three real chat jobs |
+| Completed external AI jobs | 17 of 17 | No failed external AI jobs are present in the aggregate |
 | Active Professional accounts | 0 | No current subscription revenue in the account aggregate |
 | Active Enterprise accounts | 0 | No current subscription revenue in the account aggregate |
 | Stripe live-mode payments / active subscriptions | 0 / 0 | No payment or subscription has reached the live Stripe account |
@@ -38,8 +38,9 @@ deleted accounts and does not inspect customer content.
 | Active Stripe products | 5 | Professional, Enterprise, and three credit packs match the intended catalog |
 | 30-day accounts created | 3 | Acquisition baseline only |
 | External Projects / files | 0 / 0 | Successful chats did not become durable workspace assets |
-| External product events after comparable instrumentation | 0 | External activity ended before the first observed product-event traffic and did not resume |
-| External activity after 2026-08-23 | 0 | Return behavior is the clearest verified loss |
+| Comparable September production accounts | 1 | One legitimate account is now inside the decision-grade measurement boundary |
+| Comparable account stage | Verified, workspace, starter intent, activation | The account completed three chat jobs without a recorded failure |
+| Comparable durable value / eligible return | 0 / 0 | The account was only 2.3 hours old at observation; no D1 conclusion is valid |
 | Artifact-journey rows since release | 0 | Instrumentation has not yet observed real post-release traffic |
 
 The live Stripe account currently has no transactions, active subscriptions, paid customers,
@@ -54,16 +55,20 @@ first observed product-event traffic. No synthetic backfill will be created.
 
 ## Largest current bottleneck
 
-The largest verified bottleneck is conversion from a successful answer into durable, continuing
-work. Two external accounts completed 14 successful AI jobs, but no external account created a
-Project or retained a file, and no external activity occurred after August 23. The immediate job is
-to help users keep useful work, return to it, and measure a new post-instrumentation cohort. Scaling
-ads before that proof would purchase traffic before Ask Crump has demonstrated continued value.
+The largest verified bottleneck remains conversion from a successful answer into durable,
+continuing work. Three external accounts have now completed 17 successful AI jobs, but no external
+account has created a Project or retained a file. The first comparable September account reached
+activation and completed three chat jobs; it was only 2.3 hours old at the 2026-09-13 observation,
+so its absent Project/file and return signals are not yet a diagnosed failure. The immediate job is
+to observe that account through its 24-hour value window, then fix only a reproducible break or a
+repeated cohort loss. Scaling ads before that proof would purchase traffic before Ask Crump has
+demonstrated continued value.
 
 Production-only Web Analytics on August 27 reported 88 visitors and 238 page views over seven days,
 but those anonymous counts cross the first-event measurement boundary and cannot be reconciled to
-external accounts. The comparable service-role funnel still contains zero external accounts and
-the artifact journey contains no rows. In the most recent 24 hours, 16 visitors produced 72 page
+external accounts. The comparable service-role funnel now contains one external account through
+activation, while the artifact journey still contains no rows and D1/D7 denominators remain zero.
+In the previously reviewed 24-hour window, 16 visitors produced 72 page
 views, three marketing CTA visitors, and two signup-form starts without a credentials-ready,
 submission, or account-created event. A separate user-observed existing-account sign-in handoff
 defect was verified and repaired in 5.9.29. That incident and the two anonymous starts do not
