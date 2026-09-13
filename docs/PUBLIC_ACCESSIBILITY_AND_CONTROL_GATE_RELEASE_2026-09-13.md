@@ -53,5 +53,16 @@ were performed merely to test their buttons.
 
 ## Production evidence
 
-Pending the exact commit, hosted CI run, production deployment, live asset parity, health checks,
-and initial runtime-error review.
+- Feature commit `1fb77904d84bb533e7b4e99f2875b90fb4fdaa21` is on `main`.
+- Production deployment `dpl_GQhSepPWWmoXmjuFWNkQ1z8Ruo8d` is Ready on all six expected aliases
+  with no alias error.
+- GitHub Actions CI `34785956892`, Android verification `34785956865`, and iOS source
+  verification `34785956879` all completed successfully.
+- A fresh production browser replay passed **20/20** public phone/desktop page checks with zero
+  axe violation and zero page error. The password-recovery state is exercised by the committed
+  **22/22** release matrix.
+- The live product page references `5.9.76-accessibility-1`, and the returned stylesheet contains
+  the exact corrected `#858d94` destination color.
+- `www.askcrump.com`, `askcrump.com`, `www.clevercrump.com`, and `clevercrump.com` each returned
+  HTTP 200 from `/api/health` at version 5.9.76.
+- The initial 30-minute grouped runtime-error review returned no production error.
