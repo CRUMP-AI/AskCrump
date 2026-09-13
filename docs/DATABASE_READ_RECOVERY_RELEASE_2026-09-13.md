@@ -57,6 +57,10 @@ boundaries remain unchanged.
   version 5.9.76.
 - The initial 15-minute production window contained no runtime-error cluster
   and no warning, error, or fatal log on the new deployment.
+- The first nine real minute-scheduled manuscript-worker invocations after the
+  product release returned HTTP 200. Six ran on the product commit deployment
+  from 18:09 through 18:14 UTC; three more ran on the evidence deployment from
+  18:15 through 18:17 UTC.
 
 ## Remaining evidence
 
@@ -64,4 +68,3 @@ The deterministic test proves recovery behavior; it does not claim the next
 real upstream timeout will resolve inside 5.5 seconds. Continue observing the
 scheduled routes. Escalate to a durable per-run retry design only if failures
 repeat after this release or a legitimate check-in is demonstrably missed.
-

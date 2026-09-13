@@ -140,7 +140,9 @@ JavaScript checks, Ruff, compilation, production preflight, and the client-secre
 boundary passed. CI `34773670836` is green, deployment
 `dpl_NKR33UX1Kznp2WbYXGUmi1nmHN3W` is Ready, production health returned 200, and
 the initial 15-minute deployment window contained no runtime error or severe
-log. Evidence: `docs/DATABASE_READ_RECOVERY_RELEASE_2026-09-13.md`.
+log. The first nine real manuscript-worker schedules after release also returned
+HTTP 200 across the product and evidence deployments. Evidence:
+`docs/DATABASE_READ_RECOVERY_RELEASE_2026-09-13.md`.
 
 ## Product and journey evidence
 
