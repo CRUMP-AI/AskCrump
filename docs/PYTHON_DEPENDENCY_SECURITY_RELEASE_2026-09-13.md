@@ -65,6 +65,11 @@ inventory rather than weakening or deleting the checks.
   six expected aliases with no alias error.
 - GitHub Actions run `34784081233` passed, including the new production
   dependency audit, Python 3.12 suite, and JavaScript release gates.
+- GitHub Actions run `34784767082` passed after the explicit npm advisory gate
+  was added; the npm audit, Python audit and suite, 45-control browser matrix,
+  production bundle, and store-source checks all completed successfully.
+- Follow-up deployment `dpl_sS5MTmjWRhtKrdMooopzbWAVXT6i` is Ready on the
+  same six aliases with no alias error.
 - The exact-release browser control matrix passed 45/45, covering navigation,
   Projects, Files and viewers, image editing and stability, Video and reference
   images, Library, Settings, account entry and recovery, plans, credits, and
