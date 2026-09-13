@@ -307,6 +307,17 @@ finance export is available.
   with five exact-byte checks, live signed-in disabled-state proof, healthy API,
   and no release-window runtime error or severe log. Crump Code remains disabled;
   this is a startup-delivery improvement, not a feature-readiness claim.
+- Closed the remaining accidental-activation path in product commit `9430362`.
+  Crump Code now requires both a checked-in public-release lock and the operator
+  environment switch; the environment alone cannot expose Code or start compute.
+  The complete suite passed 1006/1006, JavaScript 54/54, and the browser matrix
+  45/45. Production deployment `dpl_5tmX4BNYBS8uRzqjh6MkVLCfWLGd` is Ready and
+  CI `34776843880` passed. A signed-in production check showed zero visible Code
+  destinations and no full Code assets loaded; the one-hour window had no runtime
+  error cluster or `crump_code` log. No live Sandbox, model call, database write,
+  credit, provider cost, or customer-data action was used. Remaining live gates and
+  the non-parity boundary are recorded in
+  `docs/CRUMP_CODE_SOURCE_RELEASE_LOCK_2026-09-13.md`.
 - Corrected a deterministic returning-load performance defect in product commit
   `753cc65`. Production response headers require revalidation for representative
   workspace JS/CSS, but the previous service worker also routed all 43

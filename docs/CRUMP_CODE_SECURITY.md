@@ -66,8 +66,9 @@ or decide but not delete approvals.
 
 ## Release gates
 
-The API and database foundation may deploy with `CRUMP_ENABLE_CODE_WORKSPACE=false`. Public
-activation requires all of the following:
+The API and database foundation may deploy while either
+`CODE_WORKSPACE_PUBLIC_RELEASED=false` or `CRUMP_ENABLE_CODE_WORKSPACE=false`. Public activation
+requires both independent controls to be deliberately opened and all of the following:
 
 1. A real no-secret sandbox smoke test confirms OIDC, resource limits, deny-all networking, and
    automatic destruction.
@@ -77,7 +78,9 @@ activation requires all of the following:
    disabled-state refund reconciliation, and content-free operational logging. Live Sandbox
    execution remains gated by item 1.
 3. A user interface makes mode, source, cost, diff, verification, and approval state explicit.
-4. A benchmark set measures task completion, patch validity, security, latency, and unit cost.
+4. A benchmark set measures task completion, patch validity, security, latency, and unit cost. The
+   fixed four-case offline suite currently passes 4/4 at 100/100; representative live latency and
+   unit cost remain unmeasured.
 5. Monitoring and a one-click kill switch are verified in production.
 
 ## Known limitations

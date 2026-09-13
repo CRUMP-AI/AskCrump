@@ -368,6 +368,10 @@ provider, privacy, cost, or security gate is incomplete.
   explicit client/server run confirmation, visible cost/patch/verification/approval state, and
   cancellation checks before each next model/tool step. It remains disabled publicly pending the
   approved live sandbox/OIDC, expiry, monitoring, rollback, and benchmark gates.
+- **Activation safety:** Commit `9430362` makes the checked-in public-release lock and the operator
+  environment switch independent requirements. An accidental environment change alone cannot
+  expose Code, accept a task, or start compute. The fixed offline suite passes 4/4 at 100/100, while
+  real Sandbox/OIDC, live lifecycle, monitoring, rollback, latency, and cost gates remain pending.
 - **Shipped foundation:** server-only ElevenLabs voice path with device-speech fallback; disabled
   until disclosure, credentials, and smoke tests are approved.
 - **Risk:** no external durable-value, return, or artifact journey has been observed yet.

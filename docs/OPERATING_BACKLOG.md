@@ -683,7 +683,9 @@ use, isolated execution, patch generation, verification, state transitions, canc
 approval records. Production 5.9.35 adds the Project-attached human review surface, server-enforced
 run confirmation, cost disclosure, patch download, and cancellation checks before every next
 expensive step. The Create entry and provider remain disabled, and no real production sandbox run
-has occurred.
+has occurred. Commit `9430362` adds a second, source-controlled public-release lock so an environment
+switch alone cannot expose the feature or start compute. The fixed four-case offline benchmark
+passes 4/4 with a 100/100 score; this is foundation evidence, not live-provider parity evidence.
 
 **Outcome:** complete a human-visible workspace, diff and verification experience, prove the live
 runtime boundary, add durable orchestration for longer work, and measure quality against a fixed
@@ -694,7 +696,8 @@ cancellation-before-next-step contract passed in 5.9.35. A fail-closed dry/live 
 approved sub-cent Sandbox test reproducible without enabling the public feature or exposing content.
 Remaining gates are the separately owner-approved live harness run, production OIDC verification,
 live cancellation and expiry tests, failure monitoring, rollback exercise, a real approval-boundary
-scenario, and an end-to-end benchmark suite.
+scenario, and representative live quality, latency, and unit-cost measurement. The source release
+lock and operator environment switch must remain independently closed until all gates pass.
 Do not advertise Codex or Claude Code parity until measured tasks show comparable completion
 quality and safety.
 
