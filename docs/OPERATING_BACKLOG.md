@@ -616,6 +616,17 @@ stalled requests to 15 seconds, restore disabled controls with a retry message, 
 return parameters after a stalled finalization. Delivery is verified without a production checkout;
 the remaining revenue gate is the first legitimate customer purchase and provider reconciliation.
 
+Commit `3cb4687` adds a fail-closed destination contract to every active web billing layer and both
+server checkout paths. Checkout is accepted only from the exact `checkout.stripe.com` HTTPS origin;
+subscription management is accepted only from the exact `billing.stripe.com` HTTPS origin. A real
+browser workflow proved that deceptive credit and subscription destinations keep the user inside Ask
+Crump and restore actionable buttons, while the existing session-expiry handoff still preserves intent
+without automatically purchasing. Production deployment `dpl_CfY7tjcWUQAm7pYJ1dCrp964LNJ8` is
+Ready, all three hosted verification workflows passed, seven deployed assets matched the commit, and
+the first runtime-error query was empty. No live checkout, charge, price, product, payment-method, tax,
+credential, or webhook setting changed. Evidence:
+`docs/STRIPE_DESTINATION_INTEGRITY_RELEASE_2026-09-13.md`.
+
 ## Ranked execution backlog
 
 ### Completed P0 — Repair live Stripe webhook delivery before the first payment
