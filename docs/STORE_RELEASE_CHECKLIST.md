@@ -21,10 +21,10 @@
 - permanent package/bundle identifier verification for both native platforms
 - Android cleartext traffic and local backup disabled for account-linked session data
 
-## 2026-08-29 audit snapshot
+## 2026-09-13 audit snapshot
 
-- [x] Production 5.9.75, truthful representative document and résumé output, immediate race-safe account entry, recoverable failed/reused verification-link return, complete ordered signup milestone delivery, bounded and recoverable authentication entry/recovery, recoverable primary first-message and reply delivery, bounded queue-preserving sync, non-blocking authenticated entry, truthful first-prompt handoff, reliable first workspace choice, optional first-workspace personalization, durable registration-verification handoff, accessible password readiness and web/PWA pinch zoom, WCAG AA public first visit, reliable web-session handoff, five-destination desktop/mobile workspace, resumable Project conversations, named recent-work continuation, one-click Project continuity, disabled-by-default Crump Code review workspace, six canonical crawlable pages, truthful referral-copy handling, canonical native API host, direct signed Stripe delivery, transient database-read recovery, value-aware cold signup entry, and exact native billing identity verified
-- [x] Android source regenerated and verified as 5.9.75/build 50975, API 36
+- [x] Production 5.9.76, truthful representative document and résumé output, immediate race-safe account entry, recoverable failed/reused verification-link return, complete ordered signup milestone delivery, bounded and recoverable authentication entry/recovery, recoverable primary first-message and reply delivery, bounded queue-preserving sync, non-blocking authenticated entry, truthful first-prompt handoff, reliable first workspace choice, optional first-workspace personalization, durable registration-verification handoff, accessible password readiness and web/PWA pinch zoom, WCAG AA public first visit, reliable web-session handoff, six-destination Ask, Projects, Create, Video, Library, and You desktop/mobile workspace, resumable Project conversations, named recent-work continuation, one-click Project continuity, disabled-by-default Crump Code review workspace, six canonical crawlable pages, truthful referral-copy handling, canonical native API host, direct signed Stripe delivery, transient database-read recovery, value-aware cold signup entry, exact native billing identity, and user-controlled chat scrolling verified
+- [x] Android source regenerated and verified as 5.9.76/build 50976, API 36
 - [x] Store metadata fits current Apple and Google field limits
 - [x] Current Google API-level, AI-reporting, deletion, Data Safety, and app-access rules reviewed
 - [x] Current Apple privacy, reviewer-access, and screenshot requirements reviewed
@@ -34,12 +34,12 @@
 - [ ] Android Firebase, RevenueCat public key, and upload keystore supplied; the hosted Java 21
       release-build path is verified, while local Android Studio still needs a compatible JDK
 - [ ] iOS source generated, signed, and archived on macOS
-- [x] No-upload GitHub macOS source/Release compile verification passed for 5.9.75/build 50975 before signing
-      credentials were added ([run 33237533709](https://github.com/CRUMP-AI/AskCrump/actions/runs/33237533709), 2026-08-29)
+- [x] No-upload GitHub macOS source/Release compile verification passed for 5.9.76/build 50976 before signing
+      credentials were added ([run 34787538228](https://github.com/CRUMP-AI/AskCrump/actions/runs/34787538228), 2026-09-13)
 - [x] No-upload GitHub Java 21 Android App Bundle verification passed before signing credentials
-      were added for 5.9.75/build 50975 ([run 33237533699](https://github.com/CRUMP-AI/AskCrump/actions/runs/33237533699), 2026-08-29)
+      were added for 5.9.76/build 50976 ([run 34787538207](https://github.com/CRUMP-AI/AskCrump/actions/runs/34787538207), 2026-09-13)
 - [x] Apple/Google listing copy, reviewer path, and screenshot sequence match the released Ask,
-      Projects, Create, Library, and You information architecture; Research remains inside Ask
+      Projects, Create, Video, Library, and You information architecture; Research remains inside Ask
 - [ ] Exact signed builds pass the physical-device, billing, privacy, and console gates
 - [x] Final packet has a fail-closed local completeness gate for exact signed artifact hash, fresh
       device/console evidence, complete screenshots, and untracked reviewer access; it performs no

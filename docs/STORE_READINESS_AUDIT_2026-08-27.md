@@ -1,6 +1,6 @@
 # Ask Crump store-readiness audit — 2026-08-27
 
-Last updated: 2026-09-10
+Last updated: 2026-09-13
 
 ## Outcome
 
