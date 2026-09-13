@@ -27,6 +27,8 @@ jobs:
         run: pip install -r requirements-dev.txt
       - name: Lint Python
         run: ruff check app.py backend tests
+      - name: Audit production dependencies
+        run: pip-audit -r requirements.txt --progress-spinner off
       - name: Compile application
         run: python -m compileall -q app.py backend
       - name: Run test suite

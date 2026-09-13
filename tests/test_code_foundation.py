@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from app import app
+from conftest import iter_effective_routes
 from backend.code_runner import (
     CodeRunnerError,
     CrumpCodeRunner,
@@ -177,7 +178,7 @@ def test_model_and_audit_outputs_redact_secrets_and_drop_arbitrary_payloads():
 def test_code_routes_are_authenticated_server_surfaces():
     routes = {
         (method, route.path)
-        for route in app.routes
+        for route in iter_effective_routes(app)
         for method in getattr(route, "methods", set())
         if method not in {"HEAD", "OPTIONS"}
     }

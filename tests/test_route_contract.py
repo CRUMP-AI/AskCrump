@@ -1,4 +1,5 @@
 from app import app
+from conftest import iter_effective_routes
 
 
 EXPECTED_ROUTES = {
@@ -44,7 +45,7 @@ EXPECTED_ROUTES = {
 def test_public_api_route_contract_is_preserved():
     actual = {
         (method, route.path)
-        for route in app.routes
+        for route in iter_effective_routes(app)
         for method in getattr(route, 'methods', set())
         if method not in {'HEAD', 'OPTIONS'}
     }

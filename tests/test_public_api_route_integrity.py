@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 
 from backend.application import create_app
+from conftest import iter_effective_routes
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -77,7 +78,7 @@ def test_every_browser_api_destination_has_a_backend_route():
     application = create_app()
     server_routes = {
         route.path
-        for route in application.routes
+        for route in iter_effective_routes(application)
         if route.path.startswith("/api/")
     }
     references = browser_api_strings()

@@ -11,3 +11,13 @@ os.environ.setdefault('APP_URL', 'http://testserver')
 os.environ.setdefault('COOKIE_SECURE', 'false')
 os.environ.setdefault('SUPABASE_URL', 'https://example.supabase.co')
 os.environ.setdefault('SUPABASE_SERVICE_KEY', 'test-service-key')
+
+
+def iter_effective_routes(application):
+    """Yield concrete routes across eager and lazy FastAPI router inclusion."""
+    for route in application.routes:
+        contexts = getattr(route, 'effective_route_contexts', None)
+        if callable(contexts):
+            yield from contexts()
+        else:
+            yield route
