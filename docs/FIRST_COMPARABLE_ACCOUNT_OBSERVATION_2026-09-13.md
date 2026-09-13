@@ -94,3 +94,29 @@ The latest one-hour Vercel view contained 126 HTTP 200 responses and no 3xx,
 mutation is justified before the full 24-hour value window; the next protected
 refresh should distinguish absent intent from attempted-save failure before any
 further continuity change.
+
+## Post-lifecycle-release checkpoint — 23:00 UTC
+
+The protected reports were refreshed again after the idle lifecycle-action fix reached
+production. The same single comparable account remains verified and activated with no Project-save
+intent/completion, artifact, explicit outcome rating, Checkout, payer, or eligible retention
+denominator. At the query boundary, approximately **59,948 seconds** remained before the account's
+first complete 24-hour window—about **16 hours 39 minutes**, placing the next valid checkpoint at
+approximately **2026-09-14 15:34 UTC**.
+
+All five in-product lifecycle controls remain enabled with a 20% account-stable holdout. No
+lifecycle state or event exists for the comparable cohort yet. That is expected until a legitimate
+post-release session requests a server decision; no prompt, event, or account state was synthesized
+to manufacture evidence.
+
+The production feature deployment and its evidence-only successor are both Ready. Their initial
+windows contain no 4xx/5xx response or grouped runtime error. The trailing 24-hour error clusters
+remain the already classified transient database timeouts and deferred Crump Code reconciliation
+from an older deployment, not a new release regression.
+
+Supabase's current advisor output contains only informational findings: RLS-enabled tables without
+client policies and unused indexes. The former is the intentional service-role-only denial design;
+the latter is expected at the current traffic volume and is not evidence that indexes should be
+removed. No schema mutation is justified from either informational signal. References:
+[RLS enabled without policy](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)
+and [unused index](https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index).
