@@ -62,12 +62,12 @@ async def test_transient_read_transport_failure_exhausts_without_leaking_request
                 filters={"token_hash": "eq.private-session-hash"},
             )
 
-    assert len(calls) == 4
-    assert sleeps == [0.25, 0.75, 1.5]
+    assert len(calls) == 5
+    assert sleeps == [0.25, 0.75, 1.5, 3.0]
     assert captured.value.status_code == 503
     assert captured.value.retryable is True
     assert captured.value.retry_after == 2
-    assert captured.value.attempts == 4
+    assert captured.value.attempts == 5
     assert captured.value.details == {"error_type": "ConnectError"}
     assert "private" not in str(captured.value.details)
 
@@ -93,6 +93,36 @@ async def test_non_idempotent_write_is_never_retried_after_transient_status():
     assert sleeps == []
     assert captured.value.retryable is False
     assert captured.value.attempts == 1
+
+
+@pytest.mark.asyncio
+async def test_transient_gateway_timeout_can_recover_on_final_bounded_read_attempt():
+    calls: list[httpx.Request] = []
+    sleeps: list[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if len(calls) < 5:
+            return httpx.Response(504, json={"code": "UPSTREAM_TIMEOUT"})
+        return httpx.Response(200, json=[{"status": "ready"}])
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        database = SupabaseDB(db_settings(), client=client, sleep=fake_sleep)
+        rows = await database.select("scheduled_work", columns="status")
+
+    assert rows == [{"status": "ready"}]
+    assert len(calls) == 5
+    assert [request.headers.get("x-retry-count") for request in calls] == [
+        None,
+        "1",
+        "2",
+        "3",
+        "4",
+    ]
+    assert sleeps == [0.25, 0.75, 1.5, 3.0]
 
 
 @pytest.mark.asyncio

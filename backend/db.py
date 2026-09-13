@@ -15,7 +15,7 @@ logger = logging.getLogger("askcrump.database")
 
 _RETRYABLE_READ_METHODS = frozenset({"GET", "HEAD"})
 _RETRYABLE_READ_STATUSES = frozenset({408, 503, 504, 520})
-_READ_RETRY_DELAYS_SECONDS = (0.25, 0.75, 1.5)
+_READ_RETRY_DELAYS_SECONDS = (0.25, 0.75, 1.5, 3.0)
 
 
 @dataclass(slots=True)
