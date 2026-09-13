@@ -49,11 +49,27 @@ inventory rather than weakening or deleting the checks.
   boundary passed.
 - Focused dependency parity and route-contract coverage passed 23/23.
 
+## Production evidence
+
+- Feature commit: `1780c7b459105b20cb79141559ee99f32f0d71a8`.
+- Production deployment: `dpl_CzdD6KCrMqZwxx6KizaeNQQ8TXZp` — Ready on all
+  six expected aliases with no alias error.
+- GitHub Actions run `34784081233` passed, including the new production
+  dependency audit, Python 3.12 suite, and JavaScript release gates.
+- The exact-release browser control matrix passed 45/45, covering navigation,
+  Projects, Files and viewers, image editing and stability, Video and reference
+  images, Library, Settings, account entry and recovery, plans, credits, and
+  checkout recovery.
+- `www.askcrump.com`, `askcrump.com`, `www.clevercrump.com`, and
+  `clevercrump.com` health returned HTTP 200 at version 5.9.76.
+- The first deployment-scoped production log sample contained four HTTP 200
+  responses and no grouped runtime error.
+
 ## Deliberate boundaries
 
 This release changes pinned Python packages and test introspection only. It does
 not add a client-facing database policy, alter customer content, change upload
 limits or accepted file types, create an account, charge a customer, or invoke
-an AI provider. Production deployment, exact-release browser verification, CI,
-health, and runtime-error observations are recorded after the release reaches
-the canonical domains.
+an AI provider. The clean vulnerability scan proves the current published
+advisory boundary; it does not promise that dependencies can never receive a
+future advisory. The new CI gate provides the corresponding recurrence check.
