@@ -79,6 +79,11 @@ next constraint.
 
 ### Product and reliability
 
+- Keep the repaired in-product lifecycle boundary exact: an empty, disabled Send control is an idle
+  composer, while typed drafts, attachments, active replies, and recovery surfaces still suppress
+  guidance. The production-like browser fixture and complete 45/45 control matrix prove delivery and
+  non-interruption; only legitimate server decisions/actions and elapsed D1/D7 evidence can prove
+  impact. Do not enable lifecycle email or push from Terms acceptance.
 - Keep the 5.9.76 result-to-Project handoff distinct and user-controlled: the
   continuation card explains the private Project destination, uses a full-width
   44-pixel action on phones, preserves exact selected-Project naming, and keeps
