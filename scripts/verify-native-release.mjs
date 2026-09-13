@@ -141,11 +141,16 @@ if (target === 'all' || target === 'ios') {
       }
       const marketingVersions = [...project.matchAll(/MARKETING_VERSION = ([^;]+);/g)].map(match => match[1].trim());
       const buildNumbers = [...project.matchAll(/CURRENT_PROJECT_VERSION = ([^;]+);/g)].map(match => Number(match[1].trim()));
+      const targetedDeviceFamilies = [...project.matchAll(/TARGETED_DEVICE_FAMILY = ([^;]+);/g)]
+        .map(match => match[1].trim().replace(/^"|"$/g, ''));
       if (!marketingVersions.length || marketingVersions.some(value => value !== expectedVersion)) {
         failures.push(`iOS MARKETING_VERSION must be ${expectedVersion}.`);
       }
       if (!buildNumbers.length || buildNumbers.some(value => value !== expectedBuildNumber)) {
         failures.push(`iOS CURRENT_PROJECT_VERSION must be ${expectedBuildNumber}.`);
+      }
+      if (!targetedDeviceFamilies.length || targetedDeviceFamilies.some(value => value !== '1,2')) {
+        failures.push('iOS TARGETED_DEVICE_FAMILY must explicitly include both iPhone and iPad (1,2).');
       }
       if (!project.includes('PrivacyInfo.xcprivacy in Resources')) failures.push('PrivacyInfo.xcprivacy is not included in the iOS Resources build phase.');
     }

@@ -209,10 +209,13 @@ provider, privacy, cost, or security gate is incomplete.
   `docs/WORKSPACE_RUNTIME_RECOVERY_RELEASE_2026-09-13.md`.
 - **Final native submission integrity:** Ask Crump now has a non-publishing, fail-closed final
   packet gate for both stores. It binds a fresh fixed-schema device/console checklist and complete
-  screenshot hashes to the exact signed `.ipa` or `.aab`, current version/build identity, and
-  ignored non-placeholder reviewer access. It rejects partial, stale, unknown, or mismatched
-  evidence and cannot sign, upload, or submit. The actual store accounts, products, credentials,
-  signed builds, device checks, screenshots, console declarations, and owner approval remain open.
+  screenshot hashes, dimensions, device families, and nontransparent formats to the exact signed
+  `.ipa` or `.aab`, current version/build identity, and ignored non-placeholder reviewer access.
+  The iOS source explicitly targets iPhone and iPad, so both current device sets and an iPad journey
+  are mandatory; Android is held to four to eight recommendation-grade phone images. It rejects
+  partial, stale, unknown, or mismatched evidence and cannot sign, upload, or submit. The actual
+  store accounts, products, credentials, signed builds, device checks, screenshots, console
+  declarations, and owner approval remain open.
   Evidence: `docs/STORE_SUBMISSION_PACKET_GATE_2026-09-10.md`.
 - **Rough-to-useful organic feed attribution:** Production commit `c0d4e93` and migration
   `20260910165757` now accept exactly Facebook organic feed, Instagram organic feed, and the
@@ -466,8 +469,8 @@ provider, privacy, cost, or security gate is incomplete.
   download; complete the tracked profile-link, sitemap, and non-duplicate presentation launch after
   owner confirmation; and obtain the first post-instrumentation durable-value, return, and referral
   observations.
-- **Native distribution:** Android 5.9.57/build 50957 source and an unsigned `.aab` pass the hosted
-  API 36/Java 21 release audit in run `33189736730`; the generated iOS 5.9.57 Release configuration
-  passes its hosted macOS compile in run `33189736888`. Owner-controlled developer accounts,
+- **Native distribution:** Android 5.9.76/build 50976 source and an unsigned `.aab` pass the hosted
+  API 36/Java 21 release audit in run `34787538207`; the generated iOS 5.9.76 Release configuration
+  passes its hosted macOS compile in run `34787538228`. Owner-controlled developer accounts,
   signing, push, native billing, reviewer access,
   signed-device tests, screenshots, declarations, and final submission approval remain open.

@@ -1,5 +1,5 @@
 {
-  "schema": "ask-crump-store-submission-evidence/v1",
+  "schema": "ask-crump-store-submission-evidence/v2",
   "platform": "android",
   "appVersion": "5.9.76",
   "buildNumber": 50976,
@@ -10,20 +10,32 @@
   },
   "screenshots": [
     {
+      "device": "android-phone",
       "file": "01-ask.png",
-      "sha256": "REPLACE_WITH_SCREENSHOT_SHA256"
+      "height": 1920,
+      "sha256": "REPLACE_WITH_SCREENSHOT_SHA256",
+      "width": 1080
     },
     {
+      "device": "android-phone",
       "file": "02-projects.png",
-      "sha256": "REPLACE_WITH_SCREENSHOT_SHA256"
+      "height": 1920,
+      "sha256": "REPLACE_WITH_SCREENSHOT_SHA256",
+      "width": 1080
     },
     {
+      "device": "android-phone",
       "file": "03-create.png",
-      "sha256": "REPLACE_WITH_SCREENSHOT_SHA256"
+      "height": 1920,
+      "sha256": "REPLACE_WITH_SCREENSHOT_SHA256",
+      "width": 1080
     },
     {
+      "device": "android-phone",
       "file": "04-video.png",
-      "sha256": "REPLACE_WITH_SCREENSHOT_SHA256"
+      "height": 1920,
+      "sha256": "REPLACE_WITH_SCREENSHOT_SHA256",
+      "width": 1080
     }
   ],
   "checks": {

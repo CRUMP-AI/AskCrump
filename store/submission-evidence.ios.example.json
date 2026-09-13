@@ -1,5 +1,5 @@
 {
-  "schema": "ask-crump-store-submission-evidence/v1",
+  "schema": "ask-crump-store-submission-evidence/v2",
   "platform": "ios",
   "appVersion": "5.9.76",
   "buildNumber": 50976,
@@ -10,8 +10,18 @@
   },
   "screenshots": [
     {
-      "file": "01-ask.png",
-      "sha256": "REPLACE_WITH_SCREENSHOT_SHA256"
+      "device": "iphone-6.9",
+      "file": "iphone/01-ask.png",
+      "height": 2868,
+      "sha256": "REPLACE_WITH_IPHONE_SCREENSHOT_SHA256",
+      "width": 1320
+    },
+    {
+      "device": "ipad-13",
+      "file": "ipad/01-ask.png",
+      "height": 2752,
+      "sha256": "REPLACE_WITH_IPAD_SCREENSHOT_SHA256",
+      "width": 2064
     }
   ],
   "checks": {
@@ -21,6 +31,7 @@
     "appStoreConnectDeclarationsReconciled": false,
     "appStoreProductsAndRevenueCatVerified": false,
     "compiledPrivacyReportReviewed": false,
+    "ipadLayoutAndCoreJourneyVerified": false,
     "offlineReconnectVerified": false,
     "physicalDeviceCoreJourneyVerified": false,
     "privacyFormsReconciled": false,

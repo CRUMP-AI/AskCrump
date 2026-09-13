@@ -52,7 +52,7 @@ during this audit.
 | Android cloud boundary | `.github/workflows/android-store-verify.yml` prepares source with Node 22, selects Temurin Java 21, compiles a Release App Bundle, and requires the `.aab` to be non-empty. The refreshed 5.9.76/build 50976 [run 34156623389](https://github.com/CRUMP-AI/AskCrump/actions/runs/34156623389) passed every source, exact billing-catalog, persisted native billing identity, sign-out, direct-200 store URL, signing-control, Gradle, and bundle-output step. | Verified unsigned `.aab` compile |
 | Signing controls | Mobile signing verification found no tracked keys, certificates, provisioning profiles, service-account files, or passwords. | Verified |
 | Protected check-in schedule | A trailing 24-hour production aggregation on September 10 found exactly 24 `/api/cron/check-ins` calls, matching the hourly schedule. The route appeared in neither the complete 4xx route set nor any 5xx/runtime-error set. Since the handler returns 401 when `CRON_SECRET` is absent or mismatched, the natural successful schedule verifies the configured protected credential path without a manual invocation or user-data read. Evidence: `docs/CHECK_IN_CRON_PRODUCTION_READINESS_2026-09-10.md`. | Production scheduler/secret path verified; signed-device push behavior pending |
-| Final submission packet integrity | `scripts/verify-store-submission-packet.mjs` requires the exact signed artifact hash, current build identity, fresh fixed-schema device/console evidence, complete hashed PNG/JPEG screenshot set, and non-placeholder ignored reviewer access. Unknown fields/checks and partial packets fail closed. The command cannot upload or submit. Evidence: `docs/STORE_SUBMISSION_PACKET_GATE_2026-09-10.md`. | Verification control ready; no signed artifact or completed packet exists yet |
+| Final submission packet integrity | `scripts/verify-store-submission-packet.mjs` requires the exact signed artifact hash, current build identity, fresh fixed-schema device/console evidence, complete hashed and dimension-checked screenshot sets, and non-placeholder ignored reviewer access. The iOS source explicitly targets iPhone and iPad, so the gate requires current 6.9-inch iPhone and 13-inch iPad sets plus an iPad device journey. Android requires four to eight recommendation-grade 9:16/16:9 phone images. JPEG structure and 24-bit nontransparent PNG are enforced; unknown fields/checks and partial packets fail closed. The command cannot upload or submit. Evidence: `docs/STORE_SUBMISSION_PACKET_GATE_2026-09-10.md`. | Verification control ready; no signed artifact or completed packet exists yet |
 
 ## Current blockers
 
@@ -109,8 +109,9 @@ during this audit.
 - Confirm the public support page has every owner-approved contact detail required for the chosen
   seller identity and regions. It currently publishes support email channels but no legal address or
   telephone number; do not invent or expose personal contact data in source.
-- Capture screenshots from the exact signed build using `store/screenshots/README.md`; no mockup is
-  evidence that the release works.
+- Capture both current iPhone and iPad screenshot sets from the exact signed iOS build, and the
+  recommendation-grade phone set from the exact signed Android build, using
+  `store/screenshots/README.md`; no mockup is evidence that the release works.
 - Reconcile the final binary/SDK inventory to Apple App Privacy, Google Data Safety, the public
   privacy notice, and `docs/DATA_SAFETY.md`.
 - Complete content/age rating, generative-AI, app-access, ads, encryption/export, deletion, support,
@@ -119,6 +120,13 @@ during this audit.
   entitlement sync before any public rollout.
 
 ## Current official requirements checked
+
+Revalidated against the live official sources on 2026-09-13. Google still requires API 36 for new
+mobile apps and updates from August 31, 2026, in-app reporting for generative-AI output, and both
+in-app and public-web deletion paths for an account-creating app. Apple's current screenshot table
+requires a 13-inch set when the app runs on iPad, accepts one to ten screenshots per device set,
+and disallows alpha/transparency. Ask Crump's source and fail-closed packet now encode those current
+technical boundaries; console declarations and signed-device evidence remain owner-controlled.
 
 - Google API 36 deadline: <https://support.google.com/googleplay/android-developer/answer/11926878>
 - Google AI-generated content reporting: <https://support.google.com/googleplay/android-developer/answer/13985936>

@@ -12,10 +12,15 @@ def test_submission_gate_is_fail_closed_and_non_publishing() -> None:
     source = read("scripts/verify-store-submission-packet.mjs")
     package = read("package.json")
 
-    assert "ask-crump-store-submission-evidence/v1" in source
+    assert "ask-crump-store-submission-evidence/v2" in source
     assert "Store submission gate requires platform, artifact, screenshots, evidence, and reviewer access." in source
     assert "Artifact hash does not match the inspected file." in source
     assert "Screenshot evidence does not match the complete inspected directory." in source
+    assert "PNG screenshots must be 24-bit RGB without alpha or transparency." in source
+    assert "iOS screenshots must use exactly the iphone and ipad device directories." in source
+    assert "iphone-6.9" in source
+    assert "ipad-13" in source
+    assert "Android screenshot directory must contain 4–8 phone screenshots." in source
     assert "must be current within fourteen days" in source
     assert "Reviewer access inside the repository must be ignored by Git." in source
     assert "No upload or store submission was performed." in source
@@ -46,6 +51,7 @@ def test_submission_gate_requires_the_full_platform_specific_device_contract() -
         "appStoreProductsAndRevenueCatVerified",
         "pushForegroundBackgroundTerminatedVerified",
         "compiledPrivacyReportReviewed",
+        "ipadLayoutAndCoreJourneyVerified",
         "appStoreConnectDeclarationsReconciled",
     ):
         assert required in source
@@ -59,7 +65,7 @@ def test_submission_templates_start_in_a_deliberately_unapproved_state() -> None
     assert '"platform": "android"' in android
     assert '"platform": "ios"' in ios
     assert android.count(": false") == 15
-    assert ios.count(": false") == 15
+    assert ios.count(": false") == 16
     assert "REPLACE_WITH_SIGNED_AAB_FILENAME" in android
     assert "REPLACE_WITH_SIGNED_IPA_FILENAME" in ios
     assert "store/reviewer-access.json" in gitignore

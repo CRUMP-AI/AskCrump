@@ -118,9 +118,13 @@ async function patchIosVersionAndPrivacy() {
   if (!/CURRENT_PROJECT_VERSION = [^;]+;/.test(project) || !/MARKETING_VERSION = [^;]+;/.test(project)) {
     throw new Error('Could not locate iOS version settings in project.pbxproj.');
   }
+  if (!/TARGETED_DEVICE_FAMILY = [^;]+;/.test(project)) {
+    throw new Error('Could not locate the iOS targeted device family in project.pbxproj.');
+  }
   project = project
     .replace(/CURRENT_PROJECT_VERSION = [^;]+;/g, `CURRENT_PROJECT_VERSION = ${buildNumber};`)
-    .replace(/MARKETING_VERSION = [^;]+;/g, `MARKETING_VERSION = ${versionName};`);
+    .replace(/MARKETING_VERSION = [^;]+;/g, `MARKETING_VERSION = ${versionName};`)
+    .replace(/TARGETED_DEVICE_FAMILY = [^;]+;/g, 'TARGETED_DEVICE_FAMILY = "1,2";');
 
   const privacySource = await readFile(new URL('resources/PrivacyInfo.xcprivacy', root), 'utf8');
   await writeFile(new URL('ios/App/App/PrivacyInfo.xcprivacy', root), privacySource);

@@ -116,11 +116,13 @@ def test_store_versions_and_android_api_are_guarded():
     assert 'STORE_BUILD_NUMBER' in configure
     assert 'versionCode' in configure and 'versionName' in configure
     assert 'CURRENT_PROJECT_VERSION' in configure and 'MARKETING_VERSION' in configure
+    assert 'TARGETED_DEVICE_FAMILY = "1,2";' in configure
     assert 'expectedBuildNumber' in verify
     assert 'REVENUECAT_ANDROID_PUBLIC_SDK_KEY' in verify
     assert 'REVENUECAT_IOS_PUBLIC_SDK_KEY' in verify
     assert 'applicationId "com.clevercrump.askcrump"' in verify
     assert 'PRODUCT_BUNDLE_IDENTIFIER = com.clevercrump.askcrump;' in verify
+    assert "value !== '1,2'" in verify
     assert 'android:allowBackup="false"' in configure
     assert 'android:usesCleartextTraffic="false"' in configure
     assert 'android:allowBackup="false"' in verify

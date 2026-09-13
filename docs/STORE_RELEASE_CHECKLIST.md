@@ -42,8 +42,9 @@
       Projects, Create, Video, Library, and You information architecture; Research remains inside Ask
 - [ ] Exact signed builds pass the physical-device, billing, privacy, and console gates
 - [x] Final packet has a fail-closed local completeness gate for exact signed artifact hash, fresh
-      device/console evidence, complete screenshots, and untracked reviewer access; it performs no
-      signing, upload, or submission (`docs/STORE_SUBMISSION_PACKET_GATE_2026-09-10.md`)
+      device/console evidence, current iPhone + iPad and Android screenshot dimensions/format,
+      and untracked reviewer access; it performs no signing, upload, or submission
+      (`docs/STORE_SUBMISSION_PACKET_GATE_2026-09-10.md`)
 
 See `docs/STORE_READINESS_AUDIT_2026-08-27.md` for evidence, blockers, and official references.
 
@@ -57,7 +58,7 @@ See `docs/STORE_READINESS_AUDIT_2026-08-27.md` for evidence, blockers, and offic
 - [ ] Privacy manifest/required-reason APIs validated from the final Xcode archive
 - [ ] Dynamic Type, VoiceOver, Reduce Motion, haptics-off, keyboard, and safe areas tested
 - [ ] Native purchases, restore, cancellation disclosure, sync, persistent login, and deletion tested
-- [ ] Real final screenshots and reviewer account/steps supplied
+- [ ] Real final 6.9-inch iPhone and 13-inch iPad screenshot sets and reviewer account/steps supplied
 
 ## Google Play
 

@@ -21,10 +21,15 @@ the in-app tutorial and reviewer path before either store packet is approved.
 
 Capture targets:
 
-- Apple: highest-resolution required iPhone portrait size, PNG or JPEG, 1–10 screenshots. Capture an
-  iPad set only if the release is offered for iPad and has passed a real iPad layout review.
-- Google Play: at least four 1080×1920 portrait screenshots for recommendation eligibility; the
-  minimum publication requirement is two. Use PNG without alpha or JPEG.
+- Apple: the current native candidate explicitly supports both iPhone and iPad. The release packet
+  therefore requires both `iphone/` and `ipad/` directories, with 1–10 screenshots in each. Use a
+  current 6.9-inch iPhone size (`1260×2736`, `1290×2796`, or `1320×2868`) and a current 13-inch iPad
+  size (`2064×2752` or `2048×2732`), or the corresponding landscape dimensions. Use JPEG or 24-bit
+  RGB PNG with no alpha/transparency. Do not remove the iPad set unless the signed app is first
+  changed, compiled, and verified as iPhone-only.
+- Google Play: use 4–8 phone screenshots for recommendation eligibility. Each must be 9:16 portrait
+  at a minimum `1080×1920`, or 16:9 landscape at a minimum `1920×1080`; the longest edge cannot
+  exceed 3840 pixels. Use JPEG or 24-bit RGB PNG with no alpha/transparency, no larger than 8 MB.
 - Keep overlay text below 20% of the image and record accessible alt text beside every final asset.
 
 Final image files belong in platform/locale subfolders after physical-device capture. Reviewer
