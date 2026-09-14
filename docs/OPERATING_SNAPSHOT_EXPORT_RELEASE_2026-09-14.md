@@ -58,6 +58,15 @@ Automated coverage proves:
 Focused validation passed 24 tests, the complete backend suite passed, all 54 JavaScript files
 validated, the two changed Python files passed Ruff, and the diff passed its whitespace guard.
 
+## Release proof
+
+- Git commit: `66517d4df814f82a6078abd53967fdc663679e39`
+- GitHub CI: run `34878791239`; Python 3.12 and JavaScript jobs passed.
+- Production deployment: `dpl_7t64CWdEPFXF8MX8233LwZ8VMA9H`; state `READY`, with the canonical
+  Ask Crump and Clever Crump domains assigned.
+- Post-deploy observability: the one-hour grouped production runtime-error scan returned no error
+  cluster.
+
 ## Honest next decision
 
 Do not increase acquisition spend or claim D1/D7 retention from this baseline. Refresh the report
