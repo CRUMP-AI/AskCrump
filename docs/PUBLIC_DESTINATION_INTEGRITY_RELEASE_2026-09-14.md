@@ -22,6 +22,12 @@ checks the deployment without authentication, cookies, privileged headers, custo
 mutation. It is available as `npm run test:live-public-destinations` and accepts an explicit
 `ASKCRUMP_PUBLIC_ORIGIN` for a reviewed alternate deployment.
 
+Commit `ab2940a` adds `.github/workflows/public-destination-health.yml`. It runs this proof daily at
+11:17 UTC and on manual dispatch, with read-only repository permission, Node 22, a ten-minute job
+limit, no secrets, and no push or pull-request trigger. Safe credential-free GETs receive at most
+three attempts for network failures or HTTP 408/429/500/502/503/504; redirects and all other
+responses retain the exact fail-closed rules above.
+
 The 2026-09-14 production execution passed:
 
 - **67** unique first-party anchor destinations;
@@ -48,6 +54,8 @@ Commit `e479faa` passed:
 GitHub CI `34874380847`, Android bundle verification `34874380896`, and iOS source verification
 `34874380954` completed successfully. Vercel reported the commit deployment complete at deployment
 target `6M422PAt3876egMhAvZmiona1vJH`; the live app and service worker checks passed after that state.
+The first manually dispatched hosted health run, GitHub Actions `34875692579`, completed successfully
+against commit `ab2940a` in 13 seconds.
 
 ## Operating boundary
 

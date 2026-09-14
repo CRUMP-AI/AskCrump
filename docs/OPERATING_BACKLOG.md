@@ -52,6 +52,11 @@ served app contains the canonical `www` company href and the worker exposes r243
 `docs/PUBLIC_DESTINATION_INTEGRITY_RELEASE_2026-09-14.md`. Preserve the funnel until the valid D1
 read rather than turning destination proof into a retention claim.
 
+Commit `ab2940a` makes that live destination proof a daily 11:17 UTC, manually dispatchable,
+read-only health gate with no secrets and bounded safe-GET retries. Its first hosted run,
+`34875692579`, passed against production in 13 seconds. Treat a later failure as a destination
+incident to classify; do not mutate customer flows merely because the monitor exists.
+
 ## Current operating evidence — 2026-09-13
 
 The 2026-09-13 service-role refresh changes the operating baseline: Ask Crump now
