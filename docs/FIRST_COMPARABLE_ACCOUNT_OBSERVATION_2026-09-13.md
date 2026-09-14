@@ -102,7 +102,8 @@ production. The same single comparable account remains verified and activated wi
 intent/completion, artifact, explicit outcome rating, Checkout, payer, or eligible retention
 denominator. At the query boundary, approximately **59,948 seconds** remained before the account's
 first complete 24-hour window—about **16 hours 39 minutes**, placing the next valid checkpoint at
-approximately **2026-09-14 15:34 UTC**.
+approximately **2026-09-14 15:34 UTC**. This was an early operational estimate; the later
+authoritative aggregate below supersedes it with the exact account-creation boundary.
 
 All five in-product lifecycle controls remain enabled with a 20% account-stable holdout. No
 lifecycle state or event exists for the comparable cohort yet. That is expected until a legitimate
@@ -163,5 +164,19 @@ was read or retained.
 
 This refresh adds legitimate use and intra-day return evidence without identifying a broken path or
 creating a decision-grade denominator. Preserve the current activation, result-to-Project,
-lifecycle, and Plan-center behavior until the full value/D1 checkpoint at approximately
-**2026-09-14 15:34 UTC**.
+lifecycle, and Plan-center behavior until the full 24-hour value checkpoint. D1 uses a separate
+completed-calendar-day denominator and must not be inferred from that 24-hour boundary.
+
+## Authoritative value and D1 boundaries — 2026-09-14 14:54 UTC
+
+A service-role aggregate returned one comparable production account, with no identifier or customer
+content. Its exact account-creation time is **2026-09-13 15:37:52.831833 UTC**, so the 24-hour
+activation/value observation becomes complete at **2026-09-14 15:37:52.831833 UTC**. Its first
+activation was **2026-09-13 15:40:16.183512 UTC**.
+
+The weekly decision-grade export defines D1 as a return on the next UTC calendar date and does not
+call that denominator complete until the following UTC date begins. The first valid D1 denominator
+therefore opens at **2026-09-15 00:00:00 UTC**, not at the 24-hour value boundary. Refresh the
+24-hour value metrics after 15:37:52 UTC today, then refresh D1 separately after midnight. This
+prevents an intraday return from being misreported as D1 retention and preserves the small-sample
+boundary.

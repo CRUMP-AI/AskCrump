@@ -1046,9 +1046,15 @@ media journeys remain empty; and the account owns no active Project, ready file,
 link. The Plan center was viewed once with no subscription or credit Checkout attempt. The existing
 `continuity-assist` prompt remains one eligible/shown account with no action, dismissal, or target
 completion, while active-work and session-collision suppression remain intact. Preserve the
-current funnel until the complete value/D1 checkpoint at approximately **15:34 UTC**; no failure or
+current funnel until the exact 24-hour value checkpoint at **15:37:52 UTC**; no failure or
 attempted-save drop-off is present to justify a customer-facing change before then. Evidence:
 `docs/FIRST_COMPARABLE_ACCOUNT_OBSERVATION_2026-09-13.md`.
+
+The 2026-09-14 14:54 UTC service-role boundary check replaced the earlier approximate time with the
+authoritative account-creation boundary. The comparable account's 24-hour value window closes at
+**2026-09-14 15:37:52.831833 UTC**. D1 is deliberately a separate completed-calendar-day measure:
+the account first becomes D1-eligible at **2026-09-15 00:00:00 UTC**. Do not combine the two gates or
+count the 00:04 UTC intraday return as D1.
 
 The 2026-09-14 04:04 UTC security and framework release train closed two
 production risks without changing the customer-facing funnel. Commit `4aab833`
@@ -1069,7 +1075,8 @@ zero-finding Python vulnerability audit passed; GitHub runs `34803926671`,
 deployments reached `READY`; homepage, workspace, health, and unauthenticated
 session probes returned 200; and the post-release runtime-error view was empty.
 Preserve this release and the existing activation experience. The comparable
-cohort's first valid 24-hour decision remains approximately 2026-09-14 15:34 UTC.
+cohort's first valid 24-hour decision is 2026-09-14 15:37:52.831833 UTC; its first completed D1
+denominator is separately available at 2026-09-15 00:00:00 UTC.
 
 The 2026-09-14 04:22 UTC verifier-toolchain batch then advanced Ruff to 0.16.7,
 Playwright to 1.63.0, and esbuild to 0.28.2 without changing shipped application
@@ -1086,7 +1093,7 @@ suite, and Ruff passed locally. GitHub CI `34805523326`, Android bundle verifica
 `34805362794`, and iOS source verification `34805362818` all passed. Production
 homepage, workspace, health, and session probes returned 200 and the post-release
 runtime-error view was empty. Preserve the toolchain and continue to hold funnel
-changes until the same 15:34 UTC cohort boundary.
+changes until the same 15:37:52 UTC 24-hour cohort boundary.
 
 The 2026-09-14 04:41 UTC button-integrity review exercised the signed-in production
 workspace through Chats and conversation actions; Projects and Files; image and
@@ -1112,7 +1119,7 @@ plan intent, checkout, payer state, or elapsed D1/D7 denominator. Separately, th
 `continuity-assist` decision was eligible and shown at 00:04 UTC; it recorded no action or dismissal,
 while later active-work and session-collision suppression remained effective. Preserve the current
 result-to-Project and lifecycle behavior. The next decision-grade refresh remains at or after the
-account's complete 24-hour value window, approximately **2026-09-14 15:34 UTC**; then distinguish
+account's complete 24-hour value window, **2026-09-14 15:37:52.831833 UTC**; then distinguish
 absent save intent from an attempted save failure before changing the interface.
 
 The 2026-09-13 21:16 UTC privacy-safe refresh still contains one comparable
