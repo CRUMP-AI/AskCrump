@@ -81,13 +81,13 @@ next constraint.
 
 - Keep the repaired in-product lifecycle boundary exact: an empty, disabled Send control is an idle
   composer, while typed drafts, attachments, active replies, and recovery surfaces still suppress
-  guidance. The production-like browser fixture and complete 45/45 control matrix prove delivery and
+  guidance. The production-like browser fixture and complete 46/46 control matrix prove delivery and
   non-interruption; only legitimate server decisions/actions and elapsed D1/D7 evidence can prove
   impact. Do not enable lifecycle email or push from Terms acceptance.
 - Keep the 5.9.76 result-to-Project handoff distinct and user-controlled: the
   continuation card explains the private Project destination, uses a full-width
   44-pixel action on phones, preserves exact selected-Project naming, and keeps
-  feedback secondary. The 45/45 browser matrix and signed-in production replay
+  feedback secondary. The 46/46 browser matrix and signed-in production replay
   prove the controls and recovery states; only legitimate intent, completion,
   resume, and elapsed D1/D7 evidence can prove adoption or retention lift.
 - Keep safe database reads on the 5.5-second bounded recovery window released
@@ -100,9 +100,12 @@ next constraint.
 - Keep the 5.9.76 authenticated workspace fail-closed: retry a required interface
   asset once, never mark a partial workspace ready, preserve successful assets,
   and allow a later recovery attempt without signing the person out. The full
-  45-journey browser gate and signed-in production replay cover the visible
+  46-journey browser gate and signed-in production replay cover the visible
   Chats, Projects, Files, preview, Video, Library, Create, Settings, and
-  Intelligence paths. Treat this as deterministic control evidence, not proof
+  Intelligence paths. The recurring public accessibility boundary now checks all
+  11 routes at phone, tablet, and desktop sizes (**33/33**), while the dedicated
+  tablet journey verifies all six persistent destinations and Plan & credits.
+  Treat this as deterministic control evidence, not proof
   against every future network, device, provider, or physical-touch failure.
 - Keep conversational document delivery, the 5.9.58 presentation visual-rhythm correction, and
   the 5.9.60 through 5.9.64 navigation/destination repairs under production observation.
