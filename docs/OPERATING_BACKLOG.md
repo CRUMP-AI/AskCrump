@@ -1022,6 +1022,27 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
+The 2026-09-14 04:04 UTC security and framework release train closed two
+production risks without changing the customer-facing funnel. Commit `4aab833`
+and deployment `dpl_B64hvc14R1yreNFQvvdTkTHeYsUo` moved new and reset
+passwords to full-input Argon2id hashes, preserved explicit 72-byte verification
+for legacy bcrypt hashes, and rehashes a legacy credential only after a
+successful verified-account login. A privacy-safe production count found eight
+active bcrypt accounts and no missing hashes; no identity or hash value was
+read. Commit `13e8997` and deployment
+`dpl_3ubZGeGn4z56NxgveGamgmY5Xkbs` then safely advanced the legacy verifier to
+bcrypt 5.0.0. Commit `47160f4` and deployment
+`dpl_AwhwtvzLmgkc19uvb2xdS6ZrpcaD` advanced Starlette to 1.6.0 for its bounded
+byte-range handling and streaming/compression fixes. The complete 1,059-test
+backend suite, 54 JavaScript validations, 47 browser-control verifiers, 33
+public-accessibility scenarios, lint, compilation, dependency consistency, and
+zero-finding Python vulnerability audit passed; GitHub runs `34803926671`,
+`34804268982`, and `34804496459` all completed successfully. The exact production
+deployments reached `READY`; homepage, workspace, health, and unauthenticated
+session probes returned 200; and the post-release runtime-error view was empty.
+Preserve this release and the existing activation experience. The comparable
+cohort's first valid 24-hour decision remains approximately 2026-09-14 15:34 UTC.
+
 The 2026-09-14 00:59 UTC protected refresh still contains the same single comparable production
 account through verification, workspace entry, starter intent, and activation. The account has no
 explicit outcome rating, durable-value signal, Project-save intent/completion, artifact journey,
