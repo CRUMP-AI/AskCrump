@@ -1022,6 +1022,20 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
+The 2026-09-14 04:49 UTC protected refresh adds one legitimate completed chat job and one
+same-day workspace return to the first comparable cohort. The same single account now has four
+completed chat jobs with zero failure and two workspace opens, but the later open occurred before
+the complete D1 window and is not retention evidence. Growth remains one account through
+activation with no explicit outcome, durable value, recent-work resume, response share, plan
+intent, Checkout, or payer. Project continuity remains zero intent/completion/resume; artifact and
+media journeys remain empty; and the account owns no active Project, ready file, or Project-file
+link. The Plan center was viewed once with no subscription or credit Checkout attempt. The existing
+`continuity-assist` prompt remains one eligible/shown account with no action, dismissal, or target
+completion, while active-work and session-collision suppression remain intact. Preserve the
+current funnel until the complete value/D1 checkpoint at approximately **15:34 UTC**; no failure or
+attempted-save drop-off is present to justify a customer-facing change before then. Evidence:
+`docs/FIRST_COMPARABLE_ACCOUNT_OBSERVATION_2026-09-13.md`.
+
 The 2026-09-14 04:04 UTC security and framework release train closed two
 production risks without changing the customer-facing funnel. Commit `4aab833`
 and deployment `dpl_B64hvc14R1yreNFQvvdTkTHeYsUo` moved new and reset

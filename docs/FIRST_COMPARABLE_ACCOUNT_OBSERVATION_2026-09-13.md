@@ -139,3 +139,29 @@ All **47/47** functional verifiers passed, including Files/downloads, image stab
 live adjustments and apply flow, Projects, login recovery, mobile navigation, plan actions, Video
 references, lifecycle actions, and sync recovery. The phone/tablet/desktop accessibility matrix
 passed **33/33**, and the focused button-ownership, lifecycle, and sync contracts passed **54/54**.
+
+## Pre-D1 protected refresh — 2026-09-14 04:49 UTC
+
+The same single comparable production account now has four completed chat jobs with zero failed
+chat job. It opened the workspace twice, first during activation and again at 00:04 UTC, but the
+second same-day visit is only an intra-day return: it occurred well before the complete D1 window
+and must not be counted or described as D1 retention.
+
+The current growth export remains one account through creation, event coverage, verification,
+workspace entry, starter intent, and activation. It still contains no explicit useful/not-yet
+outcome, durable value, recent-work resume milestone, response share, paid-plan intent, Checkout,
+or active payer. The Project-continuity export contains zero save intents, zero completions, and
+zero later resumes. The artifact report is empty; the account owns zero active Project, ready file,
+Project-file link, or media job.
+
+The separate Plan-center report records one ordinary Plan-center view and no subscription or credit
+Checkout opening or completion. The lifecycle export remains one eligible and shown
+`continuity-assist` prompt with no action, dismissal, or target completion, plus one `active-work`
+and one `session-collision` suppression. These observations return only fixed aggregate categories;
+no account identifier, prompt, response, Project, filename, URL, payment detail, or customer content
+was read or retained.
+
+This refresh adds legitimate use and intra-day return evidence without identifying a broken path or
+creating a decision-grade denominator. Preserve the current activation, result-to-Project,
+lifecycle, and Plan-center behavior until the full value/D1 checkpoint at approximately
+**2026-09-14 15:34 UTC**.
