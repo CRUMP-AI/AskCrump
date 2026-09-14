@@ -1043,6 +1043,23 @@ session probes returned 200; and the post-release runtime-error view was empty.
 Preserve this release and the existing activation experience. The comparable
 cohort's first valid 24-hour decision remains approximately 2026-09-14 15:34 UTC.
 
+The 2026-09-14 04:22 UTC verifier-toolchain batch then advanced Ruff to 0.16.7,
+Playwright to 1.63.0, and esbuild to 0.28.2 without changing shipped application
+behavior. Esbuild now includes the current Windows local-server traversal fix and
+TypeScript tree-shaking correction; Playwright supplies the current browser engine
+and cross-test locking foundation; Ruff improves parser/configuration performance.
+Commit `bfdb036` and deployment `dpl_Di8VNDMK3UpH2DztEkJTidmdojzh` introduced the
+locked versions. The first hosted Python gate correctly caught one stale test that
+still required Playwright 1.62.1; commit `0a267f0` corrected that exact contract,
+and deployment `dpl_7SpR2NbtFN9jgpwVzYpkTDo457ZS` reached `READY`. A clean install,
+zero-finding npm audit, production build, 54 JavaScript validations, 47 browser
+verifiers, 33 public-accessibility scenarios, the complete 1,059-test backend
+suite, and Ruff passed locally. GitHub CI `34805523326`, Android bundle verification
+`34805362794`, and iOS source verification `34805362818` all passed. Production
+homepage, workspace, health, and session probes returned 200 and the post-release
+runtime-error view was empty. Preserve the toolchain and continue to hold funnel
+changes until the same 15:34 UTC cohort boundary.
+
 The 2026-09-14 00:59 UTC protected refresh still contains the same single comparable production
 account through verification, workspace entry, starter intent, and activation. The account has no
 explicit outcome rating, durable-value signal, Project-save intent/completion, artifact journey,
