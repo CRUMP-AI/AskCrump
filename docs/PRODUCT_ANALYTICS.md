@@ -122,6 +122,33 @@ behavior is not silently reconstructed from conversation or file content. Accoun
 aggregates may be used to diagnose historical product use, but they must be labeled separately from
 event-based cohort rates and never converted into synthetic events.
 
+### One-command operating snapshot
+
+`scripts/export_operating_snapshot.py` collects the complete protected operating view in one
+read-only run. It calls the service-role-only growth, attribution, artifact, Project continuity,
+plan conversion, outcome issue, lifecycle, production Project-limit experiment, and demo-proof
+aggregates; then writes one versioned JSON report with explicit D1/D7 eligibility and the existing
+weekly growth reconciliation.
+
+Run it only in a trusted operator environment where `SUPABASE_URL` and
+`SUPABASE_SERVICE_KEY` are already supplied by the secret manager. Never paste either value into a
+command, commit an exported report, or place the service key in a browser/native bundle.
+
+```powershell
+python scripts/export_operating_snapshot.py `
+  --since 2026-09-01T00:00:00Z `
+  --until 2026-09-15T00:00:00Z `
+  --environment production `
+  --output C:\Temp\ask-crump-operating-snapshot.json
+```
+
+Optional landing, finance, refund, cost, and spend arguments remain explicitly `not_provided`
+unless an authoritative aggregate source supplies them. The command rejects invalid time windows
+before making a database request, excludes internal accounts unless explicitly requested, omits
+the production-only Project-limit experiment outside production, retries only transient transport
+failures, refuses to transmit the service key to any origin other than Ask Crump's exact Supabase
+project, and fails closed if an aggregate unexpectedly exposes an identity or content field.
+
 ## Service-role Project continuity snapshot
 
 Migration `20260901190546_project_save_intent_measurement.sql` installs

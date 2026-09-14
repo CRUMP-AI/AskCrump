@@ -57,6 +57,17 @@ read-only health gate with no secrets and bounded safe-GET retries. Its first ho
 `34875692579`, passed against production in 13 seconds. Treat a later failure as a destination
 incident to classify; do not mutate customer flows merely because the monitor exists.
 
+The 2026-09-14 18:01 UTC protected refresh confirms that all nine privacy-safe operating
+aggregates are available together: funnel, attribution, artifact journey, Project continuity,
+plan conversion, outcome issues, lifecycle, dormant Project-limit experiment, and sanitized-demo
+readiness. The comparable external cohort is still one account through activation, with no
+D1-eligible account, durable value, Project save/resume, artifact, payer, or demo proof. The new
+operator exporter collects that complete evidence in one read-only run, fails closed on content or
+identity fields, validates the reporting boundary before its first RPC, retries only transient
+transport failures, and refuses to send its service key anywhere except Ask Crump's exact Supabase
+origin. This improves decision latency; it does not change the current acquisition/retention hold.
+Evidence: `docs/OPERATING_SNAPSHOT_EXPORT_RELEASE_2026-09-14.md`.
+
 ## Current operating evidence — 2026-09-13
 
 The 2026-09-13 service-role refresh changes the operating baseline: Ask Crump now
