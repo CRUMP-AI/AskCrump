@@ -594,7 +594,7 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     for port in (4173, 8765, 8766, 8767, 8770):
         assert f"port: {port}" in runner
     assert '"test:browser-controls": "node scripts/verify-browser-control-matrix.mjs"' in package
-    assert '"playwright": "1.62.1"' in package
+    assert '"playwright": "1.63.0"' in package
     assert "npx playwright install --with-deps chromium" in workflow
     assert "npm run test:browser-controls" in workflow
 
