@@ -68,6 +68,19 @@ retained the same counts and the one-hour runtime-error scan was empty. This pro
 acquisition evidence; it does not submit the sitemap, prove indexing/conversion, or replace the
 first valid D1 and legitimate durable-work observations.
 
+The final paid-plan control found during the live user-eye audit was functional but underspecified:
+**Choose Professional** handed the user directly to Stripe without naming that destination. Commit
+`0d1639f` replaces both web actions with **Review [plan] in Stripe** and uses matching **in app
+store** wording in native builds, without changing plan, price, entitlement, or checkout behavior.
+The exact wording is now enforced across both plan-center owners, authentication recovery, web PWA,
+and native bundles. Full validation passed Python **1,108/1,108**, JavaScript **54/54**, browser
+controls **48/48**, production build, credential, CI `34903550942`, Android `34903550893`, and iOS
+`34903550917` gates. Deployment `dpl_9vNPMZ1jw4d1CjyRqHNsoTW1554U` is Ready on all six aliases;
+the signed-in production replay contains both new labels and neither retired label, and the initial
+sample has 32 HTTP 200 responses with no 5xx, severe log, or grouped runtime error. One internal
+pre-release Checkout review is diagnostic only and had no payment or purchase. Evidence:
+`docs/PLAN_CHECKOUT_DESTINATION_LABEL_RELEASE_2026-09-14.md`.
+
 The 2026-09-14 19:55 UTC protected refresh remains one comparable external production account
 through activation, with one ordinary Plan-center view but no durable value, explicit outcome,
 Project, file, artifact, checkout, payer, or recognized revenue. The new Project-save-offer report
