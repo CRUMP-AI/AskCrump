@@ -32,6 +32,15 @@ live 22,654-byte script matches SHA-256
 label-to-active-conversation equality with an empty browser log. Evidence:
 `docs/BUTTON_DESTINATION_INTEGRITY_RELEASE_2026-09-14.md`.
 
+The Android release verifier now uses the current `actions/setup-java@v6` runtime on the existing
+GitHub-hosted Ubuntu runner while preserving Temurin Java 21, Gradle caching, unsigned compilation,
+and the no-upload boundary. Commit `b7aa5ad` also advances the exact workflow-source guard so the
+declared action cannot drift silently. The focused store-source suite passed **12/12**, the complete
+backend suite passed **1,064/1,064**, and GitHub CI `34871746493` plus Android bundle verification
+`34871746569` completed successfully. Vercel reported the commit deployment complete. This removes a
+CI-maintenance uncertainty; it does not change product behavior or the current D1/customer-evidence
+hold.
+
 ## Current operating evidence — 2026-09-13
 
 The 2026-09-13 service-role refresh changes the operating baseline: Ask Crump now
