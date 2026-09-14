@@ -15,29 +15,38 @@ credentials, an explicit port, a path, a query, and a fragment before any networ
 called. Both reporting entry points now import this one validator, preventing the two secret-bearing
 paths from drifting independently.
 
+A follow-up parity review found that the combined operator also validated the reporting window
+before its first request, while the standalone command waited until response processing. Both paths
+now share one pre-network window validator. Reversed or equal windows, timestamps without a UTC
+offset, and environments outside production/preview/development fail before request construction;
+valid timestamps are normalized once and reused in the exact RPC payload.
+
 This follows Supabase's current rule that elevated secret/service-role credentials belong only in
 developer-controlled backend jobs and must never reach a browser, shipped client, or unintended
 destination. No key value was read, printed, rotated, or changed.
 
 ## Verification
 
-- exact-origin and adversarial-origin focused reporting suite: **50/50**;
-- complete Python suite: **1,129/1,129**;
+- exact-origin, adversarial-origin, and pre-network boundary suite: **53/53**;
+- complete Python suite: **1,132/1,132**;
 - JavaScript validation: **54/54** files;
 - Ruff: passed;
 - whitespace integrity: passed;
-- GitHub CI: `34907390546`; Python and JavaScript jobs passed.
+- GitHub CI: `34907390546` and `34908700820`; Python and JavaScript jobs passed.
 
 The executable fixtures prove that every rejected origin causes zero network calls. The valid
 fixture proves the exact RPC URL, POST body boundary, 30-second timeout, and privileged headers are
-constructed only after origin validation.
+constructed only after origin validation. Separate fixtures prove invalid time windows and an
+invalid environment also cause zero network calls.
 
 ## Release proof
 
-- Commit: `02d0666bec0fd52986245359335f2413e4303b24`.
-- Production deployment: `dpl_3WTogWsAxQ1ZRqoJHG56GJcL8mLk`; Ready in production with
+- Commits: `02d0666bec0fd52986245359335f2413e4303b24` and
+  `3ba4de6d1697418ee979dbaf4ebb48b3837d6741`.
+- Final production deployment: `dpl_2vGtdumQVKBX8yZUykeyY5KPEjP5`; Ready in production with
   `www.askcrump.com` and both Vercel production aliases assigned.
-- The first deployment-scoped log window contained four scheduled manuscript requests, all HTTP
+- The origin-guard deployment's first scoped log window contained four scheduled manuscript
+  requests, all HTTP
   200, with zero warning, error, or fatal console entries.
 
 ## Boundary and next decision

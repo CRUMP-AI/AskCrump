@@ -11,15 +11,17 @@ retention, and referral behavior. No acquisition spend should scale on impressio
 Every item below needs four things before it is called shipped: an accountable product
 outcome, privacy and safety constraints, automated coverage, and production evidence.
 
-The standalone weekly growth exporter now shares the combined operator's exact Supabase-origin
-guard. Commit `02d0666` validates the one expected HTTPS project origin before constructing any
-request with a privileged server credential and rejects HTTP, alternate/look-alike hosts, embedded
-credentials, explicit ports, paths, queries, and fragments without making a network call. The
-focused reporting/security suite passed **50/50**, the complete Python suite **1,129/1,129**,
-JavaScript **54/54**, Ruff, and diff integrity; GitHub CI `34907390546` passed. Production deployment
-`dpl_3WTogWsAxQ1ZRqoJHG56GJcL8mLk` is Ready, and its first scoped window contained four HTTP 200
-scheduled manuscript requests with zero warning, error, or fatal entry. No database object,
-migration, policy, credential, metric, customer field, or application screen changed. Evidence:
+The standalone weekly growth exporter now shares the combined operator's exact Supabase-origin and
+pre-network reporting-window guards. Commits `02d0666` and `3ba4de6` validate the expected HTTPS
+project origin, ordered half-open window, UTC offsets, and fixed environment before constructing a
+privileged request. HTTP, alternate/look-alike hosts, embedded credentials, explicit ports, paths,
+queries, fragments, reversed/equal windows, and invalid environments make zero network calls. The
+focused reporting/security suite passed **53/53**, the complete Python suite **1,132/1,132**,
+JavaScript **54/54**, Ruff, and diff integrity; GitHub CI `34907390546` and `34908700820` passed.
+Final production deployment `dpl_2vGtdumQVKBX8yZUykeyY5KPEjP5` is Ready. The preceding
+origin-guard deployment's first scoped window contained four HTTP 200 scheduled manuscript requests
+with zero warning, error, or fatal entry. No database object, migration, policy, credential, metric,
+customer field, or application screen changed. Evidence:
 `docs/WEEKLY_EXPORT_ORIGIN_GUARD_RELEASE_2026-09-14.md`.
 
 The 2026-09-14 20:38 UTC reliability reclassification found six HTTP 503 responses in the trailing
