@@ -162,14 +162,25 @@
     if (!sidebar) return;
 
     if (matchMedia('(max-width: 1100px)').matches) {
+      const wasOpen = sidebar.classList.contains('active');
       sidebar.classList.add('active');
       overlay?.classList.add('active');
       syncLibraryControl();
+      if (!wasOpen) recordConversationLibrarySelection();
       return;
     }
 
+    const wasCollapsed = document.body.classList.contains('v1-library-collapsed');
     document.body.classList.toggle('v1-library-collapsed');
     syncLibraryControl();
+    if (wasCollapsed) recordConversationLibrarySelection();
+  }
+
+  function recordConversationLibrarySelection() {
+    void window.CrumpAnalytics?.track?.('NavigationDestinationSelected', {
+      eventKey: 'navigation-destination-selected',
+      source: 'chats',
+    });
   }
 
   function forwardClick(id) {

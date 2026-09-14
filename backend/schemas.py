@@ -96,6 +96,7 @@ class CheckoutRequest(APIModel):
 class ProductEventRequest(APIModel):
     eventName: Literal[
         "WorkspaceOpened",
+        "NavigationDestinationSelected",
         "StarterIntentReached",
         "ProjectSaveOfferShown",
         "ProjectSaveIntentReached",

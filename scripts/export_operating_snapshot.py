@@ -36,6 +36,7 @@ COMMON_RPCS = (
     "product_project_continuity_snapshot",
     "product_plan_conversion_snapshot",
     "product_outcome_issue_snapshot",
+    "product_navigation_discovery_snapshot",
 )
 PRODUCTION_ONLY_RPCS = ("product_project_limit_plan_snapshot",)
 WINDOW_RPCS = ("product_weekly_lifecycle_export",)

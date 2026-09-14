@@ -40,12 +40,18 @@ const {chromium} = require('playwright');
     overlayOpen: document.getElementById('sidebarOverlay').classList.contains('active'),
     studioOpen: !document.getElementById('crump53Studio').hidden,
     section: document.getElementById('crump53Sheet').dataset.crump53Section,
+    analytics: window.fixtureEvents.analytics,
   }));
   assert.deepEqual(projects, {
     drawerOpen: false,
     overlayOpen: false,
     studioOpen: true,
     section: 'projects',
+    analytics: [{
+      eventName: 'NavigationDestinationSelected',
+      eventKey: 'navigation-destination-selected',
+      source: 'projects',
+    }],
   });
 
   assert.deepEqual(errors, []);

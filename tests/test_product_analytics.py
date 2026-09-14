@@ -9,6 +9,7 @@ from backend.routes import files as files_routes
 from backend.product_analytics import (
     CLIENT_EVENT_NAMES,
     EVENT_NAMES,
+    NAVIGATION_DESTINATIONS,
     OUTCOME_FEEDBACK_SOURCES,
     PLAN_CENTER_SOURCES,
     PROJECT_SAVE_OFFER_SOURCES,
@@ -123,6 +124,89 @@ def test_project_save_measurement_separates_client_intent_from_server_completion
     assert "ProjectSaveIntentReached" in CLIENT_EVENT_NAMES
     assert "ProjectSaveCompleted" in EVENT_NAMES
     assert "ProjectSaveCompleted" not in CLIENT_EVENT_NAMES
+
+
+def test_navigation_destination_measurement_is_fixed_and_content_free():
+    assert NAVIGATION_DESTINATIONS == frozenset({
+        "ask",
+        "chats",
+        "projects",
+        "create",
+        "video",
+        "library",
+        "you",
+        "intelligence",
+        "code",
+    })
+    assert "NavigationDestinationSelected" in EVENT_NAMES
+    assert "NavigationDestinationSelected" in CLIENT_EVENT_NAMES
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source", sorted(NAVIGATION_DESTINATIONS))
+async def test_navigation_destination_route_derives_one_server_day_key(
+    monkeypatch,
+    source,
+):
+    calls = []
+
+    async def authenticate(_request, _database, _settings):
+        return type("Auth", (), {"user": {"id": "00000000-0000-0000-0000-000000000001"}})()
+
+    async def rate_limit(*_args, **_kwargs):
+        return None
+
+    async def recorder(_database, **kwargs):
+        calls.append(kwargs)
+        return True
+
+    monkeypatch.setattr(analytics_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(analytics_routes, "enforce_user_rate_limit", rate_limit)
+    monkeypatch.setattr(analytics_routes, "record_product_event", recorder)
+
+    result = await analytics_routes.create_product_event(
+        ProductEventRequest(
+            eventName="NavigationDestinationSelected",
+            eventKey="navigation-destination-selected",
+            source=source,
+        ),
+        request_for("www.askcrump.com"),
+    )
+
+    assert result == {"success": True, "recorded": True}
+    prefix = f"navigation-destination-selected:{source}:"
+    assert calls[0]["event_key"].startswith(prefix)
+    assert len(calls[0]["event_key"]) == len(f"{prefix}2026-09-14")
+    assert calls[0]["source"] == source
+    assert calls[0]["plan"] is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("event_key", "source", "plan"),
+    [
+        ("navigation-destination-selected", "settings", None),
+        ("navigation-destination-selected:projects:2026-09-14", "projects", None),
+        ("navigation-destination-selected", "projects", "professional"),
+    ],
+)
+async def test_navigation_destination_route_rejects_non_contract_values(
+    event_key,
+    source,
+    plan,
+):
+    with pytest.raises(HTTPException) as error:
+        await analytics_routes.create_product_event(
+            ProductEventRequest(
+                eventName="NavigationDestinationSelected",
+                eventKey=event_key,
+                source=source,
+                plan=plan,
+            ),
+            request_for("www.askcrump.com"),
+        )
+
+    assert error.value.status_code == 422
 
 
 @pytest.mark.asyncio
@@ -1096,7 +1180,7 @@ def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
     assert '/product-analytics.js' not in app
     assert runtime.index('/app.js') < runtime.index('/product-analytics.js')
     assert (
-        "new Set(['WorkspaceOpened', 'StarterIntentReached', 'ProjectSaveOfferShown', 'ProjectSaveIntentReached', 'ActivationReached', "
+        "new Set(['WorkspaceOpened', 'NavigationDestinationSelected', 'StarterIntentReached', 'ProjectSaveOfferShown', 'ProjectSaveIntentReached', 'ActivationReached', "
         "'OutcomeFeedbackSubmitted', 'OutcomeIssueCategorized', 'RecentWorkResumed', 'PlanCenterViewed', 'PlanIntentReached', "
         "'ResponseShared'])"
     ) in client
@@ -1107,6 +1191,7 @@ def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
     assert "StarterIntentReached" in client
     assert "ProjectSaveOfferShown" in client
     assert "ProjectSaveIntentReached" in client
+    assert "NavigationDestinationSelected" in client
     assert "/product-analytics.js" in worker
     assert "application.include_router(analytics.router)" in application
 

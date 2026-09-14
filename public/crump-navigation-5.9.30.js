@@ -379,6 +379,7 @@
     document.body.classList.add('crump5930-create-open');
     setDestinationBackgroundInert(true);
     setActive('create');
+    recordDestinationSelection('create');
     void (window.CrumpCodeWorkspace?.refreshAvailability?.() || window.CrumpCodeLoader?.refreshAvailability?.());
     requestAnimationFrame(() => byId('crump5930CreateClose')?.focus({preventScroll: true}));
   }
@@ -447,6 +448,7 @@
     closeCreateHub();
     closeToolSheet();
     setActive('ask');
+    recordDestinationSelection('ask');
     requestAnimationFrame(() => byId('userInput')?.focus({preventScroll: true}));
   }
 
@@ -460,6 +462,7 @@
     window.CrumpProduct53?.open?.('projects');
     syncDestinationBackground();
     setActive('projects');
+    recordDestinationSelection('projects');
     syncDestinationFocus();
   }
 
@@ -473,6 +476,7 @@
     window.CrumpProduct53?.open?.('library');
     syncDestinationBackground();
     setActive('library');
+    recordDestinationSelection('library');
     syncDestinationFocus();
   }
 
@@ -486,6 +490,7 @@
     window.CrumpProduct53?.open?.('video');
     syncDestinationBackground();
     setActive('video');
+    recordDestinationSelection('video');
     syncDestinationFocus();
   }
 
@@ -500,6 +505,7 @@
     else byId('settingsBtn')?.click();
     syncDestinationBackground();
     setActive('you');
+    recordDestinationSelection('you');
     syncDestinationFocus();
   }
 
@@ -519,7 +525,15 @@
     }
     syncDestinationBackground();
     setActive('code');
+    recordDestinationSelection('code');
     syncDestinationFocus();
+  }
+
+  function recordDestinationSelection(destination) {
+    void window.CrumpAnalytics?.track?.('NavigationDestinationSelected', {
+      eventKey: 'navigation-destination-selected',
+      source: destination,
+    });
   }
 
   function openDestination(destination) {

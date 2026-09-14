@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request
 from ..auth_service import authenticate_request
 from ..product_analytics import (
     CLIENT_EVENT_NAMES,
+    NAVIGATION_DESTINATIONS,
     OUTCOME_FEEDBACK_SOURCES,
     OUTCOME_ISSUE_SOURCES,
     PLAN_CENTER_SOURCES,
@@ -32,6 +33,12 @@ async def create_product_event(payload: ProductEventRequest, request: Request):
         or not payload.eventKey.startswith("outcome-feedback:")
     ):
         raise HTTPException(status_code=422, detail="Invalid outcome feedback event.")
+    if payload.eventName == "NavigationDestinationSelected" and (
+        payload.source not in NAVIGATION_DESTINATIONS
+        or payload.eventKey != "navigation-destination-selected"
+        or payload.plan is not None
+    ):
+        raise HTTPException(status_code=422, detail="Invalid navigation destination event.")
     if payload.eventName == "OutcomeIssueCategorized" and (
         payload.source not in OUTCOME_ISSUE_SOURCES
         or not payload.eventKey.startswith("outcome-issue:")
@@ -78,6 +85,9 @@ async def create_product_event(payload: ProductEventRequest, request: Request):
     if payload.eventName == "ProjectSaveOfferShown":
         server_day = datetime.now(timezone.utc).date().isoformat()
         event_key = f"project-save-offer-shown:{payload.source}:{server_day}"
+    if payload.eventName == "NavigationDestinationSelected":
+        server_day = datetime.now(timezone.utc).date().isoformat()
+        event_key = f"navigation-destination-selected:{payload.source}:{server_day}"
     auth = await authenticate_request(request, db, settings)
     await enforce_user_rate_limit(
         db,

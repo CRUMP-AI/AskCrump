@@ -81,18 +81,18 @@ const loader = String.raw`
     ['/chat-sync.js?v=5.9.76-image-stability-1', 'workspacechatsync'],
     ['/account-manager.js?v=5.9.76-account-deletion-billing-1', 'workspaceaccount'],
     ['/app.js?v=5.9.76-settings-save-isolation-1', 'workspaceapp'],
-    ['/product-analytics.js?v=5.9.76-project-save-offer-1', 'workspaceanalytics'],
+    ['/product-analytics.js?v=5.9.76-navigation-discovery-1', 'workspaceanalytics'],
   ]);
 
   const enhancementScripts = Object.freeze([
     ['/crump-4.3.js?v=5.9.76-composer-actionability-1', 'crump43'],
-    ['/crump-4.4.js?v=5.9.76-core-reliability-1', 'crump44'],
+    ['/crump-4.4.js?v=5.9.76-navigation-discovery-1', 'crump44'],
     ['/crump-5.0.js?v=5.9.76-project-save-offer-1', 'crump50'],
     ['/crump-precision-image-edit-loader.js?v=5.9.76-precision-lazy-load-1', 'crumpprecisionloader'],
     ['/crump-billing-5.1.js?v=5.9.76-stripe-destination-integrity-1', 'billing51'],
     ['/crump-5.2.js?v=5.9.76-stripe-destination-integrity-1', 'crump52'],
     ['/crump-5.2.2.js?v=5.9.76-stripe-destination-integrity-1', 'crump522'],
-    ['/crump-v1-body.js?v=5.9.76-brand-retina-1', 'crumpbodyv1'],
+    ['/crump-v1-body.js?v=5.9.76-navigation-discovery-1', 'crumpbodyv1'],
     ['/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1', 'crumpv1stability'],
   ]);
 
@@ -104,7 +104,7 @@ const loader = String.raw`
     ['/crump-polish-5.6.js?v=5.9.76-video-destination-1', 'crumppolish56'],
     ['/crump-media-save.js?v=5.9.76-library-lazy-load-1', 'crumpmediasave'],
     ['/crump-library-loader.js?v=5.9.76-library-lazy-load-1', 'crumplibraryloader'],
-    ['/crump-navigation-5.9.30.js?v=5.9.76-brand-retina-1', 'crumpnav5930'],
+    ['/crump-navigation-5.9.30.js?v=5.9.76-navigation-discovery-1', 'crumpnav5930'],
     ['/crump-code-loader.js?v=5.9.76-code-lazy-load-1', 'crumpcodeloader'],
     ['/lifecycle-share.js?v=5.9.76-settings-invite-1', 'lifecycleshare'],
     ['/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1', 'lifecyclemanager'],

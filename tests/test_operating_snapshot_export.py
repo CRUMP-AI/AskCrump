@@ -90,6 +90,7 @@ def test_one_collection_requires_every_protected_aggregate_with_exact_arguments(
         "product_project_continuity_snapshot",
         "product_plan_conversion_snapshot",
         "product_outcome_issue_snapshot",
+        "product_navigation_discovery_snapshot",
         "product_weekly_lifecycle_export",
         "product_project_limit_plan_snapshot",
         "demo_recording_proof_snapshot",
@@ -97,7 +98,7 @@ def test_one_collection_requires_every_protected_aggregate_with_exact_arguments(
     assert calls[-1] == ("demo_recording_proof_snapshot", {})
     assert calls[-2][0] == "product_project_limit_plan_snapshot"
     assert "p_include_internal" not in calls[-2][1]
-    for name, payload in calls[:6]:
+    for name, payload in calls[:7]:
         assert name.startswith("product_")
         assert payload["p_environment"] == "production"
         assert payload["p_include_internal"] is False

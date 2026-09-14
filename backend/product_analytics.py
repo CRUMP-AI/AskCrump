@@ -15,6 +15,7 @@ EVENT_NAMES = frozenset({
     "AccountCreated",
     "OnboardingCompleted",
     "WorkspaceOpened",
+    "NavigationDestinationSelected",
     "StarterIntentReached",
     "ProjectSaveOfferShown",
     "ProjectSaveIntentReached",
@@ -40,6 +41,7 @@ EVENT_NAMES = frozenset({
 })
 CLIENT_EVENT_NAMES = frozenset({
     "WorkspaceOpened",
+    "NavigationDestinationSelected",
     "StarterIntentReached",
     "ProjectSaveOfferShown",
     "ProjectSaveIntentReached",
@@ -70,6 +72,17 @@ RESPONSE_SHARE_SOURCES = frozenset({
 RECENT_WORK_SOURCES = frozenset({"launchpad", "project"})
 PROJECT_SAVE_OFFER_SOURCES = frozenset({"conversation_result", "artifact_result"})
 PROJECT_SAVE_SOURCES = frozenset({"new_project", "existing_project"})
+NAVIGATION_DESTINATIONS = frozenset({
+    "ask",
+    "chats",
+    "projects",
+    "create",
+    "video",
+    "library",
+    "you",
+    "intelligence",
+    "code",
+})
 PLAN_CENTER_SOURCES = frozenset({
     "settings",
     "plan_intent",

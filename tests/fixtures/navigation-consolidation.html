@@ -100,7 +100,7 @@
   <section id="billingProof" role="dialog" aria-label="Plan and credits">Plan and credits opened</section>
 
   <script>
-    window.fixtureEvents = {billing: 0};
+    window.fixtureEvents = {billing: 0, analytics: []};
     window.fixtureErrors = [];
     document.documentElement.dataset.fixtureErrorCount = '0';
     const recordFixtureError = value => {
@@ -114,6 +114,12 @@
       window.fixtureEvents.billing += 1;
       document.getElementById('billingProof').style.display = 'grid';
       document.getElementById('result').textContent = `billing=${window.fixtureEvents.billing}`;
+    };
+    window.CrumpAnalytics = {
+      track(eventName, values) {
+        window.fixtureEvents.analytics.push({eventName, ...values});
+        return Promise.resolve(true);
+      },
     };
     document.getElementById('upgradeBtnSidebar').addEventListener('click', window.showBillingCenter);
     document.getElementById('closeSettingsBtn').addEventListener('click', () => { document.getElementById('settingsModal').style.display = 'none'; });
@@ -138,7 +144,7 @@
     document.getElementById('crump53Close').addEventListener('click', () => { document.getElementById('crump53Studio').hidden = true; });
   </script>
   <script src="/public/crump-v1-body.js?v=5.9.76"></script>
-  <script src="/public/crump-navigation-5.9.30.js?v=5.9.76-brand-retina-1"></script>
+  <script src="/public/crump-navigation-5.9.30.js?v=5.9.76-navigation-discovery-1"></script>
   <script>
     const mobileProof = new URLSearchParams(location.search).get('mobile');
     if (mobileProof === 'drawer') {

@@ -799,6 +799,10 @@
     await Promise.all([hydratePreferences(), hydrateCurrentChatPrivacy()]);
     panel.hidden = false;
     document.body.classList.add('crump44-panel-open');
+    void window.CrumpAnalytics?.track?.('NavigationDestinationSelected', {
+      eventKey: 'navigation-destination-selected',
+      source: 'intelligence',
+    });
     const trigger = $('#crumpIntelligenceButton');
     trigger?.setAttribute('aria-expanded', 'true');
     refreshPanel();
