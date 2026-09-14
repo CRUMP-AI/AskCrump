@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from html.parser import HTMLParser
 from pathlib import Path
@@ -577,7 +578,8 @@ def test_browser_error_sensitive_button_fixtures_suppress_favicon_noise() -> Non
 
 def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     runner = (ROOT / "scripts" / "verify-browser-control-matrix.mjs").read_text(encoding="utf-8")
-    package = (ROOT / "package.json").read_text(encoding="utf-8")
+    package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
+    package_lock = json.loads((ROOT / "package-lock.json").read_text(encoding="utf-8"))
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
 
@@ -593,8 +595,11 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     assert "ASKCRUMP_PLAN_DELAY_RUNS" in runner
     for port in (4173, 8765, 8766, 8767, 8770):
         assert f"port: {port}" in runner
-    assert '"test:browser-controls": "node scripts/verify-browser-control-matrix.mjs"' in package
-    assert '"playwright": "1.63.0"' in package
+    assert package["scripts"]["test:browser-controls"] == "node scripts/verify-browser-control-matrix.mjs"
+    playwright_version = package["devDependencies"]["playwright"]
+    assert re.fullmatch(r"\d+\.\d+\.\d+", playwright_version)
+    assert package_lock["packages"][""]["devDependencies"]["playwright"] == playwright_version
+    assert package_lock["packages"]["node_modules/playwright"]["version"] == playwright_version
     assert "npx playwright install --with-deps chromium" in workflow
     assert "npm run test:browser-controls" in workflow
 
