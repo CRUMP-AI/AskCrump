@@ -180,3 +180,12 @@ therefore opens at **2026-09-15 00:00:00 UTC**, not at the 24-hour value boundar
 24-hour value metrics after 15:37:52 UTC today, then refresh D1 separately after midnight. This
 prevents an intraday return from being misreported as D1 retention and preserves the small-sample
 boundary.
+
+Commit `2414819` turns that completed-calendar-day rule into an exact regression boundary for both
+the overall and weekly service-role reports: D1 eligibility cannot open before activation date plus
+two UTC dates, and D7 eligibility cannot open before activation date plus eight UTC dates. The
+focused retention suite passed **24/24**, GitHub CI `34860184460` passed, production deployment
+`dpl_Gac7fvRQHgyHham3EiJZXdZ9qkQc` reached Ready, all four canonical health checks returned 200, and
+the initial release window contained only HTTP 200 responses with no grouped runtime error. This is
+a measurement-integrity release; it does not turn the still-open value or D1 window into observed
+retention evidence.

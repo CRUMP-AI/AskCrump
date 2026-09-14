@@ -1056,6 +1056,13 @@ authoritative account-creation boundary. The comparable account's 24-hour value 
 the account first becomes D1-eligible at **2026-09-15 00:00:00 UTC**. Do not combine the two gates or
 count the 00:04 UTC intraday return as D1.
 
+Commit `2414819` locks those semantics in executable coverage for both the overall and weekly
+service-role reports: D1 eligibility requires activation date plus two UTC dates and D7 requires
+activation date plus eight. The focused retention suite passed **24/24**, GitHub CI `34860184460`
+passed, deployment `dpl_Gac7fvRQHgyHham3EiJZXdZ9qkQc` reached Ready, four canonical health checks
+returned 200, and the initial exact-deployment window contained no runtime-error cluster. This
+protects the decision denominator; it is not itself user-retention evidence.
+
 The 2026-09-14 04:04 UTC security and framework release train closed two
 production risks without changing the customer-facing funnel. Commit `4aab833`
 and deployment `dpl_B64hvc14R1yreNFQvvdTkTHeYsUo` moved new and reset
