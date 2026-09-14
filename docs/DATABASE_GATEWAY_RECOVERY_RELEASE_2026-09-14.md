@@ -51,6 +51,15 @@ observed requests were HTTP 200, with no grouped runtime error and no warning, e
 That clean initial window confirms delivery and ordinary worker operation; a later naturally
 occurring 500/502 is still required to distinguish in-request recovery from simple non-recurrence.
 
+A wider production observation through 2026-09-14 19:10 UTC covered **217** natural
+`/api/cron/manuscripts` requests after the release boundary. The status grouping contained at least
+**343 HTTP 200** responses and one expected HTTP 401 boundary across the application; an explicit
+HTTP 503 query returned no result. The same window contained no warning/error/fatal log and no further
+`refund_reconciliation_failed` signal. This is meaningful non-recurrence evidence across more than
+three and a half hours of scheduled work; it does not prove recovery from a new 500/502 because no
+such post-release gateway failure was observed, and it does not close the full 24-hour recurrence
+gate.
+
 ## Follow-up
 
 Observe the scheduled worker after release. Do not widen retry status, attempt count, or write scope
