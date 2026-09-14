@@ -11,21 +11,24 @@ import sys
 import time
 from typing import Any, Callable
 from urllib import error, request
-from urllib.parse import urlsplit
 
 if __package__:
     from .export_weekly_growth import (
+        EXPECTED_SUPABASE_HOST as EXPECTED_SUPABASE_HOST,
         build_report,
         ensure_aggregate_rows,
         sum_field,
         utc_timestamp,
+        validated_supabase_url,
     )
 else:
     from export_weekly_growth import (  # type: ignore[import-not-found]
+        EXPECTED_SUPABASE_HOST as EXPECTED_SUPABASE_HOST,
         build_report,
         ensure_aggregate_rows,
         sum_field,
         utc_timestamp,
+        validated_supabase_url,
     )
 
 
@@ -43,7 +46,6 @@ WINDOW_RPCS = ("product_weekly_lifecycle_export",)
 STATE_RPCS = ("demo_recording_proof_snapshot",)
 TRANSIENT_HTTP_STATUS = frozenset({408, 429, 500, 502, 503, 504})
 VALID_ENVIRONMENTS = frozenset({"production", "preview", "development"})
-EXPECTED_SUPABASE_HOST = "xncftwjfpjskgtwgbgci.supabase.co"
 NAVIGATION_DESTINATIONS = (
     "ask",
     "chats",
@@ -68,25 +70,6 @@ def validated_window(*, since: str, until: str, environment: str) -> tuple[str, 
     if environment not in VALID_ENVIRONMENTS:
         raise ValueError("Invalid reporting environment.")
     return period_since, period_until
-
-
-def validated_supabase_url(value: str) -> str:
-    candidate = value.strip()
-    parsed = urlsplit(candidate)
-    if (
-        parsed.scheme != "https"
-        or parsed.hostname != EXPECTED_SUPABASE_HOST
-        or parsed.username
-        or parsed.password
-        or parsed.port is not None
-        or parsed.path not in {"", "/"}
-        or parsed.query
-        or parsed.fragment
-    ):
-        raise ValueError(
-            "SUPABASE_URL must be Ask Crump's exact HTTPS Supabase project origin."
-        )
-    return f"https://{EXPECTED_SUPABASE_HOST}"
 
 
 def rpc_payloads(

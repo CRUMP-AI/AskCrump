@@ -10,6 +10,7 @@ from pathlib import Path
 import sys
 from typing import Any
 from urllib import error, request
+from urllib.parse import urlsplit
 
 
 SENSITIVE_KEYS = frozenset({
@@ -81,6 +82,8 @@ COUNT_RELATIONSHIPS = (
     ("active_paid_now", "distinct_payers"),
 )
 
+EXPECTED_SUPABASE_HOST = "xncftwjfpjskgtwgbgci.supabase.co"
+
 
 def utc_timestamp(value: str) -> str:
     candidate = value.strip().replace("Z", "+00:00")
@@ -88,6 +91,26 @@ def utc_timestamp(value: str) -> str:
     if parsed.tzinfo is None:
         raise ValueError("Timestamps must include a UTC offset.")
     return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def validated_supabase_url(value: str) -> str:
+    """Return Ask Crump's exact Supabase origin before any secret is attached."""
+    candidate = value.strip()
+    parsed = urlsplit(candidate)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname != EXPECTED_SUPABASE_HOST
+        or parsed.username
+        or parsed.password
+        or parsed.port is not None
+        or parsed.path not in {"", "/"}
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError(
+            "SUPABASE_URL must be Ask Crump's exact HTTPS Supabase project origin."
+        )
+    return f"https://{EXPECTED_SUPABASE_HOST}"
 
 
 def optional_count(value: int | None) -> dict[str, Any]:
@@ -316,7 +339,8 @@ def fetch_rows(
     environment: str,
     include_internal: bool,
 ) -> list[dict[str, Any]]:
-    endpoint = f"{supabase_url.rstrip('/')}/rest/v1/rpc/product_weekly_attribution_export"
+    origin = validated_supabase_url(supabase_url)
+    endpoint = f"{origin}/rest/v1/rpc/product_weekly_attribution_export"
     body = json.dumps({
         "p_since": utc_timestamp(since),
         "p_until": utc_timestamp(until),

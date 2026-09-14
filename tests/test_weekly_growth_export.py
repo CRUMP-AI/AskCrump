@@ -1,10 +1,17 @@
 from __future__ import annotations
 
 import copy
+from io import BytesIO
+import json
 
 import pytest
 
-from scripts.export_weekly_growth import build_report
+import scripts.export_weekly_growth as weekly_growth
+from scripts.export_weekly_growth import (
+    EXPECTED_SUPABASE_HOST,
+    build_report,
+    fetch_rows,
+)
 
 
 ROWS = [
@@ -46,6 +53,86 @@ ROWS = [
         "variable_cost_cents": None,
     },
 ]
+
+
+class FakeResponse:
+    def __init__(self, payload: object) -> None:
+        self.body = BytesIO(json.dumps(payload).encode("utf-8"))
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args) -> None:
+        return None
+
+    def read(self) -> bytes:
+        return self.body.read()
+
+
+def test_weekly_fetch_uses_exact_project_origin_before_attaching_service_key(monkeypatch):
+    observed = []
+
+    def urlopen(call, timeout):
+        observed.append((call, timeout))
+        return FakeResponse([])
+
+    monkeypatch.setattr(weekly_growth.request, "urlopen", urlopen)
+
+    assert fetch_rows(
+        supabase_url=f"https://{EXPECTED_SUPABASE_HOST}/",
+        service_key="server-secret",
+        since="2026-08-24T00:00:00Z",
+        until="2026-08-31T00:00:00Z",
+        environment="production",
+        include_internal=False,
+    ) == []
+
+    call, timeout = observed[0]
+    assert call.full_url == (
+        f"https://{EXPECTED_SUPABASE_HOST}/rest/v1/rpc/product_weekly_attribution_export"
+    )
+    assert call.headers["Apikey"] == "server-secret"
+    assert call.headers["Authorization"] == "Bearer server-secret"
+    assert timeout == 30
+
+
+@pytest.mark.parametrize(
+    "supabase_url",
+    [
+        "http://xncftwjfpjskgtwgbgci.supabase.co",
+        "https://attacker.example",
+        "https://xncftwjfpjskgtwgbgci.supabase.co.attacker.example",
+        "https://user@xncftwjfpjskgtwgbgci.supabase.co",
+        "https://xncftwjfpjskgtwgbgci.supabase.co:443",
+        "https://xncftwjfpjskgtwgbgci.supabase.co/redirect",
+        "https://xncftwjfpjskgtwgbgci.supabase.co?redirect=attacker.example",
+        "https://xncftwjfpjskgtwgbgci.supabase.co#attacker.example",
+    ],
+)
+def test_weekly_fetch_rejects_non_project_origin_before_transmitting_key(
+    monkeypatch,
+    supabase_url,
+):
+    calls = 0
+
+    def urlopen(_call, timeout):
+        nonlocal calls
+        assert timeout == 30
+        calls += 1
+        return FakeResponse([])
+
+    monkeypatch.setattr(weekly_growth.request, "urlopen", urlopen)
+
+    with pytest.raises(ValueError, match="exact HTTPS Supabase project origin"):
+        fetch_rows(
+            supabase_url=supabase_url,
+            service_key="server-secret",
+            since="2026-08-24T00:00:00Z",
+            until="2026-08-31T00:00:00Z",
+            environment="production",
+            include_internal=False,
+        )
+    assert calls == 0
 
 
 def test_missing_provider_evidence_remains_not_provided_instead_of_zero():
