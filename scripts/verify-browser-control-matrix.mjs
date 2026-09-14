@@ -52,6 +52,7 @@ const expectedVerifiers = Object.freeze([
   'verify-service-worker-returning-load.cjs',
   'verify-settings-profile-trust.cjs',
   'verify-studio-section-isolation.cjs',
+  'verify-sync-push-recovery.cjs',
   'verify-tablet-destination-controls.cjs',
   'verify-video-destination.cjs',
   'verify-video-reference-browser.cjs',

@@ -218,3 +218,26 @@ def test_idle_sync_fixture_uses_real_clients_and_stays_local():
     assert "password" not in fixture.lower()
     assert "askcrump.com" not in fixture
     assert "https://" not in fixture
+
+
+def test_transient_push_recovery_replays_the_preserved_batch_in_a_real_browser():
+    fixture = (ROOT / "tests" / "fixtures" / "sync-push-recovery.html").read_text(
+        encoding="utf-8"
+    )
+    verifier = (ROOT / "scripts" / "verify-sync-push-recovery.cjs").read_text(
+        encoding="utf-8"
+    )
+    matrix = (ROOT / "scripts" / "verify-browser-control-matrix.mjs").read_text(
+        encoding="utf-8"
+    )
+
+    assert '<script src="/public/sync-manager.js?v=sync-push-recovery-fixture-1"></script>' in fixture
+    assert "shouldRetry: false" in fixture
+    assert "fixtureRequests.length === 1" in fixture
+    assert "crump_sync_queue_v4:fixture-user" in verifier
+    assert "assert.equal(firstQueue.length, 1)" in verifier
+    assert "assert.deepEqual(requests[1], requests[0])" in verifier
+    assert "assert.equal(secondQueue.length, 0)" in verifier
+    assert "verify-sync-push-recovery.cjs" in matrix
+    assert "password" not in fixture.lower()
+    assert "https://" not in fixture

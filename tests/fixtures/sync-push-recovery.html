@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sync push recovery fixture</title>
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <main><output id="fixtureStatus" aria-live="polite">ready</output></main>
+  <script>
+    localStorage.removeItem('crump_sync_queue_v4:fixture-user');
+    window.currentUser = {id: 'fixture-user'};
+    window.fixtureRequests = [];
+    window.fetch = async (input, options = {}) => {
+      const url = new URL(String(input), location.href);
+      if (url.pathname !== '/api/sync/push') throw new Error(`Unexpected fixture request: ${url.pathname}`);
+      const body = JSON.parse(String(options.body || '{}'));
+      window.fixtureRequests.push(body);
+      document.getElementById('fixtureStatus').textContent = `attempt ${window.fixtureRequests.length}`;
+      if (window.fixtureRequests.length === 1) {
+        return new Response(JSON.stringify({
+          success: false,
+          code: 'DATABASE_ERROR',
+          shouldRetry: false,
+          retryAfter: 0,
+          error: 'The service database is temporarily unavailable.',
+        }), {status: 503, headers: {'Content-Type': 'application/json'}});
+      }
+      return new Response(JSON.stringify({
+        success: true,
+        accepted: ['00000000-0000-4000-8000-000000000081'],
+        ignored: [],
+        serverTime: '2026-09-14T00:05:08.000Z',
+      }), {status: 200, headers: {'Content-Type': 'application/json'}});
+    };
+  </script>
+  <script src="/public/sync-manager.js?v=sync-push-recovery-fixture-1"></script>
+</body>
+</html>
