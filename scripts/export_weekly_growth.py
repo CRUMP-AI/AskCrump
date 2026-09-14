@@ -83,6 +83,7 @@ COUNT_RELATIONSHIPS = (
 )
 
 EXPECTED_SUPABASE_HOST = "xncftwjfpjskgtwgbgci.supabase.co"
+VALID_ENVIRONMENTS = frozenset({"production", "preview", "development"})
 
 
 def utc_timestamp(value: str) -> str:
@@ -91,6 +92,19 @@ def utc_timestamp(value: str) -> str:
     if parsed.tzinfo is None:
         raise ValueError("Timestamps must include a UTC offset.")
     return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def validated_window(*, since: str, until: str, environment: str) -> tuple[str, str]:
+    """Validate and normalize the reporting boundary before any RPC is attempted."""
+    period_since = utc_timestamp(since)
+    period_until = utc_timestamp(until)
+    since_instant = datetime.fromisoformat(period_since.replace("Z", "+00:00"))
+    until_instant = datetime.fromisoformat(period_until.replace("Z", "+00:00"))
+    if since_instant >= until_instant:
+        raise ValueError("The export requires a valid half-open reporting window.")
+    if environment not in VALID_ENVIRONMENTS:
+        raise ValueError("Invalid reporting environment.")
+    return period_since, period_until
 
 
 def validated_supabase_url(value: str) -> str:
@@ -222,14 +236,11 @@ def build_report(
     currency: str = "usd",
 ) -> dict[str, Any]:
     ensure_aggregate_rows(rows)
-    period_since = utc_timestamp(since)
-    period_until = utc_timestamp(until)
-    since_instant = datetime.fromisoformat(period_since.replace("Z", "+00:00"))
-    until_instant = datetime.fromisoformat(period_until.replace("Z", "+00:00"))
-    if since_instant >= until_instant:
-        raise ValueError("The export requires a valid half-open reporting window.")
-    if environment not in {"production", "preview", "development"}:
-        raise ValueError("Invalid reporting environment.")
+    period_since, period_until = validated_window(
+        since=since,
+        until=until,
+        environment=environment,
+    )
     validate_weekly_cohorts(
         rows,
         period_since=period_since,
@@ -340,10 +351,15 @@ def fetch_rows(
     include_internal: bool,
 ) -> list[dict[str, Any]]:
     origin = validated_supabase_url(supabase_url)
+    period_since, period_until = validated_window(
+        since=since,
+        until=until,
+        environment=environment,
+    )
     endpoint = f"{origin}/rest/v1/rpc/product_weekly_attribution_export"
     body = json.dumps({
-        "p_since": utc_timestamp(since),
-        "p_until": utc_timestamp(until),
+        "p_since": period_since,
+        "p_until": period_until,
         "p_environment": environment,
         "p_include_internal": include_internal,
     }).encode("utf-8")

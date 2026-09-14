@@ -18,8 +18,8 @@ if __package__:
         build_report,
         ensure_aggregate_rows,
         sum_field,
-        utc_timestamp,
         validated_supabase_url,
+        validated_window,
     )
 else:
     from export_weekly_growth import (  # type: ignore[import-not-found]
@@ -27,8 +27,8 @@ else:
         build_report,
         ensure_aggregate_rows,
         sum_field,
-        utc_timestamp,
         validated_supabase_url,
+        validated_window,
     )
 
 
@@ -45,7 +45,6 @@ PRODUCTION_ONLY_RPCS = ("product_project_limit_plan_snapshot",)
 WINDOW_RPCS = ("product_weekly_lifecycle_export",)
 STATE_RPCS = ("demo_recording_proof_snapshot",)
 TRANSIENT_HTTP_STATUS = frozenset({408, 429, 500, 502, 503, 504})
-VALID_ENVIRONMENTS = frozenset({"production", "preview", "development"})
 NAVIGATION_DESTINATIONS = (
     "ask",
     "chats",
@@ -58,18 +57,6 @@ NAVIGATION_DESTINATIONS = (
     "code",
 )
 RpcFetcher = Callable[[str, dict[str, Any]], list[dict[str, Any]]]
-
-
-def validated_window(*, since: str, until: str, environment: str) -> tuple[str, str]:
-    period_since = utc_timestamp(since)
-    period_until = utc_timestamp(until)
-    since_instant = datetime.fromisoformat(period_since.replace("Z", "+00:00"))
-    until_instant = datetime.fromisoformat(period_until.replace("Z", "+00:00"))
-    if since_instant >= until_instant:
-        raise ValueError("The export requires a valid half-open reporting window.")
-    if environment not in VALID_ENVIRONMENTS:
-        raise ValueError("Invalid reporting environment.")
-    return period_since, period_until
 
 
 def rpc_payloads(

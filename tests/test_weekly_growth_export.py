@@ -93,6 +93,12 @@ def test_weekly_fetch_uses_exact_project_origin_before_attaching_service_key(mon
     )
     assert call.headers["Apikey"] == "server-secret"
     assert call.headers["Authorization"] == "Bearer server-secret"
+    assert json.loads(call.data) == {
+        "p_since": "2026-08-24T00:00:00Z",
+        "p_until": "2026-08-31T00:00:00Z",
+        "p_environment": "production",
+        "p_include_internal": False,
+    }
     assert timeout == 30
 
 
@@ -130,6 +136,58 @@ def test_weekly_fetch_rejects_non_project_origin_before_transmitting_key(
             since="2026-08-24T00:00:00Z",
             until="2026-08-31T00:00:00Z",
             environment="production",
+            include_internal=False,
+        )
+    assert calls == 0
+
+
+@pytest.mark.parametrize(
+    ("since", "until", "environment", "message"),
+    [
+        (
+            "2026-08-31T00:00:00Z",
+            "2026-08-24T00:00:00Z",
+            "production",
+            "valid half-open reporting window",
+        ),
+        (
+            "2026-08-24T00:00:00Z",
+            "2026-08-24T00:00:00Z",
+            "production",
+            "valid half-open reporting window",
+        ),
+        (
+            "2026-08-24T00:00:00Z",
+            "2026-08-31T00:00:00Z",
+            "staging",
+            "Invalid reporting environment",
+        ),
+    ],
+)
+def test_weekly_fetch_rejects_invalid_boundary_before_network(
+    monkeypatch,
+    since,
+    until,
+    environment,
+    message,
+):
+    calls = 0
+
+    def urlopen(_call, timeout):
+        nonlocal calls
+        assert timeout == 30
+        calls += 1
+        return FakeResponse([])
+
+    monkeypatch.setattr(weekly_growth.request, "urlopen", urlopen)
+
+    with pytest.raises(ValueError, match=message):
+        fetch_rows(
+            supabase_url=f"https://{EXPECTED_SUPABASE_HOST}",
+            service_key="server-secret",
+            since=since,
+            until=until,
+            environment=environment,
             include_internal=False,
         )
     assert calls == 0
