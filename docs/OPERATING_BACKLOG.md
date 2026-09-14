@@ -1010,6 +1010,16 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
+The 2026-09-14 00:59 UTC protected refresh still contains the same single comparable production
+account through verification, workspace entry, starter intent, and activation. The account has no
+explicit outcome rating, durable-value signal, Project-save intent/completion, artifact journey,
+plan intent, checkout, payer state, or elapsed D1/D7 denominator. Separately, the first legitimate
+`continuity-assist` decision was eligible and shown at 00:04 UTC; it recorded no action or dismissal,
+while later active-work and session-collision suppression remained effective. Preserve the current
+result-to-Project and lifecycle behavior. The next decision-grade refresh remains at or after the
+account's complete 24-hour value window, approximately **2026-09-14 15:34 UTC**; then distinguish
+absent save intent from an attempted save failure before changing the interface.
+
 The 2026-09-13 21:16 UTC privacy-safe refresh still contains one comparable
 production account. It remains verified, has opened the workspace, selected a
 starter intent, and reached technical activation, but it has no explicit
