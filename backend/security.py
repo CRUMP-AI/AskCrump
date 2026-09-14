@@ -13,8 +13,16 @@ try:
 except ImportError:  # The standard-library fallback keeps local diagnostics usable.
     bcrypt = None
 
+try:
+    from argon2 import PasswordHasher
+    from argon2.exceptions import InvalidHashError, VerificationError
+except ImportError:  # The standard-library fallback keeps local diagnostics usable.
+    PasswordHasher = None
+    InvalidHashError = VerificationError = ValueError
+
 
 EMAIL_RE = re.compile(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
+ARGON2_HASHER = PasswordHasher() if PasswordHasher is not None else None
 
 
 def utcnow() -> datetime:
@@ -50,14 +58,34 @@ def _scrypt_hash(password: str, salt: bytes | None = None) -> str:
 
 
 def hash_password(password: str) -> str:
-    if bcrypt is not None:
-        return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(rounds=12)).decode('utf-8')
+    if ARGON2_HASHER is not None:
+        return ARGON2_HASHER.hash(password)
     return _scrypt_hash(password)
+
+
+def password_hash_needs_upgrade(password_hash: str | None) -> bool:
+    if not password_hash:
+        return False
+    if not password_hash.startswith('$argon2'):
+        return True
+    if ARGON2_HASHER is None:
+        return False
+    try:
+        return ARGON2_HASHER.check_needs_rehash(password_hash)
+    except (InvalidHashError, TypeError):
+        return False
 
 
 def verify_password(password: str, password_hash: str | None) -> bool:
     if not password_hash:
         return False
+    if password_hash.startswith('$argon2'):
+        if ARGON2_HASHER is None:
+            return False
+        try:
+            return ARGON2_HASHER.verify(password_hash, password)
+        except (VerificationError, InvalidHashError, TypeError):
+            return False
     if password_hash.startswith('$scrypt$'):
         try:
             _, _, params, salt_text, digest_text = password_hash.split('$', 4)
@@ -78,7 +106,11 @@ def verify_password(password: str, password_hash: str | None) -> bool:
     if bcrypt is None:
         return False
     try:
-        return bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
+        # Legacy bcrypt hashes only contain the first 72 UTF-8 bytes. Slice the
+        # candidate explicitly so existing long-password accounts remain usable
+        # with bcrypt 5+, which rejects oversized input instead of truncating it.
+        candidate = password.encode('utf-8')[:72]
+        return bcrypt.checkpw(candidate, password_hash.encode('utf-8'))
     except (ValueError, TypeError):
         return False
 

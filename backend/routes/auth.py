@@ -40,6 +40,7 @@ from ..security import (
     iso_now,
     new_uuid,
     normalize_email,
+    password_hash_needs_upgrade,
     random_token,
     token_hash,
     validate_email,
@@ -264,11 +265,11 @@ async def login(payload: LoginRequest, request: Request, response: Response):
         device_name=payload.deviceName,
         platform=payload.platform,
     )
-    await db.update(
-        'users',
-        {'last_login': iso_now(), 'updated_at': iso_now()},
-        filters={'id': eq(user['id'])},
-    )
+    now = iso_now()
+    user_updates = {'last_login': now, 'updated_at': now}
+    if password_hash_needs_upgrade(user.get('password_hash')):
+        user_updates['password_hash'] = hash_password(payload.password)
+    await db.update('users', user_updates, filters={'id': eq(user['id'])})
     set_session_cookie(response, raw_token, request)
     logger.info(
         'Auth login outcome=session_issued client=%s',

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import bcrypt
 import pytest
 from fastapi import Request, Response
 
@@ -57,6 +58,55 @@ async def test_login_rejections_return_stable_content_free_codes(monkeypatch) ->
     body = json.loads(unverified.body)
     assert body["code"] == "EMAIL_VERIFICATION_REQUIRED"
     assert body["needsVerification"] is True
+
+
+class UpgradeLoginDB:
+    def __init__(self, user: dict) -> None:
+        self.user = user
+        self.updates: list[dict] = []
+
+    async def select_one(self, table, *_args, **_kwargs):
+        return self.user if table == "users" else None
+
+    async def update(self, table, values, **_kwargs):
+        assert table == "users"
+        self.updates.append(values)
+
+
+@pytest.mark.asyncio
+async def test_successful_legacy_login_upgrades_password_hash(monkeypatch) -> None:
+    password = "A1" + ("x" * 80) + "full ending"
+    legacy_hash = bcrypt.hashpw(
+        password.encode("utf-8")[:72],
+        bcrypt.gensalt(rounds=4),
+    ).decode()
+    db = UpgradeLoginDB({
+        "id": "user-1",
+        "email": "person@example.com",
+        "password_hash": legacy_hash,
+        "is_verified": True,
+    })
+
+    async def create_test_session(*_args, **_kwargs):
+        return "session-token", {"expires_at": "2099-01-01T00:00:00+00:00"}
+
+    monkeypatch.setattr(auth_routes, "db", db)
+    monkeypatch.setattr(auth_routes, "enforce_auth_rate_limit", allow_rate_limit)
+    monkeypatch.setattr(auth_routes, "create_session", create_test_session)
+    monkeypatch.setattr(auth_routes, "set_session_cookie", lambda *_args: None)
+
+    result = await auth_routes.login(
+        LoginRequest(email="person@example.com", password=password),
+        login_request(),
+        Response(),
+    )
+
+    assert result["success"] is True
+    assert len(db.updates) == 1
+    upgraded_hash = db.updates[0]["password_hash"]
+    assert upgraded_hash.startswith("$argon2id$")
+    assert auth_routes.verify_password(password, upgraded_hash)
+    assert not auth_routes.verify_password("A1" + ("x" * 80) + "other ending", upgraded_hash)
 
 
 def test_login_failure_measurement_has_bounded_runtime_coverage() -> None:
