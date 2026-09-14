@@ -27,6 +27,19 @@ marginal source-byte reduction does not justify another cache revision immediate
 retina-mark release. Retain the current lockup until hosted or field evidence identifies it as the
 next material entry bottleneck.
 
+The shipped navigation-verification release closes the current owned-button audit with a complete
+browser proof and adds a private discovery denominator for Ask, Chats, Projects, Create, Video,
+Library, You, Intelligence, and Code. Commit `05307ad`, remote migration
+`20260914210257_navigation_destination_selection`, and deployment
+`dpl_FvL71Rv1m3xfoGnvUog8ussMUJ2D` passed backend **1,103/1,103**, JavaScript **54/54**, browser
+controls **48/48**, accessibility **33/33**, public destinations, production build, native web
+bundle, credential, CI `34897417769`, Android `34897418161`, and iOS `34897418109` gates. The live
+app serves the new runtime and cache on all six aliases with no post-release error/fatal log. The
+aggregate is service-role-only and contains fixed destinations, account counts, account-day counts,
+and rates—no identity or customer content. Its first external-production read is a clean nine-row
+zero baseline, so do not interpret it as failed discovery. Evidence:
+`docs/NAVIGATION_DESTINATION_VERIFICATION_RELEASE_2026-09-14.md`.
+
 The 2026-09-14 19:55 UTC protected refresh remains one comparable external production account
 through activation, with one ordinary Plan-center view but no durable value, explicit outcome,
 Project, file, artifact, checkout, payer, or recognized revenue. The new Project-save-offer report
