@@ -1,0 +1,28 @@
+name: Public Destination Health
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 11 * * *"
+
+concurrency:
+  group: public-destination-health
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify-public-destinations:
+    name: Verify live first-party destinations
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Verify live public destinations
+        run: node scripts/verify-live-public-destinations.mjs
+        env:
+          ASKCRUMP_PUBLIC_ORIGIN: https://www.askcrump.com

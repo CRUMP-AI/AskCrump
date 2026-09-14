@@ -27,6 +27,8 @@ def test_live_public_destination_verifier_is_bounded_and_credential_free() -> No
     assert "enters another redirect" in source
     assert "response.status !== 200" in source
     assert "AbortSignal.timeout(15_000)" in source
+    assert "attempt <= 3" in source
+    assert "[408, 429, 500, 502, 503, 504]" in source
     assert "concurrency = 6" in source
     assert "sitemap.xml contains no public URLs" in source
     assert "is missing a canonical link" in source
@@ -40,3 +42,22 @@ def test_live_public_destination_verifier_is_bounded_and_credential_free() -> No
         "customer",
     ):
         assert forbidden not in source.lower()
+
+
+def test_live_public_destination_health_workflow_is_daily_manual_and_read_only() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "public-destination-health.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "workflow_dispatch:" in workflow
+    assert 'cron: "17 11 * * *"' in workflow
+    assert "push:" not in workflow
+    assert "pull_request:" not in workflow
+    assert "contents: read" in workflow
+    assert "timeout-minutes: 10" in workflow
+    assert "actions/checkout@v7" in workflow
+    assert "actions/setup-node@v7" in workflow
+    assert 'node-version: "22"' in workflow
+    assert "node scripts/verify-live-public-destinations.mjs" in workflow
+    assert "ASKCRUMP_PUBLIC_ORIGIN: https://www.askcrump.com" in workflow
+    assert "secrets." not in workflow

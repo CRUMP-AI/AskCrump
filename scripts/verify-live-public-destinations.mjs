@@ -81,11 +81,27 @@ function sitemapDestinations() {
 }
 
 async function fetchDirect(url) {
-  const request = target => fetch(target, {
-    redirect: 'manual',
-    signal: AbortSignal.timeout(15_000),
-    headers: {'user-agent': 'AskCrump-public-destination-verifier/1.0'},
-  });
+  const request = async target => {
+    let lastError;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        const response = await fetch(target, {
+          redirect: 'manual',
+          signal: AbortSignal.timeout(15_000),
+          headers: {'user-agent': 'AskCrump-public-destination-verifier/1.0'},
+        });
+        if (![408, 429, 500, 502, 503, 504].includes(response.status) || attempt === 3) {
+          return response;
+        }
+        lastError = new Error(`${target.href} returned transient HTTP ${response.status}`);
+      } catch (error) {
+        lastError = error;
+        if (attempt === 3) throw error;
+      }
+      await new Promise(resolve => setTimeout(resolve, attempt * 250));
+    }
+    throw lastError || new Error(`${target.href} could not be reached`);
+  };
   let response = await request(url);
   if (response.status >= 300 && response.status < 400) {
     const location = response.headers.get('location');
