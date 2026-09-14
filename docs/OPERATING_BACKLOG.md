@@ -41,6 +41,17 @@ backend suite passed **1,064/1,064**, and GitHub CI `34871746493` plus Android b
 CI-maintenance uncertainty; it does not change product behavior or the current D1/customer-evidence
 hold.
 
+Commit `e479faa` closes the last deployment-level gap in the button audit. The signed-in **Clever
+Crump** action now uses the direct canonical company destination, installed PWAs receive cache
+generation **r243**, and a new credential-free live verifier checks literal first-party links from
+both shipped HTML and JavaScript. The production run passed **67** unique anchor destinations,
+**12** canonical sitemap pages, **69** HTTP 200 targets, and exactly **2** reviewed native-file
+compatibility redirects. Backend **1,066/1,066**, JavaScript **54/54**, browser **48/48**,
+accessibility **33/33**, CI `34874380847`, Android `34874380896`, and iOS `34874380954` passed. The
+served app contains the canonical `www` company href and the worker exposes r243. Evidence:
+`docs/PUBLIC_DESTINATION_INTEGRITY_RELEASE_2026-09-14.md`. Preserve the funnel until the valid D1
+read rather than turning destination proof into a retention claim.
+
 ## Current operating evidence — 2026-09-13
 
 The 2026-09-13 service-role refresh changes the operating baseline: Ask Crump now
