@@ -51,6 +51,15 @@ Python command was unavailable. A second launch used the configured validation P
 runtime and passed all 48 verifiers. This was an environment invocation correction, not a product
 failure.
 
+## Release proof
+
+- Feature commit: `a70f84efc00d986a4df8363990a637832ffdecc5`.
+- GitHub CI: `34901194164`; Python 3.12 and JavaScript jobs passed.
+- Production deployment: `dpl_24LdiafJc3wxNsi4MXMLBf7kuS5p`; Ready on all six aliases with no
+  alias error.
+- The post-deploy public discovery proof passed with the same exact counts.
+- The one-hour production runtime-error scan returned no error cluster.
+
 ## Boundary and next evidence
 
 This release improves the durability of organic discovery evidence. It does not submit the sitemap,

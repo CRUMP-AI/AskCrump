@@ -62,9 +62,11 @@ Projects, Files, foreground image preview/return, Video, Library, You and its se
 Create → Document Studio, Intelligence, Chats, and Continue without a visible failure or protected
 action. Complete validation passed Python **1,108/1,108**, JavaScript **54/54**, browser controls
 **48/48**, and focused discovery/search **24/24**. Evidence:
-`docs/PUBLIC_DISCOVERY_HEALTH_GATE_RELEASE_2026-09-14.md`. This protects future organic acquisition
-evidence; it does not submit the sitemap, prove indexing/conversion, or replace the first valid D1
-and legitimate durable-work observations.
+`docs/PUBLIC_DISCOVERY_HEALTH_GATE_RELEASE_2026-09-14.md`. Commit `a70f84e`, CI `34901194164`, and
+six-alias Ready deployment `dpl_24LdiafJc3wxNsi4MXMLBf7kuS5p` are green; the post-deploy proof
+retained the same counts and the one-hour runtime-error scan was empty. This protects future organic
+acquisition evidence; it does not submit the sitemap, prove indexing/conversion, or replace the
+first valid D1 and legitimate durable-work observations.
 
 The 2026-09-14 19:55 UTC protected refresh remains one comparable external production account
 through activation, with one ordinary Plan-center view but no durable value, explicit outcome,
