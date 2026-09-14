@@ -1200,6 +1200,18 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
+Commit `9225374` makes the upcoming D1 decision fail closed at the operator boundary. The weekly
+and combined operating exporters now require all 25 cohort counts as nonnegative integers, one
+consistent requested reporting window, valid nullable database finance totals, and 24 exact subset
+relationships before calculating activation, value, D1/D7, or payer rates. Missing denominators,
+returned-above-eligible rows, booleans/strings, negative counts, and mismatched boundaries can no
+longer become plausible-looking percentages. Focused evidence coverage passed **41/41**, the complete
+Python suite **1,120/1,120**, JavaScript **54/54**, Ruff, whitespace, and GitHub CI `34905067263`.
+Deployment `dpl_6RgbNiZsJdHccRrU1L4WeEjLsTyj` is Ready on all six aliases with no initial 5xx or
+runtime-error group. This does not create retention; run the first protected post-boundary D1 read
+after **2026-09-15 00:00 UTC**. Evidence:
+`docs/RETENTION_EVIDENCE_INTEGRITY_RELEASE_2026-09-14.md`.
+
 The 2026-09-14 acquisition review found a historical social handoff signal without a current
 failure denominator. In the production-only 30-day client view, 22 Facebook-referred visitors
 reached `SignupIntent`, while none appeared among the four `SignupStarted` visitors. That window
