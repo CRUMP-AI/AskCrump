@@ -40,6 +40,32 @@ async def test_transient_read_status_retries_with_bounded_backoff_and_retry_head
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("status_code", [500, 502])
+async def test_transient_database_gateway_failures_retry_safe_reads(status_code):
+    calls: list[httpx.Request] = []
+    sleeps: list[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if len(calls) == 1:
+            return httpx.Response(status_code, json={"code": "UPSTREAM_UNAVAILABLE"})
+        return httpx.Response(200, json=[])
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        database = SupabaseDB(db_settings(), client=client, sleep=fake_sleep)
+        rows = await database.select("scheduled_work", columns="status")
+
+    assert rows == []
+    assert len(calls) == 2
+    assert calls[0].headers.get("x-retry-count") is None
+    assert calls[1].headers["x-retry-count"] == "1"
+    assert sleeps == [0.25]
+
+
+@pytest.mark.asyncio
 async def test_transient_read_transport_failure_exhausts_without_leaking_request_details():
     calls: list[httpx.Request] = []
     sleeps: list[float] = []
@@ -157,6 +183,70 @@ async def test_explicitly_idempotent_rpc_retries_with_the_same_payload():
     assert calls[0].headers.get("x-retry-count") is None
     assert calls[1].headers["x-retry-count"] == "1"
     assert sleeps == [0.25]
+
+
+@pytest.mark.asyncio
+async def test_explicitly_idempotent_rpc_retries_after_bad_gateway():
+    calls: list[httpx.Request] = []
+    sleeps: list[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if len(calls) == 1:
+            return httpx.Response(502, json={"code": "UPSTREAM_UNAVAILABLE"})
+        return httpx.Response(200, json=[])
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    payload = {
+        "p_lease_seconds": 420,
+        "p_claim_token": "00000000-0000-4000-8000-000000000002",
+    }
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        database = SupabaseDB(db_settings(), client=client, sleep=fake_sleep)
+        result = await database.rpc(
+            "claim_manuscript_run",
+            payload,
+            retry_transient=True,
+        )
+
+    assert result == []
+    assert len(calls) == 2
+    assert calls[0].content == calls[1].content
+    assert calls[1].headers["x-retry-count"] == "1"
+    assert sleeps == [0.25]
+
+
+@pytest.mark.asyncio
+async def test_explicitly_idempotent_rpc_does_not_retry_database_internal_error():
+    calls: list[httpx.Request] = []
+    sleeps: list[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(500, json={"code": "P0001"})
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        database = SupabaseDB(db_settings(), client=client, sleep=fake_sleep)
+        with pytest.raises(DatabaseError) as captured:
+            await database.rpc(
+                "claim_manuscript_run",
+                {
+                    "p_lease_seconds": 420,
+                    "p_claim_token": "00000000-0000-4000-8000-000000000003",
+                },
+                retry_transient=True,
+            )
+
+    assert len(calls) == 1
+    assert sleeps == []
+    assert captured.value.status_code == 500
+    assert captured.value.retryable is False
+    assert captured.value.attempts == 1
 
 
 @pytest.mark.asyncio

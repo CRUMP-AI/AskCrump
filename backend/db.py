@@ -14,7 +14,8 @@ from .config import Settings
 logger = logging.getLogger("askcrump.database")
 
 _RETRYABLE_READ_METHODS = frozenset({"GET", "HEAD"})
-_RETRYABLE_READ_STATUSES = frozenset({408, 503, 504, 520})
+_RETRYABLE_READ_STATUSES = frozenset({408, 500, 502, 503, 504, 520})
+_RETRYABLE_IDEMPOTENT_WRITE_STATUSES = frozenset({408, 502, 503, 504, 520})
 _READ_RETRY_DELAYS_SECONDS = (0.25, 0.75, 1.5, 3.0)
 
 
@@ -119,7 +120,12 @@ class SupabaseDB:
                         attempts=attempt + 1,
                     ) from exc
 
-                transient_status = response.status_code in _RETRYABLE_READ_STATUSES
+                retryable_statuses = (
+                    _RETRYABLE_READ_STATUSES
+                    if method in _RETRYABLE_READ_METHODS
+                    else _RETRYABLE_IDEMPOTENT_WRITE_STATUSES
+                )
+                transient_status = response.status_code in retryable_statuses
                 if (
                     retryable_request
                     and transient_status
