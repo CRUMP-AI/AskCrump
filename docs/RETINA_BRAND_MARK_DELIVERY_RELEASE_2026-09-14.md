@@ -39,9 +39,34 @@ under identical alternating browser contexts. Production acceptance requires exa
 no request for the full-size runtime mark or retired PNGs, successful image decoding, no browser
 error, no layout shift above 0.01, and a clean phone/tablet/desktop control matrix.
 
+- Full backend and product suite: 1,087/1,087 passed.
+- JavaScript integration contract: 54/54 files passed.
+- Browser control matrix: 48/48 passed across phone, tablet, and desktop.
+- Public accessibility matrix: 33/33 passed across phone, tablet, and desktop.
+- Public destinations: 67 unique first-party anchors, 12 canonical sitemap pages, 69 HTTP 200
+  destinations, and two exact native-compatibility redirects passed.
+- Production build preflight, native web-bundle build, client-credential scan, JavaScript syntax,
+  and diff integrity passed.
+
 ## Production acceptance
 
-Pending deployment and hosted verification.
+Commit `8703fc0b8cd02316d2a85555c403426d5db5a4ab` deployed as
+`dpl_7fQCVCso8iJYVCCAqKDcbZ2V88Js` and reached Ready with all six aliases attached and no alias error.
+The four public custom domains returned HTTP 200 with the retina asset path and
+`5.9.76-brand-retina-1` runtime token.
+
+- `crump-mark-320.webp` returned as `image/webp`, matched the reviewed 81,150-byte file and exact
+  SHA-256 `97a95059ad0997ffb88a78d6b3dca655eaf6efbd7945fcd60eacc7d494649917`.
+- Three fresh constrained-mobile runs requested only the retina mark and current workspace lockup,
+  decoded all six visible brand images, logged no browser/page error, and recorded zero CLS. FCP was
+  1,340–1,628 ms, LCP 1,628–1,812 ms, and load completion 1,763–1,809 ms.
+- Five alternating hosted comparisons transferred a median 81,450 bytes for the retina mark versus
+  244,226 for the full-size mark. Median FCP improved from 1,276 to 1,228 ms, median LCP from 1,792
+  to 1,680 ms, and median load completion from 2,475 to 1,651 ms. This supports a bounded synthetic
+  startup improvement; it is not a field-performance or retention claim.
+- The exact deployment's initial runtime sample contained 17 HTTP 200 responses, with no grouped
+  runtime error.
+- Android run `34892852908`, CI `34892852804`, and iOS run `34892852809` all passed.
 
 ## Boundaries
 

@@ -32,12 +32,17 @@ decoded the brand cleanly, logged no browser error, and produced zero CLS. The m
 was 1,948–2,028 ms, so the byte reduction is proven but a user-perceived timing improvement is not
 yet claimed. Evidence: `docs/BRAND_IMAGE_DELIVERY_RELEASE_2026-09-14.md`.
 
-The follow-on retina-mark candidate keeps the proven eager/preloaded sign-in behavior while replacing
+The shipped retina-mark release keeps the proven eager/preloaded sign-in behavior while replacing
 the active 640×714 mark with a lossless 320×357 derivative sized above the largest 3× rendered need.
 It removes another 162,776 source bytes from the signed-out entry path (66.7% of the prior runtime
-mark); composited 1×/2×/3× comparisons remain below 0.65 RMS per channel on a 0–255 scale. This is a
-reviewed candidate, not a shipped performance claim, until full regression, deployment parity, and
-an alternating hosted comparison are complete. Evidence:
+mark); composited 1×/2×/3× comparisons remain below 0.65 RMS per channel on a 0–255 scale. Full
+backend **1,087/1,087**, JavaScript **54/54**, browser controls **48/48**, accessibility **33/33**,
+and public-destination checks passed. Deployment `dpl_7fQCVCso8iJYVCCAqKDcbZ2V88Js` is Ready on
+all six aliases, the four public custom domains serve the exact release, and five alternating hosted
+mobile comparisons improved median LCP from 1,792 to 1,680 ms and median load completion from 2,475
+to 1,651 ms with zero CLS or browser error. CI `34892852804`, Android `34892852908`, and iOS
+`34892852809` passed. This is bounded synthetic evidence, not a field-performance or retention claim.
+Evidence:
 `docs/RETINA_BRAND_MARK_DELIVERY_RELEASE_2026-09-14.md`.
 
 The 2026-09-14 16:44 UTC protected refresh remains one comparable production account through
