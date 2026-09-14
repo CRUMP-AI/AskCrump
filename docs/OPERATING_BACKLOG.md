@@ -45,9 +45,12 @@ canonical nine destinations exactly once and in order, one consistent nonnegativ
 denominator, possible selected-account/account-day counts, and rates that match the underlying
 counts. Its derived view labels the current zero denominator `awaiting_traffic` and explicitly says
 that selection does not prove task completion. The focused navigation/operator suite passed
-**20/20** and the complete Python suite **1,108/1,108**. This closes an evidence-integrity gap; it
-does not manufacture a button click or replace the separate legitimate-user gates for destructive,
-payment, provider-generation, native-permission, upload, download, and physical-device outcomes.
+**20/20** and the complete Python suite **1,108/1,108**. Commit `ec55f44`, GitHub CI
+`34898916533`, and six-alias Ready deployment `dpl_4ok7m8hSSaPYE229TToqMQtxUGXi` are green; its
+first request returned 200 and the one-hour runtime-error scan was empty. This closes an
+evidence-integrity gap; it does not manufacture a button click or replace the separate
+legitimate-user gates for destructive, payment, provider-generation, native-permission, upload,
+download, and physical-device outcomes.
 
 The 2026-09-14 19:55 UTC protected refresh remains one comparable external production account
 through activation, with one ordinary Plan-center view but no durable value, explicit outcome,

@@ -67,7 +67,10 @@ validated, the two changed Python files passed Ruff, and the diff passed its whi
 
 The follow-up navigation evidence guard passed 20 focused tests and the complete **1,108/1,108**
 Python suite. It makes an incomplete or internally inconsistent destination report a hard operator
-failure instead of a misleading green snapshot.
+failure instead of a misleading green snapshot. Commit `ec55f44` passed GitHub CI
+`34898916533`; production deployment `dpl_4ok7m8hSSaPYE229TToqMQtxUGXi` is Ready on all six
+aliases with no alias error. Its first production request returned HTTP 200, and the one-hour
+runtime-error scan was empty.
 
 ## Release proof
 
