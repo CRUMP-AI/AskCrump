@@ -487,7 +487,9 @@
     const isCurrent = currentTier === plan.id && ['active', 'trialing', 'canceling', 'billing_issue'].includes(currentStatus);
     button.textContent = needsBillingAttention
       ? 'Resolve billing to change plans'
-      : isCurrent ? 'Current plan' : `Choose ${plan.name}`;
+      : isCurrent
+        ? 'Current plan'
+        : `Review ${plan.name} in ${native() ? 'app store' : 'Stripe'}`;
     if (isCurrent || needsBillingAttention) {
       button.disabled = true;
     } else if (native() && !product?.package && !product?.productId) {

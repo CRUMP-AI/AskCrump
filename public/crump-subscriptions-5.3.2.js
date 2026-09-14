@@ -236,7 +236,7 @@
         button.addEventListener('click', () => openPortal(button, provider));
       }
     } else {
-      button.textContent = `Choose ${plan.name}`;
+      button.textContent = `Review ${plan.name} in ${native() ? 'app store' : 'Stripe'}`;
       button.addEventListener('click', () => openCheckout(plan.id, button));
     }
 

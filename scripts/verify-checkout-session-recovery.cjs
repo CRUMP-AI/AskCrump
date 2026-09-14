@@ -53,7 +53,7 @@ async function signIn(page) {
 
     await page.getByRole('button', {name:'Close', exact:true}).click();
     await page.getByRole('button', {name:'Plan & credits'}).click();
-    const plan = page.getByRole('button', {name:'Choose Professional', exact:true});
+    const plan = page.getByRole('button', {name:'Review Professional in Stripe', exact:true});
     await plan.waitFor({state:'visible'});
     await plan.click();
 
@@ -129,7 +129,7 @@ async function signIn(page) {
 
     await page.getByRole('button', {name:'Close', exact:true}).click();
     await page.getByRole('button', {name:'Plan & credits'}).click();
-    const unsafePlan = page.getByRole('button', {name:'Choose Enterprise', exact:true});
+    const unsafePlan = page.getByRole('button', {name:'Review Enterprise in Stripe', exact:true});
     await unsafePlan.click();
     await page.waitForFunction(() => /secure checkout destination/i.test(
       window.__fixtureToasts.at(-1)?.message || '',
