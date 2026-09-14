@@ -96,6 +96,7 @@ const expectedDestinations = ['ask', 'projects', 'create', 'video', 'library', '
     ));
     const create = await surfaceGeometry('#crump5930CreateHub');
     assert(Math.abs(create.bottom - create.navTop) <= 1, JSON.stringify(create));
+    await page.waitForFunction(() => document.activeElement?.id === 'crump5930CreateClose');
     assert.equal(await page.evaluate(() => document.activeElement?.id), 'crump5930CreateClose');
 
     await clickDestination('you');
