@@ -49,3 +49,20 @@ This release establishes executable coverage for every inventoried control and r
 Continue no-op recovery case. It does not claim that every possible provider response, network
 failure, browser extension, or future dynamically introduced control is defect-free. The inventory
 guard fails whenever a new verifier is added or removed without an explicit test update.
+
+## Production closure
+
+Commit `c78f792` passed GitHub CI `34869867352`, Android bundle verification `34869867351`,
+and iOS source verification `34869867340`. Production deployment
+`dpl_dXTeo5yw4rQa6PSLkiTeNvBihRiB` reached Ready on all six aliases with no alias error.
+
+The live app, runtime loader, launchpad script, and service worker returned HTTP 200 and exposed the
+same `5.9.76-recent-work-recovery-1` / `r242` asset chain. The deployed 22,654-byte launchpad script
+is byte-identical to the commit at SHA-256
+`a701a77d6670710d317496cbca2e254e7dbff02d2c49250167425e56e2f2ce38`.
+
+A signed-in production replay opened Continue from the clean workspace. The visible card label and
+the active Chats-row title matched exactly, the conversation rendered, and the browser log remained
+empty. The initial exact-deployment error view was empty. This replay only opened an existing fixed
+fictional quality-assurance conversation; it did not create work, spend credits, invoke a provider,
+or change account data.
