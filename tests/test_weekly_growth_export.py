@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import copy
+
 import pytest
 
 from scripts.export_weekly_growth import build_report
@@ -70,8 +72,11 @@ def test_missing_provider_evidence_remains_not_provided_instead_of_zero():
 
 
 def test_report_calculates_only_rates_with_explicit_denominators():
+    rows = copy.deepcopy(ROWS)
+    rows[0]["cohort_since"] = "2026-08-24T04:00:00Z"
+    rows[0]["cohort_until"] = "2026-08-31T04:00:00Z"
     report = build_report(
-        ROWS,
+        rows,
         since="2026-08-24T00:00:00-04:00",
         until="2026-08-31T00:00:00-04:00",
         environment="production",
@@ -143,11 +148,83 @@ def test_export_rejects_any_unexpected_sensitive_field(rows):
 
 
 def test_negative_operator_totals_are_rejected():
-    with pytest.raises(ValueError, match="cannot be negative"):
+    with pytest.raises(ValueError, match="nonnegative integers"):
         build_report(
             ROWS,
             since="2026-08-24T00:00:00Z",
             until="2026-08-31T00:00:00Z",
             environment="production",
             recognized_revenue_cents=-1,
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("d1_returned", 9, "d1_returned above d1_eligible"),
+        ("d7_eligible", 9, "d7_eligible above d1_eligible"),
+        ("activation_reached_24h", 11, "activation_reached_24h above activation_eligible_24h"),
+        ("accounts_created", -1, "invalid nonnegative integer count accounts_created"),
+        ("accounts_created", "10", "invalid nonnegative integer count accounts_created"),
+        ("accounts_created", True, "invalid nonnegative integer count accounts_created"),
+    ],
+)
+def test_impossible_or_untyped_cohort_counts_fail_closed(field, value, message):
+    rows = copy.deepcopy(ROWS)
+    rows[0][field] = value
+
+    with pytest.raises(ValueError, match=message):
+        build_report(
+            rows,
+            since="2026-08-24T00:00:00Z",
+            until="2026-08-31T00:00:00Z",
+            environment="production",
+        )
+
+
+def test_missing_retention_denominator_fails_closed_instead_of_becoming_zero():
+    rows = copy.deepcopy(ROWS)
+    rows[0].pop("d1_eligible")
+
+    with pytest.raises(ValueError, match="missing required count d1_eligible"):
+        build_report(
+            rows,
+            since="2026-08-24T00:00:00Z",
+            until="2026-08-31T00:00:00Z",
+            environment="production",
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("cohort_since", "2026-08-23T23:59:59Z", "start falls outside"),
+        ("cohort_until", "2026-08-30T23:59:59Z", "end does not match"),
+        ("cohort_until", "not-a-timestamp", "invalid cohort boundary"),
+    ],
+)
+def test_cohort_boundaries_must_match_the_requested_window(field, value, message):
+    rows = copy.deepcopy(ROWS)
+    rows[0][field] = value
+
+    with pytest.raises(ValueError, match=message):
+        build_report(
+            rows,
+            since="2026-08-24T00:00:00Z",
+            until="2026-08-31T00:00:00Z",
+            environment="production",
+        )
+
+
+def test_multiple_cohorts_must_share_one_authoritative_boundary():
+    rows = copy.deepcopy(ROWS) * 2
+    rows[1] = copy.deepcopy(rows[1])
+    rows[1]["cohort_since"] = "2026-08-25T00:00:00Z"
+
+    with pytest.raises(ValueError, match="inconsistent cohort boundaries"):
+        build_report(
+            rows,
+            since="2026-08-24T00:00:00Z",
+            until="2026-08-31T00:00:00Z",
+            environment="production",
         )

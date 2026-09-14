@@ -37,14 +37,21 @@ def fixture_sections() -> dict[str, list[dict]]:
         )
     }
     sections["product_weekly_attribution_export"] = [{
+        "cohort_since": SINCE,
+        "cohort_until": UNTIL,
         "acquisition": "clevercrump",
         "placement": None,
         "campaign": None,
         "creative": None,
         "intent": None,
         "accounts_created": 1,
+        "account_event_recorded": 1,
+        "verified_now": 1,
+        "workspace_opened": 1,
+        "activation_eligible_24h": 1,
         "activation_reached_24h": 1,
         "useful_feedback_reached_24h": 0,
+        "durable_value_eligible_24h": 1,
         "durable_value_reached_24h": 0,
         "decision_grade_value_reached_24h": 0,
         "project_created_reached_24h": 0,
@@ -54,8 +61,17 @@ def fixture_sections() -> dict[str, list[dict]]:
         "d1_returned": 0,
         "d7_eligible": 0,
         "d7_returned": 0,
+        "plan_intent_reached": 0,
+        "subscription_checkout_opened": 0,
+        "subscription_checkout_completed": 0,
+        "credit_checkout_opened": 0,
+        "credit_checkout_completed": 0,
         "distinct_payers": 0,
         "paid_conversion_eligible": 0,
+        "active_paid_now": 0,
+        "refund_accounts": None,
+        "recognized_revenue_cents": None,
+        "variable_cost_cents": None,
     }]
     sections["demo_recording_proof_snapshot"] = [{
         "configured": False,
@@ -166,6 +182,20 @@ def test_snapshot_exposes_exact_retention_denominators_without_content_or_identi
         "proves_destination_selection_only": True,
         "does_not_prove_task_completion": True,
     }
+
+
+def test_snapshot_refuses_impossible_retention_evidence() -> None:
+    sections = fixture_sections()
+    sections["product_weekly_attribution_export"][0]["d1_returned"] = 2
+
+    with pytest.raises(ValueError, match="d1_returned above d1_eligible"):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
 
 
 def test_snapshot_fails_closed_for_missing_extra_or_sensitive_sections() -> None:
