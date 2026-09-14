@@ -102,16 +102,16 @@ def test_signed_out_entry_eagerly_loads_only_visible_brand_images():
     brand_images = [
         image for image in parser.images
         if image.get('src') in {
-            '/assets/brand/crump-shell-lockup-light.png',
-            '/assets/brand/crump-mark.png',
+            '/assets/brand/crump-shell-lockup-light.webp',
+            '/assets/brand/crump-mark.webp',
         }
     ]
     eager_images = [image for image in brand_images if image.get('loading') != 'lazy']
     deferred_images = [image for image in brand_images if image.get('loading') == 'lazy']
 
     assert len(eager_images) == 5
-    assert sum(image['src'] == '/assets/brand/crump-shell-lockup-light.png' for image in eager_images) == 4
-    startup_mark = next(image for image in eager_images if image['src'] == '/assets/brand/crump-mark.png')
+    assert sum(image['src'] == '/assets/brand/crump-shell-lockup-light.webp' for image in eager_images) == 4
+    startup_mark = next(image for image in eager_images if image['src'] == '/assets/brand/crump-mark.webp')
     assert startup_mark.get('loading') == 'eager'
     assert startup_mark.get('decoding') == 'sync'
     assert startup_mark.get('fetchpriority') == 'high'
@@ -133,13 +133,14 @@ def test_signed_out_entry_eagerly_loads_only_visible_brand_images():
 
     navigation = (PUBLIC / 'crump-navigation-5.9.30.js').read_text()
     assert (
-        '<img src="/assets/brand/crump-mark.png" width="640" height="714" '
+        '<img src="/assets/brand/crump-mark.webp" width="640" height="714" '
         'loading="lazy" decoding="async" alt="">'
     ) in navigation
 
     worker = (PUBLIC / 'sw.js').read_text()
     core = worker[worker.index('const CORE = ['):worker.index('];')]
     on_demand_images = {
+        '/assets/brand/crump-mark.webp',
         '/assets/brand/crump-mark.png',
         '/assets/brand/crump-horizontal-dark.png',
         '/assets/ask-crump-app-icon-v2-180.png',
@@ -148,6 +149,19 @@ def test_signed_out_entry_eagerly_loads_only_visible_brand_images():
         '/assets/ask-crump-app-icon-v2-1024.png',
     }
     assert all(f"'{asset}'" not in core for asset in on_demand_images)
+
+
+def test_runtime_brand_webp_derivatives_are_pixel_exact_and_smaller():
+    from PIL import Image
+
+    for stem in ('crump-mark', 'crump-shell-lockup-light'):
+        png_path = PUBLIC / 'assets' / 'brand' / f'{stem}.png'
+        webp_path = PUBLIC / 'assets' / 'brand' / f'{stem}.webp'
+        assert webp_path.stat().st_size < png_path.stat().st_size * 0.8
+        with Image.open(png_path) as png, Image.open(webp_path) as webp:
+            assert webp.format == 'WEBP'
+            assert webp.size == png.size
+            assert webp.convert('RGBA').tobytes() == png.convert('RGBA').tobytes()
 
 
 def test_service_worker_never_cache_firsts_api_requests():

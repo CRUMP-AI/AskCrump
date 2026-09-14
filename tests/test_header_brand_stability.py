@@ -31,7 +31,7 @@ def test_visible_library_brand_is_also_normalized_as_a_critical_image():
 
     assert "const existing = host.querySelector(':scope > .v1-library-logo');" in body
     assert "'Ask Crump — An AI workspace for work that continues',\n      true," in body
-    assert "horizontalLight: '/assets/brand/crump-shell-lockup-light.png'" in body
+    assert "horizontalLight: '/assets/brand/crump-shell-lockup-light.webp'" in body
 
 
 def test_workspace_positioning_is_part_of_the_canonical_brand_asset():

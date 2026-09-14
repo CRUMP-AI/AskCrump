@@ -5,7 +5,7 @@
   window.__crumpV1Loaded = true;
 
   const BRAND = Object.freeze({
-    mark: '/assets/brand/crump-mark.png',
+    mark: '/assets/brand/crump-mark.webp',
     horizontalLight: '/assets/brand/crump-horizontal-light.png',
     horizontalDark: '/assets/brand/crump-horizontal-dark.png',
   });

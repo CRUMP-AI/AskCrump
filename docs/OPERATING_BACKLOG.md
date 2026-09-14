@@ -11,6 +11,14 @@ retention, and referral behavior. No acquisition spend should scale on impressio
 Every item below needs four things before it is called shipped: an accountable product
 outcome, privacy and safety constraints, automated coverage, and production evidence.
 
+The reviewed 2026-09-14 brand-delivery candidate replaces only the application shell's two large
+PNG startup images with lossless, pixel-identical WebP derivatives. It removes 148,504 source bytes
+(29.9%) while retaining the PNG masters and every layout, label, and destination. Full backend
+**1,086/1,086**, JavaScript **54/54**, browser controls **48/48**, accessibility **33/33**, build,
+native web-bundle, and client-credential gates pass. Production acceptance is intentionally pending
+until the deployment is Ready and exact live MIME, hash, decode, and cold-load evidence is recorded.
+Evidence: `docs/BRAND_IMAGE_DELIVERY_RELEASE_2026-09-14.md`.
+
 The 2026-09-14 16:44 UTC protected refresh remains one comparable production account through
 verification, workspace entry, starter intent, and activation. The completed 24-hour value window
 still contains zero useful/not-yet feedback, durable value, Project-save intent/completion, Project,

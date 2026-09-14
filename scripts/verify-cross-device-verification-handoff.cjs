@@ -16,7 +16,7 @@ const {chromium} = require(playwrightModule);
   page.on('response', response => {
     if (response.status() >= 400) httpFailures.push(`${response.status()} ${response.url()}`);
   });
-  await page.route('**/assets/brand/crump-mark.png', route => route.fulfill({
+  await page.route('**/assets/brand/crump-mark.webp', route => route.fulfill({
     status: 200,
     contentType: 'image/png',
     body: Buffer.from(

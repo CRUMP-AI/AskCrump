@@ -160,7 +160,7 @@
       const mark = document.createElement('div');
       mark.className = 'tutorial-brand';
       const markIcon = document.createElement('img');
-      markIcon.src = '/assets/brand/crump-mark.png';
+      markIcon.src = '/assets/brand/crump-mark.webp';
       markIcon.alt = '';
       markIcon.className = 'tutorial-brand-icon';
       const brandText = document.createElement('span');

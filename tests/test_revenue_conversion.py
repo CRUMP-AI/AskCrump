@@ -513,7 +513,7 @@ def test_release_version_and_cache_advance_together():
 
     assert '"version": "5.9.76"' in package
     assert "__version__ = '5.9.76'" in backend
-    assert "ask-crump-new-body-v1-r243" in worker
+    assert "ask-crump-new-body-v1-r244" in worker
     assert "/landing-5.6.css?v=5.9.76-accessibility-1" in worker
     assert "/use-case.css?v=5.9.76" in worker
     assert "/landing.js?v=5.9.76-organic-feed-attribution-1" in worker
@@ -525,7 +525,7 @@ def test_changed_activation_assets_are_release_versioned():
     worker = read("public/sw.js")
 
     for asset in (
-        "/crump-v1-body.css?v=5.9.76-response-touch-1",
+        "/crump-v1-body.css?v=5.9.76-brand-delivery-1",
         "/device-auth.js?v=5.9.76-native-billing-identity-1",
         "/auth-controller.js?v=5.9.76-workspace-runtime-recovery-1",
     ):

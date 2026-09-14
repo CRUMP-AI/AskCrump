@@ -48,7 +48,7 @@ const assert = require('node:assert/strict');
       assert.equal(evidence.maxStyles, 17);
       assert.equal(evidence.preloadCount, 34);
       assert.equal(evidence.scriptCount, mode === 'script-retry' ? 35 : 34);
-      assert.equal(evidence.firstScript, '/onboarding.js?v=5.9.76-button-integrity-1');
+      assert.equal(evidence.firstScript, '/onboarding.js?v=5.9.76-brand-delivery-1');
       assert.equal(evidence.lastScript, '/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1');
       assert.equal(evidence.styleAttempts, mode === 'style-retry' ? 2 : 1);
       assert.equal(evidence.scriptAttempts, mode === 'script-retry' ? 2 : 1);

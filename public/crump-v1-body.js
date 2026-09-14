@@ -5,8 +5,8 @@
   window.__askCrumpV1BodyLoaded = true;
 
   const BRAND = Object.freeze({
-    mark: '/assets/brand/crump-mark.png',
-    horizontalLight: '/assets/brand/crump-shell-lockup-light.png',
+    mark: '/assets/brand/crump-mark.webp',
+    horizontalLight: '/assets/brand/crump-shell-lockup-light.webp',
   });
 
   const $ = (selector, root = document) => root.querySelector(selector);

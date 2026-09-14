@@ -17,7 +17,7 @@ const expectedDestinations = ['ask', 'projects', 'create', 'video', 'library', '
     if (message.type() === 'error') errors.push(message.text());
   });
   page.on('pageerror', error => errors.push(error.message));
-  await page.route('**/assets/brand/crump-mark.png', route => route.fulfill({
+  await page.route('**/assets/brand/crump-mark.webp', route => route.fulfill({
     status: 200,
     contentType: 'image/png',
     body: readFileSync(join(process.cwd(), 'public', 'assets', 'brand', 'crump-mark.png')),

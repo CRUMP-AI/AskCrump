@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r243';
+const CACHE_NAME = 'ask-crump-new-body-v1-r244';
 
 const CORE = [
   '/app',
@@ -15,16 +15,16 @@ const CORE = [
   '/onboarding.css?v=5.9.76-video-destination-1',
   '/conversation.css?v=5.9.76-continuity-handoff-1',
   '/auth-styles.css',
-  '/crump-v1-body.css?v=5.9.76-response-touch-1',
+  '/crump-v1-body.css?v=5.9.76-brand-delivery-1',
   '/credit-confirmation.css?v=5.9.76-credit-confirmation-1',
   '/lifecycle.css?v=5.9.76-lifecycle-activation-1',
-  '/crump-v1-body.js?v=5.9.76-recent-work-recovery-1',
+  '/crump-v1-body.js?v=5.9.76-brand-delivery-1',
   '/crump-v1-stability.css',
   '/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1',
   '/crump-navigation-5.2.5.css',
   '/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1',
   '/crump-navigation-5.9.30.css?v=5.9.76-mobile-drawer-destinations-1',
-  '/crump-navigation-5.9.30.js?v=5.9.76-code-lazy-load-1',
+  '/crump-navigation-5.9.30.js?v=5.9.76-brand-delivery-1',
   '/crump-code-loader.js?v=5.9.76-code-lazy-load-1',
   '/crump-product-loader.js?v=5.9.76-product-studio-lazy-load-2',
   '/crump-product-5.3.1.css',
@@ -34,12 +34,12 @@ const CORE = [
   '/crump-media-save.js?v=5.9.76-library-lazy-load-1',
   '/crump-library-loader.js?v=5.9.76-library-lazy-load-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-stripe-destination-integrity-1',
-  '/runtime-body-v1.js?v=5.9.76-recent-work-recovery-1',
+  '/runtime-body-v1.js?v=5.9.76-brand-delivery-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
   '/install-prompt.js?v=5.9.76-update-work-guard-1',
-  '/onboarding.js?v=5.9.76-button-integrity-1',
+  '/onboarding.js?v=5.9.76-brand-delivery-1',
   '/scroll-manager.js?v=5.9.76-user-controlled-scroll-1',
   '/profile-manager.js',
   '/billing-manager.js?v=5.9.76-stripe-destination-integrity-1',
@@ -71,7 +71,7 @@ const CORE = [
   '/crump-5.2.js?v=5.9.76-stripe-destination-integrity-1',
   '/crump-5.2.2.css?v=5.9.76-new-response-cue-1',
   '/crump-5.2.2.js?v=5.9.76-stripe-destination-integrity-1',
-  '/assets/brand/crump-shell-lockup-light.png',
+  '/assets/brand/crump-shell-lockup-light.webp',
 ];
 
 async function preCache() {

@@ -91,14 +91,14 @@
       if (node.tagName === 'SCRIPT') {
         executionStarted = true;
         const asset = assetName(node.src);
-        if (asset === '/onboarding.js?v=5.9.76-button-integrity-1') firstScriptAttempts += 1;
+        if (asset === '/onboarding.js?v=5.9.76-brand-delivery-1') firstScriptAttempts += 1;
         executedScripts.push(asset);
         const readyAt = scriptReadyAt.get(asset) || performance.now() + simulatedFetchMs;
         const remainingFetchMs = Math.max(0, readyAt - performance.now());
         window.setTimeout(
           () => node.dispatchEvent(new Event(
             fixtureMode === 'script-retry'
-              && asset === '/onboarding.js?v=5.9.76-button-integrity-1'
+              && asset === '/onboarding.js?v=5.9.76-brand-delivery-1'
               && firstScriptAttempts === 1
               ? 'error'
               : 'load',
