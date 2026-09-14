@@ -176,6 +176,7 @@ def test_navigation_consolidation_fixture_uses_the_production_layers():
     fixture = read("tests/fixtures/navigation-consolidation.html")
 
     assert '/public/crump-v1-body.js' in fixture
+    assert '/public/crump-product-5.3.css?v=5.9.76-file-library-window-1' in fixture
     assert '/public/crump-navigation-5.9.30.js' in fixture
     assert '5.9.76-mobile-drawer-destinations-1' in fixture
     assert '5.9.76-code-lazy-load-1' in fixture
@@ -200,3 +201,18 @@ def test_create_destination_handoff_has_desktop_and_mobile_browser_proof():
     assert "await visibleDestination('video').click()" in verifier
     assert "section: 'video'" in verifier
     assert "await visibleDestination('ask').click()" in verifier
+
+
+def test_tablet_navigation_has_a_complete_destination_and_account_action_journey():
+    verifier = read("scripts/verify-tablet-destination-controls.cjs")
+    matrix = read("scripts/verify-browser-control-matrix.mjs")
+
+    assert "{width: 1024, height: 1366}" in verifier
+    assert "['ask', 'projects', 'create', 'video', 'library', 'you']" in verifier
+    for destination in ("ask", "projects", "create", "video", "library", "you"):
+        assert f"clickDestination('{destination}')" in verifier
+    assert "minimumTouchWidth >= 44" in verifier
+    assert "minimumTouchHeight >= 44" in verifier
+    assert "documentOverflow, 0" in verifier
+    assert "fixtureEvents.billing" in verifier
+    assert "verify-tablet-destination-controls.cjs" in matrix

@@ -581,7 +581,7 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
 
-    assert len(verifier_names) == 45
+    assert len(verifier_names) == 46
     for name in verifier_names:
         assert f"'{name}'" in runner
     assert "Browser verifier inventory drifted." in runner
@@ -597,6 +597,14 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     assert '"playwright": "1.62.1"' in package
     assert "npx playwright install --with-deps chromium" in workflow
     assert "npm run test:browser-controls" in workflow
+
+
+def test_public_accessibility_matrix_covers_supported_viewport_classes() -> None:
+    verifier = (ROOT / "scripts" / "verify-public-accessibility.mjs").read_text(encoding="utf-8")
+
+    assert "{name: 'phone', width: 390, height: 844}" in verifier
+    assert "{name: 'tablet', width: 1024, height: 1366}" in verifier
+    assert "{name: 'desktop', width: 1440, height: 900}" in verifier
 
 
 def test_add_menu_browser_fixture_exercises_both_authoritative_studios() -> None:

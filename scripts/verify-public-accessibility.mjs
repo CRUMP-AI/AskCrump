@@ -47,6 +47,7 @@ const scenarios = Object.freeze([
 
 const viewports = Object.freeze([
   {name: 'phone', width: 390, height: 844},
+  {name: 'tablet', width: 1024, height: 1366},
   {name: 'desktop', width: 1440, height: 900},
 ]);
 
