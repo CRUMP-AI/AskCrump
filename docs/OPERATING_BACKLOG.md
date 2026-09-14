@@ -11,6 +11,22 @@ retention, and referral behavior. No acquisition spend should scale on impressio
 Every item below needs four things before it is called shipped: an accountable product
 outcome, privacy and safety constraints, automated coverage, and production evidence.
 
+The 2026-09-14 20:38 UTC reliability reclassification found six HTTP 503 responses in the trailing
+24-hour dashboard: five scheduled manuscript reads on deployment `dpl_A56i1KHeWquqd2RHTPMsvHwUHZrr`
+and one sync push on `dpl_DfvkfF1QTs8nrSTsuqj2z2NbiRYS`. Every event predates the corresponding
+bounded database-read recovery and client queue-preservation releases; no 503 recurred on a repaired
+deployment. One informational 404 requested `/api/session/properties`, a path with no current or
+historical repository owner, so it is not evidence of a broken product control. The current retina
+release's initial sample contained 17 HTTP 200 responses and no grouped runtime error, and both the
+Vercel feedback inbox and GitHub product-issue list were empty. Preserve the narrow repairs and
+classify any new post-boundary recurrence before changing retry semantics.
+
+A measured 960×240 workspace-lockup candidate would save only 19,354 bytes (18.5%) from the current
+104,568-byte lossless asset. It remains visually close at the 1×–3× live display sizes, but that
+marginal source-byte reduction does not justify another cache revision immediately after the proven
+retina-mark release. Retain the current lockup until hosted or field evidence identifies it as the
+next material entry bottleneck.
+
 The 2026-09-14 19:55 UTC protected refresh remains one comparable external production account
 through activation, with one ordinary Plan-center view but no durable value, explicit outcome,
 Project, file, artifact, checkout, payer, or recognized revenue. The new Project-save-offer report
