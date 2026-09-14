@@ -68,15 +68,19 @@ transport failures, and refuses to send its service key anywhere except Ask Crum
 origin. This improves decision latency; it does not change the current acquisition/retention hold.
 Evidence: `docs/OPERATING_SNAPSHOT_EXPORT_RELEASE_2026-09-14.md`.
 
-The next Project-continuity decision now has a valid denominator. Release candidate
-`20260914185224_project_save_offer_measurement.sql` records only whether the visible result action
-was presented, split between fixed `conversation_result` and `artifact_result` sources and
+The next Project-continuity decision now has a valid denominator. Commit `2995049` and remote
+migration `20260914185224_project_save_offer_measurement` record only whether the visible result
+action was presented, split between fixed `conversation_result` and `artifact_result` sources and
 deduplicated by server UTC day. The protected Project snapshot adds offer-to-later-intent and
 missing-side diagnostics from an explicit `2026-09-14 18:34:14+00` measurement boundary. This lets
 the team distinguish “the save offer was not seen” from “it was seen but not selected” without
-storing prompts, filenames, Projects, conversations, messages, or customer identifiers. Focused
-privacy/route/UI checks pass and the full browser-control inventory remains **48/48**; production
-evidence will begin only after migration and deployment, with no synthetic backfill.
+storing prompts, filenames, Projects, conversations, messages, or customer identifiers. The full
+backend suite passed **1,085/1,085**, JavaScript **54/54**, accessibility **33/33**, browser controls
+**48/48**, Android `34883781472`, iOS `34883781547`, and CI `34883781606`. Deployment
+`dpl_FQAkyt9k9VgQ3nWzKA8kdByRuzMx` is Ready on all six aliases with no one-hour runtime-error group;
+all four changed public assets match local SHA-256 exactly. The pre-browser-release measurement
+interval contains zero offer and zero intent rows, so the boundary is clean and no synthetic
+backfill is required. Evidence: `docs/PROJECT_SAVE_OFFER_MEASUREMENT_RELEASE_2026-09-14.md`.
 
 ## Current operating evidence — 2026-09-13
 

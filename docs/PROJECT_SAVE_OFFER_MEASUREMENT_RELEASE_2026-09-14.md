@@ -47,3 +47,29 @@ preserved in the existing journey fields but is not retroactively paired with an
   one bounded save intent.
 
 No production event is backfilled, and no interface or pricing claim is changed by this release.
+
+## Production proof
+
+- feature commit: `2995049782f178131d0b4dadcf05185bba1269d8`;
+- Supabase migration ledger: `20260914185224 project_save_offer_measurement`;
+- protected function: `security invoker`, `anon_execute=false`,
+  `authenticated_execute=false`, `service_role_execute=true`;
+- GitHub CI: `34883781606` passed;
+- Android source/bundle verification: `34883781472` passed;
+- iOS source verification: `34883781547` passed;
+- Vercel deployment: `dpl_FQAkyt9k9VgQ3nWzKA8kdByRuzMx`, Ready on all six production aliases;
+- production analytics route: the new event passes schema/contract validation and reaches the
+  expected unauthenticated `401 AUTH_REQUIRED` boundary;
+- Vercel one-hour runtime error scan: no grouped errors;
+- pre-browser-release production interval (`18:34:14` through `18:56:30.659` UTC): zero offer rows
+  and zero save-intent rows, proving the comparable boundary was not contaminated before the new
+  client became live.
+
+Exact production asset hashes:
+
+| Asset | SHA-256 | Bytes |
+| --- | --- | ---: |
+| `runtime-body-v1.js` | `6331c32ce239fadcc1633bc4e0a51d10898f04e161823ac0c40a991da4246a6c` | 8,926 |
+| `product-analytics.js` | `936d0c54be92bea512b25b04f4d4540624726f673d20275e227c88240f7c2840` | 1,448 |
+| `ui-functions.js` | `6ea8d02dd46ad367cc3be086845082fca3c60426a96d8a10ef7b64a89ef89837` | 48,360 |
+| `crump-5.0.js` | `56492505f37e6c0ca6ec6b1a2f82cbd6e6ac6003a6cf482549c8c2ffdf67036e` | 84,633 |
