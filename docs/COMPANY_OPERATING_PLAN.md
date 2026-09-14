@@ -81,13 +81,13 @@ next constraint.
 
 - Keep the repaired in-product lifecycle boundary exact: an empty, disabled Send control is an idle
   composer, while typed drafts, attachments, active replies, and recovery surfaces still suppress
-  guidance. The production-like browser fixture and complete 46/46 control matrix prove delivery and
+  guidance. The production-like browser fixture and complete 47/47 control matrix prove delivery and
   non-interruption; only legitimate server decisions/actions and elapsed D1/D7 evidence can prove
   impact. Do not enable lifecycle email or push from Terms acceptance.
 - Keep the 5.9.76 result-to-Project handoff distinct and user-controlled: the
   continuation card explains the private Project destination, uses a full-width
   44-pixel action on phones, preserves exact selected-Project naming, and keeps
-  feedback secondary. The 46/46 browser matrix and signed-in production replay
+  feedback secondary. The 47/47 browser matrix and signed-in production replay
   prove the controls and recovery states; only legitimate intent, completion,
   resume, and elapsed D1/D7 evidence can prove adoption or retention lift.
 - Keep safe database reads on the 5.5-second bounded recovery window released
@@ -100,13 +100,18 @@ next constraint.
 - Keep the 5.9.76 authenticated workspace fail-closed: retry a required interface
   asset once, never mark a partial workspace ready, preserve successful assets,
   and allow a later recovery attempt without signing the person out. The full
-  46-journey browser gate and signed-in production replay cover the visible
+  47-journey browser gate and signed-in production replay cover the visible
   Chats, Projects, Files, preview, Video, Library, Create, Settings, and
   Intelligence paths. The recurring public accessibility boundary now checks all
   11 routes at phone, tablet, and desktop sizes (**33/33**), while the dedicated
   tablet journey verifies all six persistent destinations and Plan & credits.
   Treat this as deterministic control evidence, not proof
   against every future network, device, provider, or physical-touch failure.
+- Preserve cross-device work through transient database failures: every push is queued locally before
+  network activity, a failed response leaves it queued, and a later successful flush is the only event
+  that clears it. Production recovered the 00:05 UTC 504/503 incident eight seconds later; the 47-flow
+  browser gate now reproduces that exact failure/replay boundary. Keep non-idempotent database writes
+  at one attempt unless an unrecovered recurrence supplies evidence for a stronger server-side design.
 - Keep conversational document delivery, the 5.9.58 presentation visual-rhythm correction, and
   the 5.9.60 through 5.9.64 navigation/destination repairs under production observation.
 - Observe the first legitimate 5.9.58 presentation through request, packaging, download, and a
