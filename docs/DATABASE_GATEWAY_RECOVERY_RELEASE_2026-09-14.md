@@ -45,6 +45,12 @@ Local verification passed:
 - JavaScript validation: **54/54**; and
 - browser-control matrix: **47/47**.
 
+Commit `249da8f` passed GitHub CI `34862905848` and deployed automatically as
+`dpl_Eb1FPK48ja68dghGShMcR5Vuob6K`. The deployment reached Ready on all six aliases. Its first five
+observed requests were HTTP 200, with no grouped runtime error and no warning, error, or fatal log.
+That clean initial window confirms delivery and ordinary worker operation; a later naturally
+occurring 500/502 is still required to distinguish in-request recovery from simple non-recurrence.
+
 ## Follow-up
 
 Observe the scheduled worker after release. Do not widen retry status, attempt count, or write scope

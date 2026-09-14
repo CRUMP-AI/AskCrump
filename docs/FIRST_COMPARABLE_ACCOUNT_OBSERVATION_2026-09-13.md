@@ -189,3 +189,25 @@ focused retention suite passed **24/24**, GitHub CI `34860184460` passed, produc
 the initial release window contained only HTTP 200 responses with no grouped runtime error. This is
 a measurement-integrity release; it does not turn the still-open value or D1 window into observed
 retention evidence.
+
+## First complete 24-hour value window — 2026-09-14 15:38 UTC
+
+The protected weekly export now contains one activation-eligible account and one account that
+reached activation within 24 hours. The same account is also the first durable-value-eligible
+account, but it recorded no durable value within 24 hours. Its content-free value components are all
+zero: useful feedback, Project creation, Project-file attachment, ready file, and decision-grade
+value. D1 and D7 eligibility remain zero because their completed-calendar-day windows have not
+opened.
+
+The supporting aggregate still shows four completed chat jobs with no failed chat job, two workspace
+opens, no media job, no active Project, no ready file, and no Project-file link. Project continuity
+contains no save intent, save completion, or resume. The artifact journey remains empty. The Plan
+center was viewed once with no subscription or credit Checkout opening. The one eligible and shown
+`continuity-assist` card still has no action, dismissal, or target completion.
+
+This is the first valid indication that technical activation did not become durable work, not proof
+of a broken save path: there was no attempted save to fail. The result-to-Project action and
+lifecycle prompt also reached production after the account's initial session, so this single account
+cannot measure their effect. Preserve the current controls, recruit the remaining consented
+observations, and inspect the next legitimate intent → completion journey before changing the
+interface. Do not present one eligible account as a conversion rate or retention claim.
