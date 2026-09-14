@@ -32,6 +32,14 @@ drafts, attachments, active replies, and recovery surfaces. It does not fabricat
 bypass server caps/holdouts; observe the next legitimate eligible session. Evidence:
 `docs/LIFECYCLE_IDLE_ACTION_DELIVERY_RELEASE_2026-09-13.md`.
 
+The first legitimate post-release lifecycle evidence arrived at **2026-09-14 00:04 UTC**: one
+external production account was eligible for and shown `continuity-assist`. It recorded no action,
+dismissal, target completion, or elapsed D7 result; later active-work and session-collision
+suppressions remained intact. Treat this as delivery proof only, not engagement or retention lift.
+The same revision then passed all **47/47** browser control flows, **33/33** public accessibility
+scenarios, and **54/54** focused ownership/lifecycle/sync contracts. Evidence:
+`docs/FIRST_COMPARABLE_ACCOUNT_OBSERVATION_2026-09-13.md`.
+
 At 00:05:00 UTC, one production sync push returned 503 after an upstream database 504. The existing
 user-scoped local queue retained the batch, and production recorded a successful sync push eight
 seconds later followed by five more successes through 00:08:29. Release `b699d1a` turns that exact

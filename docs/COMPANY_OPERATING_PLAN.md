@@ -82,8 +82,11 @@ next constraint.
 - Keep the repaired in-product lifecycle boundary exact: an empty, disabled Send control is an idle
   composer, while typed drafts, attachments, active replies, and recovery surfaces still suppress
   guidance. The production-like browser fixture and complete 47/47 control matrix prove delivery and
-  non-interruption; only legitimate server decisions/actions and elapsed D1/D7 evidence can prove
-  impact. Do not enable lifecycle email or push from Terms acceptance.
+  non-interruption. One legitimate external account has now been eligible for and shown the
+  continuity card, while later active-work and same-session suppression remained effective. It did
+  not act on or dismiss the card, so only delivery—not engagement, activation, retention, or lift—is
+  established; elapsed D1/D7 evidence remains required. Do not enable lifecycle email or push from
+  Terms acceptance.
 - Keep the 5.9.76 result-to-Project handoff distinct and user-controlled: the
   continuation card explains the private Project destination, uses a full-width
   44-pixel action on phones, preserves exact selected-Project naming, and keeps

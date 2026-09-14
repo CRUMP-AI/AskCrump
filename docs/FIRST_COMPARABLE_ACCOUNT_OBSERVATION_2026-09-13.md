@@ -120,3 +120,22 @@ the latter is expected at the current traffic volume and is not evidence that in
 removed. No schema mutation is justified from either informational signal. References:
 [RLS enabled without policy](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)
 and [unused index](https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index).
+
+## First legitimate lifecycle delivery — 2026-09-14 00:04 UTC
+
+The protected, content-free lifecycle export now contains one external production account in the
+`continuity-assist` / `projects` prompt cohort. The account was eligible and the card was recorded
+as shown. No acted, dismissed, target-completed-within-24-hours, D7-eligible, or D7-returned account
+is present. One later `active-work` suppression and one `session-collision` suppression show that
+the existing interruption and same-session controls remained active after delivery.
+
+This is the first legitimate evidence that the idle-composer repair reaches a real account. It is
+visibility evidence only: the user did not activate the card, and the account still has no elapsed
+D7 denominator. No prompt, response, filename, account identifier, or customer content was read or
+retained, and no event was created for this review.
+
+The complete control boundary was replayed after this observation using the installed Edge browser.
+All **47/47** functional verifiers passed, including Files/downloads, image stability, Precision Edit
+live adjustments and apply flow, Projects, login recovery, mobile navigation, plan actions, Video
+references, lifecycle actions, and sync recovery. The phone/tablet/desktop accessibility matrix
+passed **33/33**, and the focused button-ownership, lifecycle, and sync contracts passed **54/54**.
