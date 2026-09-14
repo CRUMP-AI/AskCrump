@@ -80,6 +80,51 @@ function sitemapDestinations() {
   return urls;
 }
 
+function tags(source, name) {
+  return [...source.matchAll(new RegExp(`<${name}\\b[^>]*>`, 'gi'))].map(match => match[0]);
+}
+
+function attributes(tag) {
+  const result = new Map();
+  for (const match of tag.matchAll(/([^\s=/>]+)\s*=\s*(["'])(.*?)\2/g)) {
+    result.set(match[1].toLowerCase(), match[3].replaceAll('&amp;', '&'));
+  }
+  return result;
+}
+
+function metaContents(source, attribute, expected) {
+  return tags(source, 'meta')
+    .map(attributes)
+    .filter(values => values.get(attribute) === expected)
+    .map(values => values.get('content') || '');
+}
+
+function oneValue(values, label, url) {
+  if (values.length !== 1 || !String(values[0]).trim()) {
+    fail(`${url.href} must expose exactly one non-empty ${label}`);
+  }
+  return String(values[0]).trim();
+}
+
+function elementText(source, name) {
+  return [...source.matchAll(new RegExp(`<${name}\\b[^>]*>([\\s\\S]*?)<\\/${name}>`, 'gi'))]
+    .map(match => match[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
+}
+
+function structuredData(source, url) {
+  const blocks = [...source.matchAll(
+    /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
+  )];
+  if (!blocks.length) fail(`${url.href} is missing JSON-LD structured data`);
+  return blocks.map(match => {
+    try {
+      return JSON.parse(match[1]);
+    } catch (_) {
+      fail(`${url.href} contains invalid JSON-LD structured data`);
+    }
+  });
+}
+
 async function fetchDirect(url) {
   const request = async target => {
     let lastError;
@@ -151,6 +196,9 @@ await runBounded([...requested.keys()].map(value => new URL(value)), async url =
   });
 });
 
+const seenTitles = new Map();
+const seenDescriptions = new Map();
+const socialImages = new Map();
 for (const url of sitemapUrls) {
   const result = bodies.get(url.href);
   if (!result?.contentType.toLowerCase().includes('text/html')) {
@@ -162,7 +210,81 @@ for (const url of sitemapUrls) {
   if (new URL(match[1], origin).href !== url.href) {
     fail(`${url.href} declares canonical ${match[1]}`);
   }
+
+  const language = oneValue(
+    tags(result.text, 'html').map(attributes).map(values => values.get('lang') || ''),
+    'HTML language',
+    url,
+  );
+  if (language.toLowerCase() !== 'en') fail(`${url.href} declares unexpected language ${language}`);
+
+  const title = oneValue(elementText(result.text, 'title'), 'document title', url);
+  const description = oneValue(metaContents(result.text, 'name', 'description'), 'meta description', url);
+  const headings = elementText(result.text, 'h1');
+  oneValue(headings, 'H1 heading', url);
+  const viewport = oneValue(metaContents(result.text, 'name', 'viewport'), 'viewport declaration', url);
+  if (!viewport.toLowerCase().includes('width=device-width')) {
+    fail(`${url.href} has a non-responsive viewport declaration`);
+  }
+  const robotsValue = oneValue(metaContents(result.text, 'name', 'robots'), 'robots directive', url)
+    .toLowerCase();
+  if (!robotsValue.includes('index') || !robotsValue.includes('follow')
+      || robotsValue.includes('noindex') || robotsValue.includes('nofollow')) {
+    fail(`${url.href} is not explicitly indexable and followable`);
+  }
+  if (seenTitles.has(title)) fail(`${url.href} duplicates the title from ${seenTitles.get(title)}`);
+  if (seenDescriptions.has(description)) {
+    fail(`${url.href} duplicates the description from ${seenDescriptions.get(description)}`);
+  }
+  seenTitles.set(title, url.href);
+  seenDescriptions.set(description, url.href);
+
+  if (url.pathname !== '/legal') {
+    const structured = structuredData(result.text, url);
+    if (!JSON.stringify(structured).includes(JSON.stringify(url.href))) {
+      fail(`${url.href} structured data does not reference its canonical URL`);
+    }
+    oneValue(metaContents(result.text, 'property', 'og:title'), 'Open Graph title', url);
+    oneValue(metaContents(result.text, 'property', 'og:description'), 'Open Graph description', url);
+    const openGraphUrl = oneValue(metaContents(result.text, 'property', 'og:url'), 'Open Graph URL', url);
+    if (new URL(openGraphUrl, origin).href !== url.href) {
+      fail(`${url.href} declares Open Graph URL ${openGraphUrl}`);
+    }
+    const openGraphImage = new URL(
+      oneValue(metaContents(result.text, 'property', 'og:image'), 'Open Graph image', url),
+      origin,
+    );
+    if (openGraphImage.protocol !== 'https:' || !allowedHosts.has(openGraphImage.hostname)) {
+      fail(`${url.href} declares an invalid Open Graph image origin`);
+    }
+    const twitterCard = oneValue(metaContents(result.text, 'name', 'twitter:card'), 'Twitter card', url);
+    if (twitterCard !== 'summary_large_image') {
+      fail(`${url.href} declares unexpected Twitter card ${twitterCard}`);
+    }
+    const twitterImage = new URL(
+      oneValue(metaContents(result.text, 'name', 'twitter:image'), 'Twitter image', url),
+      origin,
+    );
+    if (twitterImage.href !== openGraphImage.href) {
+      fail(`${url.href} uses different Open Graph and Twitter images`);
+    }
+    socialImages.set(openGraphImage.href, url.href);
+  }
 }
+
+await runBounded([...socialImages.keys()].map(value => new URL(value)), async url => {
+  let response;
+  try {
+    response = await fetchDirect(url);
+  } catch (error) {
+    const message = String(error?.message || error).replace(/^Live public destination verification failed:\s*/, '');
+    fail(`${message}; social preview for ${socialImages.get(url.href)}`);
+  }
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.toLowerCase().startsWith('image/')) {
+    fail(`${url.href} is not served as an image for ${socialImages.get(url.href)}`);
+  }
+});
 
 const robots = bodies.get(new URL('/robots.txt', origin).href)?.text || '';
 if (!robots.includes(`Sitemap: ${new URL('/sitemap.xml', origin).href}`)) {
@@ -172,5 +294,7 @@ if (!robots.includes(`Sitemap: ${new URL('/sitemap.xml', origin).href}`)) {
 console.log(
   `Live public destination proof passed: ${anchors.size} unique first-party anchor destinations, `
   + `${sitemapUrls.length} canonical sitemap pages, ${requested.size} HTTP 200 destinations, and `
-  + `${expectedCompatibilityRedirects.size} exact native-compatibility redirects.`,
+  + `${expectedCompatibilityRedirects.size} exact native-compatibility redirects; `
+  + `${socialImages.size} social-preview images and every sitemap page's title, description, H1, `
+  + 'indexability, canonical, structured data, and responsive viewport are valid.',
 );

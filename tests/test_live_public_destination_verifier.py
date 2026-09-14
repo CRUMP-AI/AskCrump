@@ -33,6 +33,13 @@ def test_live_public_destination_verifier_is_bounded_and_credential_free() -> No
     assert "sitemap.xml contains no public URLs" in source
     assert "is missing a canonical link" in source
     assert "robots.txt does not advertise the canonical sitemap" in source
+    assert "must expose exactly one non-empty" in source
+    assert "duplicates the title" in source
+    assert "duplicates the description" in source
+    assert "is not explicitly indexable and followable" in source
+    assert "structured data does not reference its canonical URL" in source
+    assert "uses different Open Graph and Twitter images" in source
+    assert "social-preview images" in source
     for forbidden in (
         "authorization",
         "cookie",

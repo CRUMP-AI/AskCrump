@@ -52,6 +52,20 @@ evidence-integrity gap; it does not manufacture a button click or replace the se
 legitimate-user gates for destructive, payment, provider-generation, native-permission, upload,
 download, and physical-device outcomes.
 
+The daily credential-free public health gate now protects technical discovery as well as link
+reachability. It fails closed on missing or duplicate page identity, non-indexable directives,
+canonical/structured-data drift, nonresponsive viewport metadata, mismatched social metadata, or a
+broken/wrong-type first-party preview image. Its first strengthened production run passed **67**
+first-party anchors, **12** canonical sitemap pages, **69** HTTP 200 destinations, **2** exact
+compatibility redirects, and **9** social-preview images. A separate safe live walkthrough opened
+Projects, Files, foreground image preview/return, Video, Library, You and its settings sections,
+Create → Document Studio, Intelligence, Chats, and Continue without a visible failure or protected
+action. Complete validation passed Python **1,108/1,108**, JavaScript **54/54**, browser controls
+**48/48**, and focused discovery/search **24/24**. Evidence:
+`docs/PUBLIC_DISCOVERY_HEALTH_GATE_RELEASE_2026-09-14.md`. This protects future organic acquisition
+evidence; it does not submit the sitemap, prove indexing/conversion, or replace the first valid D1
+and legitimate durable-work observations.
+
 The 2026-09-14 19:55 UTC protected refresh remains one comparable external production account
 through activation, with one ordinary Plan-center view but no durable value, explicit outcome,
 Project, file, artifact, checkout, payer, or recognized revenue. The new Project-save-offer report
