@@ -100,6 +100,13 @@ def test_public_company_preview_matches_the_current_destination_contract():
     assert "Return + reuse" not in company_page
 
 
+def test_workspace_company_link_uses_the_direct_canonical_destination():
+    app = read("public/app.html")
+
+    assert 'href="https://www.clevercrump.com/"' in app
+    assert 'href="https://clevercrump.com"' not in app
+
+
 def test_new_grid_cancels_the_legacy_desktop_sidebar_offset():
     styles = read("public/crump-navigation-5.9.30.css")
     fixture = read("tests/fixtures/desktop-workspace-grid.html")

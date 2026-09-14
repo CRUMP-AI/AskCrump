@@ -16,6 +16,7 @@
     "cap:open:android": "npx cap open android",
     "test:js": "node scripts/check-javascript.mjs",
     "test:a11y": "node scripts/verify-public-accessibility.mjs",
+    "test:live-public-destinations": "node scripts/verify-live-public-destinations.mjs",
     "test:client-secrets": "node scripts/check-client-secrets.mjs",
     "test:browser-controls": "node scripts/verify-browser-control-matrix.mjs",
     "test": "npm run test:js",

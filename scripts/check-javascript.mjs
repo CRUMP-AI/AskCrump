@@ -1421,7 +1421,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r242') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r243') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${recentWorkRecoveryVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${continuityHandoffVersion}`) ||
