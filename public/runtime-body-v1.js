@@ -29,7 +29,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-5.2.css', 'crump52'],
     ['/crump-5.2.2.css?v=5.9.76-new-response-cue-1', 'crump522'],
     ['/credit-confirmation.css?v=5.9.76-credit-confirmation-1', 'creditconfirmation'],
-    ['/crump-v1-body.css?v=5.9.76-credit-truth-1', 'crumpbodyv1'],
+    ['/crump-v1-body.css?v=5.9.76-response-touch-1', 'crumpbodyv1'],
     ['/lifecycle.css?v=5.9.76-lifecycle-activation-1', 'lifecycleactivation'],
   ]);
 

@@ -952,6 +952,7 @@ const nativeBillingIdentityVersion = `${releaseVersion}-native-billing-identity-
 const stripeDestinationIntegrityVersion = `${releaseVersion}-stripe-destination-integrity-1`;
 const creditPackTruthVersion = `${releaseVersion}-credit-pack-truth-1`;
 const creditTruthVersion = `${releaseVersion}-credit-truth-1`;
+const responseTouchVersion = `${releaseVersion}-response-touch-1`;
 const attachCreationRoutingVersion = `${releaseVersion}-explicit-button-types-1`;
 const creditConfirmationVersion = `${releaseVersion}-credit-confirmation-1`;
 const settingsSaveIsolationVersion = `${releaseVersion}-settings-save-isolation-1`;
@@ -1250,7 +1251,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/product-analytics.js?v=${outcomeIssueCategoriesVersion}`) ||
     !runtime.includes(`/app.js?v=${settingsSaveIsolationVersion}`) ||
     !runtime.includes(`/crump-v1-body.js?v=${controlFocusIntegrityVersion}`) ||
-    !runtime.includes(`/crump-v1-body.css?v=${creditTruthVersion}`) ||
+    !runtime.includes(`/crump-v1-body.css?v=${responseTouchVersion}`) ||
     !runtime.includes(`/crump-5.0.css?v=${precisionEditEntryVersion}`) ||
     !runtime.includes(`/crump-5.0.js?v=${precisionLazyLoadVersion}`) ||
     !runtime.includes(`/crump-precision-image-edit-loader.js?v=${precisionLazyLoadVersion}`) ||
@@ -1420,7 +1421,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r240') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r241') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${continuityHandoffVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${continuityHandoffVersion}`) ||
@@ -1454,7 +1455,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r240') ||
     !serviceWorker.includes(`/chat-sync.js?v=${settingsSyncVersion}`) ||
     !serviceWorker.includes(`/product-analytics.js?v=${outcomeIssueCategoriesVersion}`) ||
     !serviceWorker.includes(`/auth-controller.js?v=${authControllerVersion}`) ||
-    !serviceWorker.includes(`/crump-v1-body.css?v=${creditTruthVersion}`) ||
+    !serviceWorker.includes(`/crump-v1-body.css?v=${responseTouchVersion}`) ||
     !serviceWorker.includes(`/crump-4.3.js?v=${composerActionabilityVersion}`) ||
     !serviceWorker.includes(`/crump-4.4.js?v=${coreReliabilityVersion}`) ||
     !serviceWorker.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||

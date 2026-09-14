@@ -7,7 +7,10 @@ const { chromium } = require(playwrightModule);
   const browser = await chromium.launch({headless: true, ...(executablePath ? {executablePath} : {})});
   const consoleErrors = [];
   const openFixture = async (query, viewport = {width: 390, height: 844}) => {
-    const page = await browser.newPage({viewport});
+    const page = await browser.newPage({
+      viewport,
+      hasTouch: viewport.width <= 640,
+    });
     page.on('console', message => {
       if (message.type() === 'error') consoleErrors.push(message.text());
     });
@@ -28,6 +31,8 @@ const { chromium } = require(playwrightModule);
     const button = document.querySelector('.outcome-project-btn');
     const buttonBox = button?.getBoundingClientRect();
     const continuityBox = continuity?.getBoundingClientRect();
+    const feedbackButtons = Array.from(document.querySelectorAll('.outcome-feedback-question .outcome-feedback-btn'));
+    const responseActions = Array.from(document.querySelectorAll('.message-actions .message-action-btn'));
     return {
       children: Array.from(group?.children || []).map(node => node.className),
       title: document.querySelector('.outcome-continuity-prompt')?.textContent || '',
@@ -36,6 +41,9 @@ const { chromium } = require(playwrightModule);
       buttonWidth: Math.round(buttonBox?.width || 0),
       buttonHeight: Math.round(buttonBox?.height || 0),
       continuityWidth: Math.round(continuityBox?.width || 0),
+      feedbackButtonHeights: feedbackButtons.map(item => Math.round(item.getBoundingClientRect().height)),
+      responseActionHeights: responseActions.map(item => Math.round(item.getBoundingClientRect().height)),
+      responseActionFontSizes: responseActions.map(item => Number.parseFloat(getComputedStyle(item).fontSize)),
       overflow: document.documentElement.scrollWidth > window.innerWidth,
     };
   });
@@ -90,11 +98,16 @@ const { chromium } = require(playwrightModule);
   assert.equal(mobileHierarchy.detail, 'Keep this conversation in a private Project.');
   assert.match(mobileHierarchy.question, /Did this move your work forward\?YesNot yet/);
   assert.ok(mobileHierarchy.buttonHeight >= 44);
+  assert.deepEqual(mobileHierarchy.feedbackButtonHeights, [44, 44]);
+  assert.ok(mobileHierarchy.responseActionHeights.length >= 4);
+  assert.ok(mobileHierarchy.responseActionHeights.every(height => height >= 44));
+  assert.ok(mobileHierarchy.responseActionFontSizes.every(size => size >= 12));
   assert.ok(mobileHierarchy.buttonWidth >= mobileHierarchy.continuityWidth - 26);
   assert.equal(mobileHierarchy.overflow, false);
   assert.equal(desktopHierarchy.title, mobileHierarchy.title);
   assert.equal(desktopHierarchy.detail, mobileHierarchy.detail);
   assert.ok(desktopHierarchy.buttonWidth < desktopHierarchy.continuityWidth / 2);
+  assert.ok(desktopHierarchy.feedbackButtonHeights.every(height => height >= 30));
   assert.equal(desktopHierarchy.overflow, false);
   assert.equal(recovered.button, 'Keep in a new Project');
   assert.match(recovered.prompt, /Couldn’t save yet/);

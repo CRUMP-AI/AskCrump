@@ -2515,12 +2515,25 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
 }
 
 /* Touch ergonomics */
-@media (pointer: coarse) {
+@media (pointer: coarse), (max-width: 640px) {
   body.crump-v1-body :is(.v1-rail-button,.v1-mobile-menu,#closeSidebarBtn,#crumpIntelligenceButton,.crump44-control-button,#scrollToEndBtn,.settings-icon-btn,.billing51-close) {
     min-width: 44px !important;
     min-height: 44px !important;
   }
-  body.crump-v1-body .message-actions { opacity: .68 !important; }
+  body.crump-v1-body .message-actions { opacity: .86 !important; }
+  body.crump-v1-body .message-action-btn {
+    min-height: 44px !important;
+    padding: 9px 10px !important;
+    color: #a7abad !important;
+    font-size: 12px !important;
+  }
+  body.crump-v1-body .outcome-feedback {
+    font-size: .8rem;
+  }
+  body.crump-v1-body .outcome-feedback-btn {
+    min-height: 44px !important;
+    padding: 8px 12px;
+  }
   body.crump-v1-body .delete-chat-btn { opacity: .6 !important; }
 }
 

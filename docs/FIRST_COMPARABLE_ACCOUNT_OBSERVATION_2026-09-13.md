@@ -211,3 +211,10 @@ lifecycle prompt also reached production after the account's initial session, so
 cannot measure their effect. Preserve the current controls, recruit the remaining consented
 observations, and inspect the next legitimate intent → completion journey before changing the
 interface. Do not present one eligible account as a conversion rate or retention claim.
+
+A separate signed-in user-eye review then found a deterministic presentation defect rather than a
+handler failure: the mobile feedback buttons were 30 pixels tall and the response utility actions
+were 34 pixels tall with 10-pixel labels. The scoped response-touch release raises those controls to
+the existing 44-pixel phone standard while leaving Project, feedback, and sharing behavior intact.
+Treat its delivery as usability evidence only; real feedback/save intent from additional users is
+still required. Evidence: `docs/RESPONSE_ACTION_TOUCH_RELEASE_2026-09-14.md`.

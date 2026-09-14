@@ -220,7 +220,7 @@ for (const marker of [
   '/crump-billing-5.1.css?v=5.9.76-credit-truth-1',
   '/crump-billing-5.1.js?v=5.9.76-project-limit-plan-dormant-1',
   '/crump-5.2.js?v=5.9.76-uploaded-image-node-stability-1',
-  '/crump-v1-body.css?v=5.9.76-credit-truth-1',
+  '/crump-v1-body.css?v=5.9.76-response-touch-1',
 ]) {
   if (!runtime.includes(marker)) fail('web runtime marker is missing: ' + marker);
   if (!worker.includes(marker)) fail('service-worker marker is missing: ' + marker);
@@ -232,7 +232,7 @@ if (!worker.includes("ask-crump-new-body-v1-r169")) {
 if (!shell.includes('/runtime-body-v1.js?v=5.9.76-credit-confirmation-1')) {
   fail('shell runtime version is missing');
 }
-if (!shell.includes('/crump-v1-body.css?v=5.9.76-credit-truth-1')) {
+if (!shell.includes('/crump-v1-body.css?v=5.9.76-response-touch-1')) {
   fail('shell credit-truth stylesheet version is missing');
 }
 
