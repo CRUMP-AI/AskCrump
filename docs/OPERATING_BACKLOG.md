@@ -32,6 +32,14 @@ decoded the brand cleanly, logged no browser error, and produced zero CLS. The m
 was 1,948–2,028 ms, so the byte reduction is proven but a user-perceived timing improvement is not
 yet claimed. Evidence: `docs/BRAND_IMAGE_DELIVERY_RELEASE_2026-09-14.md`.
 
+The follow-on retina-mark candidate keeps the proven eager/preloaded sign-in behavior while replacing
+the active 640×714 mark with a lossless 320×357 derivative sized above the largest 3× rendered need.
+It removes another 162,776 source bytes from the signed-out entry path (66.7% of the prior runtime
+mark); composited 1×/2×/3× comparisons remain below 0.65 RMS per channel on a 0–255 scale. This is a
+reviewed candidate, not a shipped performance claim, until full regression, deployment parity, and
+an alternating hosted comparison are complete. Evidence:
+`docs/RETINA_BRAND_MARK_DELIVERY_RELEASE_2026-09-14.md`.
+
 The 2026-09-14 16:44 UTC protected refresh remains one comparable production account through
 verification, workspace entry, starter intent, and activation. The completed 24-hour value window
 still contains zero useful/not-yet feedback, durable value, Project-save intent/completion, Project,

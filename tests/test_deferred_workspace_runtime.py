@@ -19,11 +19,11 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/styles.css',
         '/install-prompt.css?v=5.9.76',
         '/auth-styles.css',
-        '/crump-v1-body.css?v=5.9.76-brand-delivery-1',
+        '/crump-v1-body.css?v=5.9.76-brand-retina-1',
     ]
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
-        '/runtime-body-v1.js?v=5.9.76-brand-delivery-1',
+        '/runtime-body-v1.js?v=5.9.76-brand-retina-1',
         '/native-runtime.js',
         '/mobile-bridge.js',
         '/safe-storage.js',
@@ -45,7 +45,7 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/billing.css',
         '/onboarding.css?v=5.9.76-video-destination-1',
         '/conversation.css?v=5.9.76-continuity-handoff-1',
-        '/onboarding.js?v=5.9.76-brand-delivery-1',
+        '/onboarding.js?v=5.9.76-brand-retina-1',
         '/scroll-manager.js?v=5.9.76-user-controlled-scroll-1',
         '/profile-manager.js',
         '/billing-manager.js?v=5.9.76-stripe-destination-integrity-1',

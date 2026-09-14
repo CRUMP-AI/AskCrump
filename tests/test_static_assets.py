@@ -103,7 +103,7 @@ def test_signed_out_entry_eagerly_loads_only_visible_brand_images():
         image for image in parser.images
         if image.get('src') in {
             '/assets/brand/crump-shell-lockup-light.webp',
-            '/assets/brand/crump-mark.webp',
+            '/assets/brand/crump-mark-320.webp',
         }
     ]
     eager_images = [image for image in brand_images if image.get('loading') != 'lazy']
@@ -111,7 +111,7 @@ def test_signed_out_entry_eagerly_loads_only_visible_brand_images():
 
     assert len(eager_images) == 5
     assert sum(image['src'] == '/assets/brand/crump-shell-lockup-light.webp' for image in eager_images) == 4
-    startup_mark = next(image for image in eager_images if image['src'] == '/assets/brand/crump-mark.webp')
+    startup_mark = next(image for image in eager_images if image['src'] == '/assets/brand/crump-mark-320.webp')
     assert startup_mark.get('loading') == 'eager'
     assert startup_mark.get('decoding') == 'sync'
     assert startup_mark.get('fetchpriority') == 'high'
@@ -133,7 +133,7 @@ def test_signed_out_entry_eagerly_loads_only_visible_brand_images():
 
     navigation = (PUBLIC / 'crump-navigation-5.9.30.js').read_text()
     assert (
-        '<img src="/assets/brand/crump-mark.webp" width="640" height="714" '
+        '<img src="/assets/brand/crump-mark-320.webp" width="320" height="357" '
         'loading="lazy" decoding="async" alt="">'
     ) in navigation
 
@@ -141,6 +141,7 @@ def test_signed_out_entry_eagerly_loads_only_visible_brand_images():
     core = worker[worker.index('const CORE = ['):worker.index('];')]
     on_demand_images = {
         '/assets/brand/crump-mark.webp',
+        '/assets/brand/crump-mark-320.webp',
         '/assets/brand/crump-mark.png',
         '/assets/brand/crump-horizontal-dark.png',
         '/assets/ask-crump-app-icon-v2-180.png',
@@ -162,6 +163,26 @@ def test_runtime_brand_webp_derivatives_are_pixel_exact_and_smaller():
             assert webp.format == 'WEBP'
             assert webp.size == png.size
             assert webp.convert('RGBA').tobytes() == png.convert('RGBA').tobytes()
+
+
+def test_runtime_mark_delivery_derivative_is_retina_sized_and_visually_equivalent():
+    from PIL import Image, ImageChops, ImageStat
+
+    full_path = PUBLIC / 'assets' / 'brand' / 'crump-mark.webp'
+    delivery_path = PUBLIC / 'assets' / 'brand' / 'crump-mark-320.webp'
+    assert delivery_path.stat().st_size < full_path.stat().st_size * 0.35
+    with Image.open(full_path) as full, Image.open(delivery_path) as delivery:
+        assert delivery.format == 'WEBP'
+        assert delivery.size == (320, 357)
+        for width in (86, 172, 258):
+            height = round(width * full.height / full.width)
+            expected = full.convert('RGBA').resize((width, height), Image.Resampling.LANCZOS)
+            actual = delivery.convert('RGBA').resize((width, height), Image.Resampling.LANCZOS)
+            background = Image.new('RGBA', (width, height), (15, 20, 25, 255))
+            expected_rgb = Image.alpha_composite(background, expected).convert('RGB')
+            actual_rgb = Image.alpha_composite(background, actual).convert('RGB')
+            difference = ImageChops.difference(expected_rgb, actual_rgb)
+            assert max(ImageStat.Stat(difference).rms) < 1.0
 
 
 def test_service_worker_never_cache_firsts_api_requests():

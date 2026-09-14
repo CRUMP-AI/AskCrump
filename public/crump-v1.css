@@ -890,7 +890,7 @@ body.crump-v1 .crump-message-avatar {
   overflow: hidden;
   border: 0 !important;
   border-radius: 0 !important;
-  background: url('/assets/brand/crump-mark.webp') center / contain no-repeat !important;
+  background: url('/assets/brand/crump-mark-320.webp') center / contain no-repeat !important;
   color: transparent !important;
   font-size: 0 !important;
   box-shadow: none !important;
@@ -1583,7 +1583,7 @@ body.crump-v1 .billing51-mark {
   border: 0 !important;
   border-radius: 0 !important;
   background:
-    url('/assets/brand/crump-mark.webp') center / contain no-repeat !important;
+    url('/assets/brand/crump-mark-320.webp') center / contain no-repeat !important;
   color: transparent !important;
   font-size: 0 !important;
 }

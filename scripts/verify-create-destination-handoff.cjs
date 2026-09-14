@@ -10,7 +10,7 @@ async function verify(browser, viewport) {
   const errors = [];
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   page.on('pageerror', error => errors.push(error.message));
-  await page.route('**/assets/brand/crump-mark.webp', route => route.fulfill({status: 204, body: ''}));
+  await page.route('**/assets/brand/crump-mark-320.webp', route => route.fulfill({status: 204, body: ''}));
 
   await page.goto(`${baseUrl}/tests/fixtures/navigation-consolidation.html`, {waitUntil: 'load'});
   await page.waitForFunction(() => document.documentElement.dataset.crumpNavigation5930 === 'ready');

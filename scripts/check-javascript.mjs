@@ -952,7 +952,7 @@ const nativeBillingIdentityVersion = `${releaseVersion}-native-billing-identity-
 const stripeDestinationIntegrityVersion = `${releaseVersion}-stripe-destination-integrity-1`;
 const creditPackTruthVersion = `${releaseVersion}-credit-pack-truth-1`;
 const creditTruthVersion = `${releaseVersion}-credit-truth-1`;
-const brandDeliveryVersion = `${releaseVersion}-brand-delivery-1`;
+const brandDeliveryVersion = `${releaseVersion}-brand-retina-1`;
 const attachCreationRoutingVersion = `${releaseVersion}-explicit-button-types-1`;
 const creditConfirmationVersion = `${releaseVersion}-credit-confirmation-1`;
 const settingsSaveIsolationVersion = `${releaseVersion}-settings-save-isolation-1`;
@@ -1029,6 +1029,7 @@ const requiredBodyFiles = [
   'public/chat-resilience.js',
   'public/assets/brand/crump-mark.png',
   'public/assets/brand/crump-mark.webp',
+  'public/assets/brand/crump-mark-320.webp',
   'public/assets/brand/crump-horizontal-light.png',
   'public/assets/brand/crump-shell-lockup-light.png',
   'public/assets/brand/crump-shell-lockup-light.webp',
@@ -1231,12 +1232,13 @@ const runtimeBrandSources = [
   await readFile(new URL('public/crump-v1-body.css', repoRoot), 'utf8'),
   await readFile(new URL('public/crump-v1-body.js', repoRoot), 'utf8'),
 ];
-if (!appHtml.includes('type="image/webp" href="/assets/brand/crump-mark.webp"') ||
+if (!appHtml.includes('type="image/webp" href="/assets/brand/crump-mark-320.webp"') ||
     !appHtml.includes('type="image/webp" href="/assets/brand/crump-shell-lockup-light.webp"') ||
     runtimeBrandSources.some(source => source.includes('/assets/brand/crump-mark.png') ||
+      source.includes('/assets/brand/crump-mark.webp') ||
       source.includes('/assets/brand/crump-shell-lockup-light.png')) ||
     runtimeBrandSources.some(source =>
-      !source.includes('/assets/brand/crump-mark.webp') &&
+      !source.includes('/assets/brand/crump-mark-320.webp') &&
       !source.includes('/assets/brand/crump-shell-lockup-light.webp'))) {
   console.error('The active application shell must use only the lossless WebP brand derivatives.');
   process.exit(1);
@@ -1440,9 +1442,10 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r244') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r245') ||
     !serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
+    serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.png'") ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${brandDeliveryVersion}`) ||

@@ -21,7 +21,7 @@ def test_clever_crump_has_a_dedicated_parent_company_landing_page():
     assert "https://www.askcrump.com/app?signup=1&amp;source=clevercrump&amp;plan=free" in page
     assert "public/index.html" not in page
     assert "crump-mark-master.png" not in page
-    assert page.count('src="/assets/brand/crump-mark.webp"') == 2
+    assert page.count('src="/assets/brand/crump-mark-320.webp"') == 2
     assert ".hero-mark img { position: relative; z-index: 2; width: 38%; height: 38%;" in styles
     assert "overflow-x: hidden" in styles
     assert "@media (max-width: 700px)" in styles

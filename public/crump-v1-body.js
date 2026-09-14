@@ -5,7 +5,7 @@
   window.__askCrumpV1BodyLoaded = true;
 
   const BRAND = Object.freeze({
-    mark: '/assets/brand/crump-mark.webp',
+    mark: '/assets/brand/crump-mark-320.webp',
     horizontalLight: '/assets/brand/crump-shell-lockup-light.webp',
   });
 

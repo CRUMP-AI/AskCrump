@@ -10,7 +10,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const origin = (process.env.ASKCRUMP_PRODUCTION_ORIGIN || 'https://www.askcrump.com').replace(/\/$/, '');
 const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE || undefined;
 const assets = Object.freeze([
-  {url: '/assets/brand/crump-mark.webp', file: 'public/assets/brand/crump-mark.webp'},
+  {url: '/assets/brand/crump-mark-320.webp', file: 'public/assets/brand/crump-mark-320.webp'},
   {url: '/assets/brand/crump-shell-lockup-light.webp', file: 'public/assets/brand/crump-shell-lockup-light.webp'},
 ]);
 
@@ -102,12 +102,13 @@ try {
 
     const uniqueRequests = [...new Set(brandRequests)];
     const pngRequests = uniqueRequests.filter(url => /crump-(?:mark|shell-lockup-light)\.png(?:\?|$)/.test(url));
+    const legacyMarkRequests = uniqueRequests.filter(url => /\/assets\/brand\/crump-mark\.webp(?:\?|$)/.test(url));
     const failedWebp = brandResponses.filter(response =>
       response.url.endsWith('.webp') &&
       (response.status !== 200 || !response.type.toLowerCase().startsWith('image/webp')),
     );
-    if (errors.length || pngRequests.length || failedWebp.length || metrics.decodedBrandImages < 2 || metrics.cls > 0.01) {
-      throw new Error(`Production brand run ${index + 1} failed: ${JSON.stringify({errors, pngRequests, failedWebp, metrics})}`);
+    if (errors.length || pngRequests.length || legacyMarkRequests.length || failedWebp.length || metrics.decodedBrandImages < 2 || metrics.cls > 0.01) {
+      throw new Error(`Production brand run ${index + 1} failed: ${JSON.stringify({errors, pngRequests, legacyMarkRequests, failedWebp, metrics})}`);
     }
     runs.push({run: index + 1, metrics, brandRequests: uniqueRequests});
     await context.close();

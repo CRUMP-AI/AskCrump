@@ -9,7 +9,7 @@ async function inspect(page, selector) {
   const errors = [];
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   page.on('pageerror', error => errors.push(error.message));
-  await page.route('**/assets/brand/crump-mark.webp', route => route.fulfill({
+  await page.route('**/assets/brand/crump-mark-320.webp', route => route.fulfill({
     status: 200,
     contentType: 'image/png',
     body: readFileSync(join(process.cwd(), 'public', 'assets', 'brand', 'crump-mark.png')),
@@ -46,7 +46,7 @@ async function inspectTutorial(page) {
   const errors = [];
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   page.on('pageerror', error => errors.push(error.message));
-  await page.route('**/assets/brand/crump-mark.webp', route => route.fulfill({
+  await page.route('**/assets/brand/crump-mark-320.webp', route => route.fulfill({
     status: 200,
     contentType: 'image/png',
     body: readFileSync(join(process.cwd(), 'public', 'assets', 'brand', 'crump-mark.png')),
