@@ -13,6 +13,7 @@ import pytest
 import scripts.export_operating_snapshot as operating_snapshot
 from scripts.export_operating_snapshot import (
     EXPECTED_SUPABASE_HOST,
+    NAVIGATION_DESTINATIONS,
     build_operating_snapshot,
     collect_rpc_rows,
     fetch_rpc_rows,
@@ -65,6 +66,19 @@ def fixture_sections() -> dict[str, list[dict]]:
         "editable_artifact_ready": False,
         "proof_ready": False,
     }]
+    sections["product_navigation_discovery_snapshot"] = [
+        {
+            "measurement_since": "2026-09-14T20:57:00+00:00",
+            "window_since": "2026-09-14T20:57:00+00:00",
+            "window_until": UNTIL,
+            "destination": destination,
+            "active_workspace_accounts": 0,
+            "selected_accounts": 0,
+            "selected_account_days": 0,
+            "selected_account_rate_pct": None,
+        }
+        for destination in NAVIGATION_DESTINATIONS
+    ]
     return sections
 
 
@@ -137,6 +151,21 @@ def test_snapshot_exposes_exact_retention_denominators_without_content_or_identi
     }
     assert report["boundaries"]["all_sections_required"] is True
     assert report["boundaries"]["no_database_writes"] is True
+    assert report["navigation_discovery"] == {
+        "status": "awaiting_traffic",
+        "measurement_since": "2026-09-14T20:57:00+00:00",
+        "window_since": "2026-09-14T20:57:00+00:00",
+        "window_until": UNTIL,
+        "active_workspace_accounts": 0,
+        "selected_accounts_by_destination": {
+            destination: 0 for destination in NAVIGATION_DESTINATIONS
+        },
+        "selected_account_days_by_destination": {
+            destination: 0 for destination in NAVIGATION_DESTINATIONS
+        },
+        "proves_destination_selection_only": True,
+        "does_not_prove_task_completion": True,
+    }
 
 
 def test_snapshot_fails_closed_for_missing_extra_or_sensitive_sections() -> None:
@@ -184,6 +213,66 @@ def test_nonproduction_snapshot_omits_production_only_experiment_rpc() -> None:
 
     assert "product_project_limit_plan_snapshot" not in payloads
     assert payloads["product_weekly_attribution_export"]["p_include_internal"] is True
+
+
+def test_navigation_discovery_exposes_an_exact_observed_denominator() -> None:
+    sections = fixture_sections()
+    for row in sections["product_navigation_discovery_snapshot"]:
+        row["active_workspace_accounts"] = 2
+        if row["destination"] == "projects":
+            row["selected_accounts"] = 1
+            row["selected_account_days"] = 2
+            row["selected_account_rate_pct"] = 50.0
+        else:
+            row["selected_account_rate_pct"] = 0.0
+
+    discovery = build_operating_snapshot(
+        sections,
+        since=SINCE,
+        until=UNTIL,
+        environment="production",
+        include_internal=False,
+    )["navigation_discovery"]
+
+    assert discovery["status"] == "observed"
+    assert discovery["active_workspace_accounts"] == 2
+    assert discovery["selected_accounts_by_destination"]["projects"] == 1
+    assert discovery["selected_account_days_by_destination"]["projects"] == 2
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (
+            lambda rows: rows.pop(),
+            "nine fixed destinations",
+        ),
+        (
+            lambda rows: rows[1].update(active_workspace_accounts=1),
+            "inconsistent active-account denominators",
+        ),
+        (
+            lambda rows: rows[0].update(selected_accounts=1),
+            "exceed its denominator",
+        ),
+        (
+            lambda rows: rows[0].update(selected_account_rate_pct=0.0),
+            "rate must be unavailable",
+        ),
+    ],
+)
+def test_navigation_discovery_fails_closed_on_invalid_evidence(mutate, message: str) -> None:
+    sections = fixture_sections()
+    mutate(sections["product_navigation_discovery_snapshot"])
+
+    with pytest.raises(ValueError, match=message):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
 
 
 @pytest.mark.parametrize(

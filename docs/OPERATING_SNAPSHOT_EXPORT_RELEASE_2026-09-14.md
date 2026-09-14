@@ -4,7 +4,7 @@
 
 Ask Crump now has one operator command for collecting the product evidence needed to make weekly
 reliability, activation, retention, monetization, and demo-readiness decisions. The command is
-read-only and combines nine existing protected aggregate functions without adding a table,
+read-only and combines ten existing protected aggregate functions without adding a table,
 migration, public endpoint, scheduler, customer-content field, or browser credential.
 
 ## Included evidence
@@ -15,6 +15,8 @@ migration, public endpoint, scheduler, customer-content field, or browser creden
 - result-to-Project save and later-continuation progress;
 - Plan center, subscription, credit, and recovery intent;
 - bounded outcome issue categories;
+- fixed-destination navigation discovery across Ask, Chats, Projects, Create, Video, Library, You,
+  Intelligence, and Code;
 - in-product lifecycle exposure, action, completion, retention, and suppression aggregates;
 - the dormant production-only Project-limit plan experiment;
 - boolean-only sanitized demo recording readiness.
@@ -46,7 +48,12 @@ milestone was observed. This is baseline evidence, not a lift or retention claim
 
 Automated coverage proves:
 
-- exact arguments and complete nine-section collection;
+- exact arguments and complete ten-section production collection;
+- the navigation section contains all nine fixed destinations exactly once and in order, uses one
+  consistent nonnegative active-account denominator, and cannot report impossible counts or a
+  percentage that disagrees with its numerator and denominator;
+- the operator summary labels a zero-denominator navigation window `awaiting_traffic` and keeps
+  destination selection explicitly separate from task completion;
 - invalid/reversed/equal windows and invalid environments fail before the first RPC;
 - nonproduction reports cannot call the production-only experiment;
 - service-role headers and exact JSON payloads are used;
@@ -57,6 +64,10 @@ Automated coverage proves:
 
 Focused validation passed 24 tests, the complete backend suite passed, all 54 JavaScript files
 validated, the two changed Python files passed Ruff, and the diff passed its whitespace guard.
+
+The follow-up navigation evidence guard passed 20 focused tests and the complete **1,108/1,108**
+Python suite. It makes an incomplete or internally inconsistent destination report a hard operator
+failure instead of a misleading green snapshot.
 
 ## Release proof
 

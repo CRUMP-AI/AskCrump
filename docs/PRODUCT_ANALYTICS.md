@@ -127,9 +127,9 @@ event-based cohort rates and never converted into synthetic events.
 
 `scripts/export_operating_snapshot.py` collects the complete protected operating view in one
 read-only run. It calls the service-role-only growth, attribution, artifact, Project continuity,
-plan conversion, outcome issue, lifecycle, production Project-limit experiment, and demo-proof
-aggregates; then writes one versioned JSON report with explicit D1/D7 eligibility and the existing
-weekly growth reconciliation.
+plan conversion, outcome issue, navigation discovery, lifecycle, production Project-limit
+experiment, and demo-proof aggregates; then writes one versioned JSON report with explicit D1/D7
+eligibility and the existing weekly growth reconciliation.
 
 Run it only in a trusted operator environment where `SUPABASE_URL` and
 `SUPABASE_SERVICE_KEY` are already supplied by the secret manager. Never paste either value into a
@@ -149,6 +149,10 @@ before making a database request, excludes internal accounts unless explicitly r
 the production-only Project-limit experiment outside production, retries only transient transport
 failures, refuses to transmit the service key to any origin other than Ask Crump's exact Supabase
 project, and fails closed if an aggregate unexpectedly exposes an identity or content field.
+The navigation section also fails closed unless all nine fixed destinations appear exactly once in
+their canonical order with consistent denominators, valid counts, and correctly derived rates. Its
+summary proves only that a destination was selected; it must never be interpreted as proof that a
+task inside that destination completed successfully.
 
 ## Service-role Project continuity snapshot
 

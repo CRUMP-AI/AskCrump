@@ -40,6 +40,15 @@ and rates—no identity or customer content. Its first external-production read 
 zero baseline, so do not interpret it as failed discovery. Evidence:
 `docs/NAVIGATION_DESTINATION_VERIFICATION_RELEASE_2026-09-14.md`.
 
+The operating snapshot now fails closed if that navigation proof later drifts: it requires the
+canonical nine destinations exactly once and in order, one consistent nonnegative active-account
+denominator, possible selected-account/account-day counts, and rates that match the underlying
+counts. Its derived view labels the current zero denominator `awaiting_traffic` and explicitly says
+that selection does not prove task completion. The focused navigation/operator suite passed
+**20/20** and the complete Python suite **1,108/1,108**. This closes an evidence-integrity gap; it
+does not manufacture a button click or replace the separate legitimate-user gates for destructive,
+payment, provider-generation, native-permission, upload, download, and physical-device outcomes.
+
 The 2026-09-14 19:55 UTC protected refresh remains one comparable external production account
 through activation, with one ordinary Plan-center view but no durable value, explicit outcome,
 Project, file, artifact, checkout, payer, or recognized revenue. The new Project-save-offer report

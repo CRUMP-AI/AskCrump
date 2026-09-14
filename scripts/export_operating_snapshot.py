@@ -44,6 +44,17 @@ STATE_RPCS = ("demo_recording_proof_snapshot",)
 TRANSIENT_HTTP_STATUS = frozenset({408, 429, 500, 502, 503, 504})
 VALID_ENVIRONMENTS = frozenset({"production", "preview", "development"})
 EXPECTED_SUPABASE_HOST = "xncftwjfpjskgtwgbgci.supabase.co"
+NAVIGATION_DESTINATIONS = (
+    "ask",
+    "chats",
+    "projects",
+    "create",
+    "video",
+    "library",
+    "you",
+    "intelligence",
+    "code",
+)
 RpcFetcher = Callable[[str, dict[str, Any]], list[dict[str, Any]]]
 
 
@@ -182,6 +193,88 @@ def collect_rpc_rows(
     return sections
 
 
+def validated_navigation_discovery(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Validate the fixed navigation aggregate before presenting it as evidence."""
+    destinations = tuple(row.get("destination") for row in rows)
+    if destinations != NAVIGATION_DESTINATIONS:
+        raise ValueError(
+            "Navigation discovery must contain the nine fixed destinations exactly once and in order."
+        )
+
+    shared_fields = ("measurement_since", "window_since", "window_until")
+    for field in shared_fields:
+        values = {row.get(field) for row in rows}
+        if len(values) != 1 or None in values:
+            raise ValueError(f"Navigation discovery has an inconsistent {field} boundary.")
+
+    denominators = {row.get("active_workspace_accounts") for row in rows}
+    if len(denominators) != 1:
+        raise ValueError("Navigation discovery has inconsistent active-account denominators.")
+    active_accounts = next(iter(denominators))
+    if (
+        not isinstance(active_accounts, int)
+        or isinstance(active_accounts, bool)
+        or active_accounts < 0
+    ):
+        raise ValueError("Navigation discovery has an invalid active-account denominator.")
+
+    selected_by_destination: dict[str, int] = {}
+    selected_days_by_destination: dict[str, int] = {}
+    for row in rows:
+        destination = row["destination"]
+        selected_accounts = row.get("selected_accounts")
+        selected_account_days = row.get("selected_account_days")
+        rate = row.get("selected_account_rate_pct")
+        for field, value in (
+            ("selected_accounts", selected_accounts),
+            ("selected_account_days", selected_account_days),
+        ):
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                raise ValueError(
+                    f"Navigation discovery has an invalid {field} value for {destination}."
+                )
+        if selected_accounts > active_accounts:
+            raise ValueError(
+                f"Navigation discovery selected accounts exceed its denominator for {destination}."
+            )
+        if selected_account_days < selected_accounts:
+            raise ValueError(
+                f"Navigation discovery account-days are below selected accounts for {destination}."
+            )
+        expected_rate = (
+            None
+            if active_accounts == 0
+            else round(100.0 * selected_accounts / active_accounts, 2)
+        )
+        if expected_rate is None:
+            if rate is not None:
+                raise ValueError(
+                    f"Navigation discovery rate must be unavailable without active accounts for {destination}."
+                )
+        elif (
+            not isinstance(rate, (int, float))
+            or isinstance(rate, bool)
+            or abs(float(rate) - expected_rate) > 0.005
+        ):
+            raise ValueError(
+                f"Navigation discovery rate does not match its denominator for {destination}."
+            )
+        selected_by_destination[destination] = selected_accounts
+        selected_days_by_destination[destination] = selected_account_days
+
+    return {
+        "status": "observed" if active_accounts else "awaiting_traffic",
+        "measurement_since": rows[0]["measurement_since"],
+        "window_since": rows[0]["window_since"],
+        "window_until": rows[0]["window_until"],
+        "active_workspace_accounts": active_accounts,
+        "selected_accounts_by_destination": selected_by_destination,
+        "selected_account_days_by_destination": selected_days_by_destination,
+        "proves_destination_selection_only": True,
+        "does_not_prove_task_completion": True,
+    }
+
+
 def build_operating_snapshot(
     sections: dict[str, list[dict[str, Any]]],
     *,
@@ -211,6 +304,10 @@ def build_operating_snapshot(
         )
     for rows in sections.values():
         ensure_aggregate_rows(rows)
+
+    navigation_discovery = validated_navigation_discovery(
+        sections["product_navigation_discovery_snapshot"]
+    )
 
     weekly_rows = sections["product_weekly_attribution_export"]
     weekly = build_report(
@@ -256,6 +353,7 @@ def build_operating_snapshot(
                 "rate_pct": weekly["derived_rates"]["d7_retention_pct"],
             },
         },
+        "navigation_discovery": navigation_discovery,
         "weekly_growth": weekly,
         "sections": sections,
         "boundaries": {
