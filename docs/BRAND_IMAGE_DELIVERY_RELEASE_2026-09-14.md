@@ -49,10 +49,27 @@ configured. No store submission claim is made by this release.
 
 ## Production acceptance
 
-Pending deployment. Accept only after the production deployment is Ready, both WebP URLs return
-HTTP 200 with an image WebP content type, served hashes match the reviewed files, a cold mobile app
-load uses the derivatives without browser errors, and the full control matrix remains represented
-by the immutable pre-deployment test result above.
+Commit `026786db395fcb1aa16157ab3115720a60e90c25` deployed as
+`dpl_6g33PfSniTvuPdDpdfRLX1e7hMxC` and reached Ready on all six production aliases. The exact live
+asset checks passed:
+
+- `crump-mark.webp` returned HTTP 200 as `image/webp` and matched SHA-256
+  `215795869583f9852802f4655f6bd2cfd434d7526c378dae721445a04728b60e`.
+- `crump-shell-lockup-light.webp` returned HTTP 200 as `image/webp` and matched SHA-256
+  `1ab2cc73f1953c8940a56c172e864b1e3e84cc7000c4cec030787ac123aa0966`.
+- Three fresh phone-size Edge contexts, each with service workers blocked, constrained 4G, and
+  four-times CPU throttling, requested only those WebP brand paths. Every run decoded six visible
+  brand images, logged no browser or page error, and recorded zero CLS.
+- The three runs measured FCP at 1,364–1,728 ms, LCP at 1,948–2,028 ms, and load completion at
+  2,637–2,711 ms. The source-byte reduction is proven; this small synthetic sample does not prove a
+  user-perceived timing improvement over the earlier 1,620–1,776 ms LCP sample.
+- The post-deployment Vercel error view contained no runtime error from deployment through the
+  acceptance check.
+- Hosted Android run `34888631279`, CI `34888631325`, and iOS run `34888631269` all passed.
+
+The production verifier is retained at `scripts/verify-brand-delivery-production.mjs`; it fails on
+wrong MIME, wrong bytes, old PNG requests, failed decoding, excessive layout shift, or browser
+errors.
 
 ## Boundaries
 
