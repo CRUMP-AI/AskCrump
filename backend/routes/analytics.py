@@ -10,6 +10,7 @@ from ..product_analytics import (
     OUTCOME_FEEDBACK_SOURCES,
     OUTCOME_ISSUE_SOURCES,
     PLAN_CENTER_SOURCES,
+    PROJECT_SAVE_OFFER_SOURCES,
     PROJECT_SAVE_SOURCES,
     RECENT_WORK_SOURCES,
     RESPONSE_SHARE_SOURCES,
@@ -48,6 +49,12 @@ async def create_product_event(payload: ProductEventRequest, request: Request):
         or payload.plan is not None
     ):
         raise HTTPException(status_code=422, detail="Invalid Project save intent event.")
+    if payload.eventName == "ProjectSaveOfferShown" and (
+        payload.source not in PROJECT_SAVE_OFFER_SOURCES
+        or payload.eventKey != "project-save-offer-shown"
+        or payload.plan is not None
+    ):
+        raise HTTPException(status_code=422, detail="Invalid Project save offer event.")
     if payload.eventName == "RecentWorkResumed" and (
         payload.source not in RECENT_WORK_SOURCES
         or payload.eventKey != "recent-work-resumed"
@@ -68,6 +75,9 @@ async def create_product_event(payload: ProductEventRequest, request: Request):
         server_day = datetime.now(timezone.utc).date().isoformat()
         source_segment = "" if payload.source == "settings" else f"{payload.source}:"
         event_key = f"plan-center-viewed:{source_segment}{server_day}"
+    if payload.eventName == "ProjectSaveOfferShown":
+        server_day = datetime.now(timezone.utc).date().isoformat()
+        event_key = f"project-save-offer-shown:{payload.source}:{server_day}"
     auth = await authenticate_request(request, db, settings)
     await enforce_user_rate_limit(
         db,

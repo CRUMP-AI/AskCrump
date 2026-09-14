@@ -57,7 +57,7 @@ INDIRECT_DYNAMIC_BUTTON_OWNERS = {
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:1701:project": (
+    "public/crump-5.0.js:1717:project": (
         "wireOutputProjectAction(project, {",
         "button.addEventListener('click', async () => {",
     ),
@@ -476,6 +476,9 @@ def test_generated_output_project_button_has_visible_pending_and_recovery_states
     assert "const previousLabel = button.textContent;" in action
     assert "button.textContent = previousLabel;" in action
     assert "window.CrumpAnalytics?.track?.('ProjectSaveIntentReached'" in action
+    assert "recordOutputProjectSaveOffer(button)" in action
+    assert "track('ProjectSaveOfferShown'" in composer
+    assert "source: 'artifact_result'" in composer
     assert "source: selectedProjectId ? 'existing_project' : 'new_project'" in action
     assert "if (selectedProjectId) options.projectId = selectedProjectId;" in action
     assert "const savedProjectId = String(button.dataset.projectId || '').trim();" in action

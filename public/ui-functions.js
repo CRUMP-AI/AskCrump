@@ -647,6 +647,21 @@
     return true;
   }
 
+  function recordOutcomeProjectSaveOffer(button) {
+    if (!button || button.dataset.saved === 'true' || button.dataset.projectSaveOfferTracked === 'true') return;
+    const track = window.CrumpAnalytics?.track;
+    if (typeof track !== 'function') return;
+    button.dataset.projectSaveOfferTracked = 'true';
+    void Promise.resolve(track('ProjectSaveOfferShown', {
+      eventKey: 'project-save-offer-shown',
+      source: 'conversation_result',
+    })).then(recorded => {
+      if (!recorded) delete button.dataset.projectSaveOfferTracked;
+    }).catch(() => {
+      delete button.dataset.projectSaveOfferTracked;
+    });
+  }
+
   async function hydrateOutcomeProjectAction(button) {
     if (!button || button.dataset.saved === 'true' || button.dataset.projectLookup === 'pending') return;
     const chatId = String(button.dataset.chatId || '').trim();
@@ -675,6 +690,7 @@
       button.disabled = wasDisabled;
       if (previousBusy === null) button.removeAttribute('aria-busy');
       else button.setAttribute('aria-busy', previousBusy);
+      if (button.dataset.saved !== 'true') recordOutcomeProjectSaveOffer(button);
     }
   }
 

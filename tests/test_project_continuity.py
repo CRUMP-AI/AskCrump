@@ -934,6 +934,10 @@ def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_
     assert 'Saved privately to "${projectName}".' in ui
     assert "projectButton.dataset.chatId = String(window.currentChatId" in ui
     assert "hydrateOutcomeProjectAction(projectButton)" in ui
+    assert "recordOutcomeProjectSaveOffer(button)" in ui
+    assert "'ProjectSaveOfferShown'" in ui
+    assert "eventKey: 'project-save-offer-shown'" in ui
+    assert "source: 'conversation_result'" in ui
     assert "window.addEventListener?.('crump:project-service-ready'" in ui
     assert "if (await openProject(projectId)) return" in ui
     direct_action = ui[

@@ -534,8 +534,8 @@ def test_changed_activation_assets_are_release_versioned():
 
     for asset in (
         "/conversation.css?v=5.9.76-continuity-handoff-1",
-        "/ui-functions.js?v=5.9.76-continuity-handoff-1",
-        "/product-analytics.js?v=5.9.76-outcome-issue-categories-1",
+        "/ui-functions.js?v=5.9.76-project-save-offer-1",
+        "/product-analytics.js?v=5.9.76-project-save-offer-1",
         "/app.js?v=5.9.76-settings-save-isolation-1",
     ):
         assert asset not in shell

@@ -1517,6 +1517,21 @@
     return {status, projectId};
   }
 
+  function recordOutputProjectSaveOffer(button) {
+    if (!button || button.dataset.projectSaveOfferTracked === 'true') return;
+    const track = window.CrumpAnalytics?.track;
+    if (typeof track !== 'function') return;
+    button.dataset.projectSaveOfferTracked = 'true';
+    void Promise.resolve(track('ProjectSaveOfferShown', {
+      eventKey: 'project-save-offer-shown',
+      source: 'artifact_result',
+    })).then(recorded => {
+      if (!recorded) delete button.dataset.projectSaveOfferTracked;
+    }).catch(() => {
+      delete button.dataset.projectSaveOfferTracked;
+    });
+  }
+
   function wireOutputProjectAction(button, {message, file, kind, role, label, statusNode = null}) {
     if (!button || !file?.id) { button?.remove(); return; }
     const receipt = outputProjectReceipt(message, kind);
@@ -1541,6 +1556,7 @@
       } else if (statusNode && receipt?.status === 'missing') {
         statusNode.textContent = 'Created by Crump · Safe in Files · Original Project is no longer available · Choose another Project';
       }
+      recordOutputProjectSaveOffer(button);
     }
 
     button.addEventListener('click', async () => {

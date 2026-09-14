@@ -86,7 +86,10 @@ const { chromium } = require(playwrightModule);
   const desktopHierarchy = await inspectHierarchy(desktopPage);
   await desktopPage.screenshot({path: 'artifacts/project-save-desktop.png', fullPage: true});
 
-  const expectedIntent = [{
+  const expectedAnalytics = [{
+    eventName: 'ProjectSaveOfferShown',
+    values: {eventKey: 'project-save-offer-shown', source: 'conversation_result'},
+  }, {
     eventName: 'ProjectSaveIntentReached',
     values: {eventKey: 'project-save-intent', source: 'new_project'},
   }];
@@ -111,12 +114,12 @@ const { chromium } = require(playwrightModule);
   assert.equal(desktopHierarchy.overflow, false);
   assert.equal(recovered.button, 'Keep in a new Project');
   assert.match(recovered.prompt, /Couldn’t save yet/);
-  assert.deepEqual(recovered.analytics, expectedIntent);
+  assert.deepEqual(recovered.analytics, expectedAnalytics);
   assert.equal(recovered.projectBodies[0]?.continuitySource, 'result_action');
   assert.equal(recovered.errors, 0);
   assert.equal(saved.button, 'Open Project');
   assert.match(saved.prompt, /Saved privately/);
-  assert.deepEqual(saved.analytics, expectedIntent);
+  assert.deepEqual(saved.analytics, expectedAnalytics);
   assert.equal(saved.projectBodies[0]?.continuitySource, 'result_action');
   assert.equal(saved.projectRequests, 1);
   assert.equal(saved.unexpectedRequests, 0);

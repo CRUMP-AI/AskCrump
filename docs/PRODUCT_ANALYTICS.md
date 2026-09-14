@@ -67,6 +67,7 @@ snapshot.
 | `OnboardingCompleted` | Server | The account supplied its initial optional display name. The event name is retained for compatibility; the current growth snapshot reports this as `optional_profile_completed`, not as required onboarding or activation. |
 | `WorkspaceOpened` | Authenticated client | The workspace opened; at most one row per UTC day. |
 | `StarterIntentReached` | Authenticated client | The account selected its first task category from the launchpad. Only one allowlisted category such as `research`, `file`, or `projects` is stored in `source`; no prompt or content is stored. |
+| `ProjectSaveOfferShown` | Authenticated client | A result-to-Project action was actually presented for an unsaved conversation or generated artifact. The client can send only the fixed `project-save-offer-shown` key and `conversation_result` or `artifact_result`; the server replaces the key with the fixed source and its UTC day, limiting the record to one row per account, source, and day. Plan, content, filenames, and identifiers are forbidden. |
 | `ProjectSaveIntentReached` | Authenticated client | The user selected the one-click result-to-Project action. The server accepts only the fixed `project-save-intent` key and `new_project` or `existing_project` source; plan and customer content are forbidden. |
 | `ProjectSaveCompleted` | Server | The ownership-checked Project route successfully created a Project from the conversation or attached the conversation to an owned Project after a result action. Clients cannot submit this event; only the fixed `result-action-save` key and bounded Project source are retained. |
 | `ActivationReached` | Server | The first successful, persisted AI response completed. |
@@ -158,6 +159,13 @@ distinct-account counts for bounded result-save intent, server-confirmed complet
 diagnostics, and later Project resume. A valid intent and completion are paired regardless of
 millisecond arrival order because the browser receipt is fail-open; resume must occur at or after
 the server-confirmed completion.
+
+Migration `20260914185224_project_save_offer_measurement.sql` adds the missing exposure denominator.
+It distinguishes an unsaved conversation-result offer from an artifact/image-result offer, derives
+one source-specific key per UTC day on the server, and adds offer-to-later-intent counts and rate to
+the same protected snapshot. The comparable offer funnel begins at
+`2026-09-14 18:34:14+00`; earlier save intent remains visible in the original journey fields but is
+never treated as if a preceding offer had been observed.
 
 The cohort is bounded by `users.registration_environment`, excludes deleted and internal accounts
 by default, and is grouped only by the immutable allowlisted first-touch attribution tuple. The

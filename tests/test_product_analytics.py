@@ -11,6 +11,7 @@ from backend.product_analytics import (
     EVENT_NAMES,
     OUTCOME_FEEDBACK_SOURCES,
     PLAN_CENTER_SOURCES,
+    PROJECT_SAVE_OFFER_SOURCES,
     PROJECT_SAVE_SOURCES,
     RECENT_WORK_SOURCES,
     RESPONSE_SHARE_SOURCES,
@@ -114,6 +115,9 @@ def test_plan_center_view_is_allowlisted_but_content_free():
 
 
 def test_project_save_measurement_separates_client_intent_from_server_completion():
+    assert PROJECT_SAVE_OFFER_SOURCES == frozenset({"conversation_result", "artifact_result"})
+    assert "ProjectSaveOfferShown" in EVENT_NAMES
+    assert "ProjectSaveOfferShown" in CLIENT_EVENT_NAMES
     assert PROJECT_SAVE_SOURCES == frozenset({"new_project", "existing_project"})
     assert "ProjectSaveIntentReached" in EVENT_NAMES
     assert "ProjectSaveIntentReached" in CLIENT_EVENT_NAMES
@@ -528,6 +532,70 @@ async def test_project_save_intent_route_rejects_non_contract_values(event_key, 
     assert error.value.status_code == 422
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source", ["conversation_result", "artifact_result"])
+async def test_project_save_offer_route_derives_one_server_utc_day_key_per_source(
+    monkeypatch,
+    source,
+):
+    calls = []
+
+    async def authenticate(_request, _database, _settings):
+        return type("Auth", (), {"user": {"id": "00000000-0000-0000-0000-000000000001"}})()
+
+    async def rate_limit(*_args, **_kwargs):
+        return None
+
+    async def recorder(_database, **kwargs):
+        calls.append(kwargs)
+        return True
+
+    monkeypatch.setattr(analytics_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(analytics_routes, "enforce_user_rate_limit", rate_limit)
+    monkeypatch.setattr(analytics_routes, "record_product_event", recorder)
+
+    result = await analytics_routes.create_product_event(
+        ProductEventRequest(
+            eventName="ProjectSaveOfferShown",
+            eventKey="project-save-offer-shown",
+            source=source,
+        ),
+        request_for("www.askcrump.com"),
+    )
+
+    assert result == {"success": True, "recorded": True}
+    assert calls[0]["event_name"] == "ProjectSaveOfferShown"
+    prefix = f"project-save-offer-shown:{source}:"
+    assert calls[0]["event_key"].startswith(prefix)
+    assert len(calls[0]["event_key"]) == len(f"{prefix}2026-09-14")
+    assert calls[0]["source"] == source
+    assert calls[0]["plan"] is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("event_key", "source", "plan"),
+    [
+        ("project-save-offer-shown:conversation_result:2026-09-14", "conversation_result", None),
+        ("project-save-offer-shown", "made_up", None),
+        ("project-save-offer-shown", "artifact_result", "professional"),
+    ],
+)
+async def test_project_save_offer_route_rejects_non_contract_values(event_key, source, plan):
+    with pytest.raises(HTTPException) as error:
+        await analytics_routes.create_product_event(
+            ProductEventRequest(
+                eventName="ProjectSaveOfferShown",
+                eventKey=event_key,
+                source=source,
+                plan=plan,
+            ),
+            request_for("www.askcrump.com"),
+        )
+
+    assert error.value.status_code == 422
+
+
 def test_response_share_sources_are_narrow_and_content_free():
     assert RESPONSE_SHARE_SOURCES == frozenset({
         "native_share",
@@ -863,6 +931,40 @@ def test_project_save_measurement_migration_is_private_content_free_and_stage_ex
         assert forbidden not in normalized
 
 
+def test_project_save_offer_measurement_adds_a_private_comparable_exposure_denominator():
+    migration = (
+        ROOT / "migrations" / "20260914185224_project_save_offer_measurement.sql"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(migration.lower().split())
+    return_contract = normalized[
+        normalized.index("returns table") : normalized.index("language plpgsql")
+    ]
+
+    assert "'projectsaveoffershown'" in normalized
+    assert "product_events_project_save_offer_check" in normalized
+    assert "source in ('conversation_result', 'artifact_result')" in normalized
+    assert "^project-save-offer-shown:(conversation_result|artifact_result):" in normalized
+    assert "offer_measurement_since" in return_contract
+    assert "project_save_offer_shown" in return_contract
+    assert "project_save_offer_to_intent" in return_contract
+    assert "project_save_offer_without_later_intent" in return_contract
+    assert "project_save_intent_without_prior_offer" in return_contract
+    assert "offer_to_intent_rate_pct" in return_contract
+    assert "timestamptz '2026-09-14 18:34:14+00'" in normalized
+    assert "registration_environment = p_environment" in normalized
+    assert "coalesce(u.internal_tier, '') = ''" in normalized
+    assert "security invoker" in normalized
+    assert "security definer" not in normalized
+    assert "set search_path = ''" in normalized
+    assert "from public, anon, authenticated" in normalized
+    assert "to service_role" in normalized
+    assert "user_id" not in return_contract
+    for forbidden in (
+        "p_prompt", "p_response", "p_filename", "email", "metadata jsonb", "project_id"
+    ):
+        assert forbidden not in return_contract
+
+
 def test_growth_snapshot_excludes_pre_instrumentation_accounts_from_comparable_cohorts():
     migration = (
         ROOT / "migrations" / "20260827180833_product_growth_measurement_boundary.sql"
@@ -994,7 +1096,7 @@ def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
     assert '/product-analytics.js' not in app
     assert runtime.index('/app.js') < runtime.index('/product-analytics.js')
     assert (
-        "new Set(['WorkspaceOpened', 'StarterIntentReached', 'ProjectSaveIntentReached', 'ActivationReached', "
+        "new Set(['WorkspaceOpened', 'StarterIntentReached', 'ProjectSaveOfferShown', 'ProjectSaveIntentReached', 'ActivationReached', "
         "'OutcomeFeedbackSubmitted', 'OutcomeIssueCategorized', 'RecentWorkResumed', 'PlanCenterViewed', 'PlanIntentReached', "
         "'ResponseShared'])"
     ) in client
@@ -1003,6 +1105,7 @@ def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
     assert "ResponseShared" in client
     assert "RecentWorkResumed" in client
     assert "StarterIntentReached" in client
+    assert "ProjectSaveOfferShown" in client
     assert "ProjectSaveIntentReached" in client
     assert "/product-analytics.js" in worker
     assert "application.include_router(analytics.router)" in application

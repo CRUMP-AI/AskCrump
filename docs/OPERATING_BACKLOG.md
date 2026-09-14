@@ -68,6 +68,16 @@ transport failures, and refuses to send its service key anywhere except Ask Crum
 origin. This improves decision latency; it does not change the current acquisition/retention hold.
 Evidence: `docs/OPERATING_SNAPSHOT_EXPORT_RELEASE_2026-09-14.md`.
 
+The next Project-continuity decision now has a valid denominator. Release candidate
+`20260914185224_project_save_offer_measurement.sql` records only whether the visible result action
+was presented, split between fixed `conversation_result` and `artifact_result` sources and
+deduplicated by server UTC day. The protected Project snapshot adds offer-to-later-intent and
+missing-side diagnostics from an explicit `2026-09-14 18:34:14+00` measurement boundary. This lets
+the team distinguish “the save offer was not seen” from “it was seen but not selected” without
+storing prompts, filenames, Projects, conversations, messages, or customer identifiers. Focused
+privacy/route/UI checks pass and the full browser-control inventory remains **48/48**; production
+evidence will begin only after migration and deployment, with no synthetic backfill.
+
 ## Current operating evidence — 2026-09-13
 
 The 2026-09-13 service-role refresh changes the operating baseline: Ask Crump now

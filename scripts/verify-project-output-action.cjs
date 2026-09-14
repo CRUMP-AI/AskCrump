@@ -62,6 +62,18 @@ const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE
       assert.equal(completed.busy, null);
       assert.equal(completed.status, 'Created by Crump · Saved in Project');
       assert.deepEqual(completed.analytics, [{
+        eventName: 'ProjectSaveOfferShown',
+        values: {
+          eventKey: 'project-save-offer-shown',
+          source: 'conversation_result',
+        },
+      }, {
+        eventName: 'ProjectSaveOfferShown',
+        values: {
+          eventKey: 'project-save-offer-shown',
+          source: 'artifact_result',
+        },
+      }, {
         eventName: 'ProjectSaveIntentReached',
         values: {
           eventKey: 'project-save-intent',
