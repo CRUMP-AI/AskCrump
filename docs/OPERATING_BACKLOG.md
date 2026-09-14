@@ -68,6 +68,14 @@ milestone because that path neither emitted the content-free intent nor marked c
 the file attachment. Release `aa264f3` closes that measurement gap; the historical zero remains
 historical evidence and must not be rewritten or treated as post-release behavior.
 
+A 2026-09-14 matched native-toolchain review rejected Capacitor 8.5.2 before release. Although fresh
+Android and iOS source generation and both source verifiers passed, the exact npm lock added
+`@capacitor/cli -> xcode@3.0.1 -> uuid@7.0.3`; the established moderate-or-higher audit then reported
+three findings for `GHSA-w5hq-g745-h8pq`. The package and lock were restored to the clean 8.4.2 set.
+Do not merge the partial Core/CLI Dependabot updates or force an undeclared UUID major override;
+re-enter only on an official stable release with a clean audit and both hosted native compilers.
+Evidence: `docs/CAPACITOR_8_5_2_DEPENDENCY_HOLD_2026-09-14.md`.
+
 The immediate product order is therefore:
 
 1. keep the repaired Projects path stable and observe the first legitimate result → Project save
