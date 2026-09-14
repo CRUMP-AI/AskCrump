@@ -1,6 +1,6 @@
 # Ask Crump operating backlog
 
-Last updated: 2026-09-13
+Last updated: 2026-09-14
 
 ## Operating standard
 
@@ -42,11 +42,15 @@ scenarios, and **54/54** focused ownership/lifecycle/sync contracts. Evidence:
 
 At 00:05:00 UTC, one production sync push returned 503 after an upstream database 504. The existing
 user-scoped local queue retained the batch, and production recorded a successful sync push eight
-seconds later followed by five more successes through 00:08:29. Release `b699d1a` turns that exact
+seconds later followed by five more successes through 00:08:29. Release `b699d1a` turned that exact
 503 → preserved queue → identical replay → 200 → cleared queue behavior into a required real-browser
-gate. Preserve the one-attempt write policy unless a later event recurs without recovery or a
-legitimate user reports missing cross-device work. Evidence:
-`docs/SYNC_PUSH_TRANSIENT_RECOVERY_GATE_RELEASE_2026-09-13.md`.
+gate. The same 24-hour window then proved that the upstream 504 pattern was not isolated: scheduled
+check-in reads exhausted bounded retries twice and a manuscript read did so once. The 2026-09-14
+sync reliability release therefore adds transient retries only to the atomic `apply_chat_sync` RPC
+and same-payload user-settings upsert. General writes remain one-attempt by default, and the browser
+queue remains the final recovery boundary. Evidence:
+`docs/SYNC_PUSH_TRANSIENT_RECOVERY_GATE_RELEASE_2026-09-13.md` and
+`docs/SYNC_PUSH_IDEMPOTENT_RETRY_RELEASE_2026-09-14.md`.
 
 The service-role, content-free production review shows **7 current accounts**, **6 verified
 accounts**, and **0 comparable production registrations**. This is internally consistent: every

@@ -44,9 +44,12 @@ class FakeDB:
     def __init__(self):
         self.rows = {}
         self.settings = None
+        self.rpc_retry_transient = []
+        self.upsert_retry_transient = []
 
-    async def rpc(self, function_name, payload):
+    async def rpc(self, function_name, payload, *, retry_transient=False):
         assert function_name == 'apply_chat_sync'
+        self.rpc_retry_transient.append(retry_transient)
         chat_id = payload['p_chat_id']
         existing = self.rows.get(chat_id)
         incoming_time = parse_datetime(payload['p_updated_at'])
@@ -68,8 +71,9 @@ class FakeDB:
         }
         return [{'accepted': True, 'resulting_revision': incoming_revision}]
 
-    async def upsert(self, table, payload, *, on_conflict):
+    async def upsert(self, table, payload, *, on_conflict, retry_transient=False):
         assert table == 'user_settings'
+        self.upsert_retry_transient.append(retry_transient)
         self.settings = dict(payload)
         return [payload]
 
@@ -131,6 +135,24 @@ async def test_newer_chat_wins_and_older_chat_is_ignored():
     }]})
     assert second['ignored'] == [chat_id]
     assert db.rows[chat_id]['title'] == 'Newer'
+    assert db.rpc_retry_transient == [True, True]
+
+
+@pytest.mark.asyncio
+async def test_sync_settings_use_the_proven_idempotent_transient_retry_path():
+    db = FakeDB()
+
+    result = await push_sync(db, 'user-1', {
+        'settings': {
+            'assistant_name': 'Crump',
+            'work_mode': True,
+        },
+    })
+
+    assert result == {'accepted': [], 'ignored': []}
+    assert db.settings['assistant_name'] == 'Crump'
+    assert db.settings['work_mode'] is True
+    assert db.upsert_retry_transient == [True]
 
 
 def test_presence_and_check_in_metadata_survive_sanitization():

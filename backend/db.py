@@ -201,6 +201,7 @@ class SupabaseDB:
         payload: dict[str, Any] | list[dict[str, Any]],
         *,
         on_conflict: str,
+        retry_transient: bool = False,
     ) -> Any:
         return await self.request(
             'POST',
@@ -208,6 +209,7 @@ class SupabaseDB:
             params={'on_conflict': on_conflict},
             payload=payload,
             prefer='resolution=merge-duplicates,return=representation',
+            retry_transient=retry_transient,
         )
 
     async def update(

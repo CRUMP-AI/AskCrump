@@ -160,6 +160,42 @@ async def test_explicitly_idempotent_rpc_retries_with_the_same_payload():
 
 
 @pytest.mark.asyncio
+async def test_explicitly_idempotent_upsert_retries_with_the_same_payload():
+    calls: list[httpx.Request] = []
+    sleeps: list[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if len(calls) == 1:
+            return httpx.Response(504, json={"code": "UPSTREAM_TIMEOUT"})
+        return httpx.Response(200, json=[{"user_id": "user-1"}])
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    payload = {
+        "user_id": "user-1",
+        "assistant_name": "Crump",
+        "updated_at": "2026-09-14T00:05:00+00:00",
+    }
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        database = SupabaseDB(db_settings(), client=client, sleep=fake_sleep)
+        result = await database.upsert(
+            "user_settings",
+            payload,
+            on_conflict="user_id",
+            retry_transient=True,
+        )
+
+    assert result == [{"user_id": "user-1"}]
+    assert len(calls) == 2
+    assert calls[0].content == calls[1].content
+    assert calls[0].headers.get("x-retry-count") is None
+    assert calls[1].headers["x-retry-count"] == "1"
+    assert sleeps == [0.25]
+
+
+@pytest.mark.asyncio
 async def test_non_transient_read_error_is_not_retried():
     calls: list[httpx.Request] = []
 

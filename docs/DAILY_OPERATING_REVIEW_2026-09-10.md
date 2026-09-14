@@ -236,6 +236,16 @@ onboarding. Evidence: `docs/OPTIONAL_PROFILE_GROWTH_METRIC_RELEASE_2026-09-13.md
 
 ## Actions and non-actions
 
+- A 2026-09-14 reliability refresh found repeated upstream database 504s across
+  scheduled reads plus one `/api/sync/push` failure. The existing client queue
+  recovered the exact batch eight seconds later, but the repeated platform signal
+  met the backlog gate for a narrower server-side improvement. Cross-device chat
+  sync and user-settings sync now opt into bounded retries because their atomic
+  compare-and-apply/upsert semantics make identical replay safe; every other write
+  remains single-attempt by default. The full suite passed 1,055/1,055, JavaScript
+  validation passed 54 files, and the browser matrix passed 47/47 including exact
+  queue preservation and replay. Evidence:
+  `docs/SYNC_PUSH_IDEMPOTENT_RETRY_RELEASE_2026-09-14.md`.
 - Closed the remaining vague-action gap across Projects, Files, Manuscripts,
   Video, and Library in commit `f86fad8`. The shared close control now identifies
   the visible destination or named Project, Files refresh and Video reference are

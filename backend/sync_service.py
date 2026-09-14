@@ -321,18 +321,24 @@ async def push_sync(db: SupabaseDB, user_id: str, payload: dict[str, Any]) -> di
         })
 
     # The database function performs compare-and-apply atomically, preventing two
-    # devices from racing between a SELECT and a later UPSERT.
+    # devices from racing between a SELECT and a later UPSERT. Replaying the same
+    # payload after a transient gateway failure is safe: an already-applied
+    # revision is returned as ignored instead of duplicating the conversation.
     for chat in normalized:
-        result = await db.rpc('apply_chat_sync', {
-            'p_user_id': user_id,
-            'p_chat_id': chat['chat_id'],
-            'p_title': chat['title'],
-            'p_messages': chat['messages'],
-            'p_created_at': chat['created_at'],
-            'p_updated_at': chat['updated_at'],
-            'p_deleted_at': chat['deleted_at'],
-            'p_revision': chat['revision'],
-        })
+        result = await db.rpc(
+            'apply_chat_sync',
+            {
+                'p_user_id': user_id,
+                'p_chat_id': chat['chat_id'],
+                'p_title': chat['title'],
+                'p_messages': chat['messages'],
+                'p_created_at': chat['created_at'],
+                'p_updated_at': chat['updated_at'],
+                'p_deleted_at': chat['deleted_at'],
+                'p_revision': chat['revision'],
+            },
+            retry_transient=True,
+        )
         row = result[0] if isinstance(result, list) and result else (result or {})
         if row.get('accepted'):
             accepted.append(chat['chat_id'])
@@ -342,6 +348,11 @@ async def push_sync(db: SupabaseDB, user_id: str, payload: dict[str, Any]) -> di
     settings = sanitize_settings(payload.get('settings'))
     if settings:
         settings.update({'user_id': user_id, 'updated_at': iso_now()})
-        await db.upsert('user_settings', settings, on_conflict='user_id')
+        await db.upsert(
+            'user_settings',
+            settings,
+            on_conflict='user_id',
+            retry_transient=True,
+        )
 
     return {'accepted': accepted, 'ignored': ignored}
