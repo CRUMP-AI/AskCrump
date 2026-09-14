@@ -1022,6 +1022,20 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
+The 2026-09-14 acquisition review found a historical social handoff signal without a current
+failure denominator. In the production-only 30-day client view, 22 Facebook-referred visitors
+reached `SignupIntent`, while none appeared among the four `SignupStarted` visitors. That window
+crosses superseded account-entry releases; the current seven-day referrer view has no fresh
+Facebook cohort, and the authoritative server report contains one comparable `clevercrump` account.
+Do not redesign registration or call this a conversion rate. The missing release boundary is now
+closed in source: the real public account-entry verifier reproduces a 390-by-844 Facebook embedded
+mobile browser, opens the exact allowlisted Projects campaign handoff, and requires one correctly
+attributed `SignupIntent` → `SignupStarted` → `SignupCredentialsReady` sequence with no browser
+error and no account submission. The complete **1,060/1,060** backend suite, **54/54** JavaScript
+validation, and **47/47** browser matrix pass. Observe a current-release Facebook signup-intent
+cohort before changing the product. Evidence:
+`docs/FACEBOOK_EMBEDDED_SIGNUP_HANDOFF_GATE_2026-09-14.md`.
+
 The 2026-09-14 04:49 UTC protected refresh adds one legitimate completed chat job and one
 same-day workspace return to the first comparable cohort. The same single account now has four
 completed chat jobs with zero failure and two workspace opens, but the later open occurred before

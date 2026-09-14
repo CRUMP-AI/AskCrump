@@ -79,3 +79,19 @@ def test_returning_signup_gate_resolves_to_registration_after_definitive_logout(
     signed_out = bootstrap[bootstrap.index("if (!session.authenticated || !session.data?.user)") :]
     assert "if (signupRequested)" in signed_out
     assert signed_out.index("showAuth('register')") < signed_out.index("trackSignupIntent('deep-link')")
+
+
+def test_public_entry_browser_gate_covers_facebook_embedded_mobile_signup_start():
+    verifier = (ROOT / "scripts" / "verify-public-account-entry-buttons.cjs").read_text(encoding="utf-8")
+
+    assert "FBAN/FB4A" in verifier
+    assert "isMobile: true" in verifier
+    assert "hasTouch: true" in verifier
+    assert "referer: 'https://m.facebook.com/'" in verifier
+    assert "campaign=real-product-continuity" in verifier
+    assert "creative=continuity-feed" in verifier
+    assert "intent=projects" in verifier
+    for milestone in ("SignupIntent", "SignupStarted", "SignupCredentialsReady"):
+        assert f"'{milestone}'" in verifier
+    assert "social-proof@example.test" in verifier
+    assert "Facebook mobile handoff does not show registration" in verifier

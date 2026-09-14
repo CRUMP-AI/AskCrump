@@ -97,7 +97,68 @@ function pageErrors(page) {
     const bodyWidth = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     assert(bodyWidth <= 1, `Video registration overflows the phone viewport by ${bodyWidth}px`);
     assert(errors.length === 0, `browser errors: ${errors.join(' | ')}`);
-    console.log('Public account-entry button proof passed: five creation surfaces preserve their destination, the homepage Video action opens the exact Video + Professional handoff, and all five auth navigation actions work on phone width.');
+
+    const socialContext = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      isMobile: true,
+      hasTouch: true,
+      userAgent: 'Mozilla/5.0 (Linux; Android 15; Mobile) AppleWebKit/537.36 Chrome/140.0 Mobile Safari/537.36 [FBAN/FB4A;FBAV/500.0.0.0.0;]',
+    });
+    await socialContext.addInitScript(() => {
+      window.__socialFunnelEvents = [];
+      window.va = (command, payload) => {
+        if (command === 'event') window.__socialFunnelEvents.push(payload);
+      };
+    });
+    await socialContext.route('**/_vercel/**', route => route.fulfill({ status: 204, body: '' }));
+    await socialContext.route('**/api/auth/check-session*', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: false }),
+    }));
+    const socialPage = await socialContext.newPage();
+    const socialErrors = pageErrors(socialPage);
+    const socialUrl = `${baseUrl}/app.html?signup=1&acquisition=facebook&source=organic-social&campaign=real-product-continuity&creative=continuity-feed&intent=projects`;
+    await socialPage.goto(socialUrl, {
+      waitUntil: 'networkidle',
+      referer: 'https://m.facebook.com/',
+    });
+
+    assert(await socialPage.locator('#registerForm').isVisible(), 'Facebook mobile handoff does not show registration');
+    assert(
+      await socialPage.locator('#registrationTitle').textContent() === 'Open your private Project workspace.',
+      'Facebook mobile handoff loses the promised Projects outcome',
+    );
+    assert(
+      await socialPage.locator('#registerEmail').evaluate(node => node === document.activeElement),
+      'Facebook mobile handoff does not focus the email field',
+    );
+    assert(
+      await socialPage.evaluate(() => document.referrer === 'https://m.facebook.com/'),
+      'Facebook mobile handoff does not preserve the browser referrer',
+    );
+
+    await socialPage.locator('#registerEmail').fill('social-proof@example.test');
+    await socialPage.locator('#registerPassword').fill('SocialProof12345');
+    const socialEvents = await socialPage.evaluate(() => window.__socialFunnelEvents);
+    for (const name of ['SignupIntent', 'SignupStarted', 'SignupCredentialsReady']) {
+      const matches = socialEvents.filter(event => event?.name === name);
+      assert(matches.length === 1, `Facebook mobile handoff recorded ${matches.length} ${name} events`);
+      const data = matches[0].data || {};
+      assert(data.acquisition === 'facebook', `${name} loses Facebook acquisition`);
+      assert(data.source === 'organic-social', `${name} loses organic-social placement`);
+      assert(data.campaign === 'real-product-continuity', `${name} loses campaign`);
+      assert(data.creative === 'continuity-feed', `${name} loses creative`);
+      assert(data.intent === 'projects', `${name} loses Projects intent`);
+    }
+    assert(
+      socialEvents.find(event => event?.name === 'SignupIntent')?.data?.location === 'deep-link',
+      'Facebook mobile handoff does not retain the deep-link signup location',
+    );
+    assert(socialErrors.length === 0, `Facebook mobile browser errors: ${socialErrors.join(' | ')}`);
+    await socialContext.close();
+
+    console.log('Public account-entry button proof passed: five creation surfaces preserve their destination, the homepage Video action opens the exact Video + Professional handoff, all five auth navigation actions work on phone width, and a Facebook embedded-mobile handoff reaches Projects registration with one privacy-safe signup milestone sequence.');
   } finally {
     await browser.close();
   }
