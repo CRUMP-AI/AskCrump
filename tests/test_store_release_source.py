@@ -108,10 +108,10 @@ def test_android_cloud_verification_builds_a_bundle_without_signing_or_upload():
         'scripts/verify-native-privacy.mjs',
     ):
         assert source in workflow
-    assert 'actions/setup-java@v5' in workflow
+    assert 'actions/setup-java@v6' in workflow
     assert 'java-version: "21"' in workflow
     assert 'npm run store:prepare:android' in workflow
-    assert workflow.index('npm run store:prepare:android') < workflow.index('uses: actions/setup-java@v5')
+    assert workflow.index('npm run store:prepare:android') < workflow.index('uses: actions/setup-java@v6')
     assert 'npm run store:signing:check' in workflow
     assert 'store:signing:check:android' not in workflow
     assert './gradlew --no-daemon bundleRelease' in workflow
