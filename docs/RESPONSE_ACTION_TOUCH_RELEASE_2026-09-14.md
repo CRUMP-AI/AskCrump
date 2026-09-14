@@ -55,8 +55,22 @@ Local verification passed:
 - JavaScript validation: **54/54**; and
 - Ruff and diff integrity.
 
+Commit `7ec8fc5` passed GitHub CI `34866386480`, Android store-bundle verification
+`34866386579`, and iOS source verification `34866386419`. Production deployment
+`dpl_8SnBtnTo5aKfAQvGqgzTdkwYohRL` reached Ready on all six aliases. The canonical stylesheet is
+byte-for-byte identical to the committed 82,294-byte file at SHA-256
+`8dd5ea34c049e4bbd8ea92f9373eb415a605c413cc97800e41615c5cc682a2f7`; both the live app and
+service worker reference `5.9.76-response-touch-1`, and the live worker identifies cache `r241`.
+
+A signed-in production reload exposed that exact stylesheet and rendered the existing response
+actions with their accessible names and enabled states; the browser console/log view was empty. The
+initial exact-deployment window contained 23 HTTP 200 responses, no grouped runtime error, and no
+warning, error, or fatal log. The production browser's 727-pixel desktop-pointer panel correctly
+retained compact desktop sizing; the deterministic 390-pixel/coarse-pointer fixture supplies the
+phone measurement without changing a real account or publishing test-only fixture routes.
+
 ## Outcome gate
 
-Verify the exact production stylesheet and phone measurements after deployment. Then observe real
-feedback and Project-save intent across the remaining consented cohort. Do not claim improved
-activation, durable value, or retention from control delivery alone.
+The production asset, PWA delivery, signed-in rendering, and phone measurement gates are complete.
+Observe real feedback and Project-save intent across the remaining consented cohort. Do not claim
+improved activation, durable value, or retention from control delivery alone.
