@@ -27,6 +27,11 @@ so Ask Crump will not do that.
 After the rejection, the package manifest and npm lock were restored to the
 reviewed 8.4.2 set. The working tree again produced no package diff.
 
+Dependabot version updates now group Core, CLI, Android, and iOS into one
+`capacitor-release-toolchain` proposal. Security updates retain their normal
+urgent path. This prevents routine automation from presenting another partial
+native-stack update as independently releasable.
+
 ## Re-entry gate
 
 Reconsider the matched Capacitor upgrade only when an official stable release

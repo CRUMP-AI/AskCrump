@@ -50,6 +50,21 @@ def test_reproducible_node22_lockfile_is_committed_and_aligned():
     assert root['devDependencies'] == package['devDependencies']
 
 
+def test_dependabot_keeps_capacitor_release_packages_in_one_version_update():
+    dependabot = read('.github/dependabot.yml')
+    group_start = dependabot.index('      capacitor-release-toolchain:')
+    group = dependabot[group_start:]
+
+    assert '        applies-to: version-updates' in group
+    for package_name in (
+        '@capacitor/core',
+        '@capacitor/cli',
+        '@capacitor/android',
+        '@capacitor/ios',
+    ):
+        assert f'          - "{package_name}"' in group
+
+
 def test_ios_cloud_verification_cannot_sign_or_upload():
     workflow = read('.github/workflows/ios-store-verify.yml')
 
