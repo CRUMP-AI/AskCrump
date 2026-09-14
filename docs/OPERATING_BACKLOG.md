@@ -11,6 +11,16 @@ retention, and referral behavior. No acquisition spend should scale on impressio
 Every item below needs four things before it is called shipped: an accountable product
 outcome, privacy and safety constraints, automated coverage, and production evidence.
 
+The 2026-09-14 19:55 UTC protected refresh remains one comparable external production account
+through activation, with one ordinary Plan-center view but no durable value, explicit outcome,
+Project, file, artifact, checkout, payer, or recognized revenue. The new Project-save-offer report
+has a clean `2026-09-14 18:34:14+00` boundary and zero offer, intent, completion, or resume; this
+means the new action has not yet been observed, not that a shown action failed. Lifecycle remains one
+eligible/shown `continuity-assist` card with no action or target completion. Artifact/outcome reports
+remain empty, and D1 remains correctly ineligible until **2026-09-15 00:00:00 UTC**. The latest
+production hour contained 73 HTTP 200 runtime responses, no severe log, no grouped runtime error,
+and no unresolved Vercel feedback. Preserve the current experience through the D1 boundary.
+
 The shipped 2026-09-14 brand-delivery release replaces only the application shell's two large
 PNG startup images with lossless, pixel-identical WebP derivatives. It removes 148,504 source bytes
 (29.9%) while retaining the PNG masters and every layout, label, and destination. Full backend

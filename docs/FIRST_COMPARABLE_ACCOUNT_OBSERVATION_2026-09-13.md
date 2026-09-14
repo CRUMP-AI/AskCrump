@@ -218,3 +218,29 @@ were 34 pixels tall with 10-pixel labels. The scoped response-touch release rais
 the existing 44-pixel phone standard while leaving Project, feedback, and sharing behavior intact.
 Treat its delivery as usability evidence only; real feedback/save intent from additional users is
 still required. Evidence: `docs/RESPONSE_ACTION_TOUCH_RELEASE_2026-09-14.md`.
+
+## Post-button-release protected refresh — 2026-09-14 19:55 UTC
+
+The service-role-only production aggregates still contain exactly one comparable September account
+through account creation, event coverage, verification, workspace entry, starter intent, and
+activation. Its completed 24-hour value window still contains zero useful/not-yet outcome,
+Project, Project-file link, ready file, artifact journey, media job, checkout, payer, or recognized
+revenue. The ordinary Plan center has been viewed once with no subscription or credit checkout.
+
+The Project-continuity report now exposes the exact `2026-09-14 18:34:14+00` offer-measurement
+boundary. It contains zero result-level Project-save offers, zero later save intents, zero save
+completions, and zero resumes. This is a clean post-release baseline, not evidence that a shown offer
+failed: no measured account has seen the new offer yet. The lifecycle report is likewise unchanged
+at one eligible/shown `continuity-assist` prompt, no action or target completion, and the expected
+active-work and session-collision suppressions.
+
+Artifact and outcome-issue reports remain empty. The dormant Project-limit experiment has zero
+eligible exposure in both variants. The protected demo-readiness function remains seven false
+booleans because the fixed sanitized identity has not been provisioned; no credential, account, or
+synthetic production event was created for this review.
+
+Production health remained clean during the refresh: the latest hour contained 73 HTTP 200 runtime
+responses, no warning/error/fatal log, no grouped runtime error, and no unresolved Vercel feedback
+thread. Preserve the current funnel. The first valid D1 denominator still opens at
+**2026-09-15 00:00:00 UTC**; refresh after that boundary before interpreting return behavior or
+changing the customer experience.
