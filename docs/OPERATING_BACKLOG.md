@@ -1060,6 +1060,23 @@ homepage, workspace, health, and session probes returned 200 and the post-releas
 runtime-error view was empty. Preserve the toolchain and continue to hold funnel
 changes until the same 15:34 UTC cohort boundary.
 
+The 2026-09-14 04:41 UTC button-integrity review exercised the signed-in production
+workspace through Chats and conversation actions; Projects and Files; image and
+PowerPoint previews above Files; Documents, Presentations, Images, Manuscripts, and
+Video creation routes; Library; all five You settings sections; and Intelligence.
+Every reviewed route opened the intended foreground surface without creating work,
+spending credits, changing account data, or invoking a provider. Commit `cea424f`
+replaces the browser gate's stale Playwright-version literal with an exact semantic
+pin plus package-lock parity checks, so a future toolchain update cannot fail only
+because a duplicated test string was forgotten or run with a different browser
+package than the committed lock. The complete **1,059/1,059** backend suite, **54/54**
+JavaScript validation, and **47/47** browser-control matrix passed locally; GitHub CI
+`34806676892` passed; deployment `dpl_BX2MGwCUMZBUdRkyStobNCcYQfWF` reached `READY`;
+the production workspace returned 200; and the post-release runtime-error view was
+empty. Preserve this control boundary. Destructive confirmations, purchases,
+provider-backed generation, native permissions, and signed physical-device actions
+retain their separate legitimate-user gates.
+
 The 2026-09-14 00:59 UTC protected refresh still contains the same single comparable production
 account through verification, workspace entry, starter intent, and activation. The account has no
 explicit outcome rating, durable-value signal, Project-save intent/completion, artifact journey,
