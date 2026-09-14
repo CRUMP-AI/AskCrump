@@ -962,6 +962,7 @@ const productStudioLazyLoadVersion = `${releaseVersion}-product-studio-lazy-load
 const workspaceRuntimeRecoveryVersion = `${releaseVersion}-workspace-runtime-recovery-1`;
 const authControllerVersion = workspaceRuntimeRecoveryVersion;
 const continuityHandoffVersion = `${releaseVersion}-continuity-handoff-1`;
+const recentWorkRecoveryVersion = `${releaseVersion}-recent-work-recovery-1`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
 const accountDeletionBillingVersion = `${releaseVersion}-account-deletion-billing-1`;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
@@ -991,7 +992,6 @@ const codeLazyLoadVersion = `${releaseVersion}-code-lazy-load-1`;
 const precisionLazyLoadVersion = `${releaseVersion}-precision-lazy-load-1`;
 const libraryLazyLoadVersion = `${releaseVersion}-library-lazy-load-1`;
 const conversationActionLabelsVersion = `${releaseVersion}-conversation-action-labels-2`;
-const controlFocusIntegrityVersion = `${releaseVersion}-control-focus-integrity-1`;
 const lifecycleIdleSendVersion = `${releaseVersion}-lifecycle-idle-send-1`;
 const settingsInviteVersion = `${releaseVersion}-settings-invite-1`;
 const precisionEditEntryVersion = `${releaseVersion}-precision-edit-entry-1`;
@@ -1194,7 +1194,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${continuityHandoffVersion}`,
+  `/runtime-body-v1.js?v=${recentWorkRecoveryVersion}`,
   `/auth-controller.js?v=${authControllerVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
@@ -1250,7 +1250,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/chat-sync.js?v=${settingsSyncVersion}`) ||
     !runtime.includes(`/product-analytics.js?v=${outcomeIssueCategoriesVersion}`) ||
     !runtime.includes(`/app.js?v=${settingsSaveIsolationVersion}`) ||
-    !runtime.includes(`/crump-v1-body.js?v=${controlFocusIntegrityVersion}`) ||
+    !runtime.includes(`/crump-v1-body.js?v=${recentWorkRecoveryVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${responseTouchVersion}`) ||
     !runtime.includes(`/crump-5.0.css?v=${precisionEditEntryVersion}`) ||
     !runtime.includes(`/crump-5.0.js?v=${precisionLazyLoadVersion}`) ||
@@ -1421,9 +1421,9 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r241') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r242') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${continuityHandoffVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${recentWorkRecoveryVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${continuityHandoffVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
@@ -1486,7 +1486,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r241') ||
     !serviceWorker.includes("url.pathname === '/install-prompt.css'") ||
     !serviceWorker.includes("url.pathname === '/sync-manager.js'") ||
     !serviceWorker.includes("url.pathname === '/auth-controller.js'") ||
-    !serviceWorker.includes(`/crump-v1-body.js?v=${controlFocusIntegrityVersion}`) ||
+    !serviceWorker.includes(`/crump-v1-body.js?v=${recentWorkRecoveryVersion}`) ||
     !serviceWorker.includes('/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1') ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.2.5.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.2.5.css'") ||

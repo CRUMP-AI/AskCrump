@@ -292,12 +292,32 @@
     button.dataset.v1Wired = 'true';
     button.addEventListener('click', () => {
       const chatId = String(button.dataset.chatId || '');
-      if (!chatId || typeof window.loadChat !== 'function') return;
+      if (!chatId) return;
+      let opened = false;
+      if (typeof window.loadChat === 'function') {
+        window.loadChat(chatId);
+        opened = String(window.currentChatId || '') === chatId;
+      } else {
+        // A long-lived PWA tab can briefly hold a newer launchpad over an older
+        // conversation runtime. Reuse the row's already-wired navigation rather
+        // than leaving Continue as a silent no-op until the user reloads.
+        const row = $$('.chat-item[data-chat-id]')
+          .find(item => String(item.dataset.chatId || '') === chatId);
+        if (row) {
+          row.click();
+          opened = String(window.currentChatId || '') === chatId
+            || String($('.chat-item.active')?.dataset.chatId || '') === chatId;
+        }
+      }
+      if (!opened) {
+        window.showToast?.('That conversation is still syncing. Try Continue again in a moment.', 'warning');
+        syncRecentWork();
+        return;
+      }
       void window.CrumpAnalytics?.track?.('RecentWorkResumed', {
         eventKey: 'recent-work-resumed',
         source: 'launchpad',
       });
-      window.loadChat(chatId);
     });
   }
 

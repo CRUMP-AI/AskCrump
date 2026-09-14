@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Recent work continuation fixture</title>
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <div id="appContainer" style="display:flex">
+    <section id="v1Launchpad">
+      <div id="v1RecentWork">
+        <button id="v1RecentWorkButton" type="button">
+          <strong id="v1RecentWorkName">Continue recent work</strong>
+          <small id="v1RecentWorkHint">Open your most recent active conversation.</small>
+        </button>
+      </div>
+    </section>
+    <div id="chatContainer"></div>
+    <div id="chatsList">
+      <div class="chat-item" data-chat-id="older-chat">Older planning note</div>
+      <div class="chat-item" data-chat-id="newer-chat">Newest planning note</div>
+    </div>
+    <div class="input-container"><textarea id="userInput"></textarea></div>
+  </div>
+  <script>
+    window.currentChatId = 'current-chat';
+    window.chats = [
+      {id: 'older-chat', title: 'Older planning note', updatedAt: '2026-09-12T12:00:00Z', messages: [{role: 'user', content: 'older'}]},
+      {id: 'newer-chat', title: 'Newest planning note', updatedAt: '2026-09-14T12:00:00Z', messages: [{role: 'user', content: 'newer'}]},
+      {id: 'current-chat', title: 'Current note', updatedAt: '2026-09-14T13:00:00Z', messages: [{role: 'user', content: 'current'}]},
+    ];
+    window.__openedChat = '';
+    window.__events = [];
+    window.__toast = null;
+    document.querySelectorAll('.chat-item').forEach(row => {
+      row.addEventListener('click', () => {
+        window.__openedChat = row.dataset.chatId;
+        window.currentChatId = row.dataset.chatId;
+        document.querySelectorAll('.chat-item').forEach(item => item.classList.remove('active'));
+        row.classList.add('active');
+      });
+    });
+    window.CrumpAnalytics = {
+      track(name, detail) {
+        window.__events.push({name, detail});
+        return Promise.resolve(true);
+      },
+    };
+    window.showToast = (message, tone) => { window.__toast = {message, tone}; };
+  </script>
+  <script src="/public/crump-v1-body.js"></script>
+</body>
+</html>

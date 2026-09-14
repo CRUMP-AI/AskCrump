@@ -17,7 +17,7 @@ def test_56_polish_layer_is_last_on_web_and_native():
         assert source.index("/crump-4.3.js") < source.index("/crump-4.4.js")
         assert source.index("/crump-product-5.3.1.js") < source.index("/crump-polish-5.6.js")
         assert "/crump-polish-5.6.css" in source
-    assert "ask-crump-new-body-v1-r241" in worker
+    assert "ask-crump-new-body-v1-r242" in worker
     assert "/crump-polish-5.6.css" in worker and "/crump-polish-5.6.js" in worker
     assert "crump-polish-5.6.js" in checker
 
@@ -150,6 +150,9 @@ def test_clean_start_offers_a_private_recent_work_continuation():
     assert "nameNode.textContent = recentName" in tracker
     assert "Continue where you left off." in tracker
     assert "window.loadChat(chatId)" in tracker
+    assert ".chat-item[data-chat-id]" in tracker
+    assert "row.click()" in tracker
+    assert "That conversation is still syncing." in tracker
     assert "'RecentWorkResumed'" in tracker
     assert "eventKey: 'recent-work-resumed'" in tracker
     assert "source: 'launchpad'" in tracker
