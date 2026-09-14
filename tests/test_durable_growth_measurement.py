@@ -107,6 +107,10 @@ def test_retention_denominators_are_anchored_to_effective_activation():
 
     assert sql.count("d.activation_at is not null") >= 2
     assert sql.count("f.activation_at is not null") >= 2
+    assert sql.count(">= (d.activation_at at time zone 'utc')::date + 2") == 1
+    assert sql.count(">= (f.activation_at at time zone 'utc')::date + 2") == 1
+    assert sql.count(">= (d.activation_at at time zone 'utc')::date + 8") == 1
+    assert sql.count(">= (f.activation_at at time zone 'utc')::date + 8") == 1
     assert sql.count("= (d.activation_at at time zone 'utc')::date + 1") == 1
     assert sql.count("= (d.activation_at at time zone 'utc')::date + 7") == 1
     assert sql.count("= (f.activation_at at time zone 'utc')::date + 1") == 1
