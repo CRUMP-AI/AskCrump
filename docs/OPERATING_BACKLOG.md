@@ -30,7 +30,10 @@ content-free; auth, session restoration, schema/RLS, report SQL, entitlements, p
 are unchanged. The corrected hidden-to-visible path emitted exactly one event, browser controls
 passed **48/48**, the complete Python suite passed **1,133/1,133**, and JavaScript passed **54/54**.
 This strengthens future D1/D7 evidence; it does not manufacture a return or turn the historical
-one-account D1 result into a stable rate. Evidence:
+one-account D1 result into a stable rate. Commit `4bbbe23`, CI `34914535635`, Android
+`34914535621`, iOS `34914535614`, and six-alias Ready deployment
+`dpl_HRXpzzQntoTCAuCNBAkyZnCxnupR` are green; the live shell, worker, controller, and API health
+checks passed with no fresh-browser error or initial runtime-error cluster. Evidence:
 `docs/VISIBLE_WORKSPACE_RETURN_MEASUREMENT_RELEASE_2026-09-15.md`.
 
 The standalone weekly growth exporter now shares the combined operator's exact Supabase-origin and
