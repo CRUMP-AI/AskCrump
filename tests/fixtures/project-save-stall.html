@@ -49,12 +49,6 @@
       window.__fixture.toasts.push({message, tone});
       document.getElementById('fixtureStatus').textContent = message;
     };
-    window.CrumpAnalytics = {
-      track: (eventName, values) => {
-        window.__fixture.analytics.push({eventName, values});
-        return Promise.resolve(true);
-      },
-    };
     window.CrumpPresence = {indicator: () => null};
     window.syncChatsToServer = () => Promise.resolve({success: true});
     const nativeSetTimeout = window.setTimeout.bind(window);
@@ -66,6 +60,22 @@
     window.fetch = async (input, options = {}) => {
       const url = new URL(String(input), location.href);
       const method = String(options.method || 'GET').toUpperCase();
+      if (url.pathname === '/api/analytics/events' && method === 'POST') {
+        const body = JSON.parse(String(options.body || '{}'));
+        const {eventName, eventKey, source, plan} = body;
+        window.__fixture.analytics.push({
+          eventName,
+          values: {
+            eventKey,
+            ...(source ? {source} : {}),
+            ...(plan ? {plan} : {}),
+          },
+        });
+        return new Response(JSON.stringify({success: true, recorded: true}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
       if (url.pathname === '/api/projects' && method === 'GET') {
         return new Response(JSON.stringify({
           success: true,
@@ -135,9 +145,10 @@
     };
   </script>
   <script src="/public/ui-functions.js?v=project-save-fixture-6"></script>
-  <script src="/public/crump-product-5.3.js?v=project-save-fixture-4"></script>
   <script>
-    window.addEventListener('load', () => window.renderMessages(window.chats[0].messages));
+    window.renderMessages(window.chats[0].messages);
   </script>
+  <script src="/public/product-analytics.js?v=project-save-runtime-order-fixture-1"></script>
+  <script src="/public/crump-product-5.3.js?v=project-save-runtime-order-fixture-1"></script>
 </body>
 </html>

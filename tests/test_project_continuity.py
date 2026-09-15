@@ -1131,7 +1131,7 @@ async def test_generated_output_project_save_rejects_an_invented_source(monkeypa
     }
 
 
-def test_project_save_timeout_fixture_uses_real_product_code_without_credentials():
+def test_project_save_timeout_fixture_uses_real_runtime_order_without_credentials():
     fixture = (ROOT / "tests" / "fixtures" / "project-save-stall.html").read_text(
         encoding="utf-8"
     )
@@ -1139,11 +1139,20 @@ def test_project_save_timeout_fixture_uses_real_product_code_without_credentials
 
     assert '<link rel="stylesheet" href="/public/conversation.css?v=project-continuity-fixture-1">' in fixture
     assert '<script src="/public/ui-functions.js?v=project-save-fixture-6"></script>' in fixture
-    assert '<script src="/public/crump-product-5.3.js?v=project-save-fixture-4"></script>' in fixture
+    render_index = fixture.index("window.renderMessages(window.chats[0].messages);")
+    analytics_index = fixture.index(
+        '<script src="/public/product-analytics.js?v=project-save-runtime-order-fixture-1"></script>'
+    )
+    project_index = fixture.index(
+        '<script src="/public/crump-product-5.3.js?v=project-save-runtime-order-fixture-1"></script>'
+    )
+    assert render_index < analytics_index < project_index
     assert "fixtureSuccessfulSave" in fixture
     assert "Project save request completed." in fixture
     assert "window.__fixture.savedProject" in fixture
-    assert "window.__fixture.analytics.push({eventName, values})" in fixture
+    assert "url.pathname === '/api/analytics/events'" in fixture
+    assert "window.__fixture.analytics.push({" in fixture
+    assert "eventName," in fixture
     assert "window.__fixture.projectBodies.push" in fixture
     assert 'aria-label="Browser errors"' in fixture
     assert "unhandledrejection" in fixture
