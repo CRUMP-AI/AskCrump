@@ -11,6 +11,16 @@ retention, and referral behavior. No acquisition spend should scale on impressio
 Every item below needs four things before it is called shipped: an accountable product
 outcome, privacy and safety constraints, automated coverage, and production evidence.
 
+The first valid post-boundary D1 read is now complete. At 2026-09-15 00:00:17–00:00:22 UTC,
+both independent service-role reports agreed that the one eligible comparable external account
+returned on D1: **1/1 (100.0%)**. The pre-boundary read at 23:43 UTC correctly remained `0/0`, so
+the completed-calendar-day eligibility rule opened as designed. This is encouraging one-account
+directional evidence, not a stable retention rate or a paid-acquisition gate: the same account still
+has zero useful-feedback, decision-grade value, durable work, Project, artifact, payer, or finance
+milestone, and D7 remains ineligible. Production and report-access checks were clean. Preserve the
+return experience and make legitimate result-to-Project continuity the next evidence priority.
+Evidence: `docs/FIRST_VALID_D1_RETENTION_OBSERVATION_2026-09-15.md`.
+
 The standalone weekly growth exporter now shares the combined operator's exact Supabase-origin and
 pre-network reporting-window guards. Commits `02d0666` and `3ba4de6` validate the expected HTTPS
 project origin, ordered half-open window, UTC offsets, and fixed environment before constructing a
@@ -1221,9 +1231,16 @@ returned-above-eligible rows, booleans/strings, negative counts, and mismatched 
 longer become plausible-looking percentages. Focused evidence coverage passed **41/41**, the complete
 Python suite **1,120/1,120**, JavaScript **54/54**, Ruff, whitespace, and GitHub CI `34905067263`.
 Deployment `dpl_6RgbNiZsJdHccRrU1L4WeEjLsTyj` is Ready on all six aliases with no initial 5xx or
-runtime-error group. This does not create retention; run the first protected post-boundary D1 read
-after **2026-09-15 00:00 UTC**. Evidence:
-`docs/RETENTION_EVIDENCE_INTEGRITY_RELEASE_2026-09-14.md`.
+runtime-error group. This does not create retention. The required first protected post-boundary
+read completed at **2026-09-15 00:00:17–00:00:22 UTC** and both reports agreed on D1
+eligible/returned **1/1**. The one-account result is directional only because decision-grade value,
+durable work, Projects, artifacts, payers, and finance evidence remain absent. Evidence:
+`docs/RETENTION_EVIDENCE_INTEGRITY_RELEASE_2026-09-14.md` and
+`docs/FIRST_VALID_D1_RETENTION_OBSERVATION_2026-09-15.md`.
+
+Preserve the current return experience; observe legitimate result-to-Project offer → intent →
+completion → later resume behavior before another continuity change, and keep D7, payer, finance,
+and paid-acquisition gates closed.
 
 The 2026-09-14 acquisition review found a historical social handoff signal without a current
 failure denominator. In the production-only 30-day client view, 22 Facebook-referred visitors
