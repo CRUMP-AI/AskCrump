@@ -984,8 +984,8 @@ any acquisition spend scales.
 Google is processing the property's first performance and indexing reports. Production 5.9.34
 introduced four high-intent capability pages at clean canonical URLs and linked them from the
 homepage and from each other. Production 5.9.76 adds the canonical Projects workspace page and
-reciprocal discovery links; three evidence-led workflow guides bring the live Ask Crump sitemap to
-ten public URLs. The protected growth and
+reciprocal discovery links; five evidence-led workflow guides bring the live Ask Crump sitemap to
+12 public URLs. The protected growth and
 artifact reports still show zero comparable external activity, so acquisition is the current
 evidence-backed bottleneck. A read-only Search Console inspection on 2026-08-27 showed that the
 homepage is indexed, while the presentation, document, résumé, and video pages are all unknown to

@@ -1,5 +1,7 @@
 # Ask Crump Search Console release gate — 2026-08-27
 
+Last revalidated: 2026-09-15
+
 ## Verified external state
 
 - The `sc-domain:askcrump.com` property is verified and accessible in Google Search Console.
@@ -15,15 +17,28 @@
   Search Console reports that the URL is available to Google and the page can be indexed. No
   indexing request was made.
 - Search Console reports `No issues detected` for both Manual Actions and Security Issues.
-- `https://www.askcrump.com/sitemap.xml` returns HTTP 200 as XML and contains the six intended
-  canonical URLs: home, AI presentation maker, AI document generator, AI résumé builder, AI video
-  generator, and legal/privacy.
+- `https://www.askcrump.com/sitemap.xml` returns HTTP 200 as XML and contains the 12 intended
+  canonical URLs: home; Projects workspace; AI presentation maker, document generator, résumé
+  builder, and video generator; five evidence-led workflow guides; and legal/privacy.
 - `robots.txt` returns HTTP 200 and points to the canonical sitemap.
 - Direct production checks on 2026-08-28 confirm that `robots.txt`, `sitemap.xml`, the homepage,
   and all four use-case pages return HTTP 200 with their expected content types. No `X-Robots-Tag`
   response blocks indexing. The public HTML declares `index,follow`, unique canonical URLs, unique
   titles/descriptions, social metadata, structured data, and crawlable internal links. The app
   workspace remains intentionally excluded from indexing.
+
+## Current public-discovery refresh — 2026-09-15
+
+- The credential-free production verifier passed 67 unique first-party anchor destinations, all
+  12 canonical sitemap pages, 69 HTTP 200 destinations, two exact reviewed compatibility redirects,
+  and nine social-preview images.
+- Every sitemap page passed title, description, H1, indexability, self-canonical, structured-data,
+  and responsive-viewport checks.
+- Four current public searches covering the domain, `/guides`, the Project-memory guide, and the
+  editable-PowerPoint guide returned no Ask Crump result. This is a bounded discovery observation,
+  not proof that Google has rejected the pages or that no query can surface them.
+- No Search Console action, sitemap submission, indexing request, publication, account, or
+  customer-data mutation occurred during this refresh.
 
 ## HTTPS reconciliation
 
