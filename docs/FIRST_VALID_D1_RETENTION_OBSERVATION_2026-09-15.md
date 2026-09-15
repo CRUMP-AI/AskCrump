@@ -62,5 +62,16 @@ then distinguish offer visibility, save intent, completion, and later Project re
 recruiting the remaining consented end-to-end observations and keep D7, payer, and finance gates
 separate.
 
+## Recorded evidence verification
+
+- Evidence commit: `e8d58377841ebcedf07b8d209817eded2da823b1` on `main`.
+- Complete Python suite: **1,132/1,132** passed; diff integrity passed.
+- GitHub CI: run `34911600608` completed successfully.
+- Vercel production deployment: `dpl_4BDsnP7ghPHw1PMWTiCBFUA4DTrU` reached Ready for the exact
+  evidence commit.
+- Canonical homepage, workspace, and health routes returned HTTP 200.
+- The exact deployment's initial log window contained three HTTP 200 responses, no 4xx or 5xx
+  route, and no warning/error/fatal entry.
+
 No product, database, account, campaign, billing, provider, or customer state changed during this
 read-only observation.
