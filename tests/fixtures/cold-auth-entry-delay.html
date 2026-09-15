@@ -84,6 +84,17 @@
   <output id="fixtureCheckoutRequests">0</output>
   <script>
     const fixtureParams = new URLSearchParams(location.search);
+    let fixtureVisibilityState = fixtureParams.get('visibility') || document.visibilityState;
+    if (fixtureParams.has('visibility')) {
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        get: () => fixtureVisibilityState,
+      });
+    }
+    window.__fixtureSetVisibility = value => {
+      fixtureVisibilityState = value;
+      document.dispatchEvent(new Event('visibilitychange'));
+    };
     const fixtureSessionDelay = Number(fixtureParams.get('sessionDelay') || 3000);
     const fixturePlanConsumerDelay = Number(fixtureParams.get('planConsumerDelay') || -1);
     const fixtureBillingDelay = Number(fixtureParams.get('billingDelay') || 0);
@@ -110,6 +121,7 @@
       planConsumed: 0,
       checkoutRequests: 0,
       planConsumerLoaded: false,
+      analyticsEvents: [],
       browserErrors: [],
     };
     if (new URLSearchParams(location.search).get('stale') === '1') {
@@ -137,7 +149,8 @@
     };
     window.CrumpAPI = {ready: Promise.resolve()};
     window.CrumpAnalytics = {
-      track(name) {
+      track(name, detail = {}) {
+        window.__fixture.analyticsEvents.push({name, detail});
         if (name === 'PlanIntentReached') {
           window.__fixture.planAnalytics += 1;
           document.getElementById('fixturePlanAnalytics').textContent = String(window.__fixture.planAnalytics);
@@ -256,6 +269,6 @@
       window.__fixture.browserErrors.push(String(event.reason?.message || event.reason || 'unhandled rejection'));
     });
   </script>
-  <script src="/public/auth-controller.js?v=fixture-cold-auth-delay-5"></script>
+  <script src="/public/auth-controller.js?v=fixture-cold-auth-delay-6"></script>
 </body>
 </html>

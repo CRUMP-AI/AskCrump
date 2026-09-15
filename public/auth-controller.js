@@ -13,6 +13,8 @@
   let workspaceRuntimeGateTimer = 0;
   let workspaceRuntimeGateWaiting = false;
   let workspaceRuntimeGateRevealFrame = 0;
+  let workspaceOpenVisibilityHandler = null;
+  let workspaceOpenRecordedFor = '';
   let reauthenticationPreparation = Promise.resolve();
   const TERMS_VERSION = '2026-08-01';
   const PLAN_INTENT_KEY = 'askcrump.pending-plan-intent';
@@ -658,6 +660,30 @@
     await runtime.load();
   }
 
+  function recordWorkspaceOpenedWhenVisible() {
+    if (!activeUser) return;
+    const record = () => {
+      if (!activeUser || document.visibilityState === 'hidden') return;
+      const day = new Date().toISOString().slice(0, 10);
+      const recordedFor = `${activeUser.id || 'active'}:${day}`;
+      if (workspaceOpenRecordedFor === recordedFor) return;
+      workspaceOpenRecordedFor = recordedFor;
+      void window.CrumpAnalytics?.track('WorkspaceOpened', {eventKey: `workspace-open:${day}`});
+    };
+    if (document.visibilityState !== 'hidden') {
+      record();
+      return;
+    }
+    if (workspaceOpenVisibilityHandler) return;
+    workspaceOpenVisibilityHandler = () => {
+      if (document.visibilityState === 'hidden') return;
+      document.removeEventListener('visibilitychange', workspaceOpenVisibilityHandler);
+      workspaceOpenVisibilityHandler = null;
+      record();
+    };
+    document.addEventListener('visibilitychange', workspaceOpenVisibilityHandler);
+  }
+
   function startApp() {
     hide('authContainer');
     hide('tosModal');
@@ -673,10 +699,7 @@
       window.dispatchEvent(new Event('crump:authenticated-ready'));
     }
     scheduleWorkspaceRuntimeGateRelease();
-    if (activeUser) {
-      const day = new Date().toISOString().slice(0, 10);
-      void window.CrumpAnalytics?.track('WorkspaceOpened', {eventKey: `workspace-open:${day}`});
-    }
+    recordWorkspaceOpenedWhenVisible();
     setTimeout(() => window.tutorial?.autoStart?.(), 450);
     dispatchPendingCreationIntent();
     dispatchPendingPlanIntent();

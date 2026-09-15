@@ -1,6 +1,6 @@
 # Ask Crump operating backlog
 
-Last updated: 2026-09-14
+Last updated: 2026-09-15
 
 ## Operating standard
 
@@ -20,6 +20,18 @@ has zero useful-feedback, decision-grade value, durable work, Project, artifact,
 milestone, and D7 remains ineligible. Production and report-access checks were clean. Preserve the
 return experience and make legitimate result-to-Project continuity the next evidence priority.
 Evidence: `docs/FIRST_VALID_D1_RETENTION_OBSERVATION_2026-09-15.md`.
+
+The 2026-09-15 visible-workspace return correction closes a deterministic retention-measurement
+gap: a credential-free authenticated fixture proved that the prior startup path emitted
+`WorkspaceOpened` while the page was hidden. Authenticated startup now waits until the workspace is
+actually visible, removes its temporary listener after that transition, and suppresses repeat
+client emissions for the same account and UTC day. The payload and server daily key remain
+content-free; auth, session restoration, schema/RLS, report SQL, entitlements, pricing, and payments
+are unchanged. The corrected hidden-to-visible path emitted exactly one event, browser controls
+passed **48/48**, the complete Python suite passed **1,133/1,133**, and JavaScript passed **54/54**.
+This strengthens future D1/D7 evidence; it does not manufacture a return or turn the historical
+one-account D1 result into a stable rate. Evidence:
+`docs/VISIBLE_WORKSPACE_RETURN_MEASUREMENT_RELEASE_2026-09-15.md`.
 
 The standalone weekly growth exporter now shares the combined operator's exact Supabase-origin and
 pre-network reporting-window guards. Commits `02d0666` and `3ba4de6` validate the expected HTTPS

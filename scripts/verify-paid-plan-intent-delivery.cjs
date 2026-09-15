@@ -95,6 +95,39 @@ const activeConsumerDelays = consumerDelays.slice(
         }
       }
     }
+
+    const visibilityContext = await browser.newContext({viewport: {width: 390, height: 844}});
+    const visibilityPage = await visibilityContext.newPage();
+    const visibilityErrors = [];
+    visibilityPage.on('console', message => {
+      if (message.type() === 'error') visibilityErrors.push(message.text());
+    });
+    visibilityPage.on('pageerror', error => visibilityErrors.push(error.message));
+    const visibilityUrl = new URL('/tests/fixtures/cold-auth-entry-delay.html', baseUrl);
+    visibilityUrl.searchParams.set('authenticated', '1');
+    visibilityUrl.searchParams.set('signup', '1');
+    visibilityUrl.searchParams.set('sessionDelay', '40');
+    visibilityUrl.searchParams.set('visibility', 'hidden');
+    await visibilityPage.goto(visibilityUrl.toString(), {waitUntil: 'domcontentloaded'});
+    await visibilityPage.waitForFunction(() => window.__fixture?.appStarts === 1);
+
+    const hiddenEvents = await visibilityPage.evaluate(() => window.__fixture.analyticsEvents);
+    assert.equal(documentEventCount(hiddenEvents, 'WorkspaceOpened'), 0);
+
+    await visibilityPage.evaluate(() => window.__fixtureSetVisibility('visible'));
+    await visibilityPage.waitForFunction(() => (
+      window.__fixture.analyticsEvents.filter(event => event.name === 'WorkspaceOpened').length === 1
+    ));
+    await visibilityPage.evaluate(() => window.__fixtureSetVisibility('visible'));
+    await visibilityPage.waitForTimeout(40);
+
+    const visibleEvents = await visibilityPage.evaluate(() => window.__fixture.analyticsEvents);
+    const workspaceEvents = visibleEvents.filter(event => event.name === 'WorkspaceOpened');
+    assert.equal(workspaceEvents.length, 1);
+    assert.match(workspaceEvents[0].detail.eventKey, /^workspace-open:\d{4}-\d{2}-\d{2}$/);
+    assert.deepEqual(visibilityErrors, []);
+    results.push({visibilityGate: 'hidden-to-visible', workspaceEvents: workspaceEvents.length});
+    await visibilityContext.close();
   } finally {
     await browser.close();
   }
@@ -103,3 +136,7 @@ const activeConsumerDelays = consumerDelays.slice(
   console.error(error);
   process.exit(1);
 });
+
+function documentEventCount(events, name) {
+  return events.filter(event => event.name === name).length;
+}

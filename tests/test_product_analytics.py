@@ -1196,6 +1196,27 @@ def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
     assert "application.include_router(analytics.router)" in application
 
 
+def test_workspace_return_waits_for_a_visible_authenticated_workspace():
+    controller = (ROOT / "public" / "auth-controller.js").read_text(encoding="utf-8")
+
+    recorder = controller[
+        controller.index("  function recordWorkspaceOpenedWhenVisible()"):
+        controller.index("  function startApp()")
+    ]
+    starter = controller[
+        controller.index("  function startApp()"):
+        controller.index("  function profileNudgeKey()")
+    ]
+
+    assert "if (!activeUser || document.visibilityState === 'hidden') return;" in recorder
+    assert "if (workspaceOpenRecordedFor === recordedFor) return;" in recorder
+    assert "document.addEventListener('visibilitychange', workspaceOpenVisibilityHandler);" in recorder
+    assert "document.removeEventListener('visibilitychange', workspaceOpenVisibilityHandler);" in recorder
+    assert "window.CrumpAnalytics?.track('WorkspaceOpened'" in recorder
+    assert "recordWorkspaceOpenedWhenVisible();" in starter
+    assert "window.CrumpAnalytics?.track('WorkspaceOpened'" not in starter
+
+
 def test_first_successful_response_records_activation_without_message_content():
     app_js = (ROOT / "public" / "app.js").read_text(encoding="utf-8")
 

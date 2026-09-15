@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r247';
+const CACHE_NAME = 'ask-crump-new-body-v1-r248';
 
 const CORE = [
   '/app',
@@ -57,7 +57,7 @@ const CORE = [
   '/product-analytics.js?v=5.9.76-navigation-discovery-1',
   '/lifecycle-share.js?v=5.9.76-settings-invite-1',
   '/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1',
-  '/auth-controller.js?v=5.9.76-workspace-runtime-recovery-1',
+  '/auth-controller.js?v=5.9.76-visible-workspace-return-1',
   '/crump-4.3.css',
   '/crump-4.3.js?v=5.9.76-composer-actionability-1',
   '/crump-4.4.css',

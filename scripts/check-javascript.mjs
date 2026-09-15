@@ -960,8 +960,8 @@ const settingsSaveIsolationVersion = `${releaseVersion}-settings-save-isolation-
 const outputProjectActionVersion = `${releaseVersion}-output-project-action-1`;
 const studioActionLabelsVersion = `${releaseVersion}-studio-action-labels-1`;
 const productStudioLazyLoadVersion = `${releaseVersion}-product-studio-lazy-load-2`;
-const workspaceRuntimeRecoveryVersion = `${releaseVersion}-workspace-runtime-recovery-1`;
-const authControllerVersion = workspaceRuntimeRecoveryVersion;
+const visibleWorkspaceReturnVersion = `${releaseVersion}-visible-workspace-return-1`;
+const authControllerVersion = visibleWorkspaceReturnVersion;
 const continuityHandoffVersion = `${releaseVersion}-continuity-handoff-1`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
 const accountDeletionBillingVersion = `${releaseVersion}-account-deletion-billing-1`;
@@ -1444,7 +1444,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r247') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r248') ||
     !serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||

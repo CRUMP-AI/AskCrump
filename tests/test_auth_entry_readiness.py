@@ -40,7 +40,7 @@ def test_browser_fixture_reproduces_a_never_settling_sync_without_real_credentia
 def test_delayed_session_fixture_protects_both_cold_auth_entry_paths():
     fixture = (ROOT / "tests" / "fixtures" / "cold-auth-entry-delay.html").read_text(encoding="utf-8")
 
-    assert '<script src="/public/auth-controller.js?v=fixture-cold-auth-delay-5"></script>' in fixture
+    assert '<script src="/public/auth-controller.js?v=fixture-cold-auth-delay-6"></script>' in fixture
     assert "Number(fixtureParams.get('sessionDelay') || 3000)" in fixture
     assert "setTimeout(resolve, fixtureSessionDelay)" in fixture
     assert "sessionSettled: false" in fixture
