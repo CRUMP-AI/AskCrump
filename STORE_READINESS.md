@@ -37,7 +37,7 @@ This frontend rebuild is designed to preserve the existing store-sensitive archi
 - Provide reviewer access / demo credentials where required.
 - Test on representative physical iPhone, iPad, and Android devices.
 - Reconcile the production privacy policy with the actual data collection/retention behavior at launch.
-- Apply `migrations/014_ai_content_reports.sql` before testing AI reports in production, then run Supabase security/performance advisors.
+- Reverify the already-applied `migrations/014_ai_content_reports.sql` boundary against the exact signed candidate, then exercise one legitimate controlled report and its failed-network recovery without using customer content.
 - Follow `docs/STORE_LAUNCH_RUNBOOK.md` for publisher identity, signing, native preparation, testing, and submission order.
 - Review and adapt `docs/STORE_LISTING_COPY.md` against the exact signed release build.
 - Follow `store/screenshots/README.md` and capture real UI from the signed build; do not use mockups

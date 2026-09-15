@@ -1,6 +1,6 @@
 # Ask Crump store-readiness audit — 2026-08-27
 
-Last updated: 2026-09-13
+Last updated: 2026-09-15
 
 ## Outcome
 
@@ -40,7 +40,7 @@ during this audit.
 | Android release identity | Regenerated source uses version 5.9.76 and build/version code 50976. | Verified |
 | Android local security | Generated releases explicitly disable cleartext traffic and local app backup; durable work is restored through Ask Crump's authenticated server sync. | Verified in source |
 | Android assets | Launcher and splash assets exist and the native release verifier accepts the generated set. | Verified in source |
-| AI safety reporting | Every rendered assistant response exposes an in-app Report action backed by the private, rate-limited moderation queue, satisfying Google's in-app AI-content reporting requirement in source. | Verified in source and automated tests |
+| AI safety reporting | Every rendered assistant response exposes an in-app Report action backed by the private, rate-limited moderation queue. A 2026-09-15 production inspection verified that `public.ai_content_reports` exists with RLS enabled, no anonymous or ordinary authenticated read/write privilege, service-role CRUD access, and no public policies. A credential-free POST to the live report route returned the required 401 and inserted no report. | Verified in source, automated tests, and production access boundary; legitimate signed-device submission/retry remains pending |
 | Account deletion | In-app permanent deletion and `https://www.askcrump.com/delete-account` exist; the final signed-build deletion journey still needs a physical-device test. | Source ready; device test pending |
 | Native billing identity | `backend/revenuecat_catalog.json` is the shared non-secret entitlement/product source for native builds and server reconciliation. Exact matching fails closed for unknown entitlements/products, and release verification rejects malformed, duplicate, or stale identifiers. | Verified in source and automated negative test |
 | Store copy | `store/listing.en-US.json` is machine-checked against Apple/Google field limits and the reviewed Markdown draft. Its support, marketing, privacy, privacy-choice, and account-deletion fields now use the canonical `www` routes verified to return HTTP 200 directly; the legal page contains the promised `contact` and `privacy` anchors, and the deletion page contains the account-deletion instructions. | Verified in source and production |

@@ -297,10 +297,18 @@ def test_native_privacy_verifier_executes_compiled_boundaries(tmp_path):
 
 def test_moderation_queue_is_server_only_and_account_scoped():
     migration = read('migrations/014_ai_content_reports.sql')
+    readiness = read('STORE_READINESS.md')
+    audit = read('docs/STORE_READINESS_AUDIT_2026-08-27.md')
+    production_evidence = read('docs/AI_REPORT_QUEUE_PRODUCTION_READINESS_2026-09-15.md')
     assert 'references public.users(id) on delete cascade' in migration
     assert 'enable row level security' in migration
     assert 'from public, anon, authenticated' in migration
     assert 'to service_role' in migration
+    assert 'Reverify the already-applied `migrations/014_ai_content_reports.sql` boundary' in readiness
+    assert 'Apply `migrations/014_ai_content_reports.sql` before testing' not in readiness
+    assert 'legitimate signed-device submission/retry remains pending' in audit
+    assert 'No row' in production_evidence
+    assert 'was inserted.' in production_evidence
 
 
 def test_store_metadata_source_is_structured_private_and_within_static_limits():
