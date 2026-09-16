@@ -12,6 +12,7 @@ from ..code_service import (
     CodeTaskConflictError,
     CodeTaskError,
     CodeTaskService,
+    resolve_public_source_revision,
 )
 from ..feature_service import FeatureAccessError
 from ..project_service import ProjectNotFoundError
@@ -138,6 +139,17 @@ async def run_code_task(task_id: str, request: Request):
         await features.require_tier(auth.user, "code_workspace")
     except FeatureAccessError as exc:
         return _feature_error(exc)
+    except CodeTaskError as exc:
+        return _task_error(exc)
+
+    try:
+        immutable_revision = code_tasks.pinned_source_revision(task)
+        if not immutable_revision:
+            immutable_revision = await resolve_public_source_revision(
+                str(task.get("source_repo_url") or ""),
+                str(task.get("source_ref") or "").strip() or None,
+            )
+        task = await code_tasks.pin_source_revision(task, revision=immutable_revision)
     except CodeTaskError as exc:
         return _task_error(exc)
 

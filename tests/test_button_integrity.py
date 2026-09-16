@@ -38,7 +38,7 @@ DYNAMIC_BUTTON_INVENTORY = {
     "public/crump-5.0.js": 22,
     "public/crump-5.2.js": 3,
     "public/crump-billing-5.1.js": 2,
-    "public/crump-code-5.9.35.js": 6,
+    "public/crump-code-5.9.35.js": 5,
     "public/crump-polish-5.6.js": 1,
     "public/crump-precision-image-edit.js": 29,
     "public/crump-product-5.3.1.js": 1,
@@ -66,32 +66,27 @@ INDIRECT_DYNAMIC_BUTTON_OWNERS = {
         "modal.addEventListener('click', event => {",
         "event.target.closest?.('[data-crump-pack]')",
     ),
-    "public/crump-code-5.9.35.js:325:button": (
+    "public/crump-code-5.9.35.js:389:button": (
         "button.dataset.crumpCodeTask =",
         "byId('crumpCodeTaskList')?.addEventListener('click'",
         "event.target.closest?.('[data-crump-code-task]')",
     ),
-    "public/crump-code-5.9.35.js:478:button": (
-        "button.dataset.codeApproval =",
-        "byId('crumpCodeDetail')?.addEventListener('click'",
-        "event.target.closest?.('[data-code-approval]')",
-    ),
-    "public/crump-code-5.9.35.js:556:button": (
+    "public/crump-code-5.9.35.js:609:button": (
         "button.dataset.codeAction = 'diff-file'",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'diff-file'",
     ),
-    "public/crump-code-5.9.35.js:595:download": (
+    "public/crump-code-5.9.35.js:648:download": (
         "download.dataset.codeAction = 'download'",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'download'",
     ),
-    "public/crump-code-5.9.35.js:699:run": (
+    "public/crump-code-5.9.35.js:765:run": (
         "run.dataset.codeAction = 'run'",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'run'",
     ),
-    "public/crump-code-5.9.35.js:717:cancel": (
+    "public/crump-code-5.9.35.js:783:cancel": (
         "cancel.dataset.codeAction = 'cancel'",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'cancel'",
@@ -304,8 +299,8 @@ def test_programmatically_created_button_inventory_requires_explicit_review() ->
             inventory[path.relative_to(ROOT).as_posix()] = count
 
     assert inventory == DYNAMIC_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 95
-    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 277
+    assert sum(inventory.values()) == 94
+    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 276
 
 
 def test_programmatically_created_buttons_declare_type_and_runtime_owner() -> None:
@@ -502,7 +497,8 @@ def test_dynamic_button_systems_use_direct_or_delegated_click_owners() -> None:
     assert "menu.querySelector('[data-crump531-action=\"rename\"]')" in conversations
     assert "byId('crumpCodeDetail')?.addEventListener('click'" in code
     assert "event.target.closest?.('[data-code-action]')" in code
-    assert "event.target.closest?.('[data-code-approval]')" in code
+    assert "event.target.closest?.('[data-code-approval]')" not in code
+    assert "No approval action is available" in code
     for button_id in ("crump57Deleted", "crump57Import", "crump57New"):
         assert f"byId('{button_id}')?.addEventListener('click'" in library
 

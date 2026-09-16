@@ -6,8 +6,12 @@ const {chromium} = require('playwright');
 
 const publicDirectory = path.resolve(process.cwd(), 'public');
 const cachedTargets = Object.freeze([
-  ['/runtime-body-v1.js', '/runtime-body-v1.js?v=5.9.76-navigation-discovery-1'],
+  ['/runtime-body-v1.js', '/runtime-body-v1.js?v=5.9.76-autonomous-activation-2'],
   ['/crump-v1-body.css', '/crump-v1-body.css?v=5.9.76-brand-retina-1'],
+  ['/crump-navigation-5.9.30.js', '/crump-navigation-5.9.30.js?v=5.9.76-autonomous-activation-2'],
+  ['/crump-code-loader.js', '/crump-code-loader.js?v=5.9.76-autonomous-activation-2'],
+  ['/crump-billing-5.1.js', '/crump-billing-5.1.js?v=5.9.76-autonomous-activation-2'],
+  ['/crump-5.2.js', '/crump-5.2.js?v=5.9.76-autonomous-activation-2'],
 ]);
 const fixturePath = '/__returning-load.html';
 const contentTypes = Object.freeze({

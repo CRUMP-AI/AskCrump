@@ -21,6 +21,7 @@ if str(ROOT) not in sys.path:
 
 from backend.code_runner import (
     CodeRunnerError,
+    SANDBOX_ENV,
     decode_sandbox_identity,
     provision_code_sandbox,
 )
@@ -61,7 +62,9 @@ def smoke_plan() -> dict[str, Any]:
         "networkPolicy": "deny-all",
         "persistent": False,
         "destroy": True,
-        "injectedEnvironmentVariables": 0,
+        "injectedEnvironmentVariables": len(SANDBOX_ENV),
+        "injectedEnvironmentVariableNames": sorted(SANDBOX_ENV),
+        "injectedSensitiveEnvironmentVariables": 0,
         "modelCalls": 0,
         "databaseWrites": 0,
         "customerData": False,

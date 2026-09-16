@@ -21,9 +21,9 @@ def test_six_destination_navigation_is_final_runtime_layer_and_boot_critical():
 
     assert runtime.index("/crump-library-loader.js") < runtime.index("/crump-navigation-5.9.30.js")
     assert "/crump-library-5.7.js" not in runtime
-    assert "ask-crump-new-body-v1-r248" in worker
+    assert "ask-crump-new-body-v1-r249" in worker
     assert "/crump-navigation-5.9.30.css?v=5.9.76-mobile-drawer-destinations-1" in runtime
-    assert "/crump-navigation-5.9.30.js?v=5.9.76-navigation-discovery-1" in runtime
+    assert "/crump-navigation-5.9.30.js?v=5.9.76-autonomous-activation-2" in runtime
 
 
 def test_navigation_exposes_exact_product_destinations_on_desktop_and_mobile():

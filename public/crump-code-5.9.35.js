@@ -16,7 +16,11 @@
     projectId: '',
     tasks: [],
     task: null,
+    selectedTaskId: '',
     restoreFocus: null,
+    projectsRequestGeneration: 0,
+    tasksRequestGeneration: 0,
+    taskRequestGeneration: 0,
     pollTimer: 0,
     pollGeneration: 0,
     pollFailures: 0,
@@ -24,12 +28,12 @@
   };
   const ACTIVE = new Set(['queued', 'provisioning', 'running', 'awaiting_approval', 'verifying']);
   const STATUS_LABELS = Object.freeze({
-    queued: 'Ready for review',
+    queued: 'Prepared for review',
     provisioning: 'Starting isolated workspace',
     running: 'Working in isolated copy',
-    awaiting_approval: 'Waiting for your approval',
+    awaiting_approval: 'Paused at unsupported boundary',
     verifying: 'Verifying the change',
-    completed: 'Completed',
+    completed: 'Review required',
     failed: 'Failed safely',
     cancelled: 'Cancelled',
   });
@@ -38,7 +42,7 @@
     ['provisioning', 'Accepted'],
     ['running', 'Working'],
     ['verifying', 'Verifying'],
-    ['completed', 'Ready to review'],
+    ['completed', 'Review required'],
   ]);
 
   async function apiOnce(path, options = {}) {
@@ -79,6 +83,41 @@
     if (value === 'cancelled' && failureCode === 'CODE_TASK_EXPIRED') return 'Expired safely';
     if (value === 'cancelled' && failureCode === 'CODE_APPROVAL_EXPIRED') return 'Approval expired';
     return STATUS_LABELS[String(value || '')] || 'Status unavailable';
+  }
+
+  function resultSemantics(task) {
+    if (String(task?.status || '') !== 'completed') return null;
+    const checks = Array.isArray(task.verification) ? task.verification : [];
+    const failed = checks.filter(check => Number(check.returnCode) !== 0);
+    const patch = String(task.result_patch || '');
+    if (String(task.mode || '') === 'plan') {
+      return {
+        label: 'Plan requires review',
+        detail: 'Plan-only mode made no source changes. Review the recommendations before acting on them.',
+      };
+    }
+    if (!patch.trim()) {
+      return {
+        label: 'No change produced',
+        detail: 'The run ended without a downloadable patch. Nothing is ready to apply.',
+      };
+    }
+    if (!checks.length) {
+      return {
+        label: 'Unverified patch',
+        detail: 'A patch was produced, but no verification check was recorded. Treat it as unverified.',
+      };
+    }
+    if (failed.length) {
+      return {
+        label: 'Verification failed',
+        detail: 'One or more recorded checks failed. Do not apply the patch without correcting and rerunning them.',
+      };
+    }
+    return {
+      label: 'Review required',
+      detail: `${checks.length} recorded check${checks.length === 1 ? '' : 's'} passed. Review the complete patch and evidence before applying it.`,
+    };
   }
 
   function formatDate(value) {
@@ -130,7 +169,7 @@
           <div>
             <span class="crump-code-kicker">AUTONOMOUS CRUMP · PRIVATE PREVIEW</span>
             <h2 id="crumpCodeTitle">Delegate repository work. Keep final control.</h2>
-            <p>Autonomous Crump plans, edits, and verifies work in a temporary copy of a public GitHub repository. It cannot see secrets, publish, or push changes.</p>
+            <p>No Ask Crump or account credentials are injected. Public repository contents and check output may be sent to the configured coding model, so use only source you are authorized and prepared to share. This preview remains disabled while source, security, cost, and recovery boundaries are independently verified.</p>
           </div>
           <button type="button" id="crumpCodeClose" class="crump-code-icon-button" aria-label="Close Autonomous Crump">×</button>
         </header>
@@ -204,8 +243,7 @@
     });
     overlay.addEventListener('keydown', trapFocus);
     byId('crumpCodeProject')?.addEventListener('change', event => {
-      state.projectId = event.target.value;
-      state.task = null;
+      setProjectSelection(event.target.value, {invalidateProjects: true});
       void loadTasks();
     });
     byId('crumpCodeRefresh')?.addEventListener('click', () => void refresh());
@@ -276,6 +314,32 @@
     }
   }
 
+  function setProjectSelection(projectId, {invalidateProjects = false} = {}) {
+    if (invalidateProjects) state.projectsRequestGeneration += 1;
+    const nextProjectId = String(projectId || '');
+    if (state.projectId === nextProjectId) return;
+    state.projectId = nextProjectId;
+    state.tasksRequestGeneration += 1;
+    state.taskRequestGeneration += 1;
+    state.selectedTaskId = '';
+    state.selectedDiffPath = '';
+    state.tasks = [];
+    state.task = null;
+    stopPolling();
+    renderTasks();
+    renderDetail();
+  }
+
+  function ownsTaskRequest(taskId, generation) {
+    return generation === state.taskRequestGeneration
+      && String(taskId || '') === state.selectedTaskId;
+  }
+
+  function ownsRenderedTask(taskId, generation = state.taskRequestGeneration) {
+    return ownsTaskRequest(taskId, generation)
+      && String(state.task?.id || '') === state.selectedTaskId;
+  }
+
   function renderProjects() {
     const select = byId('crumpCodeProject');
     const fields = byId('crumpCodeFields');
@@ -290,7 +354,7 @@
       select.disabled = true;
       fields.hidden = true;
       empty.hidden = false;
-      state.projectId = '';
+      setProjectSelection('');
       renderTasks();
       return;
     }
@@ -304,7 +368,7 @@
       select.appendChild(option);
     }
     if (!state.projects.some(project => String(project.id) === state.projectId)) {
-      state.projectId = String(state.projects[0].id || '');
+      setProjectSelection(String(state.projects[0].id || ''));
     }
     select.value = state.projectId;
   }
@@ -325,7 +389,7 @@
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'crump-code-task';
-      if (state.task?.id === task.id) button.classList.add('is-active');
+      if (state.selectedTaskId === String(task.id || '')) button.classList.add('is-active');
       button.dataset.crumpCodeTask = String(task.id || '');
       const title = document.createElement('strong');
       title.textContent = String(task.objective || 'Untitled code task').replace(/\s+/g, ' ').trim().slice(0, 90);
@@ -402,8 +466,8 @@
     if (eventType === 'verification.started') return 'Running bounded verification';
     if (eventType === 'verification.completed') return 'Verification evidence recorded';
     if (eventType === 'task.requeued') return 'Retry scheduled without another charge';
-    if (eventType === 'approval.requested') return 'Waiting for your approval';
-    if (eventType === 'task.completed') return 'Patch and checks are ready for review';
+    if (eventType === 'approval.requested') return 'Paused at an unsupported boundary';
+    if (eventType === 'task.completed') return 'Result saved for required review';
     if (eventType === 'task.cancelled') return 'Cancellation recorded';
     if (eventType === 'task.failed') return 'The run stopped safely';
     return statusLabel(task.status, task.failure_code);
@@ -463,7 +527,7 @@
     const section = document.createElement('section');
     section.className = 'crump-code-result crump-code-approval';
     const heading = document.createElement('h4');
-    heading.textContent = 'Approval required';
+    heading.textContent = 'Unsupported boundary reached';
     section.appendChild(heading);
     for (const approval of approvals) {
       const card = document.createElement('article');
@@ -471,19 +535,8 @@
       title.textContent = String(approval.title || 'Review this action');
       const detail = document.createElement('p');
       const approvalExpiry = formatDate(approval.expires_at);
-      detail.textContent = `${String(approval.details || 'Review the requested boundary before deciding.')}${approvalExpiry ? ` This approval expires ${approvalExpiry}.` : ''}`;
-      const actions = document.createElement('div');
-      actions.className = 'crump-code-actions';
-      for (const [decision, label, tone] of [['denied', 'Deny', 'secondary'], ['approved', 'Approve bounded retry', 'primary']]) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = `crump-code-${tone}`;
-        button.dataset.codeApproval = String(approval.id || '');
-        button.dataset.codeDecision = decision;
-        button.textContent = label;
-        actions.appendChild(button);
-      }
-      card.append(title, detail, actions);
+      detail.textContent = `${String(approval.details || 'The run reached a boundary this preview cannot resume safely.')}${approvalExpiry ? ` The recorded request expires ${approvalExpiry}.` : ''} No approval action is available; cancel this task and prepare a narrower objective.`;
+      card.append(title, detail);
       section.appendChild(card);
     }
     container.appendChild(section);
@@ -507,6 +560,7 @@
       command.textContent = `${commandText}${args && !commandText.includes(' ') ? ` ${args}` : ''}`.slice(0, 1000);
       const result = document.createElement('span');
       const passed = Number(check.returnCode) === 0;
+      row.dataset.status = passed ? 'passed' : 'failed';
       result.textContent = passed ? 'Passed' : `Exited ${check.returnCode ?? 'unknown'}`;
       result.dataset.tone = passed ? 'success' : 'danger';
       summary.append(command, result);
@@ -550,7 +604,6 @@
     body.className = 'crump-code-diff-layout';
     const fileList = document.createElement('div');
     fileList.className = 'crump-code-diff-files';
-    fileList.setAttribute('role', 'list');
     fileList.setAttribute('aria-label', 'Changed files');
     for (const file of files) {
       const button = document.createElement('button');
@@ -627,7 +680,7 @@
     const detail = byId('crumpCodeDetail');
     if (!detail) return;
     detail.replaceChildren();
-    const task = state.task;
+    const task = String(state.task?.id || '') === state.selectedTaskId ? state.task : null;
     detail.hidden = !task;
     if (!task) return;
 
@@ -642,7 +695,8 @@
     const badge = document.createElement('span');
     badge.className = 'crump-code-status';
     badge.dataset.status = String(task.status || 'unknown');
-    badge.textContent = statusLabel(task.status, task.failure_code);
+    const outcome = resultSemantics(task);
+    badge.textContent = outcome?.label || statusLabel(task.status, task.failure_code);
     head.append(titleWrap, badge);
     detail.appendChild(head);
 
@@ -659,6 +713,13 @@
     renderProgress(detail, task);
 
     renderApprovals(detail, task);
+
+    if (outcome) {
+      const qualifier = document.createElement('p');
+      qualifier.className = 'crump-code-failure';
+      qualifier.textContent = outcome.detail;
+      detail.appendChild(qualifier);
+    }
 
     if (task.result_summary) {
       const result = document.createElement('section');
@@ -678,7 +739,12 @@
     if (task.failure_code) {
       const failure = document.createElement('p');
       failure.className = 'crump-code-failure';
-      failure.textContent = `Stopped safely: ${String(task.failure_code).replaceAll('_', ' ').toLowerCase()}.`;
+      const paymentCopy = task.payment_source === 'refunded'
+        ? 'The recorded charge or allowance was returned.'
+        : task.payment_source === 'refund_pending'
+          ? 'Refund reconciliation is pending in the private worker.'
+          : 'No usable result is being presented as ready.';
+      failure.textContent = `Stopped safely: ${String(task.failure_code).replaceAll('_', ' ').toLowerCase()}. ${paymentCopy} Review the recorded evidence, then prepare a new task.`;
       detail.appendChild(failure);
     }
 
@@ -712,7 +778,7 @@
       actions.className = 'crump-code-actions crump-code-cancel-row';
       const progress = document.createElement('p');
       progress.textContent = task.status === 'awaiting_approval'
-        ? 'Review the requested boundary above.'
+        ? 'This preview cannot resume from the recorded boundary. Cancel it and prepare a narrower objective.'
         : 'You can request cancellation. Autonomous Crump checks that request before each next model or tool step.';
       const cancel = document.createElement('button');
       cancel.type = 'button';
@@ -733,41 +799,71 @@
   }
 
   async function loadProjects() {
+    const generation = ++state.projectsRequestGeneration;
     setNotice('Loading Projects…');
     try {
       const data = await api('/api/projects');
+      if (generation !== state.projectsRequestGeneration) return;
       state.projects = Array.isArray(data.projects) ? data.projects : [];
       renderProjects();
+      if (generation !== state.projectsRequestGeneration) return;
       await loadTasks();
-      setNotice('');
+      if (generation === state.projectsRequestGeneration) setNotice('');
     } catch (error) {
-      setNotice(error.message, 'danger');
+      if (generation === state.projectsRequestGeneration) setNotice(error.message, 'danger');
     }
   }
 
-  async function loadTasks() {
+  async function loadTasks({preferredTaskId = ''} = {}) {
+    const projectId = state.projectId;
+    const generation = ++state.tasksRequestGeneration;
+    const previousTaskId = String(preferredTaskId || state.selectedTaskId || '');
+    state.taskRequestGeneration += 1;
+    state.selectedTaskId = '';
+    state.selectedDiffPath = '';
     state.tasks = [];
+    state.task = null;
+    stopPolling();
+    renderTasks();
+    renderDetail();
+    if (!projectId) return;
+    setNotice('Loading code tasks…');
+    try {
+      const data = await api(`/api/projects/${encodeURIComponent(projectId)}/code/tasks`);
+      if (generation !== state.tasksRequestGeneration || state.projectId !== projectId) return;
+      state.tasks = Array.isArray(data.tasks) ? data.tasks : [];
+      renderTasks();
+      const selected = state.tasks.find(task => String(task.id || '') === previousTaskId)
+        || state.tasks[0];
+      if (selected) await selectTask(selected.id, {quiet: true, expectedProjectId: projectId});
+      if (generation === state.tasksRequestGeneration && state.projectId === projectId) setNotice('');
+    } catch (error) {
+      if (generation === state.tasksRequestGeneration && state.projectId === projectId) {
+        setNotice(error.message, 'danger');
+      }
+    }
+  }
+
+  async function selectTask(taskId, {quiet = false, expectedProjectId = state.projectId} = {}) {
+    const requestedTaskId = String(taskId || '');
+    const projectId = String(expectedProjectId || '');
+    if (!requestedTaskId || projectId !== state.projectId) return;
+    stopPolling();
+    const generation = ++state.taskRequestGeneration;
+    state.selectedTaskId = requestedTaskId;
+    state.selectedDiffPath = '';
     state.task = null;
     renderTasks();
     renderDetail();
-    if (!state.projectId) return;
-    setNotice('Loading code tasks…');
-    try {
-      const data = await api(`/api/projects/${encodeURIComponent(state.projectId)}/code/tasks`);
-      state.tasks = Array.isArray(data.tasks) ? data.tasks : [];
-      renderTasks();
-      if (state.tasks.length) await selectTask(state.tasks[0].id, {quiet: true});
-      setNotice('');
-    } catch (error) {
-      setNotice(error.message, 'danger');
-    }
-  }
-
-  async function selectTask(taskId, {quiet = false} = {}) {
-    if (!taskId) return;
     if (!quiet) setNotice('Loading task…');
     try {
-      const data = await api(`/api/code/tasks/${encodeURIComponent(taskId)}`);
+      const data = await api(`/api/code/tasks/${encodeURIComponent(requestedTaskId)}`);
+      if (!ownsTaskRequest(requestedTaskId, generation) || state.projectId !== projectId) return;
+      if (String(data.task?.id || '') !== requestedTaskId
+          || (data.task?.project_id && String(data.task.project_id) !== projectId)) {
+        setNotice('The selected task response did not match this Project.', 'danger');
+        return;
+      }
       state.task = data.task || null;
       const index = state.tasks.findIndex(item => item.id === state.task?.id);
       if (index >= 0) state.tasks[index] = {...state.tasks[index], ...state.task};
@@ -777,18 +873,21 @@
       else stopPolling();
       if (!quiet) setNotice('');
     } catch (error) {
-      setNotice(error.message, 'danger');
+      if (ownsTaskRequest(requestedTaskId, generation) && state.projectId === projectId) {
+        setNotice(error.message, 'danger');
+      }
     }
   }
 
   async function prepareTask(event) {
     event.preventDefault();
     if (!state.projectId) return setNotice('Choose a Project first.', 'danger');
+    const projectId = state.projectId;
     const button = byId('crumpCodePrepare');
     const restore = setButtonBusy(button, true, 'Preparing…');
     setNotice('');
     try {
-      const data = await api(`/api/projects/${encodeURIComponent(state.projectId)}/code/tasks`, {
+      const data = await api(`/api/projects/${encodeURIComponent(projectId)}/code/tasks`, {
         method: 'POST',
         body: {
           repositoryUrl: byId('crumpCodeRepository')?.value.trim(),
@@ -798,83 +897,71 @@
           maxDurationSeconds: Number(state.provider?.maxDurationSeconds || 180),
         },
       });
-      state.task = data.task;
+      if (state.projectId !== projectId) return;
       byId('crumpCodeObjective').value = '';
-      await loadTasks();
-      await selectTask(data.task.id, {quiet: true});
-      setNotice('Task prepared. Review every field before starting the isolated run.', 'success');
+      await loadTasks({preferredTaskId: data.task?.id});
+      if (state.projectId === projectId && state.selectedTaskId === String(data.task?.id || '')) {
+        setNotice('Task prepared. Review every field before starting the isolated run.', 'success');
+      }
     } catch (error) {
-      setNotice(error.message, 'danger');
+      if (state.projectId === projectId) setNotice(error.message, 'danger');
     } finally {
       restore();
     }
   }
 
   async function runTask(button) {
-    if (!state.task?.id || !byId('crumpCodeRunConfirmed')?.checked) return;
-    const taskId = state.task.id;
+    const taskId = state.selectedTaskId;
+    const generation = state.taskRequestGeneration;
+    if (!ownsRenderedTask(taskId, generation) || !byId('crumpCodeRunConfirmed')?.checked) return;
     const restore = setButtonBusy(button, true, 'Submitting…');
     setNotice('Submitting the confirmed task to the private worker…');
     try {
       const data = await api(`/api/code/tasks/${encodeURIComponent(taskId)}/run`, {
         method: 'POST', body: {confirmed: true},
       });
+      if (!ownsTaskRequest(taskId, generation) || String(data.task?.id || '') !== taskId) return;
       state.task = data.task;
       renderDetail();
       renderTasks();
       setNotice('Task accepted. You can close this window; Autonomous Crump will continue safely.', 'success');
       startPolling(taskId);
     } catch (error) {
+      if (!ownsTaskRequest(taskId, generation)) return;
       stopPolling();
       await selectTask(taskId, {quiet: true});
-      setNotice(error.message, error.code === 'CODE_TASK_CANCELLED' ? '' : 'danger');
+      if (state.selectedTaskId === taskId) {
+        setNotice(error.message, error.code === 'CODE_TASK_CANCELLED' ? '' : 'danger');
+      }
     } finally {
       restore();
     }
   }
 
   async function cancelTask(button) {
-    if (!state.task?.id) return;
+    const taskId = state.selectedTaskId;
+    const generation = state.taskRequestGeneration;
+    if (!ownsRenderedTask(taskId, generation)) return;
     const restore = setButtonBusy(button, true, 'Cancelling…');
     try {
-      const data = await api(`/api/code/tasks/${encodeURIComponent(state.task.id)}/cancel`, {
+      const data = await api(`/api/code/tasks/${encodeURIComponent(taskId)}/cancel`, {
         method: 'POST', body: {},
       });
+      if (!ownsTaskRequest(taskId, generation) || String(data.task?.id || '') !== taskId) return;
       state.task = data.task;
-      await selectTask(state.task.id, {quiet: true});
+      renderDetail();
+      renderTasks();
       stopPolling();
       setNotice('Cancellation recorded. The bounded workspace will shut down without publishing changes.', 'success');
     } catch (error) {
-      setNotice(error.message, 'danger');
-    } finally {
-      restore();
-    }
-  }
-
-  async function decideApproval(button) {
-    const approvalId = button.dataset.codeApproval;
-    const decision = button.dataset.codeDecision;
-    if (!state.task?.id || !approvalId || !decision) return;
-    const restore = setButtonBusy(button, true, decision === 'approved' ? 'Approving…' : 'Denying…');
-    try {
-      const data = await api(`/api/code/tasks/${encodeURIComponent(state.task.id)}/approvals/${encodeURIComponent(approvalId)}`, {
-        method: 'POST', body: {decision},
-      });
-      state.task = data.task;
-      await selectTask(state.task.id, {quiet: true});
-      setNotice(decision === 'approved' ? 'Bounded retry approved. Review it again before running.' : 'Request denied and task cancelled.', 'success');
-    } catch (error) {
-      if (error.code === 'CODE_APPROVAL_EXPIRED') {
-        await selectTask(state.task.id, {quiet: true});
-      }
-      setNotice(error.message, 'danger');
+      if (ownsTaskRequest(taskId, generation)) setNotice(error.message, 'danger');
     } finally {
       restore();
     }
   }
 
   function downloadPatch() {
-    if (!state.task?.result_patch) return;
+    if (!ownsRenderedTask(state.selectedTaskId) || !state.task?.result_patch) return;
     const blob = new Blob([String(state.task.result_patch)], {type: 'text/x-diff;charset=utf-8'});
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -887,8 +974,6 @@
   }
 
   async function handleDetailAction(event) {
-    const approval = event.target.closest?.('[data-code-approval]');
-    if (approval) return decideApproval(approval);
     const button = event.target.closest?.('[data-code-action]');
     if (!button) return;
     if (button.dataset.codeAction === 'run') await runTask(button);
@@ -911,13 +996,20 @@
   }
 
   function startPolling(taskId, {immediate = false} = {}) {
+    const requestedTaskId = String(taskId || '');
+    const taskGeneration = state.taskRequestGeneration;
+    if (!ownsRenderedTask(requestedTaskId, taskGeneration)) return;
     stopPolling();
     const generation = state.pollGeneration;
     const poll = async () => {
-      if (generation !== state.pollGeneration || byId('crumpCodeWorkspace')?.hidden || state.task?.id !== taskId) return;
+      if (generation !== state.pollGeneration
+          || byId('crumpCodeWorkspace')?.hidden
+          || !ownsRenderedTask(requestedTaskId, taskGeneration)) return;
       try {
-        const data = await api(`/api/code/tasks/${encodeURIComponent(taskId)}`);
-        if (generation !== state.pollGeneration) return;
+        const data = await api(`/api/code/tasks/${encodeURIComponent(requestedTaskId)}`);
+        if (generation !== state.pollGeneration
+            || !ownsTaskRequest(requestedTaskId, taskGeneration)
+            || String(data.task?.id || '') !== requestedTaskId) return;
         const recovered = state.pollFailures > 0;
         state.pollFailures = 0;
         state.task = data.task || state.task;
@@ -937,12 +1029,14 @@
           return;
         }
       } catch (_) {
-        if (generation !== state.pollGeneration) return;
+        if (generation !== state.pollGeneration
+            || !ownsTaskRequest(requestedTaskId, taskGeneration)) return;
         state.pollFailures += 1;
         renderDetail();
         setNotice('Connection paused. The private worker continues safely; this view is reconnecting…');
       }
-      if (generation !== state.pollGeneration) return;
+      if (generation !== state.pollGeneration
+          || !ownsTaskRequest(requestedTaskId, taskGeneration)) return;
       const delay = Math.min(15000, 2500 * (2 ** Math.min(state.pollFailures, 3)));
       state.pollTimer = window.setTimeout(poll, delay);
     };

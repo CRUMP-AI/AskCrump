@@ -150,13 +150,16 @@ class CodeWorker:
         try:
             completed = await run_with_deadline(self.runner, task, oidc_token=oidc_token)
             completed_status = str(completed.get("status") or "completed")
+            if completed_status == "failed" and completed.get("payment_source") == "refund_pending":
+                await self._refund(completed)
             code_log(
                 logger,
-                logging.INFO,
-                "worker_completed",
+                logging.WARNING if completed_status == "failed" else logging.INFO,
+                "worker_terminal_failure" if completed_status == "failed" else "worker_completed",
                 attempt=attempt,
                 max_attempts=maximum,
                 status=completed_status,
+                failure_code=str(completed.get("failure_code") or "") or None,
                 duration_ms=int((monotonic() - started) * 1000),
             )
             return {

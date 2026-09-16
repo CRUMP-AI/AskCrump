@@ -26,6 +26,7 @@ if str(ROOT) not in sys.path:
 
 from backend.code_runner import (  # noqa: E402
     CrumpCodeRunner,
+    SANDBOX_ENV,
     SandboxWorkspace,
     redact_sensitive_text,
 )
@@ -189,6 +190,7 @@ class _LocalSandbox:
         if command == "node":
             executable = self.node
         environment = os.environ.copy()
+        environment.update(SANDBOX_ENV)
         environment["CRUMP_BENCHMARK_NODE"] = self.node
         try:
             process = await asyncio.create_subprocess_exec(

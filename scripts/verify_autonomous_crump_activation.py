@@ -28,10 +28,23 @@ REQUIRED_LIVE_BOOLEANS = (
     "expiryVerified",
     "refundVerified",
     "monitoringVisible",
-    "approvalBoundaryVerified",
     "rollbackVerified",
     "unitCostEnvelopeApproved",
     "operatorActivationApproved",
+)
+
+# A JSON document supplied beside this script is evidence input, not trust. These
+# checked-in decisions intentionally keep public activation impossible until a
+# separate, reviewed implementation verifies an owner-controlled signature and
+# records the release decision in source.
+TRUSTED_LIVE_ATTESTATION_VERIFIER_IMPLEMENTED = False
+PUBLIC_ACTIVATION_SOURCE_DECISION_APPROVED = False
+PUBLIC_RELEASE_CONTROLS_EXPECTED_CLOSED = True
+KNOWN_P0_ACTIVATION_HOLDS = (
+    "atomic exactly-once charge, allowance, dispatch, crash recovery, and owner-only compensation",
+    "per-user and global concurrency plus daily model and Sandbox budget circuit breakers",
+    "reviewed first-preview policy for project-controlled verification scripts and model-visible output",
+    "protected live end-to-end cancellation, refund, destruction, latency, cost, and rollback proof",
 )
 
 
@@ -190,7 +203,8 @@ def offline_runtime_checks() -> tuple[list[Check], dict[str, Any], dict[str, Any
             smoke.get("modelCalls") == 0,
             smoke.get("databaseWrites") == 0,
             smoke.get("customerData") is False,
-            smoke.get("injectedEnvironmentVariables") == 0,
+            smoke.get("injectedEnvironmentVariables") == 5,
+            smoke.get("injectedSensitiveEnvironmentVariables") == 0,
             smoke.get("publicFeatureMustRemainDisabled") is True,
             smoke.get("destroy") is True,
         )
@@ -208,7 +222,7 @@ def offline_runtime_checks() -> tuple[list[Check], dict[str, Any], dict[str, Any
             Check(
                 "zero_network_zero_spend_sandbox_dry_run",
                 smoke_safe,
-                "Dry receipt must prove zero model calls, writes, customer data, injected environment, and live authorization.",
+                "Dry receipt must prove zero model calls, writes, customer data, sensitive environment injection, and live authorization.",
             ),
             Check(
                 "fixed_offline_orchestration_benchmark",
@@ -234,6 +248,18 @@ def _contains_forbidden_evidence_key(value: Any) -> bool:
     return False
 
 
+def _finite_number(value: Any, *, minimum: float = 0.0) -> float | None:
+    if isinstance(value, bool):
+        return None
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+    if parsed < minimum or parsed in (float("inf"), float("-inf")) or parsed != parsed:
+        return None
+    return parsed
+
+
 def live_evidence_checks(evidence: dict[str, Any], revision: str) -> list[Check]:
     benchmark = evidence.get("liveBenchmark")
     benchmark = benchmark if isinstance(benchmark, dict) else {}
@@ -246,6 +272,17 @@ def live_evidence_checks(evidence: dict[str, Any], revision: str) -> list[Check]
         fresh = 0 <= age_hours <= 72
     except ValueError:
         fresh = False
+    provider_runs = int(benchmark.get("providerRuns") or 0)
+    measured_runs = int(benchmark.get("measuredRuns") or 0)
+    costed_runs = int(benchmark.get("costedRuns") or 0)
+    mean_latency = _finite_number(benchmark.get("measuredMeanLatencyMs"), minimum=0.001)
+    p95_latency = _finite_number(benchmark.get("measuredP95LatencyMs"), minimum=0.001)
+    approved_p95_latency = _finite_number(benchmark.get("approvedP95LatencyMs"), minimum=0.001)
+    mean_unit_cost = _finite_number(benchmark.get("actualMeanUnitCostCents"), minimum=0.0)
+    p95_unit_cost = _finite_number(benchmark.get("actualP95UnitCostCents"), minimum=0.0)
+    approved_p95_unit_cost = _finite_number(
+        benchmark.get("approvedP95UnitCostCeilingCents"), minimum=0.001
+    )
     return [
         Check(
             "live_evidence_contains_no_secret_fields",
@@ -268,18 +305,44 @@ def live_evidence_checks(evidence: dict[str, Any], revision: str) -> list[Check]
         Check(
             "live_safety_and_operator_boundaries",
             all(evidence.get(name) is True for name in REQUIRED_LIVE_BOOLEANS),
-            "Every OIDC, isolation, destruction, cancellation, refund, monitoring, rollback, approval, cost, and operator gate must be explicit.",
+            "Every OIDC, isolation, destruction, cancellation, refund, monitoring, rollback, cost, and operator gate must be explicit.",
         ),
         Check(
             "repeatable_live_quality",
-            int(benchmark.get("providerRuns") or 0) >= 8
+            provider_runs >= 8
             and int(benchmark.get("holdoutCases") or 0) >= 4
             and float(benchmark.get("passRate") or 0) >= 0.9
             and float(benchmark.get("meanScore") or 0) >= 90
             and benchmark.get("repeatable") is True,
             "Live provider evidence needs at least eight runs, four injected holdouts, 90% pass rate, 90 mean score, and repeatability.",
         ),
+        Check(
+            "measured_live_latency_envelope",
+            measured_runs >= provider_runs >= 8
+            and mean_latency is not None
+            and p95_latency is not None
+            and approved_p95_latency is not None
+            and mean_latency <= p95_latency <= approved_p95_latency,
+            "Live evidence needs measured-run mean and p95 latency within a pre-approved p95 ceiling.",
+        ),
+        Check(
+            "actual_live_unit_cost_envelope",
+            costed_runs >= provider_runs >= 8
+            and mean_unit_cost is not None
+            and p95_unit_cost is not None
+            and approved_p95_unit_cost is not None
+            and mean_unit_cost <= p95_unit_cost <= approved_p95_unit_cost,
+            "Live evidence needs actual measured mean and p95 unit cost within a pre-approved p95 cost ceiling.",
+        ),
     ]
+
+
+def trusted_live_attestation_verified(_evidence: dict[str, Any] | None) -> bool:
+    """Fail closed until an owner-controlled signature verifier is implemented."""
+    if not TRUSTED_LIVE_ATTESTATION_VERIFIER_IMPLEMENTED:
+        return False
+    # A future implementation must verify an owner-controlled signature here.
+    return False
 
 
 def build_receipt(*, evidence: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -303,28 +366,52 @@ def build_receipt(*, evidence: dict[str, Any] | None = None) -> dict[str, Any]:
     checks.extend(runtime_checks)
     live_checks = live_evidence_checks(evidence, revision) if evidence is not None else []
     checks.extend(live_checks)
-    source_candidate_ready = all(check.passed for check in checks if check not in live_checks)
-    public_activation_ready = bool(live_checks) and source_candidate_ready and all(
+    local_source_checks_passed = all(
+        check.passed for check in checks if check not in live_checks
+    )
+    source_candidate_ready = local_source_checks_passed and not KNOWN_P0_ACTIVATION_HOLDS
+    live_evidence_checklist_satisfied = bool(live_checks) and all(
         check.passed for check in live_checks
     )
-    remaining = [
-        "one source-bound owner-approved no-secret Sandbox/OIDC drill",
-        "live destruction, cancellation, expiry, refund, monitoring, and rollback proof",
-        "one real approval-boundary scenario",
-        "repeatable provider quality, latency, and approved unit-cost evidence with injected holdouts",
-        "an explicit reviewed activation decision that opens both independent controls",
-    ]
-    if public_activation_ready:
-        remaining = []
+    trusted_attestation_verified = trusted_live_attestation_verified(evidence)
+    public_activation_ready = all(
+        (
+            source_candidate_ready,
+            live_evidence_checklist_satisfied,
+            trusted_attestation_verified,
+            PUBLIC_ACTIVATION_SOURCE_DECISION_APPROVED,
+            not PUBLIC_RELEASE_CONTROLS_EXPECTED_CLOSED,
+        )
+    )
+    remaining = list(KNOWN_P0_ACTIVATION_HOLDS)
+    if not live_evidence_checklist_satisfied:
+        remaining.extend(
+            [
+                "one exact-source public-fixture Sandbox/OIDC drill with lifecycle proof",
+                "repeatable provider quality plus measured mean/p95 latency and actual mean/p95 unit cost",
+            ]
+        )
+    if not trusted_attestation_verified:
+        remaining.append("an owner-controlled signed attestation verifier and a valid trusted attestation")
+    if not PUBLIC_ACTIVATION_SOURCE_DECISION_APPROVED:
+        remaining.append("an explicit reviewed activation decision recorded in source")
+    if PUBLIC_RELEASE_CONTROLS_EXPECTED_CLOSED:
+        remaining.append("a separate reviewed change that opens both independent release controls")
     return {
         "schemaVersion": 1,
         "product": "Autonomous Crump",
         "internalFeature": "crump_code",
         "sourceRevision": revision,
         "generatedAt": datetime.now(timezone.utc).isoformat(),
+        "localSourceChecksPassed": local_source_checks_passed,
         "sourceCandidateReady": source_candidate_ready,
+        "liveEvidenceChecklistSatisfied": live_evidence_checklist_satisfied,
+        "trustedLiveAttestationVerified": trusted_attestation_verified,
+        "sourceActivationDecisionApproved": PUBLIC_ACTIVATION_SOURCE_DECISION_APPROVED,
         "publicActivationReady": public_activation_ready,
         "publicReleaseLockExpectedClosed": True,
+        "activationControlsExpectedClosed": PUBLIC_RELEASE_CONTROLS_EXPECTED_CLOSED,
+        "knownP0ActivationHolds": list(KNOWN_P0_ACTIVATION_HOLDS),
         "networkRequestsByVerifier": 0,
         "modelCallsByVerifier": 0,
         "databaseWritesByVerifier": 0,
@@ -362,8 +449,9 @@ def _write_receipt(path: Path, receipt: dict[str, Any]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Run Autonomous Crump's zero-network source gate. Public activation remains false "
-            "unless a fresh exact-revision live-evidence receipt satisfies every external gate."
+            "Run Autonomous Crump's zero-network source gate. Supplied JSON can satisfy the "
+            "live-evidence checklist but cannot authorize public activation; a trusted attestation "
+            "verifier, source decision, and separate release-control change are still required."
         )
     )
     parser.add_argument("--live-evidence", type=Path)
@@ -384,7 +472,7 @@ def main() -> int:
     if args.receipt:
         _write_receipt(args.receipt, receipt)
     print(json.dumps(receipt, separators=(",", ":"), sort_keys=True))
-    if not receipt["sourceCandidateReady"]:
+    if not receipt["localSourceChecksPassed"]:
         return 1
     if args.require_public_activation and not receipt["publicActivationReady"]:
         return 2

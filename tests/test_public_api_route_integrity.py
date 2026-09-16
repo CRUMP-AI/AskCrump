@@ -14,7 +14,7 @@ PUBLIC = ROOT / "public"
 PUBLIC_SUFFIXES = frozenset({".html", ".js"})
 API_STRING = re.compile(r"(?P<quote>['\"`])(?P<value>/api/.*?)(?P=quote)")
 TEMPLATE_EXPRESSION = re.compile(r"\$\{[^{}]*\}")
-EXPECTED_RAW_REFERENCES = 97
+EXPECTED_RAW_REFERENCES = 96
 EXPECTED_SOURCE_FILES = 27
 
 # The final manuscript-run segment is deliberately selected from a fixed UI action.

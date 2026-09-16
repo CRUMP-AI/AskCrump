@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -11,15 +12,18 @@ from conftest import iter_effective_routes
 from backend.code_runner import (
     CodeRunnerError,
     CrumpCodeRunner,
+    SANDBOX_ENV,
     normalize_workspace_path,
     redact_sensitive_text,
     validate_verification_command,
 )
 from backend.code_service import (
     CodeApprovalExpiredError,
+    CodeSourcePreflightError,
     CodeTaskExpiredError,
     CodeTaskService,
     normalize_repo_source,
+    resolve_public_source_revision,
     sanitize_event_payload,
     timestamp_has_passed,
 )
@@ -51,6 +55,10 @@ class CodeLifecycleDB:
         for key, expression in filters.items():
             operator, expected = str(expression).split(".", 1)
             actual = row.get(key)
+            if operator == "is" and expected == "null":
+                if actual is not None:
+                    return False
+                continue
             if operator == "eq" and str(actual) != expected:
                 return False
             if operator == "gt" and _timestamp(str(actual)) <= _timestamp(expected):
@@ -163,6 +171,138 @@ def test_verification_policy_has_no_shell_install_publish_or_source_writes():
             validate_verification_command(command, args)
 
 
+@pytest.mark.asyncio
+async def test_failed_verification_is_preserved_and_cannot_transition_ready():
+    class RecordingService:
+        def __init__(self):
+            self.current = {
+                "id": CODE_TASK_ID,
+                "user_id": CODE_USER_ID,
+                "project_id": CODE_PROJECT_ID,
+                "status": "provisioning",
+                "mode": "implement",
+                "usage_receipt": {"eventId": "usage-1"},
+            }
+            self.events = []
+
+        async def get(self, **_kwargs):
+            return dict(self.current)
+
+        async def transition(self, item, target, **kwargs):
+            self.current = {**item, **kwargs.get("changes", {}), "status": target}
+            self.events.append((kwargs.get("event_type"), kwargs.get("event_payload")))
+            return dict(self.current)
+
+        async def append_event(self, _task, event_type, payload):
+            self.events.append((event_type, payload))
+
+    class FailingWorkspace:
+        def __init__(self):
+            self.verification = [
+                {
+                    "command": "python3 -m pytest -q",
+                    "returnCode": 1,
+                    "stdout": "1 failed",
+                    "stderr": "assertion failed",
+                }
+            ]
+
+        async def base_revision(self):
+            return "a" * 40
+
+        async def list_files(self, _prefix):
+            return "src/main.py"
+
+        async def changed_paths(self):
+            return ["src/main.py"]
+
+        async def syntax_verify(self, _paths):
+            return None
+
+        async def patch(self):
+            return "diff --git a/src/main.py b/src/main.py"
+
+    service = RecordingService()
+    runner = CrumpCodeRunner(SimpleNamespace(), service)
+    runner._agent_loop = AsyncMock(return_value="Implemented the requested change.")
+    result = await runner._run_in_workspace(service.current, FailingWorkspace())
+
+    assert result["status"] == "failed"
+    assert result["failure_code"] == "CODE_VERIFICATION_FAILED"
+    assert result["payment_source"] == "refund_pending"
+    assert result["verification"][0]["returnCode"] == 1
+    assert result["result_patch"].startswith("diff --git")
+    assert "Verification failed" in result["result_summary"]
+    assert ("task.completed", {"changedFiles": ["src/main.py"], "status": "completed"}) not in service.events
+    assert service.events[-1][0] == "task.failed"
+    assert service.events[-1][1]["failureCode"] == "CODE_VERIFICATION_FAILED"
+
+
+@pytest.mark.asyncio
+async def test_public_source_preflight_pins_exact_sha_before_charge_without_live_network():
+    sha = "b" * 40
+
+    class FixtureResponse:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"sha": sha}
+
+    class FixtureClient:
+        def __init__(self):
+            self.requests = []
+
+        async def get(self, url, **kwargs):
+            self.requests.append((url, kwargs))
+            return FixtureResponse()
+
+    client = FixtureClient()
+    resolved = await resolve_public_source_revision(
+        "https://github.com/octocat/Hello-World.git",
+        "feature/safe-ref",
+        client=client,
+    )
+    assert resolved == sha
+    assert client.requests[0][0].endswith("/commits/feature%2Fsafe-ref")
+    assert "Authorization" not in client.requests[0][1]["headers"]
+
+    database = CodeLifecycleDB(
+        {
+            **code_task(status="queued", expires_at="2999-01-01T00:00:00+00:00"),
+            "source_ref": "feature/safe-ref",
+            "base_revision": None,
+        }
+    )
+    service = CodeTaskService(database, SimpleNamespace())
+    pinned = await service.pin_source_revision(database.task, revision=resolved)
+    assert pinned["source_ref"] == sha
+    assert pinned["base_revision"] == sha
+    assert service.pinned_source_revision(pinned) == sha
+
+
+@pytest.mark.asyncio
+async def test_public_source_preflight_fails_unmetered_on_invalid_revision_shape():
+    class InvalidResponse:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"sha": "moving-branch"}
+
+    class InvalidClient:
+        async def get(self, _url, **_kwargs):
+            return InvalidResponse()
+
+    with pytest.raises(CodeSourcePreflightError) as exc:
+        await resolve_public_source_revision(
+            "https://github.com/octocat/Hello-World",
+            "main",
+            client=InvalidClient(),
+        )
+    assert "No run was started or charged" in str(exc.value)
+
+
 def test_model_and_audit_outputs_redact_secrets_and_drop_arbitrary_payloads():
     fake_stripe_key = "sk_" + "live_" + "abcdefghijklmnopqrstuvwxyz"
     redacted = redact_sensitive_text(
@@ -223,11 +363,19 @@ def test_code_audit_foreign_keys_remain_indexed_for_bounded_cleanup():
             assert f"on public.{table}({column})" in migration
 
 
-def test_sandbox_execution_is_ephemeral_bounded_and_has_no_environment():
+def test_sandbox_execution_is_ephemeral_bounded_and_injects_only_fixed_safety_environment():
     source = read("backend/code_runner.py")
     assert "NetworkPolicy.deny_all()" in source
     assert "persistent=False" in source
-    assert "env={}" in source
+    assert "env=SANDBOX_ENV" in source
+    assert SANDBOX_ENV == {
+        "NO_COLOR": "1",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONPYCACHEPREFIX": "/tmp/autonomous-crump-pycache",
+        "PYTEST_ADDOPTS": "-p no:cacheprovider",
+        "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+    }
+    assert not any("KEY" in name or "TOKEN" in name or "SECRET" in name for name in SANDBOX_ENV)
     assert "destroy=True" in source
     assert "vcpus=2, memory=4096" in source
     assert "MAX_PATCH = 200_000" in source

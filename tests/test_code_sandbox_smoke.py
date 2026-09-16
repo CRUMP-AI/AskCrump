@@ -32,6 +32,8 @@ def test_dry_run_is_content_free_and_cannot_authorize_live_compute(capsys):
     assert receipt["modelCalls"] == 0
     assert receipt["databaseWrites"] == 0
     assert receipt["customerData"] is False
+    assert receipt["injectedEnvironmentVariables"] == len(code_runner.SANDBOX_ENV)
+    assert receipt["injectedSensitiveEnvironmentVariables"] == 0
     assert receipt["liveRunAuthorized"] is False
     assert smoke.FIXTURE_REPOSITORY not in json.dumps(receipt)
 
@@ -264,7 +266,7 @@ async def test_production_runner_and_smoke_share_exact_sandbox_provisioning(monk
     assert create["resources"].memory == 4096
     assert create["persistent"] is False
     assert create["network_policy"].mode == "deny-all"
-    assert create["env"] == {}
+    assert create["env"] == code_runner.SANDBOX_ENV
     assert create["tags"] == {"feature": "crump-code", "task": "operator-smoke"}
     assert create["destroy"] is True
     credentials_factory = captured["session"]["service_options"][0].credentials_factory

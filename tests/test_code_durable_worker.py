@@ -112,6 +112,18 @@ class UnexpectedRunner:
         raise RuntimeError("private failure detail must not reach operations logs")
 
 
+class VerificationFailingRunner:
+    async def run(self, item, *, oidc_token):
+        assert oidc_token == "oidc"
+        return {
+            **item,
+            "status": "failed",
+            "failure_code": "CODE_VERIFICATION_FAILED",
+            "payment_source": "refund_pending",
+            "verification": [{"command": "pytest", "returnCode": 1}],
+        }
+
+
 def worker(service, runner, features=None, *, enabled=True):
     return CodeWorker(
         SimpleNamespace(
@@ -209,6 +221,20 @@ async def test_transient_worker_failure_requeues_without_refunding_or_recharging
     assert features.refunds == []
     events = [json.loads(record.message)["event"] for record in caplog.records]
     assert events == ["worker_claimed", "worker_retry_scheduled"]
+
+
+@pytest.mark.asyncio
+async def test_terminal_verification_failure_refunds_before_worker_reports_failure():
+    claimed = task()
+    service = WorkerService(claimed=claimed)
+    features = WorkerFeatures()
+    result = await worker(service, VerificationFailingRunner(), features).process_next(
+        oidc_token="oidc"
+    )
+
+    assert result == {"handled": True, "claimed": True, "status": "failed"}
+    assert features.refunds == [(USER_ID, claimed["usage_receipt"])]
+    assert len(service.refunded) == 1
 
 
 @pytest.mark.asyncio

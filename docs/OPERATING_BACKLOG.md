@@ -979,7 +979,7 @@ prompts, responses, filenames, URLs, customer data, or arbitrary error text.
 packaged, packaging-failed, and downloaded counts. Treat a small first sample as operational
 evidence, not a statistically reliable conversion benchmark.
 
-### P0 — Complete the Crump Code activation gates
+### P0 — Complete the Autonomous Crump activation gates
 
 **Evidence:** the server and private schema provide public-repository task creation, bounded tool
 use, isolated execution, patch generation, verification, state transitions, cancellation, and

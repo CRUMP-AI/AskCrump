@@ -5,8 +5,10 @@ from datetime import datetime, timedelta, timezone
 import json
 import re
 from typing import Any
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import quote, urlsplit, urlunsplit
 from uuid import uuid4
+
+import httpx
 
 from .db import SupabaseDB, eq, gt, in_, lte
 from .project_service import ProjectService
@@ -82,6 +84,62 @@ class CodeTaskError(RuntimeError):
 class CodeTaskNotFoundError(CodeTaskError):
     code = "CODE_TASK_NOT_FOUND"
     status_code = 404
+
+
+class CodeSourcePreflightError(CodeTaskError):
+    code = "CODE_SOURCE_PREFLIGHT_FAILED"
+    status_code = 422
+
+
+async def resolve_public_source_revision(
+    repo_url: str,
+    revision: str | None,
+    *,
+    client: Any | None = None,
+) -> str:
+    """Resolve a public GitHub ref to an immutable SHA before any charge."""
+    normalized_url, normalized_ref = normalize_repo_source(repo_url, revision)
+    segments = [segment for segment in urlsplit(normalized_url).path.split("/") if segment]
+    owner = segments[0]
+    repository = segments[1].removesuffix(".git")
+    requested_ref = normalized_ref or "HEAD"
+    endpoint = (
+        "https://api.github.com/repos/"
+        f"{quote(owner, safe='')}/{quote(repository, safe='')}/commits/"
+        f"{quote(requested_ref, safe='')}"
+    )
+    owns_client = client is None
+    http = client or httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0))
+    try:
+        response = await http.get(
+            endpoint,
+            headers={
+                "Accept": "application/vnd.github+json",
+                "User-Agent": "Ask-Crump-source-preflight",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+            follow_redirects=False,
+        )
+        if int(response.status_code) != 200:
+            raise CodeSourcePreflightError(
+                "The public repository or revision could not be verified. Check the URL and branch, then try again."
+            )
+        payload = response.json()
+        sha = str(payload.get("sha") or "").strip().lower() if isinstance(payload, dict) else ""
+        if not re.fullmatch(r"[0-9a-f]{40}", sha):
+            raise CodeSourcePreflightError(
+                "The repository returned an invalid revision. No run was started or charged."
+            )
+        return sha
+    except CodeSourcePreflightError:
+        raise
+    except (httpx.HTTPError, OSError, ValueError) as exc:
+        raise CodeSourcePreflightError(
+            "The public repository could not be verified right now. No run was started or charged."
+        ) from exc
+    finally:
+        if owns_client:
+            await http.aclose()
 
 
 class CodeTaskConflictError(CodeTaskError):
@@ -395,6 +453,41 @@ class CodeTaskService:
         if not rows:
             raise CodeTaskConflictError("Autonomous Crump task is no longer ready to run.")
         return rows[0]
+
+    async def pin_source_revision(
+        self,
+        task: dict[str, Any],
+        *,
+        revision: str,
+    ) -> dict[str, Any]:
+        immutable = str(revision or "").strip().lower()
+        if not re.fullmatch(r"[0-9a-f]{40}", immutable):
+            raise CodeSourcePreflightError("The repository revision is invalid.")
+        if task.get("source_ref") == immutable and task.get("base_revision") == immutable:
+            return task
+        rows = await self.db.update(
+            "code_tasks",
+            {
+                "source_ref": immutable,
+                "base_revision": immutable,
+                "updated_at": _now(),
+            },
+            filters={
+                "id": eq(task["id"]),
+                "user_id": eq(task["user_id"]),
+                "status": eq("queued"),
+                "source_ref": eq(task.get("source_ref")),
+            },
+        )
+        if rows:
+            return rows[0]
+        current = await self.get(user_id=str(task["user_id"]), task_id=str(task["id"]))
+        if (
+            re.fullmatch(r"[0-9a-f]{40}", str(current.get("source_ref") or ""))
+            and current.get("base_revision") == current.get("source_ref")
+        ):
+            return current
+        raise CodeTaskConflictError("The task changed before its source revision was pinned.")
 
     async def update_fields(self, task: dict[str, Any], changes: dict[str, Any]) -> dict[str, Any]:
         filters = {"id": eq(task["id"]), "user_id": eq(task["user_id"])}
@@ -722,3 +815,11 @@ class CodeTaskService:
             "dispatch_token",
         }
         return {key: value for key, value in task.items() if key not in hidden}
+
+    @staticmethod
+    def pinned_source_revision(task: dict[str, Any]) -> str | None:
+        source_ref = str(task.get("source_ref") or "").strip().lower()
+        base_revision = str(task.get("base_revision") or "").strip().lower()
+        if source_ref == base_revision and re.fullmatch(r"[0-9a-f]{40}", source_ref):
+            return source_ref
+        return None

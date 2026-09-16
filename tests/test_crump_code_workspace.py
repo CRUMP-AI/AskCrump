@@ -25,9 +25,9 @@ def test_code_workspace_is_lazy_loaded_only_after_server_configuration_and_entit
     assert "function hydrateAvailability(data)" in script
     assert "__crumpCodeBootstrapStatus" in script
     assert "window.CrumpCodeWorkspace = Object.freeze({open, close, refresh, refreshAvailability, hydrateAvailability})" in script
-    versioned_script = "/crump-code-5.9.35.js?v=5.9.76-autonomous-review-console-1"
-    versioned_style = "/crump-code-5.9.35.css?v=5.9.76-autonomous-review-console-1"
-    versioned_loader = "/crump-code-loader.js?v=5.9.76-code-lazy-load-1"
+    versioned_script = "/crump-code-5.9.35.js?v=5.9.76-autonomous-activation-2"
+    versioned_style = "/crump-code-5.9.35.css?v=5.9.76-autonomous-activation-2"
+    versioned_loader = "/crump-code-loader.js?v=5.9.76-autonomous-activation-2"
     for source in (runtime, native, worker):
         assert versioned_loader in source
         assert versioned_script not in source
@@ -72,15 +72,15 @@ def test_code_workspace_separates_preparation_from_confirmed_metered_execution()
     assert "Task accepted. You can close this window" in script
 
 
-def test_code_workspace_exposes_review_cancellation_approval_and_patch_surfaces():
+def test_code_workspace_exposes_review_cancellation_failure_and_patch_surfaces():
     script = read("public/crump-code-5.9.35.js")
 
     for signal in (
         "Changes ·",
         "Download .patch",
         "Verification",
-        "Approval required",
-        "Approve bounded retry",
+        "Unsupported boundary reached",
+        "No approval action is available",
         "Cancel task",
         "Activity history",
     ):
@@ -91,8 +91,8 @@ def test_code_workspace_exposes_review_cancellation_approval_and_patch_surfaces(
     assert "Nothing is pushed. Review or download the complete patch" in script
     assert "copy.textContent = String(task.result_summary)" in script
     assert "request cancellation. Autonomous Crump checks that request" in script
-    assert "This approval expires" in script
-    assert "CODE_APPROVAL_EXPIRED" in script
+    assert "cannot resume from the recorded boundary" in script
+    assert "data-code-approval" not in script
     assert "CODE_TASK_EXPIRED" in script
     assert "addTextRow(facts, 'Expires', formatDate(task.expires_at))" in script
 
@@ -117,6 +117,12 @@ def test_autonomous_crump_review_console_proves_durable_progress_diff_and_check_
     assert "window.dispatchEvent(new Event('online'))" in verifier
     assert "src/retry.js" in verifier
     assert "tests/retry.test.js" in verifier
+    assert "mode=ownership" in verifier
+    assert "task-fast/run" in verifier
+    assert "task-fast/cancel" in verifier
+    assert "axe.run" in verifier
+    assert "{width: 390, height: 844}" in verifier
+    assert "fileList.setAttribute('role', 'list')" not in script
     assert ".crump-code-progress-stages" in styles
     assert ".crump-code-diff-viewer" in styles
     assert ".crump-code-check pre" in styles
@@ -127,8 +133,6 @@ def test_customer_runtime_uses_autonomous_crump_brand_without_renaming_internal_
         "public/crump-code-loader.js",
         "public/crump-code-5.9.35.js",
         "public/crump-navigation-5.9.30.js",
-        "public/crump-billing-5.1.js",
-        "public/crump-5.2.js",
         "backend/feature_service.py",
         "backend/routes/code.py",
         "backend/code_service.py",
@@ -138,16 +142,79 @@ def test_customer_runtime_uses_autonomous_crump_brand_without_renaming_internal_
         source = read(relative)
         assert "Crump Code" not in source, relative
 
+    for relative in ("public/crump-billing-5.1.js", "public/crump-5.2.js"):
+        source = read(relative)
+        assert "Crump Code 12" not in source, relative
+        assert "Autonomous Crump 12" not in source, relative
+
     workspace = read("public/crump-code-5.9.35.js")
     navigation = read("public/crump-navigation-5.9.30.js")
     routes = read("backend/routes/code.py")
     config = read("backend/config.py")
     assert "AUTONOMOUS CRUMP · PRIVATE PREVIEW" in workspace
+    assert "No Ask Crump or account credentials are injected" in workspace
+    assert "Public repository contents and check output may be sent" in workspace
+    assert "authorized and prepared to share" in workspace
+    assert "cannot see secrets" not in workspace.lower()
     assert "autonomous-crump-${String(state.task.id" in workspace
     assert "label: 'Autonomous'" in navigation
     assert '"CODE_WORKSPACE_NOT_CONFIGURED"' in routes
     assert "CODE_WORKSPACE_PUBLIC_RELEASED = False" in config
     assert "CRUMP_ENABLE_CODE_WORKSPACE" in config
+
+
+def test_disabled_feature_brand_is_confined_to_gated_runtime_and_absent_from_promotion_surfaces():
+    text_suffixes = {".css", ".html", ".js", ".json", ".md", ".txt", ".xml"}
+    public_brand_hits = {
+        path.relative_to(ROOT).as_posix()
+        for path in (ROOT / "public").rglob("*")
+        if path.is_file()
+        and path.suffix.lower() in text_suffixes
+        and "Autonomous Crump" in path.read_text(encoding="utf-8")
+    }
+    assert public_brand_hits == {
+        "public/crump-code-5.9.35.js",
+        "public/crump-code-loader.js",
+    }
+
+    promotion_paths = {
+        path
+        for path in (ROOT / "public").rglob("*")
+        if path.is_file()
+        and path.suffix.lower() in {".html", ".xml"}
+    }
+    promotion_paths.update(
+        path
+        for path in (ROOT / "public").iterdir()
+        if path.is_file()
+        and path.suffix.lower() in {".css", ".js"}
+        and path.name.startswith(("billing", "crump-billing", "landing", "onboarding"))
+    )
+    promotion_paths.update(
+        path
+        for path in (ROOT / "store").rglob("*")
+        if path.is_file() and path.suffix.lower() in {".json", ".md", ".txt"}
+    )
+    for path in sorted(promotion_paths):
+        source = path.read_text(encoding="utf-8")
+        assert "Autonomous Crump" not in source, path.relative_to(ROOT)
+        assert "Crump Code" not in source, path.relative_to(ROOT)
+
+
+def test_current_docs_use_one_explicit_customer_name_migration_note():
+    for relative in ("docs/DATA_SAFETY.md", "docs/CRUMP_CODE_SECURITY.md"):
+        assert "Crump Code" not in read(relative), relative
+
+    backlog = read("docs/OPERATING_BACKLOG.md")
+    active_gate = backlog.split(
+        "### P0 — Complete the Autonomous Crump activation gates", 1
+    )[1].split("\n### ", 1)[0]
+    assert "Crump Code" not in active_gate
+
+    candidate = read("docs/AUTONOMOUS_CRUMP_ACTIVATION_CANDIDATE_2026-09-16.md")
+    migration_note = "Autonomous Crump (formerly Crump Code; internal identifier `crump_code`)"
+    assert candidate.count(migration_note) == 1
+    assert candidate.count("Crump Code") == 1
 
 
 def test_code_workspace_has_accessible_modal_and_mobile_controls():

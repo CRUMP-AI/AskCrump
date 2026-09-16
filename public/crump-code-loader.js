@@ -4,8 +4,8 @@
   if (window.__crumpCodeLoaderLoaded) return;
   window.__crumpCodeLoaderLoaded = true;
 
-  const STYLE_URL = '/crump-code-5.9.35.css?v=5.9.76-autonomous-review-console-1';
-  const SCRIPT_URL = '/crump-code-5.9.35.js?v=5.9.76-autonomous-review-console-1';
+  const STYLE_URL = '/crump-code-5.9.35.css?v=5.9.76-autonomous-activation-2';
+  const SCRIPT_URL = '/crump-code-5.9.35.js?v=5.9.76-autonomous-activation-2';
   let featureStatus = null;
   let availabilityPromise = null;
   let workspacePromise = null;

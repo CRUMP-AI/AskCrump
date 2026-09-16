@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import importlib.util
+import json
 from pathlib import Path
 import sys
 
@@ -25,10 +26,18 @@ def valid_live_evidence(revision: str) -> dict:
         "maxCostCents": 1,
         "liveBenchmark": {
             "providerRuns": 8,
+            "measuredRuns": 8,
+            "costedRuns": 8,
             "holdoutCases": 4,
             "passRate": 0.9,
             "meanScore": 90,
             "repeatable": True,
+            "measuredMeanLatencyMs": 1800,
+            "measuredP95LatencyMs": 2400,
+            "approvedP95LatencyMs": 3000,
+            "actualMeanUnitCostCents": 0.6,
+            "actualP95UnitCostCents": 0.8,
+            "approvedP95UnitCostCeilingCents": 1,
         },
     }
     evidence.update({name: True for name in MODULE.REQUIRED_LIVE_BOOLEANS})
@@ -66,6 +75,63 @@ def test_live_evidence_contract_rejects_weak_or_unrepeatable_benchmark():
     )
     checks = {check.name: check.passed for check in MODULE.live_evidence_checks(evidence, revision)}
     assert checks["repeatable_live_quality"] is False
+
+
+def test_live_evidence_requires_measured_latency_and_actual_unit_cost_envelopes():
+    revision = "a" * 40
+    evidence = valid_live_evidence(revision)
+    evidence["liveBenchmark"].pop("measuredP95LatencyMs")
+    evidence["liveBenchmark"]["actualP95UnitCostCents"] = 1.1
+    checks = {check.name: check.passed for check in MODULE.live_evidence_checks(evidence, revision)}
+    assert checks["measured_live_latency_envelope"] is False
+    assert checks["actual_live_unit_cost_envelope"] is False
+
+
+def test_synthetic_exact_revision_evidence_cannot_authorize_public_activation(
+    tmp_path, monkeypatch
+):
+    revision = "a" * 40
+    evidence = valid_live_evidence(revision)
+    evidence_path = tmp_path / "synthetic-live-evidence.json"
+    evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+    smoke = {
+        "success": True,
+        "networkPolicy": "deny-all",
+        "destroy": True,
+        "modelCalls": 0,
+        "databaseWrites": 0,
+    }
+    benchmark = {
+        "suite_id": "fixture",
+        "case_count": 4,
+        "passed_case_count": 4,
+        "mean_score": 100,
+        "passed": True,
+    }
+    monkeypatch.setattr(MODULE, "_git_revision", lambda: revision)
+    monkeypatch.setattr(MODULE, "_git_tree_clean", lambda: True)
+    monkeypatch.setattr(MODULE, "offline_runtime_checks", lambda: ([], smoke, benchmark))
+
+    receipt = MODULE.build_receipt(evidence=evidence)
+    assert receipt["localSourceChecksPassed"] is True
+    assert receipt["sourceCandidateReady"] is False
+    assert receipt["knownP0ActivationHolds"]
+    assert receipt["liveEvidenceChecklistSatisfied"] is True
+    assert receipt["trustedLiveAttestationVerified"] is False
+    assert receipt["activationControlsExpectedClosed"] is True
+    assert receipt["publicActivationReady"] is False
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "verify_autonomous_crump_activation.py",
+            "--live-evidence",
+            str(evidence_path),
+            "--require-public-activation",
+        ],
+    )
+    assert MODULE.main() == 2
 
 
 def test_activation_receipt_path_cannot_escape_the_output_boundary(tmp_path):
