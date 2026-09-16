@@ -1425,6 +1425,15 @@ the 24-hour window is incomplete and the legitimate exposure denominator remains
 Preserve both product and post until the boundary. Evidence:
 `docs/FACEBOOK_CELL_EARLY_TECHNICAL_OBSERVATION_2026-09-16_1859UTC.md`.
 
+The held single-output Project-continuity fix now has an exact post-isolation release and rollback
+plan. It requires the completed Facebook boundary read first, resolves production from live
+`origin/main` rather than the stale dirty primary workspace, prohibits bundling either later
+campaign or API/store work, repeats every complete and focused gate on the exact release tree,
+checks live asset bytes and cache markers, runs a signed-in non-destructive output save/open smoke,
+and defines exact pre-release deployment restoration if any parity or runtime check fails. The plan
+does not authorize release before **2026-09-17 13:28 EDT**. Evidence:
+`docs/SINGLE_OUTPUT_CONTINUITY_POST_ISOLATION_RELEASE_PLAN_2026-09-17.md`.
+
 Commit `9225374` makes the upcoming D1 decision fail closed at the operator boundary. The weekly
 and combined operating exporters now require all 25 cohort counts as nonnegative integers, one
 consistent requested reporting window, valid nullable database finance totals, and 24 exact subset
