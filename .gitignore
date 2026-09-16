@@ -29,6 +29,7 @@ __pycache__/
 coverage.xml
 htmlcov/
 output/crump-code-benchmark/
+output/intelligence-benchmark/
 .venv/
 venv/
 

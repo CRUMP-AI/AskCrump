@@ -80,18 +80,34 @@ disable prompt training, and fail closed instead of silently falling back to a
 premium provider. Image generation continues to use the configured OpenAI image
 model behind paid-plan limits.
 
-## Evaluation direction
+## Evaluation
 
 The deterministic tests in `tests/test_intelligence_service.py` protect routing
-and memory safety rules. The next evaluation layer should add a versioned corpus
-covering:
+and memory safety rules. The provider-neutral offline foundation in
+`benchmarks/intelligence/manifest.v1.json` adds a versioned corpus covering:
 
 - instruction following
 - factuality and citation quality
-- memory precision / recall / contradiction handling
+- memory precision, relevant recall, and private-turn exclusion
 - tool-selection accuracy
-- code correctness
 - refusal and high-stakes behavior
 - latency and cost
 - cross-device continuity
-- regression comparisons between releases
+
+Executable code correctness is measured separately by `benchmarks/crump_code`.
+Release-to-release comparisons are an operating step over saved aggregate reports,
+not a mechanism implemented by this fixed manifest.
+
+`scripts/evaluate_intelligence_benchmark.py` consumes a local run artifact and
+emits only category scores and categorical failure codes; it does not call a
+provider or echo candidate responses. Every fixed case and all critical
+privacy/safety cases must pass. Critical natural-language cases require an
+output-hash-bound receipt from a distinct independent model or human reviewer;
+the deterministic evaluator verifies that receipt contract instead of claiming
+to understand arbitrary language. Executable code correctness remains a
+separate required gate in `benchmarks/crump_code`.
+
+This foundation is a release-comparison contract, not a competitor-parity claim.
+Provider latency, token, and cost fields must come from a trusted runner and be
+reconciled with provider records before they are used for production economics.
+Private holdouts are still required before any public quality comparison.
