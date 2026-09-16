@@ -93,6 +93,18 @@ next constraint.
   feedback secondary. The 47/47 browser matrix and signed-in production replay
   prove the controls and recovery states; only legitimate intent, completion,
   resume, and elapsed D1/D7 evidence can prove adoption or retention lift.
+- Treat the generated-output Project action as the next bounded continuity repair. A read-only
+  2026-09-16 production asset probe confirmed that a generated document or image still renders the
+  output-specific Project action alongside the conversation-level Project action, and that the
+  successful output-save path depends on a full message rerender to replace `Saving…`. Held candidate
+  `candidate/artifact-continuity-dedupe-20260916` at `b95b4f5` removes the duplicate control and
+  updates the reusable output action directly. Its exact-path guard is green; focused Project and
+  button tests are green; and the explicit 8/8 desktop/phone, existing/new-Project,
+  document/image browser matrix ends at `Open Project`, reopens the exact destination, and records
+  no unexpected request or browser error. Keep it local and undeployed until the protected
+  acquisition observation ends and independent review accepts the exact diff; then release only
+  those two commits and validate one legitimate signed-in document journey without customer-content
+  logging or synthetic production analytics.
 - Keep safe database reads on the 5.5-second bounded recovery window released
   in commit `76a0b20`: a fifth attempt may recover a transient gateway timeout,
   while non-idempotent writes still run once and scheduler/provider work is
