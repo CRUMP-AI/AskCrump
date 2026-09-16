@@ -45,30 +45,58 @@ it does not prove acquisition, retained value, or revenue.
 
 ## Dependency health
 
-A read-only dependency review completed on 2026-09-16 against the exact production source commit
-`8545cea72a7b8f1af0072f635e19bc19d5d736a2`. The JavaScript lockfile audit reported zero known
+A read-only dependency review completed on 2026-09-16 and was repeated against the released native
+lockfile at exact production source commit `7833d89e2e5ee419fd27757f82c4fff92beed295`. The JavaScript lockfile audit reported zero known
 information, low, moderate, high, or critical vulnerabilities across 134 production, development,
 and optional dependencies. The Python requirements audit reported zero known vulnerabilities
 across every declared requirement and resolved dependency. Both audits exited successfully, the
 production worktree remained clean, and no dependency, lockfile, environment, deployment, or
 database state changed.
 
+## Native dependency release
+
+Capacitor core, Android, CLI, and iOS advanced together from 8.4.2 to 8.4.3 at merge commit
+`0e93620ad3bac0009661299237ba81a50cb60aa5`. This narrow patch blocks navigation to Capacitor's
+internal HTTP proxy path, including subframes. The newer 8.5.2 line was tested and rejected because
+its CLI introduced a moderate-vulnerability path through `xcode` and `uuid`; no override hid that
+finding. Pull-request CI, hosted Java 21 Android, hosted macOS iOS, main Python/JavaScript/Android/
+iOS/Dependabot gates, and deployment `dpl_Cd2FGrDeCRShtBN4KaR1TKkXeuF7` passed. All six aliases
+are Ready; home, app, health, and company probes returned HTTP 200; and the initial Vercel runtime-
+error review was empty. This is a source/runtime foundation release, not evidence of signing,
+physical-device, billing, push, store review, or store availability.
+
+## Control reliability revalidation
+
+The released 5.9.76 workspace was revalidated after the native dependency release. The fail-closed
+source inventory still covers 182 rendered and 94 programmatic button construction sites, for 276
+reviewed controls. The complete credential-free browser matrix passed 48/48 and 93/93 focused
+button, mobile, Files, Projects, image, Library, and Video tests passed. A signed-in production
+smoke pass then exercised Chats and conversation options, Projects and Files, foreground image
+preview, Create, Video, Library, You and every Settings section, and Intelligence. Each requested
+surface opened in front of its owner, and the browser error/warning log was empty. Destructive,
+payment, provider-generation, permission, and external-communication outcomes remained behind
+their existing guarded test boundaries and were not executed against production.
+
 ## Candidate readiness
 
-- `draft-to-clearer`: refreshed from exact production base `8545cea72a7b8f1af0072f635e19bc19d5d736a2`;
+- `draft-to-clearer`: prepared from the prior production base `8545cea72a7b8f1af0072f635e19bc19d5d736a2`;
   functional commit `0a942111324517a84a41e509ddef2fda23dfc41d`; evidence HEAD
-  `78bb2f4b503550c0342da7499ca07ed1bb06ea61`. Marketing independently accepted the current-base
-  source/staged candidate. Public release remains held.
-- `resume-you-can-defend`: isolated from the same exact production base; functional commit
-  `c5cb37a1b660131ed2e169c94006a97d68a9b4ce`; evidence HEAD
-  `392f9a56e920b620b1778bd21c03085f91874d29`. Marketing independently accepted the exact source
-  candidate after 86/86 source checks, 72/72 focused tests, actual-file client-boundary proof,
-  54-file JavaScript validation with 14/14 campaign cases, 49/49 real-browser controls, exact
-  artifact hashes, clean diff/status, and a live-production absent check. Public release remains
-  held.
-- Ask Crump API `v0.133.0`: private compatibility candidate passed its source and hosted gates.
-  Stable API production remains `v0.49.1`; no Product integration, deployment, or parity claim is
-  authorized from that receipt.
+  `78bb2f4b503550c0342da7499ca07ed1bb06ea61`. Marketing independently accepted that frozen
+  source/staged candidate. It now requires a refresh onto current production before any release;
+  public release remains held.
+- `resume-you-can-defend`: rebased onto exact current production base
+  `7833d89e2e5ee419fd27757f82c4fff92beed295`; Feed registration commit `ee84101`; Instagram
+  profile-link extension commit `4592aad`; evidence HEAD
+  `0d201eb095efa201c0a20fd86267f30371367b64`. The exact added route is `instagram / profile-link /
+  resume-you-can-defend / [no creative] / resume`; both existing Feed routes remain unchanged.
+  Full Python passed 1,156/1,156, focused attribution/button coverage 80/80, JavaScript 54 files
+  with 25/25 campaign cases, browser controls 49/49, and build, credential, lint, compile, diff, and
+  dependency gates are green. Marketing independently accepted the exact source and hashes. The
+  candidate is unpushed and unapplied; public release remains held.
+- Ask Crump API `v0.134.0`: private hosted-tool scheduler candidate passed 343 hosted checks at
+  commit `22c41595e35480ace484c49000ea127abff6bc83`. It changes no client schema or shared Product
+  table. Stable API production remains `v0.49.1`; no Product integration, deployment, or parity
+  claim is authorized from that receipt.
 
 Neither campaign candidate is present on a remote branch. Neither migration has been applied.
 No tagged production URL, account, analytics event, public guide, social object, advertisement,
@@ -83,11 +111,10 @@ the sample remains one account and no post-offer Project behavior or D7 denomina
 The next safe growth dependency is qualified acquisition readiness:
 
 1. keep both independently accepted campaign releases isolated until their explicit publication
-   gates reopen;
-2. preserve the active rough-to-useful Facebook challenger as the first campaign cell;
-3. obtain legitimate new post-instrumentation accounts before interpreting activation, durable
+   gates reopen, with the rough-to-useful Facebook challenger remaining first in the external queue;
+2. obtain legitimate new post-instrumentation accounts before interpreting activation, durable
    value, D7, checkout, or payer conversion; and
-4. preserve the no-synthetic-events and aggregate-only privacy boundary.
+3. preserve the no-synthetic-events and aggregate-only privacy boundary.
 
 Do not deploy either candidate, apply either migration, submit Search Console or store actions,
 publish social content, or spend without the governing action-time authorization.
