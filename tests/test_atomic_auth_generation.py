@@ -17,6 +17,9 @@ from backend.security import hash_password, token_hash
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATION_FLOOR = 20260916160711
 RESET_TOKEN = "inbox-owned-reset-token"
+POSTGRES_HARNESS = ROOT / "scripts" / "verify_atomic_auth_generation_postgres.py"
+CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
+POSTGRES_GATE_DOC = ROOT / "docs" / "ATOMIC_AUTH_GENERATION_POSTGRES_GATE.md"
 
 
 def auth_request(path: str) -> Request:
@@ -279,3 +282,61 @@ def test_all_production_session_creation_uses_generation_rpc() -> None:
         routes.index("@router.post('/reset-password')") :
         routes.index("@router.post('/resend-verification')")
     ]
+
+
+def test_atomic_auth_postgres_ci_owns_a_genuine_loopback_server() -> None:
+    workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+    job = workflow[
+        workflow.index("  atomic-auth-postgres:") : workflow.index("\n  python:")
+    ]
+
+    assert "services:" not in job
+    assert "docker run --detach --rm" in job
+    assert "--network host" in job
+    assert "-c listen_addresses=127.0.0.1" in job
+    assert "-c port=55432" in job
+    assert "127.0.0.1:55432/postgres" in job
+    assert "ASKCRUMP_DISPOSABLE_POSTGRES_ACK: I_OWN_THIS_DISPOSABLE_LOCAL_CLUSTER" in job
+    assert "if: always()" in job
+    assert "docker stop askcrump-atomic-auth-postgres || true" in job
+
+
+def test_atomic_auth_postgres_gate_requires_owned_cluster_attestation() -> None:
+    harness = POSTGRES_HARNESS.read_text(encoding="utf-8")
+    documentation = POSTGRES_GATE_DOC.read_text(encoding="utf-8").lower()
+    main = harness[harness.index("def main()") :]
+
+    assert 'ATTESTATION_ENV = "ASKCRUMP_DISPOSABLE_POSTGRES_ACK"' in harness
+    assert 'ATTESTATION_VALUE = "I_OWN_THIS_DISPOSABLE_LOCAL_CLUSTER"' in harness
+    assert "validate_disposable_attestation()" in main
+    assert main.index("validate_disposable_attestation()") < main.index(
+        "validate_admin_connection(admin_url)"
+    )
+    assert "server_address is not None and is_loopback_host(str(server_address))" in harness
+    assert "GITHUB_ACTIONS" not in harness
+    assert "not a loopback proxy or tunnel" in harness
+    assert "cannot detect a loopback proxy or tunnel" in documentation
+    assert "will not connect to" not in documentation
+
+
+def test_atomic_auth_postgres_cleanup_never_drops_an_uncreated_name() -> None:
+    harness = POSTGRES_HARNESS.read_text(encoding="utf-8")
+    create = harness[
+        harness.index("def create_disposable_database(") :
+        harness.index("def bootstrap_supabase_compatibility(")
+    ]
+    cleanup = harness[harness.index("def cleanup(") : harness.index("def main()")]
+
+    create_database = 'sql.SQL("create database {} template template0")'
+    created_marker = "state.database_created = True"
+    assert "database_created: bool = False" in harness
+    assert harness.count(created_marker) == 1
+    assert create_database in create
+    assert created_marker in create
+    assert create.index(create_database) < create.index(created_marker)
+    assert "if state.database_created:" in cleanup
+    assert 'sql.SQL("drop database {} with (force)")' in cleanup
+    assert "drop database if exists" not in cleanup
+    assert cleanup.index("if state.database_created:") < cleanup.index(
+        'sql.SQL("drop database {} with (force)")'
+    )

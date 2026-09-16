@@ -14,6 +14,48 @@ permissions:
   contents: read
 
 jobs:
+  atomic-auth-postgres:
+    name: Atomic auth PostgreSQL 15
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-postgres-test.txt
+      - name: Install PostgreSQL probe dependency
+        run: pip install -r requirements-postgres-test.txt
+      - name: Start owned loopback PostgreSQL
+        run: |
+          docker run --detach --rm \
+            --name askcrump-atomic-auth-postgres \
+            --network host \
+            --env POSTGRES_DB=postgres \
+            --env POSTGRES_PASSWORD=postgres \
+            --env POSTGRES_USER=postgres \
+            postgres:15 \
+            -c listen_addresses=127.0.0.1 \
+            -c port=55432
+          for attempt in {1..30}; do
+            if docker exec askcrump-atomic-auth-postgres \
+              pg_isready -h 127.0.0.1 -p 55432 -U postgres -d postgres; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs askcrump-atomic-auth-postgres
+          exit 1
+      - name: Apply migrations and exercise atomic auth ordering
+        run: python scripts/verify_atomic_auth_generation_postgres.py
+        env:
+          ASKCRUMP_DISPOSABLE_POSTGRES_ACK: I_OWN_THIS_DISPOSABLE_LOCAL_CLUSTER
+          ASKCRUMP_POSTGRES_ADMIN_URL: postgresql://postgres:postgres@127.0.0.1:55432/postgres
+      - name: Stop owned loopback PostgreSQL
+        if: always()
+        run: docker stop askcrump-atomic-auth-postgres || true
+
   python:
     name: Python 3.12
     runs-on: ubuntu-latest

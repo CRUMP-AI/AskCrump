@@ -108,8 +108,15 @@ row, event, payment, migration, deployment, or remote ledger was created or chan
 ## Residual risks and release gate
 
 - The migration received PostgreSQL grammar parsing and source-contract coverage but was not executed
-  against a local or remote PostgreSQL instance in this isolated pass. A fresh disposable/staging
-  migration apply plus privilege/function concurrency probe is required before production approval.
+  against a local or remote PostgreSQL instance in the original isolated pass. The loopback-checked,
+  ownership-attested `scripts/verify_atomic_auth_generation_postgres.py` gate and the
+  `atomic-auth-postgres` CI job now provide a disposable PostgreSQL 15 migration apply, privilege
+  inspection, and real multi-connection concurrency probe. The CI job owns a host-networked
+  container bound only to runner loopback; the harness also rejects directly addressed non-loopback
+  endpoints. Because an address check cannot detect a loopback proxy or tunnel, local operators must
+  explicitly attest that they own the disposable cluster. A passing run is still required before
+  production approval; the source-review host had no Docker, PostgreSQL, Supabase CLI, or installed
+  WSL distribution.
 - Deployment order is mandatory: apply the reviewed migration first, verify its function privileges
   and columns, then release the backend that calls the RPCs. Rolling backend first would fail login
   and password reset because the functions would not exist.
