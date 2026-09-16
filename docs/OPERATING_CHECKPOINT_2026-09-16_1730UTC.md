@@ -47,6 +47,13 @@ production browser workflows, **93/93** focused control/file/image/video tests, 
 live smoke across Chats, Projects, Files, foreground preview, Create, Video, Library, You,
 Settings, and Intelligence with an empty browser warning/error log.
 
+A new canonical-origin acquisition audit also passed: **67** unique first-party anchor
+destinations, **12** canonical sitemap pages, **69** HTTP 200 destinations, **2** exact
+native-compatibility redirects, and **9** social-preview images. Every sitemap page retained a
+valid title, description, H1, indexability rule, canonical URL, structured-data block, and
+responsive viewport. This proves technical delivery; it does not prove indexing, search demand,
+conversion, or revenue.
+
 ## Coordination boundary
 
 Ask Crump API `v0.135.0` is source-complete at
