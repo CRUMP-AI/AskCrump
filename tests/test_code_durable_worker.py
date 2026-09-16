@@ -60,7 +60,11 @@ class WorkerService:
 
     async def claim_next(self, **kwargs):
         self.claim_calls.append(kwargs)
-        return dict(self.claimed) if self.claimed else None
+        return (
+            {"claimed": True, "replayed": False, "task": dict(self.claimed)}
+            if self.claimed
+            else {"claimed": False, "deferred": False, "reason": "no_work"}
+        )
 
     async def get(self, **_kwargs):
         return dict(self.current)
@@ -87,6 +91,17 @@ class WorkerFeatures:
 class FailingRefundLookupService(WorkerService):
     async def next_refund_pending(self):
         raise RuntimeError("private database detail must not reach operations logs")
+
+
+class DeferredWorkerService(WorkerService):
+    async def claim_next(self, **kwargs):
+        self.claim_calls.append(kwargs)
+        return {
+            "claimed": False,
+            "deferred": True,
+            "reason": "global_active_lease_limit",
+            "retryAfterSeconds": 30,
+        }
 
 
 class CompletingRunner:
@@ -162,9 +177,11 @@ def test_worker_reuses_existing_cron_slot_and_browser_only_dispatches():
     assert len(vercel["crons"]) == 2
     assert any(item["path"] == "/api/cron/manuscripts" for item in vercel["crons"])
     cron_route = read("backend/routes/manuscripts.py")
-    assert cron_route.index("code_worker.process_next(") < cron_route.index(
-        "manuscripts.process_next_run()"
-    )
+    assert "shared_worker_order()" in cron_route
+    assert 'return ("manuscripts", "code")' in cron_route
+    assert 'return ("code", "manuscripts")' in cron_route
+    assert "code_summary.get(\"handled\")" in cron_route
+    assert "manuscript_summary.get(\"claimed\")" in cron_route
     run_route = read("backend/routes/code.py")
     assert "run_with_deadline" not in run_route
     assert "code_tasks.accept_run(" in run_route
@@ -249,6 +266,29 @@ async def test_enabled_worker_reports_missing_oidc_without_claiming(caplog):
         "component": "crump_code",
         "event": "worker_misconfigured",
         "outcome": "missing_oidc",
+    }
+
+
+@pytest.mark.asyncio
+async def test_guardrail_deferred_claim_yields_shared_worker_without_running(caplog):
+    service = DeferredWorkerService(claimed=task())
+    caplog.set_level(logging.INFO, logger="askcrump.code_worker")
+    result = await worker(service, NeverRunner()).process_next(oidc_token="oidc")
+    assert result == {
+        "handled": False,
+        "claimed": False,
+        "deferred": True,
+        "reason": "global_active_lease_limit",
+        "retryAfterSeconds": 30,
+    }
+    assert len(service.claim_calls) == 1
+    emitted = json.loads(caplog.records[-1].message)
+    assert emitted == {
+        "component": "crump_code",
+        "event": "worker_deferred",
+        "guardrail_reason": "global_active_lease_limit",
+        "outcome": "deferred",
+        "retry_after_seconds": 30,
     }
 
 

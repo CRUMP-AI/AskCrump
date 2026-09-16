@@ -147,6 +147,25 @@ class CodeTaskConflictError(CodeTaskError):
     status_code = 409
 
 
+class CodeTaskGuardrailError(CodeTaskError):
+    """A truthful, retryable capacity decision made by the database."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str,
+        reason: str,
+        retry_after_seconds: int,
+        status_code: int,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.reason = reason
+        self.retry_after_seconds = max(1, min(86_400, int(retry_after_seconds or 1)))
+        self.status_code = status_code
+
+
 class CodeTaskExpiredError(CodeTaskConflictError):
     code = "CODE_TASK_EXPIRED"
 
@@ -176,6 +195,67 @@ def timestamp_has_passed(value: Any, *, now: datetime | None = None) -> bool:
 def _clean_text(value: Any, limit: int) -> str:
     text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]+", " ", str(value or ""))
     return text.strip()[:limit]
+
+
+def _bounded_retry_after(value: Any, default: int = 30) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        parsed = default
+    return max(1, min(86_400, parsed))
+
+
+def code_guardrail_error(reason: Any, retry_after_seconds: Any = 30) -> CodeTaskError:
+    normalized = str(reason or "guardrail_unavailable").strip().lower()
+    retry_after = _bounded_retry_after(retry_after_seconds, 30)
+    decisions = {
+        "user_queue_limit": (
+            "You already have the maximum number of prepared Autonomous Crump tasks. Start or cancel one before adding another.",
+            "CODE_USER_QUEUE_LIMIT",
+            429,
+        ),
+        "global_queue_limit": (
+            "Autonomous Crump's private queue is full right now. Try again shortly.",
+            "CODE_QUEUE_CAPACITY",
+            503,
+        ),
+        "user_active_task": (
+            "Finish or cancel your active Autonomous Crump task before starting a different one.",
+            "CODE_ACTIVE_TASK_EXISTS",
+            409,
+        ),
+        "user_daily_accept_limit": (
+            "Your Autonomous Crump daily run limit has been reached. It resets at 00:00 UTC.",
+            "CODE_DAILY_RUN_LIMIT",
+            429,
+        ),
+        "global_daily_accept_limit": (
+            "Autonomous Crump has reached today's protected run capacity. Capacity resets at 00:00 UTC.",
+            "CODE_DAILY_CAPACITY",
+            503,
+        ),
+        "guardrail_unavailable": (
+            "Autonomous Crump capacity could not be verified safely. No task was accepted or charged.",
+            "CODE_GUARDRAIL_UNAVAILABLE",
+            503,
+        ),
+    }
+    if normalized == "project_not_found":
+        return CodeTaskNotFoundError("Project not found.")
+    if normalized == "task_not_ready":
+        return CodeTaskConflictError(
+            "Autonomous Crump task is no longer ready to run. Refresh its status before trying again."
+        )
+    if normalized not in decisions:
+        normalized = "guardrail_unavailable"
+    message, code, status_code = decisions[normalized]
+    return CodeTaskGuardrailError(
+        message,
+        code=code,
+        reason=normalized,
+        retry_after_seconds=retry_after,
+        status_code=status_code,
+    )
 
 
 def normalize_repo_source(url: Any, revision: Any = None) -> tuple[str, str | None]:
@@ -261,22 +341,32 @@ class CodeTaskService:
             raise ValueError("Autonomous Crump mode must be plan or implement.")
         source_url, source_ref = normalize_repo_source(repo_url, revision)
         duration = max(30, min(240, int(max_duration_seconds or 180)))
-        row = {
-            "id": str(uuid4()),
-            "user_id": user_id,
-            "project_id": project["id"],
-            "objective": clean_objective,
-            "mode": normalized_mode,
-            "source_repo_url": source_url,
-            "source_ref": source_ref,
-            "status": "queued",
-            "network_policy": "deny_all",
-            "max_duration_seconds": duration,
-            "updated_at": _now(),
-        }
-        result = await self.db.insert("code_tasks", row)
-        task = (result or [row])[0]
-        await self.append_event(task, "task.created", {"mode": normalized_mode})
+        result = await self.db.rpc(
+            "create_code_task_guarded",
+            {
+                "p_user_id": user_id,
+                "p_project_id": project["id"],
+                "p_objective": clean_objective,
+                "p_mode": normalized_mode,
+                "p_source_repo_url": source_url,
+                "p_source_ref": source_ref,
+                "p_max_duration_seconds": duration,
+            },
+            retry_transient=True,
+        )
+        payload = result[0] if isinstance(result, list) and result else result
+        if not isinstance(payload, dict):
+            raise code_guardrail_error("guardrail_unavailable", 60)
+        if payload.get("created") is not True:
+            raise code_guardrail_error(
+                payload.get("reason"),
+                payload.get("retryAfterSeconds") or 30,
+            )
+        task = payload.get("task")
+        if not isinstance(task, dict):
+            raise CodeTaskConflictError(
+                "Autonomous Crump returned an incomplete queue receipt."
+            )
         return task
 
     async def list(self, *, user_id: str, project_id: str) -> list[dict[str, Any]]:
@@ -417,17 +507,28 @@ class CodeTaskService:
             event_payload={"status": "provisioning"},
         )
 
-    async def claim_next(self, *, lease_seconds: int, claim_token: str) -> dict[str, Any] | None:
+    async def claim_next(self, *, lease_seconds: int, claim_token: str) -> dict[str, Any]:
         result = await self.db.rpc(
-            "claim_code_task",
+            "claim_code_task_guarded",
             {
                 "p_lease_seconds": max(60, min(300, int(lease_seconds))),
                 "p_claim_token": claim_token,
             },
             retry_transient=True,
         )
-        rows = result if isinstance(result, list) else ([result] if result else [])
-        return rows[0] if rows else None
+        payload = result[0] if isinstance(result, list) and result else result
+        if not isinstance(payload, dict):
+            return {
+                "claimed": False,
+                "deferred": True,
+                "reason": "guardrail_unavailable",
+                "retryAfterSeconds": 60,
+            }
+        if payload.get("claimed") is True and not isinstance(payload.get("task"), dict):
+            raise CodeTaskConflictError(
+                "Autonomous Crump returned an incomplete worker claim receipt."
+            )
+        return payload
 
     async def accept_run(
         self,

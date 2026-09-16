@@ -87,6 +87,7 @@ def test_dispatch_and_worker_instrument_only_the_allowlisted_boundary():
         "refund_reconciliation_failed",
         "worker_claimed",
         "worker_completed",
+        "worker_deferred",
         "worker_retry_scheduled",
         "worker_terminal_failure",
         "worker_lease_superseded",

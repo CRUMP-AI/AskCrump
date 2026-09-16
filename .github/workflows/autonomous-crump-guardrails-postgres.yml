@@ -1,0 +1,49 @@
+name: Autonomous Crump guardrail PostgreSQL gate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  disposable-postgres:
+    name: PostgreSQL ${{ matrix.postgres }} owned-disposable gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        postgres: ['15', '17']
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install pinned disposable-gate driver
+        run: python -m pip install "psycopg[binary]==3.3.5"
+      - name: Create caller-owned empty test database
+        env:
+          PGPASSWORD: postgres
+        run: >-
+          psql --host 127.0.0.1 --username postgres --dbname postgres
+          --set ON_ERROR_STOP=1
+          --command "create database askcrump_guardrails_pg${{ matrix.postgres }}"
+      - name: Exercise atomic queue and budget guardrails
+        env:
+          AUTONOMOUS_CRUMP_GUARDRAIL_TEST_DSN: postgresql://postgres:postgres@127.0.0.1:5432/askcrump_guardrails_pg${{ matrix.postgres }}
+          AUTONOMOUS_CRUMP_GUARDRAIL_TEST_OWNERSHIP: I_OWN_THIS_EMPTY_DISPOSABLE_DATABASE
+        run: python scripts/run_autonomous_crump_guardrails_postgres.py
