@@ -101,9 +101,13 @@ next constraint.
   updates the reusable output action directly. Its exact-path guard is green; focused Project and
   button tests are green; and the explicit 8/8 desktop/phone, existing/new-Project,
   document/image browser matrix ends at `Open Project`, reopens the exact destination, and records
-  no unexpected request or browser error. Keep it local and undeployed until the protected
-  acquisition observation ends and independent review accepts the exact diff; then release only
-  those two commits and validate one legitimate signed-in document journey without customer-content
+  no unexpected request or browser error. That first matrix was not release-complete: independent
+  review rejected tip `b95b4f5` after reproducing a chat-switch race that could pair chat A's file
+  with chat B and a missing-Project image path that could remain disabled at `Saving…` while a
+  rerender duplicated the offer impression. Keep the candidate local and undeployed until both
+  defects have executable document-and-image race/recovery coverage, the exact repaired diff is
+  independently accepted, and the protected acquisition observation ends. Then release only the
+  accepted commits and validate one legitimate signed-in document journey without customer-content
   logging or synthetic production analytics.
 - Keep safe database reads on the 5.5-second bounded recovery window released
   in commit `76a0b20`: a fifth attempt may recover a transient gateway timeout,
