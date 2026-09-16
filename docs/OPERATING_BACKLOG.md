@@ -1270,6 +1270,23 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
+The protected 2026-09-16 16:05 UTC refresh still contains one comparable external account. Account
+creation, event coverage, verification, workspace entry, starter intent, activation, and D1 return
+are all 1/1; D7 remains 0/0 and therefore unavailable. Useful/needs-work outcome, durable value,
+recent-work resume, response share, Project-save offer/intent/completion/resume, artifact activity,
+Checkout, and payer counts remain zero. One Plan-center view produced no Checkout. The lifecycle
+prompt remains one eligible/shown account with no action or target completion, while active-work and
+session-collision suppression remain intact. This is still too small to justify another product or
+pricing mutation and confirms qualified acquisition as the binding constraint.
+
+The current-base `draft-to-clearer` source/staged candidate is independently accepted at evidence
+HEAD `78bb2f4`; public release remains held. The isolated `resume-you-can-defend` candidate is fully
+green at evidence HEAD `392f9a5` and remains under independent Marketing review. Both were prepared
+from exact production base `8545cea`, remain unpushed and unapplied, and created no tagged visit,
+account/event, publication, or spend. Preserve production 5.9.76 until the governing campaign gates
+reopen and new legitimate traffic supplies decision-grade outcome evidence. Full checkpoint:
+`docs/OPERATING_CHECKPOINT_2026-09-16_1605UTC.md`.
+
 Commit `9225374` makes the upcoming D1 decision fail closed at the operator boundary. The weekly
 and combined operating exporters now require all 25 cohort counts as nonnegative integers, one
 consistent requested reporting window, valid nullable database finance totals, and 24 exact subset
