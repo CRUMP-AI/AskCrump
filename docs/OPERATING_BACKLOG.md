@@ -11,12 +11,14 @@ retention, and referral behavior. No acquisition spend should scale on impressio
 Every item below needs four things before it is called shipped: an accountable product
 outcome, privacy and safety constraints, automated coverage, and production evidence.
 
-API `v0.136.0` is source-complete and independently CI-verified at feature commit `e4ff4f5` and
-documentation commit `c942a44`; hosted runs 347 and 348 passed. It strengthens policy/data role
-separation for memory, retrieval, checkpoints, and recorded voice without changing an app-facing
-schema, SDK, shared table, provider, credential, billing path, or production runtime. Stable API
-production remains `v0.49.1`; keep the source receipt isolated until a separate deployment handoff
-provides exact integration, acceptance, and rollback evidence, and do not advertise the held build.
+API `v0.138.0` is source-complete and independently CI-verified at feature commit `365d8ed` and
+documentation HEAD `d06aae9`; hosted runs 351 and 352 passed. It adds bounded private EPUB
+ingestion, spine-ordered searchable text, encrypted storage/retrieval, ebook section counts, strict
+active-content/encryption/entity/path/archive-bomb rejection, SDK typing/docs, and an EPUB-only
+production smoke without changing a shared application table, provider credential, billing path,
+or production runtime. Stable API production remains `v0.49.1`; keep the source receipt isolated
+until a separate deployment handoff provides exact integration, acceptance, and rollback evidence,
+and do not advertise the held build.
 
 The 2026-09-16 native-store checkpoint confirms that current source still regenerates and compiles
 for Android and iPhone+iPad on hosted Java 21/macOS runners, while the metadata, source-privacy,
@@ -48,9 +50,11 @@ establish an exact referrer→page join, and the authoritative server-side campa
 account row. Preserve the 24-hour isolation window and do not optimize from this tiny sample.
 
 Production remained technically clean from the Facebook publication boundary through
-`2026-09-16T18:10:58Z`: **51 HTTP 200** responses, no grouped 3xx/4xx/5xx request path, no
-warning/error/fatal log, and no runtime-error cluster. Keep reliability stable and wait for the
-governing exposure/account outcome instead of changing the landing or product from early traffic.
+`2026-09-16T18:59:24Z`: no runtime-error cluster, no warning/error/fatal application log, at least
+**100 HTTP 200** responses, and empty explicit 3xx/4xx/5xx request-path groups. The exact live
+campaign tuple still had no account row. Keep reliability stable and wait for the governing
+exposure/account outcome instead of changing the landing or product from early traffic; the missing
+account row without a completed window or exposure denominator is not a conversion verdict.
 
 The held current-base `draft-to-clearer` candidate now passes the Marketing repository's exact
 current-tree verifiers: **63/63** integrated source/staged checks, **47/47** attribution/source
