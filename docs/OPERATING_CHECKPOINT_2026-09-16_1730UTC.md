@@ -124,14 +124,15 @@ frozen until the boundary; do not edit, delete, boost, share, cross-post, or add
 item. If natural exposure is under 25 viewers with no eligible exact-tuple account, classify the
 cell as under-distributed—not as a product-conversion failure.
 
-A read-only Vercel Web Analytics slice covering the first 14 minutes after publication
-(`2026-09-16 13:28–13:42 EDT`) recorded **2 visitors / 2 page views**: one visit to
-`/guides/rough-idea-six-week-launch-plan` and one to `/ai-resume-builder`. The same slice contained
-one `m.facebook.com` referrer and one `MarketingLanding` event. This is encouraging directional
-evidence that live Facebook distribution reached an Ask Crump landing surface, but current Vercel
-plan access does not expose UTM dimensions and the aggregate cards do not prove a one-to-one
-referrer→page or exact campaign-tuple join. Keep the server-side exact-tuple aggregate authoritative,
-and do not change the post or product from this early co-occurrence.
+A read-only Vercel Web Analytics slice covering the first 44 minutes after publication
+(`2026-09-16 13:28–14:12 EDT`) recorded **2 visitors / 4 page views**. The visible page rows were
+one visit each to `/`, `/ai-resume-builder`, and `/guides/rough-idea-six-week-launch-plan`; the
+same slice contained one `m.facebook.com` referrer and one `MarketingLanding` event, with no visible
+signup or downstream activation event. This is encouraging directional evidence that live Facebook
+distribution reached an Ask Crump landing surface, but current Vercel plan access does not expose
+UTM dimensions and the aggregate cards do not prove a one-to-one referrer→page or exact campaign-
+tuple join. Keep the server-side exact-tuple aggregate authoritative, and do not change the post or
+product from this early co-occurrence.
 
 The paired Vercel runtime window from publication through `2026-09-16T18:10:58Z` is clean:
 **51 HTTP 200** responses, no grouped 3xx/4xx/5xx request path, no warning/error/fatal log, and no
