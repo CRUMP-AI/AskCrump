@@ -1,6 +1,6 @@
 # Autonomous Crump atomic-dispatch PostgreSQL gate
 
-Status: **candidate-only, disabled, undeployed, and not yet executed against PostgreSQL**.
+Status: **candidate-only, disabled, undeployed, and green on owned-disposable PostgreSQL 15; independent source review still required**.
 
 This gate applies all 57 repository migrations through
 `20260916231500_autonomous_crump_atomic_dispatch.sql` to a freshly created disposable PostgreSQL
@@ -61,9 +61,22 @@ python scripts/verify_autonomous_atomic_dispatch_postgres.py
 ## Evidence state
 
 The source-review Windows host has no Docker, PostgreSQL client/server, Supabase CLI, or installed
-WSL distribution. Source-only validation is not database evidence. The new CI job is present on this
-candidate branch, but this workflow runs only for `main` or pull requests. A CI-only mirror or pull
-request is therefore required to execute the owned PostgreSQL 15 gate without altering production.
+WSL distribution, so source-only validation was not treated as database evidence. The exact product
+and harness commit `f941373f4a7f4e85f060bea544f7eebc4ba19f16` was mirrored with only one CI-trigger line in
+`40f457858dd9d468bd1adc642ba298956bafa394` on the CI-only branch
+`ci/autonomous-atomic-postgres-20260916`.
+
+GitHub Actions run [35163033299](https://github.com/CRUMP-AI/AskCrump/actions/runs/35163033299)
+completed successfully on 2026-09-16:
+
+- **Autonomous atomic dispatch PostgreSQL 15** passed after applying all 57 migrations and running
+  the real role, privilege, billing, replay, race, rollback, internal-access, and worker-claim probes;
+- **Python 3.12** passed the full repository test and lint/audit job; and
+- **JavaScript** passed the source, browser-control, accessibility, build, and client-boundary job.
+
+The branch-specific CI-trigger line is not part of the product candidate. The database result proves
+the disposable PostgreSQL gate, not Supabase staging, live Vercel Sandbox behavior, provider quality,
+or public activation. An independent review of the exact product candidate remains mandatory.
 
 No production database, Supabase project, provider, feature flag, user account, or deployment was
 accessed or changed while constructing this candidate.
