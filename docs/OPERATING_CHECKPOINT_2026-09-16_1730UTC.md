@@ -59,6 +59,16 @@ independent final acceptance is recorded in
 it verifies that the evidence-only correction changed exactly one receipt line and closes the stale
 test-total defect.
 
+The isolated `resume-you-can-defend` candidate is likewise reconciled at exact production base
+`7833d89`, accepted functional/source HEAD `0d201eb`, and final evidence-only HEAD `ac5a55b`.
+Marketing independently verified that the final delta changes only the receipt's obsolete
+"acceptance pending" statement, with a clean worktree/diff and no remote branch. The accepted
+functional evidence remains **80/80** focused attribution/button tests, **54** JavaScript files with
+**25/25** campaign cases, and a credential-free browser proof of all three accepted routes,
+fourteen rejection families, immutable first touch, direct-safe untagged entry, and zero account or
+analytics side effect. Migration, deployment, tagged loading, profile editing, publication,
+advertising, billing, and spend remain held behind the active Facebook cell.
+
 A new canonical-origin acquisition audit also passed: **67** unique first-party anchor
 destinations, **12** canonical sitemap pages, **69** HTTP 200 destinations, **2** exact
 native-compatibility redirects, and **9** social-preview images. Every sitemap page retained a

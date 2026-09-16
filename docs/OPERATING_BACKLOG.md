@@ -55,6 +55,14 @@ unpushed, tagged destinations unopened, and all public actions at `$0`; authenti
 and the active Facebook cell's governing boundary still come first. Marketing independently
 finalized that exact corrected HEAD and closed the prior stale test-total defect.
 
+The held `resume-you-can-defend` source candidate is also evidence-consistent at accepted source
+HEAD `0d201eb` and final documentation-only HEAD `ac5a55b`. Marketing independently confirmed the
+new delta changes only the receipt's stale "acceptance pending" wording; the already accepted
+three-route contract, **80/80** focused checks, **25/25** campaign cases, and fail-closed browser
+evidence are unchanged. Keep migration, deployment, tagged loading, profile editing, publication,
+boost/ads, billing, and spend off until the current Facebook cell closes and later action-time
+gates reopen.
+
 The 2026-09-16 guarded-control follow-up proves the intentionally disabled controls that a static
 button inventory cannot exercise. The real billing scripts replace two disabled `Loading plan…`
 placeholders with enabled Professional and Enterprise review actions without starting checkout;
