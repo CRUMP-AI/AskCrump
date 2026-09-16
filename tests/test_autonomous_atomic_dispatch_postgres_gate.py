@@ -102,10 +102,16 @@ def test_autonomous_atomic_postgres_ci_owns_loopback_postgres_15() -> None:
     assert REQUIREMENTS.read_text(encoding="utf-8") == "psycopg[binary]==3.3.5\n"
 
 
-def test_autonomous_atomic_postgres_evidence_is_honest_about_unexecuted_gate() -> None:
+def test_autonomous_atomic_postgres_evidence_is_bound_to_completed_ci_gate() -> None:
     documentation = " ".join(DOCUMENTATION.read_text(encoding="utf-8").lower().split())
 
-    assert "source-only validation is not database evidence" in documentation
-    assert "not yet executed" in documentation
+    assert "f941373f4a7f4e85f060bea544f7eebc4ba19f16" in documentation
+    assert "40f457858dd9d468bd1adc642ba298956bafa394" in documentation
+    assert "35163033299" in documentation
+    assert "all 57 migrations" in documentation
+    assert "autonomous atomic dispatch postgresql 15" in documentation
+    assert "python 3.12" in documentation
+    assert "javascript" in documentation
+    assert "not supabase staging" in documentation
+    assert "independent review" in documentation
     assert "no production" in documentation
-    assert "ci-only mirror or pull request" in documentation
