@@ -5,6 +5,11 @@
 Hold the earlier repeat-registration password replacement design. This isolated candidate instead
 keeps the original pending account under the original inbox owner's control.
 
+The first candidate commit, `7b30421d591a9e219a8d122c9ee3f60692ef83fa`, was independently
+rejected for non-atomic reset-token consumption, trust of metadata collected before inbox proof, and
+observable new-versus-pending registration failure behavior. It must not ship by itself. The
+follow-up commit containing this evidence supersedes it and closes those findings.
+
 Candidate branch: `candidate/pending-registration-inbox-setup-20260916`
 
 Exact clean base: `7833d89e2e5ee419fd27757f82c4fff92beed295`
@@ -17,15 +22,29 @@ existing password hash and verification token, then conditionally writes only a 
 reset/setup token while the account is still unverified. The existing reset endpoint and UI make the
 password change only after the person opens the inbox-delivered link.
 
-The registration response uses the same generic finish-setup copy for a newly created account and an
-existing pending account. The pending UI no longer promises that the password supplied to the latest
-registration attempt can be used.
+Every valid registration performs one Argon2 password hash before distinguishing a new address from
+an existing pending account; only a new insert retains that hash. New and pending registrations use
+the same HTTP 200 generic finish-setup response for successful delivery, a false delivery result,
+`EmailDeliveryError`, and an unexpected delivery exception. The pending UI no longer promises that
+the password supplied to the latest registration attempt can be used. The pre-existing verified-email
+HTTP 409 contract is unchanged.
 
 The conditional write closes the verification race: if verification wins before the setup-token
 write, no setup email is sent. A false delivery result, a typed delivery exception, or an unexpected
 delivery exception triggers a compare-and-set rollback that restores the prior reset state only while
 the account is still unverified and still contains this request's token. A newer recovery request,
 completed reset, or verification therefore cannot be overwritten by the rollback.
+
+Password reset now captures the current time once, selects the presented unexpired token, hashes the
+new password, and then conditionally updates the user by ID, the same presented token hash, and an
+expiry still later than that captured time. A non-returning update is an invalid/expired reset result;
+sessions are revoked only after a row is returned. A stale selected token therefore cannot overwrite
+a newer token, and simultaneous reuse of one token has exactly one winner.
+
+When that successful conditional update completes an originally unverified account, it also clears
+`full_name`, `terms_accepted_at`, and `terms_version`. Those values may have been supplied by a
+pre-inbox actor, so the existing terms gate and optional profile setup must collect them from the
+verified inbox owner. Ordinary recovery for an already verified account preserves those fields.
 
 ## Acceptance evidence
 
@@ -35,8 +54,16 @@ Focused authentication coverage proves:
   verification token by registering the inbox owner's email;
 - the original inbox owner can still use the preserved verification link and original password;
 - the inbox setup link accepts only the password chosen after inbox proof, verifies the account,
-  clears both token families, revokes sessions, and cannot be replayed;
+  clears both token families and unproven profile/terms metadata, revokes sessions, and cannot be
+  replayed;
+- ordinary verified-account recovery preserves owner-authorized profile and terms metadata;
+- a token selected before a newer token is committed cannot change the password or revoke sessions;
+- two simultaneous resets that both select the same token produce one password winner, one rejected
+  replay, and exactly one session revocation;
 - an expired setup link cannot change the password;
+- new and existing-pending registration perform one submitted-password Argon2 hash and return the
+  same status and copy under success, false-return, typed exception, and unexpected-exception email
+  outcomes;
 - delivery `false`, `EmailDeliveryError`, and an unexpected exception restore the exact original
   pending record;
 - a verification-wins race emits no reset email; and
@@ -44,9 +71,10 @@ Focused authentication coverage proves:
 
 Validation completed on this exact worktree:
 
-- 49 focused Python tests passed across pending setup, authentication recovery, registration consent,
+- 57 focused Python tests passed across pending setup, authentication recovery, registration consent,
   attribution, destination handoff, release hardening, and frontend authentication policy.
-- The complete Python suite passed all 1,143 tests with the repository dependency environment.
+- The complete Python suite passed all 1,152 collected tests with the repository dependency
+  environment.
 - Ruff passed for every changed Python file.
 - All 54 JavaScript validation files passed, including the service-worker cache contract at `r249`.
 - The complete production-script browser control matrix passed 48/48 verifiers against installed
@@ -54,6 +82,9 @@ Validation completed on this exact worktree:
 - Production preflight, native web-bundle creation, client credential-boundary checks, store metadata
   source checks, and native privacy-source verification passed.
 - Store-submission self-tests passed 21/21. No release artifact submission was attempted.
+- The standalone signed-native release verifier remains correctly blocked in this source-only
+  worktree because Android/iOS projects and RevenueCat release keys are absent. No project, key, or
+  release artifact was fabricated to bypass that external gate.
 
 All tests used synthetic local fixtures. No production account, email, credential, session, database
 row, event, payment, or deployment was created or changed.
@@ -79,6 +110,9 @@ candidate.
 
 ## Release gate
 
-Ship only if review confirms that the repeated-registration branch changes no account-owned fields
-other than the conditional reset-token tuple and timestamp, the complete gates remain green, and a
-human owner verifies the inbox setup and preserved-verification paths on the exact release candidate.
+Do not ship or cherry-pick rejected commit `7b30421` alone. Ship only the reviewed branch tip that
+includes the superseding follow-up, after review confirms the reset update requires the user ID,
+presented token, and unexpired timestamp; requires a returned row before session revocation; clears
+pre-inbox profile/terms metadata only for originally unverified accounts; and preserves the generic
+registration contract. The complete gates must remain green, followed by a human owner verifying the
+inbox setup and preserved-verification paths on the exact release candidate.

@@ -118,9 +118,8 @@ async def _issue_pending_account_setup(user: dict, email: str) -> None:
     prior_reset = {
         'password_reset_token_hash': user.get('password_reset_token_hash'),
         'password_reset_expires': user.get('password_reset_expires'),
+        'updated_at': user.get('updated_at'),
     }
-    if user.get('updated_at') is not None:
-        prior_reset['updated_at'] = user['updated_at']
     issued = await db.update(
         'users',
         {
@@ -203,6 +202,9 @@ async def register(payload: RegisterRequest, request: Request):
             content={'success': False, 'error': password_error},
         )
 
+    # Perform the same expensive password work before distinguishing a new
+    # address from an existing pending account. Only a new row may retain it.
+    submitted_password_hash = hash_password(payload.password)
     existing = await db.select_one('users', columns='*', filters={'email': eq(email)})
     if existing and existing.get('is_verified'):
         return JSONResponse(
@@ -229,7 +231,7 @@ async def register(payload: RegisterRequest, request: Request):
     user_payload = {
         'id': new_uuid(),
         'email': email,
-        'password_hash': hash_password(payload.password),
+        'password_hash': submitted_password_hash,
         'full_name': (payload.fullName or '').strip() or None,
         'is_verified': False,
         'verification_token_hash': verification_values['verification_token_hash'],
@@ -269,7 +271,7 @@ async def register(payload: RegisterRequest, request: Request):
         )
 
     try:
-        sent = await email_service.send_verification(
+        await email_service.send_verification(
             email,
             user.get('full_name'),
             verification_token,
@@ -277,14 +279,16 @@ async def register(payload: RegisterRequest, request: Request):
             plan=payload.plan,
         )
     except EmailDeliveryError as exc:
-        return verification_delivery_failure(exc, account_created=True)
-
-    if sent:
-        return {'success': True, 'message': PENDING_SETUP_MESSAGE}
-    return {
-        'success': True,
-        'message': 'Email delivery is not configured; an administrator must enable RESEND_API_KEY.',
-    }
+        logger.warning(
+            'Registration setup email unavailable status=%s retryable=%s',
+            exc.status_code,
+            exc.retryable,
+        )
+    except Exception:
+        logger.exception('Unexpected registration setup email failure')
+    # Successful and failed delivery receive the same bounded response for a
+    # new or existing-pending address. The inbox itself is the only authority.
+    return {'success': True, 'message': PENDING_SETUP_MESSAGE}
 
 
 @router.post('/login')
@@ -560,12 +564,14 @@ async def reset_password(payload: ResetPasswordRequest, request: Request):
             status_code=400,
             content={'success': False, 'error': password_error},
         )
+    presented_token_hash = token_hash(payload.token)
+    now = iso_now()
     user = await db.select_one(
         'users',
         columns='*',
         filters={
-            'password_reset_token_hash': eq(token_hash(payload.token)),
-            'password_reset_expires': gt(iso_now()),
+            'password_reset_token_hash': eq(presented_token_hash),
+            'password_reset_expires': gt(now),
         },
     )
     if not user:
@@ -573,25 +579,46 @@ async def reset_password(payload: ResetPasswordRequest, request: Request):
             status_code=400,
             content={'success': False, 'error': 'This reset link is invalid or expired.'},
         )
-    await db.update(
+    reset_values = {
+        'password_hash': hash_password(payload.newPassword),
+        # Possession of a valid password-reset token proves control of the
+        # account inbox. Complete email verification as part of recovery so an
+        # unverified account does not require a second email loop.
+        'is_verified': True,
+        'verification_token_hash': None,
+        'verification_token_expires': None,
+        'password_reset_token_hash': None,
+        'password_reset_expires': None,
+        'updated_at': now,
+    }
+    if not user.get('is_verified'):
+        # Registration metadata supplied before inbox proof is not owner-
+        # authorized. The existing terms/profile gates collect it again from
+        # the verified inbox owner.
+        reset_values.update(
+            {
+                'full_name': None,
+                'terms_accepted_at': None,
+                'terms_version': None,
+            }
+        )
+    updated = await db.update(
         'users',
-        {
-            'password_hash': hash_password(payload.newPassword),
-            # Possession of a valid password-reset token proves control of the
-            # account inbox. Complete email verification as part of recovery
-            # so an unverified account does not require a second email loop.
-            'is_verified': True,
-            'verification_token_hash': None,
-            'verification_token_expires': None,
-            'password_reset_token_hash': None,
-            'password_reset_expires': None,
-            'updated_at': iso_now(),
+        reset_values,
+        filters={
+            'id': eq(user['id']),
+            'password_reset_token_hash': eq(presented_token_hash),
+            'password_reset_expires': gt(now),
         },
-        filters={'id': eq(user['id'])},
     )
+    if not updated:
+        return JSONResponse(
+            status_code=400,
+            content={'success': False, 'error': 'This reset link is invalid or expired.'},
+        )
     await db.update(
         'sessions',
-        {'revoked_at': iso_now()},
+        {'revoked_at': now},
         filters={'user_id': eq(user['id']), 'revoked_at': 'is.null'},
     )
     return {'success': True, 'message': 'Password updated. Sign in with your new password.'}

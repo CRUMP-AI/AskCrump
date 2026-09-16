@@ -119,7 +119,7 @@ class FailedVerificationEmail:
 
 
 @pytest.mark.asyncio
-async def test_registration_email_failure_returns_recoverable_pending_account(monkeypatch):
+async def test_registration_email_failure_returns_generic_recoverable_setup(monkeypatch):
     fake_db = RegistrationDB()
     account_events = []
     recorded_events = []
@@ -150,13 +150,14 @@ async def test_registration_email_failure_returns_recoverable_pending_account(mo
     )
     request = SimpleNamespace()
     response = await auth_routes.register(payload, request)
-    body = json.loads(response.body)
 
-    assert response.status_code == 503
-    assert body['success'] is False
-    assert body['accountCreated'] is True
-    assert body['needsVerification'] is True
-    assert body['code'] == 'EMAIL_DELIVERY_UNAVAILABLE'
+    assert response == {
+        'success': True,
+        'message': (
+            'If an account is awaiting verification for that email, check its inbox for a '
+            'secure link to finish setup and choose a password.'
+        ),
+    }
     assert fake_db.inserted_user['email'] == 'new-user@example.com'
     assert fake_db.settings_created is True
     assert len(account_events) == 1

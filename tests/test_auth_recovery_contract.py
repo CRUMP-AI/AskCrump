@@ -30,7 +30,10 @@ def test_password_reset_finishes_verification_for_inbox_owner():
     assert "'verification_token_expires': None" in reset_route
     assert "'password_reset_token_hash': None" in reset_route
     assert "'password_reset_expires': None" in reset_route
-    assert "filters={'id': eq(user['id'])}" in reset_route
+    assert "'password_reset_token_hash': eq(presented_token_hash)" in reset_route
+    assert "'password_reset_expires': gt(now)" in reset_route
+    assert "if not updated:" in reset_route
+    assert reset_route.index("if not updated:") < reset_route.index("'sessions'")
 
 
 def test_forgot_password_keeps_account_enumeration_message_generic():
