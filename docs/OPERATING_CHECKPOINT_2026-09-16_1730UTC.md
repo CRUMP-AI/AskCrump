@@ -47,6 +47,14 @@ production browser workflows, **93/93** focused control/file/image/video tests, 
 live smoke across Chats, Projects, Files, foreground preview, Create, Video, Library, You,
 Settings, and Intelligence with an empty browser warning/error log.
 
+The refreshed `draft-to-clearer` candidate at exact current production base `7833d89` and evidence
+HEAD `ffddec3` also passes Marketing's current cross-repository gates when executed against that
+exact tree: **63/63** integrated source/staged checks and **47/47** attribution/source checks,
+including **45** focused tests. The accepted source state remains deliberately nonpublic: the
+migration is unapplied, the guide stays under `staging/`, no remote branch contains the HEAD, and
+deployment, capture, publication, and spend remain unauthorized. Its remaining material gate is an
+authentic sanitized capture, not another attribution or editorial-source change.
+
 A new canonical-origin acquisition audit also passed: **67** unique first-party anchor
 destinations, **12** canonical sitemap pages, **69** HTTP 200 destinations, **2** exact
 native-compatibility redirects, and **9** social-preview images. Every sitemap page retained a

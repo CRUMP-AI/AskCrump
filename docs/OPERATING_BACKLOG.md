@@ -39,6 +39,13 @@ Vercel's current plan hides UTM dimensions, the cards do not establish an exact 
 and the authoritative server-side campaign tuple still has no account row. Preserve the 24-hour
 isolation window and do not optimize from this tiny sample.
 
+The held current-base `draft-to-clearer` candidate now passes the Marketing repository's exact
+current-tree verifiers: **63/63** integrated source/staged checks and **47/47** attribution/source
+checks with **45** focused tests at evidence HEAD `ffddec3`. This makes the next writing cell
+technically release-ready without releasing it. Keep its migration unapplied, guide staged, branch
+unpushed, tagged destinations unopened, and all public actions at `$0`; authentic sanitized capture
+and the active Facebook cell's governing boundary still come first.
+
 The 2026-09-16 guarded-control follow-up proves the intentionally disabled controls that a static
 button inventory cannot exercise. The real billing scripts replace two disabled `Loading plan…`
 placeholders with enabled Professional and Enterprise review actions without starting checkout;
