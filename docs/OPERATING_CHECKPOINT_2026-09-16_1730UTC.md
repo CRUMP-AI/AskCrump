@@ -47,6 +47,17 @@ production browser workflows, **93/93** focused control/file/image/video tests, 
 live smoke across Chats, Projects, Files, foreground preview, Create, Video, Library, You,
 Settings, and Intelligence with an empty browser warning/error log.
 
+The exact production source at `7833d89` also passed a fresh 390×844 continuous-work recording
+preflight: rough request → useful response → **Keep in a Project** → **Open Project** → the
+named Project file → foreground PowerPoint viewer. The run produced zero browser errors, zero
+fixture errors, zero unexpected requests, and zero horizontal overflow. Its local WebM is 382,725
+bytes at SHA-256 `475B9363A87B6B922AE996BC6C10113DB3A2DE59FB483C083ABE6D2970063351`;
+the final PNG is 82,436 bytes at SHA-256
+`235703141333C7B8537BBA40573D0FFCFB1B072F95CC8AA8E6FBC61261F4D305`. Marketing received the
+paths and exact truth boundary. This is current product-interface proof using deterministic
+fictional local responses; it is not live-model output, production activation evidence, or a
+replacement for the authentic sanitized demo-account capture gate.
+
 The refreshed `draft-to-clearer` candidate at exact current production base `7833d89` and evidence
 HEAD `f030814` also passes Marketing's current cross-repository gates when executed against that
 exact tree: **63/63** integrated source/staged checks and **47/47** attribution/source checks,

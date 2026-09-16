@@ -89,6 +89,17 @@ stronger contract. Focused button coverage passed **27/27**, the complete suite 
 JavaScript **54/54**, and the real-browser matrix **48/48**. No application behavior or production
 data changed. Evidence: `docs/SUBMIT_BUTTON_OWNERSHIP_GATE_RELEASE_2026-09-16.md`.
 
+The exact production source at `7833d89` passed a fresh 390×844 continuous-work media preflight:
+rough request → useful response → **Keep in a Project** → **Open Project** → named Project file
+→ foreground PowerPoint viewer. It produced zero browser errors, fixture errors, unexpected
+requests, or overflow. The local WebM is 382,725 bytes at SHA-256
+`475B9363A87B6B922AE996BC6C10113DB3A2DE59FB483C083ABE6D2970063351`, and the final PNG is 82,436
+bytes at SHA-256 `235703141333C7B8537BBA40573D0FFCFB1B072F95CC8AA8E6FBC61261F4D305`.
+Marketing received the exact paths and boundary. This uses current product owners with fictional
+deterministic local responses, so it is interface/continuity proof only; the authentic sanitized
+demo-account capture gate remains open and no production event, provider call, credit, or customer
+data was created.
+
 The 2026-09-16 14:37 UTC protected refresh remains one comparable external production account:
 account creation, verification, workspace entry, starter intent, activation, and D1 return are all
 **1/1**, while useful/not-yet feedback, durable value, Project save/resume, artifact journey,
