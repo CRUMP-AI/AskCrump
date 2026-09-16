@@ -59,6 +59,16 @@ six-hour status sample contained **507 HTTP 200** and **5 HTTP 302** responses; 
 warning, error, and fatal queries were empty. The redirects are not classified as failures, and no
 hidden error class was inferred from the grouped view.
 
+## Revenue evidence boundary
+
+Finance-authoritative cumulative recognized revenue remains unavailable, not zero. The connected
+Stripe API session requires reauthentication, and a separate read-only attempt to open the known
+Ask Crump Stripe account reached the Stripe sign-in screen. No credential, passkey, SSO action,
+account change, customer read, Checkout, charge, refund, subscription, or billing mutation was
+attempted. Database payer and Checkout aggregates remain zero for the current comparable cohort,
+but those product metrics are not a substitute for the provider ledger. Restore read access before
+publishing any cumulative-revenue or unit-economics figure.
+
 ## Coordination boundary
 
 Ask Crump API `v0.135.0` is source-complete at
