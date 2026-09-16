@@ -1,6 +1,6 @@
 # Live signed-in button walkthrough
 
-Observed: 2026-09-16 15:20–15:28 EDT
+Observed: 2026-09-16 15:20–15:24 EDT
 
 Production source: `7833d89e2e5ee419fd27757f82c4fff92beed295`
 

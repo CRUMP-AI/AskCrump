@@ -1437,7 +1437,7 @@ and defines exact pre-release deployment restoration if any parity or runtime ch
 does not authorize release before **2026-09-17 13:28 EDT**. Evidence:
 `docs/SINGLE_OUTPUT_CONTINUITY_POST_ISOLATION_RELEASE_PLAN_2026-09-17.md`.
 
-A fresh non-destructive signed-in production walkthrough at 2026-09-16 15:20–15:28 EDT strengthens
+A fresh non-destructive signed-in production walkthrough at 2026-09-16 15:20–15:24 EDT strengthens
 the button evidence beyond source and fixture coverage. Projects, Files, foreground image
 preview/return, Create → Document Studio, Video Studio, books-only Library, all five You sections,
 completed Plan & credits loading, signed-in devices, the replayable guide, Intelligence and durable
