@@ -35,7 +35,7 @@ one-account rate.
 The isolated `draft-to-clearer` candidate was rebased onto exact current production base
 `7833d89e2e5ee419fd27757f82c4fff92beed295`. Its functional commit is
 `f43dd2d8970f4094b0cc2399301e32981fb1655b`; evidence HEAD is
-`ffddec3ef01f9f82b6a5a01b0c08d894c3a45af9`. Full Python passed **1,148/1,148**, focused
+`f030814440032d09375b6b3a9015e5892e1f0443`. Independent full Python passed **1,199/1,199**, focused
 attribution/button coverage **72/72**, JavaScript covered **54** files and **13/13** campaign
 cases, the browser matrix passed **49/49**, and direct production/native build, client-credential,
 Python compilation, diff, and current-lockfile parity gates passed. Frozen artifacts remain
@@ -48,7 +48,7 @@ live smoke across Chats, Projects, Files, foreground preview, Create, Video, Lib
 Settings, and Intelligence with an empty browser warning/error log.
 
 The refreshed `draft-to-clearer` candidate at exact current production base `7833d89` and evidence
-HEAD `ffddec3` also passes Marketing's current cross-repository gates when executed against that
+HEAD `f030814` also passes Marketing's current cross-repository gates when executed against that
 exact tree: **63/63** integrated source/staged checks and **47/47** attribution/source checks,
 including **45** focused tests. The accepted source state remains deliberately nonpublic: the
 migration is unapplied, the guide stays under `staging/`, no remote branch contains the HEAD, and
