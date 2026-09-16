@@ -118,6 +118,18 @@ def test_library571_delete_restore_is_owner_checked_and_recoverable():
     assert "await self.db.delete(" in files
 
 
+def test_permanent_delete_confirmation_is_exact_and_browser_verified():
+    library_js = read("public/crump-library-5.7.js")
+    fixture = read("tests/fixtures/project-open-navigation.html")
+    verifier = read("scripts/verify-studio-section-isolation.cjs")
+
+    assert "confirm.disabled = phrase.value.trim() !== 'DELETE'" in library_js
+    assert "confirm.disabled = false" in library_js
+    assert "window.fixturePermanentDeleteMode = 'fail'" in fixture
+    assert "blockedWithoutExactPhrase: true" in verifier
+    assert "retryRecovered: true" in verifier
+
+
 def test_library571_download_uses_existing_owner_checked_export_pipeline():
     routes = read("backend/routes/manuscripts.py")
     service = read("backend/manuscript_service.py")

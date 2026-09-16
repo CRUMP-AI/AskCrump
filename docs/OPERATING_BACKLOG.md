@@ -11,6 +11,16 @@ retention, and referral behavior. No acquisition spend should scale on impressio
 Every item below needs four things before it is called shipped: an accountable product
 outcome, privacy and safety constraints, automated coverage, and production evidence.
 
+The 2026-09-16 guarded-control follow-up proves the intentionally disabled controls that a static
+button inventory cannot exercise. The real billing scripts replace two disabled `Loading plan…`
+placeholders with enabled Professional and Enterprise review actions without starting checkout;
+the real Terms owner blocks submission before consent and recovers after a failed save; and the
+Library owner requires the exact `DELETE` phrase, recovers after a failed permanent-delete request,
+and succeeds on explicit retry at desktop and phone widths. All scenarios use local, content-free
+fixtures; no production checkout, terms acceptance, manuscript deletion, or customer-data write
+occurred. Application runtime behavior is unchanged. Evidence:
+`docs/GUARDED_BUTTON_INTERACTION_GATE_RELEASE_2026-09-16.md`.
+
 The 2026-09-16 button-audit follow-up closes a fail-open source-ownership gap: rendered
 `type="submit"` controls were previously accepted without proving that their exact enclosing form
 owned a submit handler. The parser now binds every rendered submit button to its form and fails on

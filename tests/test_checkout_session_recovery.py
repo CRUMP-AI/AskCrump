@@ -55,6 +55,8 @@ def test_checkout_recovery_fixture_is_local_and_content_free():
 
     assert "/public/auth-controller.js" in fixture
     assert "/public/crump-5.2.2.js" in fixture
+    assert "window.__loadFixtureSubscriptions" in fixture
+    assert "document.head.appendChild(script)" in fixture
     assert "code:'AUTH_REQUIRED'" in fixture
     assert "checkout.stripe.com.evil.test" in fixture
     assert "https://checkout.stripe.com/c/pay/" not in fixture
@@ -64,6 +66,12 @@ def test_checkout_recovery_fixture_is_local_and_content_free():
     assert "plan" in verifier
     assert "Review Professional in Stripe" in verifier
     assert "Review Enterprise in Stripe" in verifier
+    assert "name:'Loading plan…'" in verifier
+    assert "checkoutRequestsBeforeAction:0" in verifier
+    assert "data-crump-subscriptions532" in verifier
+    assert "blockedBeforeConsent:true" in verifier
+    assert "retryRecovered:true" in verifier
+    assert "#tosAccept" in verifier
 
 
 def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():

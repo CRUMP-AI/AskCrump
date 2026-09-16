@@ -122,9 +122,39 @@ async function inspect(page, viewport) {
     addVideoReference: 'Add video reference image',
   });
 
+  await page.evaluate(() => window.CrumpLibrary57.recentlyDeleted());
+  const deletedDialog = page.getByRole('dialog', {name:'Recently Deleted books'});
+  await deletedDialog.waitFor({state:'visible'});
+  await deletedDialog.getByRole('button', {name:'Delete permanently', exact:true}).click();
+  const permanentDialog = page.getByRole('dialog', {name:'Permanently delete book'});
+  await permanentDialog.waitFor({state:'visible'});
+  const phrase = permanentDialog.locator('#crump57PermanentPhrase');
+  const permanent = permanentDialog.getByRole('button', {name:'Delete permanently', exact:true});
+  assert.equal(await permanent.isDisabled(), true);
+  await phrase.fill('delete');
+  assert.equal(await permanent.isDisabled(), true);
+  await phrase.fill('DELETE');
+  assert.equal(await permanent.isEnabled(), true);
+  await permanent.click();
+  await page.waitForFunction(() => /Fixture permanent delete failed/.test(
+    document.getElementById('crump57PermanentStatus')?.textContent || '',
+  ));
+  assert.equal(Number(await page.locator('#fixturePermanentDeleteRequests').textContent()), 1);
+  assert.equal(await permanent.isEnabled(), true);
+  await page.evaluate(() => { window.fixturePermanentDeleteMode = 'success'; });
+  await permanent.click();
+  await permanentDialog.waitFor({state:'detached'});
+  assert.equal(Number(await page.locator('#fixturePermanentDeleteRequests').textContent()), 2);
+
+  const permanentDelete = {
+    blockedWithoutExactPhrase: true,
+    retryRecovered: true,
+    requests: 2,
+  };
+
   assert.deepEqual(errors, []);
   assert.equal(await page.locator('#fixtureErrors').textContent(), '0');
-  return {viewport, transitions, staticActionLabels, errors};
+  return {viewport, transitions, staticActionLabels, permanentDelete, errors};
 }
 
 (async () => {

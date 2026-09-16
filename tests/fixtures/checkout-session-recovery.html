@@ -26,13 +26,17 @@
     <div id="forgotPasswordForm" style="display:none"></div>
     <div id="resetPasswordForm" style="display:none"></div>
   </div>
-  <div id="tosModal" style="display:none"></div>
+  <div id="tosModal" style="display:none" role="dialog" aria-label="Terms and privacy">
+    <label><input type="checkbox" id="tosAccept"> I agree to the fixture terms.</label>
+    <button id="tosAcceptBtn" type="button" disabled>Continue to Ask Crump</button>
+  </div>
   <div id="onboardingModal" style="display:none"></div>
   <div id="appContainer" style="display:none">
     <main id="checkoutFixtureBackground">
       <button id="upgradeBtnSidebar" type="button"><span>Plan &amp; credits</span></button>
       <output id="checkoutFixtureRequests" aria-label="Checkout requests">0</output>
       <output id="checkoutFixtureClearCalls" aria-label="Cleared local sessions">0</output>
+      <output id="checkoutFixtureTermsRequests" aria-label="Terms requests">0</output>
       <output id="checkoutFixtureErrors" aria-label="Browser errors">0</output>
     </main>
   </div>
@@ -47,6 +51,7 @@
     window.__fixtureCheckoutBodies = [];
     window.__fixtureClearComplete = true;
     window.__fixtureCheckoutMode = 'auth';
+    window.__fixtureTermsMode = 'fail';
     window.CRUMP_CONFIG = {
       webProfessionalPriceLabel:'$20/month',
       webEnterprisePriceLabel:'$50/month',
@@ -55,6 +60,14 @@
     window.showToast = (message, tone) => window.__fixtureToasts.push({message, tone});
     window.CrumpWorkspaceRuntime = {load:async () => {}};
     window.CrumpAPI = {ready:Promise.resolve(), isNative:false, installationId:() => 'fixture'};
+    window.CrumpAuthTransport = {
+      request: async (url, options) => {
+        const response = await fetch(url, options);
+        let data = {};
+        try { data = await response.json(); } catch (_) {}
+        return {response, data};
+      },
+    };
     window.configureUserStorage = () => {};
     window.profileManager = {applyServerSubscription() {}, updateProfile() {}};
     window.CrumpAnalytics = {track:() => Promise.resolve(true)};
@@ -103,6 +116,20 @@
           error:'Your session has expired. Please sign in again.',
         }), {status:401, headers:{'Content-Type':'application/json'}});
       }
+      if (pathname === '/api/account/accept-terms') {
+        const output = document.getElementById('checkoutFixtureTermsRequests');
+        output.textContent = String(Number(output.textContent || 0) + 1);
+        if (window.__fixtureTermsMode === 'fail') {
+          return new Response(JSON.stringify({success:false, error:'Fixture terms save failed.'}), {
+            status:503,
+            headers:{'Content-Type':'application/json'},
+          });
+        }
+        return new Response(JSON.stringify({success:true, user:{...fixtureUser, termsAcceptedAt:'2026-09-16T00:00:00Z'}}), {
+          status:200,
+          headers:{'Content-Type':'application/json'},
+        });
+      }
       const responses = {
         '/api/billing/credits/status': {
           success:true,
@@ -131,7 +158,19 @@
   </script>
   <script src="/public/crump-billing-5.1.js?v=checkout-session-recovery-fixture-1"></script>
   <script src="/public/crump-5.2.js?v=checkout-session-recovery-fixture-1"></script>
-  <script src="/public/crump-subscriptions-5.3.2.js?v=checkout-session-recovery-fixture-1"></script>
+  <script>
+    window.__loadFixtureSubscriptions = () => {
+      if (window.__fixtureSubscriptionsPromise) return window.__fixtureSubscriptionsPromise;
+      window.__fixtureSubscriptionsPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = '/public/crump-subscriptions-5.3.2.js?v=checkout-session-recovery-fixture-1';
+        script.onload = resolve;
+        script.onerror = () => reject(new Error('Fixture subscription owner failed to load.'));
+        document.head.appendChild(script);
+      });
+      return window.__fixtureSubscriptionsPromise;
+    };
+  </script>
   <script src="/public/crump-5.2.2.js?v=checkout-session-recovery-fixture-1"></script>
   <script src="/public/auth-controller.js?v=checkout-session-recovery-fixture-1"></script>
 </body>

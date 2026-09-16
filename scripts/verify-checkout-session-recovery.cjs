@@ -22,6 +22,24 @@ async function signIn(page) {
     await page.waitForTimeout(900);
 
     await page.getByRole('button', {name:'Plan & credits'}).click();
+    const loadingPlans = page.getByRole('button', {name:'Loading plan…', exact:true});
+    await loadingPlans.first().waitFor({state:'visible'});
+    assert.equal(await loadingPlans.count(), 2);
+    assert.equal(await loadingPlans.nth(0).isDisabled(), true);
+    assert.equal(await loadingPlans.nth(1).isDisabled(), true);
+    assert.equal(await page.locator('.billing51-modal').getAttribute('data-crump-subscriptions532'), null);
+
+    await page.evaluate(() => window.__loadFixtureSubscriptions());
+    await page.waitForFunction(() => (
+      document.querySelector('.billing51-modal')?.dataset.crumpSubscriptions532 === 'ready'
+    ));
+    assert.equal(await loadingPlans.count(), 0);
+    const professionalPlan = page.getByRole('button', {name:'Review Professional in Stripe', exact:true});
+    const enterprisePlan = page.getByRole('button', {name:'Review Enterprise in Stripe', exact:true});
+    assert.equal(await professionalPlan.isEnabled(), true);
+    assert.equal(await enterprisePlan.isEnabled(), true);
+    assert.equal(Number(await page.locator('#checkoutFixtureRequests').textContent()), 0);
+
     const credit = page.getByRole('button', {name:'Add 150 Crump Credits for $9.99', exact:true});
     await credit.waitFor({state:'visible'});
     await credit.click();
@@ -137,14 +155,43 @@ async function signIn(page) {
     assert.equal(await unsafePlan.isEnabled(), true);
     assert.match(page.url(), /checkout-session-recovery\.html$/);
     assert.equal(Number(await page.locator('#checkoutFixtureRequests').textContent()), 4);
+
+    await page.getByRole('button', {name:'Close', exact:true}).click();
+    await page.evaluate(() => {
+      document.getElementById('tosModal').style.display = 'flex';
+      document.getElementById('tosAccept').checked = false;
+      document.getElementById('tosAcceptBtn').disabled = true;
+    });
+    const termsCheckbox = page.locator('#tosAccept');
+    const termsButton = page.getByRole('button', {name:'Continue to Ask Crump', exact:true});
+    assert.equal(await termsButton.isDisabled(), true);
+    await page.evaluate(() => document.getElementById('tosAcceptBtn').click());
+    assert.equal(Number(await page.locator('#checkoutFixtureTermsRequests').textContent()), 0);
+    await termsCheckbox.check();
+    assert.equal(await termsButton.isEnabled(), true);
+    await termsButton.click();
+    await page.waitForFunction(() => /Fixture terms save failed/.test(
+      window.__fixtureToasts.at(-1)?.message || '',
+    ));
+    assert.equal(Number(await page.locator('#checkoutFixtureTermsRequests').textContent()), 1);
+    assert.equal(await termsButton.isEnabled(), true);
+    assert.equal(await termsButton.textContent(), 'Continue to Ask Crump');
+    assert.equal(await page.locator('#tosModal').isVisible(), true);
+    await page.evaluate(() => { window.__fixtureTermsMode = 'success'; });
+    await termsButton.click();
+    await page.waitForFunction(() => document.getElementById('tosModal')?.style.display === 'none');
+    assert.equal(Number(await page.locator('#checkoutFixtureTermsRequests').textContent()), 2);
+
     assert.equal(Number(await page.locator('#checkoutFixtureErrors').textContent()), 0);
     assert.deepEqual(browserErrors, []);
     process.stdout.write(JSON.stringify({
+      planHydration:{loadingPlaceholders:2, liveActions:2, checkoutRequestsBeforeAction:0},
       checkoutRequests:4,
       reauthenticationHandoffs:2,
       automaticCheckoutRequests:0,
       recovered:['credits_150', 'professional'],
       rejectedDestinations:['credit', 'subscription'],
+      termsAcceptance:{blockedBeforeConsent:true, retryRecovered:true, requests:2},
     }));
   } finally {
     await browser.close();
