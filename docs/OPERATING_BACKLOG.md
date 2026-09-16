@@ -1428,6 +1428,13 @@ the 24-hour window is incomplete and the legitimate exposure denominator remains
 Preserve both product and post until the boundary. Evidence:
 `docs/FACEBOOK_CELL_EARLY_TECHNICAL_OBSERVATION_2026-09-16_1859UTC.md`.
 
+The next read-only checkpoint extended that clean window through **2026-09-16 19:25:41 UTC**:
+at least **165 HTTP 200** responses, empty explicit 3xx/4xx/5xx request-path groups, no runtime-error
+cluster, and no warning/error/fatal log. The exact campaign tuple still returned no attribution row.
+This remains a reliability pass and an undecided acquisition result, not a conversion failure;
+preserve every isolated variable until the completed 24-hour boundary. Evidence:
+`docs/FACEBOOK_CELL_118_MINUTE_TECHNICAL_OBSERVATION_2026-09-16_1925UTC.md`.
+
 The held single-output Project-continuity fix now has an exact post-isolation release and rollback
 plan. It requires the completed Facebook boundary read first, resolves production from live
 `origin/main` rather than the stale dirty primary workspace, prohibits bundling either later
