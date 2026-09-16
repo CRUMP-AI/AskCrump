@@ -95,10 +95,12 @@ rough request → useful response → **Keep in a Project** → **Open Project**
 requests, or overflow. The local WebM is 382,725 bytes at SHA-256
 `475B9363A87B6B922AE996BC6C10113DB3A2DE59FB483C083ABE6D2970063351`, and the final PNG is 82,436
 bytes at SHA-256 `235703141333C7B8537BBA40573D0FFCFB1B072F95CC8AA8E6FBC61261F4D305`.
-Marketing received the exact paths and boundary. This uses current product owners with fictional
-deterministic local responses, so it is interface/continuity proof only; the authentic sanitized
-demo-account capture gate remains open and no production event, provider call, credit, or customer
-data was created.
+Marketing independently matched both hashes and sizes, verified the 10-second WebM and original-
+resolution 390×844 PNG, and accepted them only as internal product preflight. This uses current
+product owners with fictional deterministic local responses, so it is interface/continuity proof
+only; the authentic analytics-excluded sanitized demo-account capture gate remains open and no
+production event, provider call, credit, or customer data was created. Receipt:
+`ask-crump-marketing/measurement/CONTINUOUS_WORK_RECORDER_PREFLIGHT_ACCEPTANCE_2026-09-16_1418.md`.
 
 The 2026-09-16 14:37 UTC protected refresh remains one comparable external production account:
 account creation, verification, workspace entry, starter intent, activation, and D1 return are all

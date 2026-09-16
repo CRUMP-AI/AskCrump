@@ -54,9 +54,12 @@ fixture errors, zero unexpected requests, and zero horizontal overflow. Its loca
 bytes at SHA-256 `475B9363A87B6B922AE996BC6C10113DB3A2DE59FB483C083ABE6D2970063351`;
 the final PNG is 82,436 bytes at SHA-256
 `235703141333C7B8537BBA40573D0FFCFB1B072F95CC8AA8E6FBC61261F4D305`. Marketing received the
-paths and exact truth boundary. This is current product-interface proof using deterministic
-fictional local responses; it is not live-model output, production activation evidence, or a
-replacement for the authentic sanitized demo-account capture gate.
+paths and exact truth boundary, independently matched both sizes and hashes, verified the 10-second
+WebM and original-resolution 390×844 PNG, and accepted them only as internal product preflight.
+This is current product-interface proof using deterministic fictional local responses; it is not
+live-model output, production activation evidence, publishable sanitized-demo proof, or a
+replacement for the authentic analytics-excluded demo-account capture gate. Marketing's receipt is
+`ask-crump-marketing/measurement/CONTINUOUS_WORK_RECORDER_PREFLIGHT_ACCEPTANCE_2026-09-16_1418.md`.
 
 The refreshed `draft-to-clearer` candidate at exact current production base `7833d89` and evidence
 HEAD `f030814` also passes Marketing's current cross-repository gates when executed against that
