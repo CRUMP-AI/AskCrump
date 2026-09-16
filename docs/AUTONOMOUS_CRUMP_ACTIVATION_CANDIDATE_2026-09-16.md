@@ -80,7 +80,7 @@ key-, password-, and secret-named fields.
 The real loader and workspace assets were exercised in Edge without a product account or production
 request:
 
-- disabled: two destinations remained hidden; the 33 KB workspace script and 13 KB stylesheet were
+- disabled: two destinations remained hidden; the 49,229-byte workspace script and 18,310-byte stylesheet were
   not fetched or constructed;
 - configured but not entitled: both destinations became visible and locked with the full
   Professional-plan accessible label;

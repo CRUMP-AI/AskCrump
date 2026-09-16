@@ -1533,7 +1533,7 @@ Stripe with Ask Crump entitlement/credit state. Observe the 5.9.71 `SignupIntent
 next legitimate post-boundary attempt sooner if consented evidence is available. Future cold social
 links should normally land on the public product or relevant capability page before signup unless
 the campaign itself provides sufficient product context. Do not rewrite authentication from small,
-anonymous aggregates. Keep both new provider foundations off. Do not enable Crump Code until the real
+anonymous aggregates. Keep both new provider foundations off. Do not enable Autonomous Crump until the real
 sandbox/OIDC test, review UI, monitoring, and benchmark gates pass. Do not enable Crump Voice
 until its disclosure, key, voice rights, and playback tests are approved.
 

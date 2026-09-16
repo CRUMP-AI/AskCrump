@@ -142,10 +142,14 @@ def test_customer_runtime_uses_autonomous_crump_brand_without_renaming_internal_
         source = read(relative)
         assert "Crump Code" not in source, relative
 
-    for relative in ("public/crump-billing-5.1.js", "public/crump-5.2.js"):
+    always_loaded_plan_surfaces = (
+        "public/crump-billing-5.1.js",
+        "public/crump-5.2.js",
+    )
+    for relative in always_loaded_plan_surfaces:
         source = read(relative)
-        assert "Crump Code 12" not in source, relative
-        assert "Autonomous Crump 12" not in source, relative
+        assert "Crump Code" not in source, relative
+        assert "Autonomous Crump" not in source, relative
 
     workspace = read("public/crump-code-5.9.35.js")
     navigation = read("public/crump-navigation-5.9.30.js")
@@ -211,10 +215,23 @@ def test_current_docs_use_one_explicit_customer_name_migration_note():
     )[1].split("\n### ", 1)[0]
     assert "Crump Code" not in active_gate
 
+    company = read("docs/COMPANY_OPERATING_PLAN.md")
+    assert "Deploy Autonomous Crump and Crump Voice foundations disabled by default" in company
+    assert "Autonomous Crump remains a separate hidden gated destination" in company
+    assert "Deploy Crump Code and Crump Voice foundations disabled by default" not in company
+    assert "Crump Code remains a separate hidden gated destination" not in company
+    assert "Do not enable Autonomous Crump until the real" in backlog
+    assert "Do not enable Crump Code until the real" not in backlog
+
     candidate = read("docs/AUTONOMOUS_CRUMP_ACTIVATION_CANDIDATE_2026-09-16.md")
     migration_note = "Autonomous Crump (formerly Crump Code; internal identifier `crump_code`)"
     assert candidate.count(migration_note) == 1
     assert candidate.count("Crump Code") == 1
+    assert (
+        f"the {(ROOT / 'public/crump-code-5.9.35.js').stat().st_size:,}-byte workspace script "
+        f"and {(ROOT / 'public/crump-code-5.9.35.css').stat().st_size:,}-byte stylesheet"
+        in candidate
+    )
 
 
 def test_code_workspace_has_accessible_modal_and_mobile_controls():
