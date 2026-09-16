@@ -1283,10 +1283,12 @@ pricing mutation and confirms qualified acquisition as the binding constraint.
 
 The current-base `draft-to-clearer` source/staged candidate is independently accepted at evidence
 HEAD `78bb2f4`; public release remains held. The isolated `resume-you-can-defend` candidate is fully
-green at evidence HEAD `392f9a5` and remains under independent Marketing review. Both were prepared
-from exact production base `8545cea`, remain unpushed and unapplied, and created no tagged visit,
-account/event, publication, or spend. Preserve production 5.9.76 until the governing campaign gates
-reopen and new legitimate traffic supplies decision-grade outcome evidence. Full checkpoint:
+green and independently accepted at evidence HEAD `392f9a5` after 86/86 source checks, 72/72 focused
+tests, 54-file JavaScript validation, and 49/49 real-browser controls. Both were prepared from exact
+production base `8545cea`, remain unpushed and unapplied, and created no tagged visit, account/event,
+publication, or spend. The active rough-to-useful Facebook challenger remains first and untouched.
+Preserve production 5.9.76 until the governing campaign gates reopen and new legitimate traffic
+supplies decision-grade outcome evidence. Full checkpoint:
 `docs/OPERATING_CHECKPOINT_2026-09-16_1605UTC.md`.
 
 Commit `9225374` makes the upcoming D1 decision fail closed at the operator boundary. The weekly

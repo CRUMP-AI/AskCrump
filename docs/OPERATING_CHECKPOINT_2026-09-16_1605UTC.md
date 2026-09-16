@@ -51,8 +51,11 @@ it does not prove acquisition, retained value, or revenue.
   source/staged candidate. Public release remains held.
 - `resume-you-can-defend`: isolated from the same exact production base; functional commit
   `c5cb37a1b660131ed2e169c94006a97d68a9b4ce`; evidence HEAD
-  `392f9a56e920b620b1778bd21c03085f91874d29`. Full Product validation is green and independent
-  Marketing review is still in progress. Public release remains held.
+  `392f9a56e920b620b1778bd21c03085f91874d29`. Marketing independently accepted the exact source
+  candidate after 86/86 source checks, 72/72 focused tests, actual-file client-boundary proof,
+  54-file JavaScript validation with 14/14 campaign cases, 49/49 real-browser controls, exact
+  artifact hashes, clean diff/status, and a live-production absent check. Public release remains
+  held.
 - Ask Crump API `v0.133.0`: private compatibility candidate passed its source and hosted gates.
   Stable API production remains `v0.49.1`; no Product integration, deployment, or parity claim is
   authorized from that receipt.
@@ -69,8 +72,9 @@ the sample remains one account and no post-offer Project behavior or D7 denomina
 
 The next safe growth dependency is qualified acquisition readiness:
 
-1. finish independent acceptance of the résumé source candidate;
-2. keep both campaign releases isolated until their explicit publication gates reopen;
+1. keep both independently accepted campaign releases isolated until their explicit publication
+   gates reopen;
+2. preserve the active rough-to-useful Facebook challenger as the first campaign cell;
 3. obtain legitimate new post-instrumentation accounts before interpreting activation, durable
    value, D7, checkout, or payer conversion; and
 4. preserve the no-synthetic-events and aggregate-only privacy boundary.
