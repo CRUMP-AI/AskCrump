@@ -429,30 +429,38 @@ class CodeTaskService:
         rows = result if isinstance(result, list) else ([result] if result else [])
         return rows[0] if rows else None
 
-    async def dispatch(
+    async def accept_run(
         self,
         task: dict[str, Any],
         *,
-        receipt: dict[str, Any],
         dispatch_token: str,
+        source_revision: str,
+        included_limit: int,
+        credit_cost: int,
+        credit_action_key: str,
+        confirmed_max: int,
     ) -> dict[str, Any]:
         task = await self.ensure_not_expired(task)
         result = await self.db.rpc(
-            "dispatch_code_task",
+            "accept_code_task_run",
             {
                 "p_task_id": task["id"],
                 "p_user_id": task["user_id"],
                 "p_dispatch_token": dispatch_token,
-                "p_usage_receipt": receipt,
-                "p_payment_source": receipt.get("paymentSource"),
-                "p_credits_spent": int(receipt.get("creditsSpent") or 0),
+                "p_source_revision": source_revision,
+                "p_included_limit": int(included_limit),
+                "p_credit_cost": int(credit_cost),
+                "p_credit_action_key": str(credit_action_key or "")[:160],
+                "p_confirmed_max": int(confirmed_max),
             },
             retry_transient=True,
         )
-        rows = result if isinstance(result, list) else ([result] if result else [])
-        if not rows:
-            raise CodeTaskConflictError("Autonomous Crump task is no longer ready to run.")
-        return rows[0]
+        payload = result[0] if isinstance(result, list) and result else result
+        if not isinstance(payload, dict):
+            raise CodeTaskConflictError("Autonomous Crump task could not be accepted safely.")
+        if payload.get("accepted") is True and not isinstance(payload.get("task"), dict):
+            raise CodeTaskConflictError("Autonomous Crump returned an incomplete acceptance receipt.")
+        return payload
 
     async def pin_source_revision(
         self,

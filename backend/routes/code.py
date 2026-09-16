@@ -17,6 +17,7 @@ from ..code_service import (
 from ..feature_service import FeatureAccessError
 from ..project_service import ProjectNotFoundError
 from ..runtime import code_tasks, db, features, settings
+from ..usage_service import tier_name
 
 router = APIRouter(tags=["code"])
 logger = logging.getLogger("askcrump.code")
@@ -136,7 +137,7 @@ async def run_code_task(task_id: str, request: Request):
     try:
         task = await code_tasks.get(user_id=auth.user["id"], task_id=task_id)
         task = await code_tasks.ensure_not_expired(task)
-        await features.require_tier(auth.user, "code_workspace")
+        policy = await features.require_tier(auth.user, "code_workspace")
     except FeatureAccessError as exc:
         return _feature_error(exc)
     except CodeTaskError as exc:
@@ -154,12 +155,10 @@ async def run_code_task(task_id: str, request: Request):
         return _task_error(exc)
 
     try:
-        receipt = await features.consume(
+        authorization = await features.authorize(
             auth.user,
-            "code_workspace",
-            {"route": "code_task", "mode": task.get("mode")},
-            confirmation=payload.get("creditConfirmation"),
-            instance_key=str(task.get("id") or task_id),
+            {"code_workspace": 1},
+            payload.get("creditConfirmation"),
             scope={
                 "route": "code_task",
                 "taskId": str(task.get("id") or task_id),
@@ -170,38 +169,48 @@ async def run_code_task(task_id: str, request: Request):
         return _feature_error(exc)
 
     dispatch_token = str(uuid4())
-    recovered = False
     try:
-        claimed = await code_tasks.dispatch(
+        acceptance = await code_tasks.accept_run(
             task,
-            receipt=receipt,
             dispatch_token=dispatch_token,
+            source_revision=immutable_revision,
+            included_limit=policy.included_daily[tier_name(auth.user)],
+            credit_cost=policy.credit_cost,
+            credit_action_key=authorization.action_key,
+            confirmed_max=authorization.confirmed_credits,
         )
+        if acceptance.get("accepted") is not True:
+            reason = str(acceptance.get("reason") or "task_not_ready")
+            if reason in {"credit_confirmation_required", "credits_required"}:
+                # Rebuild the authoritative quote after a concurrent allowance
+                # or balance change. This raises the normal customer-facing
+                # confirmation/balance response without charging anything.
+                await features.authorize(
+                    auth.user,
+                    {"code_workspace": 1},
+                    payload.get("creditConfirmation"),
+                    scope={
+                        "route": "code_task",
+                        "taskId": str(task.get("id") or task_id),
+                        "mode": task.get("mode"),
+                    },
+                )
+            raise CodeTaskConflictError(
+                "Autonomous Crump task is no longer ready to run. Refresh its status before trying again."
+            )
+        claimed = acceptance["task"]
+        recovered = bool(acceptance.get("replayed"))
+    except FeatureAccessError as exc:
+        return _feature_error(exc)
     except CodeTaskError as exc:
-        await features.refund(auth.user["id"], receipt)
         code_log(
             logger,
             logging.WARNING,
             "dispatch_rejected",
             failure_code=exc.code,
-            outcome="refunded",
+            outcome="not_charged",
         )
         return _task_error(exc)
-    except Exception as exc:
-        current = await code_tasks.get(user_id=auth.user["id"], task_id=task_id)
-        if str(current.get("dispatch_token") or "") == dispatch_token:
-            claimed = current
-            recovered = True
-        else:
-            await features.refund(auth.user["id"], receipt)
-            code_log(
-                logger,
-                logging.ERROR,
-                "dispatch_rejected",
-                error_type=type(exc).__name__,
-                outcome="refunded",
-            )
-            raise
 
     code_log(
         logger,

@@ -331,13 +331,15 @@ def test_code_routes_are_authenticated_server_surfaces():
     source = read("backend/routes/code.py")
     cron_source = read("backend/routes/manuscripts.py")
     assert "authenticate_request(request, db, settings)" in source
-    assert "features.consume(" in source
-    assert "code_tasks.dispatch(" in source
+    assert "features.authorize(" in source
+    assert "code_tasks.accept_run(" in source
+    assert "features.consume(" not in source
+    assert "features.refund(" not in source
     assert 'request.headers.get("x-vercel-oidc-token")' in cron_source
     assert 'payload.get("confirmed") is not True' in source
     assert '"RUN_CONFIRMATION_REQUIRED"' in source
-    assert source.index("ensure_not_expired(task)") < source.index("features.consume(")
-    assert source.index("features.consume(") < source.index("code_tasks.dispatch(")
+    assert source.index("ensure_not_expired(task)") < source.index("features.authorize(")
+    assert source.index("features.authorize(") < source.index("code_tasks.accept_run(")
 
 
 def test_code_schema_is_private_audited_and_deny_all_by_contract():

@@ -167,7 +167,8 @@ def test_worker_reuses_existing_cron_slot_and_browser_only_dispatches():
     )
     run_route = read("backend/routes/code.py")
     assert "run_with_deadline" not in run_route
-    assert "code_tasks.dispatch(" in run_route
+    assert "code_tasks.accept_run(" in run_route
+    assert "code_tasks.dispatch(" not in run_route
     assert "status_code=202" in run_route
 
 
