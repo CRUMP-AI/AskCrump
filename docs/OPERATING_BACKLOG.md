@@ -61,7 +61,9 @@ new delta changes only the receipt's stale "acceptance pending" wording; the alr
 three-route contract, **80/80** focused checks, **25/25** campaign cases, and fail-closed browser
 evidence are unchanged. Keep migration, deployment, tagged loading, profile editing, publication,
 boost/ads, billing, and spend off until the current Facebook cell closes and later action-time
-gates reopen.
+gates reopen. Marketing's campaign-local verifiers are now extension-aware rather than Feed-only:
+the source gate passes **103/103** and the boundary gate accepts exactly the three approved
+touchpoints with zero failures. The candidate itself did not change.
 
 The 2026-09-16 guarded-control follow-up proves the intentionally disabled controls that a static
 button inventory cannot exercise. The real billing scripts replace two disabled `Loading plan…`

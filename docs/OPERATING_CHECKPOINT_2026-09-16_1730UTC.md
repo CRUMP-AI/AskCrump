@@ -67,7 +67,10 @@ functional evidence remains **80/80** focused attribution/button tests, **54** J
 **25/25** campaign cases, and a credential-free browser proof of all three accepted routes,
 fourteen rejection families, immutable first touch, direct-safe untagged entry, and zero account or
 analytics side effect. Migration, deployment, tagged loading, profile editing, publication,
-advertising, billing, and spend remain held behind the active Facebook cell.
+advertising, billing, and spend remain held behind the active Facebook cell. Marketing also
+corrected its two obsolete Feed-only verifiers: the extension-aware source gate now passes
+**103/103** plus its focused suite, and the boundary verifier passes all three exact touchpoints
+with zero failures. This closes the false-rejection risk without changing the Product candidate.
 
 A new canonical-origin acquisition audit also passed: **67** unique first-party anchor
 destinations, **12** canonical sitemap pages, **69** HTTP 200 destinations, **2** exact
