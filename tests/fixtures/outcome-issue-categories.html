@@ -15,7 +15,14 @@
   <script>
     window.currentChatId = '00000000-0000-4000-8000-000000000091';
     window.chats = [{id: window.currentChatId, messages: []}];
-    window.__fixture = {analytics: [], errors: [], failNextCategory: false, toasts: []};
+    window.__fixture = {
+      analytics: [],
+      errors: [],
+      failNextCategory: false,
+      reportFailuresRemaining: 1,
+      reportRequests: [],
+      toasts: [],
+    };
     window.addEventListener('error', event => window.__fixture.errors.push(event.message || 'page error'));
     window.addEventListener('unhandledrejection', event => window.__fixture.errors.push(String(event.reason || 'rejection')));
     window.CrumpAnalytics = {
@@ -30,6 +37,21 @@
     };
     window.CrumpPresence = {indicator: () => null};
     window.showToast = message => window.__fixture.toasts.push(message);
+    window.fetch = async (url, options = {}) => {
+      if (String(url) !== '/api/safety/reports') throw new Error(`Unexpected fixture request: ${url}`);
+      window.__fixture.reportRequests.push(JSON.parse(String(options.body || '{}')));
+      if (window.__fixture.reportFailuresRemaining > 0) {
+        window.__fixture.reportFailuresRemaining -= 1;
+        return new Response(JSON.stringify({success: false, error: 'Connection interrupted. Try again.'}), {
+          status: 503,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+      return new Response(JSON.stringify({success: true, reportId: 'fixture-report'}), {
+        status: 201,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
   </script>
   <script src="/public/ui-functions.js?v=outcome-issue-category-fixture-1"></script>
   <script>

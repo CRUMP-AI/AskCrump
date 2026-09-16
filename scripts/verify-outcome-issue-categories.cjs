@@ -51,9 +51,39 @@ const baseUrl = process.env.ASKCRUMP_FIXTURE_ORIGIN || 'http://127.0.0.1:8765';
   assert.equal(await page.locator('.outcome-issue-btn').count(), 0);
   assert.equal(await page.getByRole('button', {name: refineButtonName}).count(), 1);
 
+  const reportTrigger = page.getByRole('button', {name: 'Report this response'});
+  await reportTrigger.click();
+  const reportDialog = page.getByRole('dialog', {name: 'Report this response'});
+  await reportDialog.waitFor();
+  await reportDialog.getByLabel('Reason').selectOption('privacy');
+  await reportDialog.getByLabel('Details (optional)').fill('The response repeats private information.');
+  await reportDialog.getByRole('button', {name: 'Send report'}).click();
+  await page.waitForFunction(() => (
+    window.__fixture.reportRequests.length === 1
+    && window.__fixture.toasts.at(-1) === 'Connection interrupted. Try again.'
+  ));
+  assert.equal(await reportDialog.count(), 1);
+  assert.equal(await reportDialog.getByLabel('Reason').inputValue(), 'privacy');
+  assert.equal(
+    await reportDialog.getByLabel('Details (optional)').inputValue(),
+    'The response repeats private information.',
+  );
+  assert.equal(await reportDialog.getByRole('button', {name: 'Cancel'}).isEnabled(), true);
+  assert.equal(await reportDialog.getByRole('button', {name: 'Send report'}).isEnabled(), true);
+  assert.equal(await reportTrigger.isEnabled(), true);
+
+  await reportDialog.getByRole('button', {name: 'Send report'}).click();
+  await page.waitForFunction(() => (
+    window.__fixture.reportRequests.length === 2
+    && window.__fixture.toasts.at(-1) === 'Thanks — this response was sent for safety review.'
+  ));
+  assert.equal(await reportDialog.count(), 0);
+  assert.equal(await page.getByRole('button', {name: 'Response reported'}).isDisabled(), true);
+
   const result = await page.evaluate(() => ({
     analytics: window.__fixture.analytics,
     fixtureErrors: window.__fixture.errors,
+    reportRequests: window.__fixture.reportRequests,
     toasts: window.__fixture.toasts,
     horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
   }));
@@ -72,7 +102,27 @@ const baseUrl = process.env.ASKCRUMP_FIXTURE_ORIGIN || 'http://127.0.0.1:8765';
     },
   ]);
   assert.deepEqual(result.fixtureErrors, []);
-  assert.deepEqual(result.toasts, ['Feedback category could not be saved. Try again.']);
+  assert.deepEqual(result.reportRequests, [
+    {
+      chatId: '00000000-0000-4000-8000-000000000091',
+      messageId: 'response-issue-fixture',
+      category: 'privacy',
+      comment: 'The response repeats private information.',
+      response: 'A fictional result used only to verify fixed-category feedback controls.',
+    },
+    {
+      chatId: '00000000-0000-4000-8000-000000000091',
+      messageId: 'response-issue-fixture',
+      category: 'privacy',
+      comment: 'The response repeats private information.',
+      response: 'A fictional result used only to verify fixed-category feedback controls.',
+    },
+  ]);
+  assert.deepEqual(result.toasts, [
+    'Feedback category could not be saved. Try again.',
+    'Connection interrupted. Try again.',
+    'Thanks — this response was sent for safety review.',
+  ]);
   assert.equal(result.horizontalOverflow, false);
   assert.deepEqual(browserErrors, []);
 

@@ -290,9 +290,15 @@ def test_toast_notifications_have_an_implementation():
 def test_ai_responses_have_in_app_safety_reporting():
     ui = (PUBLIC / 'ui-functions.js').read_text()
     privacy = (PUBLIC / 'legal.html').read_text()
+    recovery_fixture = (ROOT / 'tests' / 'fixtures' / 'outcome-issue-categories.html').read_text()
+    browser_verifier = (ROOT / 'scripts' / 'verify-outcome-issue-categories.cjs').read_text()
     assert "report.textContent" in ui
     assert "'/api/safety/reports'" in ui
     assert "Report this response" in ui
+    assert "reportFailuresRemaining: 1" in recovery_fixture
+    assert "window.__fixture.reportRequests.length === 2" in browser_verifier
+    assert "The response repeats private information." in browser_verifier
+    assert "Response reported" in browser_verifier
     assert "AI response safety reports" in privacy
     assert "Vercel AI Gateway" in privacy
     assert "zero-data-retention" in privacy
