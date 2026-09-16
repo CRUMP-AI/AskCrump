@@ -1,6 +1,6 @@
 # Capacitor 8.4.3 native security candidate — 2026-09-16
 
-State: **SOURCE CANDIDATE / NOT DEPLOYED OR SUBMITTED**
+State: **RELEASED TO SOURCE / NOT SUBMITTED TO EITHER STORE**
 
 ## Decision
 
@@ -47,13 +47,31 @@ object, environment variable, public page, customer data, or production deployme
 
 The generated Android source remains intentionally untracked. The local workstation has Java 25,
 while this release train requires the reviewed Java 21 toolchain, so unsigned Android compilation
-is reserved for the existing hosted Java 21 gate. iOS compilation remains reserved for the hosted
-macOS gate. Signing credentials, RevenueCat public keys, FCM/APNs configuration, physical-device
-testing, screenshots, store declarations, signing, and submission remain separate owner-controlled
-release gates.
+was completed by the existing hosted Java 21 gate. iOS compilation completed in the hosted macOS
+gate. Signing credentials, RevenueCat public keys, FCM/APNs configuration, physical-device testing,
+screenshots, store declarations, signing, and submission remain separate owner-controlled release
+gates.
+
+## Hosted and production verification
+
+- Pull request: `#36`, exact source commit `8abb032b1c1fa0029ffb04ecf4597b08fc350b01`
+- Pull-request CI: `35122809253`, Python and JavaScript jobs passed
+- Pre-merge Android Java 21 gate: `35123315753`, passed
+- Pre-merge iOS macOS gate: `35123317953`, passed
+- Main merge commit: `0e93620ad3bac0009661299237ba81a50cb60aa5`
+- Main CI: `35123928372`, Python and JavaScript jobs passed
+- Main Android Java 21 gate: `35123928343`, passed
+- Main iOS macOS gate: `35123928415`, passed
+- Dependabot check: `35124068408`, passed
+- Vercel production deployment: `dpl_Cd2FGrDeCRShtBN4KaR1TKkXeuF7`, Ready on all six aliases
+- Production probes: Ask Crump home, `/app`, `/api/health`, and Clever Crump home returned HTTP 200
+- Post-release Vercel review: zero runtime-error groups; sampled production requests returned HTTP 200
+
+The production deployment is an automatic consequence of the reviewed `main` merge; the shipped
+web application bytes and behavior are unchanged by this native dependency-only release.
 
 ## Release boundary
 
-Do not describe Ask Crump as store-ready or available in either store from this candidate. Merge
-only after the hosted CI, Android Java 21, and iOS macOS source-verification workflows pass. This
-candidate requires no Vercel deployment because it changes only future native-build dependencies.
+Do not describe Ask Crump as store-ready or available in either store from this source release.
+Unsigned compilation proves buildability, not signing, billing, push delivery, physical-device
+behavior, store-console declarations, review acceptance, or availability.
