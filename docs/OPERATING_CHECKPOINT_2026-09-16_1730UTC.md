@@ -54,6 +54,11 @@ valid title, description, H1, indexability rule, canonical URL, structured-data 
 responsive viewport. This proves technical delivery; it does not prove indexing, search demand,
 conversion, or revenue.
 
+The paired Vercel production read found no grouped runtime error in the trailing 24 hours. The
+six-hour status sample contained **507 HTTP 200** and **5 HTTP 302** responses; explicit 4xx, 5xx,
+warning, error, and fatal queries were empty. The redirects are not classified as failures, and no
+hidden error class was inferred from the grouped view.
+
 ## Coordination boundary
 
 Ask Crump API `v0.135.0` is source-complete at
