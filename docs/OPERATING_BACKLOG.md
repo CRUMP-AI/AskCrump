@@ -1,6 +1,6 @@
 # Ask Crump operating backlog
 
-Last updated: 2026-09-15
+Last updated: 2026-09-16
 
 ## Operating standard
 
@@ -10,6 +10,20 @@ retention, and referral behavior. No acquisition spend should scale on impressio
 
 Every item below needs four things before it is called shipped: an accountable product
 outcome, privacy and safety constraints, automated coverage, and production evidence.
+
+The 2026-09-16 14:37 UTC protected refresh remains one comparable external production account:
+account creation, verification, workspace entry, starter intent, activation, and D1 return are all
+**1/1**, while useful/not-yet feedback, durable value, Project save/resume, artifact journey,
+referral, checkout, payer, and recognized revenue remain zero; D7 is still **0/0** and therefore
+ineligible. The post-2026-09-14 Project-offer cohort still has zero shown, intent, completion, or
+resume events; navigation still has no active post-boundary denominator; and lifecycle still shows
+one eligible `continuity-assist` exposure with no action, plus one `active-work` and one
+`session-collision` suppression. These are not-yet-observed states, not evidence that a control
+failed. The paired 24-hour production reliability read contained **1,466 HTTP 200** runtime
+responses, no 4xx or 5xx entry, no warning/error/fatal log, no grouped runtime error, no open GitHub
+product issue, and no unresolved Vercel toolbar feedback. Preserve the current response-to-Project
+experience, collect legitimate continuing-work and artifact journeys, and do not change the UI or
+scale paid acquisition from this one-account sample.
 
 The first valid post-boundary D1 read is now complete. At 2026-09-15 00:00:17–00:00:22 UTC,
 both independent service-role reports agreed that the one eligible comparable external account
