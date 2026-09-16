@@ -282,7 +282,8 @@ def test_signup_success_has_durable_verification_handoff_and_recovery_ui():
     assert 'id="registrationPending"' in app
     assert 'Check your inbox.' in app
     assert 'id="registrationPendingSigninBtn"' in app
-    assert 'enter your workspace automatically' in app
+    assert 'secure link to finish setting up your account' in app
+    assert 'Password changes happen only after a link sent to that inbox is opened.' in app
     assert 'Already verified? Sign in' in app
     assert 'id="registrationPendingResendBtn"' in app
     assert 'function showRegistrationPending(email, message' in controller

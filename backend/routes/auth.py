@@ -105,6 +105,80 @@ def verification_delivery_failure(
     )
 
 
+PENDING_SETUP_MESSAGE = (
+    'If an account is awaiting verification for that email, check its inbox for a '
+    'secure link to finish setup and choose a password.'
+)
+
+
+async def _issue_pending_account_setup(user: dict, email: str) -> None:
+    """Issue inbox-gated password setup without changing pending account ownership."""
+    raw_token = random_token(40)
+    reset_hash = token_hash(raw_token)
+    prior_reset = {
+        'password_reset_token_hash': user.get('password_reset_token_hash'),
+        'password_reset_expires': user.get('password_reset_expires'),
+    }
+    if user.get('updated_at') is not None:
+        prior_reset['updated_at'] = user['updated_at']
+    issued = await db.update(
+        'users',
+        {
+            'password_reset_token_hash': reset_hash,
+            'password_reset_expires': expiry_iso(hours=1),
+            'updated_at': iso_now(),
+        },
+        filters={
+            'id': eq(user['id']),
+            'is_verified': eq(False),
+        },
+    )
+    if not issued:
+        # Verification won the read/update race. Do not send a setup token that
+        # was never committed to the still-pending account.
+        return
+
+    delivered = False
+    try:
+        delivered = bool(
+            await email_service.send_password_reset(
+                email,
+                user.get('full_name'),
+                raw_token,
+            )
+        )
+    except EmailDeliveryError as exc:
+        logger.warning(
+            'Pending account setup email unavailable status=%s retryable=%s',
+            exc.status_code,
+            exc.retryable,
+        )
+    except Exception:
+        logger.exception('Unexpected pending account setup email failure')
+
+    if delivered:
+        return
+
+    # Restore any earlier recovery token only if this request still owns the
+    # pending row. A concurrent retry, verification, or completed reset wins.
+    try:
+        restored = await db.update(
+            'users',
+            prior_reset,
+            filters={
+                'id': eq(user['id']),
+                'is_verified': eq(False),
+                'password_reset_token_hash': eq(reset_hash),
+            },
+        )
+        if not restored:
+            logger.info('Pending account setup token rollback superseded safely')
+    except Exception:
+        # An undelivered reset token grants no access and never replaces the
+        # original password or verification proof. Preserve the generic reply.
+        logger.exception('Pending account setup token rollback failed')
+
+
 @router.post('/register')
 async def register(payload: RegisterRequest, request: Request):
     email = normalize_email(str(payload.email))
@@ -130,6 +204,19 @@ async def register(payload: RegisterRequest, request: Request):
         )
 
     existing = await db.select_one('users', columns='*', filters={'email': eq(email)})
+    if existing and existing.get('is_verified'):
+        return JSONResponse(
+            status_code=409,
+            content={'success': False, 'error': 'An account with that email already exists.'},
+        )
+
+    if existing:
+        # A repeated registration proves neither inbox ownership nor authority
+        # to replace credentials or account-owned metadata. The submitted
+        # password, profile, consent, and destination fields are discarded.
+        await _issue_pending_account_setup(existing, email)
+        return {'success': True, 'message': PENDING_SETUP_MESSAGE}
+
     verification_token = random_token(40)
     now = iso_now()
     terms_values = _registration_terms_values(payload, accepted_at=now)
@@ -139,59 +226,47 @@ async def register(payload: RegisterRequest, request: Request):
         'updated_at': now,
         **terms_values,
     }
-
-    if existing and existing.get('is_verified'):
-        return JSONResponse(
-            status_code=409,
-            content={'success': False, 'error': 'An account with that email already exists.'},
-        )
-
-    pending_account = bool(existing)
-    if existing:
-        await db.update('users', verification_values, filters={'id': eq(existing['id'])})
-        user = {**existing, **verification_values}
-    else:
-        user_payload = {
-            'id': new_uuid(),
-            'email': email,
-            'password_hash': hash_password(payload.password),
-            'full_name': (payload.fullName or '').strip() or None,
-            'is_verified': False,
-            'verification_token_hash': verification_values['verification_token_hash'],
-            'verification_token_expires': verification_values['verification_token_expires'],
-            'subscription_tier': 'free',
-            'subscription_status': 'inactive',
-            'registration_environment': environment_for_request(request),
-            'preferences': {},
-            'created_at': now,
-            'updated_at': now,
-            **terms_values,
-        }
-        inserted = await db.insert('users', user_payload)
-        user = inserted[0] if isinstance(inserted, list) and inserted else user_payload
-        await db.upsert(
-            'user_settings',
-            {'user_id': user['id'], 'updated_at': now},
-            on_conflict='user_id',
-        )
-        await record_account_created_event(
+    user_payload = {
+        'id': new_uuid(),
+        'email': email,
+        'password_hash': hash_password(payload.password),
+        'full_name': (payload.fullName or '').strip() or None,
+        'is_verified': False,
+        'verification_token_hash': verification_values['verification_token_hash'],
+        'verification_token_expires': verification_values['verification_token_expires'],
+        'subscription_tier': 'free',
+        'subscription_status': 'inactive',
+        'registration_environment': environment_for_request(request),
+        'preferences': {},
+        'created_at': now,
+        'updated_at': now,
+        **terms_values,
+    }
+    inserted = await db.insert('users', user_payload)
+    user = inserted[0] if isinstance(inserted, list) and inserted else user_payload
+    await db.upsert(
+        'user_settings',
+        {'user_id': user['id'], 'updated_at': now},
+        on_conflict='user_id',
+    )
+    await record_account_created_event(
+        db,
+        user_id=user['id'],
+        request=request,
+        acquisition=payload.source,
+        placement=payload.placement,
+        campaign=payload.campaign,
+        creative=payload.creative,
+        intent=payload.intent,
+    )
+    if user.get('full_name'):
+        await record_product_event(
             db,
             user_id=user['id'],
+            event_name='OnboardingCompleted',
+            event_key='initial-profile',
             request=request,
-            acquisition=payload.source,
-            placement=payload.placement,
-            campaign=payload.campaign,
-            creative=payload.creative,
-            intent=payload.intent,
         )
-        if user.get('full_name'):
-            await record_product_event(
-                db,
-                user_id=user['id'],
-                event_name='OnboardingCompleted',
-                event_key='initial-profile',
-                request=request,
-            )
 
     try:
         sent = await email_service.send_verification(
@@ -205,14 +280,11 @@ async def register(payload: RegisterRequest, request: Request):
         return verification_delivery_failure(exc, account_created=True)
 
     if sent:
-        message = (
-            'Verification email resent. Check your inbox.'
-            if pending_account
-            else 'Account created. Check your email to verify it.'
-        )
-    else:
-        message = 'Email delivery is not configured; an administrator must enable RESEND_API_KEY.'
-    return {'success': True, 'message': message, 'emailSent': sent}
+        return {'success': True, 'message': PENDING_SETUP_MESSAGE}
+    return {
+        'success': True,
+        'message': 'Email delivery is not configured; an administrator must enable RESEND_API_KEY.',
+    }
 
 
 @router.post('/login')

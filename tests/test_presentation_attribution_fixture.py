@@ -69,7 +69,12 @@ class IsolatedAttributionDB:
     @staticmethod
     def _filter_value(value: object) -> object:
         if isinstance(value, str) and value.startswith("eq."):
-            return value[3:]
+            literal = value[3:]
+            if literal == "true":
+                return True
+            if literal == "false":
+                return False
+            return literal
         return value
 
     async def select_one(self, table, **kwargs):
@@ -182,6 +187,10 @@ class FixtureEmail:
         self.calls = 0
 
     async def send_verification(self, *_args, **_kwargs):
+        self.calls += 1
+        return True
+
+    async def send_password_reset(self, *_args, **_kwargs):
         self.calls += 1
         return True
 
