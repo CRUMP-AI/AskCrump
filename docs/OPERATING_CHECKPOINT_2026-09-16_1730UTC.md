@@ -117,6 +117,15 @@ valid title, description, H1, indexability rule, canonical URL, structured-data 
 responsive viewport. This proves technical delivery; it does not prove indexing, search demand,
 conversion, or revenue.
 
+Release-source inspection also found that the long-lived OneDrive/GitHub workspace is not a safe
+current release checkout: local `main` is `86cd73f`, **390 commits behind** `origin/main` /
+production `7833d89`, with 115 modified tracked status entries and 145 expanded untracked paths.
+The index is clean. None of that preserved state was modified or classified as disposable. Current
+release and candidate work remains anchored to exact clean worktrees; the dirty primary workspace
+must not be reset, cleaned, rebased, merged, or used for production without a separately authorized
+recoverable inventory/snapshot/reconciliation plan. Evidence:
+`docs/PRIMARY_WORKSPACE_ISOLATION_AUDIT_2026-09-16.md`.
+
 The paired Vercel production read found no grouped runtime error in the trailing 24 hours. The
 six-hour status sample contained **507 HTTP 200** and **5 HTTP 302** responses; explicit 4xx, 5xx,
 warning, error, and fatal queries were empty. The redirects are not classified as failures, and no

@@ -81,6 +81,15 @@ fixtures; no production checkout, terms acceptance, manuscript deletion, or cust
 occurred. Application runtime behavior is unchanged. Evidence:
 `docs/GUARDED_BUTTON_INTERACTION_GATE_RELEASE_2026-09-16.md`.
 
+The long-lived OneDrive/GitHub workspace is now explicitly quarantined from release use. Its local
+`main` remains at `86cd73f`, **390 commits behind** current `origin/main` / production source
+`7833d89`, with 115 modified tracked status entries and 145 individual untracked paths. The index is
+clean, and no reset, clean, checkout, merge, stash, move, deletion, or branch update was attempted.
+Those files may contain valuable historical or user-owned work. Continue all product/release work
+from exact clean worktrees; reclaim the primary workspace only through a separately authorized,
+recoverable inventory/snapshot/reconciliation process. Evidence:
+`docs/PRIMARY_WORKSPACE_ISOLATION_AUDIT_2026-09-16.md`.
+
 The 2026-09-16 button-audit follow-up closes a fail-open source-ownership gap: rendered
 `type="submit"` controls were previously accepted without proving that their exact enclosing form
 owned a submit handler. The parser now binds every rendered submit button to its form and fails on
