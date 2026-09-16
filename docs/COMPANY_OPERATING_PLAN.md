@@ -186,6 +186,13 @@ next constraint.
 
 ### Organic growth and proof
 
+- Sequence the selected `draft-to-clearer` writing guide behind its measurement and authentic-proof
+  gates. The existing current-base attribution candidate is reusable after rebasing, but its staged
+  guide is not publishable evidence. Follow
+  `docs/DRAFT_TO_CLEARER_AND_CONTINUITY_FEASIBILITY_2026-09-16.md`: measurement first, one sanitized
+  current-product proof second, exact two-tuple attribution plus the evidence-built guide third,
+  and an atomic twelve-to-thirteen-page/five-to-six-guide sitemap transition last. Do not restore
+  the superseded Instagram Story tuple or open a tagged path during source preparation.
 - Keep the verified Search Console domain property reconciled to production, and submit the live
   canonical sitemap only after owner confirmation.
 - Build one restrained, truthful creative batch around work continuity, not capability volume.
