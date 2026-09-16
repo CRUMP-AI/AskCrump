@@ -170,6 +170,18 @@ The paired Vercel runtime window from publication through `2026-09-16T18:10:58Z`
 runtime-error cluster. This removes an immediate technical-delivery concern for the live traffic;
 it does not convert the tiny arrival sample into a demand or conversion conclusion.
 
+A later read-only technical checkpoint extended the window through `2026-09-16T18:59:24Z`.
+Vercel returned no runtime-error cluster, no warning/error/fatal application log, at least **100
+HTTP 200** responses, and empty explicit 3xx/4xx/5xx request-path groups. The visible 100-request
+path breakdown was dominated by scheduled manuscript maintenance, with four sync pulls and one each
+for lifecycle, presence-preference, check-in, and billing-status reads. The grouped endpoint reported
+a second undisplayed status value, so this record does not infer what it was. The server-authoritative
+weekly attribution aggregate for the exact live tuple—`facebook / organic-social /
+rough-to-useful-v2 / rough-to-useful-current-feed / projects`—still returned no row. This rules out
+an observed early server/runtime failure and confirms no exact-tuple account yet; it does not provide
+the missing exposure denominator or justify a conversion verdict before the 24-hour boundary.
+Evidence: `docs/FACEBOOK_CELL_EARLY_TECHNICAL_OBSERVATION_2026-09-16_1859UTC.md`.
+
 ## Decision
 
 Preserve production 5.9.76 and the live Facebook cell without changing another variable. Keep both

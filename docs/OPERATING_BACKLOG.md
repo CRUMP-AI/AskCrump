@@ -1393,6 +1393,15 @@ start from then-current production and rerun all gates; this proof does not auth
 campaigns or changing the live cell. Evidence:
 `docs/HELD_CANDIDATE_INTEGRATION_AUDIT_2026-09-16.md`.
 
+The early Facebook cell remains technically healthy but conversion-undecided. Through
+**2026-09-16 18:59:24 UTC**, Vercel returned no runtime-error cluster, no warning/error/fatal log,
+at least **100 HTTP 200** responses, and empty explicit 3xx/4xx/5xx request-path groups. The exact
+registered tuple still produced no row in the service-role, production-only weekly attribution
+aggregate. That proves no exact-tuple account yet; it does not prove a conversion failure because
+the 24-hour window is incomplete and the legitimate exposure denominator remains unavailable.
+Preserve both product and post until the boundary. Evidence:
+`docs/FACEBOOK_CELL_EARLY_TECHNICAL_OBSERVATION_2026-09-16_1859UTC.md`.
+
 Commit `9225374` makes the upcoming D1 decision fail closed at the operator boundary. The weekly
 and combined operating exporters now require all 25 cohort counts as nonnegative integers, one
 consistent requested reporting window, valid nullable database finance totals, and 24 exact subset
