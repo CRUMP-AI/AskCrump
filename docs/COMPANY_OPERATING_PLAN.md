@@ -141,8 +141,8 @@ next constraint.
   only consented notes and content-free funnel outcomes.
 - Review the first post-instrumentation cohort separately from the three historical accounts.
 - Fix the largest observed durable-value-to-return failure before expanding acquisition.
-- Deploy Crump Code and Crump Voice foundations disabled by default; complete their activation
-  gates without public parity claims.
+- Deploy Autonomous Crump (formerly Crump Code) and Crump Voice foundations disabled by default;
+  complete their activation gates without public parity claims.
 
 ### Monetization and unit economics
 
@@ -180,8 +180,8 @@ next constraint.
    any percentage target will be set only after the first credible baseline.
 3. **Revenue proof:** recognized revenue and refunds reconcile to provider records, and at least one
    paid conversion path is observed end to end.
-4. **Differentiation proof:** users can resume durable work and export a professional result; Crump
-   Code enters a private benchmark only after its sandbox and UI gates pass.
+4. **Differentiation proof:** users can resume durable work and export a professional result;
+   Autonomous Crump enters a private benchmark only after its sandbox and UI gates pass.
 5. **Growth proof:** one organic or referral loop produces legitimate activated users with traceable,
    privacy-safe attribution before paid acquisition is scaled.
 6. **Operational proof:** weekly reports, release checklists, kill switches, rollback instructions,
@@ -289,8 +289,8 @@ provider, privacy, cost, or security gate is incomplete.
 - **Workspace hierarchy:** Production commit **b65fb73** removes the redundant Tools menu. Ask is the
   default workspace; Intelligence owns research/current information and answer quality; Create owns
   Documents, Presentations, Images, Manuscripts, and Video; the composer **+** owns attachments; and
-  Crump Code remains a separate hidden gated destination. Do not recreate parallel navigation for
-  these capabilities.
+  Autonomous Crump remains a separate hidden gated destination. Do not recreate parallel navigation
+  for these capabilities.
 - **Verified evidence:** two external accounts completed 14 successful AI jobs before the first
   observed product-event traffic; neither created a Project/file or returned after August 23.
 - **Shipped retention intervention:** 5.9.22 puts private conversation-to-Project continuity directly
@@ -383,7 +383,8 @@ provider, privacy, cost, or security gate is incomplete.
   owner-scoped server job, renders its persisted answer, and accepts another message. A separate
   acknowledgement stall exposes visible retry and completes safely. Schema/RLS, usage, credits,
   providers, analytics, pricing, entitlements, and payments remain unchanged.
-- **Shipped foundation:** production 5.9.35 adds a Project-attached Crump Code review workspace,
+- **Shipped foundation:** production 5.9.35 adds a Project-attached Autonomous Crump coding workspace
+  (originally shipped under the internal name Crump Code),
   explicit client/server run confirmation, visible cost/patch/verification/approval state, and
   cancellation checks before each next model/tool step. It remains disabled publicly pending the
   approved live sandbox/OIDC, expiry, monitoring, rollback, and benchmark gates.
