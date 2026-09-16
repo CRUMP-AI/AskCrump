@@ -67,11 +67,28 @@ Ask Crump API `v0.135.0` is source-complete at
 production remains `v0.49.1`. Product will not integrate, deploy, or advertise the private source
 receipt without an explicit API deployment and rollback handoff.
 
+## First acquisition cell is live
+
+Marketing consumed a separate founder action-time confirmation and published exactly one Ask Crump
+Facebook Feed object at `$0`: the frozen four-image `rough-to-useful-v2` carousel. Facebook post
+`122112605367453183` is Public and the sole Featured post after reload; the prior control remains
+published but unfeatured. Instagram, Story, Reel, groups, cross-posting, boost, ads, billing, and
+spend stayed off. The exact public destination carries
+`facebook / organic-social / rough-to-useful-v2 / rough-to-useful-current-feed / projects`, which
+is already registered and production-verified.
+
+The conservative 24-hour isolation window ends **2026-09-17 13:28 EDT**. An aggregate-only exact-
+tuple baseline through `2026-09-16T17:35:00Z` returned no account row. That is expected only minutes
+after publication and is not evidence of failure. Keep all other Facebook distribution variables
+frozen until the boundary; do not edit, delete, boost, share, cross-post, or add a second Featured
+item. If natural exposure is under 25 viewers with no eligible exact-tuple account, classify the
+cell as under-distributed—not as a product-conversion failure.
+
 ## Decision
 
-Preserve production 5.9.76. Keep the rough-to-useful Facebook challenger first in the external
-queue and keep both later campaign candidates isolated. Obtain legitimate new accounts before
-interpreting activation, durable value, D7, Checkout, or payer conversion. Do not create synthetic
-accounts/events, deploy either candidate, apply either migration, open a tagged production URL,
-submit Search Console/store actions, publish social content, or spend without the governing
-action-time gate.
+Preserve production 5.9.76 and the live Facebook cell without changing another variable. Keep both
+later campaign candidates isolated. Observe legitimate exposure, exact-tuple account creation, and
+downstream activation/value evidence at the 24-hour boundary before changing the product or
+distribution. Do not create synthetic accounts/events, deploy either candidate, apply either
+migration, open another tagged production URL, submit Search Console/store actions, publish
+additional social content, or spend without the governing action-time gate.

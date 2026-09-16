@@ -11,6 +11,18 @@ retention, and referral behavior. No acquisition spend should scale on impressio
 Every item below needs four things before it is called shipped: an accountable product
 outcome, privacy and safety constraints, automated coverage, and production evidence.
 
+The first qualified acquisition cell is now live. Marketing used a separate founder action-time
+confirmation to publish the frozen four-image `rough-to-useful-v2` Facebook Feed carousel as post
+`122112605367453183` and make it the sole Featured item. The prior control remains published but
+unfeatured. Instagram, Story, Reel, groups, cross-posting, boost, ads, billing, and spend remained
+off; spend is `$0`. Freeze every other Facebook distribution variable through the conservative
+24-hour boundary at **2026-09-17 13:28 EDT**. The exact production tuple is
+`facebook / organic-social / rough-to-useful-v2 / rough-to-useful-current-feed / projects`. An
+aggregate-only baseline minutes after publication returned no exact-tuple account, which is not a
+failure signal. At the boundary, distinguish under-distribution (fewer than 25 viewers with no
+eligible account) from product conversion; do not create synthetic traffic or change the product,
+post, Featured state, or distribution during isolation.
+
 The 2026-09-16 guarded-control follow-up proves the intentionally disabled controls that a static
 button inventory cannot exercise. The real billing scripts replace two disabled `Loading plan…`
 placeholders with enabled Professional and Enterprise review actions without starting checkout;
