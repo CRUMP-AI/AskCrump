@@ -52,7 +52,8 @@ checks with **45** focused tests, and an independent **1,199/1,199** full produc
 HEAD `f030814`. This makes the next writing cell
 technically release-ready without releasing it. Keep its migration unapplied, guide staged, branch
 unpushed, tagged destinations unopened, and all public actions at `$0`; authentic sanitized capture
-and the active Facebook cell's governing boundary still come first.
+and the active Facebook cell's governing boundary still come first. Marketing independently
+finalized that exact corrected HEAD and closed the prior stale test-total defect.
 
 The 2026-09-16 guarded-control follow-up proves the intentionally disabled controls that a static
 button inventory cannot exercise. The real billing scripts replace two disabled `Loading plan…`

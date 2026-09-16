@@ -53,7 +53,11 @@ exact tree: **63/63** integrated source/staged checks and **47/47** attribution/
 including **45** focused tests. The accepted source state remains deliberately nonpublic: the
 migration is unapplied, the guide stays under `staging/`, no remote branch contains the HEAD, and
 deployment, capture, publication, and spend remain unauthorized. Its remaining material gate is an
-authentic sanitized capture, not another attribution or editorial-source change.
+authentic sanitized capture, not another attribution or editorial-source change. Marketing's
+independent final acceptance is recorded in
+`ask-crump-marketing/measurement/DRAFT_TO_CLEARER_CURRENT_BASE_FINAL_MARKETING_ACCEPTANCE_2026-09-16_1355.md`;
+it verifies that the evidence-only correction changed exactly one receipt line and closes the stale
+test-total defect.
 
 A new canonical-origin acquisition audit also passed: **67** unique first-party anchor
 destinations, **12** canonical sitemap pages, **69** HTTP 200 destinations, **2** exact
