@@ -107,11 +107,22 @@ class ButtonParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
         self.buttons: list[dict[str, str]] = []
+        self.form_stack: list[str] = []
 
     def handle_starttag(self, tag: str, attrs) -> None:
+        attributes = {str(key): str(value or "") for key, value in attrs}
+        if tag.lower() == "form":
+            self.form_stack.append(attributes.get("id", ""))
+            return
         if tag.lower() != "button":
             return
-        self.buttons.append({str(key): str(value or "") for key, value in attrs})
+        if self.form_stack:
+            attributes["__form_id"] = self.form_stack[-1]
+        self.buttons.append(attributes)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() == "form" and self.form_stack:
+            self.form_stack.pop()
 
 
 def _dataset_name(attribute: str) -> str:
@@ -121,6 +132,10 @@ def _dataset_name(attribute: str) -> str:
 
 CLICK_OWNER_PATTERN = re.compile(
     r"addEventListener\(\s*([\"'])click\1|\.onclick\s*=",
+    re.IGNORECASE,
+)
+SUBMIT_OWNER_PATTERN = re.compile(
+    r"addEventListener\(\s*([\"'])submit\1|\.onsubmit\s*=",
     re.IGNORECASE,
 )
 OWNER_CONTEXT_RADIUS = 2_500
@@ -193,8 +208,22 @@ def _button_has_runtime_owner(
     button: dict[str, str],
     scripts: dict[str, str],
 ) -> bool:
-    if button.get("type", "").lower() == "submit" or button.get("onclick"):
+    if button.get("onclick"):
         return True
+    if button.get("type", "").lower() == "submit":
+        form_id = button.get("__form_id", "")
+        if not form_id:
+            return False
+        for source in scripts.values():
+            for match in re.finditer(
+                rf"(?<![\w-]){re.escape(form_id)}(?![\w-])",
+                source,
+            ):
+                start = max(0, match.start() - OWNER_CONTEXT_RADIUS)
+                end = min(len(source), match.end() + OWNER_CONTEXT_RADIUS)
+                if SUBMIT_OWNER_PATTERN.search(source[start:end]):
+                    return True
+        return False
     return any(
         _anchor_has_bounded_click_owner(anchor, source)
         for anchor in _button_owner_anchors(button, scripts)
@@ -367,6 +396,26 @@ def test_button_owner_guard_does_not_accept_markup_self_references() -> None:
         {"type": "button", "id": "futureDeadButton"},
         scripts,
     )
+
+
+def test_submit_button_owner_guard_requires_its_exact_form_handler() -> None:
+    orphan = {"type": "submit", "__form_id": "futureForm"}
+    unrelated = {
+        "future.js": (
+            "const form = byId('differentForm');\n"
+            "form.addEventListener('submit', saveDifferentForm);"
+        )
+    }
+    exact_owner = {
+        "future.js": (
+            "const form = byId('futureForm');\n"
+            "form.addEventListener('submit', saveFutureForm);"
+        )
+    }
+
+    assert not _button_has_runtime_owner({"type": "submit"}, exact_owner)
+    assert not _button_has_runtime_owner(orphan, unrelated)
+    assert _button_has_runtime_owner(orphan, exact_owner)
 
 
 def test_rendered_button_owner_guard_rejects_lookup_only_and_distant_clicks() -> None:

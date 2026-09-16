@@ -11,6 +11,14 @@ retention, and referral behavior. No acquisition spend should scale on impressio
 Every item below needs four things before it is called shipped: an accountable product
 outcome, privacy and safety constraints, automated coverage, and production evidence.
 
+The 2026-09-16 button-audit follow-up closes a fail-open source-ownership gap: rendered
+`type="submit"` controls were previously accepted without proving that their exact enclosing form
+owned a submit handler. The parser now binds every rendered submit button to its form and fails on
+an absent, orphaned, or different-form owner. All nine current rendered submit actions pass the
+stronger contract. Focused button coverage passed **27/27**, the complete suite **1,134/1,134**,
+JavaScript **54/54**, and the real-browser matrix **48/48**. No application behavior or production
+data changed. Evidence: `docs/SUBMIT_BUTTON_OWNERSHIP_GATE_RELEASE_2026-09-16.md`.
+
 The 2026-09-16 14:37 UTC protected refresh remains one comparable external production account:
 account creation, verification, workspace entry, starter intent, activation, and D1 return are all
 **1/1**, while useful/not-yet feedback, durable value, Project save/resume, artifact journey,
