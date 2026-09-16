@@ -5,7 +5,7 @@ from functools import lru_cache
 import os
 
 
-# Crump Code cannot be exposed by an environment-variable mistake. This source
+# Autonomous Crump cannot be exposed by an environment-variable mistake. This source
 # lock stays false until the live Sandbox, OIDC, destruction, cancellation,
 # refund, monitoring, rollback, quality, and cost gates have a reviewed release.
 CODE_WORKSPACE_PUBLIC_RELEASED = False
@@ -257,7 +257,7 @@ def get_settings() -> Settings:
         # explicitly set this false as an emergency cost/safety switch.
         video_generation_enabled=_bool(os.getenv('CRUMP_ENABLE_VIDEO_GENERATION'), True),
         manuscript_generation_enabled=_bool(os.getenv('CRUMP_ENABLE_MANUSCRIPTS'), True),
-        # Crump Code requires both the operator switch and a reviewed source
+        # Autonomous Crump requires both the operator switch and a reviewed source
         # release because each run combines a paid model with isolated compute.
         code_workspace_enabled=(
             CODE_WORKSPACE_PUBLIC_RELEASED

@@ -1,4 +1,4 @@
-"""Authenticated Crump Code task and approval endpoints."""
+"""Authenticated Autonomous Crump task and approval endpoints."""
 from __future__ import annotations
 
 import logging
@@ -77,14 +77,14 @@ async def list_code_tasks(project_id: str, request: Request):
 async def create_code_task(project_id: str, request: Request):
     auth = await authenticate_request(request, db, settings)
     if not _configured(request):
-        return _error("Crump Code is not enabled yet.", "CODE_WORKSPACE_NOT_CONFIGURED", 503)
+        return _error("Autonomous Crump is not enabled yet.", "CODE_WORKSPACE_NOT_CONFIGURED", 503)
     try:
         await features.require_tier(auth.user, "code_workspace")
     except FeatureAccessError as exc:
         return _feature_error(exc)
     payload = await request.json()
     if not isinstance(payload, dict):
-        return _error("Invalid Crump Code request.", "INVALID_CODE_TASK", 400)
+        return _error("Invalid Autonomous Crump request.", "INVALID_CODE_TASK", 400)
     try:
         task = await code_tasks.create(
             user_id=auth.user["id"],
@@ -121,7 +121,7 @@ async def get_code_task(task_id: str, request: Request):
 async def run_code_task(task_id: str, request: Request):
     auth = await authenticate_request(request, db, settings)
     if not _configured(request):
-        return _error("Crump Code is not enabled yet.", "CODE_WORKSPACE_NOT_CONFIGURED", 503)
+        return _error("Autonomous Crump is not enabled yet.", "CODE_WORKSPACE_NOT_CONFIGURED", 503)
     try:
         payload = await request.json()
     except Exception:

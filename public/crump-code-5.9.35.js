@@ -18,6 +18,9 @@
     task: null,
     restoreFocus: null,
     pollTimer: 0,
+    pollGeneration: 0,
+    pollFailures: 0,
+    selectedDiffPath: '',
   };
   const ACTIVE = new Set(['queued', 'provisioning', 'running', 'awaiting_approval', 'verifying']);
   const STATUS_LABELS = Object.freeze({
@@ -30,6 +33,13 @@
     failed: 'Failed safely',
     cancelled: 'Cancelled',
   });
+  const PROGRESS_STAGES = Object.freeze([
+    ['queued', 'Prepared'],
+    ['provisioning', 'Accepted'],
+    ['running', 'Working'],
+    ['verifying', 'Verifying'],
+    ['completed', 'Ready to review'],
+  ]);
 
   async function apiOnce(path, options = {}) {
     const request = {
@@ -44,7 +54,7 @@
     const response = await fetch(path, request);
     const data = await response.json().catch(() => ({}));
     if (!response.ok || data.success === false) {
-      const error = new Error(data.error || 'Crump Code could not complete that request.');
+      const error = new Error(data.error || 'Autonomous Crump could not complete that request.');
       error.code = data.code || 'CODE_REQUEST_FAILED';
       error.details = data;
       error.data = data;
@@ -118,13 +128,13 @@
       <section class="crump-code-shell" role="dialog" aria-modal="true" aria-labelledby="crumpCodeTitle">
         <header class="crump-code-header">
           <div>
-            <span class="crump-code-kicker">CRUMP CODE · PRIVATE PREVIEW</span>
-            <h2 id="crumpCodeTitle">Review the work before it runs.</h2>
-            <p>Crump Code works on a temporary copy of a public GitHub repository. It cannot see secrets, publish, or push changes.</p>
+            <span class="crump-code-kicker">AUTONOMOUS CRUMP · PRIVATE PREVIEW</span>
+            <h2 id="crumpCodeTitle">Delegate repository work. Keep final control.</h2>
+            <p>Autonomous Crump plans, edits, and verifies work in a temporary copy of a public GitHub repository. It cannot see secrets, publish, or push changes.</p>
           </div>
-          <button type="button" id="crumpCodeClose" class="crump-code-icon-button" aria-label="Close Crump Code">×</button>
+          <button type="button" id="crumpCodeClose" class="crump-code-icon-button" aria-label="Close Autonomous Crump">×</button>
         </header>
-        <div class="crump-code-safety" aria-label="Crump Code safety boundaries">
+        <div class="crump-code-safety" aria-label="Autonomous Crump safety boundaries">
           <span><b>Isolated</b> temporary microVM</span>
           <span><b>Offline</b> after repository checkout</span>
           <span><b>Reviewable</b> patch and checks</span>
@@ -132,7 +142,7 @@
         </div>
         <div id="crumpCodeNotice" class="crump-code-notice" role="status" aria-live="polite" hidden></div>
         <div class="crump-code-layout">
-          <aside class="crump-code-sidebar" aria-label="Crump Code tasks">
+          <aside class="crump-code-sidebar" aria-label="Autonomous Crump tasks">
             <div class="crump-code-sidebar-head">
               <label for="crumpCodeProject">Project</label>
               <button type="button" id="crumpCodeRefresh" class="crump-code-text-button">Refresh</button>
@@ -250,7 +260,7 @@
       destination.classList.toggle('is-locked', state.configured && !state.entitled);
       destination.setAttribute(
         'aria-label',
-        state.configured && !state.entitled ? 'Code — Professional plan' : 'Code',
+        state.configured && !state.entitled ? 'Autonomous Crump — Professional plan' : 'Autonomous Crump',
       );
     });
     document.body.classList.toggle('crump-code-configured', state.configured);
@@ -338,6 +348,115 @@
     parent.appendChild(row);
   }
 
+  function cleanDiffPath(value) {
+    let path = String(value || '').trim();
+    if (path.startsWith('"') && path.endsWith('"')) path = path.slice(1, -1);
+    if (path === '/dev/null') return '';
+    if (path.startsWith('a/') || path.startsWith('b/')) path = path.slice(2);
+    return path.replace(/[\r\n\0]/g, '').slice(0, 240);
+  }
+
+  function parseUnifiedPatch(value) {
+    const patch = String(value || '').replace(/\r\n?/g, '\n').slice(0, 200000);
+    if (!patch.trim()) return [];
+    const files = [];
+    let current = null;
+    const finish = () => {
+      if (!current) return;
+      current.path = current.newPath || current.oldPath || `Change ${files.length + 1}`;
+      current.kind = !current.oldPath ? 'added'
+        : !current.newPath ? 'deleted'
+          : current.oldPath !== current.newPath ? 'renamed' : 'modified';
+      current.text = current.lines.join('\n').slice(0, 200000);
+      delete current.lines;
+      files.push(current);
+    };
+    for (const line of patch.split('\n')) {
+      if (line.startsWith('diff --git ')) {
+        finish();
+        current = {oldPath: '', newPath: '', added: 0, removed: 0, lines: [line]};
+        continue;
+      }
+      if (!current) current = {oldPath: '', newPath: '', added: 0, removed: 0, lines: []};
+      current.lines.push(line);
+      if (line.startsWith('--- ')) current.oldPath = cleanDiffPath(line.slice(4));
+      else if (line.startsWith('+++ ')) current.newPath = cleanDiffPath(line.slice(4));
+      else if (line.startsWith('+')) current.added += 1;
+      else if (line.startsWith('-')) current.removed += 1;
+    }
+    finish();
+    return files.slice(0, 80);
+  }
+
+  function latestProgressCopy(task) {
+    const events = Array.isArray(task.events) ? task.events : [];
+    const latest = events[events.length - 1] || null;
+    const payload = latest?.payload && typeof latest.payload === 'object' ? latest.payload : {};
+    const eventType = String(latest?.event_type || '');
+    if (eventType === 'tool.requested') {
+      if (payload.path) return `Inspecting ${String(payload.path).slice(0, 160)}`;
+      if (payload.command) return `Running ${String(payload.command).slice(0, 120)}`;
+      return 'Inspecting the repository';
+    }
+    if (eventType === 'tool.completed') return 'Repository step completed';
+    if (eventType === 'verification.started') return 'Running bounded verification';
+    if (eventType === 'verification.completed') return 'Verification evidence recorded';
+    if (eventType === 'task.requeued') return 'Retry scheduled without another charge';
+    if (eventType === 'approval.requested') return 'Waiting for your approval';
+    if (eventType === 'task.completed') return 'Patch and checks are ready for review';
+    if (eventType === 'task.cancelled') return 'Cancellation recorded';
+    if (eventType === 'task.failed') return 'The run stopped safely';
+    return statusLabel(task.status, task.failure_code);
+  }
+
+  function renderProgress(container, task) {
+    const status = String(task.status || 'queued');
+    const activeIndex = status === 'awaiting_approval'
+      ? 2
+      : Math.max(0, PROGRESS_STAGES.findIndex(([value]) => value === status));
+    const terminalFailure = status === 'failed' || status === 'cancelled';
+    const section = document.createElement('section');
+    section.className = 'crump-code-progress';
+    section.setAttribute('aria-label', 'Durable task progress');
+    const head = document.createElement('div');
+    head.className = 'crump-code-progress-head';
+    const heading = document.createElement('h4');
+    heading.textContent = terminalFailure ? statusLabel(status, task.failure_code) : 'Durable run progress';
+    const connection = document.createElement('span');
+    connection.className = 'crump-code-connection';
+    connection.dataset.tone = state.pollFailures ? 'recovering' : 'connected';
+    connection.textContent = state.pollFailures ? 'Reconnecting' : 'Saved to Project';
+    head.append(heading, connection);
+    const stages = document.createElement('ol');
+    stages.className = 'crump-code-progress-stages';
+    for (const [stageStatus, label] of PROGRESS_STAGES) {
+      const stage = document.createElement('li');
+      const index = PROGRESS_STAGES.findIndex(([value]) => value === stageStatus);
+      const completed = !terminalFailure && index < activeIndex;
+      const current = !terminalFailure && index === activeIndex;
+      stage.dataset.state = completed ? 'complete' : current ? 'current' : 'pending';
+      if (current) stage.setAttribute('aria-current', 'step');
+      const marker = document.createElement('span');
+      marker.setAttribute('aria-hidden', 'true');
+      marker.textContent = completed ? '✓' : String(index + 1);
+      const text = document.createElement('strong');
+      text.textContent = label;
+      stage.append(marker, text);
+      stages.appendChild(stage);
+    }
+    const latest = document.createElement('p');
+    latest.className = 'crump-code-progress-latest';
+    const updated = formatDate(task.updated_at);
+    latest.textContent = `${latestProgressCopy(task)}${updated ? ` · Updated ${updated}` : ''}`;
+    const continuity = document.createElement('p');
+    continuity.className = 'crump-code-progress-continuity';
+    continuity.textContent = ACTIVE.has(status) && status !== 'queued'
+      ? 'You can close this window or explore Ask Crump. The private worker continues, and this Project keeps the latest status.'
+      : 'This task, its checks, and its review state remain attached to this Project.';
+    section.append(head, stages, latest, continuity);
+    container.appendChild(section);
+  }
+
   function renderApprovals(container, task) {
     const approvals = Array.isArray(task.approvals) ? task.approvals.filter(item => item.status === 'pending') : [];
     if (!approvals.length) return;
@@ -379,18 +498,107 @@
     heading.textContent = 'Verification';
     section.appendChild(heading);
     for (const check of checks) {
-      const row = document.createElement('div');
+      const row = document.createElement('details');
       row.className = 'crump-code-check';
+      const summary = document.createElement('summary');
       const command = document.createElement('code');
       const args = Array.isArray(check.args) ? check.args.join(' ') : '';
-      command.textContent = `${check.command || 'check'} ${args}`.trim();
+      const commandText = String(check.command || 'check');
+      command.textContent = `${commandText}${args && !commandText.includes(' ') ? ` ${args}` : ''}`.slice(0, 1000);
       const result = document.createElement('span');
       const passed = Number(check.returnCode) === 0;
       result.textContent = passed ? 'Passed' : `Exited ${check.returnCode ?? 'unknown'}`;
       result.dataset.tone = passed ? 'success' : 'danger';
-      row.append(command, result);
+      summary.append(command, result);
+      row.appendChild(summary);
+      const output = [check.stdout, check.stderr]
+        .map(value => String(value || '').trim())
+        .filter(Boolean)
+        .join('\n\n')
+        .slice(0, 8000);
+      if (output) {
+        const pre = document.createElement('pre');
+        pre.textContent = output;
+        row.appendChild(pre);
+      }
       section.appendChild(row);
     }
+    container.appendChild(section);
+  }
+
+  function renderPatch(container, task) {
+    const files = parseUnifiedPatch(task.result_patch);
+    if (!files.length) return;
+    if (!files.some(file => file.path === state.selectedDiffPath)) {
+      state.selectedDiffPath = files[0].path;
+    }
+    const selected = files.find(file => file.path === state.selectedDiffPath) || files[0];
+    const added = files.reduce((total, file) => total + file.added, 0);
+    const removed = files.reduce((total, file) => total + file.removed, 0);
+    const section = document.createElement('section');
+    section.className = 'crump-code-diff';
+    const head = document.createElement('div');
+    head.className = 'crump-code-diff-head';
+    const heading = document.createElement('h4');
+    heading.textContent = `Changes · ${files.length} file${files.length === 1 ? '' : 's'}`;
+    const totals = document.createElement('span');
+    totals.className = 'crump-code-diff-totals';
+    totals.innerHTML = `<b>+${added}</b><i>−${removed}</i>`;
+    head.append(heading, totals);
+
+    const body = document.createElement('div');
+    body.className = 'crump-code-diff-layout';
+    const fileList = document.createElement('div');
+    fileList.className = 'crump-code-diff-files';
+    fileList.setAttribute('role', 'list');
+    fileList.setAttribute('aria-label', 'Changed files');
+    for (const file of files) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.codeAction = 'diff-file';
+      button.dataset.diffPath = file.path;
+      button.className = 'crump-code-diff-file';
+      button.classList.toggle('is-active', file.path === selected.path);
+      button.setAttribute('aria-pressed', file.path === selected.path ? 'true' : 'false');
+      const path = document.createElement('span');
+      path.textContent = file.path;
+      const stats = document.createElement('small');
+      stats.innerHTML = `<b>+${file.added}</b><i>−${file.removed}</i>`;
+      button.append(path, stats);
+      fileList.appendChild(button);
+    }
+    const viewer = document.createElement('div');
+    viewer.className = 'crump-code-diff-viewer';
+    const viewerHead = document.createElement('div');
+    const path = document.createElement('strong');
+    path.textContent = selected.path;
+    const kind = document.createElement('span');
+    kind.textContent = selected.kind;
+    viewerHead.append(path, kind);
+    const pre = document.createElement('pre');
+    pre.setAttribute('aria-label', `Patch for ${selected.path}`);
+    for (const line of selected.text.split('\n')) {
+      const row = document.createElement('span');
+      row.className = line.startsWith('+') && !line.startsWith('+++') ? 'is-added'
+        : line.startsWith('-') && !line.startsWith('---') ? 'is-removed'
+          : line.startsWith('@@') ? 'is-hunk' : '';
+      row.textContent = `${line}\n`;
+      pre.appendChild(row);
+    }
+    viewer.append(viewerHead, pre);
+    body.append(fileList, viewer);
+
+    const actions = document.createElement('div');
+    actions.className = 'crump-code-actions crump-code-diff-actions';
+    const boundary = document.createElement('p');
+    boundary.textContent = 'Nothing is pushed. Review or download the complete patch before applying it.';
+    const download = document.createElement('button');
+    download.type = 'button';
+    download.className = 'crump-code-secondary';
+    download.dataset.codeAction = 'download';
+    download.textContent = 'Download .patch';
+    actions.append(boundary, download);
+    section.append(head, body, actions);
     container.appendChild(section);
   }
 
@@ -429,7 +637,7 @@
     const label = document.createElement('span');
     label.textContent = String(task.mode || 'plan').toUpperCase();
     const title = document.createElement('h3');
-    title.textContent = String(task.objective || 'Crump Code task');
+    title.textContent = String(task.objective || 'Autonomous Crump task');
     titleWrap.append(label, title);
     const badge = document.createElement('span');
     badge.className = 'crump-code-status';
@@ -448,6 +656,8 @@
     addTextRow(facts, 'Charge', task.payment_source ? `${task.payment_source}${Number(task.credits_spent) ? ` · ${task.credits_spent} credits` : ''}` : 'Not started');
     detail.appendChild(facts);
 
+    renderProgress(detail, task);
+
     renderApprovals(detail, task);
 
     if (task.result_summary) {
@@ -463,21 +673,7 @@
     }
     renderVerification(detail, task);
 
-    if (task.result_patch) {
-      const patch = document.createElement('details');
-      patch.className = 'crump-code-patch';
-      const summary = document.createElement('summary');
-      summary.textContent = 'Review patch';
-      const pre = document.createElement('pre');
-      pre.textContent = String(task.result_patch);
-      const download = document.createElement('button');
-      download.type = 'button';
-      download.className = 'crump-code-secondary';
-      download.dataset.codeAction = 'download';
-      download.textContent = 'Download .patch';
-      patch.append(summary, pre, download);
-      detail.appendChild(patch);
-    }
+    if (task.result_patch) renderPatch(detail, task);
 
     if (task.failure_code) {
       const failure = document.createElement('p');
@@ -517,7 +713,7 @@
       const progress = document.createElement('p');
       progress.textContent = task.status === 'awaiting_approval'
         ? 'Review the requested boundary above.'
-        : 'You can request cancellation. Crump Code checks that request before each next model or tool step.';
+        : 'You can request cancellation. Autonomous Crump checks that request before each next model or tool step.';
       const cancel = document.createElement('button');
       cancel.type = 'button';
       cancel.className = 'crump-code-danger';
@@ -626,7 +822,7 @@
       state.task = data.task;
       renderDetail();
       renderTasks();
-      setNotice('Task accepted. You can close this window; Crump Code will continue safely.', 'success');
+      setNotice('Task accepted. You can close this window; Autonomous Crump will continue safely.', 'success');
       startPolling(taskId);
     } catch (error) {
       stopPolling();
@@ -683,7 +879,7 @@
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `crump-code-${String(state.task.id || 'change').slice(0, 8)}.patch`;
+    link.download = `autonomous-crump-${String(state.task.id || 'change').slice(0, 8)}.patch`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -698,42 +894,63 @@
     if (button.dataset.codeAction === 'run') await runTask(button);
     else if (button.dataset.codeAction === 'cancel') await cancelTask(button);
     else if (button.dataset.codeAction === 'download') downloadPatch();
+    else if (button.dataset.codeAction === 'diff-file') {
+      state.selectedDiffPath = String(button.dataset.diffPath || '');
+      renderDetail();
+      [...(byId('crumpCodeDetail')?.querySelectorAll('[data-diff-path]') || [])]
+        .find(node => node.dataset.diffPath === state.selectedDiffPath)
+        ?.focus({preventScroll: true});
+    }
   }
 
   function stopPolling() {
     if (state.pollTimer) window.clearTimeout(state.pollTimer);
     state.pollTimer = 0;
+    state.pollGeneration += 1;
+    state.pollFailures = 0;
   }
 
-  function startPolling(taskId) {
+  function startPolling(taskId, {immediate = false} = {}) {
     stopPolling();
+    const generation = state.pollGeneration;
     const poll = async () => {
-      if (byId('crumpCodeWorkspace')?.hidden || state.task?.id !== taskId) return;
+      if (generation !== state.pollGeneration || byId('crumpCodeWorkspace')?.hidden || state.task?.id !== taskId) return;
       try {
         const data = await api(`/api/code/tasks/${encodeURIComponent(taskId)}`);
+        if (generation !== state.pollGeneration) return;
+        const recovered = state.pollFailures > 0;
+        state.pollFailures = 0;
         state.task = data.task || state.task;
         renderDetail();
         renderTasks();
+        if (recovered && ACTIVE.has(String(state.task?.status || ''))) {
+          setNotice('Connection restored. The private worker kept running while this view reconnected.', 'success');
+        }
         if (!ACTIVE.has(String(state.task?.status || '')) || state.task?.status === 'queued') {
           if (state.task?.status === 'completed') {
-            setNotice('Crump Code finished. Review the result, checks, and patch before using it.', 'success');
+            setNotice('Autonomous Crump finished. Review the result, checks, and patch before using it.', 'success');
           } else if (state.task?.status === 'failed') {
-            setNotice('Crump Code stopped safely. Review the task history before retrying.', 'danger');
+            setNotice('Autonomous Crump stopped safely. Review the task history before retrying.', 'danger');
           } else if (state.task?.status === 'cancelled') {
             setNotice('Cancellation recorded. No source changes were published.');
           }
           return;
         }
       } catch (_) {
-        // A later poll can recover from a brief connectivity interruption.
+        if (generation !== state.pollGeneration) return;
+        state.pollFailures += 1;
+        renderDetail();
+        setNotice('Connection paused. The private worker continues safely; this view is reconnecting…');
       }
-      state.pollTimer = window.setTimeout(poll, 2500);
+      if (generation !== state.pollGeneration) return;
+      const delay = Math.min(15000, 2500 * (2 ** Math.min(state.pollFailures, 3)));
+      state.pollTimer = window.setTimeout(poll, delay);
     };
-    state.pollTimer = window.setTimeout(poll, 1200);
+    state.pollTimer = window.setTimeout(poll, immediate ? 0 : 1200);
   }
 
   async function refresh() {
-    if (!(await refreshAvailability())) return setNotice('Crump Code is not available for this account.', 'danger');
+    if (!(await refreshAvailability())) return setNotice('Autonomous Crump is not available for this account.', 'danger');
     await loadProjects();
   }
 
@@ -744,7 +961,7 @@
         const modal = window.showBillingCenter?.({plan: 'professional'});
         if (!modal) window.showUpgradePrompt?.({plan: 'professional'});
       } else {
-        window.showToast?.('Crump Code is still in private preview.', 'info');
+        window.showToast?.('Autonomous Crump is still in private preview.', 'info');
       }
       return false;
     }
@@ -786,5 +1003,17 @@
   } else initialize();
   window.addEventListener('crump:authenticated-ready', () => {
     if (!window.CrumpCodeLoader) void refreshAvailability();
+  });
+  window.addEventListener('online', () => {
+    if (!byId('crumpCodeWorkspace')?.hidden && ACTIVE.has(String(state.task?.status || ''))) {
+      startPolling(state.task.id, {immediate: true});
+    }
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible'
+      && !byId('crumpCodeWorkspace')?.hidden
+      && ACTIVE.has(String(state.task?.status || ''))) {
+      startPolling(state.task.id, {immediate: true});
+    }
   });
 })();

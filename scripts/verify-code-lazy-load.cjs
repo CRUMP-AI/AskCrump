@@ -36,8 +36,8 @@ function fixtureHtml() {
 <html lang="en">
 <head><meta charset="utf-8"><link rel="icon" href="data:,"><title>Code lazy-load proof</title></head>
 <body>
-  <button type="button" data-crump-code-destination hidden aria-label="Code">Code desktop</button>
-  <button type="button" data-crump-code-destination hidden aria-label="Code">Code mobile</button>
+  <button type="button" data-crump-code-destination hidden aria-label="Autonomous Crump">Autonomous desktop</button>
+  <button type="button" data-crump-code-destination hidden aria-label="Autonomous Crump">Autonomous mobile</button>
   <script>window.currentUser = {id: 'fixture-user'};</script>
   <script src="${assetPaths.loader}?v=5.9.76-code-lazy-load-1"></script>
 </body>
@@ -124,7 +124,7 @@ async function inspect(page, destination) {
     }
 
     assert.deepEqual(results.disabled, {
-      hidden: [true, true], locked: [false, false], labels: ['Code', 'Code'],
+      hidden: [true, true], locked: [false, false], labels: ['Autonomous Crump', 'Autonomous Crump'],
       loader: true, workspace: false, shell: false, bootstrapStatusRetained: false,
     });
     assert.equal(counts.get(`disabled:${assetPaths.script}`) || 0, 0);
@@ -133,7 +133,7 @@ async function inspect(page, destination) {
 
     assert.deepEqual(results.locked.hidden, [false, false]);
     assert.deepEqual(results.locked.locked, [true, true]);
-    assert.deepEqual(results.locked.labels, ['Code — Professional plan', 'Code — Professional plan']);
+    assert.deepEqual(results.locked.labels, ['Autonomous Crump — Professional plan', 'Autonomous Crump — Professional plan']);
     assert.equal(results.locked.loader && results.locked.workspace && results.locked.shell, true);
     assert.equal(results.locked.bootstrapStatusRetained, false);
     assert.equal(counts.get(`locked:${assetPaths.script}`), 1);
@@ -142,7 +142,7 @@ async function inspect(page, destination) {
 
     assert.deepEqual(results.entitled.hidden, [false, false]);
     assert.deepEqual(results.entitled.locked, [false, false]);
-    assert.deepEqual(results.entitled.labels, ['Code', 'Code']);
+    assert.deepEqual(results.entitled.labels, ['Autonomous Crump', 'Autonomous Crump']);
     assert.equal(results.entitled.loader && results.entitled.workspace && results.entitled.shell, true);
     assert.equal(results.entitled.bootstrapStatusRetained, false);
     assert.equal(counts.get(`entitled:${assetPaths.script}`), 1);

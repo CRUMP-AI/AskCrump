@@ -4,8 +4,8 @@
   if (window.__crumpCodeLoaderLoaded) return;
   window.__crumpCodeLoaderLoaded = true;
 
-  const STYLE_URL = '/crump-code-5.9.35.css?v=5.9.76-intelligence-architecture-1';
-  const SCRIPT_URL = '/crump-code-5.9.35.js?v=5.9.76-credit-confirmation-1';
+  const STYLE_URL = '/crump-code-5.9.35.css?v=5.9.76-autonomous-review-console-1';
+  const SCRIPT_URL = '/crump-code-5.9.35.js?v=5.9.76-autonomous-review-console-1';
   let featureStatus = null;
   let availabilityPromise = null;
   let workspacePromise = null;
@@ -14,7 +14,7 @@
     document.querySelectorAll('[data-crump-code-destination]').forEach(destination => {
       destination.hidden = true;
       destination.classList.remove('is-locked');
-      destination.setAttribute('aria-label', 'Code');
+      destination.setAttribute('aria-label', 'Autonomous Crump');
     });
     document.body.classList.remove('crump-code-configured');
   }
@@ -28,7 +28,7 @@
       node.href = STYLE_URL;
       node.dataset.crumpCodeLazyStyle = 'true';
       node.addEventListener('load', resolve, {once: true});
-      node.addEventListener('error', () => reject(new Error('Code styles unavailable')), {once: true});
+      node.addEventListener('error', () => reject(new Error('Autonomous Crump styles unavailable')), {once: true});
       document.head.appendChild(node);
     });
   }
@@ -39,7 +39,7 @@
     if (existing) {
       return new Promise((resolve, reject) => {
         existing.addEventListener('load', resolve, {once: true});
-        existing.addEventListener('error', () => reject(new Error('Code workspace unavailable')), {once: true});
+        existing.addEventListener('error', () => reject(new Error('Autonomous Crump workspace unavailable')), {once: true});
       });
     }
     return new Promise((resolve, reject) => {
@@ -48,7 +48,7 @@
       node.async = false;
       node.dataset.crumpCodeLazyScript = 'true';
       node.addEventListener('load', resolve, {once: true});
-      node.addEventListener('error', () => reject(new Error('Code workspace unavailable')), {once: true});
+      node.addEventListener('error', () => reject(new Error('Autonomous Crump workspace unavailable')), {once: true});
       document.head.appendChild(node);
     });
   }
@@ -62,7 +62,7 @@
     window.__crumpCodeBootstrapStatus = data || null;
     workspacePromise = Promise.all([loadStyle(), loadScript()])
       .then(() => {
-        if (!window.CrumpCodeWorkspace) throw new Error('Code workspace unavailable');
+        if (!window.CrumpCodeWorkspace) throw new Error('Autonomous Crump workspace unavailable');
         window.CrumpCodeWorkspace.hydrateAvailability?.(data);
         return window.CrumpCodeWorkspace;
       })

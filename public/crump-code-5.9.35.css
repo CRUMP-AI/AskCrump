@@ -138,7 +138,7 @@ body.crump-code-open { overflow: hidden !important; }
 .crump-code-panel-head,
 .crump-code-compose-footer,
 .crump-code-actions,
-.crump-code-check,
+.crump-code-check summary,
 .crump-code-fact {
   display: flex;
   align-items: center;
@@ -349,9 +349,79 @@ textarea.crump-code-control { min-height: 108px; resize: vertical; }
 .crump-code-fact span { color: #9298a1; font-size: .68rem; }
 .crump-code-fact strong { overflow: hidden; color: #e9e7e1; font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
 
+.crump-code-progress {
+  margin-top: 16px;
+  padding: 15px;
+  border: 1px solid rgba(222, 194, 119, .15);
+  border-radius: 13px;
+  background: linear-gradient(140deg, rgba(222, 194, 119, .055), rgba(0, 0, 0, .12));
+}
+
+.crump-code-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.crump-code-progress h4,
+.crump-code-diff h4 { margin: 0; color: #f4f2ec; font-size: .82rem; }
+
+.crump-code-connection {
+  padding: 5px 8px;
+  border: 1px solid rgba(74, 222, 128, .22);
+  border-radius: 999px;
+  color: #86efac;
+  font-size: .65rem;
+  font-weight: 800;
+}
+
+.crump-code-connection[data-tone='recovering'] {
+  border-color: rgba(251, 191, 36, .28);
+  color: #fde68a;
+}
+
+.crump-code-progress-stages {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
+  margin: 14px 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.crump-code-progress-stages li {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #777e88;
+  font-size: .65rem;
+}
+
+.crump-code-progress-stages li > span {
+  width: 21px;
+  height: 21px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .11);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .025);
+  font-size: .62rem;
+}
+
+.crump-code-progress-stages li[data-state='complete'] { color: #a7f3d0; }
+.crump-code-progress-stages li[data-state='complete'] > span { border-color: rgba(74, 222, 128, .3); background: rgba(20, 83, 45, .2); }
+.crump-code-progress-stages li[data-state='current'] { color: #f2d990; }
+.crump-code-progress-stages li[data-state='current'] > span { border-color: rgba(226, 199, 127, .5); background: rgba(184, 149, 73, .2); }
+.crump-code-progress-stages strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crump-code-progress-latest { margin: 0; color: #d1d4d8; font-size: .73rem; line-height: 1.45; }
+.crump-code-progress-continuity { margin: 5px 0 0; color: #9399a2; font-size: .7rem; line-height: 1.45; }
+
 .crump-code-result,
 .crump-code-run-review,
-.crump-code-patch,
+.crump-code-diff,
 .crump-code-history,
 .crump-code-failure,
 .crump-code-cancel-row {
@@ -368,10 +438,22 @@ textarea.crump-code-control { min-height: 108px; resize: vertical; }
 
 .crump-code-check { padding: 8px 0; border-top: 1px solid rgba(255, 255, 255, .06); }
 .crump-code-check:first-of-type { border-top: 0; }
+.crump-code-check summary { cursor: pointer; }
 .crump-code-check code { overflow: hidden; color: #d7d9dd; font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
-.crump-code-check span { color: #bbbfc5; font-size: .68rem; font-weight: 800; }
+.crump-code-check summary span { flex: 0 0 auto; color: #bbbfc5; font-size: .68rem; font-weight: 800; }
 .crump-code-check span[data-tone='success'] { color: #86efac; }
 .crump-code-check span[data-tone='danger'] { color: #fca5a5; }
+.crump-code-check pre {
+  max-height: 220px;
+  margin: 10px 0 0;
+  padding: 11px;
+  overflow: auto;
+  border-radius: 9px;
+  background: #07090b;
+  color: #bfc4cb;
+  font: 500 .68rem/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: pre-wrap;
+}
 
 .crump-code-approval { border-color: rgba(251, 191, 36, .24); background: rgba(120, 53, 15, .08); }
 .crump-code-approval article + article { margin-top: 13px; padding-top: 13px; border-top: 1px solid rgba(255, 255, 255, .07); }
@@ -390,19 +472,76 @@ textarea.crump-code-control { min-height: 108px; resize: vertical; }
 }
 
 .crump-code-run-review input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: #d2b568; }
-.crump-code-patch summary,
 .crump-code-history summary { color: #e4ca88; font-size: .78rem; font-weight: 800; cursor: pointer; }
-.crump-code-patch pre {
-  max-height: 340px;
-  margin: 13px 0;
-  padding: 13px;
+
+.crump-code-diff-head,
+.crump-code-diff-viewer > div,
+.crump-code-diff-file,
+.crump-code-diff-file small {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.crump-code-diff-totals,
+.crump-code-diff-file small { font-size: .68rem; font-style: normal; }
+.crump-code-diff-totals b,
+.crump-code-diff-file small b { color: #86efac; }
+.crump-code-diff-totals i,
+.crump-code-diff-file small i { color: #fca5a5; font-style: normal; }
+.crump-code-diff-layout {
+  min-height: 220px;
+  display: grid;
+  grid-template-columns: minmax(175px, .34fr) minmax(0, 1fr);
+  gap: 1px;
+  margin-top: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .07);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, .06);
+}
+
+.crump-code-diff-files {
+  max-height: 390px;
   overflow: auto;
-  border-radius: 9px;
-  background: #07090b;
-  color: #d9dde2;
-  font: 500 .69rem/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+  background: #0a0d11;
+}
+
+.crump-code-diff-file {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 10px;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .055);
+  background: transparent;
+  color: #c8cbd0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.crump-code-diff-file > span { overflow: hidden; font: 600 .68rem/1.35 ui-monospace, SFMono-Regular, Consolas, monospace; text-overflow: ellipsis; white-space: nowrap; }
+.crump-code-diff-file.is-active { background: rgba(222, 194, 119, .1); color: #fff; box-shadow: inset 2px 0 #d8bd78; }
+.crump-code-diff-file:focus-visible { position: relative; z-index: 1; outline: 2px solid #f2d990; outline-offset: -3px; }
+.crump-code-diff-viewer { min-width: 0; background: #07090b; }
+.crump-code-diff-viewer > div { min-height: 42px; padding: 9px 12px; border-bottom: 1px solid rgba(255, 255, 255, .06); }
+.crump-code-diff-viewer > div strong { overflow: hidden; color: #eef0f2; font: 650 .7rem/1.3 ui-monospace, SFMono-Regular, Consolas, monospace; text-overflow: ellipsis; white-space: nowrap; }
+.crump-code-diff-viewer > div span { color: #949aa3; font-size: .65rem; text-transform: capitalize; }
+.crump-code-diff-viewer pre {
+  max-height: 348px;
+  margin: 0;
+  padding: 11px 0;
+  overflow: auto;
+  color: #cdd1d6;
+  font: 500 .68rem/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
   white-space: pre;
 }
+.crump-code-diff-viewer pre > span { display: block; min-width: max-content; padding: 0 12px; }
+.crump-code-diff-viewer pre > .is-added { background: rgba(22, 101, 52, .22); color: #bbf7d0; }
+.crump-code-diff-viewer pre > .is-removed { background: rgba(127, 29, 29, .2); color: #fecaca; }
+.crump-code-diff-viewer pre > .is-hunk { background: rgba(30, 64, 175, .17); color: #bfdbfe; }
+.crump-code-diff-actions { margin-top: 12px; }
+.crump-code-diff-actions p { margin: 0; color: #949aa3; font-size: .7rem; line-height: 1.45; }
 
 .crump-code-history ol { margin: 12px 0 0; padding: 0; list-style: none; }
 .crump-code-history li { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid rgba(255, 255, 255, .055); }
@@ -427,6 +566,9 @@ textarea.crump-code-control { min-height: 108px; resize: vertical; }
   .crump-code-panel { padding: 16px; }
   .crump-code-panel-head,
   .crump-code-detail-head { flex-direction: column; }
+  .crump-code-progress-stages { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .crump-code-diff-layout { grid-template-columns: 1fr; }
+  .crump-code-diff-files { max-height: 132px; }
   .crump-code-cost { max-width: none; text-align: left; }
   .crump-code-control { font-size: 16px; }
 }
@@ -437,12 +579,15 @@ textarea.crump-code-control { min-height: 108px; resize: vertical; }
   .crump-code-form-row,
   .crump-code-facts { grid-template-columns: 1fr; }
   .crump-code-compose-footer,
-  .crump-code-cancel-row { align-items: stretch; flex-direction: column; }
+  .crump-code-cancel-row,
+  .crump-code-diff-actions { align-items: stretch; flex-direction: column; }
   .crump-code-primary,
   .crump-code-secondary,
   .crump-code-danger { width: 100%; min-height: 48px; }
   .crump-code-actions { align-items: stretch; flex-direction: column-reverse; }
   .crump-code-history li { flex-direction: column; gap: 3px; }
+  .crump-code-progress-stages { grid-template-columns: 1fr; }
+  .crump-code-progress-stages li { min-height: 25px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

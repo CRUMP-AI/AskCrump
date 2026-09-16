@@ -97,7 +97,7 @@ def test_navigation_tutorial_and_store_sources_share_one_exact_destination_contr
     checker = read("scripts/check-javascript.mjs")
 
     assert "const destinationLabels = Object.freeze(['Ask', 'Projects', 'Create', 'Video', 'Library', 'You']);" in checker
-    assert "const internalNavigationLabels = Object.freeze(['Ask', 'Projects', 'Code', 'Create', 'Video', 'Library', 'You']);" in checker
+    assert "const internalNavigationLabels = Object.freeze(['Ask', 'Projects', 'Autonomous', 'Create', 'Video', 'Library', 'You']);" in checker
     assert "store/listing.en-US.json" in checker
     assert "store/screenshots/README.md" in checker
     assert "docs/STORE_LISTING_COPY.md" in checker

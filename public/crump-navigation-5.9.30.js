@@ -29,7 +29,7 @@
     },
     {
       id: 'code',
-      label: 'Code',
+      label: 'Autonomous',
       icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7-5 5 5 5M15 7l5 5-5 5M13 4l-2 16"/></svg>',
     },
     {

@@ -1055,7 +1055,7 @@ const landingHtml = await readFile(new URL('public/ask-crump.html', repoRoot), '
 const authController = await readFile(new URL('public/auth-controller.js', repoRoot), 'utf8');
 const destinationLabels = Object.freeze(['Ask', 'Projects', 'Create', 'Video', 'Library', 'You']);
 const destinationIds = Object.freeze(destinationLabels.map(label => label.toLowerCase()));
-const internalNavigationLabels = Object.freeze(['Ask', 'Projects', 'Code', 'Create', 'Video', 'Library', 'You']);
+const internalNavigationLabels = Object.freeze(['Ask', 'Projects', 'Autonomous', 'Create', 'Video', 'Library', 'You']);
 const onboardingSource = await readFile(new URL('public/onboarding.js', repoRoot), 'utf8');
 const navigationSource = await readFile(new URL('public/crump-navigation-5.9.30.js', repoRoot), 'utf8');
 const listingSource = JSON.parse(await readFile(new URL('store/listing.en-US.json', repoRoot), 'utf8'));

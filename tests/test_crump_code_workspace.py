@@ -25,8 +25,8 @@ def test_code_workspace_is_lazy_loaded_only_after_server_configuration_and_entit
     assert "function hydrateAvailability(data)" in script
     assert "__crumpCodeBootstrapStatus" in script
     assert "window.CrumpCodeWorkspace = Object.freeze({open, close, refresh, refreshAvailability, hydrateAvailability})" in script
-    versioned_script = "/crump-code-5.9.35.js?v=5.9.76-credit-confirmation-1"
-    versioned_style = "/crump-code-5.9.35.css?v=5.9.76-intelligence-architecture-1"
+    versioned_script = "/crump-code-5.9.35.js?v=5.9.76-autonomous-review-console-1"
+    versioned_style = "/crump-code-5.9.35.css?v=5.9.76-autonomous-review-console-1"
     versioned_loader = "/crump-code-loader.js?v=5.9.76-code-lazy-load-1"
     for source in (runtime, native, worker):
         assert versioned_loader in source
@@ -51,7 +51,7 @@ def test_code_lazy_load_has_real_browser_disabled_locked_and_entitled_proof():
     assert "disabled:${assetPaths.script}" in verifier
     assert "disabled:${assetPaths.style}" in verifier
     assert "counts.get('disabled:/api/features'), 1" in verifier
-    assert "Code — Professional plan" in verifier
+    assert "Autonomous Crump — Professional plan" in verifier
     assert "bootstrapStatusRetained" in verifier
     assert "askcrump.com" not in verifier.lower()
     assert "password" not in verifier.lower()
@@ -76,7 +76,7 @@ def test_code_workspace_exposes_review_cancellation_approval_and_patch_surfaces(
     script = read("public/crump-code-5.9.35.js")
 
     for signal in (
-        "Review patch",
+        "Changes ·",
         "Download .patch",
         "Verification",
         "Approval required",
@@ -85,13 +85,69 @@ def test_code_workspace_exposes_review_cancellation_approval_and_patch_surfaces(
         "Activity history",
     ):
         assert signal in script
-    assert "pre.textContent = String(task.result_patch)" in script
+    assert "function parseUnifiedPatch(value)" in script
+    assert "function renderPatch(container, task)" in script
+    assert "button.dataset.codeAction = 'diff-file'" in script
+    assert "Nothing is pushed. Review or download the complete patch" in script
     assert "copy.textContent = String(task.result_summary)" in script
-    assert "request cancellation. Crump Code checks that request" in script
+    assert "request cancellation. Autonomous Crump checks that request" in script
     assert "This approval expires" in script
     assert "CODE_APPROVAL_EXPIRED" in script
     assert "CODE_TASK_EXPIRED" in script
     assert "addTextRow(facts, 'Expires', formatDate(task.expires_at))" in script
+
+
+def test_autonomous_crump_review_console_proves_durable_progress_diff_and_check_output():
+    script = read("public/crump-code-5.9.35.js")
+    styles = read("public/crump-code-5.9.35.css")
+    verifier = read("scripts/verify-autonomous-crump-review.cjs")
+    matrix = read("scripts/verify-browser-control-matrix.mjs")
+
+    for signal in (
+        "AUTONOMOUS CRUMP · PRIVATE PREVIEW",
+        "Durable run progress",
+        "Saved to Project",
+        "The private worker continues",
+        "Connection paused",
+        "Connection restored",
+    ):
+        assert signal in script
+    assert "verify-autonomous-crump-review.cjs" in matrix
+    assert "fixture offline" in verifier
+    assert "window.dispatchEvent(new Event('online'))" in verifier
+    assert "src/retry.js" in verifier
+    assert "tests/retry.test.js" in verifier
+    assert ".crump-code-progress-stages" in styles
+    assert ".crump-code-diff-viewer" in styles
+    assert ".crump-code-check pre" in styles
+
+
+def test_customer_runtime_uses_autonomous_crump_brand_without_renaming_internal_contracts():
+    customer_runtime = (
+        "public/crump-code-loader.js",
+        "public/crump-code-5.9.35.js",
+        "public/crump-navigation-5.9.30.js",
+        "public/crump-billing-5.1.js",
+        "public/crump-5.2.js",
+        "backend/feature_service.py",
+        "backend/routes/code.py",
+        "backend/code_service.py",
+        "backend/code_runner.py",
+    )
+    for relative in customer_runtime:
+        source = read(relative)
+        assert "Crump Code" not in source, relative
+
+    workspace = read("public/crump-code-5.9.35.js")
+    navigation = read("public/crump-navigation-5.9.30.js")
+    routes = read("backend/routes/code.py")
+    config = read("backend/config.py")
+    assert "AUTONOMOUS CRUMP · PRIVATE PREVIEW" in workspace
+    assert "autonomous-crump-${String(state.task.id" in workspace
+    assert "label: 'Autonomous'" in navigation
+    assert '"CODE_WORKSPACE_NOT_CONFIGURED"' in routes
+    assert "CODE_WORKSPACE_PUBLIC_RELEASED = False" in config
+    assert "CRUMP_ENABLE_CODE_WORKSPACE" in config
 
 
 def test_code_workspace_has_accessible_modal_and_mobile_controls():

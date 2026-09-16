@@ -1,10 +1,11 @@
-# Crump Code operations runbook
+# Autonomous Crump operations runbook
 
 Last reviewed: 2026-09-09
 
 ## Current operating state
 
-Crump Code remains disabled in production. The source-controlled
+Autonomous Crump (formerly Crump Code; internal identifier `crump_code`) remains disabled in
+production. The source-controlled
 `CODE_WORKSPACE_PUBLIC_RELEASED=false` lock and the production
 `CRUMP_ENABLE_CODE_WORKSPACE=false` switch are independent compute stops: both must be deliberately
 opened before customer feature status can report Code as configured. While either is closed, task
@@ -18,7 +19,7 @@ gates are complete.
 
 ## Content-free operational signal contract
 
-Every Crump Code operations record is one compact JSON object with **component=crump_code**. The
+Every Autonomous Crump operations record is one compact JSON object with **component=crump_code**. The
 event allowlist is:
 
 - **dispatch_accepted**, **dispatch_recovered**, **dispatch_rejected**
@@ -127,5 +128,5 @@ deny-all networking, empty Sandbox environment, destruction, cancellation, expir
 operational signal visibility, and rollback timing. Then complete the fixed quality, latency, and
 unit-cost benchmark. Only after those gates and explicit enablement approval may a reviewed code
 release change `CODE_WORKSPACE_PUBLIC_RELEASED`; the environment switch remains a separate
-operator control. Crump Code stays unadvertised and disabled until both controls are deliberately
+operator control. Autonomous Crump stays unadvertised and disabled until both controls are deliberately
 open.

@@ -1,4 +1,4 @@
-"""Lease-owned, replay-safe worker for accepted Crump Code tasks."""
+"""Lease-owned, replay-safe worker for accepted Autonomous Crump tasks."""
 from __future__ import annotations
 
 import logging

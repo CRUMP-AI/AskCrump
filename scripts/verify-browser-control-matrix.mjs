@@ -13,6 +13,7 @@ const scriptsDirectory = path.join(root, 'scripts');
 const publicDirectory = path.join(root, 'public');
 const expectedVerifiers = Object.freeze([
   'verify-attach-creation-routing.cjs',
+  'verify-autonomous-crump-review.cjs',
   'verify-button-state-integrity.cjs',
   'verify-chat-action-accessibility.cjs',
   'verify-create-destination-handoff.cjs',
