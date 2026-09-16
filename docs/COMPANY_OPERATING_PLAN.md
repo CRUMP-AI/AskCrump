@@ -1,6 +1,6 @@
 # Ask Crump company operating plan
 
-Last updated: 2026-09-13
+Last updated: 2026-09-16
 Owner and final authority: Greg Crump
 
 Current monthly decision record: `docs/COMPANY_OPERATIONS_AND_MONTHLY_STRATEGY_REVIEW_2026-09-01.md`.
@@ -146,6 +146,13 @@ next constraint.
 
 ### Monetization and unit economics
 
+- Preserve the selected continuity-to-Professional wedge as observation-only. The current weekly
+  export covers registration, activation, decision-grade value, durable value, D1/D7, Checkout,
+  and provider-backed payer state, but it does not isolate a second nonempty Project, a natural
+  third-Project limit attempt while the experiment is off, or a distinct Plan-center view. After
+  the protected Facebook checkpoint closes, implement only the content-free measurement boundary
+  specified in `docs/PROFESSIONAL_CONTINUITY_MEASUREMENT_AUDIT_2026-09-16.md`; keep both Project-limit
+  experiment controls off and leave finance fields unavailable until an approved source exists.
 - Keep both verified live Stripe destinations on their direct `www` handlers and reconcile the first
   real checkout against subscription entitlement or durable credit state.
 - Continue reconciling recognized revenue, refunds, active subscriptions, and net receipts across
