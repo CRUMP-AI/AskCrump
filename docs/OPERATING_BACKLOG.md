@@ -1385,20 +1385,23 @@ exposure and exact-tuple outcome evidence before reopening another campaign gate
 The same production-source recorder proved one concrete control-quality issue worth fixing without
 changing the live experiment: generated files exposed redundant conversation and output Project
 actions, and the generated-image path could complete both saves while leaving its action stuck on
-**Saving…**. Held local commit `9ad93c8` on exact production base `7833d89` reduces each generated
-document/image result to one complete Project action, resolves the destination independently,
+**Saving…**. Held functional commit `9ad93c8` and final evidence/guard HEAD `b95b4f5` on exact
+production base `7833d89` reduce each generated document/image result to one complete Project
+action, resolve the destination independently,
 preserves output plus source conversation, and becomes **Open Project** immediately. Ordinary
 non-output responses keep their conversation action and feedback stays available. Evidence is
-**1,136/1,136** full Python, **71/71** focused, **54** JavaScript files, **48/48** browser controls,
+**1,137/1,137** full Python, **72/72** focused, **54** JavaScript files, **48/48** browser controls,
 and **8/8** explicit desktop/phone × existing/new Project × document/image cases with no browser,
 fixture, or unexpected-request error. The cache-safe web/PWA assets, production preflight, native
-build, client-secret boundary, and diff integrity passed. The commit is unpushed and undeployed;
+build, client-secret boundary, and diff integrity passed. The final guard accepts exactly **38**
+reviewed paths and rejects backend, migration, campaign, pricing, package, deployment-config, cache,
+or proof drift. Both commits are unpushed and undeployed;
 keep it held through the active acquisition isolation window. Candidate evidence:
 `docs/SINGLE_OUTPUT_PROJECT_CONTINUITY_CANDIDATE_2026-09-16.md`.
 
 Pairwise three-way integration audit now removes a post-isolation release-planning uncertainty.
-The single-output candidate cleanly auto-merges with draft-to-clearer (synthetic tree `9427d059`)
-and separately with resume-you-can-defend (synthetic tree `b494a639`). Only the JavaScript verifier
+The final single-output evidence HEAD cleanly auto-merges with draft-to-clearer (synthetic tree
+`141dcfcf`) and separately with resume-you-can-defend (synthetic tree `ed7bd1bc`). Only the JavaScript verifier
 and button-integrity inventory are changed by both sides; both merged without a conflict, and tree
 inspection retained the new PWA cache/runtime tags plus the exact paired campaign registry and
 browser-verifier entry. No combined branch or release was created. A future integration must still

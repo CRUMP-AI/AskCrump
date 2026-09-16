@@ -66,15 +66,19 @@ not prove: generated PowerPoint responses presented both a conversation-level Pr
 an artifact-level Project action, even though the output action already preserves the generated
 file and its source conversation. Expanding the proof to generated images found a second existing
 defect: both server requests could complete while the reusable image action stayed visibly stuck on
-**Saving…**. Held candidate commit `9ad93c8` on exact production base `7833d89` now presents one
+**Saving…**. Held functional commit `9ad93c8` and final evidence/guard HEAD `b95b4f5` on exact
+production base `7833d89` now present one
 complete output action, resolves its own existing/new Project destination, changes immediately to
 **Open Project** on success, and retains the ordinary conversation action only for results without
 generated output. It also removes the duplicate offer impression while retaining feedback and an
-accurate accessible label. Full Python passed **1,136/1,136**, focused Project/button/lifecycle
-tests **71/71**, JavaScript **54** files, the full browser matrix **48/48**, and the explicit
+accurate accessible label. Full Python passed **1,137/1,137**, focused Project/button/lifecycle
+tests **72/72**, JavaScript **54** files, the full browser matrix **48/48**, and the explicit
 desktop/phone × existing/new Project × document/image matrix **8/8**, with zero browser errors,
 fixture errors, or unexpected requests. Production preflight, native build, client-secret boundary,
-and diff integrity also passed. The candidate is committed locally, unpushed, undeployed, and held
+and diff integrity also passed. A fail-closed candidate verifier now binds the release to **38 exact
+paths**, the exact production base and cache markers, and zero backend, migration, campaign,
+pricing, package, or deployment-configuration drift. The candidate is committed locally, unpushed,
+undeployed, and held
 through the active acquisition isolation window. Evidence:
 `docs/SINGLE_OUTPUT_PROJECT_CONTINUITY_CANDIDATE_2026-09-16.md` in the candidate worktree.
 Marketing independently reproduced the **71/71** focused tests and **8/8** explicit browser matrix,

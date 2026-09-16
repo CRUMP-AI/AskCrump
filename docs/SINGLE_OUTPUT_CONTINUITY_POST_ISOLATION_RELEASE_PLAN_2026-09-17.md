@@ -5,7 +5,8 @@ Status: **PREPARED / NOT AUTHORIZED BEFORE THE ISOLATION BOUNDARY**
 ## Candidate
 
 - Current production source: `7833d89e2e5ee419fd27757f82c4fff92beed295`
-- Held product commit: `9ad93c89fa71c48583266a12f164d862f1264cd4`
+- Functional product commit: `9ad93c89fa71c48583266a12f164d862f1264cd4`
+- Final evidence/guard HEAD: `b95b4f5d01aef23c010c08804393c17c3b7f4c54`
 - Held branch: `candidate/artifact-continuity-dedupe-20260916`
 - Evidence: `docs/SINGLE_OUTPUT_PROJECT_CONTINUITY_CANDIDATE_2026-09-16.md` in the candidate worktree
 - Independent Marketing receipts:
@@ -37,7 +38,8 @@ boundary:
 2. Resolve current production from `origin/main` and the live deployment—not from local `main`.
 3. If production still equals `7833d89`, use the already validated candidate directly.
 4. If production advanced, create a fresh clean worktree from the exact new production commit and
-   cherry-pick `9ad93c8`; do not merge from the dirty primary workspace.
+   cherry-pick `9ad93c8` followed by evidence/guard commit `b95b4f5`; do not merge from the dirty
+   primary workspace.
 5. Keep draft-to-clearer, resume-you-can-defend, Search Console, API, store, and campaign migrations
    outside this release. Pairwise compatibility does not authorize bundling them.
 
@@ -53,6 +55,10 @@ boundary:
 - client-secret boundary;
 - current lockfile/package parity; and
 - current hosted CI, Android Java 21 source/build verification, and iOS macOS source verification.
+
+Before the hosted gates, run `scripts/verify-single-output-continuity-candidate.mjs` with the
+reviewed Git executable. It must report exactly 38 reviewed paths, zero backend/migration/campaign/
+package drift, exact cache guards, and the explicit eight-case proof markers.
 
 Every explicit output case must show exactly one output Project action, one offer impression, one
 intent, ordered conversation/file requests, the correct generated output role, immediate **Open
