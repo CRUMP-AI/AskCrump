@@ -675,19 +675,38 @@ async def verify_email(
     intent: str | None = None,
     plan: str | None = None,
 ):
-    user = await db.select_one(
-        'users',
-        columns='*',
-        filters={
-            'verification_token_hash': eq(token_hash(token)),
-            'verification_token_expires': gt(iso_now()),
-        },
-    )
-    if not user:
+    presented_token_hash = token_hash(token)
+    now = iso_now()
+
+    async def current_token_owner(user_id: str) -> dict | None:
+        return await db.select_one(
+            'users',
+            columns='*',
+            filters={
+                'id': eq(user_id),
+                'is_verified': eq(True),
+                'verification_token_hash': eq(presented_token_hash),
+                'verification_token_expires': gt(now),
+            },
+        )
+
+    def failed_response() -> RedirectResponse:
         return RedirectResponse(
             f'{settings.app_url}/app?verification=failed',
             status_code=303,
         )
+
+    user = await db.select_one(
+        'users',
+        columns='*',
+        filters={
+            'verification_token_hash': eq(presented_token_hash),
+            'verification_token_expires': gt(now),
+        },
+    )
+    if not user:
+        return failed_response()
+    user_id = user['id']
 
     # Possession of the verification link proves control of the inbox. Issue the
     # first session here so a successful signup does not require another password
@@ -699,16 +718,37 @@ async def verify_email(
         verification_values = {
             'is_verified': True,
             'verification_token_expires': expiry_iso(minutes=15),
-            'updated_at': iso_now(),
+            'updated_at': now,
         }
-        await db.update(
+        updated = await db.update(
             'users',
             verification_values,
-            filters={'id': eq(user['id'])},
+            filters={
+                'id': eq(user['id']),
+                'is_verified': eq(False),
+                'verification_token_hash': eq(presented_token_hash),
+                'verification_token_expires': gt(now),
+            },
         )
-        user = {**user, **verification_values}
+        user = (
+            updated[0]
+            if isinstance(updated, list) and updated
+            else updated if isinstance(updated, dict) else None
+        )
+        if not user:
+            # A concurrent scanner click may have completed verification while
+            # intentionally preserving this short-lived token. Password reset,
+            # by contrast, clears it and cannot pass this ownership check.
+            user = await current_token_owner(user_id)
+    else:
+        # Refresh the persisted token owner before creating a session. The
+        # post-persist check below still closes changes during session creation.
+        user = await current_token_owner(user_id)
 
-    raw_token, _ = await create_session(
+    if not user:
+        return failed_response()
+
+    raw_token, session = await create_session(
         db,
         settings,
         user,
@@ -716,6 +756,25 @@ async def verify_email(
         device_name='Verified email link',
         platform='web',
     )
+    current = await current_token_owner(user_id)
+    if not current:
+        session_id = str((session or {}).get('id') or '')
+        if not session_id:
+            raise RuntimeError('Verification session did not return a persisted session.')
+        # Revoke only the exact session/token created above. If another login
+        # rotated the same installation meanwhile, it remains under its owner.
+        await db.update(
+            'sessions',
+            {'revoked_at': now},
+            filters={
+                'id': eq(session_id),
+                'user_id': eq(user_id),
+                'token_hash': eq(token_hash(raw_token)),
+                'revoked_at': 'is.null',
+            },
+        )
+        return failed_response()
+
     response = RedirectResponse(
         verified_workspace_url(settings.app_url, intent=intent, plan=plan),
         status_code=303,
