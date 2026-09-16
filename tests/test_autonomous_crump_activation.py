@@ -48,6 +48,14 @@ def test_source_gate_requires_closed_release_lock_and_review_console():
     checks = MODULE.source_checks()
     assert checks
     assert all(check.passed for check in checks), [check.name for check in checks if not check.passed]
+    assert any(
+        check.name == "owner_authorized_verification_policy" and check.passed
+        for check in checks
+    )
+    assert not any(
+        "project-controlled verification scripts" in hold
+        for hold in MODULE.KNOWN_P0_ACTIVATION_HOLDS
+    )
 
 
 def test_live_evidence_contract_accepts_only_complete_current_exact_revision_receipt():

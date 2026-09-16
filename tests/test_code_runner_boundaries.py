@@ -334,7 +334,9 @@ def test_verification_grammar_rejects_history_protected_paths_and_arbitrary_scri
 def test_verification_grammar_preserves_bounded_useful_checks(
     command: str, args: list[str]
 ):
-    executable, canonical = validate_verification_command(command, args)
+    executable, canonical = validate_verification_command(
+        command, args, allow_project_execution=True
+    )
     assert executable == command
     assert canonical
 
@@ -352,6 +354,7 @@ async def test_malicious_verification_mutation_taints_workspace_and_blocks_patch
     local_repository: tuple[Path, SandboxWorkspace],
 ):
     root, workspace = local_repository
+    workspace.allow_project_checks = True
     _write(
         root,
         "tests/test_mutator.py",
@@ -375,3 +378,14 @@ async def test_malicious_verification_mutation_taints_workspace_and_blocks_patch
     with pytest.raises(CodeRunnerError) as patch_exc:
         await workspace.patch()
     assert patch_exc.value.code == "WORKSPACE_UNAUTHORIZED_MUTATION"
+
+
+@pytest.mark.asyncio
+async def test_repository_check_is_blocked_without_prepared_owner_choice(
+    local_repository: tuple[Path, SandboxWorkspace],
+):
+    _, workspace = local_repository
+    with pytest.raises(ValueError, match="explicit verification choice"):
+        await workspace.run_verification(
+            "python3", ["-m", "pytest", "-q", "tests/test_safe.py"]
+        )

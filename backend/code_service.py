@@ -59,6 +59,7 @@ APPROVAL_ACTIONS = frozenset(
 SAFE_EVENT_KEYS = frozenset(
     {
         "mode",
+        "verificationPolicy",
         "status",
         "tool",
         "path",
@@ -330,6 +331,7 @@ class CodeTaskService:
         mode: str,
         repo_url: str,
         revision: str | None = None,
+        verification_policy: str = "syntax_only",
         max_duration_seconds: int = 180,
     ) -> dict[str, Any]:
         project = await self.projects.get(user_id, project_id)
@@ -339,6 +341,15 @@ class CodeTaskService:
         normalized_mode = str(mode or "plan").strip().lower()
         if normalized_mode not in {"plan", "implement"}:
             raise ValueError("Autonomous Crump mode must be plan or implement.")
+        normalized_verification_policy = str(
+            verification_policy or "syntax_only"
+        ).strip().lower()
+        if normalized_verification_policy not in {"syntax_only", "project_checks"}:
+            raise ValueError(
+                "Autonomous Crump verification must use built-in checks or explicitly allow repository checks."
+            )
+        if normalized_mode == "plan" and normalized_verification_policy != "syntax_only":
+            raise ValueError("Plan-only tasks cannot execute repository checks.")
         source_url, source_ref = normalize_repo_source(repo_url, revision)
         duration = max(30, min(240, int(max_duration_seconds or 180)))
         result = await self.db.rpc(
@@ -350,6 +361,7 @@ class CodeTaskService:
                 "p_mode": normalized_mode,
                 "p_source_repo_url": source_url,
                 "p_source_ref": source_ref,
+                "p_verification_policy": normalized_verification_policy,
                 "p_max_duration_seconds": duration,
             },
             retry_transient=True,
@@ -374,7 +386,7 @@ class CodeTaskService:
         items = await self.db.select(
             "code_tasks",
             columns=(
-                "id,project_id,objective,mode,source_repo_url,source_ref,status,network_policy,"
+                "id,project_id,objective,mode,verification_policy,source_repo_url,source_ref,status,network_policy,"
                 "base_revision,result_summary,failure_code,payment_source,credits_spent,"
                 "attempt_count,max_attempts,next_attempt_at,started_at,completed_at,"
                 "expires_at,created_at,updated_at"

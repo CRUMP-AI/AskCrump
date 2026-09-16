@@ -215,6 +215,13 @@
                   <label>Objective
                     <textarea id="crumpCodeObjective" class="crump-code-control" required maxlength="12000" rows="5" placeholder="Describe the outcome, relevant constraints, and how success should be verified."></textarea>
                   </label>
+                  <label>Verification
+                    <select id="crumpCodeVerificationPolicy" class="crump-code-control" aria-describedby="crumpCodeVerificationHelp">
+                      <option value="syntax_only">Built-in syntax and integrity checks — recommended</option>
+                      <option value="project_checks">Allow repository tests and check scripts</option>
+                    </select>
+                  </label>
+                  <p id="crumpCodeVerificationHelp" class="crump-code-help">Repository tests are executable code. They run only when you choose that option, inside the offline temporary workspace with no Ask Crump or account credentials. Bounded, redacted check output may be sent to the coding model.</p>
                   <div class="crump-code-compose-footer">
                     <p>Preparing saves the task for review. It does not start a model or spend credits.</p>
                     <button type="submit" id="crumpCodePrepare" class="crump-code-primary">Prepare task</button>
@@ -246,6 +253,8 @@
       setProjectSelection(event.target.value, {invalidateProjects: true});
       void loadTasks();
     });
+    byId('crumpCodeMode')?.addEventListener('change', updateVerificationPolicyControl);
+    updateVerificationPolicyControl();
     byId('crumpCodeRefresh')?.addEventListener('click', () => void refresh());
     byId('crumpCodeForm')?.addEventListener('submit', event => void prepareTask(event));
     byId('crumpCodeTaskList')?.addEventListener('click', event => {
@@ -260,6 +269,14 @@
     byId('crumpCodeDetail')?.addEventListener('change', event => {
       if (event.target.id === 'crumpCodeRunConfirmed') updateRunButton();
     });
+  }
+
+  function updateVerificationPolicyControl() {
+    const policy = byId('crumpCodeVerificationPolicy');
+    if (!policy) return;
+    const planOnly = byId('crumpCodeMode')?.value !== 'implement';
+    policy.disabled = planOnly;
+    if (planOnly) policy.value = 'syntax_only';
   }
 
   function trapFocus(event) {
@@ -705,6 +722,13 @@
     addTextRow(facts, 'Repository', String(task.source_repo_url || '').replace(/\.git$/, ''));
     addTextRow(facts, 'Revision', task.source_ref || 'Default branch');
     addTextRow(facts, 'Network', task.network_policy === 'deny_all' ? 'Blocked after checkout' : task.network_policy);
+    addTextRow(
+      facts,
+      'Verification',
+      task.verification_policy === 'project_checks'
+        ? 'Repository checks explicitly allowed'
+        : 'Built-in syntax and integrity checks only',
+    );
     addTextRow(facts, 'Maximum', `${task.max_duration_seconds || state.provider?.maxDurationSeconds || 180} seconds`);
     addTextRow(facts, 'Expires', formatDate(task.expires_at));
     addTextRow(facts, 'Charge', task.payment_source ? `${task.payment_source}${Number(task.credits_spent) ? ` · ${task.credits_spent} credits` : ''}` : 'Not started');
@@ -760,7 +784,9 @@
       checkbox.type = 'checkbox';
       checkbox.id = 'crumpCodeRunConfirmed';
       const textNode = document.createElement('span');
-      textNode.textContent = 'I reviewed the repository, objective, mode, and cost boundary.';
+      textNode.textContent = task.verification_policy === 'project_checks'
+        ? 'I reviewed the repository, objective, mode, cost, and I authorize bounded repository tests/checks and model-visible redacted output.'
+        : 'I reviewed the repository, objective, mode, cost, and built-in-only verification boundary.';
       labelNode.append(checkbox, textNode);
       const run = document.createElement('button');
       run.type = 'button';
@@ -894,6 +920,9 @@
           revision: byId('crumpCodeRevision')?.value.trim(),
           objective: byId('crumpCodeObjective')?.value.trim(),
           mode: byId('crumpCodeMode')?.value || 'plan',
+          verificationPolicy: byId('crumpCodeMode')?.value === 'implement'
+            ? (byId('crumpCodeVerificationPolicy')?.value || 'syntax_only')
+            : 'syntax_only',
           maxDurationSeconds: Number(state.provider?.maxDurationSeconds || 180),
         },
       });

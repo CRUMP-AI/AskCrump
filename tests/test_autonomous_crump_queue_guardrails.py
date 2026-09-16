@@ -122,7 +122,7 @@ def test_guardrail_functions_use_consistent_lock_order_and_private_execution() -
     for name, signature in (
         (
             "create_code_task_guarded",
-            "public.create_code_task_guarded(\n  uuid, uuid, text, text, text, text, integer\n)",
+            "public.create_code_task_guarded(\n  uuid, uuid, text, text, text, text, text, integer\n)",
         ),
         (
             "accept_code_task_run",
@@ -224,6 +224,7 @@ async def test_service_creates_only_through_guarded_rpc() -> None:
         "p_mode": "implement",
         "p_source_repo_url": "https://github.com/openai/codex.git",
         "p_source_ref": "main",
+        "p_verification_policy": "syntax_only",
         "p_max_duration_seconds": 240,
     }
     assert retry is True

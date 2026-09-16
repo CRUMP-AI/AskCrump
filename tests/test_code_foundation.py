@@ -153,12 +153,29 @@ def test_workspace_paths_reject_escape_secrets_and_binary_files():
 
 
 def test_verification_policy_has_no_shell_install_publish_or_source_writes():
-    assert validate_verification_command("python3", ["-m", "pytest", "-q"]) == (
+    assert validate_verification_command(
+        "python3",
+        ["-m", "pytest", "-q"],
+        allow_project_execution=True,
+    ) == (
         "python3",
         ["-m", "pytest", "-q"],
     )
     assert validate_verification_command("git", ["diff", "--stat"])[0] == "git"
-    assert validate_verification_command("npm", ["run", "lint"])[0] == "npm"
+    assert validate_verification_command(
+        "npm", ["run", "lint"], allow_project_execution=True
+    )[0] == "npm"
+    for command, args in (
+        ("python3", ["-m", "pytest", "-q"]),
+        ("python3", ["-m", "unittest", "-q"]),
+        ("pytest", ["-q"]),
+        ("npm", ["run", "lint"]),
+        ("go", ["test", "./..."]),
+        ("cargo", ["check", "--locked"]),
+        ("make", ["test"]),
+    ):
+        with pytest.raises(ValueError, match="explicit verification choice"):
+            validate_verification_command(command, args)
     for command, args in (
         ("bash", ["-lc", "echo nope"]),
         ("git", ["push"]),
@@ -169,6 +186,56 @@ def test_verification_policy_has_no_shell_install_publish_or_source_writes():
     ):
         with pytest.raises(ValueError):
             validate_verification_command(command, args)
+
+
+@pytest.mark.asyncio
+async def test_prepared_task_persists_immutable_verification_choice():
+    class RecordingDB:
+        def __init__(self):
+            self.calls = []
+
+        async def rpc(self, name, payload, *, retry_transient=False):
+            self.calls.append((name, dict(payload), retry_transient))
+            return {
+                "created": True,
+                "task": {
+                    "id": CODE_TASK_ID,
+                    "user_id": payload["p_user_id"],
+                    "project_id": payload["p_project_id"],
+                    "mode": payload["p_mode"],
+                    "verification_policy": payload["p_verification_policy"],
+                },
+            }
+
+    database = RecordingDB()
+    projects = SimpleNamespace(
+        get=AsyncMock(return_value={"id": CODE_PROJECT_ID, "user_id": CODE_USER_ID})
+    )
+    service = CodeTaskService(database, projects)
+
+    task = await service.create(
+        user_id=CODE_USER_ID,
+        project_id=CODE_PROJECT_ID,
+        objective="Fix the bounded parser",
+        mode="implement",
+        repo_url="https://github.com/openai/codex",
+        verification_policy="project_checks",
+    )
+
+    assert task["verification_policy"] == "project_checks"
+    name, payload, retry = database.calls[0]
+    assert name == "create_code_task_guarded"
+    assert payload["p_verification_policy"] == "project_checks"
+    assert retry is True
+    with pytest.raises(ValueError, match="Plan-only"):
+        await service.create(
+            user_id=CODE_USER_ID,
+            project_id=CODE_PROJECT_ID,
+            objective="Plan the parser fix",
+            mode="plan",
+            repo_url="https://github.com/openai/codex",
+            verification_policy="project_checks",
+        )
 
 
 @pytest.mark.asyncio

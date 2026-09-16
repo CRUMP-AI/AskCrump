@@ -80,7 +80,7 @@ key-, password-, and secret-named fields.
 The real loader and workspace assets were exercised in Edge without a product account or production
 request:
 
-- disabled: two destinations remained hidden; the 49,229-byte workspace script and 18,310-byte stylesheet were
+- disabled: two destinations remained hidden; the 51,009-byte workspace script and 18,310-byte stylesheet were
   not fetched or constructed;
 - configured but not entitled: both destinations became visible and locked with the full
   Professional-plan accessible label;
@@ -133,8 +133,9 @@ exact reviewed source revision:
    real concurrent Postgres crash-window tests for both included allowance and credits;
 3. per-user active-task, global queue/concurrency, daily model/Sandbox budget circuit breakers, and
    fair scheduling so code work cannot starve other durable jobs;
-4. a reviewed first-preview policy for project-controlled verification scripts and model-visible
-   output;
+4. independent acceptance and later integration of the prepared-task verification-policy candidate
+   that defaults to built-in checks and requires an explicit owner choice before repository-owned
+   scripts or their bounded, redacted output can reach the coding model;
 5. one owner-approved, one-cent-maximum public-fixture Sandbox/OIDC drill plus live deny-all network,
    fixed safe environment, destruction, cancellation, expiry, refund, monitoring, and rollback proof;
 6. repeatable provider runs with holdouts, measured mean/p95 latency, actual mean/p95 unit cost, and

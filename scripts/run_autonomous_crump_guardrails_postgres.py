@@ -22,6 +22,7 @@ MIGRATIONS = (
     ROOT / "migrations" / "20260827145025_crump_code_foundation.sql",
     ROOT / "migrations" / "20260830093000_crump_code_durable_worker.sql",
     ROOT / "migrations" / "20260916231500_autonomous_crump_atomic_dispatch.sql",
+    ROOT / "migrations" / "20260916233000_autonomous_crump_verification_policy.sql",
     ROOT / "migrations" / "20260917001500_autonomous_crump_queue_guardrails.sql",
 )
 DSN_ENV = "AUTONOMOUS_CRUMP_GUARDRAIL_TEST_DSN"
@@ -162,7 +163,7 @@ def _create_task(connection, user_id: str, project_id: str, label: str) -> dict:
     return _scalar(
         connection,
         "select public.create_code_task_guarded(%s,%s,%s,'implement',"
-        "'https://github.com/openai/codex.git','main',180)",
+        "'https://github.com/openai/codex.git','main','syntax_only',180)",
         (user_id, project_id, label),
     )
 

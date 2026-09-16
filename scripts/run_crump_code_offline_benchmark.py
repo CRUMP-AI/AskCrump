@@ -216,7 +216,10 @@ class _LocalSandbox:
 
 class _BenchmarkWorkspace(SandboxWorkspace):
     def __init__(self, root: Path, revision: str) -> None:
-        super().__init__(_LocalSandbox(root))
+        # This fixed, local benchmark manifest explicitly approves its pinned
+        # fixture checks. Production workspaces still default closed from the
+        # durable prepared-task verification policy.
+        super().__init__(_LocalSandbox(root), allow_project_checks=True)
         self.revision = revision
 
     async def base_revision(self) -> str:
@@ -302,6 +305,9 @@ async def run_offline_benchmark(manifest_path: Path = DEFAULT_MANIFEST) -> tuple
                 "id": f"offline-{case['id']}",
                 "user_id": "offline-benchmark",
                 "mode": case["mode"],
+                "verification_policy": (
+                    "project_checks" if case["mode"] == "implement" else "syntax_only"
+                ),
                 "objective": case["objective"],
                 "status": "provisioning",
                 "lease_token": "offline-fixed-lease",

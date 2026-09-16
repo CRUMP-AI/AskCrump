@@ -199,6 +199,7 @@ create or replace function public.create_code_task_guarded(
   p_mode text,
   p_source_repo_url text,
   p_source_ref text,
+  p_verification_policy text,
   p_max_duration_seconds integer
 )
 returns jsonb
@@ -214,6 +215,14 @@ declare
 begin
   if p_user_id is null or p_project_id is null then
     raise exception 'Autonomous Crump task ownership is required' using errcode = '22023';
+  end if;
+
+  if p_verification_policy not in ('syntax_only', 'project_checks') then
+    raise exception 'Autonomous Crump verification policy is invalid' using errcode = '22023';
+  end if;
+
+  if p_mode = 'plan' and p_verification_policy <> 'syntax_only' then
+    raise exception 'Plan-only tasks cannot execute repository checks' using errcode = '22023';
   end if;
 
   perform pg_catalog.pg_advisory_xact_lock(8274, 0);
@@ -273,6 +282,7 @@ begin
     project_id,
     objective,
     mode,
+    verification_policy,
     source_repo_url,
     source_ref,
     status,
@@ -285,6 +295,7 @@ begin
     project.id,
     p_objective,
     p_mode,
+    p_verification_policy,
     p_source_repo_url,
     nullif(p_source_ref, ''),
     'queued',
@@ -312,7 +323,10 @@ begin
     created.user_id,
     created.project_id,
     'task.created',
-    jsonb_build_object('mode', created.mode)
+    jsonb_build_object(
+      'mode', created.mode,
+      'verificationPolicy', created.verification_policy
+    )
   );
 
   return jsonb_build_object(
@@ -329,10 +343,10 @@ end;
 $$;
 
 revoke all on function public.create_code_task_guarded(
-  uuid, uuid, text, text, text, text, integer
+  uuid, uuid, text, text, text, text, text, integer
 ) from public, anon, authenticated, service_role;
 grant execute on function public.create_code_task_guarded(
-  uuid, uuid, text, text, text, text, integer
+  uuid, uuid, text, text, text, text, text, integer
 ) to service_role;
 
 create or replace function public.accept_code_task_run(
@@ -994,7 +1008,7 @@ comment on table public.code_guardrail_receipts is
   'Content-free private Autonomous Crump acceptance and model-start budget receipts. No prompts, source URLs, paths, output, provider tokens, or customer content.';
 
 comment on function public.create_code_task_guarded(
-  uuid, uuid, text, text, text, text, integer
+  uuid, uuid, text, text, text, text, text, integer
 ) is
   'Service-role-only atomic queue admission for one owner-scoped Autonomous Crump task.';
 

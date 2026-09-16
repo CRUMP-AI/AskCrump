@@ -201,7 +201,9 @@ def validate_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
             if not pieces:
                 raise BenchmarkConfigError("Required verification command is invalid.")
             try:
-                executable, args = validate_verification_command(pieces[0], pieces[1:])
+                executable, args = validate_verification_command(
+                    pieces[0], pieces[1:], allow_project_execution=True
+                )
             except ValueError as exc:
                 raise BenchmarkConfigError(
                     "Required verification is outside the safe allowlist."
@@ -291,6 +293,8 @@ def _automatic_syntax_verification(command: str, paths: set[str]) -> bool:
         pieces = shlex.split(command, posix=True)
     except ValueError:
         return False
+    if pieces == ["git", "diff", "--check"]:
+        return True
     if len(pieces) == 3 and pieces[:2] == ["node", "--check"]:
         path = pieces[2]
         return path in paths and PurePosixPath(path).suffix.lower() in {".js", ".mjs", ".cjs"}
@@ -323,7 +327,9 @@ def _verification_failures(
         if not automatic_syntax:
             try:
                 pieces = shlex.split(command, posix=True)
-                executable, args = validate_verification_command(pieces[0], pieces[1:])
+                executable, args = validate_verification_command(
+                    pieces[0], pieces[1:], allow_project_execution=True
+                )
                 canonical = " ".join([executable, *args])
             except (IndexError, ValueError):
                 failures.append("verification_command_invalid")

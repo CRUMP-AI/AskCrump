@@ -63,7 +63,11 @@ def test_code_workspace_separates_preparation_from_confirmed_metered_execution()
 
     assert "Preparing saves the task for review. It does not start a model or spend credits." in script
     assert 'checkbox.id = \'crumpCodeRunConfirmed\'' in script
-    assert "I reviewed the repository, objective, mode, and cost boundary." in script
+    assert "I reviewed the repository, objective, mode, cost, and built-in-only verification boundary." in script
+    assert "I authorize bounded repository tests/checks and model-visible redacted output." in script
+    assert "Repository tests are executable code." in script
+    assert "verificationPolicy:" in script
+    assert "updateVerificationPolicyControl" in script
     assert "method: 'POST', body: {confirmed: true}" in script
     assert 'payload.get("confirmed") is not True' in routes
     assert '"RUN_CONFIRMATION_REQUIRED"' in routes

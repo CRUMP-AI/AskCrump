@@ -43,7 +43,6 @@ PUBLIC_RELEASE_CONTROLS_EXPECTED_CLOSED = True
 KNOWN_P0_ACTIVATION_HOLDS = (
     "atomic exactly-once charge, allowance, dispatch, crash recovery, and owner-only compensation",
     "per-user and global concurrency plus daily model and Sandbox budget circuit breakers",
-    "reviewed first-preview policy for project-controlled verification scripts and model-visible output",
     "protected live end-to-end cancellation, refund, destruction, latency, cost, and rollback proof",
 )
 
@@ -129,6 +128,11 @@ def source_checks() -> list[Check]:
     loader = _read("public/crump-code-loader.js")
     workspace = _read("public/crump-code-5.9.35.js")
     matrix = _read("scripts/verify-browser-control-matrix.mjs")
+    code_runner = _read("backend/code_runner.py")
+    code_service = _read("backend/code_service.py")
+    verification_migration = _read(
+        "migrations/20260916233000_autonomous_crump_verification_policy.sql"
+    )
     return [
         Check(
             "source_release_lock_closed",
@@ -165,6 +169,23 @@ def source_checks() -> list[Check]:
             and "verify-autonomous-crump-review.cjs" in matrix
             and "verify-code-lazy-load.cjs" in matrix,
             "Disabled accounts must not load the full workspace; both browser proofs stay inventory-locked.",
+        ),
+        Check(
+            "owner_authorized_verification_policy",
+            "verification_policy text not null default 'syntax_only'"
+            in verification_migration
+            and "('syntax_only', 'project_checks')" in verification_migration
+            and "before update of verification_policy on public.code_tasks"
+            in verification_migration
+            and "new.verification_policy is distinct from old.verification_policy"
+            in verification_migration
+            and "allow_project_execution=self.allow_project_checks" in code_runner
+            and '_tool_definitions(mode, allow_project_checks=allow_project_checks)'
+            in code_runner
+            and "Plan-only tasks cannot execute repository checks." in code_service
+            and "Repository tests are executable code." in workspace
+            and "I authorize bounded repository tests/checks" in workspace,
+            "Repository-owned executable checks must default closed and require one durable owner choice before the model can request them or receive bounded output.",
         ),
     ]
 

@@ -75,6 +75,14 @@ def add_runner_syntax_receipts(manifest: dict, artifact: dict) -> None:
             continue
         run = next(item for item in artifact["runs"] if item["case_id"] == case["id"])
         changed = case["required_paths"]
+        run["verification"].append(
+            {
+                "command": "git diff --check",
+                "returnCode": 0,
+                "stdout": "",
+                "stderr": "",
+            }
+        )
         python_paths = [path for path in changed if path.endswith(".py")]
         javascript_paths = [
             path for path in changed if Path(path).suffix.lower() in {".js", ".mjs", ".cjs"}
@@ -137,6 +145,24 @@ def test_current_runner_automatic_syntax_receipts_do_not_break_valid_runs():
     assert report["passed"] is True
     assert report["passed_case_count"] == len(manifest["cases"])
     assert all(item["failures"] == [] for item in report["cases"])
+
+
+def test_current_runner_integrity_receipt_is_allowed_but_still_must_pass():
+    manifest = load_manifest()
+    artifact = passing_artifact(manifest)
+    run = artifact["runs"][0]
+    receipt = {
+        "command": "git diff --check",
+        "returnCode": 0,
+        "stdout": "",
+        "stderr": "",
+    }
+    run["verification"].append(receipt)
+    assert evaluate_benchmark(manifest, artifact)["cases"][0]["passed"] is True
+    receipt["returnCode"] = 1
+    result = evaluate_benchmark(manifest, artifact)["cases"][0]
+    assert result["passed"] is False
+    assert "verification_failed" in result["failures"]
 
 
 @pytest.mark.parametrize(

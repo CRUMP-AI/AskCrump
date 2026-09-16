@@ -108,6 +108,7 @@ async def create_code_task(project_id: str, request: Request):
             mode=str(payload.get("mode") or "plan"),
             repo_url=str(payload.get("repositoryUrl") or ""),
             revision=str(payload.get("revision") or "").strip() or None,
+            verification_policy=str(payload.get("verificationPolicy") or "syntax_only"),
             max_duration_seconds=min(
                 int(payload.get("maxDurationSeconds") or settings.code_max_duration_seconds),
                 settings.code_max_duration_seconds,
