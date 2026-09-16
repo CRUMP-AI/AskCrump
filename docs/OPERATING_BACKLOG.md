@@ -11,6 +11,13 @@ retention, and referral behavior. No acquisition spend should scale on impressio
 Every item below needs four things before it is called shipped: an accountable product
 outcome, privacy and safety constraints, automated coverage, and production evidence.
 
+API `v0.136.0` is source-complete and independently CI-verified at feature commit `e4ff4f5` and
+documentation commit `c942a44`; hosted runs 347 and 348 passed. It strengthens policy/data role
+separation for memory, retrieval, checkpoints, and recorded voice without changing an app-facing
+schema, SDK, shared table, provider, credential, billing path, or production runtime. Stable API
+production remains `v0.49.1`; keep the source receipt isolated until a separate deployment handoff
+provides exact integration, acceptance, and rollback evidence, and do not advertise the held build.
+
 The 2026-09-16 native-store checkpoint confirms that current source still regenerates and compiles
 for Android and iPhone+iPad on hosted Java 21/macOS runners, while the metadata, source-privacy,
 and no-tracked-signing-secret gates pass. Distribution remains correctly blocked on publisher

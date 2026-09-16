@@ -79,10 +79,15 @@ publishing any cumulative-revenue or unit-economics figure.
 
 ## Coordination boundary
 
-Ask Crump API `v0.135.0` is source-complete at
-`3b48940ebfdd1877b1e4c7a63990caf7af8acfaa`, with documentation at
-`e9fd745fc85384b54be3805ebdc2e8d3b5eae4b8`; hosted runs 345 and 346 passed. Stable API
-production remains `v0.49.1`. Product will not integrate, deploy, or advertise the private source
+Ask Crump API `v0.136.0` is source-complete at
+`e4ff4f5e2d6b8d10e3b872386c3a728ea1897120`, with documentation at
+`c942a44ba4a444253f549d13d177c5c7dc0b3556`; hosted runs 347 and 348 passed. Native/durable
+memory, private retrieval, accepted checkpoints, checkpoint extensions, and checkpoint-aware
+recorded voice now keep fixed policy in developer messages while owner-selected data travels in
+typed user-level envelopes; local turn/style selectors do not treat those envelopes as requests.
+There is no request/response schema, SDK, migration, shared-table, provider, credential, billing,
+or production change. Experimental realtime continuity remains outside the claim. Stable API
+production remains `v0.49.1`; Product will not integrate, deploy, or advertise the private source
 receipt without an explicit API deployment and rollback handoff.
 
 ## First acquisition cell is live
