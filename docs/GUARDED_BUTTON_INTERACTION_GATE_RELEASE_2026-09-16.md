@@ -38,5 +38,7 @@ unchanged.
 - complete JavaScript contract gate: **54/54 passed**;
 - complete fail-closed browser-control matrix: **48/48 passed**.
 
-The final validation counts, commit, CI run, and deployment evidence are recorded after the exact
-release revision completes.
+Behavior/test commit `6b5093f56aafe8edc4f7586a9720f8e8a769a528` passed GitHub CI
+`35113657625`. Production deployment `dpl_2UJWWHLLprHHnZ9msLnCkZroMg2V` reached Ready and serves
+all six configured aliases. The live health and app routes returned HTTP 200; the initial
+deployment-scoped runtime sample contained two HTTP 200 entries and no runtime error cluster.
