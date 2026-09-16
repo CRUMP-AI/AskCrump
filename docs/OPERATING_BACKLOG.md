@@ -1341,26 +1341,31 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
-The protected 2026-09-16 16:05 UTC refresh still contains one comparable external account. Account
+The protected 2026-09-16 17:30 UTC refresh still contains one comparable external account. Account
 creation, event coverage, verification, workspace entry, starter intent, activation, and D1 return
 are all 1/1; D7 remains 0/0 and therefore unavailable. Useful/needs-work outcome, durable value,
 recent-work resume, response share, Project-save offer/intent/completion/resume, artifact activity,
 Checkout, and payer counts remain zero. One Plan-center view produced no Checkout. The lifecycle
 prompt remains one eligible/shown account with no action or target completion, while active-work and
-session-collision suppression remain intact. Vercel simultaneously reported 400 HTTP 200 responses
-and no grouped 3xx/4xx/5xx path over six hours, no 24-hour runtime-error cluster, and no unresolved
-toolbar feedback. This is still too small to justify another product or
-pricing mutation and confirms qualified acquisition as the binding constraint.
+session-collision suppression remain intact. The paired production reliability read contained 51
+HTTP 200 responses from Facebook publication through 18:10:58 UTC, with no grouped 3xx/4xx/5xx
+request path, no warning/error/fatal log, and no runtime-error cluster. This is still too small to
+justify another product or pricing mutation and confirms qualified acquisition as the binding
+constraint.
 
-The current-base `draft-to-clearer` source/staged candidate is independently accepted at evidence
-HEAD `78bb2f4`; public release remains held. The isolated `resume-you-can-defend` candidate is fully
-green and independently accepted at evidence HEAD `392f9a5` after 86/86 source checks, 72/72 focused
-tests, 54-file JavaScript validation, and 49/49 real-browser controls. Both were prepared from exact
-production base `8545cea`, remain unpushed and unapplied, and created no tagged visit, account/event,
-publication, or spend. The active rough-to-useful Facebook challenger remains first and untouched.
-Preserve production 5.9.76 until the governing campaign gates reopen and new legitimate traffic
-supplies decision-grade outcome evidence. Full checkpoint:
-`docs/OPERATING_CHECKPOINT_2026-09-16_1605UTC.md`.
+The current-base `draft-to-clearer` source/staged candidate is independently accepted at final
+evidence HEAD `f030814` after **1,199/1,199** full Python tests, **72/72** focused checks, **54**
+JavaScript files with **13/13** campaign cases, **49/49** browser controls, and Marketing's **63/63**
+integrated plus **47/47** attribution/source gates. The isolated `resume-you-can-defend` candidate
+is independently accepted at source HEAD `0d201eb` and final evidence-only HEAD `ac5a55b`; its
+functional proof remains **80/80** focused checks, **25/25** campaign cases, and all three exact
+routes with fourteen rejection families, while Marketing's corrected source and boundary verifiers
+pass **103/103** and all three touchpoints. Both were prepared from exact production base `7833d89`,
+remain unpushed and unapplied, and created no tagged visit, account/event, publication, or spend.
+The active rough-to-useful Facebook challenger remains first and untouched. Preserve production
+5.9.76 through its 24-hour isolation boundary at **2026-09-17 13:28 EDT**; then use legitimate
+exposure and exact-tuple outcome evidence before reopening another campaign gate. Full checkpoint:
+`docs/OPERATING_CHECKPOINT_2026-09-16_1730UTC.md`.
 
 Commit `9225374` makes the upcoming D1 decision fail closed at the operator boundary. The weekly
 and combined operating exporters now require all 25 cohort counts as nonnegative integers, one
