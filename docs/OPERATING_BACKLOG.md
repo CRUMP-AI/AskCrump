@@ -1383,6 +1383,16 @@ build, client-secret boundary, and diff integrity passed. The commit is unpushed
 keep it held through the active acquisition isolation window. Candidate evidence:
 `docs/SINGLE_OUTPUT_PROJECT_CONTINUITY_CANDIDATE_2026-09-16.md`.
 
+Pairwise three-way integration audit now removes a post-isolation release-planning uncertainty.
+The single-output candidate cleanly auto-merges with draft-to-clearer (synthetic tree `9427d059`)
+and separately with resume-you-can-defend (synthetic tree `b494a639`). Only the JavaScript verifier
+and button-integrity inventory are changed by both sides; both merged without a conflict, and tree
+inspection retained the new PWA cache/runtime tags plus the exact paired campaign registry and
+browser-verifier entry. No combined branch or release was created. A future integration must still
+start from then-current production and rerun all gates; this proof does not authorize combining both
+campaigns or changing the live cell. Evidence:
+`docs/HELD_CANDIDATE_INTEGRATION_AUDIT_2026-09-16.md`.
+
 Commit `9225374` makes the upcoming D1 decision fail closed at the operator boundary. The weekly
 and combined operating exporters now require all 25 cohort counts as nonnegative integers, one
 consistent requested reporting window, valid nullable database finance totals, and 24 exact subset
