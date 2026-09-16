@@ -1435,6 +1435,15 @@ This remains a reliability pass and an undecided acquisition result, not a conve
 preserve every isolated variable until the completed 24-hour boundary. Evidence:
 `docs/FACEBOOK_CELL_118_MINUTE_TECHNICAL_OBSERVATION_2026-09-16_1925UTC.md`.
 
+A 30-day external-production monetization check now makes the current evidence boundary explicit.
+Exactly one non-internal account opened Plan & credits, from Settings, with zero subscription or
+credit Checkout open/completion and zero fixed recovery-source count. Focused plan-value,
+monetization-recovery, contextual-recovery, Checkout-recovery, and revenue contracts passed
+**41/41**, and the live Plan & credits surface completed its data load without an error. This is not
+a pricing or checkout-failure denominator; keep the verified paid path stable until a larger
+post-value paid-intent cohort or deterministic failure exists. Evidence:
+`docs/MONETIZATION_SIGNAL_CHECK_2026-09-16_1930UTC.md`.
+
 The held single-output Project-continuity fix now has an exact post-isolation release and rollback
 plan. It requires the completed Facebook boundary read first, resolves production from live
 `origin/main` rather than the stale dirty primary workspace, prohibits bundling either later
