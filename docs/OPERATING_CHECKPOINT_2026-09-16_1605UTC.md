@@ -36,6 +36,13 @@ suppressions remain intact. Navigation discovery has no active external workspac
 its post-`2026-09-14T20:57:00Z` measurement window. The sanitized-demo proof remains seven false
 booleans because the protected identity is not configured.
 
+## Runtime health
+
+The production Vercel review found no grouped runtime error in the trailing 24 hours. The latest
+six-hour status view contained 400 HTTP 200 responses and no grouped 3xx, 4xx, or 5xx request path.
+There is no unresolved Vercel toolbar feedback for the project. This is reliability evidence only;
+it does not prove acquisition, retained value, or revenue.
+
 ## Candidate readiness
 
 - `draft-to-clearer`: refreshed from exact production base `8545cea72a7b8f1af0072f635e19bc19d5d736a2`;
@@ -56,7 +63,7 @@ purchase, or spend was created during candidate preparation or this checkpoint.
 
 ## Decision
 
-Preserve production 5.9.76. The evidence does not support another onboarding, Project-continuity,
+Preserve production 5.9.76. The healthy runtime and funnel evidence do not support another onboarding, Project-continuity,
 pricing, or navigation redesign: the only comparable account activated and returned on D1, while
 the sample remains one account and no post-offer Project behavior or D7 denominator exists.
 

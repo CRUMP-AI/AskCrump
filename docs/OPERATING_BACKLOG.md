@@ -1276,7 +1276,9 @@ are all 1/1; D7 remains 0/0 and therefore unavailable. Useful/needs-work outcome
 recent-work resume, response share, Project-save offer/intent/completion/resume, artifact activity,
 Checkout, and payer counts remain zero. One Plan-center view produced no Checkout. The lifecycle
 prompt remains one eligible/shown account with no action or target completion, while active-work and
-session-collision suppression remain intact. This is still too small to justify another product or
+session-collision suppression remain intact. Vercel simultaneously reported 400 HTTP 200 responses
+and no grouped 3xx/4xx/5xx path over six hours, no 24-hour runtime-error cluster, and no unresolved
+toolbar feedback. This is still too small to justify another product or
 pricing mutation and confirms qualified acquisition as the binding constraint.
 
 The current-base `draft-to-clearer` source/staged candidate is independently accepted at evidence
