@@ -11,6 +11,15 @@ retention, and referral behavior. No acquisition spend should scale on impressio
 Every item below needs four things before it is called shipped: an accountable product
 outcome, privacy and safety constraints, automated coverage, and production evidence.
 
+The 2026-09-16 native-store checkpoint confirms that current source still regenerates and compiles
+for Android and iPhone+iPad on hosted Java 21/macOS runners, while the metadata, source-privacy,
+and no-tracked-signing-secret gates pass. Distribution remains correctly blocked on publisher
+accounts, RevenueCat/Firebase/signing inputs, exact signed builds, physical-device and sandbox-
+billing evidence, current screenshot sets, console declarations, and reviewer access. Windows is
+not an iOS outsourcing requirement because the macOS verification path exists; signing/upload is an
+owner-controlled extension of that path. Evidence:
+`docs/STORE_READINESS_CHECKPOINT_2026-09-16.md`.
+
 The first qualified acquisition cell is now live. Marketing used a separate founder action-time
 confirmation to publish the frozen four-image `rough-to-useful-v2` Facebook Feed carousel as post
 `122112605367453183` and make it the sole Featured item. The prior control remains published but
