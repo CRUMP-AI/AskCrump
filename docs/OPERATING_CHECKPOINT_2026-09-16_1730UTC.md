@@ -94,6 +94,15 @@ frozen until the boundary; do not edit, delete, boost, share, cross-post, or add
 item. If natural exposure is under 25 viewers with no eligible exact-tuple account, classify the
 cell as under-distributed—not as a product-conversion failure.
 
+A read-only Vercel Web Analytics slice covering the first 14 minutes after publication
+(`2026-09-16 13:28–13:42 EDT`) recorded **2 visitors / 2 page views**: one visit to
+`/guides/rough-idea-six-week-launch-plan` and one to `/ai-resume-builder`. The same slice contained
+one `m.facebook.com` referrer and one `MarketingLanding` event. This is encouraging directional
+evidence that live Facebook distribution reached an Ask Crump landing surface, but current Vercel
+plan access does not expose UTM dimensions and the aggregate cards do not prove a one-to-one
+referrer→page or exact campaign-tuple join. Keep the server-side exact-tuple aggregate authoritative,
+and do not change the post or product from this early co-occurrence.
+
 ## Decision
 
 Preserve production 5.9.76 and the live Facebook cell without changing another variable. Keep both

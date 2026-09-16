@@ -32,6 +32,13 @@ failure signal. At the boundary, distinguish under-distribution (fewer than 25 v
 eligible account) from product conversion; do not create synthetic traffic or change the product,
 post, Featured state, or distribution during isolation.
 
+The first 14-minute read-only Vercel slice after publication contained **2 visitors / 2 page
+views**, including one view of `/guides/rough-idea-six-week-launch-plan`, one `m.facebook.com`
+referrer, and one `MarketingLanding` event. Treat this as directional arrival evidence only:
+Vercel's current plan hides UTM dimensions, the cards do not establish an exact referrer→page join,
+and the authoritative server-side campaign tuple still has no account row. Preserve the 24-hour
+isolation window and do not optimize from this tiny sample.
+
 The 2026-09-16 guarded-control follow-up proves the intentionally disabled controls that a static
 button inventory cannot exercise. The real billing scripts replace two disabled `Loading plan…`
 placeholders with enabled Professional and Enterprise review actions without starting checkout;
