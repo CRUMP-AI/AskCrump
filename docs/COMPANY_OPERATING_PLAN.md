@@ -171,6 +171,13 @@ next constraint.
   Stripe and future store providers from the verified $0 baseline.
 - Validate Professional and Enterprise packaging against the jobs users actually complete.
 - Establish weekly provider cost per activated user, per durable artifact, and per paid account.
+- Keep provider cost recorded as unavailable until the source boundary in
+  `docs/PROVIDER_COST_OBSERVABILITY_SOURCE_AUDIT_2026-09-16.md` is closed. Current Gateway helpers
+  discard actual-provider, cost, generation, purpose, failure, and call-latency evidence, while the
+  configured tags and authentication lane do not yet prove Ask-Crump-only allocation. After the
+  protected observation, prefer a proven exclusive Gateway export; otherwise add one allowlisted,
+  content-free record per outbound attempt at the shared Gateway boundary and strengthen the
+  receipt verifier before any paid-learning decision.
 - Do not change pricing or public quotas without owner approval and a written impact hypothesis.
 
 ### Organic growth and proof
