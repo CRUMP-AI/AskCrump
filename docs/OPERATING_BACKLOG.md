@@ -1437,6 +1437,16 @@ and defines exact pre-release deployment restoration if any parity or runtime ch
 does not authorize release before **2026-09-17 13:28 EDT**. Evidence:
 `docs/SINGLE_OUTPUT_CONTINUITY_POST_ISOLATION_RELEASE_PLAN_2026-09-17.md`.
 
+A fresh non-destructive signed-in production walkthrough at 2026-09-16 15:20–15:28 EDT strengthens
+the button evidence beyond source and fixture coverage. Projects, Files, foreground image
+preview/return, Create → Document Studio, Video Studio, books-only Library, all five You sections,
+completed Plan & credits loading, signed-in devices, the replayable guide, Intelligence and durable
+memory review, Chats, conversation options, Escape, Back, Close, and return-to-Ask paths all worked
+without a visible failure. The live browser recorded zero warnings or errors. No purchase, checkout,
+generation, upload/download, settings save, sign-out, revocation, rename/delete, Project creation,
+memory deletion, provider call, credit use, or other production mutation was performed. Evidence:
+`docs/LIVE_BUTTON_WALKTHROUGH_2026-09-16_1520EDT.md`.
+
 Commit `9225374` makes the upcoming D1 decision fail closed at the operator boundary. The weekly
 and combined operating exporters now require all 25 cohort counts as nonnegative integers, one
 consistent requested reporting window, valid nullable database finance totals, and 24 exact subset
