@@ -10,6 +10,7 @@ from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 
 from backend.email_service import EmailDeliveryError
+from backend.db import DatabaseError
 from backend.routes import auth as auth_routes
 from backend.schemas import (
     CURRENT_TERMS_VERSION,
@@ -65,6 +66,8 @@ class PendingAccountDB:
         self.user_updates: list[dict] = []
         self.user_update_filters: list[dict] = []
         self.session_updates: list[dict] = []
+        self.rpc_calls: list[dict] = []
+        self._reset_lock = asyncio.Lock()
 
     @staticmethod
     def _matches(row: dict, filters: dict) -> bool:
@@ -132,6 +135,43 @@ class PendingAccountDB:
         self.user.update(values)
         return [deepcopy(self.user)]
 
+    async def rpc(self, function_name, payload, **_kwargs):
+        assert function_name == "consume_password_reset"
+        self.rpc_calls.append(deepcopy(payload))
+        async with self._reset_lock:
+            if (
+                self.user.get("password_reset_token_hash")
+                != payload["p_presented_token_hash"]
+                or not self.user.get("password_reset_expires")
+                or self.user["password_reset_expires"] <= payload["p_now"]
+            ):
+                return None
+            was_verified = bool(self.user.get("is_verified"))
+            self.user.update({
+                "password_hash": payload["p_new_password_hash"],
+                "auth_generation": int(self.user.get("auth_generation") or 0) + 1,
+                "is_verified": True,
+                "verification_token_hash": None,
+                "verification_token_expires": None,
+                "password_reset_token_hash": None,
+                "password_reset_expires": None,
+                "updated_at": payload["p_now"],
+            })
+            if not was_verified:
+                self.user.update({
+                    "full_name": None,
+                    "terms_accepted_at": None,
+                    "terms_version": None,
+                })
+            self.session_updates.append({
+                "payload": {"revoked_at": payload["p_now"]},
+                "filters": {"user_id": f"eq.{self.user['id']}", "revoked_at": "is.null"},
+            })
+            return {
+                "id": self.user["id"],
+                "auth_generation": self.user["auth_generation"],
+            }
+
 
 class RegistrationParityDB:
     def __init__(self, user: dict | None) -> None:
@@ -169,6 +209,24 @@ class RegistrationParityDB:
         return [deepcopy(payload)]
 
 
+class FirstRegistrationConflictDB(RegistrationParityDB):
+    def __init__(self) -> None:
+        super().__init__(None)
+        self.insert_attempts = 0
+
+    async def insert(self, table, payload, **_kwargs):
+        assert table == "users"
+        self.insert_attempts += 1
+        # Model the other transaction winning the normalized-email unique key
+        # between this request's initial SELECT and INSERT.
+        self.user = deepcopy(payload)
+        raise DatabaseError(
+            "Database operation failed",
+            status_code=409,
+            details={"code": "23505", "constraint": "users_email_lower_unique"},
+        )
+
+
 class ResetRaceDB(PendingAccountDB):
     def __init__(
         self,
@@ -183,16 +241,7 @@ class ResetRaceDB(PendingAccountDB):
         self.reset_select_count = 0
         self.both_reset_selects = asyncio.Event()
 
-    async def select_one(self, table, *, filters=None, **kwargs):
-        selected = await super().select_one(table, filters=filters, **kwargs)
-        is_reset_lookup = bool(
-            table == "users"
-            and filters
-            and "password_reset_token_hash" in filters
-        )
-        if not selected or not is_reset_lookup:
-            return selected
-
+    async def rpc(self, function_name, payload, **kwargs):
         if self.replace_token_after_select:
             self.replace_token_after_select = False
             self.user["password_reset_token_hash"] = token_hash("newer-reset-token")
@@ -203,7 +252,7 @@ class ResetRaceDB(PendingAccountDB):
             if self.reset_select_count == 2:
                 self.both_reset_selects.set()
             await asyncio.wait_for(self.both_reset_selects.wait(), timeout=2)
-        return selected
+        return await super().rpc(function_name, payload, **kwargs)
 
 
 class SetupEmail:
@@ -351,7 +400,15 @@ async def test_new_and_pending_registration_have_indistinguishable_contract_and_
         original_pending["verification_token_hash"]
     )
     if outcome != "success":
-        assert pending["database"].user == original_pending
+        assert pending["database"].user["password_reset_token_hash"] is None
+        assert pending["database"].user["password_reset_expires"] is None
+        for key, value in original_pending.items():
+            if key not in {
+                "password_reset_token_hash",
+                "password_reset_expires",
+                "updated_at",
+            }:
+                assert pending["database"].user[key] == value
 
 
 @pytest.mark.asyncio
@@ -373,6 +430,36 @@ async def test_verified_registration_conflict_contract_is_unchanged(monkeypatch)
         "error": "An account with that email already exists.",
     }
     assert email.reset_calls == []
+    assert email.verification_calls == []
+
+
+@pytest.mark.asyncio
+async def test_simultaneous_first_registration_unique_loser_gets_generic_success(
+    monkeypatch,
+) -> None:
+    database = FirstRegistrationConflictDB()
+    email = SetupEmail()
+    hash_calls: list[str] = []
+    real_hash_password = auth_routes.hash_password
+
+    def measured_hash(password: str) -> str:
+        hash_calls.append(password)
+        return real_hash_password(password)
+
+    monkeypatch.setattr(auth_routes, "db", database)
+    monkeypatch.setattr(auth_routes, "email_service", email)
+    monkeypatch.setattr(auth_routes, "enforce_auth_rate_limit", allow_rate_limit)
+    monkeypatch.setattr(auth_routes, "hash_password", measured_hash)
+
+    result = await auth_routes.register(
+        RegisterRequest(email="new@example.com", password="FirstPassword2"),
+        auth_request("POST", "/api/auth/register"),
+    )
+
+    assert result == {"success": True, "message": GENERIC_SETUP_MESSAGE}
+    assert hash_calls == ["FirstPassword2"]
+    assert database.insert_attempts == 1
+    assert len(email.reset_calls) == 1
     assert email.verification_calls == []
 
 
@@ -551,10 +638,10 @@ async def test_verified_account_recovery_preserves_owner_profile_and_terms(monke
     assert database.user["terms_accepted_at"] == original["terms_accepted_at"]
     assert database.user["terms_version"] == original["terms_version"]
     assert verify_password("OwnerRecovery2", database.user["password_hash"])
-    assert database.user_update_filters[0] == {
-        "id": "eq.pending-owner",
-        "password_reset_token_hash": f"eq.{token_hash(PRIOR_RESET_TOKEN)}",
-        "password_reset_expires": f"gt.{captured_now}",
+    assert database.rpc_calls[0] == {
+        "p_presented_token_hash": token_hash(PRIOR_RESET_TOKEN),
+        "p_new_password_hash": database.user["password_hash"],
+        "p_now": captured_now,
     }
     assert database.session_updates[0]["payload"] == {"revoked_at": captured_now}
 
@@ -580,9 +667,7 @@ async def test_reset_cas_rejects_old_token_replaced_after_select(monkeypatch) ->
     assert database.user["terms_accepted_at"] == original["terms_accepted_at"]
     assert database.user["terms_version"] == original["terms_version"]
     assert database.session_updates == []
-    assert database.user_update_filters[0]["password_reset_token_hash"] == (
-        f"eq.{token_hash(PRIOR_RESET_TOKEN)}"
-    )
+    assert database.rpc_calls[0]["p_presented_token_hash"] == token_hash(PRIOR_RESET_TOKEN)
 
 
 @pytest.mark.asyncio
@@ -646,7 +731,7 @@ async def test_expired_inbox_setup_token_cannot_change_password(monkeypatch) -> 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("outcome", ["false", "error", "unexpected"])
-async def test_setup_delivery_failure_restores_original_pending_state(
+async def test_setup_delivery_failure_clears_only_its_token_without_resurrecting_predecessor(
     monkeypatch,
     outcome: str,
 ) -> None:
@@ -668,7 +753,15 @@ async def test_setup_delivery_failure_restores_original_pending_state(
     )
 
     assert result == {"success": True, "message": GENERIC_SETUP_MESSAGE}
-    assert database.user == original
+    assert database.user["password_reset_token_hash"] is None
+    assert database.user["password_reset_expires"] is None
+    for key, value in original.items():
+        if key not in {
+            "password_reset_token_hash",
+            "password_reset_expires",
+            "updated_at",
+        }:
+            assert database.user[key] == value
     assert len(database.user_updates) == 2
     assert database.user_update_filters[1] == {
         "id": "eq.pending-owner",
@@ -733,7 +826,7 @@ def test_pending_setup_copy_is_generic_and_never_promises_an_unproven_password()
     assert "latest password" not in shell.lower()
     assert "latest password" not in route.lower()
     assert "pendingAccount" not in route
-    assert route.count("return {'success': True, 'message': PENDING_SETUP_MESSAGE}") == 2
+    assert route.count("return {'success': True, 'message': PENDING_SETUP_MESSAGE}") == 3
     assert register_route.index("submitted_password_hash = hash_password") < (
         register_route.index("existing = await db.select_one")
     )

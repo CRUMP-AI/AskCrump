@@ -175,6 +175,7 @@ class AtomicSessionDB:
         self.rows_by_device = {}
         self.upsert_conflicts = []
         self.next_id = 1
+        self.rpc_calls = []
 
     async def upsert(self, table, payload, *, on_conflict):
         assert table == 'sessions'
@@ -203,6 +204,24 @@ class AtomicSessionDB:
     async def update(self, *args, **kwargs):
         return []
 
+    async def rpc(self, function_name, payload):
+        assert function_name == 'persist_auth_session'
+        self.rpc_calls.append(dict(payload))
+        device_id = payload['p_device_id']
+        existing = self.rows_by_device.get(device_id, {})
+        row = {
+            **existing,
+            'id': existing.get('id') or payload['p_session_id'],
+            'user_id': payload['p_user_id'],
+            'token_hash': payload['p_token_hash'],
+            'auth_generation': payload['p_expected_auth_generation'],
+            'device_id': device_id,
+            'expires_at': payload['p_expires_at'],
+            'revoked_at': None,
+        }
+        self.rows_by_device[device_id] = row
+        return dict(row)
+
 
 @pytest.mark.asyncio
 async def test_same_installation_logins_converge_on_atomic_upsert():
@@ -225,7 +244,8 @@ async def test_same_installation_logins_converge_on_atomic_upsert():
     )
 
     assert len(fake_db.rows_by_device) == 1
-    assert fake_db.upsert_conflicts == ['device_id', 'device_id']
+    assert len(fake_db.rpc_calls) == 2
+    assert all(call['p_expected_auth_generation'] == 0 for call in fake_db.rpc_calls)
     assert results[0][0] != results[1][0]
     assert fake_db.rows_by_device['installation-123']['token_hash']
 

@@ -26,6 +26,13 @@ class AuthenticationError(RuntimeError):
         self.status_code = status_code
 
 
+class SessionGenerationMismatch(AuthenticationError):
+    """The credential generation changed before a session could be persisted."""
+
+    def __init__(self) -> None:
+        super().__init__('Credentials changed while signing in. Please try again.')
+
+
 def public_user(user: dict[str, Any]) -> dict[str, Any]:
     tier = tier_name(user)
     internal_access = bool(user.get('internal_tier'))
@@ -103,68 +110,41 @@ async def create_session(
     device_name: str | None = None,
     platform: str | None = None,
 ) -> tuple[str, dict[str, Any]]:
-    """Create or atomically rotate the authenticated session for an installation.
-
-    ``sessions.device_id`` is unique. A stable installation ID therefore uses one
-    PostgREST upsert keyed by ``device_id`` instead of a read-then-write sequence.
-    Concurrent successful logins on the same installation converge on one row and
-    the last completed login owns the freshly issued token.
-    """
+    """Persist a session only while the verified credential generation still owns it."""
     raw_token = random_token(48)
     now = iso_now()
     device_id = (request.headers.get('x-installation-id') or '')[:200] or None
 
-    payload = {
-        'user_id': user['id'],
-        'token_hash': token_hash(raw_token),
-        'expires_at': expiry_iso(days=settings.session_days),
-        'created_at': now,
-        'last_activity': now,
-        'ip_address': client_ip(
-            dict(request.headers),
-            request.client.host if request.client else None,
-        ),
-        'user_agent': request.headers.get('user-agent', 'Unknown')[:1000],
-        'device_id': device_id,
-        'device_name': (
-            device_name or request.headers.get('x-device-name') or 'Unknown device'
-        )[:160],
-        'platform': (
-            platform or request.headers.get('x-crump-platform') or 'web'
-        )[:80],
-        'device_info': {
-            'client': request.headers.get('x-crump-client', 'web'),
-            'platform': platform or request.headers.get('x-crump-platform') or 'web',
+    result = await db.rpc(
+        'persist_auth_session',
+        {
+            'p_user_id': user['id'],
+            'p_expected_auth_generation': int(user.get('auth_generation') or 0),
+            'p_session_id': new_uuid(),
+            'p_token_hash': token_hash(raw_token),
+            'p_device_id': device_id,
+            'p_device_name': (
+                device_name or request.headers.get('x-device-name') or 'Unknown device'
+            )[:160],
+            'p_platform': (
+                platform or request.headers.get('x-crump-platform') or 'web'
+            )[:80],
+            'p_device_info': {
+                'client': request.headers.get('x-crump-client', 'web'),
+                'platform': platform or request.headers.get('x-crump-platform') or 'web',
+            },
+            'p_ip_address': client_ip(
+                dict(request.headers),
+                request.client.host if request.client else None,
+            ),
+            'p_user_agent': request.headers.get('user-agent', 'Unknown')[:1000],
+            'p_now': now,
+            'p_expires_at': expiry_iso(days=settings.session_days),
         },
-        'revoked_at': None,
-    }
-
-    if device_id:
-        rows = await db.upsert('sessions', payload, on_conflict='device_id')
-        session = rows[0] if isinstance(rows, list) and rows else None
-        if not session:
-            session = await db.select_one(
-                'sessions',
-                columns='*',
-                filters={'device_id': eq(device_id)},
-            )
-        if not session:
-            raise RuntimeError('Session rotation did not return a persisted session.')
-    else:
-        insert_payload = {'id': new_uuid(), **payload}
-        rows = await db.insert('sessions', insert_payload)
-        session = rows[0] if isinstance(rows, list) and rows else insert_payload
-
-    # Keep the most recent sessions while avoiding an unbounded table.
-    sessions = await db.select(
-        'sessions',
-        columns='id,created_at',
-        filters={'user_id': eq(user['id']), 'revoked_at': 'is.null'},
-        order='created_at.desc',
-        limit=40,
     )
-    for stale in sessions[20:]:
-        await db.update('sessions', {'revoked_at': now}, filters={'id': eq(stale['id'])})
+    session = result[0] if isinstance(result, list) and result else result
+    if not isinstance(session, dict) or not session.get('id'):
+        raise SessionGenerationMismatch()
     return raw_token, session
 
 
@@ -201,6 +181,14 @@ async def authenticate_request(
     user = await db.select_one('users', columns='*', filters={'id': eq(session['user_id'])})
     if not user or user.get('deleted_at'):
         raise AuthenticationError('This account is no longer available.')
+
+    if int(session.get('auth_generation') or 0) != int(user.get('auth_generation') or 0):
+        await db.update(
+            'sessions',
+            {'revoked_at': now},
+            filters={'id': eq(session['id']), 'revoked_at': 'is.null'},
+        )
+        raise AuthenticationError('Your session has expired. Please sign in again.')
 
     if touch:
         last = session.get('last_activity')

@@ -72,6 +72,7 @@ class VerificationRaceDB(VerificationDB):
         self.all_verifications_selected = asyncio.Event()
         self.sessions = []
         self.session_updates = []
+        self._reset_lock = asyncio.Lock()
 
     async def select_one(self, table, **kwargs):
         selected = await super().select_one(table, **kwargs)
@@ -104,12 +105,47 @@ class VerificationRaceDB(VerificationDB):
                 updated.append(dict(session))
         return updated
 
+    async def rpc(self, function_name, payload):
+        assert function_name == 'consume_password_reset'
+        async with self._reset_lock:
+            if (
+                self.user['password_reset_token_hash']
+                != payload['p_presented_token_hash']
+                or self.user['password_reset_expires'] <= payload['p_now']
+            ):
+                return None
+            was_verified = bool(self.user.get('is_verified'))
+            self.user.update({
+                'password_hash': payload['p_new_password_hash'],
+                'auth_generation': int(self.user.get('auth_generation') or 0) + 1,
+                'is_verified': True,
+                'verification_token_hash': None,
+                'verification_token_expires': None,
+                'password_reset_token_hash': None,
+                'password_reset_expires': None,
+                'updated_at': payload['p_now'],
+            })
+            if not was_verified:
+                self.user.update({
+                    'full_name': None,
+                    'terms_accepted_at': None,
+                    'terms_version': None,
+                })
+            for session in self.sessions:
+                if session['user_id'] == self.user['id'] and session['revoked_at'] is None:
+                    session['revoked_at'] = payload['p_now']
+            return {
+                'id': self.user['id'],
+                'auth_generation': self.user['auth_generation'],
+            }
+
     def persist_session(self, raw_token, *, session_id='verification-session-1'):
         session = {
             'id': session_id,
             'user_id': self.user['id'],
             'token_hash': token_hash(raw_token),
             'revoked_at': None,
+            'auth_generation': int(self.user.get('auth_generation') or 0),
         }
         self.sessions.append(session)
         return dict(session)

@@ -20,20 +20,26 @@ def test_production_transactional_email_cannot_use_resend_test_sender():
 
 def test_password_reset_finishes_verification_for_inbox_owner():
     auth = read("backend/routes/auth.py")
+    migration = read("migrations/20260916214309_atomic_auth_generation.sql")
 
     reset_start = auth.index("@router.post('/reset-password')")
     reset_end = auth.index("@router.post('/resend-verification')")
     reset_route = auth[reset_start:reset_end]
 
-    assert "'is_verified': True" in reset_route
-    assert "'verification_token_hash': None" in reset_route
-    assert "'verification_token_expires': None" in reset_route
-    assert "'password_reset_token_hash': None" in reset_route
-    assert "'password_reset_expires': None" in reset_route
-    assert "'password_reset_token_hash': eq(presented_token_hash)" in reset_route
-    assert "'password_reset_expires': gt(now)" in reset_route
-    assert "if not updated:" in reset_route
-    assert reset_route.index("if not updated:") < reset_route.index("'sessions'")
+    assert "'consume_password_reset'" in reset_route
+    assert "'p_presented_token_hash': presented_token_hash" in reset_route
+    assert "'p_now': now" in reset_route
+    assert "if not isinstance(reset_result, dict)" in reset_route
+    assert "is_verified = true" in migration
+    assert "verification_token_hash = null" in migration
+    assert "verification_token_expires = null" in migration
+    assert "password_reset_token_hash = null" in migration
+    assert "password_reset_expires = null" in migration
+    assert "account.password_reset_token_hash = p_presented_token_hash" in migration
+    assert "account.password_reset_expires > p_now" in migration
+    assert migration.index("update public.users as account") < migration.index(
+        "update public.sessions as active"
+    )
 
 
 def test_forgot_password_keeps_account_enumeration_message_generic():

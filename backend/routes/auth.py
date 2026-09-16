@@ -9,12 +9,13 @@ from fastapi.responses import JSONResponse, RedirectResponse
 
 from ..auth_service import (
     AuthenticationError,
+    SessionGenerationMismatch,
     authenticate_request,
     create_session,
     public_user,
     revoke_current_session,
 )
-from ..db import eq, gt
+from ..db import DatabaseError, eq, gt
 from ..email_service import EmailDeliveryError
 from ..http import clear_session_cookie, native_token_payload, set_session_cookie
 from ..product_analytics import (
@@ -115,11 +116,6 @@ async def _issue_pending_account_setup(user: dict, email: str) -> None:
     """Issue inbox-gated password setup without changing pending account ownership."""
     raw_token = random_token(40)
     reset_hash = token_hash(raw_token)
-    prior_reset = {
-        'password_reset_token_hash': user.get('password_reset_token_hash'),
-        'password_reset_expires': user.get('password_reset_expires'),
-        'updated_at': user.get('updated_at'),
-    }
     issued = await db.update(
         'users',
         {
@@ -158,24 +154,34 @@ async def _issue_pending_account_setup(user: dict, email: str) -> None:
     if delivered:
         return
 
-    # Restore any earlier recovery token only if this request still owns the
-    # pending row. A concurrent retry, verification, or completed reset wins.
+    # Never resurrect the predecessor reset token: a concurrent attempt may
+    # already have consumed or superseded it. Clear only this undelivered token
+    # while this request still owns the pending row.
     try:
-        restored = await db.update(
+        cleared = await db.update(
             'users',
-            prior_reset,
+            {
+                'password_reset_token_hash': None,
+                'password_reset_expires': None,
+                'updated_at': iso_now(),
+            },
             filters={
                 'id': eq(user['id']),
                 'is_verified': eq(False),
                 'password_reset_token_hash': eq(reset_hash),
             },
         )
-        if not restored:
-            logger.info('Pending account setup token rollback superseded safely')
+        if not cleared:
+            logger.info('Pending account setup token cleanup superseded safely')
     except Exception:
         # An undelivered reset token grants no access and never replaces the
         # original password or verification proof. Preserve the generic reply.
-        logger.exception('Pending account setup token rollback failed')
+        logger.exception('Pending account setup token cleanup failed')
+
+
+def _is_unique_violation(exc: DatabaseError) -> bool:
+    details = exc.details if isinstance(exc.details, dict) else {}
+    return exc.status_code == 409 or str(details.get('code') or '') == '23505'
 
 
 @router.post('/register')
@@ -244,7 +250,22 @@ async def register(payload: RegisterRequest, request: Request):
         'updated_at': now,
         **terms_values,
     }
-    inserted = await db.insert('users', user_payload)
+    try:
+        inserted = await db.insert('users', user_payload)
+    except DatabaseError as exc:
+        if not _is_unique_violation(exc):
+            raise
+        # Another first-registration request may have inserted the normalized
+        # email after our initial read. Recover to the same generic contract;
+        # the ordinary pre-existing verified-account 409 above is unchanged.
+        concurrent = await db.select_one(
+            'users', columns='*', filters={'email': eq(email)}
+        )
+        if not concurrent:
+            raise
+        if not concurrent.get('is_verified'):
+            await _issue_pending_account_setup(concurrent, email)
+        return {'success': True, 'message': PENDING_SETUP_MESSAGE}
     user = inserted[0] if isinstance(inserted, list) and inserted else user_payload
     await db.upsert(
         'user_settings',
@@ -333,19 +354,41 @@ async def login(payload: LoginRequest, request: Request, response: Response):
             },
         )
 
-    raw_token, session = await create_session(
-        db,
-        settings,
-        user,
-        request,
-        device_name=payload.deviceName,
-        platform=payload.platform,
-    )
     now = iso_now()
+    expected_generation = int(user.get('auth_generation') or 0)
     user_updates = {'last_login': now, 'updated_at': now}
     if password_hash_needs_upgrade(user.get('password_hash')):
         user_updates['password_hash'] = hash_password(payload.password)
-    await db.update('users', user_updates, filters={'id': eq(user['id'])})
+    try:
+        raw_token, session = await create_session(
+            db,
+            settings,
+            user,
+            request,
+            device_name=payload.deviceName,
+            platform=payload.platform,
+        )
+    except SessionGenerationMismatch:
+        logger.info(
+            'Auth login outcome=credential_generation_changed client=%s',
+            _auth_client_kind(request),
+        )
+        return JSONResponse(
+            status_code=401,
+            content={
+                'success': False,
+                'error': 'Invalid email or password.',
+                'code': 'INVALID_CREDENTIALS',
+            },
+        )
+    await db.update(
+        'users',
+        user_updates,
+        filters={
+            'id': eq(user['id']),
+            'auth_generation': eq(expected_generation),
+        },
+    )
     set_session_cookie(response, raw_token, request)
     logger.info(
         'Auth login outcome=session_issued client=%s',
@@ -566,61 +609,19 @@ async def reset_password(payload: ResetPasswordRequest, request: Request):
         )
     presented_token_hash = token_hash(payload.token)
     now = iso_now()
-    user = await db.select_one(
-        'users',
-        columns='*',
-        filters={
-            'password_reset_token_hash': eq(presented_token_hash),
-            'password_reset_expires': gt(now),
+    reset_result = await db.rpc(
+        'consume_password_reset',
+        {
+            'p_presented_token_hash': presented_token_hash,
+            'p_new_password_hash': hash_password(payload.newPassword),
+            'p_now': now,
         },
     )
-    if not user:
+    if not isinstance(reset_result, dict) or not reset_result.get('id'):
         return JSONResponse(
             status_code=400,
             content={'success': False, 'error': 'This reset link is invalid or expired.'},
         )
-    reset_values = {
-        'password_hash': hash_password(payload.newPassword),
-        # Possession of a valid password-reset token proves control of the
-        # account inbox. Complete email verification as part of recovery so an
-        # unverified account does not require a second email loop.
-        'is_verified': True,
-        'verification_token_hash': None,
-        'verification_token_expires': None,
-        'password_reset_token_hash': None,
-        'password_reset_expires': None,
-        'updated_at': now,
-    }
-    if not user.get('is_verified'):
-        # Registration metadata supplied before inbox proof is not owner-
-        # authorized. The existing terms/profile gates collect it again from
-        # the verified inbox owner.
-        reset_values.update(
-            {
-                'full_name': None,
-                'terms_accepted_at': None,
-                'terms_version': None,
-            }
-        )
-    updated = await db.update(
-        'users',
-        reset_values,
-        filters={
-            'id': eq(user['id']),
-            'password_reset_token_hash': eq(presented_token_hash),
-            'password_reset_expires': gt(now),
-        },
-    )
-    if not updated:
-        return JSONResponse(
-            status_code=400,
-            content={'success': False, 'error': 'This reset link is invalid or expired.'},
-        )
-    await db.update(
-        'sessions',
-        {'revoked_at': now},
-        filters={'user_id': eq(user['id']), 'revoked_at': 'is.null'},
-    )
     return {'success': True, 'message': 'Password updated. Sign in with your new password.'}
 
 
@@ -748,14 +749,17 @@ async def verify_email(
     if not user:
         return failed_response()
 
-    raw_token, session = await create_session(
-        db,
-        settings,
-        user,
-        request,
-        device_name='Verified email link',
-        platform='web',
-    )
+    try:
+        raw_token, session = await create_session(
+            db,
+            settings,
+            user,
+            request,
+            device_name='Verified email link',
+            platform='web',
+        )
+    except SessionGenerationMismatch:
+        return failed_response()
     current = await current_token_owner(user_id)
     if not current:
         session_id = str((session or {}).get('id') or '')
