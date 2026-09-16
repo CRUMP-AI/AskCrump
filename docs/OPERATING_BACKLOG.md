@@ -46,6 +46,11 @@ Vercel's current plan hides UTM dimensions, the cards do not establish an exact 
 and the authoritative server-side campaign tuple still has no account row. Preserve the 24-hour
 isolation window and do not optimize from this tiny sample.
 
+Production remained technically clean from the Facebook publication boundary through
+`2026-09-16T18:10:58Z`: **51 HTTP 200** responses, no grouped 3xx/4xx/5xx request path, no
+warning/error/fatal log, and no runtime-error cluster. Keep reliability stable and wait for the
+governing exposure/account outcome instead of changing the landing or product from early traffic.
+
 The held current-base `draft-to-clearer` candidate now passes the Marketing repository's exact
 current-tree verifiers: **63/63** integrated source/staged checks, **47/47** attribution/source
 checks with **45** focused tests, and an independent **1,199/1,199** full product run at evidence

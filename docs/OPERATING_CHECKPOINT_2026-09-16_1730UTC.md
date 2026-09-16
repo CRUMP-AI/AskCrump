@@ -133,6 +133,11 @@ plan access does not expose UTM dimensions and the aggregate cards do not prove 
 referrer→page or exact campaign-tuple join. Keep the server-side exact-tuple aggregate authoritative,
 and do not change the post or product from this early co-occurrence.
 
+The paired Vercel runtime window from publication through `2026-09-16T18:10:58Z` is clean:
+**51 HTTP 200** responses, no grouped 3xx/4xx/5xx request path, no warning/error/fatal log, and no
+runtime-error cluster. This removes an immediate technical-delivery concern for the live traffic;
+it does not convert the tiny arrival sample into a demand or conversion conclusion.
+
 ## Decision
 
 Preserve production 5.9.76 and the live Facebook cell without changing another variable. Keep both
