@@ -26,6 +26,17 @@ RETRYABLE_FAILURES = frozenset(
         "WORKSPACE_LIST_FAILED",
     }
 )
+GUARDRAIL_DEFER_REASONS = frozenset(
+    {
+        "candidate_changed",
+        "global_active_lease_limit",
+        "global_daily_model_start_limit",
+        "global_daily_sandbox_seconds",
+        "guardrail_unavailable",
+        "user_active_lease_limit",
+        "user_daily_compute_limit",
+    }
+)
 
 
 class CodeWorker:
@@ -114,12 +125,37 @@ class CodeWorker:
             return {"handled": False, "claimed": False, "misconfigured": True}
 
         lease_seconds = min(300, max(60, int(self.settings.code_max_duration_seconds) + 45))
-        task = await self.service.claim_next(
+        claim = await self.service.claim_next(
             lease_seconds=lease_seconds,
             claim_token=str(uuid4()),
         )
-        if not task:
+        if not claim.get("claimed"):
+            if claim.get("deferred"):
+                reason = str(claim.get("reason") or "guardrail_unavailable")[:80]
+                if reason not in GUARDRAIL_DEFER_REASONS:
+                    reason = "guardrail_unavailable"
+                try:
+                    retry_after = int(claim.get("retryAfterSeconds") or 30)
+                except (TypeError, ValueError):
+                    retry_after = 30
+                retry_after = max(1, min(86_400, retry_after))
+                code_log(
+                    logger,
+                    logging.INFO,
+                    "worker_deferred",
+                    guardrail_reason=reason,
+                    retry_after_seconds=retry_after,
+                    outcome="deferred",
+                )
+                return {
+                    "handled": False,
+                    "claimed": False,
+                    "deferred": True,
+                    "reason": reason,
+                    "retryAfterSeconds": retry_after,
+                }
             return {"handled": False, "claimed": False}
+        task = claim["task"]
 
         started = monotonic()
         attempt = int(task.get("attempt_count") or 0)

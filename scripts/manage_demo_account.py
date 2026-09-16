@@ -64,7 +64,12 @@ CONTENT_GROUPS: dict[str, tuple[str, ...]] = {
     "projects": ("projects", "project_chats", "project_files", "project_context"),
     "manuscripts": ("manuscripts", "manuscript_sections", "manuscript_runs"),
     "media": ("media_jobs",),
-    "code": ("code_tasks", "code_task_events", "code_task_approvals"),
+    "code": (
+        "code_tasks",
+        "code_task_events",
+        "code_task_approvals",
+        "code_guardrail_receipts",
+    ),
     "intelligence": (
         "user_ai_preferences",
         "user_memories",

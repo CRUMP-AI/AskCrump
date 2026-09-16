@@ -12,6 +12,7 @@ from ..code_service import (
     CodeTaskConflictError,
     CodeTaskError,
     CodeTaskService,
+    code_guardrail_error,
     resolve_public_source_revision,
 )
 from ..feature_service import FeatureAccessError
@@ -47,7 +48,19 @@ def _feature_error(exc: FeatureAccessError) -> JSONResponse:
 
 
 def _task_error(exc: CodeTaskError) -> JSONResponse:
-    return _error(str(exc), exc.code, exc.status_code)
+    content = {"success": False, "error": str(exc), "code": exc.code}
+    retry_after = getattr(exc, "retry_after_seconds", None)
+    headers = None
+    if isinstance(retry_after, int) and retry_after > 0:
+        content.update(
+            {
+                "deferred": True,
+                "reason": str(getattr(exc, "reason", "capacity_deferred")),
+                "retryAfterSeconds": retry_after,
+            }
+        )
+        headers = {"Retry-After": str(retry_after)}
+    return JSONResponse(status_code=exc.status_code, content=content, headers=headers)
 
 
 def _configured(request: Request) -> bool:
@@ -103,6 +116,8 @@ async def create_code_task(project_id: str, request: Request):
         return {"success": True, "task": CodeTaskService.public_task(task)}
     except ProjectNotFoundError:
         return _error("Project not found.", "PROJECT_NOT_FOUND", 404)
+    except CodeTaskError as exc:
+        return _task_error(exc)
     except (TypeError, ValueError) as exc:
         return _error(str(exc), "INVALID_CODE_TASK", 400)
 
@@ -195,8 +210,9 @@ async def run_code_task(task_id: str, request: Request):
                         "mode": task.get("mode"),
                     },
                 )
-            raise CodeTaskConflictError(
-                "Autonomous Crump task is no longer ready to run. Refresh its status before trying again."
+            raise code_guardrail_error(
+                reason,
+                acceptance.get("retryAfterSeconds") or 30,
             )
         claimed = acceptance["task"]
         recovered = bool(acceptance.get("replayed"))

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hmac
 import logging
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
@@ -16,6 +17,22 @@ from ..runtime import code_worker, db, features, files, manuscripts, projects, s
 
 router = APIRouter(tags=["manuscripts"])
 logger = logging.getLogger(__name__)
+
+SHARED_WORKER_CYCLE_MINUTES = 3
+
+
+def shared_worker_order(at: datetime | None = None) -> tuple[str, str]:
+    """Reserve every third UTC minute for manuscripts; use the others for code.
+
+    An idle or guardrail-deferred first worker always yields to the other. The
+    separate hourly check-in route remains independent and minute zero is a
+    manuscript-first slot, so a sustained code queue cannot monopolize either
+    durable product lane.
+    """
+    current = (at or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    if current.minute % SHARED_WORKER_CYCLE_MINUTES == 0:
+        return ("manuscripts", "code")
+    return ("code", "manuscripts")
 
 
 def _feature_error(exc: FeatureAccessError) -> JSONResponse:
@@ -359,11 +376,26 @@ async def manuscript_cron(request: Request):
     oidc_token = str(
         request.headers.get("x-vercel-oidc-token") or settings.vercel_oidc_token or ""
     ).strip()
-    code_summary = await code_worker.process_next(oidc_token=oidc_token)
-    if code_summary.get("handled"):
-        return {"success": True, "worker": "code", **code_summary}
-    summary = await manuscripts.process_next_run()
-    return {"success": True, "worker": "manuscripts", **summary}
+    code_summary: dict | None = None
+    manuscript_summary: dict | None = None
+    for worker_name in shared_worker_order():
+        if worker_name == "code":
+            code_summary = await code_worker.process_next(oidc_token=oidc_token)
+            if code_summary.get("handled"):
+                return {"success": True, "worker": "code", **code_summary}
+            continue
+        manuscript_summary = await manuscripts.process_next_run()
+        if manuscript_summary.get("claimed"):
+            return {"success": True, "worker": "manuscripts", **manuscript_summary}
+
+    return {
+        "success": True,
+        "worker": "idle",
+        "claimed": False,
+        "codeDeferred": bool((code_summary or {}).get("deferred")),
+        "codeDeferredReason": str((code_summary or {}).get("reason") or "") or None,
+        "retryAfterSeconds": (code_summary or {}).get("retryAfterSeconds"),
+    }
 
 
 @router.post("/api/manuscripts/{manuscript_id}/blueprint")

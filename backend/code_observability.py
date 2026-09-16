@@ -17,6 +17,7 @@ LOG_EVENTS = frozenset(
         "refund_reconciled",
         "worker_claimed",
         "worker_completed",
+        "worker_deferred",
         "worker_lease_superseded",
         "worker_misconfigured",
         "worker_retry_scheduled",
@@ -29,6 +30,7 @@ _STRING_FIELDS = frozenset(
     {
         "error_type",
         "failure_code",
+        "guardrail_reason",
         "mode",
         "outcome",
         "payment_source",
@@ -43,6 +45,7 @@ _INTEGER_FIELDS = frozenset(
         "lease_seconds",
         "max_attempts",
         "retry_delay_seconds",
+        "retry_after_seconds",
     }
 )
 _BOOLEAN_FIELDS = frozenset({"refund_pending"})
