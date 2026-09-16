@@ -61,6 +61,23 @@ live-model output, production activation evidence, publishable sanitized-demo pr
 replacement for the authentic analytics-excluded demo-account capture gate. Marketing's receipt is
 `ask-crump-marketing/measurement/CONTINUOUS_WORK_RECORDER_PREFLIGHT_ACCEPTANCE_2026-09-16_1418.md`.
 
+That fresh recorder also exposed a narrower product-quality defect that button ownership alone did
+not prove: generated PowerPoint responses presented both a conversation-level Project action and
+an artifact-level Project action, even though the output action already preserves the generated
+file and its source conversation. Expanding the proof to generated images found a second existing
+defect: both server requests could complete while the reusable image action stayed visibly stuck on
+**Saving…**. Held candidate commit `9ad93c8` on exact production base `7833d89` now presents one
+complete output action, resolves its own existing/new Project destination, changes immediately to
+**Open Project** on success, and retains the ordinary conversation action only for results without
+generated output. It also removes the duplicate offer impression while retaining feedback and an
+accurate accessible label. Full Python passed **1,136/1,136**, focused Project/button/lifecycle
+tests **71/71**, JavaScript **54** files, the full browser matrix **48/48**, and the explicit
+desktop/phone × existing/new Project × document/image matrix **8/8**, with zero browser errors,
+fixture errors, or unexpected requests. Production preflight, native build, client-secret boundary,
+and diff integrity also passed. The candidate is committed locally, unpushed, undeployed, and held
+through the active acquisition isolation window. Evidence:
+`docs/SINGLE_OUTPUT_PROJECT_CONTINUITY_CANDIDATE_2026-09-16.md` in the candidate worktree.
+
 The refreshed `draft-to-clearer` candidate at exact current production base `7833d89` and evidence
 HEAD `f030814` also passes Marketing's current cross-repository gates when executed against that
 exact tree: **63/63** integrated source/staged checks and **47/47** attribution/source checks,
@@ -156,8 +173,9 @@ it does not convert the tiny arrival sample into a demand or conversion conclusi
 ## Decision
 
 Preserve production 5.9.76 and the live Facebook cell without changing another variable. Keep both
-later campaign candidates isolated. Observe legitimate exposure, exact-tuple account creation, and
-downstream activation/value evidence at the 24-hour boundary before changing the product or
-distribution. Do not create synthetic accounts/events, deploy either candidate, apply either
-migration, open another tagged production URL, submit Search Console/store actions, publish
-additional social content, or spend without the governing action-time gate.
+later campaign candidates and the single-output Project-continuity product candidate isolated.
+Observe legitimate exposure, exact-tuple account creation, and downstream activation/value evidence
+at the 24-hour boundary before changing the product or distribution. Do not create synthetic
+accounts/events, deploy any held candidate, apply either campaign migration, open another tagged
+production URL, submit Search Console/store actions, publish additional social content, or spend
+without the governing action-time gate.

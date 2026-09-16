@@ -1369,6 +1369,20 @@ The active rough-to-useful Facebook challenger remains first and untouched. Pres
 exposure and exact-tuple outcome evidence before reopening another campaign gate. Full checkpoint:
 `docs/OPERATING_CHECKPOINT_2026-09-16_1730UTC.md`.
 
+The same production-source recorder proved one concrete control-quality issue worth fixing without
+changing the live experiment: generated files exposed redundant conversation and output Project
+actions, and the generated-image path could complete both saves while leaving its action stuck on
+**Saving…**. Held local commit `9ad93c8` on exact production base `7833d89` reduces each generated
+document/image result to one complete Project action, resolves the destination independently,
+preserves output plus source conversation, and becomes **Open Project** immediately. Ordinary
+non-output responses keep their conversation action and feedback stays available. Evidence is
+**1,136/1,136** full Python, **71/71** focused, **54** JavaScript files, **48/48** browser controls,
+and **8/8** explicit desktop/phone × existing/new Project × document/image cases with no browser,
+fixture, or unexpected-request error. The cache-safe web/PWA assets, production preflight, native
+build, client-secret boundary, and diff integrity passed. The commit is unpushed and undeployed;
+keep it held through the active acquisition isolation window. Candidate evidence:
+`docs/SINGLE_OUTPUT_PROJECT_CONTINUITY_CANDIDATE_2026-09-16.md`.
+
 Commit `9225374` makes the upcoming D1 decision fail closed at the operator boundary. The weekly
 and combined operating exporters now require all 25 cohort counts as nonnegative integers, one
 consistent requested reporting window, valid nullable database finance totals, and 24 exact subset
