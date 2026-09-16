@@ -43,6 +43,16 @@ six-hour status view contained 400 HTTP 200 responses and no grouped 3xx, 4xx, o
 There is no unresolved Vercel toolbar feedback for the project. This is reliability evidence only;
 it does not prove acquisition, retained value, or revenue.
 
+## Dependency health
+
+A read-only dependency review completed on 2026-09-16 against the exact production source commit
+`8545cea72a7b8f1af0072f635e19bc19d5d736a2`. The JavaScript lockfile audit reported zero known
+information, low, moderate, high, or critical vulnerabilities across 134 production, development,
+and optional dependencies. The Python requirements audit reported zero known vulnerabilities
+across every declared requirement and resolved dependency. Both audits exited successfully, the
+production worktree remained clean, and no dependency, lockfile, environment, deployment, or
+database state changed.
+
 ## Candidate readiness
 
 - `draft-to-clearer`: refreshed from exact production base `8545cea72a7b8f1af0072f635e19bc19d5d736a2`;
