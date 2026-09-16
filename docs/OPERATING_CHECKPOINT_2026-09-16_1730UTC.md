@@ -77,6 +77,13 @@ fixture errors, or unexpected requests. Production preflight, native build, clie
 and diff integrity also passed. The candidate is committed locally, unpushed, undeployed, and held
 through the active acquisition isolation window. Evidence:
 `docs/SINGLE_OUTPUT_PROJECT_CONTINUITY_CANDIDATE_2026-09-16.md` in the candidate worktree.
+Marketing independently reproduced the **71/71** focused tests and **8/8** explicit browser matrix,
+confirmed the one-action/one-offer/one-intent boundary and exact Project destination, and accepted
+the clean local source state without authorizing a release. It also independently reproduced both
+pairwise merge-tree hashes and retained runtime, cache, campaign, and verifier guards. Receipts:
+`ask-crump-marketing/measurement/SINGLE_OUTPUT_PROJECT_CONTINUITY_SOURCE_ACCEPTANCE_2026-09-16_1457.md`
+and
+`ask-crump-marketing/measurement/HELD_CANDIDATE_PAIRWISE_MERGE_AUDIT_ACCEPTANCE_2026-09-16_1459.md`.
 
 The refreshed `draft-to-clearer` candidate at exact current production base `7833d89` and evidence
 HEAD `f030814` also passes Marketing's current cross-repository gates when executed against that
@@ -127,16 +134,14 @@ publishing any cumulative-revenue or unit-economics figure.
 
 ## Coordination boundary
 
-Ask Crump API `v0.136.0` is source-complete at
-`e4ff4f5e2d6b8d10e3b872386c3a728ea1897120`, with documentation at
-`c942a44ba4a444253f549d13d177c5c7dc0b3556`; hosted runs 347 and 348 passed. Native/durable
-memory, private retrieval, accepted checkpoints, checkpoint extensions, and checkpoint-aware
-recorded voice now keep fixed policy in developer messages while owner-selected data travels in
-typed user-level envelopes; local turn/style selectors do not treat those envelopes as requests.
-There is no request/response schema, SDK, migration, shared-table, provider, credential, billing,
-or production change. Experimental realtime continuity remains outside the claim. Stable API
-production remains `v0.49.1`; Product will not integrate, deploy, or advertise the private source
-receipt without an explicit API deployment and rollback handoff.
+Ask Crump API `v0.138.0` is source-complete at documentation HEAD
+`d06aae9`, with feature commit `365d8ed`; hosted runs 351 and 352 passed. The additive source contract
+adds bounded private EPUB ingestion with spine-ordered searchable text, encrypted
+storage/retrieval, ebook section counts, active-content/encryption/entity/path/archive-bomb
+rejection, SDK typing/docs, and an EPUB-only production smoke. There is no API deployment, database
+migration, shared application-table, provider credential, or billing change. Stable API production
+remains `v0.49.1`; Product will not integrate, deploy, or advertise the private source receipt
+without an explicit API deployment, rollback handoff, and then-current product acceptance pass.
 
 ## First acquisition cell is live
 

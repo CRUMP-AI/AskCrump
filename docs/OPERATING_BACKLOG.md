@@ -1393,6 +1393,16 @@ start from then-current production and rerun all gates; this proof does not auth
 campaigns or changing the live cell. Evidence:
 `docs/HELD_CANDIDATE_INTEGRATION_AUDIT_2026-09-16.md`.
 
+Marketing independently accepted the held product source after reproducing **71/71** focused tests
+and the **8/8** explicit browser matrix, and separately reproduced both pairwise merge-tree hashes.
+Its receipts confirm one output action, one offer, one intent, exact Project reopening, retained
+feedback, correct output roles, zero browser/fixture/unexpected-request errors, and retained runtime,
+cache, campaign, and verifier guards. This strengthens release confidence but does not change the
+hold or replace complete then-current-base integration validation. Receipts:
+`ask-crump-marketing/measurement/SINGLE_OUTPUT_PROJECT_CONTINUITY_SOURCE_ACCEPTANCE_2026-09-16_1457.md`
+and
+`ask-crump-marketing/measurement/HELD_CANDIDATE_PAIRWISE_MERGE_AUDIT_ACCEPTANCE_2026-09-16_1459.md`.
+
 The early Facebook cell remains technically healthy but conversion-undecided. Through
 **2026-09-16 18:59:24 UTC**, Vercel returned no runtime-error cluster, no warning/error/fatal log,
 at least **100 HTTP 200** responses, and empty explicit 3xx/4xx/5xx request-path groups. The exact
