@@ -56,7 +56,13 @@ def is_loopback_host(raw_host: str | None) -> bool:
     if host == "localhost":
         return True
     try:
-        return ipaddress.ip_address(host).is_loopback
+        if "/" not in host:
+            return ipaddress.ip_address(host).is_loopback
+        interface = ipaddress.ip_interface(host)
+        return (
+            interface.ip.is_loopback
+            and interface.network.prefixlen == interface.max_prefixlen
+        )
     except ValueError:
         return False
 

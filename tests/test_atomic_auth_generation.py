@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import ast
+import ipaddress
 import json
 from copy import deepcopy
 from pathlib import Path
@@ -317,6 +319,33 @@ def test_atomic_auth_postgres_gate_requires_owned_cluster_attestation() -> None:
     assert "not a loopback proxy or tunnel" in harness
     assert "cannot detect a loopback proxy or tunnel" in documentation
     assert "will not connect to" not in documentation
+
+
+def test_atomic_auth_postgres_loopback_parser_accepts_postgres_host_masks_only() -> None:
+    harness = POSTGRES_HARNESS.read_text(encoding="utf-8")
+    tree = ast.parse(harness)
+    function = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "is_loopback_host"
+    )
+    namespace = {"ipaddress": ipaddress}
+    exec(compile(ast.Module(body=[function], type_ignores=[]), str(POSTGRES_HARNESS), "exec"), namespace)
+    is_loopback_host = namespace["is_loopback_host"]
+
+    for value in ("localhost", "127.0.0.1", "127.0.0.1/32", "::1", "::1/128", "[::1]"):
+        assert is_loopback_host(value) is True
+
+    for value in (
+        None,
+        "",
+        "127.0.0.1/8",
+        "127.0.0.1,10.0.0.1",
+        "10.0.0.1",
+        "10.0.0.1/32",
+        "example.com",
+    ):
+        assert is_loopback_host(value) is False
 
 
 def test_atomic_auth_postgres_cleanup_never_drops_an_uncreated_name() -> None:
