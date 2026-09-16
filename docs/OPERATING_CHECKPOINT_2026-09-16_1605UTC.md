@@ -79,11 +79,14 @@ their existing guarded test boundaries and were not executed against production.
 
 ## Candidate readiness
 
-- `draft-to-clearer`: prepared from the prior production base `8545cea72a7b8f1af0072f635e19bc19d5d736a2`;
-  functional commit `0a942111324517a84a41e509ddef2fda23dfc41d`; evidence HEAD
-  `78bb2f4b503550c0342da7499ca07ed1bb06ea61`. Marketing independently accepted that frozen
-  source/staged candidate. It now requires a refresh onto current production before any release;
-  public release remains held.
+- `draft-to-clearer`: refreshed onto exact current production base
+  `7833d89e2e5ee419fd27757f82c4fff92beed295`; functional commit
+  `f43dd2d8970f4094b0cc2399301e32981fb1655b`; evidence HEAD
+  `ffddec3ef01f9f82b6a5a01b0c08d894c3a45af9`. Full Python passed 1,148/1,148, focused
+  attribution/button coverage 72/72, JavaScript 54 files with 13/13 campaign cases, browser
+  controls 49/49, and build, credential, compile, diff, and lockfile-parity gates are green. The
+  candidate has been handed back to Marketing for exact-source revalidation; public release
+  remains held.
 - `resume-you-can-defend`: rebased onto exact current production base
   `7833d89e2e5ee419fd27757f82c4fff92beed295`; Feed registration commit `ee84101`; Instagram
   profile-link extension commit `4592aad`; evidence HEAD
