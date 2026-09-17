@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MIGRATION = ROOT / "migrations" / "20260917234000_ai_gateway_cost_observability.sql"
+MIGRATION = ROOT / "migrations" / "20260917233900_ai_gateway_cost_observability.sql"
 
 
 def test_gateway_cost_migration_is_content_free_and_service_role_only():
