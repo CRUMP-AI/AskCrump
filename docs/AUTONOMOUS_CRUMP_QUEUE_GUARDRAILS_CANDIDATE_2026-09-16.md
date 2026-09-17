@@ -1,6 +1,6 @@
 # Autonomous Crump queue guardrails — disabled review candidate
 
-Status: **local review candidate only; feature remains disabled; migration is unapplied; no push or deployment**
+Status: **local review candidate only; feature remains disabled; migration is unapplied; candidate branch is unpushed and undeployed**
 
 Base: `1015069440a06f426c5281a631deed0ec451ecd5`
 
@@ -99,8 +99,8 @@ Customer deletion still cascades these task/user-linked receipts. Global UTC-day
 
 Completed locally:
 
-- focused queue/worker/foundation tests: **57 passed**;
-- complete Python suite: **1,211 collected; 1,210 passed; one environment-dependent skip**;
+- focused queue/worker/foundation tests: **62 passed**;
+- complete Python suite: **1,213 collected; 1,212 passed; one environment-dependent skip**;
 - changed-file Ruff: passed;
 - changed Python compilation: passed;
 - JavaScript validation: **54 files passed**;
@@ -110,15 +110,19 @@ Completed locally:
 - Git diff integrity: passed;
 - deterministic executable race oracle: two simultaneous different-task acceptances for one user produce exactly one winner in the model;
 - deterministic scheduler tests: reserved manuscript turn, code-deferred yield, UTC cycle, and separate check-in schedule all passed;
-- static migration tests: lock order, private privileges, direct-insert rejection, stable create replay, owner-scoped Project admission, deletion-invariant global facts, expired-task recovery, final-attempt terminalization, fit-aware fair selection, fixed bounds, pre-charge rejection ordering, content-free schemas, old-claim revocation, generic-transition closure, and both disabled release gates passed.
+- static migration tests: lock order, private privileges, direct-insert rejection, stable create replay, owner-scoped Project admission, ready-work-before-cap ordering, deletion-invariant global facts, expired-task recovery, final-attempt terminalization, fit-aware fair selection, fixed bounds, pre-charge rejection ordering, content-free schemas, old-claim revocation, generic-transition closure, and both disabled release gates passed.
 
-The workstation does not currently provide Docker, `psql`, or `psycopg`, so **no real PostgreSQL runtime or concurrency pass is claimed**. `scripts/run_autonomous_crump_guardrails_postgres.py` is the required next gate. It refuses non-loopback hosts, refuses database names outside `askcrump_guardrails_*`, requires an exact ownership attestation, and refuses any database with an existing public table. Against a fresh caller-owned local database it now exercises concurrent per-user/global queue admission, same-token create replay singularity, service-role direct-insert rejection, cross-owner Project rejection, concurrent same-user acceptance, deletion-invariant global counters, per-user/global accepted-run limits, cross-Project stale-task recovery, least-recently-served and fit-aware claim order, active-lease deferral, attempt-five terminalization without attempt six, and per-user/global model-start and declared-Sandbox-second limits. The manual-only `autonomous-crump-guardrails-postgres.yml` workflow prepares that exact owned-disposable gate on PostgreSQL 15 and 17 with pinned `psycopg[binary]==3.3.5`; it was added for review but was not pushed or run.
+Real PostgreSQL evidence now exists for the immediately preceding repaired source identity `7359a742c083a9a022ac53baf57b839a02116a19`. CI-only mirror `17f94113009183e94f00581ce1e85d0d3b2e76d5` differs from that source only by the three-line branch trigger needed to run the otherwise manual workflow. [GitHub Actions run 35167844192](https://github.com/CRUMP-AI/AskCrump/actions/runs/35167844192) passed both caller-owned disposable PostgreSQL 15 and PostgreSQL 17 jobs.
+
+That CI gate was deliberately **not Supabase** and did not touch any hosted, shared, staging, production, or customer database. `scripts/run_autonomous_crump_guardrails_postgres.py` refuses non-loopback hosts, refuses database names outside `askcrump_guardrails_*`, requires an exact ownership attestation, and refuses any database with an existing public table. It exercises concurrent per-user/global queue admission, same-token create replay singularity, service-role direct-insert rejection, cross-owner Project rejection, concurrent same-user acceptance, deletion-invariant global counters, per-user/global accepted-run limits, cross-Project stale-task recovery, least-recently-served and fit-aware claim order, active-lease deferral, attempt-five terminalization without attempt six, and per-user/global model-start and declared-Sandbox-second limits.
+
+This follow-up repair additionally proves that an empty queue returns `no_work` while the active-lease ceiling is saturated and while the UTC-day model-start ceiling is saturated. It also runs a positive `SET ROLE service_role` same-owner call through the `SECURITY DEFINER` queue-admission RPC after direct table INSERT has been revoked, and requires exactly one `task.created` event. Those new fixtures are committed only in this local candidate, so the exact repaired tip still requires the same owned-disposable PostgreSQL 15/17 matrix rerun before release acceptance; the earlier successful run is preserved as baseline evidence, not misrepresented as proof of later bytes.
 
 ## Release hold / remaining P0s
 
 Do not apply, merge, push, deploy, or enable this candidate until all of the following are complete:
 
-1. Run the owned-disposable PostgreSQL gate on PostgreSQL 15 and 17 and preserve the receipts.
+1. Rerun the updated owned-disposable PostgreSQL gate on PostgreSQL 15 and 17 for the exact repaired commit and preserve both receipts; the successful baseline run above does not cover later fixture/SQL bytes.
 2. Independently review SQL semantics, indexes, lock order, deadlock behavior, and PostgREST JSON shapes.
 3. Re-read the fresh remote migration ledger and resolve any later migration before application.
 4. Prove the complete application suite and protected CI on the eventual integration identity.
