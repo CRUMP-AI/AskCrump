@@ -158,12 +158,21 @@ def _create_identity(connection, label: str) -> tuple[str, str]:
     return user_id, project_id
 
 
-def _create_task(connection, user_id: str, project_id: str, label: str) -> dict:
+def _create_task(
+    connection,
+    user_id: str,
+    project_id: str,
+    label: str,
+    *,
+    creation_token: str | None = None,
+    max_duration_seconds: int = 180,
+) -> dict:
+    token = creation_token or str(uuid4())
     return _scalar(
         connection,
-        "select public.create_code_task_guarded(%s,%s,%s,'implement',"
-        "'https://github.com/openai/codex.git','main',180)",
-        (user_id, project_id, label),
+        "select public.create_code_task_guarded(%s,%s,%s,%s,'implement',"
+        "'https://github.com/openai/codex.git','main',%s)",
+        (user_id, project_id, token, label, max_duration_seconds),
     )
 
 
@@ -183,6 +192,23 @@ def _concurrent_create(dsn: str, user_id: str, project_id: str, index: int) -> d
         return _create_task(connection, user_id, project_id, f"queued-{index}")
 
 
+def _replay_create(
+    dsn: str,
+    user_id: str,
+    project_id: str,
+    creation_token: str,
+) -> dict:
+    psycopg = _dependency()
+    with psycopg.connect(dsn, autocommit=True) as connection:
+        return _create_task(
+            connection,
+            user_id,
+            project_id,
+            "replay-safe-create",
+            creation_token=creation_token,
+        )
+
+
 def main() -> int:
     psycopg = _dependency()
     dsn = _validated_dsn()
@@ -200,7 +226,79 @@ def main() -> int:
         for path in MIGRATIONS:
             connection.execute(path.read_text(encoding="utf-8"))
 
+        owner_user, owner_project = _create_identity(connection, "ownership-a")
+        other_user, other_project = _create_identity(connection, "ownership-b")
+        connection.execute("set role service_role")
+        direct_insert_rejected = False
+        try:
+            connection.execute(
+                "insert into public.code_tasks "
+                "(user_id,project_id,creation_token,objective,mode,source_repo_url,"
+                "source_ref,max_duration_seconds) values (%s,%s,%s,'forged','implement',"
+                "'https://github.com/openai/codex.git','main',180)",
+                (owner_user, owner_project, str(uuid4())),
+            )
+        except psycopg.errors.InsufficientPrivilege:
+            direct_insert_rejected = True
+        finally:
+            connection.execute("reset role")
+        if not direct_insert_rejected:
+            raise AssertionError("service_role direct code_tasks INSERT was not rejected")
+
+        connection.execute("set role service_role")
+        cross_owner = _scalar(
+            connection,
+            "select public.create_code_task_guarded(%s,%s,%s,'cross-owner','implement',"
+            "'https://github.com/openai/codex.git','main',180)",
+            (owner_user, other_project, str(uuid4())),
+        )
+        connection.execute("reset role")
+        if cross_owner.get("reason") != "project_not_found":
+            raise AssertionError((cross_owner, owner_user, other_user, other_project))
+
+        replay_user, replay_project = _create_identity(connection, "create-replay")
+
         queue_user, queue_project = _create_identity(connection, "queue-race")
+
+    replay_token = str(uuid4())
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        replay_results = list(
+            pool.map(
+                lambda _index: _replay_create(
+                    dsn,
+                    replay_user,
+                    replay_project,
+                    replay_token,
+                ),
+                range(2),
+            )
+        )
+    if not all(result.get("created") is True for result in replay_results):
+        raise AssertionError(replay_results)
+    if sorted(bool(result.get("replayed")) for result in replay_results) != [False, True]:
+        raise AssertionError(replay_results)
+    replay_task_ids = {result["task"]["id"] for result in replay_results}
+    if len(replay_task_ids) != 1:
+        raise AssertionError(replay_results)
+    with psycopg.connect(dsn, autocommit=True) as connection:
+        replay_task_id = next(iter(replay_task_ids))
+        if _scalar(
+            connection,
+            "select count(*) from public.code_tasks where creation_token=%s",
+            (replay_token,),
+        ) != 1:
+            raise AssertionError("create replay inserted more than one task")
+        if _scalar(
+            connection,
+            "select count(*) from public.code_task_events "
+            "where task_id=%s and event_type='task.created'",
+            (replay_task_id,),
+        ) != 1:
+            raise AssertionError("create replay inserted more than one creation event")
+        connection.execute(
+            "update public.code_tasks set status='cancelled', completed_at=now() where id=%s",
+            (replay_task_id,),
+        )
 
     with ThreadPoolExecutor(max_workers=8) as pool:
         queue_results = list(
@@ -307,6 +405,16 @@ def main() -> int:
             (fair_users[0][2], fair_users[0][0]),
         )
         connection.execute(
+            "insert into public.code_guardrail_global_daily_facts as daily "
+            "(budget_day,accepted_count,model_start_count,declared_sandbox_seconds) "
+            "values ((current_timestamp at time zone 'UTC')::date,0,1,30) "
+            "on conflict (budget_day) do update set "
+            "model_start_count=daily.model_start_count+1, "
+            "declared_sandbox_seconds="
+            "daily.declared_sandbox_seconds+30, "
+            "updated_at=now()"
+        )
+        connection.execute(
             "update public.code_tasks set attempt_count=1 where id=%s",
             (fair_users[0][2],),
         )
@@ -372,6 +480,43 @@ def main() -> int:
         if global_start_deferred.get("reason") != "global_daily_model_start_limit":
             raise AssertionError(global_start_deferred)
 
+        global_model_fact_before = _scalar(
+            connection,
+            "select model_start_count from public.code_guardrail_global_daily_facts "
+            "where budget_day=(current_timestamp at time zone 'UTC')::date",
+        )
+        linked_model_receipts_before = _scalar(
+            connection,
+            "select count(*) from public.code_guardrail_receipts "
+            "where budget_day=(current_timestamp at time zone 'UTC')::date "
+            "and receipt_kind='model_start'",
+        )
+        connection.execute("delete from public.users where id=%s", (fair_users[0][0],))
+        linked_model_receipts_after = _scalar(
+            connection,
+            "select count(*) from public.code_guardrail_receipts "
+            "where budget_day=(current_timestamp at time zone 'UTC')::date "
+            "and receipt_kind='model_start'",
+        )
+        global_model_fact_after = _scalar(
+            connection,
+            "select model_start_count from public.code_guardrail_global_daily_facts "
+            "where budget_day=(current_timestamp at time zone 'UTC')::date",
+        )
+        if linked_model_receipts_after != linked_model_receipts_before - 1:
+            raise AssertionError(
+                (linked_model_receipts_before, linked_model_receipts_after)
+            )
+        if global_model_fact_after != global_model_fact_before:
+            raise AssertionError((global_model_fact_before, global_model_fact_after))
+        deletion_invariant_model_deferred = _scalar(
+            connection,
+            "select public.claim_code_task_guarded(225,%s)",
+            (str(uuid4()),),
+        )
+        if deletion_invariant_model_deferred.get("reason") != "global_daily_model_start_limit":
+            raise AssertionError(deletion_invariant_model_deferred)
+
         daily_user, daily_project = _create_identity(connection, "daily-accept")
         for index in range(3):
             daily_task = _create_task(
@@ -404,10 +549,12 @@ def main() -> int:
         connection.execute(
             "update public.code_guardrail_limits set global_daily_accept_limit=10 where id=1"
         )
+        global_accept_users: list[str] = []
         for index in range(4):
             global_user, global_project = _create_identity(
                 connection, f"global-accept-{index}"
             )
+            global_accept_users.append(global_user)
             global_task = _create_task(
                 connection, global_user, global_project, f"global-accept-{index}"
             )["task"]
@@ -438,6 +585,265 @@ def main() -> int:
         if global_accept_deferred.get("reason") != "global_daily_accept_limit":
             raise AssertionError(global_accept_deferred)
 
+        accepted_fact_before = _scalar(
+            connection,
+            "select accepted_count from public.code_guardrail_global_daily_facts "
+            "where budget_day=(current_timestamp at time zone 'UTC')::date",
+        )
+        linked_accepted_before = _scalar(
+            connection,
+            "select count(*) from public.code_guardrail_receipts "
+            "where budget_day=(current_timestamp at time zone 'UTC')::date "
+            "and receipt_kind='accepted'",
+        )
+        connection.execute("delete from public.users where id=%s", (global_accept_users[0],))
+        linked_accepted_after = _scalar(
+            connection,
+            "select count(*) from public.code_guardrail_receipts "
+            "where budget_day=(current_timestamp at time zone 'UTC')::date "
+            "and receipt_kind='accepted'",
+        )
+        accepted_fact_after = _scalar(
+            connection,
+            "select accepted_count from public.code_guardrail_global_daily_facts "
+            "where budget_day=(current_timestamp at time zone 'UTC')::date",
+        )
+        if linked_accepted_after != linked_accepted_before - 1:
+            raise AssertionError((linked_accepted_before, linked_accepted_after))
+        if accepted_fact_after != accepted_fact_before:
+            raise AssertionError((accepted_fact_before, accepted_fact_after))
+        deletion_invariant_accept_deferred = _accept(
+            dsn, blocked_user, blocked_task["id"], str(uuid4())
+        )
+        if deletion_invariant_accept_deferred.get("reason") != "global_daily_accept_limit":
+            raise AssertionError(deletion_invariant_accept_deferred)
+
+        # Start isolated proof phases in the same disposable database. Resetting
+        # only private fixture counters here lets each semantic edge be asserted
+        # without weakening the production functions under test.
+        connection.execute(
+            "update public.code_tasks set status='completed', completed_at=now(), "
+            "lease_token=null, lease_expires_at=null "
+            "where usage_receipt is not null and status in "
+            "('queued','provisioning','running','awaiting_approval','verifying')"
+        )
+        connection.execute(
+            "update public.code_guardrail_global_daily_facts set "
+            "accepted_count=0, model_start_count=0, declared_sandbox_seconds=0, "
+            "updated_at=now() where budget_day=(current_timestamp at time zone 'UTC')::date"
+        )
+        connection.execute(
+            "update public.code_guardrail_limits set global_daily_accept_limit=30, "
+            "global_daily_model_start_limit=24, global_daily_sandbox_seconds=4320, "
+            "user_daily_sandbox_seconds=720, global_active_lease_limit=2 where id=1"
+        )
+
+        stale_user, stale_project_a = _create_identity(connection, "stale-cross-project")
+        stale_project_b = str(uuid4())
+        connection.execute(
+            "insert into public.projects (id,user_id,name) values (%s,%s,'second-project')",
+            (stale_project_b, stale_user),
+        )
+        stale_task = _create_task(
+            connection, stale_user, stale_project_a, "stale-project-a"
+        )["task"]
+        connection.execute(
+            "update public.code_tasks set source_ref=%s, base_revision=%s where id=%s",
+            ("a" * 40, "a" * 40, stale_task["id"]),
+        )
+        stale_accepted = _accept(dsn, stale_user, stale_task["id"], str(uuid4()))
+        if stale_accepted.get("accepted") is not True:
+            raise AssertionError(stale_accepted)
+        connection.execute(
+            "update public.code_tasks set expires_at=now()-interval '1 second' where id=%s",
+            (stale_task["id"],),
+        )
+        replacement_task = _create_task(
+            connection, stale_user, stale_project_b, "replacement-project-b"
+        )["task"]
+        connection.execute(
+            "update public.code_tasks set source_ref=%s, base_revision=%s where id=%s",
+            ("a" * 40, "a" * 40, replacement_task["id"]),
+        )
+        replacement_accepted = _accept(
+            dsn, stale_user, replacement_task["id"], str(uuid4())
+        )
+        if replacement_accepted.get("accepted") is not True:
+            raise AssertionError(replacement_accepted)
+        stale_state = _scalar(
+            connection,
+            "select jsonb_build_object('status',status,'failure',failure_code,"
+            "'payment',payment_source) from public.code_tasks where id=%s",
+            (stale_task["id"],),
+        )
+        if stale_state != {
+            "status": "cancelled",
+            "failure": "CODE_TASK_EXPIRED",
+            "payment": "refund_pending",
+        }:
+            raise AssertionError(stale_state)
+        if _scalar(
+            connection,
+            "select count(*) from public.code_task_events where task_id=%s "
+            "and event_type='task.cancelled' and payload->>'failureCode'='CODE_TASK_EXPIRED'",
+            (stale_task["id"],),
+        ) != 1:
+            raise AssertionError("expired cross-Project task was not reconciled exactly once")
+        connection.execute(
+            "update public.code_tasks set status='completed', completed_at=now() where id=%s",
+            (replacement_task["id"],),
+        )
+
+        retry_user, retry_project = _create_identity(connection, "retry-limit-five")
+        retry_task = _create_task(
+            connection, retry_user, retry_project, "retry-limit-five", max_duration_seconds=30
+        )["task"]
+        connection.execute(
+            "update public.code_tasks set source_ref=%s, base_revision=%s where id=%s",
+            ("a" * 40, "a" * 40, retry_task["id"]),
+        )
+        retry_accepted = _accept(dsn, retry_user, retry_task["id"], str(uuid4()))
+        if retry_accepted.get("accepted") is not True:
+            raise AssertionError(retry_accepted)
+        connection.execute(
+            "update public.code_tasks set attempt_count=5,max_attempts=5,status='provisioning',"
+            "lease_token=%s,lease_expires_at=now()-interval '1 second' where id=%s",
+            (str(uuid4()), retry_task["id"]),
+        )
+        connection.execute(
+            "insert into public.code_guardrail_receipts "
+            "(task_id,user_id,budget_day,receipt_kind,attempt_number,declared_sandbox_seconds) "
+            "select %s,%s,(current_timestamp at time zone 'UTC')::date,'model_start',"
+            "attempt,30 from generate_series(1,5) as attempts(attempt)",
+            (retry_task["id"], retry_user),
+        )
+        connection.execute(
+            "update public.code_guardrail_global_daily_facts set model_start_count=5,"
+            "declared_sandbox_seconds=150,updated_at=now() "
+            "where budget_day=(current_timestamp at time zone 'UTC')::date"
+        )
+        retry_facts_before = _scalar(
+            connection,
+            "select jsonb_build_array(model_start_count,declared_sandbox_seconds) "
+            "from public.code_guardrail_global_daily_facts "
+            "where budget_day=(current_timestamp at time zone 'UTC')::date",
+        )
+        retry_terminalized = _scalar(
+            connection,
+            "select public.claim_code_task_guarded(225,%s)",
+            (str(uuid4()),),
+        )
+        if not (
+            retry_terminalized.get("handled") is True
+            and retry_terminalized.get("terminalized") is True
+            and retry_terminalized.get("claimed") is False
+            and retry_terminalized.get("reason") == "retry_limit_exhausted"
+        ):
+            raise AssertionError(retry_terminalized)
+        if retry_terminalized["task"]["attempt_count"] != 5:
+            raise AssertionError(retry_terminalized)
+        retry_facts_after = _scalar(
+            connection,
+            "select jsonb_build_array(model_start_count,declared_sandbox_seconds) "
+            "from public.code_guardrail_global_daily_facts "
+            "where budget_day=(current_timestamp at time zone 'UTC')::date",
+        )
+        if retry_facts_after != retry_facts_before:
+            raise AssertionError((retry_facts_before, retry_facts_after))
+        if _scalar(
+            connection,
+            "select count(*) from public.code_guardrail_receipts where task_id=%s "
+            "and receipt_kind='model_start'",
+            (retry_task["id"],),
+        ) != 5:
+            raise AssertionError("retry exhaustion reserved an extra compute attempt")
+        retry_state = _scalar(
+            connection,
+            "select jsonb_build_object('status',status,'failure',failure_code,"
+            "'payment',payment_source) from public.code_tasks where id=%s",
+            (retry_task["id"],),
+        )
+        if retry_state != {
+            "status": "failed",
+            "failure": "CODE_RETRY_LIMIT",
+            "payment": "refund_pending",
+        }:
+            raise AssertionError(retry_state)
+
+        connection.execute(
+            "update public.code_guardrail_global_daily_facts set model_start_count=0,"
+            "declared_sandbox_seconds=240,updated_at=now() "
+            "where budget_day=(current_timestamp at time zone 'UTC')::date"
+        )
+        connection.execute(
+            "update public.code_guardrail_limits set global_daily_model_start_limit=24,"
+            "global_daily_sandbox_seconds=300,user_daily_sandbox_seconds=720 where id=1"
+        )
+        large_user, large_project = _create_identity(connection, "large-first")
+        small_user, small_project = _create_identity(connection, "small-fitting")
+        large_task = _create_task(
+            connection,
+            large_user,
+            large_project,
+            "large-first",
+            max_duration_seconds=240,
+        )["task"]
+        small_task = _create_task(
+            connection,
+            small_user,
+            small_project,
+            "small-fitting",
+            max_duration_seconds=30,
+        )["task"]
+        for task_row, user_id in ((large_task, large_user), (small_task, small_user)):
+            connection.execute(
+                "update public.code_tasks set source_ref=%s, base_revision=%s where id=%s",
+                ("a" * 40, "a" * 40, task_row["id"]),
+            )
+            accepted = _accept(dsn, user_id, task_row["id"], str(uuid4()))
+            if accepted.get("accepted") is not True:
+                raise AssertionError(accepted)
+        fitting_claim = _scalar(
+            connection,
+            "select public.claim_code_task_guarded(225,%s)",
+            (str(uuid4()),),
+        )
+        if fitting_claim.get("claimed") is not True:
+            raise AssertionError(fitting_claim)
+        if fitting_claim["task"]["id"] != small_task["id"]:
+            raise AssertionError((fitting_claim, large_task, small_task))
+        connection.execute(
+            "update public.code_tasks set status='completed',completed_at=now(),"
+            "lease_token=null,lease_expires_at=null where id=%s",
+            (small_task["id"],),
+        )
+        no_fitting_claim = _scalar(
+            connection,
+            "select public.claim_code_task_guarded(225,%s)",
+            (str(uuid4()),),
+        )
+        if no_fitting_claim.get("reason") != "global_daily_sandbox_seconds":
+            raise AssertionError(no_fitting_claim)
+        if no_fitting_claim.get("capacityState") != "no_fitting_task":
+            raise AssertionError(no_fitting_claim)
+        if int(no_fitting_claim.get("retryAfterSeconds") or 0) <= 0:
+            raise AssertionError(no_fitting_claim)
+        connection.execute(
+            "update public.code_guardrail_global_daily_facts set "
+            "declared_sandbox_seconds=300,updated_at=now() "
+            "where budget_day=(current_timestamp at time zone 'UTC')::date"
+        )
+        exhausted_claim = _scalar(
+            connection,
+            "select public.claim_code_task_guarded(225,%s)",
+            (str(uuid4()),),
+        )
+        if not (
+            exhausted_claim.get("reason") == "global_daily_sandbox_seconds"
+            and exhausted_claim.get("capacityState") == "exhausted"
+        ):
+            raise AssertionError(exhausted_claim)
+
     print(
         json.dumps(
             {
@@ -455,6 +861,15 @@ def main() -> int:
                 "globalModelStartBudgetDeferred": True,
                 "userDailyAcceptDeferred": True,
                 "globalDailyAcceptDeferred": True,
+                "createReplaySingular": True,
+                "directInsertRejected": direct_insert_rejected,
+                "crossOwnerProjectRejected": True,
+                "globalFactsSurviveUserDeletion": True,
+                "expiredCrossProjectTaskReconciled": True,
+                "retryLimitFiveTerminalizedBeforeCompute": True,
+                "smallFittingTaskBypassedOversizedTask": True,
+                "noFittingTaskDeferredUntilUtcReset": True,
+                "exhaustedCapacityDistinguished": True,
                 "database": "owned-loopback-disposable",
             },
             sort_keys=True,

@@ -35,7 +35,9 @@ These are circuit breakers, not advertised entitlements or promises. A later pri
 
 ### Queue admission
 
-`create_code_task_guarded` acquires the global advisory transaction lock and then the user advisory transaction lock, checks both queue limits, owner-checks the Project, inserts the task, and appends the content-free `task.created` event in one transaction. A defensive insert trigger applies the same global → user lock order and rejects an unguarded direct insert.
+`create_code_task_guarded` acquires the global advisory transaction lock and then the user advisory transaction lock, checks both queue limits, owner-checks the Project, inserts the task, and appends the content-free `task.created` event in one transaction. The API creates one private UUID replay token before its retry-capable database call. The database binds that token to the exact request, so an uncertain after-commit response returns the original task and cannot create a second task or `task.created` event.
+
+Direct `service_role` INSERT access to `code_tasks` is revoked. Queue admission is the narrowly granted, fixed-search-path `SECURITY DEFINER` function above; all other customer roles remain revoked. Its defensive insert trigger still enforces queued/unaccepted shape and the global → user lock order. The generic Python transition boundary no longer permits `queued → provisioning`, and the old direct `CodeTaskService.claim()` path is removed, so only the guarded acceptance/claim transactions can enter provisioning.
 
 The API no longer inserts `code_tasks` directly. A capacity rejection returns a bounded, truthful retry/deferred response.
 
@@ -50,6 +52,8 @@ The API no longer inserts `code_tasks` directly. A capacity rejection returns a 
 
 A partial unique index is a second database-level defense against two accepted active tasks for one user. Replaying the same private dispatch token returns the existing task without a second charge or budget receipt.
 
+Before the active-task check, the same global → user transaction reconciles expired accepted tasks across all of the user's Projects to `cancelled / CODE_TASK_EXPIRED / refund_pending`, clears their lease, and appends one content-free cancellation event. A stale task in an abandoned Project therefore cannot occupy the partial unique index forever.
+
 ### Worker claim
 
 `claim_code_task_guarded` replaces service-role access to the older unguarded claim function. It:
@@ -57,10 +61,13 @@ A partial unique index is a second database-level defense against two accepted a
 - caps live global leases;
 - skips users who already own a live lease;
 - checks per-user and global UTC-day model-start and declared-Sandbox-second budgets;
-- selects the least-recently-served eligible account first, then oldest ready work;
+- computes remaining global Sandbox seconds before selection and excludes oversized tasks, so an older large task cannot starve a smaller fitting task;
+- selects the least-recently-served eligible account first among fitting tasks, then oldest ready work;
 - acquires locks in global → selected user → task order and uses `FOR UPDATE SKIP LOCKED`;
 - reserves one bounded model start and the task's declared maximum Sandbox seconds before returning compute ownership; and
 - replays the same live claim token without another reservation.
+
+If the final allowed lease has expired, the claim transaction fails the task with `CODE_RETRY_LIMIT`, records `refund_pending` and one content-free failure event, and returns a handled terminal receipt without reserving attempt `max_attempts + 1`, a model start, or additional Sandbox seconds. A queue with work but no task fitting the remaining global seconds receives a truthful UTC-reset deferral; an actually empty queue still returns `no_work`.
 
 The worker returns a content-free deferred state and yields the shared cron invocation when a guardrail prevents a claim.
 
@@ -86,24 +93,26 @@ This bounds manuscript wait under a sustained code queue to less than three sche
 
 It contains no prompt, objective, repository URL/ref, filename/path, patch, result, output, provider, Sandbox name/session, lease token, dispatch token, credential, or customer content. RLS is enabled. PUBLIC, `anon`, and `authenticated` have no table or function access. `service_role` receives only the minimum table privileges and exact RPC execution grants; it cannot update the fixed limit row.
 
+Customer deletion still cascades these task/user-linked receipts. Global UTC-day ceilings instead read a separate private `code_guardrail_global_daily_facts` row containing only the date, accepted count, model-start count, declared Sandbox seconds, and update time. It has no user, task, Project, content, source, path, provider, or token identifier. The acceptance/claim transactions increment it atomically while holding the existing global lock, and no customer deletion cascades to it, so deleting an account cannot reopen global capacity.
+
 ## Verification
 
 Completed locally:
 
-- focused queue/atomic-worker/foundation/observability tests: **56 passed**;
-- complete Python suite: **1,203 collected; 1,202 passed; one environment-dependent skip**;
+- focused queue/worker/foundation tests: **57 passed**;
+- complete Python suite: **1,211 collected; 1,210 passed; one environment-dependent skip**;
 - changed-file Ruff: passed;
 - changed Python compilation: passed;
 - JavaScript validation: **54 files passed**;
 - production build preflight, including its Python compile guard: passed;
 - existing Autonomous Crump desktop/phone/durable/ownership/failed-verification browser review: passed with zero accessibility violations or overflow;
-- client credential scan: passed against the unchanged client source and an existing base-equivalent native `dist` artifact (this isolated worktree intentionally did not generate a new `dist` directory);
+- client credential scan: passed against unchanged client source and a freshly generated isolated native `dist` artifact;
 - Git diff integrity: passed;
 - deterministic executable race oracle: two simultaneous different-task acceptances for one user produce exactly one winner in the model;
 - deterministic scheduler tests: reserved manuscript turn, code-deferred yield, UTC cycle, and separate check-in schedule all passed;
-- static migration tests: lock order, private privileges, fixed bounds, pre-charge rejection ordering, fair selection, content-free receipt schema, old-claim revocation, and both disabled release gates passed.
+- static migration tests: lock order, private privileges, direct-insert rejection, stable create replay, owner-scoped Project admission, deletion-invariant global facts, expired-task recovery, final-attempt terminalization, fit-aware fair selection, fixed bounds, pre-charge rejection ordering, content-free schemas, old-claim revocation, generic-transition closure, and both disabled release gates passed.
 
-The workstation does not currently provide Docker, `psql`, or `psycopg`, so **no real PostgreSQL runtime or concurrency pass is claimed**. `scripts/run_autonomous_crump_guardrails_postgres.py` is the required next gate. It refuses non-loopback hosts, refuses database names outside `askcrump_guardrails_*`, requires an exact ownership attestation, and refuses any database with an existing public table. Against a fresh caller-owned local database it exercises concurrent per-user and global queue admission, concurrent same-user acceptance, receipt singularity, per-user/global accepted-run limits, least-recently-served claim order, active-lease deferral, and per-user/global model-start and declared-Sandbox-second limits. The manual-only `autonomous-crump-guardrails-postgres.yml` workflow prepares that exact owned-disposable gate on PostgreSQL 15 and 17 with pinned `psycopg[binary]==3.3.5`; it was added for review but was not pushed or run.
+The workstation does not currently provide Docker, `psql`, or `psycopg`, so **no real PostgreSQL runtime or concurrency pass is claimed**. `scripts/run_autonomous_crump_guardrails_postgres.py` is the required next gate. It refuses non-loopback hosts, refuses database names outside `askcrump_guardrails_*`, requires an exact ownership attestation, and refuses any database with an existing public table. Against a fresh caller-owned local database it now exercises concurrent per-user/global queue admission, same-token create replay singularity, service-role direct-insert rejection, cross-owner Project rejection, concurrent same-user acceptance, deletion-invariant global counters, per-user/global accepted-run limits, cross-Project stale-task recovery, least-recently-served and fit-aware claim order, active-lease deferral, attempt-five terminalization without attempt six, and per-user/global model-start and declared-Sandbox-second limits. The manual-only `autonomous-crump-guardrails-postgres.yml` workflow prepares that exact owned-disposable gate on PostgreSQL 15 and 17 with pinned `psycopg[binary]==3.3.5`; it was added for review but was not pushed or run.
 
 ## Release hold / remaining P0s
 
