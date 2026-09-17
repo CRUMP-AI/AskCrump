@@ -125,6 +125,7 @@ def test_owned_postgres_gate_refuses_shared_or_nonempty_databases() -> None:
         "serviceRoleGuardedCreateSucceeded",
         "create replay inserted more than one task",
         "globalFactsSurviveUserDeletion",
+        "deletionInvariantCapDeferredWithReadyTask",
         "expiredCrossProjectTaskReconciled",
         "retryLimitFiveTerminalizedBeforeCompute",
         "smallFittingTaskBypassedOversizedTask",
