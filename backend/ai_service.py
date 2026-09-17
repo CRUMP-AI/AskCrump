@@ -3,13 +3,21 @@ from __future__ import annotations
 from dataclasses import dataclass
 import base64
 import binascii
+from decimal import Decimal, InvalidOperation
 import json
+import logging
+import os
 import re
+import time
 from typing import Any
+from uuid import uuid4
 
 import httpx
 
 from .config import Settings
+
+
+logger = logging.getLogger("askcrump.ai")
 
 
 @dataclass(slots=True)
@@ -30,8 +38,9 @@ class AIServiceError(RuntimeError):
 class AIService:
     AI_GATEWAY_URL = 'https://ai-gateway.vercel.sh/v1/chat/completions'
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, db: Any | None = None) -> None:
         self.settings = settings
+        self.db = db
 
     @staticmethod
     def _clean_label(value: Any, *, limit: int = 80) -> str:
@@ -408,6 +417,200 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
             answer = ''
         return answer, choice
 
+    @staticmethod
+    def _gateway_purpose(value: Any) -> str:
+        purpose = str(value or '').strip().lower()
+        aliases = {
+            'creation-router': 'creation-intent',
+        }
+        purpose = aliases.get(purpose, purpose)
+        if purpose in {'chat', 'creation-intent', 'answer-verifier', 'check-in', 'planner'}:
+            return purpose
+        return 'other'
+
+    def _gateway_observability_context(
+        self,
+        *,
+        purpose: str,
+        model: str,
+        provider: str,
+    ) -> dict[str, str]:
+        environment = str(getattr(self.settings, 'environment', 'development') or 'development').lower()
+        if environment not in {'production', 'preview', 'development', 'test'}:
+            environment = 'development'
+        deployment_id = str(os.getenv('VERCEL_DEPLOYMENT_ID') or '').strip()
+        commit_sha = str(os.getenv('VERCEL_GIT_COMMIT_SHA') or '').strip().lower()
+        if environment == 'production' and (
+            not re.fullmatch(r'dpl_[A-Za-z0-9]{8,}', deployment_id)
+            or not re.fullmatch(r'[0-9a-f]{40}', commit_sha)
+        ):
+            raise AIServiceError(
+                'Free AI usage metering is temporarily unavailable.',
+                503,
+                'FREE_AI_OBSERVABILITY_UNAVAILABLE',
+                True,
+                10,
+            )
+        if not deployment_id:
+            deployment_id = 'local'
+        if not commit_sha:
+            commit_sha = '0' * 40
+        authentication_lane = (
+            'api-key-attributed'
+            if str(getattr(self.settings, 'ai_gateway_api_key', None) or '').strip()
+            else 'oidc-project'
+        )
+        return {
+            'environment': environment,
+            'deployment_id': deployment_id,
+            'commit_sha': commit_sha,
+            'purpose': self._gateway_purpose(purpose),
+            'model': model,
+            'provider': provider,
+            'authentication_lane': authentication_lane,
+        }
+
+    @staticmethod
+    def _rpc_truth(value: Any) -> bool:
+        if isinstance(value, list):
+            return bool(value[0]) if value else False
+        return bool(value)
+
+    async def _claim_gateway_receipt(self, context: dict[str, str]) -> str | None:
+        receipt_id = str(uuid4())
+        if self.db is None:
+            if context['environment'] == 'production':
+                raise AIServiceError(
+                    'Free AI usage metering is temporarily unavailable.',
+                    503,
+                    'FREE_AI_OBSERVABILITY_UNAVAILABLE',
+                    True,
+                    10,
+                )
+            return None
+        try:
+            claimed = await self.db.rpc('claim_ai_gateway_cost_receipt', {
+                'p_receipt_id': receipt_id,
+                'p_environment': context['environment'],
+                'p_deployment_id': context['deployment_id'],
+                'p_commit_sha': context['commit_sha'],
+                'p_purpose': context['purpose'],
+                'p_expected_model': context['model'],
+                'p_expected_provider': context['provider'],
+                'p_authentication_lane': context['authentication_lane'],
+            })
+        except Exception as exc:
+            logger.error(
+                'Gateway receipt claim failed environment=%s error_type=%s',
+                context['environment'],
+                type(exc).__name__,
+            )
+            if context['environment'] == 'production':
+                raise AIServiceError(
+                    'Free AI usage metering is temporarily unavailable.',
+                    503,
+                    'FREE_AI_OBSERVABILITY_UNAVAILABLE',
+                    True,
+                    10,
+                ) from exc
+            return None
+        if not self._rpc_truth(claimed):
+            if context['environment'] == 'production':
+                raise AIServiceError(
+                    'Free AI usage metering is temporarily unavailable.',
+                    503,
+                    'FREE_AI_OBSERVABILITY_UNAVAILABLE',
+                    True,
+                    10,
+                )
+            return None
+        return receipt_id
+
+    @staticmethod
+    def _gateway_usage(data: dict[str, Any]) -> tuple[int, int, int, bool]:
+        usage = data.get('usage') if isinstance(data.get('usage'), dict) else {}
+
+        def integer(*keys: str) -> int | None:
+            for key in keys:
+                value = usage.get(key)
+                if isinstance(value, bool):
+                    continue
+                try:
+                    parsed = int(value)
+                except (TypeError, ValueError):
+                    continue
+                if parsed >= 0:
+                    return parsed
+            return None
+
+        input_tokens = integer('prompt_tokens', 'input_tokens')
+        output_tokens = integer('completion_tokens', 'output_tokens')
+        details = usage.get('prompt_tokens_details') or usage.get('input_tokens_details') or {}
+        cached_tokens = 0
+        if isinstance(details, dict):
+            raw_cached = details.get('cached_tokens', details.get('cached_input_tokens', 0))
+            try:
+                cached_tokens = max(0, int(raw_cached or 0))
+            except (TypeError, ValueError):
+                cached_tokens = 0
+        complete = input_tokens is not None and output_tokens is not None
+        return input_tokens or 0, output_tokens or 0, cached_tokens, complete
+
+    @staticmethod
+    def _gateway_cost(data: dict[str, Any]) -> tuple[str | None, bool]:
+        metadata = data.get('providerMetadata') or data.get('provider_metadata') or {}
+        gateway = metadata.get('gateway') if isinstance(metadata, dict) else {}
+        raw_cost = gateway.get('cost') if isinstance(gateway, dict) else None
+        try:
+            cost = Decimal(str(raw_cost))
+        except (InvalidOperation, TypeError, ValueError):
+            return None, False
+        if not cost.is_finite() or cost < 0:
+            return None, False
+        return format(cost, 'f'), True
+
+    async def _settle_gateway_receipt(
+        self,
+        receipt_id: str | None,
+        *,
+        status: str,
+        error_code: str | None,
+        model: str,
+        provider: str,
+        latency_ms: int,
+        data: dict[str, Any] | None = None,
+    ) -> None:
+        if not receipt_id or self.db is None:
+            return
+        response_data = data if isinstance(data, dict) else {}
+        input_tokens, output_tokens, cached_tokens, usage_complete = self._gateway_usage(response_data)
+        gross_cost, cost_complete = self._gateway_cost(response_data)
+        try:
+            settled = await self.db.rpc('settle_ai_gateway_cost_receipt', {
+                'p_receipt_id': receipt_id,
+                'p_status': status,
+                'p_error_code': str(error_code or '')[:80] or None,
+                'p_model': str(model or '')[:120],
+                'p_provider': str(provider or '')[:80],
+                'p_input_tokens': input_tokens,
+                'p_output_tokens': output_tokens,
+                'p_cached_input_tokens': cached_tokens,
+                'p_gross_cost_usd': gross_cost,
+                'p_latency_ms': max(0, min(600_000, int(latency_ms))),
+                'p_usage_receipt_complete': usage_complete,
+                'p_cost_receipt_complete': cost_complete,
+            })
+            if not self._rpc_truth(settled):
+                logger.error('Gateway receipt settlement was rejected status=%s', status)
+        except Exception as exc:
+            # The claimed row remains visibly incomplete, so the aggregate gate
+            # fails closed instead of silently treating missing cost as zero.
+            logger.error(
+                'Gateway receipt settlement failed status=%s error_type=%s',
+                status,
+                type(exc).__name__,
+            )
+
     async def _gateway_completion(
         self,
         *,
@@ -470,6 +673,14 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
             body['tags'] = [f'feature:{clean_purpose}', 'tier:free']
 
         request_timeout = max(10.0, min(290.0, float(timeout_seconds or 90.0)))
+        context = self._gateway_observability_context(
+            purpose=clean_purpose,
+            model=model,
+            provider=provider,
+        )
+        body['tags'] = [f"feature:{context['purpose']}", 'tier:free']
+        receipt_id = await self._claim_gateway_receipt(context)
+        started = time.perf_counter()
         try:
             async with httpx.AsyncClient(
                 timeout=httpx.Timeout(request_timeout, connect=15.0)
@@ -483,8 +694,24 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
                     json=body,
                 )
         except httpx.TimeoutException as exc:
+            await self._settle_gateway_receipt(
+                receipt_id,
+                status='failed',
+                error_code='TIMEOUT',
+                model=model,
+                provider=provider,
+                latency_ms=round((time.perf_counter() - started) * 1000),
+            )
             raise AIServiceError('The free AI response timed out.', 504, 'TIMEOUT', True, 5) from exc
         except httpx.HTTPError as exc:
+            await self._settle_gateway_receipt(
+                receipt_id,
+                status='failed',
+                error_code='NETWORK_ERROR',
+                model=model,
+                provider=provider,
+                latency_ms=round((time.perf_counter() - started) * 1000),
+            )
             raise AIServiceError(
                 'Could not connect to the free AI service.',
                 503,
@@ -494,64 +721,87 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
             ) from exc
 
         if response.status_code >= 400:
+            detail: dict[str, Any] = {}
             try:
-                detail = response.json()
+                raw_detail = response.json()
+                detail = raw_detail if isinstance(raw_detail, dict) else {}
                 error_message = ((detail.get('error') or {}).get('message') or response.text)[:500]
             except (AttributeError, ValueError):
                 error_message = response.text[:500]
-            if response.status_code == 402:
-                raise AIServiceError(
-                    'Free AI capacity is unavailable right now.',
-                    503,
-                    'FREE_AI_BUDGET',
-                    False,
-                    0,
-                )
-            if response.status_code == 429:
-                raise AIServiceError(
-                    'The free AI service is rate limited.',
-                    429,
-                    'FREE_AI_RATE_LIMIT',
-                    True,
-                    30,
-                )
-            if response.status_code in {401, 403}:
-                raise AIServiceError(
-                    'The free AI route is not configured.',
-                    503,
-                    'FREE_AI_NOT_CONFIGURED',
-                    False,
-                    0,
-                )
-            if response.status_code >= 500:
-                raise AIServiceError(
-                    'The free AI service is temporarily overloaded.',
-                    503,
-                    'FREE_AI_OVERLOADED',
-                    True,
-                    10,
-                )
-            if response.status_code == 400 and (
-                'token' in error_message.lower() or 'length' in error_message.lower()
-            ):
-                raise AIServiceError(
-                    'This conversation is too large. Start a new chat or shorten the attachment.',
-                    400,
-                    'CONTEXT_LENGTH',
-                    False,
-                    0,
-                )
-            raise AIServiceError(
+            error = AIServiceError(
                 'The free AI service rejected the request.',
                 502,
                 'FREE_AI_UPSTREAM_ERROR',
                 False,
                 0,
             )
+            receipt_status = 'failed'
+            if response.status_code == 402:
+                error = AIServiceError(
+                    'Free AI capacity is unavailable right now.',
+                    503,
+                    'FREE_AI_BUDGET',
+                    False,
+                    0,
+                )
+                receipt_status = 'budget_rejected'
+            elif response.status_code == 429:
+                error = AIServiceError(
+                    'The free AI service is rate limited.',
+                    429,
+                    'FREE_AI_RATE_LIMIT',
+                    True,
+                    30,
+                )
+                receipt_status = 'rate_limited'
+            elif response.status_code in {401, 403}:
+                error = AIServiceError(
+                    'The free AI route is not configured.',
+                    503,
+                    'FREE_AI_NOT_CONFIGURED',
+                    False,
+                    0,
+                )
+            elif response.status_code >= 500:
+                error = AIServiceError(
+                    'The free AI service is temporarily overloaded.',
+                    503,
+                    'FREE_AI_OVERLOADED',
+                    True,
+                    10,
+                )
+            elif response.status_code == 400 and (
+                'token' in error_message.lower() or 'length' in error_message.lower()
+            ):
+                error = AIServiceError(
+                    'This conversation is too large. Start a new chat or shorten the attachment.',
+                    400,
+                    'CONTEXT_LENGTH',
+                    False,
+                    0,
+                )
+            await self._settle_gateway_receipt(
+                receipt_id,
+                status=receipt_status,
+                error_code=error.code,
+                model=str(detail.get('model') or model),
+                provider=provider,
+                latency_ms=round((time.perf_counter() - started) * 1000),
+                data=detail,
+            )
+            raise error
 
         try:
             data = response.json()
         except ValueError as exc:
+            await self._settle_gateway_receipt(
+                receipt_id,
+                status='failed',
+                error_code='INVALID_UPSTREAM_RESPONSE',
+                model=model,
+                provider=provider,
+                latency_ms=round((time.perf_counter() - started) * 1000),
+            )
             raise AIServiceError(
                 'The free AI service returned an invalid response.',
                 502,
@@ -560,6 +810,14 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
                 5,
             ) from exc
         if not isinstance(data, dict):
+            await self._settle_gateway_receipt(
+                receipt_id,
+                status='failed',
+                error_code='INVALID_UPSTREAM_RESPONSE',
+                model=model,
+                provider=provider,
+                latency_ms=round((time.perf_counter() - started) * 1000),
+            )
             raise AIServiceError(
                 'The free AI service returned an invalid response.',
                 502,
@@ -570,7 +828,25 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
 
         answer, choice = self._gateway_answer(data)
         if not answer:
+            await self._settle_gateway_receipt(
+                receipt_id,
+                status='failed',
+                error_code='EMPTY_RESPONSE',
+                model=str(data.get('model') or model),
+                provider=provider,
+                latency_ms=round((time.perf_counter() - started) * 1000),
+                data=data,
+            )
             raise AIServiceError('The free AI returned an empty response.', 502, 'EMPTY_RESPONSE', True, 5)
+        await self._settle_gateway_receipt(
+            receipt_id,
+            status='completed',
+            error_code=None,
+            model=str(data.get('model') or model),
+            provider=provider,
+            latency_ms=round((time.perf_counter() - started) * 1000),
+            data=data,
+        )
         return {
             'response': answer,
             'model': data.get('model') or model,

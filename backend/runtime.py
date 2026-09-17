@@ -21,7 +21,7 @@ from .push_service import PushService
 
 settings = get_settings()
 db = SupabaseDB(settings)
-ai = AIService(settings)
+ai = AIService(settings, db)
 files = FileService(settings, db)
 features = FeatureService(db)
 projects = ProjectService(db)

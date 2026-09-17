@@ -26,6 +26,7 @@ def _settings(**overrides):
         "brave_api_key": None,
         "openweather_api_key": None,
         "web_search_enabled": False,
+        "environment": "development",
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -212,3 +213,145 @@ def test_visual_analysis_requires_a_paid_plan():
         "subscription_tier": "professional",
         "subscription_status": "active",
     }, "visual_analysis")
+
+
+class ReceiptDB:
+    def __init__(self, *, claim=True, settle=True):
+        self.claim = claim
+        self.settle = settle
+        self.calls = []
+
+    async def rpc(self, name, payload):
+        self.calls.append((name, payload))
+        return self.claim if name == "claim_ai_gateway_cost_receipt" else self.settle
+
+
+def _production_env(monkeypatch):
+    monkeypatch.setenv("VERCEL_DEPLOYMENT_ID", "dpl_1234567890abcdef")
+    monkeypatch.setenv("VERCEL_GIT_COMMIT_SHA", "a" * 40)
+
+
+@pytest.mark.asyncio
+async def test_gateway_cost_receipt_captures_helper_usage_and_actual_cost(monkeypatch):
+    from backend import ai_service as ai_module
+
+    _production_env(monkeypatch)
+    FakeAsyncClient.response = httpx.Response(
+        200,
+        json={
+            "model": "openai/gpt-oss-20b",
+            "choices": [{"message": {"content": "Route it"}, "finish_reason": "stop"}],
+            "usage": {
+                "prompt_tokens": 21,
+                "completion_tokens": 7,
+                "prompt_tokens_details": {"cached_tokens": 3},
+            },
+            "providerMetadata": {"gateway": {"cost": "0.0000042"}},
+        },
+    )
+    monkeypatch.setattr(ai_module.httpx, "AsyncClient", FakeAsyncClient)
+    db = ReceiptDB()
+    service = AIService(_settings(environment="production"), db)
+
+    result = await service.gateway_text(
+        system="Route safely.",
+        prompt="Create a document.",
+        max_tokens=512,
+        timeout_seconds=30,
+        user_id="must-not-be-stored",
+        purpose="creation-router",
+    )
+
+    assert result == "Route it"
+    assert [name for name, _ in db.calls] == [
+        "claim_ai_gateway_cost_receipt",
+        "settle_ai_gateway_cost_receipt",
+    ]
+    claim = db.calls[0][1]
+    settled = db.calls[1][1]
+    assert claim["p_purpose"] == "creation-intent"
+    assert claim["p_authentication_lane"] == "api-key-attributed"
+    assert claim["p_deployment_id"] == "dpl_1234567890abcdef"
+    assert claim["p_commit_sha"] == "a" * 40
+    assert "user" not in " ".join(claim).lower()
+    assert settled["p_status"] == "completed"
+    assert settled["p_input_tokens"] == 21
+    assert settled["p_output_tokens"] == 7
+    assert settled["p_cached_input_tokens"] == 3
+    assert settled["p_gross_cost_usd"] == "0.0000042"
+    assert settled["p_usage_receipt_complete"] is True
+    assert settled["p_cost_receipt_complete"] is True
+    assert "feature:creation-intent" in FakeAsyncClient.calls[0]["json"]["tags"]
+
+
+@pytest.mark.asyncio
+async def test_production_claim_failure_prevents_unobserved_gateway_spend(monkeypatch):
+    from backend import ai_service as ai_module
+
+    _production_env(monkeypatch)
+    monkeypatch.setattr(ai_module.httpx, "AsyncClient", FakeAsyncClient)
+    service = AIService(_settings(environment="production"), ReceiptDB(claim=False))
+
+    with pytest.raises(AIServiceError) as captured:
+        await service.chat({
+            "message": "Hello",
+            "user": {"id": "free-user"},
+            "_userTier": "free",
+        })
+
+    assert captured.value.code == "FREE_AI_OBSERVABILITY_UNAVAILABLE"
+    assert FakeAsyncClient.calls == []
+
+
+@pytest.mark.asyncio
+async def test_missing_gateway_cost_is_visible_and_fails_closed(monkeypatch):
+    from backend import ai_service as ai_module
+
+    _production_env(monkeypatch)
+    FakeAsyncClient.response = httpx.Response(
+        200,
+        json={
+            "model": "openai/gpt-oss-20b",
+            "choices": [{"message": {"content": "Answer"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 4, "completion_tokens": 2},
+        },
+    )
+    monkeypatch.setattr(ai_module.httpx, "AsyncClient", FakeAsyncClient)
+    db = ReceiptDB()
+    service = AIService(_settings(environment="production"), db)
+
+    assert (await service.chat({
+        "message": "Hello",
+        "user": {"id": "free-user"},
+        "_userTier": "free",
+    }))["response"] == "Answer"
+
+    settled = db.calls[1][1]
+    assert settled["p_usage_receipt_complete"] is True
+    assert settled["p_cost_receipt_complete"] is False
+    assert settled["p_gross_cost_usd"] is None
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_is_settled_as_failed_subset(monkeypatch):
+    from backend import ai_service as ai_module
+
+    _production_env(monkeypatch)
+    FakeAsyncClient.response = httpx.Response(
+        429,
+        json={"error": {"message": "rate limited"}},
+    )
+    monkeypatch.setattr(ai_module.httpx, "AsyncClient", FakeAsyncClient)
+    db = ReceiptDB()
+    service = AIService(_settings(environment="production"), db)
+
+    with pytest.raises(AIServiceError) as captured:
+        await service.chat({
+            "message": "Hello",
+            "user": {"id": "free-user"},
+            "_userTier": "free",
+        })
+
+    assert captured.value.code == "FREE_AI_RATE_LIMIT"
+    assert db.calls[1][1]["p_status"] == "rate_limited"
+    assert db.calls[1][1]["p_error_code"] == "FREE_AI_RATE_LIMIT"
