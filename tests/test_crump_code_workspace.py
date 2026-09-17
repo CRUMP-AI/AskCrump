@@ -165,6 +165,17 @@ def test_customer_runtime_uses_autonomous_crump_brand_without_renaming_internal_
     assert "authorized and prepared to share" in workspace
     assert "cannot see secrets" not in workspace.lower()
     assert "autonomous-crump-${String(state.task.id" in workspace
+    assert "Autonomous tasks stay attached to one Ask Crump Project." in workspace
+    assert "No Autonomous tasks in this Project yet." in workspace
+    assert "Untitled Autonomous task" in workspace
+    assert "Loading Autonomous tasks…" in workspace
+    for legacy_task_label in (
+        "Code tasks stay attached",
+        "No code tasks",
+        "Untitled code task",
+        "Loading code tasks",
+    ):
+        assert legacy_task_label not in workspace
     assert "label: 'Autonomous'" in navigation
     assert '"CODE_WORKSPACE_NOT_CONFIGURED"' in routes
     assert "CODE_WORKSPACE_PUBLIC_RELEASED = False" in config

@@ -187,7 +187,7 @@
               <button type="button" id="crumpCodeRefresh" class="crump-code-text-button">Refresh</button>
             </div>
             <select id="crumpCodeProject" class="crump-code-control" aria-describedby="crumpCodeProjectHelp"></select>
-            <p id="crumpCodeProjectHelp" class="crump-code-help">Code tasks stay attached to one Ask Crump Project.</p>
+            <p id="crumpCodeProjectHelp" class="crump-code-help">Autonomous tasks stay attached to one Ask Crump Project.</p>
             <div id="crumpCodeTaskList" class="crump-code-task-list"></div>
           </aside>
           <main class="crump-code-main">
@@ -398,7 +398,7 @@
     if (!state.tasks.length) {
       const empty = document.createElement('p');
       empty.className = 'crump-code-sidebar-empty';
-      empty.textContent = 'No code tasks in this Project yet.';
+      empty.textContent = 'No Autonomous tasks in this Project yet.';
       list.appendChild(empty);
       return;
     }
@@ -409,7 +409,7 @@
       if (state.selectedTaskId === String(task.id || '')) button.classList.add('is-active');
       button.dataset.crumpCodeTask = String(task.id || '');
       const title = document.createElement('strong');
-      title.textContent = String(task.objective || 'Untitled code task').replace(/\s+/g, ' ').trim().slice(0, 90);
+      title.textContent = String(task.objective || 'Untitled Autonomous task').replace(/\s+/g, ' ').trim().slice(0, 90);
       const meta = document.createElement('span');
       meta.textContent = `${statusLabel(task.status, task.failure_code)} · ${formatDate(task.updated_at || task.created_at)}`;
       button.append(title, meta);
@@ -853,7 +853,7 @@
     renderTasks();
     renderDetail();
     if (!projectId) return;
-    setNotice('Loading code tasks…');
+    setNotice('Loading Autonomous tasks…');
     try {
       const data = await api(`/api/projects/${encodeURIComponent(projectId)}/code/tasks`);
       if (generation !== state.tasksRequestGeneration || state.projectId !== projectId) return;
