@@ -252,7 +252,7 @@ def main() -> int:
             service_role_created = _scalar(
                 connection,
                 "select public.create_code_task_guarded(%s,%s,%s,'service-role-owned',"
-                "'implement','https://github.com/openai/codex.git','main',180)",
+                "'implement','https://github.com/openai/codex.git','main','syntax_only',180)",
                 (owner_user, owner_project, service_role_creation_token),
             )
         finally:

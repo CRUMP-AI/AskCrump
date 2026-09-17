@@ -119,6 +119,10 @@ def test_owned_postgres_gate_refuses_shared_or_nonempty_databases() -> None:
     assert "SUPABASE_URL" not in source
     assert "SUPABASE_SERVICE_KEY" not in source
     assert "service_role_created = _scalar(" in source
+    assert (
+        "'implement','https://github.com/openai/codex.git','main','syntax_only',180)"
+        in source
+    )
     assert "service_role guarded creation did not produce exactly one task.created event" in source
     for runtime_proof in (
         "service_role direct code_tasks INSERT was not rejected",
@@ -139,6 +143,7 @@ def test_owned_postgres_gate_refuses_shared_or_nonempty_databases() -> None:
         "20260827145025_crump_code_foundation.sql",
         "20260830093000_crump_code_durable_worker.sql",
         "20260916231500_autonomous_crump_atomic_dispatch.sql",
+        "20260916233000_autonomous_crump_verification_policy.sql",
         "20260917001500_autonomous_crump_queue_guardrails.sql",
     ):
         assert migration_name in source
