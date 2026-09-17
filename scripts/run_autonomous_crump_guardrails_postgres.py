@@ -245,6 +245,39 @@ def main() -> int:
         if not direct_insert_rejected:
             raise AssertionError("service_role direct code_tasks INSERT was not rejected")
 
+        service_role_creation_token = str(uuid4())
+        connection.execute("set role service_role")
+        try:
+            service_role_created = _scalar(
+                connection,
+                "select public.create_code_task_guarded(%s,%s,%s,'service-role-owned',"
+                "'implement','https://github.com/openai/codex.git','main',180)",
+                (owner_user, owner_project, service_role_creation_token),
+            )
+        finally:
+            connection.execute("reset role")
+        if not (
+            service_role_created.get("created") is True
+            and service_role_created.get("replayed") is False
+            and service_role_created["task"]["user_id"] == owner_user
+            and service_role_created["task"]["project_id"] == owner_project
+        ):
+            raise AssertionError(service_role_created)
+        service_role_task_id = service_role_created["task"]["id"]
+        if _scalar(
+            connection,
+            "select count(*) from public.code_task_events where task_id=%s "
+            "and user_id=%s and project_id=%s and event_type='task.created'",
+            (service_role_task_id, owner_user, owner_project),
+        ) != 1:
+            raise AssertionError(
+                "service_role guarded creation did not produce exactly one task.created event"
+            )
+        connection.execute(
+            "update public.code_tasks set status='cancelled',completed_at=now() where id=%s",
+            (service_role_task_id,),
+        )
+
         connection.execute("set role service_role")
         cross_owner = _scalar(
             connection,
@@ -844,6 +877,62 @@ def main() -> int:
         ):
             raise AssertionError(exhausted_claim)
 
+        # An idle worker must report no_work even when a global ceiling is
+        # saturated. First terminalize every ready fixture, then leave one
+        # live lease (which is capacity, not ready queue work).
+        connection.execute(
+            "update public.code_tasks set status='completed',"
+            "completed_at=coalesce(completed_at,now()),lease_token=null,"
+            "lease_expires_at=null where status in "
+            "('queued','provisioning','running','verifying')"
+        )
+        connection.execute(
+            "update public.code_tasks set status='provisioning',completed_at=null,"
+            "lease_token=%s,lease_expires_at=now()+interval '5 minutes' where id=%s",
+            (str(uuid4()), large_task["id"]),
+        )
+        connection.execute(
+            "update public.code_guardrail_limits set global_active_lease_limit=1,"
+            "global_daily_model_start_limit=24 where id=1"
+        )
+        empty_at_active_cap = _scalar(
+            connection,
+            "select public.claim_code_task_guarded(225,%s)",
+            (str(uuid4()),),
+        )
+        if not (
+            empty_at_active_cap.get("claimed") is False
+            and empty_at_active_cap.get("deferred") is False
+            and empty_at_active_cap.get("reason") == "no_work"
+        ):
+            raise AssertionError(empty_at_active_cap)
+
+        connection.execute(
+            "update public.code_tasks set status='completed',completed_at=now(),"
+            "lease_token=null,lease_expires_at=null where id=%s",
+            (large_task["id"],),
+        )
+        connection.execute(
+            "update public.code_guardrail_global_daily_facts set model_start_count=2,"
+            "updated_at=now() where budget_day="
+            "(current_timestamp at time zone 'UTC')::date"
+        )
+        connection.execute(
+            "update public.code_guardrail_limits set global_active_lease_limit=2,"
+            "global_daily_model_start_limit=2 where id=1"
+        )
+        empty_at_model_start_cap = _scalar(
+            connection,
+            "select public.claim_code_task_guarded(225,%s)",
+            (str(uuid4()),),
+        )
+        if not (
+            empty_at_model_start_cap.get("claimed") is False
+            and empty_at_model_start_cap.get("deferred") is False
+            and empty_at_model_start_cap.get("reason") == "no_work"
+        ):
+            raise AssertionError(empty_at_model_start_cap)
+
     print(
         json.dumps(
             {
@@ -862,6 +951,7 @@ def main() -> int:
                 "userDailyAcceptDeferred": True,
                 "globalDailyAcceptDeferred": True,
                 "createReplaySingular": True,
+                "serviceRoleGuardedCreateSucceeded": True,
                 "directInsertRejected": direct_insert_rejected,
                 "crossOwnerProjectRejected": True,
                 "globalFactsSurviveUserDeletion": True,
@@ -870,6 +960,8 @@ def main() -> int:
                 "smallFittingTaskBypassedOversizedTask": True,
                 "noFittingTaskDeferredUntilUtcReset": True,
                 "exhaustedCapacityDistinguished": True,
+                "emptyQueueAtActiveLeaseCapIsNoWork": True,
+                "emptyQueueAtModelStartCapIsNoWork": True,
                 "database": "owned-loopback-disposable",
             },
             sort_keys=True,

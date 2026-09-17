@@ -1030,6 +1030,33 @@ begin
     end if;
   end if;
 
+  -- Capacity deferrals describe waiting work, not the state of an otherwise
+  -- idle worker. Prove that at least one accepted task is ready before
+  -- consulting global lease or UTC-day model-start ceilings. This keeps an
+  -- empty queue truthful even while another live lease saturates capacity or
+  -- the daily start counter is exhausted; a genuinely ready task continues
+  -- through the bounded capacity checks below.
+  if not exists (
+    select 1
+    from public.code_tasks as ready
+    where ready.status in ('queued', 'provisioning', 'running', 'verifying')
+      and ready.usage_receipt is not null
+      and ready.attempt_count < ready.max_attempts
+      and ready.next_attempt_at <= now()
+      and ready.expires_at > now()
+      and (
+        ready.lease_token is null
+        or ready.lease_expires_at is null
+        or ready.lease_expires_at < now()
+      )
+  ) then
+    return jsonb_build_object(
+      'claimed', false,
+      'deferred', false,
+      'reason', 'no_work'
+    );
+  end if;
+
   select count(*)::integer
   into global_active
   from public.code_tasks

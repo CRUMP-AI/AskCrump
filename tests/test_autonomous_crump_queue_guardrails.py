@@ -118,8 +118,11 @@ def test_owned_postgres_gate_refuses_shared_or_nonempty_databases() -> None:
     assert "drop schema" not in source.lower()
     assert "SUPABASE_URL" not in source
     assert "SUPABASE_SERVICE_KEY" not in source
+    assert "service_role_created = _scalar(" in source
+    assert "service_role guarded creation did not produce exactly one task.created event" in source
     for runtime_proof in (
         "service_role direct code_tasks INSERT was not rejected",
+        "serviceRoleGuardedCreateSucceeded",
         "create replay inserted more than one task",
         "globalFactsSurviveUserDeletion",
         "expiredCrossProjectTaskReconciled",
@@ -127,6 +130,8 @@ def test_owned_postgres_gate_refuses_shared_or_nonempty_databases() -> None:
         "smallFittingTaskBypassedOversizedTask",
         "noFittingTaskDeferredUntilUtcReset",
         "exhaustedCapacityDistinguished",
+        "emptyQueueAtActiveLeaseCapIsNoWork",
+        "emptyQueueAtModelStartCapIsNoWork",
     ):
         assert runtime_proof in source
     for migration_name in (
@@ -150,6 +155,15 @@ def test_owned_postgres_gate_refuses_shared_or_nonempty_databases() -> None:
     assert 'python -m pip install "psycopg[binary]==3.3.5"' in workflow
     assert "I_OWN_THIS_EMPTY_DISPOSABLE_DATABASE" in workflow
     assert "python scripts/run_autonomous_crump_guardrails_postgres.py" in workflow
+
+    evidence = (
+        ROOT / "docs" / "AUTONOMOUS_CRUMP_QUEUE_GUARDRAILS_CANDIDATE_2026-09-16.md"
+    ).read_text(encoding="utf-8")
+    assert "17f94113009183e94f00581ce1e85d0d3b2e76d5" in evidence
+    assert "GitHub Actions run 35167844192" in evidence
+    assert "PostgreSQL 15 and PostgreSQL 17 jobs" in evidence
+    assert "deliberately **not Supabase**" in evidence
+    assert "no real PostgreSQL runtime or concurrency pass is claimed" not in evidence
 
 
 def test_guardrail_functions_use_consistent_lock_order_and_private_execution() -> None:
@@ -303,6 +317,26 @@ def test_claim_is_fair_skip_locked_equivalent_and_budgeted_before_compute() -> N
     )
     assert "'kind', 'model_start'" in body
     assert "'declaredsandboxseconds', declared_seconds" in body
+
+
+def test_claim_proves_ready_work_before_global_capacity_deferrals() -> None:
+    body = migration()[
+        migration().index("create or replace function public.claim_code_task_guarded") :
+    ]
+    ready_probe = body.index("from public.code_tasks as ready")
+    empty_result = body.index("'reason', 'no_work'", ready_probe)
+    active_cap = body.index("global_active >= guardrails.global_active_lease_limit")
+    model_start_cap = body.index(
+        "global_starts >= guardrails.global_daily_model_start_limit"
+    )
+    fair_selection = body.index("from public.code_tasks as task", model_start_cap)
+    assert ready_probe < empty_result < active_cap < model_start_cap < fair_selection
+    ready_block = body[ready_probe:empty_result]
+    assert "ready.usage_receipt is not null" in ready_block
+    assert "ready.attempt_count < ready.max_attempts" in ready_block
+    assert "ready.next_attempt_at <= now()" in ready_block
+    assert "ready.expires_at > now()" in ready_block
+    assert "ready.lease_expires_at < now()" in ready_block
 
 
 class GuardedRPCDB:
