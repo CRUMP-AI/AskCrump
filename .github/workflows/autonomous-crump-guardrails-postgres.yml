@@ -1,6 +1,9 @@
 name: Autonomous Crump guardrail PostgreSQL gate
 
 on:
+  push:
+    branches:
+      - ci/autonomous-guardrails-truth-postgres-20260916
   workflow_dispatch:
 
 permissions:
