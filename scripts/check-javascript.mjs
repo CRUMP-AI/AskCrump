@@ -473,6 +473,46 @@ assertMarketingLanding(roughToUsefulValid, {
 }, 'Rough-to-useful Facebook feed');
 roughToUsefulRuntimeCases += 1;
 
+const roughToUsefulReelTouch = {
+  acquisition: 'facebook',
+  placement: 'organic-social',
+  campaign: 'rough-to-useful-v2',
+  creative: 'rough-to-useful-current-reel',
+  intent: 'projects',
+};
+const roughToUsefulReelStore = new Map();
+const roughToUsefulReelValid = runLandingAttribution(
+  'https://askcrump.com/guides/rough-idea-six-week-launch-plan?acquisition=facebook&source=organic-social&campaign=rough-to-useful-v2&creative=rough-to-useful-current-reel',
+  roughToUsefulReelStore,
+  '/app?signup=1&intent=projects',
+  '',
+  {click: false},
+);
+assertAttribution(
+  storedAttribution(roughToUsefulReelStore),
+  roughToUsefulReelTouch,
+  'Rough-to-useful Facebook Reel',
+);
+assertMarketingLanding(roughToUsefulReelValid, {
+  touchpoint: 'facebook.organic-social.rough-to-useful-v2.rough-to-useful-current-reel',
+  intent: 'projects',
+}, 'Rough-to-useful Facebook Reel');
+roughToUsefulRuntimeCases += 1;
+
+runLandingAttribution(
+  'https://askcrump.com/ai-presentation-maker?acquisition=instagram&source=organic-social&campaign=presentation-proof-current&creative=ig-story',
+  roughToUsefulReelStore,
+  '/app?signup=1&intent=presentation',
+  '',
+  {click: false},
+);
+assertAttribution(
+  storedAttribution(roughToUsefulReelStore),
+  roughToUsefulReelTouch,
+  'Rough-to-useful Reel second campaign in the same tab',
+);
+roughToUsefulRuntimeCases += 1;
+
 const roughToUsefulInstagramStore = new Map();
 const roughToUsefulInstagramValid = runLandingAttribution(
   'https://askcrump.com/guides/rough-idea-six-week-launch-plan?acquisition=instagram&source=organic-social&campaign=rough-to-useful-v2&creative=rough-to-useful-current-feed',
@@ -659,8 +699,8 @@ assertAttribution(
   'Paid rough-to-useful existing-account sign-in',
 );
 roughToUsefulRuntimeCases += 1;
-if (roughToUsefulRuntimeCases !== 22) {
-  console.error(`Expected 22 rough-to-useful runtime cases, got ${roughToUsefulRuntimeCases}.`);
+if (roughToUsefulRuntimeCases !== 24) {
+  console.error(`Expected 24 rough-to-useful runtime cases, got ${roughToUsefulRuntimeCases}.`);
   process.exit(1);
 }
 
@@ -945,7 +985,7 @@ assertAttribution(storedAttribution(immutableStore), {
 const repoRoot = new URL('../', import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot), 'utf8'));
 const releaseVersion = String(packageJson.version || '');
-const landingVersion = `${releaseVersion}-organic-feed-attribution-1`;
+const landingVersion = `${releaseVersion}-facebook-reel-attribution-1`;
 const planRendererVersion = `${releaseVersion}-credit-pack-accessibility-1`;
 const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
 const nativeBillingIdentityVersion = `${releaseVersion}-native-billing-identity-1`;
@@ -961,7 +1001,7 @@ const outputProjectActionVersion = `${releaseVersion}-output-project-action-1`;
 const studioActionLabelsVersion = `${releaseVersion}-studio-action-labels-1`;
 const productStudioLazyLoadVersion = `${releaseVersion}-product-studio-lazy-load-2`;
 const visibleWorkspaceReturnVersion = `${releaseVersion}-visible-workspace-return-1`;
-const authControllerVersion = visibleWorkspaceReturnVersion;
+const authControllerVersion = `${releaseVersion}-facebook-reel-attribution-1`;
 const continuityHandoffVersion = `${releaseVersion}-continuity-handoff-1`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
 const accountDeletionBillingVersion = `${releaseVersion}-account-deletion-billing-1`;
@@ -1444,7 +1484,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r248') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r249') ||
     !serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
@@ -1969,7 +2009,7 @@ if (!scroll522.includes("card.removeAttribute('role')") ||
 }
 
 console.log('Ask Crump V1 new-body integration contract validated.');
-console.log(`Validated ${roughToUsefulRuntimeCases}/22 rough-to-useful attribution runtime cases.`);
+console.log(`Validated ${roughToUsefulRuntimeCases}/24 rough-to-useful attribution runtime cases.`);
 console.log(`Validated ${wordPdfRuntimeCases}/10 Word/PDF attribution runtime cases.`);
 console.log(`Validated ${resumeAuditRuntimeCases}/10 résumé audit attribution runtime cases.`);
 console.log(`Validated ${files.length} JavaScript files.`);

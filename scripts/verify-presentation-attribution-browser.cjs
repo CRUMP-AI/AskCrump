@@ -12,6 +12,7 @@ const touches = [
   {name: 'instagram-profile', acquisition: 'instagram', placement: 'profile-link', campaign: 'presentation-proof-current', creative: null, intent: 'presentation'},
   {name: 'facebook-feed', acquisition: 'facebook', placement: 'organic-social', campaign: 'presentation-proof-current', creative: 'fb-static', intent: 'presentation'},
   {name: 'instagram-story', acquisition: 'instagram', placement: 'organic-social', campaign: 'presentation-proof-current', creative: 'ig-story', intent: 'presentation'},
+  {name: 'facebook-organic-reel', acquisition: 'facebook', placement: 'organic-social', campaign: 'rough-to-useful-v2', creative: 'rough-to-useful-current-reel', intent: 'projects'},
   {name: 'paid-facebook-feed', acquisition: 'paid-social', placement: 'facebook-paid', campaign: 'rough-to-useful-v2', creative: 'rough-to-useful-current-feed', intent: 'projects'},
 ];
 const rejections = [
@@ -28,6 +29,8 @@ const rejections = [
   {name: 'organic-paid-placement', acquisition: 'facebook', placement: 'facebook-paid', campaign: 'rough-to-useful-v2', creative: 'rough-to-useful-current-feed', intent: 'projects'},
   {name: 'paid-story', acquisition: 'paid-social', placement: 'facebook-paid', campaign: 'rough-to-useful-v2', creative: 'rough-to-useful-current-story', intent: 'projects'},
   {name: 'paid-reel', acquisition: 'paid-social', placement: 'facebook-paid', campaign: 'rough-to-useful-v2', creative: 'rough-to-useful-current-reel', intent: 'projects'},
+  {name: 'instagram-organic-reel', acquisition: 'instagram', placement: 'organic-social', campaign: 'rough-to-useful-v2', creative: 'rough-to-useful-current-reel', intent: 'projects'},
+  {name: 'facebook-profile-reel', acquisition: 'facebook', placement: 'profile-link', campaign: 'rough-to-useful-v2', creative: 'rough-to-useful-current-reel', intent: 'projects'},
   {name: 'instagram-paid', acquisition: 'instagram', placement: 'facebook-paid', campaign: 'rough-to-useful-v2', creative: 'rough-to-useful-current-feed', intent: 'projects'},
   {name: 'paid-profile', acquisition: 'paid-social', placement: 'profile-link', campaign: 'rough-to-useful-v2', creative: 'rough-to-useful-current-feed', intent: 'projects'},
   {name: 'paid-workflow', acquisition: 'paid-social', placement: 'workflow-guide', campaign: 'rough-to-useful-v2', creative: 'rough-to-useful-current-feed', intent: 'projects'},

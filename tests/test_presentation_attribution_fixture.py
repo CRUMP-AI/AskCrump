@@ -25,6 +25,13 @@ PAID_EXPECTED_TUPLE = {
     "creative": "rough-to-useful-current-feed",
     "intent": "projects",
 }
+REEL_EXPECTED_TUPLE = {
+    "acquisition": "facebook",
+    "placement": "organic-social",
+    "campaign": "rough-to-useful-v2",
+    "creative": "rough-to-useful-current-reel",
+    "intent": "projects",
+}
 
 
 def fixture_request() -> Request:
@@ -187,7 +194,10 @@ class FixtureEmail:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("expected", [EXPECTED_TUPLE, PAID_EXPECTED_TUPLE])
+@pytest.mark.parametrize(
+    "expected",
+    [EXPECTED_TUPLE, PAID_EXPECTED_TUPLE, REEL_EXPECTED_TUPLE],
+)
 async def test_exact_first_touch_is_idempotent_exportable_and_cleanable(monkeypatch, expected):
     database = IsolatedAttributionDB()
     fixture_email = FixtureEmail()
@@ -284,6 +294,56 @@ async def test_exact_first_touch_is_idempotent_exportable_and_cleanable(monkeypa
         "p_include_internal": False,
     }) == []
     assert database.production_control() == production_before
+
+
+@pytest.mark.asyncio
+async def test_feed_and_reel_remain_separate_exact_aggregate_rows():
+    database = IsolatedAttributionDB()
+    request = fixture_request()
+    feed_user = "00000000-0000-0000-0000-000000000101"
+    reel_user = "00000000-0000-0000-0000-000000000102"
+    for user_id in (feed_user, reel_user):
+        database.users.append({
+            "id": user_id,
+            "email": f"fixture+{user_id[-3:]}@example.com",
+            "registration_environment": "development",
+            "created_at": "2026-09-17T00:00:00+00:00",
+            "deleted_at": None,
+            "internal_tier": None,
+        })
+
+    assert await record_account_created_event(
+        database,
+        user_id=feed_user,
+        request=request,
+        acquisition="facebook",
+        placement="organic-social",
+        campaign="rough-to-useful-v2",
+        creative="rough-to-useful-current-feed",
+        intent="projects",
+    ) is True
+    assert await record_account_created_event(
+        database,
+        user_id=reel_user,
+        request=request,
+        **REEL_EXPECTED_TUPLE,
+    ) is True
+
+    rows = await database.rpc("product_weekly_attribution_export", {
+        "p_since": "2026-09-17T00:00:00Z",
+        "p_until": "2026-09-18T00:00:00Z",
+        "p_environment": "development",
+        "p_include_internal": False,
+    })
+    campaign_rows = [row for row in rows if row["campaign"] == "rough-to-useful-v2"]
+    assert len(campaign_rows) == 2
+    assert {
+        (row["creative"], row["accounts_created"], row["account_event_recorded"])
+        for row in campaign_rows
+    } == {
+        ("rough-to-useful-current-feed", 1, 1),
+        ("rough-to-useful-current-reel", 1, 1),
+    }
 
 
 def test_fixture_receipt_inputs_are_content_free_and_version_pinned():

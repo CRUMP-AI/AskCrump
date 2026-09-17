@@ -93,9 +93,10 @@
       intent: 'projects',
       acquisitions: new Set(['facebook', 'instagram', 'paid-social']),
       placements: new Set(['organic-social', 'facebook-paid']),
-      creatives: new Set(['rough-to-useful-current-feed']),
+      creatives: new Set(['rough-to-useful-current-feed', 'rough-to-useful-current-reel']),
       touchpoints: new Set([
         'facebook|organic-social|rough-to-useful-current-feed',
+        'facebook|organic-social|rough-to-useful-current-reel',
         'instagram|organic-social|rough-to-useful-current-feed',
         'paid-social|facebook-paid|rough-to-useful-current-feed',
       ]),

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r248';
+const CACHE_NAME = 'ask-crump-new-body-v1-r249';
 
 const CORE = [
   '/app',
@@ -8,7 +8,7 @@ const CORE = [
   '/manifest.json',
   '/landing-5.6.css?v=5.9.76-accessibility-1',
   '/use-case.css?v=5.9.76',
-  '/landing.js?v=5.9.76-organic-feed-attribution-1',
+  '/landing.js?v=5.9.76-facebook-reel-attribution-1',
   '/styles.css',
   '/billing.css',
   '/install-prompt.css?v=5.9.76',
@@ -57,7 +57,7 @@ const CORE = [
   '/product-analytics.js?v=5.9.76-navigation-discovery-1',
   '/lifecycle-share.js?v=5.9.76-settings-invite-1',
   '/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1',
-  '/auth-controller.js?v=5.9.76-visible-workspace-return-1',
+  '/auth-controller.js?v=5.9.76-facebook-reel-attribution-1',
   '/crump-4.3.css',
   '/crump-4.3.js?v=5.9.76-composer-actionability-1',
   '/crump-4.4.css',

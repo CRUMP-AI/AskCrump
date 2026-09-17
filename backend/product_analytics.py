@@ -136,9 +136,13 @@ ATTRIBUTION_CAMPAIGNS = {
         "intent": "projects",
         "acquisitions": frozenset({"facebook", "instagram", "paid-social"}),
         "placements": frozenset({"organic-social", "facebook-paid"}),
-        "creatives": frozenset({"rough-to-useful-current-feed"}),
+        "creatives": frozenset({
+            "rough-to-useful-current-feed",
+            "rough-to-useful-current-reel",
+        }),
         "touchpoints": frozenset({
             ("facebook", "organic-social", "rough-to-useful-current-feed"),
+            ("facebook", "organic-social", "rough-to-useful-current-reel"),
             ("instagram", "organic-social", "rough-to-useful-current-feed"),
             ("paid-social", "facebook-paid", "rough-to-useful-current-feed"),
         }),

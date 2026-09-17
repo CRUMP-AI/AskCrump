@@ -22,7 +22,7 @@ MIGRATION = ROOT / "migrations" / "20260830171056_weekly_growth_attribution_expo
 REGISTRY_MIGRATION = (
     ROOT
     / "migrations"
-    / "20260910165757_release_rough_to_useful_organic_feed_attribution.sql"
+    / "20260917223842_release_rough_to_useful_facebook_reel_attribution.sql"
 )
 NULL_SAFETY_MIGRATION = (
     ROOT
@@ -34,12 +34,12 @@ SOURCE_PLACEMENT_ALLOWLIST_MIGRATION = (
     / "migrations"
     / "20260909220127_paid_rough_to_useful_attribution.sql"
 )
-CAMPAIGN_ALLOWLIST_MIGRATION = REGISTRY_MIGRATION
-CREATIVE_ALLOWLIST_MIGRATION = (
+CAMPAIGN_ALLOWLIST_MIGRATION = (
     ROOT
     / "migrations"
-    / "20260909200726_narrow_presentation_attribution_touchpoints.sql"
+    / "20260910165757_release_rough_to_useful_organic_feed_attribution.sql"
 )
+CREATIVE_ALLOWLIST_MIGRATION = REGISTRY_MIGRATION
 EXPECTED_REGISTRY = {
     "presentation-proof-current": {
         "intent": "presentation",
@@ -57,7 +57,10 @@ EXPECTED_REGISTRY = {
         "intent": "projects",
         "acquisitions": {"facebook", "instagram", "paid-social"},
         "placements": {"organic-social", "facebook-paid"},
-        "creatives": {"rough-to-useful-current-feed"},
+        "creatives": {
+            "rough-to-useful-current-feed",
+            "rough-to-useful-current-reel",
+        },
     },
     "rough-idea-launch-plan": {
         "intent": "projects",
@@ -105,6 +108,7 @@ EXPECTED_EXACT_TOUCHPOINTS = {
     },
     "rough-to-useful-v2": {
         ("facebook", "organic-social", "rough-to-useful-current-feed"),
+        ("facebook", "organic-social", "rough-to-useful-current-reel"),
         ("instagram", "organic-social", "rough-to-useful-current-feed"),
         ("paid-social", "facebook-paid", "rough-to-useful-current-feed"),
     },
@@ -411,8 +415,16 @@ def test_campaign_registry_has_exact_frontend_server_and_database_parity():
         "and creative = 'rough-to-useful-current-feed' and creative is not null"
     ) == 1
     assert normalized_sql.count(
+        "source = 'facebook' and placement = 'organic-social' "
+        "and creative = 'rough-to-useful-current-reel' and creative is not null"
+    ) == 1
+    assert normalized_sql.count(
         "v_acquisition = 'paid-social' and v_placement = 'facebook-paid' "
         "and v_creative = 'rough-to-useful-current-feed' and v_creative is not null"
+    ) == 2
+    assert normalized_sql.count(
+        "v_acquisition = 'facebook' and v_placement = 'organic-social' "
+        "and v_creative = 'rough-to-useful-current-reel' and v_creative is not null"
     ) == 2
 
 
@@ -493,6 +505,20 @@ def test_registered_campaign_tuple_is_preserved_exactly():
     }
 
     assert normalize_attribution(
+        acquisition="facebook",
+        placement="organic-social",
+        campaign="rough-to-useful-v2",
+        creative="rough-to-useful-current-reel",
+        intent="projects",
+    ) == {
+        "acquisition": "facebook",
+        "placement": "organic-social",
+        "campaign": "rough-to-useful-v2",
+        "creative": "rough-to-useful-current-reel",
+        "intent": "projects",
+    }
+
+    assert normalize_attribution(
         acquisition="instagram",
         placement="organic-social",
         campaign="rough-to-useful-v2",
@@ -541,6 +567,7 @@ def test_registered_campaign_tuple_is_preserved_exactly():
         ("paid-social", "organic-social", "rough-to-useful-v2", "rough-to-useful-current-feed", "projects"),
         ("facebook", "facebook-paid", "rough-to-useful-v2", "rough-to-useful-current-feed", "projects"),
         ("facebook", "profile-link", "rough-to-useful-v2", "rough-to-useful-current-feed", "projects"),
+        ("facebook", "profile-link", "rough-to-useful-v2", "rough-to-useful-current-reel", "projects"),
         ("instagram", "profile-link", "rough-to-useful-v2", "rough-to-useful-current-feed", "projects"),
         ("instagram", "organic-social", "rough-to-useful-v2", "rough-to-useful-current-story", "projects"),
         ("instagram", "organic-social", "rough-to-useful-v2", "rough-to-useful-current-reel", "projects"),
