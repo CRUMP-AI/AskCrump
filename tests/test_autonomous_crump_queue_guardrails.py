@@ -160,8 +160,10 @@ def test_owned_postgres_gate_refuses_shared_or_nonempty_databases() -> None:
     evidence = (
         ROOT / "docs" / "AUTONOMOUS_CRUMP_QUEUE_GUARDRAILS_CANDIDATE_2026-09-16.md"
     ).read_text(encoding="utf-8")
-    assert "17f94113009183e94f00581ce1e85d0d3b2e76d5" in evidence
-    assert "GitHub Actions run 35167844192" in evidence
+    assert "1abd86f4a11c152881f84b69fc7a13d06edd1629" in evidence
+    assert "3cbb714bae797a366b5e495937100a3462bd0c60" in evidence
+    assert "GitHub Actions run 35170038398" in evidence
+    assert "exact executable source identity and its CI-only mirror" in evidence
     assert "PostgreSQL 15 and PostgreSQL 17 jobs" in evidence
     assert "deliberately **not Supabase**" in evidence
     assert "no real PostgreSQL runtime or concurrency pass is claimed" not in evidence
