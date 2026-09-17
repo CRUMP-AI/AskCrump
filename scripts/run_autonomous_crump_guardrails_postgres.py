@@ -542,6 +542,33 @@ def main() -> int:
             )
         if global_model_fact_after != global_model_fact_before:
             raise AssertionError((global_model_fact_before, global_model_fact_after))
+
+        # The counter check must exercise capacity against real waiting work.
+        # Create and accept a fresh task after deleting the account whose linked
+        # receipt supplied one of the model starts. If the content-free global
+        # fact were incorrectly reopened by that cascade, this task would be
+        # claimed instead of receiving the global model-start deferral.
+        deletion_probe_user, deletion_probe_project = _create_identity(
+            connection, "deletion-counter-probe"
+        )
+        deletion_probe_task = _create_task(
+            connection,
+            deletion_probe_user,
+            deletion_probe_project,
+            "deletion-counter-probe",
+        )["task"]
+        connection.execute(
+            "update public.code_tasks set source_ref=%s,base_revision=%s where id=%s",
+            ("a" * 40, "a" * 40, deletion_probe_task["id"]),
+        )
+        deletion_probe_accepted = _accept(
+            dsn,
+            deletion_probe_user,
+            deletion_probe_task["id"],
+            str(uuid4()),
+        )
+        if deletion_probe_accepted.get("accepted") is not True:
+            raise AssertionError(deletion_probe_accepted)
         deletion_invariant_model_deferred = _scalar(
             connection,
             "select public.claim_code_task_guarded(225,%s)",
@@ -549,6 +576,10 @@ def main() -> int:
         )
         if deletion_invariant_model_deferred.get("reason") != "global_daily_model_start_limit":
             raise AssertionError(deletion_invariant_model_deferred)
+        connection.execute(
+            "update public.code_tasks set status='completed',completed_at=now() where id=%s",
+            (deletion_probe_task["id"],),
+        )
 
         daily_user, daily_project = _create_identity(connection, "daily-accept")
         for index in range(3):
@@ -579,8 +610,18 @@ def main() -> int:
         if user_accept_deferred.get("reason") != "user_daily_accept_limit":
             raise AssertionError(user_accept_deferred)
 
+        accepted_before_global_limit = int(
+            _scalar(
+                connection,
+                "select accepted_count from public.code_guardrail_global_daily_facts "
+                "where budget_day=(current_timestamp at time zone 'UTC')::date",
+            )
+            or 0
+        )
+        global_accept_limit = accepted_before_global_limit + 4
         connection.execute(
-            "update public.code_guardrail_limits set global_daily_accept_limit=10 where id=1"
+            "update public.code_guardrail_limits set global_daily_accept_limit=%s where id=1",
+            (global_accept_limit,),
         )
         global_accept_users: list[str] = []
         for index in range(4):
@@ -955,6 +996,7 @@ def main() -> int:
                 "directInsertRejected": direct_insert_rejected,
                 "crossOwnerProjectRejected": True,
                 "globalFactsSurviveUserDeletion": True,
+                "deletionInvariantCapDeferredWithReadyTask": True,
                 "expiredCrossProjectTaskReconciled": True,
                 "retryLimitFiveTerminalizedBeforeCompute": True,
                 "smallFittingTaskBypassedOversizedTask": True,
