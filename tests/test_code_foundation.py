@@ -503,7 +503,8 @@ async def test_expired_code_task_is_terminal_before_claim_or_charge():
         "status": "cancelled",
     }
     with pytest.raises(CodeTaskExpiredError):
-        await service.claim(task)
+        await service.ensure_not_expired(task)
+    assert not hasattr(service, "claim")
     assert not any(event["event_type"] == "task.claimed" for event in database.events)
 
 

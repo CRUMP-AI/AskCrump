@@ -20,7 +20,9 @@ ACTIVE_STATUSES = frozenset(
     {"queued", "provisioning", "running", "awaiting_approval", "verifying"}
 )
 TRANSITIONS: dict[str, frozenset[str]] = {
-    "queued": frozenset({"provisioning", "cancelled"}),
+    # queued -> provisioning is reserved for the atomic guarded database RPCs;
+    # generic lifecycle updates must never bypass charging/capacity admission.
+    "queued": frozenset({"cancelled"}),
     "provisioning": frozenset({"running", "queued", "failed", "cancelled"}),
     "running": frozenset({"verifying", "awaiting_approval", "failed", "cancelled"}),
     "awaiting_approval": frozenset({"queued", "failed", "cancelled"}),
@@ -352,11 +354,16 @@ class CodeTaskService:
             raise ValueError("Plan-only tasks cannot execute repository checks.")
         source_url, source_ref = normalize_repo_source(repo_url, revision)
         duration = max(30, min(240, int(max_duration_seconds or 180)))
+        # Generate the replay identity before entering the database transport.
+        # SupabaseDB may retry an uncertain POST, so every retry must carry the
+        # same token and resolve to the same task/event transaction.
+        creation_token = str(uuid4())
         result = await self.db.rpc(
             "create_code_task_guarded",
             {
                 "p_user_id": user_id,
                 "p_project_id": project["id"],
+                "p_creation_token": creation_token,
                 "p_objective": clean_objective,
                 "p_mode": normalized_mode,
                 "p_source_repo_url": source_url,
@@ -498,26 +505,6 @@ class CodeTaskService:
         if event_type:
             await self.append_event(updated, event_type, event_payload)
         return updated
-
-    async def claim(
-        self,
-        task: dict[str, Any],
-        *,
-        changes: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        task = await self.ensure_not_expired(task)
-        return await self.transition(
-            task,
-            "provisioning",
-            changes={
-                "started_at": _now(),
-                "failure_code": None,
-                "next_attempt_at": _now(),
-                **(changes or {}),
-            },
-            event_type="task.claimed",
-            event_payload={"status": "provisioning"},
-        )
 
     async def claim_next(self, *, lease_seconds: int, claim_token: str) -> dict[str, Any]:
         result = await self.db.rpc(
@@ -934,6 +921,7 @@ class CodeTaskService:
             "lease_token",
             "lease_expires_at",
             "dispatch_token",
+            "creation_token",
         }
         return {key: value for key, value in task.items() if key not in hidden}
 

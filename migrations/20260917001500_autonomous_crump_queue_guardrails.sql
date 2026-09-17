@@ -56,6 +56,23 @@ insert into public.code_guardrail_limits (
 values (1, 3, 100, 2, 3, 30, 4, 24, 720, 4320)
 on conflict (id) do nothing;
 
+-- A caller-generated token makes queue admission replay-safe across an
+-- uncertain PostgREST response. Existing pre-candidate rows use their already
+-- unique task id as a deterministic backfill; all new rows must supply a token
+-- through create_code_task_guarded.
+alter table public.code_tasks
+  add column if not exists creation_token uuid;
+
+update public.code_tasks
+set creation_token = id
+where creation_token is null;
+
+alter table public.code_tasks
+  alter column creation_token set not null;
+
+create unique index if not exists code_tasks_creation_token_idx
+  on public.code_tasks(creation_token);
+
 create table if not exists public.code_guardrail_receipts (
   id bigint generated always as identity primary key,
   task_id uuid not null references public.code_tasks(id) on delete cascade,
@@ -91,6 +108,52 @@ create index if not exists code_guardrail_receipts_fairness_idx
   on public.code_guardrail_receipts(user_id, created_at desc)
   where receipt_kind = 'model_start';
 
+-- Customer-linked receipts remain erasable through their existing cascades.
+-- These aggregate, content-free facts deliberately have no user/task foreign
+-- key, so deleting an account cannot reopen a global daily capacity budget.
+create table if not exists public.code_guardrail_global_daily_facts (
+  budget_day date primary key,
+  accepted_count integer not null default 0,
+  model_start_count integer not null default 0,
+  declared_sandbox_seconds bigint not null default 0,
+  updated_at timestamptz not null default now(),
+  constraint code_guardrail_global_daily_accepted_check
+    check (accepted_count >= 0),
+  constraint code_guardrail_global_daily_model_start_check
+    check (model_start_count >= 0),
+  constraint code_guardrail_global_daily_seconds_check
+    check (declared_sandbox_seconds >= 0)
+);
+
+insert into public.code_guardrail_global_daily_facts as daily (
+  budget_day,
+  accepted_count,
+  model_start_count,
+  declared_sandbox_seconds
+)
+select
+  receipt.budget_day,
+  count(*) filter (where receipt.receipt_kind = 'accepted')::integer,
+  count(*) filter (where receipt.receipt_kind = 'model_start')::integer,
+  coalesce(sum(receipt.declared_sandbox_seconds)
+    filter (where receipt.receipt_kind = 'model_start'), 0)::bigint
+from public.code_guardrail_receipts as receipt
+group by receipt.budget_day
+on conflict (budget_day) do update
+set accepted_count = greatest(
+      daily.accepted_count,
+      excluded.accepted_count
+    ),
+    model_start_count = greatest(
+      daily.model_start_count,
+      excluded.model_start_count
+    ),
+    declared_sandbox_seconds = greatest(
+      daily.declared_sandbox_seconds,
+      excluded.declared_sandbox_seconds
+    ),
+    updated_at = now();
+
 create unique index if not exists code_tasks_one_accepted_active_per_user_idx
   on public.code_tasks(user_id)
   where dispatch_token is not null
@@ -110,14 +173,19 @@ create index if not exists code_tasks_active_lease_idx
 
 alter table public.code_guardrail_limits enable row level security;
 alter table public.code_guardrail_receipts enable row level security;
+alter table public.code_guardrail_global_daily_facts enable row level security;
 
 revoke all on table public.code_guardrail_limits from public, anon, authenticated, service_role;
 revoke all on table public.code_guardrail_receipts from public, anon, authenticated, service_role;
+revoke all on table public.code_guardrail_global_daily_facts
+  from public, anon, authenticated, service_role;
 revoke all on sequence public.code_guardrail_receipts_id_seq
   from public, anon, authenticated, service_role;
 
 grant select on table public.code_guardrail_limits to service_role;
 grant select, insert on table public.code_guardrail_receipts to service_role;
+grant select, insert, update on table public.code_guardrail_global_daily_facts
+  to service_role;
 grant usage, select on sequence public.code_guardrail_receipts_id_seq to service_role;
 
 create or replace function public.enforce_code_task_queue_guardrail()
@@ -195,6 +263,7 @@ for each row execute function public.enforce_code_task_queue_guardrail();
 create or replace function public.create_code_task_guarded(
   p_user_id uuid,
   p_project_id uuid,
+  p_creation_token uuid,
   p_objective text,
   p_mode text,
   p_source_repo_url text,
@@ -204,7 +273,7 @@ create or replace function public.create_code_task_guarded(
 )
 returns jsonb
 language plpgsql
-security invoker
+security definer
 set search_path = ''
 as $$
 declare
@@ -213,7 +282,7 @@ declare
   user_queued integer;
   global_queued integer;
 begin
-  if p_user_id is null or p_project_id is null then
+  if p_user_id is null or p_project_id is null or p_creation_token is null then
     raise exception 'Autonomous Crump task ownership is required' using errcode = '22023';
   end if;
 
@@ -227,6 +296,48 @@ begin
 
   perform pg_catalog.pg_advisory_xact_lock(8274, 0);
   perform pg_catalog.pg_advisory_xact_lock(8274, pg_catalog.hashtext(p_user_id::text));
+
+  -- A lost HTTP response may cause the exact same RPC to be retried. Return
+  -- the committed transaction before applying queue limits or inserting a
+  -- second task/event. A token can never be reused for different input.
+  select *
+  into created
+  from public.code_tasks
+  where creation_token = p_creation_token
+  limit 1;
+
+  if found then
+    if created.user_id <> p_user_id
+       or created.project_id <> p_project_id
+       or created.objective <> p_objective
+       or created.mode <> p_mode
+       or created.verification_policy <> p_verification_policy
+       or created.source_repo_url <> p_source_repo_url
+       or created.source_ref is distinct from nullif(p_source_ref, '')
+       or created.max_duration_seconds <> p_max_duration_seconds then
+      return jsonb_build_object(
+        'created', false,
+        'deferred', false,
+        'reason', 'creation_token_conflict'
+      );
+    end if;
+    if not exists (
+      select 1
+      from public.code_task_events as event
+      where event.task_id = created.id
+        and event.user_id = created.user_id
+        and event.project_id = created.project_id
+        and event.event_type = 'task.created'
+    ) then
+      raise exception 'Autonomous Crump task replay is missing its creation event';
+    end if;
+    return jsonb_build_object(
+      'created', true,
+      'replayed', true,
+      'deferred', false,
+      'task', to_jsonb(created)
+    );
+  end if;
 
   select *
   into guardrails
@@ -280,6 +391,7 @@ begin
   insert into public.code_tasks (
     user_id,
     project_id,
+    creation_token,
     objective,
     mode,
     verification_policy,
@@ -293,6 +405,7 @@ begin
   select
     p_user_id,
     project.id,
+    p_creation_token,
     p_objective,
     p_mode,
     p_verification_policy,
@@ -331,6 +444,7 @@ begin
 
   return jsonb_build_object(
     'created', true,
+    'replayed', false,
     'deferred', false,
     'task', to_jsonb(created),
     'guardrailReceipt', jsonb_build_object(
@@ -343,11 +457,16 @@ end;
 $$;
 
 revoke all on function public.create_code_task_guarded(
-  uuid, uuid, text, text, text, text, text, integer
+  uuid, uuid, uuid, text, text, text, text, text, integer
 ) from public, anon, authenticated, service_role;
 grant execute on function public.create_code_task_guarded(
-  uuid, uuid, text, text, text, text, text, integer
+  uuid, uuid, uuid, text, text, text, text, text, integer
 ) to service_role;
+
+-- Direct service-role insertion could pair another account's project with a
+-- forged user id and omit task.created. The SECURITY DEFINER RPC above is the
+-- only insertion boundary; all ordinary lifecycle mutations remain available.
+revoke insert on table public.code_tasks from service_role;
 
 create or replace function public.accept_code_task_run(
   p_task_id uuid,
@@ -384,6 +503,7 @@ declare
   current_budget_day date := (current_timestamp at time zone 'UTC')::date;
   user_accepted integer;
   global_accepted integer;
+  active_expires_at timestamptz;
   retry_after_midnight integer := greatest(
     1,
     extract(epoch from (
@@ -427,6 +547,52 @@ begin
     );
   end if;
 
+  -- Reconcile every expired accepted task for this account before checking the
+  -- one-active-task invariant. This is user-scoped rather than project-scoped,
+  -- so an abandoned task in another Project cannot block the account forever.
+  with expired as (
+    select stale.id
+    from public.code_tasks as stale
+    where stale.user_id = p_user_id
+      and stale.dispatch_token is not null
+      and stale.usage_receipt is not null
+      and stale.status in (
+        'queued', 'provisioning', 'running', 'awaiting_approval', 'verifying'
+      )
+      and stale.expires_at <= now()
+    order by stale.id
+    for update
+  ), cancelled as (
+    update public.code_tasks as stale
+    set status = 'cancelled',
+        failure_code = 'CODE_TASK_EXPIRED',
+        payment_source = 'refund_pending',
+        completed_at = coalesce(stale.completed_at, now()),
+        lease_token = null,
+        lease_expires_at = null,
+        updated_at = now()
+    from expired
+    where stale.id = expired.id
+    returning stale.*
+  )
+  insert into public.code_task_events (
+    task_id,
+    user_id,
+    project_id,
+    event_type,
+    payload
+  )
+  select
+    cancelled.id,
+    cancelled.user_id,
+    cancelled.project_id,
+    'task.cancelled',
+    jsonb_build_object(
+      'failureCode', 'CODE_TASK_EXPIRED',
+      'status', 'cancelled'
+    )
+  from cancelled;
+
   select *
   into candidate
   from public.code_tasks
@@ -460,8 +626,8 @@ begin
     return jsonb_build_object('accepted', false, 'reason', 'task_not_ready');
   end if;
 
-  if exists (
-    select 1
+  select min(active.expires_at)
+  into active_expires_at
     from public.code_tasks as active
     where active.user_id = p_user_id
       and active.id <> candidate.id
@@ -470,22 +636,33 @@ begin
       and active.status in (
         'queued', 'provisioning', 'running', 'awaiting_approval', 'verifying'
       )
-  ) then
+      and active.expires_at > now();
+
+  if active_expires_at is not null then
     return jsonb_build_object(
       'accepted', false,
       'deferred', true,
       'reason', 'user_active_task',
-      'retryAfterSeconds', 30
+      'retryAfterSeconds', greatest(
+        1,
+        least(30, ceil(extract(epoch from (active_expires_at - now())))::integer)
+      )
     );
   end if;
 
-  select
-    count(*) filter (where user_id = p_user_id)::integer,
-    count(*)::integer
-  into user_accepted, global_accepted
+  select count(*)::integer
+  into user_accepted
   from public.code_guardrail_receipts
   where code_guardrail_receipts.budget_day = current_budget_day
-    and receipt_kind = 'accepted';
+    and receipt_kind = 'accepted'
+    and user_id = p_user_id;
+
+  select coalesce((
+    select fact.accepted_count
+    from public.code_guardrail_global_daily_facts as fact
+    where fact.budget_day = current_budget_day
+  ), 0)
+  into global_accepted;
 
   if user_accepted >= guardrails.user_daily_accept_limit then
     return jsonb_build_object(
@@ -661,6 +838,18 @@ begin
     0
   );
 
+  insert into public.code_guardrail_global_daily_facts as daily (
+    budget_day,
+    accepted_count,
+    model_start_count,
+    declared_sandbox_seconds,
+    updated_at
+  )
+  values (current_budget_day, 1, 0, 0, now())
+  on conflict (budget_day) do update
+  set accepted_count = daily.accepted_count + 1,
+      updated_at = now();
+
   insert into public.code_task_events (
     task_id,
     user_id,
@@ -715,6 +904,7 @@ declare
   global_active integer;
   global_starts integer;
   global_seconds integer;
+  remaining_global_seconds integer;
   user_starts integer;
   user_seconds integer;
   declared_seconds integer;
@@ -764,6 +954,97 @@ begin
     );
   end if;
 
+  -- A lease that was lost after the final permitted attempt is terminalized in
+  -- the database before any new model-start or Sandbox-second reservation. The
+  -- worker therefore never receives a synthetic attempt max_attempts + 1.
+  select task.id, task.user_id
+  into candidate_id, candidate_user_id
+  from public.code_tasks as task
+  where task.status in ('queued', 'provisioning', 'running', 'verifying')
+    and task.usage_receipt is not null
+    and task.next_attempt_at <= now()
+    and task.expires_at > now()
+    and task.attempt_count >= task.max_attempts
+    and (
+      task.lease_token is null
+      or task.lease_expires_at is null
+      or task.lease_expires_at < now()
+    )
+  order by
+    (
+      select max(served.created_at)
+      from public.code_guardrail_receipts as served
+      where served.user_id = task.user_id
+        and served.receipt_kind = 'model_start'
+    ) asc nulls first,
+    task.next_attempt_at asc,
+    task.created_at asc,
+    task.id asc
+  limit 1;
+
+  if found then
+    perform pg_catalog.pg_advisory_xact_lock(
+      8274,
+      pg_catalog.hashtext(candidate_user_id::text)
+    );
+
+    select *
+    into candidate
+    from public.code_tasks
+    where id = candidate_id
+      and user_id = candidate_user_id
+      and status in ('queued', 'provisioning', 'running', 'verifying')
+      and usage_receipt is not null
+      and next_attempt_at <= now()
+      and expires_at > now()
+      and attempt_count >= max_attempts
+      and (
+        lease_token is null
+        or lease_expires_at is null
+        or lease_expires_at < now()
+      )
+    for update skip locked;
+
+    if found then
+      update public.code_tasks
+      set status = 'failed',
+          failure_code = 'CODE_RETRY_LIMIT',
+          payment_source = 'refund_pending',
+          completed_at = coalesce(completed_at, now()),
+          lease_token = null,
+          lease_expires_at = null,
+          updated_at = now()
+      where id = candidate.id
+      returning * into claimed;
+
+      insert into public.code_task_events (
+        task_id,
+        user_id,
+        project_id,
+        event_type,
+        payload
+      )
+      values (
+        claimed.id,
+        claimed.user_id,
+        claimed.project_id,
+        'task.failed',
+        jsonb_build_object(
+          'failureCode', 'CODE_RETRY_LIMIT',
+          'status', 'failed'
+        )
+      );
+
+      return jsonb_build_object(
+        'claimed', false,
+        'handled', true,
+        'terminalized', true,
+        'reason', 'retry_limit_exhausted',
+        'task', to_jsonb(claimed)
+      );
+    end if;
+  end if;
+
   select count(*)::integer
   into global_active
   from public.code_tasks
@@ -781,12 +1062,17 @@ begin
   end if;
 
   select
-    count(*)::integer,
-    coalesce(sum(declared_sandbox_seconds), 0)::integer
-  into global_starts, global_seconds
-  from public.code_guardrail_receipts
-  where code_guardrail_receipts.budget_day = current_budget_day
-    and receipt_kind = 'model_start';
+    coalesce((
+      select fact.model_start_count
+      from public.code_guardrail_global_daily_facts as fact
+      where fact.budget_day = current_budget_day
+    ), 0),
+    coalesce((
+      select fact.declared_sandbox_seconds::integer
+      from public.code_guardrail_global_daily_facts as fact
+      where fact.budget_day = current_budget_day
+    ), 0)
+  into global_starts, global_seconds;
 
   if global_starts >= guardrails.global_daily_model_start_limit then
     return jsonb_build_object(
@@ -797,6 +1083,11 @@ begin
     );
   end if;
 
+  remaining_global_seconds := greatest(
+    0,
+    guardrails.global_daily_sandbox_seconds - global_seconds
+  );
+
   -- Pick the least-recently-served eligible account first. A user with an
   -- active lease or exhausted daily budget is skipped so another account can
   -- make progress instead of sitting behind it.
@@ -805,6 +1096,8 @@ begin
   from public.code_tasks as task
   where task.status in ('queued', 'provisioning', 'running', 'verifying')
     and task.usage_receipt is not null
+    and task.max_duration_seconds <= remaining_global_seconds
+    and task.attempt_count < task.max_attempts
     and task.next_attempt_at <= now()
     and task.expires_at > now()
     and (
@@ -853,6 +1146,8 @@ begin
       from public.code_tasks as waiting
       where waiting.status in ('queued', 'provisioning', 'running', 'verifying')
         and waiting.usage_receipt is not null
+        and waiting.max_duration_seconds <= remaining_global_seconds
+        and waiting.attempt_count < waiting.max_attempts
         and waiting.next_attempt_at <= now()
         and waiting.expires_at > now()
         and (
@@ -865,6 +1160,31 @@ begin
         'claimed', false,
         'deferred', true,
         'reason', 'user_daily_compute_limit',
+        'retryAfterSeconds', retry_after_midnight
+      );
+    end if;
+    if exists (
+      select 1
+      from public.code_tasks as waiting
+      where waiting.status in ('queued', 'provisioning', 'running', 'verifying')
+        and waiting.usage_receipt is not null
+        and waiting.attempt_count < waiting.max_attempts
+        and waiting.next_attempt_at <= now()
+        and waiting.expires_at > now()
+        and (
+          waiting.lease_token is null
+          or waiting.lease_expires_at is null
+          or waiting.lease_expires_at < now()
+        )
+    ) then
+      return jsonb_build_object(
+        'claimed', false,
+        'deferred', true,
+        'reason', 'global_daily_sandbox_seconds',
+        'capacityState', case
+          when remaining_global_seconds <= 0 then 'exhausted'
+          else 'no_fitting_task'
+        end,
         'retryAfterSeconds', retry_after_midnight
       );
     end if;
@@ -883,6 +1203,8 @@ begin
     and user_id = candidate_user_id
     and status in ('queued', 'provisioning', 'running', 'verifying')
     and usage_receipt is not null
+    and max_duration_seconds <= remaining_global_seconds
+    and attempt_count < max_attempts
     and next_attempt_at <= now()
     and expires_at > now()
     and (
@@ -979,6 +1301,21 @@ begin
     declared_seconds
   );
 
+  insert into public.code_guardrail_global_daily_facts as daily (
+    budget_day,
+    accepted_count,
+    model_start_count,
+    declared_sandbox_seconds,
+    updated_at
+  )
+  values (current_budget_day, 0, 1, declared_seconds, now())
+  on conflict (budget_day) do update
+  set model_start_count = daily.model_start_count + 1,
+      declared_sandbox_seconds =
+        daily.declared_sandbox_seconds
+        + excluded.declared_sandbox_seconds,
+      updated_at = now();
+
   return jsonb_build_object(
     'claimed', true,
     'replayed', false,
@@ -1007,10 +1344,13 @@ comment on table public.code_guardrail_limits is
 comment on table public.code_guardrail_receipts is
   'Content-free private Autonomous Crump acceptance and model-start budget receipts. No prompts, source URLs, paths, output, provider tokens, or customer content.';
 
+comment on table public.code_guardrail_global_daily_facts is
+  'Deletion-invariant private UTC-day Autonomous Crump global capacity facts. Contains counts and declared seconds only; no customer, task, prompt, source, path, output, or provider identifiers.';
+
 comment on function public.create_code_task_guarded(
-  uuid, uuid, text, text, text, text, text, integer
+  uuid, uuid, uuid, text, text, text, text, text, integer
 ) is
-  'Service-role-only atomic queue admission for one owner-scoped Autonomous Crump task.';
+  'Service-role-only replay-safe atomic queue admission for one owner-scoped Autonomous Crump task.';
 
 comment on function public.accept_code_task_run(
   uuid, uuid, uuid, text, integer, integer, text, integer

@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from threading import Barrier, Lock
 from types import SimpleNamespace
+from uuid import UUID
 
 import pytest
 
@@ -35,11 +36,23 @@ def test_guardrail_migration_is_private_bounded_and_content_free() -> None:
     sql = migration()
     assert sql.startswith("-- autonomous crump queue, budget, concurrency, and fairness guardrails")
     assert sql.rstrip().endswith("commit;")
-    for table in ("code_guardrail_limits", "code_guardrail_receipts"):
+    for table in (
+        "code_guardrail_limits",
+        "code_guardrail_receipts",
+        "code_guardrail_global_daily_facts",
+    ):
         assert f"alter table public.{table} enable row level security" in sql
-        assert f"revoke all on table public.{table} from public, anon, authenticated, service_role" in sql
+        normalized_sql = " ".join(sql.split())
+        assert (
+            f"revoke all on table public.{table} from public, anon, authenticated, service_role"
+            in normalized_sql
+        )
     assert "grant select on table public.code_guardrail_limits to service_role" in sql
     assert "grant select, insert on table public.code_guardrail_receipts to service_role" in sql
+    assert (
+        "grant select, insert, update on table public.code_guardrail_global_daily_facts"
+        in sql
+    )
     assert "grant update on table public.code_guardrail_limits" not in sql
     assert "grant delete on table public.code_guardrail_receipts" not in sql
     assert "values (1, 3, 100, 2, 3, 30, 4, 24, 720, 4320)" in sql
@@ -73,6 +86,17 @@ def test_guardrail_migration_is_private_bounded_and_content_free() -> None:
     ):
         assert private_content not in receipt_ddl
 
+    facts_ddl = sql[
+        sql.index("create table if not exists public.code_guardrail_global_daily_facts") :
+        sql.index("create unique index if not exists code_tasks_one_accepted_active_per_user_idx")
+    ]
+    assert "budget_day date primary key" in facts_ddl
+    assert "accepted_count integer" in facts_ddl
+    assert "model_start_count integer" in facts_ddl
+    assert "declared_sandbox_seconds bigint" in facts_ddl
+    for customer_identifier in ("user_id", "task_id", "project_id", "email"):
+        assert customer_identifier not in facts_ddl
+
 
 def test_both_autonomous_release_gates_remain_closed() -> None:
     config = (ROOT / "backend" / "config.py").read_text(encoding="utf-8")
@@ -94,6 +118,17 @@ def test_owned_postgres_gate_refuses_shared_or_nonempty_databases() -> None:
     assert "drop schema" not in source.lower()
     assert "SUPABASE_URL" not in source
     assert "SUPABASE_SERVICE_KEY" not in source
+    for runtime_proof in (
+        "service_role direct code_tasks INSERT was not rejected",
+        "create replay inserted more than one task",
+        "globalFactsSurviveUserDeletion",
+        "expiredCrossProjectTaskReconciled",
+        "retryLimitFiveTerminalizedBeforeCompute",
+        "smallFittingTaskBypassedOversizedTask",
+        "noFittingTaskDeferredUntilUtcReset",
+        "exhaustedCapacityDistinguished",
+    ):
+        assert runtime_proof in source
     for migration_name in (
         "20260827145025_crump_code_foundation.sql",
         "20260830093000_crump_code_durable_worker.sql",
@@ -122,7 +157,7 @@ def test_guardrail_functions_use_consistent_lock_order_and_private_execution() -
     for name, signature in (
         (
             "create_code_task_guarded",
-            "public.create_code_task_guarded(\n  uuid, uuid, text, text, text, text, text, integer\n)",
+            "public.create_code_task_guarded(\n  uuid, uuid, uuid, text, text, text, text, text, integer\n)",
         ),
         (
             "accept_code_task_run",
@@ -133,7 +168,10 @@ def test_guardrail_functions_use_consistent_lock_order_and_private_execution() -
         function = sql[sql.index(f"create or replace function public.{name}") :]
         end = function.index("$$;", function.index("as $$"))
         body = function[:end]
-        assert "security invoker" in body
+        if name == "create_code_task_guarded":
+            assert "security definer" in body
+        else:
+            assert "security invoker" in body
         assert "set search_path = ''" in body
         global_lock = body.index("pg_catalog.pg_advisory_xact_lock(8274, 0)")
         if name != "claim_code_task_guarded":
@@ -147,6 +185,84 @@ def test_guardrail_functions_use_consistent_lock_order_and_private_execution() -
         assert f"revoke all on function {signature}" in sql
         assert f"grant execute on function {signature}" in sql
     assert "revoke all on function public.claim_code_task(integer, uuid) from service_role" in sql
+    assert "revoke insert on table public.code_tasks from service_role" in sql
+
+
+def test_queue_creation_has_stable_replay_identity_and_one_creation_event() -> None:
+    sql = migration()
+    body = sql[
+        sql.index("create or replace function public.create_code_task_guarded") :
+        sql.index("create or replace function public.accept_code_task_run")
+    ]
+    assert "code_tasks_creation_token_idx" in sql
+    assert "p_creation_token uuid" in body
+    replay_lookup = body.index("where creation_token = p_creation_token")
+    capacity_lookup = body.index("from public.code_guardrail_limits")
+    task_insert = body.index("insert into public.code_tasks")
+    event_insert = body.index("insert into public.code_task_events")
+    assert replay_lookup < capacity_lookup < task_insert < event_insert
+    assert "'replayed', true" in body
+    assert "event.event_type = 'task.created'" in body
+    assert "created.verification_policy <> p_verification_policy" in body
+    assert "'reason', 'creation_token_conflict'" in body
+
+
+def test_global_daily_facts_survive_customer_deletion_and_are_atomic() -> None:
+    sql = migration()
+    facts_ddl = sql[
+        sql.index("create table if not exists public.code_guardrail_global_daily_facts") :
+        sql.index("create unique index if not exists code_tasks_one_accepted_active_per_user_idx")
+    ]
+    assert "references public.users" not in facts_ddl
+    assert "references public.code_tasks" not in facts_ddl
+    assert "on delete cascade" not in facts_ddl
+
+    accept = sql[
+        sql.index("create or replace function public.accept_code_task_run") :
+        sql.index("create or replace function public.claim_code_task_guarded")
+    ]
+    assert "select fact.accepted_count" in accept
+    assert "accepted_count = daily.accepted_count + 1" in accept
+    assert accept.index("insert into public.code_guardrail_receipts") < accept.index(
+        "insert into public.code_guardrail_global_daily_facts"
+    )
+
+    claim = sql[sql.index("create or replace function public.claim_code_task_guarded") :]
+    assert "select fact.model_start_count" in claim
+    assert "select fact.declared_sandbox_seconds::integer" in claim
+    assert "model_start_count = daily.model_start_count + 1" in claim
+
+
+def test_acceptance_reconciles_expired_tasks_across_projects_before_active_check() -> None:
+    sql = migration()
+    body = sql[
+        sql.index("create or replace function public.accept_code_task_run") :
+        sql.index("create or replace function public.claim_code_task_guarded")
+    ]
+    cleanup = body.index("with expired as")
+    active_check = body.index("select min(active.expires_at)")
+    charge = body.index("from public.consume_usage_event(")
+    assert cleanup < active_check < charge
+    assert "stale.user_id = p_user_id" in body
+    assert "stale.expires_at <= now()" in body
+    assert "failure_code = 'code_task_expired'" in body
+    assert "payment_source = 'refund_pending'" in body
+    assert "'task.cancelled'" in body
+
+
+def test_final_attempt_is_terminalized_before_any_compute_reservation() -> None:
+    sql = migration()
+    body = sql[sql.index("create or replace function public.claim_code_task_guarded") :]
+    terminal = body.index("task.attempt_count >= task.max_attempts")
+    global_budget = body.index("select fact.model_start_count")
+    model_receipt = body.index("insert into public.code_guardrail_receipts")
+    assert terminal < global_budget < model_receipt
+    terminal_block = body[terminal:global_budget]
+    assert "failure_code = 'code_retry_limit'" in terminal_block
+    assert "payment_source = 'refund_pending'" in terminal_block
+    assert "'task.failed'" in terminal_block
+    assert "'terminalized', true" in terminal_block
+    assert "insert into public.code_guardrail_receipts" not in terminal_block
 
 
 def test_acceptance_rejects_guardrails_before_any_allowance_or_credit_charge() -> None:
@@ -158,7 +274,7 @@ def test_acceptance_rejects_guardrails_before_any_allowance_or_credit_charge() -
     last_precharge_guardrail = body.index("global_daily_accept_limit")
     allowance = body.index("from public.consume_usage_event(")
     credits = body.index("from public.spend_credits_confirmed(")
-    task_update = body.index("update public.code_tasks")
+    task_update = body.index("update public.code_tasks\n  set status = 'provisioning'")
     receipt = body.index("insert into public.code_guardrail_receipts")
     assert last_precharge_guardrail < allowance < credits < task_update < receipt
     assert "code_tasks_one_accepted_active_per_user_idx" in sql
@@ -174,6 +290,12 @@ def test_claim_is_fair_skip_locked_equivalent_and_budgeted_before_compute() -> N
     assert "global_daily_model_start_limit" in body
     assert "user_daily_sandbox_seconds" in body
     assert "global_daily_sandbox_seconds" in body
+    assert "code_guardrail_global_daily_facts" in body
+    assert "task.max_duration_seconds <= remaining_global_seconds" in body
+    assert "'no_fitting_task'" in body
+    assert "'exhausted'" in body
+    assert "task.attempt_count < task.max_attempts" in body
+    assert "'reason', 'retry_limit_exhausted'" in body
     assert "select max(served.created_at)" in body
     assert "asc nulls first" in body
     assert "for update skip locked" in body
@@ -195,7 +317,7 @@ class GuardedRPCDB:
 
 
 @pytest.mark.asyncio
-async def test_service_creates_only_through_guarded_rpc() -> None:
+async def test_service_creates_only_through_guarded_replay_safe_rpc(monkeypatch) -> None:
     task = {"id": TASK_ID, "user_id": USER_ID, "project_id": PROJECT_ID, "status": "queued"}
     database = GuardedRPCDB(
         {"create_code_task_guarded": {"created": True, "task": task}}
@@ -205,6 +327,7 @@ async def test_service_creates_only_through_guarded_rpc() -> None:
         return {"id": PROJECT_ID}
 
     service = CodeTaskService(database, SimpleNamespace(get=get_project))
+    monkeypatch.setattr("backend.code_service.uuid4", lambda: UUID(CLAIM_ID))
     created = await service.create(
         user_id=USER_ID,
         project_id=PROJECT_ID,
@@ -220,6 +343,7 @@ async def test_service_creates_only_through_guarded_rpc() -> None:
     assert payload == {
         "p_user_id": USER_ID,
         "p_project_id": PROJECT_ID,
+        "p_creation_token": CLAIM_ID,
         "p_objective": "Fix the bounded bug",
         "p_mode": "implement",
         "p_source_repo_url": "https://github.com/openai/codex.git",
@@ -228,6 +352,26 @@ async def test_service_creates_only_through_guarded_rpc() -> None:
         "p_max_duration_seconds": 240,
     }
     assert retry is True
+
+
+def test_legacy_direct_claim_method_is_absent() -> None:
+    assert not hasattr(CodeTaskService, "claim")
+
+
+@pytest.mark.asyncio
+async def test_generic_transition_cannot_bypass_guarded_provisioning() -> None:
+    service = CodeTaskService(GuardedRPCDB({}), SimpleNamespace())
+    with pytest.raises(CodeTaskConflictError, match="cannot move from queued to provisioning"):
+        await service.transition(
+            {
+                "id": TASK_ID,
+                "user_id": USER_ID,
+                "project_id": PROJECT_ID,
+                "status": "queued",
+            },
+            "provisioning",
+        )
+    assert service.db.calls == []
 
 
 @pytest.mark.asyncio

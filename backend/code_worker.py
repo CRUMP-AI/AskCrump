@@ -130,6 +130,24 @@ class CodeWorker:
             claim_token=str(uuid4()),
         )
         if not claim.get("claimed"):
+            if claim.get("handled") and claim.get("terminalized"):
+                task = claim.get("task") if isinstance(claim.get("task"), dict) else {}
+                code_log(
+                    logger,
+                    logging.WARNING,
+                    "worker_terminal_failure",
+                    attempt=int(task.get("attempt_count") or 0),
+                    max_attempts=int(task.get("max_attempts") or 0),
+                    failure_code=str(task.get("failure_code") or "CODE_RETRY_LIMIT"),
+                    status=str(task.get("status") or "failed"),
+                    outcome="terminalized_before_compute",
+                )
+                return {
+                    "handled": True,
+                    "claimed": False,
+                    "status": str(task.get("status") or "failed"),
+                    "terminalized": True,
+                }
             if claim.get("deferred"):
                 reason = str(claim.get("reason") or "guardrail_unavailable")[:80]
                 if reason not in GUARDRAIL_DEFER_REASONS:
@@ -139,21 +157,28 @@ class CodeWorker:
                 except (TypeError, ValueError):
                     retry_after = 30
                 retry_after = max(1, min(86_400, retry_after))
+                capacity_state = str(claim.get("capacityState") or "")
+                if capacity_state not in {"exhausted", "no_fitting_task"}:
+                    capacity_state = ""
                 code_log(
                     logger,
                     logging.INFO,
                     "worker_deferred",
                     guardrail_reason=reason,
                     retry_after_seconds=retry_after,
+                    capacity_state=capacity_state,
                     outcome="deferred",
                 )
-                return {
+                summary = {
                     "handled": False,
                     "claimed": False,
                     "deferred": True,
                     "reason": reason,
                     "retryAfterSeconds": retry_after,
                 }
+                if capacity_state:
+                    summary["capacityState"] = capacity_state
+                return summary
             return {"handled": False, "claimed": False}
         task = claim["task"]
 

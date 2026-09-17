@@ -104,6 +104,36 @@ class DeferredWorkerService(WorkerService):
         }
 
 
+class TerminalizedWorkerService(WorkerService):
+    async def claim_next(self, **kwargs):
+        self.claim_calls.append(kwargs)
+        return {
+            "claimed": False,
+            "handled": True,
+            "terminalized": True,
+            "reason": "retry_limit_exhausted",
+            "task": task(
+                status="failed",
+                attempt_count=5,
+                max_attempts=5,
+                failure_code="CODE_RETRY_LIMIT",
+                payment_source="refund_pending",
+            ),
+        }
+
+
+class CapacityDeferredWorkerService(WorkerService):
+    async def claim_next(self, **kwargs):
+        self.claim_calls.append(kwargs)
+        return {
+            "claimed": False,
+            "deferred": True,
+            "reason": "global_daily_sandbox_seconds",
+            "capacityState": "no_fitting_task",
+            "retryAfterSeconds": 7200,
+        }
+
+
 class CompletingRunner:
     async def run(self, item, *, oidc_token):
         assert oidc_token == "oidc"
@@ -191,11 +221,16 @@ def test_worker_reuses_existing_cron_slot_and_browser_only_dispatches():
 
 def test_private_lease_and_dispatch_tokens_never_reach_the_browser():
     public = CodeTaskService.public_task(
-        task(dispatch_token="dispatch-secret", lease_expires_at="2999-01-01T00:00:00Z")
+        task(
+            dispatch_token="dispatch-secret",
+            creation_token="creation-secret",
+            lease_expires_at="2999-01-01T00:00:00Z",
+        )
     )
     assert "dispatch_token" not in public
     assert "lease_token" not in public
     assert "lease_expires_at" not in public
+    assert "creation_token" not in public
 
 
 @pytest.mark.asyncio
@@ -293,6 +328,24 @@ async def test_guardrail_deferred_claim_yields_shared_worker_without_running(cap
 
 
 @pytest.mark.asyncio
+async def test_worker_preserves_content_free_no_fitting_capacity_state(caplog):
+    service = CapacityDeferredWorkerService()
+    caplog.set_level(logging.INFO, logger="askcrump.code_worker")
+    result = await worker(service, NeverRunner()).process_next(oidc_token="oidc")
+    assert result == {
+        "handled": False,
+        "claimed": False,
+        "deferred": True,
+        "reason": "global_daily_sandbox_seconds",
+        "retryAfterSeconds": 7200,
+        "capacityState": "no_fitting_task",
+    }
+    emitted = json.loads(caplog.records[-1].message)
+    assert emitted["guardrail_reason"] == "global_daily_sandbox_seconds"
+    assert emitted["capacity_state"] == "no_fitting_task"
+
+
+@pytest.mark.asyncio
 async def test_retry_limit_fails_and_refunds_before_starting_more_compute():
     claimed = task(attempt_count=4, max_attempts=3)
     service = WorkerService(claimed=claimed)
@@ -303,6 +356,25 @@ async def test_retry_limit_fails_and_refunds_before_starting_more_compute():
     assert service.transitions[0][2]["changes"]["failure_code"] == "CODE_RETRY_LIMIT"
     assert features.refunds == [(USER_ID, claimed["usage_receipt"])]
     assert len(service.refunded) == 1
+
+
+@pytest.mark.asyncio
+async def test_database_terminalized_retry_limit_never_starts_provider_compute(caplog):
+    service = TerminalizedWorkerService()
+    caplog.set_level(logging.INFO, logger="askcrump.code_worker")
+    result = await worker(service, NeverRunner()).process_next(oidc_token="oidc")
+    assert result == {
+        "handled": True,
+        "claimed": False,
+        "status": "failed",
+        "terminalized": True,
+    }
+    assert len(service.claim_calls) == 1
+    emitted = json.loads(caplog.records[-1].message)
+    assert emitted["event"] == "worker_terminal_failure"
+    assert emitted["outcome"] == "terminalized_before_compute"
+    assert emitted["attempt"] == 5
+    assert emitted["max_attempts"] == 5
 
 
 @pytest.mark.asyncio

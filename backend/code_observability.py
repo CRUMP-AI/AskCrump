@@ -31,6 +31,7 @@ _STRING_FIELDS = frozenset(
         "error_type",
         "failure_code",
         "guardrail_reason",
+        "capacity_state",
         "mode",
         "outcome",
         "payment_source",
