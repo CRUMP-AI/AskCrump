@@ -170,6 +170,7 @@ def test_owned_postgres_gate_refuses_shared_or_nonempty_databases() -> None:
     assert "GitHub Actions run 35170038398" in evidence
     assert "exact executable source identity and its CI-only mirror" in evidence
     assert "PostgreSQL 15 and PostgreSQL 17 jobs" in evidence
+    assert "1,212 collected; 1,211 passed; one environment-dependent skip" in evidence
     assert "deliberately **not Supabase**" in evidence
     assert "no real PostgreSQL runtime or concurrency pass is claimed" not in evidence
 
