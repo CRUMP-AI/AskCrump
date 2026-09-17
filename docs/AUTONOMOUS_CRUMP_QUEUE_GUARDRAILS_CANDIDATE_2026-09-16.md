@@ -100,7 +100,7 @@ Customer deletion still cascades these task/user-linked receipts. Global UTC-day
 Completed locally:
 
 - focused queue/worker/foundation tests: **62 passed**;
-- complete Python suite: **1,213 collected; 1,212 passed; one environment-dependent skip**;
+- complete Python suite: **1,212 collected; 1,211 passed; one environment-dependent skip**;
 - changed-file Ruff: passed;
 - changed Python compilation: passed;
 - JavaScript validation: **54 files passed**;
