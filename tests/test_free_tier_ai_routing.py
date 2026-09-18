@@ -90,9 +90,11 @@ async def test_free_chat_uses_hard_allowlisted_gateway_without_anthropic_fallbac
         "disallowPromptTraining": True,
         "zeroDataRetention": True,
     }
-    assert call["json"]["user"] == "free-user"
+    assert "user" not in call["json"]
     assert "tier:free" in call["json"]["tags"]
     assert call["json"]["messages"][0]["role"] == "system"
+    assert "free-user" not in json.dumps(call["json"])
+    assert "Tester" not in json.dumps(call["json"])
 
 
 @pytest.mark.asyncio
@@ -123,6 +125,26 @@ async def test_paid_chat_keeps_the_premium_anthropic_route(monkeypatch):
     assert len(FakeAsyncClient.calls) == 1
     assert FakeAsyncClient.calls[0]["url"] == "https://api.anthropic.com/v1/messages"
     assert FakeAsyncClient.calls[0]["headers"]["x-api-key"] == "anthropic-test-token"
+    assert "paid-user" not in json.dumps(FakeAsyncClient.calls[0]["json"])
+    assert "Tester" not in json.dumps(FakeAsyncClient.calls[0]["json"])
+
+
+@pytest.mark.asyncio
+async def test_gateway_rejects_provider_outside_current_consent_registry_before_network():
+    service = AIService(_settings(ai_gateway_free_provider="together"))
+
+    with pytest.raises(AIServiceError) as captured:
+        await service.gateway_text(
+            system="Route safely.",
+            prompt="Do not send this.",
+            max_tokens=512,
+            timeout_seconds=30,
+            user_id="must-not-be-forwarded",
+            purpose="consent-registry-test",
+        )
+
+    assert captured.value.code == "AI_GATEWAY_PROVIDER_NOT_CONSENTED"
+    assert FakeAsyncClient.calls == []
 
 
 @pytest.mark.asyncio
@@ -282,6 +304,8 @@ async def test_gateway_cost_receipt_captures_helper_usage_and_actual_cost(monkey
     assert settled["p_usage_receipt_complete"] is True
     assert settled["p_cost_receipt_complete"] is True
     assert "feature:creation-intent" in FakeAsyncClient.calls[0]["json"]["tags"]
+    assert "user" not in FakeAsyncClient.calls[0]["json"]
+    assert "must-not-be-stored" not in json.dumps(FakeAsyncClient.calls[0]["json"])
 
 
 @pytest.mark.asyncio

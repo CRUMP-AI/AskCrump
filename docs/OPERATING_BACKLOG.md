@@ -1270,6 +1270,20 @@ aspect ratios, one measurable CTA, and controlled tests against activation—not
 
 ## Next operating decision
 
+The 2026-09-17 protected production refresh preserves the current customer funnel. The
+September comparable cohort still contains one verified account through workspace entry,
+starter intent, activation, four completed chat jobs, and D1 return at **1/1**. D7 is not
+yet eligible. There is still no Project, Project-file link, ready generated file, media
+job, artifact journey, explicit outcome, Checkout, or payer. Crucially, the
+result-to-Project offer measurement boundary began at **2026-09-14 18:34:14 UTC** and no
+active account has seen the offer after that boundary, so there is no current
+offer-to-intent denominator and no attempted-save failure to repair. Navigation discovery
+likewise has no active-account denominator after its 2026-09-14 boundary. Preserve the
+activation, continuity, navigation, and Plan experiences until legitimate post-boundary
+traffic creates a measurable journey or a reproducible failure. Keep broad paid
+acquisition, D7, payer, and revenue conclusions closed. Evidence:
+`docs/PRODUCTION_OPERATING_REFRESH_2026-09-17.md`.
+
 Commit `9225374` makes the upcoming D1 decision fail closed at the operator boundary. The weekly
 and combined operating exporters now require all 25 cohort counts as nonnegative integers, one
 consistent requested reporting window, valid nullable database finance totals, and 24 exact subset

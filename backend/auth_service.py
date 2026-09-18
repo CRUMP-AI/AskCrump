@@ -43,6 +43,10 @@ def public_user(user: dict[str, Any]) -> dict[str, Any]:
         'trialEnd': user.get('trial_end'),
         'termsAcceptedAt': user.get('terms_accepted_at'),
         'termsVersion': user.get('terms_version'),
+        'aiDataSharingConsentAt': user.get('ai_data_sharing_consent_at'),
+        'aiDataSharingConsentVersion': user.get('ai_data_sharing_consent_version'),
+        'aiDataSharingConsentRevokedAt': user.get('ai_data_sharing_consent_revoked_at'),
+        'aiDataSharingConsentUpdatedAt': user.get('ai_data_sharing_consent_updated_at'),
     }
 
 

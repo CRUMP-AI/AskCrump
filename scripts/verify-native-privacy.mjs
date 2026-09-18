@@ -57,6 +57,7 @@ function verifyAppPrivacyManifest(source, label) {
     'NSPrivacyCollectedDataTypeEmailAddress',
     'NSPrivacyCollectedDataTypeUserID',
     'NSPrivacyCollectedDataTypeOtherUserContent',
+    'NSPrivacyCollectedDataTypePhotosorVideos',
     'NSPrivacyCollectedDataTypePurchaseHistory',
     'NSPrivacyCollectedDataTypeDeviceID',
     'NSPrivacyCollectedDataTypeProductInteraction',
@@ -184,8 +185,30 @@ async function verifyAndroidManifest() {
   const manifest = await readFile(suppliedPath, 'utf8');
   const permissions = [...manifest.matchAll(/<uses-permission[^>]+android:name=["']([^"']+)["']/g)]
     .map(match => match[1]);
-  for (const required of ['android.permission.INTERNET', 'android.permission.POST_NOTIFICATIONS']) {
+  for (const required of [
+    'android.permission.INTERNET',
+    'android.permission.POST_NOTIFICATIONS',
+    'com.android.vending.BILLING',
+  ]) {
     if (!permissions.includes(required)) fail(`The merged Android manifest is missing ${required}.`);
+  }
+
+  const billingMetadataName = 'com.google.android.play.billingclient.version';
+  const billingMetadata = [...manifest.matchAll(/<meta-data\b[^>]*>/g)]
+    .map(match => match[0])
+    .filter(element => /\bandroid:name\s*=\s*["']com\.google\.android\.play\.billingclient\.version["']/.test(element));
+  if (billingMetadata.length !== 1) {
+    fail(`The merged Android manifest must contain exactly one ${billingMetadataName} metadata entry; found ${billingMetadata.length}.`);
+  } else {
+    const version = billingMetadata[0].match(/\bandroid:value\s*=\s*["']([^"']+)["']/)?.[1] || '';
+    const semver = version.match(
+      /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/,
+    );
+    if (!semver) {
+      fail(`The merged Android manifest ${billingMetadataName} value must be a semantic version; found ${version || 'no android:value'}.`);
+    } else if (Number(semver[1]) < 8) {
+      fail(`The merged Android manifest uses Google Play Billing Library ${version}; major version 8 or newer is required.`);
+    }
   }
   for (const prohibited of [
     'android.permission.ACCESS_COARSE_LOCATION',

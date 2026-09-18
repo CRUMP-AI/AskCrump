@@ -6,6 +6,7 @@ import logging
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from ..ai_consent import require_ai_data_sharing_consent
 from ..auth_service import authenticate_request
 from ..db import eq
 from ..feature_service import FeatureAccessError
@@ -174,6 +175,8 @@ async def create_video(request: Request):
             "idempotentReplay": True,
         }
 
+    require_ai_data_sharing_consent(auth.user)
+
     try:
         reference_images = await video.prepare_reference_images(
             user_id=auth.user["id"],
@@ -275,6 +278,8 @@ async def continue_video(job_id: str, request: Request):
             "job": await video.public_job(user_id=auth.user["id"], row=existing),
             "idempotentReplay": True,
         }
+
+    require_ai_data_sharing_consent(auth.user)
 
     try:
         await video.validate_continuation_parent(user_id=auth.user["id"], job_id=job_id)

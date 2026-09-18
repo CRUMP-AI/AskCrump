@@ -19,6 +19,7 @@ on:
       - scripts/check-javascript.mjs
       - scripts/configure-android-signing.mjs
       - scripts/configure-native.mjs
+      - scripts/native-api-origin.mjs
       - scripts/prepare-store-release.mjs
       - scripts/production-build-preflight.mjs
       - scripts/revenuecat-catalog.mjs
@@ -41,7 +42,7 @@ permissions:
 
 jobs:
   verify-android-bundle:
-    name: Generate and compile unsigned Android candidate
+    name: Generate and compile unsigned Android structural candidate (not release-ready)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -52,7 +53,9 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
-      - name: Generate and verify Android release source
+      - name: Generate and verify unsigned Android structural source (not release-ready)
+        env:
+          STORE_ALLOW_MISSING_PUBLIC_BILLING_KEYS: "1"
         run: npm run store:prepare:android
       - uses: actions/setup-java@v6
         with:
@@ -86,6 +89,7 @@ jobs:
             echo '- Generated from the reviewed Node 22 lockfile with Temurin Java 21.'
             echo '- Native source and tracked signing-control verifiers passed.'
             echo '- Gradle compiled the Release Android App Bundle without signing.'
+            echo '- Missing RevenueCat public billing keys were explicitly allowed for structural CI; this output is not release-ready.'
             echo '- No keystore, service-account credential, artifact upload, Play upload, or submission was used.'
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Verify merged-manifest privacy boundary

@@ -84,6 +84,29 @@ class WorkerFeatures:
         self.refunds.append((user_id, dict(receipt)))
 
 
+class WorkerDB:
+    def __init__(self, *, consented=True, deleted=False):
+        self.consented = consented
+        self.deleted = deleted
+
+    async def select_one(self, table, **kwargs):
+        assert table == "users"
+        assert "deleted_at" in str(kwargs.get("columns") or "")
+        return {
+            "id": USER_ID,
+            "ai_data_sharing_consent_at": (
+                "2026-09-17T23:55:00+00:00" if self.consented else None
+            ),
+            "ai_data_sharing_consent_version": (
+                "2026-09-17" if self.consented else None
+            ),
+            "ai_data_sharing_consent_revoked_at": None,
+            "deleted_at": (
+                "2026-09-18T00:01:00+00:00" if self.deleted else None
+            ),
+        }
+
+
 class FailingRefundLookupService(WorkerService):
     async def next_refund_pending(self):
         raise RuntimeError("private database detail must not reach operations logs")
@@ -112,14 +135,22 @@ class UnexpectedRunner:
         raise RuntimeError("private failure detail must not reach operations logs")
 
 
-def worker(service, runner, features=None, *, enabled=True):
+def worker(
+    service,
+    runner,
+    features=None,
+    *,
+    enabled=True,
+    consented=True,
+    deleted=False,
+):
     return CodeWorker(
         SimpleNamespace(
             code_workspace_enabled=enabled,
             anthropic_api_key="configured" if enabled else None,
             code_max_duration_seconds=30,
         ),
-        SimpleNamespace(),
+        WorkerDB(consented=consented, deleted=deleted),
         service,
         runner,
         features or WorkerFeatures(),
@@ -234,6 +265,57 @@ async def test_retry_limit_fails_and_refunds_before_starting_more_compute():
     assert result == {"handled": True, "claimed": True, "status": "failed"}
     assert service.transitions[0][1] == "failed"
     assert service.transitions[0][2]["changes"]["failure_code"] == "CODE_RETRY_LIMIT"
+    assert features.refunds == [(USER_ID, claimed["usage_receipt"])]
+    assert len(service.refunded) == 1
+
+
+@pytest.mark.asyncio
+async def test_worker_revoked_consent_fails_and_refunds_before_provider_or_sandbox():
+    claimed = task()
+    service = WorkerService(claimed=claimed)
+    features = WorkerFeatures()
+    result = await worker(
+        service,
+        NeverRunner(),
+        features,
+        consented=False,
+    ).process_next(oidc_token="oidc")
+
+    assert result == {
+        "handled": True,
+        "claimed": True,
+        "status": "failed",
+        "errorCode": "AI_DATA_SHARING_CONSENT_REQUIRED",
+    }
+    assert service.transitions[0][2]["changes"]["failure_code"] == (
+        "AI_DATA_SHARING_CONSENT_REQUIRED"
+    )
+    assert features.refunds == [(USER_ID, claimed["usage_receipt"])]
+    assert len(service.refunded) == 1
+
+
+@pytest.mark.asyncio
+async def test_worker_deleted_account_fails_and_refunds_before_provider_or_sandbox():
+    claimed = task()
+    service = WorkerService(claimed=claimed)
+    features = WorkerFeatures()
+    result = await worker(
+        service,
+        NeverRunner(),
+        features,
+        consented=True,
+        deleted=True,
+    ).process_next(oidc_token="oidc")
+
+    assert result == {
+        "handled": True,
+        "claimed": True,
+        "status": "failed",
+        "errorCode": "AI_DATA_SHARING_CONSENT_REQUIRED",
+    }
+    assert service.transitions[0][2]["changes"]["failure_code"] == (
+        "AI_DATA_SHARING_CONSENT_REQUIRED"
+    )
     assert features.refunds == [(USER_ID, claimed["usage_receipt"])]
     assert len(service.refunded) == 1
 

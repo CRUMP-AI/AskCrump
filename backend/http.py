@@ -13,6 +13,12 @@ from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from .ai_consent import (
+    AI_DATA_SHARING_CATEGORIES,
+    AI_DATA_SHARING_PROVIDERS,
+    AIDataSharingConsentRequired,
+    CURRENT_AI_DATA_SHARING_CONSENT_VERSION,
+)
 from .ai_service import AIServiceError
 from .auth_service import AuthenticationError
 from .db import DatabaseError
@@ -151,6 +157,25 @@ def native_token_payload(request: Request, raw_token: str) -> dict[str, Any]:
 
 
 def register_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(AIDataSharingConsentRequired)
+    async def ai_data_sharing_consent_handler(
+        _: Request,
+        exc: AIDataSharingConsentRequired,
+    ):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "success": False,
+                "error": exc.message,
+                "message": exc.message,
+                "code": exc.code,
+                "consentVersion": CURRENT_AI_DATA_SHARING_CONSENT_VERSION,
+                "providers": list(AI_DATA_SHARING_PROVIDERS),
+                "dataCategories": list(AI_DATA_SHARING_CATEGORIES),
+                "privacyUrl": "/legal.html#ai-data-sharing",
+            },
+        )
+
     @app.exception_handler(AuthenticationError)
     async def auth_error_handler(_: Request, exc: AuthenticationError):
         return JSONResponse(

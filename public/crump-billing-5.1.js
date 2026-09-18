@@ -614,7 +614,7 @@
             <div><span>KEEP GOING</span><h3>Add Crump Credits</h3></div>
             <p>Credit use varies by feature. Ask Crump shows the exact charge before a paid action. Purchased credits never expire.</p>
           </div>
-          <p class="billing51-rate-note"><strong>Current overflow rates, after any included allowance:</strong> messages 1; live research 1; Crump Voice or visual analysis 2; manuscript planning 4; image generation 6; manuscript chapter 8; image editing 10; Crump Code 12; video generation 60, extend or continue 80, HD 90, or 10-second cinematic 120 credits. The exact total always appears before a paid action.</p>
+          <p class="billing51-rate-note"><strong>Current overflow rates, after any included allowance:</strong> messages 1; live research 1; Crump Voice or visual analysis 2; manuscript planning 4; image generation 6; manuscript chapter 8; image editing 10; Autonomous Crump 12; video generation 60, extend or continue 80, HD 90, or 10-second cinematic 120 credits. The exact total always appears before a paid action.</p>
           <div class="billing51-packs" id="billing51Packs">
             <div class="billing51-skeleton"></div><div class="billing51-skeleton"></div><div class="billing51-skeleton"></div>
           </div>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r249';
+const CACHE_NAME = 'ask-crump-new-body-v1-r252';
 
 const CORE = [
   '/app',
@@ -15,6 +15,7 @@ const CORE = [
   '/onboarding.css?v=5.9.76-video-destination-1',
   '/conversation.css?v=5.9.76-continuity-handoff-1',
   '/auth-styles.css',
+  '/ai-data-sharing-consent.css?v=5.9.76-ai-data-sharing-consent-1',
   '/crump-v1-body.css?v=5.9.76-brand-retina-1',
   '/credit-confirmation.css?v=5.9.76-credit-confirmation-1',
   '/lifecycle.css?v=5.9.76-lifecycle-activation-1',
@@ -24,8 +25,8 @@ const CORE = [
   '/crump-navigation-5.2.5.css',
   '/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1',
   '/crump-navigation-5.9.30.css?v=5.9.76-mobile-drawer-destinations-1',
-  '/crump-navigation-5.9.30.js?v=5.9.76-navigation-discovery-1',
-  '/crump-code-loader.js?v=5.9.76-code-lazy-load-1',
+  '/crump-navigation-5.9.30.js?v=5.9.76-autonomous-crump-1',
+  '/crump-code-loader.js?v=5.9.76-autonomous-crump-1',
   '/crump-product-loader.js?v=5.9.76-product-studio-lazy-load-2',
   '/crump-product-5.3.1.css',
   '/crump-product-5.3.1.js?v=5.9.76-conversation-action-labels-2',
@@ -33,10 +34,11 @@ const CORE = [
   '/crump-polish-5.6.js?v=5.9.76-video-destination-1',
   '/crump-media-save.js?v=5.9.76-library-lazy-load-1',
   '/crump-library-loader.js?v=5.9.76-library-lazy-load-1',
-  '/crump-subscriptions-5.3.2.js?v=5.9.76-checkout-destination-label-1',
-  '/runtime-body-v1.js?v=5.9.76-navigation-discovery-1',
+  '/crump-subscriptions-5.3.2.js?v=5.9.76-native-store-billing-1',
+  '/runtime-body-v1.js?v=5.9.76-native-store-billing-1',
   '/native-runtime.js',
-  '/mobile-bridge.js',
+  '/mobile-bridge.js?v=5.9.76-native-store-billing-1',
+  '/ai-data-sharing-consent.js?v=5.9.76-ai-data-sharing-consent-1',
   '/safe-storage.js',
   '/install-prompt.js?v=5.9.76-update-work-guard-1',
   '/onboarding.js?v=5.9.76-brand-retina-1',
@@ -66,11 +68,11 @@ const CORE = [
   '/crump-5.0.js?v=5.9.76-project-save-offer-1',
   '/crump-precision-image-edit-loader.js?v=5.9.76-precision-lazy-load-1',
   '/crump-billing-5.1.css?v=5.9.76-credit-truth-1',
-  '/crump-billing-5.1.js?v=5.9.76-checkout-destination-label-1',
+  '/crump-billing-5.1.js?v=5.9.76-autonomous-crump-1',
   '/crump-5.2.css',
-  '/crump-5.2.js?v=5.9.76-stripe-destination-integrity-1',
+  '/crump-5.2.js?v=5.9.76-native-store-billing-1',
   '/crump-5.2.2.css?v=5.9.76-new-response-cue-1',
-  '/crump-5.2.2.js?v=5.9.76-stripe-destination-integrity-1',
+  '/crump-5.2.2.js?v=5.9.76-native-store-billing-1',
   '/assets/brand/crump-shell-lockup-light.webp',
 ];
 
@@ -85,18 +87,26 @@ async function preCache() {
   );
 }
 
+async function deleteLegacyCaches() {
+  const keys = await caches.keys();
+  await Promise.all(
+    keys
+      .filter(key => key !== CACHE_NAME && key.startsWith('ask-crump'))
+      .map(key => caches.delete(key))
+  );
+}
+
 self.addEventListener('install', event => {
-  event.waitUntil(preCache().then(() => self.skipWaiting()));
+  event.waitUntil(
+    preCache()
+      .then(deleteLegacyCaches)
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(
-        keys
-          .filter(key => key !== CACHE_NAME && key.startsWith('ask-crump'))
-          .map(key => caches.delete(key))
-      ))
+    deleteLegacyCaches()
       .then(() => self.clients.claim())
   );
 });
@@ -133,6 +143,8 @@ function bootCritical(request, url) {
     url.pathname === '/crump-precision-image-edit-loader.js' ||
     url.pathname === '/ui-functions.js' ||
     url.pathname === '/auth-resilience.js' ||
+    url.pathname === '/ai-data-sharing-consent.js' ||
+    url.pathname === '/ai-data-sharing-consent.css' ||
     url.pathname === '/install-prompt.js' ||
     url.pathname === '/install-prompt.css' ||
     url.pathname === '/device-auth.js' ||

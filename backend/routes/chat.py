@@ -9,6 +9,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from ..ai_consent import require_ai_data_sharing_consent
 from ..ai_service import AIServiceError
 from ..auth_service import authenticate_request
 from ..checkin_service import mark_check_in_responded
@@ -498,9 +499,11 @@ async def chat(request: Request):
     started = time.perf_counter()
     request_id = request.headers.get('X-Request-ID') or str(uuid4())
     auth = await authenticate_request(request, db, settings)
+    require_ai_data_sharing_consent(auth.user)
     effective_user_tier = tier_name(auth.user)
     payload = await request.json()
     request_payload = dict(payload) if isinstance(payload, dict) else {}
+    request_payload.pop('user', None)
     # Precision masks are private, single-request image data. Keep them out of
     # intelligence preparation, traces, synchronized messages, and analytics.
     image_edit_mask = request_payload.pop('imageEditMask', None)
@@ -573,11 +576,6 @@ async def chat(request: Request):
     user_settings = await db.select_one('user_settings', filters={'user_id': eq(auth.user['id'])}) or {}
     request_payload['assistantName'] = user_settings.get('assistant_name') or 'Crump'
     request_payload['workMode'] = 'work' if user_settings.get('work_mode') else 'companion'
-    request_payload['user'] = {
-        'id': auth.user['id'],
-        'email': auth.user.get('email'),
-        'name': auth.user.get('full_name') or str(auth.user.get('email') or '').split('@')[0] or 'the user',
-    }
 
     # Metadata-only marker lets the 4.4 orchestration recognize a document task.
     if file_rows and not str(request_payload.get('message') or '').strip():

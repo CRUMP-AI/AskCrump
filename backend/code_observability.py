@@ -1,4 +1,4 @@
-"""Content-free structured operational logs for the Crump Code control plane."""
+"""Content-free structured operational logs for Autonomous Crump."""
 from __future__ import annotations
 
 import json
@@ -20,6 +20,7 @@ LOG_EVENTS = frozenset(
         "worker_lease_superseded",
         "worker_misconfigured",
         "worker_retry_scheduled",
+        "worker_stopped_before_provider",
         "worker_terminal_failure",
         "worker_terminal_observed",
         "worker_unexpected_failure",
@@ -57,7 +58,7 @@ def code_log(
 ) -> dict[str, Any]:
     """Emit one allowlisted JSON record without account, task, source, or content data."""
     if event not in LOG_EVENTS:
-        raise ValueError("Unknown Crump Code operational event.")
+        raise ValueError("Unknown Autonomous Crump operational event.")
     record: dict[str, Any] = {
         "component": "crump_code",
         "event": event,

@@ -50,11 +50,11 @@ def test_parallel_runtime_asset_is_versioned_for_web_pwa_and_native():
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
 
-    asset = "/runtime-body-v1.js?v=5.9.76-navigation-discovery-1"
+    asset = "/runtime-body-v1.js?v=5.9.76-native-store-billing-1"
     assert asset in shell
     assert asset in worker
-    assert "ask-crump-new-body-v1-r249" in worker
-    assert "ask-crump-new-body-v1-r249" in checker
+    assert "ask-crump-new-body-v1-r252" in worker
+    assert "ask-crump-new-body-v1-r252" in checker
 
 
 def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
@@ -82,10 +82,10 @@ def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
     assert "password" not in fixture.lower()
     assert "askcrump.com" not in fixture.lower()
     assert "verify-workspace-runtime-fetch-plan.cjs" in matrix
-    assert "evidence.maxStyles, 17" in verifier
-    assert "evidence.preloadCount, 34" in verifier
-    assert "mode === 'style-retry' ? 18 : 17" in verifier
-    assert "mode === 'script-retry' ? 35 : 34" in verifier
+    assert "evidence.maxStyles, 18" in verifier
+    assert "evidence.preloadCount, 35" in verifier
+    assert "mode === 'style-retry' ? 19 : 18" in verifier
+    assert "mode === 'script-retry' ? 36 : 35" in verifier
     assert "evidence.styleAttempts, mode === 'style-retry' ? 2 : 1" in verifier
     assert "evidence.scriptAttempts, mode === 'script-retry' ? 2 : 1" in verifier
     assert "failureMessage: 'Ask Crump could not finish loading your workspace." in verifier
@@ -109,5 +109,29 @@ def test_returning_workspace_uses_precache_without_staling_the_shell():
     assert "originAssetRequests" in verifier
     assert "assert.equal(counts.get(fixturePath), 1" in verifier
     assert "verify-service-worker-returning-load.cjs" in matrix
+    assert "askcrump.com" not in verifier.lower()
+    assert "password" not in verifier.lower()
+
+
+def test_returning_workspace_upgrades_out_of_the_legacy_crump_code_cache():
+    worker = read("public/sw.js")
+    verifier = read("scripts/verify-autonomous-crump-cache-upgrade.cjs")
+    matrix = read("scripts/verify-browser-control-matrix.mjs")
+
+    assert "ask-crump-new-body-v1-r252" in worker
+    assert "/runtime-body-v1.js?v=5.9.76-native-store-billing-1" in worker
+    assert "/crump-navigation-5.9.30.js?v=5.9.76-autonomous-crump-1" in worker
+    assert "/crump-code-loader.js?v=5.9.76-autonomous-crump-1" in worker
+    assert "/crump-billing-5.1.js?v=5.9.76-autonomous-crump-1" in worker
+    assert "/crump-5.2.js?v=5.9.76-native-store-billing-1" in worker
+    assert "async function deleteLegacyCaches()" in worker
+    assert "preCache()\n      .then(deleteLegacyCaches)" in worker
+    assert "deleteLegacyCaches()\n      .then(() => self.clients.claim())" in worker
+    assert "ask-crump-new-body-v1-r249" not in worker
+    assert "/crump-code-loader.js?v=5.9.76-code-lazy-load-1" not in worker
+    assert "verify-autonomous-crump-cache-upgrade.cjs" in matrix
+    assert "staleLoaderPresent" in verifier
+    assert "upgradedEvidence.loaderSource.includes('Autonomous Crump')" in verifier
+    assert "upgradedEvidence.cacheKeys.includes(oldCacheName)" in verifier
     assert "askcrump.com" not in verifier.lower()
     assert "password" not in verifier.lower()

@@ -1,5 +1,6 @@
 import { access, readFile, readdir } from 'node:fs/promises';
 import { constants } from 'node:fs';
+import { PRODUCTION_NATIVE_API_BASE } from './native-api-origin.mjs';
 import { loadRevenueCatCatalog } from './revenuecat-catalog.mjs';
 
 const root = new URL('../', import.meta.url);
@@ -23,6 +24,7 @@ if (!Number.isSafeInteger(expectedBuildNumber) || expectedBuildNumber < 1 || exp
 const failures = [];
 const warnings = [];
 const revenueCatCatalog = await loadRevenueCatCatalog();
+const allowMissingPublicBillingKeys = process.env.STORE_ALLOW_MISSING_PUBLIC_BILLING_KEYS === '1';
 
 async function exists(url) {
   try { await access(url, constants.F_OK); return true; } catch { return false; }
@@ -40,6 +42,33 @@ async function walk(url, predicate, depth = 0) {
   return matches;
 }
 
+function plistStringValue(source, key) {
+  const match = source.match(new RegExp(
+    `<key>\\s*${key}\\s*</key>\\s*<string>([\\s\\S]*?)</string>`,
+  ));
+  return match?.[1].trim() || '';
+}
+
+function runtimeStringValue(source, key) {
+  const match = source.match(new RegExp(`"${key}"\\s*:\\s*("(?:\\\\.|[^"\\\\])*")`));
+  if (!match) return '';
+  try {
+    return String(JSON.parse(match[1])).trim();
+  } catch {
+    return '';
+  }
+}
+
+function requirePublicBillingKey(runtimeKey, environmentName, storeName) {
+  if (runtimeStringValue(runtimeConfig, runtimeKey)) return;
+  const message = `${environmentName} was missing or empty during the native build; ${storeName} billing cannot be submitted until it is configured and rebuilt.`;
+  if (allowMissingPublicBillingKeys) {
+    warnings.push(`${message} STORE_ALLOW_MISSING_PUBLIC_BILLING_KEYS=1 is active for unsigned structural CI; this output is not release-ready.`);
+  } else {
+    failures.push(`${message} Only unsigned structural CI may opt out with STORE_ALLOW_MISSING_PUBLIC_BILLING_KEYS=1.`);
+  }
+}
+
 const distIndex = new URL('dist/index.html', root);
 const runtimeConfigPath = new URL('dist/runtime-body-v1.js', root);
 let runtimeConfig = '';
@@ -53,6 +82,13 @@ if (!(await exists(runtimeConfigPath))) {
   failures.push('dist/runtime-body-v1.js is missing. Run `npm run build`.');
 } else {
   runtimeConfig = await readFile(runtimeConfigPath, 'utf8');
+  const nativeApiBase = runtimeStringValue(runtimeConfig, 'apiBase');
+  if (nativeApiBase !== PRODUCTION_NATIVE_API_BASE) {
+    failures.push(
+      `Native runtime apiBase must be exactly ${PRODUCTION_NATIVE_API_BASE}; `
+      + `found ${nativeApiBase || 'an empty value'}.`,
+    );
+  }
   const expectedBillingConfig = {
     revenueCatEntitlement: revenueCatCatalog.entitlementId,
     revenueCatProfessionalProductId: revenueCatCatalog.subscriptions.professional,
@@ -69,9 +105,7 @@ if (!(await exists(runtimeConfigPath))) {
 }
 
 if (target === 'all' || target === 'android') {
-  if (/"revenueCatGoogleApiKey":\s*""/.test(runtimeConfig)) {
-    warnings.push('REVENUECAT_ANDROID_PUBLIC_SDK_KEY was empty during the native build; Play Billing cannot be submitted until it is configured and rebuilt.');
-  }
+  requirePublicBillingKey('revenueCatGoogleApiKey', 'REVENUECAT_ANDROID_PUBLIC_SDK_KEY', 'Play');
   const variables = new URL('android/variables.gradle', root);
   if (!(await exists(variables))) {
     failures.push('Android project is missing. Run `npx cap add android`.');
@@ -113,9 +147,7 @@ if (target === 'all' || target === 'android') {
 }
 
 if (target === 'all' || target === 'ios') {
-  if (/"revenueCatAppleApiKey":\s*""/.test(runtimeConfig)) {
-    warnings.push('REVENUECAT_IOS_PUBLIC_SDK_KEY was empty during the native build; App Store billing cannot be submitted until it is configured and rebuilt.');
-  }
+  requirePublicBillingKey('revenueCatAppleApiKey', 'REVENUECAT_IOS_PUBLIC_SDK_KEY', 'App Store');
   const iosRoot = new URL('ios/', root);
   if (!(await exists(iosRoot))) {
     failures.push('iOS project is missing. Run `npx cap add ios`.');
@@ -129,6 +161,22 @@ if (target === 'all' || target === 'ios') {
     } else {
       const source = await readFile(appDelegate, 'utf8');
       if (!source.includes('capacitorDidRegisterForRemoteNotifications')) failures.push('iOS push callbacks are missing. Run `npm run native:configure`.');
+    }
+
+    const infoPath = new URL('ios/App/App/Info.plist', root);
+    if (!(await exists(infoPath))) {
+      failures.push('iOS Info.plist is missing.');
+    } else {
+      const source = await readFile(infoPath, 'utf8');
+      for (const key of [
+        'NSCameraUsageDescription',
+        'NSPhotoLibraryUsageDescription',
+        'NSPhotoLibraryAddUsageDescription',
+      ]) {
+        if (!plistStringValue(source, key)) {
+          failures.push(`iOS ${key} is missing or empty. Run \`npm run native:configure\`.`);
+        }
+      }
     }
 
     const projectPath = new URL('ios/App/App.xcodeproj/project.pbxproj', root);

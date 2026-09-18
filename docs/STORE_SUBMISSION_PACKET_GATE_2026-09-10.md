@@ -18,6 +18,8 @@ The verifier requires all of the following to agree:
   screenshots and one to ten current-size 13-inch iPad screenshots, or four to eight 9:16/16:9
   Google phone screenshots at recommendation-grade resolution;
 - non-placeholder reviewer credentials, read from an untracked file and never printed;
+- iOS App Review contact first name, last name, email, and international-format phone from that same ignored file;
+- source-verified Apple/Google metadata plus the versioned Play listing icon and feature graphic;
 - every common physical-device control: core journey, purchase/restore, session persistence,
   deletion, AI reporting, accessibility, offline/reconnect, privacy forms, reviewer path, and
   store-console screenshot acceptance; and

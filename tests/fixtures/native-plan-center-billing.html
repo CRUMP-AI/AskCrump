@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Native Plan Center billing proof</title>
+</head>
+<body>
+  <main id="fixtureMain">
+    <button id="upgradeBtnSidebar" type="button"><span>Plan &amp; credits</span></button>
+    <button id="attachBtn" type="button">Attach</button>
+    <input id="fileInput" type="file" hidden>
+    <div id="toastContainer"></div>
+  </main>
+  <script>
+    window.__fixture = {
+      checkoutRequests: 0,
+      blockedWebBillingAttempts: 0,
+      creditSyncRequests: 0,
+      entitlementSyncRequests: 0,
+      statusRequests: 0,
+      configured: [],
+      purchasedProductIds: [],
+      restoreCalls: 0,
+      toasts: [],
+      balance: 25,
+    };
+    window.currentUser = {id: 'native-reviewer', subscription_tier: 'free'};
+    window.CRUMP_CONFIG = {
+      revenueCatAppleApiKey: 'appl_fixture_public_key',
+      revenueCatGoogleApiKey: 'goog_fixture_public_key',
+      revenueCatEntitlement: 'professional',
+      revenueCatProfessionalProductId: 'askcrump_professional_monthly',
+      revenueCatEnterpriseProductId: 'askcrump_enterprise_monthly',
+      revenueCatCredits50ProductId: 'askcrump_credits_50',
+      revenueCatCredits150ProductId: 'askcrump_credits_150',
+      revenueCatCredits400ProductId: 'askcrump_credits_400',
+      webProfessionalPriceLabel: '$20/month',
+      webEnterprisePriceLabel: '$50/month',
+    };
+    window.CrumpAPI = {isNative: true, ready: Promise.resolve()};
+    window.CrumpNative = {
+      isNative: true,
+      Capacitor: {getPlatform: () => 'ios'},
+      Purchases: {
+        async configure(payload) { window.__fixture.configured.push(payload); },
+        async getOfferings() {
+          return {
+            current: {
+              availablePackages: [
+                {identifier:'credit-50', product:{identifier:'askcrump_credits_50', priceString:'$4.49'}},
+                {identifier:'credit-150', product:{identifier:'askcrump_credits_150', priceString:'$8.99'}},
+                {identifier:'credit-400', product:{identifier:'askcrump_credits_400', priceString:'$17.99'}},
+                {identifier:'professional', product:{identifier:'askcrump_professional_monthly', priceString:'$18.99/month'}},
+                {identifier:'enterprise', product:{identifier:'askcrump_enterprise_monthly', priceString:'$48.99/month'}},
+              ],
+            },
+          };
+        },
+        async purchasePackage({aPackage}) {
+          window.__fixture.purchasedProductIds.push(aPackage?.product?.identifier || 'missing');
+          return {customerInfo:{}};
+        },
+        async invalidateVirtualCurrenciesCache() {},
+        async restorePurchases() {
+          window.__fixture.restoreCalls += 1;
+          return {customerInfo:{}};
+        },
+        async getCustomerInfo() {
+          return {customerInfo:{managementURL:'https://apps.apple.com/account/subscriptions'}};
+        },
+      },
+    };
+    window.CrumpAnalytics = {track: async () => true};
+    window.va = () => {};
+    window.showToast = (message, tone) => window.__fixture.toasts.push({message, tone});
+    window.addEventListener('crump:native-web-billing-blocked', () => {
+      window.__fixture.blockedWebBillingAttempts += 1;
+    });
+    window.fetch = async input => {
+      const pathname = new URL(String(input), location.href).pathname;
+      if (pathname.includes('checkout') || pathname === '/api/stripe/create-checkout-session') {
+        window.__fixture.checkoutRequests += 1;
+        return new Response(JSON.stringify({success:false, error:'Native checkout must not use Stripe.'}), {
+          status: 409,
+          headers:{'Content-Type':'application/json'},
+        });
+      }
+      if (pathname === '/api/billing/credits/revenuecat/sync') {
+        window.__fixture.creditSyncRequests += 1;
+        window.__fixture.balance += 50;
+        return Response.json({success:true, credits:{balance:window.__fixture.balance}});
+      }
+      if (pathname === '/api/billing/revenuecat/sync') {
+        window.__fixture.entitlementSyncRequests += 1;
+        return Response.json({success:true, user:{id:'native-reviewer', subscription_tier:'professional'}});
+      }
+      if (pathname === '/api/billing/credits/status') {
+        return Response.json({
+          success:true,
+          credits:{balance:window.__fixture.balance},
+          catalog:[
+            {code:'credits_50', credits:50, price:'$4.99', available:true},
+            {code:'credits_150', credits:150, price:'$9.99', available:true},
+            {code:'credits_400', credits:400, price:'$19.99', available:true},
+          ],
+          history:[],
+        });
+      }
+      if (pathname === '/api/billing/status') {
+        window.__fixture.statusRequests += 1;
+        return Response.json({success:true, tier:'free', plan:null, status:'inactive', provider:null, manageable:false});
+      }
+      if (pathname === '/api/usage/check') {
+        return Response.json({success:true, daily:{limit:25, used:3, remaining:22}});
+      }
+      if (pathname === '/api/analytics/events') return Response.json({success:true});
+      return Response.json({success:true});
+    };
+  </script>
+  <script src="/public/mobile-bridge.js?v=5.9.76-native-store-billing-1"></script>
+  <script src="/public/billing-manager.js?v=5.9.76-stripe-destination-integrity-1"></script>
+  <script src="/public/subscription-ui.js?v=5.9.76-commerce-recovery-1"></script>
+  <script src="/public/crump-billing-5.1.js?v=5.9.76-autonomous-crump-1"></script>
+  <script src="/public/crump-5.2.js?v=5.9.76-native-store-billing-1"></script>
+  <script src="/public/crump-5.2.2.js?v=5.9.76-native-store-billing-1"></script>
+  <script src="/public/crump-subscriptions-5.3.2.js?v=5.9.76-native-store-billing-1"></script>
+</body>
+</html>

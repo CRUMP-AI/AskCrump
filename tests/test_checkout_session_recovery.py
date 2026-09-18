@@ -76,8 +76,9 @@ def test_checkout_recovery_fixture_is_local_and_content_free():
 
 def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
     integrity_version = "5.9.76-stripe-destination-integrity-1"
-    label_version = "5.9.76-checkout-destination-label-1"
-    runtime_version = "5.9.76-navigation-discovery-1"
+    autonomous_crump_version = "5.9.76-autonomous-crump-1"
+    native_store_billing_version = "5.9.76-native-store-billing-1"
+    runtime_version = native_store_billing_version
     auth_version = "5.9.76-facebook-reel-attribution-1"
     shell = read_public("app.html")
     runtime = read_public("runtime-body-v1.js")
@@ -86,15 +87,21 @@ def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
 
     assert f"/runtime-body-v1.js?v={runtime_version}" in shell
     assert f"/auth-controller.js?v={auth_version}" in shell
-    for asset in ("billing-manager.js", "crump-5.2.2.js"):
-        versioned = f"/{asset}?v={integrity_version}"
+    for asset, version in (
+        ("billing-manager.js", integrity_version),
+        ("crump-5.2.2.js", native_store_billing_version),
+    ):
+        versioned = f"/{asset}?v={version}"
         assert versioned in runtime
         assert versioned in worker
         assert versioned in native
-    for asset in ("crump-billing-5.1.js", "crump-subscriptions-5.3.2.js"):
-        versioned = f"/{asset}?v={label_version}"
+    for asset, version in (
+        ("crump-billing-5.1.js", autonomous_crump_version),
+        ("crump-subscriptions-5.3.2.js", native_store_billing_version),
+    ):
+        versioned = f"/{asset}?v={version}"
         assert versioned in runtime
         assert versioned in worker
         assert versioned in native
     assert f"/auth-controller.js?v={auth_version}" in worker
-    assert "ask-crump-new-body-v1-r249" in worker
+    assert "ask-crump-new-body-v1-r252" in worker

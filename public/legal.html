@@ -227,12 +227,13 @@
         <p class="eyebrow">Legal and privacy</p>
         <h1>Clear terms for a conversational AI product.</h1>
         <p class="intro">This page explains the rules for using Ask Crump, the information the service processes, and the limits that apply to AI-generated responses and third-party data.</p>
-        <p class="updated">Effective August 1, 2026</p>
+        <p class="updated">Terms effective August 1, 2026 · Privacy notice updated September 18, 2026</p>
 
         <nav class="section-nav" aria-label="Sections">
             <a href="#terms">Terms of use</a>
             <a href="#ai">AI disclosures</a>
             <a href="#privacy">Privacy notice</a>
+            <a href="#ai-data-sharing">AI data sharing</a>
             <a href="#subscriptions">Subscriptions</a>
             <a href="#age">Age requirement</a>
             <a href="#contact">Contact</a>
@@ -278,6 +279,11 @@
             <h2>Privacy notice</h2>
             <p>Ask Crump processes information needed to provide accounts, conversations, synchronization, safety controls, billing, and optional notifications.</p>
 
+            <h3 id="ai-data-sharing">Permission before AI-provider sharing</h3>
+            <p>Creating an account or accepting the Terms is not permission to send your content to a third-party AI service. Before the first provider-backed request, Ask Crump separately asks whether it may share the information needed for that request. If you choose Not now, the request is not sent. If you choose Allow and continue, Ask Crump records the current permission version and continues the request.</p>
+            <p>The current provider services are Anthropic, OpenAI, Vercel AI Gateway and Groq, Google Gemini and Veo, Runway, ElevenLabs, Brave Search, OpenWeather, and Vercel Sandbox. Depending on the feature selected, the information sent may include prompts and relevant conversation context; files and images selected for the request; text selected for voice generation; video prompts, settings, and references; or Autonomous Crump task and repository content. Only the information needed for the selected feature is sent.</p>
+            <p>You can withdraw this permission in Settings. Withdrawal blocks future provider-backed requests, including scheduled check-ins and background generation, until permission is granted again. Local image adjustments, account controls, saved-history access, downloads, and other operations that do not require an AI provider remain available. Withdrawal cannot recall information already sent for a request you authorized; an already accepted request may finish or remain available for status and output retrieval. Ask Crump will request permission again when a material provider or data-category change requires a new version.</p>
+
             <table class="data-table">
                 <thead>
                     <tr><th>Information</th><th>Purpose</th><th>Typical recipients</th></tr>
@@ -287,6 +293,8 @@
                     <tr><td>Conversation content</td><td>Generate responses, retain history, and synchronize devices</td><td>Supabase; Vercel AI Gateway and its selected provider for routed requests; or the relevant premium AI/context provider</td></tr>
                     <tr><td>Submitted files</td><td>Perform the analysis requested by the user</td><td>Relevant AI provider during processing</td></tr>
                     <tr><td>Video prompts, settings, and generated media</td><td>Generate, continue, save, play, and download requested video</td><td>Google Gemini/Veo or Runway for generation; Supabase for private durable storage</td></tr>
+                    <tr><td>Text selected for premium voice</td><td>Generate requested spoken audio</td><td>ElevenLabs during processing</td></tr>
+                    <tr><td>Autonomous Crump task and repository content</td><td>Plan, analyze, and verify requested coding work when this feature is enabled</td><td>Anthropic for reasoning; Vercel Sandbox for short-lived, no-secret execution</td></tr>
                     <tr><td>Session and device information</td><td>Persistent sign-in, security, revocation, and troubleshooting</td><td>Supabase and hosting logs</td></tr>
                     <tr><td>Usage and delivery events</td><td>Limits, reliability, abuse prevention, and message status</td><td>Supabase</td></tr>
                     <tr><td>AI response safety reports</td><td>Review reported output, investigate policy concerns, and improve safeguards</td><td>Clever Crump moderation staff and Supabase</td></tr>
@@ -302,7 +310,7 @@
             <p>Account and conversation data remains available while the account is active unless deleted sooner. Security, billing, fraud-prevention, backup, and legally required records may follow separate retention periods.</p>
 
             <h3>User controls</h3>
-            <p>Users can report an AI response for safety review without leaving the application, delete conversations, export conversation history, revoke device sessions, disable check-ins and notifications, and permanently delete the account. Safety reports are deleted with the owning account. Deleting the Ask Crump account does not automatically cancel an Apple or Google subscription; that subscription must also be managed through the applicable store.</p>
+            <p>Users can withdraw AI-provider data-sharing permission, report an AI response for safety review without leaving the application, delete conversations, export conversation history, revoke device sessions, disable check-ins and notifications, and permanently delete the account. Safety reports are deleted with the owning account. Deleting the Ask Crump account does not automatically cancel an Apple or Google subscription; that subscription must also be managed through the applicable store.</p>
 
             <h3>Security</h3>
             <p>The service uses encrypted transport, HTTP-only web cookies, secure native credential storage, account-scoped caches, rate limits, and server-side ownership checks. No online service can guarantee absolute security.</p>

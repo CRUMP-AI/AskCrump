@@ -13,6 +13,18 @@ from backend.security import hash_password
 client = TestClient(app_module.app)
 
 
+def consented_user(**values):
+    return {
+        'id': 'user-1',
+        'email': 'owner@example.com',
+        'full_name': 'Owner',
+        'ai_data_sharing_consent_at': '2026-09-17T23:55:00+00:00',
+        'ai_data_sharing_consent_version': '2026-09-17',
+        'ai_data_sharing_consent_revoked_at': None,
+        **values,
+    }
+
+
 class FakeDB:
     def __init__(self):
         self.rpc_calls = []
@@ -78,7 +90,7 @@ def test_chat_identity_and_settings_are_server_authoritative(monkeypatch):
 
     async def fake_authenticate(*_args, **_kwargs):
         return SimpleNamespace(
-            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner'},
+            user=consented_user(),
             session={'id': 'session-1'},
             token='token',
         )
@@ -98,11 +110,7 @@ def test_chat_identity_and_settings_are_server_authoritative(monkeypatch):
     assert response.status_code == 200
     assert fake_ai.payload['assistantName'] == 'Server Crump'
     assert fake_ai.payload['workMode'] == 'work'
-    assert fake_ai.payload['user'] == {
-        'id': 'user-1',
-        'email': 'owner@example.com',
-        'name': 'Owner',
-    }
+    assert 'user' not in fake_ai.payload
     assert fake_ai.payload['_userTier'] == 'free'
 
 
@@ -114,7 +122,7 @@ def test_chat_packages_contextual_download_follow_up_when_semantic_router_is_una
 
     async def fake_authenticate(*_args, **_kwargs):
         return SimpleNamespace(
-            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner'},
+            user=consented_user(),
             session={'id': 'session-1'},
             token='token',
         )
@@ -218,7 +226,7 @@ def test_durable_document_reply_survives_chat_job_cache_finalization_failure(mon
 
     async def fake_authenticate(*_args, **_kwargs):
         return SimpleNamespace(
-            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner'},
+            user=consented_user(),
             session={'id': 'session-1'},
             token='token',
         )
@@ -297,6 +305,20 @@ def test_durable_document_reply_survives_chat_job_cache_finalization_failure(mon
 
 def test_account_deletion_uses_atomic_database_rpc(monkeypatch):
     fake_db = FakeDB()
+    cleanup = AsyncMock(return_value=0)
+    job = {
+        'user_id': 'user-2',
+        'operation_token': '00000000-0000-4000-8000-000000000002',
+    }
+    begin = AsyncMock(return_value=job)
+
+    async def process(operation):
+        assert operation == job
+        await cleanup(user_id='user-2')
+        await fake_db.rpc('delete_user_account', {'p_user_id': 'user-2'})
+        return SimpleNamespace(account_deleted=True, cleanup_complete=False)
+
+    deletion_service = SimpleNamespace(begin=begin, process=AsyncMock(side_effect=process))
     password_hash = hash_password('StrongPassword123')
 
     async def fake_authenticate(*_args, **_kwargs):
@@ -307,6 +329,7 @@ def test_account_deletion_uses_atomic_database_rpc(monkeypatch):
         )
 
     monkeypatch.setattr(account_routes, 'db', fake_db)
+    monkeypatch.setattr(account_routes, 'account_deletions', deletion_service)
     monkeypatch.setattr(account_routes, 'authenticate_request', fake_authenticate)
 
     response = client.request('DELETE', '/api/account', json={
@@ -315,4 +338,6 @@ def test_account_deletion_uses_atomic_database_rpc(monkeypatch):
     })
 
     assert response.status_code == 200
+    begin.assert_awaited_once_with(user_id='user-2')
+    cleanup.assert_awaited_once_with(user_id='user-2')
     assert fake_db.rpc_calls == [('delete_user_account', {'p_user_id': 'user-2'})]

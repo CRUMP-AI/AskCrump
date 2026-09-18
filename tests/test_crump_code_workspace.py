@@ -25,9 +25,9 @@ def test_code_workspace_is_lazy_loaded_only_after_server_configuration_and_entit
     assert "function hydrateAvailability(data)" in script
     assert "__crumpCodeBootstrapStatus" in script
     assert "window.CrumpCodeWorkspace = Object.freeze({open, close, refresh, refreshAvailability, hydrateAvailability})" in script
-    versioned_script = "/crump-code-5.9.35.js?v=5.9.76-credit-confirmation-1"
+    versioned_script = "/crump-code-5.9.35.js?v=5.9.76-autonomous-crump-1"
     versioned_style = "/crump-code-5.9.35.css?v=5.9.76-intelligence-architecture-1"
-    versioned_loader = "/crump-code-loader.js?v=5.9.76-code-lazy-load-1"
+    versioned_loader = "/crump-code-loader.js?v=5.9.76-autonomous-crump-1"
     for source in (runtime, native, worker):
         assert versioned_loader in source
         assert versioned_script not in source
@@ -51,7 +51,7 @@ def test_code_lazy_load_has_real_browser_disabled_locked_and_entitled_proof():
     assert "disabled:${assetPaths.script}" in verifier
     assert "disabled:${assetPaths.style}" in verifier
     assert "counts.get('disabled:/api/features'), 1" in verifier
-    assert "Code — Professional plan" in verifier
+    assert "Autonomous Crump — Professional plan" in verifier
     assert "bootstrapStatusRetained" in verifier
     assert "askcrump.com" not in verifier.lower()
     assert "password" not in verifier.lower()
@@ -87,7 +87,7 @@ def test_code_workspace_exposes_review_cancellation_approval_and_patch_surfaces(
         assert signal in script
     assert "pre.textContent = String(task.result_patch)" in script
     assert "copy.textContent = String(task.result_summary)" in script
-    assert "request cancellation. Crump Code checks that request" in script
+    assert "request cancellation. Autonomous Crump checks that request" in script
     assert "This approval expires" in script
     assert "CODE_APPROVAL_EXPIRED" in script
     assert "CODE_TASK_EXPIRED" in script
@@ -115,6 +115,36 @@ def test_code_workspace_has_its_own_gated_navigation_destination():
     assert "createCard('code'" not in navigation
     assert ".crump5930-destination.is-locked::after" in styles
     assert "repeat(6,minmax(0,1fr))" in styles
+
+
+def test_code_workspace_uses_the_autonomous_crump_customer_name_without_renaming_stable_identifiers():
+    script = read("public/crump-code-5.9.35.js")
+    loader = read("public/crump-code-loader.js")
+    navigation = read("public/crump-navigation-5.9.30.js")
+    feature_service = read("backend/feature_service.py")
+    customer_sources = (
+        script,
+        loader,
+        navigation,
+        feature_service,
+        read("backend/code_runner.py"),
+        read("backend/code_service.py"),
+        read("backend/routes/code.py"),
+        read("public/crump-5.2.js"),
+        read("public/crump-billing-5.1.js"),
+    )
+
+    assert "AUTONOMOUS CRUMP · PRIVATE PREVIEW" in script
+    assert "Autonomous Crump works on a temporary copy" in script
+    assert "label: 'Autonomous Crump'" in navigation
+    assert "'Autonomous Crump'" in loader
+    assert '"Autonomous Crump"' in feature_service
+    assert all("Crump Code" not in source for source in customer_sources)
+    assert "window.CrumpCodeWorkspace" in script
+    assert "data-crump-code-destination" in navigation
+    assert "code_workspace" in feature_service
+    assert '"CODE_WORKSPACE_NOT_CONFIGURED"' in read("backend/routes/code.py")
+    assert "**component=crump_code**" in read("docs/CRUMP_CODE_OPERATIONS.md")
 
 
 def test_local_preview_fixture_cannot_reach_real_product_endpoints():

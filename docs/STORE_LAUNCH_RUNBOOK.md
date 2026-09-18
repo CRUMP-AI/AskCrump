@@ -96,13 +96,15 @@ Create the signed Android App Bundle from Android Studio or with the generated p
 
 ## 5. Prepare iOS on macOS
 
-Xcode and CocoaPods require macOS. A Mac is not required for day-to-day source work, but a signed iOS
-archive must be produced on a Mac or a trusted macOS CI runner. Ask Crump's preferred Windows-led
+Xcode and CocoaPods require macOS. Apple currently requires iOS submissions to be built with Xcode 26
+or later and the iOS 26 SDK or later. A Mac is not required for day-to-day source work, but a signed iOS
+archive must be produced with that toolchain on a Mac or a trusted macOS CI runner. Ask Crump's preferred Windows-led
 path is a manually dispatched GitHub-hosted macOS runner, followed by an owner-approved App Store
 Connect upload. Do not outsource merely to obtain a Mac unless the controlled CI path fails.
 
-`.github/workflows/ios-store-verify.yml` is the no-credential first stage. It generates the iOS
-project, runs the native verifier, and compiles Release with code signing disabled. It cannot upload
+`.github/workflows/ios-store-verify.yml` is the no-credential first stage. It pins the GitHub macOS 26
+image, fails closed below Xcode 26 or the iOS 26 SDK, generates the iOS project, runs the native
+verifier, and compiles Release with code signing disabled. It cannot upload
 or submit. Add a separate, owner-reviewed signing/upload stage only after the Apple team, app record,
 certificates/profiles or managed-signing path, and App Store Connect authentication are approved.
 
@@ -144,6 +146,7 @@ Run these on current physical iPhone and Android devices:
 ## 7. Store-console declarations
 
 - Privacy answers must match `docs/DATA_SAFETY.md`, `public/legal.html`, the final SDK inventory, and actual provider retention settings.
+- Before review, prove on both signed native builds that the first provider-backed action shows the separate AI data-sharing prompt before any network request, “Not now” sends nothing, “Allow and continue” resumes exactly once, Settings shows the current state, withdrawal blocks future foreground and background provider work, and Terms acceptance alone never grants permission. Give the reviewer the exact test path.
 - Apple App Privacy and Google Data Safety are separate declarations; neither is completed automatically by the privacy policy.
 - Reported AI output, optional report comments, prompt context, conversations, uploaded/generated files, purchases, identifiers, diagnostics, and push data must be classified honestly.
 - Complete generative-AI/content questions, age/content ratings, app access, encryption/export compliance, ads, and account-deletion fields.

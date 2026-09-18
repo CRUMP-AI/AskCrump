@@ -1,10 +1,10 @@
-# Crump Code security and release boundary
+# Autonomous Crump security and release boundary
 
 Last reviewed: 2026-08-30
 
 ## Product scope
 
-Crump Code is a disabled-by-default foundation for project-scoped repository work. The first
+Autonomous Crump (`crump_code` internally) is a disabled-by-default foundation for project-scoped repository work. The first
 release supports public GitHub repositories, planning, patch-based implementation, bounded
 verification, durable task history, and explicit approval records. It is not yet a public
 Codex- or Claude Code-equivalent product and must not be described that way until benchmarked.
@@ -88,7 +88,7 @@ requires both independent controls to be deliberately opened and all of the foll
 - Only public GitHub repositories are accepted; private repositories and user credentials are
   intentionally unsupported.
 - Execution is accepted asynchronously and processed by the existing minute worker. The current
-  worker claims one Crump Code task per shared cron invocation, so throughput and manuscript
+  worker claims one Autonomous Crump task per shared cron invocation, so throughput and manuscript
   fairness must be measured under representative load before wider activation.
 - Expiry reconciliation is lazy on owner list/detail reads and execution boundaries rather than a
   background scheduler. Atomic run and approval guards remain authoritative.

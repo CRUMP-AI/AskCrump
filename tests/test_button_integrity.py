@@ -16,10 +16,10 @@ DYNAMIC_BUTTON_PATTERN = re.compile(
     re.IGNORECASE,
 )
 EXPECTED_BUTTON_INVENTORY = {
-    "public/app.html": 48,
+    "public/app.html": 53,
     "public/credit-confirmation.js": 3,
     "public/crump-5.0.js": 3,
-    "public/crump-5.2.js": 5,
+    "public/crump-5.2.js": 6,
     "public/crump-billing-5.1.js": 3,
     "public/crump-code-5.9.35.js": 4,
     "public/crump-library-5.7.js": 41,
@@ -61,7 +61,7 @@ INDIRECT_DYNAMIC_BUTTON_OWNERS = {
         "wireOutputProjectAction(project, {",
         "button.addEventListener('click', async () => {",
     ),
-    "public/crump-5.2.js:654:buy": (
+    "public/crump-5.2.js:676:buy": (
         "buy.dataset.crumpPack =",
         "modal.addEventListener('click', event => {",
         "event.target.closest?.('[data-crump-pack]')",
@@ -288,7 +288,7 @@ def test_rendered_button_inventory_requires_explicit_review() -> None:
             inventory[page.relative_to(ROOT).as_posix()] = len(parser.buttons)
 
     assert inventory == EXPECTED_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 182
+    assert sum(inventory.values()) == 188
 
 
 def test_programmatically_created_button_inventory_requires_explicit_review() -> None:
@@ -300,7 +300,7 @@ def test_programmatically_created_button_inventory_requires_explicit_review() ->
 
     assert inventory == DYNAMIC_BUTTON_INVENTORY
     assert sum(inventory.values()) == 94
-    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 276
+    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 282
 
 
 def test_programmatically_created_buttons_declare_type_and_runtime_owner() -> None:
@@ -635,7 +635,7 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
 
-    assert len(verifier_names) == 48
+    assert len(verifier_names) == 51
     for name in verifier_names:
         assert f"'{name}'" in runner
     assert "Browser verifier inventory drifted." in runner

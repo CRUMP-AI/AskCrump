@@ -22,6 +22,7 @@
   };
 
   const asElement = value => value instanceof Element ? value : value?.parentElement || null;
+  const nativeBilling = () => Boolean(window.BillingManager?.isNative?.());
 
   function show(message, tone = 'info') {
     window.showToast?.(message, tone);
@@ -68,6 +69,14 @@
       if (button && !state.checkoutOpening) {
         const credits = String(card.querySelector('.billing51-pack-amount')?.textContent || '').trim();
         const price = String(card.querySelector('.billing51-pack-price')?.textContent || '').trim();
+        const storeAvailable = button.dataset.crumpStoreAvailable === 'true';
+        if (nativeBilling() && !storeAvailable) {
+          button.disabled = true;
+          button.setAttribute('aria-disabled', 'true');
+          button.textContent = 'Not configured';
+          button.setAttribute('aria-label', `${credits} Crump Credits are not available from the device store`);
+          return;
+        }
         const accessibleLabel = `Add ${credits} Crump Credits${price ? ` for ${price}` : ''}`;
         button.disabled = false;
         button.removeAttribute('aria-disabled');
@@ -95,17 +104,39 @@
   async function openCheckout(code, card, button) {
     if (state.checkoutOpening) return;
     state.checkoutOpening = true;
+    const installed = nativeBilling();
 
     const original = button?.textContent || 'Add credits';
     const originalAccessibleLabel = button?.getAttribute?.('aria-label') || original;
     card?.setAttribute('aria-busy', 'true');
     if (button) {
       button.disabled = true;
-      button.textContent = 'Opening checkout…';
-      button.setAttribute('aria-label', `Opening secure checkout. ${originalAccessibleLabel}`);
+      button.textContent = installed ? 'Opening store…' : 'Opening checkout…';
+      button.setAttribute(
+        'aria-label',
+        `${installed ? 'Opening your device store' : 'Opening secure checkout'}. ${originalAccessibleLabel}`,
+      );
     }
 
     try {
+      if (installed) {
+        if (!window.BillingManager?.purchaseCredits) {
+          throw new Error('Mobile credit purchases are not available in this build yet.');
+        }
+        await window.BillingManager.purchaseCredits(code);
+        state.checkoutOpening = false;
+        card?.removeAttribute('aria-busy');
+        if (button?.isConnected) {
+          button.disabled = false;
+          button.textContent = original;
+          button.setAttribute('aria-label', originalAccessibleLabel);
+        }
+        show('Credits added', 'success');
+        window.dispatchEvent(new CustomEvent('crump:billing-refresh-requested', {
+          detail: {source: 'native_credit_purchase', pack: code},
+        }));
+        return;
+      }
       const attemptId = window.BillingManager?.creditCheckoutAttempt?.(code);
       const data = await jsonFetch('/api/billing/credits/checkout', {
         method: 'POST',

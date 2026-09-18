@@ -23,6 +23,43 @@ function maxBytes(value, maximum, label) {
   return text;
 }
 
+function emailAddress(value, label) {
+  const text = requireValue(value, label);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) failures.push(`${label} is not a valid email address.`);
+  return text;
+}
+
+async function pngAsset(value, expected, label) {
+  const relative = requireValue(value, label);
+  if (!/^store\/assets\/[a-z0-9-]+\.png$/.test(relative)) {
+    failures.push(`${label} must be a versioned PNG under store/assets.`);
+    return;
+  }
+  let bytes;
+  try {
+    bytes = await readFile(new URL(relative, root));
+  } catch {
+    failures.push(`${label} is missing: ${relative}.`);
+    return;
+  }
+  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  if (bytes.length < 33 || !bytes.subarray(0, 8).equals(signature) || bytes.toString('ascii', 12, 16) !== 'IHDR') {
+    failures.push(`${label} is not a valid PNG with an IHDR header.`);
+    return;
+  }
+  const width = bytes.readUInt32BE(16);
+  const height = bytes.readUInt32BE(20);
+  const bitDepth = bytes[24];
+  const colorType = bytes[25];
+  if (width !== expected.width || height !== expected.height) {
+    failures.push(`${label} must be ${expected.width}×${expected.height}; found ${width}×${height}.`);
+  }
+  if (bitDepth !== 8 || colorType !== expected.colorType) {
+    failures.push(`${label} must be ${expected.format}; found PNG bit depth ${bitDepth}, color type ${colorType}.`);
+  }
+  if (bytes.length > expected.maxBytes) failures.push(`${label} exceeds its store size limit.`);
+}
+
 function httpsUrl(value, label) {
   const text = requireValue(value, label);
   try {
@@ -47,9 +84,34 @@ if (metadata.app?.bundleId !== 'com.clevercrump.askcrump') failures.push('The pe
 maxCharacters(metadata.app?.name, 30, 'App name');
 maxCharacters(metadata.apple?.subtitle, 30, 'Apple subtitle');
 maxCharacters(metadata.apple?.promotionalText, 170, 'Apple promotional text');
-maxBytes(metadata.apple?.keywords, 100, 'Apple keywords');
+const appleKeywords = maxBytes(metadata.apple?.keywords, 100, 'Apple keywords');
+const keywordItems = appleKeywords.split(',').map(item => item.trim());
+if (keywordItems.some(item => [...item].length <= 2)) failures.push('Every Apple keyword must contain more than two characters.');
+if (new Set(keywordItems.map(item => item.toLocaleLowerCase('en-US'))).size !== keywordItems.length) {
+  failures.push('Apple keywords must not contain duplicates.');
+}
+const appleCopyright = requireValue(metadata.apple?.copyright, 'Apple copyright');
+if (!/^20\d{2}\s+\S/.test(appleCopyright) || /replace|example/i.test(appleCopyright)) {
+  failures.push('Apple copyright must contain a current owner-controlled year and holder.');
+}
 const appleDescription = maxCharacters(metadata.apple?.description, 4000, 'Apple description');
 const googleShort = maxCharacters(metadata.google?.shortDescription, 80, 'Google short description');
+const googleDeveloperEmail = emailAddress(metadata.google?.developerEmail, 'Google developer contact email');
+if (googleDeveloperEmail !== 'askcrump@gmail.com') failures.push('Google developer contact email must use the monitored support inbox.');
+await pngAsset(metadata.google?.appIcon, {
+  width: 512,
+  height: 512,
+  colorType: 6,
+  format: 'a 32-bit RGBA PNG',
+  maxBytes: 1024 * 1024,
+}, 'Google Play listing icon');
+await pngAsset(metadata.google?.featureGraphic, {
+  width: 1024,
+  height: 500,
+  colorType: 2,
+  format: 'a 24-bit RGB PNG without alpha',
+  maxBytes: 15 * 1024 * 1024,
+}, 'Google Play feature graphic');
 const googleDescription = maxCharacters(metadata.google?.fullDescription, 4000, 'Google full description');
 
 if ([...appleDescription].length < 250) failures.push('Apple description is too thin for review.');

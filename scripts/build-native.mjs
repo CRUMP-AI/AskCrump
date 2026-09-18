@@ -1,10 +1,12 @@
 import { copyFile, cp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
+import { requireProductionNativeApiBase } from './native-api-origin.mjs';
 import { loadRevenueCatCatalog } from './revenuecat-catalog.mjs';
 
 const outDir = new URL('../dist/', import.meta.url);
 const publicDir = new URL('../public/', import.meta.url);
+const nativeApiBase = requireProductionNativeApiBase(process.env.CRUMP_API_BASE);
 
 await rm(outDir, { recursive: true, force: true });
 await mkdir(outDir, { recursive: true });
@@ -24,7 +26,7 @@ await build({
 
 const revenueCatCatalog = await loadRevenueCatCatalog();
 const config = {
-  apiBase: process.env.CRUMP_API_BASE || 'https://www.askcrump.com',
+  apiBase: nativeApiBase,
   revenueCatAppleApiKey: process.env.REVENUECAT_IOS_PUBLIC_SDK_KEY || '',
   revenueCatGoogleApiKey: process.env.REVENUECAT_ANDROID_PUBLIC_SDK_KEY || '',
   revenueCatEntitlement: revenueCatCatalog.entitlementId,
@@ -45,6 +47,7 @@ const loader = String.raw`
   'use strict';
 
   const workspaceStyles = Object.freeze([
+    ['/ai-data-sharing-consent.css?v=5.9.76-ai-data-sharing-consent-1', 'workspaceaidatasharingconsent'],
     ['/billing.css', 'workspacebilling'],
     ['/onboarding.css?v=5.9.76-video-destination-1', 'workspaceonboarding'],
     ['/conversation.css?v=5.9.76-continuity-handoff-1', 'workspaceconversation'],
@@ -68,6 +71,7 @@ const loader = String.raw`
   ]);
 
   const workspaceScripts = Object.freeze([
+    ['/ai-data-sharing-consent.js?v=5.9.76-ai-data-sharing-consent-1', 'workspaceaidatasharingconsent'],
     ['/onboarding.js?v=5.9.76-brand-retina-1', 'workspaceonboarding'],
     ['/scroll-manager.js?v=5.9.76-user-controlled-scroll-1', 'workspacescroll'],
     ['/profile-manager.js', 'workspaceprofile'],
@@ -89,9 +93,9 @@ const loader = String.raw`
     ['/crump-4.4.js?v=5.9.76-navigation-discovery-1', 'crump44'],
     ['/crump-5.0.js?v=5.9.76-project-save-offer-1', 'crump50'],
     ['/crump-precision-image-edit-loader.js?v=5.9.76-precision-lazy-load-1', 'crumpprecisionloader'],
-    ['/crump-billing-5.1.js?v=5.9.76-checkout-destination-label-1', 'billing51'],
-    ['/crump-5.2.js?v=5.9.76-stripe-destination-integrity-1', 'crump52'],
-    ['/crump-5.2.2.js?v=5.9.76-stripe-destination-integrity-1', 'crump522'],
+    ['/crump-billing-5.1.js?v=5.9.76-autonomous-crump-1', 'billing51'],
+    ['/crump-5.2.js?v=5.9.76-native-store-billing-1', 'crump52'],
+    ['/crump-5.2.2.js?v=5.9.76-native-store-billing-1', 'crump522'],
     ['/crump-v1-body.js?v=5.9.76-navigation-discovery-1', 'crumpbodyv1'],
     ['/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1', 'crumpv1stability'],
   ]);
@@ -100,12 +104,12 @@ const loader = String.raw`
     ['/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1', 'crumpnav525'],
     ['/crump-product-loader.js?v=5.9.76-product-studio-lazy-load-2', 'crumpproductloader'],
     ['/crump-product-5.3.1.js?v=5.9.76-conversation-action-labels-2', 'crumpproduct531'],
-    ['/crump-subscriptions-5.3.2.js?v=5.9.76-checkout-destination-label-1', 'crumpsubscriptions532'],
+    ['/crump-subscriptions-5.3.2.js?v=5.9.76-native-store-billing-1', 'crumpsubscriptions532'],
     ['/crump-polish-5.6.js?v=5.9.76-video-destination-1', 'crumppolish56'],
     ['/crump-media-save.js?v=5.9.76-library-lazy-load-1', 'crumpmediasave'],
     ['/crump-library-loader.js?v=5.9.76-library-lazy-load-1', 'crumplibraryloader'],
-    ['/crump-navigation-5.9.30.js?v=5.9.76-navigation-discovery-1', 'crumpnav5930'],
-    ['/crump-code-loader.js?v=5.9.76-code-lazy-load-1', 'crumpcodeloader'],
+    ['/crump-navigation-5.9.30.js?v=5.9.76-autonomous-crump-1', 'crumpnav5930'],
+    ['/crump-code-loader.js?v=5.9.76-autonomous-crump-1', 'crumpcodeloader'],
     ['/lifecycle-share.js?v=5.9.76-settings-invite-1', 'lifecycleshare'],
     ['/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1', 'lifecyclemanager'],
   ]);

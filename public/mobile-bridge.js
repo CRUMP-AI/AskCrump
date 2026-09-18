@@ -3,6 +3,12 @@
 
   const SESSION_KEY = 'ask_crump_session_v4';
   const INSTALLATION_KEY = 'ask_crump_installation_id';
+  const NATIVE_WEB_BILLING_PATHS = new Set([
+    '/api/billing/credits/checkout',
+    '/api/stripe/create-checkout-session',
+    '/api/stripe/customer-portal',
+    '/api/stripe/finalize-checkout',
+  ]);
   let native = Boolean(window.Capacitor?.isNativePlatform?.() || window.CrumpNative?.isNative);
   const isNative = () => Boolean(native || window.Capacitor?.isNativePlatform?.() || window.CrumpNative?.isNative);
   const apiBase = () => isNative() ? (window.CRUMP_CONFIG?.apiBase || 'https://www.askcrump.com') : '';
@@ -93,7 +99,9 @@
 
   async function apiFetch(input, init = {}) {
     await ready;
-    const originalUrl = typeof input === 'string' ? input : input.url;
+    const originalUrl = input instanceof URL
+      ? input.href
+      : (typeof input === 'string' ? input : input.url);
     const base = apiBase();
     const isApi = originalUrl.startsWith('/api/') || (base && originalUrl.startsWith(`${base}/api/`));
     if (!isApi) return originalFetch(input, init);
@@ -106,6 +114,24 @@
     headers.set('X-Device-Name', navigator.userAgent.slice(0, 150));
     headers.set('X-Installation-ID', installationId());
     if (native && sessionToken) headers.set('Authorization', `Bearer ${sessionToken}`);
+
+    const pathname = new URL(url, window.location.href).pathname;
+    if (native && NATIVE_WEB_BILLING_PATHS.has(pathname)) {
+      window.dispatchEvent(new CustomEvent('crump:native-web-billing-blocked', {
+        detail: {pathname},
+      }));
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Use the App Store or Google Play purchase screen in the mobile app.',
+        code: 'NATIVE_BILLING_REQUIRED',
+      }), {
+        status: 409,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+        },
+      });
+    }
 
     const response = await originalFetch(url, {
       ...init,

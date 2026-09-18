@@ -13,6 +13,7 @@
 - restore purchases, account deletion, privacy/terms, and deletion URL
 - reduced-motion and live-region accessibility support
 - accessible in-app AI response reporting with a private, rate-limited moderation queue
+- separate versioned AI-provider data-sharing permission that blocks provider-bound foreground and background work before content leaves Ask Crump, with in-app withdrawal
 - multi-engine video disclosure: Veo/Google and Runway prompts/media routed only through the Ask Crump backend, with private durable storage and provider attribution
 - deterministic per-platform native preparation and version/build validation
 - Android compile/target SDK 36 enforcement
@@ -34,7 +35,7 @@
 - [ ] Android Firebase, RevenueCat public key, and upload keystore supplied; the hosted Java 21
       release-build path is verified, while local Android Studio still needs a compatible JDK
 - [ ] iOS source generated, signed, and archived on macOS
-- [x] No-upload GitHub macOS source/Release compile verification passed for 5.9.76/build 50976 before signing
+- [ ] No-upload GitHub macOS 26/Xcode 26+ source and Release compile verification passed for 5.9.76/build 50976 before signing (the earlier macOS 15 run is not current App Store toolchain evidence)
       credentials were added, including the explicit iPhone+iPad family and screenshot-packet gate
       ([run 34790149321](https://github.com/CRUMP-AI/AskCrump/actions/runs/34790149321), 2026-09-13)
 - [x] No-upload GitHub Java 21 Android App Bundle verification passed before signing credentials
@@ -43,6 +44,7 @@
 - [x] Apple/Google listing copy, reviewer path, and screenshot sequence match the released Ask,
       Projects, Create, Video, Library, and You information architecture; Research remains inside Ask
 - [ ] Exact signed builds pass the physical-device, billing, privacy, and console gates
+- [ ] Exact signed builds prove the AI-sharing first-use prompt appears before the provider request; “Not now” sends nothing; allow resumes once; withdrawal blocks chat, media, voice, manuscript, Autonomous Crump, and scheduled-provider work
 - [x] Final packet has a fail-closed local completeness gate for exact signed artifact hash, fresh
       device/console evidence, current iPhone + iPad and Android screenshot dimensions/format,
       and untracked reviewer access; it performs no signing, upload, or submission
@@ -57,6 +59,7 @@ See `docs/STORE_READINESS_AUDIT_2026-08-27.md` for evidence, blockers, and offic
 - [ ] Push permission explanation appears only when the user enables notifications
 - [ ] Foreground/background/terminated push and deep-link behavior tested on physical devices
 - [ ] App Privacy answers include conversations, delivery metadata, optional check-in data, push tokens, device/session, usage, diagnostics, and purchases
+- [ ] App Review notes describe the separate AI-provider permission, current recipients/data categories, first-use test path, and Settings withdrawal path
 - [ ] Privacy manifest/required-reason APIs validated from the final Xcode archive
 - [ ] Dynamic Type, VoiceOver, Reduce Motion, haptics-off, keyboard, and safe areas tested
 - [ ] Native purchases, restore, cancellation disclosure, sync, persistent login, and deletion tested
@@ -64,11 +67,15 @@ See `docs/STORE_READINESS_AUDIT_2026-08-27.md` for evidence, blockers, and offic
 
 ## Google Play
 
+- [x] Versioned 512 × 512 RGBA listing icon and 1024 × 500 RGB feature graphic pass the source gate
+- [ ] Upload the exact gated icon and feature graphic to the Play Console listing
+
 - [ ] App record, app signing, upload-key backup, package ID, and payments profile complete
 - [ ] Firebase app and `google-services.json` configured
 - [ ] Runtime notification permission and notification channel tested on current Android versions
 - [ ] Target/compile SDK and current Play submission requirements rechecked on submission day
 - [ ] Data Safety matches `docs/DATA_SAFETY.md` and actual provider behavior
+- [ ] Data Safety and reviewer instructions match the versioned AI-sharing prompt and server-authoritative withdrawal behavior
 - [ ] In-app AI response reporting reaches the production moderation queue and failed-network retry is tested
 - [ ] Account deletion URL, in-app deletion, content rating, app access, and no-ads declaration completed
 - [ ] Purchases, restore, push, sync, persistent login, offline/reconnect, and pre-launch report tested
@@ -89,6 +96,6 @@ See `docs/STORE_READINESS_AUDIT_2026-08-27.md` for evidence, blockers, and offic
 
 ## Reviewer notes
 
-Explain that Ask Crump delivers completed answers in a messaging-style bubble, that `Seen` means the server accepted the request, and that proactive check-ins are optional and disabled by default. Provide steps to test cross-device sync, notification opt-in, native billing/restore purchases, in-app AI reporting, session management, and deletion.
+Explain that Ask Crump delivers completed answers in a messaging-style bubble, that `Seen` means the server accepted the request, and that proactive check-ins are optional and disabled by default. Provide steps to test the separate AI-provider permission and withdrawal, cross-device sync, notification opt-in, native billing/restore purchases, in-app AI reporting, session management, and deletion.
 
 Store approval is never guaranteed; rerun current Apple/Google requirements before submission.

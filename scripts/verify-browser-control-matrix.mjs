@@ -12,7 +12,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const scriptsDirectory = path.join(root, 'scripts');
 const publicDirectory = path.join(root, 'public');
 const expectedVerifiers = Object.freeze([
+  'verify-ai-data-sharing-consent.cjs',
   'verify-attach-creation-routing.cjs',
+  'verify-autonomous-crump-cache-upgrade.cjs',
   'verify-button-state-integrity.cjs',
   'verify-chat-action-accessibility.cjs',
   'verify-create-destination-handoff.cjs',
@@ -34,6 +36,7 @@ const expectedVerifiers = Object.freeze([
   'verify-marketing-landing-browser.cjs',
   'verify-marketing-landing-preload.cjs',
   'verify-mobile-drawer-destinations.cjs',
+  'verify-native-plan-center-billing.cjs',
   'verify-outcome-issue-categories.cjs',
   'verify-paid-plan-intent-delivery.cjs',
   'verify-precision-image-edit.cjs',

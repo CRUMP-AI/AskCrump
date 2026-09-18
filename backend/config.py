@@ -5,10 +5,11 @@ from functools import lru_cache
 import os
 
 
-# Crump Code cannot be exposed by an environment-variable mistake. This source
+# Autonomous Crump cannot be exposed by an environment-variable mistake. This source
 # lock stays false until the live Sandbox, OIDC, destruction, cancellation,
 # refund, monitoring, rollback, quality, and cost gates have a reviewed release.
 CODE_WORKSPACE_PUBLIC_RELEASED = False
+AI_GATEWAY_CONSENTED_PROVIDERS = frozenset({"groq"})
 
 
 def _csv(value: str | None, default: tuple[str, ...] = ()) -> tuple[str, ...]:
@@ -165,8 +166,11 @@ class Settings:
             raise RuntimeError('Daily message limits cannot be negative.')
         if '/' not in self.ai_gateway_free_model:
             raise RuntimeError('AI_GATEWAY_FREE_MODEL must use the creator/model format.')
-        if not self.ai_gateway_free_provider.strip():
-            raise RuntimeError('AI_GATEWAY_FREE_PROVIDER cannot be empty.')
+        if self.ai_gateway_free_provider.strip().lower() not in AI_GATEWAY_CONSENTED_PROVIDERS:
+            raise RuntimeError(
+                'AI_GATEWAY_FREE_PROVIDER must remain groq until the AI data-sharing '
+                'registry, consent version, and public disclosures are updated together.'
+            )
         if not 1000 <= self.ai_gateway_free_max_history_chars <= 100_000:
             raise RuntimeError('AI_GATEWAY_FREE_MAX_HISTORY_CHARS must be between 1000 and 100000.')
         if not self.ai_gateway_free_max_history_chars <= self.ai_gateway_free_max_input_chars <= 200_000:
@@ -231,7 +235,7 @@ def get_settings() -> Settings:
         ai_gateway_api_key=os.getenv('AI_GATEWAY_API_KEY'),
         vercel_oidc_token=os.getenv('VERCEL_OIDC_TOKEN'),
         ai_gateway_free_model=os.getenv('AI_GATEWAY_FREE_MODEL', 'openai/gpt-oss-20b'),
-        ai_gateway_free_provider=os.getenv('AI_GATEWAY_FREE_PROVIDER', 'groq'),
+        ai_gateway_free_provider=os.getenv('AI_GATEWAY_FREE_PROVIDER', 'groq').strip().lower(),
         ai_gateway_free_max_history_chars=int(
             os.getenv('AI_GATEWAY_FREE_MAX_HISTORY_CHARS', '40000')
         ),
@@ -257,7 +261,7 @@ def get_settings() -> Settings:
         # explicitly set this false as an emergency cost/safety switch.
         video_generation_enabled=_bool(os.getenv('CRUMP_ENABLE_VIDEO_GENERATION'), True),
         manuscript_generation_enabled=_bool(os.getenv('CRUMP_ENABLE_MANUSCRIPTS'), True),
-        # Crump Code requires both the operator switch and a reviewed source
+        # Autonomous Crump requires both the operator switch and a reviewed source
         # release because each run combines a paid model with isolated compute.
         code_workspace_enabled=(
             CODE_WORKSPACE_PUBLIC_RELEASED

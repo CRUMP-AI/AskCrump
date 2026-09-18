@@ -577,6 +577,16 @@
             <p>Review sessions, sign out, or permanently delete your account.</p>
           </div>
           <div class="settings-list">
+            <button id="aiDataSharingConsentBtn" class="settings-row settings-row-action" type="button" aria-describedby="aiDataSharingConsentHelp">
+              <div class="settings-row-text">
+                <div class="settings-label">AI provider data sharing</div>
+                <div id="aiDataSharingConsentHelp" class="settings-help">Nothing is sent to an AI provider until you explicitly allow it.</div>
+              </div>
+              <div class="ai-consent-settings-meta">
+                <span id="aiDataSharingConsentStatus" class="ai-consent-settings-status" data-allowed="false">Not allowed</span>
+                <span class="settings-chevron" aria-hidden="true">›</span>
+              </div>
+            </button>
             <button id="devicesBtn" class="settings-row settings-row-action" type="button">
               <div class="settings-row-text"><div class="settings-label">Signed-in devices</div><div class="settings-help">Review and revoke other sessions</div></div>
               <div class="settings-chevron" aria-hidden="true">›</div>
@@ -626,13 +636,46 @@
   </div>
 </div>
 
+<div id="aiDataSharingConsentModal" class="ai-consent-modal" hidden aria-hidden="true">
+  <section class="ai-consent-card" role="dialog" aria-modal="true" aria-labelledby="aiConsentTitle" aria-describedby="aiConsentDescription">
+    <p id="aiConsentEyebrow" class="ai-consent-eyebrow">YOUR CHOICE</p>
+    <h2 id="aiConsentTitle">Allow AI provider data sharing?</h2>
+    <div id="aiConsentDescription">
+      <p class="ai-consent-copy"><strong>This permission is separate from accepting the Terms.</strong> Depending on the feature, Ask Crump may send only what is needed: your prompt and relevant conversation context; files or images you select; text you choose for voice; video prompts, settings, and references; or Autonomous Crump task and repository content.</p>
+      <ul class="ai-consent-provider-list" aria-label="Current AI provider services">
+        <li>Anthropic</li>
+        <li>OpenAI</li>
+        <li>Vercel AI Gateway and Groq</li>
+        <li>Google Gemini and Veo</li>
+        <li>Runway</li>
+        <li>ElevenLabs</li>
+        <li>Brave Search</li>
+        <li>OpenWeather</li>
+        <li>Vercel Sandbox</li>
+      </ul>
+      <p class="ai-consent-copy"><strong>Nothing is sent until you choose Allow and continue.</strong> You can withdraw permission in Settings → Account at any time. Withdrawal applies to future requests and does not undo processing already completed at your direction.</p>
+      <a class="ai-consent-privacy" href="/legal.html#ai-data-sharing" target="_blank" rel="noopener">Read the Privacy Policy ↗</a>
+      <p id="aiConsentReviewStatus" class="ai-consent-status" hidden>Allowed for the current consent version. Future provider-bound requests may use only the data categories described above.</p>
+      <p id="aiConsentError" class="ai-consent-error" role="alert" aria-live="assertive" hidden></p>
+    </div>
+    <div id="aiConsentRequestActions" class="ai-consent-actions">
+      <button id="aiConsentNotNow" class="ai-consent-button" type="button">Not now</button>
+      <button id="aiConsentAllow" class="ai-consent-button is-primary" type="button">Allow and continue</button>
+    </div>
+    <div id="aiConsentReviewActions" class="ai-consent-actions" hidden>
+      <button id="aiConsentWithdraw" class="ai-consent-button is-danger" type="button">Withdraw permission</button>
+      <button id="aiConsentDone" class="ai-consent-button" type="button">Done</button>
+    </div>
+  </section>
+</div>
+
 <div id="toastContainer" class="toast-container"></div>
 <input type="file" id="fileInput" accept="image/*,.pdf,.docx,.xlsx,.pptx,.txt,.md,.csv,.tsv,.json,.html,.rtf" aria-label="Choose an attachment" hidden>
 
 <script defer src="/telemetry-config.js?v=5.9.76"></script>
-<script defer src="/runtime-body-v1.js?v=5.9.76-navigation-discovery-1"></script>
+<script defer src="/runtime-body-v1.js?v=5.9.76-native-store-billing-1"></script>
 <script defer src="/native-runtime.js"></script>
-<script defer src="/mobile-bridge.js"></script>
+<script defer src="/mobile-bridge.js?v=5.9.76-native-store-billing-1"></script>
 <script defer src="/safe-storage.js"></script>
 <script defer src="/install-prompt.js?v=5.9.76-update-work-guard-1"></script>
 <script defer src="/auth-resilience.js?v=5.9.76"></script>

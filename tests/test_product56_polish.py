@@ -17,7 +17,7 @@ def test_56_polish_layer_is_last_on_web_and_native():
         assert source.index("/crump-4.3.js") < source.index("/crump-4.4.js")
         assert source.index("/crump-product-5.3.1.js") < source.index("/crump-polish-5.6.js")
         assert "/crump-polish-5.6.css" in source
-    assert "ask-crump-new-body-v1-r249" in worker
+    assert "ask-crump-new-body-v1-r252" in worker
     assert "/crump-polish-5.6.css" in worker and "/crump-polish-5.6.js" in worker
     assert "crump-polish-5.6.js" in checker
 
@@ -97,7 +97,7 @@ def test_navigation_tutorial_and_store_sources_share_one_exact_destination_contr
     checker = read("scripts/check-javascript.mjs")
 
     assert "const destinationLabels = Object.freeze(['Ask', 'Projects', 'Create', 'Video', 'Library', 'You']);" in checker
-    assert "const internalNavigationLabels = Object.freeze(['Ask', 'Projects', 'Code', 'Create', 'Video', 'Library', 'You']);" in checker
+    assert "const internalNavigationLabels = Object.freeze(['Ask', 'Projects', 'Autonomous Crump', 'Create', 'Video', 'Library', 'You']);" in checker
     assert "store/listing.en-US.json" in checker
     assert "store/screenshots/README.md" in checker
     assert "docs/STORE_LISTING_COPY.md" in checker

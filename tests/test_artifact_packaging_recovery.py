@@ -267,6 +267,8 @@ async def test_stable_generated_file_identity_reuses_existing_row_and_upserts_st
             self.upserts = []
 
         async def select_one(self, _table, **_kwargs):
+            if _table == "users":
+                return {"id": USER_ID}
             return self.row
 
         async def upsert(self, table, payload, *, on_conflict):

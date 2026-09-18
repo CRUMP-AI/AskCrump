@@ -87,6 +87,36 @@ function validateReviewerAccess(value, platform) {
   if (password.length < 12 || /replace_in_untracked_file/i.test(password)) {
     throw new PacketError(`Reviewer access has no usable ${platform} password.`);
   }
+  if (platform === 'ios') {
+    const contact = selected.contact;
+    if (!contact || typeof contact !== 'object' || Array.isArray(contact)) {
+      throw new PacketError('Reviewer access is missing the iOS App Review contact.');
+    }
+    const contactFirstName = String(contact.firstName || '').trim();
+    const contactLastName = String(contact.lastName || '').trim();
+    const contactEmail = String(contact.email || '').trim();
+    const contactPhone = String(contact.phone || '').trim();
+    if (!contactFirstName || !contactLastName || /replace|example/i.test(`${contactFirstName} ${contactLastName}`)) {
+      throw new PacketError('Reviewer access requires usable iOS App Review contact first and last names.');
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail) || /replace|example/i.test(contactEmail)) {
+      throw new PacketError('Reviewer access has no usable iOS App Review contact email.');
+    }
+    if (!/^\+[1-9]\d{7,14}$/.test(contactPhone)) {
+      throw new PacketError('Reviewer access iOS App Review phone must use international E.164 format.');
+    }
+  }
+}
+
+function verifyStoreMetadataSource() {
+  const result = spawnSync(process.execPath, ['scripts/verify-store-metadata.mjs'], {
+    cwd: rootPath,
+    encoding: 'utf8',
+    shell: false,
+  });
+  if (result.status !== 0) {
+    throw new PacketError(`Store metadata source gate failed.\n${String(result.stderr || result.stdout || '').trim()}`);
+  }
 }
 
 function validateEvidence(value, expected, now = new Date()) {
@@ -395,6 +425,11 @@ async function selfTest() {
     ['valid exact packet', () => validateEvidence(manifest, expected, new Date('2026-09-10T12:05:00Z')), false],
     ['valid dual-device iOS packet', () => validateEvidence(iosManifest, iosExpected, new Date('2026-09-10T12:05:00Z')), false],
     ['valid reviewer', () => validateReviewerAccess({ android: { username: 'reviewer@askcrump.com', password: 'long-secret-value' } }, 'android'), false],
+    ['valid iOS reviewer contact', () => validateReviewerAccess({ ios: {
+      username: 'reviewer@askcrump.com',
+      password: 'long-secret-value',
+      contact: { firstName: 'Review', lastName: 'Contact', email: 'reviewer@askcrump.test', phone: '+12025550123' },
+    } }, 'ios'), false],
     ['wrong platform', () => validateEvidence({ ...manifest, platform: 'ios' }, expected, new Date('2026-09-10T12:05:00Z')), true],
     ['wrong build', () => validateEvidence({ ...manifest, buildNumber: 1 }, expected, new Date('2026-09-10T12:05:00Z')), true],
     ['stale evidence', () => validateEvidence(manifest, expected, new Date('2026-10-10T12:05:00Z')), true],
@@ -407,6 +442,12 @@ async function selfTest() {
     ['unknown check', () => validateEvidence({ ...manifest, checks: { ...checks, invented: true } }, expected, new Date('2026-09-10T12:05:00Z')), true],
     ['placeholder reviewer', () => validateReviewerAccess({ android: { username: 'REPLACE_IN_UNTRACKED_FILE', password: 'REPLACE_IN_UNTRACKED_FILE' } }, 'android'), true],
     ['short reviewer secret', () => validateReviewerAccess({ android: { username: 'reviewer@askcrump.com', password: 'short' } }, 'android'), true],
+    ['missing iOS reviewer contact', () => validateReviewerAccess({ ios: { username: 'reviewer@askcrump.com', password: 'long-secret-value' } }, 'ios'), true],
+    ['invalid iOS reviewer phone', () => validateReviewerAccess({ ios: {
+      username: 'reviewer@askcrump.com',
+      password: 'long-secret-value',
+      contact: { firstName: 'Review', lastName: 'Contact', email: 'reviewer@askcrump.test', phone: '(202) 555-0123' },
+    } }, 'ios'), true],
   ];
   let passed = 0;
   for (const [name, operation, shouldFail] of cases) {
@@ -477,6 +518,7 @@ async function selfTest() {
 async function main() {
   const args = parseArguments(process.argv.slice(2));
   if (args.selfTest) return await selfTest();
+  verifyStoreMetadataSource();
   const platform = String(args.platform || '').toLowerCase();
   if (!Object.hasOwn(platformChecks, platform)) throw new PacketError('Platform must be android or ios.');
   const artifact = path.resolve(args.artifact);

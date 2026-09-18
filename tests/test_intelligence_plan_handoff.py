@@ -40,7 +40,7 @@ def test_changed_handoff_assets_are_versioned_and_fixture_is_content_free():
     native = read("scripts/build-native.mjs")
     fixture = read("tests/fixtures/intelligence-plan-handoff.html")
     version = "5.9.76-navigation-discovery-1"
-    subscription_version = "5.9.76-checkout-destination-label-1"
+    subscription_version = "5.9.76-native-store-billing-1"
 
     assert f"/crump-4.4.js?v={version}" in runtime
     assert f"/crump-4.4.js?v={version}" in worker

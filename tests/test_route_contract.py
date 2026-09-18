@@ -19,6 +19,8 @@ EXPECTED_ROUTES = {
     ('GET', '/api/auth/verify-email'),
     ('PATCH', '/api/account/profile'),
     ('POST', '/api/account/accept-terms'),
+    ('POST', '/api/account/ai-data-sharing-consent'),
+    ('DELETE', '/api/account/ai-data-sharing-consent'),
     ('DELETE', '/api/account'),
     ('GET', '/api/sync/pull'),
     ('POST', '/api/sync/push'),

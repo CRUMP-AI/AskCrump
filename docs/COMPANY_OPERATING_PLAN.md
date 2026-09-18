@@ -141,7 +141,7 @@ next constraint.
   only consented notes and content-free funnel outcomes.
 - Review the first post-instrumentation cohort separately from the three historical accounts.
 - Fix the largest observed durable-value-to-return failure before expanding acquisition.
-- Deploy Crump Code and Crump Voice foundations disabled by default; complete their activation
+- Deploy Autonomous Crump and Crump Voice foundations disabled by default; complete their activation
   gates without public parity claims.
 
 ### Monetization and unit economics
@@ -289,7 +289,7 @@ provider, privacy, cost, or security gate is incomplete.
 - **Workspace hierarchy:** Production commit **b65fb73** removes the redundant Tools menu. Ask is the
   default workspace; Intelligence owns research/current information and answer quality; Create owns
   Documents, Presentations, Images, Manuscripts, and Video; the composer **+** owns attachments; and
-  Crump Code remains a separate hidden gated destination. Do not recreate parallel navigation for
+  Autonomous Crump remains a separate hidden gated destination. Do not recreate parallel navigation for
   these capabilities.
 - **Verified evidence:** two external accounts completed 14 successful AI jobs before the first
   observed product-event traffic; neither created a Project/file or returned after August 23.
@@ -383,7 +383,8 @@ provider, privacy, cost, or security gate is incomplete.
   owner-scoped server job, renders its persisted answer, and accepts another message. A separate
   acknowledgement stall exposes visible retry and completes safely. Schema/RLS, usage, credits,
   providers, analytics, pricing, entitlements, and payments remain unchanged.
-- **Shipped foundation:** production 5.9.35 adds a Project-attached Crump Code review workspace,
+- **Shipped foundation:** production 5.9.35 added a Project-attached coding-agent review workspace
+  under its former Crump Code name; the current customer name is Autonomous Crump. It includes
   explicit client/server run confirmation, visible cost/patch/verification/approval state, and
   cancellation checks before each next model/tool step. It remains disabled publicly pending the
   approved live sandbox/OIDC, expiry, monitoring, rollback, and benchmark gates.

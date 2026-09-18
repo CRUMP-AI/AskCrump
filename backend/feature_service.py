@@ -154,7 +154,7 @@ POLICIES: dict[str, FeaturePolicy] = {
     ),
     "code_workspace": FeaturePolicy(
         "code_workspace",
-        "Crump Code",
+        "Autonomous Crump",
         "professional",
         12,
         {"free": 0, "professional": 3, "enterprise": 10},

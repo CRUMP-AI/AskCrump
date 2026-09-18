@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 CURRENT_TERMS_VERSION = "2026-08-01"
+CURRENT_AI_DATA_SHARING_CONSENT_VERSION = "2026-09-17"
 
 
 class APIModel(BaseModel):
@@ -60,6 +61,10 @@ class ProfileUpdateRequest(APIModel):
 
 class TermsAcceptanceRequest(APIModel):
     version: Literal["2026-08-01"] = CURRENT_TERMS_VERSION
+
+
+class AIDataSharingConsentRequest(APIModel):
+    version: Literal["2026-09-17"] = CURRENT_AI_DATA_SHARING_CONSENT_VERSION
 
 
 class AIContentReportRequest(APIModel):

@@ -7,12 +7,22 @@ import logging
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from ..ai_consent import require_ai_data_sharing_consent
 from ..auth_service import authenticate_request
-from ..feature_service import FeatureAccessError
+from ..feature_service import CreditAuthorization, FeatureAccessError
 from ..file_service import FileServiceError
 from ..manuscript_service import ManuscriptError, chapter_count_from_prompt
 from ..project_service import ProjectNotFoundError
-from ..runtime import code_worker, db, features, files, manuscripts, projects, settings
+from ..runtime import (
+    account_deletions,
+    code_worker,
+    db,
+    features,
+    files,
+    manuscripts,
+    projects,
+    settings,
+)
 
 router = APIRouter(tags=["manuscripts"])
 logger = logging.getLogger(__name__)
@@ -140,15 +150,6 @@ async def get_manuscript(manuscript_id: str, request: Request):
 @router.post("/api/manuscripts/{manuscript_id}/runs")
 async def start_manuscript_run(manuscript_id: str, request: Request):
     auth = await authenticate_request(request, db, settings)
-    if not settings.manuscript_generation_enabled or not settings.anthropic_api_key:
-        return JSONResponse(
-            status_code=503,
-            content={
-                "success": False,
-                "error": "Full-manuscript generation is not configured yet.",
-                "code": "MANUSCRIPT_NOT_CONFIGURED",
-            },
-        )
     payload = await request.json()
     payload = payload if isinstance(payload, dict) else {}
     try:
@@ -161,6 +162,7 @@ async def start_manuscript_run(manuscript_id: str, request: Request):
             }
         sections = await manuscripts.list_sections(user_id=auth.user["id"], manuscript_id=manuscript_id)
         mode = str(payload.get("mode") or "autopilot").lower()
+        existing_outline = mode == "outline" and bool(sections)
         draft_steps = 0
         if mode == "autopilot":
             draft_steps = (
@@ -180,8 +182,26 @@ async def start_manuscript_run(manuscript_id: str, request: Request):
             components["manuscript_blueprint"] = 1
         if draft_steps:
             components["manuscript_draft"] = draft_steps
-        if not components:
+        if not components and not existing_outline:
             components["kdp_export"] = 1
+        provider_required = any(
+            code in components
+            for code in {"manuscript_blueprint", "manuscript_draft"}
+        )
+        if provider_required:
+            require_ai_data_sharing_consent(auth.user)
+            if (
+                not settings.manuscript_generation_enabled
+                or not settings.anthropic_api_key
+            ):
+                return JSONResponse(
+                    status_code=503,
+                    content={
+                        "success": False,
+                        "error": "Full-manuscript generation is not configured yet.",
+                        "code": "MANUSCRIPT_NOT_CONFIGURED",
+                    },
+                )
         authorization_scope = {
             "route": "manuscript_run",
             "manuscriptId": manuscript_id,
@@ -191,15 +211,25 @@ async def start_manuscript_run(manuscript_id: str, request: Request):
                 if key != "creditConfirmation"
             },
         }
-        authorization = await features.authorize(
-            auth.user,
-            components,
-            (
-                payload.get("creditConfirmation")
-                if isinstance(payload.get("creditConfirmation"), dict)
-                else None
-            ),
-            scope=authorization_scope,
+        authorization = (
+            CreditAuthorization(
+                str(auth.user["id"]),
+                f"existing-outline:{manuscript_id}",
+                {},
+                {},
+                0,
+            )
+            if existing_outline
+            else await features.authorize(
+                auth.user,
+                components,
+                (
+                    payload.get("creditConfirmation")
+                    if isinstance(payload.get("creditConfirmation"), dict)
+                    else None
+                ),
+                scope=authorization_scope,
+            )
         )
         receipt = None
         if not sections:
@@ -282,10 +312,11 @@ async def resume_manuscript_run(run_id: str, request: Request):
         row = await manuscripts.get_run(
             user_id=auth.user["id"], run_id=run_id
         )
-        if row.get("last_error_code") in {
-            "CREDIT_BUDGET_EXHAUSTED",
-            "CREDIT_BUDGET_CONFIRMATION_REQUIRED",
-        }:
+        stage = str(row.get("stage") or "blueprint")
+        resumable = row.get("status") in {"paused", "awaiting_credits"}
+        sections = None
+        remaining_steps = None
+        if resumable and stage in {"blueprint", "drafting"}:
             sections = await manuscripts.list_sections(
                 user_id=auth.user["id"],
                 manuscript_id=str(row["manuscript_id"]),
@@ -295,6 +326,39 @@ async def resume_manuscript_run(run_id: str, request: Request):
                 for item in sections
                 if not str(item.get("content") or "").strip()
             )
+        provider_required = bool(
+            resumable
+            and (
+                (stage == "blueprint" and not sections)
+                or (
+                    stage == "drafting"
+                    and str(row.get("mode") or "autopilot").lower()
+                    != "outline"
+                    and int(remaining_steps or 0) > 0
+                )
+            )
+        )
+        if provider_required:
+            require_ai_data_sharing_consent(auth.user)
+        legacy_outline_drafting = (
+            str(row.get("mode") or "autopilot").lower() == "outline"
+            and stage == "drafting"
+        )
+        if not legacy_outline_drafting and row.get("last_error_code") in {
+            "CREDIT_BUDGET_EXHAUSTED",
+            "CREDIT_BUDGET_CONFIRMATION_REQUIRED",
+        }:
+            if sections is None:
+                sections = await manuscripts.list_sections(
+                    user_id=auth.user["id"],
+                    manuscript_id=str(row["manuscript_id"]),
+                )
+            if remaining_steps is None:
+                remaining_steps = sum(
+                    1
+                    for item in sections
+                    if not str(item.get("content") or "").strip()
+                )
             components = (
                 {"manuscript_draft": remaining_steps}
                 if remaining_steps
@@ -359,16 +423,34 @@ async def manuscript_cron(request: Request):
     oidc_token = str(
         request.headers.get("x-vercel-oidc-token") or settings.vercel_oidc_token or ""
     ).strip()
+    try:
+        deletion_summary = await account_deletions.process_due(limit=2)
+    except Exception:
+        # Keep the shared worker available for code and manuscripts while the
+        # durable deletion rows remain due for the next minute's retry.
+        logger.exception("Account deletion sweep failed before claiming shared worker work")
+        deletion_summary = {"processed": 0, "retrying": 1}
     code_summary = await code_worker.process_next(oidc_token=oidc_token)
     if code_summary.get("handled"):
-        return {"success": True, "worker": "code", **code_summary}
+        return {
+            "success": True,
+            "worker": "code",
+            "accountDeletions": deletion_summary,
+            **code_summary,
+        }
     summary = await manuscripts.process_next_run()
-    return {"success": True, "worker": "manuscripts", **summary}
+    return {
+        "success": True,
+        "worker": "manuscripts",
+        "accountDeletions": deletion_summary,
+        **summary,
+    }
 
 
 @router.post("/api/manuscripts/{manuscript_id}/blueprint")
 async def blueprint_manuscript(manuscript_id: str, request: Request):
     auth = await authenticate_request(request, db, settings)
+    require_ai_data_sharing_consent(auth.user)
     if not settings.manuscript_generation_enabled or not settings.anthropic_api_key:
         return JSONResponse(
             status_code=503,
@@ -469,6 +551,7 @@ async def update_section(manuscript_id: str, section_id: str, request: Request):
 @router.post("/api/manuscripts/{manuscript_id}/sections/{section_id}/draft")
 async def draft_section(manuscript_id: str, section_id: str, request: Request):
     auth = await authenticate_request(request, db, settings)
+    require_ai_data_sharing_consent(auth.user)
     if not settings.manuscript_generation_enabled or not settings.anthropic_api_key:
         return JSONResponse(
             status_code=503,
@@ -529,6 +612,7 @@ async def draft_section(manuscript_id: str, section_id: str, request: Request):
 @router.post("/api/manuscripts/{manuscript_id}/draft-next")
 async def draft_next_section(manuscript_id: str, request: Request):
     auth = await authenticate_request(request, db, settings)
+    require_ai_data_sharing_consent(auth.user)
     if not settings.manuscript_generation_enabled or not settings.anthropic_api_key:
         return JSONResponse(
             status_code=503,

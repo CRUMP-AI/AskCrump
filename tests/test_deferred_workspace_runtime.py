@@ -23,9 +23,9 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
     ]
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
-        '/runtime-body-v1.js?v=5.9.76-navigation-discovery-1',
+        '/runtime-body-v1.js?v=5.9.76-native-store-billing-1',
         '/native-runtime.js',
-        '/mobile-bridge.js',
+        '/mobile-bridge.js?v=5.9.76-native-store-billing-1',
         '/safe-storage.js',
         '/install-prompt.js?v=5.9.76-update-work-guard-1',
         '/auth-resilience.js?v=5.9.76',

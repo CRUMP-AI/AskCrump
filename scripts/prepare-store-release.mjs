@@ -1,6 +1,7 @@
 import { access } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { requireProductionNativeApiBase } from './native-api-origin.mjs';
 
 const root = new URL('../', import.meta.url);
 const platform = String(process.argv[2] || '').toLowerCase();
@@ -9,6 +10,31 @@ if (!['android', 'ios'].includes(platform)) {
   console.error('Usage: node scripts/prepare-store-release.mjs <android|ios>');
   process.exit(1);
 }
+
+try {
+  process.env.CRUMP_API_BASE = requireProductionNativeApiBase(process.env.CRUMP_API_BASE);
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}
+
+const publicBillingKeyVariable = platform === 'android'
+  ? 'REVENUECAT_ANDROID_PUBLIC_SDK_KEY'
+  : 'REVENUECAT_IOS_PUBLIC_SDK_KEY';
+const publicBillingKey = String(process.env[publicBillingKeyVariable] || '').trim();
+const allowMissingPublicBillingKeys = process.env.STORE_ALLOW_MISSING_PUBLIC_BILLING_KEYS === '1';
+
+if (!publicBillingKey && !allowMissingPublicBillingKeys) {
+  console.error(`${publicBillingKeyVariable} is required for ${platform} store release preparation.`);
+  console.error('Only unsigned structural CI may opt out with STORE_ALLOW_MISSING_PUBLIC_BILLING_KEYS=1; opt-out builds are not release-ready.');
+  process.exit(1);
+}
+if (!publicBillingKey) {
+  console.warn(`WARNING: ${publicBillingKeyVariable} is missing under the explicit unsigned structural CI opt-out; this ${platform} output is not release-ready.`);
+} else {
+  process.env[publicBillingKeyVariable] = publicBillingKey;
+}
+
 if (platform === 'ios' && process.platform === 'win32') {
   console.error('iOS preparation requires macOS because CocoaPods/Xcode must resolve the native project.');
   process.exit(1);
@@ -48,6 +74,7 @@ if (!(await exists(new URL('package-lock.json', root)))) {
   console.error('package-lock.json is required for reproducible store preparation. Generate and review it with the approved Node 22/npm toolchain before continuing.');
   process.exit(1);
 }
+run(npm, ['ls', '--all']);
 run(npm, ['run', 'build']);
 
 if (!(await exists(new URL(`${platform}/`, root)))) {
