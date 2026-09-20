@@ -24,6 +24,29 @@ def _bool(value: str | None, default: bool = False) -> bool:
     return value.strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
+def _usable_revenuecat_secret(value: str | None, *, minimum_length: int) -> bool:
+    secret = str(value or '')
+    if len(secret) < minimum_length or secret != secret.strip():
+        return False
+    if any(character.isspace() for character in secret):
+        return False
+    return not any(
+        marker in secret.casefold()
+        for marker in ('replace', 'placeholder', 'changeme', 'change_me', 'example', 'dummy')
+    )
+
+
+def _usable_revenuecat_webhook_auth(value: str | None) -> bool:
+    # RevenueCat sends this exact Authorization header; a sample value must
+    # never accidentally count as a configured production credential.
+    prefix = 'Bearer '
+    return bool(
+        value
+        and value.startswith(prefix)
+        and _usable_revenuecat_secret(value[len(prefix):], minimum_length=32)
+    )
+
+
 def _transactional_from_email(environment: str, configured: str | None) -> str:
     # Keep production transactional mail off Resend's test-only sender.
     default = 'Ask Crump <noreply@askcrump.com>'
@@ -105,6 +128,7 @@ class Settings:
     stripe_webhook_secret: str | None
     stripe_professional_price_id: str | None
     stripe_enterprise_price_id: str | None
+    native_billing_enabled: bool
     revenuecat_webhook_auth: str | None
     revenuecat_secret_api_key: str | None
     cron_secret: str | None
@@ -152,6 +176,19 @@ class Settings:
             raise RuntimeError('APP_URL must use HTTPS in production.')
         if self.is_production and not self.cookie_secure:
             raise RuntimeError('COOKIE_SECURE must be true in production.')
+        if self.native_billing_enabled:
+            if not _usable_revenuecat_webhook_auth(self.revenuecat_webhook_auth):
+                raise RuntimeError(
+                    'CRUMP_ENABLE_NATIVE_BILLING requires a non-placeholder '
+                    'REVENUECAT_WEBHOOK_AUTH Bearer token of at least 32 characters.'
+                )
+            if not _usable_revenuecat_secret(
+                self.revenuecat_secret_api_key, minimum_length=16
+            ):
+                raise RuntimeError(
+                    'CRUMP_ENABLE_NATIVE_BILLING requires a non-placeholder '
+                    'REVENUECAT_SECRET_API_KEY.'
+                )
         if '*' in self.allowed_origins:
             raise RuntimeError('ALLOWED_ORIGINS cannot contain * when credentials are enabled.')
         if not 1 <= self.session_days <= 3650:
@@ -296,6 +333,9 @@ def get_settings() -> Settings:
         stripe_webhook_secret=os.getenv('STRIPE_WEBHOOK_SECRET'),
         stripe_professional_price_id=os.getenv('STRIPE_PROFESSIONAL_PRICE_ID'),
         stripe_enterprise_price_id=os.getenv('STRIPE_ENTERPRISE_PRICE_ID'),
+        # Deliberate release setting, never inferred from a webhook header:
+        # a web-only deployment may carry a staged/placeholder value.
+        native_billing_enabled=_bool(os.getenv('CRUMP_ENABLE_NATIVE_BILLING'), False),
         revenuecat_webhook_auth=os.getenv('REVENUECAT_WEBHOOK_AUTH'),
         revenuecat_secret_api_key=os.getenv('REVENUECAT_SECRET_API_KEY'),
         cron_secret=os.getenv('CRON_SECRET'),

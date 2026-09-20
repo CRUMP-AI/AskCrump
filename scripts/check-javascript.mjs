@@ -987,7 +987,7 @@ const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot),
 const releaseVersion = String(packageJson.version || '');
 const autonomousCrumpVersion = `${releaseVersion}-autonomous-crump-1`;
 const nativeStoreBillingVersion = `${releaseVersion}-native-store-billing-1`;
-const nativeDeletionDisconnectVersion = `${releaseVersion}-native-deletion-disconnect-1`;
+const nativeDeletionDisconnectVersion = `${releaseVersion}-native-deletion-failure-1`;
 const landingVersion = `${releaseVersion}-facebook-reel-attribution-1`;
 const planRendererVersion = `${releaseVersion}-credit-pack-accessibility-1`;
 const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
@@ -1586,6 +1586,10 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r252') ||
 }
 
 const billingManagerSource = await readFile(new URL('public/billing-manager.js', repoRoot), 'utf8');
+async function nativeBillingReadyFetch(url) {
+  if (url !== '/api/billing/native-readiness') throw new Error('Unexpected native readiness request.');
+  return {ok: true, async json() { return {success: true, ready: true}; }};
+}
 async function exerciseNativeBillingIdentity({rejectSecondLogin = false} = {}) {
   const calls = [];
   let loginAttempts = 0;
@@ -1608,7 +1612,7 @@ async function exerciseNativeBillingIdentity({rejectSecondLogin = false} = {}) {
     CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
     currentUser: {id: 'account-a'},
   };
-  runInContext(billingManagerSource, createContext({window: windowMock}));
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: nativeBillingReadyFetch}));
   await Promise.all([
     windowMock.BillingManager.getProducts(),
     windowMock.BillingManager.getCreditProducts(),
@@ -1654,6 +1658,73 @@ if (rejectedNativeBillingIdentity.rejectedMessage !== 'Store billing could not c
   process.exit(1);
 }
 
+async function exerciseNativeBillingReadiness(fetchImpl) {
+  const calls = [];
+  const plugin = {
+    async isConfigured() { calls.push('isConfigured'); return {isConfigured: false}; },
+    async configure() { calls.push('configure'); },
+    async getOfferings() { calls.push('getOfferings'); return {current: {availablePackages: []}}; },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {revenueCatAppleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'free-native-account'},
+  };
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: fetchImpl}));
+  const products = await windowMock.BillingManager.getProducts();
+  return {calls, products};
+}
+const unreadyNativeBilling = [
+  async () => ({ok: true, async json() { return {success: true, ready: false}; }}),
+  async () => ({ok: true, async json() { return {success: true}; }}),
+  async () => ({ok: false, async json() { return {success: false}; }}),
+  async () => { throw new Error('offline'); },
+];
+for (const fetchImpl of unreadyNativeBilling) {
+  const result = await exerciseNativeBillingReadiness(fetchImpl);
+  if (Object.keys(result.products).length || result.calls.includes('configure') ||
+      result.calls.includes('getOfferings')) {
+    console.error('Native billing must not create a provider customer without server cleanup readiness.');
+    process.exit(1);
+  }
+}
+{
+  const calls = [];
+  let readinessRequests = 0;
+  let resolveFailedReadiness;
+  const failedReadiness = new Promise(resolve => { resolveFailedReadiness = resolve; });
+  const plugin = {
+    async configure() { calls.push('configure'); },
+    async logOut() { calls.push('logOut'); },
+    async getOfferings() { calls.push('getOfferings'); return {current: {availablePackages: []}}; },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {revenueCatAppleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'free-native-account'},
+  };
+  async function mixedReadiness() {
+    readinessRequests += 1;
+    if (readinessRequests === 1) return {ok: true, async json() { return {success: true, ready: true}; }};
+    await failedReadiness;
+    return {ok: false};
+  }
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: mixedReadiness}));
+  const purchaseSideCatalog = windowMock.BillingManager.getProducts();
+  const timedOutCatalog = windowMock.BillingManager.getCreditProducts();
+  await purchaseSideCatalog;
+  resolveFailedReadiness();
+  await timedOutCatalog;
+  if (calls.filter(name => name === 'configure').length !== 1 ||
+      calls.filter(name => name === 'getOfferings').length !== 1 ||
+      calls.includes('logOut')) {
+    console.error('A failed concurrent readiness check must not log out an active store identity.');
+    process.exit(1);
+  }
+}
+
 async function exercisePersistedNativeBillingIdentity() {
   const calls = [];
   const plugin = {
@@ -1673,7 +1744,7 @@ async function exercisePersistedNativeBillingIdentity() {
     CrumpNative: {Capacitor: {getPlatform: () => 'android'}, Purchases: plugin},
     currentUser: {id: 'account-b'},
   };
-  runInContext(billingManagerSource, createContext({window: windowMock}));
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: nativeBillingReadyFetch}));
   await windowMock.BillingManager.getProducts();
   return calls;
 }
@@ -1730,7 +1801,9 @@ async function exerciseDeletionDisconnectRetry() {
     CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
     currentUser: {id: 'deleted-account'},
   };
-  runInContext(billingManagerSource, createContext({window: restartedWindow, localStorage: storage}));
+  runInContext(billingManagerSource, createContext({
+    window: restartedWindow, localStorage: storage, fetch: nativeBillingReadyFetch,
+  }));
   try { await restartedWindow.BillingManager.getProducts(); } catch (_) {}
   if (storage.getItem(key) !== 'deleted-account' || calls.includes('getOfferings')) return false;
   await restartedWindow.BillingManager.getProducts();
@@ -1753,6 +1826,72 @@ if (!accountManagerSource.includes('await window.BillingManager.prepareAccountDe
     !accountManagerSource.includes('window.BillingManager?.completeAccountDeletion?.();')) {
   console.error('Permanent deletion must prepare and complete native store identity disconnect.');
   process.exit(1);
+}
+
+async function exerciseDeletionFailureMarker({status, code, prior = false, network = false, prepare = true}) {
+  const elements = [];
+  function element(tag) {
+    const node = {
+      tag, textContent: '', className: '', disabled: false, listeners: {}, children: [],
+      append(...children) { this.children.push(...children); },
+      appendChild(child) { this.children.push(child); return child; },
+      addEventListener(name, listener) { this.listeners[name] = listener; },
+      setAttribute() {}, remove() {}, focus() {},
+    };
+    elements.push(node);
+    return node;
+  }
+  const document = {
+    activeElement: null,
+    body: element('body'),
+    getElementById() { return null; },
+    createElement: element,
+    createTextNode(value) { return {textContent: value}; },
+  };
+  let cancelled = 0;
+  let requests = 0;
+  const window = {
+    CrumpAPI: {isNative: true},
+    BillingManager: {
+      hasPendingAccountDeletion() { return prior; },
+      async prepareAccountDeletion() { return prepare; },
+      async disconnectAfterDeletion() { return true; },
+      completeAccountDeletion() {},
+      cancelAccountDeletion() { cancelled += 1; },
+    },
+    location: {replace() { throw new Error('Unexpected successful deletion'); }},
+  };
+  async function fetch() {
+    requests += 1;
+    if (network) throw new Error('Network interrupted');
+    return {status, ok: false, async json() { return {code, error: 'Deletion rejected'}; }};
+  }
+  runInContext(accountManagerSource, createContext({
+    window, document, fetch, requestAnimationFrame(callback) { callback(); },
+  }));
+  window.openDeleteAccountDialog();
+  const confirm = elements.find(node => node.textContent === 'Delete account permanently');
+  await confirm?.listeners?.click?.();
+  const error = elements.find(node => node.className === 'account-modal-error');
+  return {cancelled, requests, error: error?.textContent || '', confirmDisabled: confirm?.disabled};
+}
+const deletionFailureCases = [
+  [{status: 401}, {cancelled: 1, requests: 1}],
+  [{status: 502, code: 'BILLING_CANCELLATION_UNCONFIRMED'}, {cancelled: 1, requests: 1}],
+  [{status: 502, code: 'UNKNOWN'}, {cancelled: 0, requests: 1}],
+  [{status: 503, code: 'ACCOUNT_DELETION_FENCE_UNAVAILABLE'}, {cancelled: 0, requests: 1}],
+  [{status: 401, prior: true}, {cancelled: 0, requests: 1}],
+  [{network: true}, {cancelled: 0, requests: 1, error: 'Store billing is paused'}],
+  [{prepare: false}, {cancelled: 1, requests: 0}],
+];
+for (const [fixture, expected] of deletionFailureCases) {
+  const actual = await exerciseDeletionFailureMarker(fixture);
+  if (actual.cancelled !== expected.cancelled || actual.requests !== expected.requests ||
+      actual.confirmDisabled !== false ||
+      (expected.error && !actual.error.includes(expected.error))) {
+    console.error('Native deletion must only release the billing guard after a definite pre-fence failure.', fixture, actual);
+    process.exit(1);
+  }
 }
 
 const deviceAuthSource = await readFile(new URL('public/device-auth.js', repoRoot), 'utf8');

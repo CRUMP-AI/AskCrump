@@ -974,6 +974,18 @@ async def revenuecat_sync(request: Request):
     return {'success': True, 'user': public_user(auth.user)}
 
 
+@router.get('/api/billing/native-readiness')
+async def native_billing_readiness():
+    # Public, content-free release signal. The client must not initialize the
+    # RevenueCat SDK (which can create a customer) unless this backend has
+    # deliberately enabled native billing and its cleanup credentials passed
+    # startup validation. Do not expose the credentials or account state.
+    return JSONResponse(
+        content={'success': True, 'ready': settings.native_billing_enabled},
+        headers={'Cache-Control': 'no-store'},
+    )
+
+
 @router.get('/api/billing/status')
 async def billing_status(request: Request):
     auth = await authenticate_request(request, db, settings)

@@ -188,6 +188,11 @@
     confirm.addEventListener('click', async () => {
       error.textContent = '';
       confirm.disabled = true;
+      const hadPendingDeletion = Boolean(
+        window.CrumpAPI?.isNative && window.BillingManager?.hasPendingAccountDeletion?.(),
+      );
+      let deletionRequestSent = false;
+      let deletionResponseReceived = false;
       try {
         if (window.CrumpAPI?.isNative) {
           if (typeof window.BillingManager?.prepareAccountDeletion !== 'function' ||
@@ -197,6 +202,7 @@
             throw new Error('Store billing identity could not be secured for account deletion. Try again.');
           }
         }
+        deletionRequestSent = true;
         const response = await fetch('/api/account', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
@@ -205,8 +211,15 @@
             confirmation: confirmation.input.value,
           }),
         });
+        deletionResponseReceived = true;
         const data = await response.json().catch(() => ({}));
-        if ([400, 401].includes(response.status)) window.BillingManager?.cancelAccountDeletion?.();
+        // Only a fresh, definitively pre-fence rejection can release this
+        // device's durable billing-identity guard. A prior ambiguous attempt
+        // may still complete even when this retry fails password validation.
+        if (!hadPendingDeletion && (
+          [400, 401].includes(response.status) ||
+          (response.status === 502 && data.code === 'BILLING_CANCELLATION_UNCONFIRMED')
+        )) window.BillingManager?.cancelAccountDeletion?.();
         if (!response.ok) throw new Error(data.error || 'Account deletion failed.');
         const billingDisconnected = await window.BillingManager?.disconnectAfterDeletion?.();
         await window.CrumpAPI?.clearSessionToken?.();
@@ -216,7 +229,12 @@
         }
         window.location.replace('/');
       } catch (exception) {
-        error.textContent = exception.message;
+        if (!deletionRequestSent && !hadPendingDeletion) {
+          window.BillingManager?.cancelAccountDeletion?.();
+        }
+        error.textContent = deletionRequestSent && !deletionResponseReceived
+          ? 'Account deletion status could not be confirmed. Store billing is paused on this device until the request resolves. Try again shortly or contact support.'
+          : exception.message;
         confirm.disabled = false;
       }
     });

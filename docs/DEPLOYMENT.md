@@ -89,7 +89,7 @@ Create Stripe recurring prices and configure `/api/stripe/webhook`. Test checkou
 
 ### Native
 
-Create Apple and Google subscription products, then configure RevenueCat products, offerings, entitlements, webhook authentication, and the secret API key. Test purchase, restore, product change, cancellation, billing issue, transfer, and expiration behavior.
+Create Apple and Google subscription products, then configure RevenueCat products, offerings, entitlements, webhook authentication, and the secret API key. Set `CRUMP_ENABLE_NATIVE_BILLING=true` on the backend only after the non-placeholder `REVENUECAT_WEBHOOK_AUTH` and `REVENUECAT_SECRET_API_KEY` are both configured. The default `false` preserves web-only deployments; a staged webhook value alone does not activate provider cleanup for free-user deletion. Test purchase, restore, product change, cancellation, billing issue, transfer, expiration, and account deletion on signed devices.
 
 ## 8. Generate native projects
 

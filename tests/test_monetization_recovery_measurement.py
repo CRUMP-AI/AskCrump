@@ -97,7 +97,7 @@ def test_private_monetization_report_keeps_old_metrics_and_adds_credit_and_recov
 def test_monetization_measurement_assets_are_registered_for_web_pwa_and_native():
     autonomous_crump_version = "5.9.76-autonomous-crump-1"
     native_store_billing_version = "5.9.76-native-store-billing-1"
-    loader_version = "5.9.76-native-deletion-disconnect-1"
+    loader_version = "5.9.76-native-deletion-failure-1"
     runtime = read("public/runtime-body-v1.js")
     worker = read("public/sw.js")
     native = read("scripts/build-native.mjs")

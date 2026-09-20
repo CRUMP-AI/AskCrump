@@ -36,9 +36,28 @@ align only after the old SDK identity is cleared. Normal success clears the
 local marker after SDK logout and local auth cleanup. The changed billing,
 account, and runtime-loader scripts have new cache-addressed URLs.
 
+A second review found that an explicit pre-fence Stripe-cancellation 502 left
+the billing guard on an active account. The client now releases a *new* guard
+only for a definite pre-fence rejection (400, 401, or the exact 502 code),
+or when preparation failed before any DELETE was sent. A prior ambiguous
+deletion attempt remains guarded even if a later retry fails validation.
+Network failures and uncertain 503 responses deliberately remain guarded;
+there is not yet a server-confirmed status-reconciliation recovery path.
+
+Native billing is now a deliberate backend release setting, off by default.
+`CRUMP_ENABLE_NATIVE_BILLING=true` fails startup unless both the RevenueCat
+server key and non-placeholder Bearer webhook authorization are configured.
+The public, content-free `/api/billing/native-readiness` endpoint returns only
+whether that validated setting is enabled, with `Cache-Control: no-store`.
+The native client requires this server signal before SDK configuration, so
+public keys in a candidate bundle cannot by themselves create a provider
+customer. A failed concurrent readiness check does not log out an already
+active store identity.
+
 ## Verification
 
-- Focused deletion and RevenueCat tests: 40 passed. Cases cover provider 500
+- Focused backend configuration, deletion, RevenueCat, and readiness tests:
+  60 passed. Cases cover provider 500
   then worker restart and 404, missing server key, configured native billing
   without a server key, repeated provider deletion after storage failure,
   deleted-user ordinary and transfer webhooks, failed local identity lookup,
@@ -46,32 +65,37 @@ account, and runtime-loader scripts have new cache-addressed URLs.
 - Python lint and Git diff integrity passed.
 - The JavaScript contract validates 55 files and includes SDK logout retry
   after restart, a transient logout error, stale cached identity suppression,
-  and subsequent sign-in as a different account.
+  subsequent sign-in as a different account, definitive versus ambiguous
+  deletion failures, and disabled/offline/concurrent readiness responses.
 - Production build preflight and the rebuilt native web bundle passed. A
   returning-PWA service-worker fixture loaded the new runtime from cache with
   zero origin asset requests and zero browser errors.
 - The local store verifier correctly remains red: both RevenueCat public SDK
   keys, Android Firebase configuration, and an iOS project are absent on this
   Windows checkout. This is not a signed-device or submission result.
-- The remaining local Python suite passed when excluding two password-hash
-  tests that require Argon2. The bundled Python runtime on this host lacks the
-  `argon2` package; the complete local run failed only those two tests for that
-  dependency reason. CI with declared project dependencies must be green
-  before this draft is considered review-ready.
-- Production sites returned HTTP 200 with no reported 24-hour runtime error
-  cluster in the read-only operating check. The protected aggregate still has
-  one comparable September account, D1 return 1/1, no observed Project or
-  artifact milestone, and no payer. D7 remains ineligible. Recognized revenue
-  and current social-platform outcomes are unavailable in this check.
+- The local Python suite passed with only the two known password-hash tests
+  excluded. The bundled Python runtime on this host lacks `argon2`; the
+  unfiltered run failed those two host-dependency tests and initially caught
+  a new browser API inventory count, which was corrected and rechecked.
+  Complete CI with declared project dependencies remains required.
+- On 2026-09-20, production pages returned HTTP 200 and Vercel reported no
+  4xx, 5xx, or grouped runtime errors in the prior 24 hours. The protected
+  aggregate had one comparable external account: verified, activated, D1 1/1,
+  no observed useful feedback, durable Project value, checkout, or payer. D7
+  is ineligible. Recognized revenue and matched variable cost are unavailable,
+  not zero. Signed-in social checks found no active ads; those channels remain
+  owned by marketing, not this source-only change.
 
 ## Decision and next action
 
-Keep PR #37 in draft. Review the provider-deletion contract against the exact
-store billing setup. Native store release must confirm the backend RevenueCat
-secret API key and webhook authorization are configured alongside the public
-SDK keys; otherwise a free native user has no durable server-side evidence
-that provider cleanup is required. Obtain a green complete CI run, then repeat deletion,
-purchase/restore, webhook, and credit-sync behavior on signed test devices.
+Keep PR #37 in draft. Before any native release, add durable per-user evidence
+that the SDK may have created a RevenueCat customer, so later disabling the
+server flag or removing the key cannot silently skip a free user's provider
+deletion. Add server-confirmed status reconciliation for an ambiguous failed
+DELETE; do not clear the guard on a mere local timeout. Native release must
+verify the backend setting and both server credentials, alongside public SDK
+keys, exact products, a green complete CI run, and deletion, purchase/restore,
+webhook, and credit-sync behavior on signed test devices.
 Do not scale paid acquisition or change activation UX from the one-account
 sample. Wait for a legitimate result-to-Project offer/save/return journey or a
 reproducible user failure before changing that flow.

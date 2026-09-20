@@ -28,7 +28,7 @@ account_deletions = AccountDeletionService(
     db,
     files,
     revenuecat_secret_api_key=settings.revenuecat_secret_api_key,
-    revenuecat_required=bool(settings.revenuecat_webhook_auth),
+    revenuecat_required=settings.native_billing_enabled,
 )
 features = FeatureService(db)
 projects = ProjectService(db)

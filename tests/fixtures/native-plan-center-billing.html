@@ -80,6 +80,9 @@
     });
     window.fetch = async input => {
       const pathname = new URL(String(input), location.href).pathname;
+      if (pathname === '/api/billing/native-readiness') {
+        return Response.json({success:true, ready:true});
+      }
       if (pathname.includes('checkout') || pathname === '/api/stripe/create-checkout-session') {
         window.__fixture.checkoutRequests += 1;
         return new Response(JSON.stringify({success:false, error:'Native checkout must not use Stripe.'}), {
@@ -120,7 +123,7 @@
     };
   </script>
   <script src="/public/mobile-bridge.js?v=5.9.76-native-store-billing-1"></script>
-  <script src="/public/billing-manager.js?v=5.9.76-native-deletion-disconnect-1"></script>
+  <script src="/public/billing-manager.js?v=5.9.76-native-deletion-failure-1"></script>
   <script src="/public/subscription-ui.js?v=5.9.76-commerce-recovery-1"></script>
   <script src="/public/crump-billing-5.1.js?v=5.9.76-autonomous-crump-1"></script>
   <script src="/public/crump-5.2.js?v=5.9.76-native-store-billing-1"></script>

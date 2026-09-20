@@ -38,6 +38,7 @@ EXPECTED_ROUTES = {
     ('POST', '/api/stripe/customer-portal'),
     ('POST', '/api/stripe/webhook'),
     ('POST', '/api/billing/revenuecat/sync'),
+    ('GET', '/api/billing/native-readiness'),
     ('GET', '/api/billing/status'),
     ('POST', '/api/billing/revenuecat/webhook'),
     ('POST', '/api/safety/reports'),

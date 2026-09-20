@@ -26,6 +26,10 @@
     try { return localStorage.getItem(DELETION_DISCONNECT_KEY); } catch (_) { return null; }
   }
 
+  function hasPendingAccountDeletion() {
+    return Boolean(pendingDeletionDisconnect());
+  }
+
   function clearDeletionDisconnect() {
     deletionDisconnectPending = null;
     try { localStorage.removeItem(DELETION_DISCONNECT_KEY); } catch (_) {}
@@ -198,13 +202,24 @@
     }
   }
 
+  async function serverNativeBillingReady() {
+    try {
+      const response = await fetch('/api/billing/native-readiness', {cache: 'no-store'});
+      if (!response.ok) return false;
+      const data = await response.json();
+      return data?.success === true && data?.ready === true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   async function configure() {
     if (!native()) return false;
     await window.CrumpAPI?.ready;
     const plugin = purchases();
     const values = config();
     const key = platform() === 'ios' ? values.revenueCatAppleApiKey : values.revenueCatGoogleApiKey;
-    if (!plugin || !key) return false;
+    if (!plugin) return false;
 
     const deletedUserId = pendingDeletionDisconnect();
     if (deletedUserId) {
@@ -214,6 +229,13 @@
       const currentUserId = String(window.currentUser?.id || '').trim();
       if (!currentUserId || currentUserId === deletedUserId) return false;
       clearDeletionDisconnect();
+    }
+
+    // Public SDK keys can ship in an unsigned/native bundle. Never create or
+    // restore a provider identity unless the server confirms it can remove
+    // that identity during account deletion and reconcile purchases.
+    if (!key || !await serverNativeBillingReady()) {
+      return false;
     }
 
     if (!configured) {
@@ -376,7 +398,7 @@
   async function purchase(tier = 'professional') {
     if (!native()) throw new Error('Native billing is only available in the installed mobile app.');
     if (!(await configure())) {
-      throw new Error('App Store billing is not configured yet. Add the RevenueCat public SDK key before submission.');
+      throw new Error('Store billing is not available right now. Try again later.');
     }
     const packages = await offeringPackages();
     const selected = packages.find(item => tierForPackage(item) === tier);
@@ -390,7 +412,7 @@
   async function purchaseCredits(packCode) {
     if (!native()) throw new Error('Use secure web checkout to purchase credits on the web.');
     if (!(await configure())) {
-      throw new Error('App Store billing is not configured yet.');
+      throw new Error('Store billing is not available right now. Try again later.');
     }
     const packages = await offeringPackages();
     const selected = packages.find(item => creditPackForPackage(item)?.code === packCode);
@@ -405,7 +427,7 @@
   }
 
   async function restore() {
-    if (!(await configure())) throw new Error('Native billing is not configured.');
+    if (!(await configure())) throw new Error('Store billing is not available right now. Try again later.');
     const result = await purchases().restorePurchases();
     await synchronizeServerEntitlement();
     await synchronizeServerCredits().catch(() => {});
@@ -547,6 +569,7 @@
     requireStripeDestination,
     disconnect,
     prepareAccountDeletion,
+    hasPendingAccountDeletion,
     cancelAccountDeletion,
     completeAccountDeletion,
     disconnectAfterDeletion,
