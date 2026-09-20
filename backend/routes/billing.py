@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from enum import Enum
 import hashlib
 import hmac
 import logging
@@ -40,6 +41,10 @@ REVENUECAT_PROVIDER_STATE_EVENTS = {
     'REFUND_REVERSED',
     'SUBSCRIPTION_EXTENDED',
 }
+
+
+class RevenueCatSyncSkipped(Enum):
+    INACTIVE_ACCOUNT = 'inactive_account'
 
 # Stripe Price IDs are public identifiers, not credentials. Environment variables
 # remain authoritative; these production fallbacks prevent a missing deployment
@@ -837,7 +842,22 @@ async def stripe_webhook(request: Request):
     return {'received': True}
 
 
-async def sync_revenuecat_customer(user_id: str) -> dict[str, Any] | None:
+async def sync_revenuecat_customer(
+    user_id: str,
+) -> dict[str, Any] | RevenueCatSyncSkipped | None:
+    # RevenueCat's GET is get-or-create. Never call it for a missing or
+    # deletion-fenced local identity, including a late webhook delivery.
+    try:
+        active_user = await db.select_one(
+            'users',
+            columns='id',
+            filters={'id': eq(user_id), 'deleted_at': 'is.null'},
+        )
+    except Exception:
+        logger.exception('RevenueCat local identity check failed')
+        return None
+    if not active_user:
+        return RevenueCatSyncSkipped.INACTIVE_ACCOUNT
     if not settings.revenuecat_secret_api_key:
         return None
     import httpx
@@ -924,7 +944,11 @@ async def sync_revenuecat_customer(user_id: str) -> dict[str, Any] | None:
         'subscription_current_period_end': period_end.isoformat() if period_end else None,
         'updated_at': iso_now(),
     }
-    await db.update('users', values, filters={'id': eq(user_id)})
+    updated = await db.update(
+        'users', values, filters={'id': eq(user_id), 'deleted_at': 'is.null'}
+    )
+    if not updated:
+        return RevenueCatSyncSkipped.INACTIVE_ACCOUNT
     return values
 
 
@@ -932,6 +956,11 @@ async def sync_revenuecat_customer(user_id: str) -> dict[str, Any] | None:
 async def revenuecat_sync(request: Request):
     auth = await authenticate_request(request, db, settings)
     values = await sync_revenuecat_customer(auth.user['id'])
+    if values is RevenueCatSyncSkipped.INACTIVE_ACCOUNT:
+        return JSONResponse(
+            status_code=409,
+            content={'success': False, 'code': 'ACCOUNT_UNAVAILABLE'},
+        )
     if values is None:
         return JSONResponse(
             status_code=503,
@@ -1042,6 +1071,8 @@ async def revenuecat_webhook(request: Request):
         return {'success': True}
 
     reconciled = await sync_revenuecat_customer(user_id)
+    if reconciled is RevenueCatSyncSkipped.INACTIVE_ACCOUNT:
+        return {'success': True}
     if reconciled is not None:
         return {'success': True}
 
@@ -1118,6 +1149,6 @@ async def revenuecat_webhook(request: Request):
             'subscription_current_period_end': period_end,
             'updated_at': iso_now(),
         },
-        filters={'id': eq(user_id)},
+        filters={'id': eq(user_id), 'deleted_at': 'is.null'},
     )
     return {'success': True}

@@ -6,6 +6,8 @@
   let configurationPromise = null;
   let identityPromise = null;
   const CHECKOUT_RECOVERY_KEY = 'askcrump.pending-checkout-recovery';
+  const DELETION_DISCONNECT_KEY = 'askcrump.native-billing-deletion-disconnect-pending';
+  let deletionDisconnectPending = null;
   const CHECKOUT_RECOVERY_TTL_MS = 15 * 60 * 1000;
   const CREDIT_PACKS = new Set(['credits_50', 'credits_150', 'credits_400']);
   const PAID_PLANS = new Set(['professional', 'enterprise']);
@@ -18,6 +20,40 @@
   const platform = () => window.CrumpNative?.Capacitor?.getPlatform?.() || window.Capacitor?.getPlatform?.() || 'web';
   const purchases = () => window.CrumpNative?.Purchases;
   const config = () => window.CRUMP_CONFIG || {};
+
+  function pendingDeletionDisconnect() {
+    if (deletionDisconnectPending) return deletionDisconnectPending;
+    try { return localStorage.getItem(DELETION_DISCONNECT_KEY); } catch (_) { return null; }
+  }
+
+  function clearDeletionDisconnect() {
+    deletionDisconnectPending = null;
+    try { localStorage.removeItem(DELETION_DISCONNECT_KEY); } catch (_) {}
+  }
+
+  async function prepareAccountDeletion() {
+    if (!native()) return true;
+    const userId = String(window.currentUser?.id || '').trim();
+    if (!userId) return false;
+    deletionDisconnectPending = userId;
+    try {
+      localStorage.setItem(DELETION_DISCONNECT_KEY, userId);
+      return true;
+    } catch (_) {
+      // Without durable local state, disconnect before sending the irreversible
+      // server request. A later configure can realign if that request fails.
+      return disconnect();
+    }
+  }
+
+  function cancelAccountDeletion() {
+    clearDeletionDisconnect();
+  }
+
+  function completeAccountDeletion() {
+    // Called only after SDK logout and local authentication cleanup succeed.
+    clearDeletionDisconnect();
+  }
 
   function stripeDestination(value, kind = 'checkout') {
     const expectedHost = STRIPE_DESTINATION_HOSTS[kind];
@@ -102,6 +138,7 @@
 
   function activeAppUserId() {
     const userId = String(window.currentUser?.id || '').trim();
+    if (userId && userId === pendingDeletionDisconnect()) return null;
     return userId || null;
   }
 
@@ -169,6 +206,16 @@
     const key = platform() === 'ios' ? values.revenueCatAppleApiKey : values.revenueCatGoogleApiKey;
     if (!plugin || !key) return false;
 
+    const deletedUserId = pendingDeletionDisconnect();
+    if (deletedUserId) {
+      if (!await disconnect()) {
+        throw new Error('Store billing identity could not be cleared after account deletion.');
+      }
+      const currentUserId = String(window.currentUser?.id || '').trim();
+      if (!currentUserId || currentUserId === deletedUserId) return false;
+      clearDeletionDisconnect();
+    }
+
     if (!configured) {
       if (!configurationPromise) {
         const appUserID = activeAppUserId();
@@ -205,6 +252,17 @@
     if (!configured) return true;
     await alignAppUser(plugin, null);
     return true;
+  }
+
+  async function disconnectAfterDeletion() {
+    if (!native()) return true;
+    if (!pendingDeletionDisconnect() && !await prepareAccountDeletion()) return false;
+    try {
+      const disconnected = await disconnect();
+      return disconnected;
+    } catch (_) {
+      return false;
+    }
   }
 
   function packageProduct(item = {}) {
@@ -488,6 +546,10 @@
     stripeDestination,
     requireStripeDestination,
     disconnect,
+    prepareAccountDeletion,
+    cancelAccountDeletion,
+    completeAccountDeletion,
+    disconnectAfterDeletion,
     isNative: native,
   };
 })();

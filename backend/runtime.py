@@ -24,7 +24,12 @@ settings = get_settings()
 db = SupabaseDB(settings)
 ai = AIService(settings, db)
 files = FileService(settings, db)
-account_deletions = AccountDeletionService(db, files)
+account_deletions = AccountDeletionService(
+    db,
+    files,
+    revenuecat_secret_api_key=settings.revenuecat_secret_api_key,
+    revenuecat_required=bool(settings.revenuecat_webhook_auth),
+)
 features = FeatureService(db)
 projects = ProjectService(db)
 code_tasks = CodeTaskService(db, projects)

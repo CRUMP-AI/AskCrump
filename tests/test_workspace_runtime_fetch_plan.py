@@ -50,7 +50,7 @@ def test_parallel_runtime_asset_is_versioned_for_web_pwa_and_native():
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
 
-    asset = "/runtime-body-v1.js?v=5.9.76-native-store-billing-1"
+    asset = "/runtime-body-v1.js?v=5.9.76-native-deletion-disconnect-1"
     assert asset in shell
     assert asset in worker
     assert "ask-crump-new-body-v1-r252" in worker
@@ -119,7 +119,7 @@ def test_returning_workspace_upgrades_out_of_the_legacy_crump_code_cache():
     matrix = read("scripts/verify-browser-control-matrix.mjs")
 
     assert "ask-crump-new-body-v1-r252" in worker
-    assert "/runtime-body-v1.js?v=5.9.76-native-store-billing-1" in worker
+    assert "/runtime-body-v1.js?v=5.9.76-native-deletion-disconnect-1" in worker
     assert "/crump-navigation-5.9.30.js?v=5.9.76-autonomous-crump-1" in worker
     assert "/crump-code-loader.js?v=5.9.76-autonomous-crump-1" in worker
     assert "/crump-billing-5.1.js?v=5.9.76-autonomous-crump-1" in worker

@@ -127,7 +127,7 @@ def deletion_pending_response(*, code: str) -> JSONResponse:
             'pending': True,
             'message': (
                 'Your deletion request is secured and this account is no longer available. '
-                'Ask Crump is retrying private storage cleanup in the background; no further '
+                'Ask Crump is retrying provider and private storage cleanup in the background; no further '
                 'action is required. Any confirmed web subscription cancellation remains '
                 'effective. Apple or Google subscriptions must still be canceled in the '
                 'applicable store.'
@@ -252,22 +252,6 @@ async def delete_account(payload: DeleteAccountRequest, request: Request, respon
                 'code': 'ACCOUNT_DELETION_FENCE_UNAVAILABLE',
             },
         )
-
-    if settings.revenuecat_secret_api_key:
-        try:
-            import httpx
-            async with httpx.AsyncClient(timeout=20) as client:
-                revenuecat_response = await client.delete(
-                    f"https://api.revenuecat.com/v1/subscribers/{quote(user_id, safe='')}",
-                    headers={'Authorization': f'Bearer {settings.revenuecat_secret_api_key}'},
-                )
-                if revenuecat_response.status_code >= 400 and revenuecat_response.status_code != 404:
-                    logger.error(
-                        'RevenueCat customer cleanup was not confirmed status=%s',
-                        revenuecat_response.status_code,
-                    )
-        except Exception:
-            logger.exception('RevenueCat customer cleanup failed during account deletion')
 
     try:
         progress = await account_deletions.process(deletion_job)

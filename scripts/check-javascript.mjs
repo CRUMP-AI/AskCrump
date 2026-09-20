@@ -987,11 +987,12 @@ const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot),
 const releaseVersion = String(packageJson.version || '');
 const autonomousCrumpVersion = `${releaseVersion}-autonomous-crump-1`;
 const nativeStoreBillingVersion = `${releaseVersion}-native-store-billing-1`;
+const nativeDeletionDisconnectVersion = `${releaseVersion}-native-deletion-disconnect-1`;
 const landingVersion = `${releaseVersion}-facebook-reel-attribution-1`;
 const planRendererVersion = `${releaseVersion}-credit-pack-accessibility-1`;
 const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
 const nativeBillingIdentityVersion = `${releaseVersion}-native-billing-identity-1`;
-const stripeDestinationIntegrityVersion = `${releaseVersion}-stripe-destination-integrity-1`;
+const stripeDestinationIntegrityVersion = nativeDeletionDisconnectVersion;
 const checkoutDestinationLabelVersion = `${releaseVersion}-checkout-destination-label-1`;
 const creditPackTruthVersion = `${releaseVersion}-credit-pack-truth-1`;
 const creditTruthVersion = `${releaseVersion}-credit-truth-1`;
@@ -1006,7 +1007,7 @@ const visibleWorkspaceReturnVersion = `${releaseVersion}-visible-workspace-retur
 const authControllerVersion = `${releaseVersion}-facebook-reel-attribution-1`;
 const continuityHandoffVersion = `${releaseVersion}-continuity-handoff-1`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
-const accountDeletionBillingVersion = `${releaseVersion}-account-deletion-billing-1`;
+const accountDeletionBillingVersion = nativeDeletionDisconnectVersion;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
 const composerActionabilityVersion = `${releaseVersion}-composer-actionability-1`;
@@ -1242,7 +1243,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${nativeStoreBillingVersion}`,
+  `/runtime-body-v1.js?v=${nativeDeletionDisconnectVersion}`,
   `/auth-controller.js?v=${authControllerVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
@@ -1495,7 +1496,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r252') ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.png'") ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${nativeStoreBillingVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${nativeDeletionDisconnectVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${continuityHandoffVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
@@ -1687,6 +1688,70 @@ const expectedPersistedNativeBillingIdentity = [
 ];
 if (JSON.stringify(persistedNativeBillingIdentity) !== JSON.stringify(expectedPersistedNativeBillingIdentity)) {
   console.error('Native billing must adopt a persisted SDK identity without configuring the singleton twice.');
+  process.exit(1);
+}
+
+async function exerciseDeletionDisconnectRetry() {
+  const saved = new Map();
+  const storage = {
+    getItem(key) { return saved.get(key) || null; },
+    setItem(key, value) { saved.set(key, value); },
+    removeItem(key) { saved.delete(key); },
+  };
+  const key = 'askcrump.native-billing-deletion-disconnect-pending';
+  const firstWindow = {
+    CRUMP_CONFIG: {revenueCatAppleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: {}},
+    currentUser: {id: 'deleted-account'},
+  };
+  runInContext(billingManagerSource, createContext({window: firstWindow, localStorage: storage}));
+  await firstWindow.BillingManager.prepareAccountDeletion();
+  if (storage.getItem(key) !== 'deleted-account') return false;
+
+  // Simulate app termination after server deletion but before SDK logout.
+  const calls = [];
+  let logoutAttempts = 0;
+  const plugin = {
+    async isConfigured() { calls.push('isConfigured'); return {isConfigured: true}; },
+    async getAppUserID() { calls.push('getAppUserID'); return {appUserID: 'deleted-account'}; },
+    async isAnonymous() { return {isAnonymous: false}; },
+    async logOut() {
+      calls.push('logOut');
+      logoutAttempts += 1;
+      if (logoutAttempts === 1) throw new Error('temporary provider failure');
+    },
+    async logIn({appUserID}) { calls.push(`login:${appUserID}`); },
+    async getOfferings() { calls.push('getOfferings'); return {current: {availablePackages: []}}; },
+  };
+  const restartedWindow = {
+    CRUMP_CONFIG: {revenueCatAppleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'deleted-account'},
+  };
+  runInContext(billingManagerSource, createContext({window: restartedWindow, localStorage: storage}));
+  try { await restartedWindow.BillingManager.getProducts(); } catch (_) {}
+  if (storage.getItem(key) !== 'deleted-account' || calls.includes('getOfferings')) return false;
+  await restartedWindow.BillingManager.getProducts();
+  if (storage.getItem(key) !== 'deleted-account' || calls.includes('getOfferings') || calls.includes('login')) return false;
+  restartedWindow.currentUser = {id: 'new-account'};
+  await restartedWindow.BillingManager.getProducts();
+  return storage.getItem(key) === null &&
+    calls.filter(value => value === 'logOut').length === 2 &&
+    calls.includes('login:new-account') &&
+    calls.filter(value => value === 'getOfferings').length === 1;
+}
+if (!await exerciseDeletionDisconnectRetry()) {
+  console.error('Native account deletion must retry SDK logout after restart before loading billing.');
+  process.exit(1);
+}
+
+const accountManagerSource = await readFile(new URL('public/account-manager.js', repoRoot), 'utf8');
+if (!accountManagerSource.includes('await window.BillingManager.prepareAccountDeletion()') ||
+    !accountManagerSource.includes('const billingDisconnected = await window.BillingManager?.disconnectAfterDeletion?.();') ||
+    !accountManagerSource.includes('window.BillingManager?.completeAccountDeletion?.();')) {
+  console.error('Permanent deletion must prepare and complete native store identity disconnect.');
   process.exit(1);
 }
 

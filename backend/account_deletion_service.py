@@ -11,7 +11,10 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any, Callable
+from urllib.parse import quote
 from uuid import uuid4
+
+import httpx
 
 from .db import SupabaseDB, eq, lte
 from .file_service import FileService, FileServiceError
@@ -45,10 +48,14 @@ class AccountDeletionService:
         files: FileService,
         *,
         now: Callable[[], datetime] | None = None,
+        revenuecat_secret_api_key: str | None = None,
+        revenuecat_required: bool = False,
     ) -> None:
         self.db = db
         self.files = files
         self._now = now or (lambda: datetime.now(timezone.utc))
+        self._revenuecat_secret_api_key = revenuecat_secret_api_key
+        self._revenuecat_required = revenuecat_required
 
     @staticmethod
     def _rows(value: Any) -> list[dict[str, Any]]:
@@ -85,9 +92,42 @@ class AccountDeletionService:
     async def _user(self, user_id: str) -> dict[str, Any] | None:
         return await self.db.select_one(
             "users",
-            columns="id,deleted_at,account_deletion_token",
+            columns="id,deleted_at,account_deletion_token,subscription_provider",
             filters={"id": eq(user_id)},
         )
+
+    async def _ensure_revenuecat_deleted(
+        self,
+        owner_id: str,
+        user: dict[str, Any] | None,
+        job: dict[str, Any],
+    ) -> bool:
+        """Retry provider cleanup before local deletion and every late sweep."""
+        key = self._revenuecat_secret_api_key
+        if not key:
+            # A native customer must remain fenced and retryable if the server
+            # key is unavailable. A web-only installation needs no such key.
+            return not (
+                self._revenuecat_required
+                or (user and user.get("subscription_provider") == "revenuecat")
+                or job.get("last_error_code") == "REVENUECAT_CLEANUP_UNCONFIRMED"
+            )
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                response = await client.delete(
+                    f"https://api.revenuecat.com/v1/subscribers/{quote(owner_id, safe='')}",
+                    headers={"Authorization": f"Bearer {key}"},
+                )
+        except httpx.HTTPError:
+            logger.exception("RevenueCat customer cleanup request failed")
+            return False
+        if response.status_code not in {200, 404}:
+            logger.error(
+                "RevenueCat customer cleanup was not accepted status=%s",
+                response.status_code,
+            )
+            return False
+        return True
 
     @staticmethod
     def _job_identity(job: dict[str, Any]) -> tuple[str, str]:
@@ -378,6 +418,12 @@ class AccountDeletionService:
                     False,
                     "DELETION_FENCE_NOT_ESTABLISHED",
                 )
+
+        if not await self._ensure_revenuecat_deleted(owner_id, user, job):
+            await self._schedule_retry(job, "REVENUECAT_CLEANUP_UNCONFIRMED")
+            return DeletionProgress(
+                not bool(user), False, True, "REVENUECAT_CLEANUP_UNCONFIRMED"
+            )
 
         try:
             await self.files.hard_delete_all_owned(user_id=owner_id)

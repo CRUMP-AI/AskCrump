@@ -1,6 +1,6 @@
 # Ask Crump operating backlog
 
-Last updated: 2026-09-16
+Last updated: 2026-09-20
 
 ## Operating standard
 
@@ -10,6 +10,15 @@ retention, and referral behavior. No acquisition spend should scale on impressio
 
 Every item below needs four things before it is called shipped: an accountable product
 outcome, privacy and safety constraints, automated coverage, and production evidence.
+
+The 2026-09-20 draft native-store privacy review found a RevenueCat deletion
+failure could be logged and then lost after local-account deletion, while a late
+webhook could recreate the provider customer through a get-or-create lookup.
+The source-only candidate now keeps failed provider cleanup on the durable
+account-deletion retry path and guards late subscription and credit lookups.
+Focused tests passed 40/40; full CI and signed-device proof remain open. PR #37
+stays draft and production is unchanged. Evidence and exact next action:
+`docs/NATIVE_BILLING_DELETION_RETRY_CANDIDATE_2026-09-20.md`.
 
 The 2026-09-16 guarded-control follow-up proves the intentionally disabled controls that a static
 button inventory cannot exercise. The real billing scripts replace two disabled `Loading plan…`

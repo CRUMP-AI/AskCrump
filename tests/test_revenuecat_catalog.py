@@ -6,6 +6,7 @@ import httpx
 import pytest
 
 from backend.routes import billing as billing_routes
+from backend.routes import credits as credits_routes
 from backend.revenuecat_catalog import (
     credit_product_id,
     event_subscription_tier,
@@ -101,6 +102,9 @@ async def test_unknown_active_revenuecat_entitlement_fails_fully_closed(monkeypa
         def __init__(self):
             self.payload = None
 
+        async def select_one(self, _table, **_kwargs):
+            return {'id': 'user-1'}
+
         async def update(self, _table, payload, *, filters):
             self.payload = dict(payload)
             return [dict(payload)]
@@ -134,8 +138,15 @@ class RevenueCatRequest:
 
 
 class RevenueCatDB:
-    def __init__(self):
+    def __init__(self, *, active=True, lookup_error=False):
         self.updates = []
+        self.active = active
+        self.lookup_error = lookup_error
+
+    async def select_one(self, _table, **_kwargs):
+        if self.lookup_error:
+            raise RuntimeError('temporary database failure')
+        return {'id': 'user-a'} if self.active else None
 
     async def update(self, table, payload, *, filters):
         self.updates.append((table, dict(payload), dict(filters)))
@@ -233,7 +244,7 @@ async def test_revenuecat_cancellation_has_safe_signed_event_fallback(monkeypatc
     assert result == {'success': True}
     assert fake_db.updates[0][1]['subscription_status'] == 'canceling'
     assert fake_db.updates[0][1]['subscription_tier'] == 'professional'
-    assert fake_db.updates[0][2] == {'id': 'eq.user-a'}
+    assert fake_db.updates[0][2] == {'id': 'eq.user-a', 'deleted_at': 'is.null'}
 
 
 @pytest.mark.asyncio
@@ -304,3 +315,88 @@ async def test_revenuecat_customer_sync_rejects_invalid_provider_payload(
 
     assert await billing_routes.sync_revenuecat_customer('user-a') is None
     assert fake_db.updates == []
+
+
+@pytest.mark.asyncio
+async def test_deleted_user_webhook_never_recreates_revenuecat_customer(monkeypatch):
+    provider_gets = []
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, *args, **_kwargs):
+            provider_gets.append(args)
+            raise AssertionError('deleted account must not reach RevenueCat GET')
+
+    fake_db = RevenueCatDB(active=False)
+    monkeypatch.setattr(httpx, 'AsyncClient', lambda **_kwargs: Client())
+    monkeypatch.setattr(billing_routes, 'db', fake_db)
+    monkeypatch.setattr(
+        billing_routes,
+        'settings',
+        SimpleNamespace(
+            revenuecat_webhook_auth='Bearer webhook-secret',
+            revenuecat_secret_api_key='secret',
+        ),
+    )
+
+    result = await billing_routes.revenuecat_webhook(
+        RevenueCatRequest({'event': {'type': 'RENEWAL', 'app_user_id': 'user-a'}}),
+    )
+    transfer = await billing_routes.revenuecat_webhook(
+        RevenueCatRequest({
+            'event': {
+                'type': 'TRANSFER',
+                'transferred_from': ['user-a'],
+                'transferred_to': [],
+            },
+        }),
+    )
+
+    assert result == {'success': True}
+    assert transfer == {'success': True}
+    assert provider_gets == []
+    assert fake_db.updates == []
+
+
+@pytest.mark.asyncio
+async def test_revenuecat_webhook_retries_when_local_identity_check_fails(monkeypatch):
+    fake_db = RevenueCatDB(lookup_error=True)
+    monkeypatch.setattr(billing_routes, 'db', fake_db)
+    monkeypatch.setattr(
+        billing_routes,
+        'settings',
+        SimpleNamespace(
+            revenuecat_webhook_auth='Bearer webhook-secret',
+            revenuecat_secret_api_key='secret',
+        ),
+    )
+
+    response = await billing_routes.revenuecat_webhook(
+        RevenueCatRequest({'event': {'type': 'REFUND', 'app_user_id': 'user-a'}}),
+    )
+
+    assert response.status_code == 503
+    assert fake_db.updates == []
+
+
+@pytest.mark.asyncio
+async def test_fenced_account_credit_sync_does_not_recreate_provider_customer(monkeypatch):
+    fake_db = RevenueCatDB(active=False)
+
+    def deny_provider_request(**_kwargs):
+        raise AssertionError('fenced account must not contact RevenueCat')
+
+    monkeypatch.setattr(credits_routes, 'db', fake_db)
+    monkeypatch.setattr(httpx, 'AsyncClient', deny_provider_request)
+    monkeypatch.setattr(
+        credits_routes,
+        'settings',
+        SimpleNamespace(revenuecat_secret_api_key='secret'),
+    )
+
+    assert await credits_routes._revenuecat_customer('user-a') is None

@@ -571,6 +571,13 @@ async def stripe_webhook(request: Request):
 
 
 async def _revenuecat_customer(user_id: str) -> dict[str, Any] | None:
+    # This RevenueCat GET can create a customer. A deletion-fenced identity
+    # must not be recreated by a credit-sync request already in flight.
+    active_user = await db.select_one(
+        'users', columns='id', filters={'id': eq(user_id), 'deleted_at': 'is.null'}
+    )
+    if not active_user:
+        return None
     if not settings.revenuecat_secret_api_key:
         return None
     async with httpx.AsyncClient(timeout=20) as client:

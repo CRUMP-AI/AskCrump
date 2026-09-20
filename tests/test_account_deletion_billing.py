@@ -1,3 +1,5 @@
+import asyncio
+from datetime import datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -73,6 +75,10 @@ class FakeDB:
         assert table == 'users'
         return dict(self.user) if self.user else None
 
+    async def select(self, table, **_kwargs):
+        assert table == 'account_deletion_jobs'
+        return [dict(self.deletion_job)] if self.deletion_job else []
+
     async def rpc(self, name, payload, retry_transient=False):
         self.rpc_calls.append((name, payload))
         self.events.append(('rpc', name, payload))
@@ -114,6 +120,8 @@ def configure_account(
     file_cleanup_error=None,
     rpc_error=False,
     rpc_deletes_before_error=False,
+    revenuecat_key=None,
+    revenuecat_required=False,
 ):
     events = []
     fake_db = FakeDB(
@@ -131,7 +139,12 @@ def configure_account(
     monkeypatch.setattr(
         account_routes,
         'account_deletions',
-        AccountDeletionService(fake_db, fake_files),
+        AccountDeletionService(
+            fake_db,
+            fake_files,
+            revenuecat_secret_api_key=revenuecat_key,
+            revenuecat_required=revenuecat_required,
+        ),
     )
     monkeypatch.setattr(account_routes, 'authenticate_request', fake_authenticate)
     monkeypatch.setattr(
@@ -139,7 +152,7 @@ def configure_account(
         'settings',
         SimpleNamespace(
             stripe_secret_key=stripe_key,
-            revenuecat_secret_api_key=None,
+            revenuecat_secret_api_key=revenuecat_key,
         ),
     )
     fake_db.files = fake_files
@@ -167,6 +180,31 @@ def install_stripe_response(monkeypatch, response, *, lookup_response=None):
         async def get(self, url, **kwargs):
             calls.append(('GET', url, kwargs))
             return lookup
+
+    monkeypatch.setattr(httpx, 'AsyncClient', FakeClient)
+    return calls
+
+
+def install_revenuecat_responses(monkeypatch, *responses):
+    calls = []
+    queued = iter(responses)
+
+    class FakeClient:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return False
+
+        async def delete(self, url, **_kwargs):
+            calls.append(url)
+            outcome = next(queued)
+            if isinstance(outcome, Exception):
+                raise outcome
+            return SimpleNamespace(status_code=outcome)
 
     monkeypatch.setattr(httpx, 'AsyncClient', FakeClient)
     return calls
@@ -392,6 +430,117 @@ def test_rpc_transport_error_after_commit_is_confirmed_as_success(monkeypatch):
         ('storage_cleanup', 'user-delete-1'),
         ('rpc', 'delete_user_account', {'p_user_id': 'user-delete-1'}),
     ]
+
+
+def test_revenuecat_failure_preserves_fenced_account_until_worker_retry(monkeypatch):
+    fake_db = configure_account(
+        monkeypatch,
+        account_user(
+            stripe_customer_id=None,
+            stripe_subscription_id=None,
+            subscription_provider='revenuecat',
+        ),
+        stripe_key=None,
+        revenuecat_key='rc_test_fixture',
+    )
+    calls = install_revenuecat_responses(monkeypatch, 500, 404)
+
+    response = delete_request()
+
+    assert response.status_code == 202
+    assert response.json()['code'] == 'REVENUECAT_CLEANUP_UNCONFIRMED'
+    assert fake_db.user['deleted_at'] is not None
+    assert fake_db.deletion_job['state'] == 'retry_pending'
+    assert fake_db.files.cleanup_calls == []
+    assert fake_db.rpc_calls == []
+
+    retry_at = datetime.fromisoformat(fake_db.deletion_job['next_attempt_at'])
+    restarted_worker = AccountDeletionService(
+        fake_db,
+        fake_db.files,
+        now=lambda: retry_at + timedelta(seconds=1),
+        revenuecat_secret_api_key='rc_test_fixture',
+    )
+    summary = asyncio.run(restarted_worker.process_due(limit=2))
+
+    assert summary == {'processed': 1, 'deleted': 1, 'completed': 0, 'retrying': 1}
+    assert fake_db.user is None
+    assert fake_db.rpc_calls == [
+        ('delete_user_account', {'p_user_id': 'user-delete-1'}),
+    ]
+    assert len(calls) == 2
+
+
+def test_native_account_deletion_waits_for_missing_revenuecat_key(monkeypatch):
+    fake_db = configure_account(
+        monkeypatch,
+        account_user(
+            stripe_customer_id=None,
+            stripe_subscription_id=None,
+            subscription_provider='revenuecat',
+        ),
+        stripe_key=None,
+    )
+
+    response = delete_request()
+
+    assert response.status_code == 202
+    assert response.json()['code'] == 'REVENUECAT_CLEANUP_UNCONFIRMED'
+    assert fake_db.user['deleted_at'] is not None
+    assert fake_db.files.cleanup_calls == []
+    assert fake_db.rpc_calls == []
+
+
+def test_configured_native_billing_without_server_key_blocks_even_free_user(monkeypatch):
+    fake_db = configure_account(
+        monkeypatch,
+        account_user(
+            stripe_customer_id=None,
+            stripe_subscription_id=None,
+            subscription_provider=None,
+        ),
+        stripe_key=None,
+        revenuecat_required=True,
+    )
+
+    response = delete_request()
+
+    assert response.status_code == 202
+    assert response.json()['code'] == 'REVENUECAT_CLEANUP_UNCONFIRMED'
+    assert fake_db.user['deleted_at'] is not None
+    assert fake_db.rpc_calls == []
+
+
+def test_revenuecat_cleanup_is_retried_after_storage_failure(monkeypatch):
+    fake_db = configure_account(
+        monkeypatch,
+        account_user(
+            stripe_customer_id=None,
+            stripe_subscription_id=None,
+            subscription_provider='revenuecat',
+        ),
+        stripe_key=None,
+        revenuecat_key='rc_test_fixture',
+        file_cleanup_error=FileServiceError('temporary failure', 503, 'STORAGE_ERROR'),
+    )
+    calls = install_revenuecat_responses(monkeypatch, 200, 404)
+
+    response = delete_request()
+    assert response.status_code == 202
+    assert response.json()['code'] == 'STORAGE_ERROR'
+    assert fake_db.rpc_calls == []
+
+    fake_db.files.error = None
+    retry_at = datetime.fromisoformat(fake_db.deletion_job['next_attempt_at'])
+    worker = AccountDeletionService(
+        fake_db,
+        fake_db.files,
+        now=lambda: retry_at + timedelta(seconds=1),
+        revenuecat_secret_api_key='rc_test_fixture',
+    )
+    asyncio.run(worker.process_due(limit=2))
+    assert fake_db.user is None
+    assert len(calls) == 2
 
 
 def test_account_deletion_copy_distinguishes_web_and_store_billing():

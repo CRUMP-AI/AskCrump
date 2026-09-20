@@ -189,6 +189,14 @@
       error.textContent = '';
       confirm.disabled = true;
       try {
+        if (window.CrumpAPI?.isNative) {
+          if (typeof window.BillingManager?.prepareAccountDeletion !== 'function' ||
+              typeof window.BillingManager?.disconnectAfterDeletion !== 'function' ||
+              typeof window.BillingManager?.completeAccountDeletion !== 'function' ||
+              !await window.BillingManager.prepareAccountDeletion()) {
+            throw new Error('Store billing identity could not be secured for account deletion. Try again.');
+          }
+        }
         const response = await fetch('/api/account', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
@@ -198,9 +206,14 @@
           }),
         });
         const data = await response.json().catch(() => ({}));
+        if ([400, 401].includes(response.status)) window.BillingManager?.cancelAccountDeletion?.();
         if (!response.ok) throw new Error(data.error || 'Account deletion failed.');
+        const billingDisconnected = await window.BillingManager?.disconnectAfterDeletion?.();
         await window.CrumpAPI?.clearSessionToken?.();
         window.deviceAuth?.clearLocalState?.();
+        if (billingDisconnected && typeof window.deviceAuth?.clearLocalState === 'function') {
+          window.BillingManager?.completeAccountDeletion?.();
+        }
         window.location.replace('/');
       } catch (exception) {
         error.textContent = exception.message;
