@@ -174,6 +174,9 @@
 
     try {
       if (nextUserId) {
+        if (!await recordNativeBillingIdentity(nextUserId)) {
+          throw new Error('Native billing identity was not recorded.');
+        }
         if (typeof plugin.logIn !== 'function') throw new Error('RevenueCat login is unavailable.');
         await plugin.logIn({appUserID: nextUserId});
         configuredUserId = nextUserId;
@@ -213,6 +216,23 @@
     }
   }
 
+  async function recordNativeBillingIdentity(expectedUserId) {
+    if (!expectedUserId || activeAppUserId() !== expectedUserId) return false;
+    try {
+      const response = await fetch('/api/billing/native-identity', {
+        method: 'POST',
+        cache: 'no-store',
+      });
+      if (!response.ok) return false;
+      const data = await response.json();
+      return data?.success === true && data?.recorded === true &&
+        String(data?.userId || '').trim() === expectedUserId &&
+        activeAppUserId() === expectedUserId;
+    } catch (_) {
+      return false;
+    }
+  }
+
   async function configure() {
     if (!native()) return false;
     await window.CrumpAPI?.ready;
@@ -237,12 +257,19 @@
     if (!key || !await serverNativeBillingReady()) {
       return false;
     }
+    const appUserID = activeAppUserId();
+    // Record the authenticated account before SDK configure can create its
+    // RevenueCat customer. The server retains this evidence for deletion even
+    // if native billing is disabled in a later deployment.
+    if (!appUserID || !await recordNativeBillingIdentity(appUserID)) return false;
 
     if (!configured) {
       if (!configurationPromise) {
-        const appUserID = activeAppUserId();
         configurationPromise = (async () => {
           if (await adoptNativeConfiguration(plugin)) return;
+          if (activeAppUserId() !== appUserID) {
+            throw new Error('Store billing account changed. Try again.');
+          }
           await plugin.configure({apiKey: key, ...(appUserID ? {appUserID} : {})});
           configured = true;
           configuredUserId = appUserID;

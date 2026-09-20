@@ -40,7 +40,7 @@ def test_redundant_tools_dropdown_is_retired_without_removing_real_capabilities(
 
 
 def test_retired_tool_assets_are_cache_versioned_atomically():
-    loader_version = "5.9.76-native-deletion-failure-1"
+    loader_version = "5.9.76-native-identity-record-1"
     product_loader_version = "5.9.76-product-studio-lazy-load-2"
     shell = read("public/app.html")
     runtime = read("public/runtime-body-v1.js")

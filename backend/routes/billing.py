@@ -974,6 +974,74 @@ async def revenuecat_sync(request: Request):
     return {'success': True, 'user': public_user(auth.user)}
 
 
+@router.post('/api/billing/native-identity')
+async def record_native_billing_identity(request: Request):
+    """Persist owner-scoped cleanup evidence before the native SDK starts."""
+    auth = await authenticate_request(request, db, settings)
+    if not settings.native_billing_enabled:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'code': 'NATIVE_BILLING_NOT_READY'},
+            headers={'Cache-Control': 'no-store'},
+        )
+
+    user_id = str(auth.user['id'])
+    marked_at = iso_now()
+    try:
+        await db.update(
+            'users',
+            {
+                'native_billing_identity_possible_at': marked_at,
+                'updated_at': marked_at,
+            },
+            filters={
+                'id': eq(user_id),
+                'deleted_at': 'is.null',
+                'account_deletion_token': 'is.null',
+                'native_billing_identity_possible_at': 'is.null',
+            },
+            retry_transient=True,
+        )
+    except Exception:
+        # A lost response is ambiguous: Postgres may have committed the write.
+        # Only a fresh owner-scoped readback can authorize SDK configuration.
+        logger.exception('Native billing identity marker write was ambiguous')
+
+    try:
+        current = await db.select_one(
+            'users',
+            columns=(
+                'id,deleted_at,account_deletion_token,'
+                'native_billing_identity_possible_at'
+            ),
+            filters={'id': eq(user_id)},
+        )
+    except Exception:
+        logger.exception('Native billing identity marker readback failed')
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'code': 'NATIVE_IDENTITY_MARK_UNCONFIRMED'},
+            headers={'Cache-Control': 'no-store'},
+        )
+
+    if not current or current.get('deleted_at') or current.get('account_deletion_token'):
+        return JSONResponse(
+            status_code=409,
+            content={'success': False, 'code': 'ACCOUNT_UNAVAILABLE'},
+            headers={'Cache-Control': 'no-store'},
+        )
+    if current and current.get('native_billing_identity_possible_at'):
+        return JSONResponse(
+            content={'success': True, 'recorded': True, 'userId': user_id},
+            headers={'Cache-Control': 'no-store'},
+        )
+    return JSONResponse(
+        status_code=503,
+        content={'success': False, 'code': 'NATIVE_IDENTITY_MARK_UNCONFIRMED'},
+        headers={'Cache-Control': 'no-store'},
+    )
+
+
 @router.get('/api/billing/native-readiness')
 async def native_billing_readiness():
     # Public, content-free release signal. The client must not initialize the

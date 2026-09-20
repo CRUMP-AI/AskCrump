@@ -987,12 +987,12 @@ const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot),
 const releaseVersion = String(packageJson.version || '');
 const autonomousCrumpVersion = `${releaseVersion}-autonomous-crump-1`;
 const nativeStoreBillingVersion = `${releaseVersion}-native-store-billing-1`;
-const nativeDeletionDisconnectVersion = `${releaseVersion}-native-deletion-failure-1`;
+const nativeIdentityRecordVersion = `${releaseVersion}-native-identity-record-1`;
 const landingVersion = `${releaseVersion}-facebook-reel-attribution-1`;
 const planRendererVersion = `${releaseVersion}-credit-pack-accessibility-1`;
 const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
 const nativeBillingIdentityVersion = `${releaseVersion}-native-billing-identity-1`;
-const stripeDestinationIntegrityVersion = nativeDeletionDisconnectVersion;
+const stripeDestinationIntegrityVersion = nativeIdentityRecordVersion;
 const checkoutDestinationLabelVersion = `${releaseVersion}-checkout-destination-label-1`;
 const creditPackTruthVersion = `${releaseVersion}-credit-pack-truth-1`;
 const creditTruthVersion = `${releaseVersion}-credit-truth-1`;
@@ -1007,7 +1007,7 @@ const visibleWorkspaceReturnVersion = `${releaseVersion}-visible-workspace-retur
 const authControllerVersion = `${releaseVersion}-facebook-reel-attribution-1`;
 const continuityHandoffVersion = `${releaseVersion}-continuity-handoff-1`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
-const accountDeletionBillingVersion = nativeDeletionDisconnectVersion;
+const accountDeletionBillingVersion = nativeIdentityRecordVersion;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
 const composerActionabilityVersion = `${releaseVersion}-composer-actionability-1`;
@@ -1243,7 +1243,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${nativeDeletionDisconnectVersion}`,
+  `/runtime-body-v1.js?v=${nativeIdentityRecordVersion}`,
   `/auth-controller.js?v=${authControllerVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
@@ -1496,7 +1496,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r252') ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.png'") ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${nativeDeletionDisconnectVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${nativeIdentityRecordVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${continuityHandoffVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
@@ -1586,9 +1586,17 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r252') ||
 }
 
 const billingManagerSource = await readFile(new URL('public/billing-manager.js', repoRoot), 'utf8');
-async function nativeBillingReadyFetch(url) {
-  if (url !== '/api/billing/native-readiness') throw new Error('Unexpected native readiness request.');
-  return {ok: true, async json() { return {success: true, ready: true}; }};
+function nativeBillingFetch(windowMock) {
+  return async url => {
+    if (url === '/api/billing/native-readiness') {
+      return {ok: true, async json() { return {success: true, ready: true}; }};
+    }
+    if (url === '/api/billing/native-identity') {
+      const userId = windowMock.currentUser?.id;
+      return {ok: true, async json() { return {success: true, recorded: true, userId}; }};
+    }
+    throw new Error('Unexpected native billing request.');
+  };
 }
 async function exerciseNativeBillingIdentity({rejectSecondLogin = false} = {}) {
   const calls = [];
@@ -1612,7 +1620,7 @@ async function exerciseNativeBillingIdentity({rejectSecondLogin = false} = {}) {
     CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
     currentUser: {id: 'account-a'},
   };
-  runInContext(billingManagerSource, createContext({window: windowMock, fetch: nativeBillingReadyFetch}));
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: nativeBillingFetch(windowMock)}));
   await Promise.all([
     windowMock.BillingManager.getProducts(),
     windowMock.BillingManager.getCreditProducts(),
@@ -1689,6 +1697,66 @@ for (const fetchImpl of unreadyNativeBilling) {
     process.exit(1);
   }
 }
+async function exerciseNativeBillingMarker(markerResponse, {anonymous = false} = {}) {
+  const calls = [];
+  const plugin = {
+    async configure() { calls.push('configure'); },
+    async logIn() { calls.push('login'); },
+    async getOfferings() {
+      calls.push('offerings');
+      return {current: {availablePackages: []}};
+    },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {revenueCatAppleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: anonymous ? null : {id: 'fixture-user'},
+  };
+  const fetchImpl = async url => {
+    if (url === '/api/billing/native-readiness') {
+      calls.push('readiness');
+      return {ok: true, async json() { return {success: true, ready: true}; }};
+    }
+    if (url === '/api/billing/native-identity') {
+      calls.push('record');
+      if (markerResponse instanceof Error) throw markerResponse;
+      return markerResponse;
+    }
+    throw new Error('Unexpected native billing request.');
+  };
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: fetchImpl}));
+  return {calls, products: await windowMock.BillingManager.getProducts()};
+}
+const confirmedNativeMarker = await exerciseNativeBillingMarker({
+  ok: true, async json() { return {success: true, recorded: true, userId: 'fixture-user'}; },
+});
+if (JSON.stringify(confirmedNativeMarker.calls) !==
+    JSON.stringify(['readiness', 'record', 'configure', 'offerings'])) {
+  console.error('Native billing must record the authenticated customer before SDK configuration.');
+  process.exit(1);
+}
+const unconfirmedNativeMarkers = [
+  {ok: false},
+  {ok: true, async json() { return {success: true, recorded: false, userId: 'fixture-user'}; }},
+  {ok: true, async json() { return {success: true, recorded: true, userId: 'another-user'}; }},
+  new Error('offline'),
+];
+for (const markerResponse of unconfirmedNativeMarkers) {
+  const result = await exerciseNativeBillingMarker(markerResponse);
+  if (Object.keys(result.products).length || result.calls.includes('configure') ||
+      result.calls.includes('login') || result.calls.includes('offerings')) {
+    console.error('Native billing must fail closed when its customer record is not confirmed.');
+    process.exit(1);
+  }
+}
+const anonymousNativeMarker = await exerciseNativeBillingMarker(null, {anonymous: true});
+if (Object.keys(anonymousNativeMarker.products).length ||
+    anonymousNativeMarker.calls.includes('record') ||
+    anonymousNativeMarker.calls.includes('configure')) {
+  console.error('Native billing must not create an anonymous provider customer.');
+  process.exit(1);
+}
 {
   const calls = [];
   let readinessRequests = 0;
@@ -1705,7 +1773,12 @@ for (const fetchImpl of unreadyNativeBilling) {
     CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
     currentUser: {id: 'free-native-account'},
   };
-  async function mixedReadiness() {
+  async function mixedReadiness(url) {
+    if (url === '/api/billing/native-identity') {
+      return {ok: true, async json() {
+        return {success: true, recorded: true, userId: windowMock.currentUser?.id};
+      }};
+    }
     readinessRequests += 1;
     if (readinessRequests === 1) return {ok: true, async json() { return {success: true, ready: true}; }};
     await failedReadiness;
@@ -1744,7 +1817,7 @@ async function exercisePersistedNativeBillingIdentity() {
     CrumpNative: {Capacitor: {getPlatform: () => 'android'}, Purchases: plugin},
     currentUser: {id: 'account-b'},
   };
-  runInContext(billingManagerSource, createContext({window: windowMock, fetch: nativeBillingReadyFetch}));
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: nativeBillingFetch(windowMock)}));
   await windowMock.BillingManager.getProducts();
   return calls;
 }
@@ -1802,7 +1875,7 @@ async function exerciseDeletionDisconnectRetry() {
     currentUser: {id: 'deleted-account'},
   };
   runInContext(billingManagerSource, createContext({
-    window: restartedWindow, localStorage: storage, fetch: nativeBillingReadyFetch,
+    window: restartedWindow, localStorage: storage, fetch: nativeBillingFetch(restartedWindow),
   }));
   try { await restartedWindow.BillingManager.getProducts(); } catch (_) {}
   if (storage.getItem(key) !== 'deleted-account' || calls.includes('getOfferings')) return false;

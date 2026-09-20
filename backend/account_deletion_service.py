@@ -92,9 +92,63 @@ class AccountDeletionService:
     async def _user(self, user_id: str) -> dict[str, Any] | None:
         return await self.db.select_one(
             "users",
-            columns="id,deleted_at,account_deletion_token,subscription_provider",
+            columns=(
+                "id,deleted_at,account_deletion_token,subscription_provider,"
+                "native_billing_identity_possible_at"
+            ),
             filters={"id": eq(user_id)},
         )
+
+    def _native_cleanup_required(
+        self,
+        user: dict[str, Any] | None,
+        job: dict[str, Any],
+    ) -> bool:
+        return bool(
+            self._revenuecat_required
+            or job.get("native_billing_identity_possible")
+            or (
+                user
+                and (
+                    user.get("native_billing_identity_possible_at")
+                    or user.get("subscription_provider") == "revenuecat"
+                )
+            )
+        )
+
+    async def _persist_native_cleanup_requirement(
+        self,
+        user: dict[str, Any] | None,
+        job: dict[str, Any],
+    ) -> bool:
+        """Snapshot native identity evidence before the users row can vanish."""
+        if job.get("native_billing_identity_possible"):
+            return True
+        if not self._native_cleanup_required(user, job):
+            return True
+        try:
+            if await self._update_job(
+                job, {"native_billing_identity_possible": True}
+            ):
+                job["native_billing_identity_possible"] = True
+                return True
+        except Exception:
+            logger.exception("Native identity deletion-job write was ambiguous")
+        try:
+            current = await self._job(str(job.get("user_id") or ""))
+        except Exception:
+            logger.exception("Native identity deletion-job readback failed")
+            return False
+        confirmed = bool(
+            current
+            and str(current.get("operation_token") or "")
+            == str(job.get("operation_token") or "")
+            and current.get("native_billing_identity_possible")
+            and not current.get("completed_at")
+        )
+        if confirmed:
+            job["native_billing_identity_possible"] = True
+        return confirmed
 
     async def _ensure_revenuecat_deleted(
         self,
@@ -106,10 +160,10 @@ class AccountDeletionService:
         key = self._revenuecat_secret_api_key
         if not key:
             # A native customer must remain fenced and retryable if the server
-            # key is unavailable. A web-only installation needs no such key.
+            # key is unavailable. The durable marker remains authoritative even
+            # if the native-billing release flag is switched off later.
             return not (
-                self._revenuecat_required
-                or (user and user.get("subscription_provider") == "revenuecat")
+                self._native_cleanup_required(user, job)
                 or job.get("last_error_code") == "REVENUECAT_CLEANUP_UNCONFIRMED"
             )
         try:
@@ -225,6 +279,7 @@ class AccountDeletionService:
             "next_attempt_at": self._iso(now + timedelta(minutes=self.RETRY_MINUTES)),
             "attempts": 0,
             "last_error_code": None,
+            "native_billing_identity_possible": self._revenuecat_required,
             "updated_at": started_at,
         }
         try:
@@ -353,6 +408,14 @@ class AccountDeletionService:
             # an active account whose token does not match this operation.
             raise RuntimeError("Account deletion fence was not confirmed.")
 
+        # Marker writes and the fence both update the users row. Once the fence
+        # is visible no further marker write is permitted; a fresh read here
+        # captures any marker that won the race before the fence. Never proceed
+        # to local deletion unless the job carries that obligation durably.
+        current_user = await self._user(owner_id)
+        if not await self._persist_native_cleanup_requirement(current_user, job):
+            raise RuntimeError("Native customer cleanup evidence was not persisted.")
+
         await self._best_effort_job_update(
             job,
             {
@@ -418,6 +481,12 @@ class AccountDeletionService:
                     False,
                     "DELETION_FENCE_NOT_ESTABLISHED",
                 )
+
+        if not await self._persist_native_cleanup_requirement(user, job):
+            await self._schedule_retry(job, "REVENUECAT_IDENTITY_MARK_UNCONFIRMED")
+            return DeletionProgress(
+                False, False, True, "REVENUECAT_IDENTITY_MARK_UNCONFIRMED"
+            )
 
         if not await self._ensure_revenuecat_deleted(owner_id, user, job):
             await self._schedule_retry(job, "REVENUECAT_CLEANUP_UNCONFIRMED")

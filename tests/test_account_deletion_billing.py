@@ -511,6 +511,67 @@ def test_configured_native_billing_without_server_key_blocks_even_free_user(monk
     assert fake_db.rpc_calls == []
 
 
+def test_free_native_identity_remains_cleanup_required_after_flag_is_disabled(monkeypatch):
+    fake_db = configure_account(
+        monkeypatch,
+        account_user(
+            stripe_customer_id=None,
+            stripe_subscription_id=None,
+            subscription_provider=None,
+            native_billing_identity_possible_at='2026-09-20T12:00:00+00:00',
+        ),
+        stripe_key=None,
+        revenuecat_required=False,
+    )
+
+    response = delete_request()
+
+    assert response.status_code == 202
+    assert response.json()['code'] == 'REVENUECAT_CLEANUP_UNCONFIRMED'
+    assert fake_db.deletion_job['native_billing_identity_possible'] is True
+    assert fake_db.user['deleted_at'] is not None
+    assert fake_db.files.cleanup_calls == []
+    assert fake_db.rpc_calls == []
+
+    # A later deployment can disable native billing, but its durable job must
+    # still require a real provider-cleanup key before deleting the user.
+    restarted_worker = AccountDeletionService(
+        fake_db,
+        fake_db.files,
+        revenuecat_required=False,
+    )
+    summary = asyncio.run(restarted_worker.process_due(limit=2))
+    assert summary['retrying'] == 1
+    assert fake_db.user is not None
+    assert fake_db.rpc_calls == []
+
+
+def test_free_native_identity_is_deleted_at_provider_before_local_account(monkeypatch):
+    fake_db = configure_account(
+        monkeypatch,
+        account_user(
+            stripe_customer_id=None,
+            stripe_subscription_id=None,
+            subscription_provider=None,
+            native_billing_identity_possible_at='2026-09-20T12:00:00+00:00',
+        ),
+        stripe_key=None,
+        revenuecat_key='rc_test_fixture',
+        revenuecat_required=False,
+    )
+    calls = install_revenuecat_responses(monkeypatch, 404)
+
+    response = delete_request()
+
+    assert response.status_code == 200
+    assert fake_db.deletion_job['native_billing_identity_possible'] is True
+    assert len(calls) == 1
+    assert calls[0].endswith('/subscribers/user-delete-1')
+    assert fake_db.rpc_calls == [
+        ('delete_user_account', {'p_user_id': 'user-delete-1'}),
+    ]
+
+
 def test_revenuecat_cleanup_is_retried_after_storage_failure(monkeypatch):
     fake_db = configure_account(
         monkeypatch,

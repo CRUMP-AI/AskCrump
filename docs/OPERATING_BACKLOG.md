@@ -14,10 +14,14 @@ outcome, privacy and safety constraints, automated coverage, and production evid
 The 2026-09-20 draft native-store privacy review found a RevenueCat deletion
 failure could be logged and then lost after local-account deletion, while a late
 webhook could recreate the provider customer through a get-or-create lookup.
-The source-only candidate now keeps failed provider cleanup on the durable
-account-deletion retry path and guards late subscription and credit lookups.
-Focused tests passed 40/40; full CI and signed-device proof remain open. PR #37
-stays draft and production is unchanged. Evidence and exact next action:
+The source-only candidate keeps failed provider cleanup on the durable retry
+path, guards late subscription and credit lookups, and records a free native
+user's possible provider identity before SDK setup. Focused native/deletion/API
+tests passed **51/51** and JavaScript, build, returning-app, and lint gates
+passed; full CI and signed-device proof remain open. Independent review found
+a further cross-device paused-client recreation race, so native billing remains
+release-blocked. PR #37 stays draft and production is unchanged. Evidence and
+exact next action:
 `docs/NATIVE_BILLING_DELETION_RETRY_CANDIDATE_2026-09-20.md`.
 
 The 2026-09-16 guarded-control follow-up proves the intentionally disabled controls that a static

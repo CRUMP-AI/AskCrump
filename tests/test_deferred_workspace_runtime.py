@@ -23,7 +23,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
     ]
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
-        '/runtime-body-v1.js?v=5.9.76-native-deletion-failure-1',
+        '/runtime-body-v1.js?v=5.9.76-native-identity-record-1',
         '/native-runtime.js',
         '/mobile-bridge.js?v=5.9.76-native-store-billing-1',
         '/safe-storage.js',
@@ -48,7 +48,7 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/onboarding.js?v=5.9.76-brand-retina-1',
         '/scroll-manager.js?v=5.9.76-user-controlled-scroll-1',
         '/profile-manager.js',
-        '/billing-manager.js?v=5.9.76-native-deletion-failure-1',
+        '/billing-manager.js?v=5.9.76-native-identity-record-1',
         '/subscription-ui.js?v=5.9.76-commerce-recovery-1',
         '/credit-confirmation.js?v=5.9.76-credit-confirmation-1',
         '/chat-resilience.js?v=5.9.76-credit-confirmation-1',
@@ -56,7 +56,7 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/presence-manager.js?v=5.9.76',
         '/sync-manager.js?v=5.9.76-sync-cursor-1',
         '/chat-sync.js?v=5.9.76-settings-sync-1',
-        '/account-manager.js?v=5.9.76-native-deletion-failure-1',
+        '/account-manager.js?v=5.9.76-native-identity-record-1',
         '/app.js?v=5.9.76-settings-save-isolation-1',
         '/product-analytics.js?v=5.9.76-navigation-discovery-1',
     ]

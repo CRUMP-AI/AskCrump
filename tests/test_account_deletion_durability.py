@@ -2,6 +2,8 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import pytest
+
 from backend.account_deletion_service import AccountDeletionService
 from backend.file_service import FileServiceError
 
@@ -26,6 +28,7 @@ class DurableDeletionDB:
             'id': user_id,
             'deleted_at': None,
             'account_deletion_token': None,
+            'native_billing_identity_possible_at': None,
             'ai_data_sharing_consent_at': '2026-09-17T23:55:00+00:00',
             'ai_data_sharing_consent_version': '2026-09-17',
             'ai_data_sharing_consent_revoked_at': None,
@@ -37,6 +40,8 @@ class DurableDeletionDB:
         self.rpc_error = False
         self.rpc_commit_then_error = False
         self.rpc_calls = 0
+        self.native_snapshot_commit_then_error = False
+        self.native_snapshot_failure = False
 
     @staticmethod
     def _expected(value):
@@ -62,7 +67,12 @@ class DurableDeletionDB:
                 return []
             if self._expected(filters.get('operation_token')) != self.job['operation_token']:
                 return []
+            if payload.get('native_billing_identity_possible') and self.native_snapshot_failure:
+                raise RuntimeError('native identity snapshot unavailable')
             self.job.update(payload)
+            if payload.get('native_billing_identity_possible') and self.native_snapshot_commit_then_error:
+                self.native_snapshot_commit_then_error = False
+                raise RuntimeError('native identity snapshot response lost')
             return [dict(self.job)]
 
         assert table == 'users'
@@ -170,6 +180,39 @@ def test_begin_reconciles_job_and_fence_commit_then_transport_errors():
     )
     assert database.job['operation_token'] == job['operation_token']
     assert database.job['state'] == 'fenced'
+
+
+def test_native_marker_is_snapshotted_after_fence_even_with_lost_write_response():
+    clock = Clock()
+    database = DurableDeletionDB()
+    database.user['native_billing_identity_possible_at'] = clock().isoformat()
+    database.native_snapshot_commit_then_error = True
+    service = AccountDeletionService(database, PrefixFiles(), now=clock)
+
+    job = asyncio.run(service.begin(user_id='owner-user'))
+
+    assert job['native_billing_identity_possible'] is True
+    assert database.job['native_billing_identity_possible'] is True
+    assert database.user['deleted_at'] is not None
+
+
+def test_unconfirmed_native_snapshot_blocks_local_deletion():
+    clock = Clock()
+    database = DurableDeletionDB()
+    database.user['native_billing_identity_possible_at'] = clock().isoformat()
+    database.native_snapshot_failure = True
+    files = PrefixFiles({'owner-user/keep.png'})
+    service = AccountDeletionService(database, files, now=clock)
+
+    with pytest.raises(RuntimeError, match='cleanup evidence was not persisted'):
+        asyncio.run(service.begin(user_id='owner-user'))
+    progress = asyncio.run(service.process(database.job))
+
+    assert progress.code == 'REVENUECAT_IDENTITY_MARK_UNCONFIRMED'
+    assert database.user['deleted_at'] is not None
+    assert database.rpc_calls == 0
+    assert files.calls == 0
+    assert files.objects == {'owner-user/keep.png'}
 
 
 def test_concurrent_begin_converges_on_recent_durable_operation_token():
