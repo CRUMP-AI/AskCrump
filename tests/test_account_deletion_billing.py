@@ -47,6 +47,19 @@ class FakeDB:
                 return []
             if self.deletion_job.get('completed_at') and filters.get('completed_at') == 'is.null':
                 return []
+            expected_attempts = filters.get('attempts')
+            if (
+                expected_attempts is not None
+                and int(str(expected_attempts).removeprefix('eq.'))
+                != int(self.deletion_job.get('attempts') or 0)
+            ):
+                return []
+            due = str(filters.get('next_attempt_at') or '')
+            if (
+                due.startswith('lte.')
+                and str(self.deletion_job.get('next_attempt_at') or '') > due[4:]
+            ):
+                return []
             self.deletion_job.update(payload)
             return [dict(self.deletion_job)]
         assert table == 'users'

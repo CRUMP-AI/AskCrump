@@ -108,16 +108,25 @@ observed after cleanup and delayed resume. A remaining strict-guarantee gap
 requires an explicit architecture/provider decision; tests alone cannot prove
 the absence of an arbitrarily delayed replay.
 
-Independent follow-up review found another release blocker in this source
-candidate: an account-delete request and the due-job worker can overlap. One
-worker can observe 404 while another later observes 200 for a recreated
-customer; the first can still purge by owner/token from stale local state.
-Serial or monotonic job claiming/finalization and a deterministic overlap
-fixture are required before this reconciliation is mergeable. Historical
-unmarked jobs whose user row is already gone also need an operator/provider
-audit if the provider key disappears before their next check. The new
-queued-versus-absent tests prove sequential behavior only, not this concurrent
-release gate.
+Independent follow-up review found another race in this source candidate: an
+account-delete request and the due-job worker can overlap. One worker can see
+404 while another later sees 200 for a recreated customer; the first must not
+purge by owner/token from stale local state. The source-only correction now
+claims a due job by atomically advancing its existing attempt generation and
+placing a 30-minute crash-recovery lease on its next-attempt time. Every job
+update and final purge compares that generation; a re-entrant deletion request
+does not shorten an active lease. A deterministic fixture pauses the 404 worker
+past its lease, lets a newer worker record 200, and proves the stale worker
+cannot purge the newer obligation. This is not a provider non-recreation
+guarantee: a client can still recreate a customer after the final 404.
+
+Historical unmarked jobs whose user row is already gone and whose last error
+was cleared remain ambiguous if the server key disappears. They cannot be
+distinguished from ordinary web-only jobs by the existing durable fields.
+Known queued/uncertain error codes are promoted to a durable marker and held
+without a key, but the unknown historical case requires an operator/provider
+audit or a separately approved backfill before native release. No migration
+backfill or remote provider action is part of this source candidate.
 
 ## Verification
 
@@ -133,7 +142,10 @@ release gate.
   200, nonnative deletion, and legacy queued/uncertain jobs with a missing key.
   Historical unmarked-customer fixtures also prove the precautionary DELETE,
   durable marker promotion before provider contact, write-failure recovery, and
-  normal 404 purge. The focused durability suite passes 21/21.
+  normal 404 purge. The later overlap fixture proves generation-fenced
+  finalization across request/cron workers, including lease expiry, a later
+  queued 200, re-entrant begin, and crash recovery. Focused counts are reported
+  by the current test run, not the earlier 21/21 baseline.
 - Python lint and Git diff integrity passed.
 - The JavaScript contract validates 55 files and includes SDK logout retry
   after restart, a transient logout error, stale cached identity suppression,
@@ -167,10 +179,11 @@ release gate.
 
 ## Decision and next action
 
-Keep PR #37 in draft. The per-user native marker and queued-versus-absent
-deletion reconciliation are source candidates, not a complete cross-device
-deletion guarantee. Resolve the concurrent worker finalization and paused-client
-recreation race before enabling native billing, including the practical
+Keep PR #37 in draft. The per-user native marker, queued-versus-absent
+reconciliation, and generation-fenced worker finalization are source
+candidates, not a complete cross-device deletion guarantee. Resolve the
+paused-client recreation race and historical unmarked/no-key audit before
+enabling native billing, including the practical
 per-operation rechecks and signed two-device/in-flight-purchase verification;
 do not describe those checks as a provider non-recreation guarantee. Add
 server-confirmed status reconciliation for an ambiguous failed DELETE; do not clear the guard

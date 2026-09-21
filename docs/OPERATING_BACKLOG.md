@@ -30,10 +30,14 @@ past the 30-hour upload window until the provider is absent; later provider
 failure does not stop Storage re-sweeps after local deletion. A legacy free
 provider customer with no local marker still receives the precautionary DELETE;
 the possible-provider marker is durably snapshotted before provider contact.
-The deterministic durability suite passes **21/21**. This does not resolve the paused-client
-recreation race or a newly identified overlapping-worker 404/200 finalization
-race; neither migration nor source candidate is deployed. A serialized job
-claim/finalization test is required before merge or signed-device verification.
+The source-only overlap correction claims a due job with an existing monotonic
+attempt generation and 30-minute crash lease; stale workers cannot update or
+purge a newer generation. A deterministic concurrent 404-then-200 fixture,
+re-entrant request, and crash-recovery tests pass locally. This does not resolve
+the paused-client recreation race or prove absence for an old unmarked job
+whose user row is gone and whose provider key disappears. Both remain native
+release blockers. Neither migration nor source candidate is deployed; PR #37
+remains draft pending full CI, operator/provider audit, and signed-device proof.
 
 The 2026-09-16 guarded-control follow-up proves the intentionally disabled controls that a static
 button inventory cannot exercise. The real billing scripts replace two disabled `Loading plan…`

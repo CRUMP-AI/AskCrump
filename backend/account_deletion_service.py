@@ -49,6 +49,7 @@ class AccountDeletionService:
     RETRY_MINUTES = 15
     SWEEP_INTERVAL_HOURS = 1
     FENCE_RECONCILE_MINUTES = 15
+    PROCESS_LEASE_MINUTES = 30
 
     def __init__(
         self,
@@ -158,6 +159,10 @@ class AccountDeletionService:
             current
             and str(current.get("operation_token") or "")
             == str(job.get("operation_token") or "")
+            and (
+                not job.get("_processing_claim")
+                or int(current.get("attempts") or 0) == int(job.get("attempts") or 0)
+            )
             and current.get("native_billing_identity_possible")
             and not current.get("completed_at")
         )
@@ -214,14 +219,19 @@ class AccountDeletionService:
         user_id, token = self._job_identity(job)
         if not user_id or not token:
             return False
+        filters = {
+            "user_id": eq(user_id),
+            "operation_token": eq(token),
+            "completed_at": "is.null",
+        }
+        if "attempts" in job:
+            # A later request or cron worker may already own a newer attempt.
+            # Never let an older snapshot overwrite its provider state.
+            filters["attempts"] = eq(int(job.get("attempts") or 0))
         updated = await self.db.update(
             "account_deletion_jobs",
             {**values, "updated_at": self._iso(self._now())},
-            filters={
-                "user_id": eq(user_id),
-                "operation_token": eq(token),
-                "completed_at": "is.null",
-            },
+            filters=filters,
             retry_transient=True,
         )
         return any(
@@ -229,6 +239,50 @@ class AccountDeletionService:
             and str(row.get("operation_token") or "") == token
             for row in self._rows(updated)
         )
+
+    async def _claim_due_job(self, job: dict[str, Any]) -> bool:
+        """Lease one processing generation across request and cron workers."""
+        user_id, token = self._job_identity(job)
+        now = self._now()
+        due_at = self._parse_time(job.get("next_attempt_at"))
+        if not user_id or not token or not due_at or due_at > now:
+            return False
+        previous_attempts = max(0, int(job.get("attempts") or 0))
+        claimed_attempts = previous_attempts + 1
+        lease_until = self._iso(now + timedelta(minutes=self.PROCESS_LEASE_MINUTES))
+        try:
+            updated = await self.db.update(
+                "account_deletion_jobs",
+                {
+                    "attempts": claimed_attempts,
+                    "next_attempt_at": lease_until,
+                    "updated_at": self._iso(now),
+                },
+                filters={
+                    "user_id": eq(user_id),
+                    "operation_token": eq(token),
+                    "completed_at": "is.null",
+                    "attempts": eq(previous_attempts),
+                    "next_attempt_at": lte(self._iso(now)),
+                },
+                retry_transient=True,
+            )
+        except Exception:
+            # A write may have committed before its response was lost. Waiting
+            # for the lease is safe; guessing ownership could purge a newer job.
+            logger.exception("Account deletion processing claim was unconfirmed")
+            return False
+        claimed = any(
+            str(row.get("user_id") or "") == user_id
+            and str(row.get("operation_token") or "") == token
+            and int(row.get("attempts") or 0) == claimed_attempts
+            for row in self._rows(updated)
+        )
+        if claimed:
+            job["attempts"] = claimed_attempts
+            job["next_attempt_at"] = lease_until
+            job["_processing_claim"] = True
+        return claimed
 
     async def _best_effort_job_update(
         self,
@@ -252,6 +306,8 @@ class AccountDeletionService:
                 filters={
                     "user_id": eq(user_id),
                     "operation_token": eq(token),
+                    "attempts": eq(int(job.get("attempts") or 0)),
+                    "next_attempt_at": eq(str(job.get("next_attempt_at") or "")),
                 },
             )
             if any(
@@ -270,8 +326,10 @@ class AccountDeletionService:
 
     async def _schedule_retry(self, job: dict[str, Any], code: str) -> None:
         now = self._now()
-        attempts = max(0, int(job.get("attempts") or 0)) + 1
-        await self._best_effort_job_update(
+        attempts = max(0, int(job.get("attempts") or 0))
+        if not job.get("_processing_claim"):
+            attempts += 1
+        updated = await self._best_effort_job_update(
             job,
             {
                 "state": "retry_pending",
@@ -280,6 +338,8 @@ class AccountDeletionService:
                 "next_attempt_at": self._iso(now + timedelta(minutes=self.RETRY_MINUTES)),
             },
         )
+        if updated:
+            job["attempts"] = attempts
 
     async def begin(self, *, user_id: str) -> dict[str, Any]:
         """Persist an operation token, then establish and reconcile its fence."""
@@ -436,15 +496,21 @@ class AccountDeletionService:
         if not await self._persist_native_cleanup_requirement(current_user, job):
             raise RuntimeError("Native customer cleanup evidence was not persisted.")
 
-        await self._best_effort_job_update(
-            job,
-            {
-                "state": "fenced",
-                "last_error_code": None,
-                "next_attempt_at": self._iso(now),
-            },
-        )
-        return {**job, "state": "fenced", "fenced_at": fenced_at}
+        if job.get("state") == "fencing" and int(job.get("attempts") or 0) == 0:
+            # Only the first successful fence promotes the job to immediately
+            # due. A re-entrant request must not shorten an active worker's
+            # lease or erase a queued provider-cleanup retry.
+            if await self._best_effort_job_update(
+                job,
+                {
+                    "state": "fenced",
+                    "last_error_code": None,
+                    "next_attempt_at": self._iso(now),
+                },
+            ):
+                job["state"] = "fenced"
+                job["next_attempt_at"] = self._iso(now)
+        return {**job, "fenced_at": fenced_at}
 
     async def process(self, job: dict[str, Any]) -> DeletionProgress:
         """Advance one deletion and retain its late-upload tombstone."""
@@ -454,16 +520,18 @@ class AccountDeletionService:
 
         # Always prefer the current durable record over a stale request copy.
         current_job = await self._job(owner_id)
-        if current_job:
-            current_token = str(current_job.get("operation_token") or "")
-            if current_token != token or current_job.get("completed_at"):
-                return DeletionProgress(
-                    account_deleted=not bool(await self._user(owner_id)),
-                    cleanup_complete=bool(current_job.get("completed_at")),
-                    retry_scheduled=False,
-                    code="DELETION_JOB_REPLACED",
-                )
-            job = current_job
+        if not current_job:
+            # No durable record remains to own retries or a provider response.
+            return DeletionProgress(False, False, False, "DELETION_JOB_MISSING")
+        current_token = str(current_job.get("operation_token") or "")
+        if current_token != token or current_job.get("completed_at"):
+            return DeletionProgress(
+                account_deleted=not bool(await self._user(owner_id)),
+                cleanup_complete=bool(current_job.get("completed_at")),
+                retry_scheduled=False,
+                code="DELETION_JOB_REPLACED",
+            )
+        job = current_job
 
         user = await self._user(owner_id)
         if user:
@@ -501,6 +569,11 @@ class AccountDeletionService:
                     False,
                     "DELETION_FENCE_NOT_ESTABLISHED",
                 )
+
+        if not await self._claim_due_job(job):
+            return DeletionProgress(
+                not bool(user), False, True, "DELETION_JOB_IN_PROGRESS"
+            )
 
         # A server key can reach a historical free native customer even if its
         # local marker predates the marker migration. Snapshot that possible

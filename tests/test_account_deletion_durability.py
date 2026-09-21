@@ -68,6 +68,15 @@ class DurableDeletionDB:
                 return []
             if self._expected(filters.get('operation_token')) != self.job['operation_token']:
                 return []
+            expected_attempts = filters.get('attempts')
+            if (
+                expected_attempts is not None
+                and int(self._expected(expected_attempts)) != int(self.job.get('attempts') or 0)
+            ):
+                return []
+            due = str(filters.get('next_attempt_at') or '')
+            if due.startswith('lte.') and str(self.job.get('next_attempt_at') or '') > due[4:]:
+                return []
             if payload.get('native_billing_identity_possible') and self.native_snapshot_failure:
                 raise RuntimeError('native identity snapshot unavailable')
             self.job.update(payload)
@@ -125,6 +134,18 @@ class DurableDeletionDB:
         if self._expected(filters.get('user_id')) != self.job['user_id']:
             return []
         if self._expected(filters.get('operation_token')) != self.job['operation_token']:
+            return []
+        expected_attempts = filters.get('attempts')
+        if (
+            expected_attempts is not None
+            and int(self._expected(expected_attempts)) != int(self.job.get('attempts') or 0)
+        ):
+            return []
+        expected_due = filters.get('next_attempt_at')
+        if (
+            expected_due is not None
+            and self._expected(expected_due) != str(self.job.get('next_attempt_at') or '')
+        ):
             return []
         deleted = dict(self.job)
         self.job = None
@@ -242,6 +263,7 @@ def test_unconfirmed_native_snapshot_blocks_local_deletion():
 
     with pytest.raises(RuntimeError, match='cleanup evidence was not persisted'):
         asyncio.run(service.begin(user_id='owner-user'))
+    clock.advance(minutes=16)
     progress = asyncio.run(service.process(database.job))
 
     assert progress.code == 'REVENUECAT_IDENTITY_MARK_UNCONFIRMED'
@@ -275,6 +297,66 @@ def test_concurrent_begin_converges_on_recent_durable_operation_token():
     assert database.user['account_deletion_token'] == existing_token
     assert database.job['operation_token'] == existing_token
     assert database.job['state'] == 'fenced'
+
+
+def test_reentrant_begin_preserves_an_active_processing_lease():
+    clock = Clock()
+    database = DurableDeletionDB()
+    files = PrefixFiles({'owner-user/keep.png'})
+    service = AccountDeletionService(database, files, now=clock)
+    job = asyncio.run(service.begin(user_id='owner-user'))
+    assert asyncio.run(service._claim_due_job(database.job)) is True
+    lease_until = database.job['next_attempt_at']
+    generation = database.job['attempts']
+
+    resumed = asyncio.run(service.begin(user_id='owner-user'))
+    progress = asyncio.run(service.process(resumed))
+
+    assert resumed['operation_token'] == job['operation_token']
+    assert database.job['next_attempt_at'] == lease_until
+    assert database.job['attempts'] == generation
+    assert progress.code == 'DELETION_JOB_IN_PROGRESS'
+    assert files.calls == 0
+    assert database.rpc_calls == 0
+
+
+def test_expired_processing_lease_is_reclaimed_after_worker_crash():
+    clock = Clock()
+    database = DurableDeletionDB()
+    files = PrefixFiles({'owner-user/cleanup.png'})
+    service = AccountDeletionService(database, files, now=clock)
+    asyncio.run(service.begin(user_id='owner-user'))
+    assert asyncio.run(service._claim_due_job(database.job)) is True
+    abandoned_generation = database.job['attempts']
+
+    clock.advance(minutes=service.PROCESS_LEASE_MINUTES + 1)
+    summary = asyncio.run(service.process_due())
+
+    assert summary == {'processed': 1, 'deleted': 1, 'completed': 0, 'retrying': 1}
+    assert database.job['attempts'] > abandoned_generation
+    assert database.user is None
+    assert files.objects == set()
+
+
+def test_reentrant_begin_cannot_reset_a_claimed_fencing_state():
+    clock = Clock()
+    database = DurableDeletionDB()
+    service = AccountDeletionService(database, PrefixFiles(), now=clock)
+    asyncio.run(service.begin(user_id='owner-user'))
+    database.job['state'] = 'fencing'
+    database.job['next_attempt_at'] = (
+        clock() + timedelta(minutes=service.FENCE_RECONCILE_MINUTES)
+    ).isoformat()
+    clock.advance(minutes=service.FENCE_RECONCILE_MINUTES + 1)
+    assert asyncio.run(service._claim_due_job(database.job)) is True
+    lease_until = database.job['next_attempt_at']
+    generation = database.job['attempts']
+
+    asyncio.run(service.begin(user_id='owner-user'))
+
+    assert database.job['state'] == 'fencing'
+    assert database.job['next_attempt_at'] == lease_until
+    assert database.job['attempts'] == generation
 
 
 def test_late_uploads_are_swept_until_all_preissued_credentials_have_expired():
@@ -405,6 +487,60 @@ def test_revenuecat_404_earlier_does_not_validate_later_200_final_sweep(monkeypa
     assert len(calls) == 2
 
 
+def test_overlapping_404_cannot_purge_a_newer_queued_200(monkeypatch):
+    clock = Clock()
+    database = DurableDeletionDB()
+    files = PrefixFiles()
+    calls = install_revenuecat_delete_sequence(monkeypatch, 200, 404, 200, 404)
+    service = native_deletion_service(database, files, clock)
+    job = asyncio.run(service.begin(user_id='owner-user'))
+    asyncio.run(service.process(job))
+    assert database.user is None
+    clock.advance(hours=31)
+
+    async def overlap():
+        entered_storage = asyncio.Event()
+        release_storage = asyncio.Event()
+        original_cleanup = files.hard_delete_all_owned
+        first_cleanup = True
+
+        async def paused_cleanup(*, user_id):
+            nonlocal first_cleanup
+            if first_cleanup:
+                first_cleanup = False
+                entered_storage.set()
+                await release_storage.wait()
+            return await original_cleanup(user_id=user_id)
+
+        files.hard_delete_all_owned = paused_cleanup
+        first = asyncio.create_task(service.process_due())
+        await asyncio.wait_for(entered_storage.wait(), timeout=2)
+        first_generation = database.job['attempts']
+
+        # The first worker's lease expires while it holds a stale 404. A
+        # second worker sees a newly recreated provider customer and queues
+        # its deletion. The first worker must not erase that new obligation.
+        clock.advance(minutes=service.PROCESS_LEASE_MINUTES + 1)
+        second = await service.process_due()
+        assert second == {'processed': 1, 'deleted': 1, 'completed': 0, 'retrying': 1}
+        assert database.job['attempts'] > first_generation
+        assert database.job['last_error_code'] == 'REVENUECAT_CLEANUP_QUEUED'
+
+        release_storage.set()
+        stale_first = await asyncio.wait_for(first, timeout=2)
+        assert stale_first['completed'] == 0
+        assert database.job is not None
+        assert database.job['last_error_code'] == 'REVENUECAT_CLEANUP_QUEUED'
+
+        clock.advance(minutes=16)
+        final = await service.process_due()
+        assert final == {'processed': 1, 'deleted': 1, 'completed': 1, 'retrying': 0}
+        assert database.job is None
+
+    asyncio.run(overlap())
+    assert len(calls) == 4
+
+
 def test_nonnative_deletion_purges_without_provider_request(monkeypatch):
     clock = Clock()
     database = DurableDeletionDB()
@@ -512,7 +648,11 @@ def test_unmarked_customer_provider_404_allows_normal_final_purge(monkeypatch):
 
 @pytest.mark.parametrize(
     'prior_error',
-    ['REVENUECAT_CLEANUP_UNCONFIRMED', 'REVENUECAT_CLEANUP_QUEUED'],
+    [
+        'REVENUECAT_CLEANUP_UNCONFIRMED',
+        'REVENUECAT_CLEANUP_QUEUED',
+        'REVENUECAT_IDENTITY_MARK_UNCONFIRMED',
+    ],
 )
 def test_legacy_provider_error_remains_an_obligation_without_native_flag(
     prior_error,
