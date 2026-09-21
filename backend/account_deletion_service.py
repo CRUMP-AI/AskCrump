@@ -39,6 +39,18 @@ class RevenueCatCleanupState(str, Enum):
     ABSENT = "absent"
 
 
+class VideoFenceRecoveryState(str, Enum):
+    ABANDONED = "abandoned"
+    RELEASED = "released"
+    ALREADY_RELEASED = "already_released"
+    STILL_RECONCILING = "still_reconciling"
+    ACCOUNT_DELETING = "account_deleting"
+    USER_DELETED = "user_deleted"
+    NOT_OWNER = "not_owner"
+    JOB_CONFLICT = "job_conflict"
+    UNCONFIRMED = "unconfirmed"
+
+
 class AccountDeletionService:
     """Fence an account, delete it, then sweep late owner-prefixed uploads."""
 
@@ -107,6 +119,200 @@ class AccountDeletionService:
             ),
             filters={"id": eq(user_id)},
         )
+
+    async def _video_fence(self, user_id: str) -> dict[str, Any] | None:
+        return await self.db.select_one(
+            "video_account_deletion_fences",
+            columns="user_id,operation_token,requested_at,deleted_at",
+            filters={"user_id": eq(user_id)},
+        )
+
+    async def confirm_video_fence(self, *, user_id: str, operation_token: str) -> bool:
+        """Confirm this exact active provider fence, including a lost RPC response."""
+        owner_id = str(user_id or "").strip()
+        token = str(operation_token or "").strip()
+        if not owner_id or not token:
+            return False
+        rpc_failed = False
+        try:
+            if await self.db.rpc(
+                "begin_video_account_deletion",
+                {"p_user_id": owner_id, "p_operation_token": token},
+                retry_transient=True,
+            ):
+                return True
+        except Exception:
+            rpc_failed = True
+            logger.exception("Video provider deletion fence response was ambiguous")
+        try:
+            fence = await self._video_fence(owner_id)
+        except Exception as exc:
+            if rpc_failed:
+                raise RuntimeError(
+                    "Video provider account-deletion fence was not confirmed."
+                ) from exc
+            return False
+        return bool(
+            fence
+            and str(fence.get("operation_token") or "") == token
+            and not fence.get("deleted_at")
+        )
+
+    async def recover_video_fence(
+        self,
+        *,
+        user_id: str,
+        operation_token: str,
+        require_stale: bool = False,
+    ) -> VideoFenceRecoveryState:
+        """Run the atomic token-safe recovery and reconcile a lost response."""
+        owner_id = str(user_id or "").strip()
+        token = str(operation_token or "").strip()
+        if not owner_id or not token:
+            return VideoFenceRecoveryState.UNCONFIRMED
+        raw_result: Any = None
+        try:
+            raw_result = await self.db.rpc(
+                "recover_video_account_deletion_fence",
+                {
+                    "p_user_id": owner_id,
+                    "p_operation_token": token,
+                    "p_require_stale": require_stale,
+                },
+                retry_transient=True,
+            )
+        except Exception:
+            logger.exception("Video provider deletion fence recovery was ambiguous")
+
+        result = str(raw_result or "").strip().lower()
+        direct_states = {
+            state.value: state
+            for state in VideoFenceRecoveryState
+            if state not in {
+                # SQL reports this whenever either users-row fence column is
+                # present. Re-read below proves that this exact token won;
+                # a foreign users fence must normalize to NOT_OWNER.
+                VideoFenceRecoveryState.ACCOUNT_DELETING,
+                VideoFenceRecoveryState.NOT_OWNER,
+                VideoFenceRecoveryState.UNCONFIRMED,
+            }
+        }
+        if result in direct_states:
+            return direct_states[result]
+
+        # `not_owner` is also returned when a retry follows a committed release.
+        # A service-role read distinguishes that harmless replay from a different
+        # token. It never authorizes a second, non-atomic delete.
+        try:
+            fence = await self._video_fence(owner_id)
+            user = await self._user(owner_id)
+            job = await self._job(owner_id)
+        except Exception:
+            logger.exception("Video provider deletion fence recovery readback failed")
+            return VideoFenceRecoveryState.UNCONFIRMED
+
+        if user is None:
+            return VideoFenceRecoveryState.USER_DELETED
+        if user.get("deleted_at") or user.get("account_deletion_token"):
+            if (
+                user.get("deleted_at")
+                and str(user.get("account_deletion_token") or "") == token
+            ):
+                return VideoFenceRecoveryState.ACCOUNT_DELETING
+            return VideoFenceRecoveryState.NOT_OWNER
+        if fence is None:
+            if (
+                job
+                and str(job.get("operation_token") or "") == token
+                and job.get("completed_at")
+            ):
+                return VideoFenceRecoveryState.ABANDONED
+            if job is None:
+                return VideoFenceRecoveryState.ALREADY_RELEASED
+            return VideoFenceRecoveryState.UNCONFIRMED
+        if fence.get("deleted_at"):
+            return VideoFenceRecoveryState.NOT_OWNER
+        if str(fence.get("operation_token") or "") != token:
+            return VideoFenceRecoveryState.NOT_OWNER
+        return VideoFenceRecoveryState.UNCONFIRMED
+
+    async def recover_stale_orphan_video_fence(
+        self,
+        *,
+        user_id: str,
+    ) -> VideoFenceRecoveryState:
+        """Recover an old active-user fence through the atomic token RPC.
+
+        A no-job fence is given the same reconciliation grace as a durable job,
+        so a concurrent request still between provider fencing and persistence
+        is never mistaken for an orphan.
+        """
+        owner_id = str(user_id or "").strip()
+        if not owner_id:
+            return VideoFenceRecoveryState.UNCONFIRMED
+        try:
+            user = await self._user(owner_id)
+            job = await self._job(owner_id)
+            fence = await self._video_fence(owner_id)
+        except Exception:
+            logger.exception("Stale video deletion fence discovery failed")
+            return VideoFenceRecoveryState.UNCONFIRMED
+        if (
+            not user
+            or user.get("deleted_at")
+            or user.get("account_deletion_token")
+            or not fence
+            or fence.get("deleted_at")
+        ):
+            return VideoFenceRecoveryState.NOT_OWNER
+        fence_token = str(fence.get("operation_token") or "")
+        if not fence_token:
+            return VideoFenceRecoveryState.UNCONFIRMED
+        if job:
+            if str(job.get("operation_token") or "") != fence_token:
+                return VideoFenceRecoveryState.JOB_CONFLICT
+        return await self.recover_video_fence(
+            user_id=owner_id,
+            operation_token=fence_token,
+            require_stale=True,
+        )
+
+    async def _establish_user_fence(
+        self,
+        *,
+        user_id: str,
+        operation_token: str,
+        fenced_at: str,
+    ) -> str:
+        """Atomically bind users, durable-job, and video-fence ownership."""
+        result: Any = None
+        try:
+            result = await self.db.rpc(
+                "establish_account_deletion_fence",
+                {
+                    "p_user_id": user_id,
+                    "p_operation_token": operation_token,
+                    "p_fenced_at": fenced_at,
+                },
+                retry_transient=True,
+            )
+        except Exception:
+            logger.exception("Account deletion fence RPC response was ambiguous")
+        normalized = str(result or "").strip().lower()
+        if normalized == "fenced":
+            return normalized
+        try:
+            current = await self._user(user_id)
+        except Exception:
+            return normalized or "unconfirmed"
+        if current is None:
+            return "user_deleted"
+        if (
+            current.get("deleted_at")
+            and str(current.get("account_deletion_token") or "") == operation_token
+        ):
+            return "fenced"
+        return normalized or "unconfirmed"
 
     def _native_cleanup_required(
         self,
@@ -341,16 +547,108 @@ class AccountDeletionService:
         if updated:
             job["attempts"] = attempts
 
-    async def begin(self, *, user_id: str) -> dict[str, Any]:
-        """Persist an operation token, then establish and reconcile its fence."""
+    async def begin(
+        self,
+        *,
+        user_id: str,
+        operation_token: str | None = None,
+    ) -> dict[str, Any]:
+        """Confirm the provider fence, persist its token, then fence the user."""
         owner_id = str(user_id or "").strip()
         if not owner_id:
             raise RuntimeError("Account deletion owner is missing.")
         now = self._now()
         started_at = self._iso(now)
+        explicit_token = operation_token is not None
+        requested_token = str(operation_token if explicit_token else uuid4()).strip()
+        if not requested_token:
+            raise RuntimeError("Account deletion operation token is missing.")
+
+        # An implicit re-entrant caller may converge on a recent durable token.
+        # An explicit route token remains authoritative once it owns the video
+        # fence, even when an older unfenced job is still inside this window.
+        existing_hint: dict[str, Any] | None = None
+        current_user_hint: dict[str, Any] | None = None
+        hint_read_confirmed = False
+        try:
+            existing_hint = await self._job(owner_id)
+            current_user_hint = await self._user(owner_id)
+            hint_read_confirmed = True
+        except Exception:
+            logger.exception("Account deletion pre-fence read was unavailable")
+        if not explicit_token and existing_hint and not existing_hint.get("completed_at"):
+            existing_hint_token = str(existing_hint.get("operation_token") or "")
+            existing_started = self._parse_time(
+                existing_hint.get("created_at") or existing_hint.get("fenced_at")
+            )
+            existing_is_recent = bool(
+                existing_started
+                and self._now() - existing_started
+                < timedelta(minutes=self.FENCE_RECONCILE_MINUTES)
+            )
+            existing_user_fence_matches = bool(
+                current_user_hint
+                and current_user_hint.get("deleted_at")
+                and str(current_user_hint.get("account_deletion_token") or "")
+                == existing_hint_token
+            )
+            active_without_user_fence = bool(
+                current_user_hint
+                and not current_user_hint.get("deleted_at")
+                and not current_user_hint.get("account_deletion_token")
+            )
+            if existing_hint_token and (
+                existing_user_fence_matches
+                or (active_without_user_fence and existing_is_recent)
+                or (hint_read_confirmed and current_user_hint is None)
+            ):
+                requested_token = existing_hint_token
+
+        video_fence_confirmed = await self.confirm_video_fence(
+            user_id=owner_id,
+            operation_token=requested_token,
+        )
+        if (
+            not video_fence_confirmed
+            and existing_hint
+            and current_user_hint
+            and not current_user_hint.get("deleted_at")
+            and not current_user_hint.get("account_deletion_token")
+        ):
+            prior_token = str(existing_hint.get("operation_token") or "")
+            if prior_token and prior_token != requested_token:
+                prior_recovery = await self.recover_video_fence(
+                    user_id=owner_id,
+                    operation_token=prior_token,
+                )
+                if prior_recovery in {
+                    VideoFenceRecoveryState.ABANDONED,
+                    VideoFenceRecoveryState.RELEASED,
+                    VideoFenceRecoveryState.ALREADY_RELEASED,
+                }:
+                    video_fence_confirmed = await self.confirm_video_fence(
+                        user_id=owner_id,
+                        operation_token=requested_token,
+                    )
+        if not video_fence_confirmed:
+            orphan_recovery = await self.recover_stale_orphan_video_fence(
+                user_id=owner_id,
+            )
+            if orphan_recovery in {
+                VideoFenceRecoveryState.ABANDONED,
+                VideoFenceRecoveryState.RELEASED,
+                VideoFenceRecoveryState.ALREADY_RELEASED,
+            }:
+                video_fence_confirmed = await self.confirm_video_fence(
+                    user_id=owner_id,
+                    operation_token=requested_token,
+                )
+        if not video_fence_confirmed:
+            raise RuntimeError("A video provider start is still settling.")
+
         job_payload: dict[str, Any] = {
             "user_id": owner_id,
-            "operation_token": str(uuid4()),
+            "operation_token": requested_token,
             "state": "fencing",
             "fenced_at": started_at,
             "finalize_after": self._iso(
@@ -359,133 +657,112 @@ class AccountDeletionService:
             "next_attempt_at": self._iso(now + timedelta(minutes=self.RETRY_MINUTES)),
             "attempts": 0,
             "last_error_code": None,
-            "native_billing_identity_possible": self._revenuecat_required,
+            "native_billing_identity_possible": self._native_cleanup_required(
+                current_user_hint,
+                existing_hint or {},
+            ),
             "updated_at": started_at,
         }
+        persistence_error: Exception | None = None
         try:
             inserted = self._rows(
                 await self.db.insert("account_deletion_jobs", job_payload)
             )
             job = inserted[0] if inserted else await self._job(owner_id)
-            if not job:
-                raise RuntimeError("Account deletion job persistence was not confirmed.")
-        except Exception:
+        except Exception as exc:
+            persistence_error = exc
             # A transport failure can occur after Postgres committed the insert.
             # Read back by the unique owner key before deciding it failed.
-            existing = await self._job(owner_id)
-            if not existing:
-                raise
-            current_user = await self._user(owner_id)
-            existing_token = str(existing.get("operation_token") or "")
-            existing_fence_matches = bool(
-                current_user
-                and current_user.get("deleted_at")
-                and str(current_user.get("account_deletion_token") or "")
-                == existing_token
+            try:
+                job = await self._job(owner_id)
+            except Exception:
+                await self.recover_video_fence(
+                    user_id=owner_id,
+                    operation_token=requested_token,
+                )
+                raise RuntimeError(
+                    "Account deletion job persistence was not confirmed."
+                ) from exc
+
+        if not job:
+            await self.recover_video_fence(
+                user_id=owner_id,
+                operation_token=requested_token,
             )
-            active_without_fence = bool(
-                current_user
-                and not current_user.get("deleted_at")
-                and not current_user.get("account_deletion_token")
-            )
-            existing_started = self._parse_time(
-                existing.get("created_at") or existing.get("fenced_at")
-            )
-            existing_is_recent = bool(
-                existing_started
-                and self._now() - existing_started
-                < timedelta(minutes=self.FENCE_RECONCILE_MINUTES)
-                and not existing.get("completed_at")
-            )
-            if active_without_fence and existing_is_recent:
-                # Concurrent callers converge on the first durable token. This
-                # prevents one request from replacing the job while another is
-                # committing that token to users.account_deletion_token.
-                job = existing
-            elif active_without_fence:
-                # A stale or abandoned operation must not shorten the late-upload
-                # window for a new request. Reset the durable row in place because
-                # user_id is intentionally its stable primary key.
-                reset_payload = {
-                    **job_payload,
-                    "created_at": started_at,
-                    "account_deleted_at": None,
-                    "completed_at": None,
-                }
-                try:
-                    reset = self._rows(
-                        await self.db.update(
-                            "account_deletion_jobs",
-                            reset_payload,
-                            filters={
-                                "user_id": eq(owner_id),
-                                "operation_token": eq(existing_token),
-                            },
-                            retry_transient=True,
-                        )
-                    )
-                    job = reset[0] if reset else await self._job(owner_id)
-                except Exception:
-                    job = await self._job(owner_id)
-                if not job or str(job.get("operation_token") or "") != str(
-                    job_payload["operation_token"]
-                ):
-                    raise RuntimeError(
-                        "Account deletion job reset was not confirmed."
-                    )
-            elif existing_fence_matches and not existing.get("completed_at"):
-                job = existing
-            elif current_user is None and not existing.get("completed_at"):
-                job = existing
-            else:
+            raise RuntimeError(
+                "Account deletion job persistence was not confirmed."
+            ) from persistence_error
+
+        current_user = await self._user(owner_id)
+        existing_token = str(job.get("operation_token") or "")
+        active_without_user_fence = bool(
+            current_user
+            and not current_user.get("deleted_at")
+            and not current_user.get("account_deletion_token")
+        )
+        requested_user_fence_matches = bool(
+            current_user
+            and current_user.get("deleted_at")
+            and str(current_user.get("account_deletion_token") or "")
+            == requested_token
+        )
+        if existing_token == requested_token and not job.get("completed_at"):
+            if not (
+                active_without_user_fence
+                or requested_user_fence_matches
+                or current_user is None
+            ):
                 raise RuntimeError("Account deletion operation could not be resumed.")
+        elif active_without_user_fence:
+            # `confirm_video_fence` proved that the caller token, not this older
+            # row, owns the provider fence. Reset by the old token as a CAS even
+            # when that unfenced row is recent.
+            reset_payload = {
+                **job_payload,
+                "created_at": started_at,
+                "account_deleted_at": None,
+                "completed_at": None,
+                # Provider-customer evidence is monotonic. Replacing an
+                # unfenced operation must never turn a durable true back into
+                # false when this worker has no runtime RevenueCat key.
+                "native_billing_identity_possible": self._native_cleanup_required(
+                    current_user,
+                    job,
+                ),
+            }
+            try:
+                reset = self._rows(
+                    await self.db.update(
+                        "account_deletion_jobs",
+                        reset_payload,
+                        filters={
+                            "user_id": eq(owner_id),
+                            "operation_token": eq(existing_token),
+                        },
+                        retry_transient=True,
+                    )
+                )
+                job = reset[0] if reset else await self._job(owner_id)
+            except Exception:
+                job = await self._job(owner_id)
+            if not job or str(job.get("operation_token") or "") != requested_token:
+                raise RuntimeError("Account deletion job reset was not confirmed.")
+        else:
+            raise RuntimeError("Account deletion operation could not be resumed.")
 
         job_owner, token = self._job_identity(job)
         if job_owner != owner_id or not token or job.get("completed_at"):
             raise RuntimeError("Account deletion operation could not be verified.")
-        fenced_at = str(job.get("fenced_at") or started_at)
-        fence_values = {
-            "deleted_at": fenced_at,
-            "account_deletion_token": token,
-            # Revocation is part of the same users-row write as the deletion
-            # fence. Background workers can therefore fail closed on either
-            # deleted_at or the authoritative consent predicate without a gap.
-            "ai_data_sharing_consent_revoked_at": fenced_at,
-            "ai_data_sharing_consent_updated_at": fenced_at,
-            "updated_at": started_at,
-        }
-        fence_confirmed = False
-        try:
-            updated = await self.db.update(
-                "users",
-                fence_values,
-                filters={
-                    "id": eq(owner_id),
-                    "deleted_at": "is.null",
-                    "account_deletion_token": "is.null",
-                },
-                retry_transient=True,
-            )
-            fence_confirmed = any(
-                str(row.get("id") or "") == owner_id
-                and str(row.get("account_deletion_token") or "") == token
-                and bool(row.get("deleted_at"))
-                for row in self._rows(updated)
-            )
-        except Exception:
-            logger.exception("Account deletion fence write response was ambiguous")
 
-        if not fence_confirmed:
-            # Reconcile commit-then-transport-error and empty representation cases.
-            current = await self._user(owner_id)
-            fence_confirmed = bool(
-                current
-                and current.get("deleted_at")
-                and str(current.get("account_deletion_token") or "") == token
-            )
-        if not fence_confirmed:
-            # The job remains harmless: the worker will never delete storage for
-            # an active account whose token does not match this operation.
+        fenced_at = str(job.get("fenced_at") or started_at)
+        fence_result = await self._establish_user_fence(
+            user_id=owner_id,
+            operation_token=token,
+            fenced_at=fenced_at,
+        )
+        if fence_result not in {"fenced", "user_deleted"}:
+            # Atomic recovery owns any later abandonment. A recent same-token job
+            # remains fenced and retryable if this caller loses its response.
             raise RuntimeError("Account deletion fence was not confirmed.")
 
         # Marker writes and the fence both update the users row. Once the fence
@@ -540,40 +817,107 @@ class AccountDeletionService:
                 and str(user.get("account_deletion_token") or "") == token
             )
             if not fence_matches:
-                created_at = self._parse_time(job.get("created_at") or job.get("fenced_at"))
-                still_reconciling = bool(
-                    created_at
-                    and self._now() - created_at
-                    < timedelta(minutes=self.FENCE_RECONCILE_MINUTES)
+                recovery = await self.recover_video_fence(
+                    user_id=owner_id,
+                    operation_token=token,
                 )
-                if still_reconciling:
-                    await self._schedule_retry(job, "DELETION_FENCE_NOT_VISIBLE")
+                if recovery is VideoFenceRecoveryState.ACCOUNT_DELETING:
+                    try:
+                        user = await self._user(owner_id)
+                    except Exception:
+                        await self._schedule_retry(
+                            job, "DELETION_FENCE_RECOVERY_UNCONFIRMED"
+                        )
+                        return DeletionProgress(
+                            False,
+                            False,
+                            True,
+                            "DELETION_FENCE_RECOVERY_UNCONFIRMED",
+                        )
+                    if user is not None and not (
+                        user.get("deleted_at")
+                        and str(user.get("account_deletion_token") or "") == token
+                    ):
+                        latest_job = await self._job(owner_id)
+                        if latest_job and str(
+                            latest_job.get("operation_token") or ""
+                        ) != token:
+                            return DeletionProgress(
+                                False, False, False, "DELETION_JOB_REPLACED"
+                            )
+                        await self._schedule_retry(
+                            job, "VIDEO_DELETION_FENCE_OWNERSHIP_CONFLICT"
+                        )
+                        return DeletionProgress(
+                            False,
+                            False,
+                            True,
+                            "VIDEO_DELETION_FENCE_OWNERSHIP_CONFLICT",
+                        )
+                elif recovery is VideoFenceRecoveryState.USER_DELETED:
+                    # The release RPC never removes a post-delete tombstone.
+                    # Continue the durable storage/provider cleanup as user-missing.
+                    user = None
+                elif recovery is VideoFenceRecoveryState.ABANDONED:
                     return DeletionProgress(
                         False,
                         False,
-                        True,
-                        "DELETION_FENCE_NOT_VISIBLE",
+                        False,
+                        "DELETION_FENCE_NOT_ESTABLISHED",
                     )
-                await self._best_effort_job_update(
-                    job,
-                    {
-                        "state": "abandoned",
-                        "completed_at": self._iso(self._now()),
-                        "last_error_code": "DELETION_FENCE_NOT_ESTABLISHED",
-                        "next_attempt_at": None,
-                    },
-                )
-                return DeletionProgress(
-                    False,
-                    False,
-                    False,
-                    "DELETION_FENCE_NOT_ESTABLISHED",
-                )
+                else:
+                    latest_job = await self._job(owner_id)
+                    if (
+                        not latest_job
+                        or str(latest_job.get("operation_token") or "") != token
+                        or latest_job.get("completed_at")
+                    ):
+                        return DeletionProgress(
+                            not bool(await self._user(owner_id)),
+                            bool(latest_job and latest_job.get("completed_at")),
+                            False,
+                            "DELETION_JOB_REPLACED",
+                        )
+                    code = (
+                        "DELETION_FENCE_NOT_VISIBLE"
+                        if recovery is VideoFenceRecoveryState.STILL_RECONCILING
+                        else "VIDEO_DELETION_FENCE_OWNERSHIP_CONFLICT"
+                        if recovery in {
+                            VideoFenceRecoveryState.NOT_OWNER,
+                            VideoFenceRecoveryState.JOB_CONFLICT,
+                        }
+                        else "DELETION_FENCE_RECOVERY_UNCONFIRMED"
+                    )
+                    await self._schedule_retry(job, code)
+                    return DeletionProgress(False, False, True, code)
 
         if not await self._claim_due_job(job):
             return DeletionProgress(
                 not bool(user), False, True, "DELETION_JOB_IN_PROGRESS"
             )
+
+        if user:
+            try:
+                video_fence_confirmed = await self.confirm_video_fence(
+                    user_id=owner_id,
+                    operation_token=token,
+                )
+            except Exception:
+                await self._schedule_retry(job, "VIDEO_DELETION_FENCE_UNAVAILABLE")
+                return DeletionProgress(
+                    False,
+                    False,
+                    True,
+                    "VIDEO_DELETION_FENCE_UNAVAILABLE",
+                )
+            if not video_fence_confirmed:
+                await self._schedule_retry(job, "VIDEO_START_SETTLING")
+                return DeletionProgress(
+                    False,
+                    False,
+                    True,
+                    "VIDEO_START_SETTLING",
+                )
 
         # A server key can reach a historical free native customer even if its
         # local marker predates the marker migration. Snapshot that possible

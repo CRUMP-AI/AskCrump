@@ -12,16 +12,19 @@ def test_product53_runtime_is_lazy_loaded_and_cache_addressable():
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
     loader = read("public/crump-product-loader.js")
-    assert "/crump-product-loader.js?v=5.9.76-product-studio-lazy-load-2" in runtime
-    assert "/crump-product-loader.js?v=5.9.76-product-studio-lazy-load-2" in worker
+    assert "/crump-product-loader.js?v=5.9.76-product-studio-owner-reconciliation-1" in runtime
+    assert "/crump-product-loader.js?v=5.9.76-product-studio-owner-reconciliation-1" in worker
     assert "/crump-product-5.3.css?v=5.9.76-file-library-window-1" not in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-studio-action-labels-1" not in runtime
+    assert "/crump-product-5.3.js?v=5.9.76-owner-reconciliation-1" not in runtime
     assert "/crump-product-5.3.css?v=5.9.76-file-library-window-1" not in worker
-    assert "/crump-product-5.3.js?v=5.9.76-studio-action-labels-1" not in worker
+    assert "/crump-product-5.3.js?v=5.9.76-owner-reconciliation-1" not in worker
     assert "/crump-product-5.3.css?v=5.9.76-file-library-window-1" in loader
-    assert "/crump-product-5.3.js?v=5.9.76-studio-action-labels-1" in loader
+    assert "/crump-product-5.3.js?v=5.9.76-owner-reconciliation-1" in loader
+    assert "/crump-product-5.3.js?v=5.9.76-video-owner-isolation-1" not in loader
+    assert "/crump-product-loader.js?v=5.9.76-product-studio-video-owner-1" not in runtime
+    assert "/crump-product-loader.js?v=5.9.76-product-studio-video-owner-1" not in worker
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-loader.js")
-    assert "ask-crump-new-body-v1-r252" in worker
+    assert "ask-crump-new-body-v1-r253" in worker
     assert "crump-product-5.3.js" in checker
     assert "crump-product-loader.js" in checker
 
@@ -55,6 +58,7 @@ def test_product_studio_loader_preserves_every_public_action_and_resume_boundary
     assert "crump:conversation-opened" in loader
     assert "aria-busy" in loader
     assert "verify-product-studio-lazy-load.cjs" in matrix
+    assert "verify-video-owner-continuity.cjs" in matrix
     assert "fixture-project" in verifier
     assert "mode=retry" in verifier
     assert "mode=persisted" in verifier
@@ -151,7 +155,7 @@ def test_private_account_files_surface_saved_creations_under_projects():
     assert "order='created_at.desc'" in routes
     assert "'createdAt': row.get('created_at')" in service
     assert 'data-crump53-panel="library"' in product
-    assert "api('/api/files?limit=200')" in product
+    assert "api('/api/files?limit=200', {owner, ownerEpoch})" in product
     assert 'id="crump53LibrarySearch"' in product
     assert 'id="crump53LibrarySort"' in product
     assert "function visibleLibraryFiles()" in product

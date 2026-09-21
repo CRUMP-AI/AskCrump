@@ -50,11 +50,11 @@ def test_parallel_runtime_asset_is_versioned_for_web_pwa_and_native():
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
 
-    asset = "/runtime-body-v1.js?v=5.9.76-native-identity-fresh-1"
+    asset = "/runtime-body-v1.js?v=5.9.76-owner-isolation-native-store-1"
     assert asset in shell
     assert asset in worker
-    assert "ask-crump-new-body-v1-r252" in worker
-    assert "ask-crump-new-body-v1-r252" in checker
+    assert "ask-crump-new-body-v1-r253" in worker
+    assert "ask-crump-new-body-v1-r253" in checker
 
 
 def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
@@ -107,6 +107,8 @@ def test_returning_workspace_uses_precache_without_staling_the_shell():
     assert "async function cacheFirst(request)" in worker
     assert "bootCritical(request, url)\n      ? cacheFirst(request)" in worker
     assert "originAssetRequests" in verifier
+    assert "/crump-product-loader.js?v=5.9.76-product-studio-owner-reconciliation-1" in verifier
+    assert "Boolean(window.CrumpProductLoader?.load)" in verifier
     assert "assert.equal(counts.get(fixturePath), 1" in verifier
     assert "verify-service-worker-returning-load.cjs" in matrix
     assert "askcrump.com" not in verifier.lower()
@@ -118,12 +120,12 @@ def test_returning_workspace_upgrades_out_of_the_legacy_crump_code_cache():
     verifier = read("scripts/verify-autonomous-crump-cache-upgrade.cjs")
     matrix = read("scripts/verify-browser-control-matrix.mjs")
 
-    assert "ask-crump-new-body-v1-r252" in worker
-    assert "/runtime-body-v1.js?v=5.9.76-native-identity-fresh-1" in worker
+    assert "ask-crump-new-body-v1-r253" in worker
+    assert "/runtime-body-v1.js?v=5.9.76-owner-isolation-native-store-1" in worker
     assert "/crump-navigation-5.9.30.js?v=5.9.76-autonomous-crump-1" in worker
     assert "/crump-code-loader.js?v=5.9.76-autonomous-crump-1" in worker
     assert "/crump-billing-5.1.js?v=5.9.76-autonomous-crump-1" in worker
-    assert "/crump-5.2.js?v=5.9.76-native-store-billing-1" in worker
+    assert "/crump-5.2.js?v=5.9.76-owner-isolation-native-store-1" in worker
     assert "async function deleteLegacyCaches()" in worker
     assert "preCache()\n      .then(deleteLegacyCaches)" in worker
     assert "deleteLegacyCaches()\n      .then(() => self.clients.claim())" in worker

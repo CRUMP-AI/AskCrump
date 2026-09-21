@@ -34,8 +34,10 @@ class FakeDB:
             return {'assistant_name': 'Server Crump', 'work_mode': True}
         return None
 
-    async def rpc(self, name, payload):
+    async def rpc(self, name, payload, **_kwargs):
         self.rpc_calls.append((name, payload))
+        if name == 'begin_video_account_deletion':
+            return True
         return None
 
 
@@ -312,13 +314,23 @@ def test_account_deletion_uses_atomic_database_rpc(monkeypatch):
     }
     begin = AsyncMock(return_value=job)
 
+    async def confirm_video_fence(*, user_id, operation_token):
+        return await fake_db.rpc(
+            'begin_video_account_deletion',
+            {'p_user_id': user_id, 'p_operation_token': operation_token},
+        )
+
     async def process(operation):
         assert operation == job
         await cleanup(user_id='user-2')
         await fake_db.rpc('delete_user_account', {'p_user_id': 'user-2'})
         return SimpleNamespace(account_deleted=True, cleanup_complete=False)
 
-    deletion_service = SimpleNamespace(begin=begin, process=AsyncMock(side_effect=process))
+    deletion_service = SimpleNamespace(
+        confirm_video_fence=AsyncMock(side_effect=confirm_video_fence),
+        begin=begin,
+        process=AsyncMock(side_effect=process),
+    )
     password_hash = hash_password('StrongPassword123')
 
     async def fake_authenticate(*_args, **_kwargs):
@@ -338,6 +350,11 @@ def test_account_deletion_uses_atomic_database_rpc(monkeypatch):
     })
 
     assert response.status_code == 200
-    begin.assert_awaited_once_with(user_id='user-2')
+    assert [name for name, _ in fake_db.rpc_calls] == [
+        'begin_video_account_deletion', 'delete_user_account',
+    ]
+    assert fake_db.rpc_calls[0][1]['p_user_id'] == 'user-2'
+    token = fake_db.rpc_calls[0][1]['p_operation_token']
+    assert token
+    begin.assert_awaited_once_with(user_id='user-2', operation_token=token)
     cleanup.assert_awaited_once_with(user_id='user-2')
-    assert fake_db.rpc_calls == [('delete_user_account', {'p_user_id': 'user-2'})]

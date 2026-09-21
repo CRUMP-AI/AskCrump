@@ -193,6 +193,7 @@
       );
       let deletionRequestSent = false;
       let deletionResponseReceived = false;
+      const deletedOwner = String(window.currentUser?.id || '').trim();
       try {
         if (window.CrumpAPI?.isNative) {
           if (typeof window.BillingManager?.prepareAccountDeletion !== 'function' ||
@@ -222,6 +223,14 @@
         )) window.BillingManager?.cancelAccountDeletion?.();
         if (!response.ok) throw new Error(data.error || 'Account deletion failed.');
         const billingDisconnected = await window.BillingManager?.disconnectAfterDeletion?.();
+        if (deletedOwner) {
+          window.dispatchEvent(new CustomEvent('crump:account-deleted', {detail: {userId: deletedOwner}}));
+          // Deletion alone removes this owner's local recovery handles. Ordinary
+          // sign-out must retain them so a pending paid job can be resumed.
+          for (const base of ['askcrump.videoJob53', 'askcrump.videoRequest53']) {
+            try { localStorage.removeItem(`${base}:${encodeURIComponent(deletedOwner)}`); } catch (_) {}
+          }
+        }
         await window.CrumpAPI?.clearSessionToken?.();
         window.deviceAuth?.clearLocalState?.();
         if (billingDisconnected && typeof window.deviceAuth?.clearLocalState === 'function') {

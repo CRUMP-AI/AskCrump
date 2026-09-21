@@ -11,7 +11,9 @@ const { chromium } = require(playwrightModule);
   });
   page.on('pageerror', error => consoleErrors.push(error.message));
 
-  await page.goto('http://127.0.0.1:8765/tests/fixtures/video-reference-upload.html', {waitUntil: 'networkidle'});
+  const fixtureBaseUrl = process.env.ASKCRUMP_FIXTURE_BASE_URL || 'http://127.0.0.1:8765';
+  await page.goto(`${fixtureBaseUrl}/tests/fixtures/video-reference-upload.html`, {waitUntil: 'networkidle'});
+  await page.evaluate(() => localStorage.removeItem('askcrump.videoRequest53'));
   await page.locator('#openVideo').click();
   await page.locator('#crump53VideoEngine').selectOption('extendable');
   const png = Buffer.from(
@@ -28,13 +30,14 @@ const { chromium } = require(playwrightModule);
   await page.waitForFunction(() => Boolean(window.__videoRequest));
 
   const result = await page.evaluate(() => {
-    const storedRequest = localStorage.getItem('askcrump.videoRequest53') || '';
+    const storedRequest = localStorage.getItem(`askcrump.videoRequest53:${encodeURIComponent(window.currentUser.id)}`) || '';
     return {
       label: document.querySelector('#crump53VideoReferenceLabel')?.textContent || '',
       referenceCards: document.querySelectorAll('.crump53-video-reference-card').length,
       referenceFileIds: window.__videoRequest?.referenceFileIds || [],
       requestContainsImageData: /base64|data:image/i.test(JSON.stringify(window.__videoRequest || {})),
       recoveryContainsImageData: /base64|data:image/i.test(storedRequest),
+      unscopedRequestPresent: Boolean(localStorage.getItem('askcrump.videoRequest53')),
       selectedEngine: window.__videoRequest?.engine || '',
       runwayAttributionVisible: document.querySelector('#crump53RunwayAttribution')?.getClientRects().length > 0,
       mobileOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
@@ -51,6 +54,7 @@ const { chromium } = require(playwrightModule);
     || result.referenceFileIds.length !== 2
     || result.requestContainsImageData
     || result.recoveryContainsImageData
+    || result.unscopedRequestPresent
     || result.selectedEngine !== 'extendable'
     || result.runwayAttributionVisible
     || result.mobileOverflow

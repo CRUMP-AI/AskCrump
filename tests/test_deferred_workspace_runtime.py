@@ -23,14 +23,14 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
     ]
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
-        '/runtime-body-v1.js?v=5.9.76-native-identity-fresh-1',
+        '/runtime-body-v1.js?v=5.9.76-owner-isolation-native-store-1',
         '/native-runtime.js',
         '/mobile-bridge.js?v=5.9.76-native-store-billing-1',
         '/safe-storage.js',
         '/install-prompt.js?v=5.9.76-update-work-guard-1',
         '/auth-resilience.js?v=5.9.76',
         '/device-auth.js?v=5.9.76-native-billing-identity-1',
-        '/auth-controller.js?v=5.9.76-facebook-reel-attribution-1',
+        '/auth-controller.js?v=5.9.76-checkout-owner-reset-1',
         '/_vercel/insights/script.js',
         '/_vercel/speed-insights/script.js',
     ]
@@ -50,14 +50,14 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/profile-manager.js',
         '/billing-manager.js?v=5.9.76-native-identity-fresh-1',
         '/subscription-ui.js?v=5.9.76-commerce-recovery-1',
-        '/credit-confirmation.js?v=5.9.76-credit-confirmation-1',
+        '/credit-confirmation.js?v=5.9.76-owner-isolation-1',
         '/chat-resilience.js?v=5.9.76-credit-confirmation-1',
         '/ui-functions.js?v=5.9.76-project-save-offer-1',
         '/presence-manager.js?v=5.9.76',
         '/sync-manager.js?v=5.9.76-sync-cursor-1',
         '/chat-sync.js?v=5.9.76-settings-sync-1',
-        '/account-manager.js?v=5.9.76-native-identity-fresh-1',
-        '/app.js?v=5.9.76-settings-save-isolation-1',
+        '/account-manager.js?v=5.9.76-owner-isolation-native-store-1',
+        '/app.js?v=5.9.76-video-owner-composer-1',
         '/product-analytics.js?v=5.9.76-navigation-discovery-1',
     ]
     for asset in deferred_assets:

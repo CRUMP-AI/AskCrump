@@ -5,10 +5,12 @@ from __future__ import annotations
 import logging
 from typing import Any
 from urllib.parse import quote
+from uuid import uuid4
 
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 
+from ..account_deletion_service import VideoFenceRecoveryState
 from ..auth_service import authenticate_request, public_user
 from ..db import eq
 from ..http import clear_session_cookie
@@ -30,6 +32,17 @@ TERMINAL_SUBSCRIPTION_STATUSES = {'canceled', 'expired', 'incomplete_expired'}
 
 class BillingCancellationUnconfirmed(RuntimeError):
     """Raised when deleting local identity could orphan an open web subscription."""
+
+
+def _video_fence_recovery_requires_operator(
+    recovery: VideoFenceRecoveryState,
+) -> bool:
+    """Separate foreign/unknown ownership from safe durable retry states."""
+    return recovery in {
+        VideoFenceRecoveryState.UNCONFIRMED,
+        VideoFenceRecoveryState.NOT_OWNER,
+        VideoFenceRecoveryState.JOB_CONFLICT,
+    }
 
 
 def _stripe_response_confirms_deleted(response: Any, customer_id: str) -> bool:
@@ -220,9 +233,120 @@ async def delete_account(payload: DeleteAccountRequest, request: Request, respon
         return JSONResponse(status_code=401, content={'success': False, 'error': 'Password is incorrect.'})
 
     user_id = auth.user['id']
+    deletion_token = str(uuid4())
+    try:
+        # A reserved start conflicts *without* creating a fence or touching
+        # billing. A successful token-owned fence excludes new dispatches.
+        video_starts_settled = await account_deletions.confirm_video_fence(
+            user_id=user_id,
+            operation_token=deletion_token,
+        )
+    except Exception:
+        logger.error('Video account-deletion fence is unavailable')
+        recovery = await account_deletions.recover_video_fence(
+            user_id=user_id,
+            operation_token=deletion_token,
+        )
+        recovery_required = _video_fence_recovery_requires_operator(recovery)
+        return JSONResponse(
+            status_code=503,
+            content={
+                'success': False,
+                'error': (
+                    'Account deletion could not be reconciled. Please contact support before '
+                    'starting another video.'
+                    if recovery_required
+                    else 'Account deletion is temporarily unavailable. No account data was deleted.'
+                ),
+                'code': (
+                    'ACCOUNT_DELETION_RECOVERY_REQUIRED'
+                    if recovery_required
+                    else 'ACCOUNT_DELETION_FENCE_UNAVAILABLE'
+                ),
+            },
+        )
+    if not video_starts_settled:
+        stale_recovery = await account_deletions.recover_stale_orphan_video_fence(
+            user_id=user_id,
+        )
+        if stale_recovery in {
+            VideoFenceRecoveryState.ABANDONED,
+            VideoFenceRecoveryState.RELEASED,
+            VideoFenceRecoveryState.ALREADY_RELEASED,
+        }:
+            try:
+                video_starts_settled = await account_deletions.confirm_video_fence(
+                    user_id=user_id,
+                    operation_token=deletion_token,
+                )
+            except Exception:
+                logger.error('Replacement video account-deletion fence is unavailable')
+                recovery = await account_deletions.recover_video_fence(
+                    user_id=user_id,
+                    operation_token=deletion_token,
+                )
+                recovery_required = _video_fence_recovery_requires_operator(recovery)
+                return JSONResponse(
+                    status_code=503,
+                    content={
+                        'success': False,
+                        'error': (
+                            'Account deletion could not be reconciled. Please contact support '
+                            'before starting another video.'
+                            if recovery_required
+                            else 'Account deletion is temporarily unavailable. No account data '
+                            'was deleted.'
+                        ),
+                        'code': (
+                            'ACCOUNT_DELETION_RECOVERY_REQUIRED'
+                            if recovery_required
+                            else 'ACCOUNT_DELETION_FENCE_UNAVAILABLE'
+                        ),
+                    },
+                )
+    if not video_starts_settled:
+        return JSONResponse(
+            status_code=409,
+            content={
+                'success': False,
+                'error': 'A video request or account deletion is settling. Please retry shortly.',
+                'code': 'VIDEO_START_SETTLING',
+            },
+        )
+
     try:
         await delete_stripe_customer(auth.user)
     except BillingCancellationUnconfirmed:
+        release_result = await account_deletions.recover_video_fence(
+            user_id=user_id,
+            operation_token=deletion_token,
+        )
+        if release_result not in {
+            VideoFenceRecoveryState.RELEASED,
+            VideoFenceRecoveryState.ALREADY_RELEASED,
+        }:
+            logger.error('Account-deletion fence release could not be confirmed after billing failure')
+            recovery_required = _video_fence_recovery_requires_operator(
+                release_result
+            )
+            return JSONResponse(
+                status_code=503,
+                content={
+                    'success': False,
+                    'error': (
+                        'Account deletion did not complete. Please contact support before '
+                        'starting another video.'
+                        if recovery_required
+                        else 'Account deletion is temporarily unavailable. Its durable state '
+                        'will be retried safely.'
+                    ),
+                    'code': (
+                        'ACCOUNT_DELETION_RECOVERY_REQUIRED'
+                        if recovery_required
+                        else 'ACCOUNT_DELETION_FENCE_UNAVAILABLE'
+                    ),
+                },
+            )
         return JSONResponse(
             status_code=502,
             content={
@@ -236,20 +360,37 @@ async def delete_account(payload: DeleteAccountRequest, request: Request, respon
         )
 
     try:
-        deletion_job = await account_deletions.begin(user_id=user_id)
+        deletion_job = await account_deletions.begin(
+            user_id=user_id,
+            operation_token=deletion_token,
+        )
     except Exception:
         logger.exception('Durable account deletion fence could not be confirmed')
+        recovery = await account_deletions.recover_video_fence(
+            user_id=user_id,
+            operation_token=deletion_token,
+        )
+        # A recent exact-token job, an established users fence, or completed
+        # deletion remains owned by the durable worker. Only an ownership or
+        # confirmation conflict needs operator intervention here.
+        recovery_required = _video_fence_recovery_requires_operator(recovery)
         return JSONResponse(
             status_code=503,
             content={
                 'success': False,
                 'error': (
-                    'Ask Crump could not confirm that deletion started safely. No additional '
-                    'local data will be intentionally removed unless the durable deletion '
-                    'worker confirms your request. Any confirmed web subscription '
-                    'cancellation remains effective. Try again shortly or contact support.'
+                    'Ask Crump could not reconcile which deletion request owns the account. '
+                    'Please contact support before starting another video.'
+                    if recovery_required
+                    else 'Ask Crump could not finish starting deletion. Its durable state '
+                    'remains safe to retry, and any confirmed web subscription cancellation '
+                    'remains effective. Try again shortly.'
                 ),
-                'code': 'ACCOUNT_DELETION_FENCE_UNAVAILABLE',
+                'code': (
+                    'ACCOUNT_DELETION_RECOVERY_REQUIRED'
+                    if recovery_required
+                    else 'ACCOUNT_DELETION_FENCE_UNAVAILABLE'
+                ),
             },
         )
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hmac
 import logging
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
@@ -22,10 +23,16 @@ from ..runtime import (
     manuscripts,
     projects,
     settings,
+    video,
 )
 
 router = APIRouter(tags=["manuscripts"])
 logger = logging.getLogger(__name__)
+
+
+def _cron_priority_slot() -> int:
+    """Give each durable worker first claim on one of every three minutes."""
+    return datetime.now(timezone.utc).minute % 3
 
 
 def _feature_error(exc: FeatureAccessError) -> JSONResponse:
@@ -430,21 +437,55 @@ async def manuscript_cron(request: Request):
         # durable deletion rows remain due for the next minute's retry.
         logger.exception("Account deletion sweep failed before claiming shared worker work")
         deletion_summary = {"processed": 0, "retrying": 1}
-    code_summary = await code_worker.process_next(oidc_token=oidc_token)
-    if code_summary.get("handled"):
+
+    async def check_video():
+        try:
+            result = await video.reconcile_deleted_provider_claim_once()
+            return {
+                "success": True,
+                "worker": "video_deletion",
+                "accountDeletions": deletion_summary,
+                **result,
+            }
+        except Exception:
+            # A status-only provider or DB outage must not starve unrelated
+            # durable work sharing this cron slot.
+            logger.warning("Deleted-video reconciliation deferred; other cron work continues.")
+            return {
+                "success": True,
+                "worker": "video_deletion",
+                "accountDeletions": deletion_summary,
+                "handled": False,
+            }
+
+    async def check_code():
+        result = await code_worker.process_next(oidc_token=oidc_token)
         return {
             "success": True,
             "worker": "code",
             "accountDeletions": deletion_summary,
-            **code_summary,
+            **result,
         }
-    summary = await manuscripts.process_next_run()
-    return {
-        "success": True,
-        "worker": "manuscripts",
-        "accountDeletions": deletion_summary,
-        **summary,
-    }
+
+    async def check_manuscripts():
+        result = await manuscripts.process_next_run()
+        return {
+            "success": True,
+            "worker": "manuscripts",
+            "accountDeletions": deletion_summary,
+            **result,
+        }
+
+    workers = (check_video, check_code, check_manuscripts)
+    results = {}
+    first = _cron_priority_slot()
+    for offset in range(len(workers)):
+        worker = workers[(first + offset) % len(workers)]
+        response = await worker()
+        results[response["worker"]] = response
+        if response.get("handled"):
+            return response
+    return results["manuscripts"]
 
 
 @router.post("/api/manuscripts/{manuscript_id}/blueprint")

@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Video owner continuity fixture</title><link rel="icon" href="data:,"></head>
+<body class="crump-v1-body">
+  <button type="button" id="openVideo">Open Video Studio</button>
+  <button type="button" id="openFiles">Open Files</button>
+  <script>
+    const mode = new URL(location.href).searchParams.get('mode') || '';
+    window.currentUser = {id: mode === 'legacy' ? 'user-b' : 'user-a'};
+    window.chats = [];
+    window.__calls = [];
+    window.__responses = [];
+    window.__holds = new Map();
+    window.__holdQueues = new Map();
+    window.__makeHold = key => {
+      let release;
+      const promise = new Promise(resolve => { release = resolve; });
+      window.__holds.set(key, {promise, release});
+    };
+    window.__release = key => {
+      window.__holds.get(key)?.release();
+      window.__holds.delete(key);
+    };
+    window.__makeHoldQueue = (key, count) => {
+      const holds = [];
+      for (let index = 0; index < count; index += 1) {
+        let release;
+        const promise = new Promise(resolve => { release = resolve; });
+        holds.push({promise, release});
+      }
+      window.__holdQueues.set(key, holds);
+      return holds;
+    };
+    window.__releaseQueued = (key, index) => window.__holdQueues.get(key)?.[index]?.release();
+    window.__holdQueueOffsets = new Map();
+    window.__switchUser = id => {
+      window.currentUser = {id};
+      window.dispatchEvent(new Event('crump:authenticated-ready'));
+    };
+    window.__failNextPostFor = '';
+    window.__unknownResolved = false;
+    window.__quoteMode = mode === 'quote';
+    window.__quoted = false;
+    window.__useCreditGate = () => {
+      window.__makeHold('credit');
+      window.CrumpCreditConfirmation = {
+        run: async executor => {
+          await window.__holds.get('credit')?.promise;
+          return executor('approved');
+        },
+      };
+    };
+    if (mode === 'legacy') localStorage.setItem('askcrump.videoJob53', 'user-a-job');
+    if (mode === 'poll') {
+      localStorage.setItem('askcrump.videoJob53:user-a', 'user-a-job');
+      window.__makeHold('GET:user-a:/api/media/video/user-a-job');
+    }
+    if (mode === 'library') {
+      localStorage.setItem('askcrump.videoJob53:user-a', 'user-a-ready');
+      window.__makeHold('GET:user-a:/api/files?limit=200');
+    }
+    window.fetch = async (path, options = {}) => {
+      const url = String(path || '');
+      const method = String(options.method || 'GET').toUpperCase();
+      const owner = window.currentUser?.id || '';
+      const key = `${method}:${owner}:${url}`;
+      const idempotencyKey = options.headers?.['X-Idempotency-Key'] || '';
+      window.__calls.push({method, owner, url, idempotencyKey});
+      const queue = window.__holdQueues.get(key);
+      if (queue) {
+        const offset = window.__holdQueueOffsets.get(key) || 0;
+        window.__holdQueueOffsets.set(key, offset + 1);
+        await queue[offset]?.promise;
+      }
+      await window.__holds.get(key)?.promise;
+      if (method === 'POST' && url === '/api/media/video' && window.__failNextPostFor === owner) {
+        window.__failNextPostFor = '';
+        throw new TypeError('simulated offline request');
+      }
+      const json = (body, status = 200) => new Response(JSON.stringify(body), {
+        status, headers: {'Content-Type': 'application/json'},
+      });
+      if (url === '/api/features') return json({success: true, features: {video: {configured: true, entitled: true}}, creditBalance: 100});
+      if (url === '/api/projects') return json({success: true, projects: [], limit: 10});
+      if (url === '/api/files?limit=200') {
+        const file = mode === 'continue-list' && owner === 'user-a'
+          ? {id: 'user-a-video-file', name: 'user-a-private-video.mp4', kind: 'video',
+            type: 'video/mp4', url: 'data:video/mp4;base64,',
+            metadata: {engine: 'extendable', mediaJobId: 'user-a-ready', durationSeconds: 8}}
+          : {id: `${owner}-file`, name: `${owner}-private-file`, type: 'image/png'};
+        return json({success: true, files: [file]});
+      }
+      if (method === 'POST' && url === '/api/media/video') {
+        if (owner === 'user-a' && mode === 'ambiguous') {
+          return json({success: false, code: 'VIDEO_START_OUTCOME_UNKNOWN',
+            error: 'Video start is being reconciled.', shouldRetry: false,
+            jobId: 'user-a-job', reconciliationPending: true}, 503);
+        }
+        if (owner === 'user-a' && mode === 'server-pending') {
+          return json({success: false, code: 'VIDEO_START_RECONCILIATION_PENDING',
+            error: 'Previous video start is being reconciled.', shouldRetry: false,
+            jobId: 'user-a-job', reconciliationPending: true}, 409);
+        }
+        if (owner === 'user-a' && mode === 'success-pending') {
+          return json({success: true, job: {id: 'user-a-job', status: 'failed',
+            reconciliationPending: true}});
+        }
+        if (window.__quoteMode && !window.__quoted) {
+          window.__quoted = true;
+          return json({success: false, error: 'Confirm credit use', code: 'CREDIT_CONFIRMATION_REQUIRED',
+            creditQuote: {token: 'fixture-quote', creditsRequired: 60, creditBalance: 80, balanceAfter: 20}}, 402);
+        }
+        window.__responses.push(key);
+        return json({success: true, job: {id: `${owner}-job`, status: 'processing'}});
+      }
+      if (method === 'POST' && url.endsWith('/continue')) return json({success: true, job: {id: `${owner}-continued`, status: 'processing'}});
+      if (url.startsWith('/api/media/video/')) {
+        const jobId = decodeURIComponent(url.slice('/api/media/video/'.length));
+        if (!jobId.startsWith(`${owner}-`)) return json({success: false, error: 'Video job not found'}, 404);
+        if (owner === 'user-a' && ['ambiguous', 'server-pending', 'success-pending'].includes(mode)) {
+          return json({success: true, job: {id: jobId,
+            status: mode === 'success-pending' && !window.__unknownResolved ? 'failed' : 'processing',
+            reconciliationPending: !window.__unknownResolved, provider: 'gemini'}});
+        }
+        if (jobId.endsWith('ready')) return json({success: true, job: {
+          id: jobId, status: 'ready', canContinue: true, durationSeconds: 8, resolution: '720p',
+          file: {id: `${owner}-video-file`, url: 'data:video/mp4;base64,'},
+        }});
+        return json({success: true, job: {id: jobId, status: 'processing', provider: 'gemini'}});
+      }
+      return json({success: true});
+    };
+  </script>
+  <script src="/public/credit-confirmation.js?v=video-owner-fixture-1"></script>
+  <script src="/public/crump-product-5.3.js?v=video-owner-fixture-1"></script>
+  <script>
+    document.getElementById('openVideo').addEventListener('click', () => window.CrumpProduct53.open('video'));
+    document.getElementById('openFiles').addEventListener('click', () => window.CrumpProduct53.openFiles());
+  </script>
+</body>
+</html>

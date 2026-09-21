@@ -20,10 +20,13 @@ Official references:
 
 ## 2. Release order
 
-1. Merge a reviewed release commit to `main`.
-2. Apply every unapplied SQL migration to the production Supabase project.
+1. Merge a reviewed, fully verified release commit to `main`.
+2. Inventory the remote migration ledger and apply only the reviewed migrations required by
+   this release, in their documented compatibility order. Never apply every pending migration
+   solely because it is present in the checkout.
 3. Run Supabase security and performance advisors and resolve new findings.
-4. Deploy the matching backend/frontend commit to Vercel.
+4. Deploy the matching backend/frontend commit to Vercel only after its required database
+   changes and rollback/compatibility checks are complete.
 5. Prepare the native project for one platform.
 6. Build and sign the release using owner-controlled credentials.
 7. Test the exact signed build on physical devices and in store sandboxes.
@@ -42,6 +45,44 @@ Do not test a new API route against production before its matching migration is 
 - Show the required **Powered by Runway** attribution wherever a Runway engine/result is surfaced.
 - Verify `VIDEO_DAILY_PROVIDER_BUDGET_CENTS`, `VIDEO_USER_DAILY_PROVIDER_BUDGET_CENTS`, and `RUNWAY_MONTHLY_PROVIDER_BUDGET_CENTS` before production rollout. Founder/internal access may bypass app-credit metering, but not the global provider-cost circuit breakers.
 - Verify the `crump-files` bucket and `MAX_GENERATED_VIDEO_BYTES` remain compatible. Native Veo continuation is intentionally disabled when the next combined file is projected to exceed the configured storage guard.
+
+### Outsourced release-specialist boundary
+
+Outsourcing the final console, signing, beta-distribution, and review-response work is allowed only
+after one exact release commit and its unsigned CI evidence are approved. The specialist is a
+temporary release operator, not the publisher, account owner, product architect, or custodian of
+Ask Crump's infrastructure.
+
+- The company creates and owns both developer accounts, app records, bundle/package identifiers,
+  signing identities, upload keys, listings, and every submitted artifact. A contractor must never
+  create or retain any of them under the contractor's identity.
+- Invite the specialist with their own account. On Apple, use app-limited Developer access first
+  and elevate to app-limited App Manager only for a task that requires it. On Google Play, use a
+  time-limited User with only the Ask Crump app and only the release/store-listing permissions
+  required by the agreed milestone. Never grant Account Holder, global Admin, user-management,
+  Finance, payments-profile, tax, banking, or unrestricted API-key access.
+- Never share the founder's password, two-factor or recovery material, Apple Account, Google
+  Account, password-manager access, Supabase/Vercel/Stripe credentials, production database
+  access, RevenueCat secret keys, Play service-account keys, or an unencrypted signing secret.
+- Keep the Android upload keystore and Apple signing/provisioning material company-controlled.
+  When temporary signing access is unavoidable, use a revocable, least-privilege path and rotate or
+  revoke it immediately after acceptance. Disable individual App Store Connect API-key generation
+  for the specialist unless the reviewed workflow explicitly requires it.
+- Pay against evidence-based milestones: exact commit recorded; signed AAB installed through Play
+  internal testing; signed iOS build installed through TestFlight; listings and declarations
+  completed without placeholders; rejection findings resolved; and a final handoff containing
+  artifact hashes, build/version numbers, console status, reviewer correspondence, and removal of
+  contractor access.
+- Product, privacy, billing, entitlement, or backend changes discovered during submission return to
+  the repository review process. The specialist may not patch production or substitute a different
+  source snapshot to make a review pass.
+
+Apple documents app-scoped access and role capabilities in its
+[accounts and roles](https://developer.apple.com/help/app-store-connect/manage-your-team/overview-of-accounts-and-roles),
+[role permissions](https://developer.apple.com/help/app-store-connect/reference/account-management/role-permissions),
+and [app access](https://developer.apple.com/help/app-store-connect/create-an-app-record/edit-access-to-an-app)
+references. Google documents app-level access, permission expiry, and granular permissions in
+[Play Console user management](https://support.google.com/googleplay/android-developer/answer/9844686).
 
 ## 3. One-time account setup
 
@@ -85,10 +126,11 @@ npm run store:prepare:android
 
 The preparation command builds the local web bundle, creates Android if absent, syncs Capacitor, generates store assets, locks the package version/build number, configures notification metadata, and validates the result.
 
-For a later upload build, use a strictly increasing integer:
+For a later upload build, choose an unused integer above the highest build number in both
+store consoles. Do not reuse the historical example value from an older release:
 
 ```powershell
-$env:STORE_BUILD_NUMBER = "50501"
+$env:STORE_BUILD_NUMBER = "<next-unused-store-build-number>"
 npm run store:prepare:android
 ```
 
@@ -107,6 +149,8 @@ image, fails closed below Xcode 26 or the iOS 26 SDK, generates the iOS project,
 verifier, and compiles Release with code signing disabled. It cannot upload
 or submit. Add a separate, owner-reviewed signing/upload stage only after the Apple team, app record,
 certificates/profiles or managed-signing path, and App Store Connect authentication are approved.
+The unsigned compile must explicitly select an Xcode version and iOS SDK accepted by Apple on the
+submission date; a hosted runner's default Xcode version is not evidence of compliance.
 
 ```bash
 npm ci
@@ -142,6 +186,10 @@ Run these on current physical iPhone and Android devices:
 - export and permanent account deletion, including the external deletion URL
 - VoiceOver/TalkBack, larger text, reduced motion, contrast, keyboard, and safe areas
 - no Stripe checkout inside either native application
+
+Before trusting an Android upload candidate, verify that its exact AAB requests 16 KB page
+alignment and that every packaged native library has compatible ELF load-segment alignment. The
+source or unsigned-bundle check does not replace Play pre-launch and physical-device testing.
 
 ## 7. Store-console declarations
 

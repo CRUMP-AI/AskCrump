@@ -24,6 +24,7 @@
     imageRecovery: null,
     precisionImageEdit: null,
   };
+  let attachmentOwner = String(window.currentUser?.id || '').trim();
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -214,6 +215,8 @@
   }
 
   async function addFiles(fileList) {
+    syncAttachmentOwner();
+    const owner = attachmentOwner;
     const incoming = [...(fileList || [])];
     if (!incoming.length) return;
     const available = Math.max(0, MAX_FILES - state.attachments.length);
@@ -223,6 +226,7 @@
     }
     for (const original of incoming.slice(0, available)) {
       const file = await normalizeInputFile(original);
+      if (owner !== String(window.currentUser?.id || '').trim()) return;
       const issue = validateFile(file);
       if (issue) {
         show(issue, 'error');
@@ -230,15 +234,24 @@
       }
       const item = makeLocalAttachment(file);
       state.attachments.push(item);
-      item.promise = uploadItem(item);
+      item.promise = uploadItem(item, {expectedOwner: owner});
     }
     renderAttachmentTray();
   }
 
-  async function uploadItem(item) {
+  function requireUploadOwner(expectedOwner) {
+    if (!expectedOwner || String(window.currentUser?.id || '') === expectedOwner) return;
+    const error = new Error('Your account changed before this private upload. Return to Video Studio and add the reference again.');
+    error.code = 'UPLOAD_OWNER_CHANGED';
+    error.quiet = true;
+    throw error;
+  }
+
+  async function uploadItem(item, {expectedOwner = ''} = {}) {
     item.status = 'signing';
     renderAttachmentTray();
     try {
+      requireUploadOwner(expectedOwner);
       const signed = await api('/api/files/sign-upload', {
         method: 'POST',
         body: JSON.stringify({
@@ -246,6 +259,7 @@
           chatId: window.currentChatId || null,
         }),
       });
+      requireUploadOwner(expectedOwner);
       item.server = signed.file;
       item.status = 'uploading';
       item.progress = 1;
@@ -253,6 +267,7 @@
       let uploadError = null;
       for (let attempt = 0; attempt < 2; attempt += 1) {
         try {
+          requireUploadOwner(expectedOwner);
           if (item.size > 6 * 1024 * 1024 && signed.uploadToken && signed.resumableUrl && signed.uploadPath) {
             await uploadResumable(item, signed);
           } else {
@@ -267,7 +282,9 @@
         }
       }
       if (uploadError) throw uploadError;
+      requireUploadOwner(expectedOwner);
       const completed = await api(`/api/files/${encodeURIComponent(item.server.id)}/complete`, {method: 'POST', body: '{}'});
+      requireUploadOwner(expectedOwner);
       item.server = completed.file;
       item.status = 'ready';
       item.progress = 100;
@@ -277,7 +294,7 @@
       item.status = error?.name === 'AbortError' ? 'cancelled' : 'failed';
       item.error = error.message || 'Upload failed.';
       renderAttachmentTray();
-      if (item.status === 'failed') show(`${item.name}: ${item.error}`, 'error');
+      if (item.status === 'failed' && error?.code !== 'UPLOAD_OWNER_CHANGED') show(`${item.name}: ${item.error}`, 'error');
       throw error;
     }
   }
@@ -458,6 +475,20 @@
       const position = tray.children[index];
       if (position !== card) tray.insertBefore(card, position || null);
     });
+  }
+
+  function syncAttachmentOwner() {
+    const owner = String(window.currentUser?.id || '').trim();
+    if (owner === attachmentOwner) return;
+    attachmentOwner = owner;
+    for (const item of state.attachments) {
+      item.controller?.abort?.();
+      if (item.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl);
+    }
+    state.attachments = [];
+    state.imageRecovery = null;
+    state.precisionImageEdit = null;
+    renderAttachmentTray();
   }
 
   function activeToolLabel() {
@@ -1759,13 +1790,15 @@
   window.CrumpFileTools = Object.freeze({
     addReference: file => addRemoteReference(file),
     open: (file, download = false) => openFile(file, download),
-    upload: async file => {
+    upload: async (file, {expectedOwner = String(window.currentUser?.id || '').trim()} = {}) => {
+      requireUploadOwner(expectedOwner);
       const normalized = await normalizeInputFile(file);
+      requireUploadOwner(expectedOwner);
       const issue = validateFile(normalized);
       if (issue) throw new Error(issue);
       const item = makeLocalAttachment(normalized);
       try {
-        return await uploadItem(item);
+        return await uploadItem(item, {expectedOwner});
       } finally {
         if (item.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl);
       }
@@ -1794,6 +1827,7 @@
     window.setTimeout(sync, 700);
   }
   window.addEventListener('crump:conversation-opened', scheduleComposerPlaceholderSync);
+  window.addEventListener('crump:authenticated-ready', syncAttachmentOwner);
   function boot() {
     if (document.documentElement.dataset.crump50Booted === 'true') return;
     document.documentElement.dataset.crump50Booted = 'true';

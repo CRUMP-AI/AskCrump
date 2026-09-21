@@ -55,6 +55,11 @@ def _video_error(exc: VideoServiceError, *, stage: str) -> JSONResponse:
         else "VIDEO_ERROR"
     )
     log_level = logging.ERROR if exc.status_code >= 500 else logging.WARNING
+    reconciliation_pending = exc.code in {
+        "VIDEO_START_OUTCOME_UNKNOWN",
+        "VIDEO_JOB_TRACKING_FAILED",
+        "VIDEO_START_RECONCILIATION_PENDING",
+    }
     logger.log(
         log_level,
         "Video request rejected stage=%s status=%s code=%s retryable=%s",
@@ -70,6 +75,8 @@ def _video_error(exc: VideoServiceError, *, stage: str) -> JSONResponse:
             "error": exc.message,
             "code": exc.code,
             "shouldRetry": exc.retryable,
+            "jobId": exc.failed_job_id if reconciliation_pending else None,
+            "reconciliationPending": reconciliation_pending,
         },
     )
 
@@ -201,41 +208,65 @@ async def create_video(request: Request):
     except VideoServiceError as exc:
         return _video_error(exc, stage="budget")
 
-    try:
-        receipt = await features.consume(
-            auth.user,
-            feature_code,
-            {
-                "route": "media_video",
-                "engine": engine,
-                "resolution": resolution,
-                "durationSeconds": duration,
-                "referenceImageCount": len(reference_images),
-            },
-            confirmation=payload.get("creditConfirmation"),
-            instance_key=idempotency_key,
-            scope={
-                "route": "media_video",
-                "payload": {
-                    key: value
-                    for key, value in payload.items()
-                    if key != "creditConfirmation"
-                },
-            },
-        )
-    except FeatureAccessError as exc:
-        return _feature_error(exc)
-
     project_id = str(payload.get("projectId") or "").strip() or None
     if project_id:
         try:
             await projects.get(auth.user["id"], project_id)
         except ProjectNotFoundError:
-            await features.refund(auth.user["id"], receipt)
             return JSONResponse(
                 status_code=404,
                 content={"success": False, "error": "Project not found.", "code": "PROJECT_NOT_FOUND"},
             )
+
+    charge_scope = {
+        "route": "media_video",
+        "payload": {
+            key: value for key, value in payload.items()
+            if key != "creditConfirmation"
+        },
+    }
+    charge_metadata = {
+        "route": "media_video",
+        "engine": engine,
+        "resolution": resolution,
+        "durationSeconds": duration,
+        "referenceImageCount": len(reference_images),
+    }
+    try:
+        authorization = await features.authorize(
+            auth.user, {feature_code: 1},
+            payload.get("creditConfirmation"), scope=charge_scope,
+        )
+    except FeatureAccessError as exc:
+        return _feature_error(exc)
+
+    # This short database claim precedes the charge. A deletion fence can now
+    # reject the request without debiting credits or contacting the provider.
+    try:
+        claimed_job_id = await video.reserve_provider_claim(
+            user_id=auth.user["id"],
+            provider=video.provider_for_engine(engine),
+            operation_type="generate",
+        )
+    except VideoServiceError as exc:
+        return _video_error(exc, stage="reservation")
+    try:
+        receipt = await features.consume(
+            auth.user,
+            feature_code,
+            charge_metadata,
+            authorization=authorization,
+            instance_key=idempotency_key,
+            scope=charge_scope,
+        )
+    except FeatureAccessError as exc:
+        try:
+            await video.finish_provider_claim(
+                user_id=auth.user["id"], job_id=claimed_job_id, outcome="rejected",
+            )
+        except Exception:
+            logger.warning("Uncharged video claim needs expiry cleanup.")
+        return _feature_error(exc)
 
     try:
         row = await video.start(
@@ -249,10 +280,17 @@ async def create_video(request: Request):
             idempotency_key=idempotency_key,
             charge_receipt=receipt,
             reference_images=reference_images,
+            claimed_job_id=claimed_job_id,
         )
         return {"success": True, "job": await video.public_job(user_id=auth.user["id"], row=row)}
     except VideoServiceError as exc:
         if exc.refund_eligible:
+            try:
+                await video.finish_provider_claim(
+                    user_id=auth.user["id"], job_id=claimed_job_id, outcome="rejected",
+                )
+            except Exception:
+                logger.warning("Refundable video claim needs expiry cleanup.")
             await _refund_failed_video_charge(
                 user_id=auth.user["id"],
                 receipt=receipt,
@@ -302,24 +340,43 @@ async def continue_video(job_id: str, request: Request):
     except VideoServiceError as exc:
         return _video_error(exc, stage="continuation_budget")
 
+    charge_scope = {
+        "route": "media_video_continue",
+        "parentJobId": job_id,
+        "payload": {
+            key: value for key, value in payload.items()
+            if key != "creditConfirmation"
+        },
+    }
+    try:
+        authorization = await features.authorize(
+            auth.user, {"video_continue": 1},
+            payload.get("creditConfirmation"), scope=charge_scope,
+        )
+    except FeatureAccessError as exc:
+        return _feature_error(exc)
+    try:
+        claimed_job_id = await video.reserve_provider_claim(
+            user_id=auth.user["id"], provider="gemini", operation_type="extend",
+        )
+    except VideoServiceError as exc:
+        return _video_error(exc, stage="continuation_reservation")
     try:
         receipt = await features.consume(
             auth.user,
             "video_continue",
             {"route": "media_video_continue", "parentJobId": job_id},
-            confirmation=payload.get("creditConfirmation"),
+            authorization=authorization,
             instance_key=idempotency_key,
-            scope={
-                "route": "media_video_continue",
-                "parentJobId": job_id,
-                "payload": {
-                    key: value
-                    for key, value in payload.items()
-                    if key != "creditConfirmation"
-                },
-            },
+            scope=charge_scope,
         )
     except FeatureAccessError as exc:
+        try:
+            await video.finish_provider_claim(
+                user_id=auth.user["id"], job_id=claimed_job_id, outcome="rejected",
+            )
+        except Exception:
+            logger.warning("Uncharged continuation claim needs expiry cleanup.")
         return _feature_error(exc)
 
     try:
@@ -329,10 +386,17 @@ async def continue_video(job_id: str, request: Request):
             prompt=str(payload.get("prompt") or ""),
             idempotency_key=idempotency_key,
             charge_receipt=receipt,
+            claimed_job_id=claimed_job_id,
         )
         return {"success": True, "job": await video.public_job(user_id=auth.user["id"], row=row)}
     except VideoServiceError as exc:
         if exc.refund_eligible:
+            try:
+                await video.finish_provider_claim(
+                    user_id=auth.user["id"], job_id=claimed_job_id, outcome="rejected",
+                )
+            except Exception:
+                logger.warning("Refundable continuation claim needs expiry cleanup.")
             await _refund_failed_video_charge(
                 user_id=auth.user["id"],
                 receipt=receipt,

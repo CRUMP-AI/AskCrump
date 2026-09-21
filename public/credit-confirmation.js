@@ -34,6 +34,10 @@
     resolve(result);
   }
 
+  function cancelIfOwnerChanged() {
+    if (activeDialog && activeDialog.owner !== String(window.currentUser?.id || '')) closeDialog(null);
+  }
+
   function present(quote) {
     if (!quote || Number(quote.creditsRequired || 0) <= 0) {
       return Promise.resolve(null);
@@ -73,7 +77,7 @@
     document.body.classList.add('crump-credit-confirming');
     const priorFocus = document.activeElement;
     return new Promise(resolve => {
-      activeDialog = {node, resolve, priorFocus};
+      activeDialog = {node, resolve, priorFocus, owner: String(window.currentUser?.id || '')};
       node.querySelectorAll('[data-credit-cancel]').forEach(button => {
         button.addEventListener('click', () => closeDialog(null));
       });
@@ -113,6 +117,8 @@
     isRequired,
     present,
     run,
+    cancelIfOwnerChanged,
   });
+  window.addEventListener('crump:authenticated-ready', cancelIfOwnerChanged);
+  window.addEventListener('crump:authentication-required', () => closeDialog(null));
 })();
-

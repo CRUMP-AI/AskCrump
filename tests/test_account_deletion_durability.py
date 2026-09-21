@@ -5,7 +5,10 @@ from pathlib import Path
 import pytest
 import httpx
 
-from backend.account_deletion_service import AccountDeletionService
+from backend.account_deletion_service import (
+    AccountDeletionService,
+    VideoFenceRecoveryState,
+)
 from backend.file_service import FileServiceError
 
 
@@ -36,13 +39,23 @@ class DurableDeletionDB:
             'ai_data_sharing_consent_updated_at': '2026-09-17T23:55:00+00:00',
         }
         self.job = None
+        self.video_deletion_fence = None
+        self.events = []
+        self.insert_error = False
         self.insert_commit_then_error = False
         self.fence_commit_then_error = False
+        self.establish_forced_result = None
+        self.video_begin_commit_then_error = False
+        self.video_recovery_commit_then_error = False
+        self.database_now = datetime(2026, 9, 18, 12, 0, tzinfo=timezone.utc)
+        self.delete_user_during_recovery = False
         self.rpc_error = False
         self.rpc_commit_then_error = False
         self.rpc_calls = 0
+        self.video_fence_rpc_calls = 0
         self.native_snapshot_commit_then_error = False
         self.native_snapshot_failure = False
+        self.native_marker_during_establish = None
 
     @staticmethod
     def _expected(value):
@@ -50,6 +63,9 @@ class DurableDeletionDB:
 
     async def insert(self, table, payload):
         assert table == 'account_deletion_jobs'
+        self.events.append(('insert', table, payload['operation_token']))
+        if self.insert_error:
+            raise RuntimeError('durable job insert unavailable')
         if self.job:
             raise RuntimeError('duplicate account deletion owner')
         self.job = {'created_at': payload['fenced_at'], **dict(payload)}
@@ -108,6 +124,8 @@ class DurableDeletionDB:
             return dict(self.user) if self.user else None
         if table == 'account_deletion_jobs':
             return dict(self.job) if self.job else None
+        if table == 'video_account_deletion_fences':
+            return dict(self.video_deletion_fence) if self.video_deletion_fence else None
         raise AssertionError(table)
 
     async def select(
@@ -152,15 +170,148 @@ class DurableDeletionDB:
         return [deleted]
 
     async def rpc(self, name, payload, retry_transient=False):
+        if name == 'begin_video_account_deletion':
+            assert payload.get('p_user_id') == 'owner-user'
+            operation_token = str(payload.get('p_operation_token') or '')
+            assert operation_token
+            self.events.append(('rpc', name, operation_token))
+            self.video_fence_rpc_calls += 1
+            if not self.user:
+                return False
+            if self.user.get('deleted_at') or self.user.get('account_deletion_token'):
+                return bool(
+                    self.user.get('deleted_at')
+                    and self.user.get('account_deletion_token') == operation_token
+                    and self.video_deletion_fence
+                    and self.video_deletion_fence.get('operation_token') == operation_token
+                    and not self.video_deletion_fence.get('deleted_at')
+                )
+            if not self.video_deletion_fence:
+                self.video_deletion_fence = {
+                    'user_id': 'owner-user',
+                    'operation_token': operation_token,
+                    'requested_at': '2026-09-18T12:00:00+00:00',
+                    'deleted_at': None,
+                }
+                if self.video_begin_commit_then_error:
+                    self.video_begin_commit_then_error = False
+                    raise RuntimeError('response lost after video fence commit')
+                return True
+            return bool(
+                self.video_deletion_fence['user_id'] == 'owner-user'
+                and self.video_deletion_fence['operation_token'] == operation_token
+                and self.video_deletion_fence['deleted_at'] is None
+            )
+
+        if name == 'establish_account_deletion_fence':
+            operation_token = str(payload.get('p_operation_token') or '')
+            self.events.append(('rpc', name, operation_token))
+            if self.establish_forced_result:
+                return self.establish_forced_result
+            if not self.user:
+                return 'user_deleted'
+            if (
+                not self.job
+                or self.job.get('operation_token') != operation_token
+                or self.job.get('completed_at')
+            ):
+                return 'job_unavailable'
+            if (
+                not self.video_deletion_fence
+                or self.video_deletion_fence.get('operation_token') != operation_token
+                or self.video_deletion_fence.get('deleted_at')
+            ):
+                return 'video_fence_unavailable'
+            if self.user.get('deleted_at') or self.user.get('account_deletion_token'):
+                if (
+                    self.user.get('deleted_at')
+                    and self.user.get('account_deletion_token') == operation_token
+                ):
+                    return 'fenced'
+                return 'user_fence_conflict'
+            fenced_at = payload['p_fenced_at']
+            if self.native_marker_during_establish:
+                self.user['native_billing_identity_possible_at'] = (
+                    self.native_marker_during_establish
+                )
+            self.user.update({
+                'deleted_at': fenced_at,
+                'account_deletion_token': operation_token,
+                'ai_data_sharing_consent_revoked_at': fenced_at,
+                'ai_data_sharing_consent_updated_at': fenced_at,
+                'updated_at': fenced_at,
+            })
+            if self.fence_commit_then_error:
+                self.fence_commit_then_error = False
+                raise RuntimeError('response lost after fence commit')
+            return 'fenced'
+
+        if name == 'recover_video_account_deletion_fence':
+            operation_token = str(payload.get('p_operation_token') or '')
+            self.events.append(('rpc', name, operation_token))
+            if self.delete_user_during_recovery and self.user:
+                self.delete_user_during_recovery = False
+                if self.video_deletion_fence:
+                    self.video_deletion_fence['deleted_at'] = 'delete committed'
+                self.user = None
+            if not self.user:
+                return 'user_deleted'
+            if self.user.get('deleted_at') or self.user.get('account_deletion_token'):
+                return 'account_deleting'
+            if self.job and self.job.get('operation_token') != operation_token:
+                return 'job_conflict'
+            if self.video_deletion_fence and (
+                self.video_deletion_fence.get('operation_token') != operation_token
+                or self.video_deletion_fence.get('deleted_at')
+            ):
+                return 'not_owner'
+            if (
+                not self.job
+                and self.video_deletion_fence
+                and payload.get('p_require_stale')
+            ):
+                requested_at = datetime.fromisoformat(
+                    str(self.video_deletion_fence['requested_at']).replace('Z', '+00:00')
+                )
+                if requested_at > self.database_now - timedelta(minutes=15):
+                    return 'still_reconciling'
+            if self.job and not self.job.get('completed_at'):
+                if not self.video_deletion_fence:
+                    return 'still_reconciling'
+                requested_at = datetime.fromisoformat(
+                    str(self.video_deletion_fence['requested_at']).replace('Z', '+00:00')
+                )
+                if requested_at > self.database_now - timedelta(minutes=15):
+                    return 'still_reconciling'
+                self.job.update({
+                    'state': 'abandoned',
+                    'completed_at': 'recovery committed',
+                    'next_attempt_at': None,
+                    'last_error_code': 'DELETION_FENCE_NOT_ESTABLISHED',
+                })
+                result = 'abandoned'
+            else:
+                result = 'released' if self.video_deletion_fence else 'already_released'
+            self.video_deletion_fence = None
+            if self.video_recovery_commit_then_error:
+                self.video_recovery_commit_then_error = False
+                raise RuntimeError('response lost after atomic video fence recovery')
+            return result
+
         assert name == 'delete_user_account'
         assert payload == {'p_user_id': 'owner-user'}
         self.rpc_calls += 1
+        if self.user and not self.video_deletion_fence:
+            raise RuntimeError('video deletion fence is required')
         if self.rpc_commit_then_error:
+            self.video_deletion_fence['deleted_at'] = 'delete committed'
             self.user = None
             self.rpc_commit_then_error = False
             raise RuntimeError('response lost after delete commit')
         if self.rpc_error:
             raise RuntimeError('database temporarily unavailable')
+        if self.user:
+            self.video_deletion_fence['deleted_at'] = 'delete committed'
         self.user = None
 
 
@@ -239,6 +390,363 @@ def test_begin_reconciles_job_and_fence_commit_then_transport_errors():
     assert database.job['state'] == 'fenced'
 
 
+def test_begin_confirms_video_fence_before_persisting_durable_job():
+    clock = Clock()
+    database = DurableDeletionDB()
+    service = AccountDeletionService(database, PrefixFiles(), now=clock)
+
+    job = asyncio.run(service.begin(user_id='owner-user'))
+
+    assert database.events[0] == (
+        'rpc', 'begin_video_account_deletion', job['operation_token'],
+    )
+    assert database.events[1] == (
+        'insert', 'account_deletion_jobs', job['operation_token'],
+    )
+
+
+def test_lost_video_fence_response_is_read_back_before_job_persistence():
+    clock = Clock()
+    database = DurableDeletionDB()
+    database.video_begin_commit_then_error = True
+    service = AccountDeletionService(database, PrefixFiles(), now=clock)
+
+    job = asyncio.run(service.begin(user_id='owner-user'))
+
+    assert database.video_deletion_fence['operation_token'] == job['operation_token']
+    assert database.job['operation_token'] == job['operation_token']
+    assert database.user['account_deletion_token'] == job['operation_token']
+
+
+def test_failed_job_insert_atomically_releases_its_preconfirmed_video_fence():
+    clock = Clock()
+    database = DurableDeletionDB()
+    database.insert_error = True
+    service = AccountDeletionService(database, PrefixFiles(), now=clock)
+
+    with pytest.raises(RuntimeError, match='job persistence was not confirmed'):
+        asyncio.run(service.begin(user_id='owner-user'))
+
+    assert database.job is None
+    assert database.video_deletion_fence is None
+    assert database.user['deleted_at'] is None
+    assert [event[1] for event in database.events if event[0] == 'rpc'] == [
+        'begin_video_account_deletion',
+        'recover_video_account_deletion_fence',
+    ]
+
+
+def test_recent_unfenced_job_is_replaced_when_explicit_token_owns_video_fence():
+    clock = Clock()
+    database = DurableDeletionDB()
+    old_token = '00000000-0000-4000-8000-000000000091'
+    requested_token = '00000000-0000-4000-8000-000000000092'
+    database.job = {
+        'user_id': 'owner-user',
+        'operation_token': old_token,
+        'state': 'fencing',
+        'fenced_at': clock().isoformat(),
+        'finalize_after': (clock() + timedelta(hours=30)).isoformat(),
+        'next_attempt_at': (clock() + timedelta(minutes=15)).isoformat(),
+        'attempts': 0,
+        'last_error_code': None,
+        'created_at': clock().isoformat(),
+        'updated_at': clock().isoformat(),
+    }
+    database.video_deletion_fence = {
+        'user_id': 'owner-user',
+        'operation_token': requested_token,
+        'requested_at': clock().isoformat(),
+        'deleted_at': None,
+    }
+    service = AccountDeletionService(database, PrefixFiles(), now=clock)
+
+    job = asyncio.run(service.begin(
+        user_id='owner-user', operation_token=requested_token,
+    ))
+
+    assert job['operation_token'] == requested_token
+    assert database.job['operation_token'] == requested_token
+    assert database.user['account_deletion_token'] == requested_token
+
+
+def test_job_replacement_preserves_sticky_native_billing_evidence():
+    clock = Clock()
+    database = DurableDeletionDB()
+    old_token = '00000000-0000-4000-8000-000000000081'
+    requested_token = '00000000-0000-4000-8000-000000000082'
+    database.job = {
+        'user_id': 'owner-user',
+        'operation_token': old_token,
+        'state': 'fencing',
+        'fenced_at': clock().isoformat(),
+        'finalize_after': (clock() + timedelta(hours=30)).isoformat(),
+        'next_attempt_at': (clock() + timedelta(minutes=15)).isoformat(),
+        'attempts': 0,
+        'last_error_code': None,
+        'native_billing_identity_possible': True,
+        'created_at': clock().isoformat(),
+        'updated_at': clock().isoformat(),
+    }
+    database.video_deletion_fence = {
+        'user_id': 'owner-user',
+        'operation_token': requested_token,
+        'requested_at': clock().isoformat(),
+        'deleted_at': None,
+    }
+    service = AccountDeletionService(database, PrefixFiles(), now=clock)
+
+    job = asyncio.run(service.begin(
+        user_id='owner-user', operation_token=requested_token,
+    ))
+
+    assert job['operation_token'] == requested_token
+    assert job['native_billing_identity_possible'] is True
+    assert database.job['native_billing_identity_possible'] is True
+
+
+def test_stale_jobless_video_fence_is_recovered_before_new_token_is_owned():
+    clock = Clock()
+    database = DurableDeletionDB()
+    old_token = '00000000-0000-4000-8000-000000000083'
+    requested_token = '00000000-0000-4000-8000-000000000084'
+    database.video_deletion_fence = {
+        'user_id': 'owner-user',
+        'operation_token': old_token,
+        'requested_at': (clock() - timedelta(minutes=16)).isoformat(),
+        'deleted_at': None,
+    }
+    service = AccountDeletionService(database, PrefixFiles(), now=clock)
+
+    job = asyncio.run(service.begin(
+        user_id='owner-user', operation_token=requested_token,
+    ))
+
+    assert job['operation_token'] == requested_token
+    assert database.video_deletion_fence['operation_token'] == requested_token
+    recover_events = [event for event in database.events if event[1] == (
+        'recover_video_account_deletion_fence'
+    )]
+    assert recover_events == [
+        ('rpc', 'recover_video_account_deletion_fence', old_token),
+    ]
+
+
+def test_recent_jobless_video_fence_cannot_be_taken_over_by_a_new_token():
+    clock = Clock()
+    database = DurableDeletionDB()
+    old_token = '00000000-0000-4000-8000-000000000085'
+    requested_token = '00000000-0000-4000-8000-000000000086'
+    database.video_deletion_fence = {
+        'user_id': 'owner-user',
+        'operation_token': old_token,
+        'requested_at': clock().isoformat(),
+        'deleted_at': None,
+    }
+    service = AccountDeletionService(database, PrefixFiles(), now=clock)
+
+    with pytest.raises(RuntimeError, match='video provider start is still settling'):
+        asyncio.run(service.begin(
+            user_id='owner-user', operation_token=requested_token,
+        ))
+
+    assert database.job is None
+    assert database.video_deletion_fence['operation_token'] == old_token
+
+
+def test_absent_users_fence_releases_same_token_video_fence_after_grace():
+    clock = Clock()
+    database = DurableDeletionDB()
+    database.establish_forced_result = 'job_unavailable'
+    service = AccountDeletionService(database, PrefixFiles(), now=clock)
+
+    with pytest.raises(RuntimeError, match='fence was not confirmed'):
+        asyncio.run(service.begin(user_id='owner-user'))
+    assert database.job.get('completed_at') is None
+    assert database.video_deletion_fence is not None
+    assert database.user['deleted_at'] is None
+
+    database.establish_forced_result = None
+    clock.advance(minutes=16)
+    database.database_now = clock()
+    progress = asyncio.run(service.process(database.job))
+
+    assert progress.code == 'DELETION_FENCE_NOT_ESTABLISHED'
+    assert progress.retry_scheduled is False
+    assert database.job['state'] == 'abandoned'
+    assert database.job['completed_at'] is not None
+    assert database.video_deletion_fence is None
+
+
+def test_lost_atomic_recovery_response_reconciles_absent_fence_as_success():
+    clock = Clock()
+    database = DurableDeletionDB()
+    database.establish_forced_result = 'job_unavailable'
+    service = AccountDeletionService(database, PrefixFiles(), now=clock)
+    with pytest.raises(RuntimeError):
+        asyncio.run(service.begin(user_id='owner-user'))
+    database.establish_forced_result = None
+    database.video_recovery_commit_then_error = True
+    clock.advance(minutes=16)
+    database.database_now = clock()
+
+    progress = asyncio.run(service.process(database.job))
+
+    assert progress.code == 'DELETION_FENCE_NOT_ESTABLISHED'
+    assert progress.retry_scheduled is False
+    assert database.video_deletion_fence is None
+    assert database.job['state'] == 'abandoned'
+
+
+def test_recovery_freshness_uses_database_fence_time_not_job_clock():
+    clock = Clock()
+    database = DurableDeletionDB()
+    database.establish_forced_result = 'job_unavailable'
+    service = AccountDeletionService(database, PrefixFiles(), now=clock)
+    with pytest.raises(RuntimeError):
+        asyncio.run(service.begin(user_id='owner-user'))
+    token = database.job['operation_token']
+
+    # An application-authored job timestamp far in the past cannot shorten the
+    # grace while the database-authored fence is recent.
+    database.job['created_at'] = (clock() - timedelta(days=365)).isoformat()
+    recent = asyncio.run(service.recover_video_fence(
+        user_id='owner-user', operation_token=token,
+    ))
+    assert recent is VideoFenceRecoveryState.STILL_RECONCILING
+    assert database.video_deletion_fence is not None
+
+    # Nor can a future application timestamp extend recovery after the locked
+    # database fence itself proves the operation stale.
+    database.job['created_at'] = (clock() + timedelta(days=365)).isoformat()
+    database.video_deletion_fence['requested_at'] = (
+        clock() - timedelta(minutes=16)
+    ).isoformat()
+    stale = asyncio.run(service.recover_video_fence(
+        user_id='owner-user', operation_token=token,
+    ))
+    assert stale is VideoFenceRecoveryState.ABANDONED
+    assert database.job['completed_at'] is not None
+    assert database.video_deletion_fence is None
+
+
+def test_live_job_without_video_fence_remains_fail_closed():
+    clock = Clock()
+    database = DurableDeletionDB()
+    token = '00000000-0000-4000-8000-000000000097'
+    database.job = {
+        'user_id': 'owner-user',
+        'operation_token': token,
+        'state': 'fencing',
+        'fenced_at': (clock() - timedelta(days=365)).isoformat(),
+        'created_at': (clock() - timedelta(days=365)).isoformat(),
+        'completed_at': None,
+    }
+    service = AccountDeletionService(database, PrefixFiles(), now=clock)
+
+    recovery = asyncio.run(service.recover_video_fence(
+        user_id='owner-user', operation_token=token,
+    ))
+
+    assert recovery is VideoFenceRecoveryState.STILL_RECONCILING
+    assert database.job.get('completed_at') is None
+
+
+def test_atomic_recovery_never_releases_a_different_video_fence_token():
+    clock = Clock()
+    database = DurableDeletionDB()
+    database.establish_forced_result = 'job_unavailable'
+    service = AccountDeletionService(database, PrefixFiles(), now=clock)
+    with pytest.raises(RuntimeError):
+        asyncio.run(service.begin(user_id='owner-user'))
+    job_token = database.job['operation_token']
+    different_token = '00000000-0000-4000-8000-000000000093'
+    database.video_deletion_fence['operation_token'] = different_token
+    database.establish_forced_result = None
+    clock.advance(minutes=16)
+
+    progress = asyncio.run(service.process(database.job))
+
+    assert progress.code == 'VIDEO_DELETION_FENCE_OWNERSHIP_CONFLICT'
+    assert progress.retry_scheduled is True
+    assert database.video_deletion_fence['operation_token'] == different_token
+    assert database.job['operation_token'] == job_token
+    assert database.job.get('completed_at') is None
+
+
+def test_account_deleting_recovery_readback_requires_the_exact_users_token():
+    clock = Clock()
+    database = DurableDeletionDB()
+    requested_token = '00000000-0000-4000-8000-000000000094'
+    different_token = '00000000-0000-4000-8000-000000000095'
+    database.user.update({
+        'deleted_at': clock().isoformat(),
+        'account_deletion_token': different_token,
+    })
+    database.video_deletion_fence = {
+        'user_id': 'owner-user',
+        'operation_token': different_token,
+        'requested_at': clock().isoformat(),
+        'deleted_at': None,
+    }
+    service = AccountDeletionService(database, PrefixFiles(), now=clock)
+
+    recovery = asyncio.run(service.recover_video_fence(
+        user_id='owner-user', operation_token=requested_token,
+    ))
+
+    assert recovery is VideoFenceRecoveryState.NOT_OWNER
+    assert database.user['account_deletion_token'] == different_token
+    assert database.video_deletion_fence['operation_token'] == different_token
+
+
+def test_account_deleting_recovery_readback_accepts_the_exact_users_token():
+    clock = Clock()
+    database = DurableDeletionDB()
+    requested_token = '00000000-0000-4000-8000-000000000096'
+    database.user.update({
+        'deleted_at': clock().isoformat(),
+        'account_deletion_token': requested_token,
+    })
+    database.video_deletion_fence = {
+        'user_id': 'owner-user',
+        'operation_token': requested_token,
+        'requested_at': clock().isoformat(),
+        'deleted_at': None,
+    }
+    service = AccountDeletionService(database, PrefixFiles(), now=clock)
+
+    recovery = asyncio.run(service.recover_video_fence(
+        user_id='owner-user', operation_token=requested_token,
+    ))
+
+    assert recovery is VideoFenceRecoveryState.ACCOUNT_DELETING
+    assert database.video_deletion_fence['operation_token'] == requested_token
+
+
+def test_user_deleted_during_recovery_continues_as_user_missing_without_release():
+    clock = Clock()
+    database = DurableDeletionDB()
+    files = PrefixFiles({'owner-user/cleanup-after-delete.png'})
+    database.establish_forced_result = 'job_unavailable'
+    service = AccountDeletionService(database, files, now=clock)
+    with pytest.raises(RuntimeError):
+        asyncio.run(service.begin(user_id='owner-user'))
+    database.establish_forced_result = None
+    database.delete_user_during_recovery = True
+    clock.advance(minutes=16)
+
+    progress = asyncio.run(service.process(database.job))
+
+    assert progress.account_deleted is True
+    assert progress.retry_scheduled is True
+    assert progress.code is None
+    assert database.user is None
+    assert database.video_deletion_fence['deleted_at'] == 'delete committed'
+    assert files.objects == set()
+    assert database.rpc_calls == 0
+
+
 def test_native_marker_is_snapshotted_after_fence_even_with_lost_write_response():
     clock = Clock()
     database = DurableDeletionDB()
@@ -256,7 +764,10 @@ def test_native_marker_is_snapshotted_after_fence_even_with_lost_write_response(
 def test_unconfirmed_native_snapshot_blocks_local_deletion():
     clock = Clock()
     database = DurableDeletionDB()
-    database.user['native_billing_identity_possible_at'] = clock().isoformat()
+    # The marker wins immediately before the SQL fence. The initial job insert
+    # could not include evidence it had not observed, so its post-fence CAS
+    # must be confirmed before any local deletion is allowed.
+    database.native_marker_during_establish = clock().isoformat()
     database.native_snapshot_failure = True
     files = PrefixFiles({'owner-user/keep.png'})
     service = AccountDeletionService(database, files, now=clock)
@@ -715,26 +1226,27 @@ def test_rpc_commit_then_error_is_reconciled_without_restoring_access():
     assert database.job['state'] == 'late_upload_sweep'
 
 
-def test_stale_unfenced_job_expires_without_touching_active_account_storage():
+def test_stale_unfenced_job_remains_fail_closed_until_replaced():
     clock = Clock()
     database = DurableDeletionDB()
     files = PrefixFiles({'owner-user/active-account-file.png'})
     service = AccountDeletionService(database, files, now=clock)
     job = asyncio.run(service.begin(user_id='owner-user'))
 
-    # Model a durable job whose user fence was never committed. A matching token
-    # is required before the worker may touch the owner prefix.
+    # Model a durable job whose provider and user fences were never committed.
+    # A matching token is required before the worker may touch the owner prefix.
     database.user['deleted_at'] = None
     database.user['account_deletion_token'] = None
+    database.video_deletion_fence = None
     clock.advance(minutes=16)
     progress = asyncio.run(service.process(job))
 
-    assert progress.code == 'DELETION_FENCE_NOT_ESTABLISHED'
-    assert progress.retry_scheduled is False
+    assert progress.code == 'DELETION_FENCE_NOT_VISIBLE'
+    assert progress.retry_scheduled is True
     assert files.calls == 0
     assert files.objects == {'owner-user/active-account-file.png'}
-    assert database.job['state'] == 'abandoned'
-    assert database.job['completed_at'] is not None
+    assert database.job['state'] == 'retry_pending'
+    assert database.job.get('completed_at') is None
 
     old_finalize_after = database.job['finalize_after']
     clock.advance(hours=2)

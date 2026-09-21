@@ -118,7 +118,7 @@ async def test_ready_video_marks_an_unavailable_project_as_non_retryable(monkeyp
 
 def test_video_project_retry_reuses_only_the_owner_scoped_attachment_endpoint():
     product = (ROOT / "public" / "crump-product-5.3.js").read_text(encoding="utf-8")
-    retry = product.split("async function retryVideoProjectAttachment(job)", 1)[1].split(
+    retry = product.split("async function retryVideoProjectAttachment(job, owner = videoOwner())", 1)[1].split(
         "function renderReadyVideo(job", 1
     )[0]
 
@@ -128,3 +128,5 @@ def test_video_project_retry_reuses_only_the_owner_scoped_attachment_endpoint():
     assert "/api/projects/${encodeURIComponent(projectId)}/files" in retry
     assert "/continue" not in retry
     assert "credits" not in retry.lower()
+    assert "if (!isCurrentVideoOwner(owner)) return;" in retry
+    assert "if (!isCurrentVideoSession(owner, ownerEpoch)) return;" in retry

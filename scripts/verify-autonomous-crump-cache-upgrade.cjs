@@ -5,10 +5,12 @@ const path = require('node:path');
 const {chromium} = require('playwright');
 
 const publicDirectory = path.resolve(process.cwd(), 'public');
-const oldCacheName = 'ask-crump-new-body-v1-r249';
-const newCacheName = 'ask-crump-new-body-v1-r252';
+const oldCacheName = 'ask-crump-new-body-v1-r252';
+const newCacheName = 'ask-crump-new-body-v1-r253';
 const oldLoaderUrl = '/crump-code-loader.js?v=5.9.76-code-lazy-load-1';
 const newLoaderUrl = '/crump-code-loader.js?v=5.9.76-autonomous-crump-1';
+const oldRuntimeUrl = '/runtime-body-v1.js?v=5.9.76-native-identity-fresh-1';
+const newRuntimeUrl = '/runtime-body-v1.js?v=5.9.76-owner-isolation-native-store-1';
 const fixturePath = '/__autonomous-crump-upgrade.html';
 const oldWorkerPath = '/__autonomous-crump-old-sw.js';
 const contentTypes = Object.freeze({
@@ -32,15 +34,24 @@ function fixtureHtml() {
 function oldWorkerSource() {
   return `const CACHE_NAME = ${JSON.stringify(oldCacheName)};
 const OLD_LOADER_URL = ${JSON.stringify(oldLoaderUrl)};
+const OLD_RUNTIME_URL = ${JSON.stringify(oldRuntimeUrl)};
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.put(
-        new Request(OLD_LOADER_URL),
-        new Response("window.__legacyWorkspaceName = 'Crump Code';", {
-          headers: {'Content-Type': 'text/javascript; charset=utf-8'},
-        }),
-      ))
+      .then(cache => Promise.all([
+        cache.put(
+          new Request(OLD_LOADER_URL),
+          new Response("window.__legacyWorkspaceName = 'Crump Code';", {
+            headers: {'Content-Type': 'text/javascript; charset=utf-8'},
+          }),
+        ),
+        cache.put(
+          new Request(OLD_RUNTIME_URL),
+          new Response("window.__staleNativeCandidate = true;", {
+            headers: {'Content-Type': 'text/javascript; charset=utf-8'},
+          }),
+        ),
+      ]))
       .then(() => self.skipWaiting())
   );
 });
@@ -119,13 +130,19 @@ async function startServer() {
         await new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve, {once: true}));
       }
     }, oldWorkerPath);
-    const legacyEvidence = await page.evaluate(async ({cacheName, loaderUrl}) => {
+    const legacyEvidence = await page.evaluate(async ({cacheName, loaderUrl, runtimeUrl}) => {
       const cache = await caches.open(cacheName);
       const response = await cache.match(loaderUrl);
-      return {cacheKeys: await caches.keys(), loaderSource: response ? await response.text() : ''};
-    }, {cacheName: oldCacheName, loaderUrl: oldLoaderUrl});
+      const runtimeResponse = await cache.match(runtimeUrl);
+      return {
+        cacheKeys: await caches.keys(),
+        loaderSource: response ? await response.text() : '',
+        runtimeSource: runtimeResponse ? await runtimeResponse.text() : '',
+      };
+    }, {cacheName: oldCacheName, loaderUrl: oldLoaderUrl, runtimeUrl: oldRuntimeUrl});
     assert.ok(legacyEvidence.cacheKeys.includes(oldCacheName));
     assert.ok(legacyEvidence.loaderSource.includes('Crump Code'));
+    assert.ok(legacyEvidence.runtimeSource.includes('__staleNativeCandidate'));
 
     await page.evaluate(async () => {
       await navigator.serviceWorker.register('/sw.js', {scope: '/'});
@@ -143,17 +160,23 @@ async function startServer() {
     }
     assert.equal(upgradeReady, true, 'the current service worker did not finish replacing the legacy cache');
 
-    const upgradedEvidence = await page.evaluate(async ({cacheName, oldUrl, nextUrl}) => {
+    const upgradedEvidence = await page.evaluate(async ({
+      cacheName, oldUrl, oldRuntime, nextUrl, nextRuntime,
+    }) => {
       const cache = await caches.open(cacheName);
       const nextResponse = await cache.match(nextUrl);
+      const nextRuntimeResponse = await cache.match(nextRuntime);
       const staleResponse = await caches.match(oldUrl);
+      const staleRuntimeResponse = await caches.match(oldRuntime);
       const registrations = await navigator.serviceWorker.getRegistrations();
       const workerSource = await fetch('/sw.js', {cache: 'no-store'}).then(response => response.text());
       return {
         cacheKeys: await caches.keys(),
         controller: navigator.serviceWorker.controller?.scriptURL || '',
         loaderSource: nextResponse ? await nextResponse.text() : '',
+        runtimeSource: nextRuntimeResponse ? await nextRuntimeResponse.text() : '',
         staleLoaderPresent: Boolean(staleResponse),
+        staleRuntimePresent: Boolean(staleRuntimeResponse),
         registrations: registrations.map(registration => ({
           scope: registration.scope,
           active: registration.active?.scriptURL || '',
@@ -162,7 +185,13 @@ async function startServer() {
         })),
         workerDeletesLegacyCaches: workerSource.includes('async function deleteLegacyCaches()'),
       };
-    }, {cacheName: newCacheName, oldUrl: oldLoaderUrl, nextUrl: newLoaderUrl});
+    }, {
+      cacheName: newCacheName,
+      oldUrl: oldLoaderUrl,
+      oldRuntime: oldRuntimeUrl,
+      nextUrl: newLoaderUrl,
+      nextRuntime: newRuntimeUrl,
+    });
 
     assert.ok(upgradedEvidence.cacheKeys.includes(newCacheName));
     assert.ok(
@@ -172,8 +201,12 @@ async function startServer() {
     assert.ok(upgradedEvidence.controller.endsWith('/sw.js'));
     assert.ok(upgradedEvidence.loaderSource.includes('Autonomous Crump'));
     assert.ok(upgradedEvidence.loaderSource.includes('5.9.76-autonomous-crump-1'));
+    assert.ok(upgradedEvidence.runtimeSource.includes(
+      '/account-manager.js?v=5.9.76-owner-isolation-native-store-1',
+    ));
     assert.equal(upgradedEvidence.loaderSource.includes("'Crump Code'"), false);
     assert.equal(upgradedEvidence.staleLoaderPresent, false);
+    assert.equal(upgradedEvidence.staleRuntimePresent, false);
     assert.deepEqual(errors, []);
 
     process.stdout.write(JSON.stringify({

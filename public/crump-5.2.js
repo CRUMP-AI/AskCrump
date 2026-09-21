@@ -916,6 +916,8 @@
     hookRenderer();
     ownAttachButton();
     ownBillingButton();
+    window.CrumpBillingCenter52Ready = true;
+    window.dispatchEvent(new Event('crump:billing-center-ready'));
 
     const observer = new MutationObserver(() => {
       hookRenderer();

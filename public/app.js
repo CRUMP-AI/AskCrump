@@ -40,6 +40,7 @@ let chats = [];
 let currentChatId = null;
 let currentProfile = null;
 let selectedFiles = [];
+let composerFileOwner = String(window.currentUser?.id || '').trim();
 let isProcessing = false;
 let freshConversationRequested = false;
 let settingsBaselineSignature = '';
@@ -106,6 +107,7 @@ function isPristineChat(chat) {
 
 // Authenticated lifecycle
 window.initializeAuthenticatedApp = function(user) {
+    resetComposerFilesForOwner(user?.id);
     // Store user info globally and isolate this account's offline cache.
     window.currentUser = user;
     window.configureUserStorage?.(user.id);
@@ -951,6 +953,16 @@ function displayFilePreview() {
     preview.appendChild(summary);
 }
 
+function resetComposerFilesForOwner(userId) {
+    const owner = String(userId || '').trim();
+    if (owner === composerFileOwner) return;
+    composerFileOwner = owner;
+    selectedFiles = [];
+    const input = document.getElementById('fileInput');
+    if (input) input.value = '';
+    displayFilePreview();
+}
+
 window.removeFile = function removeFile(index) {
     selectedFiles.splice(index, 1);
     displayFilePreview();
@@ -1254,6 +1266,7 @@ function loadSettingsValues() {
 }
 
 window.addEventListener('crump:authenticated-ready', () => {
+    resetComposerFilesForOwner(window.currentUser?.id);
     const modal = document.getElementById('settingsModal');
     if (modal && getComputedStyle(modal).display !== 'none') scheduleSettingsIdentityPresentation();
 });

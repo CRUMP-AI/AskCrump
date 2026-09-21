@@ -5,7 +5,7 @@
   window.__crumpProductLoaderLoaded = true;
 
   const STYLE_URL = '/crump-product-5.3.css?v=5.9.76-file-library-window-1';
-  const SCRIPT_URL = '/crump-product-5.3.js?v=5.9.76-studio-action-labels-1';
+  const SCRIPT_URL = '/crump-product-5.3.js?v=5.9.76-owner-reconciliation-1';
   const ACTIVE_PROJECT_KEY = 'askcrump.activeProject53';
   const VIDEO_JOB_KEY = 'askcrump.videoJob53';
   const VIDEO_REQUEST_KEY = 'askcrump.videoRequest53';
@@ -177,7 +177,13 @@
   window.CrumpProductLoader = Object.freeze({load});
 
   function shouldResumeAfterAuthentication() {
-    if (stored(VIDEO_JOB_KEY) || stored(VIDEO_REQUEST_KEY) || stored(ACTIVE_PROJECT_KEY)) return true;
+    const owner = String(window.currentUser?.id || '').trim();
+    const jobKey = owner ? `${VIDEO_JOB_KEY}:${encodeURIComponent(owner)}` : '';
+    const requestKey = owner ? `${VIDEO_REQUEST_KEY}:${encodeURIComponent(owner)}` : '';
+    // The unscoped legacy job needs a server-owned migration in the product
+    // runtime. An unscoped idempotency request cannot establish ownership.
+    if ((jobKey && stored(jobKey)) || (requestKey && stored(requestKey))
+      || stored(VIDEO_JOB_KEY) || stored(ACTIVE_PROJECT_KEY)) return true;
     const chatId = String(window.currentChatId || '').trim();
     if (!chatId) return false;
     const chat = (Array.isArray(window.chats) ? window.chats : []).find(

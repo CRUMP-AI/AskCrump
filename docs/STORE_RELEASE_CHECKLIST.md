@@ -62,6 +62,29 @@
 
 See `docs/STORE_READINESS_AUDIT_2026-08-27.md` for evidence, blockers, and official references.
 
+## 2026-09-20 release-candidate delta (not a store submission)
+
+- [x] An isolated source candidate integrates account/checkout/video owner-isolation fixes and
+      PWA cache versioning. Its focused local test and browser matrices passed. This is not a
+      merged, deployed, signed, or store-reviewed build.
+- [ ] Prove the staged video/account-deletion database fence against two concurrent database
+      connections, confirm worker compatibility and cost/retention policy, then review and apply
+      the exact migration before any dependent code deploy. The SQL remains staged, not applied.
+- [ ] Verify an actual owned signed PDF opens inside the production app under the proposed
+      exact-origin preview policy. Source/CSP parity alone is insufficient.
+- [ ] Re-run unsigned iOS compilation with an explicitly selected Apple-accepted Xcode/iOS SDK,
+      and verify Android AAB 16 KB native-page compatibility for the exact release candidate.
+- [ ] Confirm the publisher account, agreements, app records, signing materials, Firebase,
+      RevenueCat/store products, and whether Google's new-personal-account closed test applies.
+- [ ] If a release specialist is used, invite a time-limited, app-scoped user only after the exact
+      release commit is approved; record the permitted milestones, retain company ownership of all
+      accounts/signing material, and remove the specialist's access after the final handoff.
+- [ ] Produce and test exact signed IPA/AAB artifacts; capture physical iPhone, iPad, and Android
+      journeys, purchase/restore, push, deletion, privacy declarations, screenshots, and reviewer
+      access; pass the existing submission-packet gate before either store submission.
+
+Until these gates pass, prior unsigned CI builds and source tests are progress evidence only.
+
 ## Apple
 
 - [ ] App record, agreements, tax/banking, bundle ID, signing, and provisioning complete

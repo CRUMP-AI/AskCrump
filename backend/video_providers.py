@@ -94,9 +94,9 @@ class GeminiVeoProvider:
             "Gemini video request rejected phase=%s status=%s code=%s request_id=%s message=%s",
             "poll" if checking else "start",
             response.status_code,
-            provider_code or "-",
-            request_id or "-",
-            provider_message or "-",
+            "-" if checking else provider_code or "-",
+            "-" if checking else request_id or "-",
+            "-" if checking else provider_message or "-",
         )
         diagnostic = f"{provider_code} {provider_message}".lower()
         if response.status_code in {401, 403} or "permission_denied" in diagnostic:
@@ -176,17 +176,33 @@ class GeminiVeoProvider:
                     headers=self.headers,
                     json={"instances": [instance], "parameters": parameters},
                 )
-        except httpx.HTTPError as exc:
+        except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
             raise ProviderError("Could not start the video generation job.", "VIDEO_PROVIDER_UNAVAILABLE", 503, True) from exc
+        except httpx.HTTPError as exc:
+            raise ProviderError(
+                "The video start outcome is unknown. Ask Crump must reconcile it before another attempt.",
+                "VIDEO_START_OUTCOME_UNKNOWN", 503, False, "PROVIDER_START_OUTCOME_UNKNOWN", False,
+            ) from exc
+        if response.status_code >= 500:
+            raise ProviderError(
+                "The video start outcome is unknown. Ask Crump must reconcile it before another attempt.",
+                "VIDEO_START_OUTCOME_UNKNOWN", 503, False, "PROVIDER_START_OUTCOME_UNKNOWN", False,
+            )
         if response.status_code >= 400:
             raise self._exception(response)
         try:
             body = response.json()
         except ValueError as exc:
-            raise ProviderError("The video provider returned an invalid response.", "VIDEO_PROVIDER_INVALID_RESPONSE", 502, True) from exc
+            raise ProviderError(
+                "The video provider returned an invalid start receipt.",
+                "VIDEO_START_OUTCOME_UNKNOWN", 503, False, "PROVIDER_START_OUTCOME_UNKNOWN", False,
+            ) from exc
         operation_name = str(body.get("name") or "").strip()
         if not operation_name:
-            raise ProviderError("The video provider did not return a job identifier.", "VIDEO_PROVIDER_INVALID_RESPONSE", 502, True)
+            raise ProviderError(
+                "The video provider did not return a job identifier.",
+                "VIDEO_START_OUTCOME_UNKNOWN", 503, False, "PROVIDER_START_OUTCOME_UNKNOWN", False,
+            )
         return operation_name[:500]
 
     async def poll(self, provider_job_id: str) -> dict[str, Any]:
@@ -286,8 +302,8 @@ class RunwayProvider:
             "Runway video request rejected phase=%s status=%s request_id=%s message=%s",
             "poll" if checking else "start",
             response.status_code,
-            str(response.headers.get("x-request-id") or "")[:160] or "-",
-            message or "-",
+            "-" if checking else str(response.headers.get("x-request-id") or "")[:160] or "-",
+            "-" if checking else message or "-",
         )
         if response.status_code in {401, 403}:
             return ProviderError("Runway API access is not configured for this project.", "VIDEO_PROVIDER_PERMISSION_REQUIRED", 503)
@@ -327,17 +343,33 @@ class RunwayProvider:
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(45.0, connect=15.0)) as client:
                 response = await client.post(f"{RUNWAY_BASE_URL}/{endpoint}", headers=self.headers, json=payload)
-        except httpx.HTTPError as exc:
+        except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
             raise ProviderError("Could not start the Runway video job.", "VIDEO_PROVIDER_UNAVAILABLE", 503, True) from exc
+        except httpx.HTTPError as exc:
+            raise ProviderError(
+                "The Runway start outcome is unknown. Ask Crump must reconcile it before another attempt.",
+                "VIDEO_START_OUTCOME_UNKNOWN", 503, False, "PROVIDER_START_OUTCOME_UNKNOWN", False,
+            ) from exc
+        if response.status_code >= 500:
+            raise ProviderError(
+                "The Runway start outcome is unknown. Ask Crump must reconcile it before another attempt.",
+                "VIDEO_START_OUTCOME_UNKNOWN", 503, False, "PROVIDER_START_OUTCOME_UNKNOWN", False,
+            )
         if response.status_code >= 400:
             raise self._exception(response)
         try:
             body = response.json()
         except ValueError as exc:
-            raise ProviderError("Runway returned an invalid response.", "VIDEO_PROVIDER_INVALID_RESPONSE", 502, True) from exc
+            raise ProviderError(
+                "Runway returned an invalid start receipt.",
+                "VIDEO_START_OUTCOME_UNKNOWN", 503, False, "PROVIDER_START_OUTCOME_UNKNOWN", False,
+            ) from exc
         task_id = str(body.get("id") or "").strip()
         if not task_id:
-            raise ProviderError("Runway did not return a task identifier.", "VIDEO_PROVIDER_INVALID_RESPONSE", 502, True)
+            raise ProviderError(
+                "Runway did not return a task identifier.",
+                "VIDEO_START_OUTCOME_UNKNOWN", 503, False, "PROVIDER_START_OUTCOME_UNKNOWN", False,
+            )
         return task_id[:500]
 
     async def poll(self, provider_job_id: str) -> dict[str, Any]:

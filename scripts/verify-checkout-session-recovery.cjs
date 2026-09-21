@@ -4,8 +4,8 @@ const {chromium} = require('playwright');
 const baseUrl = process.env.ASKCRUMP_FIXTURE_ORIGIN || 'http://127.0.0.1:8765';
 const executablePath = process.env.CODEX_BROWSER_EXECUTABLE || undefined;
 
-async function signIn(page) {
-  await page.locator('#loginEmail').fill('fixture@example.test');
+async function signIn(page, email = 'fixture@example.test') {
+  await page.locator('#loginEmail').fill(email);
   await page.locator('#loginPassword').fill('Fixture1234');
   await page.locator('#loginFormElement').evaluate(form => form.requestSubmit());
 }
@@ -42,10 +42,20 @@ async function signIn(page) {
 
     const credit = page.getByRole('button', {name:'Add 150 Crump Credits for $9.99', exact:true});
     await credit.waitFor({state:'visible'});
+    await page.evaluate(() => {
+      const privateChat = document.createElement('div');
+      privateChat.id = 'checkoutFixturePreviousAccountChat';
+      privateChat.textContent = 'Previous account private chat';
+      document.getElementById('appContainer').appendChild(privateChat);
+    });
     await credit.click();
 
+    await page.waitForURL(/reauth=checkout/);
     await page.waitForFunction(() => document.getElementById('authContainer')?.style.display === 'flex');
     assert.match(await page.locator('#loginError').textContent(), /Nothing has been charged/);
+    assert.equal(await page.locator('#checkoutFixturePreviousAccountChat').count(), 0,
+      'Reauthentication must destroy the previous account document before another login');
+    assert.equal(await page.locator('#appContainer').isVisible(), false);
     assert.equal(await page.locator('.billing51-modal').count(), 0);
     assert.equal(Number(await page.locator('#checkoutFixtureRequests').textContent()), 1);
     await page.waitForFunction(() => Number(document.getElementById('checkoutFixtureClearCalls')?.textContent || 0) === 1);
@@ -56,11 +66,24 @@ async function signIn(page) {
     assert.ok(Number.isFinite(pendingCredit.capturedAt));
 
     await signIn(page);
+    await page.waitForURL(/checkout-session-recovery\.html$/);
     await page.waitForFunction(() => {
       const button = document.querySelector(
         '.billing51-pack[data-crump-pack="credits_150"] .billing51-buy:not([disabled])',
       );
       return button && document.activeElement === button;
+    }).catch(async error => {
+      const state = await page.evaluate(() => ({
+        url: location.href,
+        app: document.getElementById('appContainer')?.style.display,
+        modal: document.querySelector('.billing51-modal')?.outerHTML.slice(0, 400),
+        creditButton: document.querySelector('.billing51-pack[data-crump-pack="credits_150"] .billing51-buy')?.outerHTML,
+        active: document.activeElement?.outerHTML.slice(0, 250),
+        pending: window.BillingManager?.pendingCheckoutRecovery?.(),
+        errors: document.getElementById('checkoutFixtureErrors')?.textContent,
+      }));
+      console.error('Checkout recovery diagnostic:', state);
+      throw error;
     });
     assert.equal(Number(await page.locator('#checkoutFixtureRequests').textContent()), 1);
     assert.equal(await page.evaluate(() => window.BillingManager.pendingCheckoutRecovery()), null);
@@ -75,6 +98,7 @@ async function signIn(page) {
     await plan.waitFor({state:'visible'});
     await plan.click();
 
+    await page.waitForURL(/reauth=checkout/);
     await page.waitForFunction(() => document.getElementById('authContainer')?.style.display === 'flex');
     assert.equal(await page.locator('.billing51-modal').count(), 0);
     assert.equal(Number(await page.locator('#checkoutFixtureRequests').textContent()), 2);
@@ -85,6 +109,7 @@ async function signIn(page) {
     assert.equal(pendingPlan.selection, 'professional');
 
     await signIn(page);
+    await page.waitForURL(/checkout-session-recovery\.html$/);
     await page.waitForFunction(() => {
       const button = document.querySelector(
         '.billing51-plan[data-crump-plan="professional"] button:not([disabled])',
@@ -183,6 +208,28 @@ async function signIn(page) {
     assert.equal(Number(await page.locator('#checkoutFixtureTermsRequests').textContent()), 2);
 
     assert.equal(Number(await page.locator('#checkoutFixtureErrors').textContent()), 0);
+    const otherAccount = await browser.newPage({viewport:{width:390, height:844}});
+    otherAccount.on('pageerror', error => browserErrors.push(error.message));
+    await otherAccount.goto(`${baseUrl}/tests/fixtures/checkout-session-recovery.html`, {waitUntil:'load'});
+    await otherAccount.waitForFunction(() => window.currentUser?.id === 'fixture-user');
+    await otherAccount.evaluate(() => window.__loadFixtureSubscriptions());
+    await otherAccount.waitForFunction(() => window.CrumpBillingCenter52Ready === true);
+    await otherAccount.getByRole('button', {name:'Plan & credits'}).click();
+    await otherAccount.getByRole('button', {name:'Add 150 Crump Credits for $9.99', exact:true}).waitFor();
+    await otherAccount.evaluate(() => {
+      const oldChat = document.createElement('div');
+      oldChat.id = 'previousAccountSecret';
+      oldChat.textContent = 'A private chat';
+      document.getElementById('appContainer').appendChild(oldChat);
+    });
+    await otherAccount.getByRole('button', {name:'Add 150 Crump Credits for $9.99', exact:true}).click();
+    await otherAccount.waitForURL(/reauth=checkout/);
+    assert.equal(await otherAccount.locator('#previousAccountSecret').count(), 0);
+    await signIn(otherAccount, 'fixture-b@example.test');
+    await otherAccount.waitForFunction(() => window.currentUser?.id === 'fixture-b');
+    assert.equal(await otherAccount.locator('#previousAccountSecret').count(), 0);
+    assert.equal(Number(await otherAccount.locator('#checkoutFixtureRequests').textContent()), 1);
+    await otherAccount.close();
     assert.deepEqual(browserErrors, []);
     process.stdout.write(JSON.stringify({
       planHydration:{loadingPlaceholders:2, liveActions:2, checkoutRequestsBeforeAction:0},
@@ -192,6 +239,7 @@ async function signIn(page) {
       recovered:['credits_150', 'professional'],
       rejectedDestinations:['credit', 'subscription'],
       termsAcceptance:{blockedBeforeConsent:true, retryRecovered:true, requests:2},
+      crossAccountDocumentIsolation:true,
     }));
   } finally {
     await browser.close();

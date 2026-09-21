@@ -6,6 +6,15 @@ const { chromium } = require('playwright');
   const browser = await chromium.launch({headless: true, ...(executablePath ? {executablePath} : {})});
   const page = await browser.newPage({viewport: {width: 390, height: 844}});
   const errors = [];
+  const blockedRequests = [];
+  await page.route('**/*', route => {
+    const url = new URL(route.request().url());
+    if (url.hostname !== '127.0.0.1' || url.pathname.startsWith('/api/')) {
+      blockedRequests.push(url.href);
+      return route.abort();
+    }
+    return route.continue();
+  });
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('http://127.0.0.1:8765/tests/fixtures/file-delivery.html', {waitUntil: 'domcontentloaded'});
@@ -54,9 +63,32 @@ const { chromium } = require('playwright');
   await imageViewer.getByRole('button', {name: 'Done'}).click();
   await page.waitForTimeout(40);
   assert.equal(await page.evaluate(() => document.activeElement?.id), 'fixtureOpener');
+
+  // Render synthetic assistant messages through the real crump-5.0 wrapper.
+  await page.waitForFunction(() => window.renderMessages?.__crump50Wrapped === true);
+  await page.evaluate(() => {
+    document.querySelector('.crump53-overlay').remove();
+    window.renderMessages(window.chats[0].messages);
+  });
+  const artifactCards = page.locator('#chatContainer .crump50-artifact');
+  assert.equal(await artifactCards.count(), 3);
+  assert.deepEqual(await artifactCards.locator('span').allTextContents(), ['DOCX', 'PDF', 'PPTX']);
+  for (let index = 0; index < 3; index += 1) {
+    assert.equal(await artifactCards.nth(index).getByRole('button', {name: 'Download'}).count(), 1);
+    await artifactCards.nth(index).getByRole('button', {name: 'Download'}).click();
+  }
+  const finalResult = await page.evaluate(() => window.__fixture);
+  assert.equal(finalResult.openedWindows, 0);
+  assert.deepEqual(finalResult.downloads, [
+    {href: '/api/files/11111111-1111-4111-8111-111111111111/content?download=1', target: '_self', download: 'Quarterly strategy.pptx'},
+    {href: '/api/files/22222222-2222-4222-8222-222222222222/content?download=1', target: '_self', download: 'Project brief.docx'},
+    {href: '/api/files/33333333-3333-4333-8333-333333333333/content?download=1', target: '_self', download: 'Project brief.pdf'},
+    {href: '/api/files/44444444-4444-4444-8444-444444444444/content?download=1', target: '_self', download: 'Project slides.pptx'},
+  ]);
+  assert.deepEqual(blockedRequests, []);
   assert.deepEqual(errors, []);
   await browser.close();
-  process.stdout.write(JSON.stringify({result, errors}));
+  process.stdout.write(JSON.stringify({result: finalResult, errors}));
 })().catch(error => {
   console.error(error);
   process.exit(1);

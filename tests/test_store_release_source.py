@@ -156,6 +156,13 @@ def test_ios_cloud_verification_cannot_sign_or_upload():
     workflow = read('.github/workflows/ios-store-verify.yml')
 
     assert 'runs-on: macos-26' in workflow
+    assert '  pull_request:' in workflow
+    assert 'pull_request_target:' not in workflow
+    assert 'xcodebuild -version' in workflow
+    assert 'xcrun --sdk iphoneos --show-sdk-version' in workflow
+    assert '(( xcode_major < 26 ))' in workflow
+    assert '(( ios_sdk_major < 26 ))' in workflow
+    assert workflow.index('Require the current App Store toolchain') < workflow.index('npm run store:prepare:ios')
     for source in (
         'public/**',
         'backend/revenuecat_catalog.json',
@@ -218,6 +225,24 @@ def test_android_cloud_verification_builds_a_bundle_without_signing_or_upload():
     assert 'actions/upload-artifact' not in workflow
     assert 'google-github-actions/auth' not in workflow
     assert 'playstore' not in workflow.lower()
+
+
+def test_native_store_workflows_run_on_relevant_pull_requests_only():
+    ios = read('.github/workflows/ios-store-verify.yml')
+    android = read('.github/workflows/android-store-verify.yml')
+
+    for workflow, own_path in (
+        (ios, '.github/workflows/ios-store-verify.yml'),
+        (android, '.github/workflows/android-store-verify.yml'),
+    ):
+        pull_request = workflow.index('  pull_request:')
+        push = workflow.index('  push:', pull_request)
+        pull_request_block = workflow[pull_request:push]
+        assert '    paths:' in pull_request_block
+        assert own_path in pull_request_block
+        assert 'package-lock.json' in pull_request_block
+        assert 'public/**' in pull_request_block
+        assert 'pull_request_target:' not in workflow
 
 
 def test_store_versions_and_android_api_are_guarded():

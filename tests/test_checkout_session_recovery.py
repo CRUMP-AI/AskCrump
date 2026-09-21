@@ -23,6 +23,8 @@ def test_checkout_session_recovery_is_bounded_and_never_auto_purchases():
     assert "url.hostname !== expectedHost" in manager
     assert "detail: {reason: 'checkout'}" in manager
     assert "crump:authentication-required" in auth
+    assert "location.replace(`${location.pathname}?reauth=checkout`)" in auth
+    assert "checkoutReauthPending" in auth
     assert "Nothing has been charged." in auth
     assert "await reauthenticationPreparation;" in auth
     assert "requestCheckoutReauthentication?.('credit', code)" in credits
@@ -72,30 +74,28 @@ def test_checkout_recovery_fixture_is_local_and_content_free():
     assert "blockedBeforeConsent:true" in verifier
     assert "retryRecovered:true" in verifier
     assert "#tosAccept" in verifier
+    assert "crossAccountDocumentIsolation:true" in verifier
 
 
 def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
-    integrity_version = "5.9.76-native-identity-fresh-1"
+    native_identity_version = "5.9.76-native-identity-fresh-1"
+    integrated_version = "5.9.76-owner-isolation-native-store-1"
     autonomous_crump_version = "5.9.76-autonomous-crump-1"
     native_store_billing_version = "5.9.76-native-store-billing-1"
-    runtime_version = integrity_version
-    auth_version = "5.9.76-facebook-reel-attribution-1"
+    owner_reset_version = "5.9.76-checkout-owner-reset-1"
+    owner_isolation_version = "5.9.76-owner-isolation-1"
     shell = read_public("app.html")
     runtime = read_public("runtime-body-v1.js")
     worker = read_public("sw.js")
     native = (ROOT / "scripts" / "build-native.mjs").read_text(encoding="utf-8")
 
-    assert f"/runtime-body-v1.js?v={runtime_version}" in shell
-    assert f"/auth-controller.js?v={auth_version}" in shell
+    assert f"/runtime-body-v1.js?v={integrated_version}" in shell
+    assert f"/auth-controller.js?v={owner_reset_version}" in shell
     for asset, version in (
-        ("billing-manager.js", integrity_version),
-        ("crump-5.2.2.js", native_store_billing_version),
-    ):
-        versioned = f"/{asset}?v={version}"
-        assert versioned in runtime
-        assert versioned in worker
-        assert versioned in native
-    for asset, version in (
+        ("billing-manager.js", native_identity_version),
+        ("crump-5.2.js", integrated_version),
+        ("crump-5.2.2.js", integrated_version),
+        ("credit-confirmation.js", owner_isolation_version),
         ("crump-billing-5.1.js", autonomous_crump_version),
         ("crump-subscriptions-5.3.2.js", native_store_billing_version),
     ):
@@ -103,5 +103,5 @@ def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
         assert versioned in runtime
         assert versioned in worker
         assert versioned in native
-    assert f"/auth-controller.js?v={auth_version}" in worker
-    assert "ask-crump-new-body-v1-r252" in worker
+    assert f"/auth-controller.js?v={owner_reset_version}" in worker
+    assert "ask-crump-new-body-v1-r253" in worker
