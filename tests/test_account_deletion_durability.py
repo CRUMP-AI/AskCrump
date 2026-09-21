@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+import httpx
 
 from backend.account_deletion_service import AccountDeletionService
 from backend.file_service import FileServiceError
@@ -158,6 +159,41 @@ class PrefixFiles:
         return len(owned)
 
 
+def install_revenuecat_delete_sequence(monkeypatch, *outcomes):
+    calls = []
+    responses = iter(outcomes)
+
+    class FakeClient:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return False
+
+        async def delete(self, url, **_kwargs):
+            calls.append(url)
+            outcome = next(responses)
+            if isinstance(outcome, Exception):
+                raise outcome
+            return type('Response', (), {'status_code': outcome})()
+
+    monkeypatch.setattr(httpx, 'AsyncClient', FakeClient)
+    return calls
+
+
+def native_deletion_service(database, files, clock, *, key='rc_test_fixture'):
+    database.user['native_billing_identity_possible_at'] = clock().isoformat()
+    return AccountDeletionService(
+        database,
+        files,
+        now=clock,
+        revenuecat_secret_api_key=key,
+    )
+
+
 def test_begin_reconciles_job_and_fence_commit_then_transport_errors():
     clock = Clock()
     database = DurableDeletionDB()
@@ -275,6 +311,227 @@ def test_late_uploads_are_swept_until_all_preissued_credentials_have_expired():
     assert final == {'processed': 1, 'deleted': 1, 'completed': 1, 'retrying': 0}
     assert files.objects == {'other-user/keep.png'}
     assert database.job is None
+
+
+def test_repeated_revenuecat_200_keeps_native_job_after_thirty_hours(monkeypatch):
+    clock = Clock()
+    database = DurableDeletionDB()
+    files = PrefixFiles({'owner-user/initial.png'})
+    calls = install_revenuecat_delete_sequence(monkeypatch, 200, 200, 200)
+    service = native_deletion_service(database, files, clock)
+    job = asyncio.run(service.begin(user_id='owner-user'))
+
+    initial = asyncio.run(service.process(job))
+    assert initial.account_deleted is True
+    assert database.user is None
+    assert database.job['native_billing_identity_possible'] is True
+
+    files.objects.add('owner-user/late-upload.png')
+    clock.advance(hours=31)
+    final_sweep = asyncio.run(service.process_due())
+    assert final_sweep == {'processed': 1, 'deleted': 1, 'completed': 0, 'retrying': 1}
+    assert database.job['last_error_code'] == 'REVENUECAT_CLEANUP_QUEUED'
+    assert files.objects == set()
+
+    clock.advance(minutes=16)
+    repeat = asyncio.run(service.process_due())
+    assert repeat == {'processed': 1, 'deleted': 1, 'completed': 0, 'retrying': 1}
+    assert database.job is not None
+    assert len(calls) == 3
+
+
+def test_revenuecat_200_then_404_allows_same_sweep_final_purge(monkeypatch):
+    clock = Clock()
+    database = DurableDeletionDB()
+    files = PrefixFiles()
+    calls = install_revenuecat_delete_sequence(monkeypatch, 200, 404)
+    service = native_deletion_service(database, files, clock)
+    job = asyncio.run(service.begin(user_id='owner-user'))
+    asyncio.run(service.process(job))
+
+    clock.advance(hours=31)
+    final_sweep = asyncio.run(service.process_due())
+    assert final_sweep == {'processed': 1, 'deleted': 1, 'completed': 1, 'retrying': 0}
+    assert database.job is None
+    assert len(calls) == 2
+
+
+@pytest.mark.parametrize('later_outcome', ['timeout', 'server_error', 'missing_key'])
+def test_revenuecat_failure_after_local_deletion_keeps_job_and_sweeps_storage(
+    monkeypatch, later_outcome
+):
+    clock = Clock()
+    database = DurableDeletionDB()
+    files = PrefixFiles()
+    later_response = {
+        'timeout': httpx.ReadTimeout('provider timeout'),
+        'server_error': 503,
+        'missing_key': None,
+    }[later_outcome]
+    responses = (200,) if later_outcome == 'missing_key' else (200, later_response)
+    calls = install_revenuecat_delete_sequence(monkeypatch, *responses)
+    service = native_deletion_service(database, files, clock)
+    job = asyncio.run(service.begin(user_id='owner-user'))
+    asyncio.run(service.process(job))
+    assert database.user is None
+
+    files.objects.add('owner-user/late-upload.png')
+    clock.advance(hours=31)
+    if later_outcome == 'missing_key':
+        service = AccountDeletionService(database, files, now=clock)
+    final_sweep = asyncio.run(service.process_due())
+    assert final_sweep == {'processed': 1, 'deleted': 1, 'completed': 0, 'retrying': 1}
+    assert database.job is not None
+    assert database.job['native_billing_identity_possible'] is True
+    assert database.job['last_error_code'] == 'REVENUECAT_CLEANUP_UNCONFIRMED'
+    assert files.objects == set()
+    assert files.calls == 2
+    assert len(calls) == (1 if later_outcome == 'missing_key' else 2)
+
+
+def test_revenuecat_404_earlier_does_not_validate_later_200_final_sweep(monkeypatch):
+    clock = Clock()
+    database = DurableDeletionDB()
+    files = PrefixFiles()
+    calls = install_revenuecat_delete_sequence(monkeypatch, 404, 200)
+    service = native_deletion_service(database, files, clock)
+    job = asyncio.run(service.begin(user_id='owner-user'))
+    asyncio.run(service.process(job))
+
+    clock.advance(hours=31)
+    final_sweep = asyncio.run(service.process_due())
+    assert final_sweep == {'processed': 1, 'deleted': 1, 'completed': 0, 'retrying': 1}
+    assert database.job['last_error_code'] == 'REVENUECAT_CLEANUP_QUEUED'
+    assert len(calls) == 2
+
+
+def test_nonnative_deletion_purges_without_provider_request(monkeypatch):
+    clock = Clock()
+    database = DurableDeletionDB()
+    files = PrefixFiles()
+    calls = install_revenuecat_delete_sequence(monkeypatch)
+    service = AccountDeletionService(
+        database,
+        files,
+        now=clock,
+    )
+    job = asyncio.run(service.begin(user_id='owner-user'))
+    asyncio.run(service.process(job))
+
+    clock.advance(hours=31)
+    final_sweep = asyncio.run(service.process_due())
+    assert final_sweep == {'processed': 1, 'deleted': 1, 'completed': 1, 'retrying': 0}
+    assert database.job is None
+    assert calls == []
+
+
+def test_unmarked_legacy_customer_is_durably_discovered_before_local_deletion(monkeypatch):
+    clock = Clock()
+    database = DurableDeletionDB()
+    files = PrefixFiles()
+    calls = install_revenuecat_delete_sequence(monkeypatch, 200, 200)
+    service = AccountDeletionService(
+        database,
+        files,
+        now=clock,
+        revenuecat_secret_api_key='rc_test_fixture',
+    )
+    job = asyncio.run(service.begin(user_id='owner-user'))
+    assert database.job['native_billing_identity_possible'] is False
+
+    initial = asyncio.run(service.process(job))
+    assert initial.account_deleted is True
+    assert database.user is None
+    assert database.job['native_billing_identity_possible'] is True
+
+    clock.advance(hours=31)
+    final_sweep = asyncio.run(service.process_due())
+    assert final_sweep == {'processed': 1, 'deleted': 1, 'completed': 0, 'retrying': 1}
+    assert database.job['last_error_code'] == 'REVENUECAT_CLEANUP_QUEUED'
+    assert len(calls) == 2
+
+
+def test_unmarked_customer_cannot_be_deleted_if_provider_marker_write_fails(monkeypatch):
+    clock = Clock()
+    database = DurableDeletionDB()
+    database.native_snapshot_failure = True
+    files = PrefixFiles()
+    calls = install_revenuecat_delete_sequence(monkeypatch, 200)
+    service = AccountDeletionService(
+        database,
+        files,
+        now=clock,
+        revenuecat_secret_api_key='rc_test_fixture',
+    )
+    job = asyncio.run(service.begin(user_id='owner-user'))
+
+    progress = asyncio.run(service.process(job))
+    assert progress.code == 'REVENUECAT_IDENTITY_MARK_UNCONFIRMED'
+    assert progress.retry_scheduled is True
+    assert progress.account_deleted is False
+    assert database.user is not None
+    assert files.calls == 0
+    assert database.rpc_calls == 0
+    assert calls == []
+
+    # A lost marker write fails before any provider request. Its retry code
+    # keeps the obligation alive even if the key disappears on the next run.
+    database.native_snapshot_failure = False
+    clock.advance(minutes=16)
+    missing_key_worker = AccountDeletionService(database, files, now=clock)
+    retry = asyncio.run(missing_key_worker.process_due())
+    assert retry == {'processed': 1, 'deleted': 0, 'completed': 0, 'retrying': 1}
+    assert database.job['native_billing_identity_possible'] is True
+    assert database.user is not None
+    assert files.calls == 0
+    assert database.rpc_calls == 0
+
+
+def test_unmarked_customer_provider_404_allows_normal_final_purge(monkeypatch):
+    clock = Clock()
+    database = DurableDeletionDB()
+    files = PrefixFiles()
+    calls = install_revenuecat_delete_sequence(monkeypatch, 404, 404)
+    service = AccountDeletionService(
+        database,
+        files,
+        now=clock,
+        revenuecat_secret_api_key='rc_test_fixture',
+    )
+    job = asyncio.run(service.begin(user_id='owner-user'))
+    initial = asyncio.run(service.process(job))
+    assert initial.account_deleted is True
+    assert database.job['native_billing_identity_possible'] is True
+
+    clock.advance(hours=31)
+    final_sweep = asyncio.run(service.process_due())
+    assert final_sweep == {'processed': 1, 'deleted': 1, 'completed': 1, 'retrying': 0}
+    assert database.job is None
+    assert len(calls) == 2
+
+
+@pytest.mark.parametrize(
+    'prior_error',
+    ['REVENUECAT_CLEANUP_UNCONFIRMED', 'REVENUECAT_CLEANUP_QUEUED'],
+)
+def test_legacy_provider_error_remains_an_obligation_without_native_flag(
+    prior_error,
+):
+    clock = Clock()
+    database = DurableDeletionDB()
+    files = PrefixFiles()
+    service = AccountDeletionService(database, files, now=clock)
+    job = asyncio.run(service.begin(user_id='owner-user'))
+    asyncio.run(service.process(job))
+
+    # An older job can carry the provider failure but not the newer marker.
+    # Its error must be promoted to the durable obligation before purge.
+    database.job['last_error_code'] = prior_error
+    clock.advance(hours=31)
+    final_sweep = asyncio.run(service.process_due())
+    assert final_sweep == {'processed': 1, 'deleted': 1, 'completed': 0, 'retrying': 1}
+    assert database.job['native_billing_identity_possible'] is True
+    assert database.job['last_error_code'] == 'REVENUECAT_CLEANUP_UNCONFIRMED'
 
 
 def test_failed_compensating_cleanup_keeps_fence_and_worker_recovers():

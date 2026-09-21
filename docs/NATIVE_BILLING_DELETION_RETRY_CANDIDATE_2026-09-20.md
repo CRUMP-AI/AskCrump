@@ -17,10 +17,19 @@ endpoint after local deletion and recreate the provider customer. The native
 SDK could similarly retain the deleted App User ID across app launches.
 
 The durable worker now requests RevenueCat deletion before local deletion and
-on each retained late-upload sweep. RevenueCat 200 and 404 are treated as
-retry-safe accepted outcomes; any other response, transport error, or missing
-server key when native billing is required leaves the account fenced and the
-job retryable. Webhook subscription reconciliation skips missing/deletion-fenced
+on each retained late-upload sweep. A RevenueCat 200 accepts the local account
+deletion but only queues asynchronous provider cleanup; a 404 confirms that
+customer is absent for that sweep. The durable job can be purged after the
+30-hour upload window only if that same final sweep sees 404, or if no native
+cleanup obligation exists. Repeated 200 responses, any other response,
+transport error, or a missing required server key keep the job retryable.
+When a server key exists, an older free account without a local native marker
+still receives the precautionary provider DELETE. The possible-provider-
+identity marker is durably snapshotted before that request, so a lost response
+or a later missing key cannot erase the cleanup obligation. Failure to confirm
+the marker write leaves the local account fenced without contacting the provider.
+After local deletion, provider failures do not starve the separate late-upload
+Storage sweep. Webhook subscription reconciliation skips missing/deletion-fenced
 users before the get-or-create lookup, including transfer events. Native credit
 sync has the same pre-lookup guard. Billing writes require `deleted_at is null`.
 The 202 response now accurately says provider and private-storage cleanup can
@@ -99,6 +108,17 @@ observed after cleanup and delayed resume. A remaining strict-guarantee gap
 requires an explicit architecture/provider decision; tests alone cannot prove
 the absence of an arbitrarily delayed replay.
 
+Independent follow-up review found another release blocker in this source
+candidate: an account-delete request and the due-job worker can overlap. One
+worker can observe 404 while another later observes 200 for a recreated
+customer; the first can still purge by owner/token from stale local state.
+Serial or monotonic job claiming/finalization and a deterministic overlap
+fixture are required before this reconciliation is mergeable. Historical
+unmarked jobs whose user row is already gone also need an operator/provider
+audit if the provider key disappears before their next check. The new
+queued-versus-absent tests prove sequential behavior only, not this concurrent
+release gate.
+
 ## Verification
 
 - Focused backend configuration, deletion, RevenueCat, and readiness tests:
@@ -107,6 +127,13 @@ the absence of an arbitrarily delayed replay.
   without a server key, repeated provider deletion after storage failure,
   deleted-user ordinary and transfer webhooks, failed local identity lookup,
   and fenced native-credit sync.
+- A subsequent source-only reconciliation fixture verifies repeated provider
+  200 beyond 30 hours, 200 then 404 on the final sweep, 200 followed by
+  timeout/5xx/missing key after local deletion, earlier 404 followed by final
+  200, nonnative deletion, and legacy queued/uncertain jobs with a missing key.
+  Historical unmarked-customer fixtures also prove the precautionary DELETE,
+  durable marker promotion before provider contact, write-failure recovery, and
+  normal 404 purge. The focused durability suite passes 21/21.
 - Python lint and Git diff integrity passed.
 - The JavaScript contract validates 55 files and includes SDK logout retry
   after restart, a transient logout error, stale cached identity suppression,
@@ -140,8 +167,9 @@ the absence of an arbitrarily delayed replay.
 
 ## Decision and next action
 
-Keep PR #37 in draft. The per-user native marker is a source candidate, not a
-complete cross-device deletion guarantee. Resolve the paused-client
+Keep PR #37 in draft. The per-user native marker and queued-versus-absent
+deletion reconciliation are source candidates, not a complete cross-device
+deletion guarantee. Resolve the concurrent worker finalization and paused-client
 recreation race before enabling native billing, including the practical
 per-operation rechecks and signed two-device/in-flight-purchase verification;
 do not describe those checks as a provider non-recreation guarantee. Add

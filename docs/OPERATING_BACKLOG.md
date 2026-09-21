@@ -24,6 +24,17 @@ release-blocked. PR #37 stays draft and production is unchanged. Evidence and
 exact next action:
 `docs/NATIVE_BILLING_DELETION_RETRY_CANDIDATE_2026-09-20.md`.
 
+The follow-up source candidate distinguishes RevenueCat's asynchronously
+queued 200 from a same-sweep absent 404. Native deletion jobs remain durable
+past the 30-hour upload window until the provider is absent; later provider
+failure does not stop Storage re-sweeps after local deletion. A legacy free
+provider customer with no local marker still receives the precautionary DELETE;
+the possible-provider marker is durably snapshotted before provider contact.
+The deterministic durability suite passes **21/21**. This does not resolve the paused-client
+recreation race or a newly identified overlapping-worker 404/200 finalization
+race; neither migration nor source candidate is deployed. A serialized job
+claim/finalization test is required before merge or signed-device verification.
+
 The 2026-09-16 guarded-control follow-up proves the intentionally disabled controls that a static
 button inventory cannot exercise. The real billing scripts replace two disabled `Loading plan…`
 placeholders with enabled Professional and Enterprise review actions without starting checkout;

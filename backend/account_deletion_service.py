@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from enum import Enum
 import logging
 from typing import Any, Callable
 from urllib.parse import quote
@@ -29,6 +30,13 @@ class DeletionProgress:
     cleanup_complete: bool
     retry_scheduled: bool
     code: str | None = None
+
+
+class RevenueCatCleanupState(str, Enum):
+    NOT_REQUIRED = "not_required"
+    UNCONFIRMED = "unconfirmed"
+    QUEUED = "queued"
+    ABSENT = "absent"
 
 
 class AccountDeletionService:
@@ -107,6 +115,11 @@ class AccountDeletionService:
         return bool(
             self._revenuecat_required
             or job.get("native_billing_identity_possible")
+            or job.get("last_error_code") in {
+                "REVENUECAT_CLEANUP_UNCONFIRMED",
+                "REVENUECAT_CLEANUP_QUEUED",
+                "REVENUECAT_IDENTITY_MARK_UNCONFIRMED",
+            }
             or (
                 user
                 and (
@@ -120,11 +133,13 @@ class AccountDeletionService:
         self,
         user: dict[str, Any] | None,
         job: dict[str, Any],
+        *,
+        provider_customer_possible: bool = False,
     ) -> bool:
         """Snapshot native identity evidence before the users row can vanish."""
         if job.get("native_billing_identity_possible"):
             return True
-        if not self._native_cleanup_required(user, job):
+        if not provider_customer_possible and not self._native_cleanup_required(user, job):
             return True
         try:
             if await self._update_job(
@@ -155,16 +170,17 @@ class AccountDeletionService:
         owner_id: str,
         user: dict[str, Any] | None,
         job: dict[str, Any],
-    ) -> bool:
-        """Retry provider cleanup before local deletion and every late sweep."""
+    ) -> RevenueCatCleanupState:
+        """Distinguish a queued deletion from confirmed provider absence."""
         key = self._revenuecat_secret_api_key
         if not key:
             # A native customer must remain fenced and retryable if the server
             # key is unavailable. The durable marker remains authoritative even
             # if the native-billing release flag is switched off later.
-            return not (
-                self._native_cleanup_required(user, job)
-                or job.get("last_error_code") == "REVENUECAT_CLEANUP_UNCONFIRMED"
+            return (
+                RevenueCatCleanupState.UNCONFIRMED
+                if self._native_cleanup_required(user, job)
+                else RevenueCatCleanupState.NOT_REQUIRED
             )
         try:
             async with httpx.AsyncClient(timeout=20) as client:
@@ -174,14 +190,18 @@ class AccountDeletionService:
                 )
         except httpx.HTTPError:
             logger.exception("RevenueCat customer cleanup request failed")
-            return False
-        if response.status_code not in {200, 404}:
-            logger.error(
-                "RevenueCat customer cleanup was not accepted status=%s",
-                response.status_code,
-            )
-            return False
-        return True
+            return RevenueCatCleanupState.UNCONFIRMED
+        if response.status_code == 200:
+            # RevenueCat queues v1 customer deletion asynchronously. A later
+            # 404, not this accepted request, permits final tombstone purge.
+            return RevenueCatCleanupState.QUEUED
+        if response.status_code == 404:
+            return RevenueCatCleanupState.ABSENT
+        logger.error(
+            "RevenueCat customer cleanup was not accepted status=%s",
+            response.status_code,
+        )
+        return RevenueCatCleanupState.UNCONFIRMED
 
     @staticmethod
     def _job_identity(job: dict[str, Any]) -> tuple[str, str]:
@@ -482,16 +502,25 @@ class AccountDeletionService:
                     "DELETION_FENCE_NOT_ESTABLISHED",
                 )
 
-        if not await self._persist_native_cleanup_requirement(user, job):
+        # A server key can reach a historical free native customer even if its
+        # local marker predates the marker migration. Snapshot that possible
+        # obligation before any provider DELETE, so a lost response cannot
+        # leave an unmarked job that later skips cleanup if the key disappears.
+        if not await self._persist_native_cleanup_requirement(
+            user,
+            job,
+            provider_customer_possible=bool(self._revenuecat_secret_api_key),
+        ):
             await self._schedule_retry(job, "REVENUECAT_IDENTITY_MARK_UNCONFIRMED")
             return DeletionProgress(
                 False, False, True, "REVENUECAT_IDENTITY_MARK_UNCONFIRMED"
             )
 
-        if not await self._ensure_revenuecat_deleted(owner_id, user, job):
+        revenuecat_state = await self._ensure_revenuecat_deleted(owner_id, user, job)
+        if revenuecat_state is RevenueCatCleanupState.UNCONFIRMED and user:
             await self._schedule_retry(job, "REVENUECAT_CLEANUP_UNCONFIRMED")
             return DeletionProgress(
-                not bool(user), False, True, "REVENUECAT_CLEANUP_UNCONFIRMED"
+                False, False, True, "REVENUECAT_CLEANUP_UNCONFIRMED"
             )
 
         try:
@@ -531,9 +560,23 @@ class AccountDeletionService:
                         "ACCOUNT_DELETION_RPC_UNCONFIRMED",
                     )
 
+        # After local account removal, continue sweeping late Storage uploads
+        # even when the provider is unavailable. Its durable cleanup obligation
+        # remains retryable and cannot be purged on an uncertain response.
+        if revenuecat_state is RevenueCatCleanupState.UNCONFIRMED:
+            await self._schedule_retry(job, "REVENUECAT_CLEANUP_UNCONFIRMED")
+            return DeletionProgress(
+                True, False, True, "REVENUECAT_CLEANUP_UNCONFIRMED"
+            )
+
         now = self._now()
         finalize_after = self._parse_time(job.get("finalize_after"))
         if finalize_after and now >= finalize_after:
+            if revenuecat_state is RevenueCatCleanupState.QUEUED:
+                await self._schedule_retry(job, "REVENUECAT_CLEANUP_QUEUED")
+                return DeletionProgress(
+                    True, False, True, "REVENUECAT_CLEANUP_QUEUED"
+                )
             purged = await self._delete_completed_job(job)
             if not purged:
                 await self._schedule_retry(job, "DELETION_TOMBSTONE_PURGE_UNCONFIRMED")
