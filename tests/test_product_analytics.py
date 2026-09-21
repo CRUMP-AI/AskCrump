@@ -2,7 +2,8 @@ import ast
 from pathlib import Path
 
 import pytest
-from fastapi import HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.testclient import TestClient
 
 from backend.routes import analytics as analytics_routes
 from backend.routes import files as files_routes
@@ -96,6 +97,23 @@ def test_artifact_journey_events_are_server_allowlisted_only():
     }
     assert artifact_events.issubset(EVENT_NAMES)
     assert artifact_events.isdisjoint(CLIENT_EVENT_NAMES)
+
+
+def test_activation_measurement_is_server_authoritative_only():
+    assert "ActivationReached" in EVENT_NAMES
+    assert "ActivationReached" not in CLIENT_EVENT_NAMES
+
+    app = FastAPI()
+    app.include_router(analytics_routes.router)
+    response = TestClient(app).post(
+        "/api/analytics/events",
+        json={
+            "eventName": "ActivationReached",
+            "eventKey": "first-successful-response",
+        },
+    )
+
+    assert response.status_code == 422
 
 
 def test_plan_center_view_is_allowlisted_but_content_free():
@@ -1180,10 +1198,12 @@ def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
     assert '/product-analytics.js' not in app
     assert runtime.index('/app.js') < runtime.index('/product-analytics.js')
     assert (
-        "new Set(['WorkspaceOpened', 'NavigationDestinationSelected', 'StarterIntentReached', 'ProjectSaveOfferShown', 'ProjectSaveIntentReached', 'ActivationReached', "
+        "new Set(['WorkspaceOpened', 'NavigationDestinationSelected', 'StarterIntentReached', 'ProjectSaveOfferShown', 'ProjectSaveIntentReached', "
         "'OutcomeFeedbackSubmitted', 'OutcomeIssueCategorized', 'RecentWorkResumed', 'PlanCenterViewed', 'PlanIntentReached', "
         "'ResponseShared'])"
     ) in client
+    assert "'ActivationReached'" not in client
+    assert "if (!events.has(eventName)) return false;" in client
     assert "prompt" not in client.lower()
     assert "filename" not in client.lower()
     assert "ResponseShared" in client
@@ -1217,19 +1237,43 @@ def test_workspace_return_waits_for_a_visible_authenticated_workspace():
     assert "window.CrumpAnalytics?.track('WorkspaceOpened'" not in starter
 
 
-def test_first_successful_response_records_activation_without_message_content():
+def test_browser_completion_path_cannot_claim_server_activation():
     app_js = (ROOT / "public" / "app.js").read_text(encoding="utf-8")
+    client = (ROOT / "public" / "product-analytics.js").read_text(encoding="utf-8")
 
-    tracker = app_js[
-        app_js.index("async function recordFirstSuccessfulResponse"):
-        app_js.index("async function processUserMessage")
-    ]
-    assert "'ActivationReached'" in tracker
-    assert "eventKey: 'first-successful-response'" in tracker
-    assert "ACTIVATION_RECORDED" in tracker
-    assert "message" not in tracker.lower()
-    assert "content" not in tracker.lower()
-    assert "void recordFirstSuccessfulResponse();" in app_js
+    assert "ActivationReached" not in app_js
+    assert "ACTIVATION_RECORDED" not in app_js
+    assert "recordFirstSuccessfulResponse" not in app_js
+    assert "'ActivationReached'" not in client
+
+
+def test_server_activation_boundary_is_versioned_for_web_pwa_and_native():
+    version = "5.9.76-server-authoritative-activation-1"
+    shell = (ROOT / "public" / "app.html").read_text(encoding="utf-8")
+    runtime = (ROOT / "public" / "runtime-body-v1.js").read_text(encoding="utf-8")
+    worker = (ROOT / "public" / "sw.js").read_text(encoding="utf-8")
+    native = (ROOT / "scripts" / "build-native.mjs").read_text(encoding="utf-8")
+    upgrade = (
+        ROOT / "scripts" / "verify-server-authoritative-activation-cache-upgrade.cjs"
+    ).read_text(encoding="utf-8")
+    matrix = (ROOT / "scripts" / "verify-browser-control-matrix.mjs").read_text(
+        encoding="utf-8"
+    )
+
+    assert f"/runtime-body-v1.js?v={version}" in shell
+    assert f"/runtime-body-v1.js?v={version}" in worker
+    for asset in ("app.js", "product-analytics.js"):
+        versioned = f"/{asset}?v={version}"
+        assert versioned in runtime
+        assert versioned in worker
+        assert versioned in native
+    assert "ask-crump-new-body-v1-r254" in worker
+    assert "ask-crump-new-body-v1-r253" in upgrade
+    assert "ask-crump-new-body-v1-r254" in upgrade
+    assert "tests', 'fixtures', 'activation-cache-r253" in upgrade
+    assert "e4371a5e873a17385df6111e0cc7335c84b939176edff95c56c5dc1bd6d2848a" in upgrade
+    assert "23d5d3bcb23a078c37f2b3d35086865fbb670fecba0a2b7a7999b26d3ccbef1c" in upgrade
+    assert "verify-server-authoritative-activation-cache-upgrade.cjs" in matrix
 
 
 def test_launchpad_records_only_an_allowlisted_first_task_category():

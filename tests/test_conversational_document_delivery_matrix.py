@@ -47,6 +47,10 @@ class FixtureDB:
         self.messages: list[dict] = []
         self.events: list[tuple[str, str | None]] = []
         self.jobs: dict[str, dict] = {}
+        self.fail_persistence = False
+        self.persistence_receipt = [
+            {"resulting_revision": 1, "resulting_updated_at": "2026-09-20T00:00:00Z"}
+        ]
 
     async def select_one(self, table: str, *, filters=None, **_kwargs):
         if table == "user_settings":
@@ -63,9 +67,19 @@ class FixtureDB:
         if name == "claim_chat_job":
             return [{"job_state": "claimed"}]
         if name == "persist_chat_reply":
+            if self.fail_persistence:
+                raise RuntimeError("private fixture persistence failure")
             assert payload["p_user_id"] == OWNER
-            self.messages = [payload["p_user_message"], payload["p_assistant_message"]]
-            return [{"resulting_revision": 1, "resulting_updated_at": "2026-09-20T00:00:00Z"}]
+            receipt = self.persistence_receipt
+            if (
+                isinstance(receipt, list)
+                and receipt
+                and isinstance(receipt[0], dict)
+                and receipt[0].get("resulting_revision") is not None
+                and str(receipt[0].get("resulting_updated_at") or "").strip()
+            ):
+                self.messages = [payload["p_user_message"], payload["p_assistant_message"]]
+            return receipt
         if name == "record_product_event":
             self.events.append((payload["p_event_name"], payload.get("p_artifact_type")))
             return True
@@ -128,6 +142,9 @@ class FixtureFeatures:
 
     async def consume_message(self, *_args, **_kwargs):
         return {"eventId": "fixture-usage", "used": 1, "limit": 100, "remaining": 99, "creditsSpent": 0}
+
+    async def refund(self, *_args, **_kwargs):
+        return None
 
 
 @pytest.fixture
@@ -257,6 +274,7 @@ def test_chat_persists_owned_artifact_and_delivers_private_download(
     assert database.files[artifact["id"]]["kind"] == "generated_document"
     assert ("ArtifactRequested", category) in database.events
     assert ("ArtifactPackaged", category) in database.events
+    assert ("ActivationReached", None) in database.events
 
     stored_bytes = files.bytes_by_id[artifact["id"]]
     if format_name == "pdf":
@@ -288,3 +306,58 @@ def test_chat_persists_owned_artifact_and_delivers_private_download(
         assert preview.status_code == 200
         assert preview.headers["content-type"].startswith("application/pdf")
         assert preview.content == stored_bytes
+
+
+def test_chat_persistence_failure_never_records_activation(delivery, monkeypatch):
+    client, database, _files = delivery
+    database.fail_persistence = True
+    refund_usage = AsyncMock(return_value=None)
+    monkeypatch.setattr(chat_routes, "refund_usage", refund_usage)
+
+    response = client.post(
+        "/api/chat",
+        headers={"x-fixture-owner": OWNER},
+        json={
+            "chatId": CHAT_ID,
+            "messageId": MESSAGE_ID,
+            "message": "Give me one useful answer.",
+        },
+    )
+
+    assert response.status_code == 503
+    assert response.json()["code"] == "CHAT_PERSISTENCE"
+    assert ("ActivationReached", None) not in database.events
+    assert database.messages == []
+    assert database.jobs[f"eq.{MESSAGE_ID}"]["status"] == "failed"
+    assert database.jobs[f"eq.{MESSAGE_ID}"]["error_code"] == "CHAT_PERSISTENCE"
+    refund_usage.assert_awaited_once_with(database, OWNER, "fixture-usage")
+
+
+@pytest.mark.parametrize(
+    "receipt",
+    [None, [], {}, [None], [{}], [{"resulting_revision": 1}], [{"resulting_updated_at": "2026-09-20T00:00:00Z"}]],
+    ids=["none", "empty-list", "mapping", "null-row", "empty-row", "missing-updated-at", "missing-revision"],
+)
+def test_chat_malformed_persistence_receipt_never_records_activation(delivery, monkeypatch, receipt):
+    client, database, _files = delivery
+    database.persistence_receipt = receipt
+    refund_usage = AsyncMock(return_value=None)
+    monkeypatch.setattr(chat_routes, "refund_usage", refund_usage)
+
+    response = client.post(
+        "/api/chat",
+        headers={"x-fixture-owner": OWNER},
+        json={
+            "chatId": CHAT_ID,
+            "messageId": MESSAGE_ID,
+            "message": "Give me one useful answer.",
+        },
+    )
+
+    assert response.status_code == 503
+    assert response.json()["code"] == "CHAT_PERSISTENCE"
+    assert ("ActivationReached", None) not in database.events
+    assert database.messages == []
+    assert database.jobs[f"eq.{MESSAGE_ID}"]["status"] == "failed"
+    assert database.jobs[f"eq.{MESSAGE_ID}"]["error_code"] == "CHAT_PERSISTENCE"
+    refund_usage.assert_awaited_once_with(database, OWNER, "fixture-usage")

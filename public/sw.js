@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r253';
+const CACHE_NAME = 'ask-crump-new-body-v1-r254';
 
 const CORE = [
   '/app',
@@ -35,7 +35,7 @@ const CORE = [
   '/crump-media-save.js?v=5.9.76-library-lazy-load-1',
   '/crump-library-loader.js?v=5.9.76-library-lazy-load-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-native-store-billing-1',
-  '/runtime-body-v1.js?v=5.9.76-owner-isolation-native-store-1',
+  '/runtime-body-v1.js?v=5.9.76-server-authoritative-activation-1',
   '/native-runtime.js',
   '/mobile-bridge.js?v=5.9.76-native-store-billing-1',
   '/ai-data-sharing-consent.js?v=5.9.76-ai-data-sharing-consent-1',
@@ -55,8 +55,8 @@ const CORE = [
   '/sync-manager.js?v=5.9.76-sync-cursor-1',
   '/chat-sync.js?v=5.9.76-settings-sync-1',
   '/account-manager.js?v=5.9.76-owner-isolation-native-store-1',
-  '/app.js?v=5.9.76-video-owner-composer-1',
-  '/product-analytics.js?v=5.9.76-navigation-discovery-1',
+  '/app.js?v=5.9.76-server-authoritative-activation-1',
+  '/product-analytics.js?v=5.9.76-server-authoritative-activation-1',
   '/lifecycle-share.js?v=5.9.76-settings-invite-1',
   '/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1',
   '/auth-controller.js?v=5.9.76-checkout-owner-reset-1',

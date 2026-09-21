@@ -56,8 +56,8 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/sync-manager.js?v=5.9.76-sync-cursor-1', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-settings-sync-1', 'workspacechatsync'],
     ['/account-manager.js?v=5.9.76-owner-isolation-native-store-1', 'workspaceaccount'],
-    ['/app.js?v=5.9.76-video-owner-composer-1', 'workspaceapp'],
-    ['/product-analytics.js?v=5.9.76-navigation-discovery-1', 'workspaceanalytics'],
+    ['/app.js?v=5.9.76-server-authoritative-activation-1', 'workspaceapp'],
+    ['/product-analytics.js?v=5.9.76-server-authoritative-activation-1', 'workspaceanalytics'],
   ]);
 
   const enhancementScripts = Object.freeze([

@@ -634,10 +634,16 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     package_lock = json.loads((ROOT / "package-lock.json").read_text(encoding="utf-8"))
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
+    historical = {"verify-autonomous-crump-cache-upgrade.cjs"}
+    active_verifiers = [name for name in verifier_names if name not in historical]
 
-    assert len(verifier_names) == 52
+    assert len(verifier_names) == 53
+    assert len(active_verifiers) == 52
     for name in verifier_names:
         assert f"'{name}'" in runner
+    assert "const historicalVerifiers = Object.freeze([" in runner
+    assert ".filter(name => !historicalVerifiers.includes(name))" in runner
+    assert "Historical browser verifier is missing:" in runner
     assert "Browser verifier inventory drifted." in runner
     assert "Browser verifier ports are already occupied" in runner
     assert "await assertPortsAvailable();" in runner

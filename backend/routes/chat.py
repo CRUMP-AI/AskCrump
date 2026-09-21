@@ -116,6 +116,16 @@ async def _durable_reply_for_job(*, user_id: str, message_id: str, job: dict) ->
     return recovered
 
 
+async def _record_durable_activation(*, user_id: str, request: Request) -> bool:
+    return await record_product_event(
+        db,
+        user_id=user_id,
+        event_name='ActivationReached',
+        event_key='first-successful-response',
+        request=request,
+    )
+
+
 @router.post('/ack')
 async def chat_ack(payload: ChatAckRequest, request: Request):
     auth = await authenticate_request(request, db, settings)
@@ -1145,6 +1155,7 @@ async def chat(request: Request):
                 )
 
     # The API, not an individual browser tab, owns persistence of the AI reply.
+    reply_persisted = False
     if chat_id and message_id:
         reply_time = iso_now()
         public_files = [files.public_file(row) for row in current_file_rows]
@@ -1210,10 +1221,17 @@ async def chat(request: Request):
                     'p_assistant_message': assistant_message,
                 },
             )
+            receipt = persisted[0] if isinstance(persisted, list) and persisted else None
+            if not isinstance(receipt, dict):
+                raise RuntimeError('Chat persistence returned no durable receipt.')
+            resulting_revision = receipt.get('resulting_revision')
+            resulting_updated_at = str(receipt.get('resulting_updated_at') or '').strip()
+            if resulting_revision is None or not resulting_updated_at:
+                raise RuntimeError('Chat persistence returned an invalid durable receipt.')
+            reply_persisted = True
             result['assistantMessage'] = assistant_message
-            if isinstance(persisted, list) and persisted:
-                result['conversationRevision'] = persisted[0].get('resulting_revision')
-                result['conversationUpdatedAt'] = persisted[0].get('resulting_updated_at')
+            result['conversationRevision'] = resulting_revision
+            result['conversationUpdatedAt'] = resulting_updated_at
         except Exception:
             await refund_usage(db, auth.user['id'], usage.get('eventId'))
             await features.refund(auth.user['id'], feature_usage)
@@ -1275,13 +1293,8 @@ async def chat(request: Request):
         latency_ms=int((time.perf_counter() - started) * 1000), status='success',
         verifier_used=verifier_used,
     )
-    await record_product_event(
-        db,
-        user_id=auth.user['id'],
-        event_name='ActivationReached',
-        event_key='first-successful-response',
-        request=request,
-    )
+    if reply_persisted:
+        await _record_durable_activation(user_id=auth.user['id'], request=request)
     artifact_type = artifact_type_for_result(result)
     if artifact_type:
         await record_product_event(

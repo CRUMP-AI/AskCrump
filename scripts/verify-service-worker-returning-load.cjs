@@ -6,7 +6,7 @@ const {chromium} = require('playwright');
 
 const publicDirectory = path.resolve(process.cwd(), 'public');
 const cachedTargets = Object.freeze([
-  ['/runtime-body-v1.js', '/runtime-body-v1.js?v=5.9.76-owner-isolation-native-store-1'],
+  ['/runtime-body-v1.js', '/runtime-body-v1.js?v=5.9.76-server-authoritative-activation-1'],
   ['/crump-v1-body.css', '/crump-v1-body.css?v=5.9.76-brand-retina-1'],
   ['/crump-product-loader.js', '/crump-product-loader.js?v=5.9.76-product-studio-owner-reconciliation-1'],
 ]);

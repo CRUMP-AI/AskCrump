@@ -10,6 +10,7 @@ const BASE_STORAGE_KEYS = Object.freeze({
     WORK_START: 'crump_work_start',
     WORK_END: 'crump_work_end',
     HAS_ONBOARDED: 'crump_has_onboarded',
+    ACTIVATION_RECORDED: 'crump_activation_recorded',
     PROFILE_NUDGE_DISMISSED: 'crump_profile_nudge_dismissed'
 });
 const STORAGE_KEYS = { ...BASE_STORAGE_KEYS };
@@ -613,6 +614,7 @@ function completeUserMessage(chat, userMessage, data) {
     window.CrumpPresence?.haptic?.('success');
     runCompletedCreationHandoffInBackground(data);
     syncCompletedReplyInBackground();
+    void recordFirstSuccessfulResponse();
     setTimeout(() => { void window.CrumpLifecycle?.evaluate?.({force: true}); }, 1200);
 }
 
@@ -633,6 +635,14 @@ function applyCompletedReplySafely(chat, userMessage, data) {
         } catch (_) {}
         return false;
     }
+}
+
+async function recordFirstSuccessfulResponse() {
+    if (SafeStorage.getItem(STORAGE_KEYS.ACTIVATION_RECORDED) === 'true') return;
+    const recorded = await window.CrumpAnalytics?.track?.('ActivationReached', {
+        eventKey: 'first-successful-response',
+    });
+    if (recorded) SafeStorage.setItem(STORAGE_KEYS.ACTIVATION_RECORDED, 'true');
 }
 
 async function processUserMessage(chat, userMessage, attachment = null) {

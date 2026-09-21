@@ -37,10 +37,12 @@ users.registration_environment is derived from the registration request host and
 authoritative production-cohort boundary even when the optional analytics insert fails.
 Existing pre-release accounts with no environment are excluded rather than backfilled.
 product_weekly_attribution_export is service-role-only and returns grouped counts with
-explicit denominators. Its D1/D7 populations contain activated accounts only and are
-anchored on ActivationReached. Finance fields remain null until an authoritative aggregate
-provider supplies them. The operator contract and release evidence are recorded in
-docs/WEEKLY_ATTRIBUTION_RELEASE_2026-08-30.md.
+explicit denominators. Beginning with migration 20260908134343_durable_growth_measurement.sql,
+its D1/D7 populations contain activated accounts only and use the earliest server-authored
+ActivationReached event or completed chat job. A fail-open analytics write therefore cannot erase
+durable activation. Finance fields remain null until an authoritative aggregate provider supplies
+them. The original attribution contract is recorded in docs/WEEKLY_ATTRIBUTION_RELEASE_2026-08-30.md
+and the durable correction in docs/DURABLE_GROWTH_MEASUREMENT_RELEASE_2026-09-08.md.
 
 Vercel Web Analytics provides aggregate, anonymous context before account creation. These browser
 events are not written to `product_events` and must not be treated as server-authoritative account
@@ -88,6 +90,16 @@ snapshot.
 | `BillingPortalOpened` | Server | Stripe created a customer portal session. |
 | `SubscriptionStatusChanged` | Stripe webhook | Stripe changed or deleted a subscription. |
 
+`ActivationReached` is intentionally absent from the authenticated client event schema and browser
+allowlist. Only the chat server may write `first-successful-response`, and it does so after the
+shared reply has been persisted. An older cached browser attempting the retired client event is
+rejected without affecting message completion. This prevents a browser from claiming the unique
+activation key before durable work exists. Activation telemetry is attempted only on the original
+request after durable persistence; delayed recovery does not rewrite its time, environment, or
+platform. The read-only status route and cached-job return remain mutation-free. Current growth and
+lifecycle reporting use a completed chat job as the durable activation fallback when the event
+write is unavailable; processing, failed, and unpersisted replies do not activate an account.
+
 ## Service-role lifecycle guidance evidence
 
 Migration `20260830175952_in_product_lifecycle_activation.sql` adds a separate,
@@ -109,19 +121,24 @@ or rendered lifecycle copy. Release evidence is recorded in
 ## Operating queries
 
 All operating queries must filter `environment = 'production'`. The primary weekly view is
-the number of distinct accounts reaching each funnel milestone. Retention is calculated from
-the first `AccountCreated` or `ActivationReached` event to daily `WorkspaceOpened` events at
-D1, D7, and D30. Preview rows are kept out of business reporting.
+the number of distinct accounts reaching each funnel milestone. Current D1 and D7 retention
+denominators use the earliest server-authored activation event or completed chat job, then measure
+daily `WorkspaceOpened` events after that activation date. Preview rows are kept out of business
+reporting through the account registration-environment cohort boundary and event environment filter.
+
+Activation cohorts created before the server-only intake boundary is deployed remain provisional:
+do not use them to authorize paid acquisition or make a retention claim without an explicit
+post-boundary cohort or a separate authoritative reconciliation.
 
 No acquisition spend should increase until production data can distinguish: account created,
 workspace opened, starter intent reached, activated, durable value reached, paid intent reached,
 subscription or credit checkout opened, and subscription or credit checkout completed.
 The first comparable cohort begins at `2026-08-23 09:10:55.602863+00`, the first observed production
 product-event timestamp. Migration `20260827180833_product_growth_measurement_boundary.sql` enforces
-that lower bound even when an operator requests an earlier reporting window. Historical account
-behavior is not silently reconstructed from conversation or file content. Account/job/file/Project
-aggregates may be used to diagnose historical product use, but they must be labeled separately from
-event-based cohort rates and never converted into synthetic events.
+that lower bound even when an operator requests an earlier reporting window. Migration
+`20260908134343_durable_growth_measurement.sql` explicitly recognizes completed jobs, active-Project
+continuity, and ready nonempty generated files as durable product facts without creating synthetic
+events or reading customer content.
 
 ### One-command operating snapshot
 

@@ -50,11 +50,11 @@ def test_parallel_runtime_asset_is_versioned_for_web_pwa_and_native():
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
 
-    asset = "/runtime-body-v1.js?v=5.9.76-owner-isolation-native-store-1"
+    asset = "/runtime-body-v1.js?v=5.9.76-server-authoritative-activation-1"
     assert asset in shell
     assert asset in worker
-    assert "ask-crump-new-body-v1-r253" in worker
-    assert "ask-crump-new-body-v1-r253" in checker
+    assert "ask-crump-new-body-v1-r254" in worker
+    assert "ask-crump-new-body-v1-r254" in checker
 
 
 def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
@@ -115,13 +115,14 @@ def test_returning_workspace_uses_precache_without_staling_the_shell():
     assert "password" not in verifier.lower()
 
 
-def test_returning_workspace_upgrades_out_of_the_legacy_crump_code_cache():
+def test_returning_workspace_activation_upgrade_uses_current_exact_fixture_proof():
     worker = read("public/sw.js")
-    verifier = read("scripts/verify-autonomous-crump-cache-upgrade.cjs")
+    verifier = read("scripts/verify-server-authoritative-activation-cache-upgrade.cjs")
+    historical = read("scripts/verify-autonomous-crump-cache-upgrade.cjs")
     matrix = read("scripts/verify-browser-control-matrix.mjs")
 
-    assert "ask-crump-new-body-v1-r253" in worker
-    assert "/runtime-body-v1.js?v=5.9.76-owner-isolation-native-store-1" in worker
+    assert "ask-crump-new-body-v1-r254" in worker
+    assert "/runtime-body-v1.js?v=5.9.76-server-authoritative-activation-1" in worker
     assert "/crump-navigation-5.9.30.js?v=5.9.76-autonomous-crump-1" in worker
     assert "/crump-code-loader.js?v=5.9.76-autonomous-crump-1" in worker
     assert "/crump-billing-5.1.js?v=5.9.76-autonomous-crump-1" in worker
@@ -131,9 +132,14 @@ def test_returning_workspace_upgrades_out_of_the_legacy_crump_code_cache():
     assert "deleteLegacyCaches()\n      .then(() => self.clients.claim())" in worker
     assert "ask-crump-new-body-v1-r249" not in worker
     assert "/crump-code-loader.js?v=5.9.76-code-lazy-load-1" not in worker
+    assert "verify-server-authoritative-activation-cache-upgrade.cjs" in matrix
+    assert "historicalVerifiers" in matrix
     assert "verify-autonomous-crump-cache-upgrade.cjs" in matrix
-    assert "staleLoaderPresent" in verifier
-    assert "upgradedEvidence.loaderSource.includes('Autonomous Crump')" in verifier
-    assert "upgradedEvidence.cacheKeys.includes(oldCacheName)" in verifier
+    assert "ask-crump-new-body-v1-r253" in verifier
+    assert "ask-crump-new-body-v1-r254" in verifier
+    assert "activation-cache-r253" in verifier
+    assert "legacyMessageState" in verifier
+    assert "ask-crump-new-body-v1-r252" in historical
+    assert "ask-crump-new-body-v1-r253" in historical
     assert "askcrump.com" not in verifier.lower()
     assert "password" not in verifier.lower()

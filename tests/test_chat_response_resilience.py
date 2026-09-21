@@ -20,6 +20,7 @@ class ChatJobDB:
         self.row = row
         self.conversation = conversation
         self.selects = []
+        self.events = []
 
     async def select_one(self, table, *, columns="*", filters=None):
         self.selects.append((table, columns, filters))
@@ -32,8 +33,13 @@ def install_job(monkeypatch, row, conversation=None):
     async def authenticate(*_args, **_kwargs):
         return SimpleNamespace(user={"id": "owner-1"}, session={"id": "session-1"}, token="token")
 
+    async def record_event(_database, **kwargs):
+        fake_db.events.append(dict(kwargs))
+        return True
+
     monkeypatch.setattr(chat_routes, "db", fake_db)
     monkeypatch.setattr(chat_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(chat_routes, "record_product_event", record_event)
     return fake_db
 
 
@@ -67,10 +73,11 @@ def test_completed_reply_status_is_owner_scoped_and_returns_cached_response(monk
     assert table == "chat_jobs"
     assert columns == "chat_id,message_id,status,response_data,error_code,updated_at"
     assert filters == {"user_id": eq("owner-1"), "message_id": eq(MESSAGE_ID)}
+    assert fake_db.events == []
 
 
 def test_active_reply_status_is_retryable_without_restarting_generation(monkeypatch):
-    install_job(
+    fake_db = install_job(
         monkeypatch,
         {
             "status": "processing",
@@ -84,6 +91,7 @@ def test_active_reply_status_is_retryable_without_restarting_generation(monkeypa
     assert response.status_code == 202
     assert response.headers["cache-control"] == "no-store"
     assert response.json() == {"success": True, "status": "processing", "retryAfter": 3}
+    assert fake_db.events == []
 
 
 def test_status_recovers_authoritative_document_after_response_and_job_cache_are_lost(monkeypatch):
@@ -143,10 +151,11 @@ def test_status_recovers_authoritative_document_after_response_and_job_cache_are
         "chat_id": eq(chat_id),
         "deleted_at": "is.null",
     }
+    assert fake_db.events == []
 
 
 def test_stale_or_failed_reply_status_allows_the_existing_idempotent_job_to_retry(monkeypatch):
-    install_job(
+    fake_db = install_job(
         monkeypatch,
         {
             "status": "processing",
@@ -161,6 +170,7 @@ def test_stale_or_failed_reply_status_allows_the_existing_idempotent_job_to_retr
     assert response.status_code == 409
     assert response.json()["status"] == "retryable"
     assert response.json()["shouldRetry"] is True
+    assert fake_db.events == []
 
 
 def test_primary_and_fallback_chat_runtimes_use_bounded_server_job_recovery():
@@ -188,7 +198,7 @@ def test_completed_reply_sync_is_best_effort_and_cannot_relabel_durable_success(
         "async function studioSendMessage", 1
     )[0]
     fallback_completion = fallback.split("function completeUserMessage", 1)[1].split(
-        "async function recordFirstSuccessfulResponse", 1
+        "async function processUserMessage", 1
     )[0]
 
     assert "function syncCompletedReplyInBackground()" in primary
@@ -210,7 +220,7 @@ def test_completed_reply_creation_handoff_cannot_relabel_durable_success():
         "async function studioSendMessage", 1
     )[0]
     fallback_completion = fallback.split("function completeUserMessage", 1)[1].split(
-        "async function recordFirstSuccessfulResponse", 1
+        "async function processUserMessage", 1
     )[0]
 
     for source, completion in (

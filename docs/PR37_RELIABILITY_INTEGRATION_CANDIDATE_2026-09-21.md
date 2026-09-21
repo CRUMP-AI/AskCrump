@@ -21,6 +21,8 @@ The candidate includes:
 - native-store source gates, Android page-size verification, and the existing no-credential iOS and
   Android hosted workflows;
 - a source-only video-provider-start/account-deletion fence and durable account-deletion recovery;
+- a server-authoritative activation boundary that rejects browser-submitted activation and records
+  activation telemetry only after durable reply persistence;
 - a disposable real-PostgreSQL CI harness for the staged fence SQL; and
 - a least-privilege, time-limited boundary for any outsourced store-release specialist, structured
   by a version-three packet covering source, CI references, public certificate identity, store
@@ -45,6 +47,14 @@ failure, and durable-begin failure with the exact operation token.
 - Conversational document-delivery and PDF policy suite: **4 passed**. Browser fixtures verified
   owned DOCX/PDF/PPTX download targets, zero new windows, and Files behavior at desktop and mobile
   sizes.
+- Activation-authority regressions passed: the authenticated client endpoint returns **422** for
+  `ActivationReached`; browser completion has no activation sender; a durably persisted reply
+  records the exact server key; exception and malformed-receipt persistence failures return **503**
+  without activation; and status GET plus cached-job recovery remain mutation-free. Durable growth
+  reports retain their existing completed-job activation fallback. The returning-PWA browser
+  proof uses hash-verified frozen copies of the exact committed r253 app and analytics assets. It
+  passed the immediate **r253 → r254** cache transition, including the real retired activation POST
+  rejected with **422**, preserved completed message state, and replaced both stale senders.
 - Adjacent artifact/manuscript routing regression suite: **52 passed**, including selected-format
   precedence and intentional long-form DOCX preservation.
 - JavaScript contract: **55 files**; attribution fixtures **24/24**, **10/10**, and **10/10**;
@@ -101,3 +111,5 @@ physical-device/store behavior.
 
 No production database, provider, customer content, developer account, store console, deployment,
 pricing, billing configuration, or public campaign was changed while producing this candidate.
+Existing production activation cohorts remain provisional until a post-deployment cohort is mature;
+this source correction does not retroactively certify earlier D1/D7 measurements.

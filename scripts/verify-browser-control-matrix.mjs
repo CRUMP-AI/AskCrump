@@ -11,10 +11,13 @@ const {chromium} = require('playwright');
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const scriptsDirectory = path.join(root, 'scripts');
 const publicDirectory = path.join(root, 'public');
+const historicalVerifiers = Object.freeze([
+  'verify-autonomous-crump-cache-upgrade.cjs',
+]);
 const expectedVerifiers = Object.freeze([
   'verify-ai-data-sharing-consent.cjs',
   'verify-attach-creation-routing.cjs',
-  'verify-autonomous-crump-cache-upgrade.cjs',
+  'verify-server-authoritative-activation-cache-upgrade.cjs',
   'verify-button-state-integrity.cjs',
   'verify-chat-action-accessibility.cjs',
   'verify-create-destination-handoff.cjs',
@@ -189,8 +192,15 @@ function runVerifier(name, environment) {
   });
 }
 
-const discovered = (await readdir(scriptsDirectory))
-  .filter(name => /^verify-.*\.cjs$/i.test(name));
+const directoryEntries = await readdir(scriptsDirectory);
+for (const historical of historicalVerifiers) {
+  if (!directoryEntries.includes(historical)) {
+    throw new Error('Historical browser verifier is missing: ' + historical + '.');
+  }
+}
+const discovered = directoryEntries
+  .filter(name => /^verify-.*\.cjs$/i.test(name))
+  .filter(name => !historicalVerifiers.includes(name));
 assertExactInventory(discovered);
 
 const requestedBrowserExecutable = process.env.ASKCRUMP_BROWSER_EXECUTABLE

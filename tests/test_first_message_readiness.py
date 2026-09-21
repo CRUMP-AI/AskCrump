@@ -10,7 +10,7 @@ def test_usage_preflight_is_bounded_through_response_parsing():
 
     preflight = app[
         app.index("async function ensureUsageAvailable")
-        : app.index("async function recordFirstSuccessfulResponse")
+        : app.index("async function processUserMessage")
     ]
     assert "USAGE_PREFLIGHT_TIMEOUT_MS = 10_000" in app
     assert "new AbortController()" in preflight
@@ -30,8 +30,8 @@ def test_changed_first_message_asset_is_release_versioned():
 
     assert '"version": "5.9.76"' in package
     assert '<script defer src="/app.js?v=5.9.76-intelligence-receipt-1"></script>' not in shell
-    assert "['/app.js?v=5.9.76-video-owner-composer-1', 'workspaceapp']" in runtime
-    assert "'/app.js?v=5.9.76-video-owner-composer-1'" in worker
+    assert "['/app.js?v=5.9.76-server-authoritative-activation-1', 'workspaceapp']" in runtime
+    assert "'/app.js?v=5.9.76-server-authoritative-activation-1'" in worker
 
 
 def test_pre_message_failure_preserves_the_draft_and_explains_recovery():

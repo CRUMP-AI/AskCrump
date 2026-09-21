@@ -89,6 +89,7 @@ class FakeFeatures:
 def test_chat_identity_and_settings_are_server_authoritative(monkeypatch):
     fake_db = FakeDB()
     fake_ai = FakeAI()
+    events = []
 
     async def fake_authenticate(*_args, **_kwargs):
         return SimpleNamespace(
@@ -97,10 +98,15 @@ def test_chat_identity_and_settings_are_server_authoritative(monkeypatch):
             token='token',
         )
 
+    async def record_event(*_args, **kwargs):
+        events.append(dict(kwargs))
+        return True
+
     monkeypatch.setattr(chat_routes, 'db', fake_db)
     monkeypatch.setattr(chat_routes, 'ai', fake_ai)
     monkeypatch.setattr(chat_routes, 'features', FakeFeatures())
     monkeypatch.setattr(chat_routes, 'authenticate_request', fake_authenticate)
+    monkeypatch.setattr(chat_routes, 'record_product_event', record_event)
 
     response = client.post('/api/chat', json={
         'message': 'hello',
@@ -114,6 +120,7 @@ def test_chat_identity_and_settings_are_server_authoritative(monkeypatch):
     assert fake_ai.payload['workMode'] == 'work'
     assert 'user' not in fake_ai.payload
     assert fake_ai.payload['_userTier'] == 'free'
+    assert all(event.get('event_name') != 'ActivationReached' for event in events)
 
 
 def test_chat_packages_contextual_download_follow_up_when_semantic_router_is_unavailable(monkeypatch):
@@ -225,6 +232,7 @@ def test_durable_document_reply_survives_chat_job_cache_finalization_failure(mon
     fake_db = FinalizationCacheFailureDB()
     fake_ai = FakeAI()
     refunds = AsyncMock(return_value=None)
+    events = []
 
     async def fake_authenticate(*_args, **_kwargs):
         return SimpleNamespace(
@@ -253,7 +261,10 @@ def test_durable_document_reply_survives_chat_job_cache_finalization_failure(mon
             'status': 'ready',
         }
 
-    async def ignore_event(*_args, **_kwargs):
+    async def record_event(*_args, **kwargs):
+        if kwargs.get('event_name') == 'ActivationReached':
+            assert fake_db.persisted_reply is not None
+        events.append(dict(kwargs))
         return True
 
     fake_intelligence = SimpleNamespace(
@@ -283,7 +294,7 @@ def test_durable_document_reply_survives_chat_job_cache_finalization_failure(mon
     monkeypatch.setattr(chat_routes, 'authenticate_request', fake_authenticate)
     monkeypatch.setattr(chat_routes, 'apply_project_context', AsyncMock(return_value=None))
     monkeypatch.setattr(chat_routes, 'mark_check_in_responded', AsyncMock(return_value=None))
-    monkeypatch.setattr(chat_routes, 'record_product_event', ignore_event)
+    monkeypatch.setattr(chat_routes, 'record_product_event', record_event)
     monkeypatch.setattr(chat_routes, 'refund_usage', refunds)
     monkeypatch.setattr(type(chat_routes.artifacts), 'create', fake_create)
 
@@ -302,6 +313,11 @@ def test_durable_document_reply_survives_chat_job_cache_finalization_failure(mon
     assert body['conversationRevision'] == 8
     assert fake_db.persisted_reply['p_assistant_message']['artifact']['id'] == body['artifact']['id']
     assert any(table == 'chat_jobs' and payload.get('status') == 'completed' for table, payload in fake_db.update_calls)
+    assert any(
+        event.get('event_name') == 'ActivationReached'
+        and event.get('event_key') == 'first-successful-response'
+        for event in events
+    )
     refunds.assert_not_awaited()
 
 
