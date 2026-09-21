@@ -46,7 +46,10 @@ def test_runner_refuses_production_and_exercises_real_connection_races():
     assert "begin_after_establish" in runner
     assert "acceptance_holder" in runner and "acceptance_waiter" in runner
     assert "reconciliation_row_holder" in runner
-    assert "set statement_timeout = '3 seconds'" in runner
+    assert "set statement_timeout = '3s'" in runner
+    assert "set statement_timeout = '45s'" in runner
+    assert "statement_timeout = '3 seconds'" not in runner
+    assert "statement_timeout = '45 seconds'" not in runner
     # Twice in the valid database (idempotent reapply), once in the isolated
     # invalid-legacy database (explicit preflight rollback).
     assert runner.count("--file staging/video_provider_deletion_fence.sql") == 3

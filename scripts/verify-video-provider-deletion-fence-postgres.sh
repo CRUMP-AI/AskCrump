@@ -342,7 +342,7 @@ reservation_holder_pid=$STARTED_PID
 wait_for_gate_session "reservation_holder"
 
 start_session "deletion_waiter" "$TEMP_DIR/deletion-waiter.out" "
-  set statement_timeout = '45 seconds';
+  set statement_timeout = '45s';
   set role service_role;
   select public.begin_video_account_deletion(
     '11000000-0000-0000-0000-000000000001',
@@ -380,7 +380,7 @@ deletion_holder_pid=$STARTED_PID
 wait_for_gate_session "deletion_holder"
 
 start_session "reservation_waiter" "$TEMP_DIR/reservation-waiter.out" "
-  set statement_timeout = '45 seconds';
+  set statement_timeout = '45s';
   set role service_role;
   select public.reserve_video_provider_claim(
     '11000000-0000-0000-0000-000000000002',
@@ -440,7 +440,7 @@ establish_holder_pid=$STARTED_PID
 wait_for_gate_session "establish_holder"
 
 start_session "recovery_after_establish" "$TEMP_DIR/recovery-after-establish.out" "
-  set statement_timeout = '45 seconds';
+  set statement_timeout = '45s';
   set role service_role;
   select public.recover_video_account_deletion_fence(
     '11000000-0000-0000-0000-000000000008',
@@ -454,7 +454,7 @@ wait_for_block "recovery_after_establish" "establish_holder"
 # claim locks held by establishment, it waits on users rather than taking a
 # claim lock that could deadlock against the fence lock.
 start_session "begin_after_establish" "$TEMP_DIR/begin-after-establish.out" "
-  set statement_timeout = '45 seconds';
+  set statement_timeout = '45s';
   set role service_role;
   select public.begin_video_account_deletion(
     '11000000-0000-0000-0000-000000000008',
@@ -530,7 +530,7 @@ recovery_holder_pid=$STARTED_PID
 wait_for_gate_session "recovery_holder"
 
 start_session "establish_after_recovery" "$TEMP_DIR/establish-after-recovery.out" "
-  set statement_timeout = '45 seconds';
+  set statement_timeout = '45s';
   set role service_role;
   select public.establish_account_deletion_fence(
     '11000000-0000-0000-0000-000000000009',
@@ -612,7 +612,7 @@ wait_for_gate_session "acceptance_holder"
 
 start_session "acceptance_delete_waiter" "$TEMP_DIR/acceptance-delete-waiter.out" "
   begin;
-  set statement_timeout = '45 seconds';
+  set statement_timeout = '45s';
   set role service_role;
   select public.begin_video_account_deletion(
     '11000000-0000-0000-0000-000000000003',
@@ -694,7 +694,7 @@ delete_acceptance_holder_pid=$STARTED_PID
 wait_for_gate_session "delete_acceptance_holder"
 
 start_session "acceptance_waiter" "$TEMP_DIR/acceptance-waiter.out" "
-  set statement_timeout = '45 seconds';
+  set statement_timeout = '45s';
   set role service_role;
   select public.record_video_provider_acceptance(
     '11000000-0000-0000-0000-000000000004',
@@ -751,7 +751,7 @@ reconciliation_row_holder_pid=$STARTED_PID
 wait_for_gate_session "reconciliation_row_holder"
 
 skip_locked_job="$(sql_scalar "
-  set statement_timeout = '3 seconds';
+  set statement_timeout = '3s';
   set role service_role;
   select job_id
   from public.claim_deleted_video_provider_reconciliation(
@@ -772,7 +772,7 @@ assert_equal "$lease_replay_job" "21000000-0000-0000-0000-000000000006" \
   "lease-token replay"
 
 unavailable_job="$(sql_scalar "
-  set statement_timeout = '3 seconds';
+  set statement_timeout = '3s';
   set role service_role;
   select job_id
   from public.claim_deleted_video_provider_reconciliation(
