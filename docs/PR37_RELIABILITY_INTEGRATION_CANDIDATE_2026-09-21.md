@@ -1,26 +1,30 @@
 # PR 37 reliability integration candidate — 2026-09-21
 
-Status: **local, staged, mid-merge, uncommitted, unpushed, undeployed.** This document records
-evidence for review; it is not permission to apply a database migration, deploy production, sign a
-native build, submit to either store, or spend money.
+Status: **draft PR #37, unmerged, and undeployed.** The predecessor hosted-green head at the start of
+this release-hardening pass was `1a7d23bf5f4193c83304d522b9655f3af060f76a`. This document records evidence for review; it is not
+permission to apply a database migration, deploy production, sign a native build, submit to either
+store, or spend money.
 
 ## Candidate identity and scope
 
-The integration branch combines the local PR 37 tip `624a5d2` with reliability candidate
-`6ba31cc`. The public PR head was still `372b9c4` when the remote was checked, and that remote head
-is an ancestor of the local integration, so a later update can be a normal fast-forward without a
-force push.
+The integration branch combines PR 37's native privacy work through `624a5d2` with reliability
+candidate `6ba31cc`, plus hosted-validation corrections through `1a7d23b` and this later
+release-hardening candidate. The exact contractor source and its new hosted run receipts must be
+recorded in the final work order; predecessor receipts cannot authorize a later commit.
 
 The candidate includes:
 
 - conversational DOCX, PDF, and PPTX delivery through owned Ask Crump routes, plus direct-download
-  and Files-viewer behavior that does not expose a Supabase tab;
+  and Files-viewer behavior that does not expose a Supabase tab; an explicitly selected DOCX, PDF,
+  PPTX, or XLSX format remains authoritative over conflicting image, video, or book keywords;
 - checkout/account owner isolation, owner-scoped video continuity, and a fresh PWA cache generation;
 - native-store source gates, Android page-size verification, and the existing no-credential iOS and
   Android hosted workflows;
 - a source-only video-provider-start/account-deletion fence and durable account-deletion recovery;
 - a disposable real-PostgreSQL CI harness for the staged fence SQL; and
-- a least-privilege, time-limited boundary for any outsourced store-release specialist.
+- a least-privilege, time-limited boundary for any outsourced store-release specialist, structured
+  by a version-three packet covering source, CI references, public certificate identity, store
+  console evidence, operator identity, and access closeout, followed by independent owner checks.
 
 The account-deletion recovery commits the users-row fence only through an atomic SQL function.
 Begin, establish, recovery, and release serialize on `users` → `account_deletion_jobs` →
@@ -41,8 +45,10 @@ failure, and durable-begin failure with the exact operation token.
 - Conversational document-delivery and PDF policy suite: **4 passed**. Browser fixtures verified
   owned DOCX/PDF/PPTX download targets, zero new windows, and Files behavior at desktop and mobile
   sizes.
+- Adjacent artifact/manuscript routing regression suite: **52 passed**, including selected-format
+  precedence and intentional long-form DOCX preservation.
 - JavaScript contract: **55 files**; attribution fixtures **24/24**, **10/10**, and **10/10**;
-  submission-packet self-test **24/24**.
+  submission-packet self-test **51/51**.
 - Browser-control matrix: **52/52**, including returning-PWA cache, file delivery, image stability,
   precision editing, mobile navigation, Projects, Video, and owner continuity.
 - Accessibility matrix: **33/33** phone, tablet, and desktop scenarios.
@@ -52,23 +58,46 @@ failure, and durable-begin failure with the exact operation token.
 - Relevant Ruff checks, Python compilation, staged and unstaged diff checks, conflict-marker check,
   and whitespace checks passed.
 
-## Required hosted and owner gates
+## Predecessor hosted verification on `1a7d23b`
 
-1. Hosted CI must run with the repository's required Node 22 and declared Python dependencies.
-   This Windows host uses Node 24 and its bundled Python does not contain Argon2.
-2. The disposable PostgreSQL 17 workflow must execute the staged SQL twice and pass its real
-   multi-connection blocking, lock-order, permission, RLS, trigger, replay, preflight-rollback,
-   lease, and recovery-order fixtures. This host has no PostgreSQL, Docker, WSL, or `psql`.
-3. The SQL remains a staged source candidate. After hosted evidence and independent review, create
-   and inspect one numbered Supabase migration against a fresh remote migration ledger before any
-   migration-first rollout. Do not deploy dependent code first.
-4. Publisher accounts, agreements, app records, Firebase, RevenueCat/store product identifiers,
+- Clean-checkout CI passed in Python 3.12 and JavaScript, including browser controls,
+  accessibility, production bundle, and store evidence:
+  <https://github.com/CRUMP-AI/AskCrump/actions/runs/35566340678>.
+- Disposable PostgreSQL 17 verification passed, including candidate compilation and reapply,
+  preflight rollback, backfill, grants/RLS, trigger gates, idempotent RPCs, both user-row lock
+  orderings, acceptance/deletion races, and reconciliation leases:
+  <https://github.com/CRUMP-AI/AskCrump/actions/runs/35566340631>.
+- Android no-upload structural verification passed and produced an unsigned release AAB; the
+  16 KB static gate passed:
+  <https://github.com/CRUMP-AI/AskCrump/actions/runs/35566340621>.
+- iOS no-upload structural verification passed with Xcode 26.3 and reconciled privacy manifests,
+  but its former single-component build value `50976` is invalid for Apple. It is compile/privacy
+  evidence only and must be superseded by a valid-build run:
+  <https://github.com/CRUMP-AI/AskCrump/actions/runs/35566340555>.
+- The Vercel preview is Ready. GitHub reports seven successful checks and no conflict with `main`.
+
+These runs superseded this document's earlier pending-hosted-check statements for their exact SHA.
+They do not cover later release-hardening changes, apply the staged SQL, or prove signed
+physical-device/store behavior.
+
+## Remaining owner and release gates
+
+1. The SQL remains a staged source candidate. Create and inspect one numbered Supabase migration
+   against a fresh remote migration ledger before any migration-first rollout. Do not deploy
+   dependent code first.
+2. Publisher accounts, agreements, app records, Firebase, RevenueCat/store product identifiers,
    owner-controlled signing material, and reviewer access still require owner confirmation.
-5. Exact signed IPA/AAB artifacts must pass physical iPhone, iPad, and Android journeys, purchases,
+3. Exact signed IPA/AAB artifacts must pass physical iPhone, iPad, and Android journeys, purchases,
    restore, privacy permission, push, deletion, accessibility, screenshots, and the final packet
    hash gate before submission.
-6. If an outside release specialist is used, hand over only the exact CI-green commit through the
-   restricted roles and evidence milestones in `docs/STORE_LAUNCH_RUNBOOK.md`.
+4. Native billing requires signed two-device deletion, delayed-resume, account-switch, and in-flight
+   purchase/restore verification. Per-operation source checks do not make a third-party SDK call
+   atomic with account deletion.
+5. The source PDF policy correction still needs an authenticated owned signed-storage check for
+   real small/large PDF opening and download.
+6. If an outside release specialist is used, hand over only the owner-recorded CI-green commit
+   through the restricted roles and evidence milestones in
+   `docs/STORE_RELEASE_SPECIALIST_HANDOFF_2026-09-21.md` and `docs/STORE_LAUNCH_RUNBOOK.md`.
 
 No production database, provider, customer content, developer account, store console, deployment,
 pricing, billing configuration, or public campaign was changed while producing this candidate.

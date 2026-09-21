@@ -18,6 +18,7 @@ signing/
 credentials/
 store/reviewer-access.json
 store/submission-evidence.json
+store/access-closeout-evidence.*
 
 # Python
 __pycache__/

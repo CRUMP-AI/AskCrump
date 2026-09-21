@@ -107,7 +107,7 @@ npm ci
 npm run store:prepare:ios
 ```
 
-These commands create a missing platform, sync Capacitor, generate branded assets, configure the release version and platform requirements, and run platform-specific validation. The generated `ios/` and `android/` directories are ignored; reviewed source and scripts reconstruct them. Use `STORE_BUILD_NUMBER` for a strictly increasing upload build number. See `docs/STORE_LAUNCH_RUNBOOK.md` for signing and store submission.
+These commands create a missing platform, sync Capacitor, generate branded assets, configure the release version and platform requirements, and run platform-specific validation. The generated `ios/` and `android/` directories are ignored; reviewed source and scripts reconstruct them. Use integer `STORE_ANDROID_BUILD_NUMBER` for Google Play and Apple-compatible `STORE_IOS_BUILD_NUMBER` for App Store Connect; each must increase independently. See `docs/STORE_LAUNCH_RUNBOOK.md` for signing and store submission.
 
 ## 9. Configure push notifications
 

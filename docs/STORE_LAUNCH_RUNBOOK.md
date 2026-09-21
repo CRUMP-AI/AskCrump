@@ -126,11 +126,11 @@ npm run store:prepare:android
 
 The preparation command builds the local web bundle, creates Android if absent, syncs Capacitor, generates store assets, locks the package version/build number, configures notification metadata, and validates the result.
 
-For a later upload build, choose an unused integer above the highest build number in both
-store consoles. Do not reuse the historical example value from an older release:
+For a later Android upload, choose an unused integer above the highest Google Play `versionCode`.
+Do not reuse the historical example value from an older release:
 
 ```powershell
-$env:STORE_BUILD_NUMBER = "<next-unused-store-build-number>"
+$env:STORE_ANDROID_BUILD_NUMBER = "<next-unused-google-version-code>"
 npm run store:prepare:android
 ```
 
@@ -154,9 +154,15 @@ submission date; a hosted runner's default Xcode version is not evidence of comp
 
 ```bash
 npm ci
+export STORE_IOS_BUILD_NUMBER="<next-unused-apple-build-version>"
 npm run store:prepare:ios
 npm run cap:open:ios
 ```
+
+`STORE_IOS_BUILD_NUMBER` must be a strictly increasing Apple-compatible string with one to three
+period-separated numeric components. The first component is at most four digits; the optional
+second and third components are at most two digits each. For example, `5.9.76` is valid while the
+single-component value `50976` is not. Never reuse a build already uploaded to App Store Connect.
 
 In Xcode:
 
@@ -212,7 +218,8 @@ last gate.
 ## 9. Every future release
 
 1. Increment `package.json` version using `major.minor.patch`.
-2. Choose a new `STORE_BUILD_NUMBER` greater than every prior Apple build and Android version code.
+2. Choose a new integer `STORE_ANDROID_BUILD_NUMBER` greater than every prior Play version code and
+   a separate valid, strictly increasing `STORE_IOS_BUILD_NUMBER` not used in App Store Connect.
 3. Re-run tests, current store-policy checks, native preparation, and signed-device tests.
 4. Update release notes and screenshots when the visible experience changes.
 5. Release to internal testers, then a small production percentage, then expand while watching crashes, API errors, billing, and support reports.

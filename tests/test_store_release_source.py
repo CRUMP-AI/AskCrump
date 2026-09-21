@@ -250,11 +250,13 @@ def test_store_versions_and_android_api_are_guarded():
     verify = read('scripts/verify-native-release.mjs')
     assert 'compileSdkVersion = 36' in configure
     assert 'targetSdkVersion = 36' in configure
-    assert 'STORE_BUILD_NUMBER' in configure
+    assert 'STORE_ANDROID_BUILD_NUMBER' in configure
+    assert 'STORE_IOS_BUILD_NUMBER' in configure
     assert 'versionCode' in configure and 'versionName' in configure
     assert 'CURRENT_PROJECT_VERSION' in configure and 'MARKETING_VERSION' in configure
     assert 'TARGETED_DEVICE_FAMILY = "1,2";' in configure
-    assert 'expectedBuildNumber' in verify
+    assert 'expectedAndroidBuildNumber' in verify
+    assert 'expectedIosBuildNumber' in verify
     assert 'REVENUECAT_ANDROID_PUBLIC_SDK_KEY' in verify
     assert 'REVENUECAT_IOS_PUBLIC_SDK_KEY' in verify
     assert 'applicationId "com.clevercrump.askcrump"' in verify
@@ -308,8 +310,7 @@ def test_ios_media_usage_description_verifier_rejects_missing_and_empty_values(t
 
     package = json.loads(read('package.json'))
     version = package['version']
-    version_parts = [int(part) for part in version.split('.')]
-    build_number = version_parts[0] * 10_000 + version_parts[1] * 100 + version_parts[2]
+    build_number = version
     (project / 'package.json').write_text(
         json.dumps({'version': version}),
         encoding='utf-8',
@@ -383,6 +384,8 @@ def test_ios_media_usage_description_verifier_rejects_missing_and_empty_values(t
             'STORE_ALLOW_MISSING_PUBLIC_BILLING_KEYS',
             'STORE_VERSION_NAME',
             'STORE_BUILD_NUMBER',
+            'STORE_ANDROID_BUILD_NUMBER',
+            'STORE_IOS_BUILD_NUMBER',
         ):
             env.pop(variable, None)
         env.update(extra_env or {})
@@ -404,6 +407,13 @@ def test_ios_media_usage_description_verifier_rejects_missing_and_empty_values(t
     assert unsigned_ci.returncode == 0, unsigned_ci.stderr
     assert 'unsigned structural CI' in unsigned_ci.stderr
     assert 'not release-ready' in unsigned_ci.stderr
+
+    invalid_ios_build = verify({
+        'STORE_ALLOW_MISSING_PUBLIC_BILLING_KEYS': '1',
+        'STORE_IOS_BUILD_NUMBER': '50976',
+    })
+    assert invalid_ios_build.returncode == 1
+    assert 'Apple-compatible one-to-three-part build string' in invalid_ios_build.stderr
 
     runtime_values['revenueCatAppleApiKey'] = '   '
     write_runtime_config()
@@ -791,3 +801,59 @@ def test_store_metadata_source_is_structured_private_and_within_static_limits():
     assert 'Google Play feature graphic' in verifier
     assert 'Store listing draft is out of sync' in verifier
     assert 'verified direct-200 canonical URL' in verifier
+
+
+def test_release_specialist_handoff_is_least_privilege_and_evidence_bound():
+    handoff = read('docs/STORE_RELEASE_SPECIALIST_HANDOFF_2026-09-21.md')
+
+    required_boundaries = (
+        'temporary release operator',
+        'one exact later approved release commit',
+        'run references whose head SHA matches its exact approved commit',
+        'may not directly fix a product, backend, database, privacy, billing, entitlement,',
+        'Never grant Account Holder, **Admin (all permissions)** at any account or app scope',
+        "Never share the founder's Apple or Google password",
+        'Payment should follow accepted evidence milestones',
+        'specialist-authored JSON file, screenshot, PDF, or terminal transcript is not sufficient',
+        'Owner reviews the complete packet and gives a separate platform-specific action-time approval',
+        "Remove the specialist's access",
+    )
+    for boundary in required_boundaries:
+        assert boundary in handoff
+
+    current_role_controls = (
+        'app-limited Developer access for build upload and internal TestFlight',
+        'Access to Reports',
+        'Certificates, Identifiers & Profiles',
+        'Generate Individual API Keys',
+        'Release apps to testing tracks',
+        'Manage store presence',
+        'Manage policy declarations',
+        'turns managed publishing on or off',
+        'revoke it before the owner\'s final action',
+    )
+    for control in current_role_controls:
+        assert control in handoff
+
+    required_evidence = (
+        'Signed AAB SHA-256',
+        'Signed archive/IPA SHA-256',
+        'Play internal testing',
+        'TestFlight',
+        'npm run store:verify:submission',
+        'physical iPhone and iPad journeys',
+        'Current physical Android journey',
+        'reviewer correspondence',
+    )
+    for evidence in required_evidence:
+        assert evidence in handoff
+
+    required_stops = (
+        'approved commit or artifact hash changes',
+        'needs a production deploy, database migration',
+        'delayed/second-device flow can recreate or retain a',
+        'owned PDF/file cannot be opened and downloaded reliably',
+        'CAPTCHA, legal agreement, payment, or final submission step',
+    )
+    for stop in required_stops:
+        assert stop in handoff

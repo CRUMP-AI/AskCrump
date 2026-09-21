@@ -35,9 +35,11 @@
 - [ ] Android Firebase, RevenueCat public key, and upload keystore supplied; the hosted Java 21
       release-build path is verified, while local Android Studio still needs a compatible JDK
 - [ ] iOS source generated, signed, and archived on macOS
-- [ ] No-upload GitHub macOS 26/Xcode 26+ source and Release compile verification passed for 5.9.76/build 50976 before signing (the earlier macOS 15 run is not current App Store toolchain evidence)
-      credentials were added, including the explicit iPhone+iPad family and screenshot-packet gate
-      ([run 34790149321](https://github.com/CRUMP-AI/AskCrump/actions/runs/34790149321), 2026-09-13)
+- [ ] No-upload GitHub macOS 26/Xcode 26+ source and Release compile verification must pass for
+      version 5.9.76 with a valid Apple build such as `5.9.76` before signing. Earlier runs used the
+      invalid single-component build `50976`; they retain compile/privacy value but are not current
+      App Store identity evidence. The run must include the explicit iPhone+iPad family and
+      screenshot-packet gate.
 - [x] No-upload GitHub Java 21 Android App Bundle verification passed before signing credentials
       were added for 5.9.76/build 50976, including the screenshot-packet gate
       ([run 34790149297](https://github.com/CRUMP-AI/AskCrump/actions/runs/34790149297), 2026-09-13)

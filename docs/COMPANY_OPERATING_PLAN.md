@@ -483,6 +483,8 @@ provider, privacy, cost, or security gate is incomplete.
   observations.
 - **Native distribution:** Android 5.9.76/build 50976 source and an unsigned `.aab` pass the hosted
   API 36/Java 21 release audit in run `34787538207`; the generated iOS 5.9.76 Release configuration
-  passes its hosted macOS compile in run `34787538228`. Owner-controlled developer accounts,
+  passed its hosted macOS compile in run `34787538228`, but that historical iOS run used the invalid
+  single-component Apple build `50976` and must be superseded with a valid build identity.
+  Owner-controlled developer accounts,
   signing, push, native billing, reviewer access,
   signed-device tests, screenshots, declarations, and final submission approval remain open.

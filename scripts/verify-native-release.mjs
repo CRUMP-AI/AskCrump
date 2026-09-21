@@ -15,10 +15,21 @@ if (!/^\d+\.\d+\.\d+$/.test(expectedVersion)) {
   throw new Error(`Invalid STORE_VERSION_NAME: ${expectedVersion || '(empty)'}`);
 }
 const versionParts = expectedVersion.split('.').map(Number);
-const defaultBuildNumber = versionParts[0] * 10_000 + versionParts[1] * 100 + versionParts[2];
-const expectedBuildNumber = Number(process.env.STORE_BUILD_NUMBER || defaultBuildNumber);
-if (!Number.isSafeInteger(expectedBuildNumber) || expectedBuildNumber < 1 || expectedBuildNumber > 2_100_000_000) {
-  throw new Error('STORE_BUILD_NUMBER must be a positive integer no greater than 2100000000.');
+const defaultAndroidBuildNumber = versionParts[0] * 10_000 + versionParts[1] * 100 + versionParts[2];
+const expectedAndroidBuildNumber = Number(
+  process.env.STORE_ANDROID_BUILD_NUMBER || process.env.STORE_BUILD_NUMBER || defaultAndroidBuildNumber,
+);
+if (!Number.isSafeInteger(expectedAndroidBuildNumber)
+    || expectedAndroidBuildNumber < 1 || expectedAndroidBuildNumber > 2_100_000_000) {
+  throw new Error('STORE_ANDROID_BUILD_NUMBER must be a positive integer no greater than 2100000000.');
+}
+const expectedIosBuildNumber = String(process.env.STORE_IOS_BUILD_NUMBER || expectedVersion).trim();
+const iosBuildParts = expectedIosBuildNumber.split('.');
+if (iosBuildParts.length < 1 || iosBuildParts.length > 3
+    || !iosBuildParts.every(part => /^\d+$/.test(part))
+    || Number(iosBuildParts[0]) < 1 || iosBuildParts[0].length > 4
+    || iosBuildParts.slice(1).some(part => part.length > 2)) {
+  throw new Error('STORE_IOS_BUILD_NUMBER must be an Apple-compatible one-to-three-part build string.');
 }
 
 const failures = [];
@@ -125,7 +136,7 @@ if (target === 'all' || target === 'android') {
       if (!buildSource.includes('applicationId "com.clevercrump.askcrump"')) failures.push('Android applicationId does not match the permanent package ID.');
       const versionCode = Number(buildSource.match(/versionCode\s+(\d+)/)?.[1] || 0);
       const versionName = buildSource.match(/versionName\s+["']([^"']+)["']/)?.[1] || '';
-      if (versionCode !== expectedBuildNumber) failures.push(`Android versionCode is ${versionCode || 'unreadable'}; expected ${expectedBuildNumber}.`);
+      if (versionCode !== expectedAndroidBuildNumber) failures.push(`Android versionCode is ${versionCode || 'unreadable'}; expected ${expectedAndroidBuildNumber}.`);
       if (versionName !== expectedVersion) failures.push(`Android versionName is ${versionName || 'unreadable'}; expected ${expectedVersion}.`);
     }
 
@@ -188,14 +199,14 @@ if (target === 'all' || target === 'ios') {
         failures.push('iOS bundle ID does not match the permanent app identifier.');
       }
       const marketingVersions = [...project.matchAll(/MARKETING_VERSION = ([^;]+);/g)].map(match => match[1].trim());
-      const buildNumbers = [...project.matchAll(/CURRENT_PROJECT_VERSION = ([^;]+);/g)].map(match => Number(match[1].trim()));
+      const buildNumbers = [...project.matchAll(/CURRENT_PROJECT_VERSION = ([^;]+);/g)].map(match => match[1].trim());
       const targetedDeviceFamilies = [...project.matchAll(/TARGETED_DEVICE_FAMILY = ([^;]+);/g)]
         .map(match => match[1].trim().replace(/^"|"$/g, ''));
       if (!marketingVersions.length || marketingVersions.some(value => value !== expectedVersion)) {
         failures.push(`iOS MARKETING_VERSION must be ${expectedVersion}.`);
       }
-      if (!buildNumbers.length || buildNumbers.some(value => value !== expectedBuildNumber)) {
-        failures.push(`iOS CURRENT_PROJECT_VERSION must be ${expectedBuildNumber}.`);
+      if (!buildNumbers.length || buildNumbers.some(value => value !== expectedIosBuildNumber)) {
+        failures.push(`iOS CURRENT_PROJECT_VERSION must be ${expectedIosBuildNumber}.`);
       }
       if (!targetedDeviceFamilies.length || targetedDeviceFamilies.some(value => value !== '1,2')) {
         failures.push('iOS TARGETED_DEVICE_FAMILY must explicitly include both iPhone and iPad (1,2).');
@@ -223,5 +234,10 @@ if (failures.length) {
   for (const failure of failures) console.error(`FAIL: ${failure}`);
   process.exit(1);
 }
-console.log(`Native ${target} release source checks passed for Ask Crump ${expectedVersion} (${expectedBuildNumber}).`);
+const buildIdentity = target === 'android'
+  ? String(expectedAndroidBuildNumber)
+  : target === 'ios'
+    ? expectedIosBuildNumber
+    : `Android ${expectedAndroidBuildNumber}; iOS ${expectedIosBuildNumber}`;
+console.log(`Native ${target} release source checks passed for Ask Crump ${expectedVersion} (${buildIdentity}).`);
 console.log('Complete signed archive, physical-device, billing, and store-console validation next.');
