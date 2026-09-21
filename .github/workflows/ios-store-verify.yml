@@ -2,6 +2,33 @@ name: iOS Store Source Verification
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/ios-store-verify.yml
+      - package.json
+      - package-lock.json
+      - capacitor.config.ts
+      - public/**
+      - backend/revenuecat_catalog.json
+      - store/**
+      - docs/STORE_LISTING_COPY.md
+      - docs/BILLING_5_1.md
+      - docs/DATA_SAFETY.md
+      - scripts/build-native.mjs
+      - scripts/check-javascript.mjs
+      - scripts/configure-native.mjs
+      - scripts/prepare-store-release.mjs
+      - scripts/production-build-preflight.mjs
+      - scripts/revenuecat-catalog.mjs
+      - scripts/verify-native-release.mjs
+      - scripts/verify-native-privacy.mjs
+      - scripts/verify-store-metadata.mjs
+      - scripts/verify-store-submission-packet.mjs
+      - resources/PrivacyInfo.xcprivacy
+      - resources/icon.png
+      - resources/splash.png
+      - store/submission-evidence.android.example.json
+      - store/submission-evidence.ios.example.json
   push:
     branches: [main]
     paths:
@@ -43,14 +70,37 @@ jobs:
     name: Generate and compile unsigned iOS candidate
     runs-on: macos-15
     timeout-minutes: 45
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
-      - name: Record Apple toolchain
-        run: xcodebuild -version
+      - name: Require Xcode 26 and iOS 26 SDK or newer
+        shell: bash
+        run: |
+          if [[ ! -d "$DEVELOPER_DIR" ]]; then
+            echo "Required Xcode installation is missing: $DEVELOPER_DIR" >&2
+            exit 1
+          fi
+
+          xcodebuild -version
+          xcode_version="$(xcodebuild -version | awk '/^Xcode / { print $2 }')"
+          xcode_major="${xcode_version%%.*}"
+          if [[ ! "$xcode_major" =~ ^[0-9]+$ ]] || (( xcode_major < 26 )); then
+            echo "Xcode 26 or newer is required; selected version: $xcode_version" >&2
+            exit 1
+          fi
+
+          ios_sdk_version="$(xcrun --sdk iphoneos --show-sdk-version)"
+          ios_sdk_major="${ios_sdk_version%%.*}"
+          if [[ ! "$ios_sdk_major" =~ ^[0-9]+$ ]] || (( ios_sdk_major < 26 )); then
+            echo "iOS 26 SDK or newer is required; selected version: $ios_sdk_version" >&2
+            exit 1
+          fi
+          echo "Verified Xcode $xcode_version and iOS SDK $ios_sdk_version."
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
       - name: Generate and verify iOS release source
@@ -93,6 +143,7 @@ jobs:
             echo '## Ask Crump iOS source verification'
             echo
             echo '- Generated from the reviewed Node 22 lockfile.'
+            echo '- Used Xcode 26.3 with an asserted Xcode 26+ and iOS 26+ SDK toolchain.'
             echo '- Native source verifier passed.'
             echo '- Xcode compiled the Release configuration without signing.'
             echo '- The compiled app and Capacitor bundles contain valid, reconciled privacy manifests.'

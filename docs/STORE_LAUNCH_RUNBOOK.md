@@ -20,10 +20,13 @@ Official references:
 
 ## 2. Release order
 
-1. Merge a reviewed release commit to `main`.
-2. Apply every unapplied SQL migration to the production Supabase project.
+1. Merge a reviewed, fully verified release commit to `main`.
+2. Inventory the remote migration ledger and apply only the reviewed migrations required by
+   this release, in their documented compatibility order. Never apply every pending migration
+   solely because it is present in the checkout.
 3. Run Supabase security and performance advisors and resolve new findings.
-4. Deploy the matching backend/frontend commit to Vercel.
+4. Deploy the matching backend/frontend commit to Vercel only after its required database
+   changes and rollback/compatibility checks are complete.
 5. Prepare the native project for one platform.
 6. Build and sign the release using owner-controlled credentials.
 7. Test the exact signed build on physical devices and in store sandboxes.
@@ -85,10 +88,11 @@ npm run store:prepare:android
 
 The preparation command builds the local web bundle, creates Android if absent, syncs Capacitor, generates store assets, locks the package version/build number, configures notification metadata, and validates the result.
 
-For a later upload build, use a strictly increasing integer:
+For a later upload build, choose an unused integer above the highest build number in both
+store consoles. Do not reuse the historical example value from an older release:
 
 ```powershell
-$env:STORE_BUILD_NUMBER = "50501"
+$env:STORE_BUILD_NUMBER = "<next-unused-store-build-number>"
 npm run store:prepare:android
 ```
 
@@ -105,6 +109,8 @@ Connect upload. Do not outsource merely to obtain a Mac unless the controlled CI
 project, runs the native verifier, and compiles Release with code signing disabled. It cannot upload
 or submit. Add a separate, owner-reviewed signing/upload stage only after the Apple team, app record,
 certificates/profiles or managed-signing path, and App Store Connect authentication are approved.
+The unsigned compile must explicitly select an Xcode version and iOS SDK accepted by Apple on the
+submission date; a hosted runner's default Xcode version is not evidence of compliance.
 
 ```bash
 npm ci
@@ -140,6 +146,10 @@ Run these on current physical iPhone and Android devices:
 - export and permanent account deletion, including the external deletion URL
 - VoiceOver/TalkBack, larger text, reduced motion, contrast, keyboard, and safe areas
 - no Stripe checkout inside either native application
+
+Before trusting an Android upload candidate, verify that its exact AAB requests 16 KB page
+alignment and that every packaged native library has compatible ELF load-segment alignment. The
+source or unsigned-bundle check does not replace Play pre-launch and physical-device testing.
 
 ## 7. Store-console declarations
 
