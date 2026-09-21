@@ -44,6 +44,16 @@
 - [x] Apple/Google listing copy, reviewer path, and screenshot sequence match the released Ask,
       Projects, Create, Video, Library, and You information architecture; Research remains inside Ask
 - [ ] Exact signed builds pass the physical-device, billing, privacy, and console gates
+- [ ] Native billing remains OFF until the server-authoritative owner/fence marker and
+      practical before/after SDK setup or identity-alignment checks, plus
+      pre-operation purchase, restore, and customer-refresh checks, pass on
+      signed builds. These checks reduce stale-client windows; they do not
+      guarantee that a paused client cannot recreate a provider customer.
+- [ ] Signed two-device deletion tests pause one device after an owner check while the
+      other deletes the account, then resume SDK setup/identity alignment and inspect
+      provider records after cleanup. Include a concurrent account switch and an
+      in-flight purchase/restore case; resolve any remaining provider-recreation or
+      charge risk before turning native billing ON or submitting either store build.
 - [ ] Exact signed builds prove the AI-sharing first-use prompt appears before the provider request; “Not now” sends nothing; allow resumes once; withdrawal blocks chat, media, voice, manuscript, Autonomous Crump, and scheduled-provider work
 - [x] Final packet has a fail-closed local completeness gate for exact signed artifact hash, fresh
       device/console evidence, current iPhone + iPad and Android screenshot dimensions/format,

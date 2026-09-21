@@ -987,12 +987,12 @@ const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot),
 const releaseVersion = String(packageJson.version || '');
 const autonomousCrumpVersion = `${releaseVersion}-autonomous-crump-1`;
 const nativeStoreBillingVersion = `${releaseVersion}-native-store-billing-1`;
-const nativeIdentityRecordVersion = `${releaseVersion}-native-identity-record-1`;
+const nativeFreshIdentityVersion = `${releaseVersion}-native-identity-fresh-1`;
 const landingVersion = `${releaseVersion}-facebook-reel-attribution-1`;
 const planRendererVersion = `${releaseVersion}-credit-pack-accessibility-1`;
 const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
 const nativeBillingIdentityVersion = `${releaseVersion}-native-billing-identity-1`;
-const stripeDestinationIntegrityVersion = nativeIdentityRecordVersion;
+const stripeDestinationIntegrityVersion = nativeFreshIdentityVersion;
 const checkoutDestinationLabelVersion = `${releaseVersion}-checkout-destination-label-1`;
 const creditPackTruthVersion = `${releaseVersion}-credit-pack-truth-1`;
 const creditTruthVersion = `${releaseVersion}-credit-truth-1`;
@@ -1007,7 +1007,7 @@ const visibleWorkspaceReturnVersion = `${releaseVersion}-visible-workspace-retur
 const authControllerVersion = `${releaseVersion}-facebook-reel-attribution-1`;
 const continuityHandoffVersion = `${releaseVersion}-continuity-handoff-1`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
-const accountDeletionBillingVersion = nativeIdentityRecordVersion;
+const accountDeletionBillingVersion = nativeFreshIdentityVersion;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
 const composerActionabilityVersion = `${releaseVersion}-composer-actionability-1`;
@@ -1243,7 +1243,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${nativeIdentityRecordVersion}`,
+  `/runtime-body-v1.js?v=${nativeFreshIdentityVersion}`,
   `/auth-controller.js?v=${authControllerVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
@@ -1496,7 +1496,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r252') ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.png'") ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${nativeIdentityRecordVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${nativeFreshIdentityVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${continuityHandoffVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
@@ -1732,8 +1732,8 @@ const confirmedNativeMarker = await exerciseNativeBillingMarker({
   ok: true, async json() { return {success: true, recorded: true, userId: 'fixture-user'}; },
 });
 if (JSON.stringify(confirmedNativeMarker.calls) !==
-    JSON.stringify(['readiness', 'record', 'configure', 'offerings'])) {
-  console.error('Native billing must record the authenticated customer before SDK configuration.');
+    JSON.stringify(['readiness', 'record', 'record', 'configure', 'record', 'record', 'offerings'])) {
+  console.error('Native billing must freshly confirm the owner around SDK configuration.');
   process.exit(1);
 }
 const unconfirmedNativeMarkers = [
@@ -1756,6 +1756,442 @@ if (Object.keys(anonymousNativeMarker.products).length ||
     anonymousNativeMarker.calls.includes('configure')) {
   console.error('Native billing must not create an anonymous provider customer.');
   process.exit(1);
+}
+
+async function exerciseDeletionDuringIsConfigured() {
+  const calls = [];
+  let fenced = false;
+  let enterIsConfigured;
+  let releaseIsConfigured;
+  const entered = new Promise(resolve => { enterIsConfigured = resolve; });
+  const paused = new Promise(resolve => { releaseIsConfigured = resolve; });
+  const plugin = {
+    async isConfigured() {
+      calls.push('isConfigured');
+      enterIsConfigured();
+      await paused;
+      return {isConfigured: false};
+    },
+    async configure() { calls.push('configure'); },
+    async getOfferings() { calls.push('offerings'); return {current: {availablePackages: []}}; },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {revenueCatAppleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'deleting-owner'},
+  };
+  const fetchImpl = async url => {
+    if (url === '/api/billing/native-readiness') return {
+      ok: true, async json() { return {success: true, ready: true}; },
+    };
+    if (url === '/api/billing/native-identity') {
+      calls.push('owner-check');
+      return fenced ? {ok: false, status: 409} : {
+        ok: true, async json() { return {success: true, recorded: true, userId: 'deleting-owner'}; },
+      };
+    }
+    throw new Error('Unexpected native billing request.');
+  };
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: fetchImpl}));
+  const products = windowMock.BillingManager.getProducts().then(
+    () => 'unexpected-success', error => error?.message || '',
+  );
+  await entered;
+  fenced = true;
+  releaseIsConfigured();
+  return {calls, outcome: await products};
+}
+const deletionDuringIsConfigured = await exerciseDeletionDuringIsConfigured();
+if (JSON.stringify(deletionDuringIsConfigured.calls) !==
+    JSON.stringify(['owner-check', 'isConfigured', 'owner-check']) ||
+    !deletionDuringIsConfigured.outcome.includes('no longer available')) {
+  console.error('A deletion fence committed during isConfigured must block SDK configure.');
+  process.exit(1);
+}
+
+async function exercisePersistedOwnerFencedDuringIsConfigured() {
+  const calls = [];
+  let fenced = false;
+  let enterIsConfigured;
+  let releaseIsConfigured;
+  const entered = new Promise(resolve => { enterIsConfigured = resolve; });
+  const paused = new Promise(resolve => { releaseIsConfigured = resolve; });
+  const plugin = {
+    async isConfigured() {
+      calls.push('isConfigured');
+      enterIsConfigured();
+      await paused;
+      return {isConfigured: true};
+    },
+    async getAppUserID() { calls.push('getAppUserID'); return {appUserID: 'deleting-owner'}; },
+    async isAnonymous() { return {isAnonymous: false}; },
+    async configure() { calls.push('configure'); },
+    async logIn() { calls.push('login'); },
+    async logOut() { calls.push('logout'); },
+    async getOfferings() { calls.push('offerings'); return {current: {availablePackages: []}}; },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {revenueCatAppleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'deleting-owner'},
+  };
+  const fetchImpl = async url => {
+    if (url === '/api/billing/native-readiness') return {
+      ok: true, async json() { return {success: true, ready: true}; },
+    };
+    if (url === '/api/billing/native-identity') {
+      calls.push('owner-check');
+      return fenced ? {ok: false, status: 409} : {
+        ok: true, async json() { return {success: true, recorded: true, userId: 'deleting-owner'}; },
+      };
+    }
+    throw new Error('Unexpected native billing request.');
+  };
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: fetchImpl}));
+  const products = windowMock.BillingManager.getProducts().then(
+    () => 'unexpected-success', error => error?.message || '',
+  );
+  await entered;
+  fenced = true;
+  releaseIsConfigured();
+  return {calls, outcome: await products};
+}
+const persistedOwnerFencedDuringIsConfigured = await exercisePersistedOwnerFencedDuringIsConfigured();
+if (JSON.stringify(persistedOwnerFencedDuringIsConfigured.calls) !==
+    JSON.stringify(['owner-check', 'isConfigured', 'getAppUserID', 'owner-check']) ||
+    !persistedOwnerFencedDuringIsConfigured.outcome.includes('could not confirm the signed-in account')) {
+  console.error('A persisted same-owner SDK must not load offerings after deletion fences it.');
+  process.exit(1);
+}
+
+async function exerciseSessionSwitchDuringIsConfigured() {
+  const calls = [];
+  let enterIsConfigured;
+  let releaseIsConfigured;
+  const entered = new Promise(resolve => { enterIsConfigured = resolve; });
+  const paused = new Promise(resolve => { releaseIsConfigured = resolve; });
+  const plugin = {
+    async isConfigured() {
+      calls.push('isConfigured');
+      enterIsConfigured();
+      await paused;
+      return {isConfigured: true};
+    },
+    async getAppUserID() { calls.push('getAppUserID'); return {appUserID: 'account-a'}; },
+    async isAnonymous() { return {isAnonymous: false}; },
+    async configure() { calls.push('configure'); },
+    async logIn({appUserID}) { calls.push(`login:${appUserID}`); },
+    async logOut() { calls.push('logout'); },
+    async getOfferings() {
+      calls.push('offerings');
+      return {current: {availablePackages: []}};
+    },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {revenueCatAppleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'account-a'},
+  };
+  const fetchImpl = async url => {
+    if (url === '/api/billing/native-readiness') return {
+      ok: true, async json() { return {success: true, ready: true}; },
+    };
+    if (url === '/api/billing/native-identity') {
+      const userId = windowMock.currentUser?.id;
+      calls.push(`owner-check:${userId}`);
+      return {ok: true, async json() { return {success: true, recorded: true, userId}; }};
+    }
+    throw new Error('Unexpected native billing request.');
+  };
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: fetchImpl}));
+  const products = windowMock.BillingManager.getProducts();
+  await entered;
+  windowMock.currentUser = {id: 'account-b'};
+  releaseIsConfigured();
+  await products;
+  return calls;
+}
+const sessionSwitchDuringIsConfigured = await exerciseSessionSwitchDuringIsConfigured();
+if (JSON.stringify(sessionSwitchDuringIsConfigured) !== JSON.stringify([
+  'owner-check:account-a', 'isConfigured', 'getAppUserID', 'owner-check:account-b',
+  'login:account-b', 'owner-check:account-b', 'owner-check:account-b', 'offerings',
+])) {
+  console.error('Persisted SDK adoption must follow a newly authenticated account without logging it out.');
+  process.exit(1);
+}
+
+async function exerciseStaleOwnerCheckDuringNewOwnerPurchase() {
+  const calls = [];
+  let firstOwnerChecks = 0;
+  let enterStaleCheck;
+  let releaseStaleCheck;
+  let enterPurchase;
+  let releasePurchase;
+  const staleCheckEntered = new Promise(resolve => { enterStaleCheck = resolve; });
+  const staleCheckPaused = new Promise(resolve => { releaseStaleCheck = resolve; });
+  const purchaseEntered = new Promise(resolve => { enterPurchase = resolve; });
+  const purchasePaused = new Promise(resolve => { releasePurchase = resolve; });
+  const plugin = {
+    async isConfigured() { calls.push('isConfigured'); return {isConfigured: true}; },
+    async getAppUserID() { return {appUserID: 'account-a'}; },
+    async isAnonymous() { return {isAnonymous: false}; },
+    async logIn({appUserID}) { calls.push(`login:${appUserID}`); },
+    async logOut() { calls.push('logout'); },
+    async getOfferings() {
+      calls.push('offerings');
+      return {current: {availablePackages: [
+        {product: {identifier: 'fixture-professional'}},
+      ]}};
+    },
+    async purchasePackage() {
+      calls.push('purchasePackage');
+      enterPurchase();
+      await purchasePaused;
+      throw new Error('fixture purchase stopped');
+    },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {
+      revenueCatAppleApiKey: 'fixture-public-key',
+      revenueCatProfessionalProductId: 'fixture-professional',
+    },
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'account-a'},
+  };
+  const fetchImpl = async url => {
+    if (url === '/api/billing/native-readiness') return {
+      ok: true, async json() { return {success: true, ready: true}; },
+    };
+    if (url !== '/api/billing/native-identity') throw new Error('Unexpected native billing request.');
+    const userId = windowMock.currentUser?.id;
+    calls.push(`owner-check:${userId}`);
+    if (userId === 'account-a' && ++firstOwnerChecks === 2) {
+      enterStaleCheck();
+      await staleCheckPaused;
+      return {ok: false, status: 409};
+    }
+    return {ok: true, async json() { return {success: true, recorded: true, userId}; }};
+  };
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: fetchImpl}));
+  const staleCatalog = windowMock.BillingManager.getProducts().then(
+    () => 'unexpected-success', error => error?.message || '',
+  );
+  await staleCheckEntered;
+  windowMock.currentUser = {id: 'account-b'};
+  const purchase = windowMock.BillingManager.purchase('professional').then(
+    () => 'unexpected-success', error => error?.message || '',
+  );
+  await purchaseEntered;
+  releaseStaleCheck();
+  const staleOutcome = await staleCatalog;
+  const logoutDuringPurchase = calls.includes('logout');
+  releasePurchase();
+  const purchaseOutcome = await purchase;
+  return {calls, staleOutcome, purchaseOutcome, logoutDuringPurchase};
+}
+const staleOwnerCheckDuringNewOwnerPurchase = await exerciseStaleOwnerCheckDuringNewOwnerPurchase();
+if (!staleOwnerCheckDuringNewOwnerPurchase.staleOutcome.includes('could not confirm the signed-in account') ||
+    staleOwnerCheckDuringNewOwnerPurchase.purchaseOutcome !== 'fixture purchase stopped' ||
+    staleOwnerCheckDuringNewOwnerPurchase.logoutDuringPurchase ||
+    staleOwnerCheckDuringNewOwnerPurchase.calls.includes('logout') ||
+    staleOwnerCheckDuringNewOwnerPurchase.calls.filter(value => value === 'login:account-b').length !== 1 ||
+    staleOwnerCheckDuringNewOwnerPurchase.calls.filter(value => value === 'purchasePackage').length !== 1) {
+  console.error('A stale owner check must not log out a new owner during their purchase.',
+    staleOwnerCheckDuringNewOwnerPurchase);
+  process.exit(1);
+}
+
+async function exerciseFailedNativePostcheck(operation, {logoutFails = false} = {}) {
+  const calls = [];
+  let ownerChecks = 0;
+  let releasePostcheck;
+  let enterPostcheck;
+  let enterConcurrentCheck;
+  const postcheckPaused = new Promise(resolve => { releasePostcheck = resolve; });
+  const postcheckEntered = new Promise(resolve => { enterPostcheck = resolve; });
+  const concurrentCheckEntered = new Promise(resolve => { enterConcurrentCheck = resolve; });
+  const postcheckNumber = operation === 'configure' ? 3 : 7;
+  const concurrentCheckNumber = postcheckNumber + 1;
+  const plugin = {
+    async isConfigured() { calls.push('isConfigured'); return {isConfigured: false}; },
+    async configure() { calls.push('configure'); },
+    async logIn() { calls.push('login'); },
+    async logOut() {
+      calls.push('logout');
+      if (logoutFails) throw new Error('SDK logout unavailable');
+    },
+    async getOfferings() {
+      calls.push('offerings');
+      return {current: {availablePackages: []}};
+    },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {revenueCatAppleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'account-a'},
+  };
+  const fetchImpl = async url => {
+    if (url === '/api/billing/native-readiness') return {
+      ok: true, async json() { return {success: true, ready: true}; },
+    };
+    if (url !== '/api/billing/native-identity') throw new Error('Unexpected native billing request.');
+    ownerChecks += 1;
+    calls.push(`owner-check:${ownerChecks}`);
+    if (ownerChecks === postcheckNumber) {
+      enterPostcheck();
+      await postcheckPaused;
+      return {ok: false, status: 409};
+    }
+    if (ownerChecks === concurrentCheckNumber) enterConcurrentCheck();
+    if (ownerChecks > concurrentCheckNumber) return {ok: false, status: 409};
+    return {ok: true, async json() {
+      return {success: true, recorded: true, userId: windowMock.currentUser?.id};
+    }};
+  };
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: fetchImpl}));
+  if (operation === 'login') {
+    await windowMock.BillingManager.getProducts();
+    windowMock.currentUser = {id: 'account-b'};
+  }
+  const first = windowMock.BillingManager.getProducts().then(
+    () => 'unexpected-success', error => error?.message || '',
+  );
+  await postcheckEntered;
+  const concurrent = windowMock.BillingManager.getCreditProducts().then(
+    () => 'unexpected-success', error => error?.message || '',
+  );
+  await concurrentCheckEntered;
+  releasePostcheck();
+  const outcomes = await Promise.all([first, concurrent]);
+  const offeringsBeforeRetry = calls.filter(value => value === 'offerings').length;
+  await windowMock.BillingManager.getProducts();
+  return {calls, outcomes, offeringsBeforeRetry};
+}
+for (const operation of ['configure', 'login']) {
+  for (const logoutFails of [false, true]) {
+    const result = await exerciseFailedNativePostcheck(operation, {logoutFails});
+    const expectedOfferings = operation === 'login' ? 1 : 0;
+    if (result.outcomes.some(message => !message || message === 'unexpected-success') ||
+        result.offeringsBeforeRetry !== expectedOfferings ||
+        result.calls.filter(value => value === 'logout').length !== 1 ||
+        result.calls.filter(value => value === 'configure').length !== 1 ||
+        result.calls.filter(value => value === 'login').length !== (operation === 'login' ? 1 : 0) ||
+        result.calls.filter(value => value === 'offerings').length !== expectedOfferings) {
+      console.error('Failed native postchecks must block concurrent and subsequent commerce.', operation, logoutFails, result);
+      process.exit(1);
+    }
+  }
+}
+
+async function exerciseDeletionBetweenCatalogAndPurchase(kind) {
+  const calls = [];
+  let fenced = false;
+  let enterCatalog;
+  let releaseCatalog;
+  const catalogEntered = new Promise(resolve => { enterCatalog = resolve; });
+  const catalogPaused = new Promise(resolve => { releaseCatalog = resolve; });
+  const plugin = {
+    async isConfigured() { return {isConfigured: false}; },
+    async configure() { calls.push('configure'); },
+    async getOfferings() {
+      calls.push('offerings');
+      enterCatalog();
+      await catalogPaused;
+      return {current: {availablePackages: [
+        {product: {identifier: kind === 'plan' ? 'fixture-professional' : 'askcrump_credits_50'}},
+      ]}};
+    },
+    async purchasePackage() { calls.push('purchasePackage'); return {}; },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {
+      revenueCatAppleApiKey: 'fixture-public-key',
+      revenueCatProfessionalProductId: 'fixture-professional',
+    },
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'deleting-owner'},
+  };
+  const fetchImpl = async url => {
+    if (url === '/api/billing/native-readiness') return {
+      ok: true, async json() { return {success: true, ready: true}; },
+    };
+    if (url === '/api/billing/native-identity') {
+      calls.push('owner-check');
+      return fenced ? {ok: false, status: 409} : {
+        ok: true, async json() { return {success: true, recorded: true, userId: 'deleting-owner'}; },
+      };
+    }
+    throw new Error('Unexpected native billing request.');
+  };
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: fetchImpl}));
+  const purchase = kind === 'plan'
+    ? windowMock.BillingManager.purchase('professional')
+    : windowMock.BillingManager.purchaseCredits('credits_50');
+  const outcome = purchase.then(() => 'unexpected-success', error => error?.message || '');
+  await catalogEntered;
+  fenced = true;
+  releaseCatalog();
+  return {calls, outcome: await outcome};
+}
+for (const kind of ['plan', 'credit']) {
+  const result = await exerciseDeletionBetweenCatalogAndPurchase(kind);
+  if (!result.outcome.includes('could not confirm the signed-in account') ||
+      result.calls.filter(value => value === 'configure').length !== 1 ||
+      result.calls.filter(value => value === 'offerings').length !== 1 ||
+      result.calls.includes('purchasePackage') ||
+      result.calls.at(-1) !== 'owner-check') {
+    console.error('Deletion after catalog load must block the store transaction.', kind, result);
+    process.exit(1);
+  }
+}
+
+async function exerciseFencedNativeStoreAction(action) {
+  const calls = [];
+  let ownerChecks = 0;
+  const plugin = {
+    async isConfigured() { return {isConfigured: false}; },
+    async configure() { calls.push('configure'); },
+    async restorePurchases() { calls.push('restorePurchases'); return {}; },
+    async getCustomerInfo() { calls.push('getCustomerInfo'); return {}; },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {revenueCatAppleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'deleting-owner'},
+  };
+  const fetchImpl = async url => {
+    if (url === '/api/billing/native-readiness') return {
+      ok: true, async json() { return {success: true, ready: true}; },
+    };
+    if (url === '/api/billing/native-identity') {
+      ownerChecks += 1;
+      return ownerChecks === 5 ? {ok: false, status: 409} : {
+        ok: true, async json() { return {success: true, recorded: true, userId: 'deleting-owner'}; },
+      };
+    }
+    throw new Error('Unexpected native billing request.');
+  };
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: fetchImpl}));
+  const outcome = await windowMock.BillingManager[action]().then(
+    () => 'unexpected-success', error => error?.message || '',
+  );
+  return {calls, ownerChecks, outcome};
+}
+for (const action of ['restore', 'manageSubscription']) {
+  const result = await exerciseFencedNativeStoreAction(action);
+  if (result.ownerChecks !== 5 || result.calls.includes('restorePurchases') ||
+      result.calls.includes('getCustomerInfo') ||
+      !result.outcome.includes('could not confirm the signed-in account')) {
+    console.error('Fenced owners must not initiate native store actions.', action, result);
+    process.exit(1);
+  }
 }
 {
   const calls = [];

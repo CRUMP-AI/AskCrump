@@ -169,6 +169,19 @@
     return true;
   }
 
+  async function disconnectUnconfirmedIdentity(plugin) {
+    // RevenueCat logout may create an anonymous SDK ID. This only prevents
+    // further use of the unconfirmed account; server deletion remains separate.
+    try {
+      if (typeof plugin.logOut !== 'function') return;
+      await plugin.logOut();
+      configuredUserId = null;
+    } catch (_) {
+      // Keep the last known SDK identity if logout failed. A later billing
+      // entry must still pass a fresh authenticated owner/fence check.
+    }
+  }
+
   async function performAppUserAlignment(plugin, nextUserId) {
     if (nextUserId === configuredUserId) return;
 
@@ -180,6 +193,10 @@
         if (typeof plugin.logIn !== 'function') throw new Error('RevenueCat login is unavailable.');
         await plugin.logIn({appUserID: nextUserId});
         configuredUserId = nextUserId;
+        if (!await recordNativeBillingIdentity(nextUserId)) {
+          await disconnectUnconfirmedIdentity(plugin);
+          throw new Error('Native billing account was not confirmed after login.');
+        }
         return;
       }
       if (configuredUserId) {
@@ -195,7 +212,7 @@
   async function alignAppUser(plugin, requestedUserId = undefined) {
     const followsCurrentSession = requestedUserId === undefined;
     const desiredUserId = () => followsCurrentSession ? activeAppUserId() : requestedUserId;
-    while (desiredUserId() !== configuredUserId) {
+    while (identityPromise || desiredUserId() !== configuredUserId) {
       if (!identityPromise) {
         identityPromise = performAppUserAlignment(plugin, desiredUserId()).finally(() => {
           identityPromise = null;
@@ -230,6 +247,14 @@
         activeAppUserId() === expectedUserId;
     } catch (_) {
       return false;
+    }
+  }
+
+  async function requireCurrentNativeBillingOwner(expectedUserId) {
+    if (!expectedUserId || configuredUserId !== expectedUserId ||
+        !await recordNativeBillingIdentity(expectedUserId) ||
+        configuredUserId !== expectedUserId) {
+      throw new Error('Store billing could not confirm the signed-in account. Try again.');
     }
   }
 
@@ -270,17 +295,32 @@
           if (activeAppUserId() !== appUserID) {
             throw new Error('Store billing account changed. Try again.');
           }
-          await plugin.configure({apiKey: key, ...(appUserID ? {appUserID} : {})});
+          // isConfigured can pause while account deletion fences this owner.
+          // Reauthenticate and reread the fence at the SDK boundary, then
+          // confirm again before allowing any billing result to escape.
+          if (!await recordNativeBillingIdentity(appUserID)) {
+            throw new Error('Store billing account is no longer available. Try again.');
+          }
+          await plugin.configure({apiKey: key, appUserID});
           configured = true;
           configuredUserId = appUserID;
+          if (!await recordNativeBillingIdentity(appUserID)) {
+            await disconnectUnconfirmedIdentity(plugin);
+            throw new Error('Store billing account could not be confirmed after configuration.');
+          }
         })().finally(() => {
           configurationPromise = null;
         });
       }
-      await configurationPromise;
     }
+    if (configurationPromise) await configurationPromise;
 
     await alignAppUser(plugin);
+    // Adoption of an already-configured SDK can skip both configure and logIn.
+    // The original marker may be stale after isConfigured/getAppUserID awaits.
+    // Only gate this caller: another authenticated owner may already be using
+    // the singleton, so a stale caller must not log that owner out.
+    await requireCurrentNativeBillingOwner(activeAppUserId());
     return true;
   }
 
@@ -427,9 +467,11 @@
     if (!(await configure())) {
       throw new Error('Store billing is not available right now. Try again later.');
     }
+    const purchaseUserId = configuredUserId;
     const packages = await offeringPackages();
     const selected = packages.find(item => tierForPackage(item) === tier);
     if (!selected) throw new Error('That subscription package is not available from the store.');
+    await requireCurrentNativeBillingOwner(purchaseUserId);
     const result = await purchases().purchasePackage({ aPackage: selected });
     await synchronizeServerEntitlement();
     await refreshStatus();
@@ -441,9 +483,11 @@
     if (!(await configure())) {
       throw new Error('Store billing is not available right now. Try again later.');
     }
+    const purchaseUserId = configuredUserId;
     const packages = await offeringPackages();
     const selected = packages.find(item => creditPackForPackage(item)?.code === packCode);
     if (!selected) throw new Error('That credit pack is not available from the store yet.');
+    await requireCurrentNativeBillingOwner(purchaseUserId);
     const result = await purchases().purchasePackage({ aPackage: selected });
     // RevenueCat records the consumable purchase. Ask Crump then queries the
     // server-side customer record and grants only transaction IDs it has never
@@ -455,6 +499,7 @@
 
   async function restore() {
     if (!(await configure())) throw new Error('Store billing is not available right now. Try again later.');
+    await requireCurrentNativeBillingOwner(configuredUserId);
     const result = await purchases().restorePurchases();
     await synchronizeServerEntitlement();
     await synchronizeServerCredits().catch(() => {});
@@ -488,6 +533,7 @@
   async function manageSubscription() {
     if (native()) {
       if (!(await configure())) throw new Error('Native billing is not configured.');
+      await requireCurrentNativeBillingOwner(configuredUserId);
       const result = await purchases().getCustomerInfo();
       const info = result?.customerInfo || result?.customer_info || result;
       const url = info?.managementURL || info?.managementUrl || info?.management_url;

@@ -75,7 +75,7 @@ def test_checkout_recovery_fixture_is_local_and_content_free():
 
 
 def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
-    integrity_version = "5.9.76-native-identity-record-1"
+    integrity_version = "5.9.76-native-identity-fresh-1"
     autonomous_crump_version = "5.9.76-autonomous-crump-1"
     native_store_billing_version = "5.9.76-native-store-billing-1"
     runtime_version = integrity_version

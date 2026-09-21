@@ -62,6 +62,16 @@ SDK. Deletion snapshots this possible-provider-customer obligation onto the
 durable job before local-account removal, so later disabling the native flag
 does not skip provider cleanup. The new SQL migration remains unapplied.
 
+The next client-side candidate narrows the interval after that first marker
+check: recheck the authenticated owner and server fence immediately before and
+after SDK `configure` or `logIn`, recheck an already configured SDK identity
+before accepting it, and recheck before native purchase, restore, or customer
+refresh operations. Missing, changed, or fenced ownership must fail closed.
+These are per-operation checks, not a lease, lock, or transactional guarantee
+around a third-party SDK call. Their exact behavior and concurrent-account
+tests must pass before this paragraph can be treated as a verified release
+result.
+
 An independent review found a remaining release-blocking race: another device
 can delete the account and finish RevenueCat cleanup while a previously
 authorized native client is paused between marker confirmation and SDK
@@ -77,6 +87,17 @@ so it is not an automatic account-deletion workaround. Native release stays
 blocked pending a practical cross-device setup/deletion coordination design
 and race tests; a mere second read or short lease alone cannot prove an
 arbitrarily paused client will not resume after cleanup.
+
+The per-operation rechecks reduce ordinary stale-client windows, but a device
+can still pause after its last successful server check and resume an SDK call
+after a second device completes account deletion. A purchase can also be
+in flight during deletion. Neither the marker nor the rechecks prove provider
+non-recreation or prevent every cross-device charge. Keep native billing OFF
+and release held until signed, two-device tests cover deletion during SDK
+setup, identity switching, and an in-flight purchase, with provider records
+observed after cleanup and delayed resume. A remaining strict-guarantee gap
+requires an explicit architecture/provider decision; tests alone cannot prove
+the absence of an arbitrarily delayed replay.
 
 ## Verification
 
@@ -121,8 +142,10 @@ arbitrarily paused client will not resume after cleanup.
 
 Keep PR #37 in draft. The per-user native marker is a source candidate, not a
 complete cross-device deletion guarantee. Resolve the paused-client
-recreation race before enabling native billing, and add server-confirmed
-status reconciliation for an ambiguous failed DELETE; do not clear the guard
+recreation race before enabling native billing, including the practical
+per-operation rechecks and signed two-device/in-flight-purchase verification;
+do not describe those checks as a provider non-recreation guarantee. Add
+server-confirmed status reconciliation for an ambiguous failed DELETE; do not clear the guard
 on a mere local timeout. Native release must verify ordered schema migrations,
 the backend setting and both server credentials, public SDK keys, exact
 products, a green complete CI run, and deletion, purchase/restore, webhook,
