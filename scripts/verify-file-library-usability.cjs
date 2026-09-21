@@ -1,6 +1,26 @@
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
 
+function blankPdf() {
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 300] /Contents 4 0 R >>',
+    '<< /Length 0 >>\nstream\n\nendstream',
+  ];
+  objects.forEach((body, index) => {
+    offsets.push(Buffer.byteLength(pdf));
+    pdf += `${index + 1} 0 obj\n${body}\nendobj\n`;
+  });
+  const xref = Buffer.byteLength(pdf);
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const offset of offsets.slice(1)) pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(pdf);
+}
+
 (async () => {
   const executablePath = process.env.CODEX_BROWSER_EXECUTABLE || undefined;
   const browser = await chromium.launch({headless: true, ...(executablePath ? {executablePath} : {})});
@@ -8,6 +28,24 @@ const { chromium } = require('playwright');
 
   for (const viewport of [{width: 1440, height: 1000}, {width: 390, height: 844}]) {
     const page = await browser.newPage({viewport});
+    const blockedRequests = [];
+    let pdfContentRequests = 0;
+    await page.route('**/*', route => {
+      const url = new URL(route.request().url());
+      if (url.hostname !== '127.0.0.1') {
+        blockedRequests.push(url.href);
+        return route.abort();
+      }
+      if (url.pathname === '/api/files/file-extra-01/content') {
+        pdfContentRequests += 1;
+        return route.fulfill({status: 200, contentType: 'application/pdf', body: blankPdf()});
+      }
+      if (url.pathname.startsWith('/api/')) {
+        blockedRequests.push(url.href);
+        return route.abort();
+      }
+      return route.continue();
+    });
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
     page.on('pageerror', error => errors.push(error.message));
     await page.goto('http://127.0.0.1:8765/tests/fixtures/file-library-usability.html', {waitUntil: 'domcontentloaded'});
@@ -84,6 +122,31 @@ const { chromium } = require('playwright');
     assert.ok(layout.documentWidth <= layout.viewportWidth, `horizontal overflow at ${viewport.width}px`);
     assert.ok(layout.dialogHeight <= layout.viewportHeight, `dialog overflow at ${viewport.width}px`);
     if (viewport.width === 390) assert.equal(layout.searchFontSize, '16px');
+
+    // Files must delegate PDF Open and Download to the real private file viewer.
+    await page.waitForFunction(() => document.documentElement.dataset.crump50Booted === 'true');
+    await search.fill('Z Archive 01');
+    const pdfFile = dialog.locator('[data-library-file="file-extra-01"]');
+    await pdfFile.waitFor({state: 'visible'});
+    const previewResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/api/files/file-extra-01/content');
+    await pdfFile.locator('[data-library-open]').click();
+    const viewer = page.locator('.crump50-file-viewer');
+    await viewer.waitFor({state: 'visible'});
+    assert.equal(await viewer.locator('iframe').getAttribute('src'), '/api/files/file-extra-01/content');
+    assert.equal(await viewer.locator('iframe').getAttribute('title'), 'Preview Z Archive 01.pdf');
+    assert.equal((await previewResponse).status(), 200);
+    assert.ok(pdfContentRequests > 0, 'PDF preview must request only the synthetic local content route');
+    await viewer.getByRole('button', {name: 'Download'}).click();
+    await viewer.getByRole('button', {name: 'Done'}).click();
+    await pdfFile.locator('[data-library-download]').click();
+    assert.deepEqual(await page.evaluate(() => window.__fileDelivery), {
+      downloads: [
+        {href: '/api/files/file-extra-01/content?download=1', target: '_self', download: 'Z Archive 01.pdf'},
+        {href: '/api/files/file-extra-01/content?download=1', target: '_self', download: 'Z Archive 01.pdf'},
+      ],
+      openedWindows: 0,
+    });
+    assert.deepEqual(blockedRequests, []);
     await page.close();
   }
 
