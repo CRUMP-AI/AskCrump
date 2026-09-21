@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from backend.intelligence_service import IntelligenceService
 from backend.routes.chat import _promote_explicit_document_delivery
 
@@ -61,6 +63,59 @@ def test_explicit_document_delivery_cannot_be_downgraded_to_clarification():
     assert intent["stage"] == "execute"
     assert intent["question"] == ""
     assert intent["format"] == "docx"
+
+
+@pytest.mark.parametrize(
+    ("selected_format", "message", "misclassified_kind"),
+    [
+        ("xlsx", "Create a production budget for this video campaign.", "video"),
+        ("pdf", "Create a PDF report analyzing this image.", "image"),
+        ("pptx", "Create a PowerPoint presentation about our video campaign.", "video"),
+        ("docx", "Create a Word document describing the book launch plan.", "manuscript"),
+        ("docx", "Create a Word report analyzing a 70,000-word novel.", "manuscript"),
+        ("pdf", "Write a 70,000-word novel and deliver it as a PDF.", "manuscript"),
+    ],
+)
+def test_picker_selected_document_format_wins_keyword_kind_conflicts(
+    selected_format, message, misclassified_kind,
+):
+    intent = _promote_explicit_document_delivery(
+        {
+            "kind": misclassified_kind,
+            "stage": "execute",
+            "confidence": 0.9,
+            "brief": message,
+            "question": "",
+            "format": "",
+        },
+        selected_format,
+        explicit_format=selected_format,
+        message=message,
+    )
+
+    assert intent["kind"] == "document"
+    assert intent["stage"] == "execute"
+    assert intent["question"] == ""
+    assert intent["format"] == selected_format
+
+
+def test_picker_selected_docx_preserves_intentional_manuscript_creation():
+    original = {
+        "kind": "manuscript",
+        "stage": "execute",
+        "confidence": 0.9,
+        "brief": "Write a 70,000-word novel about two estranged sisters.",
+        "question": "",
+        "format": "docx",
+    }
+    intent = _promote_explicit_document_delivery(
+        original,
+        "docx",
+        explicit_format="docx",
+        message=original["brief"],
+    )
+
+    assert intent == original
 
 
 def test_chat_route_uses_resolved_brief_and_avoids_reasking_forms():

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
@@ -476,8 +477,25 @@ def _history_file_ids(payload: dict, limit: int = 6) -> list[str]:
 def _promote_explicit_document_delivery(
     creation_intent: dict,
     detected_format: str | None,
+    *,
+    explicit_format: str | None = None,
+    message: str = '',
 ) -> dict:
-    """Do not let semantic clarification suppress an explicit file request."""
+    """Keep an explicit file choice authoritative over conflicting semantics."""
+    if explicit_format and isinstance(creation_intent, dict):
+        kind = str(creation_intent.get('kind') or '')
+        if (
+            kind != 'manuscript'
+            or explicit_format != 'docx'
+            or not _is_intentional_manuscript_request(message)
+        ):
+            return {
+                **creation_intent,
+                'kind': 'document',
+                'stage': 'execute',
+                'question': '',
+                'format': explicit_format,
+            }
     if (
         not detected_format
         or not isinstance(creation_intent, dict)
@@ -491,6 +509,53 @@ def _promote_explicit_document_delivery(
         'question': '',
         'format': detected_format,
     }
+
+
+def _is_intentional_manuscript_request(message: str) -> bool:
+    """Distinguish writing a book from making a file about one."""
+    text = ' '.join(str(message or '').lower().split())
+    manuscript_noun = re.compile(
+        r'\b(book|novel|memoir|manuscript|screenplay|dissertation|thesis)\b',
+    )
+    if not manuscript_noun.search(text):
+        return False
+    if re.search(
+        r'\b(summary|synopsis|outline|review|blurb|proposal|query letter|book report)\b',
+        text,
+    ):
+        return False
+    if re.search(
+        r'\bbook\s+(launch|marketing|sales|club|campaign|tour|publishing|promotion|release)\b',
+        text,
+    ):
+        return False
+    output_noun = re.compile(
+        r'\b(document|docx|pdf|report|analysis|presentation|powerpoint|slides?|'
+        r'spreadsheet|excel|workbook|budget|plan|memo|summary|review|proposal|'
+        r'outline|timeline|schedule|list|guide)\b',
+    )
+    subject_connector = re.compile(
+        r'\b(about|regarding|analy[sz](?:e|ing)|describ(?:e|ing)|review(?:ing)?|'
+        r'summari[sz](?:e|ing)|covering)\b',
+    )
+    explicit_length = bool(re.search(
+        r'\b(full[ -]?length|book[ -]?length|from start to finish)\b|'
+        r'\b\d{2,3}(?:,\d{3})?\s*words?\b',
+        text,
+    ))
+    for verb in re.finditer(
+        r'\b(write|draft|compose|author|create|make|produce|build|want|need|'
+        r'finish|complete|continue|revise|edit|expand)\b',
+        text,
+    ):
+        noun = manuscript_noun.search(text, verb.end())
+        if not noun or noun.start() - verb.end() > 120:
+            continue
+        between = text[verb.end():noun.start()]
+        if output_noun.search(between) or subject_connector.search(between):
+            continue
+        return True
+    return explicit_length and not output_noun.search(text)
 
 
 @router.post('')
@@ -650,6 +715,7 @@ async def chat(request: Request):
                 else:
                     request_payload['relevantContext'] = [project_reference_context]
 
+    explicit_artifact = artifacts.normalize_format(request_payload.get('artifactFormat'))
     legacy_artifact = artifacts.detect_request(
         str(request_payload.get('message') or ''),
         request_payload.get('artifactFormat'),
@@ -666,6 +732,8 @@ async def chat(request: Request):
     creation_intent = _promote_explicit_document_delivery(
         prepared.creation_intent or {},
         legacy_artifact,
+        explicit_format=explicit_artifact,
+        message=original_message,
     )
     if creation_intent:
         prepared.creation_intent = creation_intent
