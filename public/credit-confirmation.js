@@ -120,4 +120,5 @@
     cancelIfOwnerChanged,
   });
   window.addEventListener('crump:authenticated-ready', cancelIfOwnerChanged);
+  window.addEventListener('crump:authentication-required', () => closeDialog(null));
 })();

@@ -81,27 +81,30 @@ def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
     integrity_version = "5.9.76-stripe-destination-integrity-1"
     label_version = "5.9.76-checkout-destination-label-1"
     owner_reset_version = "5.9.76-checkout-owner-reset-1"
+    combined_version = "5.9.76-owner-isolation-1"
     shell = read_public("app.html")
     runtime = read_public("runtime-body-v1.js")
     worker = read_public("sw.js")
     native = (ROOT / "scripts" / "build-native.mjs").read_text(encoding="utf-8")
 
-    assert f"/runtime-body-v1.js?v={owner_reset_version}" in shell
+    assert f"/runtime-body-v1.js?v={combined_version}" in shell
     assert f"/auth-controller.js?v={owner_reset_version}" in shell
     for asset in ("billing-manager.js",):
         versioned = f"/{asset}?v={integrity_version}"
         assert versioned in runtime
         assert versioned in worker
         assert versioned in native
-    for asset in ("credit-confirmation.js", "crump-5.2.js", "crump-5.2.2.js"):
+    for asset in ("crump-5.2.js", "crump-5.2.2.js"):
         versioned = f"/{asset}?v={owner_reset_version}"
         assert versioned in runtime
         assert versioned in worker
         assert versioned in native
+    for source in (runtime, worker, native):
+        assert f"/credit-confirmation.js?v={combined_version}" in source
     for asset in ("crump-billing-5.1.js", "crump-subscriptions-5.3.2.js"):
         versioned = f"/{asset}?v={label_version}"
         assert versioned in runtime
         assert versioned in worker
         assert versioned in native
     assert f"/auth-controller.js?v={owner_reset_version}" in worker
-    assert "ask-crump-new-body-v1-r250" in worker
+    assert "ask-crump-new-body-v1-r251" in worker

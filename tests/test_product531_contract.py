@@ -41,7 +41,7 @@ def test_project_reference_ui_and_chat_rename_are_final_runtime_layers():
     assert runtime.index("/crump-product-loader.js") < runtime.index("/crump-product-5.3.1.js")
     assert "/crump-product-5.3.1.js?v=5.9.76-conversation-action-labels-2" in runtime
     assert "/crump-product-5.3.1.js?v=5.9.76-conversation-action-labels-2" in worker
-    assert "ask-crump-new-body-v1-r250" in worker
+    assert "ask-crump-new-body-v1-r251" in worker
     assert "Reference files" in js
     assert "Project files" in js
     assert "conversationsCard.insertAdjacentElement('afterend', card)" in js
@@ -49,7 +49,8 @@ def test_project_reference_ui_and_chat_rename_are_final_runtime_layers():
     assert "data.chatId" not in js
     assert "item.dataset.chatId = chat.id" in app
     assert "window.CrumpFileTools" in files
-    assert "upload: async file =>" in files
+    assert "upload: async (file, {expectedOwner = String(window.currentUser?.id || '').trim()} = {}) =>" in files
+    assert "requireUploadOwner(expectedOwner);" in files
     assert "CrumpFileTools?.upload" in js
     assert 'data-download-project-file="${escapeHtml(file.id)}"' in js
     assert "window.CrumpFileTools?.open?.(file, false)" in js

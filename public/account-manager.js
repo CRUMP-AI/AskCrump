@@ -188,6 +188,7 @@
     confirm.addEventListener('click', async () => {
       error.textContent = '';
       confirm.disabled = true;
+      const deletedOwner = String(window.currentUser?.id || '').trim();
       try {
         const response = await fetch('/api/account', {
           method: 'DELETE',
@@ -199,6 +200,14 @@
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || 'Account deletion failed.');
+        if (deletedOwner) {
+          window.dispatchEvent(new CustomEvent('crump:account-deleted', {detail: {userId: deletedOwner}}));
+          // Deletion alone removes this owner's local recovery handles. Ordinary
+          // sign-out must retain them so a pending paid job can be resumed.
+          for (const base of ['askcrump.videoJob53', 'askcrump.videoRequest53']) {
+            try { localStorage.removeItem(`${base}:${encodeURIComponent(deletedOwner)}`); } catch (_) {}
+          }
+        }
         await window.CrumpAPI?.clearSessionToken?.();
         window.deviceAuth?.clearLocalState?.();
         window.location.replace('/');

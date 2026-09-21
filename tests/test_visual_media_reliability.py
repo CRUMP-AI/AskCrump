@@ -1101,12 +1101,12 @@ def test_video_job_survives_navigation_and_duplicate_submission() -> None:
     for contract in (
         "VIDEO_REQUEST_STORAGE_KEY",
         "videoRequestFingerprint",
-        "if (state.videoStarting) return",
+        "state.videoStartingOwner === owner) return",
         "Your current video is still generating",
         "resumePendingVideoJob",
         "document.addEventListener('visibilitychange'",
         "window.addEventListener('online', resumePendingVideoJob)",
-        "event.key === VIDEO_JOB_STORAGE_KEY",
+        "event.key === videoStorageKey(VIDEO_JOB_STORAGE_KEY)",
     ):
         assert contract in script
 

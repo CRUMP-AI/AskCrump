@@ -35,7 +35,8 @@ def test_protected_product_modules_hydrate_only_after_an_intentional_open():
     assert "if (section === 'projects')" in product
     assert "else if (section === 'video')" in product
     assert 'void refreshFeatures();' in product
-    assert 'if (projectRefreshPromise) return projectRefreshPromise;' in product
+    assert 'if (projectRefreshPromise && projectRefreshOwner === owner) return projectRefreshPromise;' in product
+    assert 'if (!isCurrentVideoSession(owner, ownerEpoch)) return;' in product
     assert 'if (window.currentUser) void refreshBooks();' not in library
     assert "window.addEventListener('crump:authenticated-ready'" in library
     assert 'if (!state.installed) installWhenReady();' in library
