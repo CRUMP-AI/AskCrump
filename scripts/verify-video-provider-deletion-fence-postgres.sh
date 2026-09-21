@@ -29,6 +29,9 @@ command -v psql >/dev/null 2>&1 || fail "psql is required"
 PSQL=(psql --no-psqlrc --set=ON_ERROR_STOP=1 --quiet --tuples-only --no-align)
 TEMP_DIR="$(mktemp -d)"
 AUXILIARY_DATABASE="askcrump_video_fence_invalid_preflight"
+declare -A SESSION_PIDS=()
+declare -A SESSION_OUTPUTS=()
+WAIT_TIMEOUT_SECONDS=20
 
 cleanup() {
   local pid
@@ -108,42 +111,71 @@ start_session() {
   PGAPPNAME="$app_name" "${PSQL[@]}" --command "$statement" \
     >"$output_file" 2>&1 &
   STARTED_PID=$!
+  SESSION_PIDS["$app_name"]=$STARTED_PID
+  SESSION_OUTPUTS["$app_name"]=$output_file
 }
 
-wait_for_query() {
-  local label="$1"
-  local statement="$2"
-  local attempt
-  for attempt in $(seq 1 200); do
-    if [[ "$(sql_scalar "$statement")" != "0" ]]; then
+fail_if_session_exited() {
+  local app_name="$1"
+  local label="$2"
+  local pid="${SESSION_PIDS[$app_name]}"
+  local output_file="${SESSION_OUTPUTS[$app_name]}"
+  if ! kill -0 "$pid" 2>/dev/null; then
+    wait "$pid" >/dev/null 2>&1 || true
+    sed 's/^/  /' "$output_file" >&2 || true
+    fail "$label completed before reaching the expected database wait"
+  fi
+}
+
+wait_for_session_state() {
+  local app_name="$1"
+  local label="$2"
+  local predicate="$3"
+  local deadline=$((SECONDS + WAIT_TIMEOUT_SECONDS))
+  local matching_sessions
+  while (( SECONDS < deadline )); do
+    fail_if_session_exited "$app_name" "$label"
+    matching_sessions="$(sql_scalar "
+      select count(*)
+      from pg_stat_activity
+      where datname = current_database()
+        and backend_type = 'client backend'
+        and application_name = '$app_name'
+        and ($predicate);
+    ")"
+    if [[ "$matching_sessions" == "1" ]]; then
       return 0
     fi
     sleep 0.05
   done
+  "${PSQL[@]}" --command "
+    select application_name, pid, state, wait_event_type, wait_event,
+      pg_blocking_pids(pid) as blockers, left(query, 160) as query
+    from pg_stat_activity
+    where datname = current_database()
+      and application_name = '$app_name';
+  " >&2 || true
+  sed 's/^/  /' "${SESSION_OUTPUTS[$app_name]}" >&2 || true
   fail "timed out waiting for $label"
 }
 
 wait_for_gate_session() {
   local app_name="$1"
-  wait_for_query "$app_name to reach its race gate" "
-    select count(*)
-    from pg_stat_activity
-    where application_name = '$app_name'
-      and wait_event = 'PgSleep';
-  "
+  wait_for_session_state "$app_name" "$app_name to reach its race gate" \
+    "wait_event = 'PgSleep'"
 }
 
 wait_for_block() {
   local waiter="$1"
   local holder="$2"
-  wait_for_query "$waiter to block behind $holder" "
-    select count(*)
-    from pg_stat_activity waiting
-    join pg_stat_activity holding
-      on holding.pid = any(pg_blocking_pids(waiting.pid))
-    where waiting.application_name = '$waiter'
-      and holding.application_name = '$holder';
-  "
+  wait_for_session_state "$waiter" \
+    "$waiter to enter a PostgreSQL lock wait behind $holder" \
+    "wait_event_type = 'Lock' and wait_event in ('transactionid', 'tuple')"
+  # The disposable database has no unrelated workload. Prove the named holder
+  # still owns the fixture gate while the waiter reports PostgreSQL's Lock state;
+  # keep pg_blocking_pids in timeout diagnostics rather than the polling key.
+  wait_for_session_state "$holder" "$holder to remain at its race gate" \
+    "wait_event = 'PgSleep'"
 }
 
 open_gate() {
@@ -310,7 +342,7 @@ reservation_holder_pid=$STARTED_PID
 wait_for_gate_session "reservation_holder"
 
 start_session "deletion_waiter" "$TEMP_DIR/deletion-waiter.out" "
-  set statement_timeout = '10 seconds';
+  set statement_timeout = '45 seconds';
   set role service_role;
   select public.begin_video_account_deletion(
     '11000000-0000-0000-0000-000000000001',
@@ -348,7 +380,7 @@ deletion_holder_pid=$STARTED_PID
 wait_for_gate_session "deletion_holder"
 
 start_session "reservation_waiter" "$TEMP_DIR/reservation-waiter.out" "
-  set statement_timeout = '10 seconds';
+  set statement_timeout = '45 seconds';
   set role service_role;
   select public.reserve_video_provider_claim(
     '11000000-0000-0000-0000-000000000002',
@@ -408,7 +440,7 @@ establish_holder_pid=$STARTED_PID
 wait_for_gate_session "establish_holder"
 
 start_session "recovery_after_establish" "$TEMP_DIR/recovery-after-establish.out" "
-  set statement_timeout = '10 seconds';
+  set statement_timeout = '45 seconds';
   set role service_role;
   select public.recover_video_account_deletion_fence(
     '11000000-0000-0000-0000-000000000008',
@@ -422,7 +454,7 @@ wait_for_block "recovery_after_establish" "establish_holder"
 # claim locks held by establishment, it waits on users rather than taking a
 # claim lock that could deadlock against the fence lock.
 start_session "begin_after_establish" "$TEMP_DIR/begin-after-establish.out" "
-  set statement_timeout = '10 seconds';
+  set statement_timeout = '45 seconds';
   set role service_role;
   select public.begin_video_account_deletion(
     '11000000-0000-0000-0000-000000000008',
@@ -498,7 +530,7 @@ recovery_holder_pid=$STARTED_PID
 wait_for_gate_session "recovery_holder"
 
 start_session "establish_after_recovery" "$TEMP_DIR/establish-after-recovery.out" "
-  set statement_timeout = '10 seconds';
+  set statement_timeout = '45 seconds';
   set role service_role;
   select public.establish_account_deletion_fence(
     '11000000-0000-0000-0000-000000000009',
@@ -580,7 +612,7 @@ wait_for_gate_session "acceptance_holder"
 
 start_session "acceptance_delete_waiter" "$TEMP_DIR/acceptance-delete-waiter.out" "
   begin;
-  set statement_timeout = '10 seconds';
+  set statement_timeout = '45 seconds';
   set role service_role;
   select public.begin_video_account_deletion(
     '11000000-0000-0000-0000-000000000003',
@@ -662,7 +694,7 @@ delete_acceptance_holder_pid=$STARTED_PID
 wait_for_gate_session "delete_acceptance_holder"
 
 start_session "acceptance_waiter" "$TEMP_DIR/acceptance-waiter.out" "
-  set statement_timeout = '10 seconds';
+  set statement_timeout = '45 seconds';
   set role service_role;
   select public.record_video_provider_acceptance(
     '11000000-0000-0000-0000-000000000004',

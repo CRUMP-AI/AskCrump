@@ -32,6 +32,10 @@ function blankPdf() {
     let pdfContentRequests = 0;
     await page.route('**/*', route => {
       const url = new URL(route.request().url());
+      // Chromium's native PDF viewer loads browser-owned chrome:// and
+      // chrome-extension:// assets on hosted runners. They never leave the
+      // browser, so keep the boundary focused on external network traffic.
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') return route.continue();
       if (url.hostname !== '127.0.0.1') {
         blockedRequests.push(url.href);
         return route.abort();

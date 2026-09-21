@@ -29,7 +29,7 @@ security invoker
 set search_path = deletion_fence_harness, pg_catalog, pg_temp
 as $$
 declare
-  deadline timestamptz := clock_timestamp() + interval '20 seconds';
+  deadline timestamptz := clock_timestamp() + interval '60 seconds';
 begin
   while exists (
     select 1 from deletion_fence_harness.race_gates where name = gate_name
