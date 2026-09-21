@@ -190,7 +190,7 @@
     setStatus('crump53LibraryStatus', '');
     renderVideoProjectDestination();
     updateVideoStudio();
-    setVideoGenerationBusy(Boolean(readStoredVideoJob(owner)));
+    setVideoGenerationBusy(Boolean(readStoredVideoJob(owner) || readStoredVideoRequest(owner)?.reconciliationPending));
     return owner;
   }
 
@@ -218,7 +218,10 @@
     if (!key) return null;
     try {
       const value = JSON.parse(localStorage.getItem(key) || 'null');
-      if (!value?.idempotencyKey || Date.now() - Number(value.createdAt || 0) > VIDEO_REQUEST_TTL_MS) {
+      if (!value?.idempotencyKey || (
+        !value.reconciliationPending
+        && Date.now() - Number(value.createdAt || 0) > VIDEO_REQUEST_TTL_MS
+      )) {
         localStorage.removeItem(key);
         return null;
       }
@@ -1086,7 +1089,8 @@
     setVideoGenerationBusy(Boolean(
       (state.videoStarting && state.videoStartingOwner === owner)
       || (state.videoReferenceUploading && state.videoReferenceUploadingOwner === owner)
-      || readStoredVideoJob(owner),
+      || readStoredVideoJob(owner)
+      || readStoredVideoRequest(owner)?.reconciliationPending,
     ));
   }
 
@@ -2750,11 +2754,21 @@
       setStatus('crump53VideoStatus', 'Wait for the private reference upload to finish before creating the video.', true);
       return;
     }
-    const pendingJob = readStoredVideoJob(owner);
+    const unresolvedRequest = readStoredVideoRequest(owner);
+    const pendingJob = readStoredVideoJob(owner) || (
+      unresolvedRequest?.reconciliationPending ? String(unresolvedRequest.jobId || '') : ''
+    );
     if (pendingJob) {
-      setStatus('crump53VideoStatus', 'Your current video is still generating. Crump is checking that job instead of starting and charging for another.');
+      setStatus('crump53VideoStatus', unresolvedRequest?.reconciliationPending
+        ? 'Your previous video start is being reconciled. Crump is checking its status without starting or charging for another.'
+        : 'Your current video is still generating. Crump is checking that job instead of starting and charging for another.');
       setVideoGenerationBusy(true);
       pollVideo(pendingJob, owner);
+      return;
+    }
+    if (unresolvedRequest?.reconciliationPending) {
+      setStatus('crump53VideoStatus', 'Your previous video start needs reconciliation. A new video cannot start yet.', true);
+      setVideoGenerationBusy(true);
       return;
     }
     const prompt = String(overrides.prompt ?? byId('crump53VideoPrompt')?.value ?? '');
@@ -2795,12 +2809,46 @@
       const currentRequest = readStoredVideoRequest(owner);
       if (currentRequest && currentRequest.idempotencyKey !== idempotencyKey) return;
       if (!readStoredVideoJob(owner)) storeVideoJob(data.job.id, owner);
-      clearVideoRequestIfMatches(owner, idempotencyKey);
+      if (data.job.reconciliationPending) {
+        storeVideoRequest({
+          idempotencyKey,
+          fingerprint,
+          createdAt: Date.now(),
+          reconciliationPending: true,
+          jobId: data.job.id,
+        }, owner);
+      } else {
+        clearVideoRequestIfMatches(owner, idempotencyKey);
+      }
       if (!isCurrentVideoSession(owner, ownerEpoch) || readStoredVideoJob(owner) !== data.job.id) return;
-      setStatus('crump53VideoStatus', 'Generating… this can take a few minutes. You can close this panel and return.');
+      setStatus('crump53VideoStatus', data.job.reconciliationPending
+        ? 'Your video start is being reconciled. Crump will keep checking without starting another.'
+        : 'Generating… this can take a few minutes. You can close this panel and return.');
       pollVideo(data.job.id, owner);
     } catch (error) {
       if (!isCurrentVideoSession(owner, ownerEpoch)) return;
+      const code = featureAccessCode(error);
+      const reconciliationPending = new Set([
+        'VIDEO_START_OUTCOME_UNKNOWN',
+        'VIDEO_JOB_TRACKING_FAILED',
+        'VIDEO_START_RECONCILIATION_PENDING',
+      ]).has(code);
+      if (reconciliationPending) {
+        const jobId = String(error.data?.jobId || '').trim();
+        storeVideoRequest({
+          idempotencyKey,
+          fingerprint,
+          createdAt: Date.now(),
+          reconciliationPending: true,
+          jobId,
+        }, owner);
+        if (jobId) storeVideoJob(jobId, owner);
+        setStatus('crump53VideoStatus',
+          'Your video start is being reconciled. Crump will keep checking; a new video cannot start yet.');
+        setVideoGenerationBusy(true);
+        if (jobId) pollVideo(jobId, owner);
+        return;
+      }
       if (Number(error.status || 0) > 0) clearVideoRequestIfMatches(owner, idempotencyKey);
       const suffix = error.data?.creditsRequired
         ? ` Needs ${error.data.creditsRequired} credits; balance ${error.data.creditBalance ?? 0}.`
@@ -2972,6 +3020,16 @@
         const job = data.job || {};
         state.activeVideoJob = job;
         state.activeVideoJobOwner = owner;
+        const unresolvedRequest = readStoredVideoRequest(owner);
+        if (job.reconciliationPending) {
+          setStatus('crump53VideoStatus',
+            'Your video start is being reconciled. Crump will keep checking without starting another.');
+          state.videoPollTimer = window.setTimeout(check, 8000);
+          return;
+        }
+        if (unresolvedRequest?.reconciliationPending && unresolvedRequest.jobId === jobId) {
+          clearVideoRequestIfMatches(owner, unresolvedRequest.idempotencyKey);
+        }
         if (job.status === 'ready' && job.file?.url) {
           if (readStoredVideoJob(owner) === jobId) storeVideoJob('', owner);
           setVideoGenerationBusy(false);
@@ -2997,6 +3055,10 @@
         if (sequence !== state.videoPollSequence || !isCurrentVideoSession(owner, ownerEpoch)) return;
         setStatus('crump53VideoStatus', error.message, true);
         if (error.data?.shouldRetry) {
+          state.videoPollTimer = window.setTimeout(check, 10000);
+        } else if (Number(error.status || 0) === 404 && readStoredVideoRequest(owner)?.reconciliationPending) {
+          setStatus('crump53VideoStatus',
+            'Your video start is still being reconciled. Crump will check again before allowing another.', true);
           state.videoPollTimer = window.setTimeout(check, 10000);
         } else if (Number(error.status || 0) === 404) {
           if (readStoredVideoJob(owner) === jobId) storeVideoJob('', owner);
@@ -3038,10 +3100,20 @@
   function resumePendingVideoJob() {
     const owner = syncVideoOwner();
     if (!owner || deletedVideoOwners.has(owner)) return;
-    const jobId = readStoredVideoJob(owner);
+    const unresolvedRequest = readStoredVideoRequest(owner);
+    const jobId = readStoredVideoJob(owner) || (
+      unresolvedRequest?.reconciliationPending ? String(unresolvedRequest.jobId || '') : ''
+    );
     if (jobId) {
-      setStatus('crump53VideoStatus', 'Your saved video job is generating. Crump will keep its status current while you explore the app.');
+      setStatus('crump53VideoStatus', unresolvedRequest?.reconciliationPending
+        ? 'Your video start is being reconciled. Crump will keep checking while you explore the app.'
+        : 'Your saved video job is generating. Crump will keep its status current while you explore the app.');
       pollVideo(jobId, owner);
+      return;
+    }
+    if (unresolvedRequest?.reconciliationPending) {
+      setStatus('crump53VideoStatus', 'Your video start needs reconciliation before another can begin.', true);
+      setVideoGenerationBusy(true);
       return;
     }
     let legacyJob = '';

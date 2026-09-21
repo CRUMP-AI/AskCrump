@@ -12,8 +12,9 @@ a real, durable file; its chat card should offer a private download; Files shoul
 artifact; PDF should open in the in-app Files viewer; and a different owner should not obtain it.
 
 The bounded local matrix passes. It verifies the production route, formatter, file-service owner
-lookup, chat artifact renderer, and Files PDF viewer against fixture-only state. It does **not**
-claim a legitimate production user's complete artifact journey.
+lookup, chat artifact renderer, and the Files viewer's local control path against fixture-only
+state. It does **not** prove that a PDF can render in the deployed viewer or claim a legitimate
+production user's complete artifact journey.
 
 ## Executable boundaries
 
@@ -41,7 +42,7 @@ PDF, and PPTX chat cards. Clicking their real **Download** controls yields the e
 
 `tests/fixtures/file-library-usability.html` and `scripts/verify-file-library-usability.cjs`
 run the committed Files control and file viewer at 1440×1000 and 390×844. The PDF **Open** control
-creates an in-app iframe and requests only a locally fulfilled synthetic PDF. Its viewer and Files
+creates an in-app iframe and requests only a locally fulfilled **same-origin** synthetic PDF. Its viewer and Files
 **Download** controls both target the private download route. Network guards abort every external
 host and unexpected `/api/` request. Both verifiers observed zero browser errors.
 
@@ -65,7 +66,20 @@ The Python API and Chromium halves use the same production source and response s
 fixture processes; this is a boundary matrix, not one browser session talking to a live Supabase
 storage service. The file route's real authentication, real storage upload/signed URL, cross-device
 session, provider response, and delivered/downloaded production customer outcome remain untested
-here. The chat artifact card intentionally offers **Download**, not an in-chat preview. The PDF
-preview is reached from Files; Word and PPTX intentionally show download placeholders rather than
-in-browser document rendering. A real production journey requires a separately authorized,
+here. In production, non-download PDF content redirects to a cross-origin Supabase signed URL,
+while the deployed frame policy does not permit that target. The local same-origin fixture
+therefore cannot establish that PDF **Open** actually works; treat it as a release blocker until
+a production-equivalent CSP/redirect test passes. The chat artifact card intentionally offers
+**Download**, not an in-chat preview. Word and PPTX intentionally show download placeholders
+rather than in-browser document rendering. A real production journey requires a separately authorized,
 legitimate user action, not synthetic production traffic or customer-content inspection.
+
+Follow-up source-only candidate: `tests/test_pdf_preview_csp_contract.py` verifies
+that backend, Vercel, and the Files fixture allow `frame-src` only for self and
+the exact configured Supabase origin, while `frame-ancestors 'none'` and
+`X-Frame-Options: DENY` remain intact. An offline browser attempt followed a
+localhost 302 and received synthetic PDF bytes at that origin, but headless
+Chromium did not expose a rendered PDF iframe. The original same-origin Files
+verifier remains unchanged; no end-to-end PDF Open claim is made. This
+security-header candidate stays unmerged/undeployed pending a legitimate owned
+signed-file check, including small and large downloads.

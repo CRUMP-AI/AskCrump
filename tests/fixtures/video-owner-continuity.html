@@ -38,6 +38,7 @@
       window.dispatchEvent(new Event('crump:authenticated-ready'));
     };
     window.__failNextPostFor = '';
+    window.__unknownResolved = false;
     window.__quoteMode = mode === 'quote';
     window.__quoted = false;
     window.__useCreditGate = () => {
@@ -90,6 +91,20 @@
         return json({success: true, files: [file]});
       }
       if (method === 'POST' && url === '/api/media/video') {
+        if (owner === 'user-a' && mode === 'ambiguous') {
+          return json({success: false, code: 'VIDEO_START_OUTCOME_UNKNOWN',
+            error: 'Video start is being reconciled.', shouldRetry: false,
+            jobId: 'user-a-job', reconciliationPending: true}, 503);
+        }
+        if (owner === 'user-a' && mode === 'server-pending') {
+          return json({success: false, code: 'VIDEO_START_RECONCILIATION_PENDING',
+            error: 'Previous video start is being reconciled.', shouldRetry: false,
+            jobId: 'user-a-job', reconciliationPending: true}, 409);
+        }
+        if (owner === 'user-a' && mode === 'success-pending') {
+          return json({success: true, job: {id: 'user-a-job', status: 'failed',
+            reconciliationPending: true}});
+        }
         if (window.__quoteMode && !window.__quoted) {
           window.__quoted = true;
           return json({success: false, error: 'Confirm credit use', code: 'CREDIT_CONFIRMATION_REQUIRED',
@@ -102,6 +117,11 @@
       if (url.startsWith('/api/media/video/')) {
         const jobId = decodeURIComponent(url.slice('/api/media/video/'.length));
         if (!jobId.startsWith(`${owner}-`)) return json({success: false, error: 'Video job not found'}, 404);
+        if (owner === 'user-a' && ['ambiguous', 'server-pending', 'success-pending'].includes(mode)) {
+          return json({success: true, job: {id: jobId,
+            status: mode === 'success-pending' && !window.__unknownResolved ? 'failed' : 'processing',
+            reconciliationPending: !window.__unknownResolved, provider: 'gemini'}});
+        }
         if (jobId.endsWith('ready')) return json({success: true, job: {
           id: jobId, status: 'ready', canContinue: true, durationSeconds: 8, resolution: '720p',
           file: {id: `${owner}-video-file`, url: 'data:video/mp4;base64,'},

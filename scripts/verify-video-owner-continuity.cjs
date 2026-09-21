@@ -117,6 +117,47 @@ async function startVideo(page, prompt) {
       assert.equal(state.legacyRequest, null);
       await context.close();
     }
+    for (const mode of ['ambiguous', 'server-pending', 'success-pending']) {
+      const {context, page} = await pageFor(mode);
+      await startVideo(page, 'A unresolved video start');
+      await page.waitForFunction(() => {
+        const value = JSON.parse(localStorage.getItem('askcrump.videoRequest53:user-a') || 'null');
+        return value?.reconciliationPending && value.jobId === 'user-a-job';
+      });
+      let state = await snapshot(page);
+      const firstPost = state.calls.find(call => call.method === 'POST' && call.url === '/api/media/video');
+      assert.ok(firstPost.idempotencyKey, 'Unresolved start must keep its idempotency key');
+      assert.equal(state.busy, true);
+      assert.match(state.status, /reconcil/i);
+      await page.evaluate(() => document.getElementById('crump53VideoForm')
+        .dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})));
+      state = await snapshot(page);
+      assert.equal(state.calls.filter(call => call.method === 'POST' && call.owner === 'user-a').length, 1,
+        'Unresolved start must never dispatch another paid request');
+      await switchUser(page, 'user-b');
+      await startVideo(page, 'B independent video');
+      await page.waitForFunction(() => localStorage.getItem('askcrump.videoJob53:user-b') === 'user-b-job');
+      await switchUser(page, 'user-a');
+      state = await snapshot(page);
+      assert.equal(JSON.parse(state.requestA).idempotencyKey, firstPost.idempotencyKey);
+      assert.equal(state.jobB, 'user-b-job');
+      await page.reload({waitUntil: 'networkidle'});
+      await openVideo(page);
+      await page.waitForFunction(() => document.getElementById('crump53GenerateVideo')?.disabled === true);
+      state = await snapshot(page);
+      assert.equal(state.calls.filter(call => call.method === 'POST' && call.owner === 'user-a').length, 0,
+        'Reloaded unresolved claim must resume status without replaying POST');
+      assert.equal(JSON.parse(state.requestA).idempotencyKey, firstPost.idempotencyKey);
+      await page.evaluate(() => {
+        window.__unknownResolved = true;
+        window.CrumpProduct53.open('video');
+      });
+      await page.waitForFunction(() => localStorage.getItem('askcrump.videoRequest53:user-a') === null);
+      state = await snapshot(page);
+      assert.equal(state.jobA, 'user-a-job', 'Resolved processing job remains tracked');
+      assert.equal(state.busy, true, 'Known processing job still prevents another charge');
+      await context.close();
+    }
     {
       const {context, page} = await pageFor();
       await page.evaluate(() => window.__makeHold('POST:user-a:/api/media/video'));
@@ -300,7 +341,7 @@ async function startVideo(page, prompt) {
       await context.close();
     }
     assert.deepEqual(failures, []);
-    process.stdout.write(JSON.stringify({success: true, scenarios: 13, pageErrors: failures}) + '\n');
+    process.stdout.write(JSON.stringify({success: true, scenarios: 16, pageErrors: failures}) + '\n');
   } finally {
     await browser.close();
     await new Promise(resolve => server.close(resolve));

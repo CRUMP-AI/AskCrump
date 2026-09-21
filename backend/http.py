@@ -66,6 +66,7 @@ async def request_guards(request: Request, call_next):
         "base-uri 'self'",
         "object-src 'none'",
         "frame-ancestors 'none'",
+        "frame-src 'self' https://xncftwjfpjskgtwgbgci.supabase.co",
         "form-action 'self'",
         "script-src 'self'",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
