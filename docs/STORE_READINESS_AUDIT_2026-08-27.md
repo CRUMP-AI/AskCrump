@@ -1,13 +1,15 @@
 # Ask Crump store-readiness audit — 2026-08-27
 
-Last updated: 2026-09-15
+Last updated: 2026-09-21
 
 ## Outcome
 
 Ask Crump has a verified store-release source foundation, but it is not yet ready for upload or
 submission. Android source was regenerated for 5.9.76/build 50976 and its unsigned Release App
-Bundle compiled on a hosted Java 21 runner. The iOS project was generated and its unsigned Release
-configuration compiled on a hosted macOS runner. Signing, push, native billing products, reviewer
+Bundle compiled on a hosted Java 21 runner. A historical iOS project compiled unsigned on a hosted
+macOS runner, but its shared numeric build identity `50976` is not a valid Apple `CFBundleVersion`;
+it is compile/privacy context only and must be superseded by a fresh candidate using a valid iOS
+build string. Signing, push, native billing products, reviewer
 access, physical-device testing, screenshots, console declarations, and publisher-account setup
 remain owner-controlled gates.
 
@@ -47,12 +49,12 @@ during this audit.
 | Reproducible dependencies | The tracked npm v3 lockfile was generated with Node 22.22.0/npm 11.6.0 in an isolated worktree. Clean `npm ci`, `npm ls --all`, a zero-vulnerability `npm audit`, production build, and deterministic Android preparation passed. | Verified |
 | Privacy inventory | `docs/DATA_SAFETY.md`, the public privacy notice, and the iOS base privacy manifest enumerate account, content, device, usage, purchase, reporting, push, and provider flows. | Source and unsigned outputs reconciled; signed archive and console forms pending |
 | Compiled privacy evidence | The app manifest semantically verifies linked/non-tracking declarations and both functionality/analytics purposes for purchase history and product interaction. GitHub iOS run [34159190241](https://github.com/CRUMP-AI/AskCrump/actions/runs/34159190241) compiled and validated five packaged manifests: app, Capacitor, Cordova, RevenueCat, and SDWebImage. Android run [34159190266](https://github.com/CRUMP-AI/AskCrump/actions/runs/34159190266) inspected the final merged manifest and found only the eight approved network, notification, vibration/wake, billing, app-internal receiver, and FCM permissions. Dependency or disclosure drift now fails closed. | Verified unsigned candidates; repeat on exact signed candidates and reconcile console forms |
-| iOS generation | The deterministic scripts set the bundle ID/version, explicit iPhone+iPad device family, push callbacks, Photos explanations, and bundled privacy manifest. Historical GitHub run [34790149321](https://github.com/CRUMP-AI/AskCrump/actions/runs/34790149321) compiled the unsigned Release configuration, but it predates the current Xcode 26/iOS 26 SDK gate and is not final toolchain evidence. | Source verified; fresh unsigned Xcode 26 compile pending |
+| iOS generation | The deterministic scripts set the bundle ID/version, explicit iPhone+iPad device family, push callbacks, Photos explanations, and bundled privacy manifest. Historical GitHub run [34790149321](https://github.com/CRUMP-AI/AskCrump/actions/runs/34790149321) compiled the unsigned Release configuration, but it used the now-retired shared build identity `50976`, which is not valid Apple `CFBundleVersion` evidence, and it predates the current Xcode 26/iOS 26 SDK gate. | Source corrected; fresh unsigned Xcode 26 compile with a valid iOS build string pending |
 | iOS cloud boundary | `.github/workflows/ios-store-verify.yml` now pins GitHub's macOS 26 image, fails closed below Xcode 26 or the iOS 26 SDK, keeps signing disabled, and contains no upload credentials. | Control ready; fresh no-secret/no-upload run pending |
 | Android cloud boundary | `.github/workflows/android-store-verify.yml` prepares source with Node 22, selects Temurin Java 21, compiles a Release App Bundle, and requires the `.aab` to be non-empty. The refreshed 5.9.76/build 50976 [run 34790149297](https://github.com/CRUMP-AI/AskCrump/actions/runs/34790149297) passed every source, screenshot-packet, exact billing-catalog, persisted native billing identity, sign-out, direct-200 store URL, signing-control, Gradle, and bundle-output step. | Verified unsigned `.aab` compile |
 | Signing controls | Mobile signing verification found no tracked keys, certificates, provisioning profiles, service-account files, or passwords. | Verified |
 | Protected check-in schedule | A trailing 24-hour production aggregation on September 10 found exactly 24 `/api/cron/check-ins` calls, matching the hourly schedule. The route appeared in neither the complete 4xx route set nor any 5xx/runtime-error set. Since the handler returns 401 when `CRON_SECRET` is absent or mismatched, the natural successful schedule verifies the configured protected credential path without a manual invocation or user-data read. Evidence: `docs/CHECK_IN_CRON_PRODUCTION_READINESS_2026-09-10.md`. | Production scheduler/secret path verified; signed-device push behavior pending |
-| Final submission packet integrity | `scripts/verify-store-submission-packet.mjs` requires the exact signed artifact hash, current build identity, fresh fixed-schema device/console evidence, complete hashed and dimension-checked screenshot sets, and non-placeholder ignored reviewer access. The iOS source explicitly targets iPhone and iPad, so the gate requires current 6.9-inch iPhone and 13-inch iPad sets plus an iPad device journey. Android requires four to eight recommendation-grade 9:16/16:9 phone images. JPEG structure and 24-bit nontransparent PNG are enforced; unknown fields/checks and partial packets fail closed. The command cannot upload or submit. Evidence: `docs/STORE_SUBMISSION_PACKET_GATE_2026-09-10.md`. | Verification control ready; no signed artifact or completed packet exists yet |
+| Final submission packet integrity | The v3 `scripts/verify-store-submission-packet.mjs` gate requires the exact signed artifact hash, platform-valid build identity, three source-SHA-bound CI receipts, supplied signing-certificate fingerprint, canonical console/test-channel record, hashed access-closeout evidence, fresh fixed-schema device evidence, non-placeholder ignored reviewer access, and complete validated PNG screenshot sets. The iOS source explicitly targets iPhone and iPad, so the gate requires current 6.9-inch iPhone and 13-inch iPad sets plus an iPad device journey. Android requires four to eight recommendation-grade 9:16/16:9 phone images. Unknown fields/checks and partial packets fail closed. The command has no network, signing, upload, or submission capability and cannot authenticate operator-declared external receipts; the owner must validate them independently. Evidence: `docs/STORE_SUBMISSION_PACKET_GATE_2026-09-10.md`. | Structural verification control ready; no signed artifact, authenticated external receipt set, or completed packet exists yet |
 
 ## Current blockers
 
@@ -93,9 +95,11 @@ during this audit.
 
 ### iOS
 
-- The generated iOS project and unsigned Release compile passed on a GitHub-hosted macOS runner,
-  preserving a Windows-led release process without outsourcing the submission. Keep the verified
-  no-secret workflow separate from any future credentialed archive/upload workflow.
+- A historical generated iOS project compiled unsigned on a GitHub-hosted macOS runner, preserving
+  proof that a Windows-led workflow can reach macOS compilation. Its shared build identity `50976`
+  is invalid as Apple `CFBundleVersion` submission evidence. Re-run the no-secret Xcode 26 workflow
+  on the exact final source with a valid `STORE_IOS_BUILD_NUMBER`; keep that workflow separate from
+  any future credentialed archive/upload workflow.
 - Select the Apple team, enable Push Notifications and Background Modes, and supply APNs credentials.
 - Configure `REVENUECAT_IOS_PUBLIC_SDK_KEY`, create the exact App Store products, and map them in
   RevenueCat.
@@ -110,7 +114,7 @@ during this audit.
   seller identity and regions. It currently publishes support email channels but no legal address or
   telephone number; do not invent or expose personal contact data in source.
 - Capture both current iPhone and iPad screenshot sets from the exact signed iOS build, and the
-  recommendation-grade phone set from the exact signed Android build, using
+  recommendation-grade phone set from the exact signed Android build, as validated PNG files using
   `store/screenshots/README.md`; no mockup is evidence that the release works.
 - Reconcile the final binary/SDK inventory to Apple App Privacy, Google Data Safety, the public
   privacy notice, and `docs/DATA_SAFETY.md`.

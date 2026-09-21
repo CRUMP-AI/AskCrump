@@ -12,6 +12,9 @@ def read(relative: str) -> str:
 def test_submission_gate_is_fail_closed_and_non_publishing() -> None:
     source = read("scripts/verify-store-submission-packet.mjs")
     package = read("package.json")
+    screenshot_plan = read("store/screenshots/README.md")
+    readiness_audit = read("docs/STORE_READINESS_AUDIT_2026-08-27.md")
+    operating_backlog = read("docs/OPERATING_BACKLOG.md")
 
     assert "ask-crump-store-submission-evidence/v3" in source
     assert "evidence v2 is retired; recreate the packet from the current v3 template" in source
@@ -31,6 +34,10 @@ def test_submission_gate_is_fail_closed_and_non_publishing() -> None:
     assert "A PNG screenshot has no compressed image data." in source
     assert "A PNG screenshot has invalid compressed image data." in source
     assert "Store screenshots must be validated PNG files." in source
+    assert "v3 release packet accepts only validated 24-bit RGB PNG" in screenshot_plan
+    assert "Use JPEG or" not in screenshot_plan
+    assert "JPEG structure and 24-bit nontransparent PNG are enforced" not in readiness_audit
+    assert "The current v3 packet supersedes its schema and image rules" in operating_backlog
     assert "iOS screenshots must use exactly the iphone and ipad device directories." in source
     assert "iphone-6.9" in source
     assert "ipad-13" in source
