@@ -16,6 +16,7 @@
   let workspaceOpenVisibilityHandler = null;
   let workspaceOpenRecordedFor = '';
   let reauthenticationPreparation = Promise.resolve();
+  const CHECKOUT_REAUTH_KEY = 'askcrump.checkout-reauth-pending';
   const TERMS_VERSION = '2026-08-01';
   const PLAN_INTENT_KEY = 'askcrump.pending-plan-intent';
   const CREATION_INTENT_KEY = 'askcrump.pending-creation-intent';
@@ -739,6 +740,10 @@
   function routeAuthenticatedUser(user) {
     activeUser = user;
     window.currentUser = user;
+    try { sessionStorage.removeItem(CHECKOUT_REAUTH_KEY); } catch (_) {}
+    if (new URLSearchParams(location.search).get('reauth') === 'checkout') {
+      history.replaceState({}, document.title, location.pathname + location.hash);
+    }
     window.configureUserStorage?.(user.id);
     window.profileManager?.applyServerSubscription?.(user);
     if (!user.termsAcceptedAt) {
@@ -780,12 +785,23 @@
     authFlowRevision += 1;
     activeUser = null;
     window.currentUser = null;
-    reauthenticationPreparation = Promise.resolve(window.deviceAuth?.clearLocalState?.()).catch(() => {});
+    window.CrumpCreditConfirmation?.cancelIfOwnerChanged?.();
+    try { sessionStorage.setItem(CHECKOUT_REAUTH_KEY, '1'); } catch (_) {}
+    reauthenticationPreparation = Promise.resolve()
+      .then(() => window.deviceAuth?.clearLocalState?.())
+      .catch(() => {});
     showAuth('login');
     setText(
       'loginError',
       'Your session expired. Sign in again to return to your selected purchase. Nothing has been charged.',
     );
+    // A checkout reauthentication can sign in as a different account. A full
+    // document navigation destroys the prior account's chat, file, and project
+    // closures before any new account is displayed; the checkout choice stays
+    // in sessionStorage and is never submitted automatically.
+    void reauthenticationPreparation.then(() => {
+      location.replace(`${location.pathname}?reauth=checkout`);
+    });
   }
 
   function resetRegistrationView() {
@@ -858,6 +874,8 @@
     capturePlanIntent();
     configureRegistrationHandoff();
     const params = new URLSearchParams(location.search);
+    let checkoutReauthPending = params.get('reauth') === 'checkout';
+    try { checkoutReauthPending ||= sessionStorage.getItem(CHECKOUT_REAUTH_KEY) === '1'; } catch (_) {}
     const signupRequested = params.get('signup') === '1';
     const returningDeviceHint = hasReturningDeviceHint();
     const resetToken = params.get('token');
@@ -865,6 +883,16 @@
       showAuth('reset');
       byId('resetPasswordForm').dataset.token = resetToken;
       history.replaceState({}, document.title, location.pathname);
+      return;
+    }
+
+    if (checkoutReauthPending) {
+      reauthenticationPreparation = Promise.resolve(window.CrumpAPI?.ready).catch(() => {});
+      showAuth('login');
+      setText(
+        'loginError',
+        'Your session expired. Sign in again to return to your selected purchase. Nothing has been charged.',
+      );
       return;
     }
 

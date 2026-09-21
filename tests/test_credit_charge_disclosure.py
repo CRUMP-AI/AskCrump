@@ -575,8 +575,8 @@ def test_ui_copy_routes_and_fixed_rate_table_match_server_policy():
     assert "Current overflow rates, after any included allowance:" in billing
     for amount in (1, 2, 4, 6, 8, 10, 12, 60, 80, 90, 120):
         assert str(amount) in billing
-    assert "/credit-confirmation.js?v=5.9.76-credit-confirmation-1" in runtime
-    assert "/credit-confirmation.js?v=5.9.76-credit-confirmation-1" in worker
+    assert "/credit-confirmation.js?v=5.9.76-checkout-owner-reset-1" in runtime
+    assert "/credit-confirmation.js?v=5.9.76-checkout-owner-reset-1" in worker
     assert 'quote.pop("token", None)' in feature_route
     assert 'quote.pop("actionKey", None)' in feature_route
     for relative in (

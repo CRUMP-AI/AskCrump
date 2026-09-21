@@ -48,7 +48,13 @@
       termsAcceptedAt:'2026-09-09T00:00:00Z',
     };
     window.__fixtureToasts = [];
-    window.__fixtureCheckoutBodies = [];
+    window.__fixtureCheckoutBodies = JSON.parse(sessionStorage.getItem('fixture.checkoutBodies') || '[]');
+    for (const [id, key] of [
+      ['checkoutFixtureRequests', 'fixture.checkoutRequests'],
+      ['checkoutFixtureClearCalls', 'fixture.clearCalls'],
+    ]) {
+      document.getElementById(id).textContent = sessionStorage.getItem(key) || '0';
+    }
     window.__fixtureClearComplete = true;
     window.__fixtureCheckoutMode = 'auth';
     window.__fixtureTermsMode = 'fail';
@@ -77,14 +83,19 @@
     window.deviceAuth = {
       cachedUser:() => fixtureUser,
       checkSession:async () => ({authenticated:true, data:{user:fixtureUser, settings:{}}}),
-      login:async () => window.__fixtureClearComplete
-        ? ({success:true, data:{user:fixtureUser, settings:{}}})
+      login:async email => window.__fixtureClearComplete
+        ? ({success:true, data:{user:{
+            ...fixtureUser,
+            id:email === 'fixture-b@example.test' ? 'fixture-b' : fixtureUser.id,
+            email,
+          }, settings:{}}})
         : ({success:false, error:'Fixture login raced session cleanup.'}),
       clearLocalState:async () => {
         window.__fixtureClearComplete = false;
         await new Promise(resolve => setTimeout(resolve, 60));
         const output = document.getElementById('checkoutFixtureClearCalls');
         output.textContent = String(Number(output.textContent || 0) + 1);
+        sessionStorage.setItem('fixture.clearCalls', output.textContent);
         window.__fixtureClearComplete = true;
       },
       logout:async () => ({success:true}),
@@ -102,7 +113,9 @@
       if (pathname === '/api/billing/credits/checkout' || pathname === '/api/stripe/create-checkout-session') {
         const output = document.getElementById('checkoutFixtureRequests');
         output.textContent = String(Number(output.textContent || 0) + 1);
+        sessionStorage.setItem('fixture.checkoutRequests', output.textContent);
         window.__fixtureCheckoutBodies.push({pathname, body:JSON.parse(String(options.body || '{}'))});
+        sessionStorage.setItem('fixture.checkoutBodies', JSON.stringify(window.__fixtureCheckoutBodies));
         if (window.__fixtureCheckoutMode === 'invalid') {
           return new Response(JSON.stringify({
             success:true,
@@ -170,6 +183,11 @@
       });
       return window.__fixtureSubscriptionsPromise;
     };
+    window.addEventListener('crump:authenticated-ready', () => {
+      if (window.BillingManager?.pendingCheckoutRecovery?.()) {
+        void window.__loadFixtureSubscriptions();
+      }
+    });
   </script>
   <script src="/public/crump-5.2.2.js?v=checkout-session-recovery-fixture-1"></script>
   <script src="/public/auth-controller.js?v=checkout-session-recovery-fixture-1"></script>

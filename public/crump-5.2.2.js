@@ -8,6 +8,7 @@
   const BILLING_REQUEST_TIMEOUT_MS = 15_000;
   const state = {
     checkoutOpening: false,
+    checkoutRecoveryOpenKey: '',
     lastPointerCheckoutAt: 0,
     scroll: {
       installed: false,
@@ -156,12 +157,15 @@
 
   function resumeCheckoutAfterAuthentication() {
     const recovery = window.BillingManager?.pendingCheckoutRecovery?.();
-    if (!recovery) return;
+    if (!recovery || !window.currentUser || !window.CrumpBillingCenter52Ready) return;
+    const recoveryKey = `${recovery.kind}:${recovery.selection}:${recovery.capturedAt}`;
+    if (state.checkoutRecoveryOpenKey === recoveryKey) return;
     const options = recovery.kind === 'plan'
       ? {source: 'plan_intent', plan: recovery.selection}
       : {source: 'settings'};
     const modal = window.showBillingCenter?.(options);
     if (!modal) return;
+    state.checkoutRecoveryOpenKey = recoveryKey;
     if (recovery.kind === 'plan') modal.dataset.crumpPlanIntent = recovery.selection;
     focusRecoveredCheckout(recovery, modal);
   }
@@ -361,6 +365,12 @@
     installBillingContract();
     installScrollContract();
     window.addEventListener('crump:authenticated-ready', resumeCheckoutAfterAuthentication);
+    window.addEventListener('crump:billing-center-ready', resumeCheckoutAfterAuthentication);
+    // A fast login on a fresh checkout-reauth page can complete before this
+    // delayed enhancement boots. Recover the selection once in that case too.
+    if (window.currentUser && window.BillingManager?.pendingCheckoutRecovery?.()) {
+      resumeCheckoutAfterAuthentication();
+    }
 
     const observer = new MutationObserver(() => {
       normalizeBillingCards();

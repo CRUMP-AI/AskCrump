@@ -32,14 +32,14 @@ def test_billing_timeout_assets_are_versioned_across_web_pwa_and_native():
 
     assets = (
         "/crump-billing-5.1.js?v=5.9.76-checkout-destination-label-1",
-        "/crump-5.2.2.js?v=5.9.76-stripe-destination-integrity-1",
+        "/crump-5.2.2.js?v=5.9.76-checkout-owner-reset-1",
         "/crump-subscriptions-5.3.2.js?v=5.9.76-checkout-destination-label-1",
     )
     for asset in assets:
         assert asset in runtime
         assert asset in worker
         assert asset in native
-    assert "ask-crump-new-body-v1-r249" in worker
+    assert "ask-crump-new-body-v1-r250" in worker
 
 
 def test_billing_stall_fixture_uses_real_layers_without_credentials_or_production():
