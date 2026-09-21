@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r251';
+const CACHE_NAME = 'ask-crump-new-body-v1-r252';
 
 const CORE = [
   '/app',
@@ -26,7 +26,7 @@ const CORE = [
   '/crump-navigation-5.9.30.css?v=5.9.76-mobile-drawer-destinations-1',
   '/crump-navigation-5.9.30.js?v=5.9.76-navigation-discovery-1',
   '/crump-code-loader.js?v=5.9.76-code-lazy-load-1',
-  '/crump-product-loader.js?v=5.9.76-product-studio-video-owner-1',
+  '/crump-product-loader.js?v=5.9.76-product-studio-owner-reconciliation-1',
   '/crump-product-5.3.1.css',
   '/crump-product-5.3.1.js?v=5.9.76-conversation-action-labels-2',
   '/crump-polish-5.6.css',

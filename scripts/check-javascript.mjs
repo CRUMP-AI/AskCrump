@@ -1001,8 +1001,8 @@ const creditConfirmationVersion = `${releaseVersion}-credit-confirmation-1`;
 const videoOwnerUploadVersion = `${releaseVersion}-video-owner-upload-1`;
 const settingsSaveIsolationVersion = `${releaseVersion}-video-owner-composer-1`;
 const outputProjectActionVersion = `${releaseVersion}-output-project-action-1`;
-const studioActionLabelsVersion = `${releaseVersion}-video-owner-isolation-1`;
-const productStudioLazyLoadVersion = `${releaseVersion}-product-studio-video-owner-1`;
+const studioOwnerReconciliationVersion = `${releaseVersion}-owner-reconciliation-1`;
+const productStudioLazyLoadVersion = `${releaseVersion}-product-studio-owner-reconciliation-1`;
 const visibleWorkspaceReturnVersion = `${releaseVersion}-visible-workspace-return-1`;
 const continuityHandoffVersion = `${releaseVersion}-continuity-handoff-1`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
@@ -1330,7 +1330,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-4.4.js?v=${navigationDiscoveryVersion}`) ||
     !runtime.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
     !runtime.includes(`/crump-product-loader.js?v=${productStudioLazyLoadVersion}`) ||
-    runtime.includes(`/crump-product-5.3.js?v=${studioActionLabelsVersion}`) ||
+    runtime.includes(`/crump-product-5.3.js?v=${studioOwnerReconciliationVersion}`) ||
     runtime.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
     !runtime.includes(`/crump-product-5.3.1.js?v=${conversationActionLabelsVersion}`) || !runtime.includes('/crump-product-5.3.1.css') ||
     !runtime.includes(`/crump-subscriptions-5.3.2.js?v=${checkoutDestinationLabelVersion}`) ||
@@ -1428,7 +1428,7 @@ const v1Body = await readFile(new URL('public/crump-v1-body.js', repoRoot), 'utf
 const appRuntime = await readFile(new URL('public/app.js', repoRoot), 'utf8');
 const product53 = await readFile(new URL('public/crump-product-5.3.js', repoRoot), 'utf8');
 const productLoader = await readFile(new URL('public/crump-product-loader.js', repoRoot), 'utf8');
-if (!productLoader.includes(`/crump-product-5.3.js?v=${studioActionLabelsVersion}`) ||
+if (!productLoader.includes(`/crump-product-5.3.js?v=${studioOwnerReconciliationVersion}`) ||
     !productLoader.includes(`${'${VIDEO_JOB_KEY}'}:${'${encodeURIComponent(owner)}'}`) ||
     !product53.includes('function verifyLegacyVideoJob(owner, jobId)')) {
   console.error('Video owner-scoped recovery and release version are missing.');
@@ -1493,7 +1493,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r251') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r252') ||
     !serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
@@ -1537,7 +1537,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r251') ||
     !serviceWorker.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
     !serviceWorker.includes(`/crump-product-loader.js?v=${productStudioLazyLoadVersion}`) ||
     !serviceWorker.includes(`/crump-product-5.3.1.js?v=${conversationActionLabelsVersion}`) ||
-    serviceWorker.includes(`/crump-product-5.3.js?v=${studioActionLabelsVersion}`) ||
+    serviceWorker.includes(`/crump-product-5.3.js?v=${studioOwnerReconciliationVersion}`) ||
     serviceWorker.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${navigationDiscoveryVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.css?v=${mobileDrawerDestinationsVersion}`) ||

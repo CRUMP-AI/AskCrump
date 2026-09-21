@@ -53,8 +53,8 @@ def test_parallel_runtime_asset_is_versioned_for_web_pwa_and_native():
     asset = "/runtime-body-v1.js?v=5.9.76-owner-isolation-1"
     assert asset in shell
     assert asset in worker
-    assert "ask-crump-new-body-v1-r251" in worker
-    assert "ask-crump-new-body-v1-r251" in checker
+    assert "ask-crump-new-body-v1-r252" in worker
+    assert "ask-crump-new-body-v1-r252" in checker
 
 
 def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
@@ -107,6 +107,8 @@ def test_returning_workspace_uses_precache_without_staling_the_shell():
     assert "async function cacheFirst(request)" in worker
     assert "bootCritical(request, url)\n      ? cacheFirst(request)" in worker
     assert "originAssetRequests" in verifier
+    assert "/crump-product-loader.js?v=5.9.76-product-studio-owner-reconciliation-1" in verifier
+    assert "Boolean(window.CrumpProductLoader?.load)" in verifier
     assert "assert.equal(counts.get(fixturePath), 1" in verifier
     assert "verify-service-worker-returning-load.cjs" in matrix
     assert "askcrump.com" not in verifier.lower()

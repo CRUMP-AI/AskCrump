@@ -12,16 +12,19 @@ def test_product53_runtime_is_lazy_loaded_and_cache_addressable():
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
     loader = read("public/crump-product-loader.js")
-    assert "/crump-product-loader.js?v=5.9.76-product-studio-video-owner-1" in runtime
-    assert "/crump-product-loader.js?v=5.9.76-product-studio-video-owner-1" in worker
+    assert "/crump-product-loader.js?v=5.9.76-product-studio-owner-reconciliation-1" in runtime
+    assert "/crump-product-loader.js?v=5.9.76-product-studio-owner-reconciliation-1" in worker
     assert "/crump-product-5.3.css?v=5.9.76-file-library-window-1" not in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-video-owner-isolation-1" not in runtime
+    assert "/crump-product-5.3.js?v=5.9.76-owner-reconciliation-1" not in runtime
     assert "/crump-product-5.3.css?v=5.9.76-file-library-window-1" not in worker
-    assert "/crump-product-5.3.js?v=5.9.76-video-owner-isolation-1" not in worker
+    assert "/crump-product-5.3.js?v=5.9.76-owner-reconciliation-1" not in worker
     assert "/crump-product-5.3.css?v=5.9.76-file-library-window-1" in loader
-    assert "/crump-product-5.3.js?v=5.9.76-video-owner-isolation-1" in loader
+    assert "/crump-product-5.3.js?v=5.9.76-owner-reconciliation-1" in loader
+    assert "/crump-product-5.3.js?v=5.9.76-video-owner-isolation-1" not in loader
+    assert "/crump-product-loader.js?v=5.9.76-product-studio-video-owner-1" not in runtime
+    assert "/crump-product-loader.js?v=5.9.76-product-studio-video-owner-1" not in worker
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-loader.js")
-    assert "ask-crump-new-body-v1-r251" in worker
+    assert "ask-crump-new-body-v1-r252" in worker
     assert "crump-product-5.3.js" in checker
     assert "crump-product-loader.js" in checker
 
