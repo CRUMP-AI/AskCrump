@@ -316,7 +316,27 @@ class ReservationDB:
         return []
 
     async def select_one(self, table, *, filters=None, **kwargs):
+        if table == "media_jobs" and filters and "id" in filters:
+            return self.rows.get(str(filters["id"]).removeprefix("eq."))
         return None
+
+    async def rpc(self, name, payload, **_kwargs):
+        if name == "begin_video_provider_dispatch":
+            return True
+        if name == "record_video_provider_acceptance":
+            await self.update(
+                "media_jobs",
+                {
+                    "provider_job_id": payload["p_provider_job_id"],
+                    "status": "processing",
+                    "metadata": {"providerAccepted": True},
+                },
+                filters={"id": f"eq.{payload['p_job_id']}"},
+            )
+            return True
+        if name == "finish_video_provider_claim":
+            return None
+        raise AssertionError(name)
 
     async def insert(self, table, payload):
         assert table == "media_jobs"
@@ -352,6 +372,7 @@ async def test_provider_job_is_reserved_before_runway_spend():
         resolution="720p",
         duration_seconds=5,
         charge_receipt={"eventId": "credit:test"},
+        claimed_job_id="00000000-0000-0000-0000-000000000101",
     )
     assert row["status"] == "processing"
     assert row["provider_job_id"] == "runway-task-1"
@@ -382,6 +403,7 @@ async def test_provider_acceptance_tracking_failure_is_not_auto_refundable():
             resolution="720p",
             duration_seconds=5,
             charge_receipt={"eventId": "credit:test"},
+            claimed_job_id="00000000-0000-0000-0000-000000000102",
         )
     assert exc.value.code == "VIDEO_JOB_TRACKING_FAILED"
     assert exc.value.refund_eligible is False
@@ -412,6 +434,7 @@ async def test_pre_acceptance_rejection_identifies_the_reserved_job_for_refund_r
             resolution="720p",
             duration_seconds=5,
             charge_receipt={"eventId": "credit:test"},
+            claimed_job_id="00000000-0000-0000-0000-000000000103",
         )
 
     assert exc.value.code == "VIDEO_PROVIDER_REJECTED"
@@ -443,7 +466,7 @@ async def test_continuation_rejection_identifies_its_reserved_job_for_refund_rec
                     "duration_seconds": 8,
                     "metadata": {"storedBytes": 1024},
                 }
-            return None
+                return await super().select_one(table, filters=filters, **kwargs)
 
     db = ContinuationDB()
     service = VideoService(settings(), db, SimpleNamespace())
@@ -466,6 +489,7 @@ async def test_continuation_rejection_identifies_its_reserved_job_for_refund_rec
             prompt="Continue the same scene while preserving every visible detail.",
             idempotency_key="continue-fixture",
             charge_receipt={"eventId": "credit:test"},
+            claimed_job_id="00000000-0000-0000-0000-000000000104",
         )
 
     assert exc.value.failed_job_id in db.rows

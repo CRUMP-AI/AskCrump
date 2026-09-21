@@ -5,12 +5,13 @@ from __future__ import annotations
 import logging
 from typing import Any
 from urllib.parse import quote
+from uuid import uuid4
 
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 
 from ..auth_service import authenticate_request, public_user
-from ..db import eq
+from ..db import DatabaseError, eq
 from ..http import clear_session_cookie
 from ..product_analytics import record_product_event
 from ..runtime import db, settings
@@ -84,6 +85,26 @@ async def delete_stripe_customer(user: dict[str, Any]) -> bool:
             result.get('deleted') is True
             and str(result.get('id') or '') == customer_id
         )
+    elif stripe_response.status_code == 404:
+        # A previous deletion may have committed before local deletion failed
+        # or its response was lost. Stripe still permits retrieval of deleted
+        # customers; verify that exact ID is marked deleted before retrying
+        # the local account deletion.
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                lookup = await client.get(
+                    f'https://api.stripe.com/v1/customers/{quote(customer_id, safe="")}',
+                    auth=(settings.stripe_secret_key, ''),
+                )
+            if 200 <= lookup.status_code < 300:
+                lookup_body = lookup.json()
+                deleted = bool(
+                    isinstance(lookup_body, dict)
+                    and lookup_body.get('deleted') is True
+                    and str(lookup_body.get('id') or '') == customer_id
+                )
+        except (httpx.HTTPError, ValueError, AttributeError):
+            deleted = False
     if deleted:
         return True
 
@@ -139,9 +160,56 @@ async def delete_account(payload: DeleteAccountRequest, request: Request, respon
         return JSONResponse(status_code=401, content={'success': False, 'error': 'Password is incorrect.'})
 
     user_id = auth.user['id']
+    deletion_token = str(uuid4())
+    try:
+        # A reserved start conflicts *without* creating a fence or touching
+        # billing. A successful token-owned fence excludes new dispatches.
+        video_starts_settled = await db.rpc(
+            'begin_video_account_deletion',
+            {'p_user_id': user_id, 'p_operation_token': deletion_token},
+            retry_transient=True,
+        )
+    except DatabaseError:
+        logger.error('Video account-deletion fence is unavailable')
+        return JSONResponse(
+            status_code=503,
+            content={
+                'success': False,
+                'error': 'Account deletion is temporarily unavailable. No account data was deleted.',
+                'code': 'ACCOUNT_DELETION_FENCE_UNAVAILABLE',
+            },
+        )
+    if not video_starts_settled:
+        return JSONResponse(
+            status_code=409,
+            content={
+                'success': False,
+                'error': 'A video request or account deletion is settling. Please retry shortly.',
+                'code': 'VIDEO_START_SETTLING',
+            },
+        )
+
     try:
         await delete_stripe_customer(auth.user)
     except BillingCancellationUnconfirmed:
+        try:
+            release_result = await db.rpc(
+                'release_video_account_deletion_fence',
+                {'p_user_id': user_id, 'p_operation_token': deletion_token},
+                retry_transient=True,
+            )
+        except DatabaseError:
+            release_result = 'unconfirmed'
+        if release_result != 'released':
+            logger.error('Account-deletion fence release could not be confirmed after billing failure')
+            return JSONResponse(
+                status_code=503,
+                content={
+                    'success': False,
+                    'error': 'Account deletion did not complete. Please contact support before starting another video.',
+                    'code': 'ACCOUNT_DELETION_RECOVERY_REQUIRED',
+                },
+            )
         return JSONResponse(
             status_code=502,
             content={
@@ -170,7 +238,39 @@ async def delete_account(payload: DeleteAccountRequest, request: Request, respon
         except Exception:
             logger.exception('RevenueCat customer cleanup failed during account deletion')
 
-    await db.rpc('delete_user_account', {'p_user_id': user_id})
+    try:
+        await db.rpc('delete_user_account', {'p_user_id': user_id})
+    except DatabaseError:
+        # An RPC response can be lost after the delete committed. The
+        # compensation RPC takes the user lock; if the user is absent it
+        # reports the committed deletion instead of restoring a stale fence.
+        try:
+            release_result = await db.rpc(
+                'release_video_account_deletion_fence',
+                {'p_user_id': user_id, 'p_operation_token': deletion_token},
+                retry_transient=True,
+            )
+        except DatabaseError:
+            release_result = 'unconfirmed'
+        if release_result == 'released':
+            return JSONResponse(
+                status_code=503,
+                content={
+                    'success': False,
+                    'error': 'Account deletion did not complete. You can retry shortly.',
+                    'code': 'ACCOUNT_DELETION_RETRY',
+                },
+            )
+        if release_result != 'user_deleted':
+            logger.error('Local account-deletion outcome needs manual reconciliation')
+            return JSONResponse(
+                status_code=503,
+                content={
+                    'success': False,
+                    'error': 'Account deletion status could not be confirmed. Please contact support.',
+                    'code': 'ACCOUNT_DELETION_RECOVERY_REQUIRED',
+                },
+            )
     clear_session_cookie(response)
     return {
         'success': True,

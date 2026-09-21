@@ -78,6 +78,11 @@ class FakeDB:
         )
         self.proof = dict(proof or {})
         self.operations: list[tuple] = []
+        self.video_starts_settled = True
+        self.deletion_token: str | None = None
+        self.delete_error = False
+        self.delete_committed = False
+        self.release_error = False
 
     async def select_one(self, table, *, columns="*", filters=None):
         if table == "users":
@@ -97,11 +102,30 @@ class FakeDB:
         self.operations.append(("rpc", function_name, dict(payload)))
         if function_name == "demo_recording_proof_snapshot":
             return [{**self.proof, "private_extra": "must-not-leak"}]
+        if function_name == "begin_video_account_deletion":
+            if not self.video_starts_settled:
+                return False
+            self.deletion_token = payload["p_operation_token"]
+            return True
+        if function_name == "release_video_account_deletion_fence":
+            if self.release_error:
+                raise RuntimeError("release unavailable")
+            if self.user is None:
+                return "user_deleted"
+            if payload["p_operation_token"] != self.deletion_token:
+                return "not_owner"
+            self.deletion_token = None
+            return "released"
         assert function_name == "delete_user_account"
+        assert self.deletion_token is not None
+        if self.delete_error and not self.delete_committed:
+            raise RuntimeError("delete unavailable")
         self.user = None
         self.settings = None
         for table in self.rows:
             self.rows[table] = []
+        if self.delete_error:
+            raise RuntimeError("delete response lost")
 
     async def insert(self, table, payload):
         self.operations.append(("insert", table, dict(payload)))
@@ -272,11 +296,13 @@ async def test_replacement_removes_storage_first_then_recreates_clean_internal_a
     )
 
     assert files.operations == [("old-demo-id", "file-one"), ("old-demo-id", "file-two")]
-    assert db.operations[0] == ("rpc", "delete_user_account", {"p_user_id": "old-demo-id"})
-    assert db.operations[1][0:2] == ("insert", "users")
-    assert db.operations[1][2]["id"] == "new-demo-id"
-    assert db.operations[1][2]["password_hash"] == "new-secret-hash"
-    assert db.operations[2][0:2] == ("upsert", "user_settings")
+    assert db.operations[0][0:2] == ("rpc", "begin_video_account_deletion")
+    assert db.operations[0][2]["p_user_id"] == "old-demo-id"
+    assert db.operations[1] == ("rpc", "delete_user_account", {"p_user_id": "old-demo-id"})
+    assert db.operations[2][0:2] == ("insert", "users")
+    assert db.operations[2][2]["id"] == "new-demo-id"
+    assert db.operations[2][2]["password_hash"] == "new-secret-hash"
+    assert db.operations[3][0:2] == ("upsert", "user_settings")
     assert result == {
         "exists": True,
         "eligible_for_replace": True,
@@ -301,6 +327,66 @@ async def test_replacement_blocks_unsafe_identity_before_any_delete_or_insert():
     assert files.operations == []
     assert db.operations == []
     assert db.rows["user_files"] == [{"id": "must-remain"}]
+
+
+@pytest.mark.asyncio
+async def test_replacement_video_conflict_preserves_files_and_account():
+    db = FakeDB(protected_user(), {"user_files": [{"id": "must-remain"}]})
+    db.video_starts_settled = False
+    files = FakeFiles(db)
+
+    with pytest.raises(DemoAccountError, match="video start"):
+        await replace_demo_account(db, files, password_hash="unused")
+
+    assert files.operations == []
+    assert db.user is not None
+    assert db.rows["user_files"] == [{"id": "must-remain"}]
+    assert [name for _, name, _ in db.operations] == ["begin_video_account_deletion"]
+    assert db.deletion_token is None
+
+
+@pytest.mark.asyncio
+async def test_replacement_delete_failure_releases_only_its_own_fence():
+    db = FakeDB(protected_user(), {"user_files": []})
+    db.delete_error = True
+    files = FakeFiles(db)
+
+    with pytest.raises(RuntimeError, match="delete unavailable"):
+        await replace_demo_account(db, files, password_hash="unused")
+
+    assert db.user is not None
+    assert db.deletion_token is None
+    assert [name for _, name, _ in db.operations] == [
+        "begin_video_account_deletion",
+        "delete_user_account",
+        "release_video_account_deletion_fence",
+    ]
+    assert (
+        db.operations[0][2]["p_operation_token"]
+        == db.operations[2][2]["p_operation_token"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_replacement_lost_delete_response_verifies_absence_before_recreating():
+    db = FakeDB(protected_user(), {"user_files": []})
+    db.delete_error = True
+    db.delete_committed = True
+
+    result = await replace_demo_account(
+        db,
+        FakeFiles(db),
+        password_hash="new-secret-hash",
+        user_id_factory=lambda: "new-demo-id",
+    )
+
+    assert result["exists"] is True
+    assert db.user["id"] == "new-demo-id"
+    assert [name for _, name, _ in db.operations[:3]] == [
+        "begin_video_account_deletion",
+        "delete_user_account",
+        "release_video_account_deletion_fence",
+    ]
 
 
 def test_receipt_is_versioned_content_free_and_exclusive(tmp_path: Path):

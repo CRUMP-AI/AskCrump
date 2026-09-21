@@ -22,8 +22,10 @@ class FakeDB:
             return {'assistant_name': 'Server Crump', 'work_mode': True}
         return None
 
-    async def rpc(self, name, payload):
+    async def rpc(self, name, payload, **_kwargs):
         self.rpc_calls.append((name, payload))
+        if name == 'begin_video_account_deletion':
+            return True
         return None
 
 
@@ -315,4 +317,8 @@ def test_account_deletion_uses_atomic_database_rpc(monkeypatch):
     })
 
     assert response.status_code == 200
-    assert fake_db.rpc_calls == [('delete_user_account', {'p_user_id': 'user-2'})]
+    assert [name for name, _ in fake_db.rpc_calls] == [
+        'begin_video_account_deletion', 'delete_user_account',
+    ]
+    assert fake_db.rpc_calls[0][1]['p_user_id'] == 'user-2'
+    assert fake_db.rpc_calls[0][1]['p_operation_token']

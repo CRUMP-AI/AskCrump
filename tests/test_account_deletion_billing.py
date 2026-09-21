@@ -1,10 +1,12 @@
 from pathlib import Path
 from types import SimpleNamespace
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 import httpx
 
 import app as app_module
+from backend.db import DatabaseError
 from backend.routes import account as account_routes
 from backend.security import hash_password
 
@@ -16,9 +18,35 @@ PUBLIC = Path(__file__).resolve().parents[1] / 'public'
 class FakeDB:
     def __init__(self):
         self.rpc_calls = []
+        self.video_starts_settled = True
+        self.fenced = False
+        self.deleted = False
+        self.deletion_token = None
+        self.delete_error = False
+        self.delete_committed = False
 
-    async def rpc(self, name, payload):
+    async def rpc(self, name, payload, **_kwargs):
         self.rpc_calls.append((name, payload))
+        if name == 'begin_video_account_deletion':
+            if not self.video_starts_settled:
+                return False
+            self.deletion_token = payload['p_operation_token']
+            self.fenced = True
+            return True
+        if name == 'release_video_account_deletion_fence':
+            if self.deleted:
+                return 'user_deleted'
+            if self.fenced and payload['p_operation_token'] == self.deletion_token:
+                self.fenced = False
+                self.deletion_token = None
+                return 'released'
+            return 'not_owner'
+        if name == 'delete_user_account':
+            if self.delete_error:
+                self.deleted = self.delete_committed
+                raise DatabaseError('fixture deletion failure', 503)
+            self.deleted = True
+            return None
 
 
 class FakeStripeResponse:
@@ -49,7 +77,7 @@ def configure_account(monkeypatch, user, *, stripe_key='sk_test_fixture'):
     return fake_db
 
 
-def install_stripe_response(monkeypatch, response):
+def install_stripe_response(monkeypatch, response, *, lookup_response=None):
     calls = []
 
     class FakeClient:
@@ -65,6 +93,10 @@ def install_stripe_response(monkeypatch, response):
         async def delete(self, url, **kwargs):
             calls.append((url, kwargs))
             return response
+
+        async def get(self, url, **kwargs):
+            calls.append((url, kwargs))
+            return lookup_response or FakeStripeResponse(404, {})
 
     monkeypatch.setattr(httpx, 'AsyncClient', FakeClient)
     return calls
@@ -126,7 +158,11 @@ def test_open_web_subscription_blocks_deletion_when_billing_is_unavailable(monke
 
     assert response.status_code == 502
     assert response.json()['code'] == 'BILLING_CANCELLATION_UNCONFIRMED'
-    assert fake_db.rpc_calls == []
+    assert [name for name, _ in fake_db.rpc_calls] == [
+        'begin_video_account_deletion', 'release_video_account_deletion_fence',
+    ]
+    assert fake_db.fenced is False
+    assert fake_db.rpc_calls[0][1]['p_operation_token'] == fake_db.rpc_calls[1][1]['p_operation_token']
 
 
 def test_open_web_subscription_blocks_deletion_when_stripe_rejects_cleanup(monkeypatch):
@@ -136,7 +172,10 @@ def test_open_web_subscription_blocks_deletion_when_stripe_rejects_cleanup(monke
     response = delete_request()
 
     assert response.status_code == 502
-    assert fake_db.rpc_calls == []
+    assert [name for name, _ in fake_db.rpc_calls] == [
+        'begin_video_account_deletion', 'release_video_account_deletion_fence',
+    ]
+    assert fake_db.fenced is False
     assert calls[0][0].endswith('/customers/cus_delete_fixture')
 
 
@@ -150,7 +189,30 @@ def test_open_web_subscription_blocks_unconfirmed_success_payload(monkeypatch):
     response = delete_request()
 
     assert response.status_code == 502
-    assert fake_db.rpc_calls == []
+    assert [name for name, _ in fake_db.rpc_calls] == [
+        'begin_video_account_deletion', 'release_video_account_deletion_fence',
+    ]
+    assert fake_db.fenced is False
+
+
+def test_deleted_stripe_customer_is_verified_before_local_retry(monkeypatch):
+    fake_db = configure_account(monkeypatch, account_user())
+    calls = install_stripe_response(
+        monkeypatch,
+        FakeStripeResponse(404, {'error': {'code': 'resource_missing'}}),
+        lookup_response=FakeStripeResponse(
+            200, {'id': 'cus_delete_fixture', 'deleted': True},
+        ),
+    )
+
+    response = delete_request()
+
+    assert response.status_code == 200
+    assert len(calls) == 2
+    assert calls[0][0] == calls[1][0]
+    assert [name for name, _ in fake_db.rpc_calls] == [
+        'begin_video_account_deletion', 'delete_user_account',
+    ]
 
 
 def test_confirmed_stripe_deletion_allows_atomic_local_deletion(monkeypatch):
@@ -163,9 +225,11 @@ def test_confirmed_stripe_deletion_allows_atomic_local_deletion(monkeypatch):
     response = delete_request()
 
     assert response.status_code == 200
-    assert fake_db.rpc_calls == [
-        ('delete_user_account', {'p_user_id': 'user-delete-1'}),
+    assert [name for name, _ in fake_db.rpc_calls] == [
+        'begin_video_account_deletion', 'delete_user_account',
     ]
+    assert fake_db.rpc_calls[0][1]['p_user_id'] == 'user-delete-1'
+    assert UUID(fake_db.rpc_calls[0][1]['p_operation_token'])
 
 
 def test_terminal_subscription_preserves_privacy_deletion_when_cleanup_fails(monkeypatch):
@@ -178,8 +242,58 @@ def test_terminal_subscription_preserves_privacy_deletion_when_cleanup_fails(mon
     response = delete_request()
 
     assert response.status_code == 200
-    assert fake_db.rpc_calls == [
-        ('delete_user_account', {'p_user_id': 'user-delete-1'}),
+    assert [name for name, _ in fake_db.rpc_calls] == [
+        'begin_video_account_deletion', 'delete_user_account',
+    ]
+
+
+def test_unsettled_video_reservation_defers_local_account_deletion(monkeypatch):
+    fake_db = configure_account(
+        monkeypatch, account_user(),
+    )
+    fake_db.video_starts_settled = False
+    stripe_calls = install_stripe_response(
+        monkeypatch, FakeStripeResponse(200, {'deleted': True, 'id': 'cus_delete_fixture'}),
+    )
+
+    response = delete_request()
+
+    assert response.status_code == 409
+    assert response.json()['code'] == 'VIDEO_START_SETTLING'
+    assert [name for name, _ in fake_db.rpc_calls] == ['begin_video_account_deletion']
+    assert fake_db.fenced is False
+    assert stripe_calls == []
+
+
+def test_failed_local_delete_releases_active_account_fence(monkeypatch):
+    fake_db = configure_account(monkeypatch, account_user(subscription_status='canceled'))
+    fake_db.delete_error = True
+
+    response = delete_request()
+
+    assert response.status_code == 503
+    assert response.json()['code'] == 'ACCOUNT_DELETION_RETRY'
+    assert fake_db.fenced is False
+    assert fake_db.deleted is False
+    assert [name for name, _ in fake_db.rpc_calls] == [
+        'begin_video_account_deletion', 'delete_user_account',
+        'release_video_account_deletion_fence',
+    ]
+    assert fake_db.rpc_calls[0][1]['p_operation_token'] == fake_db.rpc_calls[-1][1]['p_operation_token']
+
+
+def test_lost_local_delete_response_does_not_restore_deleted_account(monkeypatch):
+    fake_db = configure_account(monkeypatch, account_user(subscription_status='canceled'))
+    fake_db.delete_error = True
+    fake_db.delete_committed = True
+
+    response = delete_request()
+
+    assert response.status_code == 200
+    assert fake_db.deleted is True
+    assert [name for name, _ in fake_db.rpc_calls] == [
+        'begin_video_account_deletion', 'delete_user_account',
+        'release_video_account_deletion_fence',
     ]
 
 

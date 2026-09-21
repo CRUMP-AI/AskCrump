@@ -446,6 +446,171 @@ class VideoService:
                 True,
             )
 
+    async def reserve_provider_claim(
+        self, *, user_id: str, provider: str, operation_type: str
+    ) -> str:
+        """Fence deletion before credits are consumed or a provider is contacted."""
+        job_id = str(uuid4())
+        try:
+            reservation = await self.db.rpc(
+                "reserve_video_provider_claim",
+                {
+                    "p_user_id": user_id,
+                    "p_job_id": job_id,
+                    "p_provider": provider,
+                    "p_operation_type": operation_type,
+                },
+                retry_transient=True,
+            )
+        except Exception as exc:
+            raise VideoServiceError(
+                "Video reservation is temporarily unavailable.",
+                "VIDEO_RESERVATION_UNAVAILABLE", 503, True,
+            ) from exc
+        status = reservation.get("status") if isinstance(reservation, dict) else None
+        if status == "start_unknown":
+            raise VideoServiceError(
+                "A previous video start is still being reconciled. Check that job before starting another.",
+                "VIDEO_START_RECONCILIATION_PENDING", 409, False, True,
+                str(reservation.get("jobId") or "") or None,
+            )
+        if status != "reserved":
+            raise VideoServiceError(
+                "Account deletion is in progress. No video job was started.",
+                "ACCOUNT_DELETION_IN_PROGRESS", 409,
+            )
+        return job_id
+
+    async def finish_provider_claim(
+        self, *, user_id: str, job_id: str, outcome: str
+    ) -> None:
+        await self.db.rpc(
+            "finish_video_provider_claim",
+            {"p_user_id": user_id, "p_job_id": job_id, "p_outcome": outcome},
+            retry_transient=True,
+        )
+
+    async def reconcile_deleted_provider_claim_once(self) -> dict[str, Any]:
+        """Poll one deleted account's provider claim without fetching its output.
+
+        A claim contains only the provider's job identifier. This worker must
+        never download a finished video, recreate a media row, or log a
+        provider response: account deletion has already removed that content.
+        """
+        lease_token = str(uuid4())
+        rows = await self.db.rpc(
+            "claim_deleted_video_provider_reconciliation",
+            {"p_lease_token": lease_token},
+            retry_transient=True,
+        )
+        claim = rows[0] if isinstance(rows, list) and rows else None
+        if not claim:
+            return {"handled": False}
+
+        provider_job_id = str(claim.get("provider_job_id") or "").strip()
+        provider_name = str(claim.get("provider") or "")
+        next_state, delay, result = "accepted", 300, "retry"
+        if not provider_job_id:
+            # An ambiguous provider start has no addressable job to poll.
+            # Preserve it for operator/provider reconciliation, not refund.
+            next_state, delay, result = "unknown", 86400, "needs_review"
+        else:
+            provider = (
+                self.gemini if provider_name == "gemini"
+                else self.runway if provider_name == "runway"
+                else None
+            )
+            # Emergency disablement stops new starts, but existing accepted
+            # jobs still need status-only reconciliation when keys remain.
+            has_status_key = (
+                bool(self.settings.gemini_api_key) if provider_name == "gemini"
+                else bool(self.settings.runway_api_secret) if provider_name == "runway"
+                else False
+            )
+            if provider is None or not has_status_key:
+                delay, result = 3600, "provider_unavailable"
+            else:
+                try:
+                    status = await provider.poll(provider_job_id)
+                except ProviderError:
+                    delay, result = 300, "provider_status_unavailable"
+                else:
+                    if status.get("status") in {"ready", "failed"}:
+                        # Deliberately discard outputUrl/providerAssetReference.
+                        next_state, delay, result = "settled", 86400, "settled"
+                    else:
+                        delay, result = 60, "processing"
+
+        released = await self.db.rpc(
+            "release_deleted_video_provider_reconciliation",
+            {
+                "p_job_id": claim["job_id"],
+                "p_lease_token": lease_token,
+                "p_next_state": next_state,
+                "p_delay_seconds": delay,
+            },
+            retry_transient=True,
+        )
+        return {"handled": True, "result": result if released else "lease_lost"}
+
+    async def _begin_provider_dispatch(self, *, user_id: str, job_id: str) -> None:
+        # The token makes an uncertain RPC response retry-safe without letting
+        # another request dispatch the same paid job a second time.
+        try:
+            allowed = await self.db.rpc(
+                "begin_video_provider_dispatch",
+                {
+                    "p_user_id": user_id,
+                    "p_job_id": job_id,
+                    "p_dispatch_token": str(uuid4()),
+                },
+                retry_transient=True,
+            )
+        except Exception as exc:
+            raise VideoServiceError(
+                "Video dispatch could not be confirmed. No provider request was made.",
+                "VIDEO_DISPATCH_UNAVAILABLE", 503, True, True, job_id,
+            ) from exc
+        if not allowed:
+            raise VideoServiceError(
+                "Account deletion started before video dispatch. No provider request was made.",
+                "ACCOUNT_DELETION_IN_PROGRESS", 409, False, True, job_id,
+            )
+
+    async def _record_provider_acceptance(
+        self, *, user_id: str, job_id: str, provider_job_id: str
+    ) -> dict[str, Any]:
+        try:
+            tracked = await self.db.rpc(
+                "record_video_provider_acceptance",
+                {
+                    "p_user_id": user_id,
+                    "p_job_id": job_id,
+                    "p_provider_job_id": provider_job_id,
+                },
+                retry_transient=True,
+            )
+            row = (
+                await self.db.select_one(
+                    "media_jobs",
+                    filters={"id": eq(job_id), "user_id": eq(user_id)},
+                )
+                if tracked else None
+            )
+        except Exception as exc:
+            raise VideoServiceError(
+                "The provider accepted this video, but tracking needs reconciliation.",
+                "VIDEO_JOB_TRACKING_FAILED", 503, True, False, job_id,
+            ) from exc
+        if not row:
+            # The independent content-free claim retains the provider ID even
+            # if deletion cascaded media_jobs while the HTTP call was in flight.
+            raise VideoServiceError(
+                "The provider accepted this video, but its account is unavailable.",
+                "VIDEO_JOB_TRACKING_FAILED", 503, True, False, job_id,
+            )
+        return row
+
     async def start(
         self,
         *,
@@ -459,6 +624,7 @@ class VideoService:
         idempotency_key: str | None = None,
         charge_receipt: dict[str, Any] | None = None,
         reference_images: list[dict[str, str]] | None = None,
+        claimed_job_id: str,
     ) -> dict[str, Any]:
         engine, resolution, duration_seconds = self.normalize_request(
             engine=engine,
@@ -485,6 +651,9 @@ class VideoService:
 
         existing = await self._idempotent(user_id=user_id, key=key)
         if existing:
+            await self.finish_provider_claim(
+                user_id=user_id, job_id=claimed_job_id, outcome="rejected",
+            )
             return existing
         await self._guard_concurrency(user_id=user_id)
 
@@ -495,7 +664,7 @@ class VideoService:
             provider = "gemini"
             model = self.settings.gemini_video_extend_model if engine == self.EXTENDABLE else self.settings.gemini_video_model
 
-        job_id = str(uuid4())
+        job_id = normalize_chat_id(claimed_job_id)
         row = {
             "id": job_id,
             "user_id": user_id,
@@ -539,8 +708,39 @@ class VideoService:
             },
             "updated_at": _now(),
         }
-        inserted = await self.db.insert("media_jobs", row)
-        row = (inserted or [row])[0]
+        try:
+            inserted = await self.db.insert("media_jobs", row)
+            if not inserted:
+                raise RuntimeError("Video reservation did not return a row")
+            row = inserted[0]
+        except Exception as exc:
+            try:
+                await self.finish_provider_claim(user_id=user_id, job_id=job_id, outcome="rejected")
+            except Exception:
+                pass
+            raise VideoServiceError(
+                "Video reservation failed before the provider was contacted.",
+                "VIDEO_RESERVATION_FAILED", 503, True, True, job_id,
+            ) from exc
+
+        try:
+            await self._begin_provider_dispatch(user_id=user_id, job_id=job_id)
+        except VideoServiceError:
+            try:
+                await self.finish_provider_claim(user_id=user_id, job_id=job_id, outcome="rejected")
+                await self.db.update(
+                    "media_jobs",
+                    {
+                        "status": "failed",
+                        "estimated_provider_cost_cents": 0,
+                        "error_message": "The account became unavailable before provider dispatch.",
+                        "updated_at": _now(),
+                    },
+                    filters={"id": eq(job_id), "user_id": eq(user_id)},
+                )
+            except Exception:
+                pass
+            raise
 
         try:
             if engine == self.CINEMATIC:
@@ -565,20 +765,33 @@ class VideoService:
                     reference_images=references if engine == self.EXTENDABLE else None,
                 )
         except ProviderError as exc:
-            # No provider task was accepted. Preserve a diagnostic job row but
-            # remove the reserved provider cost so circuit breakers reflect spend.
+            # A timeout or malformed success can mean the provider accepted
+            # work without returning an ID. Never claim such a job was rejected
+            # or automatically refund/retry it.
+            unknown = not exc.refund_eligible
+            try:
+                await self.finish_provider_claim(
+                    user_id=user_id,
+                    job_id=job_id,
+                    outcome="unknown" if unknown else "rejected",
+                )
+            except Exception:
+                pass
             try:
                 await self.db.update(
                     "media_jobs",
                     {
                         "status": "failed",
                         "error_message": exc.message[:500],
-                        "estimated_provider_cost_cents": 0,
+                        "estimated_provider_cost_cents": (
+                            row["estimated_provider_cost_cents"] if unknown else 0
+                        ),
                         "metadata": {
                             **(row.get("metadata") or {}),
-                            "providerAccepted": False,
+                            "providerAccepted": None if unknown else False,
                             "providerFailureCode": exc.failure_code or exc.code,
                             "refundEligible": bool(exc.refund_eligible),
+                            "providerStartOutcomeUnknown": unknown,
                         },
                         "updated_at": _now(),
                     },
@@ -590,36 +803,9 @@ class VideoService:
             mapped.failed_job_id = job_id
             raise mapped from exc
 
-        try:
-            updated = await self.db.update(
-                "media_jobs",
-                {
-                    "provider_job_id": provider_job_id,
-                    "status": "processing",
-                    "metadata": {**(row.get("metadata") or {}), "providerAccepted": True},
-                    "updated_at": _now(),
-                },
-                filters={"id": eq(job_id), "user_id": eq(user_id)},
-            )
-        except Exception as exc:
-            # The provider accepted work and may bill it. Do not automatically
-            # refund Ask Crump credits if persistence fails after that boundary.
-            raise VideoServiceError(
-                "The video provider accepted the job, but Ask Crump could not persist its tracking state.",
-                "VIDEO_JOB_TRACKING_FAILED",
-                503,
-                True,
-                False,
-            ) from exc
-        if not updated:
-            raise VideoServiceError(
-                "The video provider accepted the job, but Ask Crump could not persist its tracking state.",
-                "VIDEO_JOB_TRACKING_FAILED",
-                503,
-                True,
-                False,
-            )
-        return updated[0]
+        return await self._record_provider_acceptance(
+            user_id=user_id, job_id=job_id, provider_job_id=provider_job_id,
+        )
 
     def _continuation_storage_safe(self, row: dict[str, Any]) -> bool:
         metadata = row.get("metadata") or {}
@@ -674,10 +860,14 @@ class VideoService:
         prompt: str,
         idempotency_key: str | None = None,
         charge_receipt: dict[str, Any] | None = None,
+        claimed_job_id: str,
     ) -> dict[str, Any]:
         key = " ".join(str(idempotency_key or "").split()).strip()[:160] or None
         existing = await self._idempotent(user_id=user_id, key=key)
         if existing:
+            await self.finish_provider_claim(
+                user_id=user_id, job_id=claimed_job_id, outcome="rejected",
+            )
             return existing
 
         parent = await self.validate_continuation_parent(user_id=user_id, job_id=parent_job_id)
@@ -689,7 +879,7 @@ class VideoService:
         parent_duration = int(parent.get("duration_seconds") or 8)
         parent_sequence = int(parent.get("sequence_index") or 0)
         root_job_id = str(parent.get("root_job_id") or parent.get("id"))
-        job_id = str(uuid4())
+        job_id = normalize_chat_id(claimed_job_id)
         row = {
             "id": job_id,
             "user_id": user_id,
@@ -723,8 +913,39 @@ class VideoService:
             "metadata": {"refundEligible": True, "providerAccepted": False},
             "updated_at": _now(),
         }
-        inserted = await self.db.insert("media_jobs", row)
-        row = (inserted or [row])[0]
+        try:
+            inserted = await self.db.insert("media_jobs", row)
+            if not inserted:
+                raise RuntimeError("Video continuation reservation did not return a row")
+            row = inserted[0]
+        except Exception as exc:
+            try:
+                await self.finish_provider_claim(user_id=user_id, job_id=job_id, outcome="rejected")
+            except Exception:
+                pass
+            raise VideoServiceError(
+                "Video continuation reservation failed before the provider was contacted.",
+                "VIDEO_RESERVATION_FAILED", 503, True, True, job_id,
+            ) from exc
+
+        try:
+            await self._begin_provider_dispatch(user_id=user_id, job_id=job_id)
+        except VideoServiceError:
+            try:
+                await self.finish_provider_claim(user_id=user_id, job_id=job_id, outcome="rejected")
+                await self.db.update(
+                    "media_jobs",
+                    {
+                        "status": "failed",
+                        "estimated_provider_cost_cents": 0,
+                        "error_message": "The account became unavailable before provider dispatch.",
+                        "updated_at": _now(),
+                    },
+                    filters={"id": eq(job_id), "user_id": eq(user_id)},
+                )
+            except Exception:
+                pass
+            raise
 
         try:
             provider_job_id = await self.gemini.start(
@@ -736,18 +957,30 @@ class VideoService:
                 video_reference=str(parent.get("provider_asset_reference") or ""),
             )
         except ProviderError as exc:
+            unknown = not exc.refund_eligible
+            try:
+                await self.finish_provider_claim(
+                    user_id=user_id,
+                    job_id=job_id,
+                    outcome="unknown" if unknown else "rejected",
+                )
+            except Exception:
+                pass
             try:
                 await self.db.update(
                     "media_jobs",
                     {
                         "status": "failed",
                         "error_message": exc.message[:500],
-                        "estimated_provider_cost_cents": 0,
+                        "estimated_provider_cost_cents": (
+                            row["estimated_provider_cost_cents"] if unknown else 0
+                        ),
                         "metadata": {
                             **(row.get("metadata") or {}),
-                            "providerAccepted": False,
+                            "providerAccepted": None if unknown else False,
                             "providerFailureCode": exc.failure_code or exc.code,
                             "refundEligible": bool(exc.refund_eligible),
+                            "providerStartOutcomeUnknown": unknown,
                         },
                         "updated_at": _now(),
                     },
@@ -759,34 +992,9 @@ class VideoService:
             mapped.failed_job_id = job_id
             raise mapped from exc
 
-        try:
-            updated = await self.db.update(
-                "media_jobs",
-                {
-                    "provider_job_id": provider_job_id,
-                    "status": "processing",
-                    "metadata": {**(row.get("metadata") or {}), "providerAccepted": True},
-                    "updated_at": _now(),
-                },
-                filters={"id": eq(job_id), "user_id": eq(user_id)},
-            )
-        except Exception as exc:
-            raise VideoServiceError(
-                "The video provider accepted the continuation, but Ask Crump could not persist its tracking state.",
-                "VIDEO_JOB_TRACKING_FAILED",
-                503,
-                True,
-                False,
-            ) from exc
-        if not updated:
-            raise VideoServiceError(
-                "The video provider accepted the continuation, but Ask Crump could not persist its tracking state.",
-                "VIDEO_JOB_TRACKING_FAILED",
-                503,
-                True,
-                False,
-            )
-        return updated[0]
+        return await self._record_provider_acceptance(
+            user_id=user_id, job_id=job_id, provider_job_id=provider_job_id,
+        )
 
     async def _mark_failed(
         self,
@@ -822,6 +1030,41 @@ class VideoService:
         row = await self.get(user_id=user_id, job_id=job_id)
         if row.get("status") in {"ready", "failed"}:
             return row
+
+        if str(row.get("provider_job_id") or "").startswith("pending:"):
+            claim = await self.db.select_one(
+                "video_provider_start_claims",
+                columns="state,provider_job_id",
+                filters={"job_id": eq(row["id"]), "user_id": eq(user_id)},
+            )
+            if (
+                claim and claim.get("state") == "accepted"
+                and claim.get("provider_job_id")
+            ):
+                updated = await self.db.update(
+                    "media_jobs",
+                    {
+                        "provider_job_id": claim["provider_job_id"],
+                        "status": "processing",
+                        "metadata": {
+                            **(row.get("metadata") or {}),
+                            "providerAccepted": True,
+                        },
+                        "updated_at": _now(),
+                    },
+                    filters={"id": eq(row["id"]), "user_id": eq(user_id)},
+                    retry_transient=True,
+                )
+                if not updated:
+                    raise VideoServiceError(
+                        "Video tracking is still being reconciled.",
+                        "VIDEO_JOB_TRACKING_FAILED", 503, True, False, row["id"],
+                    )
+                row = updated[0]
+            else:
+                # Never send the local pending:<uuid> placeholder to a
+                # provider status endpoint.
+                return row
 
         provider_name = str(row.get("provider") or "gemini").lower()
         provider = self.runway if provider_name == "runway" else self.gemini
@@ -932,6 +1175,22 @@ class VideoService:
 
     async def public_job(self, *, user_id: str, row: dict[str, Any]) -> dict[str, Any]:
         payload = self._public_base(row)
+        metadata = row.get("metadata") or {}
+        pending_provider_id = str(row.get("provider_job_id") or "").startswith("pending:")
+        claim = (
+            await self.db.select_one(
+                "video_provider_start_claims",
+                columns="state,provider_job_id",
+                filters={"job_id": eq(row["id"]), "user_id": eq(user_id)},
+            )
+            if pending_provider_id or metadata.get("providerStartOutcomeUnknown")
+            else None
+        )
+        payload["reconciliationPending"] = bool(
+            (claim and claim.get("state") in {"dispatching", "unknown"})
+            or (claim and claim.get("state") == "accepted" and pending_provider_id)
+            or (pending_provider_id and claim is None)
+        )
         payload["canContinue"] = self._continuation_available(row)
         payload["continuationWindowHours"] = 48 if payload["canContinue"] else None
         payload["attribution"] = "Powered by Runway" if row.get("provider") == "runway" else None
