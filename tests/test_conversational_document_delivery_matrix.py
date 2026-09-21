@@ -154,9 +154,20 @@ def delivery(monkeypatch):
         )
 
     async def prepare(_user_id, payload, **_kwargs):
+        creation_intent = None
+        if payload.get("artifactFormat") == "xlsx":
+            creation_intent = {
+                "kind": "video",
+                "stage": "execute",
+                "confidence": 0.9,
+                "brief": str(payload.get("message") or ""),
+                "question": "",
+                "title": "",
+                "format": "",
+            }
         return PreparedRequest(
             payload=dict(payload), requested_mode="auto", effective_mode="balanced",
-            verification_level="off", route="chat", creation_intent=None, user_tier="free",
+            verification_level="off", route="chat", creation_intent=creation_intent, user_tier="free",
         )
 
     async def verify_answer(*, result, **_kwargs):
@@ -201,24 +212,34 @@ def delivery(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    ("format_name", "message", "history", "category"),
+    ("format_name", "message", "history", "category", "explicit_format"),
     [
-        ("docx", "Write a decision memo and deliver it as a Word document.", [], "document"),
-        ("pdf", "Write a decision memo and deliver it as a PDF.", [], "pdf"),
+        ("docx", "Write a decision memo and deliver it as a Word document.", [], "document", None),
+        ("pdf", "Write a decision memo and deliver it as a PDF.", [], "pdf", None),
         ("pptx", "Can you export it?", [
             {"role": "user", "content": "Build a presentation for the product launch."},
             {"role": "assistant", "content": "Here is the completed slide narrative."},
-        ], "presentation"),
+        ], "presentation", None),
+        (
+            "xlsx",
+            "Create a production budget for this video campaign.",
+            [],
+            "spreadsheet",
+            "xlsx",
+        ),
     ],
 )
 def test_chat_persists_owned_artifact_and_delivers_private_download(
-    delivery, format_name, message, history, category,
+    delivery, format_name, message, history, category, explicit_format,
 ):
     client, database, files = delivery
+    payload = {"chatId": CHAT_ID, "messageId": MESSAGE_ID, "message": message, "history": history}
+    if explicit_format:
+        payload["artifactFormat"] = explicit_format
     response = client.post(
         "/api/chat",
         headers={"x-fixture-owner": OWNER},
-        json={"chatId": CHAT_ID, "messageId": MESSAGE_ID, "message": message, "history": history},
+        json=payload,
     )
 
     assert response.status_code == 200, response.text
